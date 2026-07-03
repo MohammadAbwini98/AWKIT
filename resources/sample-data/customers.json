@@ -1,0 +1,11 @@
+{
+  "customers": [
+    {
+      "firstName": "Mohammad",
+      "lastName": "Abwini",
+      "email": "mohammad@example.com",
+      "country": "JO",
+      "accountType": "BUSINESS"
+    }
+  ]
+}

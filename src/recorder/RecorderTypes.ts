@@ -1,0 +1,43 @@
+import type { LocatorQuality } from "../profiles/FlowProfile";
+
+export type { LocatorQuality } from "../profiles/FlowProfile";
+
+export interface RecordedActionLocator {
+  strategy: string;
+  value: string;
+  name?: string;
+  /** For role/text strategies: match the accessible name/text exactly. */
+  exact?: boolean;
+  /** Uniqueness/quality metadata computed at record time. */
+  quality?: LocatorQuality;
+}
+
+export interface RecordedAction {
+  id: string;
+  type: string;
+  name: string;
+  locator?: RecordedActionLocator;
+  valueSource?: {
+    type: string;
+    value: string;
+  };
+  /**
+   * For synthetic `wait` actions inserted when "capture waiting time" is enabled: the measured
+   * think-time (ms) the user paused before the following action. Saved as a fixed-time wait step.
+   */
+  waitMs?: number;
+}
+
+/** A URL captured during a recording session. Sensitive query values are masked before storage. */
+export interface RecordedUrl {
+  id: string;
+  /** Full URL with sensitive query values masked (e.g. `?token=***`). */
+  url: string;
+  title?: string;
+  /** ISO timestamp when the URL was recorded. */
+  timestamp: string;
+  /** Event/source type: manual_url_entry | navigation | new_tab | redirect. */
+  source: string;
+  /** Recording session id (stable for one start→stop session). */
+  sessionId?: string;
+}

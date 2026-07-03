@@ -1,0 +1,97 @@
+{
+  "id": "mock-login-flow",
+  "name": "Mock — Login Flow",
+  "description": "Logs into the mock site (/login → /form).",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Login",
+      "url": "http://localhost:4321/login",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/login"
+      }
+    },
+    {
+      "id": "user",
+      "type": "fill",
+      "name": "Username",
+      "locator": {
+        "strategy": "id",
+        "value": "username"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "user1"
+      }
+    },
+    {
+      "id": "pass",
+      "type": "fill",
+      "name": "Password",
+      "locator": {
+        "strategy": "id",
+        "value": "password"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "password1"
+      }
+    },
+    {
+      "id": "login",
+      "type": "click",
+      "name": "Login",
+      "locator": {
+        "strategy": "id",
+        "value": "loginButton"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "login-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "login-e1",
+      "source": "goto",
+      "target": "user",
+      "type": "success"
+    },
+    {
+      "id": "login-e2",
+      "source": "user",
+      "target": "pass",
+      "type": "success"
+    },
+    {
+      "id": "login-e3",
+      "source": "pass",
+      "target": "login",
+      "type": "success"
+    },
+    {
+      "id": "login-e4",
+      "source": "login",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

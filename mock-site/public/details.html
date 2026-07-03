@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site — Details (New Tab)</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1 id="routeChangeTargetTitle">Details Tab</h1>
+      <p>This page opened in a new tab. Automation must switch context here before interacting.</p>
+      <div class="field">
+        <label for="routeChangeTargetInput">Reference code</label>
+        <input id="routeChangeTargetInput" name="routeChangeTargetInput" type="text" />
+      </div>
+      <div class="actions">
+        <button id="routeChangeTargetSubmit" type="button">Save reference</button>
+      </div>
+      <p id="routeChangeResult"></p>
+    </main>
+    <script>
+      document.getElementById("routeChangeTargetSubmit").addEventListener("click", function () {
+        var value = document.getElementById("routeChangeTargetInput").value;
+        document.getElementById("routeChangeResult").textContent = "Saved: " + value;
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "appId": "com.webflowstudio.app",
+  "productName": "WebFlow Studio",
+  "directories": {
+    "output": "dist",
+    "buildResources": "resources"
+  },
+  "files": [
+    "out/**",
+    "package.json"
+  ],
+  "asarUnpack": [
+    "node_modules/playwright/**",
+    "node_modules/playwright-core/**"
+  ],
+  "extraResources": [
+    {
+      "from": "resources",
+      "to": "resources",
+      "filter": [
+        "**/*",
+        "!icon-source.png",
+        "!icon.png",
+        "!test-fixtures/**"
+      ]
+    },
+    {
+      "from": "vendor",
+      "to": "vendor",
+      "filter": [
+        "**/*"
+      ]
+    }
+  ],
+  "win": {
+    "icon": "resources/icon.ico",
+    "target": [
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      },
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "resources/icon.ico",
+    "uninstallerIcon": "resources/icon.ico"
+  }
+}

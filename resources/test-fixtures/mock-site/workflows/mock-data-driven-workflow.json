@@ -1,0 +1,75 @@
+{
+  "id": "mock-data-driven-workflow",
+  "name": "Mock — Data-Driven Workflow",
+  "description": "Login → Fill Form, bound to the Mock Users data source for per-row runs.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "mock-login-flow",
+      "type": "flowRef",
+      "flowId": "mock-login-flow",
+      "alias": "mock-login-flow",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 140,
+        "y": 180
+      }
+    },
+    {
+      "id": "mock-fill-form-flow",
+      "type": "flowRef",
+      "flowId": "mock-fill-form-flow",
+      "alias": "mock-fill-form-flow",
+      "order": 2,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 460,
+        "y": 180
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "dw-1",
+      "source": "mock-login-flow",
+      "target": "mock-fill-form-flow",
+      "type": "success"
+    }
+  ],
+  "runtimeInputs": [
+    {
+      "key": "path",
+      "label": "Branch Path",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "execution": {
+    "mode": "sequential",
+    "maxConcurrentInstances": 1,
+    "stopOnRequiredFlowFailure": true
+  },
+  "dataSource": {
+    "dataSourceId": "mock-users",
+    "rootArrayPath": "$"
+  }
+}

@@ -1,0 +1,38 @@
+description = "Resume safely from the generic cross-agent handoff."
+
+prompt = """
+Resume safely from docs/ai/HANDOFF.md.
+
+Before editing, read:
+- AGENTS.md
+- docs/ai/PROJECT_BRIEF.md
+- docs/ai/CURRENT_STATE.md
+- docs/ai/HANDOFF.md
+- docs/ai/TASK_LOG.md
+- docs/ai/COMMANDS.md
+- docs/ai/TESTING.md
+- docs/ai/RULES.md
+- docs/ai/SECURITY.md if relevant
+- Any local AGENTS.md files in folders likely to be modified
+
+Inspect current state:
+- Run git status --short --branch when Git metadata is available.
+- Run git diff --stat and git diff when Git metadata is available.
+- If Git metadata is unavailable, record that fact and inspect changed files directly.
+
+Do not edit files yet unless the user explicitly asked to continue implementation immediately.
+
+Reply with:
+- Current repo state
+- What the previous agent completed
+- Remaining work
+- Risks or blockers
+- Files you recommend changing
+- Verification commands to run
+
+Rules:
+- Do not invent project facts.
+- Do not overwrite unrelated local changes.
+- Do not copy secrets, tokens, cookies, passwords, private URLs, credentials, or session values into Markdown.
+- Wait for confirmation before risky or broad changes.
+"""

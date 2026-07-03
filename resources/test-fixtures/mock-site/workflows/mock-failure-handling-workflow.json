@@ -1,0 +1,95 @@
+{
+  "id": "mock-failure-handling-workflow",
+  "name": "Mock — Failure Handling Workflow",
+  "description": "Login → failing assertion → (failure connector) → recovery screenshot.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "mock-login-flow",
+      "type": "flowRef",
+      "flowId": "mock-login-flow",
+      "alias": "mock-login-flow",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 140,
+        "y": 180
+      }
+    },
+    {
+      "id": "mock-assertion-fail-flow",
+      "type": "flowRef",
+      "flowId": "mock-assertion-fail-flow",
+      "alias": "mock-assertion-fail-flow",
+      "order": 2,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 460,
+        "y": 180
+      }
+    },
+    {
+      "id": "mock-screenshot-flow",
+      "type": "flowRef",
+      "flowId": "mock-screenshot-flow",
+      "alias": "mock-screenshot-flow",
+      "order": 3,
+      "required": false,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 780,
+        "y": 180
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "fw-1",
+      "source": "mock-login-flow",
+      "target": "mock-assertion-fail-flow",
+      "type": "success"
+    },
+    {
+      "id": "fw-2",
+      "source": "mock-assertion-fail-flow",
+      "target": "mock-screenshot-flow",
+      "type": "failure"
+    }
+  ],
+  "runtimeInputs": [
+    {
+      "key": "path",
+      "label": "Branch Path",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "execution": {
+    "mode": "sequential",
+    "maxConcurrentInstances": 1,
+    "stopOnRequiredFlowFailure": true
+  }
+}

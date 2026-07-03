@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site — Login</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Login</h1>
+      <p class="hint">Any non-empty username and password are accepted.</p>
+      <form method="POST" action="/login">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required />
+
+        <label class="inline">
+          <input id="rememberMe" name="rememberMe" type="checkbox" value="yes" />
+          Remember me
+        </label>
+
+        <button id="loginButton" type="submit">Login</button>
+      </form>
+    </main>
+  </body>
+</html>

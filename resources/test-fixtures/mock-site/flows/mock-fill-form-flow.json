@@ -1,0 +1,131 @@
+{
+  "id": "mock-fill-form-flow",
+  "name": "Mock — Fill Form Flow",
+  "description": "Fills and submits the mock site form.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/form"
+      }
+    },
+    {
+      "id": "first",
+      "type": "fill",
+      "name": "First Name",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "Mohammad"
+      }
+    },
+    {
+      "id": "last",
+      "type": "fill",
+      "name": "Last Name",
+      "locator": {
+        "strategy": "id",
+        "value": "lastName"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "Test"
+      }
+    },
+    {
+      "id": "email",
+      "type": "fill",
+      "name": "Email",
+      "locator": {
+        "strategy": "id",
+        "value": "email"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "mohammad.test@example.com"
+      }
+    },
+    {
+      "id": "terms",
+      "type": "check",
+      "name": "Accept Terms",
+      "locator": {
+        "strategy": "id",
+        "value": "acceptTerms"
+      }
+    },
+    {
+      "id": "submit",
+      "type": "click",
+      "name": "Submit",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "form-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "form-e1",
+      "source": "goto",
+      "target": "first",
+      "type": "success"
+    },
+    {
+      "id": "form-e2",
+      "source": "first",
+      "target": "last",
+      "type": "success"
+    },
+    {
+      "id": "form-e3",
+      "source": "last",
+      "target": "email",
+      "type": "success"
+    },
+    {
+      "id": "form-e4",
+      "source": "email",
+      "target": "terms",
+      "type": "success"
+    },
+    {
+      "id": "form-e5",
+      "source": "terms",
+      "target": "submit",
+      "type": "success"
+    },
+    {
+      "id": "form-e6",
+      "source": "submit",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

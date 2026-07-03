@@ -1,0 +1,43 @@
+{
+  "id": "login-flow",
+  "name": "Login Flow",
+  "description": "Sample reusable login automation flow.",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start",
+      "position": { "x": 250, "y": 50 },
+      "next": "open-login"
+    },
+    {
+      "id": "open-login",
+      "type": "goto",
+      "name": "Open Login Page",
+      "url": "${BASE_URL}/login",
+      "position": { "x": 250, "y": 170 },
+      "next": "end"
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End",
+      "position": { "x": 250, "y": 290 }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-start-open-login",
+      "source": "start",
+      "target": "open-login",
+      "type": "always"
+    },
+    {
+      "id": "edge-open-login-end",
+      "source": "open-login",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

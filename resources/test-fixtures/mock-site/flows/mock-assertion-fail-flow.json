@@ -1,0 +1,84 @@
+{
+  "id": "mock-assertion-fail-flow",
+  "name": "Mock — Assertion Failure + Recovery Flow",
+  "description": "Intentionally failing assertion routed via a failure connector to a recovery screenshot.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Login",
+      "url": "http://localhost:4321/login",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/login"
+      }
+    },
+    {
+      "id": "assert",
+      "type": "assertText",
+      "name": "Assert (will fail)",
+      "locator": {
+        "strategy": "id",
+        "value": "successMessage"
+      },
+      "timeoutMs": 1000,
+      "onFailure": {
+        "action": "goToFailureEdge",
+        "screenshot": false
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "definitely-not-present"
+      }
+    },
+    {
+      "id": "recover",
+      "type": "screenshot",
+      "name": "Recovery Screenshot",
+      "config": {
+        "fullPage": true,
+        "screenshotName": "failure-recovery"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "a-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "a-e1",
+      "source": "goto",
+      "target": "assert",
+      "type": "success"
+    },
+    {
+      "id": "a-e2",
+      "source": "assert",
+      "target": "recover",
+      "type": "failure"
+    },
+    {
+      "id": "a-e3",
+      "source": "recover",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

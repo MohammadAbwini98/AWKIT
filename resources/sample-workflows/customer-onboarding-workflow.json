@@ -1,0 +1,33 @@
+{
+  "id": "customer-onboarding-workflow",
+  "name": "Customer Onboarding Workflow",
+  "description": "Login, create customer, validate result, then logout.",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "node-login-flow",
+      "type": "flowRef",
+      "flowId": "login-flow",
+      "alias": "Login",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "position": { "x": 140, "y": 120 }
+    }
+  ],
+  "edges": [],
+  "runtimeInputs": [
+    {
+      "key": "selectedAccountType",
+      "label": "Account Type",
+      "type": "dropdown",
+      "required": true,
+      "options": ["BUSINESS", "PERSONAL"]
+    }
+  ],
+  "execution": {
+    "mode": "sequential",
+    "maxConcurrentInstances": 1,
+    "stopOnRequiredFlowFailure": true
+  }
+}

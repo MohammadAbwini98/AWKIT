@@ -1,0 +1,145 @@
+{
+  "id": "mock-route-change-flow",
+  "name": "Mock — Route Change (new tab) Flow",
+  "description": "Opens /details in a new tab, switches the active page to it, fills a field and asserts the result.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/form"
+      }
+    },
+    {
+      "id": "open",
+      "type": "click",
+      "name": "Open Details In New Tab",
+      "locator": {
+        "strategy": "id",
+        "value": "openNewTabButton"
+      }
+    },
+    {
+      "id": "route",
+      "type": "routeChange",
+      "name": "Switch To Details Tab",
+      "config": {
+        "routeMode": "switchToLatestTab",
+        "urlMatch": "contains",
+        "routeWaitUntil": "load"
+      },
+      "timeoutMs": 10000
+    },
+    {
+      "id": "fill",
+      "type": "fill",
+      "name": "Fill Reference",
+      "locator": {
+        "strategy": "id",
+        "value": "routeChangeTargetInput"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "REF-123"
+      }
+    },
+    {
+      "id": "save",
+      "type": "click",
+      "name": "Save Reference",
+      "locator": {
+        "strategy": "id",
+        "value": "routeChangeTargetSubmit"
+      }
+    },
+    {
+      "id": "assert",
+      "type": "assertText",
+      "name": "Assert Result",
+      "locator": {
+        "strategy": "id",
+        "value": "routeChangeResult"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "REF-123"
+      }
+    },
+    {
+      "id": "shot",
+      "type": "screenshot",
+      "name": "Capture Details",
+      "config": {
+        "fullPage": true,
+        "screenshotName": "route-change"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "rc-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "rc-e1",
+      "source": "goto",
+      "target": "open",
+      "type": "success"
+    },
+    {
+      "id": "rc-e2",
+      "source": "open",
+      "target": "route",
+      "type": "success"
+    },
+    {
+      "id": "rc-e3",
+      "source": "route",
+      "target": "fill",
+      "type": "success"
+    },
+    {
+      "id": "rc-e4",
+      "source": "fill",
+      "target": "save",
+      "type": "success"
+    },
+    {
+      "id": "rc-e5",
+      "source": "save",
+      "target": "assert",
+      "type": "success"
+    },
+    {
+      "id": "rc-e6",
+      "source": "assert",
+      "target": "shot",
+      "type": "success"
+    },
+    {
+      "id": "rc-e7",
+      "source": "shot",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

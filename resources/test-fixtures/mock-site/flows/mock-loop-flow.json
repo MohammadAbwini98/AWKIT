@@ -1,0 +1,70 @@
+{
+  "id": "mock-loop-flow",
+  "name": "Mock — Loop (fixed count) Flow",
+  "description": "Fills the first-name field 3 times via a fixed-count loop.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/form"
+      }
+    },
+    {
+      "id": "loop",
+      "type": "loop",
+      "name": "Loop Fill",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "Loop"
+      },
+      "config": {
+        "loopType": "fixedCount",
+        "iterationCount": 3,
+        "loopActionType": "fill",
+        "maxIterations": 100,
+        "loopStopOnFailure": true
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "loop-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "loop-e1",
+      "source": "goto",
+      "target": "loop",
+      "type": "success"
+    },
+    {
+      "id": "loop-e2",
+      "source": "loop",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

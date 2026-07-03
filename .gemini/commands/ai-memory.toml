@@ -1,0 +1,38 @@
+description = "Update and verify repository AI memory files after changes."
+
+prompt = """
+You are maintaining the AI-agent memory system for this repository.
+
+First run this local check and use the result as context:
+
+!{node scripts/ai-memory/check-memory.mjs}
+
+Then inspect recent changes and update only relevant files:
+
+- docs/ai/TASK_LOG.md
+- docs/ai/CURRENT_STATE.md
+- docs/ai/HANDOFF.md
+- docs/ai/FEATURES.md
+- docs/ai/ARCHITECTURE.md
+- docs/ai/COMMANDS.md
+- docs/ai/KNOWN_ISSUES.md
+- docs/ai/DECISIONS.md
+- docs/ai/SECURITY.md
+- docs/ai/TESTING.md
+- AGENTS.md
+- CLAUDE.md
+- GEMINI.md
+
+Rules:
+
+- Always update TASK_LOG.md after implementation work.
+- Update HANDOFF.md when work is paused, blocked, or handed to another agent/tool or human.
+- Update CURRENT_STATE.md when project behavior or status changed.
+- Do not invent project facts.
+- Do not copy secrets.
+- Keep AGENTS.md concise.
+- Put detailed project state inside docs/ai/.
+- Run the memory check again after edits.
+
+Final response must include memory files updated, why each file was updated, verification result, and remaining unknowns.
+"""

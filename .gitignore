@@ -1,0 +1,94 @@
+# === Dependencies ===
+node_modules/
+
+# === Environment / secrets ===
+.env
+.env.*
+!.env.example
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Build outputs ===
+dist/
+build/
+out/
+release/
+.cache/
+.temp/
+tmp/
+temp/
+
+# === Electron / Vite / packaging ===
+.vite/
+electron-builder/
+*.asar
+# Generated timestamped electron-vite configs (source of truth is electron.vite.config.ts)
+electron.vite.config.*.mjs
+
+# === Bundled offline runtime (large binaries — Chromium, native modules, npm cache) ===
+vendor/
+resources/browsers/
+
+# === Playwright ===
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+traces/
+videos/
+
+# === Browser profiles / sessions / auth state (SENSITIVE) ===
+storage-state.json
+auth-state.json
+*.storageState.json
+session-profiles.json
+user-data-dir/
+browser-profiles/
+profiles/
+sessions/
+cookies/
+*.har
+
+# === Runtime-generated data (dev workspace; production data lives in %LOCALAPPDATA%) ===
+screenshots/
+downloads/
+reports/
+instances/
+runtime-inputs/
+storage/
+data/
+
+# === OS / IDE ===
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+
+# === Claude Code local settings (machine-specific; keep shared settings.json) ===
+.claude/settings.local.json
+
+# === Database / local files ===
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# === Coverage ===
+coverage/
+
+# === Package manager cache ===
+.pnpm-store/
+.yarn/
+
+# === Misc backups ===
+*.bak
+package.json.bak.*

@@ -1,0 +1,17 @@
+{
+  "applicationName": "WebFlow Studio",
+  "offlineMode": true,
+  "productionOffline": true,
+  "requiresInternet": false,
+  "requiresGlobalNode": false,
+  "requiresGlobalPlaywright": false,
+  "requiresGlobalBrowser": false,
+  "allowRuntimeDownloads": false,
+  "bundledBrowser": "chromium",
+  "browser": {
+    "type": "chromium",
+    "executablePath": "resources/browsers/chromium/chrome.exe"
+  },
+  "runtimeDataLocation": "Electron userData (fixed under %LOCALAPPDATA%)",
+  "runtimeDataPath": "%LOCALAPPDATA%/WebFlow Studio"
+}

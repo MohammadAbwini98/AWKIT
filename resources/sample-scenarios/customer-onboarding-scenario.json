@@ -1,0 +1,20 @@
+{
+  "id": "customer-onboarding-scenario",
+  "name": "Customer Onboarding Scenario",
+  "description": "Sample scenario chain for future orchestration implementation.",
+  "executionMode": "sequential",
+  "maxParallelFlows": 1,
+  "flows": [
+    {
+      "order": 1,
+      "flowId": "login-flow",
+      "required": true
+    }
+  ],
+  "links": [],
+  "failurePolicy": {
+    "stopOnRequiredFlowFailure": true,
+    "continueOnOptionalFlowFailure": true,
+    "takeScreenshotOnFailure": true
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "id": "mock-route-change-workflow",
+  "name": "Mock — Route Change Workflow",
+  "description": "Login → Route Change flow (open new tab, switch context, validate result).",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "mock-login-flow",
+      "type": "flowRef",
+      "flowId": "mock-login-flow",
+      "alias": "mock-login-flow",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 140,
+        "y": 180
+      }
+    },
+    {
+      "id": "mock-route-change-flow",
+      "type": "flowRef",
+      "flowId": "mock-route-change-flow",
+      "alias": "mock-route-change-flow",
+      "order": 2,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 1000
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 460,
+        "y": 180
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "rcw-1",
+      "source": "mock-login-flow",
+      "target": "mock-route-change-flow",
+      "type": "success"
+    }
+  ],
+  "runtimeInputs": [
+    {
+      "key": "path",
+      "label": "Branch Path",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "A",
+        "B"
+      ]
+    }
+  ],
+  "execution": {
+    "mode": "sequential",
+    "maxConcurrentInstances": 1,
+    "stopOnRequiredFlowFailure": true
+  }
+}

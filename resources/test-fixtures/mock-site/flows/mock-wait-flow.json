@@ -1,0 +1,63 @@
+{
+  "id": "mock-wait-flow",
+  "name": "Mock — Wait For Selector Flow",
+  "description": "Waits for the form first-name field to be visible.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/form"
+      }
+    },
+    {
+      "id": "wait",
+      "type": "wait",
+      "name": "Wait For Field",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "config": {
+        "waitType": "selector"
+      },
+      "timeoutMs": 10000
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "wait-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "wait-e1",
+      "source": "goto",
+      "target": "wait",
+      "type": "success"
+    },
+    {
+      "id": "wait-e2",
+      "source": "wait",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "mock-run-another-flow",
+  "name": "Mock — Run Another Flow",
+  "description": "Calls the Mock Login Flow via a Run Another Flow node (recursion-guarded).",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "child",
+      "type": "runFlow",
+      "name": "Run Login Flow",
+      "flowId": "mock-login-flow",
+      "config": {
+        "targetFlowId": "mock-login-flow",
+        "stopParentOnChildFailure": true
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "child-e0",
+      "source": "start",
+      "target": "child",
+      "type": "success"
+    },
+    {
+      "id": "child-e1",
+      "source": "child",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

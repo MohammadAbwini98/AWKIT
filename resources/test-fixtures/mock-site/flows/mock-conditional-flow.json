@@ -1,0 +1,103 @@
+{
+  "id": "mock-conditional-flow",
+  "name": "Mock — Conditional Branch Flow",
+  "description": "Branches by runtime input `path`: 'A' fills FromA, otherwise FromB.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "goto",
+      "type": "goto",
+      "name": "Open Login",
+      "url": "http://localhost:4321/login",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/login"
+      }
+    },
+    {
+      "id": "cond",
+      "type": "condition",
+      "name": "Check Path",
+      "value": "${runtimeInputs.path} === 'A'"
+    },
+    {
+      "id": "fillA",
+      "type": "fill",
+      "name": "Fill A",
+      "locator": {
+        "strategy": "id",
+        "value": "username"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "FromA"
+      }
+    },
+    {
+      "id": "fillB",
+      "type": "fill",
+      "name": "Fill B",
+      "locator": {
+        "strategy": "id",
+        "value": "username"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "FromB"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "c-e0",
+      "source": "start",
+      "target": "goto",
+      "type": "success"
+    },
+    {
+      "id": "c-e1",
+      "source": "goto",
+      "target": "cond",
+      "type": "success"
+    },
+    {
+      "id": "c-e2",
+      "source": "cond",
+      "target": "fillA",
+      "type": "conditional",
+      "condition": {
+        "expression": "${runtimeInputs.path} === 'A'"
+      }
+    },
+    {
+      "id": "c-e3",
+      "source": "cond",
+      "target": "fillB",
+      "type": "failure"
+    },
+    {
+      "id": "c-e4",
+      "source": "fillA",
+      "target": "end",
+      "type": "success"
+    },
+    {
+      "id": "c-e5",
+      "source": "fillB",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

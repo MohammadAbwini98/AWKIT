@@ -1,0 +1,43 @@
+{
+  "id": "mock-screenshot-flow",
+  "name": "Mock — Screenshot Flow",
+  "description": "Captures a full-page screenshot of the current page.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "shot",
+      "type": "screenshot",
+      "name": "Capture Page",
+      "config": {
+        "fullPage": true,
+        "screenshotName": "mock-page"
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "shot-e0",
+      "source": "start",
+      "target": "shot",
+      "type": "success"
+    },
+    {
+      "id": "shot-e1",
+      "source": "shot",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}

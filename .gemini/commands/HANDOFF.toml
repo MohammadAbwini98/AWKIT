@@ -1,0 +1,36 @@
+description = "Prepare a generic cross-agent handoff for the next AI coding agent or human."
+
+prompt = """
+Prepare the repository for the next AI coding agent or human developer.
+
+Read:
+- AGENTS.md
+- docs/ai/CURRENT_STATE.md
+- docs/ai/HANDOFF.md
+- docs/ai/TASK_LOG.md
+- docs/ai/RULES.md
+- docs/ai/COMMANDS.md
+
+Inspect current state:
+- Run git status --short --branch when Git metadata is available.
+- Run git diff --stat and git diff when Git metadata is available.
+- If Git metadata is unavailable, record that fact and inspect changed files directly.
+
+Update:
+- docs/ai/HANDOFF.md
+- docs/ai/TASK_LOG.md
+- docs/ai/CURRENT_STATE.md only if project behavior, status, commands, architecture, or risks changed.
+
+Handoff content must include current task, completed work, files changed, commands/tests run with results, current state summary, remaining work, known risks/blockers, do-not-touch areas, recommended next step, and required first actions for the next agent.
+
+Rules:
+- Keep it generic for Claude Code, Codex, Gemini, Antigravity, future agents, and humans.
+- Do not invent project facts.
+- Do not copy secrets, tokens, cookies, passwords, private URLs, credentials, or session values into Markdown.
+- Include skipped tests and manual verification gaps.
+
+Then run:
+!{node scripts/ai-memory/check-memory.mjs}
+
+Fix reported issues before finishing. Final response must summarize changed files, checks run, remaining work, and whether docs/ai/HANDOFF.md is ready.
+"""

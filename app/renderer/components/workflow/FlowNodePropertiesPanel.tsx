@@ -1,0 +1,705 @@
+import { useEffect, useState } from "react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import type { Node } from "@xyflow/react";
+import type { FlowDesignerNodeData } from "./flowDesignerTypes";
+import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
+import { getNodeDefinition } from "./flowNodeRegistry";
+import { SearchableSelect } from "../shared/SearchableSelect";
+
+interface DataSourceOption {
+  id: string;
+  name: string;
+}
+
+interface FlowNodePropertiesPanelProps {
+  selectedNode: Node<FlowDesignerNodeData> | null;
+  validationMessages: string[];
+  dataSources: DataSourceOption[];
+  flows: DataSourceOption[];
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onUpdateNode: (nodeId: string, data: Partial<FlowDesignerNodeData>) => void;
+}
+
+export function FlowNodePropertiesPanel({
+  selectedNode,
+  validationMessages,
+  dataSources,
+  flows,
+  collapsed,
+  onToggleCollapsed,
+  onUpdateNode
+}: FlowNodePropertiesPanelProps) {
+  // Saved sessions for the Reuse Session node's dropdown (fetched from the Main process).
+  const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string; targetUrl?: string }[]>([]);
+  const stepType = selectedNode?.data.stepType;
+  useEffect(() => {
+    if (stepType !== "reuseSession") return;
+    let cancelled = false;
+    window.playwrightFlowStudio.session
+      .list()
+      .then((sessions) => {
+        if (cancelled) return;
+        setAvailableSessions(
+          sessions.filter((s) => s.status === "ready").map((s) => ({ id: s.id, name: s.name, targetUrl: s.targetUrl }))
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [stepType]);
+
+  if (collapsed) {
+    return (
+      <aside className="properties-panel collapsed">
+        <button className="icon-button" onClick={onToggleCollapsed} title="Show Node Properties" type="button">
+          <PanelRightOpen size={16} />
+        </button>
+        <span className="panel-rail-label">Node Properties</span>
+      </aside>
+    );
+  }
+
+  const data = selectedNode?.data;
+  const definition = data ? getNodeDefinition(data.stepType) : null;
+  const has = (section: Parameters<NonNullable<typeof definition>["sections"]["includes"]>[0]) =>
+    definition?.sections.includes(section) ?? false;
+  const set = (patch: Partial<FlowDesignerNodeData>) => selectedNode && onUpdateNode(selectedNode.id, patch);
+  const typeErrors = data && definition ? definition.validate(data) : [];
+  // A recorded locator that resolves to multiple elements must not read as "valid".
+  const locatorQualityErrors =
+    data?.locatorQuality && data.locatorQuality.isUnique === false
+      ? [data.locatorQuality.warning ?? `${data.name} locator matches ${data.locatorQuality.matchCount} elements (not unique).`]
+      : [];
+  const kind = data?.valueSourceType === "dynamic" ? "dynamic" : "static";
+
+  return (
+    <aside className="properties-panel">
+      <div className="properties-heading with-action">
+        <div className="properties-heading-text">
+          <h2>Node Properties</h2>
+          <span>
+            {selectedNode ? selectedNode.id : "No node selected"}
+            {definition ? ` · ${definition.category}` : ""}
+          </span>
+        </div>
+        <button className="icon-button" onClick={onToggleCollapsed} title="Collapse properties" type="button">
+          <PanelRightClose size={18} />
+        </button>
+      </div>
+
+      {data && selectedNode && definition ? (
+        <>
+          <details className="property-group" open>
+            <summary>Basic</summary>
+            <section className="property-section">
+              <label>
+                Name
+                <input value={data.name} onChange={(e) => set({ name: e.target.value })} />
+              </label>
+              <label>
+                Description
+                <input value={data.description} onChange={(e) => set({ description: e.target.value })} />
+              </label>
+              <div className="node-size-row">
+                <span>
+                  Size {Math.round(data.width)}×{Math.round(data.height)}
+                </span>
+                <button
+                  className="toolbar-button"
+                  type="button"
+                  title="Reset node size to default"
+                  disabled={data.width === DEFAULT_NODE_WIDTH && data.height === DEFAULT_NODE_HEIGHT}
+                  onClick={() => set({ width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT })}
+                >
+                  Reset size
+                </button>
+              </div>
+            </section>
+          </details>
+
+          {has("locator") ? (
+            <details className="property-group" open>
+              <summary>Locator</summary>
+              <section className="property-section">
+                <label>
+                  Strategy
+                  <select value={data.locatorStrategy} onChange={(e) => set({ locatorStrategy: e.target.value as FlowDesignerNodeData["locatorStrategy"], locatorQuality: undefined })}>
+                    <option value="role">Role</option>
+                    <option value="label">Label</option>
+                    <option value="placeholder">Placeholder</option>
+                    <option value="text">Text</option>
+                    <option value="testId">Test ID</option>
+                    <option value="id">ID</option>
+                    <option value="css">CSS</option>
+                    <option value="xpath">XPath</option>
+                    <option value="tagName">Tag Name</option>
+                  </select>
+                </label>
+                <label>
+                  Value
+                  {/* Editing the value invalidates recorder uniqueness metadata. */}
+                  <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value, locatorQuality: undefined })} />
+                </label>
+                <label>
+                  Accessible Name
+                  <input value={data.locatorName} onChange={(e) => set({ locatorName: e.target.value, locatorQuality: undefined })} />
+                </label>
+                {data.locatorStrategy === "role" || data.locatorStrategy === "text" || data.locatorStrategy === "label" || data.locatorStrategy === "placeholder" ? (
+                  <label className="inline-check">
+                    <input type="checkbox" checked={data.locatorExact} onChange={(e) => set({ locatorExact: e.target.checked })} />
+                    Match exactly
+                  </label>
+                ) : null}
+                {data.locatorQuality ? (
+                  <div className={`locator-quality ${data.locatorQuality.isUnique ? "ok" : "warn"}`}>
+                    <strong>
+                      {data.locatorQuality.isUnique
+                        ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence`
+                        : `Locator warning: matches ${data.locatorQuality.matchCount} elements`}
+                    </strong>
+                    {data.locatorQuality.warning ? <span>{data.locatorQuality.warning}</span> : null}
+                    <span className="locator-quality-meta">
+                      Strategy: {data.locatorQuality.strategy}
+                      {typeof data.locatorQuality.candidateCount === "number" ? ` · ${data.locatorQuality.candidateCount} candidates evaluated` : ""}
+                    </span>
+                  </div>
+                ) : null}
+              </section>
+            </details>
+          ) : null}
+
+          {has("select") ? (
+            <details className="property-group" open>
+              <summary>Selection</summary>
+              <section className="property-section">
+                <label>
+                  Selection mode
+                  <select value={data.selectionMode} onChange={(e) => set({ selectionMode: e.target.value as FlowDesignerNodeData["selectionMode"] })}>
+                    <option value="value">By value</option>
+                    <option value="label">By label</option>
+                    <option value="index">By index</option>
+                  </select>
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.selectMultiple} onChange={(e) => set({ selectMultiple: e.target.checked })} />
+                  Allow multiple selection
+                </label>
+              </section>
+            </details>
+          ) : null}
+
+          {has("value") ? (
+            <details className="property-group" open>
+              <summary>Value Source</summary>
+              <section className="property-section">
+                <label>
+                  Type
+                  <select value={kind} onChange={(e) => set({ valueSourceType: e.target.value as FlowDesignerNodeData["valueSourceType"] })}>
+                    <option value="static">Static</option>
+                    <option value="dynamic">Dynamic</option>
+                  </select>
+                </label>
+                {kind === "static" ? (
+                  <label>
+                    Text Value
+                    <input value={data.value} onChange={(e) => set({ value: e.target.value })} />
+                  </label>
+                ) : (
+                  <>
+                    <label>
+                      Data Source
+                      <select value={data.dataSourceScope} onChange={(e) => set({ dataSourceScope: e.target.value as FlowDesignerNodeData["dataSourceScope"] })}>
+                        <option value="workflow">Use workflow data source</option>
+                        <option value="specific">Choose specific data source</option>
+                      </select>
+                    </label>
+                    {data.dataSourceScope === "specific" ? (
+                      <label>
+                        JSON Data Source
+                        <SearchableSelect
+                          ariaLabel="JSON data source"
+                          value={data.dataSourceId}
+                          placeholder="Select data source…"
+                          options={dataSources.map((s) => ({ value: s.id, label: s.name, description: s.id }))}
+                          onChange={(next) => set({ dataSourceId: next })}
+                        />
+                      </label>
+                    ) : (
+                      <span className="form-message">Resolved from the workflow's data source at run time.</span>
+                    )}
+                    <label>
+                      Key Name
+                      <input value={data.keyName} placeholder="email" onChange={(e) => set({ keyName: e.target.value })} />
+                    </label>
+                  </>
+                )}
+                {data.stepType === "fill" ? (
+                  <label className="inline-check">
+                    <input type="checkbox" checked={data.clearBeforeFill} onChange={(e) => set({ clearBeforeFill: e.target.checked })} />
+                    Clear before fill
+                  </label>
+                ) : null}
+              </section>
+            </details>
+          ) : null}
+
+          {has("wait") ? (
+            <details className="property-group" open>
+              <summary>Wait</summary>
+              <section className="property-section">
+                <label>
+                  Wait type
+                  <select value={data.waitType} onChange={(e) => set({ waitType: e.target.value as FlowDesignerNodeData["waitType"] })}>
+                    <option value="time">Fixed time</option>
+                    <option value="selector">Selector visible</option>
+                    <option value="navigation">Navigation</option>
+                    <option value="networkIdle">Network idle</option>
+                    <option value="textVisible">Text visible</option>
+                  </select>
+                </label>
+                {data.waitType === "time" ? (
+                  <label>
+                    Duration (ms)
+                    <input type="number" min={0} value={data.timeoutMs} onChange={(e) => set({ timeoutMs: Number(e.target.value) })} />
+                  </label>
+                ) : data.waitType === "selector" ? (
+                  <label>
+                    Selector
+                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                  </label>
+                ) : data.waitType === "textVisible" ? (
+                  <label>
+                    Text
+                    <input value={data.value} onChange={(e) => set({ value: e.target.value })} />
+                  </label>
+                ) : (
+                  <span className="form-message">Waits for the page to reach this state.</span>
+                )}
+              </section>
+            </details>
+          ) : null}
+
+          {has("assertion") ? (
+            <details className="property-group" open>
+              <summary>Assertion</summary>
+              <section className="property-section">
+                <label>
+                  Assertion type
+                  <select value={data.assertionType} onChange={(e) => set({ assertionType: e.target.value as FlowDesignerNodeData["assertionType"] })}>
+                    <option value="visible">Element visible</option>
+                    <option value="text">Text</option>
+                    <option value="value">Input value</option>
+                    <option value="count">Element count</option>
+                    <option value="url">Page URL</option>
+                  </select>
+                </label>
+                {data.assertionType !== "visible" ? (
+                  <>
+                    <label>
+                      Comparison
+                      <select value={data.comparisonOperator} onChange={(e) => set({ comparisonOperator: e.target.value as FlowDesignerNodeData["comparisonOperator"] })}>
+                        <option value="equals">Equals</option>
+                        <option value="contains">Contains</option>
+                        <option value="greaterThan">Greater than</option>
+                        <option value="lessThan">Less than</option>
+                      </select>
+                    </label>
+                    <label>
+                      Expected value
+                      <input value={data.expectedValue} onChange={(e) => set({ expectedValue: e.target.value })} />
+                    </label>
+                  </>
+                ) : null}
+              </section>
+            </details>
+          ) : null}
+
+          {has("screenshot") ? (
+            <details className="property-group" open>
+              <summary>Screenshot</summary>
+              <section className="property-section">
+                <label>
+                  Screenshot name
+                  <input value={data.screenshotName} placeholder="step-name (optional)" onChange={(e) => set({ screenshotName: e.target.value })} />
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.fullPage} onChange={(e) => set({ fullPage: e.target.checked })} />
+                  Capture full page
+                </label>
+                <label>
+                  Element locator (optional)
+                  <input value={data.locatorValue} placeholder="leave empty for whole page" onChange={(e) => set({ locatorValue: e.target.value })} />
+                </label>
+                <span className="form-message">Saved under the configured screenshots path and attached to the run report.</span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("scroll") ? (
+            <details className="property-group" open>
+              <summary>Scroll</summary>
+              <section className="property-section">
+                <label>
+                  Scroll target
+                  <select value={data.scrollTarget} onChange={(e) => set({ scrollTarget: e.target.value as FlowDesignerNodeData["scrollTarget"] })}>
+                    <option value="page">Page</option>
+                    <option value="element">Element</option>
+                  </select>
+                </label>
+                {data.scrollTarget === "element" ? (
+                  <label>
+                    Element locator
+                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                  </label>
+                ) : null}
+                <label>
+                  Direction
+                  <select value={data.scrollDirection} onChange={(e) => set({ scrollDirection: e.target.value as FlowDesignerNodeData["scrollDirection"] })}>
+                    <option value="down">Down</option>
+                    <option value="up">Up</option>
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+                <label>
+                  Amount (px)
+                  <input type="number" min={0} value={data.scrollAmount} onChange={(e) => set({ scrollAmount: Number(e.target.value) })} />
+                </label>
+              </section>
+            </details>
+          ) : null}
+
+          {has("loop") ? (
+            <details className="property-group" open>
+              <summary>Loop</summary>
+              <section className="property-section">
+                <label>
+                  Loop type
+                  <select value={data.loopType} onChange={(e) => set({ loopType: e.target.value as FlowDesignerNodeData["loopType"] })}>
+                    <option value="fixedCount">Fixed count</option>
+                    <option value="elements">Over elements</option>
+                    <option value="dataRows">Over data rows</option>
+                  </select>
+                </label>
+                {data.loopType === "fixedCount" ? (
+                  <label>
+                    Iterations
+                    <input type="number" min={1} value={data.iterationCount} onChange={(e) => set({ iterationCount: Number(e.target.value) })} />
+                  </label>
+                ) : data.loopType === "elements" ? (
+                  <label>
+                    Element locator
+                    <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value })} />
+                  </label>
+                ) : (
+                  <span className="form-message">Iterates the workflow data source rows.</span>
+                )}
+                <label>
+                  Loop action
+                  <select value={data.loopActionType} onChange={(e) => set({ loopActionType: e.target.value as FlowDesignerNodeData["loopActionType"] })}>
+                    <option value="click">Click</option>
+                    <option value="fill">Fill</option>
+                    <option value="scroll">Scroll</option>
+                    <option value="delete">Delete</option>
+                    <option value="customFlow">Custom flow</option>
+                  </select>
+                </label>
+                <label>
+                  Max iterations (guard)
+                  <input type="number" min={1} value={data.maxIterations} onChange={(e) => set({ maxIterations: Number(e.target.value) })} />
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.loopStopOnFailure} onChange={(e) => set({ loopStopOnFailure: e.target.checked })} />
+                  Stop on failure
+                </label>
+              </section>
+            </details>
+          ) : null}
+
+          {has("runFlow") ? (
+            <details className="property-group" open>
+              <summary>Run Another Flow</summary>
+              <section className="property-section">
+                <label>
+                  Target flow
+                  <SearchableSelect
+                    ariaLabel="Target flow"
+                    value={data.targetFlowId}
+                    placeholder="Select a flow…"
+                    options={flows.map((f) => ({ value: f.id, label: f.name, description: f.id }))}
+                    onChange={(next) => set({ targetFlowId: next })}
+                  />
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.stopParentOnChildFailure} onChange={(e) => set({ stopParentOnChildFailure: e.target.checked })} />
+                  Stop parent flow if child fails
+                </label>
+                <span className="form-message">Recursion is guarded (max nested depth 5; self-calls are blocked at run time).</span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("condition") ? (
+            <details className="property-group" open>
+              <summary>Condition</summary>
+              <section className="property-section">
+                <label>
+                  Expression
+                  <input value={data.value} placeholder="${outputs.flow.ok} === 'true'" onChange={(e) => set({ value: e.target.value })} />
+                </label>
+              </section>
+            </details>
+          ) : null}
+
+          {has("routeChange") ? (
+            <details className="property-group" open>
+              <summary>Route Change</summary>
+              <section className="property-section">
+                <label>
+                  Mode
+                  <select value={data.routeMode} onChange={(e) => set({ routeMode: e.target.value as FlowDesignerNodeData["routeMode"] })}>
+                    <option value="switchToUrl">Switch to existing page by URL</option>
+                    <option value="switchToLatestTab">Switch to latest opened tab</option>
+                    <option value="waitForNewTab">Wait for a new tab then switch</option>
+                    <option value="navigateCurrentPage">Navigate current page to URL</option>
+                  </select>
+                </label>
+                {data.routeMode === "switchToUrl" ? (
+                  <label>
+                    URL match
+                    <select value={data.urlMatch} onChange={(e) => set({ urlMatch: e.target.value as FlowDesignerNodeData["urlMatch"] })}>
+                      <option value="contains">Contains</option>
+                      <option value="exact">Exact</option>
+                      <option value="regex">Regex</option>
+                    </select>
+                  </label>
+                ) : null}
+                {data.routeMode === "switchToUrl" || data.routeMode === "navigateCurrentPage" ? (
+                  <label>
+                    URL value
+                    <input value={data.value} placeholder="${BASE_URL}/details" onChange={(e) => set({ value: e.target.value })} />
+                  </label>
+                ) : (
+                  <span className="form-message">
+                    {data.routeMode === "waitForNewTab"
+                      ? "Waits up to the timeout for a new tab to open, then targets it."
+                      : "Targets the most recently opened tab. Subsequent steps use the new page."}
+                  </span>
+                )}
+                <label>
+                  Wait until
+                  <select value={data.routeWaitUntil} onChange={(e) => set({ routeWaitUntil: e.target.value as FlowDesignerNodeData["routeWaitUntil"] })}>
+                    <option value="load">Load</option>
+                    <option value="domcontentloaded">DOM content loaded</option>
+                    <option value="networkidle">Network idle</option>
+                  </select>
+                </label>
+                <span className="form-message">After this step, later nodes target the switched page/tab.</span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("session") ? (
+            <details className="property-group" open>
+              <summary>Save Session</summary>
+              <section className="property-section">
+                <label>
+                  Session name
+                  <input value={data.sessionName} placeholder="my-login-session" onChange={(e) => set({ sessionName: e.target.value })} />
+                </label>
+                <label>
+                  Target folder (optional)
+                  <input
+                    value={data.sessionFolder}
+                    placeholder="Leave empty for the default sessions folder"
+                    onChange={(e) => set({ sessionFolder: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Capture scope
+                  <select value={data.captureScope} onChange={(e) => set({ captureScope: e.target.value as FlowDesignerNodeData["captureScope"] })}>
+                    <option value="context">Current browser context</option>
+                    <option value="origin">Current origin only</option>
+                  </select>
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.overwriteSession} onChange={(e) => set({ overwriteSession: e.target.checked })} />
+                  Overwrite existing session
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.maskSession} onChange={(e) => set({ maskSession: e.target.checked })} />
+                  Mask sensitive output in logs
+                </label>
+                <span className="form-message">
+                  Saves cookies + localStorage to the runtime sessions folder ($LOCALAPPDATA/WebFlow Studio/sessions). Session
+                  files are sensitive local files — never committed or printed.
+                </span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("protectedLogin") ? (
+            <details className="property-group" open>
+              <summary>Protected Login Handoff</summary>
+              <section className="property-section">
+                <label>
+                  Provider
+                  <select value={data.loginProvider} onChange={(e) => set({ loginProvider: e.target.value as FlowDesignerNodeData["loginProvider"] })}>
+                    <option value="auto">Auto detect</option>
+                    <option value="google">Google</option>
+                    <option value="microsoft">Microsoft</option>
+                    <option value="okta">Okta</option>
+                    <option value="auth0">Auth0</option>
+                    <option value="duo">Duo</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label>
+                  Handoff mode
+                  <select value={data.handoffMode} onChange={(e) => set({ handoffMode: e.target.value as FlowDesignerNodeData["handoffMode"] })}>
+                    <option value="pauseAndAsk">Pause and ask user</option>
+                    <option value="openSystemBrowserOAuth">Open system browser OAuth</option>
+                    <option value="useSavedSession">Use saved session</option>
+                    <option value="useTestSession">Use test session</option>
+                    <option value="cancel">Cancel with clear error</option>
+                  </select>
+                </label>
+                <label>
+                  Instructions to user
+                  <textarea
+                    rows={3}
+                    value={data.handoffInstructions}
+                    placeholder="Explain what the user should do (required for 'Pause and ask user')."
+                    onChange={(e) => set({ handoffInstructions: e.target.value })}
+                  />
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.detectBeforeHandoff} onChange={(e) => set({ detectBeforeHandoff: e.target.checked })} />
+                  Run protected-login detection first
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.allowRetry} onChange={(e) => set({ allowRetry: e.target.checked })} />
+                  Allow retry
+                </label>
+                <label>
+                  Timeout (ms, 0 = disabled)
+                  <input type="number" min={0} value={data.handoffTimeoutMs} onChange={(e) => set({ handoffTimeoutMs: Number(e.target.value) })} />
+                </label>
+                <span className="form-message">
+                  This node pauses the run and shows approved handoff options. WebFlow Studio never bypasses CAPTCHA, MFA, or
+                  bot-detection. Unsupported modes (OAuth, saved/test session) are shown disabled with a reason.
+                </span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("reuseSession") ? (
+            <details className="property-group" open>
+              <summary>Saved Session</summary>
+              <section className="property-section">
+                <label>
+                  Mode
+                  <select
+                    value={data.reuseSessionMode}
+                    onChange={(e) => set({ reuseSessionMode: e.target.value as FlowDesignerNodeData["reuseSessionMode"] })}
+                  >
+                    <option value="autoDetect">Auto detect (match by target URL origin)</option>
+                    <option value="selected">Selected session</option>
+                  </select>
+                </label>
+                {data.reuseSessionMode === "selected" ? (
+                  <label>
+                    Saved Session
+                    <SearchableSelect
+                      ariaLabel="Saved session"
+                      value={data.reuseSessionId}
+                      placeholder="Select a saved session…"
+                      options={availableSessions.map((s) => ({ value: s.id, label: s.name, description: s.targetUrl }))}
+                      onChange={(next) => set({ reuseSessionId: next })}
+                    />
+                  </label>
+                ) : (
+                  <label>
+                    Target URL (optional)
+                    <input
+                      value={data.value}
+                      placeholder="Leave blank to use the current page URL"
+                      onChange={(e) => set({ value: e.target.value })}
+                    />
+                  </label>
+                )}
+                <span className="form-message">
+                  Loads a previously captured login session (from the Sessions Manager) and restarts the automation browser with
+                  that profile. Auto-detect matches a ready session by normalized origin (protocol + host + port); Selected uses a
+                  specific session. Only sessions in a "ready" state are listed.
+                </span>
+              </section>
+            </details>
+          ) : null}
+
+          {has("execution") ? (
+            <details className="property-group">
+              <summary>Execution</summary>
+              <section className="property-section">
+                <label>
+                  Timeout (ms)
+                  <input type="number" min={0} value={data.timeoutMs} onChange={(e) => set({ timeoutMs: Number(e.target.value) })} />
+                </label>
+                <div className="two-column-fields">
+                  <label>
+                    Retry Count
+                    <input type="number" min={0} value={data.retryCount} onChange={(e) => set({ retryCount: Number(e.target.value) })} />
+                  </label>
+                  <label>
+                    Retry Delay
+                    <input type="number" min={0} value={data.retryDelayMs} onChange={(e) => set({ retryDelayMs: Number(e.target.value) })} />
+                  </label>
+                </div>
+                <label>
+                  Failure Behavior
+                  <select value={data.failureAction} onChange={(e) => set({ failureAction: e.target.value as FlowDesignerNodeData["failureAction"] })}>
+                    <option value="stop">Stop flow</option>
+                    <option value="continue">Continue flow</option>
+                    <option value="goToFailureEdge">Go to failure connector</option>
+                    <option value="manualHandoff">Trigger manual handoff</option>
+                  </select>
+                </label>
+                <label className="inline-check">
+                  <input type="checkbox" checked={data.screenshotOnFailure} onChange={(e) => set({ screenshotOnFailure: e.target.checked })} />
+                  Take screenshot on failure
+                </label>
+              </section>
+            </details>
+          ) : null}
+
+          {has("output") ? (
+            <details className="property-group">
+              <summary>Output</summary>
+              <section className="property-section">
+                <label>
+                  Output Key
+                  <input value={data.outputKey} onChange={(e) => set({ outputKey: e.target.value })} />
+                </label>
+              </section>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <div className="empty-properties">Select a node on the canvas to edit its configuration.</div>
+      )}
+
+      <section className="property-section">
+        <h3>Validation</h3>
+        <div className="validation-list">
+          {[...typeErrors, ...locatorQualityErrors, ...validationMessages].length ? (
+            [...typeErrors, ...locatorQualityErrors, ...validationMessages].map((message) => <span key={message}>{message}</span>)
+          ) : (
+            <strong>Node configuration is valid.</strong>
+          )}
+        </div>
+      </section>
+    </aside>
+  );
+}

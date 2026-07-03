@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  background: #f4f6f9;
+  color: #172033;
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 32px 16px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #dfe6ef;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+  max-width: 420px;
+  padding: 24px;
+  width: 100%;
+}
+
+.card.wide {
+  max-width: 760px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+
+.hint {
+  color: #617089;
+  font-size: 13px;
+  margin-top: 0;
+}
+
+form {
+  display: grid;
+  gap: 14px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+label.inline {
+  align-items: center;
+  display: flex;
+  font-weight: 400;
+  gap: 8px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #cfd8e6;
+  border-radius: 6px;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  padding: 0;
+}
+
+fieldset {
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+legend {
+  color: #617089;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  background: #1769e0;
+  border: 1px solid #1769e0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 9px 16px;
+}
+
+button[type="reset"] {
+  background: #ffffff;
+  border-color: #cfd8e6;
+  color: #27344a;
+}
+
+.result {
+  display: grid;
+  gap: 6px 16px;
+  grid-template-columns: auto 1fr;
+}
+
+.result dt {
+  color: #617089;
+  font-size: 13px;
+}
+
+.result dd {
+  font-weight: 700;
+  margin: 0;
+}

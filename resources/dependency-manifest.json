@@ -1,0 +1,79 @@
+{
+    "schema":  {
+                   "name":  "playwright-flow-studio-offline-dependency-manifest",
+                   "version":  1,
+                   "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
+               },
+    "application":  {
+                        "name":  "WebFlow Studio",
+                        "version":  "0.1.0",
+                        "buildMode":  "production-offline",
+                        "builtAt":  "2026-07-03T18:01:19.8347102Z"
+                    },
+    "offline":  {
+                    "internetRequired":  false,
+                    "runtimeDownloadsAllowed":  false,
+                    "adminPermissionRequired":  false,
+                    "globalNodeRequired":  false,
+                    "globalPlaywrightRequired":  false,
+                    "globalBrowserRequired":  false
+                },
+    "runtime":  {
+                    "electronIncluded":  true,
+                    "nodeRuntimeIncluded":  true,
+                    "productionNodeModulesIncluded":  true,
+                    "nativeModulesIncluded":  true,
+                    "nativeModulesRequired":  false,
+                    "playwrightRuntimeIncluded":  true
+                },
+    "browsers":  [
+                     {
+                         "name":  "chromium",
+                         "included":  true,
+                         "relativeExecutablePath":  "resources/browsers/chromium/chrome.exe",
+                         "version":  "149.0.7827.55",
+                         "validated":  true
+                     }
+                 ],
+    "paths":  {
+                  "runtimeDataRoot":  "%LOCALAPPDATA%/WebFlow Studio",
+                  "flows":  "%LOCALAPPDATA%/WebFlow Studio/flows",
+                  "workflows":  "%LOCALAPPDATA%/WebFlow Studio/workflows",
+                  "scenarios":  "%LOCALAPPDATA%/WebFlow Studio/scenarios",
+                  "instances":  "%LOCALAPPDATA%/WebFlow Studio/instances",
+                  "data":  "%LOCALAPPDATA%/WebFlow Studio/data",
+                  "runtimeInputs":  "%LOCALAPPDATA%/WebFlow Studio/runtime-inputs",
+                  "storage":  "%LOCALAPPDATA%/WebFlow Studio/storage",
+                  "downloads":  "%LOCALAPPDATA%/WebFlow Studio/downloads",
+                  "screenshots":  "%LOCALAPPDATA%/WebFlow Studio/screenshots",
+                  "logs":  "%LOCALAPPDATA%/WebFlow Studio/logs",
+                  "reports":  "%LOCALAPPDATA%/WebFlow Studio/reports",
+                  "temp":  "%LOCALAPPDATA%/WebFlow Studio/temp"
+              },
+    "validation":  {
+                       "bundledBrowserExists":  true,
+                       "browserLaunchTestPassed":  true,
+                       "profileStorageWritable":  true,
+                       "runtimeFoldersWritable":  true,
+                       "noRuntimeDownloadsDetected":  true,
+                       "noAdminPathRequired":  true,
+                       "playwrightRuntimeFilesExist":  true
+                   },
+    "startupChecklist":  {
+                             "manifestExists":  true,
+                             "bundledBrowserExecutableExists":  true,
+                             "productionNodeModulesAvailable":  true,
+                             "nativeModulesLoadSuccessfully":  true,
+                             "runtimeDataRootWritable":  true,
+                             "downloadsScreenshotsLogsReportsWritable":  true,
+                             "noInternetDownloadAttempted":  true,
+                             "noAdminOnlyPathRequired":  true
+                         },
+    "dependencies":  {
+                         "electron":  "^33.2.1",
+                         "playwright":  "^1.49.1",
+                         "react":  "^18.3.1",
+                         "reactFlow":  "12.3.6",
+                         "sqlite":  "not-installed"
+                     }
+}

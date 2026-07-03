@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "username": "user1",
+    "password": "pass1",
+    "firstName": "Mohammad",
+    "lastName": "Abwini",
+    "email": "mohammad1@example.com",
+    "age": 30,
+    "salary": 1000.5,
+    "description": "Automation test user 1",
+    "country": "JO",
+    "accountType": "BUSINESS",
+    "gender": "MALE"
+  },
+  {
+    "id": 2,
+    "username": "user2",
+    "password": "pass2",
+    "firstName": "Ali",
+    "lastName": "Ahmad",
+    "email": "ali@example.com",
+    "age": 28,
+    "salary": 900.75,
+    "description": "Automation test user 2",
+    "country": "SA",
+    "accountType": "PERSONAL",
+    "gender": "MALE"
+  },
+  {
+    "id": 3,
+    "username": "user3",
+    "password": "pass3",
+    "firstName": "Sara",
+    "lastName": "Nasser",
+    "email": "sara@example.com",
+    "age": 26,
+    "salary": 1200,
+    "description": "Automation test user 3",
+    "country": "AE",
+    "accountType": "CORPORATE",
+    "gender": "FEMALE"
+  }
+]

@@ -1,0 +1,44 @@
+{
+  "id": "mock-scroll-flow",
+  "name": "Mock — Scroll Flow",
+  "description": "Scrolls the page down.",
+  "version": 1,
+  "createdAt": "2026-06-27T13:49:51.946Z",
+  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "scroll",
+      "type": "scroll",
+      "name": "Scroll Down",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "down",
+        "scrollAmount": 400
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    {
+      "id": "scroll-e0",
+      "source": "start",
+      "target": "scroll",
+      "type": "success"
+    },
+    {
+      "id": "scroll-e1",
+      "source": "scroll",
+      "target": "end",
+      "type": "success"
+    }
+  ]
+}
