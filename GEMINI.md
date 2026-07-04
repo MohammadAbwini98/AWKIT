@@ -28,3 +28,14 @@ Gemini-specific behavior.
   `npm run validate:offline` for offline/packaging changes (no lint/test npm script exists).
 - After each task, update `docs/ai/CURRENT_STATE.md` and append to `docs/ai/TASK_LOG.md`, per
   the End-of-task checklist in `AGENTS.md`.
+
+## Git Full Cycle Skill
+
+When doing any Git operation, branch work, commit, push, pull, PR creation, stacked PR, or
+protected-main workflow, first read:
+
+- `.claude/skills/git-full-cycle/SKILL.md` for Claude
+- `.codex/skills/git-full-cycle/SKILL.md` for Codex
+- `.gemini/skills/git-full-cycle/SKILL.md` for Gemini
+
+The skill must be used before changing branches, staging files, committing, pushing, or opening PRs.

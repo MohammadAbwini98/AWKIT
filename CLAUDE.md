@@ -37,3 +37,14 @@ Claude Code-specific behavior.
 - Follow the **End-of-task checklist** in `AGENTS.md`: update `docs/ai/CURRENT_STATE.md` and
   append to `docs/ai/TASK_LOG.md`; update other `docs/ai/` files only if they changed.
 - End with a concise summary: implementation, files changed, tests run / not run, remaining risks.
+
+## Git Full Cycle Skill
+
+When doing any Git operation, branch work, commit, push, pull, PR creation, stacked PR, or
+protected-main workflow, first read:
+
+- `.claude/skills/git-full-cycle/SKILL.md` for Claude
+- `.codex/skills/git-full-cycle/SKILL.md` for Codex
+- `.gemini/skills/git-full-cycle/SKILL.md` for Gemini
+
+The skill must be used before changing branches, staging files, committing, pushing, or opening PRs.

@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Add Git Full Cycle agent skill
+
+- **Task:** Add a reusable Git lifecycle skill teaching agents to safely inspect status, protect
+  in-flight work, branch, commit, push, open PRs, handle protected `main`, and manage stacked PRs.
+- **What was added:**
+  - Added the Git Full Cycle skill for Claude, Codex, and Gemini as byte-identical mirrors:
+    `.claude/skills/git-full-cycle/SKILL.md`, `.codex/skills/git-full-cycle/SKILL.md`,
+    `.gemini/skills/git-full-cycle/SKILL.md`, plus a canonical shared copy at
+    `docs/ai/skills/git-full-cycle/SKILL.md` (`.codex/` and `docs/ai/skills/` newly created).
+  - Added a **Git Full Cycle Skill** reference section to the agent entry files `CLAUDE.md`,
+    `AGENTS.md`, and `GEMINI.md` (existing content preserved) pointing each agent at its mirror and
+    requiring the skill be read before branch/stage/commit/push/PR operations.
+- **Files changed:** `.claude/skills/git-full-cycle/SKILL.md`, `.codex/skills/git-full-cycle/SKILL.md`,
+  `.gemini/skills/git-full-cycle/SKILL.md`, `docs/ai/skills/git-full-cycle/SKILL.md`, `CLAUDE.md`,
+  `AGENTS.md`, `GEMINI.md`, `docs/ai/TASK_LOG.md`.
+- **Validation:** `node scripts/ai-memory/check-memory.mjs` (no `verify:ai-memory` npm script exists).
+- **Branch:** committed on `chore/save-inflight-recorder-work` (PR #1 still open — docs/skills work
+  belongs with it). No Smart Locator feature files touched; Smart Wait Engine not started; no UI
+  diagnostics added.
+
 ## 2026-07-04 — Claude Code — Recorder: guarantee unique positional fallback locator
 
 - **Task:** Recorder saved a non-unique positional locator, so runs failed with
