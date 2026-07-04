@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Smart Wait Engine Phase 1 (runner execution)
+
+- **Task:** Phase 1 of the Smart Wait Engine — condition-based waits executed by the runner. Recorder
+  observation, UI, and other phases are intentionally out of scope.
+- **What was added:**
+  - **Types** (`src/profiles/FlowProfile.ts`): a `WaitCondition` discriminated union
+    (`loaderHidden` / `elementVisible` / `elementHidden` / `elementEnabled` / `textVisible` /
+    `toastVisible` / `response` / `tableHasRows` / `listHasItems` / `urlChanged` / `domStable` /
+    `fixedDelay`) with locator-based conditions reusing `StepLocator`; and optional
+    `beforeWaits?: WaitCondition[]` / `afterWaits?: WaitCondition[]` on `FlowStep`. Fully additive —
+    steps without them, and the legacy `wait` step node, are unchanged.
+  - **Runner** (`src/runner/StepExecutor.ts`): `execute` now runs a step via `runStepWithWaits`
+    (`beforeWaits` → arm action-triggered `response` waits → action → await armed → `afterWaits`).
+    A `response` wait with `armBeforeAction: true` is registered **before** the action (so a fast
+    response isn't missed) and awaited after. Added `executeWaitCondition` + helpers
+    (`buildResponseWait`, `waitForPredicate`, `waitForDomStable`, `waitLocator` reusing
+    `LocatorFactory`) and clear per-wait diagnostics (`formatWaitFailure` / `describeWaitCondition` /
+    `waitSuggestion`: step, wait type, condition, timeout, last observed state, suggestion).
+    `networkidle` is deliberately not used as a Smart Wait strategy. The legacy `executeWait`
+    (time/selector/navigation/networkIdle/textVisible) step node is untouched.
+- **Files changed:** `src/profiles/FlowProfile.ts`, `src/runner/StepExecutor.ts`,
+  `scripts/verify-waits.mts` (new), `package.json` (`verify:waits` script), docs.
+- **Tests:** `npm run verify:waits` → **15/15** (no-waits backward compat, legacy wait node,
+  beforeWaits gate, afterWaits, armed-before-action response, loaderHidden, elementEnabled,
+  tableHasRows, urlChanged, fixedDelay timing, timeout diagnostics). `npm run verify:runner` → 76/76,
+  `npm run verify:recorder` → 42/42 (no regressions), `npm run build` clean, check-memory passed.
+- **Not done (later phases):** recorder observation of loaders/network/DOM (Phase 2), diagnostics
+  polish (Phase 3), UI controls (Phase 4). Wait locators use page-rooted `LocatorFactory.create().first()`
+  for now; container/frame-scoped wait locators can arrive with recorder Phase 2. Branch:
+  `feature/smart-wait-engine`.
+
 ## 2026-07-04 — Claude Code — Fix .gitignore: track source dirs missing from the repo
 
 - **Task:** Repository-integrity fix. Broad `.gitignore` directory rules meant for runtime output
@@ -23,8 +54,6 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   `src/storage`, `src/data`, `app/renderer/components/instances`, `app/renderer/components/reports`.
 - **Verification:** `npm run build` clean, `npm run verify:runner` 76/76, `npm run verify:recorder` 42/42,
   `node scripts/ai-memory/check-memory.mjs` passed. Branch `fix/track-source-dirs-gitignore` (own PR).
-- **Note:** Smart Wait Engine Phase 1 was paused for this fix and preserved off-tree; it resumes on
-  `feature/smart-wait-engine` rebased onto repaired `main` after this PR merges.
 
 ## 2026-07-04 — Claude Code — Handoff prep after Smart Locator + Git Full Cycle merges
 

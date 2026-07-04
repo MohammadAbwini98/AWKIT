@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page } from "playwright";
-import type { FlowStep, NodeConfig } from "@src/profiles/FlowProfile";
+import type { FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
@@ -88,7 +88,7 @@ export class StepExecutor {
 
     try {
       this.guardLocatorQuality(step);
-      const result = await this.executeStep(step, outputs);
+      const result = await this.runStepWithWaits(step, outputs);
 
       // Auto protected-login detection after navigation-type steps (never bypasses — only pauses).
       if (result.status === "passed" && PROTECTED_LOGIN_AUTODETECT_STEPS.has(step.type)) {
@@ -180,6 +180,286 @@ export class StepExecutor {
       return "This step could not run because its locator matched multiple elements on the page. Re-record the step or refine the locator so it targets exactly one element.";
     }
     return message;
+  }
+
+  // ── Smart Wait Engine (Phase 1: runner execution) ──────────────────────────────────────────
+  //
+  // A step's action is wrapped in its condition-based waits:
+  //   beforeWaits → (arm action-triggered response waits) → action → await armed → afterWaits.
+  // Steps without beforeWaits/afterWaits behave exactly as before, so old flows and the legacy
+  // `wait` step node (executeWait: time/selector/navigation/networkIdle/textVisible) are unaffected.
+
+  /** Default max wait (ms) for a {@link WaitCondition} that omits `timeoutMs`. */
+  private static readonly DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+
+  private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
+    for (const wait of step.beforeWaits ?? []) {
+      await this.executeWaitCondition(step, wait);
+    }
+
+    // Response waits that the action itself triggers must be listening BEFORE the action runs,
+    // or a fast response can complete before we start waiting. Arm them now, await them after.
+    const armed: Array<{ wait: Extract<WaitCondition, { type: "response" }>; promise: Promise<unknown>; timeout: number }> = [];
+    const deferred: WaitCondition[] = [];
+    for (const wait of step.afterWaits ?? []) {
+      if (wait.type === "response" && wait.armBeforeAction) {
+        const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+        const promise = this.buildResponseWait(wait, timeout);
+        promise.catch(() => undefined); // prevent an unhandled rejection if the action itself throws
+        armed.push({ wait, promise, timeout });
+      } else {
+        deferred.push(wait);
+      }
+    }
+
+    const result = await this.executeStep(step, outputs);
+
+    for (const entry of armed) {
+      try {
+        await entry.promise;
+      } catch (error) {
+        throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error));
+      }
+    }
+    for (const wait of deferred) {
+      await this.executeWaitCondition(step, wait);
+    }
+
+    return result;
+  }
+
+  /** Execute a single wait condition, translating any failure into a clear diagnostic. */
+  private async executeWaitCondition(step: FlowStep, wait: WaitCondition): Promise<void> {
+    const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+    try {
+      switch (wait.type) {
+        case "loaderHidden":
+        case "elementHidden":
+          await this.waitLocator(wait.locator).waitFor({ state: "hidden", timeout });
+          return;
+        case "elementVisible":
+          await this.waitLocator(wait.locator).waitFor({ state: "visible", timeout });
+          return;
+        case "elementEnabled": {
+          const locator = this.waitLocator(wait.locator);
+          await this.waitForPredicate(
+            () => locator.isEnabled().catch(() => false),
+            timeout,
+            async () => `enabled=${await locator.isEnabled().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "textVisible":
+          await this.activePage
+            .getByText(wait.text, wait.exact ? { exact: true } : undefined)
+            .first()
+            .waitFor({ state: "visible", timeout });
+          return;
+        case "toastVisible": {
+          const target = wait.locator
+            ? this.waitLocator(wait.locator)
+            : wait.text
+              ? this.activePage.getByText(wait.text).first()
+              : this.activePage.getByRole("alert").first();
+          await target.waitFor({ state: "visible", timeout });
+          return;
+        }
+        case "response":
+          await this.buildResponseWait(wait, timeout);
+          return;
+        case "tableHasRows": {
+          const table = this.waitLocator(wait.tableLocator);
+          const rows = wait.rowLocator ? this.waitLocator(wait.rowLocator) : table.locator("tbody tr, [role=row]");
+          await this.waitForPredicate(
+            async () => (await rows.count()) >= wait.minRows,
+            timeout,
+            async () => `rows=${await rows.count().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "listHasItems": {
+          const list = this.waitLocator(wait.listLocator);
+          const items = wait.itemLocator ? this.waitLocator(wait.itemLocator) : list.locator("li, [role=listitem]");
+          await this.waitForPredicate(
+            async () => (await items.count()) >= wait.minItems,
+            timeout,
+            async () => `items=${await items.count().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "urlChanged":
+          await this.waitForPredicate(
+            () => {
+              const url = this.activePage.url();
+              if (wait.urlContains) return url.includes(wait.urlContains);
+              if (wait.fromUrl) return url !== wait.fromUrl;
+              return true;
+            },
+            timeout,
+            () => this.activePage.url()
+          );
+          return;
+        case "domStable":
+          await this.waitForDomStable(wait.stableForMs ?? 500, timeout);
+          return;
+        case "fixedDelay":
+          await this.activePage.waitForTimeout(Math.max(0, wait.delayMs));
+          return;
+        default: {
+          const unknown = wait as { type?: string };
+          throw new Error(`Unsupported wait condition type: ${String(unknown.type)}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(this.formatWaitFailure(step, wait, timeout, error));
+    }
+  }
+
+  /** Build (register) a `waitForResponse` matcher; the returned promise resolves on match. */
+  private buildResponseWait(wait: Extract<WaitCondition, { type: "response" }>, timeout: number): Promise<unknown> {
+    const [lo, hi] = wait.statusRange ?? [200, 399];
+    const method = wait.method;
+    const urlContains = wait.urlContains ?? "";
+    return this.activePage.waitForResponse((response) => {
+      if (method && response.request().method().toUpperCase() !== method) return false;
+      if (urlContains && !response.url().includes(urlContains)) return false;
+      const status = response.status();
+      return status >= lo && status <= hi;
+    }, { timeout });
+  }
+
+  /** Build a Playwright locator from a structured locator for wait purposes (tolerant `.first()`). */
+  private waitLocator(locator: StepLocator): Locator {
+    return this.locatorFactory.create(locator).first();
+  }
+
+  /** Poll `predicate` until true or `timeout`; on timeout throw with the last observed value. */
+  private async waitForPredicate(
+    predicate: () => boolean | Promise<boolean>,
+    timeout: number,
+    describe: () => unknown | Promise<unknown>
+  ): Promise<void> {
+    const start = Date.now();
+    for (;;) {
+      let satisfied = false;
+      try {
+        satisfied = await predicate();
+      } catch {
+        satisfied = false;
+      }
+      if (satisfied) return;
+      if (Date.now() - start >= timeout) {
+        let last: unknown = "";
+        try {
+          last = await describe();
+        } catch {
+          /* ignore */
+        }
+        throw new Error(`condition not met within ${timeout}ms (last observed: ${String(last)})`);
+      }
+      await this.activePage.waitForTimeout(100);
+    }
+  }
+
+  /** Wait until the page DOM stops changing for `stableForMs` (cheap size/child-count signature). */
+  private async waitForDomStable(stableForMs: number, timeout: number): Promise<void> {
+    const start = Date.now();
+    let signature = "";
+    let stableSince = Date.now();
+    for (;;) {
+      let current = signature;
+      try {
+        current = String(
+          await this.activePage.evaluate(() =>
+            document.body ? `${document.body.childElementCount}:${document.body.innerHTML.length}` : "0"
+          )
+        );
+      } catch {
+        current = signature;
+      }
+      const now = Date.now();
+      if (current !== signature) {
+        signature = current;
+        stableSince = now;
+      }
+      if (now - stableSince >= stableForMs) return;
+      if (now - start >= timeout) throw new Error(`DOM did not stay stable for ${stableForMs}ms within ${timeout}ms`);
+      await this.activePage.waitForTimeout(100);
+    }
+  }
+
+  private formatWaitFailure(step: FlowStep, wait: WaitCondition, timeout: number, error: unknown): string {
+    const detail = error instanceof Error ? error.message : String(error);
+    const lines = [
+      `Smart wait failed on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Wait type: ${wait.type}`,
+      `Condition: ${StepExecutor.describeWaitCondition(wait)}`,
+      `Timeout: ${timeout}ms`
+    ];
+    if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
+    lines.push(`Suggestion: ${StepExecutor.waitSuggestion(wait)}`);
+    lines.push(`Detail: ${detail}`);
+    return lines.join("\n");
+  }
+
+  private static describeWaitCondition(wait: WaitCondition): string {
+    switch (wait.type) {
+      case "loaderHidden":
+      case "elementVisible":
+      case "elementHidden":
+      case "elementEnabled":
+        return `${wait.type} ${wait.locator.strategy}=${wait.locator.value}`;
+      case "textVisible":
+        return `text "${wait.text}"${wait.exact ? " (exact)" : ""}`;
+      case "toastVisible":
+        return wait.locator
+          ? `toast ${wait.locator.strategy}=${wait.locator.value}`
+          : wait.text
+            ? `toast text "${wait.text}"`
+            : "toast [role=alert]";
+      case "response":
+        return `${wait.method ?? "ANY"} response url~"${wait.urlContains ?? ""}" status ${(wait.statusRange ?? [200, 399]).join("-")}${wait.armBeforeAction ? " (armed before action)" : ""}`;
+      case "tableHasRows":
+        return `table ${wait.tableLocator.strategy}=${wait.tableLocator.value} rows >= ${wait.minRows}`;
+      case "listHasItems":
+        return `list ${wait.listLocator.strategy}=${wait.listLocator.value} items >= ${wait.minItems}`;
+      case "urlChanged":
+        return wait.urlContains ? `url contains "${wait.urlContains}"` : `url changes from "${wait.fromUrl ?? ""}"`;
+      case "domStable":
+        return `DOM stable for ${wait.stableForMs ?? 500}ms`;
+      case "fixedDelay":
+        return `fixed delay ${wait.delayMs}ms`;
+      default:
+        return "unknown";
+    }
+  }
+
+  private static waitSuggestion(wait: WaitCondition): string {
+    switch (wait.type) {
+      case "loaderHidden":
+        return "Confirm the loader/spinner locator is correct and actually disappears; increase timeoutMs if the backend is slow.";
+      case "elementVisible":
+      case "toastVisible":
+      case "textVisible":
+        return "Confirm the target renders after the action; update the locator/text or increase timeoutMs.";
+      case "elementHidden":
+        return "Confirm the element is removed/hidden after the action; update the locator or increase timeoutMs.";
+      case "elementEnabled":
+        return "Confirm the control becomes enabled after the action; update the locator or increase timeoutMs.";
+      case "response":
+        return "Confirm method/urlContains/statusRange match the real request; set armBeforeAction for responses this step triggers; increase timeoutMs.";
+      case "tableHasRows":
+      case "listHasItems":
+        return "Confirm the result container/row locator is correct and data loads; lower minRows/minItems or increase timeoutMs.";
+      case "urlChanged":
+        return "Confirm the action navigates or changes the URL; adjust urlContains or increase timeoutMs.";
+      case "domStable":
+        return "The page kept mutating (polling/animations); lower stableForMs or use a specific content wait instead.";
+      case "fixedDelay":
+        return "Fixed delays are a fallback; prefer a condition-based wait when a reliable signal exists.";
+      default:
+        return "Review the wait condition.";
+    }
   }
 
   async captureFailureScreenshot(step: FlowStep): Promise<string> {

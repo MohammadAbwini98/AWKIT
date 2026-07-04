@@ -135,6 +135,43 @@ export interface ValueSource {
   generator?: "uuid" | "timestamp" | "randomEmail" | "randomNumber";
 }
 
+export type WaitHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/** Fields shared by every {@link WaitCondition}. */
+export interface WaitConditionBase {
+  /** Max time to wait before the condition fails (ms). Runner default: 30000. */
+  timeoutMs?: number;
+  /** Human-readable note (why the recorder captured this wait) — shown in diagnostics. */
+  reason?: string;
+}
+
+/**
+ * A condition-based wait (Smart Wait Engine). Executed by the runner before/after a step's
+ * action via `FlowStep.beforeWaits` / `FlowStep.afterWaits`. Locator-based waits reuse the
+ * structured {@link StepLocator} shape. Phase 1 covers execution only — the recorder does not
+ * yet emit these (it still inserts legacy fixed-time `wait` step nodes).
+ */
+export type WaitCondition =
+  | (WaitConditionBase & { type: "loaderHidden"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementVisible"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementHidden"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementEnabled"; locator: StepLocator })
+  | (WaitConditionBase & { type: "textVisible"; text: string; exact?: boolean })
+  | (WaitConditionBase & { type: "toastVisible"; locator?: StepLocator; text?: string })
+  | (WaitConditionBase & {
+      type: "response";
+      method?: WaitHttpMethod;
+      urlContains?: string;
+      statusRange?: [number, number];
+      /** Register the response listener BEFORE the action so a fast response isn't missed. */
+      armBeforeAction?: boolean;
+    })
+  | (WaitConditionBase & { type: "tableHasRows"; tableLocator: StepLocator; rowLocator?: StepLocator; minRows: number })
+  | (WaitConditionBase & { type: "listHasItems"; listLocator: StepLocator; itemLocator?: StepLocator; minItems: number })
+  | (WaitConditionBase & { type: "urlChanged"; fromUrl?: string; urlContains?: string })
+  | (WaitConditionBase & { type: "domStable"; stableForMs?: number })
+  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number });
+
 export interface FlowStep {
   id: string;
   type: StepType;
@@ -142,6 +179,14 @@ export interface FlowStep {
   description?: string;
   position?: { x: number; y: number };
   locator?: StepLocator;
+  /** Condition-based waits run BEFORE this step's action (Smart Wait Engine, Phase 1). */
+  beforeWaits?: WaitCondition[];
+  /**
+   * Condition-based waits run AFTER this step's action. A `response` wait with
+   * `armBeforeAction: true` is registered before the action and awaited afterwards, so a
+   * fast response triggered by the action is never missed.
+   */
+  afterWaits?: WaitCondition[];
   value?: string;
   valueSource?: ValueSource;
   selectionMode?: "value" | "label" | "index";

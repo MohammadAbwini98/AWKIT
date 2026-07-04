@@ -173,6 +173,17 @@ change_requests/        historical change-request prompt sets
   step early **unless** it has `context`/`alternatives` (then the resolver owns the outcome);
   `friendlyLocatorError` translates any raw strict-mode violation. Verified by `npm run verify:recorder`
   (Parts A/B recorder + quality guard, Part C runtime fallback/visibility/context).
+- **Smart Wait Engine (Phase 1 — runner execution):** `FlowStep` carries optional
+  `beforeWaits`/`afterWaits: WaitCondition[]` (`src/profiles/FlowProfile.ts`). `StepExecutor.execute`
+  wraps each action via `runStepWithWaits`: `beforeWaits` → arm action-triggered `response` waits (a
+  `response` with `armBeforeAction` registers `waitForResponse` *before* the action, awaited after) →
+  action → await armed → `afterWaits`. `executeWaitCondition` dispatches loaderHidden / elementVisible /
+  elementHidden / elementEnabled / textVisible / toastVisible / response / tableHasRows / listHasItems /
+  urlChanged / domStable / fixedDelay, reusing `LocatorFactory` for locator waits and emitting a
+  structured diagnostic on failure. `networkidle` is intentionally not a Smart Wait strategy. The legacy
+  `wait` step node (`executeWait`: time/selector/navigation/networkIdle/textVisible) is unchanged, and
+  steps without waits behave exactly as before. Verified by `npm run verify:waits`. The recorder does
+  **not** yet emit these (Phase 2) — it still inserts legacy fixed-time `wait` nodes.
 - **Shared connector styling:** `app/renderer/components/shared/connectorStyle.ts` (`buildConnectorVisual` +
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;
   style persists on `FlowEdge.style` / `WorkflowEdge.style`. Shared UI: `ConnectorStyleEditor`,

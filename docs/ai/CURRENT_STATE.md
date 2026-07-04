@@ -1,11 +1,13 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Claude Code — Smart Locator runtime delta: `StepLocator` gained
-`alternatives[]` + `context` (dialog/tableRow/card/listItem/iframe); `LocatorFactory.resolve` tries
-primary→alternatives with **visibility disambiguation** (count>1 & one visible → use it) and container/
-frame scoping, fixing hidden-modal-template + visible-modal ambiguity; the recorder emits both. build
-clean, verify:recorder 42/42, verify:runner 76/76. Prior: positional fallback uniqueness guarantee;
-Instances Load-More removed / two-row card scroller; AI-agent architecture hardening.)
+**Last updated:** 2026-07-04 (Claude Code — Smart Wait Engine **Phase 1 (runner execution)**: `FlowStep`
+gained optional `beforeWaits`/`afterWaits: WaitCondition[]`; `StepExecutor` runs beforeWaits → action →
+afterWaits, arming action-triggered `response` waits before the click; 12 condition types (loader/
+element/table/list/url/response/toast/domStable/fixedDelay) with clear diagnostics; legacy `wait` node
+and no-wait steps unchanged. verify:waits 15/15, verify:runner 76/76, verify:recorder 42/42, build clean.
+Recorder still emits legacy fixed-time waits (Smart-wait capture is Phase 2). Prior: Smart Locator runtime
+delta (`StepLocator` `alternatives[]` + `context`, `LocatorFactory.resolve` visibility disambiguation);
+positional fallback uniqueness; AI-agent architecture hardening.)
 
 ## What currently works (Confirmed)
 

@@ -16,6 +16,7 @@
     "verify:flow-designer": "node scripts/verify-flow-designer-gui.mjs",
     "verify:workflow-builder": "node scripts/verify-workflow-builder-gui.mjs",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
+    "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:recorder-draft": "tsx scripts/verify-recorder-draft.mts",
     "verify:recorder-flow": "tsx scripts/verify-recorder-flow.mts",
     "verify:protected-login": "tsx scripts/verify-protected-login.mts",
