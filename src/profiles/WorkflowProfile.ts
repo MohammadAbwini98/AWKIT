@@ -1,0 +1,148 @@
+import type { ScenarioLink, ScenarioProfile } from "./ScenarioProfile";
+import type { EdgeVisualStyle, ValueSource } from "./FlowProfile";
+
+export interface WorkflowNodeInputBinding {
+  type: ValueSource["type"];
+  dataSourceId?: string;
+  path?: string;
+  key?: string;
+  value?: string;
+}
+
+export interface WorkflowFlowNode {
+  id: string;
+  type: "flowRef";
+  flowId: string;
+  alias: string;
+  order: number;
+  required: boolean;
+  inputBindings: Record<string, WorkflowNodeInputBinding>;
+  dataSourceId?: string;
+  jsonPath?: string;
+  runtimeInputKey?: string;
+  conditionRules?: string;
+  retryPolicy?: {
+    count: number;
+    delayMs: number;
+  };
+  failurePolicy?: "stop" | "continue" | "manualHandoff";
+  position?: { x: number; y: number };
+  /** Canvas node size (px) for the Workflow Builder. */
+  size?: { width: number; height: number };
+}
+
+export interface WorkflowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: ScenarioLink["type"];
+  label?: string;
+  condition?: {
+    expression: string;
+  };
+  style?: EdgeVisualStyle;
+}
+
+export interface WorkflowRuntimeInput {
+  key: string;
+  label: string;
+  type: "text" | "password" | "number" | "dropdown" | "checkbox";
+  required: boolean;
+  options?: string[];
+}
+
+export interface WorkflowDataSourceBinding {
+  dataSourceId: string;
+  rootArrayPath: string;
+}
+
+export interface WorkflowProfile {
+  id: string;
+  name: string;
+  description?: string;
+  version: number;
+  /** The JSON data source this workflow runs against (Phase 03: workflow owns its data source). */
+  dataSource?: WorkflowDataSourceBinding;
+  nodes: WorkflowFlowNode[];
+  edges: WorkflowEdge[];
+  runtimeInputs: WorkflowRuntimeInput[];
+  execution: {
+    mode: ScenarioProfile["executionMode"];
+    maxConcurrentInstances: number;
+    stopOnRequiredFlowFailure: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioProfile {
+  return {
+    id: workflow.id,
+    name: workflow.name,
+    description: workflow.description,
+    executionMode: workflow.execution.mode,
+    maxParallelFlows: workflow.execution.maxConcurrentInstances,
+    flows: workflow.nodes.map((node) => ({
+      order: node.order,
+      flowId: node.flowId,
+      required: node.required,
+      inputs: Object.fromEntries(
+        Object.entries(node.inputBindings).map(([key, binding]) => [
+          key,
+          binding.type === "runtimeInput" ? `runtime:${binding.key ?? key}` : binding.path ?? binding.value ?? key
+        ])
+      )
+    })),
+    links: workflow.edges.map((edge) => ({
+      id: edge.id,
+      sourceFlowId: workflow.nodes.find((node) => node.id === edge.source)?.flowId ?? edge.source,
+      targetFlowId: workflow.nodes.find((node) => node.id === edge.target)?.flowId ?? edge.target,
+      type: edge.type,
+      label: edge.label,
+      condition: edge.condition
+    })),
+    failurePolicy: {
+      stopOnRequiredFlowFailure: workflow.execution.stopOnRequiredFlowFailure,
+      continueOnOptionalFlowFailure: true,
+      takeScreenshotOnFailure: true
+    }
+  };
+}
+
+export function scenarioToWorkflowProfile(scenario: ScenarioProfile): WorkflowProfile {
+  return {
+    id: scenario.id.replace(/scenario/gi, "workflow"),
+    name: scenario.name.replace(/Scenario/gi, "Workflow"),
+    description: scenario.description,
+    version: 1,
+    nodes: scenario.flows.map((flow, index) => ({
+      id: `node-${flow.flowId}`,
+      type: "flowRef",
+      flowId: flow.flowId,
+      alias: flow.flowId,
+      order: flow.order,
+      required: flow.required,
+      inputBindings: Object.fromEntries(
+        Object.entries(flow.inputs ?? {}).map(([key, value]) => [
+          key,
+          value.startsWith("runtime:") ? { type: "runtimeInput", key: value.replace("runtime:", "") } : { type: "static", value }
+        ])
+      ),
+      position: { x: 140 + index * 320, y: 120 }
+    })),
+    edges: scenario.links.map((link) => ({
+      id: link.id,
+      source: `node-${link.sourceFlowId}`,
+      target: `node-${link.targetFlowId}`,
+      type: link.type,
+      label: link.label,
+      condition: link.condition
+    })),
+    runtimeInputs: [],
+    execution: {
+      mode: scenario.executionMode,
+      maxConcurrentInstances: scenario.maxParallelFlows,
+      stopOnRequiredFlowFailure: scenario.failurePolicy.stopOnRequiredFlowFailure
+    }
+  };
+}

@@ -92,3 +92,17 @@ coverage/
 # === Misc backups ===
 *.bak
 package.json.bak.*
+
+# === Source directories that share a name with the runtime-output rules above ===
+# The broad `profiles/`, `reports/`, `instances/`, `storage/`, `data/` rules (kept above so they
+# still ignore any runtime-generated directory) ALSO matched these real SOURCE directories, which
+# left required source files untracked and missing from the repo. Re-include the source trees
+# explicitly; the sensitive/output patterns above (e.g. session-profiles.json, *.storageState.json,
+# user-data-dir/) still apply to actual runtime artifacts.
+!src/profiles/
+!src/reports/
+!src/instances/
+!src/storage/
+!src/data/
+!app/renderer/components/instances/
+!app/renderer/components/reports/
