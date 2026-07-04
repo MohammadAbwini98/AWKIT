@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario A — Target blank popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario A — Target blank popup</h1>
+      <p>Purpose: Tests recorder popup detection from target blank link.</p>
+      <p>Feature: Recorder opener detection and runner execution on popup.</p>
+      
+      <a id="open-terms-link" href="/popup/terms-popup.html" target="_blank" data-testid="open-terms-link">Open Terms Popup</a>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+    <script>
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "terms-accepted") {
+          document.getElementById("status").textContent = "Terms accepted";
+        }
+      });
+    </script>
+  </body>
+</html>

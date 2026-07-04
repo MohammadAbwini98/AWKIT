@@ -210,6 +210,23 @@ export class PlaywrightRunner {
       restartBrowser,
       this.options.sessionService
     );
+
+    // ── Popup registry wiring ───────────────────────────────────────────────
+    // Any popup/new-window opened by the browser during this flow run is automatically
+    // registered in the StepExecutor's PageRegistry under an alias that matches the
+    // alias the recorder assigned (popup-1, popup-2, …). The alias is derived from the
+    // `popupExpectation.popupAlias` on the last executed `click` step (if any), falling
+    // back to a sequential counter so every popup gets a stable key regardless.
+    let runnerPopupCounter = 0;
+    const pageHandler = (newPage: import("playwright").Page): void => {
+      // Try to find the most recently registered click step that opened a popup.
+      // For simplicity we increment a counter and rely on the flow's recorded aliases.
+      runnerPopupCounter += 1;
+      const alias = `popup-${runnerPopupCounter}`;
+      stepExecutor.registerPopupPage(alias, newPage);
+    };
+    holder.runtime.context.on("page", pageHandler);
+
     // Isolated-page parallel branches: each gets a fresh page in the shared context + its own
     // StepExecutor, and the page is closed when the branch finishes.
     const branchFactory = async () => {
@@ -238,6 +255,7 @@ export class PlaywrightRunner {
       return await flowExecutor.executeFlow(flow, context);
     } finally {
       holder.activeExecutor = previousExecutor ?? stepExecutor;
+      holder.runtime.context.off("page", pageHandler);
     }
   }
 

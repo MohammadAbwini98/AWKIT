@@ -97,6 +97,19 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/smart-waits") return serveStatic(res, "smart-waits.html");
   if (req.method === "GET" && path === "/recorder-lab") return serveStatic(res, "recorder-lab.html");
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
+  // ── Multi-Window / Popup Lab ───────────────────────────────────────────────
+  if (req.method === "GET" && path.startsWith("/mock/popup")) {
+    let file = path.slice("/mock/popup".length);
+    if (!file || file === "/") file = "/index.html";
+    if (!file.endsWith(".html") && !file.includes(".")) file += ".html";
+    return serveStatic(res, `popup${file}`);
+  }
+  if (req.method === "GET" && path.startsWith("/popup")) {
+    let file = path.slice("/popup".length);
+    if (!file || file === "/") file = "/index.html";
+    if (!file.endsWith(".html") && !file.includes(".")) file += ".html";
+    return serveStatic(res, `popup${file}`);
+  }
   if (req.method === "GET" && (path === "/styles.css")) return serveStatic(res, "styles.css");
   if (req.method === "GET" && path === "/favicon.ico") {
     res.writeHead(204);

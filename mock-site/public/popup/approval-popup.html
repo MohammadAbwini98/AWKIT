@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Approval Popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Approval Popup</h1>
+      <label>
+        Approval note:<br/>
+        <input type="text" id="approval-note" data-testid="approval-note" />
+      </label>
+      <br/><br/>
+      <button id="approve-button" data-testid="approve-button" onclick="approve()">Approve</button>
+    </main>
+    <script>
+      function approve() {
+        const note = document.getElementById("approval-note").value;
+        if (window.opener) {
+          window.opener.postMessage({ type: "approved", note: note }, "*");
+        }
+        window.close();
+      }
+    </script>
+  </body>
+</html>

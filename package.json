@@ -23,6 +23,8 @@
     "verify:protected-login": "tsx scripts/verify-protected-login.mts",
     "verify:data-editor": "tsx scripts/verify-data-editor.mts",
     "verify:instance-monitor": "tsx scripts/verify-instance-monitor.mts",
+    "verify:popup": "tsx scripts/verify-popup.mts",
+    "verify:popup-mock-site": "tsx scripts/verify-popup-mock-site.mts",
     "seed:mock-fixtures": "node scripts/seed-mock-fixtures.mjs",
     "icon:generate": "node scripts/generate-app-icon.mjs",
     "offline:prepare": "powershell -ExecutionPolicy Bypass -File scripts/prepare-offline-deps.ps1",

@@ -119,6 +119,7 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Execution & reporting
 - ✅ Generic Playwright runner: `StepExecutor`, `FlowExecutor`, `PlaywrightRunner`,
   `ExecutionEngine`, `LocatorFactory`, `ValueResolver`, `ExpressionEvaluator`.
+- ✅ **Multi-Window / Popup Handling:** `StepExecutor` targets steps to specific windows via `pageAlias` and `PageRegistry`. Click steps with `opensPopup` capture and register popups. Support for `switchToPopup`, `switchToMainPage`, and `closePopup` nodes. Flow Designer canvas shows active page badges. Verified via `npm run verify:popup`.
 - ✅ **Smart Wait execution diagnostics:** `StepExecutor` runs `beforeWaits`/`afterWaits` around steps and
   reports failed waits with phase, sanitized current URL, wait condition, timeout, recorded reason, last
   observed state, and a suggested fix.

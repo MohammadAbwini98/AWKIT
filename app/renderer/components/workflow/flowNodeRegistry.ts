@@ -134,6 +134,22 @@ const META: Record<StepType, RegistryMeta> = {
     sections: ["reuseSession", "execution"],
     executable: true,
     validate: (d) => (d.reuseSessionId.trim() ? [] : ["Reuse Session requires a saved session to be selected."])
+  },
+  // ── Multi-Window / Popup ──────────────────────────────────────────────────
+  switchToPopup: {
+    category: "navigation",
+    sections: ["execution"],
+    executable: true
+  },
+  closePopup: {
+    category: "navigation",
+    sections: ["execution"],
+    executable: true
+  },
+  switchToMainPage: {
+    category: "navigation",
+    sections: ["execution"],
+    executable: true
   }
 };
 

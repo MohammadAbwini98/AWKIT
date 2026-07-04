@@ -13,6 +13,7 @@ import {
   Hand,
   History,
   KeyRound,
+  Layers,
   Link,
   ListChecks,
   MousePointerClick,
@@ -66,6 +67,10 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "protectedLoginHandoff", label: "Protected Login Handoff", description: "Pause for protected/SSO/MFA login", icon: ShieldAlert },
   { type: "autoSecureLogin", label: "Auto Secure Login", description: "Capture manual login in real Chrome", icon: ShieldCheck, requiresValue: true },
   { type: "reuseSession", label: "Reuse Session", description: "Load a previously saved session profile", icon: History },
+  // ── Multi-Window / Popup ──────────────────────────────────────────────────
+  { type: "switchToPopup", label: "Switch to Popup", description: "Wait for a new popup/window and switch to it", icon: Layers },
+  { type: "closePopup", label: "Close Popup", description: "Wait for a popup/window to close and return to main", icon: Layers },
+  { type: "switchToMainPage", label: "Switch to Main Page", description: "Return automation context to the main page", icon: Layers },
   { type: "end", label: "End", description: "Flow exit point", icon: Download }
 ];
 

@@ -30,8 +30,10 @@ export type ChildFlowRunner = (flowId: string) => Promise<FlowExecutionResult>;
 export type BrowserRestarter = (options?: { closeOnly?: boolean; newUserDataDir?: string }) => Promise<void>;
 
 export class StepExecutor {
-  /** Currently-active page. Route Change can switch this to another tab/page. */
+  /** Currently-active page (the page actions run on when no alias overrides). */
   private activePage: Page;
+  /** Page registry: alias → Page. `'main'` is always present; popups are added by registerPopupPage. */
+  private pageRegistry: Map<string, Page>;
 
   constructor(
     page: Page,
@@ -46,6 +48,7 @@ export class StepExecutor {
     private readonly sessionService?: SessionCaptureService
   ) {
     this.activePage = page;
+    this.pageRegistry = new Map([["main", page]]);
   }
 
   /**
@@ -55,7 +58,42 @@ export class StepExecutor {
    */
   setActivePage(page: Page): void {
     this.activePage = page;
+    this.pageRegistry.set("main", page);
     this.locatorFactory.setPage(page);
+  }
+
+  /**
+   * Register a newly-opened popup page under its alias so subsequent steps can target it.
+   * Called by PlaywrightRunner's context-level 'page' event handler.
+   */
+  registerPopupPage(alias: string, page: Page): void {
+    this.pageRegistry.set(alias, page);
+    // Remove from registry when the popup closes so stale aliases don't linger.
+    page.on("close", () => {
+      this.pageRegistry.delete(alias);
+    });
+  }
+
+  /** Unregister a popup (called from PlaywrightRunner if needed, or from the close handler). */
+  unregisterPopupPage(alias: string): void {
+    this.pageRegistry.delete(alias);
+  }
+
+  /**
+   * Resolve the Playwright Page for a given step.
+   * Returns the popup page when `step.pageAlias` is set, falls back to `activePage`.
+   */
+  private resolveStepPage(step: FlowStep): Page {
+    const alias = step.pageAlias;
+    if (!alias || alias === "main") return this.activePage;
+    const page = this.pageRegistry.get(alias);
+    if (!page) {
+      throw new Error(
+        `Popup page "${alias}" is not available. Open pages: [${[...this.pageRegistry.keys()].join(", ")}]. ` +
+        `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+      );
+    }
+    return page;
   }
 
   /** Emit a live progress event (no-op when no reporter is wired). */
@@ -193,9 +231,17 @@ export class StepExecutor {
   private static readonly DEFAULT_WAIT_TIMEOUT_MS = 30_000;
 
   private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
-    for (const wait of step.beforeWaits ?? []) {
-      await this.executeWaitCondition(step, wait, "before action");
-    }
+    const originalActivePage = this.activePage;
+    const stepPage = this.resolveStepPage(step);
+
+    // Temporarily bind execution to the target page for this step
+    this.activePage = stepPage;
+    this.locatorFactory.setPage(stepPage);
+
+    try {
+      for (const wait of step.beforeWaits ?? []) {
+        await this.executeWaitCondition(step, wait, "before action");
+      }
 
     // Response waits that the action itself triggers must be listening BEFORE the action runs,
     // or a fast response can complete before we start waiting. Arm them now, await them after.
@@ -221,11 +267,18 @@ export class StepExecutor {
         throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error, "after action (armed before action)"));
       }
     }
-    for (const wait of deferred) {
-      await this.executeWaitCondition(step, wait, "after action");
-    }
+      for (const wait of deferred) {
+        await this.executeWaitCondition(step, wait, "after action");
+      }
 
-    return result;
+      return result;
+    } finally {
+      // Restore the active page unless this step explicitly and permanently changed it
+      if (!["switchToPopup", "switchToMainPage", "closePopup", "routeChange"].includes(step.type)) {
+        this.activePage = originalActivePage;
+        this.locatorFactory.setPage(originalActivePage);
+      }
+    }
   }
 
   /** Execute a single wait condition, translating any failure into a clear diagnostic. */
@@ -496,9 +549,120 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
-      case "click":
+      case "click": {
+        // Arm popup capture BEFORE the click so a fast popup isn't missed.
+        if (step.opensPopup && step.popupExpectation) {
+          const expectation = step.popupExpectation;
+          const alias = expectation.popupAlias;
+          const timeout = expectation.timeoutMs ?? 15_000;
+          const popupPromise = this.activePage.context().waitForEvent("page", { timeout });
+          await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+          const popupPage = await popupPromise;
+          // Wait for initial load state.
+          await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
+          // Validate URL/title hints if provided.
+          if (expectation.urlContains) {
+            const popupUrl = popupPage.url();
+            if (!popupUrl.includes(expectation.urlContains)) {
+              this.log("info", step, `Popup URL "${popupUrl}" does not contain expected "${expectation.urlContains}" — continuing anyway.`);
+            }
+          }
+          if (expectation.titleContains) {
+            const title = await popupPage.title().catch(() => "");
+            if (!title.includes(expectation.titleContains)) {
+              this.log("info", step, `Popup title "${title}" does not contain expected "${expectation.titleContains}" — continuing anyway.`);
+            }
+          }
+          // Register popup in the registry.
+          this.registerPopupPage(alias, popupPage);
+          // Auto-return to main when popup closes (unless configured otherwise).
+          if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
+            popupPage.on("close", () => {
+              this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+              this.locatorFactory.setPage(this.activePage);
+            });
+          }
+          return { status: "passed" };
+        }
         await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
+      }
+
+      case "switchToPopup": {
+        // Arm a popup listener, then wait for the new window to appear (used when no prior click
+        // opener was available or the popup opens from a script/timer).
+        const expectation = step.popupExpectation;
+        if (!expectation) throw new Error(`switchToPopup step ${step.id} requires a popupExpectation config.`);
+        const alias = expectation.popupAlias;
+        const timeout = expectation.timeoutMs ?? 15_000;
+        // Check if the popup is already open (it may have opened before this step ran).
+        const existing = this.pageRegistry.get(alias);
+        const popupPage = existing ?? await this.activePage.context().waitForEvent("page", { timeout });
+        await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
+        if (!existing) this.registerPopupPage(alias, popupPage);
+        // Switch the active context to the popup.
+        this.activePage = popupPage;
+        this.locatorFactory.setPage(popupPage);
+        await popupPage.bringToFront().catch(() => undefined);
+        // Auto-return to main when popup closes.
+        if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
+          popupPage.on("close", () => {
+            this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+            this.locatorFactory.setPage(this.activePage);
+          });
+        }
+        // Run protected-login detection on the popup page.
+        const detection = await detectProtectedLogin(popupPage).catch(() => null);
+        if (detection?.detected) {
+          const info: HandoffInfo = {
+            kind: "protectedLogin",
+            message: detection.message,
+            provider: detection.provider,
+            reason: detection.reason,
+            url: detection.url,
+            allowedActions: ["cancel", "retry", "continue"]
+          };
+          this.log("info", step, `Protected login detected in popup (${detection.provider}/${detection.reason}) — pausing for handoff.`);
+          await this.waitForHandoffAction(step, info);
+        }
+        return { status: "passed" };
+      }
+
+      case "closePopup": {
+        const alias = step.config?.popupAlias ?? step.pageAlias;
+        if (!alias) throw new Error(`closePopup step ${step.id} requires a popupAlias in config or pageAlias.`);
+        const popupPage = this.pageRegistry.get(alias);
+        if (!popupPage) {
+          this.log("info", step, `closePopup: popup "${alias}" is already closed or was never opened — skipping.`);
+          return { status: "passed" };
+        }
+        const timeout = step.timeoutMs ?? 15_000;
+        // If the page is still open, wait for it to close (e.g. user clicked Accept).
+        try {
+          if (!popupPage.isClosed()) {
+            await popupPage.waitForEvent("close", { timeout });
+          }
+        } catch {
+          // Timeout: the popup didn't close on its own — close it programmatically.
+          await popupPage.close().catch(() => undefined);
+        }
+        this.pageRegistry.delete(alias);
+        // Return focus to the main page.
+        const mainPage = this.pageRegistry.get("main") ?? this.activePage;
+        this.activePage = mainPage;
+        this.locatorFactory.setPage(mainPage);
+        await mainPage.bringToFront().catch(() => undefined);
+        return { status: "passed" };
+      }
+
+      case "switchToMainPage": {
+        const mainPage = this.pageRegistry.get("main");
+        if (!mainPage) throw new Error("switchToMainPage: main page is not registered in the page registry.");
+        this.activePage = mainPage;
+        this.locatorFactory.setPage(mainPage);
+        await mainPage.bringToFront().catch(() => undefined);
+        return { status: "passed" };
+      }
 
       case "fill": {
         const value = await this.resolveStepValue(step);

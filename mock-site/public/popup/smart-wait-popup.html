@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Smart Wait Popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Smart Wait Popup</h1>
+      <div id="loader">Loading...</div>
+      <div id="content" style="display:none;">
+        <p>Delayed Popup Content Loaded</p>
+        <button id="confirm-loaded-button" data-testid="confirm-loaded-button" onclick="confirmLoad()">Confirm Loaded Content</button>
+      </div>
+    </main>
+    <script>
+      setTimeout(() => {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("content").style.display = "block";
+      }, 1500);
+
+      function confirmLoad() {
+        if (window.opener) {
+          window.opener.postMessage({ type: "smart-wait-confirmed" }, "*");
+        }
+        window.close();
+      }
+    </script>
+  </body>
+</html>

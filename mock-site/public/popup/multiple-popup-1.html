@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>First Popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>First Popup</h1>
+      <button id="action-first-button" data-testid="action-first-button" onclick="doAction()">Action First</button>
+    </main>
+    <script>
+      function doAction() {
+        if (window.opener) {
+          window.opener.postMessage({ type: "popup-action" }, "*");
+        }
+        window.close();
+      }
+    </script>
+  </body>
+</html>

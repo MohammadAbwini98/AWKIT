@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Auto-Close Popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Auto-Close Popup</h1>
+      <p id="countdown" data-testid="countdown">Closing in 1.5 seconds...</p>
+    </main>
+    <script>
+      setTimeout(() => {
+        if (window.opener) {
+          window.opener.postMessage({ type: "auto-closed" }, "*");
+        }
+        window.close();
+      }, 1500);
+    </script>
+  </body>
+</html>
