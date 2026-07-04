@@ -21,11 +21,11 @@ import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/W
 const coordinator = new ConcurrentExecutionCoordinator();
 const orchestrator = new ScenarioOrchestrator();
 
-// Workflow cards grid: show 3 rows initially, reveal 2 more rows per "Load More".
-const INITIAL_CARD_ROWS = 3;
-const ROWS_PER_LOAD = 2;
+// Workflow cards grid: always render every card, but cap the grid at two rows tall and let it
+// scroll internally once the cards overflow that height (no "Load More" paging).
+const MAX_CARD_ROWS = 2;
 
-/** Measure how many columns the CSS grid currently renders (responsive Load-More math). */
+/** Measure how many columns the CSS grid currently renders (responsive two-row-cap math). */
 function useGridColumns(ref: React.RefObject<HTMLElement>): number {
   const [columns, setColumns] = useState(1);
   useEffect(() => {
@@ -105,10 +105,8 @@ export function InstanceMonitor() {
   });
   const [cardParams, setCardParams] = useState<Record<string, WorkflowCardParams>>({});
   const [cardSearch, setCardSearch] = useState("");
-  const [visibleRows, setVisibleRows] = useState(INITIAL_CARD_ROWS);
-  // Task 5: after "Load More", show every card but constrain the grid to two rows with an internal
-  // scroller (measured height below) instead of pushing the rest of the page down.
-  const [cardsExpanded, setCardsExpanded] = useState(false);
+  // Every card is always rendered; once the cards exceed two rows the grid becomes an internal
+  // scroller constrained to the measured two-row height (below) so the rest of the page stays put.
   const [gridScrollHeight, setGridScrollHeight] = useState<number | null>(null);
   const [classicOpen, setClassicOpen] = useState(false);
   const [authCaps, setAuthCaps] = useState<ProtectedLoginCapabilities | null>(null);
@@ -337,15 +335,13 @@ export function InstanceMonitor() {
 
   const filteredWorkflows = useMemo(() => filterWorkflows(workflows, cardSearch), [workflows, cardSearch]);
 
-  const visibleCount = computeVisibleCardCount(gridColumns, visibleRows);
-  // Before "Load More": show the initial rows. After: render every card and let the grid scroll
-  // internally (only two rows tall) so the page below stays put.
-  const visibleWorkflows = cardsExpanded ? filteredWorkflows : filteredWorkflows.slice(0, visibleCount);
-  const hasMoreCards = !cardsExpanded && filteredWorkflows.length > visibleWorkflows.length;
+  // Always render every card; enable the two-row scroller only once the cards overflow two rows.
+  const visibleWorkflows = filteredWorkflows;
+  const needsScroll = filteredWorkflows.length > computeVisibleCardCount(gridColumns, MAX_CARD_ROWS);
 
-  // Measure the height of two card rows so the expanded grid scroller shows exactly two rows.
+  // Measure the height of two card rows so the overflowing grid scroller shows exactly two rows.
   useEffect(() => {
-    if (!cardsExpanded) {
+    if (!needsScroll) {
       setGridScrollHeight(null);
       return;
     }
@@ -365,7 +361,7 @@ export function InstanceMonitor() {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [cardsExpanded, gridColumns, visibleWorkflows.length]);
+  }, [needsScroll, gridColumns, visibleWorkflows.length]);
 
   // Resolve an instance's workflow name for the table (Task 05).
   const workflowNameById = useMemo(() => new Map(workflows.map((workflow) => [workflow.id, workflow.name])), [workflows]);
@@ -534,11 +530,7 @@ export function InstanceMonitor() {
           <input
             placeholder="Search workflows by name…"
             value={cardSearch}
-            onChange={(event) => {
-              setCardSearch(event.target.value);
-              setVisibleRows(INITIAL_CARD_ROWS); // reset to 3 rows when the query changes
-              setCardsExpanded(false); // collapse back to the initial rows on a new search
-            }}
+            onChange={(event) => setCardSearch(event.target.value)}
           />
         </div>
 
@@ -557,9 +549,9 @@ export function InstanceMonitor() {
         ) : (
           <>
             <div
-              className={cardsExpanded ? "workflow-card-grid is-scrolling" : "workflow-card-grid"}
+              className={needsScroll ? "workflow-card-grid is-scrolling" : "workflow-card-grid"}
               ref={gridRef}
-              style={cardsExpanded && gridScrollHeight ? { maxHeight: gridScrollHeight } : undefined}
+              style={needsScroll && gridScrollHeight ? { maxHeight: gridScrollHeight } : undefined}
             >
               {visibleWorkflows.map((workflow) => {
                 const meta = workflowStatusMap.get(workflow.id) ?? { status: "active" as WorkflowCardStatus, blockReason: "" };
@@ -581,11 +573,7 @@ export function InstanceMonitor() {
                 );
               })}
             </div>
-            {hasMoreCards ? (
-              <button className="toolbar-button im-load-more" type="button" onClick={() => setCardsExpanded(true)}>
-                Load More workflows ({filteredWorkflows.length - visibleWorkflows.length} more)
-              </button>
-            ) : cardsExpanded && filteredWorkflows.length > Math.max(gridColumns, 1) * ROWS_PER_LOAD ? (
+            {needsScroll ? (
               <span className="form-message im-load-more-msg">Showing all {filteredWorkflows.length} workflows — scroll the grid to view more.</span>
             ) : null}
           </>

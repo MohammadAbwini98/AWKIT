@@ -3794,9 +3794,9 @@ table {
 
 .workflow-card-grid {
   /* Fixed 3-column layout (responsive to 2 / 1) so the cards-per-row and card
-     dimensions stay identical before and after "Load More" — the column count no
-     longer depends on how many cards are currently rendered. minmax(0, 1fr) keeps
-     long content from forcing horizontal overflow. */
+     dimensions stay identical whether or not the two-row scroller is active — the
+     column count no longer depends on how many cards are currently rendered.
+     minmax(0, 1fr) keeps long content from forcing horizontal overflow. */
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
@@ -4064,13 +4064,6 @@ table {
 .workflow-card-run:disabled {
   background: #b9c4d6;
   cursor: not-allowed;
-}
-
-.im-load-more {
-  margin-top: 14px;
-  justify-content: center;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .im-load-more-msg {

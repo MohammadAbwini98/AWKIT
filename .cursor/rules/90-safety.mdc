@@ -1,0 +1,22 @@
+---
+description: Safety and anti-destructive editing rules
+alwaysApply: true
+---
+
+# Safety Rules
+
+Do not run destructive commands unless the user explicitly requested them and the repo state is understood.
+
+Avoid:
+- `git reset --hard`
+- `git clean -fdx`
+- deleting `docs/ai`
+- deleting `.claude`, `.agents`, `.gemini`, `.cursor`
+- deleting package lock files
+- rewriting large files without checking diffs
+- modifying generated artifacts unless needed
+
+Before finishing:
+- Show changed files.
+- Show commands/tests run.
+- Mention skipped verification and why.

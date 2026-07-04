@@ -76,3 +76,14 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 6. Add to `docs/ai/KNOWN_ISSUES.md` if you hit a repeated bug, fragile area, or risky assumption.
 7. Update `FEATURES.md` / `ARCHITECTURE.md` / `COMMANDS.md` / `DECISIONS.md` only if those changed.
 8. Note remaining risks or manual verification (e.g. the clean-machine GUI walkthrough).
+
+## Git Full Cycle Skill
+
+When doing any Git operation, branch work, commit, push, pull, PR creation, stacked PR, or
+protected-main workflow, first read:
+
+- `.claude/skills/git-full-cycle/SKILL.md` for Claude
+- `.codex/skills/git-full-cycle/SKILL.md` for Codex
+- `.gemini/skills/git-full-cycle/SKILL.md` for Gemini
+
+The skill must be used before changing branches, staging files, committing, pushing, or opening PRs.

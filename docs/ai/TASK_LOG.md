@@ -4,6 +4,95 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Add Git Full Cycle agent skill
+
+- **Task:** Add a reusable Git lifecycle skill teaching agents to safely inspect status, protect
+  in-flight work, branch, commit, push, open PRs, handle protected `main`, and manage stacked PRs.
+- **What was added:**
+  - Added the Git Full Cycle skill for Claude, Codex, and Gemini as byte-identical mirrors:
+    `.claude/skills/git-full-cycle/SKILL.md`, `.codex/skills/git-full-cycle/SKILL.md`,
+    `.gemini/skills/git-full-cycle/SKILL.md`, plus a canonical shared copy at
+    `docs/ai/skills/git-full-cycle/SKILL.md` (`.codex/` and `docs/ai/skills/` newly created).
+  - Added a **Git Full Cycle Skill** reference section to the agent entry files `CLAUDE.md`,
+    `AGENTS.md`, and `GEMINI.md` (existing content preserved) pointing each agent at its mirror and
+    requiring the skill be read before branch/stage/commit/push/PR operations.
+- **Files changed:** `.claude/skills/git-full-cycle/SKILL.md`, `.codex/skills/git-full-cycle/SKILL.md`,
+  `.gemini/skills/git-full-cycle/SKILL.md`, `docs/ai/skills/git-full-cycle/SKILL.md`, `CLAUDE.md`,
+  `AGENTS.md`, `GEMINI.md`, `docs/ai/TASK_LOG.md`.
+- **Validation:** `node scripts/ai-memory/check-memory.mjs` (no `verify:ai-memory` npm script exists).
+- **Branch:** committed on `chore/save-inflight-recorder-work` (PR #1 still open — docs/skills work
+  belongs with it). No Smart Locator feature files touched; Smart Wait Engine not started; no UI
+  diagnostics added.
+
+## 2026-07-04 — Claude Code — Recorder: guarantee unique positional fallback locator
+
+- **Task:** Recorder saved a non-unique positional locator, so runs failed with
+  "the saved locator matches N elements" (reported: `css=div > div > div > div:nth-of-type(3) > div > div:nth-of-type(3) > svg` matched 6 elements).
+- **Root cause:** `structuralSelector` in `src/recorder/recorderInitScript.ts` built a floating
+  child-combinator chain capped at 6 levels and only added `:nth-of-type` for same-tag siblings; it
+  never validated the result against the live DOM, so the path could match many sibling subtrees.
+- **Fix:** Rebuilt `structuralSelector` to walk up from the element prepending one segment per
+  ancestor and stop the instant the accumulated path resolves to exactly one element (`q === 1`).
+  Each segment pins the node's position among ALL siblings via `:nth-child` (more disambiguating than
+  `:nth-of-type`); a stable ancestor id short-circuits into an anchored unique path. This yields the
+  shortest unique path and keeps the fallback flagged low-confidence. Semantic/scoped strategies are
+  unchanged and still preferred first.
+- **Files changed:** `src/recorder/recorderInitScript.ts` (fallback rewrite),
+  `scripts/verify-recorder-locator.mts` (added regression test 4b: repeated deeply-nested
+  attribute-less `<svg>` subtrees must resolve to one element).
+- **Tests run:** `npm run verify:recorder` **27/27** (was 25 + 2 new); `npm run build` clean.
+- **Result:** Recorded positional-fallback locators are now unique; the reported multi-match failure
+  no longer occurs.
+
+---
+
+## 2026-07-04 — Claude Code — Instances: remove Load More, always-on two-row card scroller
+
+- **Task:** In the Concurrent Instance Monitor, remove the "Load More workflows" button and instead always
+  render every workflow card, capping the grid at two rows tall with an internal scroller when the cards
+  overflow two rows.
+- **Behavior now:** `visibleWorkflows = filteredWorkflows` (all cards always rendered).
+  `needsScroll = filteredWorkflows.length > visibleCardCount(gridColumns, 2)`. When `needsScroll`, the grid
+  gets `.is-scrolling` (`overflow-y:auto`) and an inline `maxHeight` measured from two card rows + one row
+  gap (unchanged measurement logic, now gated on `needsScroll` instead of the old `cardsExpanded`). At two
+  rows or fewer the grid renders at natural height with no scroller. Removed the `cardsExpanded`/`visibleRows`
+  state, the `INITIAL_CARD_ROWS`/`ROWS_PER_LOAD` constants (replaced by `MAX_CARD_ROWS = 2`), the Load-More
+  button, and its search-reset side effects. A "Showing all N workflows — scroll the grid" hint remains when
+  scrolling is active.
+- **Files changed:** `app/renderer/pages/InstanceMonitor.tsx` (logic + render),
+  `app/renderer/styles/global.css` (removed orphaned `.im-load-more` button rule; refreshed a stale
+  "Load More" grid comment).
+- **Tests run:** `npm run build` clean; `npm run verify:instance-monitor` **22/22** (the `visibleCardCount`
+  helper is still used for the two-row threshold and remains covered). Not run: GUI walkthrough of the live
+  scroller (manual check outstanding).
+- **Result:** Load-More button gone; two-row card scroller is always-on when cards overflow two rows.
+
+---
+
+## 2026-07-04 — Claude Code — AI agent architecture hardening
+
+- **Task:** Added/completed the scalable multi-agent architecture for Cursor, Claude Code,
+  Codex/Antigravity, Gemini, and future agents — without rewriting existing AI memory.
+- **Baseline preserved:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, all existing `docs/ai/*`,
+  `.claude/commands/{HANDOFF,TAKEOFF}.md`, `.claude/skills/ai-memory-maintainer`,
+  `.agents/skills/{ai-memory-maintainer,agent-handoff,agent-takeoff}`, `.agents/workflows/*`,
+  and `.gemini/commands/*` were left untouched.
+- **Files added:** `docs/ai/README.md` (concise AI-memory index); `.cursor/rules/`
+  `00-project.mdc`, `10-electron-react.mdc`, `20-playwright-runner.mdc`, `30-storage-ipc.mdc`,
+  `90-safety.mdc`; `.claude/skills/` `codebase-review`, `feature-implementation`, `bug-fix`,
+  `test-and-verify`, `docs-sync`, `refactor-safe`, `pr-review` (each `SKILL.md`); `.agents/skills/`
+  `codebase-review`, `feature-implementation`, `bug-fix`, `test-and-verify` (tool-neutral `SKILL.md`).
+- **Files changed:** `scripts/ai-memory/check-memory.mjs` — added a non-fatal `optionalFiles`
+  warning pass for the new README, Cursor rules, and Claude/agent skills (required checks and
+  secret scans unchanged; Cursor rules stay soft, not hard failures).
+- **Verification:** `node scripts/ai-memory/check-memory.mjs` → passed required checks, exit 0,
+  no warnings. `npm run build`: skipped — only AI-memory Markdown, Cursor `.mdc`, and the checker
+  script changed (no app runtime/TS source touched).
+- **Result:** Architecture targets 1–11 met; all optional adapter/skill files present.
+- **Remaining work:** None for this task. Cursor rules are enforced softly by design.
+
+---
+
 ## 2026-07-04 — Claude Code — Recorder wait-capture + Start/End nodes, canvas-click collapse, last-opened restore, Instances Load-More scroller, reusable saved URLs
 
 - **Task:** Six-point AWKIT change set across Recorder, Flow Designer, Workflow Builder, and Instances.

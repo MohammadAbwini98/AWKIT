@@ -1,0 +1,22 @@
+---
+description: Playwright runner and automation rules
+globs:
+  - "src/runner/**/*"
+  - "src/security/**/*"
+  - "src/session/**/*"
+  - "scripts/verify-*.mjs"
+  - "scripts/verify-*.mts"
+alwaysApply: false
+---
+
+# Playwright Runner Rules
+
+This project is for authorized automation only.
+
+Rules:
+- Do not bypass CAPTCHA, MFA, bot detection, or protected login flows.
+- Use manual/protected-login handoff for blocked login pages.
+- Never log secrets, passwords, tokens, cookies, or session values.
+- Keep runner changes backward compatible with existing saved flows/workflows when possible.
+- For runner/orchestrator changes, run `npm run verify:runner`.
+- For recorder changes, run the relevant recorder verification script if available.

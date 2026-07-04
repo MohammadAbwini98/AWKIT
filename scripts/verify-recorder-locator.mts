@@ -137,6 +137,18 @@ async function main() {
     check("fallback flagged as fragile (low confidence or fallback strategy)", quality?.confidence === "low" || quality?.strategy === "fallback", JSON.stringify(quality));
   }
 
+  // 4b. Regression: a deeply-nested attribute-less <svg> repeated across identical sibling
+  // subtrees. The old fallback emitted a floating child-chain (`div > div > … > svg`) that
+  // matched every subtree; the serial structural path must resolve to exactly one element.
+  {
+    const cell = (n: number) => `<div><div><div><div></div><div></div><div><div></div><div></div><div><svg data-n="${n}"><path d="M0 0"/></svg></div></div></div></div></div>`;
+    const html = `<section>${Array.from({ length: 6 }, (_, i) => cell(i)).join("")}</section>`;
+    const action = await capture(html, (p) => p.locator('svg[data-n="3"]').click());
+    const quality = action?.locator?.quality;
+    check("repeated nested svg → fallback resolves to one element", quality?.matchCount === 1, JSON.stringify(quality));
+    check("repeated nested svg → locator marked unique", quality?.isUnique === true, action?.locator?.value);
+  }
+
   // 5. Fill an email input with a placeholder → semantic placeholder/label locator, unique.
   {
     const html = `<form><label for="e">Email</label><input id="e" type="email" placeholder="you@example.com" /></form>`;

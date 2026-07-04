@@ -1,0 +1,18 @@
+---
+description: Electron, React, renderer, and UI rules
+globs:
+  - "app/**/*"
+  - "src/**/*"
+alwaysApply: false
+---
+
+# Electron + React Rules
+
+Use existing AWKIT patterns:
+- Electron main/preload code lives under `app/main`.
+- Renderer UI uses React + TypeScript.
+- Shared styles belong in existing CSS files, especially `app/renderer/styles/global.css`.
+- Use existing components and state patterns before adding new abstractions.
+- Keep preload IPC contracts stable.
+- Never expose Node APIs directly to the renderer.
+- Preserve `window.playwrightFlowStudio` as the renderer bridge contract.

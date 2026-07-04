@@ -85,5 +85,31 @@ if (!exists(".agents/workflows/TAKEOFF.md")) warn("Agent TAKEOFF workflow is mis
 if (!exists(".gemini/commands/ai-memory.toml")) warn("Gemini command is missing");
 if (!exists(".gemini/commands/HANDOFF.toml")) warn("Gemini HANDOFF command is missing");
 if (!exists(".gemini/commands/TAKEOFF.toml")) warn("Gemini TAKEOFF command is missing");
+
+// Optional adapter/skill files: warn (non-fatal) so agent coverage stays visible
+// without blocking the required-memory gate. Cursor rules are intentionally soft.
+const optionalFiles = [
+  "docs/ai/README.md",
+  ".cursor/rules/00-project.mdc",
+  ".cursor/rules/10-electron-react.mdc",
+  ".cursor/rules/20-playwright-runner.mdc",
+  ".cursor/rules/30-storage-ipc.mdc",
+  ".cursor/rules/90-safety.mdc",
+  ".claude/skills/codebase-review/SKILL.md",
+  ".claude/skills/feature-implementation/SKILL.md",
+  ".claude/skills/bug-fix/SKILL.md",
+  ".claude/skills/test-and-verify/SKILL.md",
+  ".claude/skills/docs-sync/SKILL.md",
+  ".claude/skills/refactor-safe/SKILL.md",
+  ".claude/skills/pr-review/SKILL.md",
+  ".agents/skills/codebase-review/SKILL.md",
+  ".agents/skills/feature-implementation/SKILL.md",
+  ".agents/skills/bug-fix/SKILL.md",
+  ".agents/skills/test-and-verify/SKILL.md"
+];
+for (const file of optionalFiles) {
+  if (!exists(file)) warn("Optional adapter/skill file is missing: " + file);
+}
+
 if (!failed) ok("AI memory files passed required checks.");
 process.exit(failed ? 1 : 0);

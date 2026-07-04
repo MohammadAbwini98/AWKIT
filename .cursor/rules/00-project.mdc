@@ -1,0 +1,30 @@
+---
+description: AWKIT project-wide AI guidance
+alwaysApply: true
+---
+
+# AWKIT Project Rule
+
+AWKIT / WebFlow Studio is an offline-capable Windows desktop app for visual Playwright web automation.
+
+Before editing:
+- Read `AGENTS.md`.
+- Read `docs/ai/README.md` if present.
+- Read `docs/ai/CURRENT_STATE.md`.
+- Read `docs/ai/HANDOFF.md` before implementation work.
+- Read only task-relevant extra docs.
+
+Rules:
+- Keep changes minimal and scoped.
+- Do not rewrite unrelated code.
+- Preserve offline-first behavior.
+- Do not add CDN, remote font, runtime internet, or cloud dependencies.
+- Do not rename `window.playwrightFlowStudio`.
+- Do not store mutable runtime data under `resources/` or `app.asar`.
+- Do not copy secrets into code, logs, docs, or tests.
+
+After meaningful changes:
+- Run the relevant verification commands.
+- Update `docs/ai/TASK_LOG.md`.
+- Update `docs/ai/CURRENT_STATE.md` only if project state changed.
+- Update `docs/ai/HANDOFF.md` if work is paused or handed off.
