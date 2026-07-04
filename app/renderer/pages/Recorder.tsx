@@ -10,6 +10,7 @@ export function Recorder() {
   const [isRecording, setIsRecording] = useState(false);
   // Task 1: optionally capture the user's think-time between actions as wait steps (persisted).
   const [captureWaitTime, setCaptureWaitTime] = useState(false);
+  const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
   const [actions, setActions] = useState<RecordedAction[]>([]);
   const [flowName, setFlowName] = useState("New Recorded Flow");
   const [statusMsg, setStatusMsg] = useState("");
@@ -47,9 +48,12 @@ export function Recorder() {
     window.playwrightFlowStudio.recorder.getUrls()
       .then(setUrls)
       .catch(() => undefined);
-    // Restore the persisted "capture waiting time" preference (Task 1).
+    // Restore persisted recorder preferences.
     window.playwrightFlowStudio.settings.get()
-      .then((settings) => setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false))
+      .then((settings) => {
+        setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false);
+        setCaptureSmartWaits(settings.recorder?.captureSmartWaits ?? true);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -102,7 +106,7 @@ export function Recorder() {
   const handleStart = async () => {
     try {
       setStatusMsg("Starting browser...");
-      await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime });
+      await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime, captureSmartWaits });
       setIsRecording(true);
       setStatusMsg(captureWaitTime ? "Recording (capturing wait time)..." : "Recording...");
       // Persist the entered URL to the reusable saved-URL list (Task 6).

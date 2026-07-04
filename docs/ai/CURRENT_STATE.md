@@ -1,13 +1,11 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Claude Code — Smart Wait Engine **Phase 1 (runner execution)**: `FlowStep`
-gained optional `beforeWaits`/`afterWaits: WaitCondition[]`; `StepExecutor` runs beforeWaits → action →
-afterWaits, arming action-triggered `response` waits before the click; 12 condition types (loader/
-element/table/list/url/response/toast/domStable/fixedDelay) with clear diagnostics; legacy `wait` node
-and no-wait steps unchanged. verify:waits 15/15, verify:runner 76/76, verify:recorder 42/42, build clean.
-Recorder still emits legacy fixed-time waits (Smart-wait capture is Phase 2). Prior: Smart Locator runtime
-delta (`StepLocator` `alternatives[]` + `context`, `LocatorFactory.resolve` visibility disambiguation);
-positional fallback uniqueness; AI-agent architecture hardening.)
+**Last updated:** 2026-07-04 (Codex — Smart Wait Engine **Phase 2 (recorder observation)** completed
+locally on top of Phase 1. The recorder now observes safe page/network/DOM signals between actions and
+attaches condition-based `afterWaits` to the previous recorded action using the Phase 1 `WaitCondition`
+model. Smart Wait capture is controlled by persisted `settings.recorder.captureSmartWaits` (default ON);
+legacy fixed-time `captureWaitTime` waits remain backward compatible. Verification: `verify:recorder`
+57/57, `verify:recorder-draft` 17/17, `verify:waits` 15/15, `verify:runner` 76/76, build clean.)
 
 ## What currently works (Confirmed)
 
@@ -243,7 +241,12 @@ positional fallback uniqueness; AI-agent architecture hardening.)
   saved-URL history** now lives in its own deduped/canonicalized `recorder-urls.json` (survives
   save/cancel/restart, separate from the transient action draft); `recorder:saveUrl` IPC + a "Save URL"
   button persist a typed URL, and clicking a saved URL row fills the Controls URL field. Verified by
-  `npm run verify:recorder-draft` (15/15) and `npm run verify:recorder-flow` (13/13).
+  `npm run verify:recorder-draft` (17/17) and `npm run verify:recorder-flow` (13/13). (4) **Smart Wait
+  observation** (default ON via `settings.recorder.captureSmartWaits`) passively observes loaders,
+  fetch/XHR completion, URL changes, table/list/card data growth, enabled controls, toasts, and fixed-delay
+  fallback windows, then stores high-confidence `afterWaits` on the preceding recorded action. It records
+  method + URL path/status/timing only for network signals; never headers, bodies, cookies, query tokens,
+  or response contents. Verified as part of `npm run verify:recorder` (57/57).
 - **Designer empty-canvas collapse (2026-07-04):** Clicking empty canvas in the Flow Designer and Workflow
   Builder collapses the app side menu (`navigation.collapseSidebar()`), Node Palette / Workflow Definition,
   and Node Properties / Selected Connector panels (collapse-only, idempotent, persisted). Node selection
@@ -255,7 +258,7 @@ positional fallback uniqueness; AI-agent architecture hardening.)
   (`filteredWorkflows.length > visibleCardCount(gridColumns, 2)`), the grid becomes a **two-row internal
   scroller** (measured height + `.workflow-card-grid.is-scrolling`) so the rest of the Instances page stays
   put; at two rows or fewer it renders at natural height with no scroller.
-- **Recorder unique locators (live-verified, `npm run verify:recorder` → 42/42):** the injected capture
+- **Recorder unique locators + Smart Wait observation (live-verified, `npm run verify:recorder` → 57/57):** the injected capture
   script (`src/recorder/recorderInitScript.ts`) generates ranked candidate locators (role/label/
   placeholder/text/testId → stable attributes → id → scoped → positional fallback — never utility/layout
   classes like `flex`/`items-center`), validates uniqueness against the live DOM, and saves the best
@@ -266,7 +269,7 @@ positional fallback uniqueness; AI-agent architecture hardening.)
   child-chains like `div > div > … > svg` that match many subtrees. Human-readable step names ("Click Log
   in"); password values are never stored. Node Properties shows locator quality and won't mark a non-unique
   node valid.
-- **Smart Locator runtime fallback + context scoping (live-verified, part of `verify:recorder` 42/42):**
+- **Smart Locator runtime fallback + context scoping (live-verified, part of `verify:recorder` 57/57):**
   `FlowStep.locator` is a structured `StepLocator` (`src/profiles/FlowProfile.ts`) with the primary plus
   optional `alternatives: LocatorCandidate[]` (ranked runtime fallbacks) and `context` (container/frame
   scope). The recorder emits both: up to 3 alternatives and a `context` for the nearest **visible dialog**

@@ -148,8 +148,8 @@ export interface WaitConditionBase {
 /**
  * A condition-based wait (Smart Wait Engine). Executed by the runner before/after a step's
  * action via `FlowStep.beforeWaits` / `FlowStep.afterWaits`. Locator-based waits reuse the
- * structured {@link StepLocator} shape. Phase 1 covers execution only — the recorder does not
- * yet emit these (it still inserts legacy fixed-time `wait` step nodes).
+ * structured {@link StepLocator} shape. The recorder can emit `afterWaits` from Smart Wait
+ * observation while the legacy fixed-time `wait` step remains backward compatible.
  */
 export type WaitCondition =
   | (WaitConditionBase & { type: "loaderHidden"; locator: StepLocator })

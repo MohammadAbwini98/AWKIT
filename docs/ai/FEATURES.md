@@ -93,6 +93,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `isSaving` guard against duplicate-click corruption. **Auto-captures visited URLs** (main-frame
   navigations + opened tabs) with sensitive query values masked, shown in a searchable/paginated
   "Recorded URLs" table (Time/Title/URL/Source/Session/copy) via `recorder.getUrls()`.
+- ✅ **Smart Wait recorder observation:** default-on `settings.recorder.captureSmartWaits` records
+  high-confidence `afterWaits` from passive loaders, fetch/XHR completion (method + URL path only),
+  URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback.
+  Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
 - ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
   locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → positional

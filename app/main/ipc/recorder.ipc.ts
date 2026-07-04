@@ -16,7 +16,7 @@ export function registerRecorderIpc(): void {
   void recorderService.ensureDraftLoaded();
   void recorderService.ensureUrlHistoryLoaded();
 
-  ipcMain.handle("recorder:start", async (_, url: string, options?: { captureWaitTime?: boolean }) => {
+  ipcMain.handle("recorder:start", async (_, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
     let executablePath: string | undefined;
     if (isProductionOffline()) {
       const bundled = new BundledBrowserResolver(getResourcesRoot()).resolveChromium();
@@ -26,7 +26,11 @@ export function registerRecorderIpc(): void {
       executablePath = bundled.executablePath;
       console.log(`[offline] Recorder using bundled Chromium: ${executablePath}`);
     }
-    await recorderService.startRecording(url, { executablePath, captureWaitTime: options?.captureWaitTime ?? false });
+    await recorderService.startRecording(url, {
+      executablePath,
+      captureWaitTime: options?.captureWaitTime ?? false,
+      captureSmartWaits: options?.captureSmartWaits ?? true
+    });
     return recorderService.getStatus();
   });
 

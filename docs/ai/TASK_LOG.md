@@ -4,6 +4,47 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code/Codex — Smart Wait Engine Phase 2 (recorder observation)
+
+- **Task:** Phase 2 — the recorder now observes what happens between user actions and captures
+  condition-based Smart Waits, reusing the Phase 1 `WaitCondition` model. No UI controls; no
+  Multi-Window/Popup or Manual Handoff work.
+- **What was added:**
+  - **Pure correlation core** (`src/recorder/smartWaitObservation.ts`, new): `RecordedSignal` union +
+    `buildSmartWaits(signals, fromTs, toTs, opts)` — turns raw page signals from the window after the
+    previous action into ranked `WaitCondition[]`. Priority response → loaderHidden → tableHasRows/
+    listHasItems → toastVisible → elementEnabled → urlChanged; caps at 3; **ignores background polling**
+    (a request path repeated ≥3× in the window); `fixedDelay` only as a fallback when nothing reliable
+    is found (and only when `captureWaitTime` is off, to avoid double delays). Browser-free → unit-tested.
+  - **In-page observer** (`src/recorder/recorderInitScript.ts`): patches `fetch`/`XMLHttpRequest`
+    (method + URL **path** only — never query/headers/bodies/cookies), `history`+popstate/hashchange
+    for URL changes, and a MutationObserver + 150 ms scan for loaders appearing→disappearing, toasts,
+    disabled→enabled transitions, and table/list/card row-count increases. Emits safe signals via a new
+    `__awtkit_recordSignal` binding. A silent baseline scan avoids emitting for pre-existing content.
+  - **RecorderService** (`RecorderService.ts`): new `captureSmartWaits` option (**default on**), buffers
+    signals (bounded), and on each distinct action attaches `buildSmartWaits(...)` output as `afterWaits`
+    on the **previous** action. Legacy `captureWaitTime` fixed-time nodes and fill-collapsing unchanged.
+  - **Settings/IPC pass-through** (`uiSettings.ts`, `recorder.ipc.ts`, `preload.ts`, `Recorder.tsx`):
+    persisted `settings.recorder.captureSmartWaits` defaults ON and is passed to `RecorderService` without
+    adding a new UI control.
+  - **Propagation:** `RecordedAction` gains `beforeWaits`/`afterWaits` (`RecorderTypes.ts`);
+    `buildRecordedFlow.ts` copies them onto the `FlowStep`.
+- **Security:** only method + URL path, status range, timing, loader selectors, short (≤80 char) toast
+  text, and locators are captured. No secrets/headers/bodies/cookies/tokens; `networkidle` is not used.
+- **Files changed:** `src/recorder/smartWaitObservation.ts` (new), `src/recorder/recorderInitScript.ts`,
+  `src/recorder/RecorderService.ts`, `src/recorder/RecorderTypes.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `src/profiles/FlowProfile.ts`, `app/main/uiSettings.ts`, `app/main/ipc/recorder.ipc.ts`,
+  `app/main/preload.ts`, `app/renderer/pages/Recorder.tsx`, `scripts/verify-recorder-locator.mts`
+  (Part D), `scripts/verify-recorder-draft.mts`, docs.
+- **Tests:** `npm run verify:recorder` → **57/57** (Part D: POST/GET response, loaderHidden, card/list
+  waits, toast, enabled, urlChanged path-only, polling-ignored, fixedDelay fallback on/off, and in-page
+  signal emission incl. query stripped). `npm run verify:recorder-draft` → **17/17** (incl. legacy fixed
+  wait with Smart Wait disabled), `npm run verify:waits` 15/15, `verify:runner` 76/76, build clean,
+  check-memory passed.
+- **Not done (later):** UI controls (Phase 4) — `captureSmartWaits` defaults on and has no toggle yet;
+  a future Recorder UI can pass the option like `captureWaitTime`. Branch: `feature/smart-wait-engine`
+  (separate local commit on top of Phase 1 `cd68ef9`).
+
 ## 2026-07-04 — Claude Code — Smart Wait Engine Phase 1 (runner execution)
 
 - **Task:** Phase 1 of the Smart Wait Engine — condition-based waits executed by the runner. Recorder

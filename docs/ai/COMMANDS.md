@@ -36,8 +36,8 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
 npm run verify:workflow-builder # node scripts/verify-workflow-builder-gui.mjs — same real-Electron GUI
                             # walkthrough for the Workflow Builder (.scenario-flow-node) canvas. Loads a
                             # saved workflow with an edge, then checks the same connector behaviors.
-npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks that the Recorder generates unique, Playwright-safe locators + runner non-unique safeguard + live (no-blur) text capture
-npm run verify:recorder-draft # tsx scripts/verify-recorder-draft.mts — recorder action-draft persistence + reusable saved-URL history (dedupe/canonicalize/survive-discard) + wait-time capture logic; no browser launched
+npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
+npm run verify:recorder-draft # tsx scripts/verify-recorder-draft.mts — recorder action-draft persistence + reusable saved-URL history + wait-time/smart-wait compatibility logic; no browser launched
 npm run verify:recorder-flow # tsx scripts/verify-recorder-flow.mts — pure buildRecordedFlow checks: default Start/End nodes, action wiring, wait/route-change replay; no browser launched
 npm run verify:protected-login # tsx scripts/verify-protected-login.mts — pure protected-login detector unit checks
 npm run verify:data-editor  # tsx scripts/verify-data-editor.mts — data-source table editor logic + file round-trip

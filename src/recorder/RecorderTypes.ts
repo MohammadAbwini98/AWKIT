@@ -1,4 +1,4 @@
-import type { LocatorQuality, LocatorCandidate, LocatorContext } from "../profiles/FlowProfile";
+import type { LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -30,6 +30,10 @@ export interface RecordedAction {
    * think-time (ms) the user paused before the following action. Saved as a fixed-time wait step.
    */
   waitMs?: number;
+  /** Smart Wait conditions to satisfy BEFORE this action runs (recorder observation, Phase 2). */
+  beforeWaits?: WaitCondition[];
+  /** Smart Wait conditions observed AFTER this action (what the user waited for next). */
+  afterWaits?: WaitCondition[];
 }
 
 /** A URL captured during a recording session. Sensitive query values are masked before storage. */

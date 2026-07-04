@@ -128,7 +128,7 @@ const api = {
     get: (id: string) => ipcRenderer.invoke("reports:get", id) as Promise<unknown | null>
   },
   recorder: {
-    start: (url: string, options?: { captureWaitTime?: boolean }) =>
+    start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
       ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number }>,
     stop: () => ipcRenderer.invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => ipcRenderer.invoke("recorder:cancel") as Promise<{ success: boolean }>,

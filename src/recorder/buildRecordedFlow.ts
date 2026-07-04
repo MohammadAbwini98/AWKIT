@@ -50,6 +50,10 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       };
     }
 
+    // Smart Wait conditions observed during recording (Phase 2).
+    if (action.beforeWaits && action.beforeWaits.length > 0) step.beforeWaits = action.beforeWaits;
+    if (action.afterWaits && action.afterWaits.length > 0) step.afterWaits = action.afterWaits;
+
     // Recorded think-time replays as a fixed-time wait step (Point 1).
     if (action.type === "wait") {
       step.timeoutMs = Math.max(0, Math.round(action.waitMs ?? 0));

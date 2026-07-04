@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { RecordedAction, RecordedUrl } from "./RecorderTypes";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
+import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 
 /** On-disk shape of the recorder draft (an unsaved recording session's actions). */
 interface RecorderDraft {
@@ -53,6 +54,11 @@ export interface StartRecordingOptions {
   executablePath?: string;
   /** When true, insert fixed-time wait steps for meaningful pauses between recorded actions. */
   captureWaitTime?: boolean;
+  /**
+   * When true (default), observe loaders/network/URL/data/toasts/enabled-transitions between
+   * actions and attach condition-based Smart Waits (`afterWaits`) to the preceding action.
+   */
+  captureSmartWaits?: boolean;
 }
 
 export class RecorderService {
@@ -68,6 +74,10 @@ export class RecorderService {
   private urlSessionId = "";
   /** Whether the active session records think-time wait steps between actions (Task 1). */
   private captureWaitTime = false;
+  /** Whether the active session observes condition-based Smart Waits between actions (Phase 2). */
+  private captureSmartWaits = true;
+  /** Raw page-side observation signals buffered during the session (bounded). */
+  private signals: RecordedSignal[] = [];
   /** Timestamp (ms) of the last distinct recorded action, used to measure user think-time. */
   private lastActionAt = 0;
   /** Where the persistent URL history is written; set once by the main process. */
@@ -332,6 +342,8 @@ export class RecorderService {
     this.isRecording = true;
     this.lastActionPage = null;
     this.captureWaitTime = options.captureWaitTime ?? false;
+    this.captureSmartWaits = options.captureSmartWaits ?? true;
+    this.signals = [];
     this.lastActionAt = 0;
     // A new recording replaces any leftover draft; block a pending restore from clobbering it.
     this.draftLoad = Promise.resolve();
@@ -368,6 +380,9 @@ export class RecorderService {
         this.scheduleDraftPersist();
         return;
       }
+      // Smart Wait (Phase 2): attach the conditions observed since the previous action as
+      // `afterWaits` on that previous action (i.e. what the user waited for after doing it).
+      this.attachSmartWaits(now);
       // Optionally record the user's think-time before this action as a fixed-time wait (Task 1).
       this.maybeInsertWait(now);
       // If the interaction happened in a different tab/page than the last recorded
@@ -385,6 +400,15 @@ export class RecorderService {
       this.actions.push({ ...action, id: randomUUID() });
       this.lastActionAt = now;
       this.scheduleDraftPersist();
+    });
+
+    // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
+    // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
+    await this.context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
+      if (!this.captureSmartWaits) return;
+      this.signals.push(s);
+      const cap = 2000;
+      if (this.signals.length > cap) this.signals.splice(0, this.signals.length - cap);
     });
 
     // Inject the shared capture script. It generates ranked, uniqueness-validated
@@ -417,6 +441,21 @@ export class RecorderService {
    * since the previous action. Sub-threshold gaps (normal UI processing) are ignored, and very long
    * idle gaps are capped so a stray pause can't bake an absurd delay into the flow.
    */
+  /**
+   * Turn the observation signals seen since the previous action into condition-based `afterWaits`
+   * on that previous action. Gated by `captureSmartWaits`; the `fixedDelay` fallback is only used
+   * when the legacy fixed-time capture (`captureWaitTime`) is off, to avoid double delays.
+   */
+  private attachSmartWaits(now: number): void {
+    if (!this.captureSmartWaits || this.lastActionAt <= 0) return;
+    const prev = this.actions[this.actions.length - 1];
+    if (!prev || prev.type === "wait" || prev.type === "routeChange") return;
+    const waits = buildSmartWaits(this.signals, this.lastActionAt, now, {
+      allowFixedDelayFallback: !this.captureWaitTime
+    });
+    if (waits.length) prev.afterWaits = waits;
+  }
+
   private maybeInsertWait(now: number): void {
     if (!this.captureWaitTime || this.lastActionAt === 0 || this.actions.length === 0) return;
     const delta = now - this.lastActionAt;

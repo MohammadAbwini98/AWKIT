@@ -85,6 +85,17 @@ svc.lastActionAt = Date.now() - 3000;
 svc.maybeInsertWait(Date.now());
 check("capture-off never inserts a wait", !svc.getActions().some((a: any) => a.type === "wait"));
 
+svc.actions = [{ id: "seed4", type: "click", name: "Click" }];
+svc.captureSmartWaits = false;
+svc.captureWaitTime = true;
+svc.signals = [{ kind: "request", method: "POST", path: "/api/save", status: 200, startedAt: 1000, endedAt: 1200 }];
+svc.lastActionAt = Date.now() - 1500;
+svc.attachSmartWaits(Date.now());
+svc.maybeInsertWait(Date.now());
+const smartOffActions = svc.getActions();
+check("smart-waits disabled does not attach afterWaits", smartOffActions[0]?.afterWaits === undefined);
+check("legacy fixed wait still works when smart-waits disabled", smartOffActions.some((a: any) => a.type === "wait"));
+
 await rm(dir, { recursive: true, force: true });
 const passed = results.filter((r) => r.pass).length;
 console.log(`\n${passed}/${results.length} recorder-draft checks passed`);

@@ -161,6 +161,17 @@ change_requests/        historical change-request prompt sets
   **`context`** (nearest visible dialog / table row / card-listItem / same-origin iframe). The Node binding
   (`__awtkit_recordAction`) stores the action verbatim; `buildRecordedFlow`/`recorder:saveFlow` copy
   `exact`/`quality`/`alternatives`/`context` onto `FlowStep.locator` (a structured `StepLocator`).
+- **Smart Wait recorder observation (Phase 2):** the injected script also watches the DOM/network
+  between actions and emits raw signals via a second binding `__awtkit_recordSignal` — patched
+  `fetch`/`XHR` (method + URL **path** only, never query/headers/bodies/cookies), `history`+pop/hash
+  for URL changes, and a MutationObserver + 150 ms scan for loaders (appear→disappear), toasts,
+  disabled→enabled transitions, and table/list/card item growth. `RecorderService` buffers the signals
+  (gated by the persisted `settings.recorder.captureSmartWaits` option, default on) and, on each distinct action, calls the pure
+  `buildSmartWaits` (`src/recorder/smartWaitObservation.ts`) to attach ranked `afterWaits` to the
+  **previous** action (polling ignored; `fixedDelay` only as a fallback when `captureWaitTime` is off).
+  `RecordedAction.beforeWaits`/`afterWaits` propagate to `FlowStep` via `buildRecordedFlow`. Verified by
+  `npm run verify:recorder` (Part D, 57/57 total) and `npm run verify:recorder-draft` (17/17). Runner
+  execution of these waits is Smart Wait Phase 1 (below).
 - **Locator resolution (runtime):** `LocatorFactory` builds a Playwright locator from a `StepLocator`.
   `create()` (page-rooted, no fallback) is used where multiple/absent matches are expected (count
   assertions, element loops, `waitFor`). `resolve(step)` (async) is used for single-target actions: it
@@ -182,8 +193,8 @@ change_requests/        historical change-request prompt sets
   urlChanged / domStable / fixedDelay, reusing `LocatorFactory` for locator waits and emitting a
   structured diagnostic on failure. `networkidle` is intentionally not a Smart Wait strategy. The legacy
   `wait` step node (`executeWait`: time/selector/navigation/networkIdle/textVisible) is unchanged, and
-  steps without waits behave exactly as before. Verified by `npm run verify:waits`. The recorder does
-  **not** yet emit these (Phase 2) — it still inserts legacy fixed-time `wait` nodes.
+  steps without waits behave exactly as before. Verified by `npm run verify:waits`. The recorder can now
+  emit these as `afterWaits` from Smart Wait observation; legacy fixed-time `wait` nodes remain supported.
 - **Shared connector styling:** `app/renderer/components/shared/connectorStyle.ts` (`buildConnectorVisual` +
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;
   style persists on `FlowEdge.style` / `WorkflowEdge.style`. Shared UI: `ConnectorStyleEditor`,

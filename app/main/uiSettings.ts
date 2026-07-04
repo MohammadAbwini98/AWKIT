@@ -37,6 +37,8 @@ export interface UiSettings {
   recorder: {
     /** Capture the user's think-time between actions as fixed-time wait steps. */
     captureWaitTime: boolean;
+    /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
+    captureSmartWaits: boolean;
   };
   /** Last run settings (what the user last launched). */
   instanceRunSettings: {
@@ -120,7 +122,8 @@ const defaultSettings: UiSettings = {
   workflowBuilderZoomPercent: 0,
   selectedBuilderWorkflowId: "",
   recorder: {
-    captureWaitTime: false
+    captureWaitTime: false,
+    captureSmartWaits: true
   },
   workflowBuilder: {
     selectedConnectorCollapsed: false,

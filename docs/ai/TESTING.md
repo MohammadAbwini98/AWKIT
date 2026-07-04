@@ -21,6 +21,12 @@
   protected-login detector (provider URLs, Google insecure-browser page, MFA/CAPTCHA text, no false
   positives, no secret fields). As of the last run: **16 checks pass**. `verify:runner` also covers the
   Protected Login Handoff node pausing/resuming and auto-detect not pausing normal mock pages (76 total).
+- `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — live Chromium checks for recorder
+  locator generation, runner locator safeguards/fallbacks, and Smart Wait recorder observation
+  (safe fetch/XHR path-only signals, loader disappearance, URL changes, table/list/card waits, toast,
+  enabled controls, polling ignored, fixed-delay fallback). As of the last run: **57 checks pass**.
+- `scripts/verify-recorder-draft.mts` (`npm run verify:recorder-draft`) — browser-free recorder draft,
+  URL-history, legacy wait-time, and smart-wait compatibility checks. As of the last run: **17 checks pass**.
 - `scripts/seed-mock-fixtures.mjs` (`npm run seed:mock-fixtures`) — imports test-only mock
   flows/workflows/data source into the runtime userData folders for manual GUI testing against the
   mock site. Sources live in `resources/test-fixtures/mock-site/` (see its README); they never
