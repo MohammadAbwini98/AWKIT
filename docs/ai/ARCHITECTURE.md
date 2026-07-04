@@ -157,11 +157,22 @@ change_requests/        historical change-request prompt sets
   helper, then injects it via `context.addInitScript({ content })`). In the page DOM the script builds
   ranked candidate locators (role/label/placeholder/text/testId → stable attributes → id → scoped →
   positional fallback; utility/layout classes are never used), counts each against the live DOM, and
-  reports the best `count === 1` candidate plus `LocatorQuality`. The Node binding
-  (`__awtkit_recordAction`) stores the action verbatim; `recorder:saveFlow` copies `exact`/`quality`
-  onto `FlowStep.locator`. `LocatorFactory` honors `locator.exact` for role/text/label/placeholder;
-  `StepExecutor.guardLocatorQuality` fails a non-unique step early and `friendlyLocatorError` translates
-  strict-mode violations for the end user. Verified by `npm run verify:recorder`.
+  reports the best `count === 1` candidate plus `LocatorQuality`, **up to 3 ranked `alternatives`**, and a
+  **`context`** (nearest visible dialog / table row / card-listItem / same-origin iframe). The Node binding
+  (`__awtkit_recordAction`) stores the action verbatim; `buildRecordedFlow`/`recorder:saveFlow` copy
+  `exact`/`quality`/`alternatives`/`context` onto `FlowStep.locator` (a structured `StepLocator`).
+- **Locator resolution (runtime):** `LocatorFactory` builds a Playwright locator from a `StepLocator`.
+  `create()` (page-rooted, no fallback) is used where multiple/absent matches are expected (count
+  assertions, element loops, `waitFor`). `resolve(step)` (async) is used for single-target actions: it
+  scopes by `context` (iframe `frameLocator` → container resolved to its single/visible match), tries the
+  primary then `alternatives`, and returns exactly one element per candidate — a unique match, else the
+  single *visible* match when several exist (**visibility disambiguation** for hidden-template/duplicate
+  modals). It auto-waits on the primary when nothing is present yet, and throws a per-candidate diagnostic
+  (count/visibleCount + context) otherwise. Playwright 1.49 has no `filter({ visible })`, so visibility is
+  probed via `nth(i).isVisible()`. `StepExecutor.guardLocatorQuality` still fails a recorded non-unique
+  step early **unless** it has `context`/`alternatives` (then the resolver owns the outcome);
+  `friendlyLocatorError` translates any raw strict-mode violation. Verified by `npm run verify:recorder`
+  (Parts A/B recorder + quality guard, Part C runtime fallback/visibility/context).
 - **Shared connector styling:** `app/renderer/components/shared/connectorStyle.ts` (`buildConnectorVisual` +
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;
   style persists on `FlowEdge.style` / `WorkflowEdge.style`. Shared UI: `ConnectorStyleEditor`,

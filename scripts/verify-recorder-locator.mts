@@ -215,6 +215,142 @@ async function main() {
     check("strict-mode error translated to friendly message", /matched multiple elements/i.test(result.error ?? ""), result.error);
   }
 
+  console.log("Part C — Runner fallback resolution (alternatives, visibility, context scoping)");
+
+  // Run one step against `html` and return the execution result + the id of the element the
+  // click/check landed on (candidate elements set `window.__hit` via onclick).
+  async function run(html: string, step: FlowStep): Promise<{ status: string; error?: string; hit: string | null }> {
+    await page.setContent(html);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const result = await exec.execute(step);
+    const hit = (await page.evaluate(() => (window as unknown as { __hit?: string }).__hit ?? null)) as string | null;
+    return { status: result.status, error: result.error, hit };
+  }
+
+  // C1. Duplicate modal (hidden template + visible modal), repeated label → visible dialog wins.
+  {
+    const html = `
+      <div id="exampleModal" style="display:none">
+        <label><input type="checkbox" data-k="hidden"> Allow notifications</label>
+      </div>
+      <div id="exampleModal">
+        <label><input type="checkbox" data-k="visible"> Allow notifications</label>
+      </div>`;
+    const step: FlowStep = {
+      id: "c1",
+      type: "check",
+      name: "Check Allow notifications",
+      locator: {
+        strategy: "role",
+        value: "checkbox",
+        name: "Allow notifications",
+        exact: false,
+        quality: { strategy: "role", isUnique: false, matchCount: 2, confidence: "low" },
+        context: { container: { type: "dialog", strategy: "id", value: "exampleModal", visibleOnly: true } }
+      }
+    };
+    const { status } = await run(html, step);
+    check("duplicate modal: non-unique-but-scoped step passes", status === "passed", status);
+    check("duplicate modal: the VISIBLE checkbox got checked", await page.locator('input[data-k="visible"]').isChecked(), "visible not checked");
+    check("duplicate modal: the hidden checkbox stayed unchecked", !(await page.locator('input[data-k="hidden"]').isChecked()), "hidden was checked");
+  }
+
+  // C2. No container, primary matches 2 but only one is visible → visibility disambiguation.
+  {
+    const html = `<button class="act" data-k="hidden" style="display:none" onclick="window.__hit='hidden'">X</button>
+                  <button class="act" data-k="vis" onclick="window.__hit='vis'">X</button>`;
+    const step: FlowStep = { id: "c2", type: "click", name: "Click X", locator: { strategy: "css", value: "button.act" } };
+    const { status, hit } = await run(html, step);
+    check("visibility fallback: ambiguous-but-one-visible click passes", status === "passed", status);
+    check("visibility fallback: clicked the visible button", hit === "vis", hit ?? "null");
+  }
+
+  // C3. Table row action button scoped by row text.
+  {
+    const html = `<table><tbody>
+      <tr><td>Customer ABC</td><td><button onclick="window.__hit='abc'">Edit</button></td></tr>
+      <tr><td>Customer XYZ</td><td><button onclick="window.__hit='xyz'">Edit</button></td></tr>
+    </tbody></table>`;
+    const step: FlowStep = {
+      id: "c3",
+      type: "click",
+      name: "Click Edit",
+      locator: {
+        strategy: "role",
+        value: "button",
+        name: "Edit",
+        exact: true,
+        context: { container: { type: "tableRow", strategy: "role", value: "row", name: "Customer ABC", exact: false } }
+      }
+    };
+    const { status, hit } = await run(html, step);
+    check("table row: row-scoped Edit click passes", status === "passed", status);
+    check("table row: clicked the ABC row's Edit button", hit === "abc", hit ?? "null");
+  }
+
+  // C4. Repeated card action button scoped by card text (hasText).
+  {
+    const html = `
+      <div data-testid="workflow-card"><span>Flow A</span><button onclick="window.__hit='A'">Run</button></div>
+      <div data-testid="workflow-card"><span>Flow B</span><button onclick="window.__hit='B'">Run</button></div>`;
+    const step: FlowStep = {
+      id: "c4",
+      type: "click",
+      name: "Click Run",
+      locator: {
+        strategy: "role",
+        value: "button",
+        name: "Run",
+        exact: true,
+        context: { container: { type: "card", strategy: "testId", value: "workflow-card", hasText: "Flow B" } }
+      }
+    };
+    const { status, hit } = await run(html, step);
+    check("repeated card: card-scoped Run click passes", status === "passed", status);
+    check("repeated card: clicked Flow B's Run button", hit === "B", hit ?? "null");
+  }
+
+  // C5. Primary absent → ranked alternative resolves.
+  {
+    const html = `<button data-testid="real" onclick="window.__hit='real'">Go</button>`;
+    const step: FlowStep = {
+      id: "c5",
+      type: "click",
+      name: "Click Go",
+      locator: { strategy: "role", value: "button", name: "Nonexistent", exact: true, alternatives: [{ strategy: "testId", value: "real" }] }
+    };
+    const { status, hit } = await run(html, step);
+    check("alternative fallback: absent primary falls back to alternative", status === "passed", status);
+    check("alternative fallback: clicked via the alternative locator", hit === "real", hit ?? "null");
+  }
+
+  // C6. iframe target resolved via frame context.
+  {
+    const html = `<iframe name="pay" srcdoc="<input type='checkbox' aria-label='agree'>"></iframe>`;
+    const step: FlowStep = {
+      id: "c6",
+      type: "check",
+      name: "Check agree",
+      locator: { strategy: "role", value: "checkbox", name: "agree", exact: false, context: { frame: { selector: 'iframe[name="pay"]' } } }
+    };
+    const { status } = await run(html, step);
+    check("iframe: frame-scoped check passes", status === "passed", status);
+    check(
+      "iframe: the checkbox inside the frame is checked",
+      await page.frameLocator('iframe[name="pay"]').getByRole("checkbox", { name: "agree" }).isChecked(),
+      "frame checkbox not checked"
+    );
+  }
+
+  // C7. Backward compatibility: a legacy locator (no alternatives/context/quality) still resolves.
+  {
+    const html = `<button id="only" onclick="window.__hit='only'">Go</button>`;
+    const step: FlowStep = { id: "c7", type: "click", name: "Click Go", locator: { strategy: "id", value: "only" } };
+    const { status, hit } = await run(html, step);
+    check("backward compat: legacy unique locator still resolves", status === "passed", status);
+    check("backward compat: clicked the expected element", hit === "only", hit ?? "null");
+  }
+
   await browser.close();
 
   console.log(`\n${passed} passed, ${failed} failed`);

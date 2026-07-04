@@ -4,6 +4,45 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Smart Locator: runtime fallback, visibility disambiguation, context scoping
+
+- **Task:** Make the existing recorder locator engine production-ready by adding the missing runtime
+  delta (the recorder already generates ranked, uniqueness-validated locators). Targeted scope from
+  the Smart Locator Engine plan — no new module tree, minimal diffs.
+- **What was added:**
+  - **Structured locator model** (`src/profiles/FlowProfile.ts`): `StepLocator` now carries optional
+    `alternatives: LocatorCandidate[]` (ranked runtime fallbacks) and `context` (container/frame
+    scoping). `FlowStep.locator` points at `StepLocator`. Fully backward compatible — legacy steps set
+    only the primary fields and deserialize unchanged.
+  - **Runtime resolver** (`src/runner/LocatorFactory.ts`): new async `resolve(step)` builds a scoped
+    root from `context` (iframe `frameLocator`, then a container resolved to its single/visible match),
+    tries the primary then `alternatives` in order, and returns a **single** element per candidate —
+    unique match wins, else the one *visible* match when several exist (the fix for a hidden modal
+    template + visible modal). Falls back to the primary (auto-wait) when nothing is present yet, and
+    throws an actionable diagnostic (per-candidate count/visibleCount + context) when genuinely
+    ambiguous. Playwright is 1.49 (no `filter({ visible })`), so visibility is probed via
+    `nth(i).isVisible()`. `create()` is retained for count/loop/waitFor paths.
+  - **StepExecutor** (`src/runner/StepExecutor.ts`): single-target actions (click/fill/select/check/
+    uncheck/radio/scroll-element/upload/download/readText/assertVisible/assert value+text/screenshot
+    element) now go through `resolve(step)`; count assertions, element loops, and `waitFor` keep
+    `create()`. `guardLocatorQuality` now defers to the resolver when the step has `context` or
+    `alternatives` (so recoverable non-unique steps aren't pre-failed).
+  - **Recorder** (`recorderInitScript.ts`, `RecorderTypes.ts`, `buildRecordedFlow.ts`): the in-page
+    capture script now emits up to 3 ranked `alternatives` and a `context` — nearest **visible dialog**
+    (id/testId/role, `visibleOnly`), **table row** (role=row + row text), **card/list item**
+    (testId/role + `hasText`), and **iframe** (`frameLocator` selector for same-origin frames). Rows/
+    cards are only scoped when the primary is not already globally unique.
+- **Files changed:** `src/profiles/FlowProfile.ts`, `src/runner/LocatorFactory.ts`,
+  `src/runner/StepExecutor.ts`, `src/recorder/recorderInitScript.ts`, `src/recorder/RecorderTypes.ts`,
+  `src/recorder/buildRecordedFlow.ts`, `scripts/verify-recorder-locator.mts` (Part C, +15 checks),
+  docs.
+- **Tests:** `npm run verify:recorder` → **42/42** (new Part C: duplicate hidden+visible modal,
+  visibility fallback, table-row scoping, repeated-card scoping, alternative fallback, iframe context,
+  legacy backward-compat). `npm run build` clean; `npm run verify:runner` → 76/76 (no regressions).
+- **Not done / limitations:** No UI changes (locator quality badge / debug candidates table / manual
+  override editor) — resolver + recorder only. Closed shadow DOM and cross-origin iframes still can't
+  be scoped. Feature branch: `feature/smart-locator-engine`.
+
 ## 2026-07-04 — Claude Code — Add Git Full Cycle agent skill
 
 - **Task:** Add a reusable Git lifecycle skill teaching agents to safely inspect status, protect
