@@ -24,11 +24,16 @@ Claude Code-specific behavior.
   `app/renderer/styles/global.css`, JSON profile stores, IPC via `app/main/ipc/*` + `preload.ts`.
 - Keep the offline-first constraints in `docs/ai/RULES.md` (no runtime network, no writes to
   `resources/`/`app.asar`, data under `%LOCALAPPDATA%/WebFlow Studio/`).
+- Treat `mock-site/` as AWKIT's local Feature Test Lab. For Recorder, Runner, Smart Wait, Flow Designer,
+  Workflow Builder, Instance Monitor, locator, node, wait, or execution features, check
+  `mock-site/README.md`, update an applicable scenario, and use `.claude/skills/mock-site-maintainer`
+  when the task touches that surface.
 
 ## Verifying
 
 - Run `npm run build` (typecheck + bundles). There is no lint/test npm script.
 - For runner/connector/node changes, run `npm run verify:runner` (live checks via `tsx`).
+- For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - For offline/packaging changes, run `npm run validate:offline`.
 - Report what you ran and what you could not (e.g. the clean-machine GUI walkthrough).
 

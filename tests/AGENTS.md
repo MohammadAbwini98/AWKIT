@@ -15,6 +15,9 @@ Root `AGENTS.md` + `docs/ai/TESTING.md`.
   environments verify with `npm run verify:runner` instead of `npx playwright test`.
 - **Determinism:** drive the local `mock-site` (start it in the test/script, fixed `MOCK_SITE_PORT`);
   do not depend on external/network sites. Clean up browser/context and the spawned server.
+- **Feature Test Lab:** before adding feature-specific pages or fixtures, check `mock-site/README.md`
+  and prefer extending existing scenarios. New scenarios must be covered by `npm run verify:mock-site`
+  or the related feature verifier.
 - **Naming/framework:** follow the existing Playwright-test conventions; don't introduce a second
   test framework.
 - Use the real runner classes (`StepExecutor`/`FlowExecutor`/`PlaywrightRunner`) via `@src/*` — test
@@ -22,9 +25,11 @@ Root `AGENTS.md` + `docs/ai/TESTING.md`.
 
 ## Testing / verification
 - `npm run verify:runner` (must stay green; report the pass count).
+- `npm run verify:mock-site` after mock-site scenario changes.
 
 ## Do not break
 - The mock-site contract that existing checks rely on (login → form → `/success`).
+- The Feature Test Lab URLs documented in `mock-site/README.md`.
 
 ## Update requirements
 - If verification scope changes, update `docs/ai/TESTING.md`; append to `docs/ai/TASK_LOG.md`.

@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Codex — Mock Site Feature Test Lab and agent guidance
+
+- **Task:** Upgrade the offline mock site into a mandatory Feature Test Lab and update agent guidance so
+  future Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator, node,
+  wait, and execution work considers mock-site scenarios.
+- **What was added:** new lab index (`/`), Smart Wait/Runner scenarios (`/smart-waits`), Recorder scenarios
+  (`/recorder-lab`), Designer/Workflow scenarios (`/designer-lab`), local delayed JSON endpoint
+  (`/api/delay?ms=...`), `npm run verify:mock-site` (28/28), `mock-site/AGENTS.md`, and mirrored
+  `mock-site-maintainer` skills for `.agents`, Claude, and Gemini.
+- **Docs/guidance:** updated mock-site docs, root/adaptor agent instructions, scripts/tests local rules,
+  AI architecture/testing/commands/workflow/current-state/handoff docs, and fixture docs.
+- **Tests:** `npm run build` passed; `npm run verify:waits` 18/18; `npm run verify:runner` 76/76;
+  `npm run verify:recorder` 57/57; `npm run verify:recorder-draft` 17/17;
+  `npm run verify:flow-designer` 19/19; `npm run verify:mock-site` 28/28; AI memory check passed.
+
 ## 2026-07-04 — Codex — Smart Wait Engine remaining phases (diagnostics + UI)
 
 - **Task:** Complete the remaining Smart Wait Engine phases after Phase 1 runner support and Phase 2

@@ -41,6 +41,9 @@ the bundled test site, start the mock site in a second terminal:
 npm run mock-site      # serves the mock site (default http://localhost:4321)
 ```
 
+The mock site is the local Feature Test Lab. Open `http://localhost:4321/` for Smart Wait, Recorder,
+Designer/Workflow Builder, and core login/form scenarios.
+
 ## Build
 
 ```powershell
@@ -56,6 +59,7 @@ runner checks:
 ```powershell
 npm run build            # typecheck + bundle — the primary gate (CI runs this)
 npm run verify:runner    # live runner checks against the mock site (via tsx)
+npm run verify:mock-site # Feature Test Lab scenario URLs, delay behavior, and stable selectors
 npm run validate:offline # strict validation of the offline bundle (packaging changes)
 ```
 

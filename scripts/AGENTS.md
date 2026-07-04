@@ -3,7 +3,7 @@
 ## Scope
 Build/offline/packaging automation. PowerShell scripts (`*.ps1`) drive offline prep, manifest
 generation, validation, and electron-builder packaging; `.mjs`/`.mts` scripts handle the app icon
-and live runner verification.
+  live runner verification, and mock-site Feature Test Lab verification.
 
 ## Required reading
 Root `AGENTS.md` + `docs/ai/COMMANDS.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/OFFLINE_STANDALONE_PACKAGING.md`.
@@ -21,9 +21,12 @@ Root `AGENTS.md` + `docs/ai/COMMANDS.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/OFFLI
   (electron-builder helper binaries) but the produced app must not.
 - **Don't bundle dev tooling:** `tsx`, `sharp`, `png-to-ico` are devDependencies and must stay out
   of the production bundle (electron-builder includes prod deps only).
+- **Mock-site verifier:** `scripts/verify-mock-site.mjs` starts the local mock site itself and checks
+  Feature Test Lab pages. Keep it deterministic and dependency-free beyond existing Playwright.
 
 ## Testing / verification
 - `npm run validate:offline` after changing offline/manifest scripts.
+- `npm run verify:mock-site` after changing `mock-site/` or the mock-site verifier.
 - `npm run verify:runner` (this runs `scripts/verify-runner.mts` via `tsx`) after touching it.
 
 ## Do not break

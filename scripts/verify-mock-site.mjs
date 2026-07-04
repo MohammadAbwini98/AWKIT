@@ -1,0 +1,130 @@
+import { spawn } from "node:child_process";
+import { chromium } from "playwright";
+
+const PORT = 4401;
+const BASE = `http://127.0.0.1:${PORT}`;
+let passed = 0;
+let failed = 0;
+
+function check(label, condition, detail = "") {
+  if (condition) {
+    passed += 1;
+    console.log(`  OK ${label}`);
+  } else {
+    failed += 1;
+    console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
+  }
+}
+
+async function waitForServer() {
+  for (let i = 0; i < 60; i += 1) {
+    try {
+      const res = await fetch(`${BASE}/`);
+      if (res.ok) return;
+    } catch {
+      /* server not ready */
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("Mock site did not start");
+}
+
+const server = spawn(process.execPath, ["mock-site/server.mjs"], {
+  env: { ...process.env, MOCK_SITE_PORT: String(PORT) },
+  stdio: "ignore"
+});
+
+let browser;
+try {
+  await waitForServer();
+  browser = await chromium.launch();
+  const page = await browser.newPage();
+
+  console.log("Feature Test Lab index:");
+  await page.goto(`${BASE}/`);
+  await page.getByRole("heading", { name: "Feature Test Lab" }).waitFor();
+  check("home lists Smart Wait lab", await page.getByTestId("scenario-smart-waits").isVisible());
+  check("home lists Recorder lab", await page.getByTestId("scenario-recorder").isVisible());
+  check("home lists Designer lab", await page.getByTestId("scenario-designer").isVisible());
+
+  console.log("Smart Wait scenarios:");
+  await page.goto(`${BASE}/smart-waits`);
+  await page.getByTestId("delay-ms").fill("120");
+  check("smart wait page has title", await page.getByRole("heading", { name: "Smart Wait and Runner Lab" }).isVisible());
+  check("all smart wait scenario cards exist", (await page.locator("[data-testid^='wait-']").count()) >= 12);
+
+  await page.getByRole("button", { name: "Show delayed element" }).click();
+  await page.getByTestId("appeared-element").waitFor({ state: "visible", timeout: 1500 });
+  check("element appears after delay", await page.getByTestId("appeared-element").isVisible());
+
+  await page.getByRole("button", { name: "Hide delayed element" }).click();
+  await page.getByTestId("disappearing-element").waitFor({ state: "hidden", timeout: 1500 });
+  check("element disappears after delay", !(await page.getByTestId("disappearing-element").isVisible().catch(() => false)));
+
+  await page.getByRole("button", { name: "Change text" }).click();
+  await page.getByText("Complete text").waitFor({ timeout: 1500 });
+  check("text changes after delay", await page.getByTestId("changing-text").textContent() === "Complete text");
+
+  await page.getByRole("button", { name: "Enable action" }).click();
+  await page.waitForFunction(() => !document.querySelector("[data-testid='delayed-enabled-button']").disabled, null, { timeout: 1500 });
+  check("button becomes enabled", !(await page.getByTestId("delayed-enabled-button").isDisabled()));
+
+  await page.getByRole("button", { name: "Run loader" }).click();
+  await page.getByTestId("loaded-content").waitFor({ state: "visible", timeout: 1500 });
+  check("loader then content works", await page.getByTestId("loaded-content").isVisible());
+
+  await page.getByRole("button", { name: "Show toast" }).click();
+  await page.getByTestId("delayed-toast").waitFor({ state: "visible", timeout: 1500 });
+  check("delayed toast appears", await page.getByTestId("delayed-toast").isVisible());
+
+  await page.getByRole("button", { name: "Fetch delayed response" }).click();
+  await page.getByText(/Delayed mock response complete/).waitFor({ timeout: 2000 });
+  check("network/API delay completes", /Delayed mock response complete/.test((await page.getByTestId("network-result").textContent()) ?? ""));
+
+  await page.getByRole("button", { name: "Run sequence" }).click();
+  await page.getByTestId("sequential-done").waitFor({ state: "visible", timeout: 2500 });
+  check("multiple sequential waits complete", await page.getByTestId("sequential-done").isVisible());
+
+  await page.getByRole("button", { name: "Run failing scenario" }).click();
+  await page.getByTestId("failure-context").waitFor({ state: "visible", timeout: 1500 });
+  check("failing wait scenario exposes context", await page.getByTestId("failure-context").isVisible());
+
+  await page.getByRole("button", { name: "Run fast scenario" }).click();
+  check("fast scenario has no wait dependency", await page.getByTestId("fast-result").isVisible());
+
+  await page.getByRole("button", { name: "Navigate after delay" }).click();
+  await page.waitForURL("**/smart-waits?state=delayed-navigation-complete", { timeout: 2000 });
+  check("delayed navigation changes URL", page.url().includes("state=delayed-navigation-complete"));
+
+  console.log("Recorder scenarios:");
+  await page.goto(`${BASE}/recorder-lab`);
+  check("recorder page has accessible title", await page.getByRole("heading", { name: "Recorder Lab" }).isVisible());
+  check("recorder full name field exists", await page.getByLabel("Full name").isVisible());
+  check("recorder email placeholder exists", await page.getByPlaceholder("ada@example.test").isVisible());
+  check("recorder select exists", await page.getByTestId("recorder-plan").isVisible());
+  check("saved URL reuse links exist", (await page.locator("[data-testid^='saved-url-']").count()) >= 4);
+  await page.getByRole("button", { name: "Start manual pause" }).click();
+  await page.getByText("Pause countdown: 3").waitFor({ timeout: 500 });
+  check("manual waiting-time countdown starts", await page.getByTestId("manual-pause-countdown").isVisible());
+  await page.getByRole("button", { name: "Render dynamic row" }).click();
+  check("dynamic DOM keeps stable test id", await page.getByTestId("dynamic-customer-card").isVisible());
+
+  console.log("Designer scenarios:");
+  await page.goto(`${BASE}/designer-lab`);
+  check("designer page has canvas region", await page.getByRole("region", { name: "Mock designer canvas" }).isVisible());
+  check("mock nodes are clickable", (await page.locator(".mock-node").count()) === 3);
+  check("workflow cards grid has six cards", (await page.locator("article[data-testid^='workflow-card-']").count()) === 6);
+  check("stable saved flow names exist", await page.getByTestId("saved-flow-smart-waits").isVisible());
+  check("smart wait JSON example exists", /beforeWaits/.test((await page.getByTestId("smart-wait-json-example").textContent()) ?? ""));
+
+  await page.close();
+} catch (error) {
+  failed += 1;
+  console.error(error);
+} finally {
+  if (browser) await browser.close().catch(() => undefined);
+  server.kill();
+}
+
+console.log(`\n${passed}/${passed + failed} mock-site checks passed`);
+process.exit(failed === 0 ? 0 : 1);

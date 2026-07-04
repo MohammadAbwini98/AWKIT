@@ -53,9 +53,22 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 - Mutable runtime data goes under `%LOCALAPPDATA%/WebFlow Studio/` (or user-configured Settings paths).
 - Keep TypeScript clean — `npm run build` runs `tsc --noEmit` and must pass.
 
+## Mock Site Feature Test Lab
+
+- `mock-site/` is AWKIT's local **Feature Test Lab**. For new Recorder, Runner, Smart Wait, Flow Designer,
+  Workflow Builder, Instance Monitor, locator, node, wait, or execution features, add or update a mock-site
+  scenario when applicable.
+- Check `mock-site/README.md` before creating feature-specific fixtures; prefer extending existing
+  scenarios over duplicate isolated pages.
+- New scenarios need a stable local URL, title, description, expected behavior, related AWKIT feature, and
+  stable role/name, label, placeholder, or `data-testid` selectors.
+- Cover every new mock-site page/scenario with `npm run verify:mock-site` or another focused verifier, and
+  document the URL in the mock-site docs and AI memory files.
+
 ## Testing rules
 
 - There is **no** `lint` and **no** `test` npm script. Verification = `npm run build` (typecheck + bundles) and `npm run verify:runner` (live runner checks against the mock site via `tsx`).
+- For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - After logic changes to the runner/orchestrator, run `npm run verify:runner` and report the pass count.
 - For offline/packaging changes, run `npm run validate:offline`.
 - See `docs/ai/TESTING.md` for details and the Node-version caveat for `@playwright/test`.

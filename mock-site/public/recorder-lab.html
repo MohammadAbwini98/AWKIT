@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Recorder Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Recorder Lab</h1>
+      <p class="hint">
+        Expected behavior: recording this page should produce stable accessible locators, optional user
+        waiting-time steps, saved URL reuse, and a simple Start to actions to End flow.
+      </p>
+
+      <section data-testid="recorder-basic-flow">
+        <h2>Basic click, type, select, checkbox, and radio flow</h2>
+        <form id="recorderBasicForm">
+          <div class="grid">
+            <div class="field">
+              <label for="recorderFullName">Full name</label>
+              <input id="recorderFullName" data-testid="recorder-full-name" name="fullName" placeholder="Ada Lovelace" type="text" />
+            </div>
+            <div class="field">
+              <label for="recorderEmail">Email address</label>
+              <input id="recorderEmail" data-testid="recorder-email" name="email" placeholder="ada@example.test" type="email" />
+            </div>
+            <div class="field">
+              <label for="recorderPlan">Plan</label>
+              <select id="recorderPlan" data-testid="recorder-plan" name="plan">
+                <option>Starter</option>
+                <option>Team</option>
+                <option>Enterprise</option>
+              </select>
+            </div>
+          </div>
+          <label class="inline"><input id="recorderNewsletter" data-testid="recorder-newsletter" type="checkbox" /> Subscribe to updates</label>
+          <fieldset>
+            <legend>Preferred contact</legend>
+            <label class="inline"><input id="contactEmail" data-testid="contact-email" name="contact" type="radio" /> Email</label>
+            <label class="inline"><input id="contactPhone" data-testid="contact-phone" name="contact" type="radio" /> Phone</label>
+          </fieldset>
+          <div class="actions">
+            <button id="recorderSubmit" data-testid="recorder-submit" type="button">Save recorder form</button>
+            <button id="recorderReset" data-testid="recorder-reset" type="reset">Reset</button>
+          </div>
+          <p id="recorderFormResult" data-testid="recorder-form-result" role="status">Recorder form idle</p>
+        </form>
+      </section>
+
+      <section data-testid="recorder-wait-time">
+        <h2>User waiting-time capture</h2>
+        <p>Expected: start the pause, wait for the countdown to finish, then click the next action.</p>
+        <button id="startManualPause" data-testid="start-manual-pause" type="button">Start manual pause</button>
+        <p id="manualPauseCountdown" data-testid="manual-pause-countdown" role="timer">Pause not started</p>
+        <button id="afterPauseAction" data-testid="after-pause-action" type="button">Next action after pause</button>
+        <p id="afterPauseResult" data-testid="after-pause-result">No post-pause action yet</p>
+      </section>
+
+      <section data-testid="saved-url-reuse">
+        <h2>Saved URL reuse</h2>
+        <p>Expected: each link is a clear reusable local URL for Recorder saved-url history.</p>
+        <ul>
+          <li><a data-testid="saved-url-login" href="/login">Reusable login URL</a></li>
+          <li><a data-testid="saved-url-form" href="/form">Reusable customer form URL</a></li>
+          <li><a data-testid="saved-url-smart-waits" href="/smart-waits">Reusable Smart Wait lab URL</a></li>
+          <li><a data-testid="saved-url-designer" href="/designer-lab">Reusable designer lab URL</a></li>
+        </ul>
+      </section>
+
+      <section data-testid="start-end-flow">
+        <h2>Start and End node validation</h2>
+        <p>Expected: click Begin, Continue, Finish to produce a natural linear recorded flow.</p>
+        <button id="linearStart" data-testid="linear-start" type="button">Begin linear flow</button>
+        <button id="linearContinue" data-testid="linear-continue" type="button">Continue linear flow</button>
+        <button id="linearFinish" data-testid="linear-finish" type="button">Finish linear flow</button>
+        <p id="linearFlowStatus" data-testid="linear-flow-status">Linear flow idle</p>
+      </section>
+
+      <section data-testid="dynamic-dom-locators">
+        <h2>Dynamic DOM and stable accessible locators</h2>
+        <p>Expected: generated elements may have changing ids/classes, but stable text and test ids remain.</p>
+        <button id="renderDynamicDom" data-testid="render-dynamic-dom" type="button">Render dynamic row</button>
+        <div id="dynamicDomMount" data-testid="dynamic-dom-mount"></div>
+      </section>
+    </main>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      $("recorderSubmit").addEventListener("click", function () {
+        $("recorderFormResult").textContent = "Recorder form saved for " + $("recorderFullName").value;
+      });
+      $("startManualPause").addEventListener("click", function () {
+        var remaining = 3;
+        $("manualPauseCountdown").textContent = "Pause countdown: " + remaining;
+        var timer = window.setInterval(function () {
+          remaining -= 1;
+          $("manualPauseCountdown").textContent = remaining > 0 ? "Pause countdown: " + remaining : "Pause complete";
+          if (remaining <= 0) window.clearInterval(timer);
+        }, 1000);
+      });
+      $("afterPauseAction").addEventListener("click", function () {
+        $("afterPauseResult").textContent = "Post-pause action captured";
+      });
+      var linear = [];
+      var updateLinear = function (value) {
+        linear.push(value);
+        $("linearFlowStatus").textContent = "Linear flow: " + linear.join(" > ");
+      };
+      $("linearStart").addEventListener("click", function () { updateLinear("Start"); });
+      $("linearContinue").addEventListener("click", function () { updateLinear("Continue"); });
+      $("linearFinish").addEventListener("click", function () { updateLinear("End"); });
+      $("renderDynamicDom").addEventListener("click", function () {
+        var id = "dynamic-" + Date.now();
+        $("dynamicDomMount").innerHTML =
+          '<article id="' + id + '" class="dynamic-' + Math.floor(Math.random() * 1000) + '" data-testid="dynamic-customer-card">' +
+          '<h3>Dynamic Customer Card</h3>' +
+          '<label for="' + id + '-note">Dynamic note</label>' +
+          '<input id="' + id + '-note" data-testid="dynamic-note-input" placeholder="Stable placeholder" />' +
+          '<button type="button" data-testid="dynamic-card-action">Approve dynamic card</button>' +
+          '</article>';
+      });
+    </script>
+  </body>
+</html>

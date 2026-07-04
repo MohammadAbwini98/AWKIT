@@ -27,6 +27,8 @@ npm run build            # tsc --noEmit && electron-vite build  (primary verific
 ## Test / verify
 ```bash
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
+npm run verify:mock-site    # node scripts/verify-mock-site.mjs — starts the local Feature Test Lab
+                            # mock site and checks scenario URLs, delay behavior, and stable selectors
 npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — launches the REAL built Electron
                             # app (Playwright _electron) and drives the Flow Designer connector UI: ports
                             # un-clipped, top loop port, semicircle self-loop, add/remove loop, conditional

@@ -49,12 +49,44 @@ vendor/                 offline vendor copies (browsers, dependency-manifest, na
 scripts/                PowerShell packaging/offline scripts + generate-app-icon.mjs +
                         verify-runner.mts + verify-data-editor.mts + verify-instance-monitor.mts +
                         seed-mock-fixtures.mjs + ai-memory/check-memory.mjs
-mock-site/              offline test website (node http server) for runner verification
+mock-site/              offline Feature Test Lab (node http server) for runner/recorder/wait/designer verification
 tests/                  runner.mocksite.spec.ts (@playwright/test)
 docs/                   IMPLEMENTATION_AUDIT.md, OFFLINE_STANDALONE_PACKAGING.md, ai/
 playwright_flow_studio_updated_phases/   master product spec (historical name)
 change_requests/        historical change-request prompt sets
 ```
+
+## Mock Site Feature Test Lab
+
+`mock-site/` is the mandatory local Feature Test Lab for AWKIT feature work. It must remain
+offline/local friendly and cannot depend on external services. Existing stable URLs:
+
+- `/` - lab index.
+- `/login`, `/form`, `/details`, `/success` - core runner/recorder flow.
+- `/smart-waits` - Smart Wait and runner timing scenarios.
+- `/recorder-lab` - Recorder, locator, saved URL, dynamic DOM, and waiting-time scenarios.
+- `/designer-lab` - Flow Designer, Workflow Builder, Instance Monitor, cards, and scenario-data examples.
+- `/api/delay?ms=...` - bounded local delayed JSON response.
+
+Any new Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator, node,
+wait, or execution feature should update at least one Mock Site scenario when applicable. Future agents
+must check `mock-site/README.md` before creating new feature-specific fixtures and should prefer extending
+existing scenarios over duplicate isolated pages.
+
+Each Mock Site scenario must have a stable local URL, clear title, description, expected behavior, related
+AWKIT feature, and stable selectors using role/name, labels, placeholders, and/or `data-testid`. New pages
+or scenarios must be covered by `npm run verify:mock-site` or another focused verifier, and their URLs
+must be documented in `mock-site/README.md` and AI memory files.
+
+### When modifying features
+
+1. Identify whether the feature needs a Mock Site scenario.
+2. Add or update the Mock Site scenario.
+3. Add or update automated verification for that scenario.
+4. Update Mock Site documentation with the scenario URL and expected behavior.
+5. Update AI memory docs so future agents know the scenario exists.
+6. Run relevant feature verifiers, `npm run verify:mock-site`, build, and memory checker.
+7. Commit only after the working tree is clean and verification passes.
 
 ## Confirmed — process & data flow
 

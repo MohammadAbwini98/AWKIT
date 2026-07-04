@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Smart Wait and Runner Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Smart Wait and Runner Lab</h1>
+      <p class="hint">
+        Expected behavior: each control changes one local page signal after a deterministic delay. Related
+        AWKIT features: Smart Wait Engine, runner timing, and Recorder wait capture.
+      </p>
+
+      <section class="control-row" aria-label="Scenario controls">
+        <label for="delayMs">Delay milliseconds</label>
+        <input id="delayMs" data-testid="delay-ms" type="number" min="0" max="3000" value="300" />
+        <button id="resetLab" data-testid="reset-smart-waits" type="button">Reset lab</button>
+      </section>
+
+      <section class="scenario-grid" aria-label="Smart Wait scenarios">
+        <article data-testid="wait-element-visible">
+          <h2>Element appears after delay</h2>
+          <p>Expected: target text becomes visible after the configured delay.</p>
+          <button id="showElementButton" type="button">Show delayed element</button>
+          <p id="appearedElement" data-testid="appeared-element" hidden>Delayed element is visible</p>
+        </article>
+
+        <article data-testid="wait-element-hidden">
+          <h2>Element disappears after delay</h2>
+          <p>Expected: the visible target is hidden after the configured delay.</p>
+          <button id="hideElementButton" type="button">Hide delayed element</button>
+          <p id="disappearingElement" data-testid="disappearing-element">Element waiting to disappear</p>
+        </article>
+
+        <article data-testid="wait-text-change">
+          <h2>Text changes after delay</h2>
+          <p>Expected: text changes from Pending to Complete.</p>
+          <button id="changeTextButton" type="button">Change text</button>
+          <p id="changingText" data-testid="changing-text">Pending text</p>
+        </article>
+
+        <article data-testid="wait-enabled-control">
+          <h2>Button becomes enabled after delay</h2>
+          <p>Expected: disabled action becomes enabled.</p>
+          <button id="enableButtonTrigger" type="button">Enable action</button>
+          <button id="delayedEnabledButton" data-testid="delayed-enabled-button" type="button" disabled>Delayed action</button>
+        </article>
+
+        <article data-testid="wait-loader-content">
+          <h2>Loader then content</h2>
+          <p>Expected: spinner appears, hides, and content appears.</p>
+          <button id="loaderScenarioButton" type="button">Run loader</button>
+          <div id="loadingSpinner" data-testid="loading-spinner" role="status" hidden>Loading...</div>
+          <p id="loadedContent" data-testid="loaded-content" hidden>Loaded content is ready</p>
+        </article>
+
+        <article data-testid="wait-navigation">
+          <h2>Delayed navigation</h2>
+          <p>Expected: page URL changes after delay.</p>
+          <button id="delayedNavigationButton" type="button">Navigate after delay</button>
+          <p id="navigationStatus" data-testid="navigation-status">Navigation idle</p>
+        </article>
+
+        <article data-testid="wait-modal">
+          <h2>Delayed modal open and close</h2>
+          <p>Expected: modal opens after delay and closes after delay.</p>
+          <button id="openDelayedModal" type="button">Open delayed modal</button>
+          <div id="delayedModal" data-testid="delayed-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="delayedModalTitle" hidden>
+            <h3 id="delayedModalTitle">Delayed Modal</h3>
+            <p>Modal opened from a delayed action.</p>
+            <button id="closeDelayedModal" type="button">Close modal after delay</button>
+          </div>
+        </article>
+
+        <article data-testid="wait-toast">
+          <h2>Delayed toast or alert</h2>
+          <p>Expected: alert appears after delay.</p>
+          <button id="showToastButton" type="button">Show toast</button>
+          <p id="delayedToast" data-testid="delayed-toast" role="alert" hidden>Delayed toast is visible</p>
+        </article>
+
+        <article data-testid="wait-network">
+          <h2>Network/API response delay</h2>
+          <p>Expected: local JSON response returns after delay.</p>
+          <button id="networkDelayButton" type="button">Fetch delayed response</button>
+          <p id="networkResult" data-testid="network-result">No response yet</p>
+        </article>
+
+        <article data-testid="wait-sequential">
+          <h2>Multiple sequential waits</h2>
+          <p>Expected: loader, text, and toast complete in order.</p>
+          <button id="sequentialWaitButton" type="button">Run sequence</button>
+          <p id="sequentialStatus" data-testid="sequential-status">Sequence idle</p>
+          <p id="sequentialDone" data-testid="sequential-done" hidden>Sequential waits complete</p>
+        </article>
+
+        <article data-testid="wait-failure">
+          <h2>Intentionally failing wait</h2>
+          <p>Expected: visible context appears, but the missing target never appears.</p>
+          <button id="failingWaitButton" type="button">Run failing scenario</button>
+          <p id="failureContext" data-testid="failure-context" hidden>Failure context: target intentionally missing</p>
+        </article>
+
+        <article data-testid="wait-fast">
+          <h2>Fast scenario with no wait needed</h2>
+          <p>Expected: result appears immediately.</p>
+          <button id="fastScenarioButton" type="button">Run fast scenario</button>
+          <p id="fastResult" data-testid="fast-result" hidden>Fast result ready</p>
+        </article>
+      </section>
+
+      <section aria-label="Scenario log">
+        <h2>Visible status log</h2>
+        <ol id="eventLog" data-testid="event-log" role="log" aria-live="polite"></ol>
+      </section>
+    </main>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      var delay = function () {
+        var value = Number($("delayMs").value || 300);
+        return Math.max(0, Math.min(Number.isFinite(value) ? value : 300, 3000));
+      };
+      var later = function (fn, multiplier) { window.setTimeout(fn, delay() * (multiplier || 1)); };
+      var log = function (message) {
+        var item = document.createElement("li");
+        item.textContent = message;
+        $("eventLog").appendChild(item);
+      };
+      var reset = function () {
+        $("appearedElement").hidden = true;
+        $("disappearingElement").hidden = false;
+        $("changingText").textContent = "Pending text";
+        $("delayedEnabledButton").disabled = true;
+        $("loadingSpinner").hidden = true;
+        $("loadedContent").hidden = true;
+        $("navigationStatus").textContent = new URLSearchParams(location.search).get("state") || "Navigation idle";
+        $("delayedModal").hidden = true;
+        $("delayedToast").hidden = true;
+        $("networkResult").textContent = "No response yet";
+        $("sequentialStatus").textContent = "Sequence idle";
+        $("sequentialDone").hidden = true;
+        $("failureContext").hidden = true;
+        $("fastResult").hidden = true;
+        $("eventLog").innerHTML = "";
+      };
+      $("resetLab").addEventListener("click", reset);
+      $("showElementButton").addEventListener("click", function () { log("show element scheduled"); later(function () { $("appearedElement").hidden = false; log("element visible"); }); });
+      $("hideElementButton").addEventListener("click", function () { log("hide element scheduled"); later(function () { $("disappearingElement").hidden = true; log("element hidden"); }); });
+      $("changeTextButton").addEventListener("click", function () { log("text change scheduled"); later(function () { $("changingText").textContent = "Complete text"; log("text complete"); }); });
+      $("enableButtonTrigger").addEventListener("click", function () { log("enable scheduled"); later(function () { $("delayedEnabledButton").disabled = false; log("button enabled"); }); });
+      $("loaderScenarioButton").addEventListener("click", function () {
+        $("loadedContent").hidden = true;
+        $("loadingSpinner").hidden = false;
+        log("loader visible");
+        later(function () { $("loadingSpinner").hidden = true; $("loadedContent").hidden = false; log("content loaded"); });
+      });
+      $("delayedNavigationButton").addEventListener("click", function () {
+        $("navigationStatus").textContent = "Navigation scheduled";
+        later(function () { location.href = "/smart-waits?state=delayed-navigation-complete"; });
+      });
+      $("openDelayedModal").addEventListener("click", function () { log("modal open scheduled"); later(function () { $("delayedModal").hidden = false; log("modal open"); }); });
+      $("closeDelayedModal").addEventListener("click", function () { log("modal close scheduled"); later(function () { $("delayedModal").hidden = true; log("modal closed"); }); });
+      $("showToastButton").addEventListener("click", function () { log("toast scheduled"); later(function () { $("delayedToast").hidden = false; log("toast visible"); }); });
+      $("networkDelayButton").addEventListener("click", function () {
+        $("networkResult").textContent = "Waiting for response";
+        fetch("/api/delay?ms=" + encodeURIComponent(delay())).then(function (res) { return res.json(); }).then(function (data) {
+          $("networkResult").textContent = data.message + " (" + data.delayMs + "ms)";
+          log("network complete");
+        });
+      });
+      $("sequentialWaitButton").addEventListener("click", function () {
+        $("sequentialDone").hidden = true;
+        $("sequentialStatus").textContent = "Step 1 loader";
+        log("sequence step 1");
+        later(function () {
+          $("sequentialStatus").textContent = "Step 2 text";
+          log("sequence step 2");
+          later(function () {
+            $("delayedToast").hidden = false;
+            $("sequentialStatus").textContent = "Step 3 toast";
+            log("sequence step 3");
+            later(function () {
+              $("sequentialDone").hidden = false;
+              $("sequentialStatus").textContent = "Sequence complete";
+              log("sequence complete");
+            });
+          });
+        });
+      });
+      $("failingWaitButton").addEventListener("click", function () { log("failure context scheduled"); later(function () { $("failureContext").hidden = false; log("missing target intentionally absent"); }); });
+      $("fastScenarioButton").addEventListener("click", function () { $("fastResult").hidden = false; log("fast result ready"); });
+      reset();
+    </script>
+  </body>
+</html>

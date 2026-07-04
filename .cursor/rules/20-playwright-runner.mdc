@@ -19,4 +19,5 @@ Rules:
 - Never log secrets, passwords, tokens, cookies, or session values.
 - Keep runner changes backward compatible with existing saved flows/workflows when possible.
 - For runner/orchestrator changes, run `npm run verify:runner`.
+- For wait/timing/mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - For recorder changes, run the relevant recorder verification script if available.

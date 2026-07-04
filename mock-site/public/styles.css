@@ -26,9 +26,23 @@ body {
   max-width: 760px;
 }
 
+.card.lab {
+  max-width: 1080px;
+}
+
 h1 {
   font-size: 20px;
   margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+h3 {
+  font-size: 14px;
+  margin: 0 0 6px;
 }
 
 .hint {
@@ -40,6 +54,50 @@ h1 {
 form {
   display: grid;
   gap: 14px;
+}
+
+section {
+  border-top: 1px solid #e3e9f2;
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.scenario-list,
+.scenario-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.scenario-list article,
+.scenario-grid article,
+.workflow-grid-lab article {
+  border: 1px solid #dfe6ef;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.scenario-meta {
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: auto 1fr;
+}
+
+.scenario-meta dt {
+  color: #617089;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.scenario-meta dd {
+  margin: 0;
+}
+
+.control-row {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .grid {
@@ -72,6 +130,12 @@ textarea {
   border-radius: 6px;
   font: inherit;
   padding: 8px 10px;
+}
+
+input:disabled,
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 input[type="checkbox"],
@@ -128,4 +192,68 @@ button[type="reset"] {
 .result dd {
   font-weight: 700;
   margin: 0;
+}
+
+.modal {
+  background: #ffffff;
+  border: 2px solid #1769e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgb(15 23 42 / 18%);
+  margin-top: 12px;
+  padding: 16px;
+}
+
+[role="alert"] {
+  background: #ecfdf3;
+  border: 1px solid #7cd4a1;
+  border-radius: 8px;
+  color: #065f46;
+  padding: 10px;
+}
+
+[role="status"],
+[role="timer"] {
+  color: #41516b;
+  font-weight: 600;
+}
+
+.mock-canvas {
+  align-items: center;
+  background: linear-gradient(90deg, #eef4ff 1px, transparent 1px), linear-gradient(#eef4ff 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid #c6d7f2;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  min-height: 240px;
+  padding: 22px;
+}
+
+.mock-node {
+  background: #ffffff;
+  border-color: #8fb2e8;
+  color: #172033;
+}
+
+.mock-empty-space {
+  color: #617089;
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.workflow-grid-lab {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-height: 230px;
+  overflow: auto;
+}
+
+pre {
+  background: #101828;
+  border-radius: 8px;
+  color: #f8fafc;
+  overflow: auto;
+  padding: 12px;
 }

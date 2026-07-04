@@ -15,8 +15,12 @@
   **Route Change** [opens a new tab, switches the active page, fills/clicks/asserts on it], **Save Session**
   [writes storageState; fails on missing name / no-overwrite collision], flow-level and workflow-level
   connector routing).
-- `mock-site/server.mjs` — offline test website (login → form → success; `/details` opened via the form's
-  `#openNewTabButton` for Route Change testing), default port 4321.
+- `mock-site/server.mjs` — offline Feature Test Lab website, default port 4321. Core legacy routes remain
+  `/login` → `/form` → `/success`, with `/details` opened via `#openNewTabButton` for Route Change.
+  Feature lab routes include `/smart-waits`, `/recorder-lab`, `/designer-lab`, and `/api/delay`.
+- `scripts/verify-mock-site.mjs` (`npm run verify:mock-site`) — starts the mock site and verifies Feature
+  Test Lab scenario URLs, Smart Wait delay behavior, Recorder selectors, Designer/Workflow Builder
+  selectors, and local delayed API behavior. As of the last run: **28 checks pass**.
 - `scripts/verify-protected-login.mts` (`npm run verify:protected-login`) — pure unit checks for the
   protected-login detector (provider URLs, Google insecure-browser page, MFA/CAPTCHA text, no false
   positives, no secret fields). As of the last run: **16 checks pass**. `verify:runner` also covers the
@@ -42,6 +46,7 @@
 ```bash
 npm run build            # primary gate: tsc --noEmit + electron-vite bundles
 npm run verify:runner    # live runner checks vs the mock site (tsx)
+npm run verify:mock-site # Feature Test Lab scenario URLs, delays, and stable selectors
 npm run verify:waits     # Smart Wait runner checks and diagnostics
 npm run validate:offline # offline bundle validation (for packaging/offline changes)
 
@@ -61,6 +66,10 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
 - After changing runner/orchestrator/connector/node-execution logic, run `npm run verify:runner`
   and report the pass count; extend `scripts/verify-runner.mts` (and `tests/runner.mocksite.spec.ts`)
   with a case for the new behavior.
+- After changing the mock site, run `npm run verify:mock-site`; also run the related feature verifier
+  (Recorder, Smart Wait/Runner, Flow Designer, Workflow Builder, or Instance Monitor).
+- Before creating feature-specific fixtures, check `mock-site/README.md` and prefer extending existing
+  Feature Test Lab scenarios.
 - After offline/packaging changes, run `npm run validate:offline` (the package scripts run it in
   `-Strict` mode).
 - Always run `npm run build` before declaring done.

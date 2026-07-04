@@ -13,6 +13,7 @@
     "mock-site": "node mock-site/server.mjs",
     "dev:mock-site": "node mock-site/server.mjs",
     "verify:runner": "tsx scripts/verify-runner.mts",
+    "verify:mock-site": "node scripts/verify-mock-site.mjs",
     "verify:flow-designer": "node scripts/verify-flow-designer-gui.mjs",
     "verify:workflow-builder": "node scripts/verify-workflow-builder-gui.mjs",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",

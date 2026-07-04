@@ -4,6 +4,10 @@ Predefined flows, workflows, and a data source that target the offline **mock-si
 (`npm run mock-site`, default `http://localhost:4321`). They exercise a wide range of
 node types and connector behaviors for local testing.
 
+The mock site is the AWKIT **Feature Test Lab**. Before adding new feature-specific fixtures, check the
+live scenarios in `mock-site/README.md` and prefer extending existing lab URLs (`/smart-waits`,
+`/recorder-lab`, `/designer-lab`, `/login`, `/form`, `/details`) over adding isolated duplicates.
+
 > **These are not default/production data.** Nothing here loads on app startup, and a fresh
 > install still shows empty Flows/Workflows/Data Sources. They are excluded from packaged
 > builds (`electron-builder.json` → `!test-fixtures/**`). All ids are prefixed `mock-` and

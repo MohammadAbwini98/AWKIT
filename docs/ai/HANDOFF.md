@@ -13,7 +13,7 @@ Use this file when work is paused, blocked, or moving from one agent/tool to ano
 
 ### From Agent / Tool
 
-Codex (Smart Wait Engine completion)
+Codex (Mock Site Feature Test Lab update)
 
 ### To Agent / Tool
 
@@ -27,67 +27,61 @@ Any next agent
 
 - Repository is a Git repo; always run `git status --short --branch` before editing.
 - Current branch: `feature/smart-wait-engine`.
-- Smart Wait Engine Phase 1/2 were completed in earlier commits on this branch; diagnostics and UI phases
-  were completed locally on 2026-07-04. Check `git log --oneline -5` for exact commit ids.
+- Work is local-only. Do not fetch, pull, push, or open PRs unless the user explicitly asks.
 
 ### Active Task
 
-None in progress. Smart Wait Engine implementation is complete locally. Remaining release work is general
-project verification, especially the clean-machine offline Windows VM walkthrough.
+None in progress. Smart Wait Engine is complete locally, and the mock site has been upgraded into the
+local Feature Test Lab with dedicated scenarios and verifier coverage.
 
-### Completed Work (current Smart Wait branch)
+### Completed Work
 
-1. Smart Wait runner support: `FlowStep.beforeWaits` / `afterWaits` use the shared `WaitCondition` model
-   and execute around actions, including armed response waits.
-2. Smart Wait recorder observation: the recorder passively observes safe DOM/network/page signals and
-   attaches high-confidence `afterWaits` to the previous action.
-3. Diagnostics polish: wait failures include phase, sanitized current URL, condition, timeout, recorded
-   reason, last observed state, and a suggestion.
-4. Recorder UI: Controls exposes a persisted Smart Wait toggle and recorded actions summarize captured
-   wait types.
-5. Flow Designer UI: save/load preserves `beforeWaits`/`afterWaits`; Node Properties shows a Smart Waits
-   section for timeout tuning/removal.
-6. Flow Designer GUI verifier: navigation now clicks by visible label instead of stale `title` text.
+1. Added Feature Test Lab pages under `mock-site/public/`:
+   - `/` scenario index.
+   - `/smart-waits` for Smart Wait/Runner timing scenarios.
+   - `/recorder-lab` for Recorder, locator, waiting-time, saved URL, dynamic DOM, and Start/End flows.
+   - `/designer-lab` for Flow Designer, Workflow Builder, workflow cards, and Smart Wait scenario data.
+2. Added local `/api/delay?ms=...` JSON endpoint in `mock-site/server.mjs`.
+3. Added `npm run verify:mock-site` via `scripts/verify-mock-site.mjs` (28/28 current checks).
+4. Updated Mock Site docs and AI guidance so future feature work must consider the Feature Test Lab.
+5. Added `mock-site-maintainer` skills under `.agents/skills/`, `.claude/skills/`, and `.gemini/skills/`.
 
-### Files Changed (current Smart Wait completion)
+### Files Changed
 
-- `src/runner/StepExecutor.ts`
-- `scripts/verify-waits.mts`
-- `scripts/verify-flow-designer-gui.mjs`
-- `app/renderer/pages/Recorder.tsx`
-- `app/renderer/pages/FlowChartDesigner.tsx`
-- `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`
-- `app/renderer/components/workflow/flowDesignerTypes.ts`
-- `app/renderer/styles/global.css`
-- `docs/ai/ARCHITECTURE.md`
-- `docs/ai/CURRENT_STATE.md`
-- `docs/ai/FEATURES.md`
-- `docs/ai/TESTING.md`
-- `docs/ai/TASK_LOG.md`
-- `docs/ai/HANDOFF.md`
+- Mock site: `mock-site/server.mjs`, `mock-site/public/*`, `mock-site/README.md`, `mock-site/AGENTS.md`.
+- Verifier/commands: `scripts/verify-mock-site.mjs`, `package.json`, `scripts/AGENTS.md`,
+  `tests/AGENTS.md`.
+- Agent guidance: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/rules/*`,
+  `.agents/skills/mock-site-maintainer/SKILL.md`, `.claude/skills/mock-site-maintainer/SKILL.md`,
+  `.gemini/skills/mock-site-maintainer/SKILL.md`.
+- AI memory/docs: `docs/ai/ARCHITECTURE.md`, `docs/ai/COMMANDS.md`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/DEVELOPMENT_WORKFLOW.md`, `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`,
+  `docs/ai/TESTING.md`, `README.md`, `resources/test-fixtures/mock-site/README.md`.
 
 ### Commands / Tests Run
 
-- `npm run typecheck` - passed.
+- `npm run build` - passed.
 - `npm run verify:waits` - 18/18.
 - `npm run verify:runner` - 76/76.
 - `npm run verify:recorder` - 57/57.
 - `npm run verify:recorder-draft` - 17/17.
-- `npm run build` - clean (`tsc --noEmit` + electron-vite bundles).
 - `npm run verify:flow-designer` - 19/19.
+- `npm run verify:mock-site` - 28/28.
 - `node scripts/ai-memory/check-memory.mjs` - passed.
 
 ### Current State Summary
 
-See `docs/ai/CURRENT_STATE.md`. Smart Wait Engine is complete locally; build/typecheck and the relevant
-runner/recorder/wait/Flow Designer suites pass.
+See `docs/ai/CURRENT_STATE.md` and `mock-site/README.md`. The mock site is now the mandatory local Feature
+Test Lab for Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator,
+node, wait, and execution work. New scenarios must stay offline/local, deterministic, documented, and
+verified.
 
 ### Remaining Work
 
 - Clean-machine offline Windows VM walkthrough (`docs/OFFLINE_STANDALONE_PACKAGING.md`) remains the only
   external release gate; it cannot be satisfied from this dev checkout.
-- Smart Locator follow-ups are still optional/deferred: quality badge, alternatives panel, debug candidates
-  table, and manual override editor.
+- Optional future work: add seeded Flow/Workflow fixtures that directly target `/smart-waits`,
+  `/recorder-lab`, or `/designer-lab` when a feature needs app-level saved-profile coverage.
 
 ### Known Risks / Blockers
 
@@ -101,14 +95,12 @@ runner/recorder/wait/Flow Designer suites pass.
 - Do not rename `window.playwrightFlowStudio`.
 - Do not break offline-first constraints: no runtime internet, no global Node/Playwright/Chromium, and no
   writes to `resources/` or `app.asar`.
-- Keep Smart Locator's `LocatorFactory.resolve()` vs `create()` split.
-- Keep the branch-connector per-slot `<kind>-out-0/1` handle model.
+- Keep Mock Site scenarios local-only, deterministic, and free of external services.
 
 ### Recommended Next Step
 
-Inspect `git status` and open a dedicated PR into `main` when ready (protected - PR-only). The
-repo-verifiable suites are current: waits 18/18, recorder 57/57, recorder-draft 17/17, runner 76/76,
-Flow Designer GUI 19/19, build clean.
+Inspect `git status`, run the requested verification suite, then create one local commit when the tree is
+clean and verification passes. Do not push.
 
 ### Required First Actions For Next Agent
 
@@ -116,11 +108,11 @@ Flow Designer GUI 19/19, build clean.
 2. Read `docs/ai/CURRENT_STATE.md`.
 3. Read `docs/ai/HANDOFF.md` (this file).
 4. Run `git status --short --branch` and inspect `git diff` before editing.
-5. Read `.claude/skills/git-full-cycle/SKILL.md` (or the `.codex`/`.gemini` mirror) before any Git
+5. For mock-site work, read `mock-site/AGENTS.md`, `mock-site/README.md`, and the `mock-site-maintainer`
+   skill for your agent surface.
+6. Read `.claude/skills/git-full-cycle/SKILL.md` (or the `.codex`/`.gemini` mirror) before any Git
    branch/stage/commit/push/PR operation.
-6. Confirm the plan before risky or broad changes.
 
 ## Handoff History
 
-Older handoff detail is preserved in Git history. The current handoff above supersedes the stale
-pre-Smart-Wait branch-preparation note.
+Older handoff detail is preserved in Git history.

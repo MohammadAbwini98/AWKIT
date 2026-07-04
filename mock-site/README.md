@@ -1,9 +1,8 @@
-# Mock Test Website
+# Mock Site - Feature Test Lab
 
-A small offline website for exercising every AWTKIT automation feature
-(open URL, fill, click, select, checkbox, radio, textarea, file upload, submit,
-read text, assert). It is a **development / test utility** built on Node's
-built-in `http` module — no extra dependencies, no internet required.
+The mock site is AWKIT's local **Feature Test Lab**: a deterministic offline website for Recorder,
+Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator, node, wait, and execution
+features. It uses Node's built-in `http` module only - no internet and no extra dependencies.
 
 ## Start it
 
@@ -11,50 +10,56 @@ built-in `http` module — no extra dependencies, no internet required.
 npm run mock-site
 ```
 
-Then open `http://localhost:4321/login`. Change the port with `MOCK_SITE_PORT`.
+Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 
-## URLs
+## Scenario URLs
 
-| URL | Purpose |
-| --- | --- |
-| `http://localhost:4321/login` | Login page (any non-empty username/password) |
-| `http://localhost:4321/form` | Full form with every input type |
-| `http://localhost:4321/success?id=…` | Result page with submitted values |
+| URL | Related AWKIT feature | Expected behavior |
+| --- | --- | --- |
+| `/` | Feature Test Lab index | Lists every local scenario with title, description, expected behavior, feature, and stable URL. |
+| `/login` | Runner core, Recorder, seeded fixtures | Any non-empty username/password submits to `/form`. |
+| `/form` | Runner core nodes, route-change trigger | Full form with stable labels, ids, and test ids; submit navigates to `/success`. |
+| `/details` | Route Change node | Opens in a new tab from `/form`; automation must switch context before interacting. |
+| `/success?id=...` | Assertions and reports | Shows submitted values with stable ids. |
+| `/smart-waits` | Smart Wait Engine, Runner timing, Recorder wait capture | Element appears/disappears, text changes, button enables, loader/content, delayed navigation, modal, toast, delayed API response, sequential waits, intentional failure context, and fast no-wait scenario. |
+| `/recorder-lab` | Recorder, locator engine, saved URL history | Accessible form controls, manual pause/countdown, reusable local URLs, linear Start/End flow, and dynamic DOM with stable selectors. |
+| `/designer-lab` | Flow Designer, Workflow Builder, Instance Monitor | Canvas-like area, clickable mock nodes, workflow cards grid, stable named flows/workflows, and Smart Wait scenario data examples. |
+| `/api/delay?ms=300` | Runner/Smart Wait response waits | Returns local JSON after a bounded deterministic delay. |
 
-After a successful login the site navigates to `/form`. Submitting the form
-navigates to `/success` and shows the submitted values with stable IDs.
+## Using it with Recorder
 
-## Test credentials
+1. Start the site with `npm run mock-site`.
+2. Record `http://localhost:4321/recorder-lab` for accessible controls, manual waiting-time capture,
+   saved URL reuse, dynamic DOM, and Start -> actions -> End flow validation.
+3. Record `http://localhost:4321/smart-waits` for Smart Wait observation signals.
+4. Record `http://localhost:4321/login` -> `/form` for the existing core login/form flow.
 
-Any non-empty `username` + `password` is accepted (e.g. `user1` / `pass1`).
+## Using it with Flow Designer / Workflow Builder
 
-## Element ID reference
+1. Start the mock site.
+2. Optionally seed local app fixtures:
 
-**Login** — `username`, `password`, `rememberMe`, `loginButton`
+   ```bash
+   npm run seed:mock-fixtures
+   ```
 
-**Form** — `firstName`, `lastName`, `email`, `password`, `age`, `salary`,
-`birthDate`, `country`, `accountType`, `skills`, `description`, `gender`
-(`genderMale` / `genderFemale`), `interestAutomation`, `interestTesting`,
-`acceptTerms`, `attachment`, `submitButton`, `resetButton`
+3. Use `/designer-lab` for manual panel/canvas/card scenarios and `/smart-waits` for wait-node or
+   Smart Wait scenario data.
 
-**Success** — `successMessage`, `submissionId`, `submittedFirstName`,
-`submittedLastName`, `submittedEmail`, `submittedCountry`, `submittedAccountType`
+## Extending the lab
 
-## Using it with AWTKIT flows
+- Check existing scenarios before creating a new page.
+- Prefer extending `/smart-waits`, `/recorder-lab`, or `/designer-lab` instead of duplicating pages.
+- Every scenario must have a stable local URL, title, description, expected behavior, related AWKIT
+  feature, and stable selectors using role/name, labels, placeholders, and/or `data-testid`.
+- Any new page or scenario must be covered by `npm run verify:mock-site` or another focused verifier.
+- Keep all behavior deterministic, local-only, and free of external services.
 
-1. Start the mock site (`npm run mock-site`).
-2. In **Data Sources**, add `resources/sample-data/mock-customers.json`
-   (root array path `$`).
-3. In **Workflow Builder**, set the workflow data source to that file.
-4. In **Flow Designer**, set node value sources to **Dynamic**:
-   - `Object ID Mode = Instance order ID` so instance #1 → id 1, #2 → id 2, …
-   - `Key Name = firstName` / `email` / `country`, etc.
-5. Build a flow: open `http://localhost:4321/login` → fill `username`/`password`
-   → click `loginButton` → fill the form fields from the data source → click
-   `submitButton` → assert `successMessage`.
+## Verification
 
-## Concurrent instance-order testing
+```bash
+npm run verify:mock-site
+```
 
-`mock-customers.json` contains objects with `id` 1, 2, 3. With dynamic
-`instanceOrder` binding, instance #1 resolves id 1, instance #2 resolves id 2,
-and instance #3 resolves id 3 — letting you verify per-instance data isolation.
+The verifier starts the mock site on its own port, checks key pages, exercises delay scenarios, and asserts
+stable selectors for Recorder and Designer scenarios.

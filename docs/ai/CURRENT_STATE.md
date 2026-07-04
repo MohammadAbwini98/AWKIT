@@ -1,11 +1,9 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Codex - Smart Wait Engine remaining phases completed locally on top of
-Phase 1/2. Runner wait-failure diagnostics now include wait phase, sanitized current URL, timeout,
-condition, reason, and suggestion. Recorder has a visible persisted Smart Wait capture toggle, recorded
-actions summarize captured waits, and Flow Designer preserves `beforeWaits`/`afterWaits` with a Smart Waits
-section for timeout tuning/removal. Verification: `verify:waits` 18/18, `verify:runner` 76/76,
-`verify:recorder` 57/57, `verify:recorder-draft` 17/17, `verify:flow-designer` 19/19, build clean.)
+**Last updated:** 2026-07-04 (Codex - Mock Site upgraded into the local Feature Test Lab. Added stable
+offline scenarios for Smart Wait/Runner timing, Recorder/locator/saved URL flows, and
+Flow Designer/Workflow Builder/Instance Monitor surfaces; added `npm run verify:mock-site` (28/28).
+Agent guidance and skills now require future feature work to consider/update mock-site scenarios.)
 
 ## What currently works (Confirmed)
 
@@ -18,8 +16,10 @@ section for timeout tuning/removal. Verification: `verify:waits` 18/18, `verify:
 - **AI agent architecture:** Shared source of truth is `AGENTS.md` + `docs/ai/` (indexed by
   `docs/ai/README.md`); Claude Code uses `CLAUDE.md`, `.claude/commands`, and `.claude/skills`
   (`ai-memory-maintainer`, `codebase-review`, `feature-implementation`, `bug-fix`,
-  `test-and-verify`, `docs-sync`, `refactor-safe`, `pr-review`); Codex/Antigravity/future agents use
-  `.agents/skills` + `.agents/workflows`; Gemini uses `.gemini/commands`; Cursor uses `.cursor/rules`.
+  `test-and-verify`, `docs-sync`, `refactor-safe`, `pr-review`, `mock-site-maintainer`);
+  Codex/Antigravity/future agents use `.agents/skills` + `.agents/workflows` (including
+  `mock-site-maintainer`); Gemini uses `.gemini/commands` and `.gemini/skills/mock-site-maintainer`;
+  Cursor uses `.cursor/rules`.
   A cross-agent **`git-full-cycle`** skill (safe Git lifecycle: status, dirty-tree handling, branching,
   commit, push, PRs, protected `main`, stacked PRs) is mirrored byte-identically under
   `.claude/skills/`, `.codex/skills/`, `.gemini/skills/`, and a canonical `docs/ai/skills/` copy, and is
@@ -293,6 +293,13 @@ section for timeout tuning/removal. Verification: `verify:waits` 18/18, `verify:
   (cells/rows/columns), create from scratch, save real files to the configured data-sources path
   (bundled samples migrate on save). Logic verified by `npm run verify:data-editor` (27/27) incl. a
   real file read→edit→save round-trip; GUI not exercised here.
+- **Mock Site Feature Test Lab (2026-07-04):** `mock-site/` is the mandatory local offline test surface for
+  Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder, Instance Monitor, locator, node, wait, and
+  execution work. Stable URLs: `/` (scenario index), `/login`, `/form`, `/details`, `/success`,
+  `/smart-waits`, `/recorder-lab`, `/designer-lab`, and `/api/delay?ms=...`. New/changed scenarios must
+  document title/description/expected behavior/related feature/stable selectors in `mock-site/README.md`
+  and be covered by `npm run verify:mock-site` or a focused feature verifier. Current verifier:
+  `npm run verify:mock-site` -> 28/28.
 - **Test-only mock fixtures** (new): `npm run seed:mock-fixtures` imports 10 flows, 3 workflows, and
   1 data source (all `mock-` prefixed) that target the offline mock-site into the runtime userData
   folders. Source fixtures live in `resources/test-fixtures/mock-site/` (excluded from packaged
