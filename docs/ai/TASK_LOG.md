@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Fix .gitignore: track source dirs missing from the repo
+
+- **Task:** Repository-integrity fix. Broad `.gitignore` directory rules meant for runtime output
+  (`profiles/`, `reports/`, `instances/`, `storage/`, `data/`) also matched same-named **source**
+  directories, so 32 real source files were never committed. `main` therefore could not build from a
+  fresh clone (committed code imports `@src/profiles/FlowProfile`, `@src/instances/*`, `@src/reports/*`,
+  `@src/storage/*`, `@src/data/*`, and `app/renderer/components/{instances,reports}/*` — all absent).
+- **Root cause:** unanchored bare-directory patterns in `.gitignore` (lines ~53/61/62/64/65) match a
+  directory of that name at any depth, including `src/profiles/`, `src/reports/`, etc.
+- **Fix:** kept the broad rules (they still ignore genuine runtime dirs) and appended anchored
+  negations re-including only the source trees: `!src/profiles/`, `!src/reports/`, `!src/instances/`,
+  `!src/storage/`, `!src/data/`, `!app/renderer/components/instances/`, `!app/renderer/components/reports/`.
+  Added the 32 previously-untracked source files. Sensitive patterns (`session-profiles.json`,
+  `*.storageState.json`, `user-data-dir/`, `.env*`, etc.) remain ignored; no secrets/build output added
+  (`SecretMasker.ts` is the masking utility, not a secret).
+- **Files changed:** `.gitignore` + 32 source files under `src/profiles`, `src/reports`, `src/instances`,
+  `src/storage`, `src/data`, `app/renderer/components/instances`, `app/renderer/components/reports`.
+- **Verification:** `npm run build` clean, `npm run verify:runner` 76/76, `npm run verify:recorder` 42/42,
+  `node scripts/ai-memory/check-memory.mjs` passed. Branch `fix/track-source-dirs-gitignore` (own PR).
+- **Note:** Smart Wait Engine Phase 1 was paused for this fix and preserved off-tree; it resumes on
+  `feature/smart-wait-engine` rebased onto repaired `main` after this PR merges.
+
 ## 2026-07-04 — Claude Code — Handoff prep after Smart Locator + Git Full Cycle merges
 
 - **Task:** `/HANDOFF` — prepare the repo for the next agent/human after the stacked-PR merge cycle.
