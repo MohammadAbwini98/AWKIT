@@ -37,6 +37,10 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       if (action.locator.name) step.locator.name = action.locator.name;
       if (action.locator.exact) step.locator.exact = true;
       if (action.locator.quality) step.locator.quality = action.locator.quality;
+      if (action.locator.alternatives && action.locator.alternatives.length > 0) {
+        step.locator.alternatives = action.locator.alternatives;
+      }
+      if (action.locator.context) step.locator.context = action.locator.context;
     }
 
     if (action.valueSource) {

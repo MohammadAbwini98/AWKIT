@@ -361,6 +361,116 @@ export function installRecorderCapture(): void {
     candidateCount: number;
   }
 
+  interface ContainerContext {
+    type: "dialog" | "tableRow" | "card" | "listItem";
+    strategy: string;
+    value: string;
+    name?: string;
+    exact?: boolean;
+    hasText?: string;
+    visibleOnly?: boolean;
+  }
+
+  // Describe a container element as a stable, Playwright-buildable locator (id → testId → role).
+  const describeContainer = (node: Element, type: ContainerContext["type"]): ContainerContext | null => {
+    const nodeId = (node as HTMLElement).id;
+    if (nodeId && !looksGeneratedId(nodeId)) return { type, strategy: "id", value: nodeId };
+    const dtid = attr(node, "data-testid");
+    if (dtid) return { type, strategy: "testId", value: dtid };
+    const role = attr(node, "role") || roleOf(node);
+    const nm = accessibleName(node);
+    if (role && nm && nm.length <= 80) return { type, strategy: "role", value: role.toLowerCase(), name: nm, exact: false };
+    if (role) return { type, strategy: "css", value: '[role="' + esc(role.toLowerCase()) + '"]' };
+    return null;
+  };
+
+  // Detect the nearest stable container so a repeated control targets the right subtree.
+  // `chosenCount` is the primary locator's match count: when it is already globally unique we
+  // only scope for dialogs (to survive a hidden modal twin), never for rows/cards.
+  const detectContainer = (el: Element, chosenCount: number): ContainerContext | null => {
+    if (!el.closest) return null;
+
+    const dialog = el.closest(
+      '[role="dialog"], [role="alertdialog"], dialog, .modal, [class*="modal"], .mat-dialog-container, .ant-modal, .MuiDialog-root, .MuiDialog-container'
+    );
+    if (dialog && dialog !== el) {
+      const base = describeContainer(dialog, "dialog");
+      if (base) {
+        base.visibleOnly = true; // prefer the visible modal over a hidden template/duplicate
+        return base;
+      }
+    }
+
+    if (chosenCount === 1) return null; // primary already unique — don't over-scope
+
+    const row = el.closest('tr, [role="row"]');
+    if (row && row !== el) {
+      const text = norm(row.textContent).slice(0, 80);
+      if (text) return { type: "tableRow", strategy: "role", value: "row", name: text, exact: false };
+    }
+
+    const card = el.closest('[data-testid], [role="listitem"], article, li');
+    if (card && card !== el) {
+      const text = norm(card.textContent).slice(0, 80) || undefined;
+      const dtid = attr(card, "data-testid");
+      const isListItem = tagOf(card) === "li" || attr(card, "role") === "listitem";
+      const type: ContainerContext["type"] = isListItem ? "listItem" : "card";
+      if (dtid) return { type, strategy: "testId", value: dtid, hasText: text };
+      if (isListItem) return { type: "listItem", strategy: "role", value: "listitem", hasText: text };
+      if (tagOf(card) === "article") return { type: "card", strategy: "role", value: "article", hasText: text };
+    }
+
+    return null;
+  };
+
+  // Full context: iframe (when the capture runs inside a same-origin frame) + container.
+  const detectContext = (el: Element, chosenCount: number): Record<string, unknown> | undefined => {
+    const context: Record<string, unknown> = {};
+
+    try {
+      if (window.top !== window.self) {
+        const fe = window.frameElement;
+        if (fe) {
+          const fid = (fe as HTMLElement).id;
+          const fname = fe.getAttribute ? fe.getAttribute("name") : null;
+          const ftitle = fe.getAttribute ? fe.getAttribute("title") : null;
+          let selector = "iframe";
+          if (fid && !looksGeneratedId(fid)) selector = "iframe#" + ident(fid);
+          else if (fname) selector = 'iframe[name="' + esc(fname) + '"]';
+          else if (ftitle) selector = 'iframe[title="' + esc(ftitle) + '"]';
+          context.frame = { selector };
+        }
+      }
+    } catch {
+      /* cross-origin frame — frameElement is inaccessible; skip frame context */
+    }
+
+    const container = detectContainer(el, chosenCount);
+    if (container) context.container = container;
+
+    return context.frame || context.container ? context : undefined;
+  };
+
+  // Up to 3 fallback candidates (excluding the chosen one), unique/non-fragile first.
+  const buildAlternatives = (candidates: Candidate[], chosen: Candidate): Array<Record<string, unknown>> => {
+    const rank = (c: Candidate): number => (c.count === 1 ? 0 : 2) + (c.fallback ? 1 : 0);
+    const ranked = candidates.slice().sort((a, b) => rank(a) - rank(b));
+    const seen: Record<string, boolean> = {};
+    seen[chosen.strategy + "|" + chosen.value] = true;
+    const out: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < ranked.length && out.length < 3; i += 1) {
+      const c = ranked[i];
+      const key = c.strategy + "|" + c.value;
+      if (seen[key]) continue;
+      seen[key] = true;
+      const alt: Record<string, unknown> = { strategy: c.strategy, value: c.value };
+      if (c.name) alt.name = c.name;
+      if (c.exact) alt.exact = true;
+      out.push(alt);
+    }
+    return out;
+  };
+
   const generate = (el: Element): { locator: Record<string, unknown>; quality: Quality; accessibleName: string } => {
     const candidates = buildCandidates(el);
 
@@ -407,6 +517,12 @@ export function installRecorderCapture(): void {
     const locator: Record<string, unknown> = { strategy: chosen.strategy, value: chosen.value, quality };
     if (chosen.name) locator.name = chosen.name;
     if (chosen.exact) locator.exact = true;
+
+    const alternatives = buildAlternatives(candidates, chosen);
+    if (alternatives.length) locator.alternatives = alternatives;
+
+    const context = detectContext(el, chosen.count);
+    if (context) locator.context = context;
 
     return { locator, quality, accessibleName: accessibleName(el) };
   };

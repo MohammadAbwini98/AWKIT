@@ -163,6 +163,10 @@ export class StepExecutor {
     if (!quality || quality.isUnique !== false) return;
     if (StepExecutor.MULTI_MATCH_STEP_TYPES.has(step.type)) return;
     if (step.type === "assertText" && step.config?.assertionType === "count") return;
+    // The runtime resolver can now recover a non-unique primary via container/frame scoping,
+    // visibility disambiguation, or a ranked alternative. When any of those are present, defer
+    // to `LocatorFactory.resolve` (which fails with its own diagnostic if it truly can't).
+    if (step.locator?.context || (step.locator?.alternatives && step.locator.alternatives.length > 0)) return;
     throw new Error(
       `This step cannot continue because the saved locator matches ${quality.matchCount} elements. ` +
         `Re-record the step or edit the locator so it targets a single element. ` +
@@ -199,12 +203,12 @@ export class StepExecutor {
       }
 
       case "click":
-        await this.locatorFactory.create(step.locator).click({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
 
       case "fill": {
         const value = await this.resolveStepValue(step);
-        const locator = this.locatorFactory.create(step.locator);
+        const locator = await this.locatorFactory.resolve(step);
         if (step.config?.clearBeforeFill) await locator.clear({ timeout: step.timeoutMs ?? 10_000 });
         await locator.fill(value, { timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
@@ -212,7 +216,7 @@ export class StepExecutor {
 
       case "select": {
         const value = await this.resolveStepValue(step);
-        const locator = this.locatorFactory.create(step.locator);
+        const locator = await this.locatorFactory.resolve(step);
         const multiple = step.config?.selectMultiple;
         if (step.selectionMode === "label") {
           await locator.selectOption(multiple ? value.split(",").map((v) => ({ label: v.trim() })) : { label: value });
@@ -225,16 +229,16 @@ export class StepExecutor {
       }
 
       case "check":
-        await this.locatorFactory.create(step.locator).check({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.locatorFactory.resolve(step)).check({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
 
       case "uncheck":
-        await this.locatorFactory.create(step.locator).uncheck({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.locatorFactory.resolve(step)).uncheck({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
 
       case "radio": {
         const value = await this.resolveStepValue(step);
-        if (step.locator) await this.locatorFactory.create(step.locator).check({ timeout: step.timeoutMs ?? 10_000 });
+        if (step.locator) await (await this.locatorFactory.resolve(step)).check({ timeout: step.timeoutMs ?? 10_000 });
         else await this.activePage.locator(`input[type="radio"][value="${value}"]`).check({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
       }
@@ -243,7 +247,7 @@ export class StepExecutor {
         const cfg = step.config ?? {};
         const amount = cfg.scrollAmount ?? Number((await this.resolveStepValue(step, step.value)) || 500);
         if (cfg.scrollTarget === "element" && step.locator) {
-          await this.locatorFactory.create(step.locator).scrollIntoViewIfNeeded({ timeout: step.timeoutMs ?? 10_000 });
+          await (await this.locatorFactory.resolve(step)).scrollIntoViewIfNeeded({ timeout: step.timeoutMs ?? 10_000 });
         } else {
           const direction = cfg.scrollDirection ?? "down";
           const dx = direction === "left" ? -amount : direction === "right" ? amount : 0;
@@ -260,14 +264,14 @@ export class StepExecutor {
       case "uploadFile": {
         const filePath = await this.resolveStepValue(step, step.value);
         if (!filePath) throw new Error(`Upload step ${step.id} requires a file path.`);
-        await this.locatorFactory.create(step.locator).setInputFiles(filePath);
+        await (await this.locatorFactory.resolve(step)).setInputFiles(filePath);
         this.mapOutputs(step, outputs, { uploadedFileName: basename(filePath), uploadedFilePath: filePath });
         return { status: "passed" };
       }
 
       case "downloadFile": {
         const downloadPromise = this.activePage.waitForEvent("download", { timeout: step.timeoutMs ?? 30_000 });
-        await this.locatorFactory.create(step.locator).click();
+        await (await this.locatorFactory.resolve(step)).click();
         const download = await downloadPromise;
         await mkdir(this.context.paths.downloads, { recursive: true });
         const filePath = join(this.context.paths.downloads, download.suggestedFilename());
@@ -277,7 +281,7 @@ export class StepExecutor {
       }
 
       case "readText": {
-        const text = await this.locatorFactory.create(step.locator).innerText({ timeout: step.timeoutMs ?? 10_000 });
+        const text = await (await this.locatorFactory.resolve(step)).innerText({ timeout: step.timeoutMs ?? 10_000 });
         this.mapOutputs(step, outputs, { text });
         return { status: "passed" };
       }
@@ -289,16 +293,17 @@ export class StepExecutor {
       }
 
       case "assertVisible": {
-        const visible = await this.locatorFactory.create(step.locator).isVisible({ timeout: step.timeoutMs ?? 10_000 });
+        const visible = await (await this.locatorFactory.resolve(step)).isVisible({ timeout: step.timeoutMs ?? 10_000 });
         if (!visible) throw new Error(`Element for step ${step.id} is not visible.`);
         this.mapOutputs(step, outputs, { assertionResult: true });
         return { status: "passed" };
       }
 
       case "screenshot": {
+        const element = step.locator ? await this.locatorFactory.resolve(step) : undefined;
         const screenshotPath = await this.takeScreenshot(step, step.config?.screenshotName?.trim() || "step", {
           fullPage: step.config?.fullPage ?? false,
-          element: step.locator ? this.locatorFactory.create(step.locator) : undefined
+          element
         });
         this.mapOutputs(step, outputs, { screenshotPath });
         return { status: "passed", screenshotPath };
@@ -722,11 +727,12 @@ export class StepExecutor {
     if (assertionType === "url") {
       actual = this.activePage.url();
     } else if (assertionType === "count") {
+      // Count assertions legitimately target many elements — no single-match resolution.
       actual = String(await this.locatorFactory.create(step.locator).count());
     } else if (assertionType === "value") {
-      actual = await this.locatorFactory.create(step.locator).inputValue({ timeout });
+      actual = await (await this.locatorFactory.resolve(step)).inputValue({ timeout });
     } else {
-      actual = await this.locatorFactory.create(step.locator).innerText({ timeout });
+      actual = await (await this.locatorFactory.resolve(step)).innerText({ timeout });
     }
 
     if (!this.compareValues(actual, expected, operator)) {

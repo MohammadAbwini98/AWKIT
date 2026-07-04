@@ -1,4 +1,4 @@
-import type { LocatorQuality } from "../profiles/FlowProfile";
+import type { LocatorQuality, LocatorCandidate, LocatorContext } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -10,6 +10,10 @@ export interface RecordedActionLocator {
   exact?: boolean;
   /** Uniqueness/quality metadata computed at record time. */
   quality?: LocatorQuality;
+  /** Ranked fallback candidates the runner can try when the primary is ambiguous. */
+  alternatives?: LocatorCandidate[];
+  /** Container/frame scoping (visible dialog, table row, card, iframe) detected at record time. */
+  context?: LocatorContext;
 }
 
 export interface RecordedAction {

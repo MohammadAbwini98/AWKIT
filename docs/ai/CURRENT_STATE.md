@@ -1,9 +1,11 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Claude Code — Recorder positional fallback now guarantees a unique locator:
-`structuralSelector` builds the path serially and stops at the shortest `:nth-child` path that resolves to
-one element, fixing the "saved locator matches N elements" run failure. build clean, verify:recorder 27/27.
-Prior: Instances Load-More removed / two-row card scroller; AI-agent architecture hardening.)
+**Last updated:** 2026-07-04 (Claude Code — Smart Locator runtime delta: `StepLocator` gained
+`alternatives[]` + `context` (dialog/tableRow/card/listItem/iframe); `LocatorFactory.resolve` tries
+primary→alternatives with **visibility disambiguation** (count>1 & one visible → use it) and container/
+frame scoping, fixing hidden-modal-template + visible-modal ambiguity; the recorder emits both. build
+clean, verify:recorder 42/42, verify:runner 76/76. Prior: positional fallback uniqueness guarantee;
+Instances Load-More removed / two-row card scroller; AI-agent architecture hardening.)
 
 ## What currently works (Confirmed)
 
@@ -247,7 +249,7 @@ Prior: Instances Load-More removed / two-row card scroller; AI-agent architectur
   (`filteredWorkflows.length > visibleCardCount(gridColumns, 2)`), the grid becomes a **two-row internal
   scroller** (measured height + `.workflow-card-grid.is-scrolling`) so the rest of the Instances page stays
   put; at two rows or fewer it renders at natural height with no scroller.
-- **Recorder unique locators (live-verified, `npm run verify:recorder` → 27/27):** the injected capture
+- **Recorder unique locators (live-verified, `npm run verify:recorder` → 42/42):** the injected capture
   script (`src/recorder/recorderInitScript.ts`) generates ranked candidate locators (role/label/
   placeholder/text/testId → stable attributes → id → scoped → positional fallback — never utility/layout
   classes like `flex`/`items-center`), validates uniqueness against the live DOM, and saves the best
@@ -257,8 +259,23 @@ Prior: Instances Load-More removed / two-row card scroller; AI-agent architectur
   shortest path that resolves to a single element (or an id-anchored path), so it no longer emits floating
   child-chains like `div > div > … > svg` that match many subtrees. Human-readable step names ("Click Log
   in"); password values are never stored. Node Properties shows locator quality and won't mark a non-unique
-  node valid; `StepExecutor` fails a non-unique step early with a friendly message and translates raw
-  strict-mode violations (technical detail retained in logs).
+  node valid.
+- **Smart Locator runtime fallback + context scoping (live-verified, part of `verify:recorder` 42/42):**
+  `FlowStep.locator` is a structured `StepLocator` (`src/profiles/FlowProfile.ts`) with the primary plus
+  optional `alternatives: LocatorCandidate[]` (ranked runtime fallbacks) and `context` (container/frame
+  scope). The recorder emits both: up to 3 alternatives and a `context` for the nearest **visible dialog**
+  (`visibleOnly`), **table row** (role=row + row text), **card/list item** (testId/role + `hasText`), or
+  **iframe** (`frameLocator` selector, same-origin). At run time `LocatorFactory.resolve(step)` builds a
+  scoped root from `context`, then tries primary → alternatives, returning a **single** element per
+  candidate — a unique match wins, else the one *visible* match when several exist (**visibility
+  disambiguation**, the fix for a hidden modal template + a visible modal). It auto-waits on the primary
+  when nothing is present yet, and throws an actionable diagnostic (per-candidate count/visibleCount +
+  context) when genuinely ambiguous. `StepExecutor` routes single-target actions through `resolve` (count
+  assertions / element loops / `waitFor` keep the plain `create`); `guardLocatorQuality` defers to the
+  resolver when a step has `context`/`alternatives`. Fully backward compatible — legacy steps (primary
+  only) resolve unchanged. Playwright is 1.49 (no `filter({ visible })`); visibility is probed via
+  `nth(i).isVisible()`. Not yet surfaced in the UI (no locator-quality badge / debug candidates table /
+  manual override editor).
 - **Data Source visual table editor:** edit root-array JSON data sources as a table
   (cells/rows/columns), create from scratch, save real files to the configured data-sources path
   (bundled samples migrate on save). Logic verified by `npm run verify:data-editor` (27/27) incl. a
