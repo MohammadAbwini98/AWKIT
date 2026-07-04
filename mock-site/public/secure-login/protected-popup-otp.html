@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Protected Popup OTP — AWTKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-popup-otp-page">
+      <h1>Protected popup OTP verification</h1>
+      <p>
+        This scenario opens a popup requesting a <strong>one-time password (OTP)</strong>. AWKIT must
+        detect it and pause. AWKIT never fills OTP codes — the user verifies manually.
+      </p>
+
+      <button id="openOtp" type="button" data-testid="open-popup" onclick="openOtpPopup()">
+        Open OTP Popup
+      </button>
+
+      <p id="otpStatus" data-testid="auth-status" role="status">Not verified</p>
+
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+
+    <script>
+      function openOtpPopup() {
+        window.open("/mock/protected-popup-otp-popup", "otpPopup", "width=520,height=640");
+      }
+      window.addEventListener("message", function (event) {
+        if (event.data && event.data.type === "awtkit-manual-verify-complete") {
+          var status = document.getElementById("otpStatus");
+          status.textContent = "Verified via manual OTP entry";
+          status.setAttribute("data-authenticated", "true");
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Protected Login — AWTKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-login-page">
+      <h1>Protected login required</h1>
+      <p>
+        This page simulates a <strong>protected login</strong> that AWKIT must never automate. The
+        Recorder should detect it, pause, close the automation browser, and offer a manual Chrome
+        handoff. No real secrets are needed here.
+      </p>
+
+      <form id="loginForm" onsubmit="return false;">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" autocomplete="username" placeholder="you@example.test" data-testid="username" />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" data-testid="password" />
+
+        <fieldset aria-label="verification" data-testid="mfa-section">
+          <legend>Two-step verification (MFA)</legend>
+          <label for="otp">One-time password</label>
+          <input id="otp" name="otp" type="text" autocomplete="one-time-code" inputmode="numeric" placeholder="6-digit code" data-testid="otp" />
+        </fieldset>
+
+        <button id="completeLogin" type="button" data-testid="complete-login" onclick="completeManualLogin()">
+          Complete Manual Login
+        </button>
+      </form>
+
+      <p id="loginStatus" data-testid="login-status" role="status">Not authenticated</p>
+
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+
+    <script>
+      function completeManualLogin() {
+        var status = document.getElementById("loginStatus");
+        status.textContent = "Manual login complete — authenticated";
+        status.setAttribute("data-authenticated", "true");
+      }
+    </script>
+  </body>
+</html>

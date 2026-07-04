@@ -66,6 +66,23 @@
             <dd><code>/login</code>, <code>/form</code>, <code>/details</code></dd>
           </dl>
         </article>
+
+        <article data-testid="scenario-secure-login">
+          <h2><a href="/mock/protected-login">Secure Login and Protected Popup Lab</a></h2>
+          <p>Protected login, protected popups (login/CAPTCHA/OTP), and a session-reuse scenario for the Recorder manual Chrome handoff.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>AWKIT detects the protected surface, pauses recording, and offers a manual Chrome handoff. It never automates login/MFA/OTP/CAPTCHA. Session reuse shows an authenticated marker.</dd>
+            <dt>Related feature</dt>
+            <dd>Recorder protected-login detection, secure session capture, Auto Secure Login, Reuse Session.</dd>
+            <dt>Stable URL</dt>
+            <dd>
+              <code>/mock/protected-login</code>, <code>/mock/protected-popup-login</code>,
+              <code>/mock/protected-popup-captcha</code>, <code>/mock/protected-popup-otp</code>,
+              <code>/mock/session-reuse</code>
+            </dd>
+          </dl>
+        </article>
       </section>
     </main>
   </body>

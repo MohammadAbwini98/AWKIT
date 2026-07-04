@@ -78,6 +78,11 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 - Never commit/paste secrets into code or docs. `.env.example` documents env keys; real `.env` is local only.
 - This app is for **authorized** automation only — never bypass CAPTCHA/MFA/bot-detection; use manual handoff.
 - Mask secrets in logs/reports.
+- **Recorder protected-login handoff:** when the Recorder detects a protected login/MFA/OTP/CAPTCHA/
+  passkey/approval surface it must PAUSE, preserve the draft, close the automation browser, and hand off to
+  the user's real Chrome (app-owned scoped session profile — never the user's daily Chrome profile). Never
+  automate/scrape the protected page. Always link the captured session to the `Reuse Session` node, and
+  update the Mock Site secure-login scenarios when this behavior changes.
 
 ## End-of-task checklist
 

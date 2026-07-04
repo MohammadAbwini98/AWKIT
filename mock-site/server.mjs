@@ -110,6 +110,14 @@ const server = createServer(async (req, res) => {
     if (!file.endsWith(".html") && !file.includes(".")) file += ".html";
     return serveStatic(res, `popup${file}`);
   }
+  // ── Secure Login / Protected Popup Lab ─────────────────────────────────────
+  // Protected login + protected popup + session-reuse scenarios for the Recorder secure-login
+  // manual Chrome handoff. Served from `public/secure-login/<name>.html` (stable, offline-only).
+  // Placed after the /mock/popup handler so it never swallows the popup lab routes.
+  if (req.method === "GET" && path.startsWith("/mock/")) {
+    const name = path.slice("/mock/".length).replace(/[^a-zA-Z0-9-]/g, "");
+    if (name) return serveStatic(res, `secure-login/${name}.html`);
+  }
   if (req.method === "GET" && (path === "/styles.css")) return serveStatic(res, "styles.css");
   if (req.method === "GET" && path === "/favicon.ico") {
     res.writeHead(204);

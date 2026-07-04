@@ -184,6 +184,25 @@ must be documented in `mock-site/README.md` and AI memory files.
   `waitingForManualAction` as active, not terminal, while the runner promise is alive. UI:
   `components/auth/ProtectedLoginHandoffPanel.tsx`. OAuth: `src/auth/OAuthHandoffService.ts` +
   `app/main/ipc/auth.ipc.ts` (`auth:getCapabilities`/`openOAuth`/`openExternal`) + preload `auth.*`.
+- **Recorder secure-login browser handoff:** `RecorderService` (`src/recorder/RecorderService.ts`) is
+  injected a `SessionCaptureService` (`configureSessionCapture`, wired in `recorder.ipc.ts` from
+  `getSessionService()`). It attaches `detectRecorderProtectedLogin` (`src/security/ProtectedLoginDetector.ts`)
+  to every page/popup `load`/`domcontentloaded`. That detector combines conservative DOM signals (password
+  field, one-time-code field, recaptcha/hcaptcha/turnstile iframe, captcha/verification aria, passkey/webauthn)
+  with URL/title/text provider patterns — detect-only, never reading secrets. The evaluate body avoids named
+  function expressions so esbuild's `__name` helper is never referenced in-page. On first detection while
+  recording, `beginHandoff` stops action capture, persists the draft, records secret-free
+  `RecorderHandoffInfo` (`src/recorder/RecorderTypes.ts`), and closes the automation browser via a
+  context-or-browser-safe `closeBrowser` (the resume path uses `launchPersistentContext`, so there is no
+  separate `Browser`). `continueWithNormalBrowser` → `SessionCaptureService.startCapture(url,
+  "manualChromeHandoff")` (real Chrome, app-owned scoped profile). `captureSessionAndResume` stops the manual
+  Chrome, validates the profile (`SessionCaptureService.hasCapturedData`), inserts `Auto Secure Login` +
+  `Reuse Session` actions at the front of the draft (deduped; session id linked to Reuse Session), then
+  `resumeAfterHandoff` relaunches Playwright with `launchPersistentContext(profileDir)`, re-wires the context
+  (shared `wireContext`), navigates to the safe resume URL, and resumes recording. `buildRecordedFlow`
+  serializes those nodes (`autoSecureLogin` value; `reuseSession` `config.reuseSessionMode`/`reuseSessionId`).
+  IPC: `recorder:getHandoff` / `:continueWithNormalBrowser` / `:captureSessionAndResume` / `:cancelHandoff`
+  (+ preload `recorder.*`); UI panel in `app/renderer/pages/Recorder.tsx`.
 - **Recorder locator generation:** `RecorderService` injects `src/recorder/recorderInitScript.ts`
   (`getRecorderInitScriptContent()` serializes `installRecorderCapture` and shims esbuild's `__name`
   helper, then injects it via `context.addInitScript({ content })`). In the page DOM the script builds

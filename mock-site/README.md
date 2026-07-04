@@ -24,6 +24,12 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 | `/smart-waits` | Smart Wait Engine, Runner timing, Recorder wait capture | Element appears/disappears, text changes, button enables, loader/content, delayed navigation, modal, toast, delayed API response, sequential waits, intentional failure context, and fast no-wait scenario. |
 | `/recorder-lab` | Recorder, locator engine, saved URL history | Accessible form controls, manual pause/countdown, reusable local URLs, linear Start/End flow, and dynamic DOM with stable selectors. |
 | `/designer-lab` | Flow Designer, Workflow Builder, Instance Monitor | Canvas-like area, clickable mock nodes, workflow cards grid, stable named flows/workflows, and Smart Wait scenario data examples. |
+| `/mock/popup/` | Multi-Window / Popup Flow Handling | Index of 7 popup scenarios: target blank, window.open, auto-close, stays-open, multiple popups, failure cases, and smart-wait popup. |
+| `/mock/protected-login` | Recorder protected-login detection + secure Chrome handoff | Password + one-time-code login with protected-login warning and a `Complete Manual Login` button. The Recorder must detect it (`data-testid` `password`, `otp`, `complete-login`) and pause. |
+| `/mock/protected-popup-login` | Recorder protected-popup detection | `Open Protected Login Popup` opens a popup with a password login (external identity provider). Recorder must detect the popup and pause; `Complete Manual Login` closes it and the main page shows an authenticated marker (`data-testid="auth-status"`). |
+| `/mock/protected-popup-captcha` | Recorder CAPTCHA-popup detection | Opens a popup with a reCAPTCHA-like `iframe[src*=recaptcha]` placeholder and `[aria-label*=captcha]`. Recorder must detect and pause. No CAPTCHA solving is implemented. |
+| `/mock/protected-popup-otp` | Recorder OTP-popup detection | Opens a popup with an `input[autocomplete="one-time-code"]` and `Complete Manual Verification`. Recorder must detect and pause; completing it shows a verified marker. |
+| `/mock/session-reuse` | Reuse Session node | NOT a protected login (Recorder must not pause). Toggles logged-out/logged-in states with a visible authenticated marker (`data-testid` `auth-status`, `dashboard`) for testing `Reuse Session`. |
 | `/api/delay?ms=300` | Runner/Smart Wait response waits | Returns local JSON after a bounded deterministic delay. |
 
 ## Using it with Recorder
@@ -59,7 +65,14 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 
 ```bash
 npm run verify:mock-site
+npm run verify:protected-login-recorder
 ```
 
-The verifier starts the mock site on its own port, checks key pages, exercises delay scenarios, and asserts
-stable selectors for Recorder and Designer scenarios.
+`verify:mock-site` starts the mock site on its own port, checks key pages, exercises delay scenarios, and
+asserts stable selectors for Recorder and Designer scenarios.
+
+`verify:protected-login-recorder` covers the secure-login lab: it runs the pure recorder detection (password
+/ OTP / CAPTCHA / passkey / MFA-text, plus a no-false-positive check and a no-secrets check), drives the
+`/mock/protected-*` pages and popups asserting the recorder detects each protected surface (and does NOT
+pause on `/mock/session-reuse`), and verifies the inserted `Auto Secure Login` / `Reuse Session` flow nodes
+serialize with the saved session id linked.

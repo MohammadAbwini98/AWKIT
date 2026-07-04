@@ -66,6 +66,35 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       step.config = { routeMode: "switchToLatestTab", urlMatch: "contains", routeWaitUntil: "load" };
     }
 
+    // ── Secure login / session reuse (protected-login manual handoff) ────────────
+    // Auto Secure Login reads its target URL from `step.value`.
+    if (action.type === "autoSecureLogin") {
+      step.value = action.valueSource?.value;
+    }
+    // Reuse Session links the captured session profile id (selected mode).
+    if (action.type === "reuseSession") {
+      step.config = {
+        reuseSessionMode: action.config?.reuseSessionMode ?? "selected",
+        reuseSessionId: action.config?.reuseSessionId
+      };
+    }
+
+    // ── Multi-Window / Popup ────────────────────────────────────────────────
+    // Map page alias so the runner knows which page object to use for this step.
+    if (action.pageAlias && action.pageAlias !== "main") step.pageAlias = action.pageAlias;
+    // Mark the opener action so the runner arms popup capture before the click.
+    if (action.opensPopup) step.opensPopup = true;
+    if (action.popupExpectation) step.popupExpectation = action.popupExpectation;
+
+    // switchToPopup: the runner will arm waitForEvent('popup') before whatever opens it.
+    // No extra config needed; popupExpectation carries the alias + hints.
+
+    // closePopup: carry the alias so the runner waits for the right page to close.
+    if (action.type === "closePopup") {
+      const alias = (action as RecordedAction & { config?: { popupAlias?: string } }).config?.popupAlias ?? action.pageAlias;
+      step.config = { popupAlias: alias };
+    }
+
     return step;
   });
 

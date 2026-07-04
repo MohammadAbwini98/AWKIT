@@ -6,6 +6,7 @@ import { createFlowProfileStore } from "../profileStores";
 import { getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../appPaths";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
+import { getSessionService } from "./session.ipc";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -13,6 +14,8 @@ export function registerRecorderIpc(): void {
   // saved-URL history is stored separately so it survives saving/cancelling a recording.
   recorderService.configureDraftStorage(join(getRuntimeDataRoot(), "recorder-draft.json"));
   recorderService.configureUrlStorage(join(getRuntimeDataRoot(), "recorder-urls.json"));
+  // Share the real-Chrome session-capture service so the recorder can hand off protected logins.
+  recorderService.configureSessionCapture(getSessionService());
   void recorderService.ensureDraftLoaded();
   void recorderService.ensureUrlHistoryLoaded();
 
@@ -59,6 +62,24 @@ export function registerRecorderIpc(): void {
 
   ipcMain.handle("recorder:saveUrl", async (_, url: string) => {
     return await recorderService.saveUrl(url);
+  });
+
+  // ── Protected login / popup manual handoff ─────────────────────────────────
+  ipcMain.handle("recorder:getHandoff", async () => {
+    return recorderService.getHandoff();
+  });
+
+  ipcMain.handle("recorder:continueWithNormalBrowser", async () => {
+    return await recorderService.continueWithNormalBrowser();
+  });
+
+  ipcMain.handle("recorder:captureSessionAndResume", async (_, sessionName?: string) => {
+    return await recorderService.captureSessionAndResume(sessionName);
+  });
+
+  ipcMain.handle("recorder:cancelHandoff", async () => {
+    await recorderService.cancelSecureHandoff();
+    return { success: true };
   });
 
   ipcMain.handle("recorder:saveFlow", async (_, name: string, actions: RecordedAction[]) => {

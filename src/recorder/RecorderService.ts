@@ -2,9 +2,13 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { RecordedAction, RecordedUrl } from "./RecorderTypes";
+import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "./RecorderTypes";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
+import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
+import type { SessionCaptureService } from "../session/SessionCaptureService";
+import type { SessionProfile } from "../session/SessionProfile";
+import { normalizeOrigin } from "../session/sessionMatch";
 
 /** On-disk shape of the recorder draft (an unsaved recording session's actions). */
 interface RecorderDraft {
@@ -88,6 +92,27 @@ export class RecorderService {
   private draftTimer: ReturnType<typeof setTimeout> | null = null;
   /** Memoized one-time load of any draft left over from a previous app session. */
   private draftLoad: Promise<void> | null = null;
+  // ── Multi-Window / Popup tracking ──────────────────────────────────────────
+  /** Auto-incrementing counter for popup alias assignment (popup-1, popup-2, …). */
+  private popupCounter = 0;
+  /** Active popup pages keyed by their assigned alias. */
+  private popupPages = new Map<string, Page>();
+  /**
+   * Timestamp (ms) of the last `click` action recorded. Used to correlate a new popup with
+   * the click that opened it (within a 3-second window).
+   */
+  private lastClickAt = 0;
+  // ── Protected login / popup manual handoff ───────────────────────────────────
+  /** Injected real-Chrome session capture service (from the main process). */
+  private sessionService: SessionCaptureService | null = null;
+  /** Active protected-login handoff state (null when none). */
+  private handoff: RecorderHandoffInfo | null = null;
+  /** The original recording target URL — the safe URL to resume recording at after capture. */
+  private recordingTargetUrl = "";
+  /** Bundled Chromium path (offline) so the post-handoff resume relaunch uses the same browser. */
+  private resumeExecutablePath: string | undefined;
+  /** Guards against re-entrant detection while a handoff is being started. */
+  private detecting = false;
 
   /** Prepend https:// when the user enters a bare host (Playwright requires a full URL). */
   private static normalizeUrl(raw: string): string {
@@ -315,16 +340,35 @@ export class RecorderService {
     }
   }
 
-  /** Tear down the browser and reset state so a failed start never leaves us "in progress". */
-  private async cleanup(): Promise<void> {
-    this.isRecording = false;
-    this.lastActionPage = null;
-    if (this.browser) {
-      await this.browser.close().catch(() => undefined);
+  /**
+   * Close the live automation browser/context. Handles both a normal `Browser` and a
+   * `launchPersistentContext` (used when resuming after a secure-session handoff, where we own the
+   * context but not a separate browser handle). Best-effort; never throws.
+   */
+  private async closeBrowser(): Promise<void> {
+    try {
+      if (this.context) await this.context.close();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (this.browser) await this.browser.close();
+    } catch {
+      /* ignore */
     }
     this.browser = null;
     this.context = null;
     this.page = null;
+  }
+
+  /** Tear down the browser and reset state so a failed start never leaves us "in progress". */
+  private async cleanup(): Promise<void> {
+    this.isRecording = false;
+    this.lastActionPage = null;
+    this.popupCounter = 0;
+    this.popupPages.clear();
+    this.lastClickAt = 0;
+    await this.closeBrowser();
   }
 
   public async startRecording(url: string, options: StartRecordingOptions = {}): Promise<void> {
@@ -341,10 +385,18 @@ export class RecorderService {
     this.urlSessionId = randomUUID();
     this.isRecording = true;
     this.lastActionPage = null;
+    this.popupCounter = 0;
+    this.popupPages = new Map<string, Page>();
+    this.lastClickAt = 0;
     this.captureWaitTime = options.captureWaitTime ?? false;
     this.captureSmartWaits = options.captureSmartWaits ?? true;
     this.signals = [];
     this.lastActionAt = 0;
+    // Protected-login handoff bookkeeping: remember the safe resume URL + offline browser path.
+    this.recordingTargetUrl = target;
+    this.resumeExecutablePath = options.executablePath;
+    this.handoff = null;
+    this.detecting = false;
     // A new recording replaces any leftover draft; block a pending restore from clobbering it.
     this.draftLoad = Promise.resolve();
     this.scheduleDraftPersist();
@@ -358,11 +410,122 @@ export class RecorderService {
 
     // Capture URLs visited during recording (initial page + any tab the site opens).
     this.attachUrlCapture(this.page);
-    this.context.on("page", (opened) => this.attachUrlCapture(opened));
+    // Watch the main page for protected login / MFA / OTP / CAPTCHA / approval surfaces.
+    this.attachProtectedDetection(this.page, "main");
 
-    await this.context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
+    // Wire popup handling + capture bindings + the init script onto the context.
+    await this.wireContext(this.context);
+
+    this.lastActionPage = this.page;
+    if (target) {
+      await this.page.goto(target);
+      this.actions.push({
+        id: randomUUID(),
+        type: "goto",
+        name: `Navigate to ${target}`,
+        valueSource: { type: "static", value: target }
+      });
+      // Start the think-time clock from the initial navigation so a wait before the first
+      // interaction is captured too (only when wait capture is enabled).
+      this.lastActionAt = Date.now();
+    }
+    } catch (error) {
+      // Roll back so the recorder isn't stuck "Recording is already in progress".
+      await this.cleanup();
+      throw error;
+    }
+  }
+
+  /**
+   * Wire popup/new-window handling, the action + Smart-Wait signal bindings, and the injected
+   * capture/init script onto a browser context. Shared by the initial recording launch and the
+   * post-handoff resume (persistent-context) relaunch so both behave identically.
+   */
+  private async wireContext(context: BrowserContext): Promise<void> {
+    // ── Popup / new-window handler ──────────────────────────────────────────
+    // When the recorded site opens a new window/tab, assign it an alias (popup-1, popup-2, …),
+    // inject the locator capture script, attach URL capture + protected detection, and optionally
+    // correlate it with the last click so the opener action is marked `opensPopup = true`.
+    context.on("page", (opened) => {
+      this.attachUrlCapture(opened);
+      if (!this.isRecording) return;
+
+      this.popupCounter += 1;
+      const alias = `popup-${this.popupCounter}`;
+      this.popupPages.set(alias, opened);
+
+      // Attach the locator capture + signal bindings to the new page so in-popup interactions
+      // are recorded with proper locators and Smart Wait signals.
+      void opened.addInitScript({ content: getRecorderInitScriptContent() }).catch(() => undefined);
+      // A protected login can appear inside the popup (external IdP, bank approval, OTP, CAPTCHA).
+      this.attachProtectedDetection(opened, alias);
+
+      // Capture the popup URL immediately and best-effort its title.
+      const popupUrl = opened.url();
+      if (popupUrl && popupUrl !== "about:blank") this.captureUrl(opened, popupUrl);
+
+      // Correlate with the last click: if a click was recorded within 3 s, tag it as
+      // the popup opener and attach the popup expectation with URL/title hints.
+      const now = Date.now();
+      const POPUP_CORRELATION_WINDOW_MS = 3000;
+      if (this.lastClickAt > 0 && now - this.lastClickAt <= POPUP_CORRELATION_WINDOW_MS) {
+        const openerAction = this.actions[this.actions.length - 1];
+        if (openerAction && openerAction.type === "click") {
+          openerAction.opensPopup = true;
+          // Build URL hint from the popup's URL (masked + origin only, no sensitive paths).
+          let urlContains: string | undefined;
+          try {
+            const parsed = new URL(popupUrl || "about:blank");
+            if (parsed.protocol !== "about:") urlContains = parsed.origin;
+          } catch { /* ignore */ }
+
+          openerAction.popupExpectation = {
+            popupAlias: alias,
+            urlContains,
+            waitUntil: "domcontentloaded"
+          };
+        }
+      } else {
+        // No recent click: insert an explicit switchToPopup action so the flow captures
+        // the context switch (e.g. popup triggered by setTimeout/auto-open).
+        this.actions.push({
+          id: randomUUID(),
+          type: "switchToPopup",
+          name: `Switch to popup: ${alias}`,
+          popupExpectation: {
+            popupAlias: alias,
+            waitUntil: "domcontentloaded"
+          }
+        });
+      }
+
+      // When the popup closes, record a closePopup action and remove it from the registry.
+      opened.on("close", () => {
+        this.popupPages.delete(alias);
+        if (!this.isRecording) return;
+        this.actions.push({
+          id: randomUUID(),
+          type: "closePopup",
+          name: `Popup closed: ${alias}`,
+          pageAlias: alias,
+          config: { popupAlias: alias }
+        });
+        this.scheduleDraftPersist();
+      });
+
+      this.scheduleDraftPersist();
+    });
+
+    await context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
       const sourcePage = source.page;
       const now = Date.now();
+      // Determine the page alias from the popup registry (main page = 'main').
+      const pageAlias = (() => {
+        for (const [alias, p] of this.popupPages) {
+          if (p === sourcePage) return alias;
+        }
+        return "main";
+      })();
       // Live text capture: the page fires an 'input' event per keystroke, so collapse consecutive
       // fills on the same field (same page + same locator) into one action — updating its value
       // in place — instead of appending one action per character.
@@ -387,7 +550,8 @@ export class RecorderService {
       this.maybeInsertWait(now);
       // If the interaction happened in a different tab/page than the last recorded
       // action, insert a Route Change action so the saved flow switches context first.
-      if (this.lastActionPage && sourcePage !== this.lastActionPage) {
+      // Skip this for popup pages — they are already handled by the popup event above.
+      if (this.lastActionPage && sourcePage !== this.lastActionPage && pageAlias === "main") {
         const targetUrl = sourcePage.url();
         this.actions.push({
           id: randomUUID(),
@@ -397,14 +561,19 @@ export class RecorderService {
         });
       }
       this.lastActionPage = sourcePage;
-      this.actions.push({ ...action, id: randomUUID() });
+      // Tag the action with its page alias (omit 'main' to keep legacy flows clean).
+      const taggedAction: RecordedAction = { ...action, id: randomUUID() };
+      if (pageAlias !== "main") taggedAction.pageAlias = pageAlias;
+      // Track click timestamp for popup opener correlation.
+      if (action.type === "click") this.lastClickAt = now;
+      this.actions.push(taggedAction);
       this.lastActionAt = now;
       this.scheduleDraftPersist();
     });
 
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
     // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
-    await this.context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
+    await context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
       if (!this.captureSmartWaits) return;
       this.signals.push(s);
       const cap = 2000;
@@ -414,26 +583,269 @@ export class RecorderService {
     // Inject the shared capture script. It generates ranked, uniqueness-validated
     // locators in the page DOM (semantic first; utility-class selectors never) so the
     // recorder saves Playwright-safe locators instead of generic CSS class selectors.
-    await this.context.addInitScript({ content: getRecorderInitScriptContent() });
+    await context.addInitScript({ content: getRecorderInitScriptContent() });
+  }
 
-    this.lastActionPage = this.page;
-    if (target) {
-      await this.page.goto(target);
-      this.actions.push({
-        id: randomUUID(),
-        type: "goto",
-        name: `Navigate to ${target}`,
-        valueSource: { type: "static", value: target }
-      });
-      // Start the think-time clock from the initial navigation so a wait before the first
-      // interaction is captured too (only when wait capture is enabled).
-      this.lastActionAt = Date.now();
+  // ── Protected login / popup manual handoff ───────────────────────────────────
+
+  /** Inject the running session-capture service (real Chrome) from the main process. */
+  public configureSessionCapture(service: SessionCaptureService): void {
+    this.sessionService = service;
+  }
+
+  /** Current protected-login handoff state (null when none is/was active this session). */
+  public getHandoff(): RecorderHandoffInfo | null {
+    return this.handoff;
+  }
+
+  /**
+   * Watch a page for protected login / MFA / OTP / CAPTCHA / passkey / approval surfaces on every
+   * load/navigation. On the first detection (while recording, no active handoff) it pauses the
+   * recorder and begins a manual Chrome handoff. Detection only reads booleans + a bounded text
+   * snippet — never secrets.
+   */
+  private attachProtectedDetection(page: Page, alias: string): void {
+    const run = () => {
+      void this.detectAndMaybeHandoff(page, alias);
+    };
+    page.on("load", run);
+    page.on("domcontentloaded", run);
+  }
+
+  private async detectAndMaybeHandoff(page: Page, alias: string): Promise<void> {
+    if (!this.isRecording || this.handoff?.active || this.detecting) return;
+    this.detecting = true;
+    try {
+      const detection = await detectRecorderProtectedLogin(page);
+      if (!detection.detected) return;
+      await this.beginHandoff(page, alias, detection.url, detection.reason, detection.signals);
+    } catch {
+      /* page not ready / navigated away — ignore, we'll re-check on the next load */
+    } finally {
+      this.detecting = false;
     }
+  }
+
+  /**
+   * Enter the protected-login handoff: stop recording new actions, preserve the draft, store safe
+   * handoff metadata, and close the automation browser. Never automates the protected page and never
+   * captures passwords/OTPs/CAPTCHA values/cookies/tokens.
+   */
+  private async beginHandoff(
+    page: Page,
+    alias: string,
+    detectedRawUrl: string,
+    reason: string,
+    signals: string[]
+  ): Promise<void> {
+    if (this.handoff?.active) return;
+    // Stop capturing user actions immediately (also silences popup close handlers).
+    this.isRecording = false;
+    // Preserve the current recorder draft before we tear anything down.
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+
+    const detectedUrl = RecorderService.maskUrl(detectedRawUrl || page.url());
+    const origin = normalizeOrigin(detectedUrl) ?? "";
+    this.handoff = {
+      active: true,
+      phase: "detected",
+      sourceAlias: alias,
+      detectedUrl,
+      origin,
+      reason,
+      signals,
+      timestamp: new Date().toISOString(),
+      draftId: this.urlSessionId || undefined,
+      resumeUrl: this.recordingTargetUrl || detectedUrl,
+      message:
+        "Protected login or protected popup detected. AWKIT paused the recorder because this page " +
+        "appears to require a secure manual action (login, MFA, OTP, CAPTCHA, digital signature, or " +
+        "external approval). For your safety, AWKIT will not automate this step. Click " +
+        '"Continue using normal browser" to finish it manually in Chrome, then "Capture Session & Resume".'
+    };
+
+    // Close the Playwright-controlled browser — we never automate the protected page.
+    await this.closeBrowser();
+    this.lastActionPage = null;
+    this.popupPages.clear();
+  }
+
+  /**
+   * Open the user's real, installed Chrome (via the session-capture service) at the detected
+   * protected URL, using an app-owned, scoped profile directory (never the user's personal Chrome
+   * profile). The user completes the login/approval manually there.
+   */
+  public async continueWithNormalBrowser(): Promise<RecorderHandoffInfo> {
+    if (!this.handoff || this.handoff.phase === "error") {
+      throw new Error("No protected-login handoff is active.");
+    }
+    if (!this.sessionService) {
+      throw new Error("Session capture is unavailable (no browser service configured).");
+    }
+    try {
+      const name = `RecorderLogin-${new Date().toISOString().slice(0, 10)}`;
+      const status = await this.sessionService.startCapture(name, this.handoff.detectedUrl, "manualChromeHandoff");
+      if (!status.sessionId) throw new Error("Session capture did not start.");
+      this.handoff = {
+        ...this.handoff,
+        phase: "capturingSession",
+        sessionId: status.sessionId,
+        sessionName: name,
+        message:
+          "Chrome is open at the protected page. Complete the login, MFA, OTP, CAPTCHA, signature, or " +
+          'approval manually, then return here and click "Capture Session & Resume".'
+      };
+      return this.handoff;
     } catch (error) {
-      // Roll back so the recorder isn't stuck "Recording is already in progress".
-      await this.cleanup();
+      const message = error instanceof Error ? error.message : String(error);
+      this.handoff = { ...this.handoff, phase: "error", error: message, message: `Could not open Chrome: ${message}` };
       throw error;
     }
+  }
+
+  /**
+   * After the user finishes the manual login/approval in Chrome: validate the captured session,
+   * (optionally) name it, insert the `Auto Secure Login` + `Reuse Session` nodes near the start of
+   * the recorded flow, then relaunch Playwright on the saved session and resume recording.
+   */
+  public async captureSessionAndResume(sessionName?: string): Promise<RecorderHandoffInfo> {
+    if (!this.handoff || this.handoff.phase !== "capturingSession") {
+      throw new Error("No session capture is in progress.");
+    }
+    if (!this.sessionService) {
+      throw new Error("Session capture is unavailable (no browser service configured).");
+    }
+    const sessionId = this.handoff.sessionId;
+    if (!sessionId) {
+      throw new Error("No captured session to save.");
+    }
+    try {
+      // Close the manual Chrome window so its profile directory is unlocked for Playwright reuse.
+      this.sessionService.stopCapture();
+      await RecorderService.delay(900);
+
+      const profile = await this.sessionService.getById(sessionId);
+      if (!profile) throw new Error("The captured session could not be found.");
+      if (!this.sessionService.hasCapturedData(sessionId)) {
+        throw new Error("No authenticated session was detected. Complete the login in Chrome, then try again.");
+      }
+
+      const finalName = (sessionName ?? "").trim();
+      if (finalName) {
+        await this.sessionService.rename(sessionId, finalName);
+        this.handoff.sessionName = finalName;
+      }
+
+      // Insert the secure-session nodes (deduped) near the start of the recorded flow.
+      const resumeUrl = this.handoff.resumeUrl || profile.targetUrl || this.handoff.detectedUrl;
+      this.insertSecureSessionNodes(sessionId, resumeUrl);
+
+      this.handoff = { ...this.handoff, phase: "sessionCaptured", message: "Session captured. Resuming the recorder…" };
+
+      // Relaunch Playwright on the saved session and resume recording.
+      await this.resumeAfterHandoff(profile, resumeUrl);
+      return this.handoff!;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.handoff = { ...this.handoff, phase: "error", error: message, message };
+      throw error;
+    }
+  }
+
+  /**
+   * Insert `Auto Secure Login` + `Reuse Session` nodes at the front of the recorded actions (before
+   * the recorded business steps), linking the saved session id to `Reuse Session`. Idempotent: if the
+   * same session's nodes already exist, nothing is added.
+   */
+  private insertSecureSessionNodes(sessionId: string, targetUrl: string): void {
+    const already = this.actions.some(
+      (action) => action.type === "reuseSession" && action.config?.reuseSessionId === sessionId
+    );
+    if (already) return;
+
+    const reuse: RecordedAction = {
+      id: randomUUID(),
+      type: "reuseSession",
+      name: "Reuse Session",
+      config: { reuseSessionMode: "selected", reuseSessionId: sessionId }
+    };
+    const autoLogin: RecordedAction = {
+      id: randomUUID(),
+      type: "autoSecureLogin",
+      name: "Auto Secure Login",
+      valueSource: { type: "static", value: targetUrl }
+    };
+    // Prepend so the flow becomes: Start → Auto Secure Login → Reuse Session → recorded actions → End.
+    this.actions.unshift(reuse);
+    this.actions.unshift(autoLogin);
+    this.scheduleDraftPersist();
+  }
+
+  /**
+   * Relaunch a Playwright browser bound to the captured session's profile directory (persistent
+   * context = same cookies/localStorage the user just logged in with), navigate to the safe resume
+   * URL, and resume recording. The user should not need to log in again.
+   */
+  private async resumeAfterHandoff(profile: SessionProfile, resumeUrl: string): Promise<void> {
+    const context = await chromium.launchPersistentContext(profile.profileDir, {
+      headless: false,
+      executablePath: this.resumeExecutablePath,
+      viewport: null
+    });
+    this.browser = null;
+    this.context = context;
+    this.page = context.pages()[0] ?? (await context.newPage());
+
+    // Resume recording state before wiring so bindings/handlers observe live actions again.
+    this.isRecording = true;
+    this.popupCounter = 0;
+    this.popupPages.clear();
+    this.lastClickAt = 0;
+    this.signals = [];
+
+    this.attachUrlCapture(this.page);
+    this.attachProtectedDetection(this.page, "main");
+    await this.wireContext(context);
+
+    this.lastActionPage = this.page;
+    if (resumeUrl) {
+      await this.page.goto(resumeUrl).catch(() => undefined);
+    }
+    this.lastActionAt = Date.now();
+
+    // Mark the handoff resolved (keep the record for the UI status message).
+    this.handoff = {
+      ...this.handoff!,
+      active: false,
+      phase: "resumed",
+      message: "Secure session captured and applied. Recorder resumed using the saved session."
+    };
+  }
+
+  /**
+   * Abort an in-progress secure-login handoff: stop any manual Chrome capture, discard the recorder
+   * draft, and clear the handoff. Used by both "Cancel recording" and the capture-phase "Cancel".
+   */
+  public async cancelSecureHandoff(): Promise<void> {
+    try {
+      this.sessionService?.stopCapture();
+    } catch {
+      /* best-effort */
+    }
+    this.isRecording = false;
+    await this.closeBrowser();
+    await this.discardDraft();
+    this.handoff = null;
+    this.lastActionPage = null;
+    this.popupPages.clear();
+  }
+
+  private static delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -495,25 +907,22 @@ export class RecorderService {
     }
     await this.persistDraft();
 
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-      this.context = null;
-      this.page = null;
-    }
+    await this.closeBrowser();
 
     return finalActions;
   }
 
   public async cancelRecording(): Promise<void> {
     this.isRecording = false;
-    await this.discardDraft();
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-      this.context = null;
-      this.page = null;
+    // Also abort any in-progress protected-login handoff / manual Chrome capture.
+    try {
+      this.sessionService?.stopCapture();
+    } catch {
+      /* best-effort */
     }
+    this.handoff = null;
+    await this.discardDraft();
+    await this.closeBrowser();
   }
 }
 

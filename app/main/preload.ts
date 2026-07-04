@@ -136,7 +136,15 @@ const api = {
     getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number }>,
     getUrls: () => ipcRenderer.invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => ipcRenderer.invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
-    saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>
+    saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,
+    // ── Protected login / popup manual handoff ───────────────────────────────
+    getHandoff: () =>
+      ipcRenderer.invoke("recorder:getHandoff") as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo | null>,
+    continueWithNormalBrowser: () =>
+      ipcRenderer.invoke("recorder:continueWithNormalBrowser") as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
+    captureSessionAndResume: (sessionName?: string) =>
+      ipcRenderer.invoke("recorder:captureSessionAndResume", sessionName) as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
+    cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>
   },
   session: {
     list: () => ipcRenderer.invoke("session:list") as Promise<SessionProfile[]>,

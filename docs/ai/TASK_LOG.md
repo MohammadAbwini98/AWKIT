@@ -4,6 +4,63 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude — Recorder secure-login browser handoff (protected login/popup)
+
+- **Task:** Detect protected login / protected popup during recording, pause + close the Playwright
+  browser, hand off to the user's real Chrome for the manual login/MFA/OTP/CAPTCHA/approval, capture the
+  authenticated session, insert `Auto Secure Login` + `Reuse Session` nodes, and resume recording on the
+  saved session. No security bypass; no secrets captured/logged.
+- **What was added:** Recorder-side detector `detectRecorderProtectedLogin` + `detectFromRecorderSignals`
+  (DOM signals: password / one-time-code / recaptcha-hcaptcha-turnstile iframe / captcha+verification aria /
+  passkey-webauthn; plus new text patterns OTP/verification-code/passkey/digital-signature/external-approval)
+  in `ProtectedLoginDetector.ts`. `RecorderService` handoff state machine (detected → capturingSession →
+  sessionCaptured → resumed/error): pause + preserve draft + `closeBrowser`, `continueWithNormalBrowser`
+  (real Chrome via `SessionCaptureService.startCapture(..., "manualChromeHandoff")`), `captureSessionAndResume`
+  (validate via `hasCapturedData`, insert secure nodes deduped, `launchPersistentContext` resume), and
+  `cancelSecureHandoff`. Extracted shared `wireContext`. `buildRecordedFlow` serializes the secure nodes.
+  Recorder UI handoff panel + always-on handoff poll. IPC/preload `recorder.getHandoff/
+  continueWithNormalBrowser/captureSessionAndResume/cancelHandoff`. Mock Site `/mock/protected-login`,
+  `/mock/protected-popup-login`, `/mock/protected-popup-captcha`, `/mock/protected-popup-otp`,
+  `/mock/session-reuse` (+ index link) and `scripts/verify-protected-login-recorder.mts`.
+- **Files changed:** `src/security/ProtectedLoginDetector.ts`, `src/recorder/RecorderService.ts`,
+  `src/recorder/RecorderTypes.ts`, `src/recorder/buildRecordedFlow.ts`, `src/session/SessionProfile.ts`,
+  `src/session/SessionCaptureService.ts`, `app/main/ipc/recorder.ipc.ts`, `app/main/preload.ts`,
+  `app/renderer/pages/Recorder.tsx`, `mock-site/server.mjs`, `mock-site/public/secure-login/*`,
+  `mock-site/public/index.html`, `mock-site/README.md`, `scripts/verify-protected-login-recorder.mts`,
+  `package.json`, and `docs/ai/*`.
+- **Tests run:** `npm run verify:protected-login-recorder` → 34/34, `verify:protected-login` → 16/16,
+  `verify:recorder` → 57/57, `verify:recorder-draft` → 17/17, `verify:recorder-flow` → 13/13,
+  `verify:mock-site` → 28/28, `verify:popup` → 12/12, `verify:runner` → 76/76, `npm run build` clean.
+- **Notes / limits:** Runtime replay of the inserted nodes uses the existing Auto Secure Login / Reuse
+  Session runner behavior (no new runner logic). Full GUI walkthrough (real Chrome launch + persistent-context
+  resume) not driven here — logic + detection are verified via `_electron`-free scripts against the mock site.
+
+## 2026-07-04 — Antigravity — Verified Popup Flow Handling & Mock Site Scenarios
+
+- **Task:** Verify the Multi-Window / Popup Flow Handling implementation and expand the local Feature Test Lab with robust mock-site popup scenarios.
+- **What was added:** Added 7 mock site scenarios inside `mock-site/public/popup/` to verify target blank, window.open, auto-close, multiple popups, failure cases, and smart-wait inside popups. Created automated verification suite `scripts/verify-popup-mock-site.mts`. Fixed `verify-popup.mts` server fileMap. Added `routeChange` exclusion to `runStepWithWaits` in `StepExecutor` to prevent reverting the active page back to main after a route change.
+- **Files changed:** `mock-site/public/popup/*`, `mock-site/server.mjs`, `mock-site/README.md`, `scripts/verify-popup-mock-site.mts`, `scripts/verify-popup.mts`, `src/runner/StepExecutor.ts`.
+- **Tests run:** `npm run verify:popup` → 12/12, `npm run verify:popup-mock-site` → 8/8, `node scripts/ai-memory/check-memory.mjs` → Passed.
+
+## 2026-07-04 — Antigravity — Multi-Window / Popup Flow Handling
+
+- **Task:** Implement Phase 10/11: Multi-Window / Popup Flow Handling. Allow AWKIT to record and replay workflows where clicking a link/button opens a new Chrome window, tab, or popup.
+- **What was added:** `PageRegistry` introduced in `StepExecutor` to maintain mappings of `pageAlias` to Playwright `Page` objects. Added step types `switchToPopup`, `switchToMainPage`, and `closePopup`. Click actions with `opensPopup` wait for the newly spawned window and register it into the context. `LocatorFactory` and the step running routine `runStepWithWaits` now correctly route commands targeting a specific popup by temporarily mutating the active page so internal wait logic applies to the specific popup context.
+- **Testing:** Added `/popup-lab` and `/popup-terms` to Mock Site. Created `scripts/verify-popup.mts`.
+- **Files changed:** `src/profiles/FlowProfile.ts`, `src/runner/StepExecutor.ts`, `src/runner/PlaywrightRunner.ts`, `app/renderer/components/workflow/flowNodeCatalog.ts`, `app/renderer/components/workflow/flowNodeRegistry.ts`, `app/renderer/pages/Recorder.tsx`, `mock-site/server.mjs`, `scripts/verify-popup.mts`, and docs.
+- **Tests run:** `npm run verify:popup` → 12/12, `npm run build` clean.
+
+---
+
+## 2026-07-04 — Codex — Agent handoff refresh
+
+- **Task:** Refresh `docs/ai/HANDOFF.md` for transfer to the next agent/human after the local Smart Wait
+  and Mock Site Feature Test Lab work.
+- **Repo state captured:** branch `feature/smart-wait-engine`, latest local commit `fe1edc4`, clean before
+  the handoff docs refresh, ahead of upstream by 3 local commits.
+- **Files changed:** `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`.
+- **Tests:** AI memory check run for the handoff refresh.
+
 ## 2026-07-04 — Codex — Mock Site Feature Test Lab and agent guidance
 
 - **Task:** Upgrade the offline mock site into a mandatory Feature Test Lab and update agent guidance so

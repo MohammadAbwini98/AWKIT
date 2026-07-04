@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles } from "lucide-react";
+import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
-import type { RecordedAction, RecordedUrl } from "@src/recorder/RecorderTypes";
+import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "@src/recorder/RecorderTypes";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
@@ -18,6 +18,11 @@ export function Recorder() {
   // Inline + toast feedback for the "Save to Flow Library" action.
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+
+  // Protected login / popup manual handoff state.
+  const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
+  const [handoffBusy, setHandoffBusy] = useState(false);
+  const [sessionNameInput, setSessionNameInput] = useState("");
 
   // Recorded URLs table (auto-captured during recording).
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
@@ -39,6 +44,23 @@ export function Recorder() {
     }
     return () => clearInterval(interval);
   }, [isRecording]);
+
+  // Always-on poll for protected-login handoff state + recording status. This runs even while
+  // paused (isRecording=false) so the handoff panel appears when a protected page is detected, and
+  // recording status re-syncs when the recorder resumes after a captured session.
+  useEffect(() => {
+    const poll = () => {
+      window.playwrightFlowStudio.recorder.getHandoff()
+        .then(setHandoff)
+        .catch(() => undefined);
+      window.playwrightFlowStudio.recorder.getStatus()
+        .then((status) => setIsRecording(status.isRecording))
+        .catch(() => undefined);
+    };
+    poll();
+    const interval = setInterval(poll, 800);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     window.playwrightFlowStudio.recorder.getStatus()
@@ -150,6 +172,54 @@ export function Recorder() {
     }
   };
 
+  // ── Protected login / popup manual handoff handlers ──────────────────────────
+  const handleContinueBrowser = async () => {
+    setHandoffBusy(true);
+    try {
+      const updated = await window.playwrightFlowStudio.recorder.continueWithNormalBrowser();
+      setHandoff(updated);
+      setStatusMsg("Chrome opened for manual login. Complete it, then click Capture Session & Resume.");
+    } catch (err: any) {
+      setStatusMsg(`Could not open normal browser: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
+  const handleCaptureAndResume = async () => {
+    setHandoffBusy(true);
+    try {
+      const updated = await window.playwrightFlowStudio.recorder.captureSessionAndResume(sessionNameInput.trim() || undefined);
+      setHandoff(updated);
+      setIsRecording(true);
+      setStatusMsg(updated.message);
+      setSessionNameInput("");
+      // Refresh so the inserted Auto Secure Login / Reuse Session nodes appear immediately.
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    } catch (err: any) {
+      setStatusMsg(`Session capture failed: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
+  const handleCancelHandoff = async () => {
+    setHandoffBusy(true);
+    try {
+      await window.playwrightFlowStudio.recorder.cancelHandoff();
+      setHandoff(null);
+      setIsRecording(false);
+      setActions([]);
+      setStatusMsg("Secure login handoff cancelled.");
+    } catch (err: any) {
+      setStatusMsg(`Error: ${err?.message ?? err}`);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
   const handleSave = async () => {
     // Guard against duplicate clicks corrupting the save while one is in flight.
     if (isSaving) return;
@@ -182,6 +252,11 @@ export function Recorder() {
     dirty: false
   }, []);
 
+  const handoffActive = !!handoff?.active;
+  // Show the handoff panel while a manual login/approval is required or after a failure. The
+  // "resumed" success is surfaced through the status message, not a blocking panel.
+  const showHandoffPanel = !!handoff && handoff.phase !== "resumed";
+
   return (
     <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
       <div className="form-panel" style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
@@ -212,9 +287,9 @@ export function Recorder() {
             Save URL
           </button>
           <button
-            disabled={isRecording}
+            disabled={isRecording || handoffActive}
             onClick={handleStart}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: isRecording ? "#e2e8f0" : "#2563eb", color: isRecording ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: isRecording || handoffActive ? "#e2e8f0" : "#2563eb", color: isRecording || handoffActive ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: isRecording || handoffActive ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
             <PlayCircle size={16} />
             Start Recording
@@ -317,6 +392,112 @@ export function Recorder() {
         </div>
       </div>
 
+      {/* Protected login / popup manual handoff panel */}
+      {showHandoffPanel && handoff && (
+        <div
+          data-testid="protected-handoff-panel"
+          role="alertdialog"
+          aria-label="Protected login detected"
+          style={{
+            padding: "18px 20px",
+            background: handoff.phase === "error" ? "#fef3f2" : "#fffbeb",
+            border: `1px solid ${handoff.phase === "error" ? "#fecdca" : "#fde68a"}`,
+            borderRadius: "8px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <ShieldAlert size={20} color={handoff.phase === "error" ? "#b42318" : "#b45309"} />
+            <h3 style={{ margin: 0, fontSize: "16px", color: handoff.phase === "error" ? "#b42318" : "#92400e" }}>
+              {handoff.phase === "error" ? "Secure login handoff error" : "Protected login or protected popup detected"}
+            </h3>
+          </div>
+
+          <p style={{ margin: 0, fontSize: "13px", color: "#475569", lineHeight: 1.5 }}>
+            {handoff.message}
+          </p>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", fontSize: "12px", color: "#64748b" }}>
+            <span><strong>Source:</strong> {handoff.sourceAlias}</span>
+            <span><strong>Reason:</strong> {handoff.reason}</span>
+            {handoff.origin ? <span><strong>Origin:</strong> {handoff.origin}</span> : null}
+            {handoff.signals.length > 0 ? <span><strong>Signals:</strong> {handoff.signals.join(", ")}</span> : null}
+          </div>
+
+          {handoff.phase === "error" && handoff.error ? (
+            <div style={{ fontSize: "12px", color: "#b42318", background: "#fee4e2", padding: "8px 10px", borderRadius: "6px" }}>
+              {handoff.error}
+            </div>
+          ) : null}
+
+          {handoff.phase === "capturingSession" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: 360 }}>
+              <label style={{ fontSize: "11px", fontWeight: "bold", color: "#475569", textTransform: "uppercase" }}>
+                Session name (optional)
+              </label>
+              <input
+                type="text"
+                value={sessionNameInput}
+                onChange={(e) => setSessionNameInput(e.target.value)}
+                placeholder="e.g. Acme Portal Login"
+                disabled={handoffBusy}
+                style={{ padding: "9px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+              />
+              {handoff.sessionName ? (
+                <span style={{ fontSize: "12px", color: "#64748b" }}>Saved session: {handoff.sessionName}</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            {handoff.phase === "detected" || handoff.phase === "error" ? (
+              <button
+                type="button"
+                data-testid="handoff-continue-browser"
+                disabled={handoffBusy}
+                onClick={() => void handleContinueBrowser()}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: handoffBusy ? "#e2e8f0" : "#2563eb", color: handoffBusy ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 600 }}
+              >
+                <ExternalLink size={16} />
+                {handoff.phase === "error" ? "Retry in normal browser" : "Continue using normal browser"}
+              </button>
+            ) : null}
+
+            {handoff.phase === "capturingSession" ? (
+              <button
+                type="button"
+                data-testid="handoff-capture-resume"
+                disabled={handoffBusy}
+                onClick={() => void handleCaptureAndResume()}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: handoffBusy ? "#e2e8f0" : "#10b981", color: handoffBusy ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 600 }}
+              >
+                {handoffBusy ? <RefreshCw size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                {handoffBusy ? "Capturing…" : "Capture Session & Resume"}
+              </button>
+            ) : null}
+
+            {handoff.phase === "sessionCaptured" ? (
+              <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "#067647" }}>
+                <RefreshCw size={16} className="spin" /> Resuming recorder with the saved session…
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              data-testid="handoff-cancel"
+              disabled={handoffBusy}
+              onClick={() => void handleCancelHandoff()}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: "#64748b", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 500 }}
+            >
+              <XCircle size={16} />
+              {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: "20px" }}>
         <div className="form-panel" style={{ flex: 1, padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef", minHeight: "400px" }}>
           <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
@@ -337,8 +518,24 @@ export function Recorder() {
                   <span style={{ background: "#cbd5e1", color: "#475569", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
                     {index + 1}
                   </span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <strong style={{ fontSize: "14px", color: "#334155" }}>{action.name}</strong>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: "14px", color: "#334155" }}>{action.name}</strong>
+                      {/* Page context badge */}
+                      {action.type === "switchToPopup" || action.type === "closePopup" || action.type === "switchToMainPage" ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "#f3e8ff", color: "#6b21a8", fontWeight: 600 }}>
+                          {action.type === "switchToPopup" ? "⬡ switch popup" : action.type === "closePopup" ? "⬡ close popup" : "⬡ main"}
+                        </span>
+                      ) : action.opensPopup ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>
+                          ↗ opens popup
+                        </span>
+                      ) : action.pageAlias && action.pageAlias !== "main" ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "#fef3c7", color: "#78350f", fontWeight: 600 }}>
+                          ⬡ {action.pageAlias}
+                        </span>
+                      ) : null}
+                    </div>
                     {action.locator && (
                       <span style={{ fontSize: "12px", color: "#64748b", fontFamily: "monospace" }}>
                         {action.locator.strategy}: {action.locator.value}
@@ -520,6 +717,8 @@ export function Recorder() {
           70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
           100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
       `}</style>
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

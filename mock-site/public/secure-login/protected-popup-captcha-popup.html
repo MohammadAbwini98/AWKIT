@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify you are human — CAPTCHA</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-popup">
+      <h1>Verify you are human</h1>
+      <p>Please complete the CAPTCHA challenge to continue.</p>
+
+      <!-- reCAPTCHA-like placeholder iframe (offline; no external network). The src attribute
+           intentionally contains "recaptcha" so AWKIT's iframe[src*=recaptcha] detection fires. -->
+      <div class="g-recaptcha" aria-label="captcha challenge" data-testid="captcha-widget">
+        <iframe title="reCAPTCHA" src="about:blank#recaptcha-placeholder" data-testid="captcha-iframe"
+                style="width: 302px; height: 76px; border: 1px solid #cbd5e1;"></iframe>
+      </div>
+
+      <p>AWKIT does not implement any CAPTCHA solving.</p>
+    </main>
+  </body>
+</html>

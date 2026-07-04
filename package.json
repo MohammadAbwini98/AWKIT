@@ -21,6 +21,7 @@
     "verify:recorder-draft": "tsx scripts/verify-recorder-draft.mts",
     "verify:recorder-flow": "tsx scripts/verify-recorder-flow.mts",
     "verify:protected-login": "tsx scripts/verify-protected-login.mts",
+    "verify:protected-login-recorder": "tsx scripts/verify-protected-login-recorder.mts",
     "verify:data-editor": "tsx scripts/verify-data-editor.mts",
     "verify:instance-monitor": "tsx scripts/verify-instance-monitor.mts",
     "verify:popup": "tsx scripts/verify-popup.mts",

@@ -1,9 +1,11 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Codex - Mock Site upgraded into the local Feature Test Lab. Added stable
-offline scenarios for Smart Wait/Runner timing, Recorder/locator/saved URL flows, and
-Flow Designer/Workflow Builder/Instance Monitor surfaces; added `npm run verify:mock-site` (28/28).
-Agent guidance and skills now require future feature work to consider/update mock-site scenarios.)
+**Last updated:** 2026-07-04 (Claude - Recorder-side protected login / protected popup detection with
+manual real-Chrome session handoff: pauses recording + closes the automation browser on protected
+login/MFA/OTP/CAPTCHA/passkey/approval surfaces, captures a scoped app-owned session, inserts
+`Auto Secure Login` + `Reuse Session` nodes, and resumes recording on the saved session. Added Mock Site
+secure-login scenarios + `npm run verify:protected-login-recorder` (34/34). No security bypass; no secrets
+captured/logged.)
 
 ## What currently works (Confirmed)
 
@@ -43,6 +45,7 @@ Agent guidance and skills now require future feature work to consider/update moc
   — cookies + localStorage/origins — to `<runtimeRoot>/sessions/<name>.json`; never logs secret values),
   and manual/protected-login handoff pause/resume (the runner stays alive and continues the next browser
   step after `ManualHandoffController.resume`).
+- **Multi-Window / Popup Flow Handling (live-verified, `npm run verify:popup` → 12/12):** `StepExecutor` handles steps with `pageAlias` by resolving the target window from a `PageRegistry`. Click steps with `opensPopup` wait for the new page event and register it. Explicit `switchToPopup`, `switchToMainPage`, and `closePopup` nodes mutate the active context for subsequent steps. Flow Designer canvas shows visual context badges.
 - **Connector routing (live-verified):** flow-level success/failure/conditional/always; workflow-level
   link routing (success/failure/conditional/always) with strict traversal + linear fallback.
 - **Structured connectors (Checkpoint B, live-verified):** every connector has a `kind` —
@@ -305,6 +308,32 @@ Agent guidance and skills now require future feature work to consider/update moc
   folders. Source fixtures live in `resources/test-fixtures/mock-site/` (excluded from packaged
   builds). They do NOT auto-load — a fresh install still shows empty Flows/Workflows/Data Sources.
   See `resources/test-fixtures/mock-site/README.md`.
+
+- **Recorder secure-login browser handoff (2026-07-04):** while recording, `RecorderService` watches
+  every page/popup load via `detectRecorderProtectedLogin` (`src/security/ProtectedLoginDetector.ts` —
+  conservative stable DOM signals `input[type=password]`, `input[autocomplete=one-time-code]`,
+  `iframe[src*=recaptcha|hcaptcha|turnstile]`, `[aria-label*=captcha|verification]`, passkey/webauthn +
+  provider/text patterns incl. verification-code/OTP/MFA/passkey/digital-signature/external-approval). On
+  the first detection it **pauses** recording, preserves the draft, stores secret-free handoff metadata
+  (source alias, origin, reason, signals, timestamp, draft id, resume URL), and **closes the automation
+  browser** — it never automates or scrapes the protected page. The Recorder page shows a handoff panel
+  (`data-testid="protected-handoff-panel"`) with **Continue using normal browser** (launches the user's real
+  Chrome via `SessionCaptureService.startCapture(..., "manualChromeHandoff")` at the detected URL, app-owned
+  scoped profile under `%LOCALAPPDATA%/WebFlow Studio/profiles/<id>` — never the user's daily Chrome
+  profile), **Capture Session & Resume** (validates captured session via `hasCapturedData`, optional name,
+  inserts `Auto Secure Login` + `Reuse Session` nodes at the front of the draft with the session id linked to
+  Reuse Session — deduped, then relaunches Playwright with `launchPersistentContext` on the saved profile,
+  navigates to the safe resume URL, and resumes recording), and **Cancel**. No secrets (passwords, OTPs,
+  CAPTCHA values, cookies, tokens) are captured or logged. New IPC: `recorder:getHandoff`,
+  `recorder:continueWithNormalBrowser`, `recorder:captureSessionAndResume`, `recorder:cancelHandoff`
+  (+ preload `recorder.*`). `buildRecordedFlow` serializes `autoSecureLogin` (target URL → `step.value`) and
+  `reuseSession` (`config.reuseSessionMode="selected"` + `reuseSessionId`). Mock Site scenarios
+  `/mock/protected-login`, `/mock/protected-popup-login`, `/mock/protected-popup-captcha`,
+  `/mock/protected-popup-otp`, `/mock/session-reuse`. Verified: `npm run verify:protected-login-recorder`
+  (34/34), `verify:protected-login` (16/16), `verify:recorder` (57/57), `verify:mock-site` (28/28),
+  `verify:popup` (12/12), `verify:runner` (76/76), `npm run build` clean. Detection reuses the same signals
+  as the runner-side Protected Login Handoff; runtime replay of the inserted nodes uses the existing
+  Auto Secure Login / Reuse Session runner behavior.
 
 ## Partially implemented / to verify
 
