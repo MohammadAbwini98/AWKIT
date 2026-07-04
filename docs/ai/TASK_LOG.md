@@ -4,6 +4,24 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Codex — Smart Wait Engine remaining phases (diagnostics + UI)
+
+- **Task:** Complete the remaining Smart Wait Engine phases after Phase 1 runner support and Phase 2
+  recorder observation.
+- **What was added:** Runner Smart Wait failures now include phase, sanitized current URL, condition,
+  timeout, recorded reason, last observed state, and suggestion. Recorder Controls exposes a persisted
+  Smart Wait toggle and recorded actions summarize captured wait types. Flow Designer save/load now
+  preserves `beforeWaits`/`afterWaits`, and Node Properties shows a Smart Waits section with before/after
+  grouping, condition details, timeout editing, per-wait remove, and clear-list controls. The Flow Designer
+  GUI verifier now navigates by visible label instead of stale `title` text.
+- **Files changed:** `src/runner/StepExecutor.ts`, `scripts/verify-waits.mts`,
+  `scripts/verify-flow-designer-gui.mjs`, `app/renderer/pages/Recorder.tsx`,
+  `app/renderer/pages/FlowChartDesigner.tsx`, `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`,
+  `app/renderer/components/workflow/flowDesignerTypes.ts`, `app/renderer/styles/global.css`, docs.
+- **Tests:** `npm run typecheck` passed; `npm run verify:waits` 18/18; `npm run verify:runner` 76/76;
+  `npm run verify:recorder` 57/57; `npm run verify:recorder-draft` 17/17; `npm run build` clean;
+  `npm run verify:flow-designer` 19/19; AI memory check passed.
+
 ## 2026-07-04 — Claude Code/Codex — Smart Wait Engine Phase 2 (recorder observation)
 
 - **Task:** Phase 2 — the recorder now observes what happens between user actions and captures

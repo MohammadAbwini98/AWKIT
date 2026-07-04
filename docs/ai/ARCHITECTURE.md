@@ -169,9 +169,10 @@ change_requests/        historical change-request prompt sets
   (gated by the persisted `settings.recorder.captureSmartWaits` option, default on) and, on each distinct action, calls the pure
   `buildSmartWaits` (`src/recorder/smartWaitObservation.ts`) to attach ranked `afterWaits` to the
   **previous** action (polling ignored; `fixedDelay` only as a fallback when `captureWaitTime` is off).
-  `RecordedAction.beforeWaits`/`afterWaits` propagate to `FlowStep` via `buildRecordedFlow`. Verified by
-  `npm run verify:recorder` (Part D, 57/57 total) and `npm run verify:recorder-draft` (17/17). Runner
-  execution of these waits is Smart Wait Phase 1 (below).
+  `RecordedAction.beforeWaits`/`afterWaits` propagate to `FlowStep` via `buildRecordedFlow`. The Recorder
+  page exposes a persisted Smart Wait capture toggle and summarizes captured wait types on recorded
+  actions. Verified by `npm run verify:recorder` (Part D, 57/57 total) and
+  `npm run verify:recorder-draft` (17/17). Runner execution of these waits is Smart Wait Phase 1 (below).
 - **Locator resolution (runtime):** `LocatorFactory` builds a Playwright locator from a `StepLocator`.
   `create()` (page-rooted, no fallback) is used where multiple/absent matches are expected (count
   assertions, element loops, `waitFor`). `resolve(step)` (async) is used for single-target actions: it
@@ -184,17 +185,21 @@ change_requests/        historical change-request prompt sets
   step early **unless** it has `context`/`alternatives` (then the resolver owns the outcome);
   `friendlyLocatorError` translates any raw strict-mode violation. Verified by `npm run verify:recorder`
   (Parts A/B recorder + quality guard, Part C runtime fallback/visibility/context).
-- **Smart Wait Engine (Phase 1 — runner execution):** `FlowStep` carries optional
+- **Smart Wait Engine (runner execution + diagnostics + designer surfacing):** `FlowStep` carries optional
   `beforeWaits`/`afterWaits: WaitCondition[]` (`src/profiles/FlowProfile.ts`). `StepExecutor.execute`
   wraps each action via `runStepWithWaits`: `beforeWaits` → arm action-triggered `response` waits (a
   `response` with `armBeforeAction` registers `waitForResponse` *before* the action, awaited after) →
   action → await armed → `afterWaits`. `executeWaitCondition` dispatches loaderHidden / elementVisible /
   elementHidden / elementEnabled / textVisible / toastVisible / response / tableHasRows / listHasItems /
   urlChanged / domStable / fixedDelay, reusing `LocatorFactory` for locator waits and emitting a
-  structured diagnostic on failure. `networkidle` is intentionally not a Smart Wait strategy. The legacy
-  `wait` step node (`executeWait`: time/selector/navigation/networkIdle/textVisible) is unchanged, and
-  steps without waits behave exactly as before. Verified by `npm run verify:waits`. The recorder can now
-  emit these as `afterWaits` from Smart Wait observation; legacy fixed-time `wait` nodes remain supported.
+  structured diagnostic on failure. Diagnostics include the wait phase (before action / after action /
+  armed response), sanitized current URL (origin + path only), recorded reason, last observed state, and a
+  suggestion. `networkidle` is intentionally not a Smart Wait strategy. The legacy `wait` step node
+  (`executeWait`: time/selector/navigation/networkIdle/textVisible) is unchanged, and steps without waits
+  behave exactly as before. Flow Designer preserves waits through save/load and exposes a Smart Waits Node
+  Properties section for timeout editing/removal. Verified by `npm run verify:waits` (18/18) and
+  `npm run verify:flow-designer` (19/19). The recorder can emit these as `afterWaits` from Smart Wait
+  observation; legacy fixed-time `wait` nodes remain supported.
 - **Shared connector styling:** `app/renderer/components/shared/connectorStyle.ts` (`buildConnectorVisual` +
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;
   style persists on `FlowEdge.style` / `WorkflowEdge.style`. Shared UI: `ConnectorStyleEditor`,

@@ -194,7 +194,7 @@ export class StepExecutor {
 
   private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
     for (const wait of step.beforeWaits ?? []) {
-      await this.executeWaitCondition(step, wait);
+      await this.executeWaitCondition(step, wait, "before action");
     }
 
     // Response waits that the action itself triggers must be listening BEFORE the action runs,
@@ -218,18 +218,18 @@ export class StepExecutor {
       try {
         await entry.promise;
       } catch (error) {
-        throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error));
+        throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error, "after action (armed before action)"));
       }
     }
     for (const wait of deferred) {
-      await this.executeWaitCondition(step, wait);
+      await this.executeWaitCondition(step, wait, "after action");
     }
 
     return result;
   }
 
   /** Execute a single wait condition, translating any failure into a clear diagnostic. */
-  private async executeWaitCondition(step: FlowStep, wait: WaitCondition): Promise<void> {
+  private async executeWaitCondition(step: FlowStep, wait: WaitCondition, phase = "wait"): Promise<void> {
     const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
     try {
       switch (wait.type) {
@@ -311,7 +311,7 @@ export class StepExecutor {
         }
       }
     } catch (error) {
-      throw new Error(this.formatWaitFailure(step, wait, timeout, error));
+      throw new Error(this.formatWaitFailure(step, wait, timeout, error, phase));
     }
   }
 
@@ -388,18 +388,32 @@ export class StepExecutor {
     }
   }
 
-  private formatWaitFailure(step: FlowStep, wait: WaitCondition, timeout: number, error: unknown): string {
+  private formatWaitFailure(step: FlowStep, wait: WaitCondition, timeout: number, error: unknown, phase: string): string {
     const detail = error instanceof Error ? error.message : String(error);
     const lines = [
       `Smart wait failed on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Phase: ${phase}`,
       `Wait type: ${wait.type}`,
       `Condition: ${StepExecutor.describeWaitCondition(wait)}`,
-      `Timeout: ${timeout}ms`
+      `Timeout: ${timeout}ms`,
+      `Current URL: ${this.safeCurrentUrl()}`
     ];
     if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
     lines.push(`Suggestion: ${StepExecutor.waitSuggestion(wait)}`);
     lines.push(`Detail: ${detail}`);
     return lines.join("\n");
+  }
+
+  /** URL for diagnostics only: origin + path, with query/hash stripped to avoid leaking tokens. */
+  private safeCurrentUrl(): string {
+    try {
+      const raw = this.activePage.url();
+      if (!raw || raw === "about:blank") return raw || "unknown";
+      const parsed = new URL(raw);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return "unknown";
+    }
   }
 
   private static describeWaitCondition(wait: WaitCondition): string {

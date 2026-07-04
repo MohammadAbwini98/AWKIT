@@ -9,6 +9,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ Node registry + type-specific properties — `components/workflow/flowNodeRegistry.ts`,
   `FlowNodePropertiesPanel.tsx` (click/fill/select/check/radio/wait/assert/screenshot/scroll/
   loop/runFlow/goto/condition/manualHandoff/**routeChange**).
+- ✅ **Smart Wait editing:** Flow Designer preserves `beforeWaits`/`afterWaits` on saved steps and Node
+  Properties shows captured waits with before/after grouping, condition details, timeout editing, per-wait
+  remove, and clear-list controls.
 - ✅ **Route Change node**: switches the active automation page/tab/URL — modes switchToUrl,
   switchToLatestTab, waitForNewTab, navigateCurrentPage (URL match exact/contains/regex; wait-until).
   Runtime switches `StepExecutor.activePage` + `LocatorFactory.setPage` so later steps target the new tab.
@@ -95,8 +98,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   "Recorded URLs" table (Time/Title/URL/Source/Session/copy) via `recorder.getUrls()`.
 - ✅ **Smart Wait recorder observation:** default-on `settings.recorder.captureSmartWaits` records
   high-confidence `afterWaits` from passive loaders, fetch/XHR completion (method + URL path only),
-  URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback.
-  Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
+  URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback. Recorder
+  Controls exposes a persisted Smart Wait toggle, and the recorded-actions list summarizes captured wait
+  types. Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
 - ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
   locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → positional
@@ -115,6 +119,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Execution & reporting
 - ✅ Generic Playwright runner: `StepExecutor`, `FlowExecutor`, `PlaywrightRunner`,
   `ExecutionEngine`, `LocatorFactory`, `ValueResolver`, `ExpressionEvaluator`.
+- ✅ **Smart Wait execution diagnostics:** `StepExecutor` runs `beforeWaits`/`afterWaits` around steps and
+  reports failed waits with phase, sanitized current URL, wait condition, timeout, recorded reason, last
+  observed state, and a suggested fix.
 - ✅ Connector routing at flow and workflow level (structured conditional/parallel/loop connectors +
   legacy success/failure/conditional/always/outcome/loopBack); Auto Secure Login engine restart guard
   (`MAX_AUTO_LOGIN_RESTART`); Run Another Flow with recursion guard (depth 5).

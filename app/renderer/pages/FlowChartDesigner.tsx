@@ -1002,6 +1002,8 @@ function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): FlowStep
     valueSource,
     url: data.stepType === "goto" ? data.value : undefined,
     timeoutMs: data.timeoutMs,
+    beforeWaits: data.beforeWaits?.length ? data.beforeWaits : undefined,
+    afterWaits: data.afterWaits?.length ? data.afterWaits : undefined,
     retry: {
       count: data.retryCount,
       delayMs: data.retryDelayMs
@@ -1101,6 +1103,8 @@ function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     objectId: valueSource?.objectId ?? "",
     keyName: valueSource?.keyName ?? "",
     timeoutMs: step.timeoutMs ?? 10000,
+    beforeWaits: step.beforeWaits ?? [],
+    afterWaits: step.afterWaits ?? [],
     retryCount: step.retry?.count ?? 0,
     retryDelayMs: step.retry?.delayMs ?? 1000,
     failureAction: step.onFailure?.action ?? "stop",

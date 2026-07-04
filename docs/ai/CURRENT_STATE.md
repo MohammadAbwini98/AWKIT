@@ -1,11 +1,11 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Codex — Smart Wait Engine **Phase 2 (recorder observation)** completed
-locally on top of Phase 1. The recorder now observes safe page/network/DOM signals between actions and
-attaches condition-based `afterWaits` to the previous recorded action using the Phase 1 `WaitCondition`
-model. Smart Wait capture is controlled by persisted `settings.recorder.captureSmartWaits` (default ON);
-legacy fixed-time `captureWaitTime` waits remain backward compatible. Verification: `verify:recorder`
-57/57, `verify:recorder-draft` 17/17, `verify:waits` 15/15, `verify:runner` 76/76, build clean.)
+**Last updated:** 2026-07-04 (Codex - Smart Wait Engine remaining phases completed locally on top of
+Phase 1/2. Runner wait-failure diagnostics now include wait phase, sanitized current URL, timeout,
+condition, reason, and suggestion. Recorder has a visible persisted Smart Wait capture toggle, recorded
+actions summarize captured waits, and Flow Designer preserves `beforeWaits`/`afterWaits` with a Smart Waits
+section for timeout tuning/removal. Verification: `verify:waits` 18/18, `verify:runner` 76/76,
+`verify:recorder` 57/57, `verify:recorder-draft` 17/17, `verify:flow-designer` 19/19, build clean.)
 
 ## What currently works (Confirmed)
 
@@ -177,6 +177,9 @@ legacy fixed-time `captureWaitTime` waits remain backward compatible. Verificati
 - **Flow Designer UX:** Node Palette has a search box (filter by label/type/description/category); long
   node-property dropdowns (JSON Data Source, Target flow, Saved Flow) use a searchable combobox
   (`SearchableSelect`). Clicking a Flows-table row opens that flow in the Flow Designer.
+- **Flow Designer Smart Wait editing (2026-07-04):** saved steps preserve `beforeWaits`/`afterWaits`.
+  Node Properties shows a Smart Waits section when a selected node has waits, split by before/after phase,
+  with type/condition/reason details plus timeout editing, per-wait remove, and clear-list controls.
 - **Route Change node (Flow Designer):** palette item + Route Change properties section (mode, URL
   match, URL value, wait-until) with mode-aware validation (incl. invalid-regex). At run time
   `StepExecutor` keeps a mutable `activePage` (+`setActivePage`) and `LocatorFactory.setPage` so later
@@ -242,11 +245,12 @@ legacy fixed-time `captureWaitTime` waits remain backward compatible. Verificati
   save/cancel/restart, separate from the transient action draft); `recorder:saveUrl` IPC + a "Save URL"
   button persist a typed URL, and clicking a saved URL row fills the Controls URL field. Verified by
   `npm run verify:recorder-draft` (17/17) and `npm run verify:recorder-flow` (13/13). (4) **Smart Wait
-  observation** (default ON via `settings.recorder.captureSmartWaits`) passively observes loaders,
-  fetch/XHR completion, URL changes, table/list/card data growth, enabled controls, toasts, and fixed-delay
-  fallback windows, then stores high-confidence `afterWaits` on the preceding recorded action. It records
-  method + URL path/status/timing only for network signals; never headers, bodies, cookies, query tokens,
-  or response contents. Verified as part of `npm run verify:recorder` (57/57).
+  observation** (default ON via `settings.recorder.captureSmartWaits`, visible Recorder toggle) passively
+  observes loaders, fetch/XHR completion, URL changes, table/list/card data growth, enabled controls,
+  toasts, and fixed-delay fallback windows, then stores high-confidence `afterWaits` on the preceding
+  recorded action. It records method + URL path/status/timing only for network signals; never headers,
+  bodies, cookies, query tokens, or response contents. The Recorder action list summarizes captured Smart
+  Wait types. Verified as part of `npm run verify:recorder` (57/57).
 - **Designer empty-canvas collapse (2026-07-04):** Clicking empty canvas in the Flow Designer and Workflow
   Builder collapses the app side menu (`navigation.collapseSidebar()`), Node Palette / Workflow Definition,
   and Node Properties / Selected Connector panels (collapse-only, idempotent, persisted). Node selection
@@ -300,7 +304,7 @@ legacy fixed-time `captureWaitTime` waits remain backward compatible. Verificati
 - **Both connector canvases are GUI-VERIFIED in the real app (2026-07-03).** The un-clipped ports,
   top loop port, semicircle self-loop, add/remove loop toggle, conditional-lock, and real second-branch
   drag/delete survivor-revert path were driven in the **real running Electron app** via
-  `npm run verify:flow-designer` (Flow Designer, 18/18) and `npm run verify:workflow-builder` (Workflow
+  `npm run verify:flow-designer` (Flow Designer, 19/19) and `npm run verify:workflow-builder` (Workflow
   Builder `.scenario-flow-node`, 13/13, on saved "Mock — Data-Driven Workflow") — both Playwright
   `_electron` scripts. `npm run build` (clean), `npm run verify:runner` (76/76), and
   `npm run validate:offline` also pass. The `npm run dev` launch blocker was root-caused and fixed (it was

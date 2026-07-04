@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft } from "lucide-react";
+import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
@@ -65,6 +65,14 @@ export function Recorder() {
     });
   };
 
+  const toggleCaptureSmartWaits = () => {
+    setCaptureSmartWaits((current) => {
+      const next = !current;
+      window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: next } }).catch(() => undefined);
+      return next;
+    });
+  };
+
   // Fill the Recorder Controls URL field from a saved URL record (does not start recording).
   const useSavedUrl = (value: string) => {
     if (isRecording) return;
@@ -108,7 +116,7 @@ export function Recorder() {
       setStatusMsg("Starting browser...");
       await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime, captureSmartWaits });
       setIsRecording(true);
-      setStatusMsg(captureWaitTime ? "Recording (capturing wait time)..." : "Recording...");
+      setStatusMsg(captureWaitTime || captureSmartWaits ? "Recording (capturing waits)..." : "Recording...");
       // Persist the entered URL to the reusable saved-URL list (Task 6).
       window.playwrightFlowStudio.recorder.saveUrl(url).then(setUrls).catch(() => undefined);
     } catch (err: any) {
@@ -213,8 +221,40 @@ export function Recorder() {
           </button>
         </div>
 
-        {/* Task 1: capture user waiting time between actions as wait steps. */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={captureSmartWaits}
+            disabled={isRecording}
+            onClick={toggleCaptureSmartWaits}
+            title="When on, condition-based waits are captured from page signals"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 10px",
+              background: captureSmartWaits ? "#eef4ff" : "#f8fafc",
+              border: "1px solid", borderColor: captureSmartWaits ? "#b2ccff" : "#cbd5e1",
+              borderRadius: "999px", cursor: isRecording ? "not-allowed" : "pointer",
+              color: captureSmartWaits ? "#175cd3" : "#475569", fontWeight: 600, fontSize: "13px",
+              opacity: isRecording ? 0.7 : 1
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: "34px", height: "18px", borderRadius: "999px", position: "relative",
+                background: captureSmartWaits ? "#2563eb" : "#cbd5e1", transition: "background 0.15s ease", flex: "0 0 auto"
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute", top: "2px", left: captureSmartWaits ? "18px" : "2px",
+                  width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s ease"
+                }}
+              />
+            </span>
+            <Sparkles size={15} />
+            Smart waits {captureSmartWaits ? "On" : "Off"}
+          </button>
           <button
             type="button"
             role="switch"
@@ -304,6 +344,11 @@ export function Recorder() {
                         {action.locator.strategy}: {action.locator.value}
                       </span>
                     )}
+                    {action.afterWaits && action.afterWaits.length > 0 ? (
+                      <span style={{ fontSize: "12px", color: "#175cd3" }}>
+                        Smart waits: {action.afterWaits.map((wait) => wait.type).join(", ")}
+                      </span>
+                    ) : null}
                   </div>
                   {action.valueSource && (
                     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#0ea5e9", background: "#e0f2fe", padding: "4px 8px", borderRadius: "4px" }}>

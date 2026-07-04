@@ -198,11 +198,14 @@ async function main() {
       type: "click",
       name: "Click Go",
       locator: { strategy: "id", value: "b" },
-      afterWaits: [{ type: "elementVisible", locator: { strategy: "css", value: ".missing" }, timeoutMs: 300 }]
+      afterWaits: [{ type: "elementVisible", locator: { strategy: "css", value: ".missing" }, timeoutMs: 300, reason: "Missing element diagnostic test" }]
     });
     check("wait timeout fails the step", status === "failed", status);
+    check("diagnostic names the wait phase", /Phase: after action/.test(error ?? ""), error);
     check("diagnostic names the wait type", /Wait type: elementVisible/.test(error ?? ""), error);
     check("diagnostic shows the timeout", /Timeout: 300ms/.test(error ?? ""), error);
+    check("diagnostic includes sanitized current URL", /Current URL:/.test(error ?? ""), error);
+    check("diagnostic includes recorder reason", /Recorded reason: Missing element diagnostic test/.test(error ?? ""), error);
     check("diagnostic includes a suggestion", /Suggestion:/.test(error ?? ""), error);
   }
 

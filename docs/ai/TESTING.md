@@ -27,6 +27,12 @@
   enabled controls, polling ignored, fixed-delay fallback). As of the last run: **57 checks pass**.
 - `scripts/verify-recorder-draft.mts` (`npm run verify:recorder-draft`) — browser-free recorder draft,
   URL-history, legacy wait-time, and smart-wait compatibility checks. As of the last run: **17 checks pass**.
+- `scripts/verify-waits.mts` (`npm run verify:waits`) — Smart Wait runner checks for before/after waits,
+  armed response waits, loader/element/table/list/URL/DOM/fixed-delay waits, and failure diagnostics
+  (phase, sanitized URL, reason, suggestion). As of the last run: **18 checks pass**.
+- `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
+  for Flow Designer connector behavior and saved-flow dropdown behavior. As of the last run: **19 checks
+  pass**.
 - `scripts/seed-mock-fixtures.mjs` (`npm run seed:mock-fixtures`) — imports test-only mock
   flows/workflows/data source into the runtime userData folders for manual GUI testing against the
   mock site. Sources live in `resources/test-fixtures/mock-site/` (see its README); they never
@@ -36,6 +42,7 @@
 ```bash
 npm run build            # primary gate: tsc --noEmit + electron-vite bundles
 npm run verify:runner    # live runner checks vs the mock site (tsx)
+npm run verify:waits     # Smart Wait runner checks and diagnostics
 npm run validate:offline # offline bundle validation (for packaging/offline changes)
 
 # Manual UI fixtures (optional, for exercising the designer/builder by hand):
@@ -65,7 +72,8 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
 
 ## Known test gaps
 - No coverage for Form Designer, Runtime Inputs, Data Source Manager UI flows.
-- No automated UI/E2E tests of the renderer (only the runner core is verified).
+- Limited automated renderer GUI coverage exists for the Flow Designer / Workflow Builder connector
+  walkthroughs; most renderer screens still require manual verification.
 - Concurrency/worker isolation is not load-tested.
 - The Concurrent Instance Monitor workflow-cards **non-DOM logic** (search filter, responsive
   visible-card-count, per-card validation, workflow-name resolution) is unit-verified by

@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorQuality, LocatorStrategy, StepType, ValueSourceType } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorQuality, LocatorStrategy, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -26,6 +26,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   objectId: string;
   keyName: string;
   timeoutMs: number;
+  beforeWaits: WaitCondition[];
+  afterWaits: WaitCondition[];
   retryCount: number;
   retryDelayMs: number;
   failureAction: NonNullable<FlowStep["onFailure"]>["action"];
@@ -106,6 +108,8 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   objectId: "",
   keyName: "",
   timeoutMs: 10000,
+  beforeWaits: [],
+  afterWaits: [],
   retryCount: 0,
   retryDelayMs: 1000,
   failureAction: "stop",
