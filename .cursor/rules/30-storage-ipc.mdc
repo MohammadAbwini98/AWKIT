@@ -1,0 +1,19 @@
+---
+description: Storage, IPC, sessions, and offline runtime rules
+globs:
+  - "app/main/**/*"
+  - "src/storage/**/*"
+  - "src/session/**/*"
+  - "src/profiles/**/*"
+alwaysApply: false
+---
+
+# Storage + IPC Rules
+
+Rules:
+- Mutable runtime data must live under `%LOCALAPPDATA%/WebFlow Studio/` or user-configured settings paths.
+- Do not write mutable data into `resources/` or `app.asar`.
+- Keep JSON profile storage backward compatible.
+- IPC must validate inputs and avoid leaking internal file paths or secrets.
+- Preload APIs must stay stable unless all renderer call sites are updated.
+- For packaging/offline changes, run `npm run validate:offline` when possible.

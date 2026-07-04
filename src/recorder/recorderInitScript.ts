@@ -222,24 +222,40 @@ export function installRecorderCapture(): void {
   };
 
   // A structural (positional) CSS path, used only as a fragile last resort.
+  //
+  // Unlike a naive tag path, this is guaranteed unique when possible: it walks up from the
+  // element prepending one segment per ancestor and stops the instant the accumulated path
+  // resolves to exactly one element (`count === 1`). Each segment pins the node's position
+  // among ALL of its siblings via `:nth-child` (more disambiguating than `:nth-of-type`), and
+  // a stable ancestor id short-circuits the climb into an anchored, unique path. The previous
+  // implementation capped the path at 6 levels and only added an index for same-tag siblings,
+  // so it could emit a "floating" child-chain like `div > div > … > svg` that matched many
+  // subtrees — that is the multi-match bug this replaces.
   const structuralSelector = (el: Element): string => {
+    // One path segment for a node: a stable id (anchors + guarantees uniqueness) or
+    // tag + its 1-based position among all siblings.
+    const segmentFor = (node: Element): string => {
+      const nodeId = (node as HTMLElement).id;
+      if (nodeId && !looksGeneratedId(nodeId)) return "#" + ident(nodeId);
+      let seg = tagOf(node);
+      const parent = node.parentElement;
+      if (parent) {
+        const siblings = Array.prototype.slice.call(parent.children);
+        const index = siblings.indexOf(node);
+        if (index >= 0) seg += ":nth-child(" + (index + 1) + ")";
+      }
+      return seg;
+    };
+
     const parts: string[] = [];
     let node: Element | null = el;
     while (node && node.nodeType === 1 && tagOf(node) !== "html") {
-      if ((node as HTMLElement).id && !looksGeneratedId((node as HTMLElement).id)) {
-        parts.unshift("#" + ident((node as HTMLElement).id));
-        break;
-      }
-      let part = tagOf(node);
-      const current: Element = node;
-      const parent: Element | null = current.parentElement;
-      if (parent) {
-        const sameTag = Array.prototype.slice.call(parent.children).filter((c: Element) => c.tagName === current.tagName);
-        if (sameTag.length > 1) part += ":nth-of-type(" + (sameTag.indexOf(current) + 1) + ")";
-      }
-      parts.unshift(part);
-      node = parent;
-      if (parts.length > 6) break;
+      const seg = segmentFor(node);
+      parts.unshift(seg);
+      const candidate = parts.join(" > ");
+      // Anchored on a stable id, or already unique in the document → shortest unique path.
+      if (seg.charAt(0) === "#" || q(candidate) === 1) return candidate;
+      node = node.parentElement;
     }
     return parts.join(" > ");
   };

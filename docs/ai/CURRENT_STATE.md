@@ -1,9 +1,9 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-04 (Claude Code — AWKIT six-point change set: Recorder wait-time capture toggle +
-default Start/End nodes + reusable saved-URL history; empty-canvas panel collapse in both designers; stale
-last-opened flow/workflow clearing; Instances Load-More two-row scroller. build clean, runner 76/76,
-recorder-draft 15/15, recorder-flow 13/13, recorder 25/25, instance-monitor 22/22)
+**Last updated:** 2026-07-04 (Claude Code — Recorder positional fallback now guarantees a unique locator:
+`structuralSelector` builds the path serially and stops at the shortest `:nth-child` path that resolves to
+one element, fixing the "saved locator matches N elements" run failure. build clean, verify:recorder 27/27.
+Prior: Instances Load-More removed / two-row card scroller; AI-agent architecture hardening.)
 
 ## What currently works (Confirmed)
 
@@ -13,6 +13,13 @@ recorder-draft 15/15, recorder-flow 13/13, recorder 25/25, instance-monitor 22/2
   prepare the repo for the next agent; `/TAKEOFF` command/workflow files resume from the handoff by reading
   memory and inspecting actual repo state before editing. The AI memory checker requires `HANDOFF.md` and
   warns if important handoff sections are missing.
+- **AI agent architecture:** Shared source of truth is `AGENTS.md` + `docs/ai/` (indexed by
+  `docs/ai/README.md`); Claude Code uses `CLAUDE.md`, `.claude/commands`, and `.claude/skills`
+  (`ai-memory-maintainer`, `codebase-review`, `feature-implementation`, `bug-fix`,
+  `test-and-verify`, `docs-sync`, `refactor-safe`, `pr-review`); Codex/Antigravity/future agents use
+  `.agents/skills` + `.agents/workflows`; Gemini uses `.gemini/commands`; Cursor uses `.cursor/rules`.
+  `node scripts/ai-memory/check-memory.mjs` validates required memory files and warns for optional
+  adapter/skill gaps.
 - **Offline packaging:** `npm run package:portable` and `npm run package:nsis` produce
   `dist/WebFlow Studio 0.1.0.exe` (portable, ~307 MB) and `dist/WebFlow Studio Setup 0.1.0.exe`
   (per-user NSIS, ~351 MB) — both re-verified after the handoff/connector runtime changes (unsigned;
@@ -187,7 +194,8 @@ recorder-draft 15/15, recorder-flow 13/13, recorder 25/25, instance-monitor 22/2
   flows/connectors/mode/data-source/updated, and reveals per-card run parameters on hover/keyboard focus
   (independent per workflow, seeded from `settings.execution`, persisted to `settings.workflowRunCards`).
   Run launches that workflow; **multiple workflows can run concurrently** (instance ids are globally unique
-  per execution). Search filters by name/description; the grid shows 3 rows + Load More (+2 rows). The old
+  per execution). Search filters by name/description; the grid **always renders every card** and, once the
+  cards exceed two rows, becomes a two-row-tall internal scroller (no "Load More" button). The old
   dropdown form is collapsed behind an "Advanced / Classic run form". The instance table has a **Workflow
   column** (resolves `scenarioId` → name; deleted/unknown handled). Card `isolationMode`/`stopOnError` are
   passed through to the run; screenshot-on-failure is shown disabled (it's a per-step flow setting).
@@ -234,19 +242,23 @@ recorder-draft 15/15, recorder-flow 13/13, recorder 25/25, instance-monitor 22/2
   still auto-opens the properties panel; connector selection opens the connector panel (Workflow Builder
   expands its right panel on edge click). Last-opened flow/workflow restore now clears a stale reference
   when the saved flow/workflow was deleted.
-- **Instances Load-More scroller (2026-07-04):** After clicking "Load More workflows", the workflow-card
-  grid renders every card but becomes a **two-row internal scroller** (measured height +
-  `.workflow-card-grid.is-scrolling`) so the rest of the Instances page stays put; pre-click layout is
-  unchanged and a new search resets it.
-- **Recorder unique locators (live-verified, `npm run verify:recorder` → 23/23):** the injected capture
+- **Instances two-row card scroller (2026-07-04):** The workflow-card grid always renders every card; the
+  "Load More workflows" button was removed. Once the cards exceed two rows
+  (`filteredWorkflows.length > visibleCardCount(gridColumns, 2)`), the grid becomes a **two-row internal
+  scroller** (measured height + `.workflow-card-grid.is-scrolling`) so the rest of the Instances page stays
+  put; at two rows or fewer it renders at natural height with no scroller.
+- **Recorder unique locators (live-verified, `npm run verify:recorder` → 27/27):** the injected capture
   script (`src/recorder/recorderInitScript.ts`) generates ranked candidate locators (role/label/
   placeholder/text/testId → stable attributes → id → scoped → positional fallback — never utility/layout
   classes like `flex`/`items-center`), validates uniqueness against the live DOM, and saves the best
   `count === 1` candidate with `LocatorQuality` metadata (`isUnique`/`matchCount`/`confidence`/`warning`/
-  `candidateCount`) + an `exact` flag for role/text. Human-readable step names ("Click Log in"); password
-  values are never stored. Node Properties shows locator quality and won't mark a non-unique node valid;
-  `StepExecutor` fails a non-unique step early with a friendly message and translates raw strict-mode
-  violations (technical detail retained in logs).
+  `candidateCount`) + an `exact` flag for role/text. The positional fallback (`structuralSelector`) is
+  itself guaranteed unique: it walks up prepending one `:nth-child` segment per ancestor and stops at the
+  shortest path that resolves to a single element (or an id-anchored path), so it no longer emits floating
+  child-chains like `div > div > … > svg` that match many subtrees. Human-readable step names ("Click Log
+  in"); password values are never stored. Node Properties shows locator quality and won't mark a non-unique
+  node valid; `StepExecutor` fails a non-unique step early with a friendly message and translates raw
+  strict-mode violations (technical detail retained in logs).
 - **Data Source visual table editor:** edit root-array JSON data sources as a table
   (cells/rows/columns), create from scratch, save real files to the configured data-sources path
   (bundled samples migrate on save). Logic verified by `npm run verify:data-editor` (27/27) incl. a

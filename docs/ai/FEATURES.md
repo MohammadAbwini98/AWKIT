@@ -133,12 +133,13 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ **Workflow cards grid** (`components/instances/WorkflowRunCard.tsx`): primary run UX — one card per
   saved workflow with status badge, summary metadata, and per-card run parameters revealed on
   hover/keyboard focus (independent per workflow; persisted to `settings.workflowRunCards`). Search by
-  name/description, 3-row initial view + Load More (+2 rows), classic dropdown form collapsed behind an
-  "Advanced" `<details>`. Runs multiple workflows concurrently; instance table has a **Workflow column**.
+  name/description; all cards always render, and the grid becomes a two-row-tall internal scroller once the
+  cards overflow two rows (no "Load More" button). Classic dropdown form collapsed behind an "Advanced"
+  `<details>`. Runs multiple workflows concurrently; instance table has a **Workflow column**.
   Cards are equal-height on a stable 3-column grid (`repeat(3, minmax(0,1fr))`; 2/1 cols on smaller
-  widths) so cards-per-row and dimensions stay consistent across Load More; the hover/focus reveal
-  cross-fades two equal-area layers so the card height (and grid) never moves; the search bar and Load
-  More button are full content width.
+  widths) so cards-per-row and dimensions stay consistent whether or not the scroller is active; the
+  hover/focus reveal cross-fades two equal-area layers so the card height (and grid) never moves; the
+  search bar is full content width.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,
