@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-04 — Claude Code — Handoff prep after Smart Locator + Git Full Cycle merges
+
+- **Task:** `/HANDOFF` — prepare the repo for the next agent/human after the stacked-PR merge cycle.
+- **Repo state:** `main` at `35548e1` (PR #2 merge); both PRs merged; local merged branches deleted;
+  now on a clean `feature/smart-wait-engine` branch (no feature work started). Git metadata is available
+  (earlier handoffs' "not a Git repository" note is obsolete).
+- **Docs updated:** rewrote `docs/ai/HANDOFF.md` (new current handoff: Smart Locator runtime delta +
+  Git Full Cycle skill merged, Smart Wait Engine is the next feature; superseded 2026-07-03 connector
+  content moved to Handoff History). Added the `git-full-cycle` cross-agent skill to the
+  `docs/ai/CURRENT_STATE.md` AI-agent-architecture inventory.
+- **Validation:** `node scripts/ai-memory/check-memory.mjs` — passed. Docs only, so
+  `verify:recorder`/`verify:runner`/`build` not re-run this turn (current on `main`: 42/42, 76/76, clean).
+- **Note:** Two merged remote branches (`chore/save-inflight-recorder-work`,
+  `feature/smart-locator-engine`) still exist on `origin`, left pending user confirmation to delete.
+
 ## 2026-07-04 — Claude Code — Smart Locator: runtime fallback, visibility disambiguation, context scoping
 
 - **Task:** Make the existing recorder locator engine production-ready by adding the missing runtime

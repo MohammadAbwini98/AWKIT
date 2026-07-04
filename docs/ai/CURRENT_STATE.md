@@ -20,6 +20,10 @@ Instances Load-More removed / two-row card scroller; AI-agent architecture harde
   (`ai-memory-maintainer`, `codebase-review`, `feature-implementation`, `bug-fix`,
   `test-and-verify`, `docs-sync`, `refactor-safe`, `pr-review`); Codex/Antigravity/future agents use
   `.agents/skills` + `.agents/workflows`; Gemini uses `.gemini/commands`; Cursor uses `.cursor/rules`.
+  A cross-agent **`git-full-cycle`** skill (safe Git lifecycle: status, dirty-tree handling, branching,
+  commit, push, PRs, protected `main`, stacked PRs) is mirrored byte-identically under
+  `.claude/skills/`, `.codex/skills/`, `.gemini/skills/`, and a canonical `docs/ai/skills/` copy, and is
+  referenced from `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`.
   `node scripts/ai-memory/check-memory.mjs` validates required memory files and warns for optional
   adapter/skill gaps.
 - **Offline packaging:** `npm run package:portable` and `npm run package:nsis` produce
