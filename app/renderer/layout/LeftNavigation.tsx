@@ -1,4 +1,4 @@
-import { Moon, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon } from "lucide-react";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 
@@ -20,8 +20,9 @@ const routeGroups = [
     routes: ["reportsOverview", "reportsWorkflows", "reportsInstances", "reportsChrome", "reportsRuntime", "reportsFailures", "reportsServer", "reports"] satisfies RouteId[]
   },
   {
+    // Settings is surfaced in the pinned footer utility area (template pattern), not here.
     label: "System",
-    routes: ["roadmap", "projectContract", "offlineRuntime", "settings"] satisfies RouteId[]
+    routes: ["roadmap", "projectContract", "offlineRuntime"] satisfies RouteId[]
   }
 ];
 
@@ -38,13 +39,15 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
       <div className="brand-block">
-        <span className="brand-mark">WFS</span>
-        {!collapsed ? (
-          <span className="brand-name">
-            <span>WebFlow Studio</span>
-            <small>Automation workbench</small>
-          </span>
-        ) : null}
+        <div className="brand-tile">
+          <span className="brand-mark">WFS</span>
+          {!collapsed ? (
+            <span className="brand-name">
+              <span>WebFlow Studio</span>
+              <small>Automation workbench</small>
+            </span>
+          ) : null}
+        </div>
         <button
           className="nav-collapse-button"
           aria-expanded={!collapsed}
@@ -83,6 +86,15 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
       </div>
       <div className="nav-footer">
         <button
+          className={activeRouteId === "settings" ? "nav-item active" : "nav-item"}
+          onClick={() => onRouteChange("settings")}
+          title={collapsed ? "Settings" : undefined}
+          type="button"
+        >
+          <SettingsIcon size={17} />
+          {!collapsed ? <span>Settings</span> : null}
+        </button>
+        <button
           className="nav-item nav-theme-toggle"
           aria-pressed={isDark}
           onClick={() => setAppearance(isDark ? "light" : "dark")}
@@ -99,6 +111,15 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
             </>
           ) : null}
         </button>
+        {!collapsed ? (
+          <div className="nav-workspace" aria-hidden="true">
+            <span className="nav-workspace-mark">WFS</span>
+            <span className="nav-workspace-name">
+              <span>WebFlow Studio</span>
+              <small>Offline workspace</small>
+            </span>
+          </div>
+        ) : null}
       </div>
     </nav>
   );

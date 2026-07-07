@@ -168,6 +168,7 @@ export function App() {
           activeRoute={activeRoute}
           activeRouteId={activeRouteId}
           canGoBack={routeHistory.length > 0}
+          dirty={chrome.dirty}
           headerActions={chrome.actions}
           sidebarCollapsed={sidebarCollapsed}
           onBack={goBack}
