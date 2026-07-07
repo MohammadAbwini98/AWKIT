@@ -3,8 +3,8 @@
   "name": "Mock — Failure Handling Workflow",
   "description": "Login → failing assertion → (failure connector) → recovery screenshot.",
   "version": 1,
-  "createdAt": "2026-06-27T13:49:51.946Z",
-  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "createdAt": "2026-07-06T22:11:56.682Z",
+  "updatedAt": "2026-07-06T22:11:56.682Z",
   "nodes": [
     {
       "id": "mock-login-flow",

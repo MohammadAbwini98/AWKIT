@@ -1,0 +1,186 @@
+// Real GUI smoke check for the Reports Overview page (UI-reports refactor Phase 5).
+// Launches the built Electron app via Playwright's _electron, navigates to the Reports route,
+// and asserts the page renders one of its valid states (metrics OR a clean empty/disabled state)
+// with no console errors and a working time-range + refresh control.
+//
+// Run: node scripts/verify-reports-gui.mjs   (after `npm run build`)
+import { _electron as electron } from "playwright";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const env = { ...process.env };
+delete env.ELECTRON_RUN_AS_NODE; // GUI app, not plain Node
+
+const results = [];
+function check(name, pass, detail) {
+  results.push({ name, pass: Boolean(pass), detail });
+  console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
+}
+
+const consoleErrors = [];
+const app = await electron.launch({ args: [root], cwd: root, env });
+try {
+  const win = await app.firstWindow();
+  win.on("console", (msg) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
+  await win.waitForLoadState("domcontentloaded");
+  await win.waitForTimeout(1000);
+
+  // Navigate to the Reports route (match the nav item by label text or collapsed title).
+  const navigated = await win.evaluate(() => {
+    const items = [...document.querySelectorAll("button.nav-item")];
+    const target = items.find((b) => (b.textContent || "").trim() === "Reports" || b.getAttribute("title") === "Reports");
+    if (target) {
+      target.click();
+      return true;
+    }
+    return false;
+  });
+  check("Reports nav item found and clicked", navigated);
+
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  check("Reports Overview page renders (.awkit-report-page)", true);
+
+  const headerText = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("page header reads 'Reports Overview'", headerText.includes("Reports Overview"), headerText);
+
+  // Wait for the query to resolve into one of the valid terminal states.
+  await win.waitForFunction(
+    () => {
+      const page = document.querySelector(".awkit-report-page");
+      if (!page) return false;
+      const hasMetrics = page.querySelectorAll(".metric-card").length > 0;
+      const hasEmpty = !!page.querySelector(".awkit-empty-state");
+      const hasSkeleton = !!page.querySelector(".awkit-skeleton-card");
+      return (hasMetrics || hasEmpty) && !hasSkeleton;
+    },
+    { timeout: 15000 }
+  );
+  const state = await win.evaluate(() => {
+    const page = document.querySelector(".awkit-report-page");
+    return {
+      metrics: page.querySelectorAll(".metric-card").length,
+      empty: !!page.querySelector(".awkit-empty-state"),
+      emptyTitle: page.querySelector(".awkit-empty-state strong")?.textContent || ""
+    };
+  });
+  check("resolves to a valid state (metrics OR empty), not stuck loading", state.metrics > 0 || state.empty, JSON.stringify(state));
+
+  // Time-range control present + clickable without crashing.
+  const rangeButtons = await win.$$(".awkit-range-selector button");
+  check("time-range selector rendered", rangeButtons.length === 5, `count=${rangeButtons.length}`);
+  await win.click('.awkit-range-selector button:has-text("7d")').catch(() => {});
+  await win.waitForTimeout(800);
+  check("page still rendered after range change", !!(await win.$(".awkit-report-page")));
+
+  // Refresh control.
+  await win.click(".awkit-icon-button").catch(() => {});
+  await win.waitForTimeout(600);
+  check("page still rendered after refresh", !!(await win.$(".awkit-report-page")));
+
+  // ── Workflow Reports + Instance Reports routes ─────────────────────────────
+  async function navTo(label) {
+    return win.evaluate((wanted) => {
+      const items = [...document.querySelectorAll("button.nav-item")];
+      const target = items.find((b) => (b.textContent || "").trim() === wanted || b.getAttribute("title") === wanted);
+      if (target) {
+        target.click();
+        return true;
+      }
+      return false;
+    }, label);
+  }
+  async function awaitResolved() {
+    await win.waitForFunction(
+      () => {
+        const page = document.querySelector(".awkit-report-page");
+        if (!page) return false;
+        const hasContent = page.querySelectorAll(".metric-card, .awkit-table, .awkit-empty-state, .awkit-distribution").length > 0;
+        const busy = !!page.querySelector(".awkit-skeleton-card");
+        return hasContent && !busy;
+      },
+      { timeout: 15000 }
+    );
+  }
+
+  check("Workflow Reports nav clicked", await navTo("Workflow Reports"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  await awaitResolved();
+  const wfHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("Workflow Reports renders + resolves", wfHeader.includes("Workflow Reports"), wfHeader);
+
+  check("Instance Reports nav clicked", await navTo("Instance Reports"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  await awaitResolved();
+  const instHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("Instance Reports renders + resolves", instHeader.includes("Instance Reports"), instHeader);
+  const hasLiveSection = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Live status")));
+  check("Instance Reports shows the live-status section", hasLiveSection);
+
+  check("Chrome Consumption nav clicked", await navTo("Chrome Consumption"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  // Gauges resolve once the first runtime-status poll returns.
+  await win.waitForFunction(
+    () => {
+      const page = document.querySelector(".awkit-report-page");
+      return !!page && page.querySelectorAll(".awkit-gauge-card").length > 0 && !page.querySelector(".awkit-skeleton-card");
+    },
+    { timeout: 15000 }
+  );
+  const gaugeCount = await win.$$eval(".awkit-gauge-card", (els) => els.length);
+  check("Chrome Consumption renders 4 RPM gauges", gaugeCount === 4, `count=${gaugeCount}`);
+  const gaugeValues = await win.$$eval(".awkit-gauge-value", (els) => els.map((e) => (e.textContent || "").trim()));
+  check("gauges show a value or neutral dash (no crash)", gaugeValues.length === 4 && gaugeValues.every((v) => v.length > 0), JSON.stringify(gaugeValues));
+  const hasProcessDetail = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Process detail")));
+  check("Chrome Consumption shows the process-detail section", hasProcessDetail);
+  // Second poll cycle: page stays stable (no leak/crash across a runtime-status tick).
+  await win.waitForTimeout(2500);
+  check("page stable after a runtime-status poll tick", !!(await win.$(".awkit-gauge-card")));
+
+  check("Runtime Analytics nav clicked", await navTo("Runtime Analytics"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  await awaitResolved();
+  const rtHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("Runtime Analytics renders + resolves", rtHeader.includes("Runtime Analytics"), rtHeader);
+  // Valid states: 4 peak metric cards + timeline sections, OR a clean empty state (no history yet).
+  const rtState = await win.evaluate(() => {
+    const page = document.querySelector(".awkit-report-page");
+    return {
+      metrics: page.querySelectorAll(".metric-card").length,
+      timelines: page.querySelectorAll(".awkit-timeline, .awkit-timeline .awkit-muted").length,
+      empty: !!page.querySelector(".awkit-empty-state")
+    };
+  });
+  check("Runtime Analytics shows charts+metrics OR a clean empty state", (rtState.metrics >= 4) || rtState.empty, JSON.stringify(rtState));
+
+  check("Failure Analytics nav clicked", await navTo("Failure Analytics"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  await awaitResolved();
+  const failHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("Failure Analytics renders + resolves", failHeader.includes("Failure Analytics"), failHeader);
+
+  check("Server Performance nav clicked", await navTo("Server Performance"));
+  await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
+  await win.waitForFunction(
+    () => {
+      const page = document.querySelector(".awkit-report-page");
+      return !!page && page.querySelectorAll(".metric-card").length >= 4 && !page.querySelector(".awkit-skeleton-card");
+    },
+    { timeout: 15000 }
+  );
+  const srvHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
+  check("Server Performance renders 4 metric cards", srvHeader.includes("Server Performance"), srvHeader);
+  const hasStorage = await win.$$eval(".awkit-report-panel-head strong", (els) => els.some((e) => (e.textContent || "").includes("Storage usage")));
+  check("Server Performance shows a storage-usage section (real dir sizing)", hasStorage);
+
+  const telemetryErrors = consoleErrors.filter((e) => /telemetry|undefined is not|cannot read/i.test(e));
+  check("no telemetry/undefined console errors", telemetryErrors.length === 0, telemetryErrors.slice(0, 2).join(" | "));
+} finally {
+  await app.close();
+}
+
+const passed = results.filter((r) => r.pass).length;
+console.log(`\n${passed}/${results.length} Reports GUI checks passed`);
+if (passed !== results.length) process.exit(1);

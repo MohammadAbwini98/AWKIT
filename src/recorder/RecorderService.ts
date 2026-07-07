@@ -6,6 +6,7 @@ import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "./Recorde
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
+import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
 import type { SessionCaptureService } from "../session/SessionCaptureService";
 import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
@@ -404,7 +405,13 @@ export class RecorderService {
     try {
     // In packaged/offline mode the caller passes the bundled Chromium path so the
     // recorder never attempts to download or locate a globally installed browser.
-    this.browser = await chromium.launch({ headless: false, executablePath: options.executablePath });
+    // buildChromiumHardeningArgs: no-egress hardening for the AWKIT-owned recorder browser
+    // (never applied to the user's real Chrome in SessionCaptureService).
+    this.browser = await chromium.launch({
+      headless: false,
+      executablePath: options.executablePath,
+      args: buildChromiumHardeningArgs()
+    });
     this.context = await this.browser.newContext();
     this.page = await this.context.newPage();
 
@@ -794,7 +801,8 @@ export class RecorderService {
     const context = await chromium.launchPersistentContext(profile.profileDir, {
       headless: false,
       executablePath: this.resumeExecutablePath,
-      viewport: null
+      viewport: null,
+      args: buildChromiumHardeningArgs()
     });
     this.browser = null;
     this.context = context;

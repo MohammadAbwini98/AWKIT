@@ -60,6 +60,7 @@ async function main() {
   const ctx = await makeContext();
 
   async function run(html: string, step: FlowStep): Promise<{ status: string; error?: string; ms: number }> {
+    await page.goto("about:blank");
     await page.setContent(html, { waitUntil: "load" });
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
     const start = Date.now();
@@ -123,7 +124,50 @@ async function main() {
     await page.unroute("**/api/save");
   }
 
-  // 6. loaderHidden waits for a visible spinner to disappear.
+  // 6. Stale recorder response waits on a successful navigation are treated as optional hints.
+  {
+    const { status } = await run(`<div>before</div>`, {
+      id: "s5b",
+      type: "goto",
+      name: "Navigate with stale recorded response wait",
+      url: "data:text/html,<title>navigated</title><main>ready</main>",
+      afterWaits: [
+        {
+          type: "response",
+          method: "POST",
+          urlContains: "/api/old-bootstrap",
+          armBeforeAction: true,
+          timeoutMs: 250,
+          reason: "Recorder-observed bootstrap response that may not repeat after session reuse"
+        }
+      ]
+    });
+    check("goto skips stale recorded response wait after successful navigation", status === "passed", status);
+  }
+
+  // 7. A stale response wait after a non-navigation action still fails.
+  {
+    const { status, error } = await run(`<button id="b">Save</button>`, {
+      id: "s5c",
+      type: "click",
+      name: "Click without response",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [
+        {
+          type: "response",
+          method: "POST",
+          urlContains: "/api/missing",
+          armBeforeAction: true,
+          timeoutMs: 250,
+          reason: "Recorder-observed response that should remain required for clicks"
+        }
+      ]
+    });
+    check("non-goto stale response wait still fails", status === "failed", status);
+    check("non-goto stale response diagnostic remains intact", /Wait type: response/.test(error ?? ""), error);
+  }
+
+  // 8. loaderHidden waits for a visible spinner to disappear.
   {
     const html = `<div class="spinner">loading…</div>
       <button id="b" onclick="setTimeout(function(){document.querySelector('.spinner').style.display='none';},150)">Go</button>`;
@@ -137,7 +181,7 @@ async function main() {
     check("loaderHidden: waits for visible loader to disappear", status === "passed", status);
   }
 
-  // 7. elementEnabled waits until a disabled control becomes enabled.
+  // 9. elementEnabled waits until a disabled control becomes enabled.
   {
     const html = `<button id="c" disabled>Continue</button>
       <button id="b" onclick="setTimeout(function(){document.getElementById('c').disabled=false;},150)">Enable</button>`;
@@ -151,7 +195,7 @@ async function main() {
     check("elementEnabled: waits until control is enabled", status === "passed", status);
   }
 
-  // 8. tableHasRows waits until rows are rendered.
+  // 10. tableHasRows waits until rows are rendered.
   {
     const html = `<table id="t"><tbody></tbody></table>
       <button id="b" onclick="setTimeout(function(){var r=document.createElement('tr');r.innerHTML='<td>x</td>';document.querySelector('#t tbody').appendChild(r);},150)">Load</button>`;
@@ -165,7 +209,7 @@ async function main() {
     check("tableHasRows: waits until row count reaches minimum", status === "passed", status);
   }
 
-  // 9. urlChanged waits after the action changes the URL (hash change).
+  // 11. urlChanged waits after the action changes the URL (hash change).
   {
     const html = `<button id="b" onclick="location.hash='done'">Submit</button>`;
     const { status } = await run(html, {
@@ -178,7 +222,7 @@ async function main() {
     check("urlChanged: waits until URL matches after action", status === "passed", status);
   }
 
-  // 10. fixedDelay fallback actually delays.
+  // 12. fixedDelay fallback actually delays.
   {
     const { status, ms } = await run(`<button id="b">Go</button>`, {
       id: "s10",
@@ -191,7 +235,7 @@ async function main() {
     check("fixedDelay: actually waited ~>=200ms", ms >= 180, `${ms}ms`);
   }
 
-  // 11. Timeout produces a clear diagnostic.
+  // 13. Timeout produces a clear diagnostic.
   {
     const { status, error } = await run(`<button id="b">Go</button>`, {
       id: "s11",

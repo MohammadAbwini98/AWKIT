@@ -72,6 +72,38 @@ export function registerExecutionIpc(): void {
       return { success: false, error: e.message };
     }
   });
+  // Concurrency-layer status: capacity, lock table, browser pool, watchdog (read-only, no secrets).
+  ipcMain.handle("execution:runtimeStatus", async () => executionEngine.getRuntimeStatus());
+  // Recoverable/interrupted prior runs (Phase 4C): durable detail + explicit user verdicts.
+  ipcMain.handle("execution:recoveryDetails", async (_, instanceId: string) => executionEngine.getRecoveryDetails(instanceId));
+  ipcMain.handle("execution:recoveryAction", async (_, instanceId: string, action: "markReviewed" | "markAbandoned") => {
+    try {
+      await executionEngine.applyRecoveryAction(instanceId, action);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  });
+
+  // Open the durable runtime at app startup (not lazily on the first run) so startup
+  // recovery runs immediately and recoverable prior runs appear in the Instance Monitor
+  // right after a restart. Failure downgrades to in-memory behavior inside the engine.
+  void executionEngine.initializeDurableRuntime(resolveStorageDirs()).catch((error) => {
+    console.warn(`[execution] durable runtime startup init failed: ${error instanceof Error ? error.message : String(error)}`);
+  });
+}
+
+/** Effective storage directories (honours user-configured Settings paths). */
+function resolveStorageDirs() {
+  const runtimePaths = getRuntimePaths();
+  const configured = getConfiguredPaths();
+  return {
+    root: runtimePaths.root,
+    downloads: configured.downloads,
+    screenshots: configured.screenshots,
+    logs: configured.logs,
+    reports: configured.reports
+  };
 }
 
 async function validateWorkflow(workflowId: string) {
@@ -111,7 +143,6 @@ async function runWorkflow(request: RunWorkflowRequest) {
     };
   }
 
-  const runtimePaths = getRuntimePaths();
   const flows = await createFlowProfileStore().list();
   const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);
   
@@ -151,14 +182,7 @@ async function runWorkflow(request: RunWorkflowRequest) {
   const rows = workflowDataSource?.rows ?? Array.from({ length: totalInstances });
 
   // Resolve effective storage directories (honours user-configured Settings paths).
-  const configured = getConfiguredPaths();
-  const dirs = {
-    root: runtimePaths.root,
-    downloads: configured.downloads,
-    screenshots: configured.screenshots,
-    logs: configured.logs,
-    reports: configured.reports
-  };
+  const dirs = resolveStorageDirs();
 
   // Fire and forget, but wait for initial pool registration to complete synchronously
   await executionEngine.startRun(

@@ -42,6 +42,19 @@ export async function ensureRuntimeFolders(paths = getRuntimePaths()): Promise<R
   return paths;
 }
 
+/**
+ * "dev" | "packaged" for runtime diagnostics. Guarded so callers loaded outside a real
+ * Electron process (tsx verify scripts import the engine, where `app` is undefined)
+ * safely report "dev" instead of throwing.
+ */
+export function getAppMode(): "dev" | "packaged" {
+  try {
+    return app?.isPackaged ? "packaged" : "dev";
+  } catch {
+    return "dev";
+  }
+}
+
 export function getResourcesRoot(): string {
   if (app.isPackaged) {
     return join(process.resourcesPath, "resources");

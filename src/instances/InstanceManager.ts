@@ -133,6 +133,7 @@ export class InstanceManager {
       logs: join(dirs.logs, executionId, `${instanceId}.jsonl`),
       reports: join(dirs.reports, executionId, `${instanceId}.json`),
       storage: join(instanceRoot, "storage"),
+      traces: join(instanceRoot, "traces"),
       userDataDir: isolationMode === "persistentContext" ? join(instanceRoot, "profile") : undefined
     };
   }

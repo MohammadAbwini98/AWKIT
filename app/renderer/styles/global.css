@@ -30,6 +30,68 @@ body {
   --shell-chrome: calc(var(--header-height) + var(--status-height));
 }
 
+/*
+ * AWKIT design tokens (light-first) — see docs/ai/ui-reports-refactor/02_ENHANCED_DESIGN_SYSTEM_AND_MOTION.md.
+ * Additive: existing hard-coded colors keep working; new/touched rules use these. A dark theme
+ * later is a token swap under [data-theme="dark"] (out of scope for now).
+ */
+:root {
+  /* surfaces */
+  --awkit-bg: #f0f1f5;
+  --awkit-surface: #ffffff;
+  --awkit-surface-soft: #f7f7fa;
+  --awkit-surface-inset: #ececf1;
+  --awkit-border: rgba(18, 18, 18, 0.08);
+  --awkit-border-strong: rgba(18, 18, 18, 0.14);
+
+  /* text */
+  --awkit-text: #121212;
+  --awkit-text-secondary: #4d4855;
+  --awkit-text-muted: #5c5c5e;
+
+  /* accents */
+  --awkit-purple: #5b3e91;
+  --awkit-purple-deep: #1d1060;
+  --awkit-purple-soft: #69587e;
+  --awkit-blue: #3563f8;
+  --awkit-blue-deep: #0b1ee6;
+
+  /* status */
+  --awkit-success: #1f8a4c;
+  --awkit-success-soft: #eaf8ef;
+  --awkit-warning: #b97a1a;
+  --awkit-warning-soft: #fff5df;
+  --awkit-danger: #c03434;
+  --awkit-danger-soft: #fdecec;
+  --awkit-info: var(--awkit-blue);
+  --awkit-info-soft: #e0edff;
+  --awkit-neutral-soft: #eef3f8;
+
+  /* gauge / pressure bands (Reports > Chrome consumption) */
+  --awkit-band-normal: var(--awkit-success);
+  --awkit-band-warning: var(--awkit-warning);
+  --awkit-band-high: var(--awkit-danger);
+
+  /* depth & radius (extends the --radius-* scale above) */
+  --awkit-radius-card: 14px;
+  --awkit-radius-panel: 18px;
+  --awkit-shadow-card: 0 8px 28px rgba(18, 18, 18, 0.07);
+  --awkit-shadow-float: 0 12px 40px rgba(18, 18, 18, 0.12);
+
+  /* motion */
+  --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --awkit-dur-fast: 120ms;
+  --awkit-dur-med: 220ms;
+  --awkit-dur-slow: 360ms;
+
+  /* z-layers */
+  --awkit-z-panel: 20;
+  --awkit-z-toolbar: 30;
+  --awkit-z-drawer: 40;
+  --awkit-z-modal: 50;
+  --awkit-z-toast: 60;
+}
+
 button,
 input,
 select {
@@ -816,11 +878,11 @@ select {
 
 .action-flow-node {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #bdd4f6;
-  border-left: 5px solid #1769e0;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgb(26 42 72 / 12%);
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-left: 5px solid var(--awkit-blue);
+  border-radius: 10px;
+  box-shadow: var(--awkit-shadow-card);
   box-sizing: border-box;
   display: grid;
   gap: 10px;
@@ -830,6 +892,7 @@ select {
   overflow: hidden;
   padding: 11px;
   position: relative;
+  transition: box-shadow var(--awkit-dur-fast) var(--awkit-ease-out), border-color var(--awkit-dur-fast) var(--awkit-ease-out);
   width: 100%;
 }
 
@@ -858,7 +921,8 @@ select {
 }
 
 .action-flow-node.selected {
-  box-shadow: 0 0 0 3px rgb(23 105 224 / 16%), 0 8px 20px rgb(26 42 72 / 14%);
+  border-color: color-mix(in srgb, var(--awkit-purple) 40%, var(--awkit-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--awkit-purple) 22%, transparent), var(--awkit-shadow-float);
 }
 
 .action-flow-node.warning {
@@ -871,9 +935,9 @@ select {
 
 .action-node-icon {
   align-items: center;
-  background: #eef5ff;
-  border-radius: 7px;
-  color: #0d5dc2;
+  background: var(--awkit-surface-inset);
+  border-radius: 8px;
+  color: var(--awkit-purple);
   display: flex;
   height: 32px;
   justify-content: center;
@@ -1363,15 +1427,16 @@ select {
 
 .scenario-flow-node {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #bdd4f6;
-  border-left: 5px solid #1769e0;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgb(26 42 72 / 12%);
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-left: 5px solid var(--awkit-blue);
+  border-radius: 10px;
+  box-shadow: var(--awkit-shadow-card);
   box-sizing: border-box;
   display: grid;
   gap: 10px;
   grid-template-columns: 34px minmax(0, 1fr) auto;
+  transition: box-shadow var(--awkit-dur-fast) var(--awkit-ease-out), border-color var(--awkit-dur-fast) var(--awkit-ease-out);
   /* Fill the React Flow node wrapper so the NodeResizer handles align with the
      visible node boundaries (matches .action-flow-node in the Flow Designer). */
   height: 100%;
@@ -1383,7 +1448,8 @@ select {
 }
 
 .scenario-flow-node.selected {
-  box-shadow: 0 0 0 3px rgb(23 105 224 / 16%), 0 8px 20px rgb(26 42 72 / 14%);
+  border-color: color-mix(in srgb, var(--awkit-purple) 40%, var(--awkit-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--awkit-purple) 22%, transparent), var(--awkit-shadow-float);
 }
 
 .scenario-flow-node.parallel {
@@ -1400,7 +1466,7 @@ select {
 
 .scenario-node-order {
   align-items: center;
-  background: #1769e0;
+  background: var(--awkit-blue);
   border-radius: 999px;
   color: #ffffff;
   display: flex;
@@ -4977,4 +5043,804 @@ button.recorded-url-use:hover:not(:disabled) {
 button.recorded-url-use:disabled {
   color: #64748b;
   cursor: default;
+}
+
+/* ==========================================================================
+   AWKIT shared primitives (Phase 2 — UI/UX refactor foundation)
+   docs/ai/ui-reports-refactor/02_ENHANCED_DESIGN_SYSTEM_AND_MOTION.md
+   All classes are `awkit-` namespaced so they never collide with existing
+   .status-chip / .badge-* / .empty-state / .section-heading rules above.
+   ========================================================================== */
+
+/* MetricCard tone + trend (extends the existing .metric-card) */
+.metric-card-success {
+  border-color: color-mix(in srgb, var(--awkit-success) 32%, var(--awkit-border));
+}
+.metric-card-warning {
+  border-color: color-mix(in srgb, var(--awkit-warning) 32%, var(--awkit-border));
+}
+.metric-card-danger {
+  border-color: color-mix(in srgb, var(--awkit-danger) 32%, var(--awkit-border));
+}
+.metric-card-trend {
+  display: inline-flex;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+/* StatusBadge */
+.awkit-status-badge {
+  align-items: center;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+  line-height: 1;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.awkit-status-badge-icon {
+  display: inline-flex;
+}
+.awkit-status-badge.tone-success {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+.awkit-status-badge.tone-warning {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+.awkit-status-badge.tone-danger {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+.awkit-status-badge.tone-info {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-blue-deep);
+}
+.awkit-status-badge.tone-running {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-blue-deep);
+}
+.awkit-status-badge.tone-neutral {
+  background: var(--awkit-neutral-soft);
+  color: var(--awkit-text-muted);
+}
+.awkit-status-badge.is-pulse {
+  animation: awkit-badge-pulse 1.6s var(--awkit-ease-out) infinite;
+}
+@keyframes awkit-badge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(53, 99, 248, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(53, 99, 248, 0);
+  }
+}
+
+/* SectionHeader */
+.awkit-section-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.awkit-section-header-main {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+.awkit-section-header-icon {
+  align-items: center;
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-md);
+  color: var(--awkit-purple);
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+.awkit-section-header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.awkit-section-header p {
+  color: var(--awkit-text-muted);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.awkit-section-header-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/* SkeletonCard */
+.awkit-skeleton-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+.awkit-skeleton-line,
+.awkit-skeleton-block,
+.awkit-skeleton-title {
+  background: linear-gradient(
+    90deg,
+    var(--awkit-surface-inset) 25%,
+    var(--awkit-surface-soft) 37%,
+    var(--awkit-surface-inset) 63%
+  );
+  background-size: 400% 100%;
+  animation: awkit-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+.awkit-skeleton-line {
+  height: 12px;
+}
+.awkit-skeleton-title {
+  height: 16px;
+  width: 55%;
+}
+.awkit-skeleton-block {
+  height: 96px;
+}
+@keyframes awkit-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* EmptyState */
+.awkit-empty-state {
+  align-items: center;
+  background: var(--awkit-surface-soft);
+  border: 1px dashed var(--awkit-border-strong);
+  border-radius: var(--awkit-radius-card);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 40px 24px;
+  text-align: center;
+}
+.awkit-empty-state.is-compact {
+  padding: 20px 16px;
+}
+.awkit-empty-state-icon {
+  align-items: center;
+  color: var(--awkit-text-muted);
+  display: inline-flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.awkit-empty-state strong {
+  color: var(--awkit-text);
+  font-size: 15px;
+}
+.awkit-empty-state-hint {
+  color: var(--awkit-text-muted);
+  font-size: 13px;
+  max-width: 46ch;
+}
+.awkit-empty-state-action {
+  margin-top: 8px;
+}
+
+/* TrendDelta */
+.awkit-trend-delta {
+  align-items: center;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 3px;
+  padding: 2px 7px;
+}
+.awkit-trend-delta.tone-good {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+.awkit-trend-delta.tone-bad {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+.awkit-trend-delta.tone-neutral {
+  background: var(--awkit-neutral-soft);
+  color: var(--awkit-text-muted);
+}
+
+/* Route-content mount transition. Applied to the shell's <main> for non-canvas routes (keyed by
+   route id so it re-triggers on navigation); `.awkit-page-enter` remains available for opt-in use. */
+.awkit-page-enter,
+.main-surface-animated {
+  animation: awkit-page-enter var(--awkit-dur-med) var(--awkit-ease-out);
+}
+@keyframes awkit-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Reports surfaces (Phase 5) — pages, range selector, charts, panels.
+   ========================================================================== */
+
+.awkit-report-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Time-range segmented control */
+.awkit-range-selector {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+}
+.awkit-range-selector button {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+.awkit-range-selector button:hover {
+  color: var(--awkit-text);
+}
+.awkit-range-selector button.is-active {
+  background: var(--awkit-surface);
+  color: var(--awkit-purple);
+  box-shadow: 0 1px 2px rgba(18, 18, 18, 0.1);
+}
+
+.awkit-icon-button {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+.awkit-icon-button:hover {
+  border-color: var(--awkit-border-strong);
+  color: var(--awkit-text);
+}
+.awkit-spin {
+  animation: report-spin 0.9s linear infinite;
+}
+
+.awkit-primary-button {
+  background: var(--awkit-purple);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+.awkit-primary-button:hover {
+  background: var(--awkit-purple-deep);
+}
+
+.awkit-muted {
+  color: var(--awkit-text-muted);
+  font-size: 13px;
+}
+
+.awkit-report-panel {
+  border-radius: var(--awkit-radius-card);
+}
+.awkit-report-panel-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.awkit-report-panel-head strong {
+  display: block;
+  font-size: 15px;
+}
+.awkit-report-panel-head span {
+  color: var(--awkit-text-muted);
+  font-size: 13px;
+}
+
+/* Charts */
+.awkit-sparkline {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.awkit-bar-chart {
+  display: grid;
+  gap: 10px;
+}
+.awkit-bar-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(80px, 160px) minmax(0, 1fr) 52px;
+}
+.awkit-bar-label {
+  color: var(--awkit-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.awkit-bar-track {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-pill);
+  height: 10px;
+  overflow: hidden;
+}
+.awkit-bar-fill {
+  border-radius: var(--radius-pill);
+  display: block;
+  height: 100%;
+  transition: width var(--awkit-dur-med) var(--awkit-ease-out);
+}
+.awkit-bar-value {
+  color: var(--awkit-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.awkit-donut {
+  display: inline-flex;
+}
+.awkit-donut-center {
+  fill: var(--awkit-text);
+  font-size: 22px;
+  font-weight: 700;
+}
+.awkit-donut-center-sub {
+  fill: var(--awkit-text-muted);
+  font-size: 11px;
+}
+
+/* Report tables */
+.awkit-table-wrap {
+  overflow-x: auto;
+}
+.awkit-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+.awkit-table th {
+  border-bottom: 1px solid var(--awkit-border);
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+.awkit-table td {
+  border-bottom: 1px solid var(--awkit-border);
+  color: var(--awkit-text);
+  padding: 9px 10px;
+  vertical-align: middle;
+}
+.awkit-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.awkit-table-hover tbody tr {
+  cursor: pointer;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+.awkit-table-hover tbody tr:hover {
+  background: var(--awkit-surface-soft);
+}
+.awkit-table tbody tr.is-selected {
+  background: var(--awkit-info-soft);
+}
+.awkit-th-numeric,
+.awkit-td-numeric {
+  text-align: right;
+}
+.awkit-sort-header {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 600;
+  gap: 3px;
+  padding: 0;
+}
+.awkit-sort-header:hover {
+  color: var(--awkit-text);
+}
+.awkit-link-button {
+  background: none;
+  border: none;
+  color: var(--awkit-blue-deep);
+  font: inherit;
+  font-weight: 600;
+  gap: 4px;
+  padding: 0;
+}
+.awkit-link-button:hover {
+  text-decoration: underline;
+}
+.awkit-link-button svg {
+  vertical-align: -2px;
+}
+
+.awkit-pager {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* Live distribution */
+.awkit-distribution {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.awkit-distribution-item {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.awkit-distribution-item strong {
+  font-size: 22px;
+}
+
+/* Run-detail drawer */
+.awkit-drawer-scrim {
+  background: rgba(18, 18, 18, 0.28);
+  inset: 0;
+  position: fixed;
+  z-index: var(--awkit-z-drawer);
+}
+.awkit-drawer {
+  animation: awkit-drawer-in var(--awkit-dur-med) var(--awkit-ease-out);
+  background: var(--awkit-surface);
+  box-shadow: var(--awkit-shadow-float);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin-left: auto;
+  max-width: 560px;
+  width: 90%;
+}
+@keyframes awkit-drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.awkit-drawer-head {
+  align-items: center;
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+.awkit-drawer-head strong {
+  display: block;
+  font-size: 15px;
+}
+.awkit-drawer-head .awkit-muted {
+  font-size: 12px;
+}
+.awkit-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  padding: 18px;
+}
+.awkit-detail-meta-head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.awkit-detail-meta-head strong {
+  font-size: 15px;
+}
+.awkit-detail-grid {
+  display: grid;
+  gap: 12px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+.awkit-detail-grid dt {
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+}
+.awkit-detail-grid dd {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+.awkit-detail-error {
+  background: var(--awkit-danger-soft);
+  border-radius: var(--radius-md);
+  color: var(--awkit-danger);
+  font-size: 13px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  word-break: break-word;
+}
+.awkit-detail-section h3 {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+.awkit-artifact-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.awkit-artifact-list li {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+.awkit-artifact-kind {
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+/* RPM gauges */
+.awkit-gauge-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1080px) {
+  .awkit-gauge-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  .awkit-gauge-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.awkit-gauge-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+  padding: 14px 16px 10px;
+}
+.awkit-gauge-card.is-high {
+  animation: awkit-badge-pulse 1.8s var(--awkit-ease-out) infinite;
+  border-color: color-mix(in srgb, var(--awkit-danger) 40%, var(--awkit-border));
+}
+.awkit-gauge-card header {
+  align-items: center;
+  color: var(--awkit-text-muted);
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  justify-content: space-between;
+}
+.awkit-gauge-info {
+  color: var(--awkit-text-muted);
+  cursor: help;
+  display: inline-flex;
+}
+.awkit-gauge {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+.awkit-gauge-needle {
+  transition: transform var(--awkit-dur-slow) var(--awkit-ease-out);
+}
+.awkit-gauge-value {
+  font-size: 26px;
+  font-weight: 700;
+}
+.awkit-gauge-unit {
+  fill: var(--awkit-text-muted);
+  font-size: 11px;
+}
+.awkit-gauge-caption {
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+/* Availability + backpressure notices */
+.awkit-availability-notice {
+  align-items: flex-start;
+  background: var(--awkit-warning-soft);
+  border: 1px solid color-mix(in srgb, var(--awkit-warning) 30%, transparent);
+  border-radius: var(--awkit-radius-card);
+  color: var(--awkit-warning);
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.awkit-availability-notice strong {
+  display: block;
+  font-size: 13px;
+}
+.awkit-availability-notice .awkit-muted {
+  font-size: 12px;
+}
+.awkit-availability-notice.awkit-backpressure {
+  background: var(--awkit-danger-soft);
+  border-color: color-mix(in srgb, var(--awkit-danger) 30%, transparent);
+  color: var(--awkit-danger);
+}
+
+/* Live process strip */
+.awkit-process-strip {
+  display: grid;
+  gap: 16px;
+}
+.awkit-process-stats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+.awkit-process-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.awkit-process-stats span {
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+}
+.awkit-process-stats strong {
+  font-size: 18px;
+}
+
+/* Consumption timeline */
+.awkit-timeline {
+  display: grid;
+  gap: 10px;
+}
+.awkit-timeline-svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+.awkit-timeline-axis {
+  fill: var(--awkit-text-muted);
+  font-size: 11px;
+}
+.awkit-timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.awkit-timeline-legend span {
+  align-items: center;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+}
+.awkit-timeline-legend i {
+  border-radius: 2px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+.awkit-timeline-legend strong {
+  color: var(--awkit-text);
+  font-size: 12px;
+}
+
+/* Failure + server analytics */
+.awkit-insights {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+.awkit-insights svg {
+  color: var(--awkit-warning);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.awkit-insights ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+.awkit-insights li {
+  font-size: 13px;
+}
+.awkit-failure-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1.4fr 1fr;
+}
+@media (max-width: 900px) {
+  .awkit-failure-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.awkit-donut-with-legend {
+  align-items: center;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@media (max-width: 560px) {
+  .awkit-donut-with-legend {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+}
+.awkit-flaky-high {
+  color: var(--awkit-danger);
+  font-weight: 700;
+}
+.awkit-storage-note {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+.awkit-storage-note svg {
+  color: var(--awkit-text-muted);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.awkit-storage-note p {
+  margin: 0;
+}
+
+/* ==========================================================================
+   Global reduced-motion honor (OS "reduce motion"). Neutralizes CSS animation
+   and transitions everywhere; JS animations additionally check
+   usePrefersReducedMotion(). Placed last so it wins the cascade.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

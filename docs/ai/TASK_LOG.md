@@ -4,6 +4,745 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-07 - Codex - Commit and push all project changes
+
+- **Task:** User explicitly requested committing and pushing all current project changes on
+  `feature/smart-wait-engine`.
+- **Scope:** Existing local workset covering runner/concurrency stability, durable runtime/offline
+  packaging hardening, recorder/session lifecycle, reports/telemetry UI, docs/plans, verifier scripts,
+  and untracked project files currently visible to Git. Root `electron_test*.cjs` scratch probes were
+  intentionally ignored because they contain absolute local profile paths and are not project artifacts.
+- **Verification before commit:** `npm run build` pass; `npm run verify:runner` 82/82;
+  `npm run verify:recorder` 57/57; `npm run verify:telemetry` 39/39; `npm run verify:reports` 26/26;
+  `npm run verify:waits` 21/21; `npm run verify:mock-site` 28/28; `npm run validate:offline` pass;
+  `npm run verify:concurrency` 78/78.
+- **Result:** Fresh local verification passed; changes prepared for commit and push per the explicit
+  Git-cycle request.
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — Dark premium re-skin PLANNING pass (docs only)
+
+- **Task:** Planning-only pass for the full-app dark premium re-skin (user pivot: light → dark
+  premium SaaS; full-app scope). Reviewed the 4 Dribbble template URLs via WebFetch — **all four
+  returned blocked/empty content**; proceeded per the fallback design target as instructed.
+- **Audit findings:** `global.css` still has **130 distinct hex colors** vs 124 `--awkit-*` usages
+  (tokens confined to the reports refactor); hotspots `#ffffff`×47, `#617089`×39, `#dfe6ef`×37,
+  `#f8fafc`×29, `#eef2f7`×17, `#1769e0`×17; shared-class leverage: `.toolbar-button`×70,
+  `.work-panel`×38, `.section-heading`×18; 11 TSX files with inline hex + `connectorStyle.ts`
+  (light-tuned semantic colors) + `ReportsFailures.CATEGORY_COLORS`.
+- **Created:** `docs/ai/ui-reskin-template-plan/` — `00_TEMPLATE_REVIEW_FINDINGS` (incl. honest
+  inaccessibility record), `01_RESKIN_REVIEW_SUMMARY`, `02_SPECIFIC_SYSTEM_DESIGN` (per-class dark
+  anatomy), `03_DESIGN_TOKENS_AND_GLOBAL_CSS_PLAN` (full dark token system + legacy-hex→token
+  conversion table + specificity strategy: value-substitution inside existing rules),
+  `04_APP_SHELL_AND_SHARED_COMPONENTS_PLAN` (21-item table), `05_PAGE_BY_PAGE_RESKIN_PLAN` (every
+  route), `06_WORKFLOW_CANVAS_NODES_CONNECTORS_PLAN` (invariant-preserving; connectorStyle values-only
+  edit, saved styles win), `07_MOTION_AND_ANIMATION_SYSTEM_PLAN`, `08_SIMPLIFICATION_WITHOUT_
+  FUNCTIONALITY_LOSS` (iron rule + control-count diff gate), `09_BINDING_AND_DEPENDENCY_AUDIT`,
+  `10_IMPLEMENTATION_PHASES` (R1–R12, stop-and-report), `11_VERIFICATION_QA_AND_REGRESSION_PLAN`
+  (real package.json commands + grep gates), `12_RISK_REGISTER` (20 risks),
+  `13_NEXT_IMPLEMENTATION_PROMPT` (Phase R1 prompt).
+- **Application code changed:** NONE (docs only). **Tests run:** none needed (planning);
+  grep audits only.
+- **Result:** implementation-ready dark re-skin plan; awaiting user approval to start Phase R1.
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 13: final QA + packaging + handoff (COMPLETE, PASS)
+
+- **Task:** Execute Phase 13 (final) of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — final
+  verification sweep, packaging validation, docs, and the structured handoff report.
+- **Verification (2026-07-07):** `npm run build` clean; `npm run validate:offline` pass (dev mode);
+  `npm run verify:mock-site` 28/28; rebuilt `dist/win-unpacked` via `electron-builder --dir` (avoids
+  the documented max-compression OOM); `npm run verify:packaged-runtime` **25/25** against the real
+  rebuilt EXE (boots with all changes; durable/telemetry init + migration v2 on a fresh runtime.sqlite;
+  external SQLite read OK). Plus the Phase 12 fresh runtime/store evidence (runner 82, cancellation 12,
+  telemetry 39, durable-store 11, runtime-status 15) and Phase 11 UI evidence (reports 26, flow-designer
+  19, workflow-builder 13).
+- **Docs:** created `docs/ai/ui-reports-refactor/FINAL_REPORT.md` (pack's handoff format);
+  updated `docs/ai/ARCHITECTURE.md` (Reporting & Telemetry + Design-system sections) and
+  `docs/ai/FEATURES.md` (Reports & analytics section).
+- **Not re-run (justified):** the 70-check `verify:packaged-walkthrough` — it exercises
+  workflow-run/cancellation/recovery paths this read-only-telemetry + UI initiative doesn't touch, and
+  `verify:packaged-runtime` 25/25 already proves a clean packaged boot with the changes. Standing
+  pre-existing gates unchanged: max-compression signed EXEs (16 GB OOM), clean/offline VM walkthrough,
+  code-signing.
+- **Result:** UI/UX refactor + reports initiative (Phases 1–13) COMPLETE — implemented, verified,
+  documented; additive; zero new npm deps. Nothing committed/pushed (git skipped per user).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 12: mapping/binding regression audit (PASS)
+
+- **Task:** Execute Phase 12 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — full Section-C
+  mapping/binding/dependency audit over every file changed in Phases 2–11; produce a readiness verdict.
+- **Method:** concrete checks — route-id uniqueness (grep), `telemetry:*` handler↔preload channel
+  parity (8/8 exact), interval/listener cleanup (grep: all cleared on unmount), dependency count
+  (unchanged: 7 runtime deps / 13 devDeps, zero new), dead-component scan (`TrendDelta` unused —
+  documented primitive), plus fresh runtime regression evidence.
+- **Fresh evidence (2026-07-07):** `verify:telemetry` 39/39, `verify:durable-store` 11/11,
+  `verify:runtime-status` 15/15, `verify:runner` 82/82, `verify:cancellation` 12/12 (execution
+  semantics intact WITH telemetry writers + process sampler active — proves telemetry can't fail a
+  run); plus Phase 11's `verify:flow-designer` 19/19, `verify:workflow-builder` 13/13,
+  `verify:reports` 26/26, build clean.
+- **Verdict (recorded in `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` §C): PASS.** All 8 audit checks
+  pass; no regressions in execution/persistence/canvases; no blocking risks. Open non-blocking items:
+  `TrendDelta` primitive not yet consumed, populated-data report GUI path not exercised on the empty
+  dev profile, 10-min heap soak + OS reduced-motion toggle are manual gates.
+- **Result:** Initiative audited PASS. Next: Phase 13 (final QA + packaging + handoff report).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 11: motion pass + reduced-motion audit
+
+- **Task:** Execute Phase 11 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — route-content
+  fade, motion-token unification, and a reduced-motion / compositor / idle-animation audit.
+- **Changed:** `app/renderer/layout/AppShell.tsx` — route-content fade: `<main>` keyed by
+  `activeRouteId` (re-triggers on nav) + `main-surface-animated` class applied to **non-canvas routes
+  only** (CANVAS_ROUTES excluded so a mount transform never perturbs React Flow measurement).
+  `app/renderer/components/reports/ReportPage.tsx` — dropped the now-redundant `awkit-page-enter`
+  (fade centralized in AppShell). `app/renderer/styles/global.css` — `.main-surface-animated` shares
+  the `awkit-page-enter` keyframes.
+- **Audit (documented in `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` §Phase 11):** reduced motion fully
+  covered (global CSS media block + `AnimatedCounter`'s `usePrefersReducedMotion`; no other JS
+  animation); compositor-friendly except a bounded one-shot `.awkit-bar-fill` width transition
+  (accepted); no idle always-running animations (gauge pulse only ≥85%, shimmer only while loading,
+  spin only while refreshing); one-shot transitions use motion tokens.
+- **Tests (2026-07-07):** `npm run build` ✅ clean; `verify:flow-designer` ✅ 19/19 and
+  `verify:workflow-builder` ✅ 13/13 (the `<main>` key change is safe for canvas mount);
+  `verify:reports` ✅ 26/26 (route fade doesn't break report rendering).
+- **Result:** Consistent motion language + a safe route fade; reduced-motion comprehensively honored.
+  Next: Phase 12 (mapping/binding regression audit — 08 §C full pass).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 10: Flow Designer / Workflow Builder visual refactor (CSS-only)
+
+- **Task:** Execute Phase 10 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — the delicate
+  designer visual polish, preserving every invariant in `03_ENHANCED_WORKFLOW_BUILDER_CANVAS_NODES.md`.
+- **Scope decision:** kept it **strictly CSS-only** (edited only `app/renderer/styles/global.css`).
+  Deliberately did NOT change `connectorStyle.ts` — the connector colors are semantically meaningful
+  (success=green/failure=red/conditional=amber/parallel=violet); overriding with flat purple/blue
+  would regress clarity and the design rule "status colors carry meaning."
+- **Changed (`global.css` only):** `.action-flow-node` + `.scenario-flow-node` → token surfaces/
+  border/blue accent + `--awkit-shadow-card` + box-shadow/border transition + 10px radius;
+  `.selected` → purple token ring (`color-mix`) + float shadow; `.action-node-icon` → surface-inset +
+  purple; `.scenario-node-order` → `--awkit-blue`. No geometry/structure/DOM/serializer changes.
+- **Tests (2026-07-07):** `npm run build` ✅ clean; **`verify:flow-designer` ✅ 19/19** and
+  **`verify:workflow-builder` ✅ 13/13** (all port-sibling/un-clipped/edge, loop button+port+semicircle,
+  conditional-lock, and selected-only resize invariants intact with the restyled nodes — WB verifier
+  needs a persisted Builder workflow selection: re-seed `selections.selectedBuilderWorkflowId` if it
+  times out on an empty canvas). `verify:runner`/`verify:recorder` NOT re-run — they execute headlessly
+  against the runner core and never load `global.css`; a CSS-only diff cannot affect serialization or
+  recorder logic.
+- **Audit:** row appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (PASS, zero persisted/
+  serializer impact).
+- **Result:** Designer nodes visually modernized (softer premium shadows, purple accent system) with
+  every canvas invariant preserved; zero logic/serializer risk by construction. Next: Phase 11
+  (motion/animation pass + reduced-motion audit).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 9: failure/success + server-performance analytics
+
+- **Task:** Execute Phase 9 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — failure/reliability
+  analytics and server/storage performance.
+- **Changed (additive server channel):** `src/reports/TelemetryContracts.ts` (+`StorageUsage`/
+  `ServerReport`); `app/main/ipc/telemetry.ipc.ts` (+`telemetry:server` — computed in the IPC layer
+  to keep the src/ boundary: `getConfiguredPaths` + a bounded ≤20k-entry never-throwing dir walk
+  cached 60s + `getRuntimeStatus` capacity/process fields); `app/main/preload.ts` (+`telemetry.server`).
+- **Created:** `pages/ReportsFailures.tsx` (category donut + bar from `telemetry.failures`, top failing
+  workflows, reliability ranking with flakiness `min(100, round(failureRate×60 + retryRate×40))` [≥5-run
+  threshold, tooltip-documented], deterministic evidence-based insights — no AI/network);
+  `pages/ReportsServer.tsx` (memory/CPU/Chromium cards + storage bar chart + availability + backpressure
+  + artifacts-never-auto-deleted note). Insights/failure-grid/donut-legend/storage CSS in `global.css`.
+  Routes `reportsFailures`/`reportsServer` + Reports nav group.
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer JS +19 kB); **`npm run verify:reports`
+  ✅ 26/26** (real Electron: all 7 report routes render + resolve; Server Performance shows 4 cards +
+  a real storage-usage section from actual dev-profile folder sizes; zero telemetry/undefined console
+  errors); `verify:flow-designer` ✅ 19/19 (no canvas regression).
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Reports section complete (Overview/Workflow/Instance/Chrome/Runtime/Failure/Server +
+  Run Artifacts); zero new deps. Next: Phase 10 (Flow Designer / Workflow Builder visual refactor).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 8: consumption history + concurrency analytics
+
+- **Task:** Execute Phase 8 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — historical runtime
+  + Chrome consumption trends and analytical summary, on the Phase 4 `runtimeSeries`/`processHistory`
+  channels.
+- **Created:** `app/renderer/components/reports/ConsumptionTimeline.tsx` (hand-rolled multi-series SVG
+  line chart — shared time x-domain, y auto-scale, gaps for undefined points, aria summary,
+  empty-safe); `pages/ReportsRuntime.tsx` (4 timelines: concurrency [browsers/flows/queue], host
+  [memory %/CPU %], Chrome process count, Chrome memory [chromium + electron]; analytical summary:
+  busiest window + peak browsers/memory/process count). Timeline CSS in `global.css` (`awkit-`
+  namespaced). Route `reportsRuntime` + Reports nav group.
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer JS +11 kB); **`npm run verify:reports`
+  ✅ 21/21** (real Electron: Runtime route renders + resolves to a clean empty state — dev profile has
+  no in-range samples — zero telemetry/undefined console errors); `verify:flow-designer` ✅ 19/19 (no
+  canvas regression). Retention sweep for both sample tables already proven by `verify:telemetry`
+  Part D (unchanged, 39/39).
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Runtime/consumption history + analytics live; zero new deps. Next: Phase 9
+  (failure/success + server-performance analytics).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 7: live Chrome consumption + RPM gauges
+
+- **Task:** Execute Phase 7 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — live
+  Chrome/Playwright consumption dashboard with animated RPM-style gauges, on the existing 2s
+  `executions.runtimeStatus()` poll (carrying the Phase 3 `processes` sample).
+- **Created:** `app/renderer/components/reports/` — `RadialGauge.tsx` (hand-rolled 180° SVG gauge,
+  bands 0–60/60–85/85–100, CSS-rotated needle [reduced-motion safe], undefined→neutral "—"),
+  `RpmGaugeCard.tsx` (title + mandatory source/formula tooltip + high-band pulse),
+  `AvailabilityNotice.tsx` (only mentions access when the reason is access-related), `LiveProcessStrip.tsx`
+  (Chrome/host stats + per-slot contexts/pages/health, NULL-tolerant), `useRuntimeStatus.ts` (2s poll,
+  cleaned up on unmount, keeps last snapshot on transient error); `pages/ReportsChrome.tsx` (4 gauges:
+  pool saturation / concurrency / memory pressure / CPU + process cards + strip + availability +
+  backpressure banner). Gauge/notice/process-strip CSS in `global.css` (all `awkit-` namespaced).
+  Route `reportsChrome` + Reports nav group.
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer JS +16 kB, CSS +2.5 kB); **`npm run
+  verify:reports` ✅ 18/18** (real Electron: Chrome route renders 4 RPM gauges — idle shows pool/
+  concurrency 0% and memory/CPU "—" because ResourceSampler starts on first run, i.e. the graceful
+  unavailable path — process-detail section present, stable across a poll tick, zero telemetry/undefined
+  console errors); `verify:flow-designer` ✅ 19/19 (no canvas regression). runtime-status logic
+  untouched (consume-only), so `verify:runtime-status` not re-run.
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Live Chrome consumption dashboard with RPM gauges + graceful availability degradation;
+  zero new deps. Next: Phase 8 (consumption history + concurrency analytics).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 6: workflow & instance reports + run drill-down
+
+- **Task:** Execute Phase 6 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — per-workflow and
+  per-instance report pages with run drill-down, on the Phase 4 telemetry channels.
+- **Changed (additive filter):** `src/reports/TelemetryContracts.ts` (+`RunHistoryFilter`);
+  `queryRunHistory(range,page,filter?)` threaded through `RuntimeStore`/`SqliteRuntimeStore`
+  (parameterized scenarioId/status conditions), `ExecutionEngine`, `app/main/ipc/telemetry.ipc.ts`,
+  `app/main/preload.ts`. Back-compatible (filter optional).
+- **Created:** `app/renderer/components/reports/RunDetailDrawer.tsx` (run metadata + node-attempts
+  table + artifact "Open folder" via `system.openPath` to the parent dir), `statusTone.ts`
+  (status→StatusBadge tone + duration/time formatters); `pages/ReportsWorkflows.tsx` (client-side
+  sortable per-workflow table + scenarioId-filtered recent-runs + drawer); `pages/ReportsInstances.tsx`
+  (live status distribution via a 2s `executions.list()` poll cleaned up on unmount + paginated run
+  history + drawer). Report table/drawer/distribution/pager CSS in `global.css` (all `awkit-`
+  namespaced). Routes `reportsWorkflows`/`reportsInstances` added to `routes.tsx` + the Reports nav group.
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer JS +27 kB, CSS +4 kB); **`npm run
+  verify:reports` ✅ 13/13** (real Electron: all 3 report routes render + resolve to valid states,
+  Instances live-status section, zero telemetry/undefined console errors); **`npm run verify:telemetry`
+  ✅ 39/39** (+scenarioId + status filter checks); `verify:flow-designer` ✅ 19/19 (no canvas regression).
+  Populated-data GUI path (rows + drawer content) not exercised — dev profile has no in-range runs;
+  covered by `verify:telemetry` + build-time binding types.
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Workflow + instance reports live with run drill-down; zero new deps. Next: Phase 7
+  (live Chrome consumption + RPM gauges).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 5: reports nav shell + Overview dashboard
+
+- **Task:** Execute Phase 5 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — first rendered
+  report UI: Reports nav + the `app/renderer/components/reports/` scaffold + a live Overview page on
+  the Phase 4 `telemetry.overview` channel.
+- **Created:** `app/renderer/components/reports/` — `useTelemetryQuery.ts` (loading/error/data,
+  stale-request cancel, manual refetch, no polling), `ReportPage.tsx`, `TimeRangeSelector.tsx`,
+  `MetricSparkline.tsx`, `BarChart.tsx`, `DonutChart.tsx` (hand-rolled SVG/DOM, zero chart deps,
+  point-capped, text/aria fallbacks); `pages/ReportsOverview.tsx` (overview metrics + live instance
+  counts + runs-over-time sparkline; loading/error/store-disabled/empty/ready states);
+  `scripts/verify-reports-gui.mjs` (+ `verify:reports` npm script).
+- **Changed:** `app/renderer/routes.tsx` (+`reportsOverview` route/RouteId; relabel existing `reports`
+  → "Run Artifacts", id unchanged), `app/renderer/layout/LeftNavigation.tsx` (new "Reports" group;
+  moved `reports` out of "Run"), `app/renderer/styles/global.css` (report/chart CSS — all `awkit-`
+  namespaced, reduced-motion block stays last). App.tsx needed no change — it already ignores an
+  unknown `lastRouteId` and falls back to `routes[0]`.
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer JS +15 kB, CSS +3 kB for the pages/charts);
+  **`npm run verify:reports` ✅ 8/8** (real Electron: nav→render, header "Reports Overview", resolves
+  to a valid non-loading state — empty "No runs in this range yet" on the dev profile — 5-button range
+  selector + range change + refresh, zero telemetry/undefined console errors); `verify:flow-designer`
+  ✅ 19/19 (shared CSS, no canvas regression); `verify:telemetry` ✅ 37/37 (aggregate correctness).
+  Real-data GUI path (populated metrics) not exercised — dev profile has no in-range runs; covered by
+  `verify:telemetry` aggregates + the GUI empty→ready state machine.
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** First report page live and rendering real telemetry (empty state on a fresh profile),
+  full state matrix, zero new deps. Next: Phase 6 (workflow & instance reports + run drill-down).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 4: telemetry query IPC + preload
+
+- **Task:** Execute Phase 4 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — read-only
+  `telemetry:*` query channels over the Phase 3 durable read-model, so Phase 5 report pages have a
+  typed data source. Additive; existing channels untouched.
+- **Created:** `src/reports/TelemetryContracts.ts` (shared read-model types + `percentile`/
+  `durationStats`/`processSampleToHistoryPoint` helpers), `app/main/ipc/telemetry.ipc.ts` (7 channels;
+  preset→sinceIso + bucketMs resolved server-side).
+- **Changed:** `src/runner/store/RuntimeStore.ts` (+5 query methods on the interface;
+  NullRuntimeStore returns empty + `storeEnabled:false`). `src/runner/store/SqliteRuntimeStore.ts`
+  (queryOverview/Workflows/RunHistory/Failures/RuntimeSeries — SQL SELECT + bounded JS aggregation,
+  windowed/paginated, row-capped; + `selectAll`/`rangeClause`/`statusBucket`/`buildRunsSeries`
+  helpers). `src/runner/ExecutionEngine.ts` (getTelemetry* read-only delegators; run detail reuses
+  run/attempts/artifacts). `app/main/ipc/index.ts` (register). `app/main/preload.ts` (typed
+  `telemetry` group — additive; no global rename).
+- **Tests (2026-07-07):** `npm run build` ✅ clean; **`npm run verify:telemetry` ✅ 37/37** (Phase 3's
+  21 + 16 new Part G query-layer checks: overview counts/rates/duration/queue-wait, workflow grouping
+  + sort, run-history pagination, failure categorization + top-workflow, runtime-series bucketing,
+  deterministic range filtering, empty-DB safety, NullRuntimeStore `storeEnabled:false`);
+  `verify:durable-store` ✅ 11/11; `verify:runtime-status` ✅ 15/15. Runner/concurrency NOT re-run —
+  Phase 4 adds only read-only query methods + IPC/preload; execution/write paths are unchanged from
+  Phase 3 (which passed runner 82 / concurrency 78 / cancellation 12) and the whole engine typechecks.
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Read-only telemetry query surface complete and typed end-to-end
+  (store → engine → IPC → preload). No report pages yet. Next: Phase 5 (reports nav shell + Overview).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 3: telemetry read-model (additive)
+
+- **Task:** Execute Phase 3 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` — additive durable
+  telemetry foundation for the reports UI, without changing execution semantics.
+- **Changed:** `src/runner/store/RuntimeStoreSchema.ts` (migration **v2** `reporting-extensions`:
+  nullable `runtime_runs` cols scenarioName/triggerType/queueWaitMs/durationMs/retryCount/
+  recoveryCount/reportCategory + new `runtime_process_samples` table + 4 read indexes; new
+  `DurableProcessSampleRecord`; extended `DurableRunRecord`). `src/runner/store/SqliteRuntimeStore.ts`
+  (extended `upsertRun` for v2 cols — preserved across INSERT OR REPLACE via the existing merge-read;
+  new `recordProcessSample`/`listProcessSamples`/`sweepRetention` + `selectAll` helper).
+  `src/runner/store/RuntimeStore.ts` (interface + NullRuntimeStore: 3 new methods).
+  `src/runner/concurrency/RuntimeStatus.ts` (+`processes?: ProcessTreeSample`, additive).
+  `src/runner/ExecutionEngine.ts` (run-summary writers at the existing start/end upsert seams:
+  scenarioName/triggerType/queueWaitMs at start, durationMs/retryCount/reportCategory at end;
+  `startProcessSampling()` gated by `AWKIT_PROCESS_SAMPLING`, persists ≤1 history row/15s; retention
+  sweep on durable init). `.env.example` (+3 `AWKIT_*` reporting vars). `package.json`
+  (+`verify:telemetry`). `scripts/verify-durable-store.mts` (migration-count assertions updated for v2).
+- **Created:** `src/reports/ReportCategories.ts` (pure map over the existing `ErrorClass` →
+  report taxonomy; no re-parsing; conservative `unknown`), `src/runner/runtime/ProcessTreeSampler.ts`
+  (Windows CIM own-subtree Chromium count+memory + Electron main RSS; throttled unref'd timer;
+  never-throws; `availability` full/partial/unavailable), `scripts/verify-telemetry.mts`.
+- **Tests (2026-07-07):** `npm run build` ✅ clean; **`npm run verify:telemetry` ✅ 21/21** (v1→v2
+  in-place upgrade on a real v1-only DB, run-summary round-trip incl. REPLACE-preservation,
+  process-sample write/read, retention time+run cap keeping recoverable runs, full taxonomy mapping,
+  sampler never-throws); `verify:durable-store` ✅ 11/11; `verify:runtime-status` ✅ 15/15;
+  `verify:runner` ✅ 82/82; `verify:cancellation` ✅ 12/12; `verify:concurrency` ✅ 78/78.
+- **Audit:** rows appended to `08_MAPPING_BINDING_DEPENDENCY_AUDIT.md` Section B (all PASS).
+- **Result:** Durable telemetry read-model in place, additive, execution semantics unchanged. No IPC
+  query layer or report pages yet. Next: Phase 4 (telemetry query IPC + preload typings).
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — UI/UX refactor Phase 2: design-system token + primitive foundation
+
+- **Task:** Execute Phase 2 of `docs/ai/ui-reports-refactor/09_EXECUTION_PLAN.md` (design tokens +
+  shared primitives + reduced-motion). Theme locked light-first per user; git/Phase 0 skipped per user.
+- **Changed:** `app/renderer/styles/global.css` — added the `--awkit-*` light-first token block after
+  the existing `--space-*`/`--radius-*` root (additive; no existing rule modified), the `awkit-`
+  namespaced component CSS (StatusBadge/SectionHeader/SkeletonCard/EmptyState/TrendDelta +
+  `.metric-card-*` tone/trend + page-enter keyframes), and a global `prefers-reduced-motion` block
+  placed last. `app/renderer/components/shared/MetricCard.tsx` — extended additively (`trend`, `tone`,
+  `loading` optional props; `value` widened string→ReactNode; delegates loading to SkeletonCard).
+- **Created:** `components/shared/StatusBadge.tsx`, `SectionHeader.tsx`, `SkeletonCard.tsx`,
+  `EmptyState.tsx`, `TrendDelta.tsx`, `AnimatedCounter.tsx`, `usePrefersReducedMotion.ts`. All
+  `awkit-` namespaced so they never collide with the existing `.status-chip`/`.badge-*`/
+  `.empty-state`/`.section-heading` classes. Not yet consumed by any page (consumption begins Phase 5).
+- **Tests (2026-07-07):** `npm run build` ✅ clean (renderer CSS 106→114 kB for the new rules; JS
+  +~1 kB); `npm run verify:flow-designer` ✅ 19/19; `npm run verify:workflow-builder` ✅ 13/13 after
+  `npm run seed:mock-fixtures` + persisting `selections.selectedBuilderWorkflowId` (the WB GUI
+  verifier needs a workflow already loaded on the Builder canvas — the empty-canvas timeout is a
+  persisted-state/environment dependency, confirmed NOT a regression: the failure is at the load
+  precondition and no new CSS matches `.scenario-flow-node`).
+- **Audit:** rows appended to `docs/ai/ui-reports-refactor/08_MAPPING_BINDING_DEPENDENCY_AUDIT.md`
+  Section B (all PASS; zero persisted-data/IPC impact).
+- **Result:** Design-system foundation in place, additive, no behavior change. Next: Phase 3
+  (telemetry read-model — migration v2 + ReportCategories + ProcessTreeSampler + retention).
+
+---
+
+## 2026-07-07 — Claude (Fable 5) — UI/UX refactor + reports prompt-pack review → enhanced execution pack (docs only)
+
+- **Task:** Review the 10-file external prompt pack (`~/Downloads/awkit-ui-reports-prompt-pack/...`)
+  for the planned UI/UX refactor + reports/telemetry initiative, compare it against the real
+  codebase, and produce an enhanced, path-accurate execution pack. No application code changed;
+  originals preserved (they live outside the repo).
+- **Created:** `docs/ai/ui-reports-refactor/` — `00_REVIEW_SUMMARY`, `01_ENHANCED_MASTER_GOAL`,
+  `02_ENHANCED_DESIGN_SYSTEM_AND_MOTION`, `03_ENHANCED_WORKFLOW_BUILDER_CANVAS_NODES`,
+  `04_ENHANCED_REPORTING_TELEMETRY_CONTRACT`, `05_ENHANCED_REPORTS_DASHBOARDS`,
+  `06_ENHANCED_LIVE_CHROME_CONSUMPTION_RPM`, `07_ENHANCED_ANALYTICS_FAILURE_SUCCESS_SERVER`,
+  `08_MAPPING_BINDING_DEPENDENCY_AUDIT` (baseline binding map + live audit table),
+  `09_EXECUTION_PLAN` (14 phases, Phase 0 = land current branch work first),
+  `10_IMPLEMENTATION_PHASES` (copy-paste phase prompts), `11_ACCEPTANCE_CRITERIA` (30 measurable),
+  `12_VERIFICATION_AND_QA_PLAN`, `13_RISK_REGISTER` (22 risks).
+- **Key corrections to the pack:** the telemetry foundation largely EXISTS (`runtime.sqlite`
+  runs/node-attempts/heartbeats/capacity snapshots via `RuntimeStoreSchema.ts`; `RuntimeStatusSnapshot`
+  IPC; `ResourceSampler`; `ErrorClassifier`; JSON `ConcurrentRunReport`) — re-scoped Prompt 04 to
+  additive migration v2 + taxonomy mapping + retention + `ProcessTreeSampler` + windowed `telemetry:*`
+  query IPC; flagged the light-vs-dark theme contradiction (decision gate before Phase 2, light-first
+  recommended); zero-new-dependency chart/motion approach (hand-rolled SVG + CSS, per RULES.md);
+  replaced the "admin required" process-metrics framing with an availability model; moved the fragile
+  canvas visual refactor to Phase 10 (after reports stabilize); added the uncommitted-branch
+  precondition (Phase 0) as the top risk.
+- **Tests run:** `npm run build` ✅ clean (docs-only change; renderer bundle now reports ~1,176 kB —
+  pre-existing growth, noted for the bundle-size debt). **Not run:** feature verifiers (no code touched).
+- **Result:** Enhanced pack ready; Phase 1 (baseline audit) can start after Phase 0 (land current work).
+
+## 2026-07-07 — Claude (Fable 5) — Phase 5.1 verification: Chromium no-egress hardening validated, strict-net packaged walkthrough, packaging OOM finding
+
+- **Task:** Close the Phase 5.1 gates — validate the Chromium no-egress hardening end-to-end, prove
+  the packaged-process teardown, re-run packaged + regression verification after hardening, and
+  honestly document the VM/NSIS gates that need a clean machine. GitHub untouched; nothing committed.
+- **Verified the hardening (no code rewrite needed — the module was already sound):** confirmed
+  `PLAYWRIGHT_DISABLED_FEATURES` in `src/runner/ChromiumHardening.ts` is an exact mirror of installed
+  Playwright 1.61's `disabledFeatures` (load-bearing: the `--disable-features` override is last-wins),
+  and that the hardening is wired into `BrowserContextFactory` + both recorder launch paths and NOT
+  into `SessionCaptureService` (user's real Chrome stays plain).
+- **Changed:** `src/runner/ChromiumHardening.ts` — pinned four Playwright behavioral defaults
+  (`--disable-background-timer-throttling/-hang-monitor/-popup-blocking/-prompt-on-repost`) that the
+  prompt listed, so the no-egress arg set is self-contained if a future Playwright drops them
+  (`--disable-popup-blocking` is load-bearing for the popup-flow feature). `scripts/package-portable.ps1`
+  + `scripts/package-per-user-installer.ps1` — throw on a non-zero `electron-builder` exit (they
+  previously masked a fatal pack failure and left a stale EXE). Docs: `CURRENT_STATE`, `KNOWN_ISSUES`
+  (egress finding marked RESOLVED + new packaging-OOM finding), `PHASE5_OFFLINE_VM_WALKTHROUGH`,
+  `TESTING`, `COMMANDS`, `ARCHITECTURE`, `HANDOFF`.
+- **Tests (all ✅, 2026-07-07):** build clean; `verify:chromium-hardening` **13/13** (ONLINE — bundled
+  Chromium made ZERO non-loopback connections over a 20 s idle window AND navigation to google.com/
+  example.com still worked); rebuilt `dist/win-unpacked` **with hardening**; `verify:packaged-runtime`
+  **25/25**; `AWKIT_WALKTHROUGH_STRICT_NET=1 verify:packaged-walkthrough` **70/70** (strict no-egress
+  PASSES — Phase 5 Google-service burst eliminated; no zombie process); validate:offline pass;
+  durable-store 11; durable-locks 17; cancellation 12; safety-policy 17; dynamic-origin-claims 14;
+  resource-sampling 14; startup-recovery 10; concurrency 78; locks 15; browser-pool 13; watchdog 13;
+  artifacts 13; runtime-status 15; runner 82; waits 21; protected-login 16; recorder 57; mock-site 28;
+  stress:concurrency 13; stress:cancellation 8; stress:locks 10; stress:artifacts 7; soak:runtime 8;
+  `ai:memory` pass. `npm test` / `npm run lint` still do not exist.
+- **Packaging finding:** rebuilding the final single-file EXEs at 7-Zip `-mx=9` OOMs on this 16 GB
+  machine (`Can't allocate required memory!`); `win-unpacked` (the shared, validated payload) rebuilt
+  fine. Produced a one-off `store`-compressed **hardened** portable EXE (~1.2 GB, validation-only);
+  the NSIS installer likewise needs a higher-memory (or lower-compression) machine for a shippable build.
+- **Not done / remaining gates:** clean/offline Windows VM walkthrough (§3 checklist — no VM available);
+  NSIS install/uninstall cycle (integrity sha512 only); code-signing (EXEs unsigned); max-compressed
+  shippable EXEs. **Release-candidate decision: `PASS WITH WARNINGS`** (egress now hardened + proven;
+  VM/installer/signing gates remain).
+
+---
+
+## 2026-07-06 — Claude — Phase 5.1 handoff update: centralized Chromium hardening + packaged-process cleanup
+
+- **Task:** Capture the current Phase 5.1 follow-up state after implementing Chromium no-egress hardening and safer packaged-process teardown for the real Electron main.
+- **Added:** `src/runner/ChromiumHardening.ts`, `scripts/helpers/packaged-process-tree.mts`, and `scripts/verify-chromium-hardening.mts`; wired the hardening into the runner/recorder launch paths and the packaged verifiers.
+- **Tests:** `npm run verify:chromium-hardening` — 13/13 passed. `node scripts/ai-memory/check-memory.mjs` pending final run.
+- **Remaining:** rebuild/package the EXEs with the new hardening, run the NSIS install/uninstall cycle, and perform the clean/offline Windows VM walkthrough.
+
+---
+
+## 2026-07-06 — Claude (Fable 5) — Phase 5 Release-Candidate Gate: packaged clean-profile walkthrough, VM checklist, full re-verification, RC decision
+
+- **Task:** Final release-candidate validation of the freshly packaged AWKIT build (Phase 5).
+  A true clean/offline Windows VM was NOT available to the agent (no Windows Sandbox/Hyper-V on
+  this machine), so the phase delivers: (a) an automated packaged **clean-profile** walkthrough on
+  the dev machine, (b) the human offline-VM checklist, (c) full verification-suite re-run, (d) an
+  honest RC decision. Details in `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md`.
+- **Added:** `scripts/verify-packaged-walkthrough.mts` + `npm run verify:packaged-walkthrough`
+  (**68/68** final run) — real `dist/win-unpacked` EXE with a FRESH empty `LOCALAPPDATA`:
+  first-run init (no white screen, durable init, folders, sample-only content), IPC fixture
+  import, full workflow → `completed` + artifacts (JSONL/screenshot/report/flow-state), hard
+  cancel → `cancelled` + Chromium tree gone + slot/locks freed, 4 instances ≤ 2 browser roots at
+  OS level, recorder start/cancel, hard kill of the REAL main pid → startup recovery
+  (`orphaned`/recoverable, Recoverable Runs panel renders in the real UI, markReviewed clears),
+  external SQLite read, ACTUAL portable EXE first boot on a 2nd fresh profile, NSIS sha512 vs
+  `latest.yml`, continuous TCP sampling (app processes loopback-only; bundled-Chromium startup
+  Google burst = warn-only / strict env flag). Evidence: `dist/phase5-evidence/`.
+  Also `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` (honest status + §3 human VM checklist).
+- **Findings (KNOWN_ISSUES "Phase 5 packaged-walkthrough findings"):** packaged EXE spawn pid is a
+  LAUNCHER STUB (kill the real main from `app.evaluate(() => process.pid)` — stub kills created
+  zombie apps in early runs); orphaned Chromium self-exits when the real main dies; bundled
+  Chromium emits a per-launch Google-service TCP burst (app data stays loopback; harmless
+  offline; hardening follow-up noted); `runWorkflow` requires `dryRun:false`; decorated instance
+  ids vs raw executionId; mock-site 127.0.0.1 vs Node-18 `localhost`→`::1` probe gotcha.
+- **Tests (Phase 5J, all ✅):** build clean; validate:offline pass; packaged-runtime 24;
+  packaged-walkthrough 68; durable-store 11; durable-locks 17; cancellation 12; safety-policy 17;
+  dynamic-origin-claims 14; resource-sampling 14; startup-recovery 10; concurrency 78; locks 15;
+  browser-pool 13; watchdog 13; artifacts 13; runtime-status 15; runner 82; waits 21;
+  protected-login 16; recorder 57; mock-site 28; ai:memory pass. `npm test`/`npm run lint` do not
+  exist (honest note).
+- **Not done / remaining gate:** the clean/offline Windows VM walkthrough itself (§3 checklist) —
+  including the NSIS install/uninstall cycle, offline-adapter startup, and manual
+  protected-login/session-reuse GUI flows on a machine with real Chrome. EXEs unsigned.
+- **Result:** Release candidate **PASS WITH WARNINGS** — packaged build proven functional on a
+  clean user profile with loopback-only app traffic; the offline-VM human gate remains open.
+
+---
+
+## 2026-07-06 — Claude (Fable 5) — Phase 4 Release Hardening: sql.js packaging, runtime diagnostics, recoverable-runs UI, packaged smoke + stress verifiers, offline manifest
+
+- **Task:** Make the Phase 3 durable runtime safe to ship in the packaged app: sql.js WASM
+  packaging + offline manifest, runtime path diagnostics, actionable recoverable runs in the
+  Instance Monitor, packaged-app smoke verification, deterministic stress/soak verifiers, docs.
+  Full detail in `docs/ai/PHASE4_RELEASE_HARDENING.md`.
+- **Added:** `src/runner/store/SqlJsLoader.ts` (explicit `sql-wasm.wasm` resolution via
+  `createRequire` + `locateFile`; path exposed for diagnostics; dev/tsx/app.asar);
+  `RuntimeStatusSnapshot.environment` (`RuntimeEnvironmentInfo`: appMode/runtimeRoot/sqlitePath/
+  artifactsRoot/sqlJsWasmPath/durableStoreEnabled) + `appPaths.getAppMode()`;
+  engine `initializeDurableRuntime` (called at startup from `registerExecutionIpc`),
+  `getRecoveryDetails`, `applyRecoveryAction` (+ `RuntimeStore.listArtifacts`,
+  `DurableArtifactRecord`); IPC `execution:recoveryDetails`/`execution:recoveryAction` + preload;
+  `app/renderer/components/instances/RecoverableRunsPanel.tsx` (details, open artifacts, re-run
+  safe runs only, mark reviewed/abandoned — dangerous runs never auto-resumed); verifiers
+  `verify-packaged-runtime.mts`, `verify-stress-{concurrency,cancellation,locks,artifacts}.mts`,
+  `verify-soak-runtime.mts`; `docs/ai/PHASE4_RELEASE_HARDENING.md`.
+- **Changed:** `SqliteRuntimeStore` uses the loader; `electron-builder.json` explicitly ships
+  `node_modules/sql.js/dist/sql-wasm.{js,wasm}`; `generate-dependency-manifest.ps1` +
+  `validate-offline-bundle.ps1` + `DependencyManifest.ts` policy require the sql.js runtime/WASM
+  flags (`dependencies.sqlJs` added); `execution.ipc.ts` (startup durable init +
+  `resolveStorageDirs` dedupe); `InstanceMonitor.tsx` (recovery panel + refresh callback);
+  engine recoverable-run filter → status `orphaned`/`failed` with note (so reviewed/abandoned
+  drop out). **Fix found by stress:** `DurableLockStore.acquireExclusive` treats Windows
+  EPERM/EBUSY wx-create races as contention (clean denial) instead of throwing.
+- **Packaging:** manifest regenerated; `validate:offline` ✅ (dev + strict); portable EXE rebuilt
+  (310 MB) + NSIS installer rebuilt (357 MB), both 2026-07-06, warm cache, no internet needed by
+  the app; `verify:packaged-runtime` ✅ 24/24 (real packaged-EXE launch: appMode=packaged, durable
+  store enabled, WASM from app.asar, `%LOCALAPPDATA%` paths, external SQLite read, artifacts
+  writable).
+- **Tests:** build ✅; new: stress:concurrency 13 ✅, stress:cancellation 8 ✅, stress:locks 10 ✅,
+  stress:artifacts 7 ✅, soak:runtime 8 ✅, packaged-runtime 24 ✅. Regression: durable-store 11 ✅,
+  durable-locks 17 ✅ (one flake under packaging CPU load, re-run clean — noted in KNOWN_ISSUES),
+  safety-policy 17 ✅, startup-recovery 10 ✅, resource-sampling 14 ✅, locks 15 ✅, browser-pool
+  13 ✅, watchdog 13 ✅, runtime-status 15 ✅, concurrency 78 ✅, artifacts 13 ✅, cancellation
+  12 ✅, dynamic-origin-claims 14 ✅, runner 82 ✅, waits 21 ✅, protected-login 16 ✅, recorder
+  57 ✅, mock-site ✅, ai:memory ✅. `npm test`/`npm run lint` do not exist.
+- **Not run:** clean offline-VM GUI walkthrough (human gate); full workflow execution inside the
+  packaged app (smoke verifier launches + inspects the runtime only); GUI verifiers
+  (flow-designer/workflow-builder — no connector-canvas changes).
+
+---
+
+## 2026-07-06 — Claude (Fable 5) — Concurrency Phase 3: durable SQLite runtime store, cross-process locks, hard cancellation, safety metadata, dynamic origin claims, CPU sampling, startup recovery
+
+- **Task:** Fix the Phase 2 limitations: durable runtime state (SQLite), cross-process locks,
+  hard-stopping cancellation, explicit side-effect metadata (keyword heuristic → fallback only),
+  mid-flow origin claim re-evaluation, CPU/memory sampling in backpressure, and app-restart
+  recovery. Full design + honest trade-offs in `docs/ai/PHASE3_DURABLE_RUNTIME.md`.
+- **Driver decision:** native `better-sqlite3` unusable (Node 18 verifiers vs Electron 33 Node 20
+  ABI split; `node:sqlite` needs Node 22.5+) → **`sql.js` 1.13.0** (WASM SQLite, new runtime
+  dependency + `@types/sql.js` dev): real SQLite file, zero native ABI, offline after install.
+  Persistence = atomic-rename writes (debounced, immediate on critical transitions); cross-process
+  exclusion comes from atomic-filesystem locks, not SQLite file locking.
+- **Added:** `src/runner/store/` — `RuntimeStoreSchema` (10 tables, versioned migrations),
+  `SqliteRuntimeStore`, `RuntimeStore` interface + `NullRuntimeStore`, `DurableLockStore`
+  (wx-file exclusive locks, rank-based semaphores, fencing versions, TTL + dead-pid stale
+  detection with quarantine-not-delete), `DurableLockConfig`, `AppInstance` (app instance id /
+  pid liveness), `StartupRecovery` (pure policy shared by engine + verifier);
+  `src/runner/concurrency/CancellationToken.ts` (token + source, CancelledError),
+  `OriginClaimTracker.ts` (acquire-new-then-release-old, bounded wait, transition log),
+  `ResourceSampler.ts` (system/process memory + CPU deltas, never throws);
+  `FlowStep.safety`/`SideEffectLevel` schema types + `src/runner/runtime/StepSafetyPolicy.ts`
+  (explicit → type defaults → keyword fallback → conservative unknown).
+- **Changed:** `RetryPolicy` is metadata-first (explicit dangerous/externalCommit never retry;
+  explicit-retryable overrides keywords; idempotency-key requirement enforced; infra-terminal
+  classes — incl. new `cancelled` — beat everything); `ErrorClassifier` + `cancelled` class;
+  `BackpressureController` + sampler thresholds (`AWKIT_MAX_SYSTEM_MEMORY_PERCENT`/
+  `AWKIT_MAX_PROCESS_MEMORY_MB`/`AWKIT_MAX_CPU_PERCENT`, fresh-sample gated, sampler failures
+  tolerated); `CapacitySnapshot` + sampled fields; `ProfileLockManager.acquireDurable` (memory +
+  durable, both released) used by `BrowserContextFactory`; `PlaywrightRunner` cancellation
+  (onCancel closes the live generation; flow loop refuses post-cancel work) + passes token/origin
+  tracker to executors; `StepExecutor` throws pre-step on cancel, re-evaluates origin claims after
+  successful steps, emits `sideEffectLevel`; `ExecutionEngine` — per-instance
+  `CancellationTokenSource` (`stopInstance` → durable cancellation record + hard browser close +
+  `cancelled` state, not failed), durable store init + startup recovery + stale-lock scan on first
+  run, durable run/attempt/heartbeat/watchdog/artifact/capacity writes, durable dispatch-claim
+  mirroring, origin tracker per instance, async `getRuntimeStatus` with `durableLocks` +
+  `recoverableRuns`; Instance Monitor strip shows CPU/Mem/Recoverable/Stale-durable-locks.
+- **Tests (new, all deterministic/local):** `verify:durable-store` 11/11, `verify:durable-locks`
+  17/17 (REAL second process via spawned tsx child), `verify:cancellation` 12/12 (live Chromium:
+  30s wait cancelled in seconds, profile lock freed), `verify:safety-policy` 17/17,
+  `verify:dynamic-origin-claims` 14/14 (live 127.0.0.1→localhost origin change),
+  `verify:resource-sampling` 14/14, `verify:startup-recovery` 10/10.
+- **Regression (all green):** `npm run build` clean (sql.js externalized in the main bundle),
+  `verify:concurrency` 78, `verify:locks` 15, `verify:browser-pool` 13, `verify:watchdog` 13,
+  `verify:artifacts` 13, `verify:runtime-status` 15, `verify:runner` 82, `verify:waits` 21,
+  `verify:protected-login` 16, `verify:recorder` 57, `ai:memory` pass, `validate:offline` pass
+  (dev mode). `npm test` / `npm run lint` do not exist.
+- **Behavior changes:** Stop now hard-closes the running browser (run ends `cancelled`, artifacts
+  where possible); unknown custom step types are no longer auto-retried (conservative default);
+  cross-origin mid-flow navigation claims the new origin (can queue/fail the step when saturated,
+  env-tunable); dispatch/profile locks are cross-process durable; packaged builds must ship
+  `node_modules/sql.js` (manifest regeneration + repack pending — flagged).
+
+---
+
+## 2026-07-06 — Claude (Fable 5) — Concurrency Phase 2: audit, hardening, traces, semaphores, runtime status UI
+
+- **Task:** Audit the Phase 1 concurrency layer's real wiring, answer the 15 review questions
+  (`docs/ai/CONCURRENCY_PHASE2_REVIEW.md`), and complete production hardening: failure traces,
+  origin/account semaphores, runtime status visibility, manual-handoff heartbeat safety, and focused
+  verifiers for the dangerous failure modes.
+- **Audit outcome:** slot/lock release paths and manual-handoff watchdog exclusions were already correct;
+  gaps found and fixed: stale heartbeat right after handoff resume, failure screenshots gated behind
+  `onFailure.screenshot`, no trace capture, no per-origin/account fairness, no status surface.
+- **Added:** `src/runner/artifacts/TraceService.ts` (per-step trace chunks on the context; failed steps
+  save `traces/<stepId>-<ts>.zip` before anything closes, success discards; `AWKIT_TRACE_MODE`
+  off/onFailure/always, armed only when the engine provides `paths.traces` so verify scripts and embedded
+  runners have zero overhead); `src/runner/concurrency/DispatchClaims.ts` (origin from baseUrl/first goto,
+  account from envFile) + kind-prefix semaphore capacities in `ResourceLockManager` (`origin:*` →
+  `AWKIT_MAX_PER_ORIGIN` default 2, `account:*` → `AWKIT_MAX_PER_ACCOUNT` default 1; exact-key overrides);
+  `src/runner/concurrency/RuntimeStatus.ts` (pure aggregation) + engine methods `getRuntimeStatus` /
+  `getLockSnapshot` / `getBrowserPoolSnapshot` / `getWatchdogSnapshot`, IPC `execution:runtimeStatus`,
+  preload `executions.runtimeStatus()`, and a read-only Instance Monitor status strip (browsers/flows/
+  pages/queued/locks incl. stale, crash count, backpressure reason, last watchdog action; 2s poll).
+- **Changed:** `ExecutionEngine` acquires origin/account claims at dispatch (saturated key → only those
+  instances queue; browser slot returned) and releases them + strays in `finally`; heartbeat refreshed on
+  `resumeInstance`/`retryHandoff`; node attempts now carry `tracePath` + sanitized `currentUrl`.
+  `StepExecutor` wraps every step in a trace chunk and emits `tracePath`/`currentUrl` on failed events;
+  `FlowExecutor` captures failure screenshots **by default** (opt-out via `onFailure.screenshot: false`;
+  best-effort, never masks the step error). `WatchdogService` gained a snapshot (last scan, recent
+  findings, swept locks). `ResourceLockManager.snapshot(false)` keeps expired-but-unswept leases visible
+  for diagnostics. `InstanceRuntimePaths`/`InstanceExecutionContext.paths` gained `traces`.
+- **Tests:** new `verify:locks` 15/15 (incl. lock release after failed `launchPersistentContext` and the
+  concurrent-profile race), `verify:browser-pool` 13/13 (fake runtimes; saturation, release after
+  failure/cancel, generation guards), `verify:watchdog` 13/13 (incl. manual-handoff no-false-positive),
+  `verify:artifacts` 13/13 (live Chromium: failure trace zip, success discards, default screenshot,
+  trace-save failure never masks error), `verify:runtime-status` 15/15. Regression: `verify:concurrency`
+  78/78, `npm run build` clean, `verify:runner` 82/82, `verify:waits` 21/21, `verify:protected-login`
+  16/16, `verify:recorder` 57/57, `ai:memory` pass. `npm test` / `npm run lint` do not exist in this repo.
+- **Behavior changes:** failing steps now save a trace zip + screenshot by default in engine runs;
+  instances sharing one origin/account queue beyond the configured caps (env-tunable).
+
+---
+
+## 2026-07-06 — Claude (Fable 5) — Concurrency & stability layer (locks, browser pool, backpressure, watchdog, classified retry, run artifacts)
+
+- **Task:** Implement the local high-concurrency stability architecture: resource locks, bounded browser
+  pool, backpressure/admission control, explicit runtime state machines, node-attempt records, classified
+  retries with a dangerous-mutation guard, heartbeats + watchdog, and structured on-disk run artifacts —
+  without breaking the existing execution path. Plan in `docs/ai/CONCURRENCY_IMPLEMENTATION_PLAN.md`.
+- **New modules:** `src/runner/concurrency/` (`ResourceKey`, `Semaphore`, `ResourceLockManager` with
+  exclusive/shared/semaphore modes + TTL leases + fencing versions + atomic multi-acquire + snapshot,
+  `ConcurrencyConfig` with `AWKIT_*` env overrides, `BackpressureController`, `CapacitySnapshot`),
+  `src/runner/browser/BrowserWorkerPool.ts` (bounded browser slots, health/crash window, capacity snapshot),
+  `src/runner/runtime/` (`RuntimeStateMachine` — FlowRunStatus/NodeStatus with validated transitions,
+  `NodeAttempt`(+Log), `ErrorClassifier`, `RetryPolicy`, `InstanceHeartbeat`, `WatchdogService`),
+  `src/runner/artifacts/` (`RunLogger` — JSONL to `instance.paths.logs`, `RunStateArtifacts` —
+  flow-state/node-attempts/capacity/locks JSON under `<instance storage>/state`),
+  `src/profiles/ProfileLockManager.ts` (exclusive in-process `profile:*` lock).
+- **Integrations (minimal diffs):** `BrowserContextFactory` acquires the exclusive profile lock before
+  `launchPersistentContext` (released in the runtime close path — two runtimes can never share one
+  `userDataDir` in-process); `FlowExecutor.executeWithRetry` is now classification-gated (transient
+  navigation/timeout/locator/download errors retry with exponential backoff; submit/approve/delete/send/
+  pay/confirm-looking mutations and dead browser/context/page failures never auto-retry) and isolated
+  parallel branches are clamped by `maxActiveNodesPerFlow`; `PlaywrightRunner` gained an optional
+  `onBrowserRuntime` hook (initial launch + every Reuse Session swap generation); `ExecutionEngine`
+  acquires a pool slot per instance under backpressure admission (pool saturation / active-flow cap /
+  low memory / crash rate → dispatch queued with a logged reason), tracks per-instance runner promises,
+  updates `InstanceRuntimeState.runtime` (flowRunStatus/heartbeatAt/browserWorkerId — additive; UI
+  `status` unchanged), folds progress events into heartbeats + JSONL log + node attempts, runs the
+  `WatchdogService` (stale-heartbeat notes, orphan → failed, stale-lock sweep), and writes end-of-run
+  state artifacts + releases slots/stray profile locks in `finally`.
+- **Defaults (env-overridable):** maxBrowsers 2, contexts/browser 4, pages/context 2, activeFlows 4,
+  nodes/flow 2, min free memory 512MB, crash window 3/5min, stale heartbeat 120s, watchdog 15s.
+- **Tests:** new `npm run verify:concurrency` (78/78 — locks incl. fencing/TTL/atomicity, semaphore,
+  pool saturation, backpressure reasons, classifier/retry incl. dangerous guard, state machines, node
+  attempts, watchdog stale/orphan/dedupe/lock-sweep, JSONL logger, state artifacts, FlowExecutor retry
+  integration with stubbed executor, live Chromium profile-lock + cleanup). Regression: `npm run build`
+  clean, `verify:runner` 82/82, `verify:waits` 21/21, `ai:memory` pass.
+- **Behavior changes:** instances beyond the browser cap now queue (previously unbounded Chromium
+  processes); failed steps only retry for transient error classes; isolated-parallel concurrency is
+  clamped by host limits (existing verifier configs unaffected at the default of 2).
+
+---
+
+## 2026-07-05 — Codex — Workflow protected-login handoff now captures a normal-browser session
+
+- **Task:** Align workflow-runner protected-login handling with the intended secure-login design: when a
+  protected login / human verification page is detected, close the Playwright automation browser, open normal
+  Chrome/Edge at the detected login URL, wait for the user to complete login and close it, capture the session,
+  relaunch Playwright with that persistent profile, and continue the workflow.
+- **Root cause:** `Auto Secure Login` and recorder secure-login handoff already used `SessionCaptureService`
+  + browser restart, but runner-side auto-detected Protected Login Handoff only paused for
+  Continue/Retry/Cancel and did not start normal-browser session capture.
+- **Fix:** `StepExecutor` now calls a protected-login capture path when `sessionService` and
+  `browserRestarter` are available. The helper emits waiting progress, closes the automation browser, starts
+  `manualChromeHandoff` capture at the detected/configured login URL, handles cancel/timeout/error, validates
+  captured profile data, relaunches on the captured profile, marks the session used, clears pending handoff
+  state, and maps session outputs. The capture wait uses `config.handoffTimeoutMs` (0 disables timeout on
+  explicit Protected Login Handoff nodes) and deliberately ignores the triggering step's `timeoutMs`, so an
+  auto-detected protected login after `goto` does not time out on the navigation/action timeout while the
+  user is still completing login in normal Chrome/Edge. Captured handoff also returns step outcome
+  `sessionCaptured` for connector routing parity with Auto Secure Login / Reuse Session. If capture services
+  are unavailable, the existing manual pause behavior remains as fallback.
+- **Tests:** Added `verify:runner` coverage for explicit `protectedLoginHandoff` session capture and
+  auto-detected protected-login capture after `goto`, including a short-navigation-timeout regression.
+  `npm run typecheck` pass; `npm run verify:runner` 82/82; `npm run build` pass;
+  `npm run ai:memory` pass; `npm run verify:protected-login` 16/16.
+
+---
+
+## 2026-07-05 — Codex — Reuse Session browser lifecycle fixed
+
+- **Task:** Fix the real `Smart-Rec-Chatgpt` workflow path (`Start → Auto Secure Login → Reuse Session →
+  Navigate to https://chat.openai.com`) so Reuse Session does not leave stale browser/page references and
+  Navigate no longer fails with `Target page, context or browser has been closed`.
+- **Root cause:** `StepExecutor.runStepWithWaits` restored the pre-swap active page after `Auto Secure Login`
+  / `Reuse Session`, so the next step could target an old closed page/context. Browser-swap lifecycle
+  handlers and cleanup also lacked generation guards, so old-generation close/disconnect events were not
+  explicitly isolated from the new persistent runtime.
+- **Fix:** `PlaywrightRunner` now performs a generation-guarded two-phase persistent-context swap with
+  explicit close reasons, debug close-stack traces behind `AWKIT_BROWSER_LIFECYCLE_DEBUG=1`, a swap mutex,
+  live page resolution from the new context, active-executor rebinding, old-runtime close after publish, and
+  post-swap liveness verification. `StepExecutor` liveness-checks before every step, preserves the new active
+  page after session-swap steps, verifies swapped sessions, reports locked/open profile failures clearly, and
+  treats stale recorder-generated armed response waits on successful `goto` as optional navigation hints.
+  `BrowserContextFactory` checks profile lock artifacts before launch; `ExecutionEngine` avoids an unhandled
+  rejection from fire-and-forget `.finally()` cleanup.
+- **Files changed:** `src/runner/BrowserContextFactory.ts`, `src/runner/PlaywrightRunner.ts`,
+  `src/runner/StepExecutor.ts`, `src/runner/ExecutionEngine.ts`, `scripts/verify-runner.mts`,
+  `scripts/verify-waits.mts`, and AI memory docs.
+- **Tests:** `npm run typecheck` pass; `npm run verify:waits` 21/21; `npm run build` pass;
+  `npm run verify:runner` 79/79; `npm run verify:recorder` 57/57; `npm run ai:memory` pass.
+- **Real Electron evidence:** Built app launched through Playwright `_electron`; workflow execution
+  `df1f89c3-71b4-4f40-a3bd-73dcefd542fe` showed `Reuse Session` succeeded (3433 ms) and `Navigate to
+  https://chat.openai.com` succeeded (30579 ms) after resuming the expected Protected Login Handoff. No
+  closed-target browser lifecycle error occurred and no terminal unhandled rejection was observed.
+
+---
+
+## 2026-07-04 — Claude — IN PROGRESS: Reuse Session browser swap dies ~34–76ms after relaunch (UNRESOLVED)
+
+- **Symptom:** Recorded ChatGPT workflow (`Start → Auto Secure Login → Reuse Session → Navigate`) fails.
+  `Reuse Session` swaps the automation browser to `launchPersistentContext(session-8aa61a06 dir)`; diagnostics
+  show `[swap] relaunched OK: 2 page(s), activePage.closed=false`, then the active page closes ~34ms later,
+  the context ~58ms, and the browser disconnects ~76ms after relaunch. `Navigate` then throws
+  `page.goto: Target page, context or browser has been closed`. The browser process is dying on its own
+  right after Playwright connects — **only inside the running Electron app.**
+- **Hypotheses DISPROVEN by direct reproduction (all four repro paths SUCCEED with the exact failing
+  profile + swap sequence):** standalone Node, inside real Electron (bundled Chromium `resources/browsers/
+  chromium/chrome.exe`), inside real Electron on the dev path (Playwright `chromium-1228`), and a same-dir
+  persistent-context close→relaunch race. In every isolated harness the profile opens, pages stay alive, and
+  `goto https://chat.openai.com` succeeds.
+  - NOT a version mismatch: profile `Last Version`, bundled Chromium, and `chromium-1228` are all
+    `149.0.7827.55`.
+  - NOT stale lock files: profile dir has no `SingletonLock`/`SingletonCookie`/`SingletonSocket`/`lockfile`.
+  - NOT "external/incompatible profile": the real-Chrome (`manualChromeHandoff`) profile reuses fine with the
+    bundled Chromium. **Do NOT add a `createdBy: awkit-playwright` guard — `SessionCaptureService` captures
+    every session with the user's REAL Chrome/Edge by design, so such a guard would block 100% of sessions.**
+  - NOT signal teardown: `handleSIGINT/SIGTERM/SIGHUP:false` added; browser still dies.
+- **What changed (hardening + diagnostics only — does NOT fix the crash):**
+  - `src/runner/BrowserContextFactory.ts` — `removeStaleProfileLocks` before `launchPersistentContext`
+    (best-effort); `handleSIGINT/SIGTERM/SIGHUP:false` on all launches (embed-in-Electron best practice).
+  - `src/runner/PlaywrightRunner.ts` — `[swap]` diagnostics in `restartBrowser` (relaunch log + context/page
+    `close` listeners with elapsed-ms) + `logMeta` helper. This is what produced the decisive timing.
+  - `src/runner/StepExecutor.ts` — `assertSwappedBrowserAlive` (round-trips `page.title()` after swap) +
+    `sessionProfileOpenError`; `executeReuseSession`/`executeAutoSecureLogin` wrap the swap and fail the node
+    with an actionable message instead of a cryptic downstream `goto` error. (Fails cleanly; does not prevent
+    the browser death.)
+- **Next step (not done):** discriminate crash vs. close vs. process-exit in-app — add `page.on('crash')` +
+  browser-disconnect reason to the swap path, and run the workflow once pointing `Reuse Session` at a
+  brand-new profile. If a fresh profile also dies at ~76ms, the profile is conclusively ruled out and the
+  cause is app-runtime-specific (something the full app does to the freshly launched browser).
+- **Tests:** `npm run build` clean. `npm run verify:runner` → 76/76 (does not cover the in-app Electron swap
+  that fails). Root cause still OPEN.
+- **Repro scripts were temporary and deleted** (they lived under `scripts/_tmp_*`). Untracked
+  `electron_test*.cjs` at repo root are pre-existing (not from this task) and were left untouched.
+
+---
+
 ## 2026-07-04 — Claude — Recorder secure-login browser handoff (protected login/popup)
 
 - **Task:** Detect protected login / protected popup during recording, pause + close the Playwright

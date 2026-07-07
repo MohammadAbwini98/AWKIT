@@ -12,6 +12,8 @@ $browserPath = Join-Path $resourcesRoot "browsers\chromium\chrome.exe"
 $nodeModules = Join-Path $root "node_modules"
 $playwrightRuntime = Join-Path $nodeModules "playwright"
 $playwrightCoreRuntime = Join-Path $nodeModules "playwright-core"
+$sqlJsWasm = Join-Path $nodeModules "sql.js\dist\sql-wasm.wasm"
+$sqlJsJs = Join-Path $nodeModules "sql.js\dist\sql-wasm.js"
 
 $packageJson = Get-Content -Raw $packageJsonPath | ConvertFrom-Json
 
@@ -36,6 +38,8 @@ $nativeModuleFileCount = if (Test-Path $nativeModulesPath) { (Get-ChildItem -Fil
 $nativeModulesRequired = $nativeModuleFileCount -gt 0
 $nativeModulesIncluded = $true
 $playwrightRuntimeIncluded = (Test-Path $playwrightRuntime) -and (Test-Path $playwrightCoreRuntime)
+# sql.js (WASM SQLite) powers the durable runtime store; the .wasm asset MUST ship with the app.
+$sqlJsRuntimeIncluded = (Test-Path $sqlJsJs) -and (Test-Path $sqlJsWasm)
 $browserLaunchTestPassed = $false
 
 if ($browserExists) {
@@ -90,6 +94,8 @@ $manifest = [ordered]@{
     nativeModulesIncluded = $nativeModulesIncluded
     nativeModulesRequired = $nativeModulesRequired
     playwrightRuntimeIncluded = $playwrightRuntimeIncluded
+    sqlJsRuntimeIncluded = $sqlJsRuntimeIncluded
+    sqlJsWasmIncluded = (Test-Path $sqlJsWasm)
   }
   browsers = @(
     [ordered]@{
@@ -123,6 +129,7 @@ $manifest = [ordered]@{
     noRuntimeDownloadsDetected = $true
     noAdminPathRequired = $true
     playwrightRuntimeFilesExist = $playwrightRuntimeIncluded
+    sqlJsWasmFileExists = (Test-Path $sqlJsWasm)
   }
   startupChecklist = [ordered]@{
     manifestExists = $true
@@ -139,7 +146,8 @@ $manifest = [ordered]@{
     playwright = Get-DependencyVersion "playwright"
     react = Get-DependencyVersion "react"
     reactFlow = Get-DependencyVersion "@xyflow/react"
-    sqlite = "not-installed"
+    sqlJs = Get-DependencyVersion "sql.js"
+    sqlite = "sql.js $(Get-DependencyVersion 'sql.js') (WASM, no native driver)"
   }
 }
 

@@ -153,6 +153,28 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   hover/focus reveal cross-fades two equal-area layers so the card height (and grid) never moves; the
   search bar is full content width.
 
+### Reports & analytics (UI-reports refactor, 2026-07-07)
+- ✅ **Reports section** — a "Reports" left-nav group with seven pages plus the existing Run Artifacts:
+  Reports Overview (`ReportsOverview.tsx`), Workflow Reports (`ReportsWorkflows.tsx`, sortable + run
+  drill-down), Instance Reports (`ReportsInstances.tsx`, live distribution + history), Chrome
+  Consumption (`ReportsChrome.tsx`, RPM gauges), Runtime Analytics (`ReportsRuntime.tsx`, consumption
+  timelines), Failure Analytics (`ReportsFailures.tsx`, category breakdown + flakiness + insights),
+  Server Performance (`ReportsServer.tsx`, storage + resources). All consume the read-only
+  `window.playwrightFlowStudio.telemetry.*` channels over the durable runtime store; full
+  loading/empty/error/ready states; hand-rolled SVG charts (no chart dependency). Driven by
+  `npm run verify:reports` (real Electron, 26 checks).
+- ✅ **Telemetry read-model** — additive `runtime.sqlite` migration v2 (run-summary columns +
+  `runtime_process_samples`), `src/reports/ReportCategories.ts` (failure taxonomy over the existing
+  `ErrorClassifier`), `src/runner/runtime/ProcessTreeSampler.ts` (Windows Chrome process sampling),
+  bounded retention sweep, and windowed query methods on the store. Exposed via `app/main/ipc/telemetry.ipc.ts`
+  (`telemetry:overview/workflows/runHistory/runDetail/failures/runtimeSeries/processHistory/server`).
+  Verified by `npm run verify:telemetry` (39 checks). Telemetry is best-effort and never affects a run.
+- ✅ **Design-system layer** — `--awkit-*` tokens + reusable primitives (`StatusBadge`, `SectionHeader`,
+  `SkeletonCard`, `EmptyState`, `TrendDelta`, `AnimatedCounter`, `usePrefersReducedMotion`) in
+  `components/shared/`; report/chart components in `components/reports/`; global reduced-motion honoring;
+  a route-content fade (non-canvas routes). Designer nodes visually modernized (token shadows/accent) with
+  all canvas invariants preserved.
+
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,
   Advanced) wired to the persisted store; folder picker IPC; consumed by writers.

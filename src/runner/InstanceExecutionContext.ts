@@ -33,5 +33,7 @@ export interface InstanceExecutionContext {
     reports: string;
     /** Stable folder for saved browser sessions (Save Session node). */
     sessions?: string;
+    /** Per-run trace output dir — presence of this path is what arms failure-trace capture. */
+    traces?: string;
   };
 }

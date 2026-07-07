@@ -92,6 +92,7 @@ coverage/
 # === Misc backups ===
 *.bak
 package.json.bak.*
+/electron_test*.cjs
 
 # === Source directories that share a name with the runtime-output rules above ===
 # The broad `profiles/`, `reports/`, `instances/`, `storage/`, `data/` rules (kept above so they

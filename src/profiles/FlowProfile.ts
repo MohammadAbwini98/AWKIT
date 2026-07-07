@@ -209,6 +209,19 @@ export interface PopupExpectation {
   closeBehavior?: "returnToMain" | "continueOnPopup";
 }
 
+/** Side-effect classification for a step (Phase 3 explicit safety metadata). */
+export type SideEffectLevel = "none" | "read" | "safeMutation" | "dangerousMutation" | "externalCommit" | "unknown";
+
+/** Explicit per-step safety policy; authoritative for automatic-retry decisions when present. */
+export interface StepSafetyPolicy {
+  sideEffectLevel: SideEffectLevel;
+  retryable: boolean;
+  requiresIdempotencyKey?: boolean;
+  idempotencyKeyExpression?: string;
+  /** Extra resource keys this step needs exclusively (reserved for scheduler use). */
+  exclusiveResources?: string[];
+}
+
 export interface FlowStep {
   id: string;
   type: StepType;
@@ -248,6 +261,12 @@ export interface FlowStep {
   size?: { width: number; height: number };
   /** Type-specific designer configuration (wait/assertion/screenshot/scroll/loop/runFlow). */
   config?: NodeConfig;
+  /**
+   * Explicit side-effect safety metadata (Phase 3). Authoritative for retry decisions when
+   * present; absent steps fall back to node-type defaults + the keyword heuristic. Optional and
+   * backward compatible — existing saved flows load unchanged.
+   */
+  safety?: StepSafetyPolicy;
   next?: string;
   // ── Multi-Window / Popup ──────────────────────────────────────────────────
   /**

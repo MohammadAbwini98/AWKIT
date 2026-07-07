@@ -13,6 +13,8 @@ export interface StepExecutionResult {
   outputs: Record<string, unknown>;
   screenshotPath?: string;
   downloadedFilePath?: string;
+  /** Failure-trace zip saved for this attempt (when trace capture is armed). */
+  tracePath?: string;
   error?: string;
   /** Optional machine-readable error code for conditional connector routing. */
   errorCode?: string;

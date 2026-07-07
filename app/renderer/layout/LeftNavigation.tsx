@@ -12,7 +12,11 @@ const routeGroups = [
   },
   {
     label: "Run",
-    routes: ["executionMonitor", "instanceMonitor", "reports"] satisfies RouteId[]
+    routes: ["executionMonitor", "instanceMonitor"] satisfies RouteId[]
+  },
+  {
+    label: "Reports",
+    routes: ["reportsOverview", "reportsWorkflows", "reportsInstances", "reportsChrome", "reportsRuntime", "reportsFailures", "reportsServer", "reports"] satisfies RouteId[]
   },
   {
     label: "System",

@@ -11,6 +11,7 @@ import { registerRecorderIpc } from "./recorder.ipc";
 import { registerSystemIpc } from "./system.ipc";
 import { registerAuthIpc } from "./auth.ipc";
 import { registerSessionIpc } from "./session.ipc";
+import { registerTelemetryIpc } from "./telemetry.ipc";
 
 export function registerIpcHandlers(): void {
   registerSystemIpc();
@@ -23,6 +24,7 @@ export function registerIpcHandlers(): void {
   registerDataSourceIpc();
   registerRuntimeInputIpc();
   registerReportIpc();
+  registerTelemetryIpc();
   registerOfflineRuntimeIpc();
   registerSettingsIpc();
   registerSessionIpc();

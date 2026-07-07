@@ -4,6 +4,119 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Confirmed (observed during development)
 
+- **Phase 5 packaged-walkthrough findings (2026-07-06) — read before writing any script that drives
+  the packaged app.** Discovered while building `npm run verify:packaged-walkthrough` (five
+  calibration runs against the real `dist/win-unpacked` EXE):
+  1. **The packaged `WebFlow Studio.exe` that gets spawned is a LAUNCHER STUB** — the real Electron
+     main process is its *child* (verified: Playwright `app.process().pid` ≠
+     `app.evaluate(() => process.pid)`). Killing the stub (Node `process.kill`, `taskkill` on the
+     spawned pid) leaves the real app alive as a **zombie with an open window** — two such zombies
+     were produced before this was understood. Any kill/restart/orphan test MUST target the real
+     main pid from `app.evaluate(() => process.pid)`. Bundled-Chromium browser processes are
+     children of the real main, not the stub, so process-tree accounting must use that pid too.
+  2. **When the REAL main process dies, orphaned bundled-Chromium browsers self-exit** (observed
+     cleanly in the final walkthrough runs) — the earlier "8 leaked chrome processes" observation
+     was an artifact of killing only the stub. Startup recovery then classifies the interrupted
+     safe run `orphaned`/recoverable with a note; a run whose browser is closed under a live app
+     instead fails normally with `errorClass: context-closed` and is NOT a recovery case.
+  3. **Bundled Chromium Google-service startup egress — RESOLVED by Phase 5.1C hardening
+     (2026-07-07).** The original Phase 5 finding: every bundled-Chromium launch emitted a short
+     burst of non-loopback Google-service TCP connections (4–5 endpoints in 142.250–251.\*/216.239.\*,
+     path-attributed to `resources/browsers/chromium/chrome.exe`) under plain Playwright launch
+     options; app data itself always stayed on loopback. The follow-up named here (explicit
+     kill-switch flags in the launch path) was implemented as `src/runner/ChromiumHardening.ts`
+     (`buildChromiumHardeningArgs`, wired into `BrowserContextFactory` + the recorder): background-service
+     switches + a `--disable-features` superset of Playwright's list + `--host-resolver-rules` mapping the
+     emitting service hosts (GCM/mtalk, component/variations updaters, safebrowsing, optimization hints,
+     time.google.com, gvt1) to loopback + gaia/search-preconnect redirects. Proven: `verify:chromium-hardening`
+     13/13 (bundled Chromium made ZERO non-loopback connections over a 20 s idle window while external
+     navigation still worked) and `AWKIT_WALKTHROUGH_STRICT_NET=1 npm run verify:packaged-walkthrough` 70/70
+     (strict no-egress passes in the packaged app). Toggle off with `AWKIT_CHROMIUM_OFFLINE_HARDENING=false`.
+     NOTE: this hardening is for AWKIT-owned automation/recorder browsers only — it is never applied to the
+     user's real Chrome in `SessionCaptureService` (protected-login handoff must stay a plain browser).
+  4. **`execution:runWorkflow` only VALIDATES unless `dryRun: false` is passed explicitly**
+     (`request.dryRun !== false` gate in `app/main/ipc/execution.ipc.ts`) — the UI always passes
+     it; programmatic drivers that forget it get `status: "validated"` and no run.
+  5. **Instance ids are decorated:** `instance.executionId` is the raw run UUID, but
+     `instance.instanceId` is `<profileId>-<timestamp>-<hash>-i<N>` (`InstanceManager.
+     createExecutionId`); artifact folders under `instances/`/`logs/`/`screenshots/` use the
+     DECORATED id while `reports/<rawExecutionId>.json` uses the raw one. Match instances by
+     `executionId` equality + `instanceId.endsWith("-i<N>")`, never by reconstructing the prefix.
+  6. **The mock site binds `127.0.0.1` and Node 18 resolves `localhost` to `::1` first**, so a
+     Node-side readiness probe against `http://localhost:4321` reports the server down while
+     browsers (which try both families) connect fine. Probe `http://127.0.0.1:<port>` explicitly.
+
+- **Packaging the final EXEs OOMs at 7-Zip `-mx=9` on low-memory machines (2026-07-07).** On this
+  16 GB dev machine (with heavy memory-compression pressure), `npm run package:portable` /
+  `package:nsis` rebuilt `dist/win-unpacked` successfully but `7za a -mx=9` (max compression of the
+  ~1.2 GB payload) failed with `ERROR: Can't allocate required memory!`, so the portable/NSIS
+  single-file EXEs were **not** produced — the old ones stayed on disk. Two consequences:
+  1. **The wrappers masked the failure.** `scripts/package-portable.ps1` /
+     `package-per-user-installer.ps1` used `$ErrorActionPreference="Stop"`, which does NOT trip on a
+     native-exe non-zero exit in PowerShell 5.1, then printed "… created under dist/." and exited 0 —
+     a silent false success that leaves a **stale EXE wrapping the previous app.asar**. Both scripts
+     were **fixed** to `throw` on a non-zero `$LASTEXITCODE`. Always check the app.asar mtime vs. your
+     source changes before trusting a packaged EXE.
+  2. **Workaround used:** a one-off `npx electron-builder --win <portable|nsis> -c.compression=store`
+     (no committed-config change) avoids the `-mx=9` allocation and produces a functional but
+     **uncompressed (~1.2 GB) EXE** that wraps the hardened payload — fine for validation, not for
+     distribution. A shippable max-compressed + code-signed build must be produced on a
+     higher-memory machine (or with `"compression": "normal"` in `electron-builder.json`).
+  All packaged verifiers (`verify:packaged-runtime`, `verify:packaged-walkthrough`) drive
+  `dist/win-unpacked` directly, so they validate the hardened payload regardless of the final-EXE wrap.
+
+- **Concurrency defaults throttle instance throughput (2026-07-06) — intentional, not a bug.** The new
+  browser worker pool caps live Chromium processes at `AWKIT_MAX_BROWSERS` (default **2**) and active flows
+  at `AWKIT_MAX_ACTIVE_FLOWS` (default **4**), so a run configured with `maxConcurrentInstances` above the
+  cap queues the extra instances (they start as slots free up) instead of launching unbounded browsers.
+  Backpressure also blocks new dispatch on low host memory (`AWKIT_MIN_FREE_MEMORY_MB`, default 512) and
+  high crash rate — the reason is logged (`[backpressure] …`) and visible in
+  `ExecutionEngine.getCapacitySnapshot()`. Raise the env limits for machines that can handle more.
+  **Retry behavior also changed:** a step's `retry.count` only re-runs transient failure classes
+  (navigation/timeout/locator/download); steps whose name/value contains submit/approve/delete/send/pay/
+  confirm-style keywords, and dead browser/context/page failures, are never auto-retried (the block reason
+  is logged). In-process persistent-profile reuse now fails fast with `ProfileLockedError` instead of racing
+  two launches on one `userDataDir`.
+  **Phase 2 additions (2026-07-06):** instances sharing one target origin/account also queue beyond
+  `AWKIT_MAX_PER_ORIGIN` (2) / `AWKIT_MAX_PER_ACCOUNT` (1); failing engine-run steps save a Playwright
+  trace zip + full-page screenshot by default (disable per step with `onFailure.screenshot: false`, or
+  traces globally with `AWKIT_TRACE_MODE=off`) — expect extra files under the instance's
+  `traces/`/screenshots dirs. **Single-process caveats (by design, documented):** locks/pool/watchdog
+  live in the Electron main process only — a second app instance is not coordinated (profiles still
+  protected cross-process by Chrome `Singleton*` artifacts); `stopInstance` marks cancelled but does not
+  kill the in-flight browser (slot frees when the runner notices); dangerous-mutation detection is an
+  English keyword heuristic; origin claims derive from `baseUrl`/first `goto` only (mid-flow cross-origin
+  navigation is not re-claimed). See `docs/ai/CONCURRENCY_PHASE2_REVIEW.md` for the full audit.
+  **Phase 3 (2026-07-06) resolved most of those single-process caveats:** profiles are now protected
+  **cross-process** by the durable wx-file lock store (plus `Singleton*` artifacts for external browsers);
+  `stopInstance` now HARD-cancels (closes the live browser; runs end `cancelled`); the keyword heuristic
+  is only a fallback behind explicit `FlowStep.safety` metadata + node-type defaults; mid-flow
+  cross-origin navigation re-claims `origin:*`; backpressure samples CPU/system/process memory.
+  **New Phase 3 caveats (by design — see `docs/ai/PHASE3_DURABLE_RUNTIME.md`):** the SQLite runtime store
+  uses `sql.js` (WASM) with atomic-rename persistence — a hard kill can lose the last ≤300ms of
+  non-critical writes, and the DB is single-writer per app process; unknown/custom step types are no
+  longer auto-retried (conservative default — add explicit `safety` metadata to opt in); a saturated new
+  origin mid-flow fails that step with a retryable timeout; **packaged builds must ship
+  `node_modules/sql.js`** — RESOLVED in Phase 4 (2026-07-06): the manifest generator/validators now
+  require `sqlJsRuntimeIncluded`/`sqlJsWasmIncluded`, `electron-builder.json` lists the dist WASM
+  explicitly, portable + NSIS EXEs were rebuilt, and `npm run verify:packaged-runtime` (24/24)
+  proves the WASM loads inside the packaged main process (see `docs/ai/PHASE4_RELEASE_HARDENING.md`).
+  **Trap (Phase 4):** the manifest policy (`validateDependencyManifestPolicy`) now FAILS a manifest
+  without the sql.js flags — never ship a stale `resources/dependency-manifest.json` with a new EXE
+  (both packaging scripts regenerate it automatically).
+
+- **Windows `wx`-create vs concurrent unlink race in durable locks (2026-07-06, fixed — don't
+  reintroduce).** Found by `npm run verify:stress:locks`: creating `holder.lock` with the `wx` flag
+  while another release is unlinking the same path surfaces as **`EPERM`/`EBUSY`** on Windows, not
+  `EEXIST`. `DurableLockStore.acquireExclusive` treats those codes as contention (retry once → clean
+  `null` denial). Don't revert to rethrowing every non-`EEXIST` code — under cross-process churn it
+  turned lock contention into an exception at the call site.
+- **`verify:durable-locks` can flake under heavy host load (observed once, 2026-07-06).** Part B
+  ("parent denied the 3rd unit") failed exactly once while `electron-builder` was saturating the CPU
+  in parallel (the spawned child's semaphore units apparently landed late); an immediate re-run
+  passed 17/17. If it fails, re-run it on an idle machine before treating it as a regression — the
+  verifier spawns a real second process and is timing-sensitive.
+
 - **Conditional/parallel connectors are a two-port branch PAIR (2026-07-03) — invariant, now fully
   GUI-verified.** A node's source (right) side is either a single `normal-out` port or a same-kind branch
   pair (`<kind>-out-0/1`, max 2 connectors), never a mix — enforced by construction (the UI only exposes
@@ -110,11 +223,27 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   runs each branch one-after-another on the current page — this is the shared-page safety guard (no concurrent
   UI mutation). Concurrency is available via `isolatedPage` mode (`executeParallelIsolated`): each branch runs
   on its own page in the shared browser context (shared session, independent DOM), bounded by `maxConcurrency`.
-- **Auto Secure Login / Reuse Session not exercised against real Chrome here.** `executeAutoSecureLogin`
-  and `executeReuseSession` are verified only via mocked `SessionCaptureService` in `verify-runner.mts`.
-  The real path (close automation browser → spawn system Chrome → user logs in → relaunch
-  `persistentContext` on the captured `userDataDir`) needs the clean-machine GUI walkthrough. Auto Secure
-  Login's poll loop blocks the instance for up to `timeoutMs` (default 10 min) while the user logs in.
+- **RESOLVED (2026-07-05): Reuse Session browser swap no longer dies after relaunch.** The in-app failure
+  was a lifecycle/reference bug, not a bad saved profile: `runStepWithWaits` restored the pre-swap active
+  page after `Auto Secure Login` / `Reuse Session`, so the next `Navigate` could run against an old closed
+  page/context; stale lifecycle events and cleanup also lacked generation guards. `PlaywrightRunner` now
+  performs a generation-guarded two-phase persistent-context swap, re-points the live `StepExecutor` to a
+  page from the new context, closes the old generation with an explicit reason, ignores stale old-generation
+  page/context/browser close/disconnect events, blocks duplicate swaps, checks profile lock artifacts before
+  launch, and verifies the new runtime remains alive for at least 2 seconds. `StepExecutor` liveness-checks
+  the browser/page before every step and does not restore the old active page after session-swap steps.
+  `ExecutionEngine` no longer leaves an unhandled rejection from fire-and-forget `.finally()` cleanup.
+  Real Electron `Smart-Rec-Chatgpt` verification on 2026-07-05: `Reuse Session` succeeded, `Navigate to
+  https://chat.openai.com` succeeded, and there was no `Target page, context or browser has been closed`.
+  Trap: do **not** add a `createdBy: awkit-playwright` guard or block `manualChromeHandoff` profiles; real
+  Chrome/Edge session capture is the protected-login design.
+- **RESOLVED (2026-07-05): workflow protected-login capture must not inherit navigation/action timeouts.**
+  Auto-detected Protected Login Handoff can run immediately after a `goto`, whose `timeoutMs` is an action
+  timeout, not a human-login window. Reusing it made the normal Chrome/Edge session-capture window time out
+  while the user was still logging in. `StepExecutor.captureProtectedLoginSession` now uses
+  `config.handoffTimeoutMs` only, with the default 10 minutes when unset and `0` disabling the timeout for
+  explicit Protected Login Handoff nodes. Trap: do **not** re-couple protected-login session capture to
+  `step.timeoutMs`; keep action/browser timeouts separate from human handoff timeouts.
 - **Clean-machine GUI walkthrough not done.** The offline-VM walkthrough in
   `docs/OFFLINE_STANDALONE_PACKAGING.md` is the production-ready gate and has not been run.
 - **EXEs are unsigned.** `electron-builder` reports "signing is skipped"; Windows SmartScreen will

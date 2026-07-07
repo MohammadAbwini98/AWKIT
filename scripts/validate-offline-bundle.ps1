@@ -10,6 +10,8 @@ $browser = Join-Path $root "resources\browsers\chromium\chrome.exe"
 $offlineRuntime = Join-Path $root "resources\offline-runtime.json"
 $playwrightRuntime = Join-Path $root "node_modules\playwright"
 $playwrightCoreRuntime = Join-Path $root "node_modules\playwright-core"
+$sqlJsWasm = Join-Path $root "node_modules\sql.js\dist\sql-wasm.wasm"
+$sqlJsJs = Join-Path $root "node_modules\sql.js\dist\sql-wasm.js"
 $sampleFlows = Join-Path $root "resources\sample-flows"
 $sampleWorkflows = Join-Path $root "resources\sample-workflows"
 $sampleScenarios = Join-Path $root "resources\sample-scenarios"
@@ -80,6 +82,12 @@ if (-not (Test-Path $playwrightRuntime) -or -not (Test-Path $playwrightCoreRunti
   $failures.Add("Playwright runtime files are missing from node_modules.")
 }
 
+# Durable runtime store driver (sql.js WASM SQLite): both dist files must be present so the
+# packaged app can load the WASM offline (bundled into app.asar's node_modules).
+if (-not (Test-Path $sqlJsJs) -or -not (Test-Path $sqlJsWasm)) {
+  $failures.Add("sql.js runtime files are missing from node_modules (dist/sql-wasm.js + dist/sql-wasm.wasm).")
+}
+
 foreach ($path in @($sampleFlows, $sampleWorkflows, $sampleScenarios, $sampleData)) {
   if (-not (Test-Path $path)) {
     $failures.Add("Missing bundled resource folder: $path")
@@ -116,6 +124,8 @@ if (Test-Property $manifestJson "runtime") {
   Require-Boolean $manifestJson.runtime "productionNodeModulesIncluded" $true "Manifest must confirm production node_modules are included."
   Require-Boolean $manifestJson.runtime "nativeModulesIncluded" $true "Manifest must confirm native modules are included or not required."
   Require-Boolean $manifestJson.runtime "playwrightRuntimeIncluded" $true "Manifest must confirm Playwright runtime files are included."
+  Require-Boolean $manifestJson.runtime "sqlJsRuntimeIncluded" $true "Manifest must confirm the sql.js runtime is included."
+  Require-Boolean $manifestJson.runtime "sqlJsWasmIncluded" $true "Manifest must confirm the sql.js WASM asset is included."
 }
 
 if (Test-Property $manifestJson "browsers") {
