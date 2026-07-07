@@ -94,6 +94,15 @@ coverage/
 package.json.bak.*
 /electron_test*.cjs
 
+# === UI design-exploration scratch (do not commit; large media & one-off scrapers) ===
+UI Samples/
+*.mp4
+*.mov
+ui-mock.html
+capture-dribbble.mjs
+get-videos.mjs
+00_TEMPLATE_REVIEW_FINDINGS.md
+
 # === Source directories that share a name with the runtime-output rules above ===
 # The broad `profiles/`, `reports/`, `instances/`, `storage/`, `data/` rules (kept above so they
 # still ignore any runtime-generated directory) ALSO matched these real SOURCE directories, which
