@@ -4,6 +4,48 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-07 — Claude (Opus 4.8) — Missing-template design pack (Phases 1–5): shell/sidebar/header structural re-skin
+
+- **Task:** Execute the "Missing Template Design" prompt pack (`01`–`05`) — the structural template
+  work the prior token-only re-skin left out. Visual/layout layer only; no route/IPC/runner/schema
+  changes; `window.playwrightFlowStudio`, React Flow geometry, and the canvas no-transform rule
+  preserved.
+- **Phase 1 (audit):** Extracted 12 motion frames from the 3 mp4s via system Chrome over a local
+  HTTP server (bundled Chromium can't decode H.264; `file://` + the "UI Samples" space fails —
+  needs HTTP Range). Captured 8 live "before" shots. Wrote
+  `docs/ai/ui-reskin-template-plan/15_MISSING_DESIGN_IMPLEMENTATION_REVIEW.md` (design-direction
+  reconciliation: the ACTIVE target is the LIGHT Hologram template, not the stale dark-direction
+  docs 00–03; gap table G1–G7). Added reusable `scripts/capture-ui-screenshots.mjs`.
+- **Phase 2 (shell):** `AppShell.tsx` restructured so the **sidebar is full-height on the left** and
+  the header renders only over the content (`.app-shell` → `grid-template-columns: 260px 1fr` [76px
+  collapsed]; new `.app-main` holds header/content/status). Removed `.app-body`. Canvas geometry
+  preserved.
+- **Phase 3 (sidebar/header):** `LeftNavigation.tsx` — brand **workspace tile**, Settings moved to a
+  pinned **footer utility area** (Settings + Dark Mode + non-interactive workspace identity row).
+  `TopHeader.tsx` — real **"Unsaved changes" status chip** driven by `chrome.dirty` (threaded
+  through `AppShell`/`App`); icon-square back button; purple primary retained. No fake data/controls.
+- **Phase 4 (shared polish):** template KPI-card hover-lift (`.metric-card`) + elevated purple CTA
+  (`.toolbar-button.primary`), reduced-motion-safe. (Cards/tables/forms/inputs/tabs/modals/toasts/
+  empty/skeletons were already tokenized by the prior re-skin.)
+- **Phase 5 (canvas/drawer/motion):** verified already delivered by the re-skin — dotted canvas,
+  16px node cards + type badge + purple/lavender selection, node hover-lift, **floating** rounded
+  properties drawer with float shadow + uppercase section labels, floating bottom-center zoom pill,
+  reduced-motion neutralizer. No structural drawer rewrite (would risk canvas coordinate stability).
+- **Files:** `app/renderer/layout/{AppShell,TopHeader,LeftNavigation}.tsx`, `app/renderer/App.tsx`,
+  `app/renderer/styles/global.css`, `scripts/capture-ui-screenshots.mjs` (new),
+  `docs/ai/ui-reskin-template-plan/15_*.md` (new) + before/phase2/phase3/after/template-frames shots.
+- **Tests run:** `npm run build` clean (×several); `verify:flow-designer` 19/19; `verify:workflow-builder`
+  13/13; `verify:reports` 26/26; `verify:instance-monitor` 22; `verify:recorder` 57/57;
+  `verify:data-editor` 27/27. **Not run:** packaging/offline (untouched); clean-VM GUI walkthrough.
+- **Note (pre-existing test fragility, re-confirmed):** the GUI verifiers navigate by nav **title**
+  (workflow-builder, matches only when collapsed) vs **text** (flow-designer, matches only when
+  expanded), so a collapsed sidebar + restored-route can time out a verifier — reset app route/collapse
+  state between runs. Not caused by these changes.
+- **Result:** the app shell now matches the template structurally (full-height sidebar, header over
+  content, template sidebar footer, real header status chip) on top of the existing token re-skin.
+
+---
+
 ## 2026-07-07 — Claude Fable 5 — Hologram-template UI re-skin + light/dark theme system
 
 - **Task:** Full AWKIT UI/UX re-skin to the user-provided Hologram template (light SaaS, violet

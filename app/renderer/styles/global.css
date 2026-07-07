@@ -189,8 +189,21 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-rows: 60px minmax(0, 1fr) 32px;
+  grid-template-columns: 260px minmax(0, 1fr);
   height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+/* Right side of the shell: header, scrolling content, then the status bar. */
+.app-main {
+  display: grid;
+  grid-template-rows: 60px minmax(0, 1fr) 32px;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -239,6 +252,29 @@ button:disabled {
 
 .header-context strong {
   font-size: 13px;
+}
+
+.header-status-chip {
+  align-items: center;
+  background: var(--awkit-warning-soft);
+  border: 1px solid var(--awkit-warning-muted);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-warning);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+}
+
+.header-status-chip::before {
+  background: currentColor;
+  border-radius: 50%;
+  content: "";
+  height: 6px;
+  width: 6px;
 }
 
 .header-actions {
@@ -303,22 +339,13 @@ button:disabled {
   transform: translateY(1px);
 }
 
-.app-body {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  min-height: 0;
-}
-
-.app-body.collapsed {
-  grid-template-columns: 76px minmax(0, 1fr);
-}
-
 .left-navigation {
   background: var(--awkit-surface);
   border-right: 1px solid var(--awkit-border);
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .left-navigation.collapsed {
@@ -327,13 +354,13 @@ button:disabled {
 
 .brand-block {
   align-items: center;
-  border-bottom: 1px solid var(--awkit-surface-inset);
+  border-bottom: 1px solid var(--awkit-border);
   display: flex;
   font-size: 13px;
   font-weight: 700;
-  gap: 10px;
-  height: 58px;
-  padding: 0 14px;
+  gap: 8px;
+  height: 60px;
+  padding: 0 12px;
 }
 
 .left-navigation.collapsed .brand-block {
@@ -342,9 +369,36 @@ button:disabled {
   width: 100%;
 }
 
-.brand-block > span:last-child {
+/* Template workspace tile: rounded, subtle fill, holds the brand mark + name. */
+.brand-tile {
+  align-items: center;
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: 12px;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.left-navigation.collapsed .brand-tile {
+  background: transparent;
+  border-color: transparent;
+  flex: none;
+  padding: 0;
+}
+
+.brand-name {
   display: grid;
   gap: 1px;
+  min-width: 0;
+}
+
+.brand-name > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-collapse-button {
@@ -442,21 +496,68 @@ button:disabled {
   font-weight: 600;
 }
 
-/* Sidebar footer (theme toggle) — pinned under the scrolling nav list. */
+/* Sidebar footer (Settings / Dark Mode / workspace) — pinned under the scrolling nav list. */
 .nav-footer {
   border-top: 1px solid var(--awkit-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-top: auto;
   padding: 10px;
 }
 
 .left-navigation.collapsed .nav-footer {
-  display: flex;
-  justify-content: center;
+  align-items: center;
   width: 100%;
 }
 
 .nav-theme-toggle {
   width: 100%;
+}
+
+/* Non-interactive workspace identity row (template user footer). */
+.nav-workspace {
+  align-items: center;
+  border-top: 1px solid var(--awkit-border);
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  min-width: 0;
+  padding: 10px 8px 4px;
+}
+
+.nav-workspace-mark {
+  align-items: center;
+  background: var(--awkit-surface-inset);
+  border-radius: 8px;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  width: 30px;
+}
+
+.nav-workspace-name {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav-workspace-name > span:first-child {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-workspace-name small {
+  color: var(--awkit-text-muted);
+  font-size: 11px;
 }
 
 .theme-switch {
@@ -6161,6 +6262,26 @@ button.recorded-url-use:disabled {
     opacity: 1;
     transform: none;
   }
+}
+
+/* ==========================================================================
+   Phase 4 — shared surface polish: KPI card hover lift + elevated primary CTA.
+   Template dashboards lift metric cards on hover; purple CTAs carry soft depth.
+   Transform/shadow only; neutralized by the reduced-motion block below.
+   ========================================================================== */
+.metric-card {
+  transition:
+    transform var(--awkit-dur-fast) var(--awkit-ease-out),
+    box-shadow var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.metric-card:hover {
+  box-shadow: var(--awkit-shadow-float);
+  transform: translateY(-2px);
+}
+
+.toolbar-button.primary {
+  box-shadow: 0 1px 2px rgba(var(--awkit-accent-rgb), 0.28), 0 6px 16px rgba(var(--awkit-accent-rgb), 0.16);
 }
 
 /* ==========================================================================

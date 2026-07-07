@@ -10,6 +10,7 @@ interface AppShellProps {
   activeRouteId: RouteId;
   canGoBack: boolean;
   children: ReactNode;
+  dirty: boolean;
   headerActions: PageAction[];
   sidebarCollapsed: boolean;
   onBack: () => void;
@@ -29,6 +30,7 @@ export function AppShell({
   activeRouteId,
   canGoBack,
   children,
+  dirty,
   headerActions,
   sidebarCollapsed,
   onBack,
@@ -37,16 +39,17 @@ export function AppShell({
 }: AppShellProps) {
   const animateContent = !CANVAS_ROUTES.has(activeRouteId);
   return (
+    // Template shell: full-height sidebar on the left, header/content/status stacked in app-main.
     <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
-      <TopHeader activeRoute={activeRoute} actions={headerActions} canGoBack={canGoBack} onBack={onBack} />
-      <div className={sidebarCollapsed ? "app-body collapsed" : "app-body"}>
-        <LeftNavigation activeRouteId={activeRouteId} collapsed={sidebarCollapsed} onRouteChange={onRouteChange} onToggle={onToggleSidebar} />
+      <LeftNavigation activeRouteId={activeRouteId} collapsed={sidebarCollapsed} onRouteChange={onRouteChange} onToggle={onToggleSidebar} />
+      <div className="app-main">
+        <TopHeader activeRoute={activeRoute} actions={headerActions} canGoBack={canGoBack} dirty={dirty} onBack={onBack} />
         {/* keyed by route so the fade re-triggers on each navigation (not on in-page updates) */}
         <main key={activeRouteId} className={animateContent ? "main-surface main-surface-animated" : "main-surface"}>
           {children}
         </main>
+        <StatusBar />
       </div>
-      <StatusBar />
     </div>
   );
 }
