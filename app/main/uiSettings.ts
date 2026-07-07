@@ -15,10 +15,15 @@ export interface TableState {
   filters: Record<string, unknown>;
 }
 
+/** UI theme preference. "system" follows the OS prefers-color-scheme. */
+export type AppearanceMode = "light" | "dark" | "system";
+
 export interface UiSettings {
   // ── Core layout (existing flat fields, kept for backward compatibility) ──────
   sidebarCollapsed: boolean;
   lastRouteId: string;
+  /** Theme appearance; defaults to "light" for backward compatibility. */
+  appearance: AppearanceMode;
   flowDesignerPaletteWidth: number;
   flowDesignerPropertiesCollapsed: boolean;
   /** Persisted key: ui.flowDesigner.nodePaletteCollapsed */
@@ -114,6 +119,7 @@ const defaultTableState: TableState = {
 const defaultSettings: UiSettings = {
   sidebarCollapsed: false,
   lastRouteId: "dashboard",
+  appearance: "light",
   flowDesignerPaletteWidth: 224,
   flowDesignerPropertiesCollapsed: false,
   flowDesignerPaletteCollapsed: false,

@@ -553,13 +553,13 @@ export function InstanceMonitor() {
 
         {workflows.length === 0 ? (
           <div className="empty-state" style={{ marginTop: 12 }}>
-            <MonitorDot size={30} style={{ color: "#9fafc4" }} />
+            <MonitorDot size={30} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No workflows created yet.</strong>
             <span>Create your first workflow in Workflow Builder.</span>
           </div>
         ) : filteredWorkflows.length === 0 ? (
           <div className="empty-state" style={{ marginTop: 12 }}>
-            <Search size={26} style={{ color: "#9fafc4" }} />
+            <Search size={26} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No matching workflows found.</strong>
             <span>Adjust your search text.</span>
           </div>
@@ -600,7 +600,7 @@ export function InstanceMonitor() {
         {runtimeStatus ? (
           <div
             className="toolbar-strip im-runtime-status"
-            style={{ flexWrap: "wrap", gap: "12px", marginTop: 12, fontSize: 12, color: "#5b6b81", alignItems: "center" }}
+            style={{ flexWrap: "wrap", gap: "12px", marginTop: 12, fontSize: 12, color: "var(--awkit-text-secondary)", alignItems: "center" }}
             title="Concurrency runtime status: browser pool, capacity, resource locks, and watchdog activity."
           >
             <span>
@@ -634,7 +634,7 @@ export function InstanceMonitor() {
             ) : null}
             {runtimeStatus.recoverableRuns && runtimeStatus.recoverableRuns.length > 0 ? (
               <span
-                style={{ color: "#8a6d1f" }}
+                style={{ color: "var(--awkit-warning)" }}
                 title={runtimeStatus.recoverableRuns
                   .map((run) => `${run.instanceId}: ${run.status}${run.recoveryNote ? ` — ${run.recoveryNote}` : ""}`)
                   .join("\n")}
@@ -644,20 +644,20 @@ export function InstanceMonitor() {
             ) : null}
             {runtimeStatus.durableLocks && runtimeStatus.durableLocks.stale.length > 0 ? (
               <span
-                style={{ color: "#8a6d1f" }}
+                style={{ color: "var(--awkit-warning)" }}
                 title={runtimeStatus.durableLocks.stale.map((s) => `${s.key}: ${s.staleReason}`).join("\n")}
               >
                 <strong>Stale durable locks</strong> {runtimeStatus.durableLocks.stale.length}
               </span>
             ) : null}
             {runtimeStatus.capacity.dispatchBlocked && runtimeStatus.capacity.blockedReason ? (
-              <span style={{ color: "#b3572a" }} title={runtimeStatus.capacity.blockedReason}>
+              <span style={{ color: "var(--awkit-warning)" }} title={runtimeStatus.capacity.blockedReason}>
                 <strong>Backpressure:</strong> {runtimeStatus.capacity.blockedReason}
               </span>
             ) : null}
             {runtimeStatus.watchdog.recentFindings.length > 0 ? (
               <span
-                style={{ color: "#8a6d1f" }}
+                style={{ color: "var(--awkit-warning)" }}
                 title={runtimeStatus.watchdog.recentFindings.map((f) => `${f.kind}: ${f.instanceId} — ${f.reason}`).join("\n")}
               >
                 <strong>Watchdog:</strong> {runtimeStatus.watchdog.recentFindings[runtimeStatus.watchdog.recentFindings.length - 1].kind} (
@@ -794,7 +794,7 @@ export function InstanceMonitor() {
         {/* Phase 04: stable table with overflow-x wrapper */}
         {instances.length === 0 ? (
           <div className="empty-state" id="im-empty-state" style={{ marginTop: "16px" }}>
-            <MonitorDot size={32} style={{ color: "#9fafc4" }} />
+            <MonitorDot size={32} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No active instances.</strong>
             <span>Run a workflow card above to launch instances; they will appear here.</span>
           </div>
@@ -902,7 +902,7 @@ export function InstanceMonitor() {
                             title={isDone ? "Remove this instance" : "Cannot remove a running instance"}
                             type="button"
                             onClick={() => removeInstance(instance.instanceId)}
-                            style={{ color: isDone ? "#ef4444" : "inherit" }}
+                            style={{ color: isDone ? "var(--awkit-danger)" : "inherit" }}
                           >
                             <Trash2 size={13} />
                           </button>

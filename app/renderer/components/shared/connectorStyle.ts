@@ -7,25 +7,25 @@ import type { EdgeVisualStyle } from "@src/profiles/FlowProfile";
  * honor per-connector style customization (Task 06).
  */
 export const connectorTypeColor: Record<string, string> = {
-  success: "#22a06b",
-  failure: "#d64545",
-  always: "#1769e0",
-  conditional: "#d68a00",
-  outcome: "#e07c17", // Warm amber — distinct from conditional's yellow
-  manualApproval: "#7c5cff",
-  loop: "#0d9488",
+  success: "#16a34a",
+  failure: "#ef4444",
+  always: "#8b5cf6", // Template violet — the default "flow" color
+  conditional: "#f59e0b",
+  outcome: "#fb923c", // Warm amber — distinct from conditional's yellow
+  manualApproval: "#a78bfa",
+  loop: "#14b8a6",
   loopBack: "#06b6d4", // Cyan — visually suggests "back/return"
-  parallel: "#8b5cf6" // Violet — suggests "fan out"
+  parallel: "#7c3aed" // Deep violet — suggests "fan out"
 };
 
 /** Preset colors offered in the Connector Style picker. Empty value = default by type. */
 export const connectorColorPresets: { value: string; label: string }[] = [
   { value: "", label: "Default (by type)" },
-  { value: "#1769e0", label: "Blue" },
-  { value: "#22a06b", label: "Green" },
-  { value: "#d68a00", label: "Orange" },
-  { value: "#d64545", label: "Red" },
-  { value: "#7c5cff", label: "Purple" },
+  { value: "#8b5cf6", label: "Purple" },
+  { value: "#3b82f6", label: "Blue" },
+  { value: "#16a34a", label: "Green" },
+  { value: "#f59e0b", label: "Orange" },
+  { value: "#ef4444", label: "Red" },
   { value: "#64748b", label: "Gray" }
 ];
 

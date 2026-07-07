@@ -262,9 +262,9 @@ export function WorkflowsLibrary() {
                       </td>
                       <td className="wl-desc-cell">{workflow.description ?? "—"}</td>
                       <td style={{ textAlign: "center" }}>{workflow.nodes?.length ?? 0}</td>
-                      <td>{workflow.dataSource?.dataSourceId ?? <span style={{ color: "#9fafc4" }}>None</span>}</td>
+                      <td>{workflow.dataSource?.dataSourceId ?? <span style={{ color: "var(--awkit-text-muted)" }}>None</span>}</td>
                       <td>
-                        <span className="state-pill" style={{ textTransform: "capitalize", background: "#eef5ff", color: "#0d5dc2" }}>
+                        <span className="state-pill" style={{ textTransform: "capitalize", background: "var(--awkit-accent-soft)", color: "var(--awkit-accent)" }}>
                           {workflow.execution?.mode ?? "sequential"}
                         </span>
                       </td>
@@ -290,7 +290,7 @@ export function WorkflowsLibrary() {
                             <>
                               <button
                                 className="wl-delete-confirm"
-                                style={{ background: "#fef2f2", borderColor: "#fca5a5", color: "#b91c1c" }}
+                                style={{ background: "var(--awkit-danger-soft)", borderColor: "var(--awkit-danger-muted)", color: "var(--awkit-danger)" }}
                                 title="Confirm delete"
                                 type="button"
                                 onClick={() => void deleteWorkflow(workflow.id)}

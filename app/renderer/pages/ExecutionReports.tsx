@@ -114,7 +114,7 @@ export function ExecutionReports() {
           </div>
         ) : reports.length === 0 ? (
           <div className="reports-empty-state" id="reports-empty-state">
-            <FileText size={36} style={{ color: "#9fafc4" }} />
+            <FileText size={36} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No reports yet.</strong>
             <span>Run a workflow to generate your first execution report. Reports appear here after a workflow completes.</span>
           </div>

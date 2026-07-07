@@ -41,6 +41,7 @@ import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { useTheme } from "../state/theme";
 import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, NodeConfig, StepType, ValueSource } from "@src/profiles/FlowProfile";
 import { connectorKind } from "@src/profiles/FlowProfile";
 
@@ -199,6 +200,7 @@ function FlowChartDesignerContent() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const reactFlow = useReactFlow<FlowDesignerNode, FlowDesignerEdge>();
   const navigation = useNavigation();
+  const { resolvedTheme } = useTheme();
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
@@ -808,10 +810,12 @@ function FlowChartDesignerContent() {
               onPaneClick={handlePaneClick}
               onMoveEnd={(_, viewport) => persistFlowZoom(Math.round(viewport.zoom * 100))}
             >
-              <Background color="#dfe7f3" gap={24} size={1} variant={BackgroundVariant.Lines} />
+              <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
               <Controls position="top-right" showZoom={false} />
               <CanvasZoomControl onPersist={persistFlowZoom} />
-              <MiniMap nodeColor={(node) => nodeColor((node.data as FlowDesignerNodeData).validationState)} pannable position="bottom-right" zoomable />
+              {/* Keyed by theme: the minimap composites into its own layer and can keep a stale
+                  paint when only CSS variables change, so remount it on theme switch. */}
+              <MiniMap key={resolvedTheme} nodeColor={(node) => nodeColor((node.data as FlowDesignerNodeData).validationState)} pannable position="bottom-right" zoomable />
             </ReactFlow>
           </div>
         </div>
@@ -830,9 +834,9 @@ export function FlowChartDesigner() {
 }
 
 function nodeColor(validationState: FlowDesignerNodeData["validationState"]): string {
-  if (validationState === "error") return "#d64545";
-  if (validationState === "warning") return "#d68a00";
-  return "#1769e0";
+  if (validationState === "error") return "var(--awkit-danger)";
+  if (validationState === "warning") return "var(--awkit-warning)";
+  return "var(--awkit-accent)";
 }
 
 function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {

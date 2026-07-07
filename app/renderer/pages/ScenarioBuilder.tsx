@@ -48,6 +48,7 @@ import { SelfLoopEdge } from "../components/shared/SelfLoopEdge";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { useTheme } from "../state/theme";
 import {
   SCENARIO_NODE_DEFAULT_HEIGHT,
   SCENARIO_NODE_DEFAULT_WIDTH,
@@ -185,6 +186,7 @@ function ScenarioBuilderContent() {
   const pendingSnapshot = useRef(true);
   const reactFlow = useReactFlow();
   const navigation = useNavigation();
+  const { resolvedTheme } = useTheme();
 
   // Task 07: save success/failure toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -975,10 +977,10 @@ function ScenarioBuilderContent() {
             onNodeDoubleClick={(_, node) => void openFlowInDesigner((node.data as ScenarioFlowNodeData).flowId)}
             onMoveEnd={(_, viewport) => persistBuilderZoom(Math.round(viewport.zoom * 100))}
           >
-            <Background color="#dfe7f3" gap={24} size={1} variant={BackgroundVariant.Lines} />
+            <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
             <Controls position="top-right" showZoom={false} />
             <CanvasZoomControl onPersist={persistBuilderZoom} />
-            <MiniMap pannable position="bottom-right" zoomable />
+            <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />
           </ReactFlow>
         </section>
 

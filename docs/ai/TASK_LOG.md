@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-07 — Claude Fable 5 — Hologram-template UI re-skin + light/dark theme system
+
+- **Task:** Full AWKIT UI/UX re-skin to the user-provided Hologram template (light SaaS, violet
+  accent) with a real light/dark/system theme system. Visual layer only — no route/IPC/runner/
+  validation changes. Template attachments reviewed directly (`UI Samples/` png + 3 mp4s; frames
+  extracted with system Chrome since bundled Chromium lacks H.264).
+- **Files:** `app/renderer/styles/global.css` (token system + re-skin, ~550 hex→token
+  substitutions), `app/main/uiSettings.ts` (+`appearance`), `app/renderer/state/theme.tsx` (new),
+  `App.tsx` (theme root + context), `LeftNavigation.tsx` (Dark Mode toggle), `Settings.tsx`
+  (Appearance select), `connectorStyle.ts` (palette values only), `CanvasZoomControl.tsx`
+  (bottom-center pill), `FlowChartDesigner/ScenarioBuilder/WorkflowDesigner.tsx` (dot-grid
+  Background + minimap colors), inline-hex→token conversion in Recorder, SessionsManager,
+  InstanceMonitor, ExecutionMonitor, ExecutionReports, WorkflowsLibrary, RecoverableRunsPanel.
+- **Tests:** `npm run build` clean; `verify:flow-designer` 19/19; `verify:workflow-builder` 13/13;
+  `verify:reports` 26/26; `verify:instance-monitor` 22/22; `verify:data-editor` 27/27;
+  `verify:recorder` 57/57; two-theme screenshot walkthrough of 6 key pages via `_electron`.
+  Not run: packaging/offline validators (no packaging change), runner suite (no runner change).
+- **Result:** Both themes render correctly across shell, canvases, and pages; canvas invariants
+  intact. Known gap: Settings import doesn't live-refresh the theme context.
+
+---
+
 ## 2026-07-07 - Codex - Commit and push all project changes
 
 - **Task:** User explicitly requested committing and pushing all current project changes on

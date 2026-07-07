@@ -1,5 +1,6 @@
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Moon, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { routes, type RouteId } from "../routes";
+import { useTheme } from "../state/theme";
 
 const routeGroups = [
   {
@@ -32,6 +33,8 @@ interface LeftNavigationProps {
 }
 
 export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onToggle }: LeftNavigationProps) {
+  const { resolvedTheme, setAppearance } = useTheme();
+  const isDark = resolvedTheme === "dark";
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
       <div className="brand-block">
@@ -77,6 +80,25 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
             })}
           </section>
         ))}
+      </div>
+      <div className="nav-footer">
+        <button
+          className="nav-item nav-theme-toggle"
+          aria-pressed={isDark}
+          onClick={() => setAppearance(isDark ? "light" : "dark")}
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          type="button"
+        >
+          <Moon size={17} />
+          {!collapsed ? (
+            <>
+              <span>Dark Mode</span>
+              <span className={isDark ? "theme-switch on" : "theme-switch"} aria-hidden="true">
+                <span className="theme-switch-thumb" />
+              </span>
+            </>
+          ) : null}
+        </button>
       </div>
     </nav>
   );

@@ -12,9 +12,11 @@ import {
 } from "@xyflow/react";
 import { useEffect, useMemo, useState } from "react";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
+import { useTheme } from "../state/theme";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 function WorkflowDesignerContent() {
+  const { resolvedTheme } = useTheme();
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [status, setStatus] = useState("Loading saved workflows…");
@@ -45,10 +47,11 @@ function WorkflowDesignerContent() {
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       style: {
-        background: "#ffffff",
-        border: "1px solid #bdd4f6",
-        borderLeft: `5px solid ${node.required ? "#1769e0" : "#7a879a"}`,
-        borderRadius: 8,
+        background: "var(--awkit-node-surface)",
+        border: "1px solid var(--awkit-node-border)",
+        borderLeft: `4px solid ${node.required ? "var(--awkit-accent)" : "var(--awkit-text-muted)"}`,
+        borderRadius: 14,
+        boxShadow: "var(--awkit-shadow-card)",
         fontSize: 13,
         fontWeight: 600,
         padding: 10,
@@ -125,9 +128,9 @@ function WorkflowDesignerContent() {
 
         <div className="react-flow-shell">
           <ReactFlow fitView edges={edges} nodes={nodes} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
-            <Background color="#dfe7f3" gap={24} size={1} variant={BackgroundVariant.Lines} />
+            <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
             <Controls position="top-right" showInteractive={false} />
-            <MiniMap pannable position="bottom-right" zoomable />
+            <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />
           </ReactFlow>
         </div>
       </div>

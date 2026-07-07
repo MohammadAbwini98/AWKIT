@@ -97,7 +97,7 @@ export function RecoverableRunsPanel({ runs, resolveWorkflow, onRerunWorkflow, o
       style={{ flexDirection: "column", alignItems: "stretch", gap: 8, marginTop: 12, fontSize: 12 }}
       title="Runs interrupted by a previous app exit. Safe runs can be re-run; runs with a side-effect node in flight require manual review and are never auto-resumed."
     >
-      <span style={{ color: "#5b6b81" }}>
+      <span style={{ color: "var(--awkit-text-secondary)" }}>
         <strong>Interrupted prior runs</strong> — {runs.length} found by startup recovery
       </span>
       {runs.map((run) => {
@@ -110,7 +110,7 @@ export function RecoverableRunsPanel({ runs, resolveWorkflow, onRerunWorkflow, o
         const isBusy = !!busy[run.instanceId];
         const safe = run.recoverable === true;
         return (
-          <div key={run.instanceId} style={{ border: "1px solid #dde5ef", borderRadius: 8, padding: "8px 10px", background: "#fbfcfe" }}>
+          <div key={run.instanceId} style={{ border: "1px solid #dde5ef", borderRadius: 8, padding: "8px 10px", background: "var(--awkit-surface-soft)" }}>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <button
                 onClick={() => setExpanded((current) => ({ ...current, [run.instanceId]: !isOpen }))}
@@ -122,13 +122,13 @@ export function RecoverableRunsPanel({ runs, resolveWorkflow, onRerunWorkflow, o
                 Details
               </button>
               <strong
-                style={{ color: safe ? "#1f7a4d" : "#a03e2e" }}
+                style={{ color: safe ? "var(--awkit-success)" : "var(--awkit-danger)" }}
                 title={run.recoveryNote ?? ""}
               >
                 {safe ? "Recoverable — safe to re-run" : "Manual review required"}
               </strong>
               <span title={run.instanceId}>{workflowName}</span>
-              <span style={{ color: "#7c8aa0" }}>interrupted {run.updatedAt ? new Date(run.updatedAt).toLocaleString() : "at unknown time"}</span>
+              <span style={{ color: "var(--awkit-text-secondary)" }}>interrupted {run.updatedAt ? new Date(run.updatedAt).toLocaleString() : "at unknown time"}</span>
               <span style={{ flex: 1 }} />
               {safe ? (
                 <button
@@ -166,7 +166,7 @@ export function RecoverableRunsPanel({ runs, resolveWorkflow, onRerunWorkflow, o
               </button>
             </div>
             {isOpen ? (
-              <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 12, rowGap: 2, color: "#41506a" }}>
+              <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 12, rowGap: 2, color: "var(--awkit-text)" }}>
                 <span>Verdict</span>
                 <span>{run.recoveryNote ?? "—"}</span>
                 <span>Instance</span>

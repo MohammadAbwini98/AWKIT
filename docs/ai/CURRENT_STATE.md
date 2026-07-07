@@ -1,6 +1,50 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-07 (Codex Git-cycle verification pass before user-requested commit/push; Phase 5.1 verification remains current)
+**Last updated:** 2026-07-07 (Claude Fable 5 — Hologram-template UI re-skin + light/dark theme system; see section below)
+
+## Hologram UI re-skin + theme system (2026-07-07)
+
+- **Full visual re-skin to the user-provided Hologram template** (light SaaS style: off-white shell,
+  white sidebar/cards, violet `#6d28d9` accent, 16px card radius, dotted canvas, floating right
+  drawer + bottom zoom pill) implemented as a **token-only + CSS re-skin** — no route/IPC/runner
+  changes. Template sources: `UI Samples/sample_01.png` + 3 mp4s (frames extracted via system
+  Chrome; Playwright's bundled Chromium cannot decode H.264).
+- **Design tokens:** `global.css` now has a complete light token set under `:root`/`[data-theme="light"]`
+  and a full dark override under `[data-theme="dark"]` (surfaces, text, accent family incl.
+  `--awkit-accent-rgb` triplet for rgba glows, status ×soft/muted, canvas bg/dot, node tokens, glass/
+  overlay, shadows, focus ring). All ~548 hardcoded hex values in `global.css` and ~170 inline hex
+  values in renderer TSX were replaced by `var(--awkit-*)` references (property-aware for `#fff`:
+  `color:` → `--awkit-accent-contrast`, backgrounds → `--awkit-surface`). `ReportsFailures.tsx`
+  keeps its 14-hue category palette literal (deliberate — distinct chart hues).
+  `var()` in SVG presentation attributes verified working in Chromium (charts/minimap).
+- **Theme persistence:** `UiSettings.appearance: "light" | "dark" | "system"` (default light,
+  backward compatible via hydrate). Renderer `state/theme.tsx` (`ThemeContext`, `useTheme`,
+  `resolveAppearance`) + App.tsx applies `data-theme` on `<html>` and follows OS changes live in
+  system mode. Sidebar bottom gets a template-style **Dark Mode toggle** (LeftNavigation);
+  Settings > Application gets an **Appearance** select (applies immediately, persists; reset syncs).
+- **Canvas:** all three React Flow canvases use the dotted `BackgroundVariant.Dots` grid colored via
+  CSS (`.react-flow__background circle` → `--awkit-canvas-dot`); RF v12 `--xy-*` variables set for
+  minimap/controls theming. Node cards (`.action-flow-node`, `.scenario-flow-node`): 16px radius,
+  no left color bar (validation now = amber/red border+ring; selection = purple border + lavender
+  `--awkit-node-selected-bg` + ring; selection wins over validation). Scenario execution-mode tint
+  moved to the order badge. `connectorTypeColor` retuned (always/parallel → violet family; semantic
+  green/red/amber kept); `CanvasZoomControl` is now a bottom-center floating pill.
+  **Canvas invariants preserved and GUI-verified:** `verify:flow-designer` 19/19,
+  `verify:workflow-builder` 13/13 (needs seeded fixtures + `lastRouteId`/collapsed-sidebar nav —
+  see KNOWN gotcha: the verifier clicks `nav-item[title="Workflow Builder"]`, which matches only
+  when the sidebar is collapsed since expanded items use description titles).
+- **Shell:** sidebar nav items (36px, purple soft active pill, hover), uppercase group labels,
+  brand block, top header buttons (10px radius, purple primary with hover), themed scrollbars,
+  global `:focus-visible` ring, `::selection`, `color-scheme` per theme.
+- **Motion:** button/nav/switch transitions, node hover lift, modal fade+pop entrance — all
+  transform/opacity, inside the existing last-in-cascade reduced-motion neutralizer.
+- **Verified this pass:** `npm run build` clean ×5; `verify:flow-designer` 19/19;
+  `verify:workflow-builder` 13/13; `verify:reports` 26/26; plus screenshot walkthrough of
+  Dashboard/Flow Designer/Workflow Builder/Recorder/Instances/Settings in BOTH themes via
+  Playwright `_electron` (light + dark render correctly; minimap dark fix applied).
+  `verify:instance-monitor`, `verify:data-editor`, `verify:recorder` run at end of task (see
+  TASK_LOG). Settings **import** does not live-refresh the theme context (appearance applies on
+  next launch) — minor known gap.
 
 ## Git-cycle verification (2026-07-07)
 
