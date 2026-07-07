@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario C — Popup auto-close</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario C — Popup auto-close</h1>
+      <p>Purpose: Tests runner handling when popup closes quickly.</p>
+      
+      <button id="open-auto-close-button" data-testid="open-auto-close-button" onclick="window.open('/popup/auto-close-popup.html', '_blank', 'width=400,height=300')">Open Auto-Close Popup</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;">Waiting...</div>
+    </main>
+    <script>
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "auto-closed") {
+          document.getElementById("status").textContent = "Popup finished and closed";
+        }
+      });
+    </script>
+  </body>
+</html>

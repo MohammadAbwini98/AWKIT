@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card wide">
+      <h1>Feature Test Lab</h1>
+      <p class="hint">
+        Local offline scenarios for AWKIT Recorder, Runner, Smart Wait, Flow Designer, Workflow Builder,
+        and Instance Monitor work.
+      </p>
+
+      <section class="scenario-list" aria-label="Mock site scenarios">
+        <article data-testid="scenario-smart-waits">
+          <h2><a href="/smart-waits">Smart Wait and Runner Lab</a></h2>
+          <p>Delay, loader, modal, toast, navigation, response, sequential, failing, and fast wait scenarios.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Controls update after deterministic local delays.</dd>
+            <dt>Related feature</dt>
+            <dd>Smart Wait Engine, Runner timing, Recorder wait capture.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/smart-waits</code></dd>
+          </dl>
+        </article>
+
+        <article data-testid="scenario-recorder">
+          <h2><a href="/recorder-lab">Recorder Lab</a></h2>
+          <p>Accessible inputs, manual wait capture, reusable URLs, linear Start/End flow, and dynamic DOM.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Recording produces stable locators and clear step boundaries.</dd>
+            <dt>Related feature</dt>
+            <dd>Recorder, locator engine, saved URL history.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/recorder-lab</code></dd>
+          </dl>
+        </article>
+
+        <article data-testid="scenario-designer">
+          <h2><a href="/designer-lab">Designer and Instance Lab</a></h2>
+          <p>Canvas-like area, mock nodes, workflow cards, named flows, and Smart Wait scenario data examples.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Panels, cards, and named fixtures have stable labels and test ids.</dd>
+            <dt>Related feature</dt>
+            <dd>Flow Designer, Workflow Builder, Instance Monitor.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/designer-lab</code></dd>
+          </dl>
+        </article>
+
+        <article data-testid="scenario-core-form">
+          <h2><a href="/login">Core Login and Form</a></h2>
+          <p>Existing login, form, details, and success flow used by runner verification.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Any non-empty login submits to the customer form; form submit renders the success page.</dd>
+            <dt>Related feature</dt>
+            <dd>Runner core nodes, route change, seeded mock fixtures.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/login</code>, <code>/form</code>, <code>/details</code></dd>
+          </dl>
+        </article>
+
+        <article data-testid="scenario-secure-login">
+          <h2><a href="/mock/protected-login">Secure Login and Protected Popup Lab</a></h2>
+          <p>Protected login, protected popups (login/CAPTCHA/OTP), and a session-reuse scenario for the Recorder manual Chrome handoff.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>AWKIT detects the protected surface, pauses recording, and offers a manual Chrome handoff. It never automates login/MFA/OTP/CAPTCHA. Session reuse shows an authenticated marker.</dd>
+            <dt>Related feature</dt>
+            <dd>Recorder protected-login detection, secure session capture, Auto Secure Login, Reuse Session.</dd>
+            <dt>Stable URL</dt>
+            <dd>
+              <code>/mock/protected-login</code>, <code>/mock/protected-popup-login</code>,
+              <code>/mock/protected-popup-captcha</code>, <code>/mock/protected-popup-otp</code>,
+              <code>/mock/session-reuse</code>
+            </dd>
+          </dl>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

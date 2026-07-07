@@ -3,6 +3,8 @@ import { connectorKind, validateConnectorStructure } from "@src/profiles/FlowPro
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { evaluateBoolean } from "./ExpressionEvaluator";
 import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
+import { loadConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
+import { RetryPolicy } from "./runtime/RetryPolicy";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
 import { StepExecutor } from "./StepExecutor";
@@ -23,6 +25,11 @@ export interface IsolatedBranchExecutor {
 export type ParallelBranchFactory = () => Promise<IsolatedBranchExecutor>;
 
 export class FlowExecutor {
+  /** Classified retry decisions: dangerous mutations and dead-browser failures are never blindly re-run. */
+  private readonly retryPolicy = new RetryPolicy();
+  /** Host concurrency limits (env-overridable) — bounds isolated parallel branches per flow. */
+  private readonly concurrencyLimits = loadConcurrencyLimits();
+
   constructor(
     private readonly stepExecutor: StepExecutor,
     private readonly logger?: RunnerLogger,
@@ -95,7 +102,7 @@ export class FlowExecutor {
         // iteration — treat it as a no-op pass so the flow still proceeds via the exit edge.
         stepResult = loopOutcome.lastResult ?? { stepId: currentStep.id, status: "passed", startedAt: new Date().toISOString(), endedAt: new Date().toISOString(), durationMs: 0, outputs: {} };
       } else {
-        stepResult = await this.executeWithRetry(currentStep);
+        stepResult = await this.executeWithRetry(currentStep, context);
         steps.push(stepResult);
         Object.entries(stepResult.outputs).forEach(([key, value]) => {
           outputs[`${flow.id}.${key}`] = value;
@@ -199,7 +206,7 @@ export class FlowExecutor {
       if (visited.has(targetStep.id)) continue;
       visited.add(targetStep.id);
 
-      const result = await this.executeWithRetry(targetStep);
+      const result = await this.executeWithRetry(targetStep, context);
       steps.push(result);
       Object.entries(result.outputs).forEach(([key, value]) => {
         outputs[`${flow.id}.${key}`] = value;
@@ -249,7 +256,13 @@ export class FlowExecutor {
     }
     if (!targets.length) return { success: true };
 
-    const maxConcurrency = Math.max(1, cfg.maxConcurrency ?? targets.length);
+    // Bounded node parallelism: the connector's maxConcurrency is additionally clamped by the
+    // host limit (maxActiveNodesPerFlow, env-overridable) so one flow can't open unbounded pages.
+    const requested = Math.max(1, cfg.maxConcurrency ?? targets.length);
+    const maxConcurrency = Math.min(requested, this.concurrencyLimits.maxActiveNodesPerFlow);
+    if (maxConcurrency < requested) {
+      this.emitConnectorEvent(context, `Parallel concurrency clamped ${requested} → ${maxConcurrency} (host limit maxActiveNodesPerFlow).`, "warning");
+    }
     this.log("info", context, `Parallel (isolatedPage, concurrency ${maxConcurrency}) → ${targets.map((t) => t.name).join(", ")}.`);
 
     const runBranch = async (target: FlowStep): Promise<StepExecutionResult> => {
@@ -334,7 +347,7 @@ export class FlowExecutor {
         }
 
         if (paramKey) context.runtimeInputs[paramKey] = value as never;
-        const result = await this.executeWithRetry(target);
+        const result = await this.executeWithRetry(target, context);
         steps.push(result);
         Object.entries(result.outputs).forEach(([key, val]) => {
           outputs[`${flow.id}.${key}`] = val;
@@ -378,22 +391,52 @@ export class FlowExecutor {
     }
   }
 
-  private async executeWithRetry(step: FlowStep): Promise<StepExecutionResult> {
+  /**
+   * Execute a step with classified retries. The step's configured `retry.count` is still the
+   * upper bound, but each retry is gated by the RetryPolicy: only transient error classes
+   * (navigation/timeout/locator/download) are re-run, with exponential backoff; steps whose
+   * name/value looks like a non-idempotent business action (submit/approve/delete/send/pay/
+   * confirm) and dead browser/context/page failures are never blindly retried.
+   */
+  private async executeWithRetry(step: FlowStep, context?: InstanceExecutionContext): Promise<StepExecutionResult> {
     const retryCount = step.retry?.count ?? 0;
-    const retryDelayMs = step.retry?.delayMs ?? 0;
     let lastResult: StepExecutionResult | undefined;
 
-    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+    const logRetry = (level: "info" | "warn", message: string): void => {
+      this.logger?.log({
+        timestamp: new Date().toISOString(),
+        level,
+        executionId: context?.executionId ?? "",
+        instanceId: context?.instanceId,
+        scenarioId: context?.scenarioId,
+        flowId: context?.flowId,
+        stepId: step.id,
+        message
+      });
+    };
+
+    for (let attempt = 0; ; attempt += 1) {
       const result = await this.stepExecutor.execute(step);
       if (result.status !== "failed") return result;
       lastResult = result;
-      if (attempt < retryCount && retryDelayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+
+      const decision = this.retryPolicy.decide({ step, error: result.error, attempt });
+      if (!decision.retry) {
+        // Only log a "retry blocked" line when a retry was actually configured but denied.
+        if (attempt < retryCount) {
+          logRetry("warn", `Retry blocked for step "${step.name ?? step.id}": ${decision.reason} (error class: ${decision.errorClass}).`);
+        }
+        break;
       }
+
+      logRetry("info", `Retrying step "${step.name ?? step.id}" in ${decision.delayMs}ms — ${decision.reason}.`);
+      if (decision.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
 
-    if (step.onFailure?.screenshot && lastResult) {
-      lastResult.screenshotPath = await this.stepExecutor.captureFailureScreenshot(step);
+    // Failure screenshots default ON (best-effort): capture unless the step explicitly opted
+    // out, and never let a screenshot problem (e.g. dead page) mask the original step error.
+    if ((step.onFailure?.screenshot ?? true) && lastResult && !lastResult.screenshotPath) {
+      lastResult.screenshotPath = await this.stepExecutor.captureFailureScreenshot(step).catch(() => undefined);
     }
 
     return lastResult!;

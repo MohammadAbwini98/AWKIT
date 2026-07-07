@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario B — window.open popup</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario B — window.open popup</h1>
+      <p>Purpose: Tests popup opened by JavaScript and recorder linking popup to previous click.</p>
+      
+      <button id="open-approval-button" data-testid="open-approval-button" onclick="window.open('/popup/approval-popup.html', '_blank', 'width=600,height=400')">Open Approval Popup</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+    <script>
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "approved") {
+          document.getElementById("status").textContent = "Approved with note: " + e.data.note;
+        }
+      });
+    </script>
+  </body>
+</html>

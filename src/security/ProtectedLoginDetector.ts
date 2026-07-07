@@ -18,6 +18,11 @@ export type ProtectedLoginReason =
   | "captcha"
   | "sso"
   | "security-check"
+  // ── Recorder-side handoff (conservative DOM/text signals) ────────────────────
+  | "login-form"
+  | "passkey"
+  | "digital-signature"
+  | "external-approval"
   | "unknown";
 
 export interface ProtectedLoginDetection {
@@ -54,10 +59,23 @@ const TEXT_PATTERNS: { pattern: string; reason: ProtectedLoginReason }[] = [
   { pattern: "captcha", reason: "captcha" },
   { pattern: "two-step verification", reason: "mfa" },
   { pattern: "two-factor", reason: "mfa" },
+  { pattern: "multi-factor", reason: "mfa" },
   { pattern: "authenticator app", reason: "mfa" },
   { pattern: "enter a verification code", reason: "mfa" },
+  { pattern: "verification code", reason: "mfa" },
+  { pattern: "one-time password", reason: "mfa" },
+  { pattern: "one time password", reason: "mfa" },
   { pattern: "verify it's you", reason: "security-check" },
   { pattern: "security check", reason: "security-check" },
+  // Passkey / hardware security key challenges — a manual, hardware-bound step we never automate.
+  { pattern: "passkey", reason: "passkey" },
+  { pattern: "webauthn", reason: "passkey" },
+  { pattern: "security key", reason: "passkey" },
+  // Bank / signature / external-approval flows (manual out-of-band approval).
+  { pattern: "digital signature", reason: "digital-signature" },
+  { pattern: "bank authorization", reason: "external-approval" },
+  { pattern: "external approval", reason: "external-approval" },
+  { pattern: "identity provider", reason: "sso" },
   { pattern: "single sign-on", reason: "sso" }
 ];
 
@@ -160,4 +178,146 @@ export async function detectProtectedLogin(page: Page, options: { deepScan?: boo
   }
 
   return detectFromSignals(url, title, bodyText);
+}
+
+// ─── Recorder-side protected login / popup detection ───────────────────────────
+// The recorder must PAUSE (and hand off to a manual real-browser login) the moment a protected
+// login / MFA / OTP / CAPTCHA / passkey / approval surface appears — on the main page OR a popup.
+// It reuses the same URL/title/text signals plus conservative, stable DOM signals. As with the
+// runner, this only *detects*: no bypass, no reading of secrets/cookies/OTP/CAPTCHA values.
+
+/** Stable DOM signals scanned in the page (booleans only — never field values). */
+export interface ProtectedDomSignals {
+  /** `input[type=password]` present. */
+  passwordField?: boolean;
+  /** `input[autocomplete="one-time-code"]` present (OTP/MFA). */
+  oneTimeCodeField?: boolean;
+  /** reCAPTCHA / hCaptcha / Turnstile iframe present. */
+  captchaIframe?: boolean;
+  /** An element labelled as a captcha (`[aria-label*=captcha]`). */
+  captchaElement?: boolean;
+  /** An element labelled for verification (`[aria-label*=verification]`). */
+  verificationElement?: boolean;
+  /** Passkey / WebAuthn / security-key affordance present. */
+  webauthn?: boolean;
+}
+
+export interface RecorderProtectedDetection extends ProtectedLoginDetection {
+  /** Human-readable, secret-free descriptions of what matched (for handoff metadata). */
+  signals: string[];
+}
+
+/** Map DOM signals → the most specific protected reason (or null when none are strong enough). */
+function reasonFromDomSignals(dom: ProtectedDomSignals): { reason: ProtectedLoginReason; signals: string[] } | null {
+  const signals: string[] = [];
+  let reason: ProtectedLoginReason | null = null;
+  const pick = (candidate: ProtectedLoginReason, label: string) => {
+    signals.push(label);
+    if (!reason) reason = candidate;
+  };
+  if (dom.captchaIframe) pick("captcha", "captcha iframe");
+  if (dom.captchaElement) pick("captcha", "captcha element");
+  if (dom.oneTimeCodeField) pick("mfa", "one-time-code field");
+  if (dom.verificationElement) pick("mfa", "verification element");
+  if (dom.webauthn) pick("passkey", "passkey / security key");
+  if (dom.passwordField) pick("login-form", "password field");
+  return reason ? { reason, signals } : null;
+}
+
+/**
+ * Combine text/provider signals with DOM signals into a single recorder detection. DOM signals are
+ * the highest-confidence trigger (they work on any page without provider-specific text). Pure so it
+ * can be unit-verified without a browser.
+ */
+export function detectFromRecorderSignals(
+  url: string,
+  title: string,
+  bodyText: string,
+  dom: ProtectedDomSignals = {}
+): RecorderProtectedDetection {
+  const textDetection = detectFromSignals(url, title, bodyText);
+  const domHit = reasonFromDomSignals(dom);
+
+  if (domHit) {
+    const provider = textDetection.provider;
+    // Prefer a stronger text reason (captcha/mfa) when both agree; otherwise use the DOM reason.
+    const reason =
+      textDetection.detected && (textDetection.reason === "captcha" || textDetection.reason === "mfa")
+        ? textDetection.reason
+        : domHit.reason;
+    const signals = [...domHit.signals];
+    if (textDetection.matchedPattern) signals.push(`text: ${textDetection.matchedPattern}`);
+    if (provider !== "unknown") signals.push(`provider: ${provider}`);
+    return {
+      detected: true,
+      provider,
+      reason,
+      url,
+      title,
+      matchedPattern: textDetection.matchedPattern,
+      message: buildMessage(provider, reason),
+      signals
+    };
+  }
+
+  if (textDetection.detected) {
+    const signals: string[] = [];
+    if (textDetection.matchedPattern) signals.push(`text: ${textDetection.matchedPattern}`);
+    if (textDetection.provider !== "unknown") signals.push(`provider: ${textDetection.provider}`);
+    return { ...textDetection, signals };
+  }
+
+  return { ...textDetection, signals: [] };
+}
+
+/**
+ * Live recorder detection against a Playwright page. Reads only booleans + a bounded body-text
+ * snippet — never field values, cookies, or tokens. Safe to call on every navigation/load.
+ */
+export async function detectRecorderProtectedLogin(page: Page): Promise<RecorderProtectedDetection> {
+  let url = "";
+  try {
+    url = page.url();
+  } catch {
+    url = "";
+  }
+  let title = "";
+  try {
+    title = await page.title();
+  } catch {
+    title = "";
+  }
+
+  let bodyText = "";
+  let dom: ProtectedDomSignals = {};
+  try {
+    // NOTE: keep this evaluate body free of named function expressions (e.g. `const has = ...`) —
+    // esbuild/tsx inject a `__name(...)` helper reference for those, which is undefined in the page
+    // and would make the whole evaluate throw. Inline every querySelector directly instead.
+    const result = await page.evaluate(() => {
+      return {
+        bodyText: (document.body?.innerText || "").slice(0, 4000),
+        dom: {
+          passwordField: !!document.querySelector('input[type="password"]'),
+          oneTimeCodeField: !!document.querySelector('input[autocomplete="one-time-code"]'),
+          captchaIframe: !!document.querySelector(
+            'iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"]'
+          ),
+          captchaElement: !!document.querySelector(
+            '[aria-label*="captcha" i], .g-recaptcha, .h-captcha, [data-testid*="captcha" i]'
+          ),
+          verificationElement: !!document.querySelector('[aria-label*="verification" i]'),
+          webauthn:
+            !!document.querySelector('input[autocomplete*="webauthn"]') ||
+            !!document.querySelector('[aria-label*="passkey" i], [aria-label*="security key" i], [data-webauthn]')
+        }
+      };
+    });
+    bodyText = result.bodyText;
+    dom = result.dom;
+  } catch {
+    // Page not ready / navigated away — fall back to URL + title signals only.
+  }
+
+  return detectFromRecorderSignals(url, title, bodyText, dom);
 }

@@ -11,6 +11,8 @@ export interface InstanceRuntimePaths {
   logs: string;
   reports: string;
   storage: string;
+  /** Failure-trace output dir (arms per-step trace capture when present). */
+  traces?: string;
   userDataDir?: string;
 }
 
@@ -40,6 +42,17 @@ export interface InstanceRuntimeState {
   };
   /** Bounded live per-flow/per-step progress snapshot (updated by the runner during execution). */
   liveProgress?: LiveExecutionSnapshot;
+  /**
+   * Concurrency-layer runtime detail (additive; the UI-facing `status` above is unchanged).
+   * `flowRunStatus` is the richer explicit state (incl. crashed/orphaned), `heartbeatAt` is
+   * updated on every progress event so the watchdog can tell slow from stuck.
+   */
+  runtime?: {
+    flowRunStatus: string;
+    heartbeatAt?: string;
+    browserWorkerId?: string;
+    watchdogNote?: string;
+  };
   paths: InstanceRuntimePaths;
   resourcePolicy: InstanceResourcePolicy;
   runtimeInputs: Record<string, unknown>;
@@ -62,7 +75,8 @@ export function toExecutionContext(state: InstanceRuntimeState): InstanceExecuti
       downloads: state.paths.downloads,
       screenshots: state.paths.screenshots,
       logs: state.paths.logs,
-      reports: state.paths.reports
+      reports: state.paths.reports,
+      traces: state.paths.traces
     }
   };
 }

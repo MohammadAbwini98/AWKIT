@@ -14,6 +14,7 @@ import {
   Download
 } from "lucide-react";
 import type { UiSettings } from "../../main/uiSettings";
+import { useTheme, type AppearanceMode } from "../state/theme";
 
 type Stats = {
   appVersion: string;
@@ -66,6 +67,7 @@ function validateClient(settings: UiSettings): string[] {
 }
 
 export function SettingsPage() {
+  const { appearance, setAppearance } = useTheme();
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pathStatus, setPathStatus] = useState<PathStatus>({});
@@ -137,9 +139,10 @@ export function SettingsPage() {
   const resetDefaults = useCallback(async () => {
     if (!window.confirm("Reset ALL settings to defaults? This does not delete flows, workflows, or reports.")) return;
     await api.reset();
+    setAppearance("light"); // keep the live theme in sync with the reset appearance default
     setBanner({ type: "success", text: "Settings reset to defaults." });
     await reload();
-  }, [api, reload]);
+  }, [api, reload, setAppearance]);
 
   const clearUi = useCallback(async () => {
     await api.clearUiState();
@@ -248,6 +251,20 @@ export function SettingsPage() {
             <strong>{stats ? (stats.productionOffline ? "Production offline" : "Development") : "—"}</strong>
             <span>Runtime data root</span>
             <strong>{stats?.runtimeDataRoot ?? "—"}</strong>
+          </div>
+          <div className="settings-appearance-row">
+            <label>
+              <span>Appearance</span>
+              <select
+                value={appearance}
+                onChange={(ev) => setAppearance(ev.target.value as AppearanceMode)}
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="system">System</option>
+              </select>
+            </label>
+            <p className="form-message">Applied immediately and remembered. System follows the Windows theme.</p>
           </div>
         </section>
 

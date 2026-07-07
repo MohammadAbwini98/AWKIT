@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario F — Popup failure diagnostics</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario F — Popup failure diagnostics</h1>
+      <p>Purpose: Tests failure diagnostics for missing popup, URL mismatch, and early close.</p>
+      
+      <button id="no-popup-button" data-testid="no-popup-button" onclick="document.getElementById('status').textContent = 'No popup opened';">Does Not Open Popup</button>
+      <br/><br/>
+      <button id="wrong-url-button" data-testid="wrong-url-button" onclick="window.open('/popup/wrong-url-popup.html', '_blank', 'width=400,height=300')">Open Wrong URL Popup</button>
+      <br/><br/>
+      <button id="fast-close-button" data-testid="fast-close-button" onclick="window.open('/popup/fast-close-popup.html', '_blank', 'width=400,height=300')">Open Popup Then Close Immediately</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+  </body>
+</html>

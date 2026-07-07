@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page } from "playwright";
-import type { FlowStep, NodeConfig } from "@src/profiles/FlowProfile";
+import type { FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
@@ -13,6 +13,10 @@ import { ValueResolver } from "./ValueResolver";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
 import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatch";
+import type { TraceService } from "./artifacts/TraceService";
+import type { CancellationToken } from "./concurrency/CancellationToken";
+import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
+import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
@@ -28,10 +32,13 @@ export type ChildFlowRunner = (flowId: string) => Promise<FlowExecutionResult>;
  * also re-points the active StepExecutor at the new page.
  */
 export type BrowserRestarter = (options?: { closeOnly?: boolean; newUserDataDir?: string }) => Promise<void>;
+export type BrowserRuntimeLivenessCheck = (label: string) => Promise<void>;
 
 export class StepExecutor {
-  /** Currently-active page. Route Change can switch this to another tab/page. */
+  /** Currently-active page (the page actions run on when no alias overrides). */
   private activePage: Page;
+  /** Page registry: alias → Page. `'main'` is always present; popups are added by registerPopupPage. */
+  private pageRegistry: Map<string, Page>;
 
   constructor(
     page: Page,
@@ -43,9 +50,17 @@ export class StepExecutor {
     private readonly runChildFlow?: ChildFlowRunner,
     private readonly progress?: RunnerProgressReporter,
     private readonly browserRestarter?: BrowserRestarter,
-    private readonly sessionService?: SessionCaptureService
+    private readonly sessionService?: SessionCaptureService,
+    private readonly assertBrowserRuntimeAlive?: BrowserRuntimeLivenessCheck,
+    /** Optional failure-trace capture (armed only when the engine provides a traces dir). */
+    private readonly traceService?: TraceService,
+    /** Cancellation token: checked before every step; a cancel closes the browser mid-action. */
+    private readonly cancellation?: CancellationToken,
+    /** Dynamic origin-claim re-evaluation after navigation (Phase 3). */
+    private readonly originClaims?: OriginClaimTracker
   ) {
     this.activePage = page;
+    this.pageRegistry = new Map([["main", page]]);
   }
 
   /**
@@ -55,14 +70,49 @@ export class StepExecutor {
    */
   setActivePage(page: Page): void {
     this.activePage = page;
+    this.pageRegistry.set("main", page);
     this.locatorFactory.setPage(page);
+  }
+
+  /**
+   * Register a newly-opened popup page under its alias so subsequent steps can target it.
+   * Called by PlaywrightRunner's context-level 'page' event handler.
+   */
+  registerPopupPage(alias: string, page: Page): void {
+    this.pageRegistry.set(alias, page);
+    // Remove from registry when the popup closes so stale aliases don't linger.
+    page.on("close", () => {
+      this.pageRegistry.delete(alias);
+    });
+  }
+
+  /** Unregister a popup (called from PlaywrightRunner if needed, or from the close handler). */
+  unregisterPopupPage(alias: string): void {
+    this.pageRegistry.delete(alias);
+  }
+
+  /**
+   * Resolve the Playwright Page for a given step.
+   * Returns the popup page when `step.pageAlias` is set, falls back to `activePage`.
+   */
+  private resolveStepPage(step: FlowStep): Page {
+    const alias = step.pageAlias;
+    if (!alias || alias === "main") return this.activePage;
+    const page = this.pageRegistry.get(alias);
+    if (!page) {
+      throw new Error(
+        `Popup page "${alias}" is not available. Open pages: [${[...this.pageRegistry.keys()].join(", ")}]. ` +
+        `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+      );
+    }
+    return page;
   }
 
   /** Emit a live progress event (no-op when no reporter is wired). */
   private emitProgress(
     step: FlowStep,
     status: LiveStepStatus,
-    extra: { message?: string; manualHandoff?: HandoffInfo; error?: string; durationMs?: number; timestamp?: string } = {}
+    extra: { message?: string; manualHandoff?: HandoffInfo; error?: string; durationMs?: number; timestamp?: string; tracePath?: string; sideEffectLevel?: string } = {}
   ): void {
     this.progress?.report({
       instanceId: this.context.instanceId,
@@ -75,8 +125,29 @@ export class StepExecutor {
       manualHandoff: extra.manualHandoff,
       error: extra.error,
       durationMs: extra.durationMs,
-      timestamp: extra.timestamp ?? new Date().toISOString()
+      timestamp: extra.timestamp ?? new Date().toISOString(),
+      tracePath: extra.tracePath,
+      sideEffectLevel: extra.sideEffectLevel,
+      // Failure diagnostics only; sanitized to origin + path (never query/fragment).
+      currentUrl: status === "failed" ? this.failureUrl() : undefined
     });
+  }
+
+  /** Hostname of the active page, or undefined for blank/unparseable URLs. */
+  private currentHostname(): string | undefined {
+    try {
+      const raw = this.activePage.url();
+      if (!raw || raw === "about:blank") return undefined;
+      return new URL(raw).hostname.toLowerCase() || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Sanitized active-page URL for failed-event diagnostics; undefined when unavailable. */
+  private failureUrl(): string | undefined {
+    const url = this.safeCurrentUrl();
+    return url === "unknown" ? undefined : url;
   }
 
   async execute(step: FlowStep): Promise<StepExecutionResult> {
@@ -84,11 +155,18 @@ export class StepExecutor {
     const outputs: Record<string, unknown> = {};
 
     this.log("info", step, `Executing step ${step.name}`);
-    this.emitProgress(step, "running", { message: `Running: ${step.name}`, timestamp: startedAt });
+    this.emitProgress(step, "running", { message: `Running: ${step.name}`, timestamp: startedAt, sideEffectLevel: resolveStepSafety(step).sideEffectLevel });
+    // Arm a per-step trace chunk (no-op unless the engine provided a traces dir). Saved only on
+    // failure; success discards it so passing runs write nothing.
+    const traceArmed = (await this.traceService?.beginStep()) ?? false;
 
     try {
+      // Hard cancellation: never start (or continue past) a step after cancel was requested.
+      this.cancellation?.throwIfCancelled();
+      await this.assertBrowserRuntimeAlive?.(`before step ${step.name}`);
+      await this.assertActivePageAlive(`before step ${step.name}`);
       this.guardLocatorQuality(step);
-      const result = await this.executeStep(step, outputs);
+      const result = await this.runStepWithWaits(step, outputs);
 
       // Auto protected-login detection after navigation-type steps (never bypasses — only pauses).
       if (result.status === "passed" && PROTECTED_LOGIN_AUTODETECT_STEPS.has(step.type)) {
@@ -103,17 +181,29 @@ export class StepExecutor {
             allowedActions: ["cancel", "retry", "continue"]
           };
           this.log("info", step, `Protected login detected (${detection.provider}/${detection.reason}) — pausing for handoff.`);
-          await this.waitForHandoffAction(step, info);
+          const captured = await this.captureProtectedLoginSession(step, info, outputs);
+          if (captured) result.outcome = "sessionCaptured";
+          else await this.waitForHandoffAction(step, info);
         }
+      }
+
+      // Dynamic origin claims (Phase 3): if the page ended up on a different origin, secure its
+      // semaphore before the flow continues. Same-origin is a fast no-op; a saturated new origin
+      // times out into a clear, retryable step failure instead of deadlocking.
+      if (result.status === "passed" && this.originClaims) {
+        await this.originClaims.ensureOrigin(this.currentHostname());
       }
 
       const endedAt = new Date().toISOString();
       const durationMs = Date.parse(endedAt) - Date.parse(startedAt);
       const liveStatus: LiveStepStatus = result.status === "passed" ? "succeeded" : result.status === "failed" ? "failed" : result.status === "manualHandoff" ? "waitingForManualAction" : "skipped";
+      // Save the trace only for a failed result; success/handoff/skip discards the chunk.
+      const tracePath = traceArmed ? await this.traceService?.endStep(step.id, result.status === "failed") : undefined;
       this.emitProgress(step, liveStatus, {
         message: liveStatus === "succeeded" ? `Completed: ${step.name}` : liveStatus === "waitingForManualAction" ? (result.manualHandoff?.message ?? `Waiting: ${step.name}`) : `Step ${step.name} ${liveStatus}`,
         durationMs,
-        timestamp: endedAt
+        timestamp: endedAt,
+        tracePath
       });
       return {
         stepId: step.id,
@@ -125,6 +215,7 @@ export class StepExecutor {
         nextStepId: result.nextStepId,
         screenshotPath: result.screenshotPath,
         downloadedFilePath: result.downloadedFilePath,
+        tracePath,
         manualHandoff: result.manualHandoff,
         outcome: result.outcome,
         restartRequired: result.restartRequired
@@ -132,11 +223,13 @@ export class StepExecutor {
     } catch (error) {
       const endedAt = new Date().toISOString();
       const message = error instanceof Error ? error.message : String(error);
+      // Save the failure trace BEFORE any cleanup can close the context; never masks the error.
+      const tracePath = traceArmed ? await this.traceService?.endStep(step.id, true) : undefined;
       // Keep the full technical error in the structured logs...
       this.log("error", step, message);
       // ...but surface a cleaner message to the end user when the locator was ambiguous.
       const userMessage = StepExecutor.friendlyLocatorError(message);
-      this.emitProgress(step, "failed", { message: `Failed: ${step.name}`, error: userMessage, durationMs: Date.parse(endedAt) - Date.parse(startedAt), timestamp: endedAt });
+      this.emitProgress(step, "failed", { message: `Failed: ${step.name}`, error: userMessage, durationMs: Date.parse(endedAt) - Date.parse(startedAt), timestamp: endedAt, tracePath });
       return {
         stepId: step.id,
         status: "failed",
@@ -144,6 +237,7 @@ export class StepExecutor {
         endedAt,
         durationMs: Date.parse(endedAt) - Date.parse(startedAt),
         outputs,
+        tracePath,
         error: userMessage
       };
     }
@@ -182,6 +276,358 @@ export class StepExecutor {
     return message;
   }
 
+  // ── Smart Wait Engine (Phase 1: runner execution) ──────────────────────────────────────────
+  //
+  // A step's action is wrapped in its condition-based waits:
+  //   beforeWaits → (arm action-triggered response waits) → action → await armed → afterWaits.
+  // Steps without beforeWaits/afterWaits behave exactly as before, so old flows and the legacy
+  // `wait` step node (executeWait: time/selector/navigation/networkIdle/textVisible) are unaffected.
+
+  private async assertActivePageAlive(label: string): Promise<void> {
+    if (this.activePage.isClosed()) {
+      throw new Error(`Browser runtime is not alive ${label}: active page is closed.`);
+    }
+    await this.activePage.evaluate(() => 1);
+  }
+
+  /** Default max wait (ms) for a {@link WaitCondition} that omits `timeoutMs`. */
+  private static readonly DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+
+  private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
+    const originalActivePage = this.activePage;
+    const stepPage = this.resolveStepPage(step);
+
+    // Temporarily bind execution to the target page for this step
+    this.activePage = stepPage;
+    this.locatorFactory.setPage(stepPage);
+
+    try {
+      for (const wait of step.beforeWaits ?? []) {
+        await this.executeWaitCondition(step, wait, "before action");
+      }
+
+    // Response waits that the action itself triggers must be listening BEFORE the action runs,
+    // or a fast response can complete before we start waiting. Arm them now, await them after.
+    const armed: Array<{ wait: Extract<WaitCondition, { type: "response" }>; promise: Promise<unknown>; timeout: number }> = [];
+    const deferred: WaitCondition[] = [];
+    for (const wait of step.afterWaits ?? []) {
+      if (wait.type === "response" && wait.armBeforeAction) {
+        const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+        const promise = this.buildResponseWait(wait, timeout);
+        promise.catch(() => undefined); // prevent an unhandled rejection if the action itself throws
+        armed.push({ wait, promise, timeout });
+      } else {
+        deferred.push(wait);
+      }
+    }
+
+    const result = await this.executeStep(step, outputs);
+
+    for (const entry of armed) {
+      try {
+        await entry.promise;
+      } catch (error) {
+        if (await this.canSkipStaleRecordedNavigationResponseWait(step, entry.wait, error)) {
+          this.log(
+            "info",
+            step,
+            `Skipping stale recorded navigation response wait after successful goto: ${StepExecutor.describeWaitCondition(entry.wait)}`
+          );
+          continue;
+        }
+        throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error, "after action (armed before action)"));
+      }
+    }
+      for (const wait of deferred) {
+        await this.executeWaitCondition(step, wait, "after action");
+      }
+
+      return result;
+    } finally {
+      // Restore the active page unless this step explicitly and permanently changed it.
+      // Reuse Session / Auto Secure Login swap the underlying browser runtime; restoring the
+      // pre-swap page here would point the next step back at a closed old context.
+      if (!["switchToPopup", "switchToMainPage", "closePopup", "routeChange", "autoSecureLogin", "reuseSession"].includes(step.type)) {
+        this.activePage = originalActivePage;
+        this.locatorFactory.setPage(originalActivePage);
+      }
+    }
+  }
+
+  /** Execute a single wait condition, translating any failure into a clear diagnostic. */
+  private async executeWaitCondition(step: FlowStep, wait: WaitCondition, phase = "wait"): Promise<void> {
+    const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+    try {
+      switch (wait.type) {
+        case "loaderHidden":
+        case "elementHidden":
+          await this.waitLocator(wait.locator).waitFor({ state: "hidden", timeout });
+          return;
+        case "elementVisible":
+          await this.waitLocator(wait.locator).waitFor({ state: "visible", timeout });
+          return;
+        case "elementEnabled": {
+          const locator = this.waitLocator(wait.locator);
+          await this.waitForPredicate(
+            () => locator.isEnabled().catch(() => false),
+            timeout,
+            async () => `enabled=${await locator.isEnabled().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "textVisible":
+          await this.activePage
+            .getByText(wait.text, wait.exact ? { exact: true } : undefined)
+            .first()
+            .waitFor({ state: "visible", timeout });
+          return;
+        case "toastVisible": {
+          const target = wait.locator
+            ? this.waitLocator(wait.locator)
+            : wait.text
+              ? this.activePage.getByText(wait.text).first()
+              : this.activePage.getByRole("alert").first();
+          await target.waitFor({ state: "visible", timeout });
+          return;
+        }
+        case "response":
+          await this.buildResponseWait(wait, timeout);
+          return;
+        case "tableHasRows": {
+          const table = this.waitLocator(wait.tableLocator);
+          const rows = wait.rowLocator ? this.waitLocator(wait.rowLocator) : table.locator("tbody tr, [role=row]");
+          await this.waitForPredicate(
+            async () => (await rows.count()) >= wait.minRows,
+            timeout,
+            async () => `rows=${await rows.count().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "listHasItems": {
+          const list = this.waitLocator(wait.listLocator);
+          const items = wait.itemLocator ? this.waitLocator(wait.itemLocator) : list.locator("li, [role=listitem]");
+          await this.waitForPredicate(
+            async () => (await items.count()) >= wait.minItems,
+            timeout,
+            async () => `items=${await items.count().catch(() => "n/a")}`
+          );
+          return;
+        }
+        case "urlChanged":
+          await this.waitForPredicate(
+            () => {
+              const url = this.activePage.url();
+              if (wait.urlContains) return url.includes(wait.urlContains);
+              if (wait.fromUrl) return url !== wait.fromUrl;
+              return true;
+            },
+            timeout,
+            () => this.activePage.url()
+          );
+          return;
+        case "domStable":
+          await this.waitForDomStable(wait.stableForMs ?? 500, timeout);
+          return;
+        case "fixedDelay":
+          await this.activePage.waitForTimeout(Math.max(0, wait.delayMs));
+          return;
+        default: {
+          const unknown = wait as { type?: string };
+          throw new Error(`Unsupported wait condition type: ${String(unknown.type)}`);
+        }
+      }
+    } catch (error) {
+      throw new Error(this.formatWaitFailure(step, wait, timeout, error, phase));
+    }
+  }
+
+  /** Build (register) a `waitForResponse` matcher; the returned promise resolves on match. */
+  private buildResponseWait(wait: Extract<WaitCondition, { type: "response" }>, timeout: number): Promise<unknown> {
+    const [lo, hi] = wait.statusRange ?? [200, 399];
+    const method = wait.method;
+    const urlContains = wait.urlContains ?? "";
+    return this.activePage.waitForResponse((response) => {
+      if (method && response.request().method().toUpperCase() !== method) return false;
+      if (urlContains && !response.url().includes(urlContains)) return false;
+      const status = response.status();
+      return status >= lo && status <= hi;
+    }, { timeout });
+  }
+
+  /**
+   * Recorder-generated response waits on a navigation are useful hints, not a stronger signal than
+   * a completed Playwright goto. Session reuse can legitimately change which bootstrap endpoints fire
+   * (or redirect to a canonical host), so keep the step moving when only that stale recorded hint timed out.
+   */
+  private async canSkipStaleRecordedNavigationResponseWait(
+    step: FlowStep,
+    wait: Extract<WaitCondition, { type: "response" }>,
+    error: unknown
+  ): Promise<boolean> {
+    if (step.type !== "goto" || !wait.armBeforeAction || !wait.reason) return false;
+
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/timeout/i.test(message)) return false;
+    if (this.activePage.isClosed()) return false;
+
+    try {
+      await this.activePage.evaluate(() => 1);
+    } catch {
+      return false;
+    }
+
+    const currentUrl = this.activePage.url();
+    return Boolean(currentUrl && currentUrl !== "about:blank");
+  }
+
+  /** Build a Playwright locator from a structured locator for wait purposes (tolerant `.first()`). */
+  private waitLocator(locator: StepLocator): Locator {
+    return this.locatorFactory.create(locator).first();
+  }
+
+  /** Poll `predicate` until true or `timeout`; on timeout throw with the last observed value. */
+  private async waitForPredicate(
+    predicate: () => boolean | Promise<boolean>,
+    timeout: number,
+    describe: () => unknown | Promise<unknown>
+  ): Promise<void> {
+    const start = Date.now();
+    for (;;) {
+      let satisfied = false;
+      try {
+        satisfied = await predicate();
+      } catch {
+        satisfied = false;
+      }
+      if (satisfied) return;
+      if (Date.now() - start >= timeout) {
+        let last: unknown = "";
+        try {
+          last = await describe();
+        } catch {
+          /* ignore */
+        }
+        throw new Error(`condition not met within ${timeout}ms (last observed: ${String(last)})`);
+      }
+      await this.activePage.waitForTimeout(100);
+    }
+  }
+
+  /** Wait until the page DOM stops changing for `stableForMs` (cheap size/child-count signature). */
+  private async waitForDomStable(stableForMs: number, timeout: number): Promise<void> {
+    const start = Date.now();
+    let signature = "";
+    let stableSince = Date.now();
+    for (;;) {
+      let current = signature;
+      try {
+        current = String(
+          await this.activePage.evaluate(() =>
+            document.body ? `${document.body.childElementCount}:${document.body.innerHTML.length}` : "0"
+          )
+        );
+      } catch {
+        current = signature;
+      }
+      const now = Date.now();
+      if (current !== signature) {
+        signature = current;
+        stableSince = now;
+      }
+      if (now - stableSince >= stableForMs) return;
+      if (now - start >= timeout) throw new Error(`DOM did not stay stable for ${stableForMs}ms within ${timeout}ms`);
+      await this.activePage.waitForTimeout(100);
+    }
+  }
+
+  private formatWaitFailure(step: FlowStep, wait: WaitCondition, timeout: number, error: unknown, phase: string): string {
+    const detail = error instanceof Error ? error.message : String(error);
+    const lines = [
+      `Smart wait failed on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Phase: ${phase}`,
+      `Wait type: ${wait.type}`,
+      `Condition: ${StepExecutor.describeWaitCondition(wait)}`,
+      `Timeout: ${timeout}ms`,
+      `Current URL: ${this.safeCurrentUrl()}`
+    ];
+    if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
+    lines.push(`Suggestion: ${StepExecutor.waitSuggestion(wait)}`);
+    lines.push(`Detail: ${detail}`);
+    return lines.join("\n");
+  }
+
+  /** URL for diagnostics only: origin + path, with query/hash stripped to avoid leaking tokens. */
+  private safeCurrentUrl(): string {
+    try {
+      const raw = this.activePage.url();
+      if (!raw || raw === "about:blank") return raw || "unknown";
+      const parsed = new URL(raw);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return "unknown";
+    }
+  }
+
+  private static describeWaitCondition(wait: WaitCondition): string {
+    switch (wait.type) {
+      case "loaderHidden":
+      case "elementVisible":
+      case "elementHidden":
+      case "elementEnabled":
+        return `${wait.type} ${wait.locator.strategy}=${wait.locator.value}`;
+      case "textVisible":
+        return `text "${wait.text}"${wait.exact ? " (exact)" : ""}`;
+      case "toastVisible":
+        return wait.locator
+          ? `toast ${wait.locator.strategy}=${wait.locator.value}`
+          : wait.text
+            ? `toast text "${wait.text}"`
+            : "toast [role=alert]";
+      case "response":
+        return `${wait.method ?? "ANY"} response url~"${wait.urlContains ?? ""}" status ${(wait.statusRange ?? [200, 399]).join("-")}${wait.armBeforeAction ? " (armed before action)" : ""}`;
+      case "tableHasRows":
+        return `table ${wait.tableLocator.strategy}=${wait.tableLocator.value} rows >= ${wait.minRows}`;
+      case "listHasItems":
+        return `list ${wait.listLocator.strategy}=${wait.listLocator.value} items >= ${wait.minItems}`;
+      case "urlChanged":
+        return wait.urlContains ? `url contains "${wait.urlContains}"` : `url changes from "${wait.fromUrl ?? ""}"`;
+      case "domStable":
+        return `DOM stable for ${wait.stableForMs ?? 500}ms`;
+      case "fixedDelay":
+        return `fixed delay ${wait.delayMs}ms`;
+      default:
+        return "unknown";
+    }
+  }
+
+  private static waitSuggestion(wait: WaitCondition): string {
+    switch (wait.type) {
+      case "loaderHidden":
+        return "Confirm the loader/spinner locator is correct and actually disappears; increase timeoutMs if the backend is slow.";
+      case "elementVisible":
+      case "toastVisible":
+      case "textVisible":
+        return "Confirm the target renders after the action; update the locator/text or increase timeoutMs.";
+      case "elementHidden":
+        return "Confirm the element is removed/hidden after the action; update the locator or increase timeoutMs.";
+      case "elementEnabled":
+        return "Confirm the control becomes enabled after the action; update the locator or increase timeoutMs.";
+      case "response":
+        return "Confirm method/urlContains/statusRange match the real request; set armBeforeAction for responses this step triggers; increase timeoutMs.";
+      case "tableHasRows":
+      case "listHasItems":
+        return "Confirm the result container/row locator is correct and data loads; lower minRows/minItems or increase timeoutMs.";
+      case "urlChanged":
+        return "Confirm the action navigates or changes the URL; adjust urlContains or increase timeoutMs.";
+      case "domStable":
+        return "The page kept mutating (polling/animations); lower stableForMs or use a specific content wait instead.";
+      case "fixedDelay":
+        return "Fixed delays are a fallback; prefer a condition-based wait when a reliable signal exists.";
+      default:
+        return "Review the wait condition.";
+    }
+  }
+
   async captureFailureScreenshot(step: FlowStep): Promise<string> {
     return this.takeScreenshot(step, "failure");
   }
@@ -202,9 +648,120 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
-      case "click":
+      case "click": {
+        // Arm popup capture BEFORE the click so a fast popup isn't missed.
+        if (step.opensPopup && step.popupExpectation) {
+          const expectation = step.popupExpectation;
+          const alias = expectation.popupAlias;
+          const timeout = expectation.timeoutMs ?? 15_000;
+          const popupPromise = this.activePage.context().waitForEvent("page", { timeout });
+          await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+          const popupPage = await popupPromise;
+          // Wait for initial load state.
+          await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
+          // Validate URL/title hints if provided.
+          if (expectation.urlContains) {
+            const popupUrl = popupPage.url();
+            if (!popupUrl.includes(expectation.urlContains)) {
+              this.log("info", step, `Popup URL "${popupUrl}" does not contain expected "${expectation.urlContains}" — continuing anyway.`);
+            }
+          }
+          if (expectation.titleContains) {
+            const title = await popupPage.title().catch(() => "");
+            if (!title.includes(expectation.titleContains)) {
+              this.log("info", step, `Popup title "${title}" does not contain expected "${expectation.titleContains}" — continuing anyway.`);
+            }
+          }
+          // Register popup in the registry.
+          this.registerPopupPage(alias, popupPage);
+          // Auto-return to main when popup closes (unless configured otherwise).
+          if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
+            popupPage.on("close", () => {
+              this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+              this.locatorFactory.setPage(this.activePage);
+            });
+          }
+          return { status: "passed" };
+        }
         await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
+      }
+
+      case "switchToPopup": {
+        // Arm a popup listener, then wait for the new window to appear (used when no prior click
+        // opener was available or the popup opens from a script/timer).
+        const expectation = step.popupExpectation;
+        if (!expectation) throw new Error(`switchToPopup step ${step.id} requires a popupExpectation config.`);
+        const alias = expectation.popupAlias;
+        const timeout = expectation.timeoutMs ?? 15_000;
+        // Check if the popup is already open (it may have opened before this step ran).
+        const existing = this.pageRegistry.get(alias);
+        const popupPage = existing ?? await this.activePage.context().waitForEvent("page", { timeout });
+        await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
+        if (!existing) this.registerPopupPage(alias, popupPage);
+        // Switch the active context to the popup.
+        this.activePage = popupPage;
+        this.locatorFactory.setPage(popupPage);
+        await popupPage.bringToFront().catch(() => undefined);
+        // Auto-return to main when popup closes.
+        if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
+          popupPage.on("close", () => {
+            this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+            this.locatorFactory.setPage(this.activePage);
+          });
+        }
+        // Run protected-login detection on the popup page.
+        const detection = await detectProtectedLogin(popupPage).catch(() => null);
+        if (detection?.detected) {
+          const info: HandoffInfo = {
+            kind: "protectedLogin",
+            message: detection.message,
+            provider: detection.provider,
+            reason: detection.reason,
+            url: detection.url,
+            allowedActions: ["cancel", "retry", "continue"]
+          };
+          this.log("info", step, `Protected login detected in popup (${detection.provider}/${detection.reason}) — pausing for handoff.`);
+          await this.waitForHandoffAction(step, info);
+        }
+        return { status: "passed" };
+      }
+
+      case "closePopup": {
+        const alias = step.config?.popupAlias ?? step.pageAlias;
+        if (!alias) throw new Error(`closePopup step ${step.id} requires a popupAlias in config or pageAlias.`);
+        const popupPage = this.pageRegistry.get(alias);
+        if (!popupPage) {
+          this.log("info", step, `closePopup: popup "${alias}" is already closed or was never opened — skipping.`);
+          return { status: "passed" };
+        }
+        const timeout = step.timeoutMs ?? 15_000;
+        // If the page is still open, wait for it to close (e.g. user clicked Accept).
+        try {
+          if (!popupPage.isClosed()) {
+            await popupPage.waitForEvent("close", { timeout });
+          }
+        } catch {
+          // Timeout: the popup didn't close on its own — close it programmatically.
+          await popupPage.close().catch(() => undefined);
+        }
+        this.pageRegistry.delete(alias);
+        // Return focus to the main page.
+        const mainPage = this.pageRegistry.get("main") ?? this.activePage;
+        this.activePage = mainPage;
+        this.locatorFactory.setPage(mainPage);
+        await mainPage.bringToFront().catch(() => undefined);
+        return { status: "passed" };
+      }
+
+      case "switchToMainPage": {
+        const mainPage = this.pageRegistry.get("main");
+        if (!mainPage) throw new Error("switchToMainPage: main page is not registered in the page registry.");
+        this.activePage = mainPage;
+        this.locatorFactory.setPage(mainPage);
+        await mainPage.bringToFront().catch(() => undefined);
+        return { status: "passed" };
+      }
 
       case "fill": {
         const value = await this.resolveStepValue(step);
@@ -317,6 +874,8 @@ export class StepExecutor {
 
       case "protectedLoginHandoff": {
         const info = await this.executeProtectedLoginHandoff(step, outputs);
+        const captured = await this.captureProtectedLoginSession(step, info, outputs);
+        if (captured) return { status: "passed", outcome: "sessionCaptured" };
         await this.waitForHandoffAction(step, info);
         return { status: "passed", outcome: "manualContinued" };
       }
@@ -544,7 +1103,19 @@ export class StepExecutor {
 
     // 6. Resume automation against the newly captured profile directory.
     this.log("info", step, "Session captured — resuming automation with the new profile.");
-    await this.browserRestarter({ newUserDataDir: finalProfile.profileDir });
+    try {
+      await this.browserRestarter({ newUserDataDir: finalProfile.profileDir });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("currently in use by another browser process") ||
+          error.message.includes("Browser session swap is already in progress"))
+      ) {
+        throw error;
+      }
+      throw new Error(this.sessionProfileOpenError(finalProfile.name));
+    }
+    await this.assertSwappedBrowserAlive(finalProfile.name);
 
     // Signal both mechanisms: outputs for outcome-edge routing, and restartRequired for the
     // engine-level restart guard so the flow re-runs from Start and reuses the new session.
@@ -592,11 +1163,47 @@ export class StepExecutor {
     }
 
     this.log("info", step, `Loading saved session "${profile.name}" (${mode}).`);
-    await this.browserRestarter({ newUserDataDir: profile.profileDir });
+    try {
+      await this.browserRestarter({ newUserDataDir: profile.profileDir });
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("currently in use by another browser process") ||
+          error.message.includes("Browser session swap is already in progress"))
+      ) {
+        throw error;
+      }
+      throw new Error(this.sessionProfileOpenError(profile.name));
+    }
+    await this.assertSwappedBrowserAlive(profile.name);
     await this.sessionService.markUsed(profile.id);
 
     Object.assign(outputs, { sessionLoaded: true, sessionId: profile.id, outcome: "sessionLoaded" });
     return { status: "passed", outcome: "sessionLoaded" };
+  }
+
+  /** Actionable message when a captured session profile can't be opened by the automation browser. */
+  private sessionProfileOpenError(profileName: string): string {
+    return (
+      `The saved session profile "${profileName}" could not be opened or did not stay alive. ` +
+      `Chrome or Edge may still be holding the profile, or the automation browser exited while opening it. ` +
+      `Close all Chrome/Edge windows that use this session and retry, or recapture the session if the problem persists.`
+    );
+  }
+
+  /**
+   * Confirm the browser relaunched by a session swap (Reuse Session / Auto Secure Login) is actually
+   * usable. A profile that is still locked/in-use or fails during launch can close immediately,
+   * which would otherwise surface one step later as a cryptic "Target page … has been closed" on the
+   * next action. `title()` round-trips to the browser and throws if the target is already gone.
+   */
+  private async assertSwappedBrowserAlive(profileName: string): Promise<void> {
+    if (this.activePage.isClosed()) throw new Error(this.sessionProfileOpenError(profileName));
+    try {
+      await this.activePage.title();
+    } catch {
+      throw new Error(this.sessionProfileOpenError(profileName));
+    }
   }
 
   /** Pause the live flow until the UI resolves the handoff. The browser remains open. */
@@ -630,6 +1237,118 @@ export class StepExecutor {
       this.log("info", step, `Manual handoff resolved with action: ${action}.`);
       return action;
     }
+  }
+
+  /**
+   * Workflow-runner protected-login handoff: close the automation browser, launch the user's
+   * normal Chrome/Edge on the detected login URL, wait for the user to close it, then resume
+   * automation on the captured session profile. This mirrors the recorder's secure-login
+   * handoff and never automates or scrapes the protected page.
+   */
+  private async captureProtectedLoginSession(
+    step: FlowStep,
+    info: HandoffInfo,
+    outputs: Record<string, unknown>
+  ): Promise<boolean> {
+    if (info.kind !== "protectedLogin") return false;
+    if (!this.sessionService || !this.browserRestarter) return false;
+
+    const configuredUrl = await this.resolveStepValue(step, step.url ?? step.value);
+    const targetUrl = (info.url || configuredUrl || this.activePage.url()).trim();
+    if (!targetUrl || targetUrl === "about:blank") return false;
+
+    let paused = false;
+    try {
+      this.pauseForHandoff(step, "Complete the protected login in the normal browser window, then close that browser to resume automation.");
+      paused = true;
+      this.emitProgress(step, "waitingForManualAction", {
+        message: "Opening normal browser for protected login. Complete login, then close that browser to resume.",
+        manualHandoff: {
+          ...info,
+          url: targetUrl,
+          allowedActions: ["cancel"]
+        }
+      });
+
+      this.log("info", step, "Protected login detected — closing automation browser and launching normal browser for session capture.");
+      await this.browserRestarter({ closeOnly: true });
+
+      const safeProvider = info.provider && info.provider !== "unknown" ? info.provider : "ProtectedLogin";
+      const captureName = `${safeProvider}-Login-${new Date().toISOString().slice(0, 10)}`;
+      const capture = await this.sessionService.startCapture(captureName, targetUrl, "manualChromeHandoff");
+      const sessionId = capture.sessionId;
+      if (!sessionId) throw new Error("Protected login session capture did not return a session id.");
+
+      const timeoutMs = this.protectedLoginCaptureTimeoutMs(step);
+      const deadline = timeoutMs > 0 ? Date.now() + timeoutMs : Number.POSITIVE_INFINITY;
+      const actionPromise = this.manualHandoffController.waitForAction(this.context.executionId, this.context.instanceId);
+      for (;;) {
+        const action = await Promise.race([
+          actionPromise.then((value) => ({ type: "action" as const, value })),
+          new Promise<{ type: "tick" }>((resolve) => setTimeout(() => resolve({ type: "tick" }), 1000))
+        ]);
+        if (action.type === "action" && action.value === "cancel") {
+          this.sessionService.stopCapture();
+          throw new Error("Protected login session capture was cancelled.");
+        }
+
+        const status = this.sessionService.getStatus();
+        if (status.status === "error") throw new Error(`Protected login session capture failed: ${status.error ?? "unknown error"}`);
+        if (!status.active || status.status === "closed") break;
+        if (timeoutMs > 0 && Date.now() > deadline) {
+          this.sessionService.stopCapture();
+          throw new Error(
+            `Protected login session capture timed out after ${Math.round(timeoutMs / 1000)}s waiting for the normal browser to close. Increase the Protected Login Handoff timeout or set it to 0 to disable.`
+          );
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!this.sessionService.hasCapturedData(sessionId)) {
+        throw new Error("Protected login session did not contain captured browser data. Complete login in the normal browser, then close it before retrying.");
+      }
+
+      const profile = await this.sessionService.getById(sessionId);
+      if (!profile || profile.status !== "ready") {
+        throw new Error("Protected login session did not reach a ready state.");
+      }
+
+      try {
+        await this.browserRestarter({ newUserDataDir: profile.profileDir });
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes("currently in use by another browser process") ||
+            error.message.includes("Browser session swap is already in progress"))
+        ) {
+          throw error;
+        }
+        throw new Error(this.sessionProfileOpenError(profile.name));
+      }
+      await this.assertSwappedBrowserAlive(profile.name);
+      await this.sessionService.markUsed(profile.id);
+      this.manualHandoffController.resume(this.context.executionId, this.context.instanceId);
+
+      this.mapOutputs(step, outputs, {
+        protectedLoginSessionCaptured: true,
+        sessionCaptured: true,
+        sessionId: profile.id,
+        outcome: "sessionCaptured"
+      });
+      this.log("info", step, `Protected login session captured and loaded (${profile.id}).`);
+      return true;
+    } catch (error) {
+      if (paused) this.manualHandoffController.cancel(this.context.executionId, this.context.instanceId);
+      throw error;
+    }
+  }
+
+  private protectedLoginCaptureTimeoutMs(step: FlowStep): number {
+    const configured = step.config?.handoffTimeoutMs;
+    if (typeof configured === "number" && Number.isFinite(configured)) {
+      return Math.max(0, configured);
+    }
+    return 10 * 60_000;
   }
 
   /** Register the instance as paused for a manual / protected-login handoff. */

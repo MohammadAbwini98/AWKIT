@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
+import { buildSmartWaits, type RecordedSignal } from "@src/recorder/smartWaitObservation";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
@@ -71,6 +72,11 @@ async function main() {
   const recorded: RecordedAction[] = [];
   await context.exposeBinding("__awtkit_recordAction", (_source, action: RecordedAction) => {
     recorded.push(action);
+  });
+  // Part D captures the raw Smart Wait observation signals emitted by the injected script.
+  const signals: RecordedSignal[] = [];
+  await context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
+    signals.push(s);
   });
   // Register the capture script BEFORE the page is created so it applies to every
   // subsequent setContent() document (matches RecorderService, which injects before goto()).
@@ -349,6 +355,128 @@ async function main() {
     const { status, hit } = await run(html, step);
     check("backward compat: legacy unique locator still resolves", status === "passed", status);
     check("backward compat: clicked the expected element", hit === "only", hit ?? "null");
+  }
+
+  console.log("Part D — Smart Wait recorder observation (Phase 2)");
+
+  // D-unit: buildSmartWaits correlation/scoring on synthetic signals (deterministic).
+  {
+    const T0 = 1000;
+    const T1 = 5000;
+
+    // 1. POST completes before proceeding → response wait armed before the action.
+    {
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/save", status: 200, startedAt: 1100, endedAt: 1400 }], T0, T1);
+      const r = w.find((x) => x.type === "response") as { type: "response"; method?: string; urlContains?: string; armBeforeAction?: boolean } | undefined;
+      check("POST → response wait, armed before action", !!r && r.method === "POST" && r.urlContains === "/api/save" && r.armBeforeAction === true, JSON.stringify(w));
+    }
+
+    // 2. GET search returns rows → response + tableHasRows (response ranked first).
+    {
+      const w = buildSmartWaits(
+        [
+          { kind: "request", method: "GET", path: "/api/customers", status: 200, startedAt: 1100, endedAt: 1500 },
+          { kind: "rows", container: { strategy: "id", value: "results" }, listLike: false, count: 5, ts: 1600 }
+        ],
+        T0,
+        T1
+      );
+      check("GET search → response + tableHasRows", w.some((x) => x.type === "response") && w.some((x) => x.type === "tableHasRows"), JSON.stringify(w));
+      check("response is ranked before tableHasRows", w.findIndex((x) => x.type === "response") < w.findIndex((x) => x.type === "tableHasRows"), JSON.stringify(w.map((x) => x.type)));
+    }
+
+    // 3. Card/list results appeared → listHasItems.
+    {
+      const w = buildSmartWaits([{ kind: "rows", container: { strategy: "css", value: ".cards" }, listLike: true, count: 3, ts: 1600 }], T0, T1);
+      const list = w.find((x) => x.type === "listHasItems") as { type: "listHasItems"; listLocator: { value: string } } | undefined;
+      check("card/list data appeared → listHasItems", !!list && list.listLocator.value === ".cards", JSON.stringify(w));
+    }
+
+    // 4. Spinner appeared then disappeared → loaderHidden.
+    {
+      const w = buildSmartWaits([{ kind: "loaderHidden", selector: ".ant-spin", shownAt: 1100, hiddenAt: 1800 }], T0, T1);
+      const l = w.find((x) => x.type === "loaderHidden") as { type: "loaderHidden"; locator: { value: string } } | undefined;
+      check("spinner shown→hidden → loaderHidden with selector", !!l && l.locator.value === ".ant-spin", JSON.stringify(w));
+    }
+
+    // 5. Success toast → toastVisible with text.
+    {
+      const w = buildSmartWaits([{ kind: "toast", text: "Saved successfully", role: "alert", ts: 1200 }], T0, T1);
+      const t = w.find((x) => x.type === "toastVisible") as { type: "toastVisible"; text?: string } | undefined;
+      check("toast → toastVisible with text", !!t && t.text === "Saved successfully", JSON.stringify(w));
+    }
+
+    // 6. Button became enabled → elementEnabled.
+    {
+      const w = buildSmartWaits([{ kind: "enabled", locator: { strategy: "id", value: "continue" }, ts: 1300 }], T0, T1);
+      const e = w.find((x) => x.type === "elementEnabled") as { type: "elementEnabled"; locator: { value: string } } | undefined;
+      check("enabled transition → elementEnabled locator", !!e && e.locator.value === "continue", JSON.stringify(w));
+    }
+
+    // 7. URL changed after submit → urlChanged with a query-free fragment.
+    {
+      const w = buildSmartWaits([{ kind: "url", url: "https://app.test/confirmation?token=SECRET", ts: 1400 }], T0, T1);
+      const u = w.find((x) => x.type === "urlChanged") as { type: "urlChanged"; urlContains?: string } | undefined;
+      check("url change → urlChanged (path only, no query/token)", !!u && u.urlContains === "/confirmation", JSON.stringify(w));
+    }
+
+    // 8. Background polling (same GET repeated) → ignored, no response wait.
+    {
+      const poll: RecordedSignal[] = [1100, 2100, 3100, 4100].map((t) => ({ kind: "request", method: "GET", path: "/api/poll", status: 200, startedAt: t, endedAt: t + 50 }));
+      const w = buildSmartWaits(poll, T0, T1, { allowFixedDelayFallback: false });
+      check("repeated GET (polling) → no response wait", !w.some((x) => x.type === "response"), JSON.stringify(w));
+    }
+
+    // 9. Nothing detected + long window + fallback allowed → single fixedDelay.
+    {
+      const w = buildSmartWaits([], T0, T1, { allowFixedDelayFallback: true });
+      check("no signal + fallback on → fixedDelay", w.length === 1 && w[0].type === "fixedDelay", JSON.stringify(w));
+    }
+
+    // 10. Nothing detected + fallback disabled (captureWaitTime on) → empty.
+    {
+      const w = buildSmartWaits([], T0, T1, { allowFixedDelayFallback: false });
+      check("no signal + fallback off (captureWaitTime) → no smart wait", w.length === 0, JSON.stringify(w));
+    }
+  }
+
+  // D-integration: the injected page script actually emits safe signals.
+  {
+    // 11. fetch POST with a secret query → a request signal with method + PATH ONLY (no query/token).
+    {
+      signals.length = 0;
+      await page.route("**/api/save**", (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }));
+      await page.goto("data:text/html;charset=utf-8," + encodeURIComponent("<!doctype html><html><body><button id=b>Save</button></body></html>"), { waitUntil: "load" });
+      await page.evaluate(() => fetch("http://awtkit.test/api/save?token=SECRET", { method: "POST", mode: "no-cors" }).catch(() => undefined));
+      await page.waitForTimeout(250);
+      const req = signals.find((s) => s.kind === "request") as { kind: "request"; method: string; path: string } | undefined;
+      check("in-page: fetch emits a request signal", !!req, JSON.stringify(signals));
+      check("in-page: request captures method + PATH only (no query/token)", !!req && req.method === "POST" && req.path === "/api/save", JSON.stringify(req));
+      await page.unroute("**/api/save**");
+    }
+
+    // 12. Loader appears then disappears → a loaderHidden signal.
+    {
+      signals.length = 0;
+      const html = `<div class="spinner" id="sp">loading…</div><button id="b" onclick="setTimeout(function(){document.getElementById('sp').style.display='none';},200)">Go</button>`;
+      await page.goto("data:text/html;charset=utf-8," + encodeURIComponent("<!doctype html><html><body>" + html + "</body></html>"), { waitUntil: "load" });
+      await page.click("#b");
+      await page.waitForTimeout(600);
+      check("in-page: loader shown→hidden emits loaderHidden signal", signals.some((s) => s.kind === "loaderHidden"), JSON.stringify(signals.map((s) => s.kind)));
+    }
+
+    // 13. URL hash change → a url signal (routed http page; hashchange doesn't fire on data: URLs).
+    {
+      signals.length = 0;
+      await page.route("http://awtkit.test/urltest", (route) =>
+        route.fulfill({ contentType: "text/html", body: "<!doctype html><html><body><button id=b onclick=\"location.hash='done'\">Go</button></body></html>" })
+      );
+      await page.goto("http://awtkit.test/urltest", { waitUntil: "load" });
+      await page.click("#b");
+      await page.waitForTimeout(200);
+      check("in-page: URL change emits a url signal", signals.some((s) => s.kind === "url"), JSON.stringify(signals.map((s) => s.kind)));
+      await page.unroute("http://awtkit.test/urltest");
+    }
   }
 
   await browser.close();

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario D — Popup stays open</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario D — Popup stays open</h1>
+      <p>Purpose: Tests multi-page page alias handling when popup remains open.</p>
+      
+      <button id="open-stays-open-button" data-testid="open-stays-open-button" onclick="window.open('/popup/stays-open-popup.html', '_blank', 'width=600,height=400')">Open Stays-Open Popup</button>
+      <br/><br/>
+      <button id="continue-main-button" data-testid="continue-main-button" onclick="document.getElementById('status').textContent = 'Continued on main';">Continue on Main Page</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+  </body>
+</html>

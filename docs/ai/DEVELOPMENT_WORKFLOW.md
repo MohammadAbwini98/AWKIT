@@ -25,12 +25,16 @@ How AI agents should work in this repository.
 - Respect offline-first and storage rules in `RULES.md`.
 - Never add login-protection bypass (CAPTCHA/MFA/bot-detection/stealth) — protected logins must use the
   Protected Login Handoff (detect + pause). See `docs/PROTECTED_LOGIN_HANDOFF.md` and `SECURITY.md`.
+- Treat `mock-site/` as the local Feature Test Lab. For Recorder, Runner, Smart Wait, Flow Designer,
+  Workflow Builder, Instance Monitor, locator, node, wait, or execution features, decide whether an
+  existing scenario needs to be updated before adding separate fixtures.
 - For large/risky changes (runner, orchestrator, packaging, settings schema, IPC), plan first
   (Claude Code: use plan mode).
 
 ## 4. Verify
 - Always: `npm run build` (typecheck + bundles).
 - Runner/connector/node changes: `npm run verify:runner` (report pass count; add a case for new behavior).
+- Mock Site changes: `npm run verify:mock-site` plus the related feature verifier.
 - Instance Monitor card-logic changes: `npm run verify:instance-monitor` (pure functions in
   `src/instances/instanceCardLogic.ts`).
 - Offline/packaging changes: `npm run validate:offline` (and repackage if needed).

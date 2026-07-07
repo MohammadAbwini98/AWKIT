@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enter verification code — OTP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-popup">
+      <h1>Enter your verification code</h1>
+      <p>We sent a one-time password to your device. Enter it to continue.</p>
+
+      <form id="otpForm" onsubmit="return false;">
+        <label for="otpCode">One-time password</label>
+        <input id="otpCode" name="otp" type="text" autocomplete="one-time-code" inputmode="numeric"
+               aria-label="verification code" placeholder="6-digit code" data-testid="popup-otp" />
+
+        <button id="verifyComplete" type="button" data-testid="popup-complete" onclick="completeVerify()">
+          Complete Manual Verification
+        </button>
+      </form>
+
+      <script>
+        function completeVerify() {
+          if (window.opener) {
+            window.opener.postMessage({ type: "awtkit-manual-verify-complete" }, "*");
+          }
+          window.close();
+        }
+      </script>
+    </main>
+  </body>
+</html>

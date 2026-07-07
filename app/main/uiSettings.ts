@@ -15,10 +15,15 @@ export interface TableState {
   filters: Record<string, unknown>;
 }
 
+/** UI theme preference. "system" follows the OS prefers-color-scheme. */
+export type AppearanceMode = "light" | "dark" | "system";
+
 export interface UiSettings {
   // ── Core layout (existing flat fields, kept for backward compatibility) ──────
   sidebarCollapsed: boolean;
   lastRouteId: string;
+  /** Theme appearance; defaults to "light" for backward compatibility. */
+  appearance: AppearanceMode;
   flowDesignerPaletteWidth: number;
   flowDesignerPropertiesCollapsed: boolean;
   /** Persisted key: ui.flowDesigner.nodePaletteCollapsed */
@@ -37,6 +42,8 @@ export interface UiSettings {
   recorder: {
     /** Capture the user's think-time between actions as fixed-time wait steps. */
     captureWaitTime: boolean;
+    /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
+    captureSmartWaits: boolean;
   };
   /** Last run settings (what the user last launched). */
   instanceRunSettings: {
@@ -112,6 +119,7 @@ const defaultTableState: TableState = {
 const defaultSettings: UiSettings = {
   sidebarCollapsed: false,
   lastRouteId: "dashboard",
+  appearance: "light",
   flowDesignerPaletteWidth: 224,
   flowDesignerPropertiesCollapsed: false,
   flowDesignerPaletteCollapsed: false,
@@ -120,7 +128,8 @@ const defaultSettings: UiSettings = {
   workflowBuilderZoomPercent: 0,
   selectedBuilderWorkflowId: "",
   recorder: {
-    captureWaitTime: false
+    captureWaitTime: false,
+    captureSmartWaits: true
   },
   workflowBuilder: {
     selectedConnectorCollapsed: false,

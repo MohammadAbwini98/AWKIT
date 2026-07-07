@@ -39,7 +39,7 @@ export function ExecutionMonitor() {
           <section>
             <h2>Run Readiness</h2>
             <div className="empty-state">
-              <ShieldCheck size={28} style={{ color: "#9fafc4" }} />
+              <ShieldCheck size={28} style={{ color: "var(--awkit-text-muted)" }} />
               <strong>No run in progress.</strong>
               <span>Start a workflow from the Workflow Builder or Run screen to see live validation here.</span>
             </div>
@@ -64,7 +64,7 @@ export function ExecutionMonitor() {
               </div>
             ) : (
               <div className="empty-state">
-                <Activity size={28} style={{ color: "#9fafc4" }} />
+                <Activity size={28} style={{ color: "var(--awkit-text-muted)" }} />
                 <strong>No execution activity yet.</strong>
                 <span>Live instance status and step timeline will appear here during a run.</span>
               </div>

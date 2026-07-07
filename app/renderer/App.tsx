@@ -4,6 +4,7 @@ import { UnsavedChangesDialog } from "./components/shared/UnsavedChangesDialog";
 import { routes, type RouteId } from "./routes";
 import { PageChromeContext, type PageChrome } from "./state/pageChrome";
 import { NavigationContext } from "./state/navigation";
+import { ThemeContext, resolveAppearance, type AppearanceMode } from "./state/theme";
 
 const emptyChrome: PageChrome = { actions: [], dirty: false };
 
@@ -11,6 +12,8 @@ export function App() {
   const [activeRouteId, setActiveRouteId] = useState<RouteId>("dashboard");
   const [routeHistory, setRouteHistory] = useState<RouteId[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [appearance, setAppearanceState] = useState<AppearanceMode>("light");
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
   const [chrome, setChromeState] = useState<PageChrome>(emptyChrome);
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [savingBeforeLeave, setSavingBeforeLeave] = useState(false);
@@ -24,9 +27,36 @@ export function App() {
           setActiveRouteId(settings.lastRouteId as RouteId);
         }
         setSidebarCollapsed(settings.sidebarCollapsed);
+        if (settings.appearance === "light" || settings.appearance === "dark" || settings.appearance === "system") {
+          setAppearanceState(settings.appearance);
+        }
       })
       .catch(() => undefined);
   }, []);
+
+  // Apply the theme to <html data-theme="…">; in system mode follow OS changes live.
+  useEffect(() => {
+    const apply = () => {
+      const resolved = resolveAppearance(appearance);
+      document.documentElement.dataset.theme = resolved;
+      setResolvedTheme(resolved);
+    };
+    apply();
+    if (appearance !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [appearance]);
+
+  const setAppearance = useCallback((mode: AppearanceMode) => {
+    setAppearanceState(mode);
+    window.playwrightFlowStudio.settings.update({ appearance: mode }).catch(() => undefined);
+  }, []);
+
+  const themeApi = useMemo(
+    () => ({ appearance, resolvedTheme, setAppearance }),
+    [appearance, resolvedTheme, setAppearance]
+  );
 
   const chromeApi = useMemo(
     () => ({
@@ -133,6 +163,7 @@ export function App() {
   return (
     <PageChromeContext.Provider value={chromeApi}>
       <NavigationContext.Provider value={navigationApi}>
+      <ThemeContext.Provider value={themeApi}>
         <AppShell
           activeRoute={activeRoute}
           activeRouteId={activeRouteId}
@@ -154,6 +185,7 @@ export function App() {
             onCancel={() => void settleLeave("cancel")}
           />
         ) : null}
+      </ThemeContext.Provider>
       </NavigationContext.Provider>
     </PageChromeContext.Provider>
   );

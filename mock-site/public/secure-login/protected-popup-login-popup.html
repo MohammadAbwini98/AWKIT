@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in — Protected Identity Provider</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-popup">
+      <h1>Protected identity provider</h1>
+      <p>Two-step verification required. Complete this login manually.</p>
+
+      <form id="popupLogin" onsubmit="return false;">
+        <label for="pUsername">Username</label>
+        <input id="pUsername" name="username" type="text" autocomplete="username" data-testid="popup-username" />
+
+        <label for="pPassword">Password</label>
+        <input id="pPassword" name="password" type="password" autocomplete="current-password" data-testid="popup-password" />
+
+        <button id="popupComplete" type="button" data-testid="popup-complete" onclick="completePopupLogin()">
+          Complete Manual Login
+        </button>
+      </form>
+
+      <script>
+        function completePopupLogin() {
+          if (window.opener) {
+            window.opener.postMessage({ type: "awtkit-manual-login-complete" }, "*");
+          }
+          window.close();
+        }
+      </script>
+    </main>
+  </body>
+</html>

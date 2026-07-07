@@ -19,7 +19,7 @@ export interface SessionProfile {
   /** Normalized origin (protocol + host + port) used for session matching. */
   origin?: string;
   /** How this session was created. Older profiles have no source (treat as "manual"). */
-  source?: "autoSecureLogin" | "manual" | "imported";
+  source?: "autoSecureLogin" | "manual" | "imported" | "manualChromeHandoff";
   createdAt: string;
   lastUsedAt?: string;
   /** Path to the Chrome / Edge executable used during capture. */

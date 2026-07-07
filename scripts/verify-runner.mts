@@ -5,7 +5,7 @@
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
@@ -820,6 +820,128 @@ async function main() {
     );
     await loopPage2.close();
 
+    // J) Full runner lifecycle regression: Reuse Session launches a new persistent
+    // context, old-runtime close events are stale/ignored, and the next Navigate
+    // runs on the new live page instead of the closed pre-swap page.
+    const reuseProfileDir = await mkdtemp(join(tmpdir(), "wfs-reuse-profile-"));
+    let lifecycleMarked = "";
+    const lifecycleSvc = {
+      list: async () => [],
+      startCapture: async () => ({ active: false, status: "closed" }),
+      getStatus: () => ({ active: false, status: "closed" }),
+      getById: async (id: string) => ({ id, name: id, profileDir: reuseProfileDir, createdAt: "", status: "ready" as const }),
+      markUsed: async (id: string) => {
+        lifecycleMarked = id;
+      }
+    } as any;
+    const reuseLifecycleFlow = simpleFlow("reuse-lifecycle", [
+      { id: "reuse", type: "reuseSession", name: "Reuse", config: { reuseSessionMode: "selected", reuseSessionId: "session-live" } },
+      { id: "nav", type: "goto", name: "Navigate after reuse", url: `${BASE}/login` },
+      { id: "assert", type: "assertText", name: "Assert login page", config: { assertionType: "url", comparisonOperator: "contains", expectedValue: "/login" } }
+    ]);
+    const reuseLifecycleScenario: ScenarioProfile = {
+      id: "sc-reuse-lifecycle",
+      name: "Reuse lifecycle",
+      executionMode: "sequential",
+      maxParallelFlows: 1,
+      flows: [{ order: 1, flowId: "reuse-lifecycle", required: true }],
+      links: [],
+      failurePolicy: { stopOnRequiredFlowFailure: true, continueOnOptionalFlowFailure: true, takeScreenshotOnFailure: false }
+    };
+    const reuseLifecycleConfig: InstanceConfig = {
+      id: "reuse-lifecycle-i1",
+      name: "Reuse lifecycle",
+      browser: "chromium",
+      headless: true,
+      isolationMode: "browserContext",
+      timeoutMs: 30_000,
+      viewport: { width: 1280, height: 800 }
+    };
+    const lifecycleRunner = new PlaywrightRunner({ flows: [reuseLifecycleFlow], productionOffline: false, resourcesRoot: join(process.cwd(), "resources"), sessionService: lifecycleSvc });
+    const lifecycleResult = await lifecycleRunner.executeScenario(reuseLifecycleScenario, await makeContext("reuse-lifecycle"), reuseLifecycleConfig);
+    const lifecycleLogs = lifecycleResult.logs.map((entry) => entry.message).join(" | ");
+    check(
+      "reuseSession two-phase swap keeps new runtime alive and Navigate succeeds",
+      lifecycleResult.status === "passed" &&
+        lifecycleMarked === "session-live" &&
+        lifecycleResult.flows[0]?.steps.some((step) => step.stepId === "nav" && step.status === "passed") &&
+        lifecycleLogs.includes("[swap:g2] Reuse Session ready") &&
+        lifecycleLogs.includes("stale context close ignored"),
+      `status=${lifecycleResult.status} marked=${lifecycleMarked} logs=${lifecycleLogs}`
+    );
+
+    // K) Locked persistent profile fails at Reuse Session and never executes the following Navigate.
+    const lockedProfileDir = await mkdtemp(join(tmpdir(), "wfs-locked-profile-"));
+    await writeFile(join(lockedProfileDir, "SingletonLock"), "locked", "utf8");
+    const lockedSvc = {
+      list: async () => [],
+      startCapture: async () => ({ active: false, status: "closed" }),
+      getStatus: () => ({ active: false, status: "closed" }),
+      getById: async (id: string) => ({ id, name: id, profileDir: lockedProfileDir, createdAt: "", status: "ready" as const }),
+      markUsed: async () => undefined
+    } as any;
+    const lockedRunner = new PlaywrightRunner({ flows: [reuseLifecycleFlow], productionOffline: false, resourcesRoot: join(process.cwd(), "resources"), sessionService: lockedSvc });
+    const lockedResult = await lockedRunner.executeScenario(reuseLifecycleScenario, await makeContext("reuse-lifecycle"), reuseLifecycleConfig);
+    check(
+      "locked reuseSession profile fails clearly before Navigate",
+      lockedResult.status === "failed" &&
+        (lockedResult.error ?? lockedResult.flows[0]?.error ?? "").includes("currently in use by another browser process") &&
+        !lockedResult.flows[0]?.steps.some((step) => step.stepId === "nav"),
+      `status=${lockedResult.status} error=${lockedResult.error ?? lockedResult.flows[0]?.error}`
+    );
+
+    // L) Two concurrent Reuse Session branches for one instance are blocked by the swap mutex.
+    const dupProfileA = await mkdtemp(join(tmpdir(), "wfs-dup-profile-a-"));
+    const dupProfileB = await mkdtemp(join(tmpdir(), "wfs-dup-profile-b-"));
+    const duplicateSvc = {
+      list: async () => [],
+      startCapture: async () => ({ active: false, status: "closed" }),
+      getStatus: () => ({ active: false, status: "closed" }),
+      getById: async (id: string) => ({
+        id,
+        name: id,
+        profileDir: id === "dup-a" ? dupProfileA : dupProfileB,
+        createdAt: "",
+        status: "ready" as const
+      }),
+      markUsed: async () => undefined
+    } as any;
+    const duplicateSwapFlow: FlowProfile = {
+      id: "duplicate-swap",
+      name: "Duplicate swap",
+      version: 1,
+      nodes: [
+        { id: "start", type: "start", name: "Start" },
+        { id: "fanout", type: "scroll", name: "Fan out", config: { scrollDirection: "down", scrollAmount: 1 } },
+        { id: "reuseA", type: "reuseSession", name: "Reuse A", config: { reuseSessionMode: "selected", reuseSessionId: "dup-a" } },
+        { id: "reuseB", type: "reuseSession", name: "Reuse B", config: { reuseSessionMode: "selected", reuseSessionId: "dup-b" } },
+        { id: "end", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "ds1", source: "start", target: "fanout", type: "success" },
+        { id: "ds2", source: "fanout", target: "reuseA", type: "parallel", kind: "parallel", parallel: { joinMode: "waitAll", failMode: "collectErrors", isolation: "isolatedPage", maxConcurrency: 2 } },
+        { id: "ds3", source: "fanout", target: "reuseB", type: "parallel", kind: "parallel", parallel: { joinMode: "waitAll", failMode: "collectErrors", isolation: "isolatedPage", maxConcurrency: 2 } },
+        { id: "ds4", source: "fanout", target: "end", type: "success" }
+      ]
+    };
+    const duplicateRunner = new PlaywrightRunner({ flows: [duplicateSwapFlow], productionOffline: false, resourcesRoot: join(process.cwd(), "resources"), sessionService: duplicateSvc });
+    const duplicateScenario: ScenarioProfile = {
+      id: "sc-duplicate-swap",
+      name: "Duplicate swap",
+      executionMode: "sequential",
+      maxParallelFlows: 1,
+      flows: [{ order: 1, flowId: "duplicate-swap", required: true }],
+      links: [],
+      failurePolicy: { stopOnRequiredFlowFailure: true, continueOnOptionalFlowFailure: true, takeScreenshotOnFailure: false }
+    };
+    const duplicateResult = await duplicateRunner.executeScenario(duplicateScenario, await makeContext("duplicate-swap"), reuseLifecycleConfig);
+    const duplicateText = `${duplicateResult.error ?? ""} ${duplicateResult.flows.map((flow) => flow.error ?? "").join(" ")} ${duplicateResult.logs.map((entry) => entry.message).join(" ")}`;
+    check(
+      "duplicate Reuse Session swaps are blocked by mutex",
+      duplicateResult.status === "failed" && duplicateText.includes("Browser session swap is already in progress"),
+      `status=${duplicateResult.status} text=${duplicateText.slice(0, 240)}`
+    );
+
     // ── Route Change node (switch to a newly opened tab) ─────────────────────
     console.log("Route Change node:");
     const rcPage = await browser.newPage();
@@ -868,6 +990,140 @@ async function main() {
     check("protectedLoginHandoff continues in place after resume", plResult.status === "passed", plResult.status);
     check("auto-detect does not pause normal mock pages", (await plExec.execute({ id: "navok", type: "goto", name: "navok", url: `${BASE}/form` })).status === "passed");
     await plPage.close();
+
+    const plCapturePage = await browser.newPage();
+    const plCaptureCtx = await makeContext("pl-capture-flow");
+    const plCaptureCalls: Array<{ closeOnly?: boolean; newUserDataDir?: string }> = [];
+    const plCaptureRestarter = async (opts?: { closeOnly?: boolean; newUserDataDir?: string }) => {
+      plCaptureCalls.push(opts ?? {});
+    };
+    let protectedStart: { name: string; targetUrl: string; source: string } | undefined;
+    let protectedMarked = "";
+    const protectedCaptureSvc = {
+      list: async () => [],
+      startCapture: async (name: string, targetUrl: string, source: string) => {
+        protectedStart = { name, targetUrl, source };
+        return { active: true, status: "running", sessionId: "protected-session" };
+      },
+      getStatus: () => ({ active: false, status: "closed" }),
+      hasCapturedData: () => true,
+      getById: async () => readyProfile("protected-session", "https://idp.example/login"),
+      markUsed: async (id: string) => {
+        protectedMarked = id;
+      },
+      stopCapture: () => undefined
+    } as any;
+    const plCaptureExec = new StepExecutor(
+      plCapturePage,
+      new LocatorFactory(plCapturePage),
+      new ValueResolver(plCaptureCtx),
+      plCaptureCtx,
+      new ManualHandoffController(),
+      undefined,
+      undefined,
+      undefined,
+      plCaptureRestarter,
+      protectedCaptureSvc
+    );
+    await plCapturePage.goto(`${BASE}/login`);
+    const plCaptureResult = await plCaptureExec.execute({
+      id: "pl-capture",
+      type: "protectedLoginHandoff",
+      name: "protected login capture",
+      value: "https://idp.example/login",
+      config: { detectBeforeHandoff: false, handoffMode: "pauseAndAsk" },
+      timeoutMs: 5000
+    });
+    check(
+      "protectedLoginHandoff captures session in normal browser and resumes automation",
+      plCaptureResult.status === "passed" &&
+        plCaptureResult.outcome === "sessionCaptured" &&
+        plCaptureResult.outputs.protectedLoginSessionCaptured === true &&
+        protectedStart?.source === "manualChromeHandoff" &&
+        protectedStart?.targetUrl === "https://idp.example/login" &&
+        plCaptureCalls.some((call) => call.closeOnly) &&
+        plCaptureCalls.some((call) => call.newUserDataDir === "/tmp/protected-session") &&
+        protectedMarked === "protected-session",
+      `status=${plCaptureResult.status} start=${JSON.stringify(protectedStart)} calls=${JSON.stringify(plCaptureCalls)} marked=${protectedMarked}`
+    );
+
+    plCaptureCalls.length = 0;
+    protectedStart = undefined;
+    protectedMarked = "";
+    const protectedDataUrl = "data:text/html,<title>Verify%20you%20are%20human</title><body>verify%20you%20are%20human</body>";
+    const autoProtectedResult = await plCaptureExec.execute({
+      id: "nav-protected",
+      type: "goto",
+      name: "navigate to protected login",
+      url: protectedDataUrl,
+      timeoutMs: 5000
+    });
+    check(
+      "auto-detected protected login captures session in normal browser",
+      autoProtectedResult.status === "passed" &&
+        autoProtectedResult.outcome === "sessionCaptured" &&
+        autoProtectedResult.outputs.protectedLoginSessionCaptured === true &&
+        protectedStart?.source === "manualChromeHandoff" &&
+        protectedStart?.targetUrl === protectedDataUrl &&
+        plCaptureCalls.some((call) => call.closeOnly) &&
+        plCaptureCalls.some((call) => call.newUserDataDir === "/tmp/protected-session") &&
+        protectedMarked === "protected-session",
+      `status=${autoProtectedResult.status} start=${JSON.stringify(protectedStart)} calls=${JSON.stringify(plCaptureCalls)} marked=${protectedMarked}`
+    );
+    await plCapturePage.close();
+
+    const plSlowPage = await browser.newPage();
+    const plSlowCtx = await makeContext("pl-capture-timeout-flow");
+    const plSlowCalls: Array<{ closeOnly?: boolean; newUserDataDir?: string }> = [];
+    let plSlowPolls = 0;
+    let plSlowStopped = false;
+    const plSlowCaptureSvc = {
+      list: async () => [],
+      startCapture: async () => ({ active: true, status: "running", sessionId: "protected-slow-session" }),
+      getStatus: () => {
+        plSlowPolls += 1;
+        return plSlowPolls < 2 ? { active: true, status: "running" } : { active: false, status: "closed" };
+      },
+      hasCapturedData: () => true,
+      getById: async () => readyProfile("protected-slow-session", protectedDataUrl),
+      markUsed: async () => undefined,
+      stopCapture: () => {
+        plSlowStopped = true;
+      }
+    } as any;
+    const plSlowExec = new StepExecutor(
+      plSlowPage,
+      new LocatorFactory(plSlowPage),
+      new ValueResolver(plSlowCtx),
+      plSlowCtx,
+      new ManualHandoffController(),
+      undefined,
+      undefined,
+      undefined,
+      async (opts?: { closeOnly?: boolean; newUserDataDir?: string }) => {
+        plSlowCalls.push(opts ?? {});
+      },
+      plSlowCaptureSvc
+    );
+    const autoProtectedSlowResult = await plSlowExec.execute({
+      id: "nav-protected-slow",
+      type: "goto",
+      name: "navigate to protected login with short navigation timeout",
+      url: protectedDataUrl,
+      timeoutMs: 25
+    });
+    check(
+      "protected login capture ignores navigation timeout",
+      autoProtectedSlowResult.status === "passed" &&
+        autoProtectedSlowResult.outcome === "sessionCaptured" &&
+        autoProtectedSlowResult.outputs.protectedLoginSessionCaptured === true &&
+        plSlowPolls >= 2 &&
+        !plSlowStopped &&
+        plSlowCalls.some((call) => call.closeOnly) &&
+        plSlowCalls.some((call) => call.newUserDataDir === "/tmp/protected-slow-session"),
+      `status=${autoProtectedSlowResult.status} error=${autoProtectedSlowResult.error} polls=${plSlowPolls} stopped=${plSlowStopped} calls=${JSON.stringify(plSlowCalls)}`
+    );
+    await plSlowPage.close();
 
     // ── Connector routing (workflow-level) ───────────────────────────────────
     console.log("Connector routing (workflow-level):");

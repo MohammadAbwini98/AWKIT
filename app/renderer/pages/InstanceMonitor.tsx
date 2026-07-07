@@ -2,6 +2,7 @@ import { Activity, ChevronDown, FileImage, MonitorDot, Pause, Play, RefreshCw, R
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { WorkflowRunCard, type WorkflowCardParams, type WorkflowCardStatus } from "../components/instances/WorkflowRunCard";
+import { RecoverableRunsPanel } from "../components/instances/RecoverableRunsPanel";
 import { ProtectedLoginHandoffPanel, type ProtectedLoginCapabilities } from "../components/auth/ProtectedLoginHandoffPanel";
 import { LiveExecutionReportModal } from "../components/instances/LiveExecutionReportModal";
 import {
@@ -16,6 +17,7 @@ import type { BrowserWindowMode, ConcurrentRunProfile } from "@src/instances/Con
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { InstanceIsolationMode } from "@src/instances/InstanceIsolationMode";
 import type { InstanceStatus } from "@src/instances/InstanceStatus";
+import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 const coordinator = new ConcurrentExecutionCoordinator();
@@ -111,6 +113,7 @@ export function InstanceMonitor() {
   const [classicOpen, setClassicOpen] = useState(false);
   const [authCaps, setAuthCaps] = useState<ProtectedLoginCapabilities | null>(null);
   const [reportInstanceId, setReportInstanceId] = useState<string | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusSnapshot | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridColumns = useGridColumns(gridRef);
 
@@ -191,6 +194,20 @@ export function InstanceMonitor() {
     fetchInstances(); // Initial fetch
     return () => clearInterval(interval);
   }, []);
+
+  // Concurrency runtime status (capacity / locks / pool / watchdog) — lighter 2s poll.
+  const refreshRuntimeStatus = useCallback(() => {
+    window.playwrightFlowStudio.executions
+      .runtimeStatus()
+      .then(setRuntimeStatus)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(refreshRuntimeStatus, 2000);
+    refreshRuntimeStatus();
+    return () => clearInterval(interval);
+  }, [refreshRuntimeStatus]);
 
   const selectedWorkflow = useMemo(() => workflows.find((workflow) => workflow.id === selectedWorkflowId), [workflows, selectedWorkflowId]);
   const workflowDataSource = selectedWorkflow?.dataSource;
@@ -536,13 +553,13 @@ export function InstanceMonitor() {
 
         {workflows.length === 0 ? (
           <div className="empty-state" style={{ marginTop: 12 }}>
-            <MonitorDot size={30} style={{ color: "#9fafc4" }} />
+            <MonitorDot size={30} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No workflows created yet.</strong>
             <span>Create your first workflow in Workflow Builder.</span>
           </div>
         ) : filteredWorkflows.length === 0 ? (
           <div className="empty-state" style={{ marginTop: 12 }}>
-            <Search size={26} style={{ color: "#9fafc4" }} />
+            <Search size={26} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No matching workflows found.</strong>
             <span>Adjust your search text.</span>
           </div>
@@ -578,6 +595,89 @@ export function InstanceMonitor() {
             ) : null}
           </>
         )}
+
+        {/* Runtime capacity / lock / watchdog status (read-only diagnostics strip) */}
+        {runtimeStatus ? (
+          <div
+            className="toolbar-strip im-runtime-status"
+            style={{ flexWrap: "wrap", gap: "12px", marginTop: 12, fontSize: 12, color: "var(--awkit-text-secondary)", alignItems: "center" }}
+            title="Concurrency runtime status: browser pool, capacity, resource locks, and watchdog activity."
+          >
+            <span>
+              <strong>Browsers</strong> {runtimeStatus.capacity.activeBrowsers}/{runtimeStatus.capacity.maxBrowsers}
+            </span>
+            <span>
+              <strong>Flows</strong> {runtimeStatus.capacity.activeFlows}/{runtimeStatus.capacity.maxActiveFlows}
+            </span>
+            <span>
+              <strong>Pages</strong> {runtimeStatus.capacity.activePages}
+            </span>
+            <span>
+              <strong>Queued</strong> {runtimeStatus.capacity.queueDepth}
+            </span>
+            <span title={`Profile: ${runtimeStatus.locks.profileLocks} · Origin: ${runtimeStatus.locks.originLocks} · Account: ${runtimeStatus.locks.accountLocks} · Download dirs: ${runtimeStatus.locks.downloadDirLocks}`}>
+              <strong>Locks</strong> {runtimeStatus.locks.totalHeld}
+              {runtimeStatus.locks.staleLocks > 0 ? ` (${runtimeStatus.locks.staleLocks} stale)` : ""}
+            </span>
+            <span>
+              <strong>Crashes</strong> {runtimeStatus.capacity.recentCrashes}
+            </span>
+            {runtimeStatus.capacity.cpuPercent !== undefined ? (
+              <span title={`Sampled ${runtimeStatus.capacity.sampledAt ?? ""} · process RSS ${runtimeStatus.capacity.processRssMb}MB`}>
+                <strong>CPU</strong> {runtimeStatus.capacity.cpuPercent}%
+              </span>
+            ) : null}
+            {runtimeStatus.capacity.systemMemoryPercent !== undefined ? (
+              <span>
+                <strong>Mem</strong> {runtimeStatus.capacity.systemMemoryPercent}%
+              </span>
+            ) : null}
+            {runtimeStatus.recoverableRuns && runtimeStatus.recoverableRuns.length > 0 ? (
+              <span
+                style={{ color: "var(--awkit-warning)" }}
+                title={runtimeStatus.recoverableRuns
+                  .map((run) => `${run.instanceId}: ${run.status}${run.recoveryNote ? ` — ${run.recoveryNote}` : ""}`)
+                  .join("\n")}
+              >
+                <strong>Recoverable</strong> {runtimeStatus.recoverableRuns.length} prior run(s)
+              </span>
+            ) : null}
+            {runtimeStatus.durableLocks && runtimeStatus.durableLocks.stale.length > 0 ? (
+              <span
+                style={{ color: "var(--awkit-warning)" }}
+                title={runtimeStatus.durableLocks.stale.map((s) => `${s.key}: ${s.staleReason}`).join("\n")}
+              >
+                <strong>Stale durable locks</strong> {runtimeStatus.durableLocks.stale.length}
+              </span>
+            ) : null}
+            {runtimeStatus.capacity.dispatchBlocked && runtimeStatus.capacity.blockedReason ? (
+              <span style={{ color: "var(--awkit-warning)" }} title={runtimeStatus.capacity.blockedReason}>
+                <strong>Backpressure:</strong> {runtimeStatus.capacity.blockedReason}
+              </span>
+            ) : null}
+            {runtimeStatus.watchdog.recentFindings.length > 0 ? (
+              <span
+                style={{ color: "var(--awkit-warning)" }}
+                title={runtimeStatus.watchdog.recentFindings.map((f) => `${f.kind}: ${f.instanceId} — ${f.reason}`).join("\n")}
+              >
+                <strong>Watchdog:</strong> {runtimeStatus.watchdog.recentFindings[runtimeStatus.watchdog.recentFindings.length - 1].kind} (
+                {runtimeStatus.watchdog.totalFindings} total)
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Recoverable / interrupted prior runs (Phase 4C): actionable after an app restart. */}
+        {runtimeStatus?.recoverableRuns?.length ? (
+          <RecoverableRunsPanel
+            runs={runtimeStatus.recoverableRuns}
+            resolveWorkflow={(scenarioId) => workflows.find((workflow) => workflow.id === scenarioId)}
+            onRerunWorkflow={(workflow) => void runWorkflowFromCard(workflow)}
+            onOpenPath={(path, label) => void openPath(path, label)}
+            onMessage={setRunMessage}
+            onChanged={refreshRuntimeStatus}
+          />
+        ) : null}
 
         {/* Monitor-wide controls (apply across every running workflow) */}
         <div className="toolbar-strip im-monitor-controls" style={{ flexWrap: "wrap", gap: "8px" }}>
@@ -694,7 +794,7 @@ export function InstanceMonitor() {
         {/* Phase 04: stable table with overflow-x wrapper */}
         {instances.length === 0 ? (
           <div className="empty-state" id="im-empty-state" style={{ marginTop: "16px" }}>
-            <MonitorDot size={32} style={{ color: "#9fafc4" }} />
+            <MonitorDot size={32} style={{ color: "var(--awkit-text-muted)" }} />
             <strong>No active instances.</strong>
             <span>Run a workflow card above to launch instances; they will appear here.</span>
           </div>
@@ -802,7 +902,7 @@ export function InstanceMonitor() {
                             title={isDone ? "Remove this instance" : "Cannot remove a running instance"}
                             type="button"
                             onClick={() => removeInstance(instance.instanceId)}
-                            style={{ color: isDone ? "#ef4444" : "inherit" }}
+                            style={{ color: isDone ? "var(--awkit-danger)" : "inherit" }}
                           >
                             <Trash2 size={13} />
                           </button>

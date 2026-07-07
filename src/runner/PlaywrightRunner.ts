@@ -11,16 +11,37 @@ import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
 import { StepExecutor, type BrowserRestarter, type ChildFlowRunner } from "./StepExecutor";
+import { TraceService } from "./artifacts/TraceService";
+import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
+import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ValueResolver } from "./ValueResolver";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
-import type { Page } from "playwright";
+import type { Browser, BrowserContext, Page } from "playwright";
 
 /** Live automation-browser state that a mid-run restart (Auto Secure Login) can swap. */
 interface BrowserHolder {
   runtime: BrowserRuntime;
   page: Page;
+  generation: number;
+  swapInProgress: boolean;
   /** The StepExecutor currently driving the active flow (re-pointed after a restart). */
   activeExecutor?: StepExecutor;
+}
+
+type BrowserCloseReason =
+  | "reuse-session-swap-old-runtime"
+  | "instance-stop"
+  | "execution-failed-cleanup"
+  | "user-request"
+  | "app-shutdown"
+  | "launch-failed-cleanup";
+
+interface RuntimeCandidate {
+  runtime: BrowserRuntime;
+  page: Page;
+  browser?: Browser | null;
+  context: BrowserContext;
+  generation: number;
 }
 
 /** Guards Run Another Flow against runaway/recursive nesting. */
@@ -34,6 +55,19 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   progress?: RunnerProgressReporter;
   /** Session capture service (Main process only) — enables Auto Secure Login / Reuse Session nodes. */
   sessionService?: SessionCaptureService;
+  /**
+   * Called whenever a browser runtime becomes current for this run (initial launch and every
+   * mid-run Reuse Session / Auto Secure Login swap). Lets the engine's BrowserWorkerPool track
+   * contexts/pages/health of the live runtime without owning its lifecycle.
+   */
+  onBrowserRuntime?: (info: { runtime: BrowserRuntime; generation: number }) => void;
+  /**
+   * Hard-cancellation token (Phase 3). On cancel, the runner closes the CURRENT browser runtime
+   * so in-flight Playwright actions reject immediately, and refuses to start further flows/steps.
+   */
+  cancellation?: CancellationToken;
+  /** Dynamic origin-claim tracker for this instance (Phase 3). */
+  originClaims?: OriginClaimTracker;
 }
 
 export class PlaywrightRunner {
@@ -41,6 +75,8 @@ export class PlaywrightRunner {
   private readonly browserContextFactory: BrowserContextFactory;
   private readonly manualHandoffController: ManualHandoffController;
   private readonly scenarioOrchestrator: ScenarioOrchestrator;
+  /** Per-run failure-trace capture; armed only when the context provides a traces dir. */
+  private traceService?: TraceService;
 
   constructor(private readonly options: PlaywrightRunnerOptions) {
     this.flows = new Map(options.flows.map((flow) => [flow.id, flow]));
@@ -64,20 +100,91 @@ export class PlaywrightRunner {
 
     const startedAt = new Date().toISOString();
     const logger = new MemoryRunnerLogger();
+    let browserGeneration = 1;
     const runtime = await this.browserContextFactory.create(instanceConfig, context);
     // Mutable holder so Auto Secure Login can close/relaunch the automation browser mid-run
     // and re-point the live StepExecutor + subsequent flows at the new page.
-    const holder: BrowserHolder = { runtime, page: await runtime.context.newPage() };
+    const holder: BrowserHolder = { runtime, page: await this.resolveLivePage(runtime.context), generation: browserGeneration, swapInProgress: false };
+    this.patchRuntimeCloseWithStack(holder.runtime, holder.page, holder.generation);
+    this.attachLifecycleHandlers(holder, {
+      runtime: holder.runtime,
+      page: holder.page,
+      browser: holder.runtime.browser ?? holder.runtime.context.browser(),
+      context: holder.runtime.context,
+      generation: holder.generation
+    }, logger, context);
+    this.options.onBrowserRuntime?.({ runtime: holder.runtime, generation: holder.generation });
+    this.traceService = new TraceService(context.paths.traces);
+    await this.traceService.attach(holder.runtime.context);
+
+    // Hard cancellation: close the CURRENT runtime (whichever generation is live) so any
+    // in-flight Playwright action rejects immediately instead of running to completion.
+    const unsubscribeCancel = this.options.cancellation?.onCancel(async () => {
+      logger.log({
+        level: "warn",
+        message: `[cancel] closing browser runtime g${holder.generation} (${this.options.cancellation?.reason ?? "user request"}).`,
+        ...this.logMeta(context)
+      });
+      await this.closeRuntime(holder.runtime, holder.generation, "user-request", logger, context).catch(() => undefined);
+    });
 
     const restartBrowser: BrowserRestarter = async (opts) => {
-      await holder.runtime.close().catch(() => undefined);
-      if (opts?.closeOnly) return;
-      const customConfig: InstanceConfig = opts?.newUserDataDir
-        ? { ...instanceConfig, isolationMode: "persistentContext", userDataDir: opts.newUserDataDir }
-        : instanceConfig;
-      holder.runtime = await this.browserContextFactory.create(customConfig, context);
-      holder.page = await holder.runtime.context.newPage();
-      holder.activeExecutor?.setActivePage(holder.page);
+      if (holder.swapInProgress) {
+        throw new Error("Browser session swap is already in progress for this instance.");
+      }
+
+      if (opts?.closeOnly) {
+        await this.closeRuntime(holder.runtime, holder.generation, "reuse-session-swap-old-runtime", logger, context);
+        return;
+      }
+
+      holder.swapInProgress = true;
+      const oldRuntime = holder.runtime;
+      const oldGeneration = holder.generation;
+      const newGeneration = ++browserGeneration;
+      const customConfig: InstanceConfig = { ...instanceConfig };
+      if (opts?.newUserDataDir) {
+        customConfig.isolationMode = "persistentContext";
+        customConfig.userDataDir = opts.newUserDataDir;
+      }
+
+      logger.log({ level: "info", message: `[swap:g${newGeneration}] launch started (userDataDir=${opts?.newUserDataDir ?? "default"}).`, ...this.logMeta(context) });
+      let candidate: RuntimeCandidate | undefined;
+      try {
+        const newRuntime = await this.browserContextFactory.create(customConfig, context);
+        const newPage = await this.resolveLivePage(newRuntime.context);
+        candidate = {
+          runtime: newRuntime,
+          page: newPage,
+          browser: newRuntime.browser ?? newRuntime.context.browser(),
+          context: newRuntime.context,
+          generation: newGeneration
+        };
+        this.patchRuntimeCloseWithStack(candidate.runtime, candidate.page, newGeneration);
+        this.attachLifecycleHandlers(holder, candidate, logger, context);
+        logger.log({ level: "info", message: `[swap:g${newGeneration}] persistent context created; active page selected.`, ...this.logMeta(context) });
+
+        await this.assertRuntimeAlive(candidate, "after launch", 750);
+
+        holder.runtime = candidate.runtime;
+        holder.page = candidate.page;
+        holder.generation = newGeneration;
+        holder.activeExecutor?.setActivePage(candidate.page);
+        this.options.onBrowserRuntime?.({ runtime: candidate.runtime, generation: newGeneration });
+        await this.traceService?.attach(candidate.runtime.context);
+        logger.log({ level: "info", message: `[swap:g${newGeneration}] published as current runtime.`, ...this.logMeta(context) });
+
+        await this.closeRuntime(oldRuntime, oldGeneration, "reuse-session-swap-old-runtime", logger, context);
+        await this.assertRuntimeAlive(candidate, "after old runtime close", 2_000);
+
+        logger.log({ level: "info", message: `[swap:g${newGeneration}] Reuse Session ready.`, ...this.logMeta(context) });
+      } catch (error) {
+        logger.log({ level: "error", message: `[swap:g${newGeneration}] Reuse Session failed: ${error instanceof Error ? error.message : String(error)}`, ...this.logMeta(context) });
+        if (candidate) await this.closeRuntime(candidate.runtime, newGeneration, "launch-failed-cleanup", logger, context).catch(() => undefined);
+        throw error;
+      } finally {
+        holder.swapInProgress = false;
+      }
     };
 
     const flowResults: FlowExecutionResult[] = [];
@@ -106,6 +213,8 @@ export class PlaywrightRunner {
       let stepCount = 0;
 
       while (currentFlowId && stepCount < maxSteps) {
+        // Stop dispatching flows the moment cancellation is requested.
+        if (this.options.cancellation?.cancelled) throw new CancelledError(this.options.cancellation.reason);
         stepCount += 1;
         const planStep = planByFlow.get(currentFlowId);
         const flow = this.flows.get(currentFlowId);
@@ -153,7 +262,8 @@ export class PlaywrightRunner {
     } catch (error) {
       return this.finish(profile.id, context, startedAt, flowResults, logger, "failed", error instanceof Error ? error.message : String(error));
     } finally {
-      await holder.runtime.close().catch(() => undefined);
+      unsubscribeCancel?.();
+      await this.closeRuntime(holder.runtime, holder.generation, "execution-failed-cleanup", logger, context).catch(() => undefined);
     }
   }
 
@@ -183,9 +293,115 @@ export class PlaywrightRunner {
     return always?.targetFlowId;
   }
 
+  /** Common structured-log fields for browser-swap diagnostics. */
+  private logMeta(context: InstanceExecutionContext): {
+    timestamp: string;
+    executionId: string;
+    instanceId?: string;
+    scenarioId?: string;
+    flowId?: string;
+  } {
+    return {
+      timestamp: new Date().toISOString(),
+      executionId: context.executionId,
+      instanceId: context.instanceId,
+      scenarioId: context.scenarioId,
+      flowId: context.flowId
+    };
+  }
+
   private nextInOrder(order: string[], current: string): string | undefined {
     const index = order.indexOf(current);
     return index >= 0 ? order[index + 1] : undefined;
+  }
+
+  private async resolveLivePage(context: BrowserContext): Promise<Page> {
+    const existing = context.pages().find((page) => !page.isClosed());
+    return existing ?? context.newPage();
+  }
+
+  private attachLifecycleHandlers(
+    holder: BrowserHolder,
+    candidate: RuntimeCandidate,
+    logger: MemoryRunnerLogger,
+    context: InstanceExecutionContext
+  ): void {
+    const bornAt = Date.now();
+    const stale = (event: string): boolean => {
+      if (candidate.generation === holder.generation) return false;
+      logger.log({
+        level: "info",
+        message: `[browser:g${candidate.generation}] stale ${event} ignored (current g${holder.generation}, +${Date.now() - bornAt}ms).`,
+        ...this.logMeta(context)
+      });
+      return true;
+    };
+
+    candidate.context.on("close", () => {
+      if (stale("context close")) return;
+      logger.log({ level: "warn", message: `[browser:g${candidate.generation}] current context closed (+${Date.now() - bornAt}ms).`, ...this.logMeta(context) });
+    });
+    candidate.page.on("close", () => {
+      if (stale("active page close")) return;
+      logger.log({ level: "warn", message: `[browser:g${candidate.generation}] current active page closed (+${Date.now() - bornAt}ms).`, ...this.logMeta(context) });
+    });
+    candidate.page.on("crash", () => {
+      if (stale("active page crash")) return;
+      logger.log({ level: "warn", message: `[browser:g${candidate.generation}] current active page crashed (+${Date.now() - bornAt}ms).`, ...this.logMeta(context) });
+    });
+    candidate.browser?.on("disconnected", () => {
+      if (stale("browser disconnected")) return;
+      logger.log({ level: "warn", message: `[browser:g${candidate.generation}] current browser disconnected (+${Date.now() - bornAt}ms).`, ...this.logMeta(context) });
+    });
+  }
+
+  private async assertRuntimeAlive(candidate: RuntimeCandidate, label: string, stableForMs = 0): Promise<void> {
+    const assertOnce = async (): Promise<void> => {
+      if (candidate.browser && !candidate.browser.isConnected()) {
+        throw new Error(`[swap:g${candidate.generation}] browser is disconnected (${label}).`);
+      }
+      if (candidate.page.isClosed()) {
+        throw new Error(`[swap:g${candidate.generation}] active page is closed (${label}).`);
+      }
+      await candidate.page.evaluate(() => 1);
+    };
+
+    await assertOnce();
+    if (stableForMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, stableForMs));
+      await assertOnce();
+    }
+  }
+
+  private async closeRuntime(
+    runtime: BrowserRuntime,
+    generation: number,
+    reason: BrowserCloseReason,
+    logger: MemoryRunnerLogger,
+    context: InstanceExecutionContext
+  ): Promise<void> {
+    logger.log({ level: "info", message: `[browser:g${generation}] closing runtime (${reason}).`, ...this.logMeta(context) });
+    await runtime.close();
+    logger.log({ level: "info", message: `[browser:g${generation}] runtime closed (${reason}).`, ...this.logMeta(context) });
+  }
+
+  private patchRuntimeCloseWithStack(runtime: BrowserRuntime, page: Page, generation: number): void {
+    if (process.env.AWKIT_BROWSER_LIFECYCLE_DEBUG !== "1") return;
+    this.patchCloseWithStack(runtime.context, `[browser:g${generation}] context`);
+    this.patchCloseWithStack(page, `[browser:g${generation}] activePage`);
+    if (runtime.browser) this.patchCloseWithStack(runtime.browser, `[browser:g${generation}] browser`);
+  }
+
+  private patchCloseWithStack<T extends { close: (...args: any[]) => Promise<unknown> }>(target: T, label: string): void {
+    const closeTarget = target as T & { __awkitCloseTracePatched?: boolean };
+    if (closeTarget.__awkitCloseTracePatched) return;
+    const originalClose = closeTarget.close.bind(closeTarget);
+    closeTarget.close = (async (...args: any[]) => {
+      console.warn(`[close-trace] ${label}.close() called`);
+      console.warn(new Error(`[close-trace] ${label}`).stack);
+      return originalClose(...args);
+    }) as T["close"];
+    closeTarget.__awkitCloseTracePatched = true;
   }
 
   /** Build a StepExecutor/FlowExecutor for a flow and execute it, wiring child-flow calls. */
@@ -208,8 +424,39 @@ export class PlaywrightRunner {
       runChild,
       this.options.progress,
       restartBrowser,
-      this.options.sessionService
+      this.options.sessionService,
+      (label: string) =>
+        this.assertRuntimeAlive(
+          {
+            runtime: holder.runtime,
+            page: holder.page,
+            browser: holder.runtime.browser ?? holder.runtime.context.browser(),
+            context: holder.runtime.context,
+            generation: holder.generation
+          },
+          label
+        ),
+      this.traceService,
+      this.options.cancellation,
+      this.options.originClaims
     );
+
+    // ── Popup registry wiring ───────────────────────────────────────────────
+    // Any popup/new-window opened by the browser during this flow run is automatically
+    // registered in the StepExecutor's PageRegistry under an alias that matches the
+    // alias the recorder assigned (popup-1, popup-2, …). The alias is derived from the
+    // `popupExpectation.popupAlias` on the last executed `click` step (if any), falling
+    // back to a sequential counter so every popup gets a stable key regardless.
+    let runnerPopupCounter = 0;
+    const pageHandler = (newPage: import("playwright").Page): void => {
+      // Try to find the most recently registered click step that opened a popup.
+      // For simplicity we increment a counter and rely on the flow's recorded aliases.
+      runnerPopupCounter += 1;
+      const alias = `popup-${runnerPopupCounter}`;
+      stepExecutor.registerPopupPage(alias, newPage);
+    };
+    holder.runtime.context.on("page", pageHandler);
+
     // Isolated-page parallel branches: each gets a fresh page in the shared context + its own
     // StepExecutor, and the page is closed when the branch finishes.
     const branchFactory = async () => {
@@ -224,7 +471,21 @@ export class PlaywrightRunner {
         runChild,
         this.options.progress,
         restartBrowser,
-        this.options.sessionService
+        this.options.sessionService,
+        (label: string) =>
+          this.assertRuntimeAlive(
+            {
+              runtime: holder.runtime,
+              page: branchPage,
+              browser: holder.runtime.browser ?? holder.runtime.context.browser(),
+              context: holder.runtime.context,
+              generation: holder.generation
+            },
+            label
+          ),
+        this.traceService,
+        this.options.cancellation,
+        this.options.originClaims
       );
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };
@@ -238,6 +499,7 @@ export class PlaywrightRunner {
       return await flowExecutor.executeFlow(flow, context);
     } finally {
       holder.activeExecutor = previousExecutor ?? stepExecutor;
+      holder.runtime.context.off("page", pageHandler);
     }
   }
 

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Protected Popup CAPTCHA — AWTKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="protected-popup-captcha-page">
+      <h1>Protected popup with CAPTCHA</h1>
+      <p>
+        This scenario opens a popup containing a <strong>CAPTCHA challenge</strong>. AWKIT must detect
+        it and pause. AWKIT never solves CAPTCHAs — the user completes it manually in real Chrome.
+      </p>
+
+      <button id="openCaptcha" type="button" data-testid="open-popup" onclick="openCaptchaPopup()">
+        Open CAPTCHA Popup
+      </button>
+
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+
+    <script>
+      function openCaptchaPopup() {
+        window.open("/mock/protected-popup-captcha-popup", "captchaPopup", "width=520,height=640");
+      }
+    </script>
+  </body>
+</html>

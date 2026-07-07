@@ -138,6 +138,31 @@ export class SessionCaptureService {
     await this.writeProfiles(profiles.filter((p) => p.id !== id));
   }
 
+  /**
+   * Best-effort check that a capture profile actually holds authenticated browser state (the user
+   * completed a manual login). Chrome writes cookies/network state under `Default/` once the profile
+   * has been used, so a profile dir with only the initial scaffolding is treated as "no session".
+   * Never reads cookie/token values — only checks that state files exist.
+   */
+  hasCapturedData(id: string): boolean {
+    const profileDir = join(this.profilesRoot, id);
+    if (!existsSync(profileDir)) return false;
+    const markers = [
+      join(profileDir, "Default", "Network", "Cookies"),
+      join(profileDir, "Default", "Cookies"),
+      join(profileDir, "Default", "Local Storage"),
+      join(profileDir, "Default", "Preferences")
+    ];
+    if (markers.some((marker) => existsSync(marker))) return true;
+    // Fallback: a used profile has a populated `Default/` directory.
+    try {
+      const defaultDir = join(profileDir, "Default");
+      return existsSync(defaultDir) && readdirSync(defaultDir).length > 0;
+    } catch {
+      return false;
+    }
+  }
+
   /** Mark a profile as used (update lastUsedAt). */
   async markUsed(id: string): Promise<void> {
     const profiles = await this.readProfiles();

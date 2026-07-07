@@ -50,6 +50,10 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       };
     }
 
+    // Smart Wait conditions observed during recording (Phase 2).
+    if (action.beforeWaits && action.beforeWaits.length > 0) step.beforeWaits = action.beforeWaits;
+    if (action.afterWaits && action.afterWaits.length > 0) step.afterWaits = action.afterWaits;
+
     // Recorded think-time replays as a fixed-time wait step (Point 1).
     if (action.type === "wait") {
       step.timeoutMs = Math.max(0, Math.round(action.waitMs ?? 0));
@@ -60,6 +64,35 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
     if (action.type === "routeChange") {
       step.value = action.valueSource?.value;
       step.config = { routeMode: "switchToLatestTab", urlMatch: "contains", routeWaitUntil: "load" };
+    }
+
+    // ── Secure login / session reuse (protected-login manual handoff) ────────────
+    // Auto Secure Login reads its target URL from `step.value`.
+    if (action.type === "autoSecureLogin") {
+      step.value = action.valueSource?.value;
+    }
+    // Reuse Session links the captured session profile id (selected mode).
+    if (action.type === "reuseSession") {
+      step.config = {
+        reuseSessionMode: action.config?.reuseSessionMode ?? "selected",
+        reuseSessionId: action.config?.reuseSessionId
+      };
+    }
+
+    // ── Multi-Window / Popup ────────────────────────────────────────────────
+    // Map page alias so the runner knows which page object to use for this step.
+    if (action.pageAlias && action.pageAlias !== "main") step.pageAlias = action.pageAlias;
+    // Mark the opener action so the runner arms popup capture before the click.
+    if (action.opensPopup) step.opensPopup = true;
+    if (action.popupExpectation) step.popupExpectation = action.popupExpectation;
+
+    // switchToPopup: the runner will arm waitForEvent('popup') before whatever opens it.
+    // No extra config needed; popupExpectation carries the alias + hints.
+
+    // closePopup: carry the alias so the runner waits for the right page to close.
+    if (action.type === "closePopup") {
+      const alias = (action as RecordedAction & { config?: { popupAlias?: string } }).config?.popupAlias ?? action.pageAlias;
+      step.config = { popupAlias: alias };
     }
 
     return step;

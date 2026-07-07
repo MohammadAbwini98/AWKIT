@@ -24,6 +24,13 @@ export type StepType =
   | "protectedLoginHandoff"
   | "autoSecureLogin"
   | "reuseSession"
+  // ── Multi-Window / Popup ──────────────────────────────────────────────────
+  /** Arm a popup/new-window listener before the opener click, then switch to the new page. */
+  | "switchToPopup"
+  /** Wait for the popup page to close; returns focus to the main page. */
+  | "closePopup"
+  /** Switch the active automation context back to the main page. */
+  | "switchToMainPage"
   | "end";
 
 export type LocatorStrategy = "role" | "label" | "placeholder" | "text" | "testId" | "id" | "css" | "xpath" | "tagName";
@@ -135,6 +142,86 @@ export interface ValueSource {
   generator?: "uuid" | "timestamp" | "randomEmail" | "randomNumber";
 }
 
+export type WaitHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/** Fields shared by every {@link WaitCondition}. */
+export interface WaitConditionBase {
+  /** Max time to wait before the condition fails (ms). Runner default: 30000. */
+  timeoutMs?: number;
+  /** Human-readable note (why the recorder captured this wait) — shown in diagnostics. */
+  reason?: string;
+}
+
+/**
+ * A condition-based wait (Smart Wait Engine). Executed by the runner before/after a step's
+ * action via `FlowStep.beforeWaits` / `FlowStep.afterWaits`. Locator-based waits reuse the
+ * structured {@link StepLocator} shape. The recorder can emit `afterWaits` from Smart Wait
+ * observation while the legacy fixed-time `wait` step remains backward compatible.
+ */
+export type WaitCondition =
+  | (WaitConditionBase & { type: "loaderHidden"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementVisible"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementHidden"; locator: StepLocator })
+  | (WaitConditionBase & { type: "elementEnabled"; locator: StepLocator })
+  | (WaitConditionBase & { type: "textVisible"; text: string; exact?: boolean })
+  | (WaitConditionBase & { type: "toastVisible"; locator?: StepLocator; text?: string })
+  | (WaitConditionBase & {
+      type: "response";
+      method?: WaitHttpMethod;
+      urlContains?: string;
+      statusRange?: [number, number];
+      /** Register the response listener BEFORE the action so a fast response isn't missed. */
+      armBeforeAction?: boolean;
+    })
+  | (WaitConditionBase & { type: "tableHasRows"; tableLocator: StepLocator; rowLocator?: StepLocator; minRows: number })
+  | (WaitConditionBase & { type: "listHasItems"; listLocator: StepLocator; itemLocator?: StepLocator; minItems: number })
+  | (WaitConditionBase & { type: "urlChanged"; fromUrl?: string; urlContains?: string })
+  | (WaitConditionBase & { type: "domStable"; stableForMs?: number })
+  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number });
+
+/**
+ * Alias identifying which browser page/window a step acts on.
+ * `'main'` is the primary recording page; `'popup-1'`, `'popup-2'`, … are opened windows.
+ * When absent at runtime, defaults to `'main'`.
+ */
+export type PageAlias = "main" | `popup-${number}` | string;
+
+/**
+ * How the runner locates and validates a popup that a click step is expected to open.
+ * All fields are optional to keep recorded flows forward-compatible.
+ */
+export interface PopupExpectation {
+  /** Alias assigned to the popup page (e.g. `'popup-1'`). */
+  popupAlias: PageAlias;
+  /** Max ms to wait for the popup to appear after the opener action. Default: 15000. */
+  timeoutMs?: number;
+  /** URL substring the popup URL must contain (validation only — does not filter). */
+  urlContains?: string;
+  /** Page title substring the popup title must contain (validation only). */
+  titleContains?: string;
+  /** Playwright `waitForLoadState` target after the popup opens. Default: `'domcontentloaded'`. */
+  waitUntil?: "domcontentloaded" | "load" | "networkidle";
+  /**
+   * What happens when the popup closes (e.g. user clicks Accept/window.close()).
+   * - `'returnToMain'` (default): `activePage` reverts to `'main'` automatically.
+   * - `'continueOnPopup'`: keep `activePage` on the popup until an explicit `switchToMainPage` step.
+   */
+  closeBehavior?: "returnToMain" | "continueOnPopup";
+}
+
+/** Side-effect classification for a step (Phase 3 explicit safety metadata). */
+export type SideEffectLevel = "none" | "read" | "safeMutation" | "dangerousMutation" | "externalCommit" | "unknown";
+
+/** Explicit per-step safety policy; authoritative for automatic-retry decisions when present. */
+export interface StepSafetyPolicy {
+  sideEffectLevel: SideEffectLevel;
+  retryable: boolean;
+  requiresIdempotencyKey?: boolean;
+  idempotencyKeyExpression?: string;
+  /** Extra resource keys this step needs exclusively (reserved for scheduler use). */
+  exclusiveResources?: string[];
+}
+
 export interface FlowStep {
   id: string;
   type: StepType;
@@ -142,6 +229,14 @@ export interface FlowStep {
   description?: string;
   position?: { x: number; y: number };
   locator?: StepLocator;
+  /** Condition-based waits run BEFORE this step's action (Smart Wait Engine, Phase 1). */
+  beforeWaits?: WaitCondition[];
+  /**
+   * Condition-based waits run AFTER this step's action. A `response` wait with
+   * `armBeforeAction: true` is registered before the action and awaited afterwards, so a
+   * fast response triggered by the action is never missed.
+   */
+  afterWaits?: WaitCondition[];
   value?: string;
   valueSource?: ValueSource;
   selectionMode?: "value" | "label" | "index";
@@ -166,7 +261,30 @@ export interface FlowStep {
   size?: { width: number; height: number };
   /** Type-specific designer configuration (wait/assertion/screenshot/scroll/loop/runFlow). */
   config?: NodeConfig;
+  /**
+   * Explicit side-effect safety metadata (Phase 3). Authoritative for retry decisions when
+   * present; absent steps fall back to node-type defaults + the keyword heuristic. Optional and
+   * backward compatible — existing saved flows load unchanged.
+   */
+  safety?: StepSafetyPolicy;
   next?: string;
+  // ── Multi-Window / Popup ──────────────────────────────────────────────────
+  /**
+   * Which browser page/window this step targets. Defaults to `'main'` when absent.
+   * Set automatically by the recorder for popup-context steps.
+   */
+  pageAlias?: PageAlias;
+  /**
+   * True when this step (typically a click) is expected to open a new browser window/tab.
+   * The runner arms a `waitForEvent('popup')` immediately before the action so a fast popup
+   * is not missed. The popup is registered under `popupExpectation.popupAlias`.
+   */
+  opensPopup?: boolean;
+  /**
+   * Describes the popup opened by this step. Required when `opensPopup` is true.
+   * Also used by `switchToPopup` steps that explicitly arm popup capture.
+   */
+  popupExpectation?: PopupExpectation;
 }
 
 export interface NodeConfig {
@@ -209,6 +327,9 @@ export interface NodeConfig {
   /** How the session is resolved: auto-detect by target origin, or an explicitly selected session. */
   reuseSessionMode?: "autoDetect" | "selected";
   reuseSessionId?: string;
+  // ── Multi-Window / Popup ──────────────────────────────────────────────────
+  /** Alias of the popup page this closePopup/switchToMainPage step acts on. */
+  popupAlias?: string;
 }
 
 export type FlowEdgeType =

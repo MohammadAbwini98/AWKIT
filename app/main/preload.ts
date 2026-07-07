@@ -7,6 +7,21 @@ import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
 import type { DeepPartial, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
+import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+import type { DurableArtifactRecord, DurableAttemptRecord, DurableRunRecord } from "@src/runner/store/RuntimeStoreSchema";
+import type {
+  FailureBreakdown,
+  ProcessHistoryPoint,
+  RunDetail,
+  RunHistoryFilter,
+  RunHistoryPage,
+  RuntimeSeriesPoint,
+  ServerReport,
+  TelemetryOverview,
+  TelemetryPage,
+  TelemetryRangePreset,
+  WorkflowReportRow
+} from "@src/reports/TelemetryContracts";
 
 const api = {
   system: {
@@ -85,7 +100,16 @@ const api = {
     stopInstance: (instanceId: string) => ipcRenderer.invoke("execution:stopInstance", instanceId) as Promise<unknown>,
     stopAll: () => ipcRenderer.invoke("execution:stopAll") as Promise<unknown>,
     removeInstance: (instanceId: string) => ipcRenderer.invoke("execution:removeInstance", instanceId) as Promise<{ success: boolean; error?: string }>,
-    repeatInstance: (instanceId: string) => ipcRenderer.invoke("execution:repeatInstance", instanceId) as Promise<{ success: boolean; error?: string }>
+    repeatInstance: (instanceId: string) => ipcRenderer.invoke("execution:repeatInstance", instanceId) as Promise<{ success: boolean; error?: string }>,
+    runtimeStatus: () => ipcRenderer.invoke("execution:runtimeStatus") as Promise<RuntimeStatusSnapshot>,
+    recoveryDetails: (instanceId: string) =>
+      ipcRenderer.invoke("execution:recoveryDetails", instanceId) as Promise<{
+        run?: DurableRunRecord;
+        attempts: DurableAttemptRecord[];
+        artifacts: DurableArtifactRecord[];
+      }>,
+    recoveryAction: (instanceId: string, action: "markReviewed" | "markAbandoned") =>
+      ipcRenderer.invoke("execution:recoveryAction", instanceId, action) as Promise<{ success: boolean; error?: string }>
   },
   instances: {
     list: () => ipcRenderer.invoke("instances:list") as Promise<InstanceProfile[]>
@@ -127,8 +151,20 @@ const api = {
     list: () => ipcRenderer.invoke("report:list") as Promise<unknown[]>,
     get: (id: string) => ipcRenderer.invoke("reports:get", id) as Promise<unknown | null>
   },
+  telemetry: {
+    overview: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:overview", range) as Promise<TelemetryOverview>,
+    workflows: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:workflows", range) as Promise<WorkflowReportRow[]>,
+    runHistory: (range?: TelemetryRangePreset, page?: TelemetryPage, filter?: RunHistoryFilter) =>
+      ipcRenderer.invoke("telemetry:runHistory", range, page, filter) as Promise<RunHistoryPage>,
+    runDetail: (instanceId: string) => ipcRenderer.invoke("telemetry:runDetail", instanceId) as Promise<RunDetail>,
+    failures: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:failures", range) as Promise<FailureBreakdown>,
+    runtimeSeries: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:runtimeSeries", range) as Promise<RuntimeSeriesPoint[]>,
+    processHistory: (range?: TelemetryRangePreset, limit?: number) =>
+      ipcRenderer.invoke("telemetry:processHistory", range, limit) as Promise<ProcessHistoryPoint[]>,
+    server: () => ipcRenderer.invoke("telemetry:server") as Promise<ServerReport>
+  },
   recorder: {
-    start: (url: string, options?: { captureWaitTime?: boolean }) =>
+    start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
       ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number }>,
     stop: () => ipcRenderer.invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => ipcRenderer.invoke("recorder:cancel") as Promise<{ success: boolean }>,
@@ -136,7 +172,15 @@ const api = {
     getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number }>,
     getUrls: () => ipcRenderer.invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => ipcRenderer.invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
-    saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>
+    saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,
+    // ── Protected login / popup manual handoff ───────────────────────────────
+    getHandoff: () =>
+      ipcRenderer.invoke("recorder:getHandoff") as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo | null>,
+    continueWithNormalBrowser: () =>
+      ipcRenderer.invoke("recorder:continueWithNormalBrowser") as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
+    captureSessionAndResume: (sessionName?: string) =>
+      ipcRenderer.invoke("recorder:captureSessionAndResume", sessionName) as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
+    cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>
   },
   session: {
     list: () => ipcRenderer.invoke("session:list") as Promise<SessionProfile[]>,

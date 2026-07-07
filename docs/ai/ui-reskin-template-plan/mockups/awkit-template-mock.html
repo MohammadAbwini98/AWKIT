@@ -1,0 +1,443 @@
+<!--
+  AWKIT / WebFlow Studio — Premium SaaS Re-skin MOCK (non-production)
+  ------------------------------------------------------------------
+  Purpose : Visual approval target for the dark premium re-skin direction.
+  Scope   : STATIC preview only. Not wired into routing, IPC, or React Flow.
+  Source  : Design direction from the user brief (dark premium SaaS, purple/blue
+            accents, gradients, glass panels, animated connectors, large radius),
+            inspired by the referenced Dribbble "AI Automation Platform" shots.
+            NO template asset, logo, icon, or illustration is copied.
+  Tokens  : The :root block below is the PROPOSED --awkit-* dark token set. It maps
+            1:1 to the plan in 03_DESIGN_TOKENS_AND_GLOBAL_CSS_PLAN.md.
+  View    : Double-click to open in any browser. No build step, no network.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AWKIT Re-skin Mock — Premium SaaS Direction</title>
+<style>
+  /* ========================================================================
+     PROPOSED AWKIT DARK TOKENS  (mirror of 03_DESIGN_TOKENS plan)
+     ======================================================================== */
+  :root {
+    /* backdrop + surfaces */
+    --awkit-bg:            #0a0c14;
+    --awkit-bg-grad:       radial-gradient(1200px 700px at 78% -10%, rgba(124,92,255,.18), transparent 60%),
+                           radial-gradient(1000px 620px at -8% 8%, rgba(59,130,246,.14), transparent 55%),
+                           #0a0c14;
+    --awkit-surface:       #12141f;   /* base card/panel */
+    --awkit-surface-soft:  #171a27;   /* raised / hover */
+    --awkit-surface-inset: #0e1019;   /* wells, inputs, canvas */
+    --awkit-glass:         rgba(23,26,39,.72);
+
+    /* borders + hairlines */
+    --awkit-border:        rgba(255,255,255,.08);
+    --awkit-border-strong: rgba(255,255,255,.14);
+
+    /* text */
+    --awkit-text:          #f5f6fb;
+    --awkit-text-secondary:#aab1c9;
+    --awkit-text-muted:    #6c7391;
+
+    /* accents */
+    --awkit-purple:        #7c5cff;
+    --awkit-purple-deep:   #5b3fd6;
+    --awkit-blue:          #3b82f6;
+    --awkit-accent-grad:   linear-gradient(135deg, #7c5cff 0%, #3b82f6 100%);
+    --awkit-accent-grad-soft: linear-gradient(135deg, rgba(124,92,255,.16), rgba(59,130,246,.12));
+
+    /* status */
+    --awkit-success:#34d399; --awkit-success-soft:rgba(52,211,153,.14);
+    --awkit-warning:#fbbf24; --awkit-warning-soft:rgba(251,191,36,.14);
+    --awkit-danger: #f87171; --awkit-danger-soft: rgba(248,113,113,.14);
+    --awkit-info:   #60a5fa; --awkit-info-soft:   rgba(96,165,250,.14);
+
+    /* radius */
+    --awkit-radius-sm:8px; --awkit-radius-md:12px;
+    --awkit-radius-card:16px; --awkit-radius-panel:20px; --awkit-radius-pill:999px;
+
+    /* depth: soft shadow + accent glow */
+    --awkit-shadow-card:  0 2px 4px rgba(0,0,0,.30), 0 12px 32px rgba(0,0,0,.36);
+    --awkit-shadow-float: 0 8px 24px rgba(0,0,0,.40), 0 24px 60px rgba(0,0,0,.45);
+    --awkit-glow-accent:  0 0 0 1px rgba(124,92,255,.35), 0 8px 30px rgba(124,92,255,.28);
+
+    /* motion */
+    --awkit-ease-out: cubic-bezier(.22,1,.36,1);
+    --awkit-dur-fast:120ms; --awkit-dur-med:220ms; --awkit-dur-slow:360ms;
+
+    /* layout */
+    --header-h:60px; --status-h:34px; --sidebar-w:248px;
+  }
+
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body{
+    margin:0; font-family:Inter,ui-sans-serif,system-ui,"Segoe UI",sans-serif;
+    color:var(--awkit-text); background:var(--awkit-bg-grad); background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mock-note{
+    font-size:12px; color:var(--awkit-text-muted); text-align:center;
+    padding:8px; border-bottom:1px solid var(--awkit-border); background:rgba(0,0,0,.25);
+  }
+  .mock-note b{ color:var(--awkit-text-secondary); }
+
+  /* ===== APP SHELL ===== */
+  .app-shell{
+    display:grid; grid-template-rows:var(--header-h) minmax(0,1fr) var(--status-h);
+    height:calc(100vh - 33px); overflow:hidden;
+  }
+  .app-body{ display:grid; grid-template-columns:var(--sidebar-w) minmax(0,1fr); min-height:0; }
+
+  /* ===== TOP HEADER ===== */
+  .top-header{
+    display:flex; align-items:center; gap:14px; padding:0 20px;
+    background:var(--awkit-glass); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--awkit-border);
+  }
+  .icon-btn{
+    width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
+    border-radius:var(--awkit-radius-md); border:1px solid var(--awkit-border);
+    background:var(--awkit-surface-soft); color:var(--awkit-text-secondary);
+    transition:all var(--awkit-dur-fast) var(--awkit-ease-out);
+  }
+  .icon-btn:hover{ color:var(--awkit-text); border-color:var(--awkit-border-strong); transform:translateY(-1px); }
+  .header-title{ display:flex; flex-direction:column; flex:1; }
+  .header-title strong{ font-size:15px; letter-spacing:.2px; }
+  .header-title span{ font-size:12px; color:var(--awkit-text-muted); }
+  .header-actions{ display:flex; gap:10px; }
+
+  /* ===== BUTTONS ===== */
+  .btn{
+    height:36px; padding:0 16px; border-radius:var(--awkit-radius-md); font-size:13px; font-weight:600;
+    display:inline-flex; align-items:center; gap:8px; cursor:pointer; border:1px solid transparent;
+    transition:all var(--awkit-dur-fast) var(--awkit-ease-out);
+  }
+  .btn-primary{ background:var(--awkit-accent-grad); color:#fff; box-shadow:0 6px 18px rgba(124,92,255,.35); }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 10px 26px rgba(124,92,255,.5); }
+  .btn-ghost{ background:var(--awkit-surface-soft); color:var(--awkit-text-secondary); border-color:var(--awkit-border); }
+  .btn-ghost:hover{ color:var(--awkit-text); border-color:var(--awkit-border-strong); }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar{
+    background:linear-gradient(180deg, #0f111b 0%, #0c0e17 100%);
+    border-right:1px solid var(--awkit-border); padding:14px 12px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .brand{ display:flex; align-items:center; gap:11px; padding:6px 8px 14px; }
+  .brand-mark{
+    width:36px; height:36px; border-radius:11px; background:var(--awkit-accent-grad);
+    display:grid; place-items:center; font-weight:800; font-size:13px; color:#fff;
+    box-shadow:var(--awkit-glow-accent);
+  }
+  .brand-name{ display:flex; flex-direction:column; }
+  .brand-name b{ font-size:14px; }
+  .brand-name small{ font-size:11px; color:var(--awkit-text-muted); }
+  .nav-group-label{ font-size:10.5px; letter-spacing:1.2px; text-transform:uppercase; color:var(--awkit-text-muted); padding:12px 10px 4px; }
+  .nav-item{
+    display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:var(--awkit-radius-md);
+    color:var(--awkit-text-secondary); font-size:13px; cursor:pointer; position:relative;
+    transition:all var(--awkit-dur-fast) var(--awkit-ease-out);
+  }
+  .nav-item svg{ width:17px; height:17px; opacity:.8; }
+  .nav-item:hover{ background:var(--awkit-surface-soft); color:var(--awkit-text); }
+  .nav-item.active{
+    background:var(--awkit-accent-grad-soft); color:var(--awkit-text);
+    border:1px solid rgba(124,92,255,.28);
+  }
+  .nav-item.active::before{
+    content:""; position:absolute; left:-12px; top:50%; transform:translateY(-50%);
+    width:3px; height:20px; border-radius:0 3px 3px 0; background:var(--awkit-accent-grad);
+  }
+  .nav-item.active svg{ opacity:1; color:var(--awkit-purple); }
+
+  /* ===== MAIN SURFACE ===== */
+  .main{ overflow-y:auto; padding:24px 28px; min-height:0; }
+  .section-heading{ margin:2px 0 16px; }
+  .section-heading h1{ font-size:20px; margin:0 0 4px; letter-spacing:.2px; }
+  .section-heading p{ font-size:13px; color:var(--awkit-text-muted); margin:0; }
+
+  /* ===== METRIC CARDS ===== */
+  .metric-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px; }
+  .metric-card{
+    position:relative; overflow:hidden; padding:18px; border-radius:var(--awkit-radius-card);
+    background:var(--awkit-surface); border:1px solid var(--awkit-border); box-shadow:var(--awkit-shadow-card);
+    transition:transform var(--awkit-dur-med) var(--awkit-ease-out), box-shadow var(--awkit-dur-med) var(--awkit-ease-out), border-color var(--awkit-dur-med) var(--awkit-ease-out);
+  }
+  .metric-card::after{
+    content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--awkit-accent-grad); opacity:.9;
+  }
+  .metric-card:hover{ transform:translateY(-3px); border-color:rgba(124,92,255,.3); box-shadow:var(--awkit-shadow-float); }
+  .metric-card .label{ font-size:12px; color:var(--awkit-text-muted); display:flex; align-items:center; gap:8px; }
+  .metric-card .dot{ width:26px; height:26px; border-radius:8px; background:var(--awkit-accent-grad-soft); display:grid; place-items:center; color:var(--awkit-purple); }
+  .metric-card .value{ font-size:28px; font-weight:700; margin:12px 0 4px; letter-spacing:.5px; }
+  .metric-card .delta{ font-size:12px; color:var(--awkit-success); display:flex; align-items:center; gap:5px; }
+  .metric-card .delta.down{ color:var(--awkit-danger); }
+  .spark{ position:absolute; right:14px; bottom:12px; width:64px; height:26px; opacity:.55; }
+
+  /* ===== WORK PANEL ===== */
+  .panel{
+    background:var(--awkit-surface); border:1px solid var(--awkit-border);
+    border-radius:var(--awkit-radius-panel); box-shadow:var(--awkit-shadow-card); overflow:hidden;
+  }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--awkit-border); }
+  .panel-head h2{ font-size:14px; margin:0; }
+  .panel-head .tabs{ display:flex; gap:4px; background:var(--awkit-surface-inset); padding:3px; border-radius:var(--awkit-radius-md); }
+  .tab{ padding:6px 12px; font-size:12px; border-radius:9px; color:var(--awkit-text-muted); cursor:pointer; }
+  .tab.active{ background:var(--awkit-surface-soft); color:var(--awkit-text); box-shadow:0 1px 2px rgba(0,0,0,.4); }
+  .panel-body{ padding:18px; }
+
+  /* ===== FORM CONTROLS ===== */
+  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+  .field label{ font-size:12px; color:var(--awkit-text-secondary); }
+  .input, .select{
+    height:38px; padding:0 12px; border-radius:var(--awkit-radius-md); font-size:13px;
+    background:var(--awkit-surface-inset); border:1px solid var(--awkit-border); color:var(--awkit-text);
+    transition:border-color var(--awkit-dur-fast), box-shadow var(--awkit-dur-fast);
+  }
+  .input:focus, .select:focus{ outline:none; border-color:var(--awkit-purple); box-shadow:0 0 0 3px rgba(124,92,255,.25); }
+  .switch{ width:42px; height:24px; border-radius:999px; background:var(--awkit-surface-inset); border:1px solid var(--awkit-border); position:relative; cursor:pointer; }
+  .switch.on{ background:var(--awkit-accent-grad); border-color:transparent; }
+  .switch .knob{ position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left var(--awkit-dur-med) var(--awkit-ease-out); }
+  .switch.on .knob{ left:20px; }
+
+  /* ===== BADGES ===== */
+  .badge{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; }
+  .badge::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .badge.ok{ color:var(--awkit-success); background:var(--awkit-success-soft); }
+  .badge.warn{ color:var(--awkit-warning); background:var(--awkit-warning-soft); }
+  .badge.err{ color:var(--awkit-danger); background:var(--awkit-danger-soft); }
+  .badge.info{ color:var(--awkit-info); background:var(--awkit-info-soft); }
+  .badge.live::before{ animation:pulse 1.5s var(--awkit-ease-out) infinite; }
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(52,211,153,.6);} 70%{box-shadow:0 0 0 6px rgba(52,211,153,0);} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0);} }
+
+  /* ===== WORKFLOW CANVAS ===== */
+  .canvas{
+    position:relative; height:340px; border-radius:var(--awkit-radius-panel);
+    background:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 0) 0 0 / 22px 22px,
+      var(--awkit-surface-inset);
+    border:1px solid var(--awkit-border); overflow:hidden;
+  }
+  .canvas-toolbar{ position:absolute; left:14px; top:14px; display:flex; gap:6px; z-index:5; }
+  .canvas-zoom{ position:absolute; right:14px; bottom:14px; display:flex; flex-direction:column; gap:4px; z-index:5;
+    background:var(--awkit-glass); backdrop-filter:blur(10px); border:1px solid var(--awkit-border); border-radius:var(--awkit-radius-md); padding:4px; }
+  .zoom-btn{ width:30px; height:30px; display:grid; place-items:center; border-radius:8px; color:var(--awkit-text-secondary); cursor:pointer; }
+  .zoom-btn:hover{ background:var(--awkit-surface-soft); color:var(--awkit-text); }
+  .minimap{ position:absolute; right:14px; top:14px; width:120px; height:74px; border-radius:10px; background:rgba(0,0,0,.35); border:1px solid var(--awkit-border); z-index:5; overflow:hidden; }
+  .minimap i{ position:absolute; border-radius:3px; background:rgba(124,92,255,.5); }
+
+  .node{
+    position:absolute; width:184px; border-radius:14px; background:var(--awkit-surface);
+    border:1px solid var(--awkit-border); box-shadow:var(--awkit-shadow-card);
+    display:grid; grid-template-columns:38px 1fr; gap:10px; padding:12px; align-items:center; z-index:3;
+    transition:transform var(--awkit-dur-med) var(--awkit-ease-out), box-shadow var(--awkit-dur-med) var(--awkit-ease-out), border-color var(--awkit-dur-med) var(--awkit-ease-out);
+  }
+  .node:hover{ transform:translateY(-2px); box-shadow:var(--awkit-shadow-float); }
+  .node .n-icon{ width:38px; height:38px; border-radius:10px; background:var(--awkit-accent-grad-soft); display:grid; place-items:center; color:var(--awkit-purple); }
+  .node .n-copy strong{ font-size:12.5px; display:block; }
+  .node .n-copy span{ font-size:11px; color:var(--awkit-text-muted); }
+  .node .n-tag{ position:absolute; top:-9px; right:12px; font-size:10px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--awkit-surface-soft); border:1px solid var(--awkit-border); color:var(--awkit-text-secondary); }
+  .node .port{ position:absolute; width:11px; height:11px; border-radius:50%; background:var(--awkit-surface); border:2px solid var(--awkit-purple); top:50%; transform:translateY(-50%); }
+  .node .port.in{ left:-6px; } .node .port.out{ right:-6px; }
+
+  .node.start{ border-color:rgba(52,211,153,.4); }
+  .node.start .n-icon{ background:var(--awkit-success-soft); color:var(--awkit-success); }
+  .node.selected{ border-color:var(--awkit-purple); box-shadow:0 0 0 3px rgba(124,92,255,.3), var(--awkit-shadow-float); }
+  .node.running{ border-color:rgba(96,165,250,.5); }
+  .node.running::after{ content:""; position:absolute; inset:-1px; border-radius:14px; border:1.5px solid var(--awkit-info); animation:runpulse 1.4s var(--awkit-ease-out) infinite; }
+  @keyframes runpulse{ 0%,100%{opacity:.25;} 50%{opacity:.9;} }
+  .node.error{ border-color:rgba(248,113,113,.55); } .node.error .n-icon{ background:var(--awkit-danger-soft); color:var(--awkit-danger); }
+  .node.done{ border-color:rgba(52,211,153,.5); } .node.done .n-icon{ background:var(--awkit-success-soft); color:var(--awkit-success); }
+
+  /* connectors (SVG overlay) */
+  .edges{ position:absolute; inset:0; z-index:1; pointer-events:none; }
+  .edge{ fill:none; stroke:url(#edgeGrad); stroke-width:2.5; }
+  .edge.flow{ stroke-dasharray:7 7; animation:dash 1s linear infinite; }
+  @keyframes dash{ to{ stroke-dashoffset:-14; } }
+  .edge.ok{ stroke:var(--awkit-success); }
+  .edge.err{ stroke:var(--awkit-danger); stroke-dasharray:4 5; }
+
+  /* ===== SKELETON / LOADING ===== */
+  .skeleton{ border-radius:10px; background:linear-gradient(100deg, var(--awkit-surface-inset) 30%, var(--awkit-surface-soft) 50%, var(--awkit-surface-inset) 70%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+  @keyframes shimmer{ to{ background-position:-200% 0; } }
+
+  .two-col{ display:grid; grid-template-columns:1.4fr 1fr; gap:16px; }
+  .swatches{ display:flex; flex-wrap:wrap; gap:10px; }
+  .sw{ width:74px; }
+  .sw i{ display:block; height:40px; border-radius:10px; border:1px solid var(--awkit-border); }
+  .sw small{ font-size:10px; color:var(--awkit-text-muted); display:block; margin-top:4px; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  h3.mini{ font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--awkit-text-muted); margin:20px 0 10px; }
+
+  /* status bar */
+  .status-bar{ display:flex; align-items:center; gap:10px; padding:0 18px; background:var(--awkit-glass); backdrop-filter:blur(14px); border-top:1px solid var(--awkit-border); font-size:12px; }
+  .status-chip{ display:flex; align-items:center; gap:6px; color:var(--awkit-text-muted); }
+  .status-chip b{ color:var(--awkit-text-secondary); font-weight:600; }
+</style>
+</head>
+<body>
+  <div class="mock-note">AWKIT re-skin <b>MOCK</b> — static preview of the premium dark direction. Not wired to routing / IPC / React Flow. Hover cards & nodes to see states.</div>
+
+  <div class="app-shell">
+    <!-- HEADER -->
+    <header class="top-header">
+      <div class="icon-btn" title="Back">‹</div>
+      <div class="header-title"><strong>Dashboard</strong><span>Automation overview · offline runtime ready</span></div>
+      <div class="header-actions">
+        <button class="btn btn-ghost">Import flow</button>
+        <button class="btn btn-primary">+ New workflow</button>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- SIDEBAR -->
+      <nav class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">WF</div>
+          <div class="brand-name"><b>WebFlow Studio</b><small>Automation workbench</small></div>
+        </div>
+        <div class="nav-group-label">Build</div>
+        <div class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Workflows</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M8 6h6a2 2 0 0 1 2 2v8"/></svg><span>Flow Designer</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg><span>Recorder</span></div>
+        <div class="nav-group-label">Run</div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg><span>Instances</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span>Instance Monitor</span></div>
+        <div class="nav-group-label">Reports</div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Overview</span></div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10h-10z"/></svg><span>Chrome usage</span></div>
+        <div class="nav-group-label">System</div>
+        <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Settings</span></div>
+      </nav>
+
+      <!-- MAIN -->
+      <main class="main">
+        <div class="section-heading"><h1>Automation overview</h1><p>Live snapshot of workflows, instances, and runtime health.</p></div>
+
+        <!-- METRICS -->
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="label"><span class="dot">▦</span> Active workflows</div>
+            <div class="value">24</div>
+            <div class="delta">▲ 12% vs last week</div>
+            <svg class="spark" viewBox="0 0 64 26"><polyline points="0,20 12,16 24,18 36,8 48,11 64,3" fill="none" stroke="#7c5cff" stroke-width="2"/></svg>
+          </div>
+          <div class="metric-card">
+            <div class="label"><span class="dot">▶</span> Running instances</div>
+            <div class="value">7</div>
+            <div class="delta">▲ 3 since 1h</div>
+            <svg class="spark" viewBox="0 0 64 26"><polyline points="0,18 12,12 24,14 36,10 48,6 64,9" fill="none" stroke="#3b82f6" stroke-width="2"/></svg>
+          </div>
+          <div class="metric-card">
+            <div class="label"><span class="dot">✓</span> Success rate</div>
+            <div class="value">96.4%</div>
+            <div class="delta">▲ 1.2%</div>
+            <svg class="spark" viewBox="0 0 64 26"><polyline points="0,14 12,15 24,10 36,12 48,7 64,6" fill="none" stroke="#34d399" stroke-width="2"/></svg>
+          </div>
+          <div class="metric-card">
+            <div class="label"><span class="dot">⚠</span> Failures (24h)</div>
+            <div class="value">3</div>
+            <div class="delta down">▼ 2 vs yesterday</div>
+            <svg class="spark" viewBox="0 0 64 26"><polyline points="0,6 12,9 24,7 36,12 48,14 64,18" fill="none" stroke="#f87171" stroke-width="2"/></svg>
+          </div>
+        </div>
+
+        <!-- CANVAS PANEL -->
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-head">
+            <h2>Workflow canvas</h2>
+            <div class="tabs"><div class="tab active">Design</div><div class="tab">Run</div><div class="tab">History</div></div>
+          </div>
+          <div class="panel-body" style="padding:14px;">
+            <div class="canvas">
+              <div class="canvas-toolbar"><button class="btn btn-ghost" style="height:30px;">＋ Add node</button><button class="btn btn-ghost" style="height:30px;">Auto-layout</button></div>
+              <div class="minimap"><i style="left:12px;top:26px;width:22px;height:12px;"></i><i style="left:52px;top:14px;width:22px;height:12px;"></i><i style="left:88px;top:40px;width:22px;height:12px;"></i></div>
+              <div class="canvas-zoom"><div class="zoom-btn">＋</div><div class="zoom-btn">－</div><div class="zoom-btn">⤢</div></div>
+
+              <!-- edges -->
+              <svg class="edges" viewBox="0 0 900 340" preserveAspectRatio="none">
+                <defs><linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+                <path class="edge flow" d="M214,95 C300,95 300,150 386,150"/>
+                <path class="edge flow ok" d="M570,150 C650,150 650,95 726,95"/>
+                <path class="edge flow" d="M570,150 C650,150 650,235 726,235"/>
+              </svg>
+
+              <!-- nodes -->
+              <div class="node start" style="left:30px; top:70px;">
+                <div class="n-icon">▶</div><div class="n-copy"><strong>Start</strong><span>Trigger · manual</span></div>
+                <div class="port out"></div>
+              </div>
+              <div class="node running selected" style="left:200px; top:125px;">
+                <span class="n-tag">running</span>
+                <div class="n-icon">◧</div><div class="n-copy"><strong>Open page</strong><span>navigate → mock-site</span></div>
+                <div class="port in"></div><div class="port out"></div>
+              </div>
+              <div class="node done" style="left:540px; top:70px;">
+                <span class="n-tag">done</span>
+                <div class="n-icon">✓</div><div class="n-copy"><strong>Extract data</strong><span>table → rows</span></div>
+                <div class="port in"></div>
+              </div>
+              <div class="node error" style="left:540px; top:210px;">
+                <span class="n-tag">error</span>
+                <div class="n-icon">⚠</div><div class="n-copy"><strong>Submit form</strong><span>timeout on #save</span></div>
+                <div class="port in"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TWO COLUMN: form + states -->
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-head"><h2>Node properties</h2><span class="badge info live">bound</span></div>
+            <div class="panel-body">
+              <div class="field"><label>Step name</label><input class="input" value="Open page" /></div>
+              <div class="field"><label>Action type</label><select class="select"><option>Navigate</option><option>Click</option><option>Type</option></select></div>
+              <div class="field"><label>Target URL</label><input class="input" value="http://localhost:4599/catalog" /></div>
+              <div class="row" style="justify-content:space-between; margin-top:6px;">
+                <div><label style="font-size:12px;color:var(--awkit-text-secondary);">Wait for network idle</label></div>
+                <div class="switch on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+              </div>
+              <div class="row" style="margin-top:16px;"><button class="btn btn-primary">Save changes</button><button class="btn btn-ghost">Cancel</button></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h2>States &amp; primitives</h2></div>
+            <div class="panel-body">
+              <h3 class="mini" style="margin-top:0;">Status badges</h3>
+              <div class="row"><span class="badge ok live">running</span><span class="badge info">queued</span><span class="badge warn">retrying</span><span class="badge err">failed</span></div>
+
+              <h3 class="mini">Accent palette</h3>
+              <div class="swatches">
+                <div class="sw"><i style="background:linear-gradient(135deg,#7c5cff,#3b82f6)"></i><small>accent</small></div>
+                <div class="sw"><i style="background:#7c5cff"></i><small>purple</small></div>
+                <div class="sw"><i style="background:#3b82f6"></i><small>blue</small></div>
+                <div class="sw"><i style="background:#12141f"></i><small>surface</small></div>
+                <div class="sw"><i style="background:#0a0c14"></i><small>bg</small></div>
+              </div>
+
+              <h3 class="mini">Loading (skeleton)</h3>
+              <div class="skeleton" style="height:14px; width:80%; margin-bottom:8px;"></div>
+              <div class="skeleton" style="height:14px; width:60%; margin-bottom:8px;"></div>
+              <div class="skeleton" style="height:44px; width:100%;"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- STATUS BAR -->
+    <footer class="status-bar">
+      <span class="status-chip"><span class="badge ok live" style="padding:2px 8px;">●</span> Offline runtime: <b>Ready</b></span>
+      <span class="status-chip">Active instances: <b>7</b></span>
+      <span class="status-chip">Queue: <b>2</b></span>
+      <span class="status-chip">Last error: <b>None</b></span>
+    </footer>
+  </div>
+</body>
+</html>

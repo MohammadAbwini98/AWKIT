@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Session Reuse — AWTKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="session-reuse-page">
+      <h1>Session reuse scenario</h1>
+      <p>
+        This page is <strong>not</strong> a protected login (AWKIT must not pause here). It simulates
+        logged-out and logged-in states with a visible authenticated marker, so you can test the
+        <em>Reuse Session</em> node applying a saved session.
+      </p>
+
+      <p id="sessionState" data-testid="auth-status" role="status" data-authenticated="false">
+        Not authenticated
+      </p>
+
+      <div>
+        <button id="simulateLogin" type="button" data-testid="simulate-login" onclick="setAuth(true)">
+          Simulate logged-in session
+        </button>
+        <button id="simulateLogout" type="button" data-testid="simulate-logout" onclick="setAuth(false)">
+          Simulate logged-out session
+        </button>
+      </div>
+
+      <section id="dashboard" data-testid="dashboard" hidden>
+        <h2>Dashboard</h2>
+        <p>You are viewing an authenticated dashboard. This confirms the reused session is valid.</p>
+      </section>
+
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+
+    <script>
+      function setAuth(authenticated) {
+        var status = document.getElementById("sessionState");
+        var dashboard = document.getElementById("dashboard");
+        status.textContent = authenticated ? "Authenticated" : "Not authenticated";
+        status.setAttribute("data-authenticated", authenticated ? "true" : "false");
+        dashboard.hidden = !authenticated;
+      }
+    </script>
+  </body>
+</html>

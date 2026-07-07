@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario E — Multiple popups</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario E — Multiple popups</h1>
+      <p>Purpose: Tests alias assignment (popup-1, popup-2).</p>
+      
+      <button id="open-first-popup-button" data-testid="open-first-popup-button" onclick="window.open('/popup/multiple-popup-1.html', '_blank', 'width=400,height=300')">Open First Popup</button>
+      <br/><br/>
+      <button id="open-second-popup-button" data-testid="open-second-popup-button" onclick="window.open('/popup/multiple-popup-2.html', '_blank', 'width=400,height=300')">Open Second Popup</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+    <script>
+      let count = 0;
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "popup-action") {
+          count++;
+          document.getElementById("status").textContent = "Popups interacted: " + count;
+        }
+      });
+    </script>
+  </body>
+</html>

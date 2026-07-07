@@ -27,6 +27,9 @@ export interface DependencyManifest {
     nativeModulesIncluded: boolean;
     nativeModulesRequired?: boolean;
     playwrightRuntimeIncluded?: boolean;
+    /** sql.js (WASM SQLite) powers the durable runtime store — required since Phase 4. */
+    sqlJsRuntimeIncluded?: boolean;
+    sqlJsWasmIncluded?: boolean;
   };
   browsers: Array<{
     name: string;
@@ -91,6 +94,10 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
 
   if (manifest.runtime?.playwrightRuntimeIncluded !== true) {
     issues.push("Manifest must confirm Playwright runtime files are included.");
+  }
+
+  if (manifest.runtime?.sqlJsRuntimeIncluded !== true || manifest.runtime?.sqlJsWasmIncluded !== true) {
+    issues.push("Manifest must confirm the sql.js runtime and its WASM asset are included.");
   }
 
   if (!manifest.browsers?.some((browser) => browser.name === "chromium" && browser.relativeExecutablePath === "resources/browsers/chromium/chrome.exe")) {

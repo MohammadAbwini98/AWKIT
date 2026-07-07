@@ -31,6 +31,26 @@ export function installRecorderCapture(): void {
     }
   };
 
+  // Smart Wait observation (Phase 2): emit a raw signal (loader/network/url/rows/toast/enabled)
+  // to the RecorderService, which correlates it into `afterWaits` on the previous action.
+  const signal = (s: unknown): void => {
+    const fn = (window as unknown as { __awtkit_recordSignal?: (s: unknown) => void }).__awtkit_recordSignal;
+    if (typeof fn === "function") {
+      try {
+        fn(s);
+      } catch {
+        /* signal binding not ready — ignore */
+      }
+    }
+  };
+
+  interface SignalLocatorShape {
+    strategy: string;
+    value: string;
+    name?: string;
+    exact?: boolean;
+  }
+
   const norm = (s: string | null | undefined): string => (s || "").replace(/\s+/g, " ").trim();
 
   // Escape a value for use inside a double-quoted CSS attribute selector.
@@ -534,6 +554,264 @@ export function installRecorderCapture(): void {
       : null;
     return (candidate as Element) || el;
   };
+
+  // ── Smart Wait observation (Phase 2) ────────────────────────────────────────────────────────
+  // Watch the DOM/network between user actions and emit raw signals. Only safe metadata leaves the
+  // page — request METHOD + URL PATH (never query/headers/bodies/cookies), loader selectors, short
+  // toast text, and locators. RecorderService turns these into `afterWaits` on the previous action.
+  (function installSmartWaitObserver(): void {
+    const safePath = (u: string): string => {
+      try {
+        return new URL(u, document.baseURI || location.href).pathname || "";
+      } catch {
+        return "";
+      }
+    };
+    const upper = (m: unknown): string => String(m || "GET").toUpperCase();
+
+    // Network — patch fetch + XMLHttpRequest (method / path / status / timing only).
+    try {
+      const holder = window as unknown as { fetch?: (...args: unknown[]) => Promise<unknown> };
+      const origFetch = holder.fetch;
+      if (typeof origFetch === "function" && !(origFetch as unknown as { __awtkitPatched?: boolean }).__awtkitPatched) {
+        const patched = function (this: unknown, input: unknown, init: unknown): Promise<unknown> {
+          const initObj = (init || {}) as { method?: string };
+          const inputObj = (typeof input === "object" && input ? input : {}) as { method?: string; url?: string };
+          const method = upper(initObj.method || inputObj.method || "GET");
+          const path = safePath(typeof input === "string" ? input : inputObj.url || "");
+          const startedAt = Date.now();
+          const done = (status: number): void => signal({ kind: "request", method, path, status, startedAt, endedAt: Date.now() });
+          // eslint-disable-next-line prefer-rest-params
+          return (origFetch as (...a: unknown[]) => Promise<unknown>).apply(this, arguments as unknown as unknown[]).then(
+            (resp: unknown) => {
+              const r = resp as { status?: number };
+              done(typeof r.status === "number" ? r.status : 0);
+              return resp;
+            },
+            (err: unknown) => {
+              done(0);
+              throw err;
+            }
+          );
+        };
+        (patched as unknown as { __awtkitPatched?: boolean }).__awtkitPatched = true;
+        holder.fetch = patched as unknown as typeof holder.fetch;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      const XHR = (window as unknown as { XMLHttpRequest?: { prototype: Record<string, unknown> } }).XMLHttpRequest;
+      const proto = XHR && XHR.prototype;
+      if (proto && !proto.__awtkitPatched) {
+        const open = proto.open as (...a: unknown[]) => unknown;
+        const send = proto.send as (...a: unknown[]) => unknown;
+        proto.open = function (this: Record<string, unknown>, method: string, url: string): unknown {
+          this.__awtkitMethod = upper(method);
+          this.__awtkitPath = safePath(url);
+          // eslint-disable-next-line prefer-rest-params
+          return open.apply(this, arguments as unknown as unknown[]);
+        };
+        proto.send = function (this: Record<string, unknown>): unknown {
+          this.__awtkitStart = Date.now();
+          const self = this;
+          try {
+            (this.addEventListener as (t: string, cb: () => void) => void).call(this, "loadend", function () {
+              signal({
+                kind: "request",
+                method: (self.__awtkitMethod as string) || "GET",
+                path: (self.__awtkitPath as string) || "",
+                status: typeof self.status === "number" ? (self.status as number) : 0,
+                startedAt: (self.__awtkitStart as number) || Date.now(),
+                endedAt: Date.now()
+              });
+            });
+          } catch {
+            /* ignore */
+          }
+          // eslint-disable-next-line prefer-rest-params
+          return send.apply(this, arguments as unknown as unknown[]);
+        };
+        proto.__awtkitPatched = true;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // URL changes — patch history + listen to popstate/hashchange.
+    try {
+      const emitUrl = (): void => signal({ kind: "url", url: location.href, ts: Date.now() });
+      const h = history as unknown as { __awtkitPatched?: boolean; pushState: (...a: unknown[]) => unknown; replaceState: (...a: unknown[]) => unknown };
+      if (!h.__awtkitPatched) {
+        const push = h.pushState;
+        const replace = h.replaceState;
+        h.pushState = function (this: unknown): unknown {
+          // eslint-disable-next-line prefer-rest-params
+          const r = push.apply(this, arguments as unknown as unknown[]);
+          emitUrl();
+          return r;
+        };
+        h.replaceState = function (this: unknown): unknown {
+          // eslint-disable-next-line prefer-rest-params
+          const r = replace.apply(this, arguments as unknown as unknown[]);
+          emitUrl();
+          return r;
+        };
+        h.__awtkitPatched = true;
+      }
+      window.addEventListener("popstate", emitUrl, true);
+      window.addEventListener("hashchange", emitUrl, true);
+    } catch {
+      /* ignore */
+    }
+
+    // Loader / toast / enabled / rows — periodic scan + MutationObserver.
+    const LOADER_TOKENS = [
+      ".spinner", ".loading", ".loader", ".progress", ".skeleton", '[role="progressbar"]', '[aria-busy="true"]',
+      ".mat-spinner", ".mat-progress-spinner", ".ant-spin", ".MuiCircularProgress-root", ".p-progress-spinner",
+      ".v-progress-circular", ".el-loading-mask", ".q-spinner"
+    ];
+    const LOADER_SEL = LOADER_TOKENS.join(", ");
+    const TOAST_SEL = '[role="alert"], [role="status"], .toast, .snackbar, .ant-message, .ant-notification, .MuiSnackbar-root, .Toastify__toast, .p-toast';
+
+    const isVisible = (el: Element): boolean => {
+      try {
+        const s = getComputedStyle(el as HTMLElement);
+        if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
+        const r = (el as HTMLElement).getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      } catch {
+        return true;
+      }
+    };
+    const loaderSelectorFor = (el: Element): string => {
+      for (let i = 0; i < LOADER_TOKENS.length; i += 1) {
+        try {
+          if ((el as HTMLElement).matches(LOADER_TOKENS[i])) return LOADER_TOKENS[i];
+        } catch {
+          /* ignore */
+        }
+      }
+      return ".spinner";
+    };
+    const waitLocatorFor = (el: Element): SignalLocatorShape => {
+      const loc = generate(el).locator as Record<string, unknown>;
+      const out: SignalLocatorShape = { strategy: String(loc.strategy), value: String(loc.value) };
+      if (loc.name) out.name = String(loc.name);
+      if (loc.exact) out.exact = true;
+      return out;
+    };
+
+    const shownLoaders = new Map<Element, { selector: string; shownAt: number }>();
+    const seenToasts = new WeakSet<Element>();
+    const disabledState = new WeakMap<Element, boolean>();
+    const rowCounts = new WeakMap<Element, number>();
+
+    const scanAll = (silent: boolean): void => {
+      const now = Date.now();
+      try {
+        const nodes = Array.prototype.slice.call(document.querySelectorAll(LOADER_SEL)) as Element[];
+        const visibleSet = new Set<Element>();
+        nodes.forEach((el) => {
+          if (isVisible(el)) {
+            visibleSet.add(el);
+            if (!shownLoaders.has(el)) shownLoaders.set(el, { selector: loaderSelectorFor(el), shownAt: now });
+          }
+        });
+        shownLoaders.forEach((info, el) => {
+          if (!visibleSet.has(el) || !document.contains(el)) {
+            if (!silent) signal({ kind: "loaderHidden", selector: info.selector, shownAt: info.shownAt, hiddenAt: now });
+            shownLoaders.delete(el);
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        (Array.prototype.slice.call(document.querySelectorAll(TOAST_SEL)) as Element[]).forEach((el) => {
+          if (!seenToasts.has(el) && isVisible(el)) {
+            seenToasts.add(el);
+            if (!silent) {
+              const text = norm(el.textContent).slice(0, 80);
+              signal({ kind: "toast", text: text || undefined, role: attr(el, "role") || "", ts: now });
+            }
+          }
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        (Array.prototype.slice.call(document.querySelectorAll("button, input, select, textarea, [role=button]")) as Element[]).forEach((el) => {
+          const disabled = (el as HTMLInputElement).disabled === true || attr(el, "aria-disabled") === "true";
+          const was = disabledState.get(el);
+          if (!silent && was === true && !disabled) {
+            signal({ kind: "enabled", locator: waitLocatorFor(el), ts: now });
+          }
+          disabledState.set(el, disabled);
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        const dataContainers =
+          "table, [role=table], [role=grid], ul, ol, [role=list], [role=feed], .cards, .card-list, .results-list, [data-testid*=cards i], [data-testid*=list i], [data-testid*=results i]";
+        (Array.prototype.slice.call(document.querySelectorAll(dataContainers)) as Element[]).forEach((container) => {
+          const tag = tagOf(container);
+          const role = attr(container, "role");
+          const listLike = tag === "ul" || tag === "ol" || role === "list" || role === "feed" || /(^|\s)(cards|card-list|results-list)(\s|$)/i.test(attr(container, "class"));
+          const rowSel = listLike ? "li, [role=listitem], .card, [data-testid*=card i]" : "tr, [role=row]";
+          let count = 0;
+          try {
+            count = container.querySelectorAll(rowSel).length;
+          } catch {
+            count = 0;
+          }
+          const prev = rowCounts.get(container) || 0;
+          if (!silent && count > prev && count > 0) {
+            signal({ kind: "rows", container: waitLocatorFor(container), listLike, count, ts: now });
+          }
+          rowCounts.set(container, count);
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+
+    try {
+      scanAll(true); // silent baseline — don't emit for pre-existing content
+    } catch {
+      /* ignore */
+    }
+    try {
+      const obs = new MutationObserver(() => {
+        try {
+          scanAll(false);
+        } catch {
+          /* ignore */
+        }
+      });
+      obs.observe(document.documentElement || document, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ["class", "style", "hidden", "disabled", "aria-busy", "aria-disabled"]
+      });
+    } catch {
+      /* ignore */
+    }
+    try {
+      setInterval(() => {
+        try {
+          scanAll(false);
+        } catch {
+          /* ignore */
+        }
+      }, 150);
+    } catch {
+      /* ignore */
+    }
+  })();
 
   window.addEventListener(
     "click",

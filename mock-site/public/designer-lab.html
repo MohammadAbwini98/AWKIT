@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Designer and Instance Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Designer and Instance Lab</h1>
+      <p class="hint">
+        Expected behavior: these static scenarios provide stable targets for canvas, panel, workflow-card,
+        and saved-flow behavior. Related AWKIT features: Flow Designer, Workflow Builder, Instance Monitor.
+      </p>
+
+      <section data-testid="designer-canvas">
+        <h2>Canvas side-panel collapse area</h2>
+        <p>Expected: clicking empty canvas-like space can be used to validate panel collapse behavior.</p>
+        <div class="mock-canvas" data-testid="mock-canvas" role="region" aria-label="Mock designer canvas">
+          <button class="mock-node" data-testid="mock-node-start" type="button">Start Node</button>
+          <button class="mock-node" data-testid="mock-node-action" type="button">Action Node</button>
+          <button class="mock-node" data-testid="mock-node-end" type="button">End Node</button>
+          <span class="mock-empty-space" data-testid="mock-empty-canvas-space">Empty canvas space</span>
+        </div>
+      </section>
+
+      <section data-testid="workflow-card-grid">
+        <h2>Scrollable workflow cards grid</h2>
+        <p>Expected: cards overflow a two-row visible area and can be loaded/inspected by stable names.</p>
+        <div class="workflow-grid-lab" data-testid="workflow-grid-lab" aria-label="Workflow cards grid">
+          <article data-testid="workflow-card-login"><h3>Mock Login Workflow</h3><p>Login then customer form.</p></article>
+          <article data-testid="workflow-card-route"><h3>Mock Route Change Workflow</h3><p>Open details tab and switch context.</p></article>
+          <article data-testid="workflow-card-smart-waits"><h3>Mock Smart Wait Workflow</h3><p>Run delayed waits.</p></article>
+          <article data-testid="workflow-card-recorder"><h3>Mock Recorder Workflow</h3><p>Record accessible controls.</p></article>
+          <article data-testid="workflow-card-data"><h3>Mock Data Workflow</h3><p>Bind row data to form fields.</p></article>
+          <article data-testid="workflow-card-failure"><h3>Mock Failure Workflow</h3><p>Exercise error routing.</p></article>
+        </div>
+      </section>
+
+      <section data-testid="saved-flow-reopen">
+        <h2>Stable named flows and workflows</h2>
+        <p>Expected: names remain stable for reopen/restore scenarios.</p>
+        <ul>
+          <li data-testid="saved-flow-login">Mock - Login Flow</li>
+          <li data-testid="saved-flow-smart-waits">Mock - Smart Wait Flow</li>
+          <li data-testid="saved-workflow-data">Mock - Data-Driven Workflow</li>
+          <li data-testid="saved-workflow-cards">Mock - Workflow Cards Grid</li>
+        </ul>
+      </section>
+
+      <section data-testid="smart-wait-scenario-data">
+        <h2>beforeWaits / afterWaits scenario data examples</h2>
+        <p>Expected: future fixtures can copy this structure into saved flow profiles.</p>
+        <pre data-testid="smart-wait-json-example"><code>{
+  "beforeWaits": [{ "type": "elementEnabled", "locator": { "strategy": "testId", "value": "delayed-enabled-button" } }],
+  "afterWaits": [{ "type": "toastVisible", "text": "Delayed toast is visible" }]
+}</code></pre>
+      </section>
+    </main>
+  </body>
+</html>

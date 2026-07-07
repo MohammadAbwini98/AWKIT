@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario G — Popup with Smart Wait</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario G — Popup with Smart Wait</h1>
+      <p>Purpose: Tests Smart Wait Engine inside popup context.</p>
+      
+      <button id="open-smart-wait-button" data-testid="open-smart-wait-button" onclick="window.open('/popup/smart-wait-popup.html', '_blank', 'width=600,height=400')">Open Smart Wait Popup</button>
+      
+      <div id="status" style="margin-top:20px; font-weight:bold;"></div>
+    </main>
+    <script>
+      window.addEventListener("message", (e) => {
+        if (e.data && e.data.type === "smart-wait-confirmed") {
+          document.getElementById("status").textContent = "Smart wait popup confirmed at " + new Date().toLocaleTimeString();
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
 import type { Node } from "@xyflow/react";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { getNodeDefinition } from "./flowNodeRegistry";
 import { SearchableSelect } from "../shared/SearchableSelect";
+import type { WaitCondition } from "@src/profiles/FlowProfile";
 
 interface DataSourceOption {
   id: string;
@@ -73,6 +74,56 @@ export function FlowNodePropertiesPanel({
       ? [data.locatorQuality.warning ?? `${data.name} locator matches ${data.locatorQuality.matchCount} elements (not unique).`]
       : [];
   const kind = data?.valueSourceType === "dynamic" ? "dynamic" : "static";
+  const smartWaitCount = (data?.beforeWaits?.length ?? 0) + (data?.afterWaits?.length ?? 0);
+  const updateWait = (phase: "beforeWaits" | "afterWaits", index: number, patch: Partial<WaitCondition>) => {
+    if (!data) return;
+    const waits = [...(data[phase] ?? [])];
+    waits[index] = { ...waits[index], ...patch } as WaitCondition;
+    set({ [phase]: waits } as Partial<FlowDesignerNodeData>);
+  };
+  const removeWait = (phase: "beforeWaits" | "afterWaits", index: number) => {
+    if (!data) return;
+    set({ [phase]: data[phase].filter((_, i) => i !== index) } as Partial<FlowDesignerNodeData>);
+  };
+  const clearWaits = (phase: "beforeWaits" | "afterWaits") => set({ [phase]: [] } as Partial<FlowDesignerNodeData>);
+  const renderWaitList = (label: string, phase: "beforeWaits" | "afterWaits", waits: WaitCondition[]) => (
+    <div className="smart-wait-list">
+      <div className="smart-wait-list-heading">
+        <strong>{label}</strong>
+        {waits.length ? (
+          <button className="toolbar-button" type="button" onClick={() => clearWaits(phase)}>
+            Clear
+          </button>
+        ) : null}
+      </div>
+      {waits.length ? (
+        waits.map((wait, index) => (
+          <div className="smart-wait-card" key={`${phase}-${index}-${wait.type}`}>
+            <div className="smart-wait-card-head">
+              <strong>{smartWaitTitle(wait)}</strong>
+              <button type="button" className="icon-button" title="Remove wait" onClick={() => removeWait(phase, index)}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <span>{smartWaitDetail(wait)}</span>
+            {wait.reason ? <small>{wait.reason}</small> : null}
+            <label>
+              Timeout (ms)
+              <input
+                type="number"
+                min={0}
+                value={wait.timeoutMs ?? ""}
+                placeholder="30000"
+                onChange={(e) => updateWait(phase, index, { timeoutMs: e.target.value ? Number(e.target.value) : undefined })}
+              />
+            </label>
+          </div>
+        ))
+      ) : (
+        <span className="form-message">No waits in this phase.</span>
+      )}
+    </div>
+  );
 
   return (
     <aside className="properties-panel">
@@ -166,6 +217,16 @@ export function FlowNodePropertiesPanel({
                     </span>
                   </div>
                 ) : null}
+              </section>
+            </details>
+          ) : null}
+
+          {smartWaitCount > 0 ? (
+            <details className="property-group" open>
+              <summary>Smart Waits</summary>
+              <section className="property-section">
+                {renderWaitList("Before action", "beforeWaits", data.beforeWaits ?? [])}
+                {renderWaitList("After action", "afterWaits", data.afterWaits ?? [])}
               </section>
             </details>
           ) : null}
@@ -702,4 +763,59 @@ export function FlowNodePropertiesPanel({
       </section>
     </aside>
   );
+}
+
+function smartWaitTitle(wait: WaitCondition): string {
+  switch (wait.type) {
+    case "loaderHidden":
+      return "Loader hidden";
+    case "elementVisible":
+      return "Element visible";
+    case "elementHidden":
+      return "Element hidden";
+    case "elementEnabled":
+      return "Element enabled";
+    case "textVisible":
+      return "Text visible";
+    case "toastVisible":
+      return "Toast visible";
+    case "response":
+      return "Response";
+    case "tableHasRows":
+      return "Table rows";
+    case "listHasItems":
+      return "List items";
+    case "urlChanged":
+      return "URL changed";
+    case "domStable":
+      return "DOM stable";
+    case "fixedDelay":
+      return "Fixed delay";
+  }
+}
+
+function smartWaitDetail(wait: WaitCondition): string {
+  switch (wait.type) {
+    case "loaderHidden":
+    case "elementVisible":
+    case "elementHidden":
+    case "elementEnabled":
+      return `${wait.locator.strategy}: ${wait.locator.value}`;
+    case "textVisible":
+      return wait.exact ? `"${wait.text}" exactly` : `"${wait.text}"`;
+    case "toastVisible":
+      return wait.locator ? `${wait.locator.strategy}: ${wait.locator.value}` : wait.text ? `"${wait.text}"` : "[role=alert]";
+    case "response":
+      return `${wait.method ?? "ANY"} ${wait.urlContains ?? ""} ${(wait.statusRange ?? [200, 399]).join("-")}${wait.armBeforeAction ? " before action" : ""}`;
+    case "tableHasRows":
+      return `${wait.tableLocator.strategy}: ${wait.tableLocator.value} >= ${wait.minRows}`;
+    case "listHasItems":
+      return `${wait.listLocator.strategy}: ${wait.listLocator.value} >= ${wait.minItems}`;
+    case "urlChanged":
+      return wait.urlContains ? `contains ${wait.urlContains}` : wait.fromUrl ? `from ${wait.fromUrl}` : "any URL change";
+    case "domStable":
+      return `${wait.stableForMs ?? 500}ms`;
+    case "fixedDelay":
+      return `${wait.delayMs}ms`;
+  }
 }

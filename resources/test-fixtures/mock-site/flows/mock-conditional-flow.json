@@ -3,8 +3,8 @@
   "name": "Mock — Conditional Branch Flow",
   "description": "Branches by runtime input `path`: 'A' fills FromA, otherwise FromB.",
   "version": 1,
-  "createdAt": "2026-06-27T13:49:51.946Z",
-  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "createdAt": "2026-07-06T22:11:56.682Z",
+  "updatedAt": "2026-07-06T22:11:56.682Z",
   "nodes": [
     {
       "id": "start",

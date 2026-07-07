@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft } from "lucide-react";
+import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
-import type { RecordedAction, RecordedUrl } from "@src/recorder/RecorderTypes";
+import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "@src/recorder/RecorderTypes";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
   const [isRecording, setIsRecording] = useState(false);
   // Task 1: optionally capture the user's think-time between actions as wait steps (persisted).
   const [captureWaitTime, setCaptureWaitTime] = useState(false);
+  const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
   const [actions, setActions] = useState<RecordedAction[]>([]);
   const [flowName, setFlowName] = useState("New Recorded Flow");
   const [statusMsg, setStatusMsg] = useState("");
@@ -17,6 +18,11 @@ export function Recorder() {
   // Inline + toast feedback for the "Save to Flow Library" action.
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+
+  // Protected login / popup manual handoff state.
+  const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
+  const [handoffBusy, setHandoffBusy] = useState(false);
+  const [sessionNameInput, setSessionNameInput] = useState("");
 
   // Recorded URLs table (auto-captured during recording).
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
@@ -39,6 +45,23 @@ export function Recorder() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
+  // Always-on poll for protected-login handoff state + recording status. This runs even while
+  // paused (isRecording=false) so the handoff panel appears when a protected page is detected, and
+  // recording status re-syncs when the recorder resumes after a captured session.
+  useEffect(() => {
+    const poll = () => {
+      window.playwrightFlowStudio.recorder.getHandoff()
+        .then(setHandoff)
+        .catch(() => undefined);
+      window.playwrightFlowStudio.recorder.getStatus()
+        .then((status) => setIsRecording(status.isRecording))
+        .catch(() => undefined);
+    };
+    poll();
+    const interval = setInterval(poll, 800);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     window.playwrightFlowStudio.recorder.getStatus()
       .then(status => setIsRecording(status.isRecording))
@@ -47,9 +70,12 @@ export function Recorder() {
     window.playwrightFlowStudio.recorder.getUrls()
       .then(setUrls)
       .catch(() => undefined);
-    // Restore the persisted "capture waiting time" preference (Task 1).
+    // Restore persisted recorder preferences.
     window.playwrightFlowStudio.settings.get()
-      .then((settings) => setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false))
+      .then((settings) => {
+        setCaptureWaitTime(settings.recorder?.captureWaitTime ?? false);
+        setCaptureSmartWaits(settings.recorder?.captureSmartWaits ?? true);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -57,6 +83,14 @@ export function Recorder() {
     setCaptureWaitTime((current) => {
       const next = !current;
       window.playwrightFlowStudio.settings.update({ recorder: { captureWaitTime: next } }).catch(() => undefined);
+      return next;
+    });
+  };
+
+  const toggleCaptureSmartWaits = () => {
+    setCaptureSmartWaits((current) => {
+      const next = !current;
+      window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: next } }).catch(() => undefined);
       return next;
     });
   };
@@ -102,9 +136,9 @@ export function Recorder() {
   const handleStart = async () => {
     try {
       setStatusMsg("Starting browser...");
-      await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime });
+      await window.playwrightFlowStudio.recorder.start(url, { captureWaitTime, captureSmartWaits });
       setIsRecording(true);
-      setStatusMsg(captureWaitTime ? "Recording (capturing wait time)..." : "Recording...");
+      setStatusMsg(captureWaitTime || captureSmartWaits ? "Recording (capturing waits)..." : "Recording...");
       // Persist the entered URL to the reusable saved-URL list (Task 6).
       window.playwrightFlowStudio.recorder.saveUrl(url).then(setUrls).catch(() => undefined);
     } catch (err: any) {
@@ -135,6 +169,54 @@ export function Recorder() {
       setStatusMsg("Recording cancelled.");
     } catch (err: any) {
       setStatusMsg(`Error: ${err.message}`);
+    }
+  };
+
+  // ── Protected login / popup manual handoff handlers ──────────────────────────
+  const handleContinueBrowser = async () => {
+    setHandoffBusy(true);
+    try {
+      const updated = await window.playwrightFlowStudio.recorder.continueWithNormalBrowser();
+      setHandoff(updated);
+      setStatusMsg("Chrome opened for manual login. Complete it, then click Capture Session & Resume.");
+    } catch (err: any) {
+      setStatusMsg(`Could not open normal browser: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
+  const handleCaptureAndResume = async () => {
+    setHandoffBusy(true);
+    try {
+      const updated = await window.playwrightFlowStudio.recorder.captureSessionAndResume(sessionNameInput.trim() || undefined);
+      setHandoff(updated);
+      setIsRecording(true);
+      setStatusMsg(updated.message);
+      setSessionNameInput("");
+      // Refresh so the inserted Auto Secure Login / Reuse Session nodes appear immediately.
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    } catch (err: any) {
+      setStatusMsg(`Session capture failed: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
+  const handleCancelHandoff = async () => {
+    setHandoffBusy(true);
+    try {
+      await window.playwrightFlowStudio.recorder.cancelHandoff();
+      setHandoff(null);
+      setIsRecording(false);
+      setActions([]);
+      setStatusMsg("Secure login handoff cancelled.");
+    } catch (err: any) {
+      setStatusMsg(`Error: ${err?.message ?? err}`);
+    } finally {
+      setHandoffBusy(false);
     }
   };
 
@@ -170,17 +252,22 @@ export function Recorder() {
     dirty: false
   }, []);
 
+  const handoffActive = !!handoff?.active;
+  // Show the handoff panel while a manual login/approval is required or after a failure. The
+  // "resumed" success is surfaced through the status message, not a blocking panel.
+  const showHandoffPanel = !!handoff && handoff.phase !== "resumed";
+
   return (
     <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
-      <div className="form-panel" style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
-        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <Video size={18} />
           Recorder Controls
         </h3>
         
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "15px" }}>
           <div style={{ display: "flex", alignItems: "center", flex: 1, border: "1px solid #cbd5e1", borderRadius: "6px", padding: "0 10px" }}>
-            <Link size={16} color="#64748b" />
+            <Link size={16} color="var(--awkit-text-secondary)" />
             <input 
               type="text" 
               value={url} 
@@ -194,23 +281,55 @@ export function Recorder() {
             disabled={isRecording || !url.trim()}
             onClick={() => void saveCurrentUrl()}
             title="Save this URL to the reusable list"
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 14px", background: "transparent", color: isRecording || !url.trim() ? "#94a3b8" : "#475569", border: "1px solid", borderColor: isRecording || !url.trim() ? "#e2e8f0" : "#cbd5e1", borderRadius: "6px", cursor: isRecording || !url.trim() ? "not-allowed" : "pointer", fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 14px", background: "transparent", color: isRecording || !url.trim() ? "var(--awkit-text-muted)" : "var(--awkit-text-secondary)", border: "1px solid", borderColor: isRecording || !url.trim() ? "var(--awkit-border-strong)" : "var(--awkit-border-strong)", borderRadius: "6px", cursor: isRecording || !url.trim() ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
             <Bookmark size={16} />
             Save URL
           </button>
           <button
-            disabled={isRecording}
+            disabled={isRecording || handoffActive}
             onClick={handleStart}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: isRecording ? "#e2e8f0" : "#2563eb", color: isRecording ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: isRecording || handoffActive ? "var(--awkit-border-strong)" : "var(--awkit-accent)", color: isRecording || handoffActive ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px", cursor: isRecording || handoffActive ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
             <PlayCircle size={16} />
             Start Recording
           </button>
         </div>
 
-        {/* Task 1: capture user waiting time between actions as wait steps. */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "15px", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={captureSmartWaits}
+            disabled={isRecording}
+            onClick={toggleCaptureSmartWaits}
+            title="When on, condition-based waits are captured from page signals"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 10px",
+              background: captureSmartWaits ? "var(--awkit-accent-soft)" : "var(--awkit-surface-soft)",
+              border: "1px solid", borderColor: captureSmartWaits ? "var(--awkit-accent-muted)" : "var(--awkit-border-strong)",
+              borderRadius: "999px", cursor: isRecording ? "not-allowed" : "pointer",
+              color: captureSmartWaits ? "var(--awkit-accent)" : "var(--awkit-text-secondary)", fontWeight: 600, fontSize: "13px",
+              opacity: isRecording ? 0.7 : 1
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: "34px", height: "18px", borderRadius: "999px", position: "relative",
+                background: captureSmartWaits ? "var(--awkit-accent)" : "var(--awkit-border-strong)", transition: "background 0.15s ease", flex: "0 0 auto"
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute", top: "2px", left: captureSmartWaits ? "18px" : "2px",
+                  width: "14px", height: "14px", borderRadius: "50%", background: "var(--awkit-surface)", transition: "left 0.15s ease"
+                }}
+              />
+            </span>
+            <Sparkles size={15} />
+            Smart waits {captureSmartWaits ? "On" : "Off"}
+          </button>
           <button
             type="button"
             role="switch"
@@ -220,10 +339,10 @@ export function Recorder() {
             title="When on, pauses between your actions are recorded as wait steps"
             style={{
               display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 10px",
-              background: captureWaitTime ? "#ecfdf3" : "#f8fafc",
-              border: "1px solid", borderColor: captureWaitTime ? "#abefc6" : "#cbd5e1",
+              background: captureWaitTime ? "var(--awkit-success-soft)" : "var(--awkit-surface-soft)",
+              border: "1px solid", borderColor: captureWaitTime ? "var(--awkit-success-muted)" : "var(--awkit-border-strong)",
               borderRadius: "999px", cursor: isRecording ? "not-allowed" : "pointer",
-              color: captureWaitTime ? "#067647" : "#475569", fontWeight: 600, fontSize: "13px",
+              color: captureWaitTime ? "var(--awkit-success)" : "var(--awkit-text-secondary)", fontWeight: 600, fontSize: "13px",
               opacity: isRecording ? 0.7 : 1
             }}
           >
@@ -231,20 +350,20 @@ export function Recorder() {
               aria-hidden
               style={{
                 width: "34px", height: "18px", borderRadius: "999px", position: "relative",
-                background: captureWaitTime ? "#10b981" : "#cbd5e1", transition: "background 0.15s ease", flex: "0 0 auto"
+                background: captureWaitTime ? "var(--awkit-success)" : "var(--awkit-border-strong)", transition: "background 0.15s ease", flex: "0 0 auto"
               }}
             >
               <span
                 style={{
                   position: "absolute", top: "2px", left: captureWaitTime ? "18px" : "2px",
-                  width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.15s ease"
+                  width: "14px", height: "14px", borderRadius: "50%", background: "var(--awkit-surface)", transition: "left 0.15s ease"
                 }}
               />
             </span>
             <Timer size={15} />
             Capture waiting time {captureWaitTime ? "On" : "Off"}
           </button>
-          <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+          <span style={{ fontSize: "12px", color: "var(--awkit-text-muted)" }}>
             Records pauses (≥ 0.5s) between actions as wait steps.
           </span>
         </div>
@@ -253,7 +372,7 @@ export function Recorder() {
           <button 
             disabled={!isRecording} 
             onClick={handleStop}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: !isRecording ? "#e2e8f0" : "#ef4444", color: !isRecording ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: !isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: !isRecording ? "var(--awkit-border-strong)" : "var(--awkit-danger)", color: !isRecording ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px", cursor: !isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
             <StopCircle size={16} />
             Stop
@@ -261,27 +380,133 @@ export function Recorder() {
           <button 
             disabled={!isRecording} 
             onClick={handleCancel}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: !isRecording ? "#94a3b8" : "#64748b", border: "1px solid", borderColor: !isRecording ? "#e2e8f0" : "#cbd5e1", borderRadius: "6px", cursor: !isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: !isRecording ? "var(--awkit-text-muted)" : "var(--awkit-text-secondary)", border: "1px solid", borderColor: !isRecording ? "var(--awkit-border-strong)" : "var(--awkit-border-strong)", borderRadius: "6px", cursor: !isRecording ? "not-allowed" : "pointer", fontWeight: 500 }}
           >
             <XCircle size={16} />
             Cancel
           </button>
 
-          <span style={{ marginLeft: "auto", fontSize: "14px", color: "#64748b" }}>
+          <span style={{ marginLeft: "auto", fontSize: "14px", color: "var(--awkit-text-secondary)" }}>
             {statusMsg}
           </span>
         </div>
       </div>
 
+      {/* Protected login / popup manual handoff panel */}
+      {showHandoffPanel && handoff && (
+        <div
+          data-testid="protected-handoff-panel"
+          role="alertdialog"
+          aria-label="Protected login detected"
+          style={{
+            padding: "18px 20px",
+            background: handoff.phase === "error" ? "var(--awkit-danger-soft)" : "var(--awkit-warning-soft)",
+            border: `1px solid ${handoff.phase === "error" ? "var(--awkit-danger-muted)" : "var(--awkit-warning-muted)"}`,
+            borderRadius: "8px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <ShieldAlert size={20} color={handoff.phase === "error" ? "var(--awkit-danger)" : "var(--awkit-warning)"} />
+            <h3 style={{ margin: 0, fontSize: "16px", color: handoff.phase === "error" ? "var(--awkit-danger)" : "var(--awkit-warning)" }}>
+              {handoff.phase === "error" ? "Secure login handoff error" : "Protected login or protected popup detected"}
+            </h3>
+          </div>
+
+          <p style={{ margin: 0, fontSize: "13px", color: "var(--awkit-text-secondary)", lineHeight: 1.5 }}>
+            {handoff.message}
+          </p>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", fontSize: "12px", color: "var(--awkit-text-secondary)" }}>
+            <span><strong>Source:</strong> {handoff.sourceAlias}</span>
+            <span><strong>Reason:</strong> {handoff.reason}</span>
+            {handoff.origin ? <span><strong>Origin:</strong> {handoff.origin}</span> : null}
+            {handoff.signals.length > 0 ? <span><strong>Signals:</strong> {handoff.signals.join(", ")}</span> : null}
+          </div>
+
+          {handoff.phase === "error" && handoff.error ? (
+            <div style={{ fontSize: "12px", color: "var(--awkit-danger)", background: "var(--awkit-danger-soft)", padding: "8px 10px", borderRadius: "6px" }}>
+              {handoff.error}
+            </div>
+          ) : null}
+
+          {handoff.phase === "capturingSession" ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: 360 }}>
+              <label style={{ fontSize: "11px", fontWeight: "bold", color: "var(--awkit-text-secondary)", textTransform: "uppercase" }}>
+                Session name (optional)
+              </label>
+              <input
+                type="text"
+                value={sessionNameInput}
+                onChange={(e) => setSessionNameInput(e.target.value)}
+                placeholder="e.g. Acme Portal Login"
+                disabled={handoffBusy}
+                style={{ padding: "9px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+              />
+              {handoff.sessionName ? (
+                <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)" }}>Saved session: {handoff.sessionName}</span>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            {handoff.phase === "detected" || handoff.phase === "error" ? (
+              <button
+                type="button"
+                data-testid="handoff-continue-browser"
+                disabled={handoffBusy}
+                onClick={() => void handleContinueBrowser()}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: handoffBusy ? "var(--awkit-border-strong)" : "var(--awkit-accent)", color: handoffBusy ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 600 }}
+              >
+                <ExternalLink size={16} />
+                {handoff.phase === "error" ? "Retry in normal browser" : "Continue using normal browser"}
+              </button>
+            ) : null}
+
+            {handoff.phase === "capturingSession" ? (
+              <button
+                type="button"
+                data-testid="handoff-capture-resume"
+                disabled={handoffBusy}
+                onClick={() => void handleCaptureAndResume()}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: handoffBusy ? "var(--awkit-border-strong)" : "var(--awkit-success)", color: handoffBusy ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 600 }}
+              >
+                {handoffBusy ? <RefreshCw size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                {handoffBusy ? "Capturing…" : "Capture Session & Resume"}
+              </button>
+            ) : null}
+
+            {handoff.phase === "sessionCaptured" ? (
+              <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--awkit-success)" }}>
+                <RefreshCw size={16} className="spin" /> Resuming recorder with the saved session…
+              </span>
+            ) : null}
+
+            <button
+              type="button"
+              data-testid="handoff-cancel"
+              disabled={handoffBusy}
+              onClick={() => void handleCancelHandoff()}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: "var(--awkit-text-secondary)", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 500 }}
+            >
+              <XCircle size={16} />
+              {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: "20px" }}>
-        <div className="form-panel" style={{ flex: 1, padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef", minHeight: "400px" }}>
-          <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
+        <div className="form-panel" style={{ flex: 1, padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef", minHeight: "400px" }}>
+          <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
             <span>Recorded Actions ({actions.length})</span>
-            {isRecording && <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444", display: "inline-block", animation: "pulse 1.5s infinite" }} />}
+            {isRecording && <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "var(--awkit-danger)", display: "inline-block", animation: "pulse 1.5s infinite" }} />}
           </h3>
           
           {actions.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "300px", color: "#94a3b8" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "300px", color: "var(--awkit-text-muted)" }}>
               <Video size={48} style={{ marginBottom: "16px", opacity: 0.5 }} />
               <p>No actions recorded yet.</p>
               <p style={{ fontSize: "12px", marginTop: "8px" }}>Click 'Start Recording' to begin capturing browser events.</p>
@@ -289,20 +514,41 @@ export function Recorder() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto", paddingRight: "10px" }}>
               {actions.map((action, index) => (
-                <div key={action.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "#f8fafc", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <span style={{ background: "#cbd5e1", color: "#475569", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                <div key={action.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "var(--awkit-surface-soft)", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <span style={{ background: "var(--awkit-border-strong)", color: "var(--awkit-text-secondary)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
                     {index + 1}
                   </span>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <strong style={{ fontSize: "14px", color: "#334155" }}>{action.name}</strong>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: "14px", color: "var(--awkit-text)" }}>{action.name}</strong>
+                      {/* Page context badge */}
+                      {action.type === "switchToPopup" || action.type === "closePopup" || action.type === "switchToMainPage" ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "var(--awkit-accent-soft)", color: "var(--awkit-accent)", fontWeight: 600 }}>
+                          {action.type === "switchToPopup" ? "⬡ switch popup" : action.type === "closePopup" ? "⬡ close popup" : "⬡ main"}
+                        </span>
+                      ) : action.opensPopup ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "var(--awkit-warning-soft)", color: "var(--awkit-warning)", fontWeight: 600 }}>
+                          ↗ opens popup
+                        </span>
+                      ) : action.pageAlias && action.pageAlias !== "main" ? (
+                        <span style={{ fontSize: "11px", padding: "1px 6px", borderRadius: "10px", background: "var(--awkit-warning-soft)", color: "var(--awkit-warning)", fontWeight: 600 }}>
+                          ⬡ {action.pageAlias}
+                        </span>
+                      ) : null}
+                    </div>
                     {action.locator && (
-                      <span style={{ fontSize: "12px", color: "#64748b", fontFamily: "monospace" }}>
+                      <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)", fontFamily: "monospace" }}>
                         {action.locator.strategy}: {action.locator.value}
                       </span>
                     )}
+                    {action.afterWaits && action.afterWaits.length > 0 ? (
+                      <span style={{ fontSize: "12px", color: "var(--awkit-accent)" }}>
+                        Smart waits: {action.afterWaits.map((wait) => wait.type).join(", ")}
+                      </span>
+                    ) : null}
                   </div>
                   {action.valueSource && (
-                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#0ea5e9", background: "#e0f2fe", padding: "4px 8px", borderRadius: "4px" }}>
+                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "var(--awkit-accent)", background: "var(--awkit-accent-soft)", padding: "4px 8px", borderRadius: "4px" }}>
                       <ArrowRight size={12} />
                       "{action.valueSource.value}"
                     </div>
@@ -313,14 +559,14 @@ export function Recorder() {
           )}
         </div>
 
-        <div className="form-panel" style={{ width: "300px", padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef", height: "fit-content" }}>
-          <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
+        <div className="form-panel" style={{ width: "300px", padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef", height: "fit-content" }}>
+          <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
             <Save size={18} />
             Save Options
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "bold", color: "#475569", textTransform: "uppercase" }}>Flow Name</label>
+              <label style={{ fontSize: "12px", fontWeight: "bold", color: "var(--awkit-text-secondary)", textTransform: "uppercase" }}>Flow Name</label>
               <input 
                 type="text" 
                 value={flowName} 
@@ -334,7 +580,7 @@ export function Recorder() {
                 <button
                   disabled={saveDisabled}
                   onClick={handleSave}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "10px 16px", background: saveDisabled ? "#e2e8f0" : "#10b981", color: saveDisabled ? "#94a3b8" : "#fff", border: "none", borderRadius: "6px", cursor: saveDisabled ? "not-allowed" : "pointer", fontWeight: "bold", width: "100%" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "10px 16px", background: saveDisabled ? "var(--awkit-border-strong)" : "var(--awkit-success)", color: saveDisabled ? "var(--awkit-text-muted)" : "var(--awkit-accent-contrast)", border: "none", borderRadius: "6px", cursor: saveDisabled ? "not-allowed" : "pointer", fontWeight: "bold", width: "100%" }}
                 >
                   <Save size={16} />
                   {isSaving ? "Saving…" : "Save to Flow Library"}
@@ -351,9 +597,9 @@ export function Recorder() {
                   fontSize: "12px",
                   padding: "8px 10px",
                   borderRadius: "6px",
-                  border: `1px solid ${saveResult.tone === "success" ? "#abefc6" : "#fecdca"}`,
-                  background: saveResult.tone === "success" ? "#ecfdf3" : "#fef3f2",
-                  color: saveResult.tone === "success" ? "#067647" : "#b42318"
+                  border: `1px solid ${saveResult.tone === "success" ? "var(--awkit-success-muted)" : "var(--awkit-danger-muted)"}`,
+                  background: saveResult.tone === "success" ? "var(--awkit-success-soft)" : "var(--awkit-danger-soft)",
+                  color: saveResult.tone === "success" ? "var(--awkit-success)" : "var(--awkit-danger)"
                 }}
               >
                 {saveResult.tone === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
@@ -361,15 +607,15 @@ export function Recorder() {
               </div>
             )}
             {actions.length === 0 && !isRecording && !isSaving && (
-               <p style={{ fontSize: "12px", color: "#94a3b8", textAlign: "center", margin: 0 }}>Record some actions first</p>
+               <p style={{ fontSize: "12px", color: "var(--awkit-text-muted)", textAlign: "center", margin: 0 }}>Record some actions first</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Recorded URLs — auto-captured during recording */}
-      <div className="form-panel" style={{ padding: "20px", background: "#fff", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
-        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1e293b", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+        <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <Globe size={18} />
           Recorded URLs ({filteredUrls.length})
         </h3>
@@ -471,6 +717,8 @@ export function Recorder() {
           70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
           100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
       `}</style>
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>

@@ -36,9 +36,9 @@ try {
   await win.waitForLoadState("domcontentloaded");
 
   // Ensure we're on the Flow Designer (the app restores the last route; if not, click the
-  // sidebar nav — collapsed, so match by its title attribute).
+  // sidebar nav by its visible label; the title attribute stores the route description).
   if (!(await win.$(".action-flow-node"))) {
-    await win.click('button.nav-item[title="Flow Designer"]').catch(() => {});
+    await win.click('button.nav-item:has-text("Flow Designer")').catch(() => {});
   }
   await win.waitForSelector(".action-flow-node", { timeout: 20000 });
   await win.waitForTimeout(600);

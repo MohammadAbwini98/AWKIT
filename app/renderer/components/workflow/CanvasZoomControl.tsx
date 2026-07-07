@@ -26,7 +26,7 @@ export function CanvasZoomControl({ onPersist }: CanvasZoomControlProps) {
   };
 
   return (
-    <Panel position="bottom-left" className="canvas-zoom-control">
+    <Panel position="bottom-center" className="canvas-zoom-control">
       <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => applyPercent(percent - ZOOM_STEP)}>
         <Minus size={14} />
       </button>

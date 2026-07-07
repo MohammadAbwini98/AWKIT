@@ -31,6 +31,12 @@ export interface RunnerProgressEvent {
   retryCount?: number;
   timestamp: string;
   durationMs?: number;
+  /** Saved failure-trace zip for this step attempt (engine-run failures only). */
+  tracePath?: string;
+  /** Sanitized page URL at failure time (origin + path only — never query/fragment). */
+  currentUrl?: string;
+  /** Side-effect classification of the step (Phase 3 safety metadata; set on `running` events). */
+  sideEffectLevel?: string;
 }
 
 export interface RunnerProgressReporter {

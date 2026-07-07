@@ -9,6 +9,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ Node registry + type-specific properties — `components/workflow/flowNodeRegistry.ts`,
   `FlowNodePropertiesPanel.tsx` (click/fill/select/check/radio/wait/assert/screenshot/scroll/
   loop/runFlow/goto/condition/manualHandoff/**routeChange**).
+- ✅ **Smart Wait editing:** Flow Designer preserves `beforeWaits`/`afterWaits` on saved steps and Node
+  Properties shows captured waits with before/after grouping, condition details, timeout editing, per-wait
+  remove, and clear-list controls.
 - ✅ **Route Change node**: switches the active automation page/tab/URL — modes switchToUrl,
   switchToLatestTab, waitForNewTab, navigateCurrentPage (URL match exact/contains/regex; wait-until).
   Runtime switches `StepExecutor.activePage` + `LocatorFactory.setPage` so later steps target the new tab.
@@ -93,6 +96,11 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `isSaving` guard against duplicate-click corruption. **Auto-captures visited URLs** (main-frame
   navigations + opened tabs) with sensitive query values masked, shown in a searchable/paginated
   "Recorded URLs" table (Time/Title/URL/Source/Session/copy) via `recorder.getUrls()`.
+- ✅ **Smart Wait recorder observation:** default-on `settings.recorder.captureSmartWaits` records
+  high-confidence `afterWaits` from passive loaders, fetch/XHR completion (method + URL path only),
+  URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback. Recorder
+  Controls exposes a persisted Smart Wait toggle, and the recorded-actions list summarizes captured wait
+  types. Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
 - ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
   locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → positional
@@ -111,6 +119,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Execution & reporting
 - ✅ Generic Playwright runner: `StepExecutor`, `FlowExecutor`, `PlaywrightRunner`,
   `ExecutionEngine`, `LocatorFactory`, `ValueResolver`, `ExpressionEvaluator`.
+- ✅ **Multi-Window / Popup Handling:** `StepExecutor` targets steps to specific windows via `pageAlias` and `PageRegistry`. Click steps with `opensPopup` capture and register popups. Support for `switchToPopup`, `switchToMainPage`, and `closePopup` nodes. Flow Designer canvas shows active page badges. Verified via `npm run verify:popup`.
+- ✅ **Smart Wait execution diagnostics:** `StepExecutor` runs `beforeWaits`/`afterWaits` around steps and
+  reports failed waits with phase, sanitized current URL, wait condition, timeout, recorded reason, last
+  observed state, and a suggested fix.
 - ✅ Connector routing at flow and workflow level (structured conditional/parallel/loop connectors +
   legacy success/failure/conditional/always/outcome/loopBack); Auto Secure Login engine restart guard
   (`MAX_AUTO_LOGIN_RESTART`); Run Another Flow with recursion guard (depth 5).
@@ -140,6 +152,28 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   widths) so cards-per-row and dimensions stay consistent whether or not the scroller is active; the
   hover/focus reveal cross-fades two equal-area layers so the card height (and grid) never moves; the
   search bar is full content width.
+
+### Reports & analytics (UI-reports refactor, 2026-07-07)
+- ✅ **Reports section** — a "Reports" left-nav group with seven pages plus the existing Run Artifacts:
+  Reports Overview (`ReportsOverview.tsx`), Workflow Reports (`ReportsWorkflows.tsx`, sortable + run
+  drill-down), Instance Reports (`ReportsInstances.tsx`, live distribution + history), Chrome
+  Consumption (`ReportsChrome.tsx`, RPM gauges), Runtime Analytics (`ReportsRuntime.tsx`, consumption
+  timelines), Failure Analytics (`ReportsFailures.tsx`, category breakdown + flakiness + insights),
+  Server Performance (`ReportsServer.tsx`, storage + resources). All consume the read-only
+  `window.playwrightFlowStudio.telemetry.*` channels over the durable runtime store; full
+  loading/empty/error/ready states; hand-rolled SVG charts (no chart dependency). Driven by
+  `npm run verify:reports` (real Electron, 26 checks).
+- ✅ **Telemetry read-model** — additive `runtime.sqlite` migration v2 (run-summary columns +
+  `runtime_process_samples`), `src/reports/ReportCategories.ts` (failure taxonomy over the existing
+  `ErrorClassifier`), `src/runner/runtime/ProcessTreeSampler.ts` (Windows Chrome process sampling),
+  bounded retention sweep, and windowed query methods on the store. Exposed via `app/main/ipc/telemetry.ipc.ts`
+  (`telemetry:overview/workflows/runHistory/runDetail/failures/runtimeSeries/processHistory/server`).
+  Verified by `npm run verify:telemetry` (39 checks). Telemetry is best-effort and never affects a run.
+- ✅ **Design-system layer** — `--awkit-*` tokens + reusable primitives (`StatusBadge`, `SectionHeader`,
+  `SkeletonCard`, `EmptyState`, `TrendDelta`, `AnimatedCounter`, `usePrefersReducedMotion`) in
+  `components/shared/`; report/chart components in `components/reports/`; global reduced-motion honoring;
+  a route-content fade (non-canvas routes). Designer nodes visually modernized (token shadows/accent) with
+  all canvas invariants preserved.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,

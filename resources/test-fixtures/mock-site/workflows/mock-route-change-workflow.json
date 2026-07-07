@@ -3,8 +3,8 @@
   "name": "Mock — Route Change Workflow",
   "description": "Login → Route Change flow (open new tab, switch context, validate result).",
   "version": 1,
-  "createdAt": "2026-06-27T13:49:51.946Z",
-  "updatedAt": "2026-06-27T13:49:51.946Z",
+  "createdAt": "2026-07-06T22:11:56.682Z",
+  "updatedAt": "2026-07-06T22:11:56.682Z",
   "nodes": [
     {
       "id": "mock-login-flow",

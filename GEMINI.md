@@ -21,11 +21,16 @@ Gemini-specific behavior.
   must remain offline-first (see `docs/ai/RULES.md`).
 - Do not rename internal identifiers such as `window.playwrightFlowStudio`.
 - Make minimal, evidence-based changes; avoid unrelated refactors.
+- Treat `mock-site/` as AWKIT's local Feature Test Lab. For Recorder, Runner, Smart Wait, Flow Designer,
+  Workflow Builder, Instance Monitor, locator, node, wait, or execution features, check
+  `mock-site/README.md`, update an applicable scenario, and use `.gemini/skills/mock-site-maintainer`
+  when the task touches that surface.
 
 ## Verifying & finishing
 
 - Verify with `npm run build`; use `npm run verify:runner` for runner changes and
   `npm run validate:offline` for offline/packaging changes (no lint/test npm script exists).
+- For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - After each task, update `docs/ai/CURRENT_STATE.md` and append to `docs/ai/TASK_LOG.md`, per
   the End-of-task checklist in `AGENTS.md`.
 

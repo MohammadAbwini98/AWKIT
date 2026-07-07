@@ -80,24 +80,56 @@ function renderSuccess(submission) {
 </html>`;
 }
 
+function sendJson(res, body) {
+  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(JSON.stringify(body));
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
   const path = url.pathname;
 
-  if (req.method === "GET" && path === "/") {
-    res.writeHead(302, { Location: "/login" });
-    res.end();
-    return;
-  }
+  if (req.method === "GET" && path === "/") return serveStatic(res, "index.html");
 
   if (req.method === "GET" && path === "/login") return serveStatic(res, "login.html");
   if (req.method === "GET" && path === "/form") return serveStatic(res, "form.html");
   if (req.method === "GET" && path === "/details") return serveStatic(res, "details.html");
+  if (req.method === "GET" && path === "/smart-waits") return serveStatic(res, "smart-waits.html");
+  if (req.method === "GET" && path === "/recorder-lab") return serveStatic(res, "recorder-lab.html");
+  if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
+  // ── Multi-Window / Popup Lab ───────────────────────────────────────────────
+  if (req.method === "GET" && path.startsWith("/mock/popup")) {
+    let file = path.slice("/mock/popup".length);
+    if (!file || file === "/") file = "/index.html";
+    if (!file.endsWith(".html") && !file.includes(".")) file += ".html";
+    return serveStatic(res, `popup${file}`);
+  }
+  if (req.method === "GET" && path.startsWith("/popup")) {
+    let file = path.slice("/popup".length);
+    if (!file || file === "/") file = "/index.html";
+    if (!file.endsWith(".html") && !file.includes(".")) file += ".html";
+    return serveStatic(res, `popup${file}`);
+  }
+  // ── Secure Login / Protected Popup Lab ─────────────────────────────────────
+  // Protected login + protected popup + session-reuse scenarios for the Recorder secure-login
+  // manual Chrome handoff. Served from `public/secure-login/<name>.html` (stable, offline-only).
+  // Placed after the /mock/popup handler so it never swallows the popup lab routes.
+  if (req.method === "GET" && path.startsWith("/mock/")) {
+    const name = path.slice("/mock/".length).replace(/[^a-zA-Z0-9-]/g, "");
+    if (name) return serveStatic(res, `secure-login/${name}.html`);
+  }
   if (req.method === "GET" && (path === "/styles.css")) return serveStatic(res, "styles.css");
   if (req.method === "GET" && path === "/favicon.ico") {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  if (req.method === "GET" && path === "/api/delay") {
+    const requested = Number(url.searchParams.get("ms") ?? 300);
+    const delayMs = Math.max(0, Math.min(Number.isFinite(requested) ? requested : 300, 3000));
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return sendJson(res, { ok: true, delayMs, message: "Delayed mock response complete" });
   }
 
   if (req.method === "POST" && path === "/login") {

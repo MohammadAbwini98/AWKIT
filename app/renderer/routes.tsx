@@ -1,5 +1,6 @@
 import {
   Activity,
+  BarChart3,
   Boxes,
   ClipboardList,
   FileCheck2,
@@ -11,11 +12,14 @@ import {
   KeyRound,
   LayoutDashboard,
   LayoutGrid,
+  LineChart,
   ListChecks,
   MonitorDot,
   PanelRight,
   PlaySquare,
+  Server,
   Settings,
+  ShieldAlert,
   Table2,
   Workflow,
   type LucideIcon
@@ -40,6 +44,13 @@ import { WorkflowDesigner } from "./pages/WorkflowDesigner";
 import { WorkflowsLibrary } from "./pages/WorkflowsLibrary";
 import { Recorder } from "./pages/Recorder";
 import { SessionsManager } from "./pages/SessionsManager";
+import { ReportsOverview } from "./pages/ReportsOverview";
+import { ReportsWorkflows } from "./pages/ReportsWorkflows";
+import { ReportsInstances } from "./pages/ReportsInstances";
+import { ReportsChrome } from "./pages/ReportsChrome";
+import { ReportsRuntime } from "./pages/ReportsRuntime";
+import { ReportsFailures } from "./pages/ReportsFailures";
+import { ReportsServer } from "./pages/ReportsServer";
 
 export type RouteId =
   | "dashboard"
@@ -54,6 +65,13 @@ export type RouteId =
   | "dataSourceEditor"
   | "instanceMonitor"
   | "executionMonitor"
+  | "reportsOverview"
+  | "reportsWorkflows"
+  | "reportsInstances"
+  | "reportsChrome"
+  | "reportsRuntime"
+  | "reportsFailures"
+  | "reportsServer"
   | "reports"
   | "roadmap"
   | "projectContract"
@@ -156,9 +174,58 @@ export const routes: AppRoute[] = [
     component: ExecutionMonitor
   },
   {
-    id: "reports",
+    id: "reportsOverview",
     label: "Reports",
-    description: "Run history, screenshots, downloads, and errors.",
+    description: "Automation outcomes, durations, and live activity dashboards.",
+    icon: BarChart3,
+    component: ReportsOverview
+  },
+  {
+    id: "reportsWorkflows",
+    label: "Workflow Reports",
+    description: "Per-workflow run statistics, durations, and drill-down.",
+    icon: Workflow,
+    component: ReportsWorkflows
+  },
+  {
+    id: "reportsInstances",
+    label: "Instance Reports",
+    description: "Live instance status distribution and run history.",
+    icon: MonitorDot,
+    component: ReportsInstances
+  },
+  {
+    id: "reportsChrome",
+    label: "Chrome Consumption",
+    description: "Live Chrome/Playwright consumption and RPM-style pressure gauges.",
+    icon: Gauge,
+    component: ReportsChrome
+  },
+  {
+    id: "reportsRuntime",
+    label: "Runtime Analytics",
+    description: "Concurrency, host resource, and Chrome consumption history.",
+    icon: LineChart,
+    component: ReportsRuntime
+  },
+  {
+    id: "reportsFailures",
+    label: "Failure Analytics",
+    description: "Failure categories, reliability ranking, and insights.",
+    icon: ShieldAlert,
+    component: ReportsFailures
+  },
+  {
+    id: "reportsServer",
+    label: "Server Performance",
+    description: "Process resource usage and on-disk storage.",
+    icon: Server,
+    component: ReportsServer
+  },
+  {
+    id: "reports",
+    label: "Run Artifacts",
+    description: "Stored run reports, screenshots, downloads, and errors.",
     icon: FileBarChart,
     component: ExecutionReports
   },
