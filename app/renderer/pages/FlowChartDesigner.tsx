@@ -32,6 +32,7 @@ import {
   reconcileBranchConnectors
 } from "../components/shared/connectorStyle";
 import { SelfLoopEdge } from "../components/shared/SelfLoopEdge";
+import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
 import { FlowNodePropertiesPanel } from "../components/workflow/FlowNodePropertiesPanel";
 import { flowNodeCatalog, getFlowNodeCatalogItem } from "../components/workflow/flowNodeCatalog";
@@ -50,6 +51,7 @@ const nodeTypes = {
 } satisfies NodeTypes;
 
 const edgeTypes = {
+  templateSmooth: TemplateSmoothEdge,
   circular: SelfLoopEdge
 } satisfies EdgeTypes;
 
@@ -564,27 +566,27 @@ function FlowChartDesignerContent() {
 
   const loadProfile = useCallback(
     (profile: FlowProfile) => {
-    const nextNodes = profile.nodes.map<FlowDesignerNode>((step) =>
-      styledNode({
-        id: step.id,
-        type: "actionNode",
-        position: step.position ?? { x: 280, y: 120 },
-        data: fromFlowStep(step)
-      })
-    );
-    const nextEdges = profile.edges.map<FlowDesignerEdge>((edge) =>
-      createEdge(edge.source, edge.target, edge.type, edge.label, edge.condition?.expression, edge.style, edge.maxLoopCount, {
-        kind: edge.kind,
-        conditional: edge.conditional,
-        parallel: edge.parallel,
-        loop: edge.loop
-      })
-    );
+      const nextNodes = profile.nodes.map<FlowDesignerNode>((step) =>
+        styledNode({
+          id: step.id,
+          type: "actionNode",
+          position: step.position ?? { x: 280, y: 120 },
+          data: fromFlowStep(step)
+        })
+      );
+      const nextEdges = profile.edges.map<FlowDesignerEdge>((edge) =>
+        createEdge(edge.source, edge.target, edge.type, edge.label, edge.condition?.expression, edge.style, edge.maxLoopCount, {
+          kind: edge.kind,
+          conditional: edge.conditional,
+          parallel: edge.parallel,
+          loop: edge.loop
+        })
+      );
 
-    setNodes(nextNodes);
-    setEdges(reconcileFlowBranches(nextEdges));
-    setSelectedNodeId(nextNodes[0]?.id ?? null);
-    setSelectedEdgeId(null);
+      setNodes(nextNodes);
+      setEdges(reconcileFlowBranches(nextEdges));
+      setSelectedNodeId(nextNodes[0]?.id ?? null);
+      setSelectedEdgeId(null);
       setFlowId(profile.id);
       setFlowName(profile.name);
       setSaveState("Loaded profile");
@@ -629,6 +631,83 @@ function FlowChartDesignerContent() {
     URL.revokeObjectURL(href);
   }, [flowProfile]);
 
+  // Template connector "+" affordance: split a straight (non-self-loop) connector by inserting a
+  // real Click node at its midpoint. The original edge is replaced by source→new and new→target,
+  // preserving the source edge's routing/kind so branch invariants stay intact. Purely a canvas
+  // edit — nothing here is serialized until Save.
+  const insertNodeOnEdge = useCallback(
+    (edgeId: string) => {
+      const edge = edges.find((item) => item.id === edgeId);
+      if (!edge || edge.source === edge.target) return;
+
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      const targetNode = nodes.find((node) => node.id === edge.target);
+      const catalogItem = getFlowNodeCatalogItem("click");
+      const id = `click-${Date.now().toString(36)}`;
+      const position = {
+        x: ((sourceNode?.position.x ?? 280) + (targetNode?.position.x ?? 280)) / 2,
+        y: ((sourceNode?.position.y ?? 160) + (targetNode?.position.y ?? 320)) / 2
+      };
+
+      const node: FlowDesignerNode = styledNode({
+        id,
+        type: "actionNode",
+        position,
+        data: { ...defaultNodeData("click", catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
+      });
+
+      setNodes((currentNodes) => [...currentNodes, node]);
+      setEdges((currentEdges) => {
+        const targetEdge = currentEdges.find((item) => item.id === edgeId);
+        if (!targetEdge) return currentEdges;
+        const remaining = currentEdges.filter((item) => item.id !== edgeId);
+        return reconcileFlowBranches([
+          ...remaining,
+          createEdge(
+            targetEdge.source,
+            id,
+            targetEdge.data?.linkType ?? "success",
+            targetEdge.data?.label,
+            targetEdge.data?.expression,
+            targetEdge.data?.style,
+            targetEdge.data?.maxLoopCount,
+            {
+              kind: targetEdge.data?.kind ?? "normal",
+              conditional: targetEdge.data?.conditional,
+              parallel: targetEdge.data?.parallel,
+              loop: targetEdge.data?.loop
+            }
+          ),
+          createEdge(id, targetEdge.target, "success", "success")
+        ]);
+      });
+      setSelectedNodeId(id);
+      setSelectedEdgeId(null);
+      setSaveState("Unsaved changes");
+    },
+    [edges, nodes, setEdges, setNodes]
+  );
+
+  // Display-only edges: attach the label pill + insert affordance to what the canvas renders,
+  // without ever mutating the saved `edges` (callbacks/flags must not be serialized). Only
+  // straight edges (source ≠ target) get an add button; self-loops render via SelfLoopEdge.
+  const edgesForCanvas = useMemo<FlowDesignerEdge[]>(
+    () =>
+      edges.map((edge) => {
+        const base = edge.data ?? ({ linkType: "success" } as FlowConnectionData);
+        return {
+          ...edge,
+          data: {
+            ...base,
+            label: base.label ?? (typeof edge.label === "string" ? edge.label : undefined),
+            showAddButton: edge.source !== edge.target,
+            onInsertNode: insertNodeOnEdge
+          }
+        };
+      }),
+    [edges, insertNodeOnEdge]
+  );
+
   usePageChrome(
     {
       actions: [
@@ -664,6 +743,7 @@ function FlowChartDesignerContent() {
             collapsed={propertiesCollapsed}
             onToggleCollapsed={togglePropertiesCollapsed}
             onUpdateNode={updateNode}
+            onDelete={deleteSelectedNode}
           />
         )
       }
@@ -695,10 +775,6 @@ function FlowChartDesignerContent() {
           <button className="toolbar-button" onClick={loadFlow} type="button">
             <FolderOpen size={15} />
             Load
-          </button>
-          <button className="toolbar-button" onClick={deleteSelectedNode} type="button">
-            <Trash2 size={15} />
-            Delete
           </button>
           <span className={validationMessages.length ? "validation-chip warn" : "validation-chip ok"}>
             <ShieldCheck size={14} />
@@ -797,7 +873,7 @@ function FlowChartDesignerContent() {
 
           <div className="react-flow-shell" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
             <ReactFlow
-              edges={edges}
+              edges={edgesForCanvas}
               edgeTypes={edgeTypes}
               nodeTypes={nodeTypes}
               nodes={nodesForCanvas}
@@ -810,7 +886,7 @@ function FlowChartDesignerContent() {
               onPaneClick={handlePaneClick}
               onMoveEnd={(_, viewport) => persistFlowZoom(Math.round(viewport.zoom * 100))}
             >
-              <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
+              <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
               <Controls position="top-right" showZoom={false} />
               <CanvasZoomControl onPersist={persistFlowZoom} />
               {/* Keyed by theme: the minimap composites into its own layer and can keep a stale
@@ -995,12 +1071,12 @@ function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): FlowStep
     next,
     locator: catalogItem.requiresLocator
       ? {
-          strategy: data.locatorStrategy,
-          value: data.locatorValue,
-          name: data.locatorName || undefined,
-          exact: data.locatorExact || undefined,
-          quality: data.locatorQuality
-        }
+        strategy: data.locatorStrategy,
+        value: data.locatorValue,
+        name: data.locatorName || undefined,
+        exact: data.locatorExact || undefined,
+        quality: data.locatorQuality
+      }
       : undefined,
     value: data.value || undefined,
     valueSource,

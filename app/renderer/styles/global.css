@@ -12,6 +12,13 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -23,6 +30,12 @@ body {
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
+  --awkit-space-1: 4px;
+  --awkit-space-2: 8px;
+  --awkit-space-3: 12px;
+  --awkit-space-4: 16px;
+  --awkit-space-5: 20px;
+  --awkit-space-6: 24px;
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-pill: 999px;
@@ -39,24 +52,25 @@ body {
 :root,
 [data-theme="light"] {
   /* surfaces */
-  --awkit-bg: #f4f3f7;
+  --awkit-bg: #f6f4f9;
   --awkit-surface: #ffffff;
-  --awkit-surface-soft: #f8f7fa;
+  --awkit-surface-soft: #faf9fc;
+  --awkit-surface-raised: #ffffff;
   --awkit-surface-inset: #efedf3;
-  --awkit-border: rgba(23, 17, 38, 0.08);
-  --awkit-border-strong: rgba(23, 17, 38, 0.16);
+  --awkit-border: rgba(34, 24, 58, 0.08);
+  --awkit-border-strong: rgba(34, 24, 58, 0.14);
 
   /* text */
-  --awkit-text: #1b1526;
-  --awkit-text-secondary: #574f68;
-  --awkit-text-muted: #8a8496;
+  --awkit-text: #20172f;
+  --awkit-text-secondary: #5e556d;
+  --awkit-text-muted: #91899f;
 
   /* accent — Hologram violet */
-  --awkit-accent: #6d28d9;
-  --awkit-accent-hover: #5b21b6;
+  --awkit-accent: #7c3aed;
+  --awkit-accent-hover: #6d28d9;
   --awkit-accent-contrast: #ffffff;
-  --awkit-accent-soft: #f2edfd;
-  --awkit-accent-muted: #cdb8f4;
+  --awkit-accent-soft: #f0e9ff;
+  --awkit-accent-muted: #c7b3f6;
 
   /* legacy accent aliases (older rules reference these names) */
   --awkit-purple: var(--awkit-accent);
@@ -66,16 +80,18 @@ body {
   --awkit-blue-deep: #2563eb;
 
   /* status */
-  --awkit-success: #12855f;
+  --awkit-success: #14a46c;
   --awkit-success-soft: #e7f7ef;
-  --awkit-warning: #b45309;
+  --awkit-success-muted: #a9e7ce;
+  --awkit-warning: #c47a08;
   --awkit-warning-soft: #fcf1e2;
   --awkit-warning-muted: #f5cf9b;
-  --awkit-danger: #d92d20;
+  --awkit-danger: #dc3b3b;
   --awkit-danger-soft: #fdeeec;
   --awkit-danger-muted: #f5b5ae;
-  --awkit-info: var(--awkit-blue);
+  --awkit-info: #3b82f6;
   --awkit-info-soft: #eaf1fe;
+  --awkit-info-muted: #bfdbfe;
   --awkit-neutral-soft: #f0eff4;
 
   /* gauge / pressure bands (Reports > Chrome consumption) */
@@ -84,30 +100,39 @@ body {
   --awkit-band-high: var(--awkit-danger);
 
   /* canvas (React Flow surfaces) */
-  --awkit-canvas-bg: #f1eff5;
+  --awkit-bg-canvas: #f3f0f8;
+  --awkit-canvas-bg: var(--awkit-bg-canvas);
   --awkit-canvas-dot: #d8d4e0;
   --awkit-node-surface: var(--awkit-surface);
   --awkit-node-border: var(--awkit-border);
   --awkit-node-selected-bg: #faf8ff;
 
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
-  --awkit-accent-rgb: 109, 40, 217;
-  --awkit-shadow-rgb: 23, 17, 38;
+  --awkit-accent-rgb: 124, 58, 237;
+  --awkit-shadow-rgb: 32, 23, 47;
   --awkit-glass: rgba(255, 255, 255, 0.92);
-  --awkit-overlay: rgba(23, 17, 38, 0.4);
+  --awkit-overlay: rgba(32, 23, 47, 0.4);
 
   /* depth & radius (extends the --radius-* scale above) */
-  --awkit-radius-card: 16px;
-  --awkit-radius-panel: 20px;
-  --awkit-shadow-card: 0 1px 2px rgba(23, 17, 38, 0.04), 0 8px 24px rgba(23, 17, 38, 0.06);
-  --awkit-shadow-float: 0 12px 32px rgba(23, 17, 38, 0.1), 0 24px 64px rgba(23, 17, 38, 0.08);
-  --awkit-focus-ring: 0 0 0 3px rgba(109, 40, 217, 0.22);
+  --awkit-radius-sm: 10px;
+  --awkit-radius-md: 14px;
+  --awkit-radius-card: 18px;
+  --awkit-radius-panel: 22px;
+  --awkit-radius-pill: 999px;
+  --awkit-shadow-card: 0 1px 2px rgba(32, 23, 47, 0.04), 0 12px 32px rgba(32, 23, 47, 0.06);
+  --awkit-shadow-float: 0 16px 44px rgba(32, 23, 47, 0.14), 0 4px 12px rgba(32, 23, 47, 0.08);
+  --awkit-shadow-hover: 0 18px 46px rgba(32, 23, 47, 0.12), 0 4px 10px rgba(32, 23, 47, 0.06);
+  --awkit-focus-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
 
   /* motion */
+  --awkit-motion-fast: 120ms;
+  --awkit-motion-base: 180ms;
+  --awkit-motion-slow: 260ms;
+  --awkit-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --awkit-dur-fast: 120ms;
-  --awkit-dur-med: 220ms;
-  --awkit-dur-slow: 360ms;
+  --awkit-dur-med: 180ms;
+  --awkit-dur-slow: 260ms;
 
   /* z-layers */
   --awkit-z-panel: 20;
@@ -124,6 +149,7 @@ body {
   --awkit-bg: #0e0d12;
   --awkit-surface: #16151c;
   --awkit-surface-soft: #1c1b23;
+  --awkit-surface-raised: #201f28;
   --awkit-surface-inset: #100f15;
   --awkit-border: rgba(255, 255, 255, 0.08);
   --awkit-border-strong: rgba(255, 255, 255, 0.16);
@@ -146,6 +172,7 @@ body {
   /* status */
   --awkit-success: #34d399;
   --awkit-success-soft: rgba(52, 211, 153, 0.13);
+  --awkit-success-muted: rgba(52, 211, 153, 0.38);
   --awkit-warning: #fbbf24;
   --awkit-warning-soft: rgba(251, 191, 36, 0.13);
   --awkit-warning-muted: rgba(251, 191, 36, 0.38);
@@ -153,10 +180,12 @@ body {
   --awkit-danger-soft: rgba(248, 113, 113, 0.13);
   --awkit-danger-muted: rgba(248, 113, 113, 0.38);
   --awkit-info-soft: rgba(96, 165, 250, 0.13);
+  --awkit-info-muted: rgba(96, 165, 250, 0.38);
   --awkit-neutral-soft: rgba(255, 255, 255, 0.06);
 
   /* canvas */
-  --awkit-canvas-bg: #131118;
+  --awkit-bg-canvas: #131118;
+  --awkit-canvas-bg: var(--awkit-bg-canvas);
   --awkit-canvas-dot: rgba(255, 255, 255, 0.09);
   --awkit-node-selected-bg: #1b1826;
 
@@ -1082,13 +1111,14 @@ textarea {
 }
 
 .palette-scroll {
+  align-content: start;
   display: grid;
   gap: 7px;
   overflow: auto;
   padding-right: 2px;
 }
 
-.flow-node-palette button {
+.flow-node-palette .palette-scroll button {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
@@ -1097,25 +1127,27 @@ textarea {
   display: grid;
   gap: 9px;
   grid-template-columns: 18px minmax(0, 1fr);
-  min-height: 48px;
-  padding: 8px;
+  min-height: 54px;
+  padding: 10px 8px;
   text-align: left;
 }
 
-.flow-node-palette button:hover {
+.flow-node-palette .palette-scroll button:hover {
   background: var(--awkit-accent-soft);
   border-color: var(--awkit-accent-muted);
 }
 
-.flow-node-palette button span {
+.flow-node-palette .palette-scroll button span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.flow-node-palette button strong,
-.flow-node-palette button small {
+.flow-node-palette .palette-scroll button strong,
+.flow-node-palette .palette-scroll button small {
+  line-height: 1.2;
   overflow: hidden;
+  padding-bottom: 1px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2833,8 +2865,16 @@ table {
   --xy-attribution-background-color: transparent;
 }
 
+.react-flow__pane {
+  background: transparent;
+}
+
 /* Dot/line pattern color: CSS wins over the SVG presentation attribute, so the
    <Background> component stays theme-aware without per-render color props. */
+.react-flow__background {
+  pointer-events: none;
+}
+
 .react-flow__background circle {
   fill: var(--awkit-canvas-dot);
 }
@@ -3031,7 +3071,7 @@ table {
 }
 
 .flow-action-bar {
-  align-items: center;
+  align-items: flex-end;
   background: var(--awkit-surface);
   border: 0;
   border-bottom: 1px solid var(--awkit-border);
@@ -3170,6 +3210,12 @@ table {
   height: 100%;
   margin-left: 0;
   min-height: 0;
+}
+
+[data-theme="light"] .flow-designer-body .react-flow-shell,
+[data-theme="light"] .scenario-canvas-panel {
+  --awkit-canvas-bg: #f4f1f8;
+  --awkit-canvas-dot: #cac5d3;
 }
 
 /* Stack inner card title/subtitle so they don't run together. */
@@ -6320,6 +6366,585 @@ button.recorded-url-use:disabled {
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ==========================================================================
+   TEMPLATE COMPLETION PASS — Hologram-style structural details that the earlier
+   token-only re-skin left out: floating config drawer, template node-card anatomy,
+   template connectors (label pills + insert affordance + running flow), zoom pill
+   buttons, and drawer header/tabs/body/footer overflow behavior. Appended last so
+   it wins the cascade over the older organic rules; the reduced-motion neutralizer
+   still follows and disables the motion added here.
+   ========================================================================== */
+
+/* --- Connector + motion tokens (theme-aware) ------------------------------ */
+:root,
+[data-theme="light"] {
+  --awkit-connector-default: #7c3aed;
+  --awkit-connector-selected: #6b21c8;
+  --awkit-connector-failure: #d93f45;
+  --awkit-connector-success: #35b85f;
+  --awkit-connector-warning: #d99017;
+  --awkit-connector-loop: #7c3aed;
+
+  --awkit-drawer-width: 440px;
+  --awkit-motion-panel: 240ms;
+}
+
+[data-theme="dark"] {
+  --awkit-connector-default: #a78bfa;
+  --awkit-connector-selected: #c4b5fd;
+  --awkit-connector-failure: #f87171;
+  --awkit-connector-success: #34d399;
+  --awkit-connector-warning: #fbbf24;
+  --awkit-connector-loop: #a78bfa;
+}
+
+/* --- Floating right config drawer ----------------------------------------- */
+/* The properties drawer floats over the canvas instead of taking a grid column,
+   so the workflow surface keeps its full width (matches the template). */
+.designer-layout {
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+}
+
+.designer-layout.right-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The canvas no longer has a properties column to its right, so drop the divider. */
+.designer-canvas {
+  border-right: 0;
+}
+
+.designer-right-drawer-slot {
+  bottom: 18px;
+  pointer-events: none;
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  width: min(var(--awkit-drawer-width), calc(100% - 88px));
+  z-index: var(--awkit-z-drawer);
+}
+
+/* Flush designer pages (Flow Designer, Workflow Designer) render an in-canvas action bar in the
+   first shell row; start the floating drawer below it so it never covers the Flow Name / Workflow
+   controls. Non-flush pages (Form Designer) have no action bar, so they keep the 18px inset. */
+.designer-layout.flush-layout .designer-right-drawer-slot {
+  top: 74px;
+}
+
+.designer-right-drawer-slot > * {
+  height: 100%;
+  margin: 0;
+  max-height: 100%;
+  pointer-events: auto;
+}
+
+/* Collapsed: the slot shrinks to the slim rail width. */
+.designer-layout.right-collapsed .designer-right-drawer-slot {
+  width: auto;
+}
+
+/* --- React Flow Controls Repositioning --- */
+/* When right drawer is collapsed (rail only): push right panels left of the rail */
+.designer-layout.right-collapsed .react-flow__panel.right {
+  right: 68px !important;
+}
+.designer-layout.right-collapsed .react-flow__panel.center {
+  left: calc(50% - 22px) !important;
+}
+
+/* When right drawer is expanded: push right panels left of the drawer, and center panels into the visible area */
+.designer-layout:not(.right-collapsed) .react-flow__panel.right {
+  right: calc(min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) + 36px) !important;
+}
+.designer-layout:not(.right-collapsed) .react-flow__panel.center {
+  left: calc(50% - (min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) / 2) - 60px) !important;
+}
+
+/* --- Config drawer shell: header / tabs / scroll body / footer ------------- */
+.properties-panel.template-config-drawer {
+  display: grid;
+  gap: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: 100%;
+  margin: 0;
+  max-height: 100%;
+  overflow: hidden;
+  padding: 0;
+  animation: awkit-drawer-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
+}
+
+@keyframes awkit-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.template-drawer-header {
+  align-items: center;
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 14px 16px;
+}
+
+.drawer-title-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.drawer-node-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: 11px;
+  color: var(--awkit-accent);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 18px;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.template-drawer-header .properties-heading-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.template-drawer-header .properties-heading-text h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-button.danger {
+  color: var(--awkit-danger);
+}
+
+.icon-button.danger:hover {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+}
+
+.properties-tabs {
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  gap: 22px;
+  padding: 0 16px;
+}
+
+.properties-tab {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--awkit-text-secondary);
+  height: 40px;
+  padding: 0;
+  position: relative;
+}
+
+.properties-tab.active {
+  color: var(--awkit-text);
+  font-weight: 700;
+}
+
+.properties-tab.active::after {
+  background: var(--awkit-accent);
+  border-radius: 999px 999px 0 0;
+  bottom: -1px;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.properties-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* The ONLY scroll region inside the drawer — header/tabs/footer stay pinned. */
+.properties-body {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.properties-footer {
+  background: var(--awkit-surface);
+  border-top: 1px solid var(--awkit-border);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  padding: 12px 16px;
+}
+
+.properties-footer.single {
+  grid-template-columns: 1fr;
+}
+
+.properties-footer .toolbar-button {
+  height: 40px;
+  justify-content: center;
+}
+
+/* --- Template node-card anatomy ------------------------------------------- */
+/* Keep the card's own overflow:hidden (ports render as siblings so they are never
+   clipped; the icon tile, content, and kebab all sit inside the card bounds). */
+.action-flow-node {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.action-node-icon {
+  height: 38px;
+  width: 38px;
+}
+
+.action-node-content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.action-node-meta {
+  align-items: center;
+  color: var(--awkit-text-secondary);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.action-node-meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-index {
+  background: var(--awkit-accent-soft);
+  border-radius: 6px;
+  color: var(--awkit-accent-hover);
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 1px 6px;
+}
+
+.action-node-title {
+  color: var(--awkit-text);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-description {
+  color: var(--awkit-text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-menu {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 28px;
+  justify-content: center;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    color var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 28px;
+}
+
+.action-node-menu:hover {
+  background: var(--awkit-neutral-soft);
+  color: var(--awkit-text);
+}
+
+/* Selected node keeps the menu/index readable on the lavender fill. */
+.action-flow-node.selected .action-node-menu {
+  color: var(--awkit-accent-hover);
+}
+
+/* --- Template connectors: label pill, add button, running flow ------------ */
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    stroke var(--awkit-dur-fast) var(--awkit-ease-out),
+    stroke-width var(--awkit-dur-fast) var(--awkit-ease-out),
+    filter var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  filter: drop-shadow(0 2px 5px rgba(var(--awkit-accent-rgb), 0.3));
+  stroke-width: 2.5px;
+}
+
+.template-edge-label {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: 999px;
+  color: var(--awkit-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  pointer-events: all;
+  position: absolute;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.template-edge-label.selected {
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent);
+}
+
+.template-edge-add-button {
+  align-items: center;
+  background: var(--awkit-connector-default);
+  border: 2px solid var(--awkit-surface);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(var(--awkit-accent-rgb), 0.32);
+  color: var(--awkit-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  height: 24px;
+  justify-content: center;
+  opacity: 0;
+  padding: 0;
+  pointer-events: all;
+  position: absolute;
+  transition:
+    opacity var(--awkit-dur-fast) var(--awkit-ease-out),
+    transform var(--awkit-dur-fast) var(--awkit-ease-out),
+    background var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 24px;
+}
+
+/* Reveal the insert button on edge hover so the resting canvas stays clean. */
+.react-flow__edge:hover .template-edge-add-button,
+.template-edge-add-button:focus-visible {
+  opacity: 1;
+}
+
+.template-edge-add-button:hover {
+  background: var(--awkit-connector-selected);
+  transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.08);
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  animation: awkit-edge-flow 700ms linear infinite;
+}
+
+@keyframes awkit-edge-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* --- Bottom-center zoom pill buttons -------------------------------------- */
+.canvas-zoom-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--awkit-text);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 6px;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    transform var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.canvas-zoom-button:hover {
+  background: var(--awkit-neutral-soft);
+  transform: translateY(-1px);
+}
+
+.canvas-zoom-button.zoom-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 54px;
+}
+
+.canvas-zoom-divider {
+  align-self: stretch;
+  background: var(--awkit-border);
+  margin: 4px 2px;
+  width: 1px;
+}
+
+/* --- Node palette float animation (canvas overlay panel) ------------------ */
+.flow-node-palette {
+  animation: awkit-panel-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
+}
+
+@keyframes awkit-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* --- Codex completion pass: loader utilities + status/template polish ------ */
+.status-bar {
+  scrollbar-width: thin;
+}
+
+.status-chip {
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.status-chip.warn {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.awkit-spinner,
+.spin,
+.session-spin {
+  animation: awkit-spinner-rotate 900ms linear infinite;
+  transform-origin: center;
+}
+
+.awkit-spinner {
+  border: 2px solid var(--awkit-border-strong);
+  border-radius: 999px;
+  border-top-color: var(--awkit-accent);
+  display: inline-block;
+  height: 18px;
+  width: 18px;
+}
+
+.awkit-loader-dot {
+  animation: awkit-loader-pulse 900ms var(--awkit-motion-ease) infinite;
+  background: var(--awkit-accent);
+  border-radius: 999px;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.loading-panel {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  gap: 10px;
+  min-height: 56px;
+  padding: 14px 16px;
+}
+
+.skeleton-card,
+.awkit-skeleton-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+}
+
+.skeleton-shimmer,
+.awkit-skeleton-line,
+.awkit-skeleton-block {
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--awkit-accent-rgb), 0.08), transparent),
+    var(--awkit-surface-inset);
+  background-size: 220% 100%;
+  animation: awkit-skeleton-shimmer 1200ms var(--awkit-motion-ease) infinite;
+}
+
+.flow-node-palette,
+.properties-panel.template-config-drawer,
+.work-panel,
+.metric-card,
+.workflow-run-card {
+  border-color: var(--awkit-border);
+  box-shadow: var(--awkit-shadow-card);
+}
+
+.flow-node-palette {
+  border-radius: var(--awkit-radius-panel);
+}
+
+.flow-node-palette button:hover,
+.work-panel:hover,
+.workflow-run-card:hover {
+  box-shadow: var(--awkit-shadow-hover);
+}
+
+.properties-panel.template-config-drawer {
+  background: var(--awkit-surface-raised);
+}
+
+.designer-canvas,
+.react-flow-shell {
+  background-color: var(--awkit-canvas-bg);
+}
+
+.template-edge-add-button {
+  color: var(--awkit-accent-contrast);
+}
+
+@keyframes awkit-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes awkit-loader-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes awkit-skeleton-shimmer {
+  to {
+    background-position: -220% 0;
+  }
 }
 
 /* ==========================================================================

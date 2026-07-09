@@ -8,12 +8,18 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type Edge,
+  type EdgeTypes,
   type Node
 } from "@xyflow/react";
 import { useEffect, useMemo, useState } from "react";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
+import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
 import { useTheme } from "../state/theme";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
+
+const edgeTypes = {
+  templateSmooth: TemplateSmoothEdge
+} satisfies EdgeTypes;
 
 function WorkflowDesignerContent() {
   const { resolvedTheme } = useTheme();
@@ -66,9 +72,10 @@ function WorkflowDesignerContent() {
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      type: "smoothstep",
-      label: edge.label ?? edge.type,
-      markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 }
+      type: "templateSmooth",
+      data: { label: edge.label ?? edge.type },
+      style: { stroke: "var(--awkit-connector-default)", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: "var(--awkit-connector-default)" }
     }));
   }, [selectedWorkflow]);
 
@@ -127,8 +134,8 @@ function WorkflowDesignerContent() {
         </div>
 
         <div className="react-flow-shell">
-          <ReactFlow fitView edges={edges} nodes={nodes} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
-            <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
+          <ReactFlow fitView edges={edges} edgeTypes={edgeTypes} nodes={nodes} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
+            <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
             <Controls position="top-right" showInteractive={false} />
             <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />
           </ReactFlow>

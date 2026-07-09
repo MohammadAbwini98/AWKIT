@@ -173,7 +173,12 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `SkeletonCard`, `EmptyState`, `TrendDelta`, `AnimatedCounter`, `usePrefersReducedMotion`) in
   `components/shared/`; report/chart components in `components/reports/`; global reduced-motion honoring;
   a route-content fade (non-canvas routes). Designer nodes visually modernized (token shadows/accent) with
-  all canvas invariants preserved.
+  all canvas invariants preserved. Codex's 2026-07-08 completion pass aligned the light tokens to the
+  requested Hologram palette, added named loader utilities (`.awkit-spinner`, `.awkit-loader-dot`,
+  `.loading-panel`, `.skeleton-shimmer`), and made the footer status bar show real runtime capacity
+  chips from `executions.runtimeStatus()` instead of static placeholder values. Flow Designer and Workflow
+  Builder now use the attached sparse dot canvas pattern (`gap={44}`, `size={2.4}`) with visible
+  light-mode lavender dots and a transparent React Flow pane.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,

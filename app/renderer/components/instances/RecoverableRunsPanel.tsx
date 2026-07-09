@@ -110,7 +110,7 @@ export function RecoverableRunsPanel({ runs, resolveWorkflow, onRerunWorkflow, o
         const isBusy = !!busy[run.instanceId];
         const safe = run.recoverable === true;
         return (
-          <div key={run.instanceId} style={{ border: "1px solid #dde5ef", borderRadius: 8, padding: "8px 10px", background: "var(--awkit-surface-soft)" }}>
+          <div key={run.instanceId} style={{ border: "1px solid var(--awkit-border)", borderRadius: 8, padding: "8px 10px", background: "var(--awkit-surface-soft)" }}>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <button
                 onClick={() => setExpanded((current) => ({ ...current, [run.instanceId]: !isOpen }))}

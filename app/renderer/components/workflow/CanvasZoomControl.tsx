@@ -27,16 +27,17 @@ export function CanvasZoomControl({ onPersist }: CanvasZoomControlProps) {
 
   return (
     <Panel position="bottom-center" className="canvas-zoom-control">
-      <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => applyPercent(percent - ZOOM_STEP)}>
+      <button type="button" className="canvas-zoom-button" title="Zoom out" aria-label="Zoom out" onClick={() => applyPercent(percent - ZOOM_STEP)}>
         <Minus size={14} />
       </button>
-      <button type="button" className="zoom-value" title="Reset to 100%" onClick={() => applyPercent(100)}>
+      <button type="button" className="canvas-zoom-button zoom-value" title="Reset to 100%" onClick={() => applyPercent(100)}>
         {percent}%
       </button>
-      <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => applyPercent(percent + ZOOM_STEP)}>
+      <button type="button" className="canvas-zoom-button" title="Zoom in" aria-label="Zoom in" onClick={() => applyPercent(percent + ZOOM_STEP)}>
         <Plus size={14} />
       </button>
-      <button type="button" title="Fit to screen" aria-label="Fit to screen" onClick={() => void fitView({ duration: 150 })}>
+      <span className="canvas-zoom-divider" aria-hidden="true" />
+      <button type="button" className="canvas-zoom-button" title="Fit to screen" aria-label="Fit to screen" onClick={() => void fitView({ duration: 150 })}>
         <Maximize2 size={14} />
       </button>
     </Panel>

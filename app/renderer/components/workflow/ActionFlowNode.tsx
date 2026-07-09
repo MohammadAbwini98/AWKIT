@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { NodeResizer, useReactFlow, useUpdateNodeInternals, type Node, type NodeProps } from "@xyflow/react";
-import { RotateCw } from "lucide-react";
+import { MoreHorizontal, RotateCw } from "lucide-react";
 import { getFlowNodeCatalogItem } from "./flowNodeCatalog";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { ConnectorLoopPort, ConnectorSourcePorts, ConnectorTargetPorts } from "../shared/ConnectorPorts";
@@ -98,14 +98,29 @@ export function ActionFlowNode({ id, data, selected }: NodeProps<ActionFlowNodeM
             <RotateCw size={11} />
           </button>
         ) : null}
-        <div className="action-node-icon">
-          <Icon size={16} />
+        <div className="action-node-icon" aria-hidden="true">
+          <Icon size={18} />
         </div>
-        <div className="action-node-copy">
-          <strong>{nodeData.name}</strong>
-          <span>{nodeData.description || catalogItem.description}</span>
+        <div className="action-node-content">
+          <div className="action-node-meta">
+            <span>{catalogItem.label}</span>
+            <span className="action-node-index">{nodeData.stepType}</span>
+          </div>
+          <strong className="action-node-title">{nodeData.name}</strong>
+          {nodeData.description ? <span className="action-node-description">{nodeData.description}</span> : null}
         </div>
-        <em>{nodeData.stepType}</em>
+        {/* Kebab affordance: non-destructive for now; stops pointer/click so it never breaks
+            node drag/selection. Real per-node actions can hang off it later. */}
+        <button
+          className="action-node-menu"
+          type="button"
+          title="Node actions"
+          aria-label="Node actions"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <MoreHorizontal size={16} />
+        </button>
       </article>
       {/* Handles render as siblings of the card so React Flow positions them against the
           un-clipped node wrapper (the card has overflow: hidden). */}

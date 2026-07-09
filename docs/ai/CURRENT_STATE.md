@@ -1,6 +1,125 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-07 (Claude Opus 4.8 — Missing-template design pack Phases 1–5: shell/sidebar/header structural re-skin; see section below. Prior: Hologram token re-skin + theme system.)
+**Last updated:** 2026-07-08 (Codex - Flow Designer and Workflow Builder sparse dot canvas match.)
+
+## Flow/Workflow canvas dots matched to attachment (2026-07-08)
+
+Renderer/UI-only dot-grid follow-up; no route/IPC/schema/runner automation behavior changed. Flow Designer
+and Workflow Builder now use the attached sparse lavender dot field: React Flow `BackgroundVariant.Dots`
+is `gap={44}` / `size={2.4}`, the two light-mode canvas containers scope `--awkit-canvas-bg: #f4f1f8`
+and `--awkit-canvas-dot: #cac5d3`, and `.react-flow__pane` is transparent so the SVG background dots are
+actually visible. The earlier Form-Designer-style framed-card experiment remains reverted.
+
+Verified: `npm run build` pass, `verify:flow-designer` 19/19 (stable local `login-flow` selection; current
+`test-mock` local flow made the drag branch check flaky), `verify:workflow-builder` 13/13, `ai:memory`
+pass. Refreshed after-screenshots:
+`ui-reskin-template-plan/mockups/screenshots/after/02-flow-designer.png` and `04-workflow-builder.png`.
+
+## Template UI — Codex completion evidence + token/status polish (2026-07-08)
+
+Codex completed the requested local-template implementation pass against `UI Samples/sample_01.png`, the
+attached matching image, the three local mp4 references (present; fresh extraction attempted but blocked by
+missing `ffmpeg`/media libraries and a Chrome seek timeout), and the reachable Dribbble text pages. Report:
+`ui-reskin-template-plan/19_CODEX_TEMPLATE_COMPLETION_REPORT.md`; implementation plan:
+`ui-reskin-template-plan/18_CODEX_TEMPLATE_IMPLEMENTATION_PLAN.md`.
+
+Renderer/UI-only changes; no route/IPC/schema/runner/automation behavior changed. Verified:
+`npm run typecheck` pass, `npm run build` pass, `verify:flow-designer` 19/19, `verify:workflow-builder`
+13/13, `verify:reports` 26/26, `verify:instance-monitor` 22/22, `verify:data-editor` 27/27,
+`verify:recorder` 57/57, `ai:memory` pass. Fresh after-screenshots captured in
+`ui-reskin-template-plan/mockups/screenshots/after/` including a direct hidden-route
+`05-workflow-designer.png` and optional `10-dark-flow-designer.png`.
+
+- **Light template tokens aligned to the prompt:** `global.css` now uses the requested Hologram-style
+  light palette (`--awkit-bg: #f6f4f9`, `--awkit-bg-canvas: #f3f0f8`, `--awkit-accent: #7c3aed`,
+  text/muted/border/radius/shadow/motion aliases) while retaining dark-mode overrides.
+- **Status bar no longer shows fake placeholders.** `StatusBar.tsx` polls real
+  `executions.runtimeStatus()` and shows Flows/Browsers/Queue plus runtime nominal/backpressure/error
+  status chips. The prior static `Active Instances: 0`, `Queue: 0`, `Last Error: None` placeholders are gone.
+- **Loader/state utilities added:** `.awkit-spinner`, `.awkit-loader-dot`, `.loading-panel`,
+  `.skeleton-card`, `.skeleton-shimmer`; all are covered by the existing last-in-cascade
+  `prefers-reduced-motion` neutralizer.
+- **Inline legacy border cleanup:** remaining UI-surface border hex values in `Recorder.tsx`,
+  `SessionsManager.tsx`, and `RecoverableRunsPanel.tsx` now use `--awkit-*` tokens. Remaining TSX literal
+  colors are intentional connector presets and the distinct Reports Failures chart palette.
+- **Body overflow made explicit:** `html`, `body`, and `#root` are full-height with hidden overflow; canvas
+  and page panels continue to scroll internally.
+
+## Template UI — final visual acceptance + hardening (2026-07-07)
+
+Strict acceptance pass over every template surface (report:
+`ui-reskin-template-plan/17_FINAL_VISUAL_ACCEPTANCE_REPORT.md`). Renderer visual/CSS only; no
+route/IPC/runner/schema/automation change. All areas pass with screenshot+code evidence; three safe
+fixes applied. Verified: `npm run build` clean; `verify:flow-designer` **19/19 run twice** (via new
+reset helper, from two different start states — proves state-independence), `verify:workflow-builder`
+13/13, `verify:reports` 26/26, `verify:recorder` 57, `verify:instance-monitor` 22, `verify:data-editor`
+27; `ai:memory` pass. Fresh after-screenshots for all 8 surfaces in
+`ui-reskin-template-plan/mockups/screenshots/after/`.
+
+- **Fix — floating drawer no longer covers the in-canvas action bar.** On flush designer pages (Flow
+  Designer, Workflow Designer) the drawer's `top:18px` was measured from the whole `.designer-layout`,
+  overlapping the action bar's right controls (Flow Name / Load / Delete / `N issues` / Workflow select).
+  Added `.designer-layout.flush-layout .designer-right-drawer-slot { top: 62px }` so the drawer starts
+  below the action bar (Form Designer, non-flush, keeps the 18px inset).
+- **Fix — tokenized stray legacy borders.** `1px solid #dfe6ef` (×6) + `1px solid #e2e8f0` (×1) inline
+  borders → `1px solid var(--awkit-border)` in `Recorder.tsx` and `SessionsManager.tsx` (now theme-aware).
+- **New — verifier-only UI-state reset helper** `scripts/helpers/reset-ui-state.mjs`
+  (`node scripts/helpers/reset-ui-state.mjs <routeId> <collapsed:true|false>`): resets only
+  `ui-settings.json` `lastRouteId`/`sidebarCollapsed` before a GUI verifier so the documented
+  route/collapse-state gotcha can't flake a run. Dev/verifier-only (no production/route/schema change);
+  intentionally NOT wired into the green verifiers to avoid destabilizing them.
+- **Proven:** display-only edge fields `showAddButton`/`onInsertNode` never serialize — absent from
+  `src/` and from `FlowEdge` (`FlowProfile.ts`); `toFlowProfile` reads explicit connector fields only.
+- **Deliberate gaps (unchanged):** Setup/**Test** tabs are visual (Test disabled — no fake runner);
+  connector `+` inserts a default `Click` node (TODO type chooser); `ScenarioFlowNode` keeps its existing
+  numbered-badge card (only its connectors use `templateSmooth`); the `workflow` (Workflow Designer)
+  route is a read-only overview not present in the sidebar nav (pre-existing).
+
+
+
+## Template UI completion pass — drawer / nodes / connectors / motion (2026-07-07)
+
+Implemented the **structural Hologram-template details the earlier token-only + shell re-skin left
+out** (spec pack under `docs/` + `docs/files/`; gap report `ui-reskin-template-plan/16_VISUAL_GAP_CLOSURE_REPORT.md`).
+Renderer visual/markup + CSS only — no route/IPC/runner/schema/automation change; canvas coordinate
+invariants preserved. Verified: `npm run build` clean; `verify:flow-designer` 19/19,
+`verify:workflow-builder` 13/13, `verify:reports` 26/26, `verify:recorder` 57, `verify:instance-monitor`
+22, `verify:data-editor` 27; `ai:memory` pass. After-screenshots in
+`ui-reskin-template-plan/mockups/screenshots/after/`.
+
+- **Floating config drawer (was a grid column):** `DesignerCanvasLayout` now wraps the right panel in a
+  pointer-transparent `.designer-right-drawer-slot` that floats over the canvas (top/right/bottom 18px);
+  `.designer-layout` collapsed to a single canvas column so the workflow surface keeps full width. React
+  Flow re-fits on the resize (no mount transform — canvas invariant intact).
+- **Config-drawer shell:** `FlowNodePropertiesPanel` + `ConnectionPropertiesPanel` are now
+  `template-config-drawer`s — sticky header (icon tile + title + collapse/delete), **Setup/Test tab strip**
+  (Test disabled — no fake test runner), a single scroll region `.properties-body`, and a sticky footer
+  (`Done`; connector panel also shows a disabled `Run Test`). All existing fields/validation/locking
+  preserved. Grid rows `auto auto 1fr auto` ⇒ only the body scrolls.
+- **Template node-card anatomy:** `ActionFlowNode` renders icon tile + metadata row (catalog label + type
+  badge) + bold title + description + kebab (`MoreHorizontal`, pointer/click-stopped so it never breaks
+  drag/select). NodeResizer, ports, and the loop button are unchanged (verifier still 19/19; card keeps
+  `overflow:hidden` — ports are siblings so never clipped).
+- **Template connectors:** new `components/shared/TemplateSmoothEdge.tsx` (curved violet `BaseEdge` +
+  `EdgeLabelRenderer` label pill + hover-revealed `+` insert button + running-flow dash animation).
+  `connectorStyle.ts`: `connectorTypeColor` values are now **CSS-variable strings**
+  (`--awkit-connector-*`, violet default; semantic red/green kept for real outcomes) and
+  `buildConnectorVisual` remaps runtime edge `type` `smoothstep → templateSmooth` (**saved
+  `EdgeVisualStyle.shape` is untouched**). Registered on Flow Designer, Workflow Builder
+  (`ScenarioBuilder`), and Workflow Designer canvases. Flow Designer adds `insertNodeOnEdge` (splits an
+  edge with a `Click` node) via a **display-only `edgesForCanvas`** memo — `showAddButton`/`onInsertNode`
+  are never serialized (`toFlowProfile` reads connector fields explicitly; they were added as optional
+  non-persisted fields on `FlowConnectionData`).
+- **Zoom pill:** `CanvasZoomControl` buttons carry `canvas-zoom-button` + a `canvas-zoom-divider` before
+  Fit; styled as a hover-lifting pill.
+- **CSS:** one appended **TEMPLATE COMPLETION PASS** block in `global.css` (connector/motion tokens,
+  drawer slot + single-column designer layout, drawer header/tabs/body/footer, node anatomy, connector
+  label/add/flow, zoom-pill buttons, palette slide-in), placed **before** the last-in-cascade
+  reduced-motion neutralizer so all added motion is disabled under `prefers-reduced-motion`.
+- **Gotcha re-confirmed (not caused by this work):** the GUI verifiers depend on persisted route +
+  sidebar-collapse state — `verify:flow-designer` needs an **expanded** sidebar + a matching route;
+  `verify:workflow-builder` needs a **collapsed** sidebar (clicks `nav-item[title=…]`). Reset
+  `%LOCALAPPDATA%/WebFlow Studio/storage/ui-settings.json` `lastRouteId`/`sidebarCollapsed` between runs.
 
 ## Missing-template design pack — structural shell re-skin (2026-07-07, Phases 1–5)
 

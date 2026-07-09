@@ -259,14 +259,14 @@ export function Recorder() {
 
   return (
     <div className="page-content" style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px" }}>
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
         <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <Video size={18} />
           Recorder Controls
         </h3>
         
         <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "15px" }}>
-          <div style={{ display: "flex", alignItems: "center", flex: 1, border: "1px solid #cbd5e1", borderRadius: "6px", padding: "0 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", flex: 1, border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", padding: "0 10px" }}>
             <Link size={16} color="var(--awkit-text-secondary)" />
             <input 
               type="text" 
@@ -443,7 +443,7 @@ export function Recorder() {
                 onChange={(e) => setSessionNameInput(e.target.value)}
                 placeholder="e.g. Acme Portal Login"
                 disabled={handoffBusy}
-                style={{ padding: "9px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none" }}
+                style={{ padding: "9px", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", outline: "none" }}
               />
               {handoff.sessionName ? (
                 <span style={{ fontSize: "12px", color: "var(--awkit-text-secondary)" }}>Saved session: {handoff.sessionName}</span>
@@ -489,7 +489,7 @@ export function Recorder() {
               data-testid="handoff-cancel"
               disabled={handoffBusy}
               onClick={() => void handleCancelHandoff()}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: "var(--awkit-text-secondary)", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 500 }}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 16px", background: "transparent", color: "var(--awkit-text-secondary)", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", cursor: handoffBusy ? "not-allowed" : "pointer", fontWeight: 500 }}
             >
               <XCircle size={16} />
               {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
@@ -499,7 +499,7 @@ export function Recorder() {
       )}
 
       <div style={{ display: "flex", gap: "20px" }}>
-        <div className="form-panel" style={{ flex: 1, padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef", minHeight: "400px" }}>
+        <div className="form-panel" style={{ flex: 1, padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)", minHeight: "400px" }}>
           <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px", justifyContent: "space-between" }}>
             <span>Recorded Actions ({actions.length})</span>
             {isRecording && <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "var(--awkit-danger)", display: "inline-block", animation: "pulse 1.5s infinite" }} />}
@@ -514,7 +514,7 @@ export function Recorder() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto", paddingRight: "10px" }}>
               {actions.map((action, index) => (
-                <div key={action.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "var(--awkit-surface-soft)", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                <div key={action.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "var(--awkit-surface-soft)", borderRadius: "6px", border: "1px solid var(--awkit-border)" }}>
                   <span style={{ background: "var(--awkit-border-strong)", color: "var(--awkit-text-secondary)", padding: "2px 6px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
                     {index + 1}
                   </span>
@@ -559,7 +559,7 @@ export function Recorder() {
           )}
         </div>
 
-        <div className="form-panel" style={{ width: "300px", padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef", height: "fit-content" }}>
+        <div className="form-panel" style={{ width: "300px", padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)", height: "fit-content" }}>
           <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
             <Save size={18} />
             Save Options
@@ -571,7 +571,7 @@ export function Recorder() {
                 type="text" 
                 value={flowName} 
                 onChange={e => setFlowName(e.target.value)}
-                style={{ padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px", outline: "none", width: "100%", boxSizing: "border-box" }}
+                style={{ padding: "10px", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", outline: "none", width: "100%", boxSizing: "border-box" }}
               />
             </div>
             {(() => {
@@ -614,7 +614,7 @@ export function Recorder() {
       </div>
 
       {/* Recorded URLs — auto-captured during recording */}
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
         <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <Globe size={18} />
           Recorded URLs ({filteredUrls.length})

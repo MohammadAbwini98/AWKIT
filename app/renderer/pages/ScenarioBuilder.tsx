@@ -45,6 +45,7 @@ import {
   reconcileBranchConnectors
 } from "../components/shared/connectorStyle";
 import { SelfLoopEdge } from "../components/shared/SelfLoopEdge";
+import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
@@ -70,6 +71,7 @@ const nodeTypes = {
 } satisfies NodeTypes;
 
 const edgeTypes = {
+  templateSmooth: TemplateSmoothEdge,
   circular: SelfLoopEdge
 } satisfies EdgeTypes;
 
@@ -786,169 +788,169 @@ function ScenarioBuilderContent() {
               </div>
 
               {/* Phase 03: Collapsible Workflow Data Source */}
-          <section className="sb-collapsible-section">
-            <div className="sb-section-header">
-              <Database size={14} />
-              <strong>
-                {dataSourceCollapsed && selectedDataSourceName
-                  ? `Data Source: ${selectedDataSourceName}`
-                  : dataSourceCollapsed
-                    ? "Data Source: None"
-                    : "Workflow Data Source"}
-              </strong>
-              <button
-                className="sb-collapse-btn"
-                id="sb-datasource-toggle"
-                title={dataSourceCollapsed ? "Expand data source settings" : "Collapse data source settings"}
-                type="button"
-                onClick={() => persistDataSource(!dataSourceCollapsed)}
-              >
-                {dataSourceCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-              </button>
-            </div>
-
-            {!dataSourceCollapsed && (
-              <div className="sb-section-content">
-                <label>
-                  Data Source
-                  <select
-                    value={workflowDataSourceId}
-                    onChange={(event) => {
-                      const id = event.target.value;
-                      setWorkflowDataSourceId(id);
-                      if (id) window.playwrightFlowStudio.settings.update({ selections: { lastSelectedDataSourceId: id } }).catch(() => undefined);
-                    }}
-                  >
-                    <option value="">None</option>
-                    {dataSources.map((source) => (
-                      <option key={source.id} value={source.id}>
-                        {source.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Root Array Path
-                  <input
-                    placeholder="$.customers"
-                    value={workflowRootArrayPath}
-                    onChange={(event) => setWorkflowRootArrayPath(event.target.value)}
-                  />
-                </label>
-                <span className="form-message">
-                  {workflowDataSourceId
-                    ? dataSourceRecordCount === null
-                      ? "Resolving records…"
-                      : `${dataSourceRecordCount} record(s) found`
-                    : "Dynamic nodes set to 'workflow data source' will use this."}
-                </span>
-              </div>
-            )}
-          </section>
-
-          {/* Saved Flows */}
-          <section>
-            <h2>Saved Flows</h2>
-            {/* Task 03: search by flow name */}
-            <div className="sb-flow-search">
-              <Search size={14} />
-              <input
-                placeholder="Search saved flows by name…"
-                value={flowSearch}
-                onChange={(event) => {
-                  setFlowSearch(event.target.value);
-                  setFlowVisibleCount(SAVED_FLOWS_PAGE_SIZE); // reset paging when the query changes
-                }}
-              />
-            </div>
-            <div className="scenario-flow-library">
-              {visibleFlows.length ? (
-                visibleFlows.map((flow) => (
-                  <button key={flow.flowId} onClick={() => addFlow(flow.flowId)} type="button">
-                    <strong>{flow.name}</strong>
-                    <span>{flow.description}</span>
-                  </button>
-                ))
-              ) : flowLibrary.length === 0 ? (
-                <p>No saved flows yet. Create flows in the Flow Designer, then add them to this workflow.</p>
-              ) : flowSearch.trim() ? (
-                <p>No matching flows found.</p>
-              ) : (
-                <p>All saved flows are already in the workflow.</p>
-              )}
-            </div>
-            {/* Task 04: pagination footer — always show the count so it's clear the list
-                is capped at 10, with a Load More button while more flows remain. */}
-            {filteredFlows.length > 0 ? (
-              <div className="sb-saved-flows-footer">
-                <span className="form-message">
-                  Showing {visibleFlows.length} of {filteredFlows.length} flow{filteredFlows.length === 1 ? "" : "s"}
-                </span>
-                {filteredFlows.length > flowVisibleCount ? (
+              <section className="sb-collapsible-section">
+                <div className="sb-section-header">
+                  <Database size={14} />
+                  <strong>
+                    {dataSourceCollapsed && selectedDataSourceName
+                      ? `Data Source: ${selectedDataSourceName}`
+                      : dataSourceCollapsed
+                        ? "Data Source: None"
+                        : "Workflow Data Source"}
+                  </strong>
                   <button
-                    className="toolbar-button sb-load-more"
+                    className="sb-collapse-btn"
+                    id="sb-datasource-toggle"
+                    title={dataSourceCollapsed ? "Expand data source settings" : "Collapse data source settings"}
                     type="button"
-                    onClick={() => setFlowVisibleCount((count) => count + SAVED_FLOWS_PAGE_SIZE)}
+                    onClick={() => persistDataSource(!dataSourceCollapsed)}
                   >
-                    Load More ({filteredFlows.length - flowVisibleCount} more)
+                    {dataSourceCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
                   </button>
-                ) : filteredFlows.length > SAVED_FLOWS_PAGE_SIZE ? (
-                  <span className="form-message">All flows loaded.</span>
-                ) : null}
-              </div>
-            ) : null}
-          </section>
+                </div>
 
-          {/* Flow Order */}
-          <section>
-            <h2>Flow Order</h2>
-            <div className="flow-order-list">
-              {orderedNodes.map((node) => (
-                <article
-                  draggable
-                  key={node.id}
-                  className="flow-order-item"
-                  onDragOver={(event) => event.preventDefault()}
-                  onDragStart={() => setDraggedFlowId(node.id)}
-                  onDrop={() => {
-                    if (draggedFlowId) reorderFlow(draggedFlowId, node.data.order);
-                    setDraggedFlowId(null);
-                  }}
-                >
-                  <div className="flow-order-item-top">
-                    <GripVertical size={15} className="drag-handle" />
-                    <div className="flow-order-item-name">
-                      <strong>{node.data.name}</strong>
-                    </div>
-                  </div>
-                  <div className="flow-order-item-bottom">
-                    <input min="1" type="number" value={node.data.order} onChange={(event) => reorderFlow(node.id, Number(event.target.value))} title="Execution order" />
-                    <label className="inline-check">
-                      <input
-                        checked={node.data.required}
-                        type="checkbox"
-                        onChange={(event) => updateNodeData(node.id, { required: event.target.checked })}
-                      />
-                      Req
+                {!dataSourceCollapsed && (
+                  <div className="sb-section-content">
+                    <label>
+                      Data Source
+                      <select
+                        value={workflowDataSourceId}
+                        onChange={(event) => {
+                          const id = event.target.value;
+                          setWorkflowDataSourceId(id);
+                          if (id) window.playwrightFlowStudio.settings.update({ selections: { lastSelectedDataSourceId: id } }).catch(() => undefined);
+                        }}
+                      >
+                        <option value="">None</option>
+                        {dataSources.map((source) => (
+                          <option key={source.id} value={source.id}>
+                            {source.name}
+                          </option>
+                        ))}
+                      </select>
                     </label>
-                    <button className="icon-button" onClick={() => removeFlow(node.id)} type="button" title="Remove flow">
-                      <Trash2 size={14} />
-                    </button>
+                    <label>
+                      Root Array Path
+                      <input
+                        placeholder="$.customers"
+                        value={workflowRootArrayPath}
+                        onChange={(event) => setWorkflowRootArrayPath(event.target.value)}
+                      />
+                    </label>
+                    <span className="form-message">
+                      {workflowDataSourceId
+                        ? dataSourceRecordCount === null
+                          ? "Resolving records…"
+                          : `${dataSourceRecordCount} record(s) found`
+                        : "Dynamic nodes set to 'workflow data source' will use this."}
+                    </span>
                   </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </aside>
-        <div
-          className="sb-resize-handle"
-          onPointerDown={startLeftResize}
-          onDoubleClick={resetLeftWidth}
-          role="separator"
-          aria-orientation="vertical"
-          title="Drag to resize Workflow Definition (double-click to reset)"
-        />
-        </div>
+                )}
+              </section>
+
+              {/* Saved Flows */}
+              <section>
+                <h2>Saved Flows</h2>
+                {/* Task 03: search by flow name */}
+                <div className="sb-flow-search">
+                  <Search size={14} />
+                  <input
+                    placeholder="Search saved flows by name…"
+                    value={flowSearch}
+                    onChange={(event) => {
+                      setFlowSearch(event.target.value);
+                      setFlowVisibleCount(SAVED_FLOWS_PAGE_SIZE); // reset paging when the query changes
+                    }}
+                  />
+                </div>
+                <div className="scenario-flow-library">
+                  {visibleFlows.length ? (
+                    visibleFlows.map((flow) => (
+                      <button key={flow.flowId} onClick={() => addFlow(flow.flowId)} type="button">
+                        <strong>{flow.name}</strong>
+                        <span>{flow.description}</span>
+                      </button>
+                    ))
+                  ) : flowLibrary.length === 0 ? (
+                    <p>No saved flows yet. Create flows in the Flow Designer, then add them to this workflow.</p>
+                  ) : flowSearch.trim() ? (
+                    <p>No matching flows found.</p>
+                  ) : (
+                    <p>All saved flows are already in the workflow.</p>
+                  )}
+                </div>
+                {/* Task 04: pagination footer — always show the count so it's clear the list
+                is capped at 10, with a Load More button while more flows remain. */}
+                {filteredFlows.length > 0 ? (
+                  <div className="sb-saved-flows-footer">
+                    <span className="form-message">
+                      Showing {visibleFlows.length} of {filteredFlows.length} flow{filteredFlows.length === 1 ? "" : "s"}
+                    </span>
+                    {filteredFlows.length > flowVisibleCount ? (
+                      <button
+                        className="toolbar-button sb-load-more"
+                        type="button"
+                        onClick={() => setFlowVisibleCount((count) => count + SAVED_FLOWS_PAGE_SIZE)}
+                      >
+                        Load More ({filteredFlows.length - flowVisibleCount} more)
+                      </button>
+                    ) : filteredFlows.length > SAVED_FLOWS_PAGE_SIZE ? (
+                      <span className="form-message">All flows loaded.</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </section>
+
+              {/* Flow Order */}
+              <section>
+                <h2>Flow Order</h2>
+                <div className="flow-order-list">
+                  {orderedNodes.map((node) => (
+                    <article
+                      draggable
+                      key={node.id}
+                      className="flow-order-item"
+                      onDragOver={(event) => event.preventDefault()}
+                      onDragStart={() => setDraggedFlowId(node.id)}
+                      onDrop={() => {
+                        if (draggedFlowId) reorderFlow(draggedFlowId, node.data.order);
+                        setDraggedFlowId(null);
+                      }}
+                    >
+                      <div className="flow-order-item-top">
+                        <GripVertical size={15} className="drag-handle" />
+                        <div className="flow-order-item-name">
+                          <strong>{node.data.name}</strong>
+                        </div>
+                      </div>
+                      <div className="flow-order-item-bottom">
+                        <input min="1" type="number" value={node.data.order} onChange={(event) => reorderFlow(node.id, Number(event.target.value))} title="Execution order" />
+                        <label className="inline-check">
+                          <input
+                            checked={node.data.required}
+                            type="checkbox"
+                            onChange={(event) => updateNodeData(node.id, { required: event.target.checked })}
+                          />
+                          Req
+                        </label>
+                        <button className="icon-button" onClick={() => removeFlow(node.id)} type="button" title="Remove flow">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </aside>
+            <div
+              className="sb-resize-handle"
+              onPointerDown={startLeftResize}
+              onDoubleClick={resetLeftWidth}
+              role="separator"
+              aria-orientation="vertical"
+              title="Drag to resize Workflow Definition (double-click to reset)"
+            />
+          </div>
         )}
 
         {/* CANVAS */}
@@ -977,7 +979,7 @@ function ScenarioBuilderContent() {
             onNodeDoubleClick={(_, node) => void openFlowInDesigner((node.data as ScenarioFlowNodeData).flowId)}
             onMoveEnd={(_, viewport) => persistBuilderZoom(Math.round(viewport.zoom * 100))}
           >
-            <Background gap={22} size={1.5} variant={BackgroundVariant.Dots} />
+            <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
             <Controls position="top-right" showZoom={false} />
             <CanvasZoomControl onPersist={persistBuilderZoom} />
             <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />

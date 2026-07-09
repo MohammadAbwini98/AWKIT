@@ -4,6 +4,112 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-08 - Codex - Flow/Workflow canvas dots matched to attachment
+
+- **Task:** Make Workflow Builder and Flow Designer canvases use the attached sparse lavender dot grid.
+  Renderer/UI only; no route/IPC/schema/runner automation behavior changed.
+- **Changes:** Flow Designer and Workflow Builder `BackgroundVariant.Dots` now use `gap={44}` and
+  `size={2.4}`. `global.css` scopes light-mode canvas tokens for those two canvas containers
+  (`#f4f1f8` background, `#cac5d3` dots), makes `.react-flow__pane` transparent so the SVG background dots
+  are visible, and keeps `.react-flow__background` pointer-transparent.
+- **Screenshots:** Refreshed `docs/ai/ui-reskin-template-plan/mockups/screenshots/after/02-flow-designer.png`
+  and `04-workflow-builder.png`; both show the wider attached-style dot field.
+- **Tests:** `npm run build` pass; `verify:flow-designer` 19/19 (using stable local `login-flow`
+  selection after the current `test-mock` local flow made the drag branch check flaky);
+  `verify:workflow-builder` 13/13; `ai:memory` pass.
+- **Result:** Complete locally. No commit. `verify:runner` not run because runtime automation logic was not
+  changed.
+
+---
+
+## 2026-07-08 - Codex - Reverted Flow/Workflow canvas frame follow-up
+
+- **Task:** Revert the most recent canvas-frame alignment pass at the user's request.
+- **Changes:** Removed the final `global.css` override that framed `.flow-designer-body .react-flow-shell`
+  and `.scenario-canvas-panel` like the Form Designer canvas. Removed the corresponding current-state and
+  feature-inventory claims. Older template UI work remains untouched.
+- **Tests:** `npm run build` pass; `npm run ai:memory` pass.
+- **Result:** Reverted locally. No commit. GUI verifiers were not re-run because the reverted CSS block is
+  gone and the previous baseline already had passing designer verifiers.
+
+---
+
+## 2026-07-08 — Codex — Template UI completion evidence + token/status polish
+
+- **Task:** Implement the user-requested Hologram-style AWKIT UI completion pass using the local samples,
+  prompt, and prior template work as the baseline. Renderer/UI only; no route/IPC/schema/runner automation
+  behavior changed.
+- **Assets:** Reviewed `UI Samples/sample_01.png`, attached matching image, local mp4 presence, and reachable
+  Dribbble text pages. Fresh mp4 extraction was attempted with local Chrome + Playwright but timed out;
+  `ffmpeg`/`ffprobe`, `cv2`, and PIL were unavailable. Prior extracted frames remain under
+  `ui-reskin-template-plan/mockups/screenshots/template-frames/`.
+- **Changes:** `global.css` light tokens aligned to the requested palette (`#f6f4f9`, `#f3f0f8`,
+  `#7c3aed`), added prompt-style spacing/motion aliases, missing muted status tokens, explicit
+  `html/body/#root` overflow reset, loader utility classes (`.awkit-spinner`, `.awkit-loader-dot`,
+  `.loading-panel`, `.skeleton-card`, `.skeleton-shimmer`), and final panel/palette/status polish.
+  `StatusBar.tsx` now polls real `executions.runtimeStatus()` instead of showing fake static chips.
+  Remaining UI inline border hex in `Recorder.tsx`, `SessionsManager.tsx`, and
+  `RecoverableRunsPanel.tsx` was tokenized.
+- **Docs/screenshots:** Added `18_CODEX_TEMPLATE_IMPLEMENTATION_PLAN.md` and
+  `19_CODEX_TEMPLATE_COMPLETION_REPORT.md`; refreshed after screenshots in
+  `docs/ai/ui-reskin-template-plan/mockups/screenshots/after/`, including direct
+  `05-workflow-designer.png` and optional `10-dark-flow-designer.png`.
+- **Tests:** `npm run typecheck` pass; `npm run build` pass; `verify:flow-designer` 19/19;
+  `verify:workflow-builder` 13/13; `verify:reports` 26/26; `verify:instance-monitor` 22/22;
+  `verify:data-editor` 27/27; `verify:recorder` 57/57; `ai:memory` pass.
+- **Result:** Complete locally. No commit. `verify:runner` not run because runner/runtime automation logic
+  was not changed.
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — Template UI final visual acceptance + hardening pass
+
+- **Task:** Strict final acceptance/hardening of the Hologram template UI before commit. Reviewed every
+  surface against `docs/01_ACTUAL_TEMPLATE_DESIGN_EXTRACTION.md` with screenshot + code evidence.
+- **Fixes:** (1) floating drawer covered the flush-page action bar → `.designer-layout.flush-layout
+  .designer-right-drawer-slot { top: 62px }` in `global.css`; (2) tokenized `#dfe6ef`×6/`#e2e8f0`×1
+  inline borders → `var(--awkit-border)` in `Recorder.tsx` + `SessionsManager.tsx`; (3) captured a real
+  Workflow Designer screenshot (route not in nav — reached via direct restore).
+- **New helper:** `scripts/helpers/reset-ui-state.mjs` — verifier-only reset of `ui-settings.json`
+  `lastRouteId`/`sidebarCollapsed`; proved `verify:flow-designer` state-independent (19/19 from two start
+  states).
+- **Proof:** `showAddButton`/`onInsertNode` absent from `src/` and `FlowEdge`; `toFlowProfile` reads
+  explicit fields only → display-only edge fields never persist.
+- **Files:** `global.css`, `Recorder.tsx`, `SessionsManager.tsx`, `scripts/helpers/reset-ui-state.mjs`
+  (new); docs `ui-reskin-template-plan/17_FINAL_VISUAL_ACCEPTANCE_REPORT.md` (new), `CURRENT_STATE.md`,
+  `TASK_LOG.md`; refreshed 8 after-screenshots.
+- **Tests:** build clean; verify:flow-designer 19/19 ×2, workflow-builder 13/13, reports 26/26, recorder
+  57, instance-monitor 22, data-editor 27; ai:memory pass.
+- **Result:** Complete. No commit. Runtime automation behavior unchanged.
+
+---
+
+## 2026-07-07 — Claude (Opus 4.8) — Template UI completion pass: floating drawer / node anatomy / templateSmooth connectors / zoom pill
+
+- **Task:** Implement the remaining Hologram-template structural details from the spec pack
+  (`docs/` + `docs/files/01..15`) that the token-only + shell re-skin left out. Verified proven-missing
+  via grep (no `templateSmooth`, `designer-right-drawer-slot`, `action-node-content`, `properties-body`,
+  or `TemplateSmoothEdge.tsx`). Renderer visual/markup + CSS only.
+- **Changes:** new `components/shared/TemplateSmoothEdge.tsx` (label pill + insert `+` + running flow);
+  `connectorStyle.ts` tokenized colors + `smoothstep→templateSmooth` runtime remap (saved shape
+  untouched); `ActionFlowNode.tsx` template card anatomy (icon tile/meta/type badge/title/desc/kebab);
+  `FlowChartDesigner.tsx` register edge + `insertNodeOnEdge` + display-only `edgesForCanvas`;
+  `ScenarioBuilder.tsx` + `WorkflowDesigner.tsx` register/use `templateSmooth`; `CanvasZoomControl.tsx`
+  `canvas-zoom-button`/divider; `DesignerCanvasLayout.tsx` floating `designer-right-drawer-slot`;
+  `FlowNodePropertiesPanel.tsx` + `ConnectionPropertiesPanel.tsx` drawer shell (header/tabs/body/footer,
+  no fake save/test); `global.css` appended TEMPLATE COMPLETION PASS block before reduced-motion.
+- **Non-persistence:** `showAddButton`/`onInsertNode` added as optional display-only fields on
+  `FlowConnectionData`; `toFlowProfile` reads connector fields explicitly, so they never serialize.
+- **Files:** 10 renderer files + `global.css`; docs: `ui-reskin-template-plan/16_VISUAL_GAP_CLOSURE_REPORT.md`
+  (new), `CURRENT_STATE.md`, `TASK_LOG.md`.
+- **Tests:** `npm run build` clean; `verify:flow-designer` 19/19, `verify:workflow-builder` 13/13,
+  `verify:reports` 26/26, `verify:recorder` 57, `verify:instance-monitor` 22, `verify:data-editor` 27;
+  `ai:memory` pass. 8 after-screenshots captured. Not run: `verify:runner` (no runtime/connector-runtime
+  code touched — connectorStyle is renderer-only).
+- **Result:** Complete. No commit (per instructions). Runtime automation behavior unchanged.
+
+---
+
 ## 2026-07-07 — Claude (Opus 4.8) — Missing-template design pack (Phases 1–5): shell/sidebar/header structural re-skin
 
 - **Task:** Execute the "Missing Template Design" prompt pack (`01`–`05`) — the structural template

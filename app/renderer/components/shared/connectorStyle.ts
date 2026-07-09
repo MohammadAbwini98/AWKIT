@@ -7,15 +7,18 @@ import type { EdgeVisualStyle } from "@src/profiles/FlowProfile";
  * honor per-connector style customization (Task 06).
  */
 export const connectorTypeColor: Record<string, string> = {
-  success: "#16a34a",
-  failure: "#ef4444",
-  always: "#8b5cf6", // Template violet — the default "flow" color
-  conditional: "#f59e0b",
-  outcome: "#fb923c", // Warm amber — distinct from conditional's yellow
-  manualApproval: "#a78bfa",
-  loop: "#14b8a6",
-  loopBack: "#06b6d4", // Cyan — visually suggests "back/return"
-  parallel: "#7c3aed" // Deep violet — suggests "fan out"
+  // Template default: violet flow lines. Semantic colors are reserved for actual
+  // runtime/result states so the resting canvas reads as a calm, single-accent graph.
+  // Values are CSS variable strings resolved via the SVG `stroke` presentation attribute.
+  success: "var(--awkit-connector-default)",
+  failure: "var(--awkit-connector-failure)",
+  always: "var(--awkit-connector-default)",
+  conditional: "var(--awkit-connector-default)",
+  outcome: "var(--awkit-connector-default)",
+  manualApproval: "var(--awkit-connector-default)",
+  loop: "var(--awkit-connector-loop)",
+  loopBack: "var(--awkit-connector-loop)",
+  parallel: "var(--awkit-connector-default)"
 };
 
 /** Preset colors offered in the Connector Style picker. Empty value = default by type. */
@@ -52,7 +55,7 @@ export function hasCustomStyle(style?: EdgeVisualStyle): boolean {
 }
 
 export function resolveConnectorColor(type: string, style?: EdgeVisualStyle): string {
-  return normalizeEdgeStyle(style).color || connectorTypeColor[type] || "#64748b";
+  return normalizeEdgeStyle(style).color || connectorTypeColor[type] || "var(--awkit-connector-default)";
 }
 
 function dashArray(lineStyle?: EdgeVisualStyle["lineStyle"]): string | undefined {
@@ -70,8 +73,13 @@ export function buildConnectorVisual(type: string, style?: EdgeVisualStyle): Pic
   const defaultDash = type === "loopBack" ? "6 4" : undefined;
   // Loop connectors default to the circular self-loop shape when no explicit shape was chosen.
   const shape = s.shape ?? (type === "loop" ? "circular" : "smoothstep");
+  // Map the serialized shape to the React Flow edge `type`. Default smoothstep connectors render
+  // through the custom `templateSmooth` edge (curved violet line + label pill + insert affordance);
+  // circular self-loops keep `SelfLoopEdge`; bezier/straight/step pass through unchanged. The saved
+  // `EdgeVisualStyle.shape` value is NOT altered — only the runtime React Flow edge type is remapped.
+  const reactFlowType = shape === "circular" ? "circular" : shape === "smoothstep" ? "templateSmooth" : shape;
   return {
-    type: shape,
+    type: reactFlowType,
     animated: type === "loop" || type === "conditional" || type === "loopBack" || type === "parallel",
     style: { stroke, strokeWidth: s.thickness ?? 2, strokeDasharray: dashArray(s.lineStyle) ?? defaultDash },
     markerEnd: markerType ? { type: markerType, width: 18, height: 18, color: stroke } : undefined

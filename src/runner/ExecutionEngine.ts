@@ -178,7 +178,6 @@ export class ExecutionEngine {
         this.durableLockStore = new DurableLockStore(join(runtimeDir, "locks"), defaultSemaphoreCapacities());
         configureDurableLocks(this.durableLockStore);
         this.environmentInfo = buildEnvironment(true);
-        console.log(`[runtime-store] environment ${JSON.stringify(this.environmentInfo)}`);
 
         // Stale durable locks from prior crashes: quarantine with a reason + record the event.
         const staleLocks = await this.durableLockStore.scanStale();

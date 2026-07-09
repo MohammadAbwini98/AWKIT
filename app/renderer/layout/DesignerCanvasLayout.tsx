@@ -20,7 +20,10 @@ export function DesignerCanvasLayout({
   return (
     <section className={className}>
       <div className={flush ? "designer-canvas flush" : "designer-canvas"}>{children}</div>
-      {rightPanel ?? <RightPropertiesPanel title={propertiesTitle} />}
+      {/* Template config drawer: floats over the canvas instead of stealing a layout column, so
+          the workflow surface keeps its full geometry. The slot is pointer-transparent; only the
+          drawer inside it receives events (see .designer-right-drawer-slot in global.css). */}
+      <div className="designer-right-drawer-slot">{rightPanel ?? <RightPropertiesPanel title={propertiesTitle} />}</div>
     </section>
   );
 }
