@@ -62,6 +62,13 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    */
   onBrowserRuntime?: (info: { runtime: BrowserRuntime; generation: number }) => void;
   /**
+   * Called immediately before the runner intentionally closes a browser runtime (end-of-run
+   * cleanup, hard cancel, or Reuse Session swap of the old generation). Lets the engine tell its
+   * BrowserWorkerPool that the resulting "disconnected" event is an expected teardown, not a crash,
+   * so ordinary run completions don't inflate the crash-rate backpressure window.
+   */
+  onRuntimeClosing?: (info: { runtime: BrowserRuntime; generation: number; reason: BrowserCloseReason }) => void;
+  /**
    * Hard-cancellation token (Phase 3). On cancel, the runner closes the CURRENT browser runtime
    * so in-flight Playwright actions reject immediately, and refuses to start further flows/steps.
    */
@@ -380,6 +387,9 @@ export class PlaywrightRunner {
     logger: MemoryRunnerLogger,
     context: InstanceExecutionContext
   ): Promise<void> {
+    // Announce the intentional teardown BEFORE closing so the pool doesn't score the resulting
+    // browser "disconnected" as a crash (which would falsely trip the crash-rate backpressure).
+    this.options.onRuntimeClosing?.({ runtime, generation, reason });
     logger.log({ level: "info", message: `[browser:g${generation}] closing runtime (${reason}).`, ...this.logMeta(context) });
     await runtime.close();
     logger.log({ level: "info", message: `[browser:g${generation}] runtime closed (${reason}).`, ...this.logMeta(context) });
@@ -438,7 +448,8 @@ export class PlaywrightRunner {
         ),
       this.traceService,
       this.options.cancellation,
-      this.options.originClaims
+      this.options.originClaims,
+      this.options.operationLimiters
     );
 
     // ── Popup registry wiring ───────────────────────────────────────────────
@@ -485,7 +496,8 @@ export class PlaywrightRunner {
           ),
         this.traceService,
         this.options.cancellation,
-        this.options.originClaims
+        this.options.originClaims,
+        this.options.operationLimiters
       );
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };

@@ -31,6 +31,22 @@ export interface WorkflowFlowNode {
   size?: { width: number; height: number };
 }
 
+/** Structural canvas sentinels. They are persisted for editing but never executed as flows. */
+export interface WorkflowSentinelNode {
+  id: string;
+  type: "start" | "end";
+  alias: string;
+  order: number;
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
+}
+
+export type WorkflowNode = WorkflowFlowNode | WorkflowSentinelNode;
+
+export function isWorkflowFlowNode(node: WorkflowNode): node is WorkflowFlowNode {
+  return node.type === "flowRef";
+}
+
 export interface WorkflowEdge {
   id: string;
   source: string;
@@ -63,7 +79,7 @@ export interface WorkflowProfile {
   version: number;
   /** The JSON data source this workflow runs against (Phase 03: workflow owns its data source). */
   dataSource?: WorkflowDataSourceBinding;
-  nodes: WorkflowFlowNode[];
+  nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   runtimeInputs: WorkflowRuntimeInput[];
   execution: {
@@ -76,13 +92,15 @@ export interface WorkflowProfile {
 }
 
 export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioProfile {
+  const flowNodes = workflow.nodes.filter(isWorkflowFlowNode);
+  const flowNodeById = new Map(flowNodes.map((node) => [node.id, node]));
   return {
     id: workflow.id,
     name: workflow.name,
     description: workflow.description,
     executionMode: workflow.execution.mode,
     maxParallelFlows: workflow.execution.maxConcurrentInstances,
-    flows: workflow.nodes.map((node) => ({
+    flows: flowNodes.map((node) => ({
       order: node.order,
       flowId: node.flowId,
       required: node.required,
@@ -93,14 +111,19 @@ export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioPr
         ])
       )
     })),
-    links: workflow.edges.map((edge) => ({
+    links: workflow.edges.flatMap((edge) => {
+      const source = flowNodeById.get(edge.source);
+      const target = flowNodeById.get(edge.target);
+      if (!source || !target) return [];
+      return [{
       id: edge.id,
-      sourceFlowId: workflow.nodes.find((node) => node.id === edge.source)?.flowId ?? edge.source,
-      targetFlowId: workflow.nodes.find((node) => node.id === edge.target)?.flowId ?? edge.target,
+      sourceFlowId: source.flowId,
+      targetFlowId: target.flowId,
       type: edge.type,
       label: edge.label,
       condition: edge.condition
-    })),
+      }];
+    }),
     failurePolicy: {
       stopOnRequiredFlowFailure: workflow.execution.stopOnRequiredFlowFailure,
       continueOnOptionalFlowFailure: true,

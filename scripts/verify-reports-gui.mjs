@@ -111,6 +111,39 @@ try {
   const wfHeader = await win.$eval(".awkit-section-header h2", (el) => el.textContent || "").catch(() => "");
   check("Workflow Reports renders + resolves", wfHeader.includes("Workflow Reports"), wfHeader);
 
+  // B3 — machine-aware comparison UI. The filter bar renders regardless of whether any runs exist.
+  const filterSelects = await win.$$eval(".awkit-report-filters select", (els) => els.length);
+  check("Workflow Reports shows machine/mode/pool/class filters", filterSelects === 4, `selects=${filterSelects}`);
+  const changedMode = await win.evaluate(() => {
+    const select = document.querySelectorAll(".awkit-report-filters select")[1];
+    if (!select) return false;
+    // Selecting the "any" option is always valid and must not crash the page.
+    select.value = "";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  });
+  check("machine filter select is interactive", changedMode);
+  await win.waitForTimeout(500);
+  check("page stable after filter change", !!(await win.$(".awkit-report-page")));
+
+  // Compare mode toggles a checkbox column without crashing.
+  const compareClicked = await win.evaluate(() => {
+    const buttons = [...document.querySelectorAll(".awkit-filter-toggle")];
+    const compare = buttons.find((b) => (b.textContent || "").includes("Compare"));
+    if (!compare) return false;
+    compare.click();
+    return true;
+  });
+  check("Compare toggle present + clickable", compareClicked);
+  await win.waitForTimeout(400);
+  const hasComparePanelOrCheckboxes = await win.evaluate(() => {
+    const page = document.querySelector(".awkit-report-page");
+    if (!page) return false;
+    // Either a checkbox column (data present) or the empty-state (no runs) is a valid post-toggle state.
+    return !!page.querySelector(".awkit-td-select, .awkit-empty-state, .awkit-compare-grid") || !!page.querySelector(".awkit-report-panel");
+  });
+  check("Compare mode renders a valid state", hasComparePanelOrCheckboxes);
+
   check("Instance Reports nav clicked", await navTo("Instance Reports"));
   await win.waitForSelector(".awkit-report-page", { timeout: 15000 });
   await awaitResolved();

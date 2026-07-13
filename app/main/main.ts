@@ -3,7 +3,7 @@ import { ensureRuntimeFolders, isProductionOffline } from "./appPaths";
 import { getOfflineRuntimeStatus } from "./offlineRuntimeValidator";
 import { registerIpcHandlers } from "./ipc";
 import { createMainWindow } from "./windowManager";
-import { updateUiSettings } from "./uiSettings";
+import { updateUiSettings, flushSettingsWrites } from "./uiSettings";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
 
 let mainWindow: BrowserWindow | null = null;
@@ -62,4 +62,18 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+// Flush any queued settings writes before the process exits, so a last-moment edit (the user
+// closes the window immediately after changing something) is not lost. Bounded by a 2s timeout
+// so a stuck write can never deadlock shutdown; the guard makes the re-entrant quit a no-op.
+let settingsFlushed = false;
+app.on("before-quit", (event) => {
+  if (settingsFlushed) return;
+  event.preventDefault();
+  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
+  void Promise.race([flushSettingsWrites(), timeout]).finally(() => {
+    settingsFlushed = true;
+    app.quit();
+  });
 });

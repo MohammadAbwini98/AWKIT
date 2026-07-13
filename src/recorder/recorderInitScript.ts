@@ -172,25 +172,29 @@ export function installRecorderCapture(): void {
     return "";
   };
 
-  // Elements that plausibly expose the given ARIA role (used to count role matches).
-  const elementsForRole = (role: string): Element[] => {
-    const map: Record<string, string> = {
-      button: "button, [role=button], input[type=submit], input[type=button], input[type=reset]",
-      link: "a[href], [role=link]",
-      textbox: "input[type=text], input[type=email], input[type=tel], input[type=url], input[type=search], input:not([type]), textarea, [role=textbox]",
-      checkbox: "input[type=checkbox], [role=checkbox]",
-      radio: "input[type=radio], [role=radio]",
-      combobox: "select, [role=combobox]",
-      heading: "h1,h2,h3,h4,h5,h6,[role=heading]",
-      img: "img[alt], [role=img]"
-    };
-    const selector = map[role] || "[role=" + role + "]";
+  const ROLE_SELECTORS: Record<string, string> = {
+    button: "button, [role=button], input[type=submit], input[type=button], input[type=reset]",
+    link: "a[href], [role=link]",
+    textbox: "input[type=text], input[type=email], input[type=tel], input[type=url], input[type=search], input:not([type]), textarea, [role=textbox]",
+    checkbox: "input[type=checkbox], [role=checkbox]",
+    radio: "input[type=radio], [role=radio]",
+    combobox: "select, [role=combobox]",
+    heading: "h1,h2,h3,h4,h5,h6,[role=heading]",
+    img: "img[alt], [role=img]"
+  };
+
+  // Elements plausibly exposing `role` within an arbitrary root (whole page or a container subtree).
+  const elementsForRoleIn = (root: ParentNode, role: string): Element[] => {
+    const selector = ROLE_SELECTORS[role] || "[role=" + role + "]";
     try {
-      return Array.prototype.slice.call(document.querySelectorAll(selector));
+      return Array.prototype.slice.call(root.querySelectorAll(selector));
     } catch {
       return [];
     }
   };
+
+  // Elements that plausibly expose the given ARIA role (used to count role matches).
+  const elementsForRole = (role: string): Element[] => elementsForRoleIn(document, role);
 
   const countRoleName = (role: string, name: string): number => {
     let count = 0;
@@ -309,6 +313,146 @@ export function installRecorderCapture(): void {
     return null;
   };
 
+  // ── Compound / tree locators (unique-via-combination) ────────────────────────────────────────
+  // When no single strategy is unique, combine the element's own meaningful features with the
+  // FEWEST distinguishing ancestors until the selector resolves to exactly one element. Utility/
+  // layout classes are never used; positional :nth-* is only a last-ditch tiebreaker. This is what
+  // produces selectors like `#results .customer-card input[type=checkbox]` instead of giving up
+  // with a non-unique `role`/`text` locator.
+
+  // Tailwind/Bootstrap/utility + state-prefix + hashed (css-modules/emotion/styled) classes:
+  // never distinguishing and never safe to depend on.
+  const UTILITY_CLASS_RE =
+    /^(?:flex|inline-flex|grid|inline-grid|block|inline-block|inline|contents|table|table-cell|table-row|hidden|relative|absolute|fixed|sticky|static|container|row|col|cols|columns|items-|justify-|self-|place-|content-|gap-|space-[xy]-|[pm][trblxyse]?-|w-|h-|min-|max-|size-|text-|font-|leading-|tracking-|whitespace-|truncate|break-|bg-|from-|via-|to-|border|rounded|ring-|divide-|outline-|shadow|opacity-|blur|backdrop-|z-|order-|basis-|grow|shrink|flex-|overflow-|object-|aspect-|transition|duration-|ease-|delay-|animate-|transform|scale-|rotate-|translate-|skew-|origin-|cursor-|select-|pointer-|resize|list-|align-|float-|clear-|visible|invisible|uppercase|lowercase|capitalize|italic|underline|antialiased|sr-only)/;
+  const CLASS_STATE_PREFIX_RE = /^(?:sm|md|lg|xl|2xl|hover|focus|focus-visible|focus-within|active|disabled|visited|checked|group|group-hover|peer|peer-focus|dark|light|first|last|odd|even|motion-safe|motion-reduce|print|rtl|ltr)[:-]/;
+  const CLASS_HASH_RE = /(?:^|[_-])(?:[a-z0-9]{6,}|[0-9a-f]{5,})$/i;
+
+  const isMeaningfulClass = (c: string): boolean => {
+    if (!c || c.length < 3) return false;
+    if (/^\d/.test(c)) return false;
+    if (CLASS_STATE_PREFIX_RE.test(c)) return false;
+    if (UTILITY_CLASS_RE.test(c)) return false;
+    if (/^(?:sc-|css-|jsx-|emotion-|makeStyles-|MuiBox-)/.test(c)) return false;
+    if (CLASS_HASH_RE.test(c)) return false;
+    return true;
+  };
+
+  // Class tokens as strings (handles SVG's SVGAnimatedString className).
+  const classListOf = (el: Element): string[] => {
+    const raw = (el as unknown as { className?: unknown }).className;
+    const s = typeof raw === "string" ? raw : attr(el, "class");
+    return s ? s.split(/\s+/).filter(Boolean) : [];
+  };
+
+  // Rarest (most-distinguishing) meaningful classes first, capped.
+  const classTokensFor = (el: Element, cap: number): string[] => {
+    const meaningful = classListOf(el).filter(isMeaningfulClass);
+    if (!meaningful.length) return [];
+    const ranked = meaningful
+      .map((c) => {
+        let freq = 999;
+        try {
+          freq = document.getElementsByClassName(c).length || 999;
+        } catch {
+          freq = 999;
+        }
+        return { c: c, freq: freq };
+      })
+      .sort((a, b) => a.freq - b.freq);
+    const out: string[] = [];
+    for (let i = 0; i < ranked.length && out.length < cap; i += 1) out.push("." + ident(ranked[i].c));
+    return out;
+  };
+
+  // Stable attribute selectors, most-distinguishing first (never class/style/generated id).
+  const STABLE_ATTRS = ["data-testid", "data-test", "data-cy", "name", "role", "type", "aria-label", "title", "alt", "placeholder", "href", "value", "for"];
+  const attrTokensFor = (el: Element, cap: number): string[] => {
+    const out: string[] = [];
+    for (let i = 0; i < STABLE_ATTRS.length && out.length < cap; i += 1) {
+      const a = STABLE_ATTRS[i];
+      const v = attr(el, a);
+      if (!v) continue;
+      if (a === "type" && (v === "text" || v === "button")) continue;
+      if ((a === "href" || a === "value") && v.length > 120) continue;
+      out.push("[" + a + '="' + esc(v) + '"]');
+    }
+    return out;
+  };
+
+  // Best single-node fragment: #id → [data-testid] → tag + stable attrs + meaningful classes.
+  const localSelectorFor = (el: Element, maxAttrs: number, maxClasses: number): string => {
+    const nodeId = (el as HTMLElement).id;
+    if (nodeId && !looksGeneratedId(nodeId)) return "#" + ident(nodeId);
+    const dtid = attr(el, "data-testid");
+    if (dtid) return '[data-testid="' + esc(dtid) + '"]';
+    const seg = tagOf(el);
+    return seg + attrTokensFor(el, maxAttrs).join("") + classTokensFor(el, maxClasses).join("");
+  };
+
+  const isStableAnchorSeg = (seg: string): boolean => seg.charAt(0) === "#" || seg.indexOf("[data-testid=") === 0;
+
+  // TREE: the leaf's meaningful signature scoped by the FEWEST distinguishing ancestors (descendant
+  // combinators, skipping wrapper noise), stopping the instant it resolves to one element. No
+  // positional indices — meaningful features only. Returns the best chain it reached (count may be >1).
+  const compoundSelector = (el: Element): { value: string; count: number; positional: boolean } | null => {
+    const leaf = localSelectorFor(el, 2, 2);
+    if (!leaf) return null;
+    if (q(leaf) === 1) return { value: leaf, count: 1, positional: false };
+
+    let chain = leaf;
+    let node = el.parentElement;
+    for (let depth = 0; node && depth < 8 && tagOf(node) !== "html" && tagOf(node) !== "body"; depth += 1, node = node.parentElement) {
+      const anc = localSelectorFor(node, 1, 1);
+      if (!anc) continue;
+      const candidate = anc + " " + chain;
+      // Keep an ancestor only if it actually reduces ambiguity (compact, robust tree).
+      if (q(candidate) < q(chain)) {
+        chain = candidate;
+        if (q(chain) === 1) return { value: chain, count: 1, positional: false };
+      }
+      // A stable id / data-testid ancestor is a hard anchor — climbing past it cannot help.
+      if (isStableAnchorSeg(anc)) break;
+    }
+    return { value: chain, count: q(chain), positional: false };
+  };
+
+  // Guaranteed-unique hybrid: nearest UNIQUE stable ancestor (#id / [data-testid]) + a positional
+  // '>' tail down to the leaf. Anchored and shorter than a whole-document positional path.
+  const anchoredStructural = (el: Element): { value: string; count: number; positional: boolean } | null => {
+    let anc: Element | null = el.parentElement;
+    let base = "";
+    let baseNode: Element | null = null;
+    for (let d = 0; anc && d < 10 && tagOf(anc) !== "html"; d += 1, anc = anc.parentElement) {
+      const id = (anc as HTMLElement).id;
+      if (id && !looksGeneratedId(id)) {
+        base = "#" + ident(id);
+        baseNode = anc;
+        break;
+      }
+      const dt = attr(anc, "data-testid");
+      if (dt) {
+        base = '[data-testid="' + esc(dt) + '"]';
+        baseNode = anc;
+        break;
+      }
+    }
+    if (!base || !baseNode || q(base) !== 1) return null;
+    const parts: string[] = [];
+    let n: Element | null = el;
+    while (n && n !== baseNode) {
+      const p: Element | null = n.parentElement;
+      if (!p) break;
+      const idx = Array.prototype.slice.call(p.children).indexOf(n);
+      let seg = tagOf(n);
+      if (idx >= 0) seg += ":nth-child(" + (idx + 1) + ")";
+      parts.unshift(seg);
+      n = p;
+    }
+    if (!parts.length) return null;
+    const value = base + " > " + parts.join(" > ");
+    return q(value) === 1 ? { value: value, count: 1, positional: true } : null;
+  };
+
   interface Candidate {
     strategy: string;
     value: string;
@@ -366,10 +510,27 @@ export function installRecorderCapture(): void {
     const scoped = scopedSelector(el);
     if (scoped) out.push({ strategy: "css", value: scoped.value, count: scoped.count });
 
+    // Compound "tree": meaningful features across the element + fewest distinguishing ancestors.
+    // Non-fallback only when it reached a single match via features (so it wins over positional).
+    const compound = compoundSelector(el);
+    if (compound) out.push({ strategy: "css", value: compound.value, count: compound.count, fallback: compound.count !== 1 || compound.positional });
+
+    // Guaranteed-unique hybrid anchored at the nearest stable ancestor.
+    const anchored = anchoredStructural(el);
+    if (anchored) out.push({ strategy: "css", value: anchored.value, count: anchored.count, fallback: true });
+
     const structural = structuralSelector(el);
     if (structural) out.push({ strategy: "css", value: structural, count: q(structural), fallback: true });
 
-    return out;
+    // De-duplicate by (strategy|value|name) so candidateCount reflects distinct options and the
+    // ranked alternatives never repeat a selector.
+    const seen: Record<string, boolean> = {};
+    return out.filter((c) => {
+      const key = c.strategy + "|" + c.value + "|" + (c.name || "");
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
   };
 
   interface Quality {
@@ -379,6 +540,8 @@ export function installRecorderCapture(): void {
     confidence: string;
     warning?: string;
     candidateCount: number;
+    /** How uniqueness was achieved when no single strategy was unique. */
+    disambiguation?: string;
   }
 
   interface ContainerContext {
@@ -471,6 +634,69 @@ export function installRecorderCapture(): void {
     return context.frame || context.container ? context : undefined;
   };
 
+  // ── Semantic container scoping (Phase 2a) ────────────────────────────────────────────────────
+  // Keep a readable semantic primary (role/label/placeholder/text) when a stable container isolates
+  // it to exactly this element. Verified against the real ancestor node so we never scope to the
+  // wrong subtree; the compound CSS stays a ranked alternative so runtime is safe regardless.
+  const isSemanticStrategy = (strategy: string): boolean =>
+    strategy === "role" || strategy === "label" || strategy === "placeholder" || strategy === "text";
+
+  // Elements within `root` that match a semantic candidate (mirrors the runner's getBy* semantics).
+  const semanticElementsIn = (root: ParentNode, cand: Candidate): Element[] => {
+    try {
+      if (cand.strategy === "role") {
+        return elementsForRoleIn(root, cand.value).filter((e) => accessibleName(e) === cand.name);
+      }
+      if (cand.strategy === "placeholder") {
+        return Array.prototype.slice.call(root.querySelectorAll('[placeholder="' + esc(cand.value) + '"]'));
+      }
+      if (cand.strategy === "label") {
+        const ctrls = Array.prototype.slice.call(root.querySelectorAll("input, select, textarea, [role=textbox], [role=combobox]")) as Element[];
+        return ctrls.filter((e) => {
+          const al = attr(e, "aria-label");
+          return (al ? norm(al) : labelText(e)) === cand.value;
+        });
+      }
+      if (cand.strategy === "text") {
+        return (Array.prototype.slice.call(root.querySelectorAll("*")) as Element[]).filter((e) => norm(e.textContent) === cand.value);
+      }
+    } catch {
+      /* ignore */
+    }
+    return [];
+  };
+
+  // Re-find the container node the same way detectContainer derived it, so verification runs against
+  // the actual ancestor of the target element.
+  const closestContainerNode = (el: Element, container: ContainerContext): Element | null => {
+    if (!el.closest) return null;
+    try {
+      if (container.type === "dialog") {
+        return el.closest('[role="dialog"], [role="alertdialog"], dialog, .modal, [class*="modal"], .mat-dialog-container, .ant-modal, .MuiDialog-root, .MuiDialog-container');
+      }
+      if (container.strategy === "id") return el.closest("#" + ident(container.value));
+      if (container.strategy === "testId") return el.closest('[data-testid="' + esc(container.value) + '"]');
+      if (container.strategy === "css") return el.closest(container.value);
+      if (container.strategy === "role") {
+        if (container.value === "row") return el.closest('tr, [role="row"]');
+        if (container.value === "listitem") return el.closest('li, [role="listitem"]');
+        if (container.value === "article") return el.closest("article");
+        return el.closest('[role="' + esc(container.value) + '"]');
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  // True when `container` scopes semantic candidate `cand` to exactly the target element `el`.
+  const containerIsolatesSemantic = (el: Element, cand: Candidate, container: ContainerContext): boolean => {
+    const node = closestContainerNode(el, container);
+    if (!node) return false;
+    const matches = semanticElementsIn(node, cand);
+    return matches.length === 1 && matches[0] === el;
+  };
+
   // Up to 3 fallback candidates (excluding the chosen one), unique/non-fragile first.
   const buildAlternatives = (candidates: Candidate[], chosen: Candidate): Array<Record<string, unknown>> => {
     const rank = (c: Candidate): number => (c.count === 1 ? 0 : 2) + (c.fallback ? 1 : 0);
@@ -517,20 +743,48 @@ export function installRecorderCapture(): void {
       chosen = positive[0] || candidates[candidates.length - 1] || { strategy: "css", value: tagOf(el), count: q(tagOf(el)), fallback: true };
     }
 
-    const isUnique = chosen.count === 1;
-    const semantic = chosen.strategy === "role" || chosen.strategy === "label" || chosen.strategy === "placeholder" || chosen.strategy === "testId";
-    const confidence = !isUnique ? "low" : chosen.fallback ? "low" : semantic ? "high" : "medium";
+    // Phase 2a: when the primary is not already globally-unique-and-non-fragile, prefer a readable
+    // semantic candidate that a stable container isolates to this exact element. The compound CSS
+    // stays a ranked alternative, so the runner is safe even if the container heuristic is imperfect.
+    let containerScoped = false;
+    const goodPrimary = chosen.count === 1 && !chosen.fallback;
+    if (!goodPrimary) {
+      const container = detectContainer(el, 2);
+      if (container) {
+        for (let i = 0; i < candidates.length; i += 1) {
+          const c = candidates[i];
+          if (!isSemanticStrategy(c.strategy)) continue;
+          if (containerIsolatesSemantic(el, c, container)) {
+            chosen = c;
+            containerScoped = true;
+            break;
+          }
+        }
+      }
+    }
+
+    const globallyUnique = chosen.count === 1;
+    const isUnique = globallyUnique || containerScoped;
+    const positional = !!chosen.fallback && !containerScoped;
+    const semantic = isSemanticStrategy(chosen.strategy) || chosen.strategy === "testId";
+    const confidence = !isUnique ? "low" : positional ? "low" : semantic ? "high" : "medium";
+
+    let disambiguation: string | undefined;
+    if (containerScoped) disambiguation = "container";
+    else if (chosen.strategy === "css" && !chosen.fallback && globallyUnique) disambiguation = "compound";
+    else if (positional) disambiguation = "positional";
 
     const quality: Quality = {
-      strategy: chosen.fallback ? "fallback" : chosen.strategy,
+      strategy: positional ? "fallback" : chosen.strategy,
       isUnique,
-      matchCount: chosen.count,
+      matchCount: containerScoped ? 1 : chosen.count,
       confidence,
       candidateCount: candidates.length
     };
+    if (disambiguation) quality.disambiguation = disambiguation;
     if (!isUnique) {
       quality.warning = "This locator matches " + chosen.count + " elements. The recorder could not find a unique locator — this step may fail in Playwright strict mode. Re-record or refine it.";
-    } else if (chosen.fallback) {
+    } else if (positional) {
       quality.warning = "Positional fallback locator — it may break if the page layout changes.";
     }
 

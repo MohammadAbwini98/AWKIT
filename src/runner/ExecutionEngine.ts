@@ -26,6 +26,19 @@ import { createReportStore } from "../../app/main/profileStores";
 import { RunLogger } from "./artifacts/RunLogger";
 import { writeRunStateArtifacts } from "./artifacts/RunStateArtifacts";
 import { BrowserWorkerPool, BrowserPoolSaturatedError, type BrowserWorkerSlot } from "./browser/BrowserWorkerPool";
+import os from "node:os";
+import { SharedBrowserPool } from "./browser/SharedBrowserPool";
+import { isSharedEligible } from "./browser/browserSharing";
+import { OperationLimiters } from "./concurrency/OperationLimiters";
+import { AdaptiveController, type AdaptiveThresholds } from "./concurrency/AdaptiveController";
+import {
+  canAdmitWeighted,
+  computeWorkloadWeight,
+  extractWorkloadFeatures,
+  weightedBudget,
+  DEFAULT_WORKLOAD_WEIGHT_CONFIG
+} from "./concurrency/WorkloadWeights";
+import { loadTraceMode } from "./artifacts/TraceService";
 import { BackpressureController } from "./concurrency/BackpressureController";
 import type { CapacitySnapshot } from "./concurrency/CapacitySnapshot";
 import { buildDispatchClaims } from "./concurrency/DispatchClaims";
@@ -49,6 +62,9 @@ import { toReportCategory } from "../reports/ReportCategories";
 import {
   processSampleToHistoryPoint,
   type FailureBreakdown,
+  type MachineFilter,
+  type MachineRunContext,
+  type MachineSummary,
   type ProcessHistoryPoint,
   type RunDetail,
   type RunHistoryFilter,
@@ -57,12 +73,14 @@ import {
   type TelemetryOverview,
   type TelemetryPage,
   type TelemetryRange,
-  type WorkflowReportRow
+  type WorkflowComparisonRow,
+  type WorkflowReportRow,
+  type WorkflowTrend
 } from "../reports/TelemetryContracts";
 import { CancellationTokenSource } from "./concurrency/CancellationToken";
 import { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ResourceSampler } from "./concurrency/ResourceSampler";
-import { defaultSemaphoreCapacities } from "./concurrency/ConcurrencyConfig";
+import { defaultSemaphoreCapacities, type ConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
 import { APP_INSTANCE_ID } from "./store/AppInstance";
 import { configureDurableLocks, getDurableLockStore } from "./store/DurableLockConfig";
 import { DurableLockStore, type DurableLease } from "./store/DurableLockStore";
@@ -111,6 +129,50 @@ export class ExecutionEngine {
   private lastProcessSampleWriteAt = 0;
   /** Admission control: pool saturation + host memory/CPU + crash rate → allow/queue with a reason. */
   private readonly backpressure = new BackpressureController(this.browserPool, this.browserPool.concurrencyLimits, this.sampler);
+  /**
+   * Shared Chromium pool (Phase A5, experimental — gated by limits.useSharedBrowserPool). Shared-eligible
+   * instances lease an isolated context here instead of launching a dedicated browser. Sizing is synced
+   * from the live concurrency limits in configureConcurrency().
+   */
+  private readonly sharedBrowserPool = new SharedBrowserPool({
+    maxBrowsers: this.browserPool.concurrencyLimits.maxBrowsersPerHost,
+    maxContextsPerBrowser: this.browserPool.concurrencyLimits.maxContextsPerBrowser,
+    maxContextsPerBrowserHardLimit: this.browserPool.concurrencyLimits.maxContextsPerBrowserHardLimit,
+    recycleAfterContexts: this.browserPool.concurrencyLimits.browserRecycleAfterContexts
+  });
+  /**
+   * Operation limiters (Phase A6): stagger simultaneous browser launches / context creations /
+   * navigations / downloads / screenshots across all instances. Sized live in configureConcurrency().
+   */
+  private readonly operationLimiters = new OperationLimiters({
+    browserLaunch: this.browserPool.concurrencyLimits.maxConcurrentBrowserLaunches,
+    contextCreation: this.browserPool.concurrencyLimits.maxConcurrentContextCreations,
+    navigation: this.browserPool.concurrencyLimits.maxConcurrentNavigations,
+    download: this.browserPool.concurrencyLimits.maxConcurrentDownloads,
+    screenshot: this.browserPool.concurrencyLimits.maxConcurrentScreenshots
+  });
+  /**
+   * Adaptive concurrency controller (Phase A7): lowers the live active-flow target under real host
+   * pressure and recovers gradually. Ceiling = maxActiveFlows; re-seeded in configureConcurrency().
+   */
+  private readonly adaptive = new AdaptiveController(
+    this.browserPool.concurrencyLimits.maxActiveFlows,
+    this.buildAdaptiveThresholds(this.browserPool.concurrencyLimits)
+  );
+  /**
+   * Phase A8 — cached per-instance admission weight (persistent profile / headed / downloads / parallel
+   * branches / trace-video / … each add cost). Computed once from the static config + flows; stable for
+   * the instance's lifetime. Only consulted when limits.workloadWeights is enabled.
+   */
+  private readonly instanceWeights = new Map<string, number>();
+  /**
+   * Phase B1 — the machine identity for runs started now (machineId / CPU / RAM / mode / workload class /
+   * recommendation), pushed in by the main process (the src/ core never detects the machine itself). Live
+   * fields (pool mode, configured cap, available memory, peak concurrency) are filled at write time.
+   */
+  private machineRunContext: MachineRunContext = {};
+  /** Phase B1 — peak simultaneously-active instance count observed per execution (for reporting). */
+  private readonly executionPeakConcurrency = new Map<string, number>();
   /** Per-instance unsettled runner promises — the watchdog's "is anything actually running" signal. */
   private readonly activeInstanceRunners = new Map<string, Promise<void>>();
   /** Per-instance hard-cancellation sources (Phase 3). */
@@ -234,7 +296,7 @@ export class ExecutionEngine {
     const list = this.pool.list();
     const active = list.filter((instance) => ["starting", "running"].includes(instance.status)).length;
     const queued = list.filter((instance) => ["queued", "pending"].includes(instance.status)).length;
-    return this.backpressure.snapshot(active, queued);
+    return this.backpressure.snapshot(active, queued, { target: this.adaptive.currentTarget, state: this.adaptive.currentState });
   }
 
   /** Lock-table debug view (profile/downloadDir/origin/account counts + stale leases). */
@@ -251,7 +313,80 @@ export class ExecutionEngine {
   }
 
   /** Aggregated runtime status for the IPC status API / Instance Monitor strip. */
+  /**
+   * Apply user-configured host concurrency caps (from Settings) over the env/default limits. Pushed in
+   * from the main process (the src/ core never reads app settings). Safe to call at startup, on every
+   * settings save, and before each run; a `maxBrowsersPerHost` change only resizes the slot pool while
+   * it is idle (see BrowserWorkerPool.reconfigure). `maxActiveFlows` takes effect immediately.
+   */
+  public configureConcurrency(overrides: Partial<ConcurrencyLimits>): void {
+    this.browserPool.reconfigure(overrides);
+    // Keep the shared pool's sizing in step with the live limits (Phase A5).
+    const limits = this.browserPool.concurrencyLimits;
+    this.sharedBrowserPool.setOptions({
+      maxBrowsers: limits.maxBrowsersPerHost,
+      maxContextsPerBrowser: limits.maxContextsPerBrowser,
+      maxContextsPerBrowserHardLimit: limits.maxContextsPerBrowserHardLimit,
+      recycleAfterContexts: limits.browserRecycleAfterContexts
+    });
+    this.operationLimiters.configure({
+      browserLaunch: limits.maxConcurrentBrowserLaunches,
+      contextCreation: limits.maxConcurrentContextCreations,
+      navigation: limits.maxConcurrentNavigations,
+      download: limits.maxConcurrentDownloads,
+      screenshot: limits.maxConcurrentScreenshots
+    });
+    this.adaptive.updateThresholds(this.buildAdaptiveThresholds(limits));
+    // A configuration change is an intentional operator action (not pressure): the target jumps to the
+    // new ceiling immediately rather than crawling there.
+    this.adaptive.setCeiling(limits.maxActiveFlows);
+  }
+
+  /**
+   * Phase B1: record the machine identity for runs started from now on (pushed by the main process,
+   * which owns machine detection). Merged into each run's durable row so reports can filter/compare by
+   * machine. Best-effort — an unset context just leaves the machine columns NULL ("Unknown" in reports).
+   */
+  public setMachineRunContext(context: MachineRunContext): void {
+    this.machineRunContext = { ...context };
+  }
+
+  /** Machine-context columns for a run starting now: static identity + live pool/cap/memory readings. */
+  private buildRunMachineContext(): Partial<MachineRunContext> {
+    const limits = this.browserPool.concurrencyLimits;
+    return {
+      ...this.machineRunContext,
+      browserPoolMode: limits.useSharedBrowserPool ? "shared" : "dedicated",
+      configuredConcurrency: this.machineRunContext.configuredConcurrency ?? limits.maxActiveFlows,
+      availableMemoryMbAtStart: this.machineRunContext.availableMemoryMbAtStart ?? Math.round(os.freemem() / (1024 * 1024))
+    };
+  }
+
+  /** Map the live concurrency limits into the adaptive controller's threshold config. */
+  private buildAdaptiveThresholds(limits: ConcurrencyLimits): AdaptiveThresholds {
+    return {
+      enabled: limits.adaptiveConcurrency,
+      growStep: limits.adaptiveGrowStep,
+      shrinkStep: limits.adaptiveShrinkStep,
+      cooldownMs: limits.adaptiveCooldownMs,
+      healthyCpuPercent: limits.adaptiveHealthyCpuPercent,
+      healthyMemoryPercent: limits.adaptiveHealthyMemoryPercent,
+      pressureCpuPercent: limits.maxCpuPercent,
+      pressureMemoryPercent: limits.maxSystemMemoryPercent,
+      pressureFreeMemoryMb: limits.minFreeMemoryMb,
+      pressureEventLoopMs: limits.adaptivePressureEventLoopMs,
+      criticalCpuPercent: limits.adaptiveCriticalCpuPercent,
+      criticalMemoryPercent: limits.adaptiveCriticalMemoryPercent,
+      criticalEventLoopMs: limits.adaptiveCriticalEventLoopMs,
+      criticalCrashes: limits.maxRecentCrashes
+    };
+  }
+
   public async getRuntimeStatus(): Promise<RuntimeStatusSnapshot> {
+    // Keep host resource sampling live even with no active run so the Chrome Consumption gauges show
+    // system RAM/CPU at idle instead of a permanent "sampling…". start() is idempotent, primes the
+    // first sample synchronously, and the timer is unref'd/best-effort — a no-op once a run started it.
+    this.sampler.start();
     const durableLocks = await this.durableLockStore?.snapshot().catch(() => undefined);
     return buildRuntimeStatus({
       capacity: this.getCapacitySnapshot(),
@@ -300,6 +435,18 @@ export class ExecutionEngine {
 
   getTelemetryWorkflows(range: TelemetryRange): WorkflowReportRow[] {
     return this.durableStore.queryWorkflows(range);
+  }
+
+  getTelemetryWorkflowComparison(range: TelemetryRange, machineFilter?: MachineFilter): WorkflowComparisonRow[] {
+    return this.durableStore.queryWorkflowComparison(range, machineFilter);
+  }
+
+  getTelemetryWorkflowTrend(scenarioId: string | undefined, range: TelemetryRange, buckets: number, machineFilter?: MachineFilter): WorkflowTrend {
+    return this.durableStore.queryWorkflowTrend(scenarioId, range, buckets, machineFilter);
+  }
+
+  getTelemetryMachines(range: TelemetryRange): MachineSummary[] {
+    return this.durableStore.listRunMachines(range);
   }
 
   getTelemetryRunHistory(range: TelemetryRange, page: TelemetryPage, filter?: RunHistoryFilter): RunHistoryPage {
@@ -455,6 +602,31 @@ export class ExecutionEngine {
     }).catch(() => undefined);
   }
 
+  /**
+   * Phase A8 — admission weight for one instance, computed once from its static config + flows and
+   * cached for the instance's lifetime (weight never changes mid-run). `traceOrVideo` comes from the
+   * live trace mode. Only consulted when limits.workloadWeights is enabled.
+   */
+  private instanceWeight(instance: InstanceRuntimeState, flows: FlowProfile[]): number {
+    const cached = this.instanceWeights.get(instance.instanceId);
+    if (cached !== undefined) return cached;
+    const features = extractWorkloadFeatures(instance.config, flows, { traceOrVideo: loadTraceMode() === "always" });
+    const weight = computeWorkloadWeight(features, DEFAULT_WORKLOAD_WEIGHT_CONFIG);
+    this.instanceWeights.set(instance.instanceId, weight);
+    return weight;
+  }
+
+  /** Total weighted cost of every starting/running instance across ALL runs (Phase A8). */
+  private activeWeightedCost(): number {
+    let total = 0;
+    for (const instance of this.pool.list()) {
+      if (!["starting", "running"].includes(instance.status)) continue;
+      const flows = this.runContexts.get(instance.executionId)?.flows ?? [];
+      total += this.instanceWeight(instance, flows);
+    }
+    return total;
+  }
+
   private async processQueue(
     executionId: string,
     profile: ConcurrentRunProfile,
@@ -489,6 +661,8 @@ export class ExecutionEngine {
         await reportService.writeReport(finalReport);
         const store = createReportStore();
         await store.import({ ...finalReport, id: executionId });
+        // Phase A5: close shared browsers that no other run is still using (idle → no lingering Chromium).
+        await this.sharedBrowserPool.drainIdle().catch(() => undefined);
         break;
       }
 
@@ -504,7 +678,21 @@ export class ExecutionEngine {
       const allInstances = this.pool.list();
       const activeGlobal = allInstances.filter((i) => ["starting", "running"].includes(i.status)).length;
       const queuedGlobal = allInstances.filter((i) => ["queued", "pending"].includes(i.status)).length;
-      const admission = this.backpressure.admit(activeGlobal, queuedGlobal);
+      // Phase B1: track this run's peak simultaneously-active instance count (written at instance end).
+      const execActive = allInstances.filter((i) => i.executionId === executionId && ["starting", "running"].includes(i.status)).length;
+      this.executionPeakConcurrency.set(executionId, Math.max(this.executionPeakConcurrency.get(executionId) ?? 0, execActive));
+      // Phase A7: fold live host pressure into the effective flow cap (grows slowly when healthy,
+      // shrinks under CPU/memory/event-loop/crash pressure — including load from other apps).
+      const sample = this.sampler.latest;
+      const adaptiveTarget = this.adaptive.evaluate({
+        cpuPercent: sample?.cpuPercent,
+        systemMemoryPercent: sample?.systemMemoryPercent,
+        freeMemoryMb: Math.round(os.freemem() / (1024 * 1024)),
+        eventLoopDelayMs: sample?.eventLoopDelayMs,
+        recentCrashes: this.browserPool.recentCrashCount(),
+        queueDepth: queuedGlobal
+      }).target;
+      const admission = this.backpressure.admit(activeGlobal, queuedGlobal, adaptiveTarget);
       if (!admission.allow) {
         if (admission.reason !== this.lastThrottleReason) {
           this.lastThrottleReason = admission.reason;
@@ -520,9 +708,31 @@ export class ExecutionEngine {
       const newlyStarted = started.filter(i => i.status === "running" && this.pool.get(i.instanceId)?.status === "pending");
 
       for (const instance of newlyStarted) {
-        // One browser process per instance: no free slot → the instance stays pending and is
-        // retried next tick (graceful queueing instead of unbounded Chromium processes).
-        const slot = this.browserPool.tryAcquireSlot(instance.instanceId);
+        // Phase A8 (flag-gated, default OFF): admit against a WEIGHTED budget so heavy instances
+        // (persistent profile / headed / downloads / parallel branches / trace-video) consume more of
+        // the host than light ones. Flag-off skips this — count-based admission is unchanged. Never
+        // deadlocks: an idle host always admits at least one instance (see canAdmitWeighted).
+        const limits = this.browserPool.concurrencyLimits;
+        if (limits.workloadWeights) {
+          const activeWeight = this.activeWeightedCost();
+          const candidateWeight = this.instanceWeight(instance, flows);
+          const budget = weightedBudget(limits.maxActiveFlows, limits.workloadWeightBudgetPerFlow);
+          if (!canAdmitWeighted(activeWeight, candidateWeight, budget)) {
+            const reason = `weighted budget reached (active ${activeWeight.toFixed(2)} + ${candidateWeight.toFixed(2)} > ${budget.toFixed(2)})`;
+            if (reason !== this.lastThrottleReason) {
+              this.lastThrottleReason = reason;
+              console.warn(`[backpressure] instance ${instance.instanceId} queued: ${reason}.`);
+            }
+            continue; // stay pending; retried next tick as active weighted cost drains
+          }
+        }
+
+        // Shared-eligible instances (Phase A5, flag-gated) run as an isolated context on a pooled
+        // browser, so they take a non-semaphore "context slot" bounded by maxActiveFlows instead of a
+        // whole-browser permit. Dedicated instances still take a real browser slot; no free slot → the
+        // instance stays pending and is retried next tick (graceful queueing, no unbounded Chromium).
+        const shared = isSharedEligible(instance.config, flows, this.browserPool.concurrencyLimits.useSharedBrowserPool);
+        const slot = shared ? this.browserPool.acquireContextSlot(instance.instanceId) : this.browserPool.tryAcquireSlot(instance.instanceId);
         if (!slot) break;
 
         // Per-origin / per-account semaphores: saturation of one origin/account queues only the
@@ -571,6 +781,8 @@ export class ExecutionEngine {
     this.activeInstanceRunners.set(instance.instanceId, promise);
     return promise.finally(() => {
       this.activeInstanceRunners.delete(instance.instanceId);
+      // A terminal instance no longer consumes weighted budget; drop its cached weight (Phase A8).
+      this.instanceWeights.delete(instance.instanceId);
     });
   }
 
@@ -584,19 +796,28 @@ export class ExecutionEngine {
     preAcquiredSlot?: BrowserWorkerSlot,
     preAcquiredClaims?: LeaseToken[]
   ): Promise<void> {
+    // Shared-eligible? (Phase A5) — decides context-slot vs real browser slot and whether the runner
+    // leases from the shared pool.
+    const shared = isSharedEligible(instance.config, flows, this.browserPool.concurrencyLimits.useSharedBrowserPool);
+
     // Browser slot: the queue path pre-acquires one under admission control; the Repeat path
-    // waits here (bounded) so re-runs also respect the host browser cap.
+    // waits here (bounded) so re-runs also respect the host browser cap. Shared instances take a
+    // non-semaphore context slot (bounded by maxActiveFlows), so they never block on the browser cap.
     let slot = preAcquiredSlot;
     if (!slot) {
-      try {
-        slot = await this.browserPool.acquireSlot(instance.instanceId, 5 * 60_000);
-      } catch (error) {
-        const message = error instanceof BrowserPoolSaturatedError ? error.message : String(error);
-        this.pool.update(instance.instanceId, {
-          status: "failed",
-          runtime: { flowRunStatus: "failed", watchdogNote: message }
-        });
-        return;
+      if (shared) {
+        slot = this.browserPool.acquireContextSlot(instance.instanceId);
+      } else {
+        try {
+          slot = await this.browserPool.acquireSlot(instance.instanceId, 5 * 60_000);
+        } catch (error) {
+          const message = error instanceof BrowserPoolSaturatedError ? error.message : String(error);
+          this.pool.update(instance.instanceId, {
+            status: "failed",
+            runtime: { flowRunStatus: "failed", watchdogNote: message }
+          });
+          return;
+        }
       }
     }
 
@@ -663,7 +884,9 @@ export class ExecutionEngine {
       status: "running",
       flowRunStatus: machine.status,
       startedAt: runStartedAtIso,
-      queueWaitMs
+      queueWaitMs,
+      // Phase B1: stamp the run with its machine context so reports can filter/compare by machine.
+      ...this.buildRunMachineContext()
     });
     runLogger.log({
       runId: instance.executionId,
@@ -683,8 +906,13 @@ export class ExecutionEngine {
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),
+      onRuntimeClosing: ({ generation }) => this.browserPool.markExpectedClose(slot!, generation),
       cancellation: cancelSource.token,
-      originClaims
+      originClaims,
+      // Phase A5: only shared-eligible instances lease from the shared Chromium pool.
+      sharedBrowserPool: shared ? this.sharedBrowserPool : undefined,
+      // Phase A6: stagger expensive operations across every instance.
+      operationLimiters: this.operationLimiters
     });
 
     let runError: string | undefined;
@@ -787,7 +1015,9 @@ export class ExecutionEngine {
         retryCount,
         error: runError,
         errorClass: endErrorClass,
-        reportCategory: runError ? toReportCategory(endErrorClass) : undefined
+        reportCategory: runError ? toReportCategory(endErrorClass) : undefined,
+        // Phase B1: the peak simultaneous instance count observed for this run (reporting).
+        observedPeakConcurrency: this.executionPeakConcurrency.get(instance.executionId)
       });
       void this.durableStore.persistNow();
       runLogger.log({

@@ -1,6 +1,6 @@
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
-import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import { isWorkflowFlowNode, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 /**
  * Renderer-side adapter that turns the live instance state + workflow definition + (for finished
@@ -88,6 +88,44 @@ export interface LiveExecutionReport {
 
 type StoredReport = ConcurrentRunReport & { id: string };
 
+/** A workflow's historical per-run duration baseline (from the telemetry read-model). */
+export interface WorkflowHistoryBaseline {
+  avgMs?: number;
+  p95Ms?: number;
+  runs: number;
+  /** True when scoped to the current machine; false when it falls back to all machines. */
+  machineScoped: boolean;
+}
+
+export interface HistoryComparison {
+  tone: "ahead" | "behind" | "neutral";
+  label: string;
+}
+
+/**
+ * Compare a run's elapsed time to its workflow's historical per-run average (B4 live-vs-history).
+ * For a *live* run the elapsed is partial, so we only flag it once it exceeds the average
+ * ("N% over avg") and otherwise report progress toward it ("at N% of avg"). For a *finished* run we
+ * report the final over/under vs the average. Returns undefined when there is no usable baseline.
+ */
+export function compareElapsedToHistory(
+  elapsedMs: number | undefined,
+  baseline: WorkflowHistoryBaseline | undefined,
+  live: boolean
+): HistoryComparison | undefined {
+  if (!baseline || baseline.avgMs == null || baseline.avgMs <= 0) return undefined;
+  if (elapsedMs == null || elapsedMs <= 0) return undefined;
+  const ratio = elapsedMs / baseline.avgMs;
+  const overPct = Math.round((ratio - 1) * 100);
+  if (live) {
+    if (ratio <= 1) return { tone: "neutral", label: `at ${Math.round(ratio * 100)}% of avg` };
+    return { tone: "behind", label: `${overPct}% over avg` };
+  }
+  if (overPct <= -5) return { tone: "ahead", label: `${Math.abs(overPct)}% faster than avg` };
+  if (overPct >= 5) return { tone: "behind", label: `${overPct}% slower than avg` };
+  return { tone: "neutral", label: "about average" };
+}
+
 const ACTIVE_STATUSES = new Set(["pending", "queued", "starting", "running", "paused", "waitingForManualAction", "stopping", "cleaningUp"]);
 const TERMINAL_STATUSES = new Set(["completed", "done", "succeeded", "failed", "cancelled", "skipped", "stopped", "error"]);
 
@@ -102,7 +140,7 @@ function logLevel(level: string): ExecutionReportEvent["level"] {
 }
 
 function flowLabel(workflow: WorkflowProfile | undefined, flowId: string): string {
-  const node = workflow?.nodes.find((n) => n.flowId === flowId);
+  const node = workflow?.nodes.filter(isWorkflowFlowNode).find((n) => n.flowId === flowId);
   return node?.alias || flowId;
 }
 
@@ -236,7 +274,7 @@ export function buildLiveExecutionReport(
     if (liveSnapshot.currentStepId) currentStepId = `${liveSnapshot.currentFlowId ?? ""}:${liveSnapshot.currentStepId}`;
     hasDetailed = true;
   } else if (workflow) {
-    const ordered = [...workflow.nodes].sort((a, b) => a.order - b.order);
+    const ordered = workflow.nodes.filter(isWorkflowFlowNode).sort((a, b) => a.order - b.order);
     steps = ordered.map((node, index) => {
       let status: ExecutionStepStatus = "pending";
       if (instance.status === "completed") status = "succeeded";

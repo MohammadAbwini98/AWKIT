@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { PanelRightClose, PanelRightOpen, SlidersHorizontal, Trash2 } from "lucide-react";
-import type { Node } from "@xyflow/react";
+import type { CanvasNode as Node } from "../canvas";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { getNodeDefinition } from "./flowNodeRegistry";
@@ -231,7 +231,15 @@ export function FlowNodePropertiesPanel({
                   <div className={`locator-quality ${data.locatorQuality.isUnique ? "ok" : "warn"}`}>
                     <strong>
                       {data.locatorQuality.isUnique
-                        ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence`
+                        ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence${
+                            data.locatorQuality.disambiguation === "container"
+                              ? " · scoped to container"
+                              : data.locatorQuality.disambiguation === "compound"
+                                ? " · compound selector"
+                                : data.locatorQuality.disambiguation === "positional"
+                                  ? " · positional fallback"
+                                  : ""
+                          }`
                         : `Locator warning: matches ${data.locatorQuality.matchCount} elements`}
                     </strong>
                     {data.locatorQuality.warning ? <span>{data.locatorQuality.warning}</span> : null}

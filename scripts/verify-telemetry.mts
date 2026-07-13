@@ -56,19 +56,20 @@ async function main(): Promise<void> {
   console.log("Telemetry read-model verification");
   const root = await mkdtemp(join(tmpdir(), "wfs-telemetry-"));
 
-  console.log("\nPart A — v1 → v2 in-place upgrade");
+  console.log("\nPart A — v1 → v2 → v3 in-place upgrade");
   const upgradePath = join(root, "upgrade.sqlite");
   await writeV1OnlyDatabase(upgradePath);
   const upgraded = await SqliteRuntimeStore.open(upgradePath, () => undefined);
   const migrations = upgraded.appliedMigrations();
   check(
-    "v2 migration applied on top of a v1-only database",
-    migrations.length === 2 && migrations[1].version === 2 && migrations[1].name === "reporting-extensions",
+    "v2 + v3 migrations applied on top of a v1-only database",
+    migrations.length === 3 && migrations[1].version === 2 && migrations[2].version === 3 && migrations[2].name === "machine-run-context",
     JSON.stringify(migrations)
   );
   const legacy = upgraded.listRuns(10).find((run) => run.instanceId === "legacy-1");
   check("pre-v2 run row survives the upgrade", legacy?.status === "completed", JSON.stringify(legacy));
   check("pre-v2 row reads new columns as undefined (Unavailable)", legacy !== undefined && legacy.reportCategory === undefined && legacy.durationMs === undefined);
+  check("pre-v3 row reads machine columns as undefined (Unknown)", legacy !== undefined && legacy.machineId === undefined && legacy.observedPeakConcurrency === undefined);
 
   console.log("\nPart B — reporting run-summary fields round-trip");
   upgraded.upsertRun({
@@ -209,9 +210,58 @@ async function main(): Promise<void> {
   check("range filter includes runs within the window", beforeSeed.totalRuns === 6, String(beforeSeed.totalRuns));
   await q.close();
 
+  console.log("\nPart H — machine-aware comparison, trend, and filtering (Phase B1)");
+  const q2 = await SqliteRuntimeStore.open(join(root, "compare.sqlite"), () => undefined);
+  const now = Date.now();
+  const curIso = new Date(now - 30 * 60_000).toISOString(); // in the current window
+  const prevIso = new Date(now - 90 * 60_000).toISOString(); // in the previous window
+  const range1h = { sinceIso: new Date(now - 60 * 60_000).toISOString() };
+  const range2h = { sinceIso: new Date(now - 120 * 60_000).toISOString() };
+  const M1 = { machineId: "M1", executionMode: "auto", workloadClass: "medium", browserPoolMode: "dedicated" };
+  const M2 = { machineId: "M2", executionMode: "manual", workloadClass: "heavy", browserPoolMode: "shared" };
+  const seedM = (id: string, scenarioId: string, status: string, at: string, ctx: typeof M1) =>
+    q2.upsertRun({ instanceId: id, executionId: `e-${id}`, scenarioId, scenarioName: scenarioId, status, startedAt: at, endedAt: at, durationMs: 1000, ...ctx });
+  // Current window: s-X on M1 = 3 passed / 1 failed (rate .75); s-Y on M2 = 1 passed.
+  seedM("x1", "s-X", "completed", curIso, M1);
+  seedM("x2", "s-X", "completed", curIso, M1);
+  seedM("x3", "s-X", "completed", curIso, M1);
+  seedM("x4", "s-X", "failed", curIso, M1);
+  seedM("y1", "s-Y", "completed", curIso, M2);
+  // Previous window: s-X on M1 = 1 passed / 3 failed (rate .25).
+  seedM("px1", "s-X", "completed", prevIso, M1);
+  seedM("px2", "s-X", "failed", prevIso, M1);
+  seedM("px3", "s-X", "failed", prevIso, M1);
+  seedM("px4", "s-X", "failed", prevIso, M1);
+
+  const cmp = q2.queryWorkflowComparison(range1h);
+  const cmpX = cmp.find((r) => r.scenarioId === "s-X");
+  const cmpY = cmp.find((r) => r.scenarioId === "s-Y");
+  check("comparison current-window success rate (.75)", cmpX !== undefined && Math.abs(cmpX.successRate - 0.75) < 1e-9, JSON.stringify(cmpX?.successRate));
+  check("comparison delta vs previous window (+0.5, trend up)", cmpX?.trend === "up" && cmpX?.delta.successRate !== undefined && Math.abs(cmpX.delta.successRate - 0.5) < 1e-9, JSON.stringify(cmpX?.delta));
+  check("comparison attaches representative machine context", cmpX?.machineContext?.machineId === "M1");
+  check("workflow with no previous window → trend 'new', previous undefined, no NaN delta", cmpY?.trend === "new" && cmpY?.previous === undefined && cmpY?.delta.successRate === undefined, JSON.stringify(cmpY));
+  const cmpAll = q2.queryWorkflowComparison({});
+  check("all-time comparison has no prior window (every trend 'new')", cmpAll.length > 0 && cmpAll.every((r) => r.trend === "new"));
+  const cmpM2 = q2.queryWorkflowComparison(range1h, { machineId: "M2" });
+  check("machine filter scopes comparison to that machine", cmpM2.length === 1 && cmpM2[0].scenarioId === "s-Y");
+
+  const trend = q2.queryWorkflowTrend("s-X", range2h, 4);
+  check("workflow trend returns buckets covering all s-X runs", trend.points.length > 0 && trend.points.reduce((s, p) => s + p.totalRuns, 0) === 8, JSON.stringify(trend.points.map((p) => p.totalRuns)));
+  check("workflow trend carries per-bucket success rate", trend.points.every((p) => p.successRate >= 0 && p.successRate <= 1));
+
+  const machines = q2.listRunMachines(range2h);
+  check("listRunMachines returns distinct machines sorted by run count", machines.length === 2 && machines[0].machineId === "M1" && machines[0].runs === 8 && machines.some((m) => m.machineId === "M2" && m.runs === 1), JSON.stringify(machines.map((m) => [m.machineId, m.runs])));
+
+  check("run history machineId filter", q2.queryRunHistory(range2h, {}, { machineId: "M1" }).total === 8);
+  check("run history executionMode filter", q2.queryRunHistory(range2h, {}, { executionMode: "manual" }).total === 1);
+  check("run history workloadClass filter", q2.queryRunHistory(range2h, {}, { workloadClass: "heavy" }).total === 1);
+  check("run history browserPoolMode filter", q2.queryRunHistory(range2h, {}, { browserPoolMode: "shared" }).total === 1);
+  await q2.close();
+
   const nullStore = new NullRuntimeStore();
   check("NullRuntimeStore overview reports storeEnabled=false", nullStore.queryOverview({}).storeEnabled === false);
   check("NullRuntimeStore queries are empty and never throw", nullStore.queryWorkflows({}).length === 0 && nullStore.queryRunHistory({}, {}).total === 0 && nullStore.queryFailures({}).total === 0 && nullStore.queryRuntimeSeries({}, 1000).length === 0);
+  check("NullRuntimeStore machine-aware queries are empty and never throw", nullStore.queryWorkflowComparison({}).length === 0 && nullStore.queryWorkflowTrend("s", {}, 4).points.length === 0 && nullStore.listRunMachines().length === 0);
 
   await upgraded.close();
   await rm(root, { recursive: true, force: true });

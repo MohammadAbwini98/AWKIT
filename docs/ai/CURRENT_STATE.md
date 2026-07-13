@@ -1,6 +1,1061 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-08 (Codex - Flow Designer and Workflow Builder sparse dot canvas match.)
+**Last updated:** 2026-07-13 (Claude — Concurrency Capacity plan: PR-CAP-1 [A1–A4] + shared browser
+pool [A5, flag-guarded] + operation limiters [A6] + adaptive controller [A7] + workload weights
+[A8, flag-guarded] + resource-reduction profiles [A9] + machine-relative benchmark harness [A10] landed.
+Concurrency workstream A complete; reporting workstream B complete — B1 read-model + B2 IPC + B3
+comparison UI + B4 live-vs-history run card all landed.)
+
+## Live-vs-history on the execution report — plan phase B4 (2026-07-13)
+
+The per-instance **Execution Report** (opened from Instance Monitor) now shows the run's elapsed time
+against the workflow's historical **per-run** avg/p95, scoped to the current machine. Renderer + verifier
+only — consumes the existing B2 telemetry channels; no IPC/preload/schema/InstanceMonitor change.
+
+- **Pure helper (`components/instances/executionReportModel.ts`):** `compareElapsedToHistory(elapsedMs,
+  baseline, live)` → `{ tone, label }`. Live runs (partial elapsed) only flag once over avg (`"N% over
+  avg"`) and otherwise report progress (`"at N% of avg"`); finished runs report the final over/under
+  (`"N% faster/slower than avg"`, `"about average"` within ±5%). Returns undefined with no usable baseline.
+  New `WorkflowHistoryBaseline`/`HistoryComparison` types.
+- **Modal (`components/instances/LiveExecutionReportModal.tsx`):** fetches the workflow's baseline once via
+  `telemetry.workflowComparison("all", { machineId })` (machineId from `system.capacityPreview`), **falling
+  back to all-machines** when the current machine has no history (e.g. only pre-v3 runs). The elapsed is
+  compared apples-to-apples (single-instance elapsed vs per-run history). Shows a `vs history: avg … · p95 …`
+  banner line with a tone chip (`ahead`/`behind`/`neutral`) + scope/run-count caption, and `History avg` /
+  `History p95` stat cards + a delta hint on the Elapsed card.
+- **Styling (`global.css`):** `.report-history-vs`, `.report-vs-chip.tone-{ahead,behind,neutral}` (token-only).
+- **Verified:** `npm run build` clean; `verify:instance-monitor` **43/43** (adds 8 `compareElapsedToHistory`
+  cases: no/zero baseline, live under/over avg, finished faster/slower, ±5% about-average); real Electron
+  capture (3-run history) showed the machine-scoped `vs history: avg 4s · p95 4s · 18% slower than avg ·
+  this machine · 3 runs` line + stat cards with **0 console errors**; `verify:instance-monitor-gui` **12/12**
+  (real 4-instance run, no renderer errors).
+- **Note:** the baseline is blank for a workflow with no completed runs on the current machine (and, absent
+  any history at all, hidden entirely).
+
+## Workflow Reports comparison UI + machine filters — plan phase B3 (2026-07-13)
+
+Surfaces the B1/B2 machine-aware read-model in the renderer. Renderer + verifier only — no route, IPC,
+preload, runner, or schema change (consumes the B2 channels that already existed).
+
+- **UI (`app/renderer/pages/ReportsWorkflows.tsx`):** the Workflow Reports table now loads
+  `telemetry.workflowComparison(range, machineFilter)` (was `telemetry.workflows`), so each row carries its
+  **previous-window comparison**. New per-metric **delta chips** (▲/▼ vs the previous window) on Runs /
+  Success / Avg / p95, colored by *goodness* (higher success = green, lower duration = green; Runs is
+  neutral); a **trend glyph** (up/down/flat/`new`) beside the workflow name; a per-row **success-rate
+  sparkline** (lazily queries `telemetry.workflowTrend` per workflow, reusing `MetricSparkline`); and a
+  compact **machine-context caption** (mode · pool · class · cores · short machineId) under each name when
+  the run carried machine context (NULL for pre-v3 runs).
+- **Machine filter bar:** Machine / Mode / Browsers (pool) / Workload selects, options built from
+  `telemetry.machines(range)`; a "This machine" shortcut resolved from `system.capacityPreview()`
+  (`capabilities.machineId`). Filters flow into the comparison, trend, and recent-runs queries so a
+  cross-machine set is never silently averaged.
+- **Compare mode:** a toggle adds a checkbox column; picking 2–4 workflows renders a side-by-side card grid
+  (per-workflow sparkline + Runs/Success/Avg/p95 with the same delta chips + machine context).
+- **Styling (`global.css`):** new token-only classes (`.awkit-report-filters`, `.awkit-filter-field/-toggle`,
+  `.awkit-delta-chip.is-{up,down,neutral}`, `.awkit-trend-{up,down,flat}`, `.awkit-trend-badge.is-new`,
+  `.awkit-wf-name/-machine`, `.awkit-compare-grid/-card/-stats`, select/checkbox cells); new columns stay
+  inside `.awkit-table-wrap`; `prefers-reduced-motion` honored.
+- **Verified:** `npm run build` clean; `verify:reports` (GUI) **31/31** (adds filter-bar renders 4 selects,
+  filter select interactive + page stable, Compare toggle present/clickable + valid post-toggle state, no
+  telemetry/undefined console errors); real Electron capture visually confirmed delta chips + sparkline +
+  trend glyph render with live data. Regression `verify:ipc-contract` **4/4**, `verify:telemetry` **54/54**.
+- **Not yet done:** B4 (optional live-vs-history on the Instance Monitor run card). Machine-context captions
+  stay blank until v3 runs accrue (historical runs predate the machine columns).
+
+## Machine-aware report IPC + preload — plan phase B2 (2026-07-13)
+
+Exposes the B1 read-model to the renderer. Additive channels only; existing telemetry channels untouched.
+
+- **IPC (`telemetry.ipc.ts`):** new `telemetry:workflowComparison(preset, machineFilter?)`,
+  `telemetry:workflowTrend(scenarioId, preset, machineFilter?)` (bucket count derived per preset via
+  `trendBucketsForPreset`), and `telemetry:machines(preset)` → delegate to new
+  `ExecutionEngine.getTelemetryWorkflowComparison` / `getTelemetryWorkflowTrend` / `getTelemetryMachines`.
+- **Preload (`preload.ts`):** `telemetry.workflowComparison` / `workflowTrend` / `machines` exposed on the
+  bridge; the renderer's `window.playwrightFlowStudio` type derives from the preload export automatically.
+- **Verified:** `npm run build` clean; `verify:ipc-contract` **4/4** (121 handlers / 98 exposed / 23
+  backend-only — the 3 new channels each have exactly one handler AND are exposed).
+- **Not yet done:** B3 (Workflow Reports comparison UI + machine filters), B4 (optional live-vs-history run card).
+
+## Machine-aware report read-model — plan phase B1 (2026-07-13)
+
+Runs now carry their **machine context** so reports can be filtered and compared BY machine (cross-machine
+runs are never silently averaged together), plus a per-workflow **current-vs-previous-window** comparison
+and a **run-over-run trend**. Read-model + persistence only — no IPC/UI yet (B2/B3).
+
+- **Migration v3 (`RuntimeStoreSchema.ts`):** additive nullable columns on `runtime_runs` — `machineId`,
+  `logicalCpuCount`, `totalMemoryMb`, `availableMemoryMbAtStart`, `executionMode`, `browserPoolMode`,
+  `configuredConcurrency`, `observedPeakConcurrency`, `workloadClass`, `capacityRecommendationAtRun` + an
+  `idx_runs_machine` index. v1/v2 DBs upgrade in place; pre-v3 rows read the columns as `undefined`
+  ("Unknown"). `DurableRunRecord` + `upsertRun` extended to persist them.
+- **Contracts (`TelemetryContracts.ts`):** `MachineRunContext`, `MachineFilter`, `WorkflowComparisonRow`
+  (= `WorkflowReportRow` + `previous`/`delta`/`trend`/`machineContext`), `WorkflowTrend`/`WorkflowTrendPoint`,
+  `MachineSummary`; `RunHistoryFilter` now extends `MachineFilter`; `machineContextFromRun` helper.
+- **Store (`SqliteRuntimeStore.ts`):** `queryWorkflowComparison(range, machineFilter?)` (half-open windows
+  — current `[since, now)` vs previous `[since−len, since)`; all-time → no prior window, `trend: "new"`;
+  deltas are `current − previous`, undefined not NaN when a side is missing), `queryWorkflowTrend(scenarioId,
+  range, buckets, machineFilter?)`, `listRunMachines(range?)`; `queryRunHistory` honors machine/mode/pool/
+  class filters. Workflow aggregation refactored into a shared `aggregateWorkflows`. `RuntimeStore`
+  interface + `NullRuntimeStore` stubs added.
+- **Write path (`ExecutionEngine` + `capacityService` + `execution.ipc`):** `setMachineRunContext` (pushed
+  by the main process, which owns machine detection via `buildMachineRunContext`) is stamped onto each run
+  at the run-start `upsertRun` seam (with live pool mode / configured cap / available memory); the run's
+  peak simultaneous instance count is tracked in `processQueue` and written at run end. Best-effort — an
+  unset/failed context just leaves the machine columns NULL.
+- **Verified:** `npm run build` clean; `verify:telemetry` **54/54** (v1→v2→v3 in-place upgrade, machine
+  columns NULL for pre-v3 rows, comparison window split + delta signs + trend + empty→`new`/no-NaN, machine
+  filter scoping, trend buckets, `listRunMachines`, run-history machine/mode/class/pool filters); regression
+  `verify:runner` **82/82** (run write path unregressed).
+- **Follow-ups (now):** B2 IPC/preload landed (see section above). B3 (Workflow Reports comparison UI +
+  machine filters), B4 (optional live-vs-history on the run card) remain.
+
+## Machine-relative benchmark harness — plan phase A10 (2026-07-13)
+
+## Machine-relative benchmark harness — plan phase A10 (2026-07-13)
+
+Calibrates THIS machine's real sustainable capacity by ramping concurrency through **machine-relative
+stages** (scaled from the detected recommendation `R` and safety ceiling — never a fixed 4→32 sequence),
+holding each stage under real Chromium load, and stopping at the first stage that trips a health stop
+condition. Heavy + **opt-in** — behind an explicit npm script, never automatic.
+
+- **`src/runner/concurrency/BenchmarkPlanner.ts` (pure, unit-tested):** `generateBenchmarkStages(R,
+  ceiling)` → distinct ascending integers in `[1, ceiling]` (ramp 0.25/0.5/0.75/1.0×R, 1.25×R overshoot,
+  then gradual growth up to the ceiling; small machines run `1→2→3→4`, larger run higher — all computed);
+  `evaluateStopConditions(sample, thresholds)` trips on sustained/P95 CPU, free-memory reserve, memory %,
+  event-loop delay, error rate, browser/renderer crashes, queue delay, and P95-latency regression, and
+  **ignores missing telemetry** (partial signals still benchmark); `productionApprovedCapacity` keeps a
+  margin BELOW the highest sustainable stage; `summarizeBenchmark` takes the **contiguous** sustainable
+  run (first failure ends the ramp — a later lucky pass can't inflate it); `applyBenchmarkToProfile`
+  adopts the measured capacity/estimates, records the benchmark id, and clears `requiresRecalibration`.
+- **`scripts/benchmark-concurrency.mts` (heavy driver, `npm run benchmark:concurrency`):** detects the
+  machine, plans R + ceiling + stages, drives N concurrent mock-site navigation loops per stage, samples
+  host health (`ResourceSampler`), evaluates stop conditions, writes a JSON artifact under
+  `<runtimeRoot>/runtime/benchmarks/` and folds the result into the machine capacity profile
+  (`benchmarkTestedCapacity`, `productionApprovedCapacity`, per-instance estimates). A
+  `AWKIT_BENCHMARK_PLAN_ONLY=1` / `--plan` dry-run prints the machine + planned stages without launching
+  browsers.
+- **Verified:** `npm run build` clean; new `verify:benchmark-planner` **36/36** (stage scaling +
+  normalization + ceiling clamp + maxStages bound, each stop threshold, missing-telemetry no-stop,
+  production margin, contiguous-sustainable summary, profile application); plan-only harness smoke on a
+  12-CPU/16-GB host printed machine-relative stages. **Not run: the full live benchmark — a true
+  production cap requires a clean-machine run (external gate).**
+- **Not yet done:** consume `benchmarkTestedCapacity`/`productionApprovedCapacity` in Auto mode + the
+  Settings capacity preview; wire per-instance measured estimates back into the planner seed overrides.
+
+## Resource-reduction profiles — plan phase A9 (2026-07-13)
+
+Per-run knobs to cut per-instance cost without changing defaults: request-blocking **resource profiles**
+(Normal / Lean / Ultra-Lean) plus formal **artifact profiles** (Production / Balanced / Debug / Full).
+**Default is Normal + Balanced = today's exact behaviour** (images are NEVER blocked by default).
+
+- **`src/runner/ResourceRoutingPolicy.ts` (pure + live-tested):** `decideRequest(resourceType, url, cfg)`
+  aborts sub-resources per profile — Lean drops image/media/font, Ultra-Lean also drops stylesheet — with
+  precedence URL-allow > URL-block > type-block (profile defaults ∪ extra, minus allow-list). `*`-glob URL
+  matching; `resolveContextOptions` yields deterministic context options (blocked service workers, reduced
+  motion, fixed device-scale, download opt-out in Ultra-Lean); `loadResourceRoutingConfig(env)` reads
+  `AWKIT_RESOURCE_PROFILE` (+ allow/block-list, service-worker, downloads, device-scale, debug overrides);
+  `installResourceRouting(context, cfg)` installs `context.route` only when active (best-effort — a routing
+  failure lets the request proceed). Images blocked only when a Lean profile is explicitly chosen; an app
+  can force-allow a needed asset by URL pattern.
+- **`src/runner/artifacts/ArtifactProfile.ts` (pure):** `resolveArtifactSettings(profile)` maps Production→
+  trace off, Balanced→trace onFailure (today's default), Debug→trace always, Full→trace always + video;
+  all keep failure screenshots. `loadTraceMode()` now falls back to this (default Balanced → onFailure, so
+  the historical default is unchanged); an explicit `AWKIT_TRACE_MODE` still wins.
+- **Wiring (`BrowserContextFactory`):** resolves the routing config once (env when unset), folds the
+  profile's context options into all three context paths (persistent / shared-pool / dedicated isolated)
+  via `buildContextOptions`, and installs request routing on each created context. Normal profile = the
+  historical `{ acceptDownloads: true, viewport }` + no `context.route`.
+- **Verified:** `npm run build` clean; new `verify:resource-routing` **42/42** (decisions, precedence,
+  overrides, glob, context options, env parsing, artifact mapping) + `verify:lean-mode` **12/12** (real
+  Chromium: Normal loads all, Lean aborts image, Ultra-Lean aborts image+stylesheet, DOM text intact,
+  allow-list rescue); regression `verify:runner` **82/82** (Normal path unregressed), `verify:concurrency`
+  **78/78**.
+- **Not yet done:** a dedicated Mock Site Lean/downloads scenario (the live proof uses a self-contained
+  temp server); Settings UI to pick resource/artifact profiles per run; wiring the `video`/`screenshotOn
+  Failure` artifact-profile fields beyond trace (trace is wired; the others are resolved but not yet
+  consumed).
+
+## Workload-aware capacity + scheduler weights — plan phase A8 (2026-07-13)
+
+Admission stops treating every instance as one identical "flow". Each instance gets a relative **weight**
+(a persistent-profile / headed / download / parallel-branch / trace-video flow costs more than a plain
+isolated context), and — when enabled — dispatch is admitted against a **weighted budget**
+(`maxActiveFlows × budgetPerFlow`) instead of a raw active count, so a few heavy instances weigh as much
+as several light ones. **Experimental, gated by `AWKIT_WORKLOAD_WEIGHTS` (default OFF); flag-off is the
+exact count-based admission as before.**
+
+- **`src/runner/concurrency/WorkloadWeights.ts` (pure, unit-tested):** `extractWorkloadFeatures(config,
+  flows, ctx)` reads static signals (headed, persistent profile, browser-swap nodes, navigation/download/
+  upload/screenshot counts, full-page shot, popups, parallel branches, nested flows, loops, node count,
+  trace/video); `computeWorkloadWeight` is additive from a `baseWeight` of 1.0, monotonic, clamped to
+  `[base, maxWeight]`; `classifyWorkload` maps weight → `light|medium|heavy`, **rounding UP on ambiguity**
+  (never under-classify a costly flow); `weightedBudget` + `canAdmitWeighted` drive admission and **never
+  deadlock** (an idle host always admits ≥ 1 instance even if it alone exceeds budget). All seeds live in
+  one `DEFAULT_WORKLOAD_WEIGHT_CONFIG` (configurable, superseded by measurement in A10). Weight is an
+  ADMISSION concept, kept separate from the A5 physical context budget (no double counting).
+  `buildWorkloadRecommendation` tags per-class recommendations `unmeasured → estimated → benchmarked`.
+- **Wiring:** `ConcurrencyConfig` gained `workloadWeights` (bool, `AWKIT_WORKLOAD_WEIGHTS`, default OFF) +
+  `workloadWeightBudgetPerFlow` (`AWKIT_WORKLOAD_WEIGHT_BUDGET_PER_FLOW`, default 1.0). `ExecutionEngine`
+  caches a per-instance weight (`instanceWeights`, dropped when the runner settles) and, in the dispatch
+  loop only when the flag is on, gates each candidate on `canAdmitWeighted(activeWeightedCost, candidate,
+  budget)` before acquiring a browser/context slot; a blocked candidate stays pending and is retried next
+  tick. No change to the browser-slot semaphore or the A5/A6/A7 paths.
+- **Verified:** `npm run build` clean; new `verify:workload-weights` **53/53** (extraction, weight
+  monotonicity + clamp, classification boundaries + round-up, budget math, admission incl. no-deadlock,
+  confidence transitions); regression `verify:concurrency` **78/78**, `verify:adaptive-concurrency`
+  **14/14**, `verify:operation-limiters` **10/10**.
+- **Not yet done:** per-class capacity surfaced in the Settings preview / IPC (the recommendation builder
+  exists but is not yet consumed by the UI); history-driven weight/class calibration (A10 benchmark feed).
+
+## Adaptive concurrency controller — plan phase A7 (2026-07-13)
+
+Lowers the live active-flow target under REAL host pressure (CPU / memory / event-loop delay / crash
+rate — including load from OTHER apps) and recovers gradually. **Purely protective: with no pressure the
+target sits at the configured cap, so steady-state behavior is unchanged** (no slow-ramp surprise).
+
+- **`src/runner/concurrency/AdaptiveController.ts`:** maintains a target in `[1, ceiling]`; classifies
+  `healthy`/`stable`/`pressure`/`critical` from an injected health sample; **grows slowly** (step 1,
+  only when there is queued work AND positive healthy evidence) and **shrinks fast** (step 2) under
+  critical pressure; `pressure` freezes growth; a cooldown between changes prevents oscillation.
+  `setCeiling()` jumps the target to a new cap immediately (an operator reconfig is not pressure). Pure +
+  unit-tested. Missing samples → hold (never grow without evidence).
+- **Event-loop signal (`ResourceSampler.ts`):** added `eventLoopDelayMs` (passive `monitorEventLoopDelay`
+  histogram, unref'd) to the sample — a main-thread-saturation indicator feeding pressure/critical.
+- **Wiring:** `ConcurrencyConfig` gained `adaptiveConcurrency` (default ON, `AWKIT_ADAPTIVE_CONCURRENCY`)
+  + grow/shrink/cooldown + healthy/critical CPU-mem-eventloop thresholds (pressure thresholds reuse the
+  existing `maxCpuPercent`/`maxSystemMemoryPercent`/`minFreeMemoryMb`). `BackpressureController.admit`
+  takes an optional `effectiveMaxFlows` (the adaptive target, clamped ≤ `maxActiveFlows`); `CapacitySnapshot`
+  gained `adaptiveTarget`/`adaptiveState` (additive → surfaced in `getRuntimeStatus`). `ExecutionEngine`
+  owns the controller, evaluates it each dispatch tick with the live sample + crash count + queue depth,
+  passes the target to `admit`, and re-seeds the ceiling in `configureConcurrency`. It never touches the
+  browser-slot semaphore (idle-only resize preserved).
+- **Verified:** `npm run build` clean; new `verify:adaptive-concurrency` **14/14** (grow/hold/shrink,
+  cooldown, `[1,ceiling]` bounds, recover-after-spike, event-loop + crash → critical, empty-queue no-grow,
+  setCeiling jump, unknown-sample hold); regression `verify:concurrency` **78/78**, `verify:resource-sampling`
+  **14/14**, `verify:runtime-status` **15/15**, `verify:operation-limiters` 10/10, `verify:runner` 82/82.
+- **Follow-up:** Instance Monitor strip could show `adaptiveState`/`adaptiveTarget` (fields are already in
+  the status; UI wiring deferred).
+
+
+## Operation limiters — plan phase A6 (2026-07-13)
+
+Independent, configurable caps on how many of each EXPENSIVE operation run at once across ALL instances,
+so peak concurrency ≠ peak simultaneous spikes (the guide's "stagger expensive operations"). Active by
+default (no flag) with conservative caps; adds no behavior change beyond staggering.
+
+- **`src/runner/concurrency/OperationLimiters.ts`:** five `Semaphore`-backed kinds — `browserLaunch` (2),
+  `contextCreation` (4), `navigation` (8), `download` (3), `screenshot` (2). `run(kind, fn)` holds a
+  permit only around the raw Playwright call (released in `finally` — never across a wait/handoff, so no
+  deadlock). `configure()` swaps a kind's semaphore; in-flight ops finish on their old instance, so a
+  resize is safe any time. All caps env-overridable (`AWKIT_MAX_CONCURRENT_*`) — none machine-specific.
+- **Wiring:** `ConcurrencyConfig` gained the five `maxConcurrent*` fields; `BrowserContextFactory` wraps
+  `launch`/`launchPersistentContext` (browserLaunch) + `newContext` (contextCreation) for shared AND
+  dedicated paths; `StepExecutor` wraps the two `goto` sites (navigation), `download.saveAs` (download),
+  and both `takeScreenshot` calls (screenshot) via a `limitOp` helper (15th ctor param, threaded from
+  `PlaywrightRunner` at both StepExecutor construction sites). `ExecutionEngine` owns one `OperationLimiters`,
+  sizes it live in `configureConcurrency`, and passes it to every runner. **Sequential mode pins all five
+  to 1** (`applyRuntimeConcurrencyFromSettings`), so parallel branches within one instance also serialize.
+- **Verified:** `npm run build` clean; new `verify:operation-limiters` **10/10** (per-kind cap never
+  exceeded under a 12-op burst, kind independence, finally-release on throw, live reconfigure, Sequential
+  serializes); regression: `verify:runner` **82/82** (real Chromium — wrapped goto/screenshot/download
+  unregressed), `verify:waits` **21/21**, `verify:concurrency` **78/78**, shared-pool 18/18 + live 5/5.
+
+
+## Shared Chromium browser pool — plan phase A5 (2026-07-13, experimental, default OFF)
+
+Lets many isolated `browserContext` instances share a few Chromium processes instead of one process per
+instance. **Gated by `AWKIT_SHARED_BROWSER_POOL` (default off) → flag-off behavior is byte-for-byte
+identical** (proven: browser-pool 25/25, concurrency 78/78, runner 82/82 all unregressed).
+
+- **`src/runner/browser/SharedBrowserPool.ts`:** owns shared `Browser` objects, leases isolated
+  contexts, spreads across browsers (crash isolation) up to `maxBrowsers` then packs to a hard
+  per-browser context limit, selects least-loaded healthy browsers, drops+replaces crashed browsers,
+  recycles a browser after N contexts (drain then close), `drainIdle`/`closeAll`, snapshot. Injectable
+  launcher → unit-testable without Chromium.
+- **`src/runner/browser/browserSharing.ts`:** `isSharedEligible` = flag on + `browserContext` isolation
+  + no persistent profile/captured session + no browser-swap node (`autoSecureLogin`/`reuseSession`/
+  `protectedLoginHandoff`). Those **dedicated** instances always keep their own browser. `sharedLaunchKey`
+  keeps headed/headless on separate processes.
+- **Wiring:** `ConcurrencyConfig` gained `useSharedBrowserPool` + recycle/hard-limit fields (env-overridable);
+  `BrowserContextFactory` leases from the pool for the `browserContext` path when a pool is supplied;
+  `BrowserWorkerPool` gained non-semaphore **context slots** (`acquireContextSlot`) so shared instances are
+  bounded by `maxActiveFlows` (+ the pool's browser cap), not by `maxBrowsersPerHost`, and are excluded
+  from the pool-saturation check; `ExecutionEngine` constructs one `SharedBrowserPool` (sized live in
+  `configureConcurrency`), routes eligible instances to context slots + the pool, and `drainIdle`s at run
+  end. `PlaywrightRunner` passes the pool through unchanged. The generation-scoped expected-close/crash
+  logic is preserved (shared context close only closes the context; the browser stays warm).
+- **Verified:** `npm run build` clean; new `verify:shared-browser-pool` **18/18** (packing 16→4 browsers,
+  least-loaded reuse, hard-limit + exhaustion, crash health, recycle+drain, launch-key isolation,
+  eligibility); new `verify:shared-browser-live` **5/5** (REAL Chromium: 4 leased contexts share exactly
+  2 processes, usable, drain closes both); flag-off parity green (browser-pool/concurrency/runner).
+- **Remaining (external gate / follow-ups):** a full flag-ON multi-instance run *through the engine
+  dispatch* against the mock site (heavy; the clean-machine gate) is not yet done — the mechanism + factory
+  lease are proven with real Chromium and flag-off is unregressed. The runtime-status "browsers X/Y" gauge
+  still counts only real (dedicated) slots, not shared browsers (add shared count next). Default stays OFF
+  until the live multi-instance run passes (owner decision D4).
+
+
+
+## Machine-aware Runtime Concurrency modes — plan phase A4 (2026-07-13)
+
+Wires the capacity core (A1–A3, below) into real dispatch + the Settings UI. This is the first slice that
+**changes run behavior**: `Settings → Runtime Concurrency` now chooses **Sequential / Auto / Manual**.
+
+- **Settings schema (`app/main/uiSettings.ts`):** `runtime` gained `capacityMode` (`manual` default for
+  back-compat), `workloadClass`, `administratorMaximumConcurrency`, `absoluteSafetyMaximum` (64),
+  `capacitySafetyFactor` (0.75), `reservedLogicalCpuCount` (1) alongside the legacy `maxBrowsers`/
+  `maxActiveFlows`. Legacy files migrate on read (absent `capacityMode` → `manual`, old numbers preserved
+  as the Manual values). Main + client validation extended.
+- **Mapping (`app/main/capacityService.ts` + `src/runner/concurrency/CapacityContracts.ts`):** the pure
+  `resolveEffectiveConcurrency()` turns a mode into concrete host caps — **sequential** → 1 browser / 1
+  active flow (fully serializes, any machine); **manual** → the explicit numbers; **auto** → the detected
+  machine's benchmark value if present else the conservative recommendation, with a pre-benchmark ceiling
+  for un-benchmarked server-grade hosts (`DEFAULT_UNBENCHMARKED_AUTO_CEILING`). **Every** mode is clamped
+  to the administrator max + absolute safety ceiling (Manual is never unbounded).
+- **Apply seam (`app/main/ipc/execution.ipc.ts`):** `applyRuntimeConcurrencyFromSettings()` now calls
+  `computeEffectiveConcurrency()` (Auto detects the host + refreshes the per-machine profile) → the same
+  `ExecutionEngine.configureConcurrency` seam as before (still startup / on settings save / before each
+  run; browser-slot resize still idle-only).
+- **IPC (`app/main/ipc/system.ipc.ts` + `preload.ts`):** new read-only `system:capacityPreview(workloadClass?)`
+  → `CapacityPreview` (machine specs, recommendation, binding constraint, category, auto vs effective
+  target, recalibration flag). Does not persist the profile. `verify:ipc-contract` green (118/95/23).
+- **UI (`app/renderer/pages/Settings.tsx` + `global.css`):** the Runtime Concurrency card is now a
+  Sequential/Auto/Manual selector with a live "this machine" readout, Auto workload-class picker, Manual
+  inputs + an "exceeds recommended" warning, and an Advanced safety-limits group. Token-only styling.
+- **Verified:** `npm run build` clean; `verify:capacity-modes` **10/10**; `verify:ipc-contract` **4/4**;
+  `verify:settings-persistence` **3/3**; new `verify:capacity-settings-gui` **12/12** (real Electron: live
+  detection on a 12-CPU/16-GB host, all three modes end-to-end, card render, no console errors);
+  `verify:concurrency` **78/78** (unregressed).
+- **Not yet done (next phases):** concurrency workstream A (A1–A10) is complete; the reporting workstream
+  B (B1–B4: per-workflow comparison + machine-context history) remains. A5–A10 have since landed (see
+  sections above).
+
+## Machine-agnostic capacity core — plan phases A1–A3 (2026-07-13)
+
+First execution slice of `docs/ai/CONCURRENCY_CAPACITY_AND_REPORTS_PLAN.md`. **Pure `src/` core only —
+no ExecutionEngine/IPC/renderer wiring, no run-behavior change yet.** Everything is hardware-agnostic:
+capacity is detected/configured/measured, never hardcoded to any machine shape.
+
+- **`src/runner/concurrency/MachineCapabilityDetector.ts` (A1):** `MachineCapabilities` snapshot from an
+  injectable `OsProbe` (never throws); coarse capability **fingerprint** (stable across reboot and
+  available-memory drift; changes on logical-CPU count / total-RAM GB band / platform / OS type);
+  `capabilitiesChanged()` reasons; `loadOrCreateMachineId(runtimeRoot)` → atomic `machine-id.json`
+  (locally generated UUID; no hardware serials/MACs).
+- **`src/runner/concurrency/CapacityPlanner.ts` (A2):** pure `planCapacity()` = conservative
+  `min(memoryEstimate, cpuEstimate, adminMax, absoluteCeiling)` after OS/AWKIT/safety reserves, reserved
+  cores, and live background-CPU load; `CapacityTuning` holds every seed/bound in one place
+  (`DEFAULT_CAPACITY_TUNING`); `resolveReserveMb` precedence = more-protective of absolute vs percentage;
+  config-driven `bootstrapCategories`; measured per-instance overrides supersede seeds; seven distinct
+  capacity terms. High RAM alone never inflates the number (stays CPU-bound). `planWorkloadCapacities()`
+  gives per-class (light/medium/heavy) recommendations.
+- **`src/runner/concurrency/MachineCapacityProfileStore.ts` (A3):** per-machine `MachineCapacityProfile`
+  persisted atomically at `<runtimeRoot>/runtime/machine-profiles/<machineId>.json`;
+  `reconcileMachineProfile()` — new machine → fresh conservative profile; same hardware → refresh but keep
+  measured benchmark/estimate values + administrator `configuredCapacity`; changed hardware → flag
+  `requiresRecalibration`, drop stale benchmark values, **preserve** the manual configured value; profiles
+  isolated per `machineId`.
+- **Verified:** `tsc --noEmit` clean; `npm run verify:machine-capabilities` **20/20**;
+  `npm run verify:capacity-planner` **29/29**; `npm run verify:machine-profile` **15/15**.
+- **A4 (done):** these modules are now wired into Settings/IPC/engine — see the A4 entry above.
+
+## Runtime concurrency caps configurable in Settings (2026-07-12)
+
+The host browser/flow caps that were env-only (`AWKIT_MAX_BROWSERS` / `AWKIT_MAX_ACTIVE_FLOWS`) are now
+editable in **Settings → Runtime Concurrency** and drive the Chrome Consumption gauge denominators.
+
+- **Schema (`app/main/uiSettings.ts`):** new `runtime: { maxBrowsers, maxActiveFlows }` section
+  (defaults 2 / 4, matching `ConcurrencyConfig`); hydrate/mergePatch/validate updated (bounds: browsers
+  1–16, flows 1–64).
+- **Engine (`src/runner/ExecutionEngine.ts` + `src/runner/browser/BrowserWorkerPool.ts`):** new
+  `ExecutionEngine.configureConcurrency(overrides)` → `BrowserWorkerPool.reconfigure(overrides)`. The
+  shared `limits` object is mutated in place so `maxActiveFlows` (and other soft caps) take effect
+  immediately for the next admission; the browser-slot `Semaphore` is rebuilt **only when the pool is
+  idle** (`slots.size === 0`) so an in-flight release can't corrupt permits — `limits.maxBrowsersPerHost`
+  never drifts from the live semaphore capacity (gauge stays honest). `src/` never reads app settings;
+  the main process pushes them in.
+- **Wiring (`app/main/ipc/execution.ipc.ts` + `settings.ipc.ts`):** `applyRuntimeConcurrencyFromSettings()`
+  pushes the settings into the engine at **startup**, after every **settings save/reset/import**, and
+  before **each run** (so a run always honours the latest caps; a browser-cap change lands when idle).
+- **UI (`app/renderer/pages/Settings.tsx`):** a Runtime Concurrency card (Max browsers / Max active
+  flows) with client+main validation and a hint that a live browser-count change applies when no run is
+  in progress.
+- **Verified:** `npm run build` clean; `verify:browser-pool` **25/25** (new Part G: live `maxActiveFlows`,
+  guarded/deferred `maxBrowsers` resize); `verify:settings-persistence` **3/3**; `verify:reports` 26/26;
+  `verify:ipc-contract` 4/4.
+
+## Chrome Consumption gauges: fixed distortion + live idle sampling (2026-07-12)
+
+Two fixes for the Chrome Consumption (reportsChrome) page.
+
+- **RPM gauge distortion (renderer, `app/renderer/components/reports/RadialGauge.tsx`):** the colored
+  band segments rendered as a cusped/distorted swoosh instead of a clean semicircle. `bandArc` used SVG
+  arc **sweep-flag 0**, which is only unambiguous for the full 0→100 arc (chord === diameter → a single
+  possible circle). For the shorter band sub-arcs (0–60/60–85/85–100) flag 0 resolves to the *mirrored*
+  circle centre, so each segment bulged the wrong way. Changed to **sweep-flag 1** (always the top
+  semicircle). Verified by rasterizing the exact SVG with `sharp`: flag 0 reproduced the reported
+  distortion; flag 1 renders clean gauges (needle left at 0%, into red at 90%, neutral arc when
+  unavailable).
+- **Memory/CPU gauges stuck on "sampling…" (core, `src/runner/ExecutionEngine.ts`):** the
+  `ResourceSampler` was started only inside `startRun`, so with no active run the system RAM/CPU gauges
+  never got a sample. `getRuntimeStatus()` now calls the idempotent `this.sampler.start()` (primes the
+  first sample synchronously, unref'd timer), so system RAM shows immediately and CPU within one poll
+  even at idle. Process-tree metrics (Chromium count/memory) still populate during runs.
+- **Gauge caps are now configurable in Settings** (see next entry) — no longer env-only.
+- **Verified:** `npm run build` clean; `npm run verify:reports` **26/26** (real Electron; gauges render,
+  no console errors). Gauge geometry proven via `sharp` raster comparison.
+
+## Reports tables now fill full width + scroll inside bounded cards (2026-07-12)
+
+Renderer/CSS-only fix (`app/renderer/styles/global.css`) for a reported Workflow Reports layout bug; no
+route/IPC/runner/schema change. `.awkit-table` is used only by the reports pages/components.
+
+- **Root cause (full-width):** the global `table { display: block; overflow-x: auto }` rule (used to make
+  the wide Instance Monitor table horizontally scrollable) applied to **every** `<table>`, so `.awkit-table`
+  — which sets `width: 100%` expecting a real table box — rendered as a block whose inner columns
+  shrink-to-fit and cluster on the left, leaving the right half of each report card empty.
+- **Fix (full-width):** `.awkit-table` now sets `display: table` (overriding the global block rule) so
+  `width: 100%` actually stretches the columns to fill the card. Horizontal scroll on narrow widths is
+  still handled by `.awkit-table-wrap { overflow-x: auto }`.
+- **Fix (bounded height + scroller):** `.awkit-report-page .awkit-table-wrap` gets `max-height: 46vh` +
+  `overflow-y: auto`, and its `thead th` is `position: sticky; top: 0`, so long run lists scroll inside a
+  fixed-height card (with a pinned header) instead of pushing the page down.
+- **Verified:** `npm run build` clean; `npm run verify:reports` **26/26** (real Electron — all report
+  routes render/resolve, no console errors). The width/scroll is a visual CSS change; the GUI verifier
+  confirms no functional regression across every report route.
+
+## Load Session (A7) — accepted as a roadmap stub (2026-07-12)
+
+Owner decision during audit remediation Phase 4: the Protected Login Handoff `useSavedSession`
+("Load Session") and `useTestSession` modes are **kept as-is** — no code change. They are already
+honestly disabled (validation note in `flowNodeRegistry.ts:167`, capability flags `false` in
+`src/auth/OAuthHandoffService.ts`, disabled button in `ProtectedLoginHandoffPanel.tsx`) and are
+redundant with the fully-working `Reuse Session` (persistent-profile swap) and `Auto Secure Login`
+nodes. Reclassified in `docs/audit/` from a defect to an intentional roadmap stub; revisit only if
+Load Session is prioritized as a real feature.
+
+## Electron/IPC surface hygiene (2026-07-12)
+
+Closes audit findings A5/A6 from `docs/audit/`. No route/runner/schema/packaging change; no channel was
+added, removed, or re-wired — the renderer↔main contract is unchanged, only guarded.
+
+- **A5 — external-open scheme guard:** `app/main/windowManager.ts` `setWindowOpenHandler` now opens the
+  target via `shell.openExternal` **only for `http(s)`** (was: any scheme). A `file:`/other-scheme
+  `window.open` is denied without launching the OS handler. Mirrors the guard already in
+  `auth.ipc.ts` `openExternal`.
+- **A6 — IPC contract guard:** new `npm run verify:ipc-contract`
+  (`scripts/verify-ipc-contract.mts`, 4/4, static, no Electron) parses `app/main/ipc/*` +
+  `app/main/preload.ts` and enforces: (1) every preload-invoked channel has a handler (no broken
+  renderer→main call), (2) no channel registered twice, (3) every registered handler is either exposed
+  in preload **or** in a documented `BACKEND_ONLY` allowlist, (4) the allowlist has no stale entries.
+  The **23 registered-but-unexposed** channels (`instances:*`/`runtimeInputs:*` CRUD, `reports:create/
+  delete/export`, legacy singular/plural `list` aliases, `scenario:get/save`) are now documented in that
+  allowlist rather than deleted — they are unreachable from the renderer (no preload bridge), so this is
+  a maintainability/contributor-clarity fix, and the guard fails the build if a NEW unexposed handler
+  appears. Current tally: 117 handlers, 94 exposed, 23 backend-only.
+- **Verified:** `npm run build` clean; `verify:ipc-contract` **4/4**.
+
+## Isolated browser teardown no longer orphans the process (2026-07-12)
+
+Core-only change (`src/runner/BrowserContextFactory.ts`); no route/IPC/preload/schema/packaging change,
+and browser-context semantics are otherwise identical. Closes audit finding A4 from `docs/audit/`.
+
+- **Symptom (A4):** the `browserContext`-isolation close path was `await isolatedContext.close(); await
+  browser.close();` with no `try/finally`. If `context.close()` rejected (e.g. the target already
+  crashed), `browser.close()` was skipped and the Chromium process leaked inside the long-running
+  Electron host. The persistent-context path was already correct (try/finally around the profile lease).
+- **Fix:** new exported `closeIsolatedRuntime(context, browser)` closes the context in `try` and the
+  browser in `finally` (a failing `browser.close()` is swallowed so it can't mask the original context
+  error, which still propagates). The isolated `create()` close closure now delegates to it.
+- **Verifier:** `verify:browser-pool` Part F (now **20/20**, was 16) asserts the browser is closed when
+  `context.close()` rejects, the context error still propagates, the happy path is clean, and a failing
+  browser close is swallowed when the context closed cleanly.
+- **Verified:** `npm run build` clean; `npm run verify:browser-pool` **20/20**.
+
+## Profile store data-integrity hardening (2026-07-12)
+
+## Profile store data-integrity hardening (2026-07-12)
+
+Core-only change (`src/storage/ProfileStore.ts`); no route/IPC/preload/runner/schema/packaging change,
+and the on-disk format (one JSON file per profile) is unchanged. Closes audit findings A1/A2/A3 (+S1)
+from `docs/audit/`. The profile store persists **flows, workflows, data sources, reports, runtime
+inputs, instances** and previously wrote non-atomically and silently dropped corrupt files — the
+settings store had already been hardened, the document store had not.
+
+- **Atomic writes (A1):** `writeProfile` now serializes to `${path}.<pid>.<ts>.<rand>.tmp` then
+  `rename()`s over the target (Windows `MOVEFILE_REPLACE_EXISTING`), so a crash/power-loss mid-write can
+  never truncate a saved document; on rename failure the temp file is cleaned up. Mirrors the existing
+  `uiSettings.writeSettings` pattern (but self-contained — `src/` must not import `app/`).
+- **Serialized mutations (S1):** every write/delete for a store instance runs through an in-instance
+  FIFO promise chain, so overlapping saves to the same folder can't physically interleave.
+- **Corrupt-file quarantine (A2):** a file that fails `JSON.parse` is renamed to a `.corrupt-<ts>`
+  sibling (outside the `.json` scan) and logged loudly, instead of being silently returned as `null`
+  and vanishing from the library. The bytes survive for recovery; the original is never destroyed.
+  A missing file is still a normal "not found".
+- **Crash-safe id rename (A3):** `update()` with an id change now writes the new file *before* deleting
+  the old one — a crash between them leaves a recoverable duplicate, never zero files.
+- **Verifier:** new `npm run verify:profile-store` (`scripts/verify-profile-store.mts`, 13/13, pure
+  `tsx`, no Electron) proves atomic writes / no `.tmp` residue, 40 concurrent creates + updates,
+  quarantine-not-drop with preserved bytes, and lossless id rename.
+- **Verified:** `npm run build` clean; `verify:profile-store` **13/13**; `verify:data-editor` **27/27**
+  (store consumer, unregressed); `verify:write-queue` 7/7; `verify:workflow-sentinels` 4/4. Not run:
+  live/GUI verifiers and packaged/offline (no behavior in those paths changed).
+
+## Instance Monitor workflow summaries and bulk stop (2026-07-12)
+
+Renderer/monitor aggregation and verification only; the existing `execution:stopAll` IPC and hard-cancel
+engine path are reused unchanged. No profile schema, runner contract, routing, or packaging change.
+
+- **Stop Pending & Running:** the monitor toolbar now exposes an explicit destructive bulk action for
+  `pending`, `queued`, `starting`, `running`, paused, and manual-handoff instances. It is enabled when any
+  cancellable work exists (including pending-only batches), requires confirmation, calls the real backend
+  `executions.stopAll()`, and reports the affected count. The compact page-header action uses the same path.
+- **Workflow run records:** live pool rows are grouped by globally unique `executionId`, keeping concurrent
+  and repeated runs of the same workflow separate. Active/attention/queued runs sort ahead of terminal
+  history. Each record shows workflow identity, run status, active/pending/completed/failed counts,
+  progress, total instances, and duration.
+- **All-instance modal:** selecting a workflow record opens an accessible Escape/backdrop-close modal with
+  total/active/pending/failed/completed/cancelled metrics and every instance's status, current flow/step,
+  data row, browser/mode/isolation, timing, retries, and link to the existing live execution report.
+- **Mock lab:** `/designer-lab` documents and exercises the workflow-record → all-instance-modal contract.
+- **Files:** `app/renderer/pages/InstanceMonitor.tsx`,
+  `app/renderer/components/instances/WorkflowInstancesModal.tsx`, `app/renderer/styles/global.css`,
+  `src/instances/instanceCardLogic.ts`, `scripts/verify-instance-monitor.mts`,
+  `scripts/verify-instance-monitor-gui.mjs`, mock-site docs/fixture/verifier, `package.json`.
+- **Verified:** `npm run build` clean; `npm run verify:instance-monitor` **35/35**;
+  `npm run verify:instance-monitor-gui` **12/12** against an isolated four-instance real Electron run
+  (two running + two queued, all four cancelled); `npm run verify:mock-site` **39/39**. The real Electron
+  workflow modal was captured and visually inspected in light mode.
+
+## Flow Designer inspector canvas bounds fixed (2026-07-12)
+
+Renderer layout only; no profile schema, routing, IPC, runner, recorder, or packaging change.
+
+- **Symptom:** opening the Flow Designer right properties inspector placed it in a separate outer grid
+  column beyond the canvas and action-toolbar right edge. The first repair only corrected its vertical
+  height and did not address this horizontal overflow.
+- **Fix:** the designer canvas and action toolbar now retain the full layout width. The inspector slot is
+  absolutely bounded inside that canvas, below the measured action-toolbar height, while the usable node
+  canvas reserves an internal strip of the same width so the inspector does not cover nodes/connectors.
+  The collapsed rail uses the same contained geometry and returns the reserved canvas width.
+- **Regression coverage:** the real Electron Flow Designer walkthrough asserts full four-edge inspector
+  containment, full-width toolbar alignment, and non-overlap with the usable canvas at the default,
+  compact **1024×768**, and reported **1936×1290** viewports.
+- **Files:** `app/renderer/styles/global.css`, `scripts/verify-flow-designer-gui.mjs`.
+- **Verified:** `npm run build` clean; `npm run verify:flow-designer` **24/24**;
+  `npm run verify:mock-site` **35/35**; the captured 1936×1290 Electron frame visually confirms the
+  panel is inside the canvas from toolbar bottom to canvas bottom.
+
+## Backpressure crash-rate false positive fixed (2026-07-11)
+
+Runner/orchestrator only; no route, IPC, preload, profile-schema, or packaging change.
+
+- **Symptom:** a large concurrent run (e.g. 50 instances) stalled with `Crashes 5`, `Browsers 0/2`, and
+  the banner "browser crash rate high (5 crashes in window) — pausing new dispatch" while ~46 instances
+  sat `Pending` — even though CPU/memory were low. Backpressure was firing on phantom crashes.
+- **Root cause:** in `browserContext` isolation (default; "Context" in the monitor) the runtime owns a
+  real Playwright `Browser`, so its **normal** end-of-instance `browser.close()` emits `disconnected`.
+  `PlaywrightRunner.executeScenario` closes the runtime in its own `finally` **before** returning, so the
+  engine's `releaseSlot(slot)` had not run and `slot.released` was still `false` when
+  `BrowserWorkerPool`'s `disconnected` handler ran — scoring every completed instance (pass or fail) as a
+  crash. Past `maxRecentCrashes` (default 3, 5-min window) `BackpressureController.admit` paused all new
+  dispatch. Persistent-context runs were immune (no `Browser` object).
+- **Fix:** the runner announces intentional teardown via a new `onRuntimeClosing` option (fired in
+  `closeRuntime` — covers end-of-run, hard cancel, and Reuse Session swap); the engine wires it to
+  `BrowserWorkerPool.markExpectedClose(slot, generation)`, and the pool's `disconnected` handler skips
+  crash-counting when `slot.expectedCloseGeneration === generation`. Genuine crashes still count
+  (unsignalled mid-run disconnect, page `crash` event, and the engine's explicit `browser-crash`
+  classification); the signal is **generation-scoped** so a real crash of a later generation after a swap
+  is still counted.
+- **Files:** `src/runner/browser/BrowserWorkerPool.ts`, `src/runner/PlaywrightRunner.ts`,
+  `src/runner/ExecutionEngine.ts`, `scripts/verify-browser-pool.mts` (Part E regression).
+- **Verified:** `npm run build` clean; `verify:browser-pool` **16/16** (new Part E); `verify:concurrency`
+  **78/78**; `verify:runner` **82/82**. Not run: clean-machine offline GUI walkthrough / live 50-instance
+  repro (the fix is proven at the unit-ordering level that produced the miscount).
+
+## Compound / tree locators for non-unique elements (2026-07-11)
+
+Recorder + runner + Flow Designer. Fixes the reported case where a recorded step showed
+"Locator warning: matches 2 elements" (e.g. two `checkbox` controls sharing accessible name
+`0796713928`) because the recorder only tried *single-strategy* locators and fell back to an
+ambiguous `role`/positional selector. Schema is additively extended (one optional field); the runner
+already resolved `css`/container/`alternatives`, so no runtime contract changed.
+
+- **Phase 1 — compound "tree" builder** (`src/recorder/recorderInitScript.ts`): new
+  `compoundSelector` combines the element's meaningful features (stable attributes + rare,
+  non-utility classes, ranked by document frequency) with the **fewest distinguishing ancestors**
+  (descendant combinators, skipping wrapper noise) until `count === 1` — e.g.
+  `[data-testid="package-pro"] button.pkg-select`. `anchoredStructural` (nearest unique
+  id/testid ancestor + positional tail) and the existing whole-document positional path remain the
+  guaranteed-unique last resorts. Utility/layout classes (`flex`, `items-center`, …), state
+  prefixes, and hashed css-modules/emotion/styled classes are never used.
+- **Phase 2a — semantic container scoping** (`recorderInitScript.ts`): when the primary would be a
+  raw compound/positional selector, a readable semantic locator (role+name/label/placeholder/text)
+  scoped to a stable container that **isolates the exact element** (verified in-page against the real
+  ancestor node) is preferred and saved as `context.container`. New `quality.disambiguation`
+  (`compound`/`container`/`positional`) drives a neutral Node-Properties readout instead of the red
+  warning; `LocatorQuality.disambiguation?` added to `src/profiles/FlowProfile.ts` (optional,
+  back-compatible).
+- **Phase 2b — edit-safe designer round-trip** (`app/renderer`): recorded `alternatives`/`context`
+  were silently dropped when a flow was opened and re-saved in the Flow Designer. Added
+  `FlowDesignerNodeData.locatorAlternatives`/`locatorContext` (`flowDesignerTypes.ts`) and threaded
+  them through `fromFlowStep`/`toFlowStep` (`pages/FlowChartDesigner.tsx`). Panel
+  (`components/workflow/FlowNodePropertiesPanel.tsx`) now shows "Unique · … · scoped to container /
+  compound selector / positional fallback".
+- **Phase 3 — runtime self-healing** (`src/runner/LocatorFactory.ts`): when a saved step matches
+  several elements, `pickSingle`/`narrowToActionable` pick the single *visible* → *enabled* →
+  *in-viewport* match. If two+ remain equally actionable it **does not guess** and fails with the
+  existing friendly diagnostic. Heals legacy non-unique flows without re-recording. It only converts
+  would-be failures into successes — it never changes which element an unambiguous step resolves to.
+- **Mock site:** `/recorder-lab` gains a `duplicate-controls` scenario (two package cards with a
+  shared checkbox accessible name + `Select package` button, plus a customer table repeating an
+  `Edit` button per row) for compound + container reproduction.
+- **Verified:** `npm run build` clean; `verify:recorder` **72/72** (adds CR1–CR4: duplicate role+name
+  → unique locator + correct element; compound CSS; disabled-twin self-heal; equal-twins fail
+  cleanly); `verify:runner` **82/82**; `verify:mock-site` **35/35**; `verify:flow-designer` **21/21**;
+  `verify:recorder-flow` **13/13**; `verify:recorder-draft` **17/17**. Not run: clean-machine offline
+  GUI walkthrough.
+
+## Flow/Workflow Designer inspector no longer overflows the toolbar (2026-07-12)
+
+- **Symptom:** on flush designers (Flow/Workflow), the right inspector drawer's top edge rose above the
+  canvas into the in-canvas action bar when the window was narrow.
+- **Root cause:** the flush drawer slot cleared the action bar with a fixed `padding-top` (~76px, a
+  single-row assumption). `.flow-action-bar` wraps (`flex-wrap: wrap`), reaching ~106px at narrower
+  widths, so the fixed offset was too small.
+- **Fix:** `DesignerCanvasLayout` measures the live `.flow-action-bar` height (`ResizeObserver`) and sets
+  `--awkit-action-bar-h` on the layout section; the drawer `padding-top` reads that var (old 76px kept as
+  pre-paint fallback). Token-only, no markup changes.
+- **Verified:** `npm run build` clean; Electron GUI check with the bar forced to wrap (106px) confirmed
+  drawer top == action-bar bottom and drawer bottom == canvas bottom (no toolbar overflow).
+
+## Flow Designer full-height canvas repair (2026-07-11)
+
+- **Symptom:** with no properties inspector open, the graph canvas occupied only the upper half of the
+  designer and left a large inert background below it.
+- **Root cause:** `DesignerCanvasLayout` always rendered `.designer-right-drawer-slot`, even when its
+  `rightPanel` was `null`. The no-panel layout has one grid column, so CSS auto-placed that empty second
+  child into an implicit second row and stretched both auto rows equally. A stale `right-collapsed` class
+  also reserved an unused 56px column when no panel existed.
+- **Fix:** resolve the optional panel first, render the drawer slot only when a panel exists, and apply
+  `right-collapsed` only to a populated panel. Default Form Designer properties remain supported when
+  `rightPanel` is omitted; explicit `null` now produces a true single-child canvas layout.
+- **Regression coverage:** the real Electron Flow Designer verifier clears selection and requires zero
+  drawer slots plus canvas width/height equal to the complete designer rectangle.
+- **Verified:** `npm run build`; `verify:flow-designer` **21/21**; `verify:canvas-perf` **13/13**;
+  `verify:mock-site` **29/29**. At a 2048×1098 renderer viewport, designer and canvas both measure
+  **1808×1002**, the engine reaches the bottom edge, and no renderer console errors occur.
+
+## Critical Flow / Workflow Designer defect closure (2026-07-11)
+
+Renderer and GUI-verifier only; no route, IPC, preload, runner, persisted-schema, or packaging change.
+
+- **`originX` crash root-caused and fixed.** `FlowCanvas`'s pane pointer-move queued a React state
+  updater that dereferenced mutable `panState.current`; pointer-up could clear the gesture before the
+  updater ran. Pointer-move now captures the immutable gesture snapshot before scheduling state.
+- **Fast node-drop race fixed.** Pointer-up could run before the last `setDrag` render, leaving the
+  drop handler without a final position. The latest computed position now lives in the gesture ref and
+  is consumed directly on pointer-up. This makes drag-to-connect independent of React commit timing.
+- **Inspector no longer covers the graph.** A populated Flow Designer inspector owns a real layout
+  column; the canvas viewport shrinks instead of rendering underneath it. If the selected node/edge is
+  clipped by the narrower viewport, the engine pans only the required distance and restores that exact
+  accommodation when the inspector closes. The collapsed state is wired to a 48px compact rail.
+- **Connection confirmation matches the supplied reference.** The connect variant uses the branch icon,
+  wide two-column content layout, curly-quote wording, and Cancel / Connect ordering while other shared
+  confirmation dialogs retain their warning presentation.
+- **Workflow toolbar is truly compact.** A legacy `.scenario-toolbar > div` selector was overriding the
+  group flex layout and produced a measured 220px toolbar. The final cascade now keeps all four groups in
+  one horizontally scrollable row; the real Electron measurement is 59px.
+- **Verified:** `npm run build`; real Electron `verify:flow-designer` **20/20** (rapid pane lifecycle,
+  hit-tested node drag, dialog geometry, inspector non-overlap and compact rail included);
+  `verify:workflow-builder` **20/20**; `verify:canvas-perf` **13/13**; `verify:mock-site` **29/29**;
+  `verify:settings-persistence` **3/3**. Canvas performance remains bounded: zoom = 0 node/edge
+  rerenders, drag = dragged node only, static edge layer = one recomputation.
+
+## Canvas UI fix pass — 9 reported issues (2026-07-11)
+
+Renderer-only. No route/IPC/preload/runner/schema/packaging change. Reference for parity is the local
+`Workflow` (flowforge) project. All verified on the real built Electron app.
+
+1. **White screen (critical) — fixed.** There was **no error boundary**, so any render exception blanked
+   the whole window. New `app/renderer/components/shared/ErrorBoundary.tsx` wraps `<ActivePage>` (keyed by
+   route) — a crash now shows a readable fallback + Try again / Reload instead of a blank page, and logs
+   the stack. This is a safety net; if a specific crash trigger is found later, fix it too.
+2. **Edge insert "+" not working — fixed (real root cause).** The `.awkit-flow-nodes` container
+   (`inset:0; z-index:2`, transparent) sat **above** the edge `+`/label overlay and silently ate the
+   click (you could see the `+` through it). A **real** pointer click timed out; synthetic dispatch (used
+   by the verifier) bypassed hit-testing, hiding the bug. Fix: `.awkit-flow-nodes { pointer-events: none }`
+   + `.awkit-flow-node { pointer-events: auto }` — empty gaps let clicks reach the affordances beneath.
+3. **Edge label text clipped — fixed.** The branch label and the `+` rendered at the same midpoint, so
+   the `+` split the text ("If true" → "I…e"). `SmoothEdge` now offsets the label 18px above the line
+   when an insert button is present.
+4. **Drag-to-connect — implemented (flowforge parity).** The engine's `onNodeDragStop` now computes the
+   largest-overlap node from the FINAL drop position and fires a new `onNodeConnect(source, target)`.
+   Both designers show a **Connect these steps?** `ConfirmDialog`, skip already-linked pairs, orient
+   top→bottom, and add the edge on confirm. Handlers read live nodes/edges from **refs** so the callback
+   stays stable (else it re-creates each edit and re-renders every node wrapper — guarded by canvas-perf).
+5. **Node size — fixed to 320px.** `.action-flow-node` / `.scenario-flow-node` were `width:100%` of an
+   auto-width wrapper (content-driven, variable). Pinned to a fixed **320px** to match the reference.
+6. **Parallel connector color — distinct.** New `--awkit-connector-parallel` (teal `#0ea5a4` light /
+   `#2dd4bf` dark); `connectorStyle.ts` maps `parallel` to it (was the default violet).
+7. **Right drawer covering nodes — fixed (Flow Designer).** Superseded by the critical defect closure
+   above: the inspector now owns a real layout column and cannot overlay the canvas; a bounded pan reveals
+   a selected item only when the resized viewport would clip it.
+8. **(see #1).**
+9. **Sidebar nav group animation — smoothed.** `.nav-group-items` switched from a fixed `max-height`
+   (overshoots → looked abrupt) to the `grid-template-rows: 0fr→1fr` accordion (animates to exact content
+   height); requires the added `.nav-group-items-inner` wrapper.
+
+Toolbar (Issue 2 continued): the Workflow Builder toolbar is now a single low row — inline labels +
+`overflow-x` scroll instead of tall wrapping.
+
+- **Verified (real Electron):** build clean; edge `+` opens the picker on a **real** click; drag start→end
+  shows the confirm dialog and creates the edge on confirm; no white screen (root renders). Regression:
+  `verify:flow-designer` 14/14, `verify:workflow-builder` 18/18, `verify:canvas-perf` 13/13 (a mid-run
+  perf regression from a non-stable connect callback was found and fixed via refs).
+
+## Workflow Builder UI functionality/organization pass (2026-07-11)
+
+## Workflow Builder UI functionality/organization pass (2026-07-11)
+
+Renderer-only follow-up on the two node editors + one measurement script. No route/IPC/preload/
+runner/schema/packaging change; saved documents and connector runtime semantics unchanged. Focus:
+the reported Add-menu, toolbar, selection, and connector-drag issues in the Workflow Builder /
+Workflow Designer.
+
+- **Add menu now has a "Flow Logic" section** (`app/renderer/pages/ScenarioBuilder.tsx`): the
+  contextual picker (blank right-click, edge `+`, leaf `+`, toolbar **Add**) lists **Conditional
+  Branch / Parallel Branch / Loop** above **Saved Flows** — previously it only listed saved flows
+  (the Flow Designer already had a Logic group; the Workflow Builder did not). These map onto AWKIT's
+  existing connector kinds via new `applyWorkflowLogic()`: Conditional/Parallel branch the **selected**
+  flow to up to two available saved flows with `conditional`/`parallel` connectors (labels If true/
+  If false · Branch A/Branch B; the new connector opens in the drawer for editing); Loop toggles the
+  node's self-loop connector (same edit as the kebab). A valid source flow is required — otherwise a
+  toast guides the user and **no invalid/disconnected graph is created**.
+- **Toolbar reorganized into labeled groups** (`.sb-toolbar-group` + `.sb-toolbar-sep` in `global.css`):
+  **Workflow** (select · name · New · Reload · Settings · Export) │ **Add** │ **Execution** (mode ·
+  parallel) │ **Layout** (Auto-arrange) │ right-aligned **status** (validation chip · save state).
+  Save/Run stay in the top app header; zoom/fit stay in the canvas zoom pill (no duplicates). Stale
+  Auto-arrange tooltip fixed ("top-to-bottom", matching the actual `direction: "TB"` layout).
+- **On-canvas selection is now visible (both designers).** `ScenarioBuilder` and `FlowChartDesigner`
+  never set `CanvasNode.selected`/`CanvasEdge.selected`, so clicking a node/connector opened the
+  properties drawer but **never applied the `.selected` / `.is-selected` highlight** (the CSS existed).
+  Both now fold selection into the node identity signature (so only the affected cards rebuild) and set
+  `edge.selected`. Canvas-perf guard still green (editing one node = 3 card re-renders).
+- **Connector-drag (Issue 1) revalidated + measurement harness fixed.** The `DraggingEdgeLayer`
+  edge-follow was already correct; `scripts/measure-large-graphs.mjs` now **fits the view and drags the
+  visible middle node nearest the canvas center** (was: first `n-*` in DOM order, which could be
+  off-screen). Measured real Electron 40/100/200/500: drag re-renders **only the dragged node (20 for
+  20 moves) and recomputes the static edge layer once** at every size (O(1) in graph size); zoom = 0
+  re-renders; load 0.31/0.55/0.70/1.33 s; heap flat 21 MB (no leak, DOM 5779→5779).
+- **Workflow Designer is intentionally read-only** (confirmed from code: `nodesDraggable={false}`,
+  "read-only overview" copy, "Edit workflows in the Workflow Builder"). It exposes no misleading edit
+  buttons and correctly has no Add menu — left as-is.
+- **Verified:** `npm run build` clean; `verify:workflow-builder` **18/18** (adds Flow Logic section +
+  Conditional/Parallel/Loop reachability + selection-highlight + Loop-creates-self-loop checks);
+  `verify:flow-designer` 14/14; `verify:canvas-perf` 13/13; `verify:write-queue` 7/7;
+  `verify:settings-persistence` 3/3; `verify:reports` 26/26; large-graph measurement green.
+
+## UI performance — Phase 2 (2026-07-11)
+
+## UI performance — Phase 2 (2026-07-11)
+
+Follow-up to the Phase 1 canvas pass (below). Renderer changes plus `app/main/uiSettings.ts` +
+`app/main/writeQueue.ts` + `app/main/main.ts`. No route/IPC/preload/runner/schema/packaging change;
+saved documents and connector runtime semantics unchanged.
+
+- **Node-edit re-render fix (biggest remaining win):** the designers derived the canvas node array with
+  a plain `.map`, rebuilding every node's wrapper on any edit → editing one node re-rendered the whole
+  graph. New `app/renderer/components/canvas/identityMap.ts` (`mapWithIdentity`) preserves per-node
+  output identity (per-id cache keyed by source ref + a derived signature, pruned each pass, version-busted
+  when shared callbacks change). Both designers use it. **Editing one node's name on a 40-node flow: 120 →
+  3 card re-renders.**
+- **Edges follow the dragged node again** (they snapped on drop after the React Flow removal): `FlowCanvas`
+  tracks the live drag position (rAF-batched) and draws ONLY the dragged node's edges in a
+  `DraggingEdgeLayer` overlay; the memoized `EdgeLayer` recomputes once at drag start (not per frame) and
+  skips those edges. Cost is O(edges touching the dragged node), independent of graph size.
+- **Settings persistence is now crash-safe and shutdown-safe:** the serial queue lives in the testable
+  `app/main/writeQueue.ts` (`createSerialQueue`; FIFO, a failed write never poisons the next, `flush()`);
+  `writeSettings` writes to a temp file then atomically renames over the target (Windows-safe); and
+  `flushSettingsWrites()` runs on Electron `before-quit` (bounded 2s, guarded against re-entry/deadlock)
+  so an edit made just before closing the window is not lost.
+- **Large-graph glide guard:** the auto-arrange/load "glide" animates every node's `left`/`top`; above
+  `GLIDE_MAX_NODES` (120, `app/renderer/lib/motion.ts`) it is skipped so large graphs snap instead of
+  thrashing layout.
+- **Measured on real Electron (40/100/200/500 nodes):** zoom re-renders **0 at every size**; load
+  ~0.30/0.48/0.70/1.23 s (linear — measurement is O(N), not O(N²)); save 10–45 ms; a 10× in-session
+  Flow⇆Workflow navigation leak check held heap 14→14 MB and DOM 5645→5645 (no accumulation). Tool:
+  `scripts/measure-large-graphs.mjs`.
+- **Regression guards added:** `npm run verify:write-queue` (7/7, unit `tsx`), `npm run
+  verify:settings-persistence` (3/3, real Electron: 40 concurrent patches all persist, no leftover tmp
+  files, before-quit flush), and `verify:canvas-perf` extended to 13/13 (adds node-edit-identity and
+  edge-follow assertions).
+- **Panels/listeners audit (no code change needed beyond the above):** the Node Palette picker unmounts
+  when closed and memoizes its filter; Node/Connector Properties panels unmount when nothing is selected
+  and collapse to a cheap rail; every `setInterval`/`ResizeObserver`/`addEventListener` has matching
+  cleanup — no leaks found.
+- **Verified:** build clean; write-queue 7/7; settings-persistence 3/3; canvas-perf 13/13;
+  flow-designer 14/14; workflow-builder 14/14; reports 26/26; waits 21/21; data-editor 27/27;
+  recorder 57/57; runner 82/82; instance-monitor 22/22; mock-site 29/29; ai:memory pass.
+
+## Canvas UI performance pass (2026-07-11)
+
+Renderer-only (plus one main-process file) optimization of the in-house canvas engine. No route,
+IPC, preload API, runner/runtime, profile schema, or storage/packaging change; saved document shape
+and all connector runtime semantics are unchanged.
+
+- **Symptom:** panning, zooming, node interactions, and even typing a flow/workflow name felt laggy
+  on non-trivial graphs.
+- **Root cause (measured on a 40-node flow via a render probe):** the engine re-rendered **every**
+  node card + edge layer on **every** viewport frame — zoom of 20 wheel ticks = 800 NodeContainer +
+  800 card + 20 EdgeLayer renders — and typing 16 chars in the Flow Name field = 1280 node + 1280
+  card renders. `NodeContainer`/`EdgeLayer` were unmemoized, and the designers passed inline
+  callbacks to `<FlowCanvas>` (new refs every render defeated any memo).
+- **Fixes:** `FlowCanvas.tsx` now memoizes `NodeContainer` (renders the node component internally,
+  not via `children`, and reads zoom from `viewportRef` — so viewport-only changes never invalidate
+  the memo) and `EdgeLayer`; `FlowChartDesigner.tsx` and `ScenarioBuilder.tsx` pass **stable**
+  `useCallback` handlers; `app/main/uiSettings.ts` serializes all settings writes through a promise
+  queue (no more racing read-modify-write on the many fire-and-forget `settings.update` calls).
+- **After (same measurements):** zoom = 0/0/0, typing = 0/0/0, dragging one node re-renders only that
+  node (20 for 20 moves, not 800) and never the edge layer during motion.
+- **Regression guard:** opt-in `app/renderer/components/canvas/renderProbe.ts` +
+  `npm run verify:canvas-perf` (`scripts/verify-canvas-perf.mjs`, 10/10) — structural (not timing)
+  assertions, robust across machines.
+- **Verified:** `npm run build` clean; `verify:canvas-perf` 10/10; `verify:flow-designer` 14/14;
+  `verify:workflow-builder` 14/14; `verify:reports` 26/26.
+
+## Canvas engine — React Flow removed (2026-07-11)
+
+The three canvases no longer use React Flow (`@xyflow/react`). They render on a small **in-house canvas
+engine** at `app/renderer/components/canvas/` (see `index.ts` barrel). Renderer-only change — no route,
+IPC, preload API, runner/runtime, profile schema, or storage/packaging behavior changed. The saved
+document shape and all connector *runtime* semantics (kinds/config, `validateConnectorStructure`,
+orchestration) are unchanged; only the rendering layer was replaced.
+
+- **Engine:** `FlowCanvas.tsx` provides viewport pan/zoom (CSS transform), node drag (position measured
+  from the DOM via `ResizeObserver`), an SVG smooth-step edge layer (`geometry.ts` is a faithful port of
+  React Flow's `getSmoothStepPath`/`getViewportForBounds` math), a dotted `Background`, fit-view, and
+  screen↔flow mapping. `useCanvas()`/`useViewport()` hooks + a `FlowCanvasHandle` imperative ref
+  (`fitView`/`zoomTo`/`screenToFlowPosition`) replace the old `useReactFlow`/`useViewport`. Edge labels
+  and the insert `+` render through `BaseEdge`/`EdgeLabelRenderer` portaling into an in-transform HTML
+  overlay. The flow runs **top→bottom**: every edge leaves a node's bottom-center and enters the next
+  node's top-center; a self-loop is `source === target` and draws via `LoopEdge`.
+- **DOM (for verifiers / future work):** node cards are `.awkit-flow-node[data-id]` (wrapping the
+  existing `.action-flow-node`/`.scenario-flow-node`/`StepNode` markup); connectors are
+  `g.awkit-flow-edge[data-source][data-target]` with `path.awkit-flow-edge-path`; the insert affordance
+  is `.awkit-edge-add`; the pane is `.awkit-flow-canvas`. There is **no** `.react-flow__*` DOM, no
+  handles/ports, and no `data-handleid`.
+- **Intentionally removed** (user chose "adopt flowforge nodes as-is"): node resize (`NodeResizer`),
+  branch-port dragging + the two-port branch model, edge reconnect, and port-drag-to-connect.
+  Connections are made via the `+` insert / leaf append / Logic picker; loop is toggled from the node
+  kebab menu. `connectorStyle.ts` still exports the old port helpers (`computePortFlags`,
+  `reconcileBranchConnectors`, `portHandlesForKind`, `branchSourceHandle`, `portPositions`,
+  `ConnectorPortFlags`) but they are now **unused** by the canvases (safe future cleanup).
+- **Deleted files:** `shared/TemplateSmoothEdge.tsx`, `shared/SelfLoopEdge.tsx`,
+  `shared/ConnectorPorts.tsx`, `workflow/CanvasZoomControl.tsx`. `@xyflow/react` removed from
+  `package.json` (still present in `package-lock.json` + `node_modules` until `npm install` is run).
+- **Verified:** `tsc --noEmit` clean; `electron-vite build` clean (renderer bundle 1,589 → 1,235 kB,
+  ~355 kB smaller); real-Electron `verify:flow-designer` **14/14** and `verify:workflow-builder`
+  **14/14** (both rewritten against the new DOM).
+- **Supersedes** the renderer half of the "Structured connectors (Checkpoint B)" section below: its
+  descriptions of visible ports, `useUpdateNodeInternals`, branch-pair handles, `SelfLoopEdge`, and
+  `.react-flow__*` rendering are now historical. The connector *runtime* behavior it documents still holds.
+
+## Workflow.rar UI migration (2026-07-11, Phases 0-6)
+
+## Workflow.rar UI migration (2026-07-11, Phases 0-6)
+
+Completed the local `AWKIT-Workflow-UI-Migration-Prompt-Pack` pass against the verified
+`Workflow.rar` source (SHA-256 `9b3320b609e12da1032a94d4e156389e06f0e4315bc6983e0e76b18909795946`).
+The existing Hologram reskin already covered most non-editor pages; this pass closed the remaining
+structural and interaction gaps.
+
+- **Shell:** expanded sidebar 240px, header 64px, exact reference canvas/theme tokens, collapsible
+  navigation groups, and pre-paint theme bootstrap via a persisted local mirror.
+- **Flow Designer:** permanent Node Palette unmounted. The shared 340px searchable picker opens from
+  blank-canvas right-click, edge `+`, leaf `+`, and Add Node; all real non-sentinel catalog types remain.
+  Existing node/connector forms render in the 400px overlay drawer. New empty flow state is `Start -> End`.
+- **Workflow Builder:** permanent Workflow Definition/rails unmounted. The contextual picker adds real
+  saved flows through blank canvas, edge insertion, leaf append, and Add Flow, retaining Load More.
+  New workflows persist structural Start/End nodes plus their default edge. Flow, connector, and workflow
+  settings use the overlay drawer.
+- **Compatibility/runtime:** `WorkflowProfile.nodes` is a backward-compatible union of flow references
+  and structural sentinels. Runtime conversion filters sentinels/boundary edges, so only real flows reach
+  orchestration. Existing workflows load unchanged. IPC, preload, recorder, waits/locators, sessions,
+  instances/reports, and packaging contracts are unchanged.
+- **Evidence:** 32 route screenshots (8 routes x light/dark x 1600x1000/1366x768) plus light/dark picker
+  and drawer states under `docs/ai/ui-reskin-template-plan/mockups/screenshots/workflow-migration-*`.
+- **Verified:** build; Flow Designer 24/24; Workflow Builder 21/21; workflow sentinels 4/4;
+  mock site 29/29; Recorder 57/57;
+  recorder draft 17/17; recorder flow 13/13; Smart Wait 21/21; runner 82/82; data editor 27/27;
+  instance monitor 22/22; Reports 26/26; offline validator pass. Final GUI counts are recorded in the
+  completion report. Clean offline VM install/uninstall and code signing remain external release gates.
+
+## Workflow/FlowForge visual parity (2026-07-10, Phases 0-5)
+
+Renderer/CSS-only adoption of the Workflow/FlowForge ("Hologram") reference style + animations
+(plan: `docs/plan-workflow-visual-parity.md`). No runner/orchestrator, IPC, preload API, or
+profile-schema change. The two apps are siblings (same violet `#7c3aed`, same `[data-theme]`
+theming), so most parity pre-existed — the work was targeted gaps plus a motion library.
+
+- **framer-motion** `11.18.2` added (dep + offline manifest line). New motion primitives live in
+  `app/renderer/lib/motion.ts` (springs, variants, `hoverTap`/`hoverLift`, `usePrefersReducedMotion`,
+  `useFlowGlide`); all motion is reduced-motion aware (framer gated + the global CSS neutralizer).
+- **Tokens:** `--awkit-edge`/`-strong`, `--awkit-shadow-node`/`-hover` added to both themes.
+- **Canvas:** auto-layout **glide** (`.flow-animating`) in both node editors. Handles stay **visible**
+  (AWKIT's deliberate ConnectorPorts design — not hidden like the reference).
+- **Nodes:** `ActionFlowNode`/`ScenarioFlowNode` are `motion.article` (spring mount + hover-lift);
+  hover-reveal kebab; elevation via the new shadow tokens. Old CSS node mount-fade removed (framer owns it).
+- **Chrome:** animated sidebar collapse (`grid-template-columns` transition). Sidebar pill, theme
+  toggle, page-enter, drawer slide-ins, button feedback already existed.
+- **Pages:** card-grid **stagger** on `.page-grid` (`awkit-card-rise`, `backwards` fill so hover survives).
+- **Verified:** `npm run build` ✅; GUI verifiers **58/58** (`verify:flow-designer` 19, `verify:workflow-builder`
+  13, `verify:reports` 26). Renderer JS 1.29→1.54 MB (framer-motion DOM engine). Not run: clean-machine
+  offline GUI walkthrough; manual reduced-motion/dark-theme eyeball still worthwhile.
+
+## Canvas UX pass (2026-07-10, SRS-CANVAS-UX-001)
+
+Renderer/CSS-only follow-up on the two node editors (spec: `docs/SRS_CANVAS_UX.md`). No runner/
+orchestrator, IPC, preload, or profile-schema change; loop **runtime** semantics untouched.
+
+- **Auto-layout (anti-stacking):** `app/renderer/components/shared/graphLayout.ts` — dependency-free
+  cycle-safe layered layout. Both editors auto-arrange on load **only** when node positions are missing/
+  stacked (fixes flows saved without positions collapsing onto `{280,120}`); manual layouts are preserved
+  and persisted zoom survives normal loads (`fitView` runs only when a rearrange happened). A manual
+  **Auto-arrange** toolbar button (TB in Flow Designer, LR in Workflow Builder) force-runs it.
+- **Connector "+":** the inline midpoint add button (`TemplateSmoothEdge`) now works in **both** editors.
+  Workflow Builder splices the first unused saved flow onto the clicked edge (`insertFlowOnEdge`) via a
+  display-only `edgesForCanvas` map (never serialized). Button restyled to the reference art (always-
+  visible white circle, subtle border, violet "+").
+- **Dotted canvas:** light `--awkit-canvas-dot` darkened to `#c7c0d6` so the grid is perceptible.
+- **Motion:** opacity-only mount fade for node cards + edges (never transform the measured RF wrapper),
+  `:active` press on toolbar/icon buttons; all under the existing reduced-motion neutralizer.
+- **Verified:** `npm run build` (tsc + bundles). Not run: `verify:runner`/mock-site (no runner change),
+  clean-machine GUI walkthrough — visual conformance of branch connectors still to eyeball in-app.
+
+## UI re-skin initiative — CLOSED (Phases 01-15, 2026-07-09)
+
+The Hologram UI/UX re-skin initiative (downloaded prompt pack `01`–`15`) is complete. It was a
+**renderer/CSS-only** program — no route, IPC, preload API (`window.playwrightFlowStudio`), runner/
+runtime, profile schema, storage contract, or offline/packaging behavior was changed at any point.
+
+**New UI/CSS architecture (for future agents):**
+- **Single design-token system** in `app/renderer/styles/global.css`: a complete light token set under
+  `:root`/`[data-theme="light"]` with a full `[data-theme="dark"]` override. All color/spacing/radius/
+  shadow/motion resolve through tokens — `var(--awkit-*)` (surfaces, text, accent family incl.
+  `--awkit-accent-rgb`, status ×soft/muted, canvas bg/dot, node, overlay, focus ring), `--space-*`,
+  `--radius-{sm,md,lg,pill}`, `--awkit-shadow-{soft,card,float,hover}`, and motion
+  `--awkit-motion-*`/`--awkit-dur-*`/`--awkit-ease-out`. The theme attribute is applied to `<html>` by
+  `App.tsx` from the persisted `UiSettings.appearance` (`theme.tsx` context, OS-sync in system mode).
+- **App shell** is a fixed grid: `.app-shell` = `260px minmax(0,1fr)` (76px collapsed) wrapping the
+  full-height left `LeftNavigation` + `.app-main` (`60px 1fr 32px` → header / scrolling content /
+  status bar). **Do not modify `.app-shell`/`.app-main` grids without explicit permission.**
+- **React Flow** surfaces are theme-driven: dotted `BackgroundVariant.Dots` colored via
+  `--awkit-canvas-dot`, RF `--xy-*` vars set for minimap/controls, node cards / connectors / floating
+  config drawer / bottom zoom pill all tokenized. Visual changes to RF components must use the
+  established classes/tokens in `global.css`; never animate node width/height/left/top (canvas
+  coordinate + perf invariant).
+- **Reusable base components** (do not build parallel systems): global `input/select/textarea`,
+  `.toolbar-button` (primary/secondary + `:active`), `.awkit-table` + legacy `.wl-table`/
+  `.instance-table` (uppercase muted headers, row hover), `.modal-overlay`/`.modal-dialog` (blurred
+  backdrop, float shadow, `awkit-fade-in`/`awkit-pop-in` entrance), `MetricCard`, `EmptyState`,
+  `SkeletonCard`, `StatusBadge`. Motion is transform/opacity-only and sits above a last-in-cascade
+  `@media (prefers-reduced-motion: reduce)` neutralizer.
+- **Enforced rules** (added this phase): `docs/ai/RULES.md` › UI now mandates token use (no hardcoded
+  hex / arbitrary px), the app-shell-grid lock, and the a11y/focus/semantic-HTML rules; `AGENTS.md`
+  carries the summary. New-component reviewers should check these.
+
+**Phase 13 (Dark mode + a11y) — verified, no code change needed.** Audit + dark-mode screenshot
+walkthrough (Dashboard, Reports, Flow Designer) confirmed the `[data-theme="dark"]` block already
+meets the phase standards: deep slate `--awkit-bg #0e0d12` (not pure black), elevated surfaces
+(`#16151c`→`#201f28`), off-white text `#f3f1f8` (not pure white), brighter accent `#8b5cf6`, inverted
+canvas dots. Focus rings present via global `:focus-visible` (box-shadow ring alternative to
+`outline`); interactive controls use semantic `<button>`. No token edits were warranted.
+
+**Phase 14 (Visual QA) — golden snapshots captured.** 8 light + 8 dark baseline screenshots via
+`scripts/capture-ui-screenshots.mjs` in
+`docs/ai/ui-reskin-template-plan/mockups/screenshots/{golden,golden-dark}/`; a manual QA checklist +
+the light/dark capture recipe were added to `docs/ai/TESTING.md`. No `toHaveScreenshot` regression
+tests were added (no `npm test` script; `@playwright/test` Node caveat; dynamic data → flaky) —
+documented rationale in TESTING.md.
+
+**Phase 15 (Handoff/doc sync) — this entry** plus `TASK_LOG.md` consolidated entry and the new
+`RULES.md`/`AGENTS.md` UI rules. Initiative officially closed; the codebase is ready for future
+feature work on top of the token system.
+
+
+## Phase 09-12 gap-based UI polish (2026-07-09)
+
+Executed the downloaded `09_INSTANCES_AND_WORKFLOW_CARDS.md`, `10_REPORTS_AND_ANALYTICS_UI.md`,
+`11_FORMS_TABLES_MODALS_AND_EMPTY_STATES.md`, and `12_MOTION_AND_MICRO_INTERACTIONS.md` prompts as a
+**gap-based polish pass** (audit-first; close only genuine gaps; reuse existing tokens/classes; no
+parallel systems). Renderer CSS-only; no route, IPC, preload API, runner/runtime, schema, state, or
+persistence behavior changed. Audit found the repo already ~95% satisfies all four phases from prior
+re-skin passes (motion tokens, reduced-motion neutralizer, focus-visible rings, modal overlay/dialog
+with `awkit-fade-in`/`awkit-pop-in` entrance, tokenized SVG charts/gauges with no hardcoded hex,
+semantic status badges, tokenized `input/select/textarea`, uppercase primary-table headers,
+`MetricCard`/`EmptyState`/`SkeletonCard`).
+
+- **Four small `global.css` edits:** `.workflow-card:hover/:focus-within` now adds
+  `transform: translateY(-2px)` (Phase 09 subtle lift; transform-only, no grid reflow, reduced-motion
+  snaps it); `.modal-overlay` gains `backdrop-filter: blur(3px)` for a blurred backdrop across
+  ConfirmDialog / UnsavedChangesDialog / LiveExecutionReportModal (Phase 09/11); `.modal-dialog`
+  radius `10px → var(--radius-lg)` (Phase 11 token alignment; `.report-modal` inherits it);
+  `.awkit-table th` (report tables) now `text-transform: uppercase` + `letter-spacing` + soft-bg to
+  match the established `.wl-table`/`.instance-table` header convention (Phase 10/11 consistency).
+- **Deliberately not done (documented):** no new `.awkit-input/.awkit-select/.awkit-button` classes
+  (global element rules + `.toolbar-button` already cover forms/buttons — adding them would be a
+  parallel/dead system); no rewrite of the duration-based reduced-motion neutralizer to
+  `transition:none` (existing approach is intentional and working). Noted for future cleanup: the
+  `.workflow-run-card` selectors (~lines 7615/7626) appear unused — the component renders
+  `.workflow-card`.
+- **Verified:** `npm run build` pass (tsc --noEmit + electron-vite bundles); `verify:reports` 26/26;
+  `verify:instance-monitor` 22/22 (both after `node scripts/helpers/reset-ui-state.mjs`).
+  `verify:runner` not run (no runner/runtime logic touched). All edits use theme-aware tokens
+  (light/dark correct); the new hover transform is auto-covered by the last-in-cascade reduced-motion
+  block.
+
+## Phase 03-08 UI execution pass (2026-07-09)
+
+Executed the downloaded `03_APP_SHELL_AND_NAVIGATION.md` through `08_RECORDER_UI_REDESIGN.md` prompts in
+order. Renderer/UI-only pass; no route, IPC, preload API, recorder service, runner, profile schema,
+storage contract, dependency, or build-process behavior changed.
+
+- **Shell/navigation:** preserved the existing `AppShell`, `LeftNavigation`, and `TopHeader` structure while
+  pinning the sidebar to full viewport height, routing nav hover/active states through neutral/lavender
+  tokens, and switching the bottom-center zoom pill to the tokenized soft shadow.
+- **Canvas/node/inspector/library surfaces:** React Flow dot backgrounds now use the requested subtle
+  `gap={24}` / `size={1}` across Flow Designer, Workflow Builder, and Workflow Designer. Existing node-card
+  anatomy, connector handles, `NodeResizer`, right inspector/property panels, AI/palette search, work panels,
+  tables, and empty-state behavior were preserved.
+- **Recorder UI:** `Recorder.tsx` is now a tokenized, class-based control-center layout with a sticky
+  recorder control bar, grouped switches, active recording status, disabled URL/flow-name inputs while
+  recording, protected-login handoff panel styling, an auto-scrolling action timeline with per-action
+  icon/tone/locator/value/smart-wait details, inline save feedback, and a restyled recorded-URLs section.
+  Existing recorder IPC calls, polling, protected-login handoff handlers, URL history, and
+  `recorder.saveFlow()` behavior were preserved.
+- **Verified:** `npm run typecheck` pass; `npm run build` pass; `verify:flow-designer` 19/19 after the
+  documented `node scripts/helpers/reset-ui-state.mjs flowChart false` state reset (the first raw run timed
+  out waiting for `.action-flow-node` because persisted UI state opened Workflow Builder with the sidebar
+  collapsed); `verify:workflow-builder` 13/13 after reset; `verify:recorder` 57/57; `verify:recorder-flow`
+  13/13. `verify:runner` was not run because runner/runtime automation logic was untouched.
+
+## Phase 01/02 UI audit + token foundation compatibility pass (2026-07-09)
+
+Executed the downloaded `01_REPO_UI_AUDIT.md` then `02_DESIGN_TOKENS_AND_THEME.md` prompts against the
+current repo state. Renderer/CSS-only follow-up; no route, IPC, schema, runner, automation, dependency,
+or build-process behavior changed.
+
+- **Phase 01 audit result:** current source is already past the original baseline prompt. `global.css` is
+  a large single stylesheet with a complete Hologram-style light token block and dark override; `AppShell`
+  keeps the full-height left sidebar plus `.app-main` header/content/status grid; Flow Designer,
+  Workflow Builder, and Workflow Designer use React Flow `BackgroundVariant.Dots`, `Controls`, and the
+  shared connector/zoom/template-edge components. This pass did not alter the existing React Flow
+  background configuration.
+- **Phase 02 token pass:** added the missing compatibility tokens requested by the prompt while preserving
+  the existing `--awkit-*` system: `--radius-md: 12px`, new `--radius-lg: 16px`, light/dark
+  `--awkit-lavender-soft`, light/dark `--awkit-shadow-soft` with `--shadow-soft` alias, and
+  `--awkit-node-selected-bg` now resolves through the lavender token.
+- **Verified:** `npm run build` pass; `verify:flow-designer` 19/19; `verify:workflow-builder` 13/13.
+  `verify:runner` was not run because runtime automation logic was untouched.
 
 ## Flow/Workflow canvas dots matched to attachment (2026-07-08)
 

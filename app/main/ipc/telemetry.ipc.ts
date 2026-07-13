@@ -8,7 +8,7 @@ import { ipcMain } from "electron";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { executionEngine } from "@src/runner/ExecutionEngine";
-import type { RunHistoryFilter, ServerReport, StorageUsage, TelemetryPage, TelemetryRange, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
+import type { MachineFilter, RunHistoryFilter, ServerReport, StorageUsage, TelemetryPage, TelemetryRange, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import { getConfiguredPaths } from "../storagePaths";
 
 const RANGE_MS: Record<Exclude<TelemetryRangePreset, "all">, number> = {
@@ -40,10 +40,35 @@ function bucketMsForPreset(preset: TelemetryRangePreset | undefined): number {
   }
 }
 
+/** Trend bucket count per preset — a handful of points for a sparkline, more for wider windows. */
+function trendBucketsForPreset(preset: TelemetryRangePreset | undefined): number {
+  switch (preset) {
+    case "15m":
+    case "1h":
+      return 6;
+    case "24h":
+      return 12;
+    case "7d":
+      return 14;
+    default:
+      return 10;
+  }
+}
+
 export function registerTelemetryIpc(): void {
   ipcMain.handle("telemetry:overview", async (_, preset?: TelemetryRangePreset) => executionEngine.getTelemetryOverview(resolveRange(preset)));
 
   ipcMain.handle("telemetry:workflows", async (_, preset?: TelemetryRangePreset) => executionEngine.getTelemetryWorkflows(resolveRange(preset)));
+
+  ipcMain.handle("telemetry:workflowComparison", async (_, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+    executionEngine.getTelemetryWorkflowComparison(resolveRange(preset), machineFilter)
+  );
+
+  ipcMain.handle("telemetry:workflowTrend", async (_, scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+    executionEngine.getTelemetryWorkflowTrend(scenarioId, resolveRange(preset), trendBucketsForPreset(preset), machineFilter)
+  );
+
+  ipcMain.handle("telemetry:machines", async (_, preset?: TelemetryRangePreset) => executionEngine.getTelemetryMachines(resolveRange(preset)));
 
   ipcMain.handle("telemetry:runHistory", async (_, preset?: TelemetryRangePreset, page?: TelemetryPage, filter?: RunHistoryFilter) =>
     executionEngine.getTelemetryRunHistory(resolveRange(preset), page ?? {}, filter)

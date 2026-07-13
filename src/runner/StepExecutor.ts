@@ -16,6 +16,7 @@ import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatc
 import type { TraceService } from "./artifacts/TraceService";
 import type { CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
+import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 
 /** Step types after which the runner auto-checks for a protected-login page. */
@@ -57,10 +58,17 @@ export class StepExecutor {
     /** Cancellation token: checked before every step; a cancel closes the browser mid-action. */
     private readonly cancellation?: CancellationToken,
     /** Dynamic origin-claim re-evaluation after navigation (Phase 3). */
-    private readonly originClaims?: OriginClaimTracker
+    private readonly originClaims?: OriginClaimTracker,
+    /** Phase A6: staggers simultaneous navigations / downloads / screenshots across instances. */
+    private readonly operationLimiters?: OperationLimiters
   ) {
     this.activePage = page;
     this.pageRegistry = new Map([["main", page]]);
+  }
+
+  /** Run an expensive Playwright op under its operation limiter (A6), or directly when none is wired. */
+  private limitOp<T>(kind: OperationKind, fn: () => Promise<T>): Promise<T> {
+    return this.operationLimiters ? this.operationLimiters.run(kind, fn) : fn();
   }
 
   /**
@@ -644,7 +652,7 @@ export class StepExecutor {
       case "goto": {
         const url = await this.resolveStepValue(step, step.url);
         if (!url) throw new Error(`Step ${step.id} is missing a URL.`);
-        await this.activePage.goto(url, { timeout: step.timeoutMs ?? 30_000 });
+        await this.limitOp("navigation", () => this.activePage.goto(url, { timeout: step.timeoutMs ?? 30_000 }));
         return { status: "passed" };
       }
 
@@ -832,7 +840,7 @@ export class StepExecutor {
         const download = await downloadPromise;
         await mkdir(this.context.paths.downloads, { recursive: true });
         const filePath = join(this.context.paths.downloads, download.suggestedFilename());
-        await download.saveAs(filePath);
+        await this.limitOp("download", () => download.saveAs(filePath));
         this.mapOutputs(step, outputs, { downloadedFilePath: filePath });
         return { status: "passed", downloadedFilePath: filePath };
       }
@@ -967,7 +975,7 @@ export class StepExecutor {
       }
       case "navigateCurrentPage": {
         if (!urlValue) throw new Error(`Route Change step ${step.id} requires a URL value.`);
-        await this.activePage.goto(urlValue, { timeout });
+        await this.limitOp("navigation", () => this.activePage.goto(urlValue, { timeout }));
         target = this.activePage;
         break;
       }
@@ -1544,9 +1552,10 @@ export class StepExecutor {
     await mkdir(screenshotDir, { recursive: true });
     const screenshotPath = join(screenshotDir, `${step.id}-${suffix}.png`);
     if (options?.element) {
-      await options.element.screenshot({ path: screenshotPath });
+      const element = options.element;
+      await this.limitOp("screenshot", () => element.screenshot({ path: screenshotPath }));
     } else {
-      await this.activePage.screenshot({ path: screenshotPath, fullPage: options?.fullPage ?? true });
+      await this.limitOp("screenshot", () => this.activePage.screenshot({ path: screenshotPath, fullPage: options?.fullPage ?? true }));
     }
     return screenshotPath;
   }

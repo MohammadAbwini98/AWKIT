@@ -2,6 +2,11 @@
 
 ## Confirmed
 
+Workflow.rar contextual-editor coverage extends the real-Electron designer verifiers with checks for
+absent permanent rails, `Start -> End` workflow scaffolding, blank/edge/leaf picker entry points, actual
+insertion, and selection drawers. `npm run verify:workflow-sentinels` adds 4 checks proving sentinels
+remain structural and legacy workflows remain compatible.
+
 ### Frameworks present
 - `@playwright/test` (devDependency) — config `playwright.config.ts` (`testDir: "tests"`).
 - `tsx` (devDependency) — used to run the standalone runner verification script on Node 18.
@@ -172,6 +177,42 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
   The automated dev-machine half is `npm run verify:packaged-walkthrough` (fresh-profile packaged
   run); the true clean/offline VM walkthrough remains a human step and has NOT been performed.
 
+### Visual QA — Hologram UI (Phase 14)
+
+Golden baseline screenshots for the finalized Hologram re-skin are captured with the existing
+manual evidence helper (not CI). Build first, then capture both themes:
+
+```bash
+npm run build
+node scripts/helpers/reset-ui-state.mjs dashboard false   # neutral route/expanded sidebar
+node scripts/capture-ui-screenshots.mjs golden            # light golden set (8 core pages)
+# Dark set: set UiSettings.appearance="dark" in
+# %LOCALAPPDATA%/WebFlow Studio/storage/ui-settings.json, re-run capture into `golden-dark`,
+# then restore appearance to "light".
+```
+
+Output: `docs/ai/ui-reskin-template-plan/mockups/screenshots/{golden,golden-dark}/`
+(Dashboard, Flow Designer, Workflow Builder, Workflow Designer, Recorder, Instances, Reports,
+Settings — 8 shots each). Last run: 8 light + 8 dark, both legible/premium.
+
+**No automated `toHaveScreenshot` visual-regression tests are wired** — deliberate: there is no
+`npm test` script, `@playwright/test` has the Node-version caveat above, and several core screens
+carry dynamic data (timestamps, live runtime status, instance ids) that would make pixel
+assertions flaky. The golden PNGs are the human-review baseline; regressions are caught by
+re-capturing and eyeballing the diff. If visual assertions are added later, mask/mock dynamic data
+and run with reduced motion first (animations must be neutralized before capture).
+
+**Manual QA checklist (run per major route — Dashboard, Flow/Form Designer, Workflow Builder,
+Recorder, Instances, all Reports tabs, Data Sources, Sessions, Settings):**
+- [ ] Toggle Light/Dark mode (sidebar toggle) on every major route — no layout shift, only colors change; text stays legible.
+- [ ] Tab through the page — every button/input/link shows a visible `:focus-visible` ring in both themes.
+- [ ] React Flow: drag a node, connect an edge, and open a self-loop — canvas coordinates stay correct (no jump).
+- [ ] Open the right inspector and edit a node property — the canvas node updates and the unsaved-changes chip appears.
+- [ ] Resize the window — AppShell sidebar/header/status grid and dashboard KPI grid reflow without overlap or clipping.
+- [ ] Open a modal (Confirm/Unsaved-changes/Live Execution Report) — blurred backdrop, centered dialog, focus trapped, Esc closes.
+- [ ] Empty states (fresh profile) render intentionally on Reports/Instances/Flows/Workflows — no fake/seed data shown as real.
+- [ ] Enable OS "reduce motion" — hover lifts and entrance animations snap to final state with no motion.
+
 ## Known test gaps
 - No coverage for Form Designer, Runtime Inputs, Data Source Manager UI flows.
 - Limited automated renderer GUI coverage exists for the Flow Designer / Workflow Builder connector
@@ -179,14 +220,13 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
 - Concurrency/worker isolation now has deterministic stress coverage (`verify:stress:*`,
   `verify:soak:runtime` — fake runtimes/temp stores, developer-machine scale); real multi-hour
   soak with live browsers is still not automated.
-- The Concurrent Instance Monitor workflow-cards **non-DOM logic** (search filter, responsive
-  visible-card-count, per-card validation, workflow-name resolution) is unit-verified by
-  `npm run verify:instance-monitor` (22 checks, pure functions in `src/instances/instanceCardLogic.ts`).
-  The **DOM/Electron behavior** (hover/focus cross-fade with no card-height change, equal-height cards,
-  full-width search + Load More, stable 3-per-row grid across Load More, live multi-workflow concurrency, Workflow
-  column with real runs) still has no automated test — verify manually via `npm run dev` (seed with
-  `npm run seed:mock-fixtures`, run two cards, confirm both appear with correct workflow names). See the
-  GUI checklist in `docs/OFFLINE_STANDALONE_PACKAGING.md`.
+- Concurrent Instance Monitor non-DOM logic is verified by `npm run verify:instance-monitor` (**35**
+  pure checks: search/visible-count/validation/name resolution, execution grouping, status/count/progress
+  summaries, run ordering, and stop eligibility). `npm run verify:instance-monitor-gui` adds **12** real
+  Electron checks using an isolated temporary profile and local-only slow workflow: one grouped record for
+  four instances, all-instance modal/details/report actions, modal focus/trap behavior, destructive
+  confirmation, and hard cancellation of two running + two queued instances. Remaining manual-only DOM coverage: workflow-card hover/focus
+  cross-fade/equal-height behavior and simultaneous runs from two different workflow cards.
 
 ## Unknown / Needs Verification
 - Whether `tests/*.spec.ts` is run in any CI (no CI config detected in the repo).

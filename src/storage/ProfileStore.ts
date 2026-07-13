@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 
 export interface ProfileStore<TProfile extends { id: string }> {
@@ -21,9 +21,22 @@ export interface JsonProfileStoreOptions<TProfile extends { id: string }> {
 
 export class JsonProfileStore<TProfile extends { id: string }> implements ProfileStore<TProfile> {
   private readonly extension: string;
+  // Serializes every on-disk mutation (writeProfile/delete) for this store so overlapping saves
+  // to the same folder can never physically interleave. FIFO; a failed task rejects for its caller
+  // but never blocks the ones queued behind it (both branches of the chain settle the tail).
+  private writeChain: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: JsonProfileStoreOptions<TProfile>) {
     this.extension = options.extension ?? ".json";
+  }
+
+  private serialize<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.writeChain.then(task, task);
+    this.writeChain = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
   }
 
   async list(): Promise<TProfile[]> {
@@ -52,15 +65,17 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
 
   async update(id: string, profile: TProfile): Promise<TProfile> {
     await this.ensureStoreFolder();
+    // Write the new record first, then drop the old one on an id rename. A crash between the two
+    // leaves both files (a recoverable duplicate), never zero files — the record is never lost.
+    await this.writeProfile(profile);
     if (id !== profile.id) {
       await this.delete(id);
     }
-    await this.writeProfile(profile);
     return profile;
   }
 
   async delete(id: string): Promise<void> {
-    await rm(this.pathForId(id), { force: true });
+    await this.serialize(() => rm(this.pathForId(id), { force: true }));
   }
 
   async clone(id: string, nextId = `${id}-copy`): Promise<TProfile> {
@@ -116,15 +131,65 @@ export class JsonProfileStore<TProfile extends { id: string }> implements Profil
   }
 
   private async readProfileFile(path: string): Promise<TProfile | null> {
+    let raw: string;
     try {
-      return JSON.parse(await readFile(path, "utf8")) as TProfile;
-    } catch {
+      raw = await readFile(path, "utf8");
+    } catch (error) {
+      // A missing file is a normal "not found"; any other IO error is logged, not silently hidden.
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.warn(`[profile-store] Could not read ${path}: ${(error as Error).message}`);
+      }
+      return null;
+    }
+    try {
+      return JSON.parse(raw) as TProfile;
+    } catch (error) {
+      await this.quarantineCorrupt(path, error);
       return null;
     }
   }
 
-  private async writeProfile(profile: TProfile): Promise<void> {
-    await writeFile(this.pathForId(profile.id), `${JSON.stringify(profile, null, 2)}\n`, "utf8");
+  /**
+   * A profile file that is not valid JSON is NOT silently dropped: it is renamed to a
+   * `.corrupt-<ts>` sibling (outside the store extension so it is not re-scanned) so the bytes
+   * survive for recovery, and the failure is logged loudly. The original is never destroyed.
+   */
+  private async quarantineCorrupt(path: string, error: unknown): Promise<void> {
+    const target = `${path}.corrupt-${Date.now()}`;
+    try {
+      await rename(path, target);
+      console.error(
+        `[profile-store] ${path} is not valid JSON; preserved as ${target} so it is not lost. ` +
+          `Parse error: ${(error as Error).message}`
+      );
+    } catch (renameError) {
+      console.error(
+        `[profile-store] ${path} is not valid JSON and could not be quarantined ` +
+          `(${(renameError as Error).message}); left in place. Parse error: ${(error as Error).message}`
+      );
+    }
+  }
+
+  private writeProfile(profile: TProfile): Promise<void> {
+    const contents = `${JSON.stringify(profile, null, 2)}\n`;
+    return this.serialize(() => this.atomicWrite(this.pathForId(profile.id), contents));
+  }
+
+  /**
+   * Crash-safe write: serialize to a temp file in the same directory, then rename over the target.
+   * libuv's rename replaces the destination atomically on Windows (MOVEFILE_REPLACE_EXISTING), so a
+   * crash or power loss mid-write can never leave a half-written / truncated profile — the previous
+   * good file stays intact until the complete new one is in place. On failure the temp is cleaned up.
+   */
+  private async atomicWrite(path: string, contents: string): Promise<void> {
+    const tmp = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
+    await writeFile(tmp, contents, "utf8");
+    try {
+      await rename(tmp, path);
+    } catch (error) {
+      await rm(tmp, { force: true }).catch(() => undefined);
+      throw error;
+    }
   }
 
   private pathForId(id: string): string {

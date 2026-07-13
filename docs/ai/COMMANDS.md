@@ -26,18 +26,39 @@ npm run build            # tsc --noEmit && electron-vite build  (primary verific
 
 ## Test / verify
 ```bash
+npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (4 checks)
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
 npm run verify:mock-site    # node scripts/verify-mock-site.mjs — starts the local Feature Test Lab
                             # mock site and checks scenario URLs, delay behavior, and stable selectors
 npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — launches the REAL built Electron
-                            # app (Playwright _electron) and drives the Flow Designer connector UI: ports
-                            # un-clipped, top loop port, semicircle self-loop, add/remove loop, conditional
-                            # lock, second conditional branch drag, 2→1 survivor auto-revert, and the Saved
-                            # Flow searchable dropdown closing on an outside canvas click.
+                            # app (Playwright _electron) and drives the Flow Designer on the in-house canvas
+                            # engine (no React Flow): asserts no `.react-flow__*` DOM, engine node cards +
+                            # connector paths render, edges flow top→bottom (source-bottom → target-top),
+                            # dotted background + zoom control, the contextual Node Palette (right-click /
+                            # append + / edge-insert +), kebab loop add/remove (self-loop edge), and the
+                            # Saved Flow dropdown closing on an outside canvas click.
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
 npm run verify:workflow-builder # node scripts/verify-workflow-builder-gui.mjs — same real-Electron GUI
-                            # walkthrough for the Workflow Builder (.scenario-flow-node) canvas. Loads a
-                            # saved workflow with an edge, then checks the same connector behaviors.
+                            # walkthrough for the Workflow Builder (.scenario-flow-node) canvas on the engine:
+                            # engine cards/edges, kebab loop toggle, new Start→End scaffold, contextual
+                            # Workflow Definition picker, default-edge + splices Start→flow→End, flow config
+                            # drawer, and leaf append +.
+npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Electron canvas render-count
+                            # regression guard. Seeds a 40-node flow and asserts (via the opt-in
+                            # renderProbe) that zoom + typing cause 0 node/card/edge re-renders, a node
+                            # drag re-renders only the dragged node (edges follow via the overlay, static
+                            # EdgeLayer not per-frame), and editing one node re-renders only that node.
+                            # Structural, not timing. Requires build. (13/13)
+npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
+npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
+npm run verify:ipc-contract  # tsx scripts/verify-ipc-contract.mts — renderer↔main IPC contract guard (no broken/duplicate/undocumented channels)
+                            # (FIFO, failure-isolation, flush drains + never rejects). No Electron. (7/7)
+npm run verify:settings-persistence # node scripts/verify-settings-persistence.mjs — real-Electron: 40
+                            # concurrent settings patches all persist (serialized, no lost updates), no
+                            # leftover *.tmp files (atomic writes), and an update fired just before close is
+                            # flushed on shutdown (before-quit). Requires build. (3/3)
+# (report tool, not a gate) node scripts/measure-large-graphs.mjs — seeds 40/100/200/500-node flows and
+#   prints load/zoom/drag/save/heap metrics + an in-session navigation leak check. Requires build.
 npm run verify:reports      # node scripts/verify-reports-gui.mjs — real-Electron smoke of the Reports
                             # Overview page: nav→render, valid state (metrics OR empty), range selector,
                             # refresh, no telemetry/undefined console errors. Requires `npm run build`.
@@ -46,7 +67,8 @@ npm run verify:recorder-draft # tsx scripts/verify-recorder-draft.mts — record
 npm run verify:recorder-flow # tsx scripts/verify-recorder-flow.mts — pure buildRecordedFlow checks: default Start/End nodes, action wiring, wait/route-change replay; no browser launched
 npm run verify:protected-login # tsx scripts/verify-protected-login.mts — pure protected-login detector unit checks
 npm run verify:data-editor  # tsx scripts/verify-data-editor.mts — data-source table editor logic + file round-trip
-npm run verify:instance-monitor  # tsx scripts/verify-instance-monitor.mts — workflow-card logic (filter/visible-count/validation/name-resolve)
+npm run verify:instance-monitor  # tsx scripts/verify-instance-monitor.mts — workflow-card logic + execution-group summaries + stop eligibility (35 pure checks)
+npm run verify:instance-monitor-gui # real Electron isolated four-instance run: summary record/modal/focus + pending/running bulk stop (12 checks)
 npm run verify:concurrency  # tsx scripts/verify-concurrency.mts — concurrency layer: locks (fencing/TTL/atomic), semaphore, browser pool saturation, backpressure, retry policy + dangerous-mutation guard, watchdog, JSONL logs, state artifacts, live Chromium profile lock
 npm run verify:locks        # tsx scripts/verify-locks.mts — profile-lock lifecycle incl. release after failed launchPersistentContext; origin/account kind capacities; stale snapshots
 npm run verify:browser-pool # tsx scripts/verify-browser-pool.mts — slot caps/saturation, release after failure/cancel, generation-guarded runtime tracking (fake runtimes)

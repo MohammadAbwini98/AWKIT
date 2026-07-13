@@ -7,16 +7,57 @@ import { buildChromiumHardeningArgs } from "./ChromiumHardening";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { globalProfileLocks, type ProfileLease } from "@src/profiles/ProfileLockManager";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
+import type { SharedBrowserPool, SharedBrowserLauncher } from "./browser/SharedBrowserPool";
+import { sharedLaunchKey } from "./browser/browserSharing";
+import type { OperationLimiters } from "./concurrency/OperationLimiters";
+import {
+  loadResourceRoutingConfig,
+  installResourceRouting,
+  resolveContextOptions,
+  type ResourceRoutingConfig
+} from "./ResourceRoutingPolicy";
 
 export interface BrowserContextFactoryOptions {
   productionOffline: boolean;
   resourcesRoot: string;
+  /**
+   * Phase A5 (experimental): when provided, `browserContext`-isolation instances lease an isolated
+   * context from this shared Chromium pool instead of launching a dedicated browser. The engine only
+   * supplies it for shared-eligible instances (see browserSharing.isSharedEligible).
+   */
+  sharedBrowserPool?: SharedBrowserPool;
+  /** Phase A6: staggers simultaneous browser launches / context creations across all instances. */
+  operationLimiters?: OperationLimiters;
+  /**
+   * Phase A9: resource-reduction routing (Normal / Lean / Ultra-Lean). When omitted it is loaded from
+   * the environment (default Normal → no behaviour change). Applies request aborts + deterministic
+   * context options to every context this factory creates.
+   */
+  resourceRouting?: ResourceRoutingConfig;
 }
 
 export interface BrowserRuntime {
   browser?: Browser;
   context: BrowserContext;
   close: () => Promise<void>;
+}
+
+/**
+ * Close an isolated context and then its owning browser, guaranteeing the browser is closed even
+ * when `context.close()` rejects (e.g. the target already crashed). Without the `finally`, a throwing
+ * context close would skip `browser.close()` and orphan the Chromium process inside the long-running
+ * Electron host. The original context error still propagates; a failing browser close is swallowed so
+ * it can't mask that root cause.
+ */
+export async function closeIsolatedRuntime(
+  context: Pick<BrowserContext, "close">,
+  browser: Pick<Browser, "close">
+): Promise<void> {
+  try {
+    await context.close();
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
 }
 
 export class PersistentProfileInUseError extends Error {
@@ -31,7 +72,47 @@ export class PersistentProfileInUseError extends Error {
 }
 
 export class BrowserContextFactory {
-  constructor(private readonly options: BrowserContextFactoryOptions) {}
+  /** Resolved once so every context this factory creates shares one profile (env-loaded when unset). */
+  private readonly resourceRouting: ResourceRoutingConfig;
+
+  constructor(private readonly options: BrowserContextFactoryOptions) {
+    this.resourceRouting = options.resourceRouting ?? loadResourceRoutingConfig();
+  }
+
+  /** Run an expensive browser op under its operation limiter (A6), or directly when none is wired. */
+  private limit<T>(kind: "browserLaunch" | "contextCreation", fn: () => Promise<T>): Promise<T> {
+    return this.options.operationLimiters ? this.options.operationLimiters.run(kind, fn) : fn();
+  }
+
+  /**
+   * Shared `newContext` / `launchPersistentContext` options for one instance, folding the Phase A9
+   * resource profile in (download opt-out, blocked service workers, reduced motion, fixed device-scale).
+   * Under the Normal profile this is just `{ acceptDownloads: true, viewport }` (unchanged). `storageState`
+   * is added separately at the isolated-context sites — it is not valid for a persistent profile.
+   */
+  private buildContextOptions(config: InstanceConfig): {
+    acceptDownloads: boolean;
+    viewport: InstanceConfig["viewport"];
+    serviceWorkers?: "allow" | "block";
+    reducedMotion?: "reduce" | "no-preference";
+    deviceScaleFactor?: number;
+  } {
+    const routing = resolveContextOptions(this.resourceRouting);
+    return {
+      acceptDownloads: routing.acceptDownloads,
+      viewport: config.viewport,
+      serviceWorkers: routing.serviceWorkers,
+      reducedMotion: routing.reducedMotion,
+      deviceScaleFactor: routing.deviceScaleFactor
+    };
+  }
+
+  /** Install the Phase A9 request routing on a freshly created context (no-op under Normal). */
+  private applyResourceRouting(context: BrowserContext): Promise<void> {
+    return installResourceRouting(context, this.resourceRouting).catch((error) => {
+      console.warn(`[resource-routing] failed to install (continuing without): ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }
 
   getIsolationDescription(mode: "browserContext" | "persistentContext"): string {
     return mode === "persistentContext" ? "Separate persistent user data directory" : "Isolated browser context";
@@ -58,11 +139,13 @@ export class BrowserContextFactory {
       let persistentContext: BrowserContext;
       try {
         await this.assertPersistentProfileAvailable(config.userDataDir);
-        persistentContext = await browserType.launchPersistentContext(config.userDataDir, {
-          ...launchOptions,
-          acceptDownloads: true,
-          viewport: config.viewport
-        });
+        persistentContext = await this.limit("browserLaunch", () =>
+          browserType.launchPersistentContext(config.userDataDir!, {
+            ...launchOptions,
+            ...this.buildContextOptions(config)
+          })
+        );
+        await this.applyResourceRouting(persistentContext);
       } catch (error) {
         profileLease.release();
         throw error;
@@ -80,19 +163,41 @@ export class BrowserContextFactory {
       };
     }
 
-    const browser = await browserType.launch(launchOptions);
-    const isolatedContext = await browser.newContext({
-      acceptDownloads: true,
-      viewport: config.viewport,
-      storageState: config.storageState
-    });
+    // Phase A5: shared-eligible instances lease an isolated context on a pooled (shared) browser so many
+    // instances share a few Chromium processes. Closing the runtime closes only the context; the shared
+    // browser stays alive for reuse and is recycled/drained by the pool.
+    const sharedPool = this.options.sharedBrowserPool;
+    if (sharedPool) {
+      const launcher: SharedBrowserLauncher = {
+        launchKey: sharedLaunchKey(config),
+        launch: () => this.limit("browserLaunch", () => browserType.launch(launchOptions)),
+        newContext: (browser) =>
+          this.limit("contextCreation", () =>
+            browser.newContext({ ...this.buildContextOptions(config), storageState: config.storageState })
+          )
+      };
+      const lease = await sharedPool.acquireContext(launcher);
+      await this.applyResourceRouting(lease.context);
+      return {
+        browser: lease.browser,
+        context: lease.context,
+        close: async () => {
+          await lease.release();
+        }
+      };
+    }
+
+    const browser = await this.limit("browserLaunch", () => browserType.launch(launchOptions));
+    const isolatedContext = await this.limit("contextCreation", () =>
+      browser.newContext({ ...this.buildContextOptions(config), storageState: config.storageState })
+    );
+    await this.applyResourceRouting(isolatedContext);
 
     return {
       browser,
       context: isolatedContext,
       close: async () => {
-        await isolatedContext.close();
-        await browser.close();
+        await closeIsolatedRuntime(isolatedContext, browser);
       }
     };
   }

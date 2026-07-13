@@ -1,28 +1,14 @@
-import {
-  Background,
-  BackgroundVariant,
-  Controls,
-  MarkerType,
-  MiniMap,
-  Position,
-  ReactFlow,
-  ReactFlowProvider,
-  type Edge,
-  type EdgeTypes,
-  type Node
-} from "@xyflow/react";
+import { Network } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
-import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
-import { useTheme } from "../state/theme";
-import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import { Background, CanvasZoomControl, FlowCanvas, SmoothEdge, StepNode, type CanvasEdge, type CanvasNode, type EdgeTypes, type NodeTypes } from "../components/canvas";
+import type { StepNodeData } from "../components/canvas";
+import { isWorkflowFlowNode, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
-const edgeTypes = {
-  templateSmooth: TemplateSmoothEdge
-} satisfies EdgeTypes;
+const nodeTypes = { step: StepNode } satisfies NodeTypes;
+const edgeTypes = { smooth: SmoothEdge } satisfies EdgeTypes;
 
 function WorkflowDesignerContent() {
-  const { resolvedTheme } = useTheme();
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [status, setStatus] = useState("Loading saved workflows…");
@@ -43,39 +29,34 @@ function WorkflowDesignerContent() {
     [workflows, selectedWorkflowId]
   );
 
-  const nodes = useMemo<Node[]>(() => {
+  const nodes = useMemo<CanvasNode<StepNodeData>[]>(() => {
     if (!selectedWorkflow) return [];
     const ordered = [...selectedWorkflow.nodes].sort((a, b) => a.order - b.order);
-    return ordered.map((node, index) => ({
-      id: node.id,
-      position: node.position ?? { x: 80 + index * 280, y: 120 },
-      data: { label: `${node.order}. ${node.alias}${node.required ? "" : " (optional)"}` },
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-      style: {
-        background: "var(--awkit-node-surface)",
-        border: "1px solid var(--awkit-node-border)",
-        borderLeft: `4px solid ${node.required ? "var(--awkit-accent)" : "var(--awkit-text-muted)"}`,
-        borderRadius: 14,
-        boxShadow: "var(--awkit-shadow-card)",
-        fontSize: 13,
-        fontWeight: 600,
-        padding: 10,
-        width: 220
-      }
-    }));
+    return ordered.map((node, index) => {
+      const optional = isWorkflowFlowNode(node) && !node.required;
+      return {
+        id: node.id,
+        type: "step",
+        position: node.position ?? { x: 120, y: 60 + index * 150 },
+        draggable: false,
+        data: {
+          icon: Network,
+          label: node.type === "flowRef" ? `Flow ${node.order}${optional ? " · optional" : ""}` : "Node",
+          title: node.alias,
+          accent: optional ? "muted" : "default"
+        }
+      };
+    });
   }, [selectedWorkflow]);
 
-  const edges = useMemo<Edge[]>(() => {
+  const edges = useMemo<CanvasEdge[]>(() => {
     if (!selectedWorkflow) return [];
     return selectedWorkflow.edges.map((edge) => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      type: "templateSmooth",
-      data: { label: edge.label ?? edge.type },
-      style: { stroke: "var(--awkit-connector-default)", strokeWidth: 2 },
-      markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: "var(--awkit-connector-default)" }
+      type: "smooth",
+      label: edge.label ?? (edge.type === "success" ? undefined : edge.type)
     }));
   }, [selectedWorkflow]);
 
@@ -134,11 +115,10 @@ function WorkflowDesignerContent() {
         </div>
 
         <div className="react-flow-shell">
-          <ReactFlow fitView edges={edges} edgeTypes={edgeTypes} nodes={nodes} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}>
-            <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
-            <Controls position="top-right" showInteractive={false} />
-            <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />
-          </ReactFlow>
+          <FlowCanvas edges={edges} edgeTypes={edgeTypes} nodes={nodes} nodeTypes={nodeTypes} nodesDraggable={false}>
+            <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
+            <CanvasZoomControl />
+          </FlowCanvas>
         </div>
       </div>
     </DesignerCanvasLayout>
@@ -146,9 +126,5 @@ function WorkflowDesignerContent() {
 }
 
 export function WorkflowDesigner() {
-  return (
-    <ReactFlowProvider>
-      <WorkflowDesignerContent />
-    </ReactFlowProvider>
-  );
+  return <WorkflowDesignerContent />;
 }

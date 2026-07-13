@@ -143,9 +143,15 @@ export class LocatorFactory {
   }
 
   /**
-   * Return `locator` if it resolves to exactly one element, or its single *visible* match when
+   * Return `locator` if it resolves to exactly one element, or the single *actionable* match when
    * several exist; otherwise `null`. Always records a diagnostic entry. Playwright 1.49 has no
    * `filter({ visible })`, so visibility is probed per-index via `nth(i).isVisible()`.
+   *
+   * Self-healing (safe by design): when several matches are visible, narrow by deterministic,
+   * intent-free actionability — a single *enabled* match wins, else a single *in-viewport* match
+   * wins. If two or more remain equally actionable we return `null` (never guess the wrong twin);
+   * the caller then fails with a clear diagnostic. This only converts would-be failures into
+   * successes — it never changes which element an already-unambiguous step resolves to.
    */
   private static async pickSingle(
     locator: Locator,
@@ -164,8 +170,7 @@ export class LocatorFactory {
       return locator;
     }
 
-    let visibleCount = 0;
-    let visibleIndex = -1;
+    const visibleIndices: number[] = [];
     if (count > 1) {
       const cap = Math.min(count, VISIBILITY_PROBE_CAP);
       for (let i = 0; i < cap; i += 1) {
@@ -175,16 +180,57 @@ export class LocatorFactory {
         } catch {
           visible = false;
         }
-        if (visible) {
-          visibleCount += 1;
-          visibleIndex = i;
-        }
+        if (visible) visibleIndices.push(i);
       }
     }
 
-    diagnostics.push({ strategy: meta.strategy, value: meta.value, count, visibleCount });
-    if (count > 1 && visibleCount === 1) return locator.nth(visibleIndex);
+    diagnostics.push({ strategy: meta.strategy, value: meta.value, count, visibleCount: visibleIndices.length });
+    if (visibleIndices.length === 1) return locator.nth(visibleIndices[0]);
+
+    if (visibleIndices.length > 1) {
+      const actionable = await LocatorFactory.narrowToActionable(locator, visibleIndices);
+      if (actionable >= 0) return locator.nth(actionable);
+    }
     return null;
+  }
+
+  /**
+   * Among the given (visible) indices, return the index of the single actionable element, or -1
+   * when zero or multiple remain. Prefers a single *enabled* match, then a single *in-viewport*
+   * match — both deterministic and intent-free, so we never pick the wrong one of two equal twins.
+   */
+  private static async narrowToActionable(locator: Locator, indices: number[]): Promise<number> {
+    const enabled: number[] = [];
+    for (const i of indices) {
+      let ok = true;
+      try {
+        ok = await locator.nth(i).isEnabled();
+      } catch {
+        ok = true; // non-disableable elements are "enabled"
+      }
+      if (ok) enabled.push(i);
+    }
+    if (enabled.length === 1) return enabled[0];
+
+    const pool = enabled.length > 1 ? enabled : indices;
+    const inView: number[] = [];
+    for (const i of pool) {
+      let visible = false;
+      try {
+        visible = await locator.nth(i).evaluate((el) => {
+          const r = (el as Element).getBoundingClientRect();
+          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+          return r.bottom > 0 && r.right > 0 && r.top < vh && r.left < vw;
+        });
+      } catch {
+        visible = false;
+      }
+      if (visible) inView.push(i);
+    }
+    if (inView.length === 1) return inView[0];
+
+    return -1; // still ambiguous — do not guess
   }
 
   /** Build an actionable, end-user-readable diagnostic when no candidate resolved uniquely. */

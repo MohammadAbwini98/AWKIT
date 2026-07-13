@@ -1,21 +1,20 @@
 import {
-  addEdge,
+  FlowCanvas,
   Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-  ReactFlow,
-  ReactFlowProvider,
-  type Connection,
-  type Edge,
-  type EdgeTypes,
-  type Node,
-  type NodeTypes,
-  useEdgesState,
+  CanvasZoomControl,
+  SmoothEdge,
+  LoopEdge,
   useNodesState,
-  useReactFlow
-} from "@xyflow/react";
-import { CanvasZoomControl } from "../components/workflow/CanvasZoomControl";
+  useEdgesState,
+  createIdentityStore,
+  mapWithIdentity,
+  type FlowCanvasHandle,
+  type CanvasNode,
+  type CanvasEdge,
+  type NodeTypes,
+  type EdgeTypes,
+  type Viewport
+} from "../components/canvas";
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,9 +22,15 @@ import {
   Download,
   FilePlus,
   FolderOpen,
+  GitBranch,
+  GitFork,
   GripVertical,
+  LayoutGrid,
+  Network,
   PanelRightClose,
   PanelRightOpen,
+  Plus,
+  Repeat,
   Save,
   Search,
   ShieldCheck,
@@ -34,22 +39,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScenarioFlowNode } from "../components/scenario/ScenarioFlowNode";
 import { Toast, type ToastState } from "../components/shared/Toast";
-import {
-  branchSourceHandle,
-  buildConnectorVisual,
-  computePortFlags,
-  connectorPortKindFromHandle,
-  hasCustomStyle,
-  MAX_BRANCH_CONNECTORS,
-  portHandlesForKind,
-  reconcileBranchConnectors
-} from "../components/shared/connectorStyle";
-import { SelfLoopEdge } from "../components/shared/SelfLoopEdge";
-import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
+import { buildConnectorVisual, hasCustomStyle } from "../components/shared/connectorStyle";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
+import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
+import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
-import { useTheme } from "../state/theme";
 import {
   SCENARIO_NODE_DEFAULT_HEIGHT,
   SCENARIO_NODE_DEFAULT_WIDTH,
@@ -63,16 +60,16 @@ import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
 
-type ScenarioNode = Node<ScenarioFlowNodeData, "scenarioFlow">;
-type ScenarioEdge = Edge<ScenarioLinkData>;
+type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
+type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
 
 const nodeTypes = {
   scenarioFlow: ScenarioFlowNode
 } satisfies NodeTypes;
 
 const edgeTypes = {
-  templateSmooth: TemplateSmoothEdge,
-  circular: SelfLoopEdge
+  smooth: SmoothEdge,
+  loop: LoopEdge
 } satisfies EdgeTypes;
 
 /** Derive the structured connector kind from a workflow link's legacy `type` (no separate `kind` field yet). */
@@ -152,9 +149,21 @@ function clampWorkflowDefWidth(width: number): number {
   return Math.min(WORKFLOW_DEF_MAX_WIDTH, Math.max(WORKFLOW_DEF_MIN_WIDTH, Math.round(width)));
 }
 
+function createWorkflowScaffold(): { nodes: ScenarioNode[]; edges: ScenarioEdge[] } {
+  const start = createScenarioNode("start", 0, { x: 280, y: 100 }, true, undefined, [], "Start", undefined, "start");
+  const end = createScenarioNode("end", 999, { x: 280, y: 420 }, true, undefined, [], "End", undefined, "end");
+  return { nodes: [start, end], edges: [createScenarioEdge("start", "end", "always")] };
+}
+
+type WorkflowPickerState =
+  | { mode: "blank"; x: number; y: number; position: { x: number; y: number } }
+  | { mode: "edge"; x: number; y: number; edgeId: string }
+  | { mode: "append"; x: number; y: number; sourceId: string };
+
 function ScenarioBuilderContent() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<ScenarioNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<ScenarioEdge>([]);
+  const scaffold = useMemo(createWorkflowScaffold, []);
+  const [nodes, setNodes] = useNodesState<ScenarioFlowNodeData>(scaffold.nodes);
+  const [edges, setEdges] = useEdgesState<ScenarioLinkData>(scaffold.edges);
   const [flowLibrary, setFlowLibrary] = useState<typeof fallbackFlowLibrary>([]);
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [workflowId, setWorkflowId] = useState(() => generateWorkflowId());
@@ -166,6 +175,11 @@ function ScenarioBuilderContent() {
   const [workflowRootArrayPath, setWorkflowRootArrayPath] = useState("$.customers");
   const [dataSourceRecordCount, setDataSourceRecordCount] = useState<number | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [picker, setPicker] = useState<WorkflowPickerState | null>(null);
+  const [connectPrompt, setConnectPrompt] = useState<{ source: string; target: string; sourceName: string; targetName: string } | null>(null);
+  const [workflowSettingsOpen, setWorkflowSettingsOpen] = useState(false);
+  const canvasRef = useRef<HTMLElement>(null);
   const [draggedFlowId, setDraggedFlowId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState("New — unsaved");
   const [failurePolicy, setFailurePolicy] = useState({
@@ -177,7 +191,7 @@ function ScenarioBuilderContent() {
   // ── Phase 01: Collapsible right panel (Selected Connector) ─────────────────
   // ── Phase 03: Collapsible left data source section ─────────────────────────
   // Both states loaded from persisted settings on mount.
-  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [dataSourceCollapsed, setDataSourceCollapsed] = useState(false);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [leftPanelWidth, setLeftPanelWidth] = useState(WORKFLOW_DEF_DEFAULT_WIDTH);
@@ -186,9 +200,9 @@ function ScenarioBuilderContent() {
   const initialLoadDone = useRef(false);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const pendingSnapshot = useRef(true);
-  const reactFlow = useReactFlow();
+  const engineRef = useRef<FlowCanvasHandle>(null);
+  const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
   const navigation = useNavigation();
-  const { resolvedTheme } = useTheme();
 
   // Task 07: save success/failure toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -221,21 +235,13 @@ function ScenarioBuilderContent() {
   const scenarioProfile = useMemo(() => workflowToScenarioProfile(workflowProfile), [workflowProfile]);
   const executionPlan = useMemo(() => new ScenarioOrchestrator().createExecutionPlan(scenarioProfile), [scenarioProfile]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
-  const orderedNodes = useMemo(() => [...nodes].sort((a, b) => a.data.order - b.data.order), [nodes]);
+  const orderedNodes = useMemo(() => nodes.filter((node) => node.data.kind === "flowRef").sort((a, b) => a.data.order - b.data.order), [nodes]);
+  const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
 
   // Points 2–4: connector-structure issues (blocks Save until fixed).
   const connectorIssues = useMemo(
     () => scenarioConnectorStructureIssues(edges, (id) => nodes.find((node) => node.id === id)?.data.name ?? id),
     [edges, nodes]
-  );
-  // Point 1: extra ports render only on nodes actually touched by a conditional/parallel connector.
-  const portFlagsByNode = useMemo(
-    () => computePortFlags(edges.map((edge) => ({ source: edge.source, target: edge.target, kind: scenarioEdgeKind(edge.data?.linkType) }))),
-    [edges]
-  );
-  const nodesForCanvas = useMemo(
-    () => nodes.map((node) => ({ ...node, data: { ...node.data, portFlags: portFlagsByNode.get(node.id) } })),
-    [nodes, portFlagsByNode]
   );
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
   const loopControlledSources = useMemo(() => {
@@ -253,14 +259,25 @@ function ScenarioBuilderContent() {
   const selectedEdgeKindLocked = Boolean(
     selectedEdge && (selectedEdgeIsBranch || selectedEdgeKind === "loop" || loopControlledSources.has(selectedEdge.source))
   );
-  const availableFlows = flowLibrary.filter((flow) => !nodes.some((node) => node.data.flowId === flow.flowId));
-  // Task 03: case-insensitive search by flow name. Task 04: cap to flowVisibleCount.
+  const availableFlows = flowLibrary.filter((flow) => !nodes.some((node) => node.data.kind === "flowRef" && node.data.flowId === flow.flowId));
   const filteredFlows = useMemo(() => {
     const query = flowSearch.trim().toLowerCase();
-    if (!query) return availableFlows;
-    return availableFlows.filter((flow) => flow.name.toLowerCase().includes(query));
+    return query ? availableFlows.filter((flow) => flow.name.toLowerCase().includes(query)) : availableFlows;
   }, [availableFlows, flowSearch]);
   const visibleFlows = filteredFlows.slice(0, flowVisibleCount);
+  // Add menu (contextual picker) contents. The "Flow Logic" section is listed first so the
+  // conditional / parallel / loop branch actions are discoverable; they map onto AWKIT's existing
+  // connector kinds and operate on the resolved source flow node (see `applyWorkflowLogic`). The
+  // "Saved Flows" section below inserts a real saved flow node.
+  const pickerItems = useMemo<CanvasPickerItem<string>[]>(
+    () => [
+      { id: "logic-condition", label: "Conditional Branch", description: "Route the selected flow to two flows via If / Else conditional connectors", category: "Flow Logic", icon: GitBranch },
+      { id: "logic-parallel", label: "Parallel Branch", description: "Run two flows at the same time from the selected flow (parallel connectors)", category: "Flow Logic", icon: GitFork },
+      { id: "logic-loop", label: "Loop", description: "Repeat the selected flow with a self-loop connector", category: "Flow Logic", icon: Repeat },
+      ...visibleFlows.map((flow) => ({ id: flow.flowId, label: flow.name, description: flow.description, category: "Saved Flows", icon: Network }))
+    ],
+    [visibleFlows]
+  );
   const selectedDataSourceName = dataSources.find((ds) => ds.id === workflowDataSourceId)?.name ?? null;
 
   // ── Load on mount ──────────────────────────────────────────────────────────
@@ -283,12 +300,12 @@ function ScenarioBuilderContent() {
         setDataSources(savedDataSources);
 
         // Restore persisted panel states (Phase 01 + Phase 03)
-        setRightPanelCollapsed(settings.workflowBuilder?.selectedConnectorCollapsed ?? false);
+        setRightPanelCollapsed(true);
         setDataSourceCollapsed(settings.workflowBuilder?.workflowDataSourceCollapsed ?? false);
         setLeftPanelCollapsed(settings.workflowBuilder?.leftPanelCollapsed ?? false);
         setLeftPanelWidth(clampWorkflowDefWidth(settings.workflowBuilder?.leftPanelWidth ?? WORKFLOW_DEF_DEFAULT_WIDTH));
         const zoomPercent = settings.workflowBuilderZoomPercent > 0 ? settings.workflowBuilderZoomPercent : settings.designerDefaults.defaultZoomPercent;
-        reactFlow.zoomTo(zoomPercent / 100);
+        engineRef.current?.zoomTo(zoomPercent / 100);
 
         // Task 4: restore the last opened Workflow Builder workflow. If that saved reference is
         // stale (the workflow was deleted), clear it so we don't keep pointing at a missing
@@ -401,27 +418,20 @@ function ScenarioBuilderContent() {
       .catch(() => setDataSourceRecordCount(null));
   }, [workflowDataSourceId, workflowRootArrayPath]);
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
-      // Point 1/2: a drag started from a conditional/parallel port creates a connector of
-      // that kind (previously every new connector was forced to "success", so the extra
-      // ports rendered but had no effect).
-      // Point 3: a node that already has a self-loop forces every additional outgoing
-      // connector to Conditional (so the workflow can decide when to exit the loop).
-      const kind = loopControlledSources.has(connection.source)
-        ? "conditional"
-        : connectorPortKindFromHandle(connection.sourceHandle ?? connection.targetHandle);
-      // Rule 3/4: conditional/parallel branch connectors are a two-port pair — cap at 2 per node.
-      if (kind === "conditional" || kind === "parallel") {
-        const existing = edges.filter((edge) => edge.source === connection.source && edge.source !== edge.target && scenarioEdgeKind(edge.data?.linkType) === kind).length;
-        if (existing >= MAX_BRANCH_CONNECTORS) return;
-      }
-      const linkType: ScenarioLink["type"] = kind === "conditional" ? "conditional" : kind === "parallel" ? "parallel" : "success";
-      setEdges((currentEdges) => reconcileScenarioBranches(addEdge(createScenarioEdge(connection.source!, connection.target!, linkType), currentEdges)));
+  // Add or remove a flow node's self-loop connector (from the node kebab menu). Replaces the old
+  // in-node loop button that mutated edges via useReactFlow.
+  const toggleNodeLoop = useCallback(
+    (nodeId: string) => {
+      setEdges((currentEdges) => {
+        const hasLoop = currentEdges.some((edge) => edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop");
+        if (hasLoop) {
+          return currentEdges.filter((edge) => !(edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop"));
+        }
+        return [...currentEdges, createScenarioEdge(nodeId, nodeId, "loop", { style: { shape: "circular" } })];
+      });
       setSaveState("Unsaved changes");
     },
-    [setEdges, loopControlledSources, edges]
+    [setEdges]
   );
 
   const updateNodeData = useCallback(
@@ -445,11 +455,8 @@ function ScenarioBuilderContent() {
               nextData.linkType = edge.data?.linkType ?? "success";
             }
             const label = nextData.label && nextData.label.trim() ? nextData.label : nextData.linkType;
-            const { sourceHandle, targetHandle } = portHandlesForKind(scenarioEdgeKind(nextData.linkType));
             return {
               ...edge,
-              sourceHandle,
-              targetHandle,
               ...buildConnectorVisual(nextData.linkType, nextData.style),
               data: { ...nextData, label },
               label
@@ -462,34 +469,249 @@ function ScenarioBuilderContent() {
     [setEdges]
   );
 
-  // Delete-key / programmatic edge removals trigger the branch-pair revert (Rule 3/4): a lone
-  // surviving conditional/parallel connector collapses back to a normal connector.
-  const handleEdgesChange = useCallback(
-    (changes: Parameters<typeof onEdgesChange>[0]) => {
-      const removedSources = new Set<string>();
-      changes.forEach((change) => {
-        if (change.type === "remove") {
-          const removed = edges.find((edge) => edge.id === change.id);
-          if (removed) removedSources.add(removed.source);
-        }
+  // Point 1a: connector "+" affordance. A workflow node *is* a saved flow, so inserting on an
+  // edge splices the first not-yet-used saved flow between source and target at the edge midpoint,
+  // preserving the source edge's kind/routing (reconcile keeps branch invariants intact). Purely a
+  // canvas edit — nothing is serialized until Save. If every saved flow is already used, we toast.
+  const insertFlowOnEdge = useCallback(
+    (edgeId: string, flowId: string) => {
+      const edge = edges.find((item) => item.id === edgeId);
+      if (!edge || edge.source === edge.target) return;
+      const flow = flowLibrary.find((item) => item.flowId === flowId && !nodes.some((node) => node.data.kind === "flowRef" && node.data.flowId === item.flowId));
+      if (!flow) {
+        setToast({ tone: "error", message: "All saved flows are already in this workflow. Create a new flow in the Flow Designer to insert one here." });
+        return;
+      }
+      const sourceNode = nodes.find((node) => node.id === edge.source);
+      const targetNode = nodes.find((node) => node.id === edge.target);
+      const position = {
+        x: ((sourceNode?.position.x ?? 140) + (targetNode?.position.x ?? 460)) / 2,
+        y: ((sourceNode?.position.y ?? 180) + (targetNode?.position.y ?? 180)) / 2
+      };
+      // Order between the source flow and its successor; normalizeOrders re-sequences to integers.
+      const insertOrder = sourceNode?.data.kind === "flowRef" ? sourceNode.data.order + 0.5 : 1;
+      const node = createScenarioNode(flow.flowId, insertOrder, position, true, undefined, flowLibrary);
+
+      setNodes((currentNodes) => normalizeOrders([...currentNodes, node]));
+      setEdges((currentEdges) => {
+        const targetEdge = currentEdges.find((item) => item.id === edgeId);
+        if (!targetEdge) return currentEdges;
+        const remaining = currentEdges.filter((item) => item.id !== edgeId);
+        return reconcileScenarioBranches([
+          ...remaining,
+          createScenarioEdge(targetEdge.source, flow.flowId, targetEdge.data?.linkType ?? "success", {
+            label: targetEdge.data?.label,
+            condition: targetEdge.data?.expression ? { expression: targetEdge.data.expression } : undefined,
+            style: targetEdge.data?.style
+          }),
+          createScenarioEdge(flow.flowId, targetEdge.target, "success")
+        ]);
       });
-      onEdgesChange(changes);
-      if (removedSources.size) setEdges((currentEdges) => reconcileScenarioBranches(currentEdges, removedSources));
+      setSelectedEdgeId(null);
+      setSaveState("Unsaved changes");
+      setToast({ tone: "success", message: `Inserted "${flow.name}" into the workflow.` });
     },
-    [edges, onEdgesChange, setEdges]
+    [edges, nodes, flowLibrary, setEdges, setNodes]
   );
 
+  const pickerCoordinates = useCallback((anchor: HTMLElement) => {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    const target = anchor.getBoundingClientRect();
+    if (!canvas) return { x: 16, y: 16 };
+    return {
+      x: Math.max(12, Math.min(target.left - canvas.left + target.width / 2 - 28, canvas.width - 352)),
+      y: Math.max(12, Math.min(target.bottom - canvas.top + 8, canvas.height - 536))
+    };
+  }, []);
+
+  const openEdgePicker = useCallback((edgeId: string, anchor: HTMLElement) => {
+    setPicker({ mode: "edge", edgeId, ...pickerCoordinates(anchor) });
+  }, [pickerCoordinates]);
+
+  const openAppendPicker = useCallback((sourceId: string, anchor: HTMLElement) => {
+    setPicker({ mode: "append", sourceId, ...pickerCoordinates(anchor) });
+  }, [pickerCoordinates]);
+
+  const appendFlow = useCallback((sourceId: string, flowId: string) => {
+    const source = nodes.find((node) => node.id === sourceId);
+    const flow = flowLibrary.find((item) => item.flowId === flowId);
+    if (!source || !flow) return;
+    const node = createScenarioNode(flowId, source.data.kind === "flowRef" ? source.data.order + 1 : 1, { x: source.position.x, y: source.position.y + 190 }, true, undefined, flowLibrary);
+    setNodes((current) => normalizeOrders([...current, node]));
+    setEdges((current) => [...current, createScenarioEdge(sourceId, flowId, source.data.kind === "start" ? "always" : "success")]);
+    setSelectedNodeId(flowId);
+    setSelectedEdgeId(null);
+    setSaveState("Unsaved changes");
+  }, [flowLibrary, nodes, setEdges, setNodes]);
+
+  const openBlankPicker = useCallback((event: MouseEvent | React.MouseEvent) => {
+    event.preventDefault();
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!canvas) return;
+    setPicker({
+      mode: "blank",
+      x: Math.max(12, Math.min(event.clientX - canvas.left, canvas.width - 352)),
+      y: Math.max(12, Math.min(event.clientY - canvas.top, canvas.height - 536)),
+      position: engineRef.current?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? { x: 280, y: 160 }
+    });
+  }, []);
+
+  const openToolbarPicker = useCallback(() => {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!canvas) return;
+    const client = { x: canvas.left + canvas.width / 2, y: canvas.top + canvas.height / 2 };
+    setPicker({ mode: "blank", x: Math.max(12, canvas.width / 2 - 170), y: 72, position: engineRef.current?.screenToFlowPosition(client) ?? { x: 280, y: 160 } });
+  }, []);
+
+  // Display-only edges: attach the inline "+" affordance to what the canvas renders without ever
+  // mutating the saved `edges` (callbacks must not be serialized). Only straight edges (source ≠
+  // target) get an add button; self-loops render via SelfLoopEdge.
+  const edgesForCanvas = useMemo<ScenarioEdge[]>(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        // Reflect connector selection on the canvas (the `.is-selected` highlight) — previously the
+        // properties drawer opened but the connector itself was never visibly highlighted.
+        selected: edge.id === selectedEdgeId,
+        data: {
+          ...(edge.data ?? { linkType: "success", label: "success", expression: "" }),
+          showAddButton: edge.source !== edge.target,
+          onInsertNode: openEdgePicker
+        } as ScenarioLinkData
+      })),
+    [edges, openEdgePicker, selectedEdgeId]
+  );
+
+  // Select a flow node from its kebab "Configure" action — opens the right properties drawer
+  // (mirrors onNodeClick). removeFlow is referenced lazily below so it isn't read before its
+  // declaration.
+  const selectFlowNode = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+    setWorkflowSettingsOpen(false);
+    setRightPanelCollapsed(false);
+  }, []);
+
+  // Identity-preserving so editing / dragging one flow node rebuilds only that node's wrapper —
+  // unchanged nodes keep object identity and the memoized NodeContainer skips them.
+  const interactiveNodesStore = useRef(createIdentityStore<ScenarioNode, ScenarioNode>()).current;
+  const interactiveNodesForCanvas = useMemo(() => {
+    const sources = new Set(edges.filter((edge) => edge.source !== edge.target).map((edge) => edge.source));
+    const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && edge.data?.linkType === "loop").map((edge) => edge.source));
+    return mapWithIdentity(
+      interactiveNodesStore,
+      nodes,
+      [openAppendPicker, selectFlowNode, toggleNodeLoop],
+      // Fold selection into the identity signature so selecting/deselecting a node rebuilds only the
+      // affected cards (and their `.selected` highlight) — not the whole graph.
+      (node) => `${sources.has(node.id) ? 1 : 0}${loopSources.has(node.id) ? 1 : 0}${node.id === selectedNodeId ? "S" : ""}`,
+      (node) => ({
+        ...node,
+        selected: node.id === selectedNodeId,
+        data: {
+          ...node.data,
+          isLeaf: !sources.has(node.id),
+          hasLoop: loopSources.has(node.id),
+          onAppendFlow: openAppendPicker,
+          onConfigure: selectFlowNode,
+          onDeleteFlow: (nodeId: string) => removeFlow(nodeId),
+          onToggleLoop: toggleNodeLoop
+        }
+      })
+    );
+  }, [edges, nodes, selectedNodeId, openAppendPicker, selectFlowNode, toggleNodeLoop, interactiveNodesStore]);
+
   const addFlow = useCallback(
-    (flowId: string) => {
-      const nextOrder = nodes.length + 1;
-      const x = 140 + nodes.length * 320;
-      const y = 180;
-      const node = createScenarioNode(flowId, nextOrder, { x, y }, true, undefined, flowLibrary);
+    (flowId: string, position?: { x: number; y: number }) => {
+      const flowCount = nodes.filter((node) => node.data.kind === "flowRef").length;
+      const nextOrder = flowCount + 1;
+      const node = createScenarioNode(flowId, nextOrder, position ?? { x: 280, y: 160 + flowCount * 190 }, true, undefined, flowLibrary);
       setNodes((currentNodes) => [...currentNodes, node]);
       setSaveState("Unsaved changes");
     },
-    [nodes.length, setNodes, flowLibrary]
+    [nodes, setNodes, flowLibrary]
   );
+
+  // Flow Logic actions (Add menu › Flow Logic). These map onto AWKIT's existing connector kinds
+  // rather than inventing a new model: Conditional/Parallel branch the *selected* flow to up to two
+  // available saved flows via conditional/parallel connectors; Loop toggles the node's self-loop
+  // connector (the same edit as the kebab). A valid source flow node is required — otherwise the
+  // user is guided with a toast and no invalid/disconnected graph is created.
+  const applyWorkflowLogic = useCallback(
+    (logic: "condition" | "parallel" | "loop", state: WorkflowPickerState | null) => {
+      const sourceId =
+        state?.mode === "append"
+          ? state.sourceId
+          : state?.mode === "edge"
+            ? edges.find((edge) => edge.id === state.edgeId)?.source ?? null
+            : selectedNodeId;
+      const source = sourceId ? nodes.find((node) => node.id === sourceId) : null;
+      if (!source) {
+        setToast({ tone: "error", message: "Select a flow node on the canvas first, then choose a Flow Logic action." });
+        return;
+      }
+      if (logic === "loop") {
+        if (source.data.kind !== "flowRef") {
+          setToast({ tone: "error", message: "Loop connectors attach to a flow. Select a flow node (not Start/End) first." });
+          return;
+        }
+        toggleNodeLoop(source.id);
+        setSelectedNodeId(source.id);
+        setSelectedEdgeId(null);
+        setToast({ tone: "success", message: `Loop connector toggled on "${source.data.name}".` });
+        return;
+      }
+      const targets = availableFlows.slice(0, 2);
+      if (targets.length === 0) {
+        setToast({
+          tone: "error",
+          message: "Add more saved flows to this workflow first — a branch connects the selected flow to other flows."
+        });
+        return;
+      }
+      const linkType: ScenarioLink["type"] = logic === "condition" ? "conditional" : "parallel";
+      const labels = logic === "condition" ? ["If true", "If false"] : ["Branch A", "Branch B"];
+      const baseOrder = source.data.kind === "flowRef" ? source.data.order : 0;
+      const newNodes = targets.map((flow, index) =>
+        createScenarioNode(
+          flow.flowId,
+          baseOrder + index + 1,
+          {
+            x: source.position.x + (index - (targets.length - 1) / 2) * 260,
+            y: source.position.y + 200
+          },
+          true,
+          undefined,
+          flowLibrary
+        )
+      );
+      const newEdges = targets.map((flow, index) => createScenarioEdge(source.id, flow.flowId, linkType, { label: labels[index] }));
+      setNodes((current) => normalizeOrders([...current, ...newNodes]));
+      setEdges((current) => reconcileScenarioBranches([...current, ...newEdges]));
+      setSelectedNodeId(null);
+      setSelectedEdgeId(newEdges[0].id);
+      if (rightPanelCollapsed) persistRightPanel(false);
+      setSaveState("Unsaved changes");
+      setToast({
+        tone: "success",
+        message: `${logic === "condition" ? "Conditional" : "Parallel"} branch added from "${source.data.name}" (${targets.length} path${targets.length === 1 ? "" : "s"}). Edit the connectors in the drawer.`
+      });
+    },
+    [edges, nodes, selectedNodeId, availableFlows, flowLibrary, toggleNodeLoop, setNodes, setEdges, rightPanelCollapsed, persistRightPanel]
+  );
+
+  const handlePickerPick = useCallback((id: string) => {
+    if (id === "logic-condition" || id === "logic-parallel" || id === "logic-loop") {
+      applyWorkflowLogic(id === "logic-condition" ? "condition" : id === "logic-parallel" ? "parallel" : "loop", picker);
+      setPicker(null);
+      return;
+    }
+    if (!picker) return;
+    if (picker.mode === "edge") insertFlowOnEdge(picker.edgeId, id);
+    else if (picker.mode === "append") appendFlow(picker.sourceId, id);
+    else addFlow(id, picker.position);
+    setPicker(null);
+  }, [addFlow, appendFlow, insertFlowOnEdge, picker, applyWorkflowLogic]);
 
   const removeFlow = useCallback(
     (flowId: string) => {
@@ -517,7 +739,7 @@ function ScenarioBuilderContent() {
         sorted.splice(toIndex, 0, moved);
         return normalizeOrders(sorted).map((node, index) => ({
           ...node,
-          position: { ...node.position, x: 140 + index * 320 }
+          position: { x: 280, y: 120 + index * 190 }
         }));
       });
       setSaveState("Unsaved changes");
@@ -582,24 +804,49 @@ function ScenarioBuilderContent() {
       setWorkflowDataSourceId(profile.dataSource?.dataSourceId ?? "");
       setWorkflowRootArrayPath(profile.dataSource?.rootArrayPath ?? "$.customers");
       setFailurePolicy((current) => ({ ...current, stopOnRequiredFlowFailure: profile.execution.stopOnRequiredFlowFailure }));
-      setNodes(
-        profile.nodes.map((node, index) =>
-          createScenarioNode(node.flowId, node.order, node.position ?? { x: 140 + index * 320, y: 180 }, node.required, undefined, library, node.alias, node.size)
+      // Point 1c: workflows saved without node positions collapse/stack. Auto-arrange
+      // (top-to-bottom) only when positions are missing/stacked; manual layouts are preserved.
+      const builtNodes = profile.nodes.map((node, index) =>
+        createScenarioNode(
+          node.type === "flowRef" ? node.flowId : node.id,
+          node.order,
+          node.position ?? { x: 280, y: 120 + index * 190 },
+          node.type === "flowRef" ? node.required : true,
+          undefined,
+          library,
+          node.alias,
+          node.size,
+          node.type
         )
       );
+      // Only reframe when we actually rearranged, so normal loads keep the persisted zoom.
+      const needsLayout = positionsNeedLayout(builtNodes);
+      if (needsLayout && builtNodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+      setNodes(needsLayout ? withAutoLayout(builtNodes, profile.edges, { direction: "TB", force: true }) : builtNodes);
       setEdges(reconcileScenarioBranches(profile.edges.map((link) => createScenarioEdge(link.source, link.target, link.type, link))));
+      if (needsLayout) window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
       setSaveState("Loaded");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded workflow settles
       window.playwrightFlowStudio.settings
         .update({ selectedBuilderWorkflowId: profile.id, selections: { lastSelectedWorkflowId: profile.id } })
         .catch(() => undefined);
     },
-    [flowLibrary, setEdges, setNodes]
+    [flowLibrary, setEdges, setNodes, armLayoutGlide]
   );
 
+  // Point 1c: manual "Auto-arrange" — re-run the layered layout (top-to-bottom) on demand, then
+  // frame it. Marks the document dirty; positions stay user-editable after.
+  const autoArrange = useCallback(() => {
+    if (nodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+    setNodes((currentNodes) => withAutoLayout(currentNodes, edges.map((edge) => ({ source: edge.source, target: edge.target })), { direction: "TB", force: true }));
+    setSaveState("Unsaved changes");
+    window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
+  }, [edges, nodes, setNodes, armLayoutGlide]);
+
   const createNewWorkflow = useCallback(() => {
-    setNodes([]);
-    setEdges([]);
+    const next = createWorkflowScaffold();
+    setNodes(next.nodes);
+    setEdges(next.edges);
     setWorkflowId(generateWorkflowId());
     setWorkflowName("New Workflow");
     setExecutionMode("sequential");
@@ -607,6 +854,7 @@ function ScenarioBuilderContent() {
     setWorkflowDataSourceId("");
     setWorkflowRootArrayPath("$.customers");
     setSelectedEdgeId(null);
+    setSelectedNodeId(null);
     setSaveState("New — unsaved");
     pendingSnapshot.current = true; // a brand-new empty workflow is the clean baseline (not dirty)
   }, [setEdges, setNodes]);
@@ -638,16 +886,77 @@ function ScenarioBuilderContent() {
 
   const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
 
-  // Task 3: clicking empty canvas clears the connector selection and collapses the surrounding
-  // panels (app side menu, Workflow Definition, Selected Connector) to give the canvas more room.
-  // Clicking a connector re-opens the right panel (see onEdgeClick). Only collapse (never expand)
-  // so repeated pane clicks are idempotent.
   const handlePaneClick = useCallback(() => {
     setSelectedEdgeId(null);
-    if (!leftPanelCollapsed) persistLeftPanel(true, leftPanelWidth);
-    if (!rightPanelCollapsed) persistRightPanel(true);
-    navigation.collapseSidebar();
-  }, [leftPanelCollapsed, rightPanelCollapsed, leftPanelWidth, persistLeftPanel, persistRightPanel, navigation]);
+    setSelectedNodeId(null);
+    setPicker(null);
+    setWorkflowSettingsOpen(false);
+    setRightPanelCollapsed(true);
+  }, []);
+
+  // Stable canvas callbacks: inline arrows gave every node a fresh callback reference on each
+  // page render (save-state text, selection, panel toggles), re-rendering the whole memoized
+  // node subtree unnecessarily. These bail the memo on unrelated re-renders.
+  const handleNodePositionChange = useCallback(
+    (id: string, position: { x: number; y: number }) => {
+      setNodes((current) => current.map((node) => (node.id === id ? { ...node, position } : node)));
+      setSaveState("Unsaved changes");
+    },
+    [setNodes]
+  );
+  // Issue 4 (flowforge parity): dragging one flow onto another proposes connecting them. We confirm
+  // first (so an accidental overlap doesn't silently rewire the graph), skip pairs already linked,
+  // and orient the new connector top→bottom for a tidy downward flow. Reads live nodes/edges from
+  // refs so the callback stays STABLE — otherwise it re-creates every edit and (via the engine's
+  // drag-stop handler) re-renders every node wrapper (perf regression).
+  const nodesLiveRef = useRef(nodes);
+  nodesLiveRef.current = nodes;
+  const edgesLiveRef = useRef(edges);
+  edgesLiveRef.current = edges;
+  const handleNodeConnect = useCallback((aId: string, bId: string) => {
+    const a = nodesLiveRef.current.find((node) => node.id === aId);
+    const b = nodesLiveRef.current.find((node) => node.id === bId);
+    if (!a || !b) return;
+    if (edgesLiveRef.current.some((edge) => (edge.source === aId && edge.target === bId) || (edge.source === bId && edge.target === aId))) return;
+    const [src, tgt] = a.position.y <= b.position.y ? [a, b] : [b, a];
+    if (tgt.data.kind === "start" || src.data.kind === "end") return; // don't point into Start / out of End
+    setConnectPrompt({ source: src.id, target: tgt.id, sourceName: src.data.name, targetName: tgt.data.name });
+  }, []);
+  const confirmConnect = useCallback(() => {
+    if (!connectPrompt) return;
+    const linkType: ScenarioLink["type"] = connectPrompt.source === "start" ? "always" : "success";
+    setEdges((current) => reconcileScenarioBranches([...current, createScenarioEdge(connectPrompt.source, connectPrompt.target, linkType)]));
+    setSaveState("Unsaved changes");
+    setToast({ tone: "success", message: `Connected "${connectPrompt.sourceName}" → "${connectPrompt.targetName}".` });
+    setConnectPrompt(null);
+  }, [connectPrompt, setEdges]);
+  const handleEdgeClick = useCallback(
+    (id: string) => {
+      setSelectedEdgeId(id);
+      setSelectedNodeId(null);
+      setWorkflowSettingsOpen(false);
+      if (rightPanelCollapsed) persistRightPanel(false);
+      window.playwrightFlowStudio.settings.update({ selections: { lastSelectedConnectorId: id } }).catch(() => undefined);
+    },
+    [rightPanelCollapsed, persistRightPanel]
+  );
+  const handleNodeClick = useCallback((id: string) => {
+    setSelectedNodeId(id);
+    setSelectedEdgeId(null);
+    setWorkflowSettingsOpen(false);
+    setRightPanelCollapsed(false);
+  }, []);
+  const handleNodeDoubleClick = useCallback(
+    (id: string) => {
+      const node = nodes.find((item) => item.id === id);
+      if (node?.data.kind === "flowRef") void openFlowInDesigner(node.data.flowId);
+    },
+    [nodes, openFlowInDesigner]
+  );
+  const handleBuilderMoveEnd = useCallback(
+    (viewport: Viewport) => persistBuilderZoom(Math.round(viewport.zoom * 100)),
+    [persistBuilderZoom]
+  );
 
   // Phase 02: Top header only has Save + Run (no duplicates inside page toolbar)
   usePageChrome(
@@ -662,84 +971,124 @@ function ScenarioBuilderContent() {
     [saveScenario, runWorkflow, isDirty, createNewWorkflow]
   );
 
-  // Phase 02: Build dynamic grid template based on right-panel collapse state
-  const builderGridStyle = {
-    gridTemplateColumns: `${leftPanelCollapsed ? "44px" : `${leftPanelWidth}px`} minmax(0, 1fr) ${rightPanelCollapsed ? "44px" : "300px"}`
-  } as React.CSSProperties;
-
   return (
     <section className="page scenario-builder-page">
-      {/* Phase 02: Compact single-row toolbar. Save/Run live in the top app header. */}
+      {/* Phase 02 + UI-repair pass: grouped single-row toolbar. Save/Run live in the top app header;
+          zoom/fit live in the canvas zoom pill. Controls are organized into labeled groups
+          (Workflow · Add · Execution · Layout) with separators, then a right-aligned status area. */}
       <section className="scenario-toolbar scenario-toolbar-compact">
-        {/* Workflow selector + name — compact inline */}
-        <label className="sb-toolbar-field">
-          <span>Workflow</span>
-          <select
-            value={workflowId}
-            onChange={(event) => {
-              const profile = workflows.find((workflow) => workflow.id === event.target.value);
-              if (profile) loadWorkflowProfile(profile);
-            }}
-          >
-            <option value={workflowId}>{workflowName}</option>
-            {workflows
-              .filter((w) => w.id !== workflowId)
-              .map((workflow) => (
-                <option key={workflow.id} value={workflow.id}>
-                  {workflow.name}
-                </option>
-              ))}
-          </select>
-        </label>
+        {/* Group 1 — Workflow: select / name / new / reload / settings / export */}
+        <div className="sb-toolbar-group" role="group" aria-label="Workflow">
+          <label className="sb-toolbar-field">
+            <span>Workflow</span>
+            <select
+              value={workflowId}
+              onChange={(event) => {
+                const profile = workflows.find((workflow) => workflow.id === event.target.value);
+                if (profile) loadWorkflowProfile(profile);
+              }}
+            >
+              <option value={workflowId}>{workflowName}</option>
+              {workflows
+                .filter((w) => w.id !== workflowId)
+                .map((workflow) => (
+                  <option key={workflow.id} value={workflow.id}>
+                    {workflow.name}
+                  </option>
+                ))}
+            </select>
+          </label>
 
-        <label className="sb-toolbar-field">
-          <span>Name</span>
-          <input
-            value={workflowName}
-            onChange={(event) => {
-              setWorkflowName(event.target.value);
-              setSaveState("Unsaved changes");
-            }}
-            style={{ minWidth: "140px" }}
-          />
-        </label>
+          <label className="sb-toolbar-field">
+            <span>Name</span>
+            <input
+              value={workflowName}
+              onChange={(event) => {
+                setWorkflowName(event.target.value);
+                setSaveState("Unsaved changes");
+              }}
+              style={{ minWidth: "140px" }}
+            />
+          </label>
 
-        <label className="sb-toolbar-field">
-          <span>Mode</span>
-          <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
-            <option value="sequential">Sequential</option>
-            <option value="conditional">Conditional</option>
-            <option value="parallel">Parallel</option>
-            <option value="loop">Loop</option>
-            <option value="manual">Manual</option>
-          </select>
-        </label>
-
-        <label className="sb-toolbar-field">
-          <span>Parallel</span>
-          <input
-            min="1"
-            style={{ width: "58px" }}
-            type="number"
-            value={maxParallelFlows}
-            onChange={(event) => setMaxParallelFlows(Number(event.target.value))}
-          />
-        </label>
-
-        {/* Secondary actions — NOT Save/Run (those are in top header) */}
-        <div className="sb-toolbar-actions">
           <button className="toolbar-button" id="sb-new" onClick={createNewWorkflow} title="Create a new empty workflow" type="button">
             <FilePlus size={14} />
             New
           </button>
-          <button className="toolbar-button" id="sb-reload" onClick={() => void loadScenario()} title="Reload from saved" type="button">
+          <button className="toolbar-button" id="sb-reload" onClick={() => void loadScenario()} title="Reload this workflow from the last saved copy" type="button">
             <FolderOpen size={14} />
             Reload
           </button>
-          <button className="toolbar-button" id="sb-export" onClick={exportScenario} title="Export workflow JSON" type="button">
+          <button
+            className="toolbar-button"
+            id="sb-workflow-settings"
+            title="Edit workflow data source & failure policy"
+            onClick={() => {
+              setWorkflowSettingsOpen(true);
+              setSelectedNodeId(null);
+              setSelectedEdgeId(null);
+              setRightPanelCollapsed(false);
+            }}
+            type="button"
+          >
+            <Database size={14} />
+            Settings
+          </button>
+          <button className="toolbar-button" id="sb-export" onClick={exportScenario} title="Export this workflow as JSON" type="button">
             <Download size={14} />
             Export
           </button>
+        </div>
+
+        <span className="sb-toolbar-sep" aria-hidden="true" />
+
+        {/* Group 2 — Add: single Add Flow entry (its menu also hosts the Flow Logic section) */}
+        <div className="sb-toolbar-group" role="group" aria-label="Add">
+          <button className="toolbar-button primary" id="sb-add-flow" onClick={openToolbarPicker} title="Add a flow or a conditional / parallel / loop branch" type="button">
+            <Plus size={14} />
+            Add
+          </button>
+        </div>
+
+        <span className="sb-toolbar-sep" aria-hidden="true" />
+
+        {/* Group 3 — Execution: run mode + parallelism */}
+        <div className="sb-toolbar-group" role="group" aria-label="Execution">
+          <label className="sb-toolbar-field">
+            <span>Mode</span>
+            <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
+              <option value="sequential">Sequential</option>
+              <option value="conditional">Conditional</option>
+              <option value="parallel">Parallel</option>
+              <option value="loop">Loop</option>
+              <option value="manual">Manual</option>
+            </select>
+          </label>
+
+          <label className="sb-toolbar-field">
+            <span>Parallel</span>
+            <input
+              min="1"
+              style={{ width: "58px" }}
+              type="number"
+              value={maxParallelFlows}
+              onChange={(event) => setMaxParallelFlows(Number(event.target.value))}
+            />
+          </label>
+        </div>
+
+        <span className="sb-toolbar-sep" aria-hidden="true" />
+
+        {/* Group 4 — Layout */}
+        <div className="sb-toolbar-group" role="group" aria-label="Layout">
+          <button className="toolbar-button" id="sb-auto-arrange" onClick={autoArrange} title="Auto-arrange flows (top-to-bottom)" type="button">
+            <LayoutGrid size={14} />
+            Auto-arrange
+          </button>
+        </div>
+
+        {/* Right-aligned status: validation summary + save state */}
+        <div className="sb-toolbar-actions" role="status">
           <span className={executionPlan.validationIssues.length || connectorIssues.length ? "validation-chip warn" : "validation-chip ok"} title={
             executionPlan.validationIssues.length || connectorIssues.length
               ? [...connectorIssues, ...executionPlan.validationIssues.map((i) => i.message)].join("; ")
@@ -755,10 +1104,10 @@ function ScenarioBuilderContent() {
       </section>
 
       {/* Phase 01+03: Dynamic 3-column grid responding to collapse state */}
-      <div className="scenario-builder-grid" style={builderGridStyle}>
+      <div className="scenario-builder-grid">
 
         {/* LEFT PANEL */}
-        {leftPanelCollapsed ? (
+        {false && (leftPanelCollapsed ? (
           <aside className="scenario-side-panel scenario-side-rail" aria-label="Expand side panel">
             <button
               className="sb-collapse-btn sb-rail-expand"
@@ -951,43 +1300,58 @@ function ScenarioBuilderContent() {
               title="Drag to resize Workflow Definition (double-click to reset)"
             />
           </div>
-        )}
+        ))}
 
         {/* CANVAS */}
-        <section className="scenario-canvas-panel">
+        <section ref={canvasRef} className="scenario-canvas-panel">
           {nodes.length === 0 ? (
             <div className="scenario-canvas-empty">
               <strong>No flows added to this workflow yet.</strong>
               <span>Select saved flows from the left panel to build your workflow.</span>
             </div>
           ) : null}
-          <ReactFlow
-            edges={edges}
+          <FlowCanvas
+            ref={engineRef}
+            className={layoutGliding ? "flow-animating" : undefined}
+            edges={edgesForCanvas}
             edgeTypes={edgeTypes}
             nodeTypes={nodeTypes}
-            nodes={nodesForCanvas}
-            onConnect={onConnect}
-            onEdgeClick={(_, edge) => {
-              setSelectedEdgeId(edge.id);
-              // Task 3: selecting a connector opens the connector-details panel if it was collapsed.
-              if (rightPanelCollapsed) persistRightPanel(false);
-              window.playwrightFlowStudio.settings.update({ selections: { lastSelectedConnectorId: edge.id } }).catch(() => undefined);
-            }}
+            nodes={interactiveNodesForCanvas}
+            onNodePositionChange={handleNodePositionChange}
+            onNodeConnect={handleNodeConnect}
+            onEdgeClick={handleEdgeClick}
             onPaneClick={handlePaneClick}
-            onEdgesChange={handleEdgesChange}
-            onNodesChange={onNodesChange}
-            onNodeDoubleClick={(_, node) => void openFlowInDesigner((node.data as ScenarioFlowNodeData).flowId)}
-            onMoveEnd={(_, viewport) => persistBuilderZoom(Math.round(viewport.zoom * 100))}
+            onPaneContextMenu={openBlankPicker}
+            onNodeClick={handleNodeClick}
+            onNodeDoubleClick={handleNodeDoubleClick}
+            onMoveEnd={handleBuilderMoveEnd}
           >
-            <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
-            <Controls position="top-right" showZoom={false} />
+            {/* Reference-parity canvas chrome: dotted grid + bottom-center glass toolbar only
+                (no React Flow Controls / MiniMap, matching the Workflow reference). */}
+            <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
             <CanvasZoomControl onPersist={persistBuilderZoom} />
-            <MiniMap key={resolvedTheme} pannable position="bottom-right" zoomable />
-          </ReactFlow>
+          </FlowCanvas>
+          <CanvasItemPicker
+            open={Boolean(picker)}
+            title="Workflow Definition"
+            searchPlaceholder="Search saved flows..."
+            items={pickerItems}
+            x={picker?.x ?? 0}
+            y={picker?.y ?? 0}
+            onPick={handlePickerPick}
+            onClose={() => setPicker(null)}
+            footer={
+              availableFlows.length > flowVisibleCount ? (
+                <button className="toolbar-button" type="button" onClick={() => setFlowVisibleCount((count) => count + SAVED_FLOWS_PAGE_SIZE)}>
+                  Load More ({availableFlows.length - flowVisibleCount} remaining)
+                </button>
+              ) : <span>{availableFlows.length ? `${availableFlows.length} saved flows available` : "Create a flow in Flow Designer first."}</span>
+            }
+          />
         </section>
 
         {/* RIGHT PANEL — Phase 01: Collapsible */}
-        {rightPanelCollapsed ? (
+        {rightPanelCollapsed ? (false &&
           /* Collapsed: narrow icon rail */
           <aside className="scenario-properties-panel scenario-properties-rail" aria-label="Expand connector panel">
             <button
@@ -1006,7 +1370,9 @@ function ScenarioBuilderContent() {
             {/* Phase 01: Collapse button in panel header */}
             <section>
               <div className="sb-section-header">
-                <h2 style={{ margin: 0, flex: 1 }}>Selected Connector</h2>
+                <h2 style={{ margin: 0, flex: 1 }}>
+                  {selectedNode?.data.kind === "flowRef" ? "Flow Configuration" : workflowSettingsOpen ? "Workflow Settings" : "Connector Configuration"}
+                </h2>
                 <button
                   className="sb-collapse-btn"
                   id="sb-right-panel-collapse"
@@ -1017,7 +1383,51 @@ function ScenarioBuilderContent() {
                   <PanelRightClose size={16} />
                 </button>
               </div>
-              {selectedEdge ? (
+              {selectedNode?.data.kind === "flowRef" ? (
+                <>
+                  <label>
+                    Flow
+                    <input value={selectedNode.data.name} onChange={(event) => updateNodeData(selectedNode.id, { name: event.target.value })} />
+                  </label>
+                  <label>
+                    Execution order
+                    <input min="1" type="number" value={selectedNode.data.order} onChange={(event) => reorderFlow(selectedNode.id, Number(event.target.value))} />
+                  </label>
+                  <label className="inline-check">
+                    <input checked={selectedNode.data.required} type="checkbox" onChange={(event) => updateNodeData(selectedNode.id, { required: event.target.checked })} />
+                    Required flow
+                  </label>
+                  <button className="toolbar-button danger" type="button" onClick={() => removeFlow(selectedNode.id)}>
+                    <Trash2 size={14} /> Remove flow
+                  </button>
+                </>
+              ) : workflowSettingsOpen ? (
+                <>
+                  <label>
+                    Data Source
+                    <select value={workflowDataSourceId} onChange={(event) => setWorkflowDataSourceId(event.target.value)}>
+                      <option value="">None</option>
+                      {dataSources.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Root Array Path
+                    <input value={workflowRootArrayPath} onChange={(event) => setWorkflowRootArrayPath(event.target.value)} placeholder="$.customers" />
+                  </label>
+                  <label className="inline-check">
+                    <input checked={failurePolicy.stopOnRequiredFlowFailure} type="checkbox" onChange={(event) => setFailurePolicy((current) => ({ ...current, stopOnRequiredFlowFailure: event.target.checked }))} />
+                    Stop on required flow failure
+                  </label>
+                  <label className="inline-check">
+                    <input checked={failurePolicy.continueOnOptionalFlowFailure} type="checkbox" onChange={(event) => setFailurePolicy((current) => ({ ...current, continueOnOptionalFlowFailure: event.target.checked }))} />
+                    Continue optional failures
+                  </label>
+                  <label className="inline-check">
+                    <input checked={failurePolicy.takeScreenshotOnFailure} type="checkbox" onChange={(event) => setFailurePolicy((current) => ({ ...current, takeScreenshotOnFailure: event.target.checked }))} />
+                    Screenshot on failure
+                  </label>
+                </>
+              ) : selectedEdge ? (
                 <>
                   <label>
                     Link Type
@@ -1091,7 +1501,7 @@ function ScenarioBuilderContent() {
               )}
             </section>
 
-            <section>
+            {selectedEdge ? <section>
               <h2>Failure Policy</h2>
               <label className="inline-check">
                 <input
@@ -1117,7 +1527,7 @@ function ScenarioBuilderContent() {
                 />
                 Screenshot on failure
               </label>
-            </section>
+            </section> : null}
 
             <section>
               <h2>Validation</h2>
@@ -1140,16 +1550,22 @@ function ScenarioBuilderContent() {
         )}
       </div>
       <Toast toast={toast} onDismiss={() => setToast(null)} />
+      {connectPrompt ? (
+        <ConfirmDialog
+          title="Connect these flows?"
+          message={`Link “${connectPrompt.sourceName}” to “${connectPrompt.targetName}” so they run as one connected flow.`}
+          confirmLabel="Connect"
+          icon="connect"
+          onConfirm={confirmConnect}
+          onCancel={() => setConnectPrompt(null)}
+        />
+      ) : null}
     </section>
   );
 }
 
 export function ScenarioBuilder() {
-  return (
-    <ReactFlowProvider>
-      <ScenarioBuilderContent />
-    </ReactFlowProvider>
-  );
+  return <ScenarioBuilderContent />;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1162,12 +1578,13 @@ function createScenarioNode(
   flowReference?: ScenarioFlowReference,
   library = fallbackFlowLibrary,
   alias?: string,
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  kind: ScenarioFlowNodeData["kind"] = "flowRef"
 ): ScenarioNode {
   const libraryItem = library.find((flow) => flow.flowId === flowId) ?? {
     flowId,
     name: flowId,
-    description: "Imported flow",
+    description: kind === "start" ? "Workflow entry point" : kind === "end" ? "Workflow complete" : "Imported flow",
     outputs: [],
     inputs: []
   };
@@ -1179,8 +1596,8 @@ function createScenarioNode(
     id: flowId,
     type: "scenarioFlow",
     position,
-    style: { width, height },
     data: {
+      kind,
       flowId,
       name: alias ?? libraryItem.name,
       description: libraryItem.description,
@@ -1203,13 +1620,10 @@ function createScenarioEdge(
 ): ScenarioEdge {
   const label = link?.label ?? linkType;
   const style = link?.style;
-  const { sourceHandle, targetHandle } = portHandlesForKind(scenarioEdgeKind(linkType));
   return {
     id: link?.id ?? `edge-${source}-${target}`,
     source,
     target,
-    sourceHandle,
-    targetHandle,
     ...buildConnectorVisual(linkType, style),
     label,
     data: {
@@ -1227,24 +1641,11 @@ function createScenarioEdge(
  * lone surviving branch connector back to a normal (`success`) connector. See
  * `reconcileBranchConnectors`.
  */
-function reconcileScenarioBranches(edges: ScenarioEdge[], revertSources?: Set<string>): ScenarioEdge[] {
-  const keepLabel = (edge: ScenarioEdge) => {
-    const l = edge.data?.label?.trim();
-    return l && l !== "conditional" && l !== "parallel" ? l : "success";
-  };
-  return reconcileBranchConnectors(edges, {
-    kindOf: (edge) => scenarioEdgeKind(edge.data?.linkType),
-    slotAssign: (edge, kind, slot) => ({ ...edge, sourceHandle: branchSourceHandle(kind, slot), targetHandle: `${kind}-in` }),
-    toNormal: (edge) => ({
-      ...edge,
-      sourceHandle: "normal-out",
-      targetHandle: "normal-in",
-      ...buildConnectorVisual("success", edge.data?.style),
-      data: { ...edge.data, linkType: "success", label: keepLabel(edge), expression: edge.data?.expression ?? "" },
-      label: keepLabel(edge)
-    }),
-    revertSources
-  });
+function reconcileScenarioBranches(edges: ScenarioEdge[], _revertSources?: Set<string>): ScenarioEdge[] {
+  // Branch-port slotting/revert was tied to the old two-port node model. The custom engine routes
+  // every connector bottom→top (no ports), so this is a pass-through; connector kind + config still
+  // live on edge.data and drive validation. Kept so call sites read unchanged.
+  return edges;
 }
 
 /**
@@ -1292,7 +1693,15 @@ function scenarioConnectorStructureIssues(edges: ScenarioEdge[], nodeName: (id: 
 }
 
 function normalizeOrders(nodes: ScenarioNode[]): ScenarioNode[] {
-  return [...nodes].sort((a, b) => a.data.order - b.data.order).map((node, index) => ({ ...node, data: { ...node.data, order: index + 1 } }));
+  const flows = nodes.filter((node) => node.data.kind === "flowRef").sort((a, b) => a.data.order - b.data.order);
+  const flowOrder = new Map(flows.map((node, index) => [node.id, index + 1]));
+  return nodes.map((node) => ({
+    ...node,
+    data: {
+      ...node.data,
+      order: node.data.kind === "start" ? 0 : node.data.kind === "end" ? flows.length + 1 : flowOrder.get(node.id) ?? node.data.order
+    }
+  }));
 }
 
 function toWorkflowProfile(
@@ -1313,28 +1722,35 @@ function toWorkflowProfile(
     description: "Saved workflow of reusable flow profiles",
     version: 1,
     dataSource,
-    nodes: orderedNodes.map((node) => ({
-      id: node.id,
-      type: "flowRef",
-      flowId: node.data.flowId,
-      alias: node.data.name,
-      order: node.data.order,
-      required: node.data.required,
-      inputBindings: Object.fromEntries(
-        node.data.inputs.map((input) => [
-          input,
-          input === "currentRow"
-            ? { type: "currentRow", path: "$" }
-            : input === "selectedAccountType"
-              ? { type: "runtimeInput", key: "selectedAccountType" }
-              : { type: "static", value: input }
-        ])
-      ),
-      retryPolicy: { count: 0, delayMs: 1000 },
-      failurePolicy: failurePolicy.stopOnRequiredFlowFailure ? "stop" : "continue",
-      position: node.position,
-      size: { width: Math.round(node.data.width), height: Math.round(node.data.height) }
-    })),
+    nodes: orderedNodes.map((node) => node.data.kind === "flowRef" ? ({
+        id: node.id,
+        type: "flowRef" as const,
+        flowId: node.data.flowId,
+        alias: node.data.name,
+        order: node.data.order,
+        required: node.data.required,
+        inputBindings: Object.fromEntries(
+          node.data.inputs.map((input) => [
+            input,
+            input === "currentRow"
+              ? { type: "currentRow", path: "$" }
+              : input === "selectedAccountType"
+                ? { type: "runtimeInput", key: "selectedAccountType" }
+                : { type: "static", value: input }
+          ])
+        ),
+        retryPolicy: { count: 0, delayMs: 1000 },
+        failurePolicy: failurePolicy.stopOnRequiredFlowFailure ? "stop" as const : "continue" as const,
+        position: node.position,
+        size: { width: Math.round(node.data.width), height: Math.round(node.data.height) }
+      }) : ({
+        id: node.id,
+        type: node.data.kind,
+        alias: node.data.name,
+        order: node.data.order,
+        position: node.position,
+        size: { width: Math.round(node.data.width), height: Math.round(node.data.height) }
+      })),
     edges: edges.map((edge) => ({
       id: edge.id,
       source: edge.source,

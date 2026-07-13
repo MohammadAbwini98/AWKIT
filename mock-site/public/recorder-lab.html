@@ -84,6 +84,44 @@
         <button id="renderDynamicDom" data-testid="render-dynamic-dom" type="button">Render dynamic row</button>
         <div id="dynamicDomMount" data-testid="dynamic-dom-mount"></div>
       </section>
+
+      <section data-testid="duplicate-controls">
+        <h2>Non-unique controls (compound &amp; container locators)</h2>
+        <p>
+          Expected: both package cards expose the SAME checkbox accessible name (<code>0796713928</code>)
+          and the SAME <em>Select package</em> button text, so role/text alone is not unique. The Recorder
+          must disambiguate with a compound selector (the per-card class or the card's
+          <code>data-testid</code>) or by scoping to the stable container. Each control logs which card it
+          belongs to so a Runner can prove it targeted the intended one.
+        </p>
+
+        <div class="pkg card pkg-basic" data-testid="package-basic">
+          <h3>Basic package</h3>
+          <label class="inline"><input type="checkbox" aria-label="0796713928" /> Package 0796713928</label>
+          <button type="button" class="pkg-select">Select package</button>
+        </div>
+
+        <div class="pkg card pkg-pro" data-testid="package-pro">
+          <h3>Pro package</h3>
+          <label class="inline"><input type="checkbox" aria-label="0796713928" /> Package 0796713928</label>
+          <button type="button" class="pkg-select">Select package</button>
+        </div>
+
+        <p>
+          Expected: the customer table repeats an <em>Edit</em> button per row with no per-button
+          id/testid/class distinguisher, so the Recorder must scope to the row (container) identified by
+          its text.
+        </p>
+        <table data-testid="duplicate-customer-table">
+          <thead><tr><th>Customer</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>Customer Alpha</td><td><button type="button" class="row-edit">Edit</button></td></tr>
+            <tr><td>Customer Beta</td><td><button type="button" class="row-edit">Edit</button></td></tr>
+          </tbody>
+        </table>
+
+        <p id="duplicateResult" data-testid="duplicate-result" role="status">No duplicate-control action yet</p>
+      </section>
     </main>
 
     <script>
@@ -120,6 +158,25 @@
           '<input id="' + id + '-note" data-testid="dynamic-note-input" placeholder="Stable placeholder" />' +
           '<button type="button" data-testid="dynamic-card-action">Approve dynamic card</button>' +
           '</article>';
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-testid="duplicate-controls"] .pkg-select'), function (btn) {
+        btn.addEventListener("click", function () {
+          var card = btn.closest(".pkg");
+          $("duplicateResult").textContent = "Selected package: " + (card ? card.getAttribute("data-testid") : "unknown");
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-testid="duplicate-controls"] input[type="checkbox"]'), function (cb) {
+        cb.addEventListener("change", function () {
+          var card = cb.closest(".pkg");
+          $("duplicateResult").textContent = (cb.checked ? "Checked " : "Unchecked ") + (card ? card.getAttribute("data-testid") : "unknown");
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-testid="duplicate-customer-table"] .row-edit'), function (btn) {
+        btn.addEventListener("click", function () {
+          var row = btn.closest("tr");
+          var cell = row ? row.querySelector("td") : null;
+          $("duplicateResult").textContent = "Edit clicked for: " + (cell ? cell.textContent : "unknown");
+        });
       });
     </script>
   </body>

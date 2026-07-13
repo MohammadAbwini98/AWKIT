@@ -28,14 +28,18 @@ export class BackpressureController {
    * Decide whether one more instance (== one more browser) may start now.
    * `activeFlows`/`queueDepth` come from the engine's instance pool view.
    */
-  admit(activeFlows: number, queueDepth: number): AdmissionDecision {
+  admit(activeFlows: number, queueDepth: number, effectiveMaxFlows?: number): AdmissionDecision {
     const poolSnapshot = this.pool.snapshot();
 
     if (poolSnapshot.activeSlots >= poolSnapshot.maxSlots) {
       return this.block(`browser pool saturated (${poolSnapshot.activeSlots}/${poolSnapshot.maxSlots} browsers)`);
     }
-    if (activeFlows >= this.limits.maxActiveFlows) {
-      return this.block(`active flow limit reached (${activeFlows}/${this.limits.maxActiveFlows})`);
+    // The adaptive controller (Phase A7) may lower the effective flow cap below the configured max under
+    // live host pressure; never above it.
+    const flowCap =
+      effectiveMaxFlows !== undefined ? Math.max(1, Math.min(effectiveMaxFlows, this.limits.maxActiveFlows)) : this.limits.maxActiveFlows;
+    if (activeFlows >= flowCap) {
+      return this.block(`active flow limit reached (${activeFlows}/${flowCap})`);
     }
     const freeMemoryMb = Math.round(os.freemem() / (1024 * 1024));
     if (freeMemoryMb < this.limits.minFreeMemoryMb) {
@@ -62,7 +66,7 @@ export class BackpressureController {
     return { allow: true };
   }
 
-  snapshot(activeFlows: number, queueDepth: number): CapacitySnapshot {
+  snapshot(activeFlows: number, queueDepth: number, adaptive?: { target: number; state: string }): CapacitySnapshot {
     const poolSnapshot = this.pool.snapshot();
     return {
       timestamp: new Date().toISOString(),
@@ -81,7 +85,9 @@ export class BackpressureController {
       processCpuPercent: this.safeLatest()?.processCpuPercent,
       sampledAt: this.safeLatest()?.sampledAt,
       dispatchBlocked: this.lastBlockedReason !== undefined,
-      blockedReason: this.lastBlockedReason
+      blockedReason: this.lastBlockedReason,
+      adaptiveTarget: adaptive?.target,
+      adaptiveState: adaptive?.state
     };
   }
 

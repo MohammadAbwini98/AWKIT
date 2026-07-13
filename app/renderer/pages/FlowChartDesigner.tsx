@@ -1,38 +1,27 @@
 import {
-  addEdge,
+  FlowCanvas,
   Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-  ReactFlow,
-  ReactFlowProvider,
-  reconnectEdge,
-  type Connection,
-  type Edge,
-  type EdgeTypes,
-  type Node,
-  type NodeTypes,
-  useEdgesState,
+  CanvasZoomControl,
+  SmoothEdge,
+  LoopEdge,
   useNodesState,
-  useReactFlow
-} from "@xyflow/react";
-import { FolderOpen, PanelLeftClose, PanelLeftOpen, Search, ShieldCheck, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+  useEdgesState,
+  createIdentityStore,
+  mapWithIdentity,
+  type FlowCanvasHandle,
+  type CanvasNode,
+  type CanvasEdge,
+  type NodeTypes,
+  type EdgeTypes,
+  type Viewport
+} from "../components/canvas";
+import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
-import { CanvasZoomControl } from "../components/workflow/CanvasZoomControl";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
-import {
-  branchSourceHandle,
-  buildConnectorVisual,
-  computePortFlags,
-  connectorPortKindFromHandle,
-  hasCustomStyle,
-  MAX_BRANCH_CONNECTORS,
-  portHandlesForKind,
-  reconcileBranchConnectors
-} from "../components/shared/connectorStyle";
-import { SelfLoopEdge } from "../components/shared/SelfLoopEdge";
-import { TemplateSmoothEdge } from "../components/shared/TemplateSmoothEdge";
+import { buildConnectorVisual, hasCustomStyle } from "../components/shared/connectorStyle";
+import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
+import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
 import { FlowNodePropertiesPanel } from "../components/workflow/FlowNodePropertiesPanel";
 import { flowNodeCatalog, getFlowNodeCatalogItem } from "../components/workflow/flowNodeCatalog";
@@ -40,9 +29,9 @@ import { getNodeDefinition } from "../components/workflow/flowNodeRegistry";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, type FlowDesignerNodeData } from "../components/workflow/flowDesignerTypes";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
 import { usePageChrome } from "../state/pageChrome";
-import { useNavigation } from "../state/navigation";
-import { useTheme } from "../state/theme";
 import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, NodeConfig, StepType, ValueSource } from "@src/profiles/FlowProfile";
 import { connectorKind } from "@src/profiles/FlowProfile";
 
@@ -51,66 +40,36 @@ const nodeTypes = {
 } satisfies NodeTypes;
 
 const edgeTypes = {
-  templateSmooth: TemplateSmoothEdge,
-  circular: SelfLoopEdge
+  smooth: SmoothEdge,
+  loop: LoopEdge
 } satisfies EdgeTypes;
 
-type FlowDesignerNode = Node<FlowDesignerNodeData, "actionNode">;
-type FlowDesignerEdge = Edge<FlowConnectionData>;
+type FlowDesignerNode = CanvasNode<FlowDesignerNodeData>;
+type FlowDesignerEdge = CanvasEdge<FlowConnectionData>;
 
 const initialNodes: FlowDesignerNode[] = [
   {
     id: "start",
     type: "actionNode",
-    position: { x: 280, y: 70 },
+    position: { x: 280, y: 120 },
     data: defaultNodeData("start", "Start", "Entry point")
-  },
-  {
-    id: "open-login",
-    type: "actionNode",
-    position: { x: 280, y: 190 },
-    data: {
-      ...defaultNodeData("goto", "Open Login Page", "Navigate to the login screen"),
-      value: "${BASE_URL}/login"
-    }
-  },
-  {
-    id: "fill-username",
-    type: "actionNode",
-    position: { x: 280, y: 310 },
-    data: {
-      ...defaultNodeData("fill", "Fill Username", "Use environment username"),
-      locatorStrategy: "id",
-      locatorValue: "username",
-      valueSourceType: "env",
-      value: "USERNAME"
-    }
-  },
-  {
-    id: "click-login",
-    type: "actionNode",
-    position: { x: 280, y: 430 },
-    data: {
-      ...defaultNodeData("click", "Click Login", "Submit the login form"),
-      locatorStrategy: "role",
-      locatorValue: "button",
-      locatorName: "Login"
-    }
   },
   {
     id: "end",
     type: "actionNode",
-    position: { x: 280, y: 550 },
+    position: { x: 280, y: 390 },
     data: defaultNodeData("end", "End", "Flow complete")
   }
 ];
 
 const initialEdges: FlowDesignerEdge[] = [
-  createEdge("start", "open-login", "always"),
-  createEdge("open-login", "fill-username", "success"),
-  createEdge("fill-username", "click-login", "success"),
-  createEdge("click-login", "end", "success")
+  createEdge("start", "end", "always")
 ];
+
+type FlowPickerState =
+  | { mode: "blank"; x: number; y: number; position: { x: number; y: number } }
+  | { mode: "edge"; x: number; y: number; edgeId: string }
+  | { mode: "append"; x: number; y: number; sourceId: string };
 
 function createEdge(
   source: string,
@@ -123,15 +82,10 @@ function createEdge(
   extra?: Partial<FlowConnectionData>
 ): FlowDesignerEdge {
   const resolvedLabel = label ?? linkType;
-  const kind = extra?.kind ?? connectorKind({ type: linkType });
-  const { sourceHandle, targetHandle } = portHandlesForKind(kind);
   return {
     id: `edge-${source}-${target}`,
     source,
     target,
-    sourceHandle,
-    targetHandle,
-    reconnectable: true,
     ...buildConnectorVisual(linkType, style),
     data: { linkType, label: resolvedLabel, expression: expression ?? "", style, maxLoopCount, ...extra },
     label: resolvedLabel
@@ -144,29 +98,18 @@ function flowEdgeKind(edge: FlowDesignerEdge): string {
 }
 
 /**
- * Enforce the branch-connector invariants on the Flow Designer edges: slot each node's
- * conditional/parallel pair to distinct right-side ports, and (for `revertSources`) collapse a
- * lone surviving branch connector back to a normal connector. See `reconcileBranchConnectors`.
+ * Branch-connector reconciliation was tied to the old two-port node model (slotting a node's
+ * conditional/parallel pair to distinct ports). The custom engine routes every connector
+ * bottom→top, so there are no ports to slot and this is now a pass-through kept only so call
+ * sites read unchanged. Connector *kind* + config still live on `edge.data` and drive validation.
  */
-function reconcileFlowBranches(edges: FlowDesignerEdge[], revertSources?: Set<string>): FlowDesignerEdge[] {
-  return reconcileBranchConnectors(edges, {
-    kindOf: flowEdgeKind,
-    slotAssign: (edge, kind, slot) => ({ ...edge, sourceHandle: branchSourceHandle(kind, slot), targetHandle: `${kind}-in` }),
-    toNormal: (edge) => ({
-      ...edge,
-      sourceHandle: "normal-out",
-      targetHandle: "normal-in",
-      ...buildConnectorVisual("success", edge.data?.style),
-      data: { ...edge.data, linkType: "success", kind: "normal", conditional: undefined, parallel: undefined },
-      label: edge.data?.label?.trim() ? edge.data.label : "success"
-    }),
-    revertSources
-  });
+function reconcileFlowBranches(edges: FlowDesignerEdge[], _revertSources?: Set<string>): FlowDesignerEdge[] {
+  return edges;
 }
 
-/** Apply the node's stored width/height to its React Flow style so it renders at that size. */
+/** Node size is measured from the rendered card by the engine, so this is now an identity pass. */
 function styledNode(node: FlowDesignerNode): FlowDesignerNode {
-  return { ...node, style: { ...node.style, width: node.data.width, height: node.data.height } };
+  return node;
 }
 
 /**
@@ -183,10 +126,10 @@ function serializeFlowDoc(profile: FlowProfile): string {
 }
 
 function FlowChartDesignerContent() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowDesignerNode>(initialNodes.map(styledNode));
+  const [nodes, setNodes] = useNodesState<FlowDesignerNodeData>(initialNodes.map(styledNode));
   const defaultNodeSize = useRef({ width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT });
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowDesignerEdge>(initialEdges);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>("open-login");
+  const [edges, setEdges] = useEdgesState<FlowConnectionData>(initialEdges);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
   const [flowId, setFlowId] = useState("login-flow");
@@ -194,18 +137,52 @@ function FlowChartDesignerContent() {
   const [saveState, setSaveState] = useState("Loading…");
   const [dataSources, setDataSources] = useState<{ id: string; name: string }[]>([]);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
-  const [paletteWidth, setPaletteWidth] = useState(224);
-  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
-  const [paletteSearch, setPaletteSearch] = useState("");
+  const [picker, setPicker] = useState<FlowPickerState | null>(null);
+  const [connectPrompt, setConnectPrompt] = useState<{ source: string; target: string; sourceName: string; targetName: string } | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<FlowCanvasHandle>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const pendingSnapshot = useRef(true);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const reactFlow = useReactFlow<FlowDesignerNode, FlowDesignerEdge>();
-  const navigation = useNavigation();
-  const { resolvedTheme } = useTheme();
+  const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
+
+  // The properties inspector owns a layout column. If that narrower viewport clips the selected
+  // item, pan only far enough to reveal it and restore that exact accommodation on close.
+  const inspectorPanRef = useRef(0);
+  const drawerOpen = Boolean((selectedNode || selectedEdge) && !propertiesCollapsed);
+  useLayoutEffect(() => {
+    const engine = engineRef.current;
+    const canvas = canvasRef.current;
+    if (!engine || !canvas) return;
+    if (!drawerOpen) {
+      if (inspectorPanRef.current !== 0) {
+        engine.panBy(-inspectorPanRef.current, 0, { duration: 260 });
+        inspectorPanRef.current = 0;
+      }
+      return;
+    }
+
+    const selectedId = selectedNodeId ?? selectedEdgeId;
+    if (!selectedId) return;
+    const escapedId = CSS.escape(selectedId);
+    const selectedElement = selectedNodeId
+      ? canvas.querySelector<HTMLElement>(`[data-canvas-node="${escapedId}"]`)
+      : canvas.querySelector<SVGGElement>(`g.awkit-flow-edge[data-id="${escapedId}"]`);
+    if (!selectedElement) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const selectedRect = selectedElement.getBoundingClientRect();
+    const style = getComputedStyle(document.documentElement);
+    const clearance = Number.parseFloat(style.getPropertyValue("--space-3")) || 0;
+    const panX = Math.min(0, canvasRect.right - clearance - selectedRect.right);
+    if (panX < 0) {
+      inspectorPanRef.current += panX;
+      engine.panBy(panX, 0, { duration: 260 });
+    }
+  }, [drawerOpen, selectedEdgeId, selectedNodeId]);
   const validationMessages = useMemo(() => validateFlow(nodes, edges), [nodes, edges]);
   const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName), [edges, flowId, flowName, nodes]);
   // Points 2–4: connector-structure issues block Save until fixed (subset of validationMessages).
@@ -214,15 +191,6 @@ function FlowChartDesignerContent() {
     [edges, nodes]
   );
 
-  // Point 1: extra ports render only on nodes actually touched by a conditional/parallel connector.
-  const portFlagsByNode = useMemo(
-    () => computePortFlags(edges.map((edge) => ({ source: edge.source, target: edge.target, kind: edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" }) }))),
-    [edges]
-  );
-  const nodesForCanvas = useMemo(
-    () => nodes.map((node) => ({ ...node, data: { ...node.data, portFlags: portFlagsByNode.get(node.id) } })),
-    [nodes, portFlagsByNode]
-  );
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
   const loopControlledSources = useMemo(() => {
     const set = new Set<string>();
@@ -234,20 +202,21 @@ function FlowChartDesignerContent() {
     return set;
   }, [edges]);
 
-  // Node Palette search: filter by label / type / description / category (Task 04).
-  const filteredCatalog = useMemo(() => {
-    const query = paletteSearch.trim().toLowerCase();
-    if (!query) return flowNodeCatalog;
-    return flowNodeCatalog.filter((item) => {
-      const category = getNodeDefinition(item.type).category;
-      return (
-        item.label.toLowerCase().includes(query) ||
-        item.type.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
-        category.toLowerCase().includes(query)
-      );
-    });
-  }, [paletteSearch]);
+  // Reference "Logic" group: branch-creating operations that map to AWKIT's real conditional /
+  // parallel / loop connector semantics (handled in `applyLogic`). Listed first so "Logic" is the
+  // top group in the picker. The plain `condition`/`loop` node types are folded into these logic
+  // operations so there is no confusing duplicate lone-node entry.
+  const pickerItems = useMemo<CanvasPickerItem<string>[]>(
+    () => [
+      { id: "logic-condition", label: "Condition", description: "Branch with If / Else conditional connectors", category: "Logic", icon: GitBranch },
+      { id: "logic-parallel", label: "Parallel", description: "Run two branches at the same time", category: "Logic", icon: GitFork },
+      { id: "logic-loop", label: "Loop", description: "Repeat a step with a self-loop connector", category: "Logic", icon: Repeat },
+      ...flowNodeCatalog
+        .filter((item) => item.type !== "start" && item.type !== "end" && item.type !== "condition" && item.type !== "loop")
+        .map((item) => ({ ...item, id: item.type as string, category: getNodeDefinition(item.type).category }))
+    ],
+    []
+  );
 
   // Dirty only when the saveable document differs from the last saved/loaded snapshot.
   const docSnapshot = useMemo(() => serializeFlowDoc(flowProfile), [flowProfile]);
@@ -271,14 +240,12 @@ function FlowChartDesignerContent() {
         setSavedFlows(profiles);
 
         setPropertiesCollapsed(settings.flowDesignerPropertiesCollapsed);
-        setPaletteWidth(settings.flowDesignerPaletteWidth);
-        setPaletteCollapsed(settings.flowDesignerPaletteCollapsed);
         defaultNodeSize.current = {
           width: settings.designerDefaults.defaultNodeWidth || DEFAULT_NODE_WIDTH,
           height: settings.designerDefaults.defaultNodeHeight || DEFAULT_NODE_HEIGHT
         };
         const zoomPercent = settings.flowDesignerZoomPercent > 0 ? settings.flowDesignerZoomPercent : settings.designerDefaults.defaultZoomPercent;
-        reactFlow.zoomTo(zoomPercent / 100);
+        engineRef.current?.zoomTo(zoomPercent / 100);
 
         // Task 4: restore the last opened Flow Designer flow. If that saved reference is stale
         // (the flow was deleted), clear it so we don't keep pointing at a missing flow, then fall
@@ -312,55 +279,54 @@ function FlowChartDesignerContent() {
     });
   }, []);
 
-  const startPaletteResize = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      const startX = event.clientX;
-      const startWidth = paletteWidth;
-      const onMove = (moveEvent: MouseEvent) => {
-        const next = Math.min(480, Math.max(220, startWidth + (moveEvent.clientX - startX)));
-        setPaletteWidth(next);
-      };
-      const onUp = () => {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-        setPaletteWidth((width) => {
-          window.playwrightFlowStudio.settings.update({ flowDesignerPaletteWidth: width }).catch(() => undefined);
-          return width;
-        });
-      };
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    },
-    [paletteWidth]
-  );
-
-  const resetPaletteWidth = useCallback(() => {
-    setPaletteWidth(224);
-    window.playwrightFlowStudio.settings.update({ flowDesignerPaletteWidth: 224 }).catch(() => undefined);
-  }, []);
-
   const persistFlowZoom = useCallback((percent: number) => {
     window.playwrightFlowStudio.settings.update({ flowDesignerZoomPercent: percent }).catch(() => undefined);
   }, []);
 
-  const togglePaletteCollapsed = useCallback(() => {
-    setPaletteCollapsed((current) => {
-      const next = !current;
-      window.playwrightFlowStudio.settings.update({ flowDesignerPaletteCollapsed: next }).catch(() => undefined);
-      return next;
-    });
+  // Stable canvas callbacks: passing inline arrows to <FlowCanvas> gave every node a new
+  // callback reference on each page render (e.g. typing the Flow Name, save-state changes),
+  // which defeated the memoized node subtree and re-rendered every card per keystroke.
+  const handleNodePositionChange = useCallback(
+    (id: string, position: { x: number; y: number }) => {
+      setNodes((current) => current.map((node) => (node.id === id ? { ...node, position } : node)));
+      setSaveState("Unsaved changes");
+    },
+    [setNodes]
+  );
+  const handleMoveEnd = useCallback((viewport: Viewport) => persistFlowZoom(Math.round(viewport.zoom * 100)), [persistFlowZoom]);
+
+  // Issue 4 (flowforge parity): drag one node onto another to connect them, with a confirm step so an
+  // accidental overlap doesn't silently rewire the flow. Skips already-linked pairs; orients top→bottom.
+  // Reads live nodes/edges from refs so the callback stays STABLE (else it re-creates every edit and,
+  // via the engine's drag-stop handler, re-renders every node wrapper — a perf regression).
+  const nodesLiveRef = useRef(nodes);
+  nodesLiveRef.current = nodes;
+  const edgesLiveRef = useRef(edges);
+  edgesLiveRef.current = edges;
+  const handleNodeConnect = useCallback((aId: string, bId: string) => {
+    const a = nodesLiveRef.current.find((node) => node.id === aId);
+    const b = nodesLiveRef.current.find((node) => node.id === bId);
+    if (!a || !b) return;
+    if (edgesLiveRef.current.some((edge) => (edge.source === aId && edge.target === bId) || (edge.source === bId && edge.target === aId))) return;
+    const [src, tgt] = a.position.y <= b.position.y ? [a, b] : [b, a];
+    if (tgt.id === "start" || src.id === "end") return; // never point into Start / out of End
+    setConnectPrompt({ source: src.id, target: tgt.id, sourceName: src.data.name, targetName: tgt.data.name });
   }, []);
+  const confirmConnect = useCallback(() => {
+    if (!connectPrompt) return;
+    const linkType: FlowEdgeType = connectPrompt.source === "start" ? "always" : "success";
+    setEdges((current) => reconcileFlowBranches([...current, createEdge(connectPrompt.source, connectPrompt.target, linkType)]));
+    setSaveState("Unsaved changes");
+    setToast({ tone: "success", message: `Connected "${connectPrompt.sourceName}" → "${connectPrompt.targetName}".` });
+    setConnectPrompt(null);
+  }, [connectPrompt, setEdges]);
 
   const updateNode = useCallback(
     (nodeId: string, data: Partial<FlowDesignerNodeData>) => {
       setNodes((currentNodes) =>
         currentNodes.map((node) => {
           if (node.id !== nodeId) return node;
-          const nextData = { ...node.data, ...data };
-          // Keep the React Flow style size in sync when width/height change (e.g. Reset size).
-          const style = data.width != null || data.height != null ? { ...node.style, width: nextData.width, height: nextData.height } : node.style;
-          return { ...node, data: nextData, style };
+          return { ...node, data: { ...node.data, ...data } };
         })
       );
       setSaveState("Unsaved changes");
@@ -368,39 +334,23 @@ function FlowChartDesignerContent() {
     [setNodes]
   );
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!connection.source || !connection.target) return;
-      // Point 1/2: a drag started from a conditional/parallel port creates a connector of
-      // that kind (previously every new connector was forced to "normal", so the extra
-      // ports rendered but had no effect).
-      // Point 3: a node that already has a self-loop forces every additional outgoing
-      // connector to Conditional (so the workflow can decide when to exit the loop).
-      const kind: ConnectorKind = loopControlledSources.has(connection.source)
-        ? "conditional"
-        : connectorPortKindFromHandle(connection.sourceHandle ?? connection.targetHandle);
-      // Rule 3/4: a conditional/parallel node is a two-port pair — never more than 2 same-kind
-      // outgoing branch connectors.
-      if (kind === "conditional" || kind === "parallel") {
-        const existing = edges.filter((edge) => edge.source === connection.source && edge.source !== edge.target && flowEdgeKind(edge) === kind).length;
-        if (existing >= MAX_BRANCH_CONNECTORS) return;
-      }
-      const linkType: FlowEdgeType = kind === "conditional" ? "conditional" : kind === "parallel" ? "parallel" : "success";
-      const extra: Partial<FlowConnectionData> =
-        kind === "conditional"
-          ? { kind, conditional: { sourceField: "outcome", operator: "equals", expectedValue: "", priority: 0 } }
-          : kind === "parallel"
-            ? { kind, parallel: { joinMode: "waitAll", failMode: "failFast" } }
-            : { kind };
-      setEdges((currentEdges) => reconcileFlowBranches(addEdge(createEdge(connection.source!, connection.target!, linkType, undefined, undefined, undefined, undefined, extra), currentEdges)));
-      setSaveState("Unsaved changes");
-    },
-    [setEdges, loopControlledSources, edges]
-  );
-
-  const onReconnect = useCallback(
-    (oldEdge: FlowDesignerEdge, newConnection: Connection) => {
-      setEdges((currentEdges) => reconnectEdge(oldEdge, newConnection, currentEdges));
+  // Add or remove a node's self-loop connector (from the node kebab menu). Replaces the old
+  // in-node loop button that mutated edges via useReactFlow.
+  const toggleNodeLoop = useCallback(
+    (nodeId: string) => {
+      setEdges((currentEdges) => {
+        const hasLoop = currentEdges.some((edge) => edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop"));
+        if (hasLoop) {
+          return currentEdges.filter((edge) => !(edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop")));
+        }
+        return [
+          ...currentEdges,
+          createEdge(nodeId, nodeId, "loop", "Loop", undefined, { shape: "circular" }, undefined, {
+            kind: "loop",
+            loop: { mode: "count", maxIterations: 3, parameterName: "" }
+          })
+        ];
+      });
       setSaveState("Unsaved changes");
     },
     [setEdges]
@@ -420,11 +370,8 @@ function FlowChartDesignerContent() {
               nextData.kind = "normal";
               delete nextData.loop;
             }
-            const { sourceHandle, targetHandle } = portHandlesForKind(nextData.kind);
             return {
               ...edge,
-              sourceHandle,
-              targetHandle,
               ...buildConnectorVisual(nextData.linkType, nextData.style),
               data: { ...nextData, label },
               label
@@ -449,22 +396,6 @@ function FlowChartDesignerContent() {
       setSaveState("Unsaved changes");
     },
     [setEdges]
-  );
-
-  // Delete-key / programmatic edge removals also trigger the branch-pair revert (Rule 3/4).
-  const handleEdgesChange = useCallback(
-    (changes: Parameters<typeof onEdgesChange>[0]) => {
-      const removedSources = new Set<string>();
-      changes.forEach((change) => {
-        if (change.type === "remove") {
-          const removed = edges.find((edge) => edge.id === change.id);
-          if (removed) removedSources.add(removed.source);
-        }
-      });
-      onEdgesChange(changes);
-      if (removedSources.size) setEdges((currentEdges) => reconcileFlowBranches(currentEdges, removedSources));
-    },
-    [edges, onEdgesChange, setEdges]
   );
 
   const selectNode = useCallback((nodeId: string) => {
@@ -492,22 +423,10 @@ function FlowChartDesignerContent() {
     setSelectedEdgeId(null);
   }, []);
 
-  // Task 3: clicking empty canvas clears the selection and collapses the surrounding panels
-  // (app side menu, Node Palette, Node Properties) to give the canvas more room. Clicking a node
-  // or connector re-opens the relevant panel via selectNode/selectEdge. Only collapse (never
-  // expand) so repeated pane clicks are idempotent and don't thrash persisted settings.
   const handlePaneClick = useCallback(() => {
     clearSelection();
-    setPaletteCollapsed((collapsed) => {
-      if (!collapsed) window.playwrightFlowStudio.settings.update({ flowDesignerPaletteCollapsed: true }).catch(() => undefined);
-      return true;
-    });
-    setPropertiesCollapsed((collapsed) => {
-      if (!collapsed) window.playwrightFlowStudio.settings.update({ flowDesignerPropertiesCollapsed: true }).catch(() => undefined);
-      return true;
-    });
-    navigation.collapseSidebar();
-  }, [clearSelection, navigation]);
+    setPicker(null);
+  }, [clearSelection]);
 
   const addNode = useCallback(
     (stepType: StepType, position = { x: 640, y: 180 }) => {
@@ -525,18 +444,6 @@ function FlowChartDesignerContent() {
       setSaveState("Unsaved changes");
     },
     [setNodes]
-  );
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-      const stepType = event.dataTransfer.getData("application/playwright-flow-node") as StepType;
-      if (!stepType) return;
-
-      const position = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      addNode(stepType, position);
-    },
-    [addNode, reactFlow]
   );
 
   const saveFlow = useCallback(async () => {
@@ -583,9 +490,16 @@ function FlowChartDesignerContent() {
         })
       );
 
-      setNodes(nextNodes);
+      // Point 1c: flows saved without node positions collapse onto one coordinate. Auto-arrange
+      // (top-to-bottom) only when the positions are missing/stacked; manual layouts are preserved.
+      // Only reframe when we actually rearranged, so normal loads keep the persisted zoom.
+      const needsLayout = positionsNeedLayout(nextNodes);
+      const arrangedNodes = needsLayout ? withAutoLayout(nextNodes, nextEdges, { direction: "TB", force: true }) : nextNodes;
+      if (needsLayout && arrangedNodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+      setNodes(arrangedNodes);
       setEdges(reconcileFlowBranches(nextEdges));
-      setSelectedNodeId(nextNodes[0]?.id ?? null);
+      if (needsLayout) window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
+      setSelectedNodeId(arrangedNodes[0]?.id ?? null);
       setSelectedEdgeId(null);
       setFlowId(profile.id);
       setFlowName(profile.name);
@@ -593,8 +507,17 @@ function FlowChartDesignerContent() {
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);
     },
-    [setEdges, setNodes]
+    [setEdges, setNodes, armLayoutGlide]
   );
+
+  // Point 1c: manual "Auto-arrange" — re-run the layered layout (top-to-bottom) on the current
+  // graph on demand, then frame it. Marks the document dirty; positions stay user-editable after.
+  const autoArrange = useCallback(() => {
+    if (nodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
+    setNodes((currentNodes) => withAutoLayout(currentNodes, edges, { direction: "TB", force: true }));
+    setSaveState("Unsaved changes");
+    window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
+  }, [edges, nodes, setNodes, armLayoutGlide]);
 
   const loadFlow = useCallback(async () => {
     const profile = await window.playwrightFlowStudio.flows.get(flowId);
@@ -636,14 +559,14 @@ function FlowChartDesignerContent() {
   // preserving the source edge's routing/kind so branch invariants stay intact. Purely a canvas
   // edit — nothing here is serialized until Save.
   const insertNodeOnEdge = useCallback(
-    (edgeId: string) => {
+    (edgeId: string, stepType: StepType) => {
       const edge = edges.find((item) => item.id === edgeId);
       if (!edge || edge.source === edge.target) return;
 
       const sourceNode = nodes.find((node) => node.id === edge.source);
       const targetNode = nodes.find((node) => node.id === edge.target);
-      const catalogItem = getFlowNodeCatalogItem("click");
-      const id = `click-${Date.now().toString(36)}`;
+      const catalogItem = getFlowNodeCatalogItem(stepType);
+      const id = `${stepType}-${Date.now().toString(36)}`;
       const position = {
         x: ((sourceNode?.position.x ?? 280) + (targetNode?.position.x ?? 280)) / 2,
         y: ((sourceNode?.position.y ?? 160) + (targetNode?.position.y ?? 320)) / 2
@@ -653,7 +576,7 @@ function FlowChartDesignerContent() {
         id,
         type: "actionNode",
         position,
-        data: { ...defaultNodeData("click", catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
+        data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
       });
 
       setNodes((currentNodes) => [...currentNodes, node]);
@@ -688,6 +611,170 @@ function FlowChartDesignerContent() {
     [edges, nodes, setEdges, setNodes]
   );
 
+  const pickerCoordinates = useCallback((anchor: HTMLElement) => {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    const target = anchor.getBoundingClientRect();
+    if (!canvas) return { x: 16, y: 16 };
+    return {
+      x: Math.max(12, Math.min(target.left - canvas.left + target.width / 2 - 28, canvas.width - 352)),
+      y: Math.max(12, Math.min(target.bottom - canvas.top + 8, canvas.height - 536))
+    };
+  }, []);
+
+  const openEdgePicker = useCallback((edgeId: string, anchor: HTMLElement) => {
+    setPicker({ mode: "edge", edgeId, ...pickerCoordinates(anchor) });
+  }, [pickerCoordinates]);
+
+  const openAppendPicker = useCallback((sourceId: string, anchor: HTMLElement) => {
+    setPicker({ mode: "append", sourceId, ...pickerCoordinates(anchor) });
+  }, [pickerCoordinates]);
+
+  const appendNode = useCallback((sourceId: string, stepType: StepType) => {
+    const source = nodes.find((node) => node.id === sourceId);
+    if (!source) return;
+    const catalogItem = getFlowNodeCatalogItem(stepType);
+    const id = `${stepType}-${Date.now().toString(36)}`;
+    const node = styledNode({
+      id,
+      type: "actionNode",
+      position: { x: source.position.x, y: source.position.y + 180 },
+      data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
+    });
+    setNodes((current) => [...current, node]);
+    setEdges((current) => [...current, createEdge(sourceId, id, source.data.stepType === "start" ? "always" : "success")]);
+    setSelectedNodeId(id);
+    setSelectedEdgeId(null);
+    setSaveState("Unsaved changes");
+  }, [nodes, setEdges, setNodes]);
+
+  const openBlankPicker = useCallback((event: MouseEvent | React.MouseEvent) => {
+    event.preventDefault();
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!canvas) return;
+    const x = Math.max(12, Math.min(event.clientX - canvas.left, canvas.width - 352));
+    const y = Math.max(12, Math.min(event.clientY - canvas.top, canvas.height - 536));
+    setPicker({
+      mode: "blank",
+      x,
+      y,
+      position: engineRef.current?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? { x: 360, y: 200 }
+    });
+  }, []);
+
+  const openToolbarPicker = useCallback(() => {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!canvas) return;
+    const client = { x: canvas.left + canvas.width / 2, y: canvas.top + canvas.height / 2 };
+    setPicker({
+      mode: "blank",
+      x: Math.max(12, canvas.width / 2 - 170),
+      y: Math.max(12, Math.min(72, canvas.height - 536)),
+      position: engineRef.current?.screenToFlowPosition(client) ?? { x: 360, y: 200 }
+    });
+  }, []);
+
+  // Reference-style logic operations (auto-create the branch), mapped to AWKIT connector kinds:
+  // Condition → a branch node with two conditional (If true / If false) connectors; Parallel → a
+  // two-way parallel fan-out; Loop → a step carrying a self-loop connector. Produces valid AWKIT
+  // edges (kind + config) that the runtime and validator accept.
+  const applyLogic = useCallback(
+    (logic: "condition" | "parallel" | "loop", state: FlowPickerState) => {
+      const ROW = 190;
+      const DX = 210;
+      const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const make = (stepType: StepType, position: { x: number; y: number }): FlowDesignerNode => {
+        const item = getFlowNodeCatalogItem(stepType);
+        return styledNode({
+          id: uid(stepType),
+          type: "actionNode",
+          position,
+          data: { ...defaultNodeData(stepType, item.label, item.description), ...defaultNodeSize.current }
+        });
+      };
+      const conditional = (priority: number): Partial<FlowConnectionData> => ({
+        kind: "conditional",
+        conditional: { sourceField: "outcome", operator: "equals", expectedValue: "", priority }
+      });
+      const parallel = (): Partial<FlowConnectionData> => ({ kind: "parallel", parallel: { joinMode: "waitAll", failMode: "failFast" } });
+      const loop = (): Partial<FlowConnectionData> => ({ kind: "loop", loop: { mode: "count", maxIterations: 3, parameterName: "" } });
+
+      // Resolve an anchor position + optional (source, target) the operation splices around.
+      const sourceId = state.mode === "append" ? state.sourceId : state.mode === "edge" ? edges.find((e) => e.id === state.edgeId)?.source : undefined;
+      const targetId = state.mode === "edge" ? edges.find((e) => e.id === state.edgeId)?.target : undefined;
+      const sourceNode = sourceId ? nodes.find((n) => n.id === sourceId) : undefined;
+      const anchor = sourceNode ? { x: sourceNode.position.x, y: sourceNode.position.y + ROW } : state.mode === "blank" ? state.position : { x: 360, y: 200 };
+      const startEdgeType = sourceNode?.data.stepType === "start" ? "always" : "success";
+
+      let addNodes: FlowDesignerNode[] = [];
+      let addEdges: FlowDesignerEdge[] = [];
+      let removeEdgeId: string | undefined;
+      let selectId: string | undefined;
+
+      if (logic === "condition") {
+        const cond = make("condition", anchor);
+        const yes = make("click", { x: anchor.x - DX, y: anchor.y + ROW });
+        addNodes = [cond, yes];
+        addEdges = [createEdge(cond.id, yes.id, "conditional", "If true", undefined, undefined, undefined, conditional(0))];
+        if (sourceId) addEdges.push(createEdge(sourceId, cond.id, startEdgeType));
+        if (state.mode === "edge" && targetId) {
+          removeEdgeId = state.edgeId;
+          addEdges.push(createEdge(cond.id, targetId, "conditional", "If false", undefined, undefined, undefined, conditional(1)));
+        } else {
+          const no = make("click", { x: anchor.x + DX, y: anchor.y + ROW });
+          addNodes.push(no);
+          addEdges.push(createEdge(cond.id, no.id, "conditional", "If false", undefined, undefined, undefined, conditional(1)));
+        }
+        selectId = cond.id;
+      } else if (logic === "parallel") {
+        const a = make("click", { x: anchor.x - DX, y: anchor.y });
+        const b = make("click", { x: anchor.x + DX, y: anchor.y });
+        addNodes = [a, b];
+        if (sourceId) {
+          addEdges = [createEdge(sourceId, a.id, "parallel", "Branch A", undefined, undefined, undefined, parallel()), createEdge(sourceId, b.id, "parallel", "Branch B", undefined, undefined, undefined, parallel())];
+          if (state.mode === "edge" && targetId) {
+            // Re-home the original downstream node under the first parallel branch so nothing is lost.
+            removeEdgeId = state.edgeId;
+            addEdges.push(createEdge(a.id, targetId, "success"));
+          }
+        }
+        selectId = a.id;
+      } else {
+        // loop: a step that carries a self-loop connector.
+        const node = make("click", anchor);
+        addNodes = [node];
+        addEdges = [createEdge(node.id, node.id, "loop", "Loop", undefined, { shape: "circular" }, undefined, loop())];
+        if (sourceId) addEdges.push(createEdge(sourceId, node.id, startEdgeType));
+        if (state.mode === "edge" && targetId) {
+          removeEdgeId = state.edgeId;
+          addEdges.push(createEdge(node.id, targetId, "success"));
+        }
+        selectId = node.id;
+      }
+
+      setNodes((current) => [...current, ...addNodes]);
+      setEdges((current) => reconcileFlowBranches([...current.filter((e) => e.id !== removeEdgeId), ...addEdges]));
+      if (selectId) {
+        setSelectedNodeId(selectId);
+        setSelectedEdgeId(null);
+      }
+      setSaveState("Unsaved changes");
+    },
+    [edges, nodes, setEdges, setNodes]
+  );
+
+  const handlePickerPick = useCallback((id: string) => {
+    if (!picker) return;
+    if (id === "logic-condition" || id === "logic-parallel" || id === "logic-loop") {
+      applyLogic(id.slice("logic-".length) as "condition" | "parallel" | "loop", picker);
+    } else {
+      const stepType = id as StepType;
+      if (picker.mode === "edge") insertNodeOnEdge(picker.edgeId, stepType);
+      else if (picker.mode === "append") appendNode(picker.sourceId, stepType);
+      else addNode(stepType, picker.position);
+    }
+    setPicker(null);
+  }, [addNode, appendNode, applyLogic, insertNodeOnEdge, picker]);
+
   // Display-only edges: attach the label pill + insert affordance to what the canvas renders,
   // without ever mutating the saved `edges` (callbacks/flags must not be serialized). Only
   // straight edges (source ≠ target) get an add button; self-loops render via SelfLoopEdge.
@@ -697,16 +784,61 @@ function FlowChartDesignerContent() {
         const base = edge.data ?? ({ linkType: "success" } as FlowConnectionData);
         return {
           ...edge,
+          // Reflect connector selection on the canvas (the `.is-selected` highlight).
+          selected: edge.id === selectedEdgeId,
           data: {
             ...base,
             label: base.label ?? (typeof edge.label === "string" ? edge.label : undefined),
             showAddButton: edge.source !== edge.target,
-            onInsertNode: insertNodeOnEdge
+            onInsertNode: openEdgePicker
           }
         };
       }),
-    [edges, insertNodeOnEdge]
+    [edges, openEdgePicker, selectedEdgeId]
   );
+
+  // Delete an arbitrary node by id (used by the per-node kebab menu). Start/End are structural
+  // and never removable. Reverts any branch pair orphaned on a surviving source node.
+  const removeNodeById = useCallback(
+    (nodeId: string) => {
+      if (nodeId === "start" || nodeId === "end") return;
+      setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
+      setEdges((currentEdges) => {
+        const affectedSources = new Set(currentEdges.filter((edge) => edge.target === nodeId).map((edge) => edge.source));
+        return reconcileFlowBranches(currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId), affectedSources);
+      });
+      setSelectedNodeId((current) => (current === nodeId ? null : current));
+      setSaveState("Unsaved changes");
+    },
+    [setEdges, setNodes]
+  );
+
+  // Identity-preserving so editing / dragging one node rebuilds only that node's wrapper —
+  // unchanged nodes keep object identity and the memoized NodeContainer skips them.
+  const interactiveNodesStore = useRef(createIdentityStore<FlowDesignerNode, FlowDesignerNode>()).current;
+  const interactiveNodesForCanvas = useMemo(() => {
+    const sources = new Set(edges.filter((edge) => edge.source !== edge.target).map((edge) => edge.source));
+    const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && (edge.data?.kind === "loop" || edge.data?.linkType === "loop")).map((edge) => edge.source));
+    return mapWithIdentity(
+      interactiveNodesStore,
+      nodes,
+      [openAppendPicker, selectNode, removeNodeById, toggleNodeLoop],
+      (node) => `${sources.has(node.id) ? 1 : 0}${loopSources.has(node.id) ? 1 : 0}${node.id === selectedNodeId ? "S" : ""}`,
+      (node) => ({
+        ...node,
+        selected: node.id === selectedNodeId,
+        data: {
+          ...node.data,
+          isLeaf: !sources.has(node.id),
+          hasLoop: loopSources.has(node.id),
+          onAppendNode: openAppendPicker,
+          onConfigure: selectNode,
+          onDeleteNode: removeNodeById,
+          onToggleLoop: toggleNodeLoop
+        }
+      })
+    );
+  }, [edges, nodes, selectedNodeId, openAppendPicker, selectNode, removeNodeById, toggleNodeLoop, interactiveNodesStore]);
 
   usePageChrome(
     {
@@ -722,7 +854,7 @@ function FlowChartDesignerContent() {
   return (
     <DesignerCanvasLayout
       flush
-      rightCollapsed={propertiesCollapsed && !selectedEdge}
+      rightCollapsed={propertiesCollapsed}
       rightPanel={
         selectedEdge ? (
           <ConnectionPropertiesPanel
@@ -732,7 +864,7 @@ function FlowChartDesignerContent() {
             dataSources={dataSources}
             sourceHasLoop={loopControlledSources.has(selectedEdge.source) && selectedEdge.source !== selectedEdge.target}
           />
-        ) : (
+        ) : selectedNode ? (
           <FlowNodePropertiesPanel
             selectedNode={selectedNode}
             validationMessages={validationMessages}
@@ -745,7 +877,7 @@ function FlowChartDesignerContent() {
             onUpdateNode={updateNode}
             onDelete={deleteSelectedNode}
           />
-        )
+        ) : null
       }
     >
       <div className="flow-designer-shell">
@@ -772,9 +904,17 @@ function FlowChartDesignerContent() {
             <input value={flowName} onChange={(event) => setFlowName(event.target.value)} />
           </label>
           {/* Save and Export live in the top header (usePageChrome) — not duplicated here. */}
+          <button className="toolbar-button" onClick={openToolbarPicker} type="button">
+            <Plus size={15} />
+            Add Node
+          </button>
           <button className="toolbar-button" onClick={loadFlow} type="button">
             <FolderOpen size={15} />
             Load
+          </button>
+          <button className="toolbar-button" onClick={autoArrange} type="button" title="Auto-arrange nodes (top-to-bottom)">
+            <LayoutGrid size={15} />
+            Auto-arrange
           </button>
           <span className={validationMessages.length ? "validation-chip warn" : "validation-chip ok"}>
             <ShieldCheck size={14} />
@@ -782,137 +922,58 @@ function FlowChartDesignerContent() {
           </span>
         </div>
 
-        <div
-          className="flow-designer-body"
-          style={{ gridTemplateColumns: paletteCollapsed ? "44px minmax(0, 1fr)" : `${paletteWidth}px 6px minmax(0, 1fr)` }}
-        >
-          {paletteCollapsed ? (
-            <aside className="flow-node-palette flow-node-palette-rail" aria-label="Node Palette (collapsed)">
-              <button
-                className="palette-collapse-btn palette-rail-expand"
-                onClick={togglePaletteCollapsed}
-                title="Show Node Palette"
-                type="button"
-              >
-                <PanelLeftOpen size={16} />
-              </button>
-              <span className="panel-rail-label">Node Palette</span>
-            </aside>
-          ) : (
-            <>
-              <aside className="flow-node-palette">
-                <div className="flow-node-palette-head">
-                  <div className="palette-head-row">
-                    <h2>Node Palette</h2>
-                    <button
-                      className="palette-collapse-btn"
-                      onClick={togglePaletteCollapsed}
-                      title="Collapse Node Palette"
-                      type="button"
-                    >
-                      <PanelLeftClose size={16} />
-                    </button>
-                  </div>
-                  <span>{filteredCatalog.length} of {flowNodeCatalog.length} step types</span>
-                </div>
-                <div className="palette-search">
-                  <Search size={14} />
-                  <input
-                    value={paletteSearch}
-                    placeholder="Search nodes..."
-                    onChange={(event) => setPaletteSearch(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") setPaletteSearch("");
-                    }}
-                  />
-                  {paletteSearch ? (
-                    <button className="palette-search-clear" type="button" title="Clear search" onClick={() => setPaletteSearch("")}>
-                      <X size={13} />
-                    </button>
-                  ) : null}
-                </div>
-                <div className="palette-scroll">
-                  {filteredCatalog.length === 0 ? (
-                    <p className="palette-empty">No matching nodes found.</p>
-                  ) : (
-                    filteredCatalog.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          draggable
-                          key={item.type}
-                          onClick={() => addNode(item.type)}
-                          onDragStart={(event) => {
-                            event.dataTransfer.setData("application/playwright-flow-node", item.type);
-                            event.dataTransfer.effectAllowed = "move";
-                          }}
-                          type="button"
-                        >
-                          <Icon size={15} />
-                          <span>
-                            <strong>{item.label}</strong>
-                            <small>{item.description}</small>
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </aside>
-
-              <div
-                className="palette-resize-handle"
-                onMouseDown={startPaletteResize}
-                onDoubleClick={resetPaletteWidth}
-                title="Resize node palette (double-click to reset)"
-                role="separator"
-                aria-orientation="vertical"
-              />
-            </>
-          )}
-
-          <div className="react-flow-shell" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-            <ReactFlow
+        <div className="flow-designer-body">
+          <div ref={canvasRef} className="react-flow-shell">
+            <FlowCanvas
+              ref={engineRef}
+              className={layoutGliding ? "flow-animating" : undefined}
               edges={edgesForCanvas}
               edgeTypes={edgeTypes}
               nodeTypes={nodeTypes}
-              nodes={nodesForCanvas}
-              onConnect={onConnect}
-              onReconnect={onReconnect}
-              onEdgeClick={(_, edge) => selectEdge(edge.id)}
-              onEdgesChange={handleEdgesChange}
-              onNodeClick={(_, node) => selectNode(node.id)}
-              onNodesChange={onNodesChange}
+              nodes={interactiveNodesForCanvas}
+              onNodePositionChange={handleNodePositionChange}
+              onNodeConnect={handleNodeConnect}
+              onEdgeClick={selectEdge}
+              onNodeClick={selectNode}
               onPaneClick={handlePaneClick}
-              onMoveEnd={(_, viewport) => persistFlowZoom(Math.round(viewport.zoom * 100))}
+              onPaneContextMenu={openBlankPicker}
+              onMoveEnd={handleMoveEnd}
             >
-              <Background gap={16} size={1.9} color="var(--awkit-canvas-dot)" variant={BackgroundVariant.Dots} />
-              <Controls position="top-right" showZoom={false} />
+              {/* Reference-parity canvas chrome: only the dotted grid + bottom-center glass toolbar.
+                  No React Flow Controls / MiniMap (the Workflow reference has neither). */}
+              <Background gap={22} size={2} color="var(--awkit-canvas-dot)" />
               <CanvasZoomControl onPersist={persistFlowZoom} />
-              {/* Keyed by theme: the minimap composites into its own layer and can keep a stale
-                  paint when only CSS variables change, so remount it on theme switch. */}
-              <MiniMap key={resolvedTheme} nodeColor={(node) => nodeColor((node.data as FlowDesignerNodeData).validationState)} pannable position="bottom-right" zoomable />
-            </ReactFlow>
+            </FlowCanvas>
+            <CanvasItemPicker
+              open={Boolean(picker)}
+              title="Node Palette"
+              searchPlaceholder="Search nodes..."
+              items={pickerItems}
+              x={picker?.x ?? 0}
+              y={picker?.y ?? 0}
+              onPick={handlePickerPick}
+              onClose={() => setPicker(null)}
+            />
           </div>
         </div>
       </div>
       <Toast toast={toast} onDismiss={() => setToast(null)} />
+      {connectPrompt ? (
+        <ConfirmDialog
+          title="Connect these steps?"
+          message={`Link “${connectPrompt.sourceName}” to “${connectPrompt.targetName}” so they run as one connected flow.`}
+          confirmLabel="Connect"
+          icon="connect"
+          onConfirm={confirmConnect}
+          onCancel={() => setConnectPrompt(null)}
+        />
+      ) : null}
     </DesignerCanvasLayout>
   );
 }
 
 export function FlowChartDesigner() {
-  return (
-    <ReactFlowProvider>
-      <FlowChartDesignerContent />
-    </ReactFlowProvider>
-  );
-}
-
-function nodeColor(validationState: FlowDesignerNodeData["validationState"]): string {
-  if (validationState === "error") return "var(--awkit-danger)";
-  if (validationState === "warning") return "var(--awkit-warning)";
-  return "var(--awkit-accent)";
+  return <FlowChartDesignerContent />;
 }
 
 function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
@@ -1075,7 +1136,10 @@ function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): FlowStep
         value: data.locatorValue,
         name: data.locatorName || undefined,
         exact: data.locatorExact || undefined,
-        quality: data.locatorQuality
+        quality: data.locatorQuality,
+        // Keep the Recorder's runtime fallbacks + container/frame scoping on save.
+        alternatives: data.locatorAlternatives,
+        context: data.locatorContext
       }
       : undefined,
     value: data.value || undefined,
@@ -1175,6 +1239,9 @@ function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorName: step.locator?.name ?? "",
     locatorExact: step.locator?.exact ?? false,
     locatorQuality: step.locator?.quality,
+    // Preserve Recorder runtime fallbacks/scoping through the designer round-trip (edit-safe).
+    locatorAlternatives: step.locator?.alternatives,
+    locatorContext: step.locator?.context,
     valueSourceType: valueSource?.type ?? "static",
     value: step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? valueSource?.path ?? valueSource?.outputKey ?? "",
     dataSourceScope: valueSource?.dataSourceScope ?? "workflow",

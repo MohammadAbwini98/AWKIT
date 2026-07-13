@@ -1,96 +1,77 @@
-import { useEffect } from "react";
-import { NodeResizer, useReactFlow, useUpdateNodeInternals, type Node, type NodeProps } from "@xyflow/react";
-import { GitBranch, Lock, RotateCw, Unlock } from "lucide-react";
+import { useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { CheckCircle2, GitBranch, Lock, MoreHorizontal, PlayCircle, Repeat, SlidersHorizontal, Trash2, Unlock } from "lucide-react";
+import { nodeEnter, usePrefersReducedMotion } from "../../lib/motion";
 import type { ScenarioFlowNodeData } from "./scenarioDesignerTypes";
-import type { ScenarioLinkData } from "./scenarioDesignerTypes";
-import { ConnectorLoopPort, ConnectorSourcePorts, ConnectorTargetPorts } from "../shared/ConnectorPorts";
-import { buildConnectorVisual, portHandlesForKind } from "../shared/connectorStyle";
+import { NodeAppendButton } from "../shared/NodeAppendButton";
+import { NodeOptionsMenu, type NodeMenuItem } from "../shared/NodeOptionsMenu";
+import { bumpRenderProbe } from "../canvas/renderProbe";
+import type { CanvasNodeProps } from "../canvas";
 
-type ScenarioFlowNodeModel = Node<ScenarioFlowNodeData, "scenarioFlow">;
+/**
+ * Workflow Builder flow-node card — the Workflow-reference look, rendered on the
+ * custom canvas engine (no React Flow). Loop create/remove and delete live in the
+ * kebab menu; the page owns the actual edge/node mutation via the `data` callbacks.
+ */
+export function ScenarioFlowNode({ id, data, selected }: CanvasNodeProps<ScenarioFlowNodeData>) {
+  bumpRenderProbe("card");
+  const hasLoop = Boolean(data.hasLoop);
+  const reducedMotion = usePrefersReducedMotion();
+  const isStart = data.kind === "start";
+  const isEnd = data.kind === "end";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-export function ScenarioFlowNode({ id, data, selected }: NodeProps<ScenarioFlowNodeModel>) {
-  const { setNodes, setEdges } = useReactFlow();
-  const updateNodeInternals = useUpdateNodeInternals();
-  const hasLoop = Boolean(data.portFlags?.loop);
-
-  useEffect(() => {
-    updateNodeInternals(id);
-  }, [id, data.portFlags?.conditionalIn, data.portFlags?.loop, data.portFlags?.parallelIn, data.portFlags?.sourceKind, updateNodeInternals]);
-
-  // Point 3/4: loop connectors are created via this button (source/target = this flow node),
-  // not by dragging — self-drag connections are unreliable, so the button is the supported path.
-  const addLoop = () => {
-    const { sourceHandle, targetHandle } = portHandlesForKind("loop");
-    setEdges((currentEdges) => {
-      if (currentEdges.some((edge) => edge.source === id && edge.target === id && edge.data?.linkType === "loop")) {
-        return currentEdges;
-      }
-      return [
-        ...currentEdges,
-        {
-          id: `edge-${id}-${id}-loop`,
-          source: id,
-          target: id,
-          sourceHandle,
-          targetHandle,
-          reconnectable: true,
-          ...buildConnectorVisual("loop", { shape: "circular" }),
-          data: { linkType: "loop", label: "Loop", expression: "", style: { shape: "circular" } } satisfies ScenarioLinkData,
-          label: "Loop"
-        }
-      ];
-    });
-  };
-
-  const removeLoop = () => {
-    setEdges((currentEdges) => currentEdges.filter((edge) => !(edge.source === id && edge.target === id && edge.data?.linkType === "loop")));
-  };
+  const menuItems: NodeMenuItem[] = [
+    { id: "configure", label: "Configure", icon: SlidersHorizontal, onSelect: () => data.onConfigure?.(id) },
+    ...(!isStart && !isEnd
+      ? [
+          { id: "loop", label: hasLoop ? "Remove loop" : "Add loop", icon: Repeat, onSelect: () => data.onToggleLoop?.(id) } as NodeMenuItem,
+          { id: "delete", label: "Remove flow", icon: Trash2, tone: "danger", onSelect: () => data.onDeleteFlow?.(id) } as NodeMenuItem
+        ]
+      : [])
+  ];
 
   return (
     <>
-      {/* Resize handles show only on the selected node (matches Flow Designer). */}
-      <NodeResizer
-        isVisible={selected}
-        minWidth={180}
-        minHeight={80}
-        onResizeEnd={(_, params) =>
-          setNodes((nodes) =>
-            nodes.map((node) =>
-              node.id === id
-                ? {
-                    ...node,
-                    style: { ...node.style, width: params.width, height: params.height },
-                    data: { ...node.data, width: params.width, height: params.height }
-                  }
-                : node
-            )
-          )
-        }
-      />
-      <article className={`scenario-flow-node ${selected ? "selected" : ""} ${data.mode}`}>
-        <button
-          className={`node-loop-button${hasLoop ? " active" : ""}`}
-          onClick={hasLoop ? removeLoop : addLoop}
-          title={hasLoop ? "Remove loop connector" : "Add loop connector"}
-          type="button"
-        >
-          <RotateCw size={11} />
-        </button>
-        <div className="scenario-node-order">{data.order}</div>
+      <motion.article
+        className={`scenario-flow-node ${selected ? "selected" : ""} ${data.mode} ${data.kind}`}
+        variants={nodeEnter}
+        initial={reducedMotion ? false : "hidden"}
+        animate="visible"
+        whileHover={reducedMotion ? undefined : { y: -1 }}
+      >
+        <div className="scenario-node-order">{isStart ? <PlayCircle size={16} /> : isEnd ? <CheckCircle2 size={16} /> : data.order}</div>
         <div className="scenario-node-copy">
           <strong>{data.name}</strong>
           <span>{data.description}</span>
         </div>
-        <div className="scenario-node-meta">
-          {data.required ? <Lock size={14} /> : <Unlock size={14} />}
-          <GitBranch size={14} />
-        </div>
-      </article>
-      {/* Handles render as siblings of the card (which has overflow: hidden) so React Flow
-          positions them against the un-clipped node wrapper. */}
-      <ConnectorTargetPorts flags={data.portFlags} />
-      <ConnectorSourcePorts flags={data.portFlags} />
-      <ConnectorLoopPort flags={data.portFlags} />
+        {!isStart && !isEnd ? (
+          <div className="scenario-node-meta">
+            {data.required ? <Lock size={14} /> : <Unlock size={14} />}
+            <GitBranch size={14} />
+          </div>
+        ) : null}
+        {/* Kebab affordance: opens the per-node context menu (Configure / loop / remove). */}
+        <button
+          ref={menuButtonRef}
+          className={`action-node-menu${menuOpen ? " open" : ""} nodrag`}
+          type="button"
+          title="Flow actions"
+          aria-label="Flow actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            setMenuOpen((open) => !open);
+          }}
+        >
+          <MoreHorizontal size={16} />
+        </button>
+      </motion.article>
+      <NodeOptionsMenu open={menuOpen} anchor={menuButtonRef.current} items={menuItems} onClose={() => setMenuOpen(false)} />
+      {data.isLeaf && !isEnd ? <NodeAppendButton nodeId={id} onAppend={data.onAppendFlow} /> : null}
     </>
   );
 }

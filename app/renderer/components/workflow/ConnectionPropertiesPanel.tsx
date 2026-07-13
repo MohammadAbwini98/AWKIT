@@ -29,7 +29,7 @@ export type FlowConnectionData = {
    * ignores these.
    */
   showAddButton?: boolean;
-  onInsertNode?: (edgeId: string) => void;
+  onInsertNode?: (edgeId: string, anchor: HTMLElement) => void;
 };
 
 const OPERATOR_OPTIONS: { value: ConnectorConditionOperator; label: string }[] = [
@@ -360,6 +360,11 @@ export function ConnectionPropertiesPanel({ edge, onUpdate, onDelete, dataSource
                     value={lp?.maxIterations ?? 3}
                     onChange={(event) => onUpdate(edge.id, { loop: { ...(lp ?? { mode: "count" }), maxIterations: parseInt(event.target.value, 10) || 1 } })}
                   />
+                  <small>
+                    The loop takes priority over this node&apos;s other exits: while its condition is satisfied the flow re-enters the
+                    loop; only once the loop finishes (condition fails or max iterations reached) does it continue along the node&apos;s
+                    Conditional exit connector(s).
+                  </small>
                 </label>
                 {lp?.mode === "staticList" ? (
                   <label>

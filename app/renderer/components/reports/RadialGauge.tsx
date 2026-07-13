@@ -30,8 +30,10 @@ function polar(percent: number): { x: number; y: number } {
 function bandArc(fromPct: number, toPct: number): string {
   const a = polar(fromPct);
   const b = polar(toPct);
-  // Top semicircle traversed left→right is the counter-clockwise (sweep-flag 0) direction.
-  return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${R} ${R} 0 0 0 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
+  // Sweep-flag 1 traces the TOP semicircle left→right. Flag 0 is only unambiguous for the full
+  // 0→100 arc (chord === diameter → one possible circle); for the shorter band sub-arcs it resolves
+  // to the mirrored circle centre, producing cusped/distorted segments. Always use flag 1.
+  return `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} A ${R} ${R} 0 0 1 ${b.x.toFixed(2)} ${b.y.toFixed(2)}`;
 }
 
 function bandColorFor(value: number, bands: Band[]): string {

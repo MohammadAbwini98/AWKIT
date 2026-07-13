@@ -5,6 +5,7 @@
  * and never throw — execution must not depend on telemetry.
  */
 import os from "node:os";
+import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 
 export interface ResourceSample {
   sampledAt: string;
@@ -14,6 +15,8 @@ export interface ResourceSample {
   cpuPercent?: number;
   /** This process's CPU percent (both cores summed, normalized by core count). */
   processCpuPercent?: number;
+  /** Node.js event-loop delay mean (ms) since the previous sample — a main-thread saturation signal. */
+  eventLoopDelayMs?: number;
 }
 
 interface CpuTimes {
@@ -27,8 +30,16 @@ export class ResourceSampler {
   private lastProcessCpu: NodeJS.CpuUsage | undefined;
   private lastProcessCpuAt: number | undefined;
   private latestSample: ResourceSample | undefined;
+  /** Passive event-loop-delay histogram; its internal timer is unref'd (never blocks process exit). */
+  private readonly eld: IntervalHistogram = monitorEventLoopDelay({ resolution: 20 });
 
-  constructor(private readonly intervalMs = 2000) {}
+  constructor(private readonly intervalMs = 2000) {
+    try {
+      this.eld.enable();
+    } catch {
+      /* measurement is best-effort */
+    }
+  }
 
   get latest(): ResourceSample | undefined {
     return this.latestSample;
@@ -96,6 +107,14 @@ export class ResourceSampler {
       }
       this.lastProcessCpu = usage;
       this.lastProcessCpuAt = now;
+    } catch {
+      /* keep undefined */
+    }
+    try {
+      // Mean event-loop delay over the window since the last sample (ns → ms), then reset the window.
+      const meanNs = this.eld.mean;
+      if (Number.isFinite(meanNs) && meanNs > 0) result.eventLoopDelayMs = Math.round((meanNs / 1e6) * 10) / 10;
+      this.eld.reset();
     } catch {
       /* keep undefined */
     }

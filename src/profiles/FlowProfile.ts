@@ -53,6 +53,12 @@ export interface LocatorQuality {
   warning?: string;
   /** How many candidate locators were generated before this one was chosen. */
   candidateCount?: number;
+  /**
+   * How uniqueness was achieved when no single strategy was globally unique:
+   * `compound` = combined features/ancestors into one CSS selector; `container` = a readable
+   * semantic locator scoped to a stable container; `positional` = a fragile index-based fallback.
+   */
+  disambiguation?: "compound" | "container" | "positional";
 }
 
 /**

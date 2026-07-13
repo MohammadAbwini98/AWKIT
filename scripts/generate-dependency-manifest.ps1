@@ -146,6 +146,7 @@ $manifest = [ordered]@{
     playwright = Get-DependencyVersion "playwright"
     react = Get-DependencyVersion "react"
     reactFlow = Get-DependencyVersion "@xyflow/react"
+    framerMotion = Get-DependencyVersion "framer-motion"
     sqlJs = Get-DependencyVersion "sql.js"
     sqlite = "sql.js $(Get-DependencyVersion 'sql.js') (WASM, no native driver)"
   }

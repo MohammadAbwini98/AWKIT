@@ -2,8 +2,21 @@ import { BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { existsSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { previewCapacity } from "../capacityService";
+import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
+
+const WORKLOAD_CLASSES: WorkloadClass[] = ["light", "medium", "heavy", "custom"];
 
 export function registerSystemIpc(): void {
+  // Read-only capacity preview for Settings: detects the current machine and returns its capacity
+  // recommendation without mutating the persisted profile. Best-effort — never throws to the renderer.
+  ipcMain.handle("system:capacityPreview", async (_, workloadClass?: unknown) => {
+    const cls = typeof workloadClass === "string" && WORKLOAD_CLASSES.includes(workloadClass as WorkloadClass)
+      ? (workloadClass as WorkloadClass)
+      : undefined;
+    return previewCapacity(cls);
+  });
+
   ipcMain.handle("system:browseFolder", async (event, defaultPath?: string) => {
     const window = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const options = {

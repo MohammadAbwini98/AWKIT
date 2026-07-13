@@ -17,7 +17,11 @@ import { APP_INSTANCE_ID, APP_PID } from "./AppInstance";
 import type { RuntimeStore } from "./RuntimeStore";
 import {
   durationStats,
+  machineContextFromRun,
+  percentile,
   type FailureBreakdown,
+  type MachineFilter,
+  type MachineSummary,
   type RunHistoryFilter,
   type RunHistoryPage,
   type RunHistoryRow,
@@ -26,7 +30,10 @@ import {
   type TelemetryOverview,
   type TelemetryPage,
   type TelemetryRange,
-  type WorkflowReportRow
+  type WorkflowComparisonRow,
+  type WorkflowReportRow,
+  type WorkflowTrend,
+  type WorkflowTrendPoint
 } from "@src/reports/TelemetryContracts";
 import { toReportCategory, type ReportCategory } from "@src/reports/ReportCategories";
 import type { ErrorClass } from "../runtime/ErrorClassifier";
@@ -117,8 +124,10 @@ export class SqliteRuntimeStore implements RuntimeStore {
         `INSERT OR REPLACE INTO runtime_runs
          (instanceId, executionId, scenarioId, status, flowRunStatus, appInstanceId, pid, startedAt, endedAt,
           lastHeartbeatAt, lastKnownUrl, error, errorClass, recoverable, recoveryNote,
-          scenarioName, triggerType, queueWaitMs, durationMs, retryCount, recoveryCount, reportCategory, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          scenarioName, triggerType, queueWaitMs, durationMs, retryCount, recoveryCount, reportCategory,
+          machineId, logicalCpuCount, totalMemoryMb, availableMemoryMbAtStart, executionMode, browserPoolMode,
+          configuredConcurrency, observedPeakConcurrency, workloadClass, capacityRecommendationAtRun, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           merged.instanceId,
           merged.executionId,
@@ -142,6 +151,16 @@ export class SqliteRuntimeStore implements RuntimeStore {
           merged.retryCount ?? null,
           merged.recoveryCount ?? null,
           merged.reportCategory ?? null,
+          merged.machineId ?? null,
+          merged.logicalCpuCount ?? null,
+          merged.totalMemoryMb ?? null,
+          merged.availableMemoryMbAtStart ?? null,
+          merged.executionMode ?? null,
+          merged.browserPoolMode ?? null,
+          merged.configuredConcurrency ?? null,
+          merged.observedPeakConcurrency ?? null,
+          merged.workloadClass ?? null,
+          merged.capacityRecommendationAtRun ?? null,
           merged.updatedAt
         ]
       );
@@ -407,50 +426,153 @@ export class SqliteRuntimeStore implements RuntimeStore {
   }
 
   queryWorkflows(range: TelemetryRange): WorkflowReportRow[] {
-    const runs = this.selectRunsInRange(range, 10000);
-    const groups = new Map<string, DurableRunRecord[]>();
-    for (const run of runs) {
+    return aggregateWorkflows(this.selectRunsInRange(range, 10000));
+  }
+
+  /**
+   * Per-workflow stats for the current window, each compared to the SAME workflow in the immediately
+   * preceding window of equal length. Windows are half-open: current `[since, now)`, previous
+   * `[since − len, since)`. All-time ranges (no `sinceIso`) have no prior window → `previous` undefined,
+   * `trend` = `new`. An optional machine filter keeps cross-machine runs from being compared together.
+   */
+  queryWorkflowComparison(range: TelemetryRange, machineFilter: MachineFilter = {}): WorkflowComparisonRow[] {
+    const now = Date.now();
+    const sinceMs = range.sinceIso ? Date.parse(range.sinceIso) : undefined;
+    const currentRuns = this.runsInWindow(range.sinceIso, undefined, machineFilter);
+    const current = aggregateWorkflows(currentRuns);
+
+    let previousByKey = new Map<string, WorkflowReportRow>();
+    if (sinceMs !== undefined && Number.isFinite(sinceMs)) {
+      const len = now - sinceMs;
+      const prevSinceIso = new Date(sinceMs - len).toISOString();
+      const previousRuns = this.runsInWindow(prevSinceIso, range.sinceIso, machineFilter);
+      previousByKey = new Map(aggregateWorkflows(previousRuns).map((row) => [row.scenarioId ?? "(unknown)", row]));
+    }
+
+    // Representative machine context = the workflow's most recent run in the current window.
+    const lastRunByKey = new Map<string, DurableRunRecord>();
+    for (const run of currentRuns) {
       const key = run.scenarioId ?? "(unknown)";
+      const prev = lastRunByKey.get(key);
+      if (!prev || runTime(run) > runTime(prev)) lastRunByKey.set(key, run);
+    }
+
+    return current.map((row) => {
+      const key = row.scenarioId ?? "(unknown)";
+      const previous = previousByKey.get(key);
+      const delta = previous
+        ? {
+            successRate: round4(row.successRate - previous.successRate),
+            avgMs: subtract(row.duration.avgMs, previous.duration.avgMs),
+            p95Ms: subtract(row.duration.p95Ms, previous.duration.p95Ms),
+            totalRuns: row.totalRuns - previous.totalRuns
+          }
+        : {};
+      const trend: WorkflowComparisonRow["trend"] = !previous
+        ? "new"
+        : row.successRate > previous.successRate
+          ? "up"
+          : row.successRate < previous.successRate
+            ? "down"
+            : "flat";
+      const lastRun = lastRunByKey.get(key);
+      return { ...row, previous, delta, trend, machineContext: lastRun ? machineContextFromRun(lastRun) : undefined };
+    });
+  }
+
+  /**
+   * Run-over-run trend for ONE workflow: its runs in range split into `buckets` equal time buckets, each
+   * with success rate + duration stats. Empty when the workflow has no runs in range.
+   */
+  queryWorkflowTrend(scenarioId: string | undefined, range: TelemetryRange, buckets: number, machineFilter: MachineFilter = {}): WorkflowTrend {
+    const runs = this.runsInWindow(range.sinceIso, undefined, machineFilter).filter((r) => (r.scenarioId ?? undefined) === scenarioId);
+    const bucketCount = Math.max(1, Math.floor(buckets));
+    const times = runs.map(runTime).filter((n) => !Number.isNaN(n));
+    if (times.length === 0) return { scenarioId, scenarioName: undefined, points: [] };
+    const min = Math.min(...times);
+    const max = Math.max(...times);
+    const span = Math.max(1, max - min);
+    const width = Math.max(1, Math.ceil(span / bucketCount));
+    const groups = new Map<number, DurableRunRecord[]>();
+    let scenarioName: string | undefined;
+    for (const run of runs) {
+      scenarioName = scenarioName ?? run.scenarioName;
+      const t = runTime(run);
+      if (Number.isNaN(t)) continue;
+      const key = Math.min(bucketCount - 1, Math.floor((t - min) / width));
       const list = groups.get(key) ?? [];
       list.push(run);
       groups.set(key, list);
     }
-    const rows: WorkflowReportRow[] = [];
-    for (const [scenarioId, group] of groups) {
-      let success = 0;
-      let failed = 0;
-      let cancelled = 0;
-      let retryCount = 0;
-      const durations: number[] = [];
-      const queueWaits: number[] = [];
-      let last: DurableRunRecord | undefined;
-      for (const run of group) {
-        const bucket = statusBucket(run.status);
-        if (bucket === "success") success += 1;
-        else if (bucket === "failed") failed += 1;
-        else if (bucket === "cancelled") cancelled += 1;
-        if (typeof run.durationMs === "number") durations.push(run.durationMs);
-        if (typeof run.queueWaitMs === "number") queueWaits.push(run.queueWaitMs);
-        retryCount += run.retryCount ?? 0;
-        if (!last || runTime(run) > runTime(last)) last = run;
-      }
-      const denom = success + failed;
-      rows.push({
-        scenarioId: scenarioId === "(unknown)" ? undefined : scenarioId,
-        scenarioName: last?.scenarioName,
-        totalRuns: group.length,
-        success,
-        failed,
-        cancelled,
-        successRate: denom ? success / denom : 0,
-        duration: durationStats(durations),
-        avgQueueWaitMs: queueWaits.length ? Math.round(queueWaits.reduce((a, b) => a + b, 0) / queueWaits.length) : undefined,
-        retryCount,
-        lastRunStatus: last?.status,
-        lastRunAt: last ? last.endedAt ?? last.startedAt ?? last.updatedAt : undefined
+    const points: WorkflowTrendPoint[] = [...groups.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([key, group]) => {
+        let success = 0;
+        let failed = 0;
+        const durations: number[] = [];
+        for (const run of group) {
+          const bucket = statusBucket(run.status);
+          if (bucket === "success") success += 1;
+          else if (bucket === "failed") failed += 1;
+          if (typeof run.durationMs === "number") durations.push(run.durationMs);
+        }
+        const denom = success + failed;
+        return {
+          bucketIso: new Date(min + key * width).toISOString(),
+          totalRuns: group.length,
+          success,
+          failed,
+          successRate: denom ? success / denom : 0,
+          avgMs: durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : undefined,
+          p95Ms: percentile(durations, 95)
+        };
       });
+    return { scenarioId, scenarioName, points };
+  }
+
+  /** Distinct machines seen in run history within range (for the reports machine filter). */
+  listRunMachines(range: TelemetryRange = {}): MachineSummary[] {
+    const runs = this.runsInWindow(range.sinceIso, undefined, {}).filter((r) => r.machineId);
+    const byMachine = new Map<string, { last: DurableRunRecord; runs: number }>();
+    for (const run of runs) {
+      const key = run.machineId as string;
+      const entry = byMachine.get(key);
+      if (!entry) byMachine.set(key, { last: run, runs: 1 });
+      else {
+        entry.runs += 1;
+        if (runTime(run) > runTime(entry.last)) entry.last = run;
+      }
     }
-    return rows.sort((a, b) => b.totalRuns - a.totalRuns);
+    return [...byMachine.values()]
+      .map(({ last, runs: count }) => ({ ...machineContextFromRun(last), runs: count, lastRunAt: last.endedAt ?? last.startedAt ?? last.updatedAt }))
+      .sort((a, b) => b.runs - a.runs);
+  }
+
+  /** Runs whose start/update falls in `[startIso, endIso)`, machine-filtered, newest first, bounded. */
+  private runsInWindow(startIso: string | undefined, endIso: string | undefined, filter: MachineFilter): DurableRunRecord[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (startIso) {
+      conditions.push("COALESCE(startedAt, updatedAt) >= ?");
+      params.push(startIso);
+    }
+    if (endIso) {
+      conditions.push("COALESCE(startedAt, updatedAt) < ?");
+      params.push(endIso);
+    }
+    if (filter.machineId) {
+      conditions.push("machineId = ?");
+      params.push(filter.machineId);
+    }
+    const clause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const runs = this.selectRuns(`${clause} ORDER BY COALESCE(startedAt, updatedAt) DESC LIMIT ?`, [...params, 10000]);
+    // Low-cardinality mode/pool/class filters applied in JS (keeps the SQL + indexes simple).
+    return runs.filter(
+      (r) =>
+        (!filter.executionMode || r.executionMode === filter.executionMode) &&
+        (!filter.browserPoolMode || r.browserPoolMode === filter.browserPoolMode) &&
+        (!filter.workloadClass || r.workloadClass === filter.workloadClass)
+    );
   }
 
   queryRunHistory(range: TelemetryRange, page: TelemetryPage, filter: RunHistoryFilter = {}): RunHistoryPage {
@@ -469,6 +591,22 @@ export class SqliteRuntimeStore implements RuntimeStore {
     if (filter.status) {
       conditions.push("status = ?");
       params.push(filter.status);
+    }
+    if (filter.machineId) {
+      conditions.push("machineId = ?");
+      params.push(filter.machineId);
+    }
+    if (filter.executionMode) {
+      conditions.push("executionMode = ?");
+      params.push(filter.executionMode);
+    }
+    if (filter.browserPoolMode) {
+      conditions.push("browserPoolMode = ?");
+      params.push(filter.browserPoolMode);
+    }
+    if (filter.workloadClass) {
+      conditions.push("workloadClass = ?");
+      params.push(filter.workloadClass);
     }
     const clause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const countResult = this.db.exec(`SELECT COUNT(*) FROM runtime_runs ${clause}`, params as never);
@@ -656,6 +794,63 @@ function stripUndefined<T extends Record<string, unknown>>(record: T): Partial<T
     if (value !== undefined) (out as Record<string, unknown>)[key] = value;
   }
   return out;
+}
+
+/** Group runs by scenario into WorkflowReportRows (shared by queryWorkflows + queryWorkflowComparison). */
+function aggregateWorkflows(runs: DurableRunRecord[]): WorkflowReportRow[] {
+  const groups = new Map<string, DurableRunRecord[]>();
+  for (const run of runs) {
+    const key = run.scenarioId ?? "(unknown)";
+    const list = groups.get(key) ?? [];
+    list.push(run);
+    groups.set(key, list);
+  }
+  const rows: WorkflowReportRow[] = [];
+  for (const [scenarioId, group] of groups) {
+    let success = 0;
+    let failed = 0;
+    let cancelled = 0;
+    let retryCount = 0;
+    const durations: number[] = [];
+    const queueWaits: number[] = [];
+    let last: DurableRunRecord | undefined;
+    for (const run of group) {
+      const bucket = statusBucket(run.status);
+      if (bucket === "success") success += 1;
+      else if (bucket === "failed") failed += 1;
+      else if (bucket === "cancelled") cancelled += 1;
+      if (typeof run.durationMs === "number") durations.push(run.durationMs);
+      if (typeof run.queueWaitMs === "number") queueWaits.push(run.queueWaitMs);
+      retryCount += run.retryCount ?? 0;
+      if (!last || runTime(run) > runTime(last)) last = run;
+    }
+    const denom = success + failed;
+    rows.push({
+      scenarioId: scenarioId === "(unknown)" ? undefined : scenarioId,
+      scenarioName: last?.scenarioName,
+      totalRuns: group.length,
+      success,
+      failed,
+      cancelled,
+      successRate: denom ? success / denom : 0,
+      duration: durationStats(durations),
+      avgQueueWaitMs: queueWaits.length ? Math.round(queueWaits.reduce((a, b) => a + b, 0) / queueWaits.length) : undefined,
+      retryCount,
+      lastRunStatus: last?.status,
+      lastRunAt: last ? last.endedAt ?? last.startedAt ?? last.updatedAt : undefined
+    });
+  }
+  return rows.sort((a, b) => b.totalRuns - a.totalRuns);
+}
+
+/** current − previous for an optional metric; undefined when either side is missing. */
+function subtract(current: number | undefined, previous: number | undefined): number | undefined {
+  if (typeof current !== "number" || typeof previous !== "number") return undefined;
+  return current - previous;
+}
+
+function round4(value: number): number {
+  return Math.round(value * 10000) / 10000;
 }
 
 /** Coarse outcome bucket for reporting aggregates. */

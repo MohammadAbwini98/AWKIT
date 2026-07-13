@@ -1,5 +1,11 @@
-import { MarkerType, type Edge } from "@xyflow/react";
 import type { EdgeVisualStyle } from "@src/profiles/FlowProfile";
+
+/** Visual fields the canvas engine reads off an edge (type + dash animation + stroke style). */
+export interface ConnectorVisual {
+  type: string;
+  animated: boolean;
+  style: React.CSSProperties;
+}
 
 /**
  * Single source of truth for connector (edge) visuals, shared by the Flow Designer and
@@ -18,7 +24,7 @@ export const connectorTypeColor: Record<string, string> = {
   manualApproval: "var(--awkit-connector-default)",
   loop: "var(--awkit-connector-loop)",
   loopBack: "var(--awkit-connector-loop)",
-  parallel: "var(--awkit-connector-default)"
+  parallel: "var(--awkit-connector-parallel)"
 };
 
 /** Preset colors offered in the Connector Style picker. Empty value = default by type. */
@@ -64,25 +70,23 @@ function dashArray(lineStyle?: EdgeVisualStyle["lineStyle"]): string | undefined
   return undefined;
 }
 
-/** React Flow edge fields (type/animated/style/markerEnd) for a connector + its style. */
-export function buildConnectorVisual(type: string, style?: EdgeVisualStyle): Pick<Edge, "type" | "animated" | "style" | "markerEnd"> {
+/** Canvas-engine edge fields (type/animated/style) for a connector + its style. */
+export function buildConnectorVisual(type: string, style?: EdgeVisualStyle): ConnectorVisual {
   const s = normalizeEdgeStyle(style);
   const stroke = resolveConnectorColor(type, s);
-  const markerType = s.arrowHead === "none" ? null : s.arrowHead === "default" ? MarkerType.Arrow : MarkerType.ArrowClosed;
   // loopBack edges default to a dashed line so they read visually as "return" paths.
   const defaultDash = type === "loopBack" ? "6 4" : undefined;
   // Loop connectors default to the circular self-loop shape when no explicit shape was chosen.
   const shape = s.shape ?? (type === "loop" ? "circular" : "smoothstep");
-  // Map the serialized shape to the React Flow edge `type`. Default smoothstep connectors render
-  // through the custom `templateSmooth` edge (curved violet line + label pill + insert affordance);
-  // circular self-loops keep `SelfLoopEdge`; bezier/straight/step pass through unchanged. The saved
-  // `EdgeVisualStyle.shape` value is NOT altered — only the runtime React Flow edge type is remapped.
-  const reactFlowType = shape === "circular" ? "circular" : shape === "smoothstep" ? "templateSmooth" : shape;
+  // Map the serialized shape to the canvas-engine edge `type`. The engine has two edge renderers:
+  // `loop` (self-loop bezier) and `smooth` (curved line + label pill + insert affordance). Circular
+  // self-loops render through `loop`; every other shape renders through `smooth`. The saved
+  // `EdgeVisualStyle.shape` value is NOT altered — only the runtime edge type is remapped.
+  const engineType = shape === "circular" ? "loop" : "smooth";
   return {
-    type: reactFlowType,
+    type: engineType,
     animated: type === "loop" || type === "conditional" || type === "loopBack" || type === "parallel",
-    style: { stroke, strokeWidth: s.thickness ?? 2, strokeDasharray: dashArray(s.lineStyle) ?? defaultDash },
-    markerEnd: markerType ? { type: markerType, width: 18, height: 18, color: stroke } : undefined
+    style: { stroke, strokeWidth: s.thickness ?? 2, strokeDasharray: dashArray(s.lineStyle) ?? defaultDash }
   };
 }
 

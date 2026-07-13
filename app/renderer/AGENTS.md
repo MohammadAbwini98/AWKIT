@@ -8,9 +8,12 @@ Electron renderer (browser context); reaches the main process only through the p
 Root `AGENTS.md` + `docs/ai/ARCHITECTURE.md`, `docs/ai/RULES.md`, `docs/ai/FEATURES.md`.
 
 ## Local rules
-- **Components:** React function components + hooks. Canvases use `@xyflow/react`. Reuse existing
-  building blocks in `components/workflow/*` (node registry, `FlowNodePropertiesPanel`,
-  `CanvasZoomControl`), `components/table/*` (pagination/search), `components/shared/*`.
+- **Components:** React function components + hooks. Canvases use the in-house engine in
+  `components/canvas/*` (`FlowCanvas` + `useCanvas`/`FlowCanvasHandle`, `Background`,
+  `CanvasZoomControl`, `SmoothEdge`/`LoopEdge`, `StepNode`) — no React Flow / `@xyflow`. The flow
+  runs top→bottom (edges leave a node's bottom-center and enter the next node's top-center). Reuse
+  existing building blocks in `components/workflow/*` (node registry, `FlowNodePropertiesPanel`),
+  `components/table/*` (pagination/search), `components/shared/*`.
 - **Styling:** plain CSS only, in `styles/global.css`. No CSS-in-JS, no new UI framework, no
   inline-style sprawl beyond small dynamic values. Reuse existing class names/patterns.
 - **Backend access:** call `window.playwrightFlowStudio.<area>.<method>()` — never `fetch`/HTTP and
