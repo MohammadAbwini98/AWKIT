@@ -357,6 +357,68 @@ async function main() {
     check("backward compat: clicked the expected element", hit === "only", hit ?? "null");
   }
 
+  console.log("Part CR — Recorder compound/container disambiguation for non-unique elements");
+
+  // CR1. The reported bug: two checkboxes sharing role + accessible name, distinguished ONLY by a
+  // stable container. The recorder must find a unique locator (container-scoped or compound) and the
+  // runner must check exactly the intended one.
+  {
+    const html = `
+      <div data-testid="pkg-a"><label><input type="checkbox" data-k="a" aria-label="0796713928"> Pick</label></div>
+      <div data-testid="pkg-b"><label><input type="checkbox" data-k="b" aria-label="0796713928"> Pick</label></div>`;
+    const action = await capture(html, (p) => p.locator('[data-testid="pkg-b"] input').check());
+    const quality = action?.locator?.quality;
+    check("dup role+name: recorder finds a UNIQUE locator (no warning)", quality?.isUnique === true, JSON.stringify(action?.locator));
+    check("dup role+name: matchCount === 1", quality?.matchCount === 1, JSON.stringify(quality));
+    check("dup role+name: not a utility-class selector", !UTILITY_CLASS.test(action?.locator?.value ?? ""), action?.locator?.value);
+    check("dup role+name: disambiguation is container or compound", quality?.disambiguation === "container" || quality?.disambiguation === "compound", JSON.stringify(quality));
+
+    await page.setContent(html);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const result = await exec.execute({ id: "cr1", type: "check", name: action?.name ?? "Check", locator: action?.locator as unknown as FlowStep["locator"] });
+    check("dup role+name: recorded locator runs green", result.status === "passed", result.error ?? result.status);
+    check("dup role+name: checked the intended (pkg-b) checkbox", await page.locator('[data-testid="pkg-b"] input').isChecked(), "pkg-b not checked");
+    check("dup role+name: left pkg-a unchecked", !(await page.locator('[data-testid="pkg-a"] input').isChecked()), "pkg-a was checked");
+  }
+
+  // CR2. Repeated cards distinguished only by a meaningful per-card class (no id/testid/role
+  // container) → a compound CSS selector that combines the class with structure, never a utility
+  // class, resolving to exactly the intended element.
+  {
+    const html = `
+      <section>
+        <div class="card card-alpha"><button class="buy" onclick="window.__hit='alpha'">Add</button></div>
+        <div class="card card-beta"><button class="buy" onclick="window.__hit='beta'">Add</button></div>
+      </section>`;
+    const action = await capture(html, (p) => p.locator(".card-beta button").click());
+    const quality = action?.locator?.quality;
+    check("repeated cards: unique locator", quality?.isUnique === true, JSON.stringify(action?.locator));
+    check("repeated cards: compound CSS (not utility-only)", action?.locator?.strategy === "css" && !UTILITY_CLASS.test(action?.locator?.value ?? ""), JSON.stringify(action?.locator));
+    check("repeated cards: uses the meaningful per-card class", /card-beta/.test(action?.locator?.value ?? ""), action?.locator?.value);
+    const { status, hit } = await run(html, { id: "cr2", type: "click", name: "Click Add", locator: action?.locator as unknown as FlowStep["locator"] });
+    check("repeated cards: recorded locator runs green", status === "passed", status);
+    check("repeated cards: clicked Beta's Add button", hit === "beta", hit ?? "null");
+  }
+
+  // CR3. Runtime self-healing: a legacy non-unique step where two same-named buttons are visible but
+  // only one is enabled → the runner clicks the actionable one instead of failing.
+  {
+    const html = `<button class="act" disabled onclick="window.__hit='disabled'">Go</button>
+                  <button class="act" onclick="window.__hit='enabled'">Go</button>`;
+    const { status, hit } = await run(html, { id: "cr3", type: "click", name: "Click Go", locator: { strategy: "css", value: "button.act" } });
+    check("self-heal: disabled twin ignored, enabled one clicked", status === "passed" && hit === "enabled", status + " / " + (hit ?? "null"));
+  }
+
+  // CR4. Two identical, equally-actionable buttons → the runner refuses to guess and fails clearly
+  // (clicking the wrong twin is worse than a clear error).
+  {
+    const html = `<button class="act" onclick="window.__hit='one'">Go</button>
+                  <button class="act" onclick="window.__hit='two'">Go</button>`;
+    const { status, error } = await run(html, { id: "cr4", type: "click", name: "Click Go", locator: { strategy: "css", value: "button.act" } });
+    check("self-heal: two equal twins → fails (no wrong-element guess)", status === "failed", status);
+    check("self-heal: failure stays a friendly message", /multiple elements|matched multiple/i.test(error ?? ""), error);
+  }
+
   console.log("Part D — Smart Wait recorder observation (Phase 2)");
 
   // D-unit: buildSmartWaits correlation/scoring on synthetic signals (deterministic).

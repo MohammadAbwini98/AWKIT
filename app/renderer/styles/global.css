@@ -12,6 +12,13 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -23,10 +30,17 @@ body {
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 24px;
+  --awkit-space-1: 4px;
+  --awkit-space-2: 8px;
+  --awkit-space-3: 12px;
+  --awkit-space-4: 16px;
+  --awkit-space-5: 20px;
+  --awkit-space-6: 24px;
   --radius-sm: 8px;
-  --radius-md: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-pill: 999px;
-  --header-height: 60px;
+  --header-height: 64px;
   --status-height: 32px;
   --shell-chrome: calc(var(--header-height) + var(--status-height));
 }
@@ -38,25 +52,37 @@ body {
  */
 :root,
 [data-theme="light"] {
+  --brand-50: #f5f3ff;
+  --brand-100: #ede9fe;
+  --brand-200: #ddd6fe;
+  --brand-300: #c4b5fd;
+  --brand-400: #a78bfa;
+  --brand-500: #8b5cf6;
+  --brand-600: #7c3aed;
+  --brand-700: #6d28d9;
+  --brand-800: #5b21b6;
+  --brand-900: #4c1d95;
   /* surfaces */
-  --awkit-bg: #f4f3f7;
+  --awkit-bg: #f6f4f9;
   --awkit-surface: #ffffff;
-  --awkit-surface-soft: #f8f7fa;
+  --awkit-surface-soft: #faf9fc;
+  --awkit-surface-raised: #ffffff;
   --awkit-surface-inset: #efedf3;
-  --awkit-border: rgba(23, 17, 38, 0.08);
-  --awkit-border-strong: rgba(23, 17, 38, 0.16);
+  --awkit-border: rgba(34, 24, 58, 0.08);
+  --awkit-border-strong: rgba(34, 24, 58, 0.14);
 
   /* text */
-  --awkit-text: #1b1526;
-  --awkit-text-secondary: #574f68;
-  --awkit-text-muted: #8a8496;
+  --awkit-text: #20172f;
+  --awkit-text-secondary: #5e556d;
+  --awkit-text-muted: #91899f;
 
   /* accent — Hologram violet */
-  --awkit-accent: #6d28d9;
-  --awkit-accent-hover: #5b21b6;
+  --awkit-accent: #7c3aed;
+  --awkit-accent-hover: #6d28d9;
   --awkit-accent-contrast: #ffffff;
-  --awkit-accent-soft: #f2edfd;
-  --awkit-accent-muted: #cdb8f4;
+  --awkit-accent-soft: #f0e9ff;
+  --awkit-accent-muted: #c7b3f6;
+  --awkit-lavender-soft: #f3f0ff;
 
   /* legacy accent aliases (older rules reference these names) */
   --awkit-purple: var(--awkit-accent);
@@ -66,16 +92,18 @@ body {
   --awkit-blue-deep: #2563eb;
 
   /* status */
-  --awkit-success: #12855f;
+  --awkit-success: #14a46c;
   --awkit-success-soft: #e7f7ef;
-  --awkit-warning: #b45309;
+  --awkit-success-muted: #a9e7ce;
+  --awkit-warning: #c47a08;
   --awkit-warning-soft: #fcf1e2;
   --awkit-warning-muted: #f5cf9b;
-  --awkit-danger: #d92d20;
+  --awkit-danger: #dc3b3b;
   --awkit-danger-soft: #fdeeec;
   --awkit-danger-muted: #f5b5ae;
-  --awkit-info: var(--awkit-blue);
+  --awkit-info: #3b82f6;
   --awkit-info-soft: #eaf1fe;
+  --awkit-info-muted: #bfdbfe;
   --awkit-neutral-soft: #f0eff4;
 
   /* gauge / pressure bands (Reports > Chrome consumption) */
@@ -84,30 +112,50 @@ body {
   --awkit-band-high: var(--awkit-danger);
 
   /* canvas (React Flow surfaces) */
-  --awkit-canvas-bg: #f1eff5;
-  --awkit-canvas-dot: #d8d4e0;
+  --awkit-bg-canvas: #f4f5f7;
+  --awkit-canvas-bg: var(--awkit-bg-canvas);
+  /* Dotted-grid dot: nudged darker than the near-white canvas so the grid actually reads
+     (SRS-CANVAS-UX-001 §3.4 — dots were present but too faint to perceive). */
+  --awkit-canvas-dot: #c4c9d2;
   --awkit-node-surface: var(--awkit-surface);
   --awkit-node-border: var(--awkit-border);
-  --awkit-node-selected-bg: #faf8ff;
+  --awkit-node-selected-bg: var(--awkit-lavender-soft);
+  /* edge strokes — default (idle) vs strong (hover/selected). Ported from the
+     Workflow/FlowForge reference (docs/plan-workflow-visual-parity.md, Phase 0). */
+  --awkit-edge: #c9b8f5;
+  --awkit-edge-strong: var(--awkit-accent);
 
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
-  --awkit-accent-rgb: 109, 40, 217;
-  --awkit-shadow-rgb: 23, 17, 38;
+  --awkit-accent-rgb: 124, 58, 237;
+  --awkit-shadow-rgb: 32, 23, 47;
   --awkit-glass: rgba(255, 255, 255, 0.92);
-  --awkit-overlay: rgba(23, 17, 38, 0.4);
+  --awkit-overlay: rgba(32, 23, 47, 0.4);
 
   /* depth & radius (extends the --radius-* scale above) */
-  --awkit-radius-card: 16px;
-  --awkit-radius-panel: 20px;
-  --awkit-shadow-card: 0 1px 2px rgba(23, 17, 38, 0.04), 0 8px 24px rgba(23, 17, 38, 0.06);
-  --awkit-shadow-float: 0 12px 32px rgba(23, 17, 38, 0.1), 0 24px 64px rgba(23, 17, 38, 0.08);
-  --awkit-focus-ring: 0 0 0 3px rgba(109, 40, 217, 0.22);
+  --awkit-radius-sm: 10px;
+  --awkit-radius-md: 14px;
+  --awkit-radius-card: 18px;
+  --awkit-radius-panel: 22px;
+  --awkit-radius-pill: 999px;
+  --awkit-shadow-soft: 0 4px 20px rgba(32, 23, 47, 0.04);
+  --shadow-soft: var(--awkit-shadow-soft);
+  --awkit-shadow-card: 0 1px 2px rgba(32, 23, 47, 0.04), 0 12px 32px rgba(32, 23, 47, 0.06);
+  --awkit-shadow-float: 0 16px 44px rgba(32, 23, 47, 0.14), 0 4px 12px rgba(32, 23, 47, 0.08);
+  --awkit-shadow-hover: 0 18px 46px rgba(32, 23, 47, 0.12), 0 4px 10px rgba(32, 23, 47, 0.06);
+  /* node card resting / hover elevation — Workflow `shadow-node` / `shadow-node-hover`. */
+  --awkit-shadow-node: 0 1px 2px rgba(32, 23, 47, 0.06), 0 4px 16px rgba(32, 23, 47, 0.08);
+  --awkit-shadow-node-hover: 0 4px 8px rgba(32, 23, 47, 0.08), 0 12px 28px rgba(32, 23, 47, 0.14);
+  --awkit-focus-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
 
   /* motion */
+  --awkit-motion-fast: 120ms;
+  --awkit-motion-base: 180ms;
+  --awkit-motion-slow: 260ms;
+  --awkit-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --awkit-dur-fast: 120ms;
-  --awkit-dur-med: 220ms;
-  --awkit-dur-slow: 360ms;
+  --awkit-dur-med: 180ms;
+  --awkit-dur-slow: 260ms;
 
   /* z-layers */
   --awkit-z-panel: 20;
@@ -121,9 +169,10 @@ body {
   color-scheme: dark;
 
   /* surfaces */
-  --awkit-bg: #0e0d12;
-  --awkit-surface: #16151c;
-  --awkit-surface-soft: #1c1b23;
+  --awkit-bg: #0e1016;
+  --awkit-surface: #12141b;
+  --awkit-surface-soft: #171a22;
+  --awkit-surface-raised: #1b1f29;
   --awkit-surface-inset: #100f15;
   --awkit-border: rgba(255, 255, 255, 0.08);
   --awkit-border-strong: rgba(255, 255, 255, 0.16);
@@ -139,6 +188,7 @@ body {
   --awkit-accent-contrast: #ffffff;
   --awkit-accent-soft: rgba(139, 92, 246, 0.15);
   --awkit-accent-muted: rgba(139, 92, 246, 0.4);
+  --awkit-lavender-soft: rgba(139, 92, 246, 0.15);
 
   --awkit-blue: #60a5fa;
   --awkit-blue-deep: #3b82f6;
@@ -146,6 +196,7 @@ body {
   /* status */
   --awkit-success: #34d399;
   --awkit-success-soft: rgba(52, 211, 153, 0.13);
+  --awkit-success-muted: rgba(52, 211, 153, 0.38);
   --awkit-warning: #fbbf24;
   --awkit-warning-soft: rgba(251, 191, 36, 0.13);
   --awkit-warning-muted: rgba(251, 191, 36, 0.38);
@@ -153,12 +204,17 @@ body {
   --awkit-danger-soft: rgba(248, 113, 113, 0.13);
   --awkit-danger-muted: rgba(248, 113, 113, 0.38);
   --awkit-info-soft: rgba(96, 165, 250, 0.13);
+  --awkit-info-muted: rgba(96, 165, 250, 0.38);
   --awkit-neutral-soft: rgba(255, 255, 255, 0.06);
 
   /* canvas */
-  --awkit-canvas-bg: #131118;
-  --awkit-canvas-dot: rgba(255, 255, 255, 0.09);
-  --awkit-node-selected-bg: #1b1826;
+  --awkit-bg-canvas: #0e1016;
+  --awkit-canvas-bg: var(--awkit-bg-canvas);
+  --awkit-canvas-dot: #2c3140;
+  --awkit-node-selected-bg: var(--awkit-lavender-soft);
+  /* edge strokes — dark values from the Workflow/FlowForge reference. */
+  --awkit-edge: #4c3a80;
+  --awkit-edge-strong: #a78bfa;
 
   /* rgb triplets + glass/overlay */
   --awkit-accent-rgb: 139, 92, 246;
@@ -167,8 +223,14 @@ body {
   --awkit-overlay: rgba(0, 0, 0, 0.6);
 
   /* depth */
+  --awkit-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.24);
+  --shadow-soft: var(--awkit-shadow-soft);
   --awkit-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   --awkit-shadow-float: 0 12px 32px rgba(0, 0, 0, 0.45), 0 24px 64px rgba(0, 0, 0, 0.4);
+  --awkit-shadow-hover: 0 18px 46px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.4);
+  /* node card resting / hover elevation (dark). */
+  --awkit-shadow-node: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.45);
+  --awkit-shadow-node-hover: 0 4px 8px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.55);
   --awkit-focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.35);
 }
 
@@ -189,9 +251,12 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
+  /* Animate the sidebar collapse/expand (Workflow/FlowForge parity). Chromium (Electron)
+     animates grid-template-columns; neutralized by the reduced-motion block. */
+  transition: grid-template-columns var(--awkit-motion-base) var(--awkit-motion-ease);
 }
 
 .app-shell.sidebar-collapsed {
@@ -201,7 +266,7 @@ button:disabled {
 /* Right side of the shell: header, scrolling content, then the status bar. */
 .app-main {
   display: grid;
-  grid-template-rows: 60px minmax(0, 1fr) 32px;
+  grid-template-rows: 64px minmax(0, 1fr) 32px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -344,6 +409,7 @@ button:disabled {
   border-right: 1px solid var(--awkit-border);
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 0;
   overflow: hidden;
 }
@@ -480,7 +546,7 @@ button:disabled {
 }
 
 .nav-item:hover {
-  background: var(--awkit-surface-soft);
+  background: var(--awkit-neutral-soft);
   color: var(--awkit-text);
 }
 
@@ -491,7 +557,7 @@ button:disabled {
 }
 
 .nav-item.active {
-  background: var(--awkit-accent-soft);
+  background: var(--awkit-lavender-soft);
   color: var(--awkit-accent);
   font-weight: 600;
 }
@@ -628,6 +694,42 @@ button:disabled {
 .page-grid {
   display: grid;
   gap: 12px;
+}
+
+/* Card-grid stagger (Workflow/FlowForge parity): grid children rise + fade in sequence on page
+   mount. `backwards` fill holds the hidden state during each item's delay, then reverts to the
+   element's own styles so hover transforms keep working. Neutralized by the reduced-motion block. */
+.page-grid > * {
+  animation: awkit-card-rise var(--awkit-motion-slow) var(--awkit-ease-out) backwards;
+}
+.page-grid > *:nth-child(2) {
+  animation-delay: 45ms;
+}
+.page-grid > *:nth-child(3) {
+  animation-delay: 90ms;
+}
+.page-grid > *:nth-child(4) {
+  animation-delay: 135ms;
+}
+.page-grid > *:nth-child(5) {
+  animation-delay: 180ms;
+}
+.page-grid > *:nth-child(6) {
+  animation-delay: 225ms;
+}
+.page-grid > *:nth-child(n + 7) {
+  animation-delay: 270ms;
+}
+
+@keyframes awkit-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .metrics-grid {
@@ -1082,13 +1184,14 @@ textarea {
 }
 
 .palette-scroll {
+  align-content: start;
   display: grid;
   gap: 7px;
   overflow: auto;
   padding-right: 2px;
 }
 
-.flow-node-palette button {
+.flow-node-palette .palette-scroll button {
   align-items: center;
   background: var(--awkit-surface-soft);
   border: 1px solid var(--awkit-border);
@@ -1097,25 +1200,27 @@ textarea {
   display: grid;
   gap: 9px;
   grid-template-columns: 18px minmax(0, 1fr);
-  min-height: 48px;
-  padding: 8px;
+  min-height: 54px;
+  padding: 10px 8px;
   text-align: left;
 }
 
-.flow-node-palette button:hover {
+.flow-node-palette .palette-scroll button:hover {
   background: var(--awkit-accent-soft);
   border-color: var(--awkit-accent-muted);
 }
 
-.flow-node-palette button span {
+.flow-node-palette .palette-scroll button span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-.flow-node-palette button strong,
-.flow-node-palette button small {
+.flow-node-palette .palette-scroll button strong,
+.flow-node-palette .palette-scroll button small {
+  line-height: 1.2;
   overflow: hidden;
+  padding-bottom: 1px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1181,7 +1286,7 @@ textarea {
   background: var(--awkit-node-surface);
   border: 1px solid var(--awkit-node-border);
   border-radius: var(--awkit-radius-card);
-  box-shadow: var(--awkit-shadow-card);
+  box-shadow: var(--awkit-shadow-node);
   box-sizing: border-box;
   display: grid;
   gap: 10px;
@@ -1195,7 +1300,9 @@ textarea {
     background var(--awkit-dur-fast) var(--awkit-ease-out),
     box-shadow var(--awkit-dur-fast) var(--awkit-ease-out),
     border-color var(--awkit-dur-fast) var(--awkit-ease-out);
-  width: 100%;
+  /* Fixed card width matches the Workflow (flowforge) reference (w-[320px]); the auto-width
+     wrapper previously made width content-driven, so cards varied in size. */
+  width: 320px;
 }
 
 /* Resize handles sit slightly inside the node's rounded border. */
@@ -1290,9 +1397,17 @@ textarea {
   width: 11px;
 }
 
+/* Workflow-reference parity: connector handles live on the top/bottom edges and are visually
+   hidden (like the reference's `.react-flow__handle { opacity: 0 }`). Connections are made through
+   the contextual picker and `+` affordances; the handles stay in the DOM and connectable so
+   drag-to-connect and programmatic edges still attach, but no visible side ports clutter the node. */
+.connector-port {
+  opacity: 0;
+}
+
 /* Dynamic connector ports (Point 1): normal keeps the default blue handle; conditional
    and parallel ports render only when a connector of that kind touches the node, styled
-   distinctly so the path type is clear at a glance. */
+   distinctly so the path type is clear at a glance (visible only when re-enabled for debugging). */
 .connector-port-conditional {
   border-color: var(--awkit-warning);
 }
@@ -1316,30 +1431,57 @@ textarea {
   opacity: 1;
 }
 
-/* Small circular "add loop" button (Point 3), styled like a retry/refresh icon, sitting on
-   the node's top-right corner. Toggles to a filled "remove loop" state once a self-loop exists. */
-.node-loop-button {
-  align-items: center;
-  background: var(--awkit-surface);
-  border: 1.5px solid var(--awkit-success);
-  border-radius: 999px;
-  color: var(--awkit-success);
-  cursor: pointer;
+/* Per-node kebab context menu (Configure / loop / delete) — portalled to <body> and positioned
+   in viewport coordinates by NodeOptionsMenu. Matches the contextual picker's surface language. */
+.node-options-menu {
+  background: var(--awkit-surface-raised);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--awkit-radius-md);
+  box-shadow: var(--awkit-shadow-node-hover);
   display: flex;
-  height: 18px;
-  justify-content: center;
-  padding: 0;
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  width: 18px;
-  z-index: 5;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  position: fixed;
+  z-index: 1200;
 }
 
-.node-loop-button:hover,
-.node-loop-button.active {
-  background: var(--awkit-success);
-  color: var(--awkit-accent-contrast);
+.node-options-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--awkit-radius-sm);
+  color: var(--awkit-text);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 10px;
+  padding: 7px 10px;
+  text-align: left;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 100%;
+}
+
+.node-options-item svg {
+  color: var(--awkit-text-secondary);
+  flex: 0 0 auto;
+}
+
+.node-options-item:hover {
+  background: var(--awkit-neutral-soft);
+}
+
+.node-options-item.danger {
+  color: var(--awkit-danger);
+}
+
+.node-options-item.danger svg {
+  color: var(--awkit-danger);
+}
+
+.node-options-item.danger:hover {
+  background: rgba(var(--awkit-danger-rgb, 220, 38, 38), 0.12);
 }
 
 .self-loop-edge-label {
@@ -1746,11 +1888,12 @@ textarea {
   background: var(--awkit-node-surface);
   border: 1px solid var(--awkit-node-border);
   border-radius: var(--awkit-radius-card);
-  box-shadow: var(--awkit-shadow-card);
+  box-shadow: var(--awkit-shadow-node);
   box-sizing: border-box;
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  /* order badge | copy | meta | kebab (meta absent for start/end leaves col 4 for the kebab). */
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   transition:
     background var(--awkit-dur-fast) var(--awkit-ease-out),
     box-shadow var(--awkit-dur-fast) var(--awkit-ease-out),
@@ -1762,7 +1905,8 @@ textarea {
   overflow: hidden;
   padding: 12px;
   position: relative;
-  width: 100%;
+  /* Fixed card width to match the reference (was 100% of an auto-width wrapper → content-driven). */
+  width: 320px;
 }
 
 .scenario-flow-node.selected {
@@ -2833,8 +2977,16 @@ table {
   --xy-attribution-background-color: transparent;
 }
 
+.react-flow__pane {
+  background: transparent;
+}
+
 /* Dot/line pattern color: CSS wins over the SVG presentation attribute, so the
    <Background> component stays theme-aware without per-render color props. */
+.react-flow__background {
+  pointer-events: none;
+}
+
 .react-flow__background circle {
   fill: var(--awkit-canvas-dot);
 }
@@ -3031,7 +3183,7 @@ table {
 }
 
 .flow-action-bar {
-  align-items: center;
+  align-items: flex-end;
   background: var(--awkit-surface);
   border: 0;
   border-bottom: 1px solid var(--awkit-border);
@@ -3170,6 +3322,12 @@ table {
   height: 100%;
   margin-left: 0;
   min-height: 0;
+}
+
+[data-theme="light"] .flow-designer-body .react-flow-shell,
+[data-theme="light"] .scenario-canvas-panel {
+  --awkit-canvas-bg: #f4f1f8;
+  --awkit-canvas-dot: #cac5d3;
 }
 
 /* Stack inner card title/subtitle so they don't run together. */
@@ -3416,30 +3574,36 @@ table {
 /* ── Phase 02: Compact Scenario Builder Toolbar ─────────────────────────────── */
 
 /* Single-row compact toolbar that replaces the multi-label tall one. */
+/* Compact single-row toolbar: inline labels + horizontal scroll keep it to one low row instead of
+   growing tall by wrapping (Issue 2 — minimum height). */
 .scenario-toolbar-compact {
-  align-items: flex-end;
+  align-items: center;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 8px 12px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 6px 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 
-/* Inline label-above-field for each control in the compact toolbar. */
-.sb-toolbar-field {
-  align-items: flex-start;
+/* Inline label beside each field (was label-above → two lines tall). */
+.scenario-toolbar-compact .sb-toolbar-field {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  flex-direction: row;
+  flex: 0 0 auto;
+  gap: 6px;
   min-width: 0;
 }
 
 .sb-toolbar-field span {
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   white-space: nowrap;
@@ -3455,9 +3619,9 @@ table {
 .scenario-toolbar-compact > .sb-toolbar-actions {
   align-items: center;
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   justify-content: flex-end;
   margin-left: auto;
@@ -3471,6 +3635,72 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Logical toolbar groups (Workflow · Add · Execution · Layout) — keep related controls together
+   and bottom-aligned so buttons line up with the label-above fields. */
+.scenario-toolbar-compact > .sb-toolbar-group {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Vertical divider between toolbar groups. */
+.sb-toolbar-sep {
+  align-self: stretch;
+  background: var(--awkit-border);
+  flex: 0 0 auto;
+  margin: 2px 2px;
+  width: 1px;
+}
+
+/* ── Renderer crash fallback (ErrorBoundary) — replaces the blank white screen ── */
+.error-boundary {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  overflow: auto;
+}
+.error-boundary-card {
+  max-width: 620px;
+  width: 100%;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--awkit-shadow-float);
+  padding: 24px 28px;
+}
+.error-boundary-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--awkit-text);
+}
+.error-boundary-card p {
+  margin: 0 0 14px;
+  color: var(--awkit-text-secondary);
+  font-size: 14px;
+}
+.error-boundary-detail {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0 0 16px;
+  padding: 12px;
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-md, 12px);
+  color: var(--awkit-danger, #ef4444);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.error-boundary-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* ── Phase 01 + 03: Collapsible section header shared styles ──────────────── */
@@ -3668,6 +3898,8 @@ table {
 .modal-overlay {
   align-items: center;
   background: var(--awkit-overlay);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -3679,7 +3911,7 @@ table {
 .modal-dialog {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 18px 48px rgba(var(--awkit-shadow-rgb), 0.24);
   display: grid;
   gap: 14px;
@@ -3789,10 +4021,57 @@ table {
   margin: 0;
 }
 
+.settings-card-hint {
+  color: var(--awkit-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+}
+
 .settings-grid {
   display: grid;
   gap: 12px 16px;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.capacity-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.capacity-readout {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.capacity-readout .readiness-list {
+  margin: 0;
+}
+
+.capacity-readout .form-message {
+  margin-top: 8px;
+}
+
+.capacity-advanced {
+  margin-top: 12px;
+}
+
+.capacity-advanced summary {
+  color: var(--awkit-text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.form-message.warn {
+  color: var(--awkit-warning);
+  font-weight: 600;
 }
 
 .settings-actions {
@@ -3852,7 +4131,7 @@ table {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
   border-radius: 12px;
-  box-shadow: var(--awkit-shadow-float);
+  box-shadow: var(--shadow-soft);
   display: flex;
   gap: 2px;
   overflow: hidden;
@@ -4336,7 +4615,7 @@ table {
   border-radius: 12px;
   box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.06);
   padding: 14px;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
   outline: none;
 }
 
@@ -4344,6 +4623,7 @@ table {
 .workflow-card:focus-within {
   border-color: var(--awkit-accent-muted);
   box-shadow: 0 10px 26px rgba(var(--awkit-shadow-rgb), 0.12);
+  transform: translateY(-2px);
 }
 
 .workflow-card:focus-visible {
@@ -4584,6 +4864,261 @@ table {
 
 .im-monitor-controls {
   margin-top: 14px;
+}
+
+.im-monitor-controls .im-stop-all-button:not(:disabled) {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+  color: var(--awkit-danger);
+}
+
+.im-monitor-controls .im-stop-all-button:hover:not(:disabled) {
+  border-color: var(--awkit-danger);
+}
+
+.im-workflow-runs {
+  border-top: 1px solid var(--awkit-border);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+}
+
+.im-workflow-runs-heading {
+  align-items: end;
+}
+
+.im-workflow-runs-heading > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.im-workflow-runs-heading h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.im-workflow-run-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  overflow-x: auto;
+}
+
+.im-workflow-run-record {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text);
+  cursor: pointer;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(14rem, 2fr) auto repeat(4, minmax(4rem, 0.55fr)) minmax(9rem, 1fr) minmax(5rem, 0.5fr);
+  min-width: 68rem;
+  padding: var(--space-3);
+  text-align: left;
+  transition: border-color var(--awkit-motion-fast) var(--awkit-ease-out), box-shadow var(--awkit-motion-fast) var(--awkit-ease-out);
+  width: 100%;
+}
+
+.im-workflow-run-record:hover {
+  border-color: var(--awkit-accent-muted);
+  box-shadow: var(--awkit-shadow-hover);
+}
+
+.im-workflow-run-main {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.im-workflow-run-main > span:last-child,
+.im-workflow-run-stat,
+.im-workflow-run-duration,
+.im-workflow-run-progress > span:first-child {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.im-workflow-run-main strong,
+.im-workflow-run-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-workflow-run-main small,
+.im-workflow-run-stat small,
+.im-workflow-run-duration small,
+.im-workflow-run-progress small {
+  color: var(--awkit-text-muted);
+  font-size: 0.6875rem;
+}
+
+.im-workflow-run-icon,
+.workflow-instances-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-md);
+  color: var(--awkit-accent);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: calc(var(--space-5) * 2);
+  justify-content: center;
+  width: calc(var(--space-5) * 2);
+}
+
+.im-workflow-run-stat,
+.im-workflow-run-duration {
+  text-align: center;
+}
+
+.im-workflow-run-stat.tone-danger,
+.workflow-run-modal-summary .tone-danger {
+  color: var(--awkit-danger);
+}
+
+.im-workflow-run-progress {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.im-workflow-run-progress > span:first-child {
+  grid-template-columns: auto 1fr;
+}
+
+.im-workflow-run-progress small {
+  text-align: right;
+}
+
+.workflow-instances-modal {
+  gap: 0;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  max-height: calc(100vh - calc(var(--space-5) * 2));
+  max-width: min(94vw, 78rem);
+  overflow: hidden;
+  padding: 0;
+}
+
+.workflow-instances-header {
+  border-bottom: 1px solid var(--awkit-border);
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+}
+
+.workflow-instances-header > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.workflow-instances-header h2,
+.workflow-instances-header span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-instances-header span {
+  color: var(--awkit-text-muted);
+  font-size: 0.75rem;
+  margin-top: var(--space-1);
+}
+
+.workflow-run-modal-summary {
+  background: var(--awkit-surface-soft);
+  border-bottom: 1px solid var(--awkit-border);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: var(--space-3) var(--space-5);
+}
+
+.workflow-run-modal-summary > div {
+  align-items: center;
+  border-right: 1px solid var(--awkit-border);
+  display: grid;
+  gap: var(--space-1);
+  grid-template-columns: auto 1fr;
+  padding-inline: var(--space-2);
+}
+
+.workflow-run-modal-summary > div:last-child {
+  border-right: 0;
+}
+
+.workflow-run-modal-summary > div > strong {
+  font-size: 1rem;
+  grid-column: 1 / -1;
+}
+
+.workflow-run-modal-summary > div > span {
+  color: var(--awkit-text-muted);
+  font-size: 0.6875rem;
+}
+
+.workflow-instances-table-wrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+.workflow-instances-table {
+  border-collapse: collapse;
+  display: table;
+  font-size: 0.75rem;
+  min-width: 72rem;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.workflow-instances-table th,
+.workflow-instances-table td {
+  border-bottom: 1px solid var(--awkit-border);
+  padding: var(--space-3);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.workflow-instances-table th {
+  background: var(--awkit-surface-raised);
+  color: var(--awkit-text-secondary);
+  font-size: 0.6875rem;
+  position: sticky;
+  text-transform: uppercase;
+  top: 0;
+  z-index: 1;
+}
+
+.workflow-instances-table tbody tr:hover {
+  background: var(--awkit-surface-soft);
+}
+
+.workflow-instance-activity strong,
+.workflow-instance-activity small {
+  display: block;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-instance-activity small {
+  color: var(--awkit-text-muted);
+  font-size: 0.6875rem;
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 47.5rem) {
+  .workflow-run-modal-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .workflow-run-modal-summary > div:nth-child(3) {
+    border-right: 0;
+  }
 }
 
 .im-classic {
@@ -4979,6 +5514,34 @@ table {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* B4 — live-vs-history baseline in the execution report banner */
+.report-history-vs {
+  flex-wrap: wrap;
+}
+.report-history-vs small {
+  color: var(--awkit-text-muted);
+  opacity: 0.75;
+}
+.report-vs-chip {
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  padding: 1px 7px;
+}
+.report-vs-chip.tone-ahead {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+.report-vs-chip.tone-behind {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+.report-vs-chip.tone-neutral {
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text-secondary);
 }
 
 .report-body {
@@ -5402,6 +5965,715 @@ table {
 }
 
 /* ── Recorder: Recorded URLs table ───────────────────────────────────────────── */
+/* Recorder */
+.recorder-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+}
+
+.recorder-control-bar,
+.recorder-handoff-panel,
+.recorder-actions-panel,
+.recorder-save-panel,
+.recorder-saved-urls-panel {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-panel);
+  box-shadow: var(--awkit-shadow-card);
+  padding: 18px;
+}
+
+.recorder-control-bar {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 7;
+}
+
+.recorder-control-bar.is-recording {
+  border-color: var(--awkit-danger-muted);
+  box-shadow: 0 0 0 3px var(--awkit-danger-soft), var(--shadow-soft);
+}
+
+.recorder-control-head,
+.recorder-panel-header,
+.recorder-command-row,
+.recorder-handoff-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.recorder-control-head,
+.recorder-panel-header {
+  justify-content: space-between;
+}
+
+.recorder-control-title,
+.recorder-panel-title {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.recorder-control-title > svg,
+.recorder-panel-title > svg {
+  color: var(--awkit-accent);
+  flex: 0 0 auto;
+}
+
+.recorder-control-title h3,
+.recorder-panel-title h3 {
+  color: var(--awkit-text);
+  font-size: 16px;
+  margin: 0;
+}
+
+.recorder-control-title span,
+.recorder-panel-title span {
+  color: var(--awkit-text-secondary);
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.recorder-status-pill {
+  align-items: center;
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 7px;
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+.recorder-status-pill::before {
+  border-radius: 999px;
+  content: "";
+  height: 7px;
+  width: 7px;
+}
+
+.recorder-status-pill.is-idle {
+  background: var(--awkit-surface-soft);
+  color: var(--awkit-text-secondary);
+}
+
+.recorder-status-pill.is-idle::before {
+  background: var(--awkit-border-strong);
+}
+
+.recorder-status-pill.is-recording {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+  color: var(--awkit-danger);
+}
+
+.recorder-status-pill.is-recording::before {
+  animation: recorder-pulse 1.35s ease-out infinite;
+  background: var(--awkit-danger);
+}
+
+.recorder-status-pill.is-handoff {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.recorder-status-pill.is-handoff::before {
+  background: var(--awkit-warning);
+}
+
+.recorder-url-row {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(280px, 1fr) auto;
+}
+
+.recorder-url-field,
+.recorder-field,
+.recorder-handoff-session {
+  display: grid;
+  gap: 6px;
+}
+
+.recorder-field-label {
+  color: var(--awkit-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.recorder-url-input-shell {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text-secondary);
+  display: flex;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  transition:
+    border-color var(--awkit-dur-fast) var(--awkit-ease-out),
+    box-shadow var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.recorder-url-input-shell:focus-within,
+.recorder-field input:focus,
+.recorder-handoff-session input:focus {
+  border-color: var(--awkit-accent);
+  box-shadow: 0 0 0 3px rgba(var(--awkit-accent-rgb), 0.14);
+}
+
+.recorder-url-input-shell input,
+.recorder-field input,
+.recorder-handoff-session input {
+  background: transparent;
+  border: 0;
+  color: var(--awkit-text);
+  min-width: 0;
+  outline: none;
+  width: 100%;
+}
+
+.recorder-url-input-shell input {
+  height: 40px;
+}
+
+.recorder-field input,
+.recorder-handoff-session input {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.recorder-control-actions,
+.recorder-switch-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recorder-switch-row {
+  color: var(--awkit-text-secondary);
+}
+
+.recorder-switch {
+  align-items: center;
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    border-color var(--awkit-dur-fast) var(--awkit-ease-out),
+    color var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.recorder-switch.is-on {
+  background: var(--awkit-lavender-soft);
+  border-color: var(--awkit-accent-muted);
+  color: var(--awkit-accent);
+}
+
+.recorder-switch-wait.is-on {
+  background: var(--awkit-success-soft);
+  border-color: var(--awkit-success-muted);
+  color: var(--awkit-success);
+}
+
+.recorder-switch-track {
+  background: var(--awkit-border-strong);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 18px;
+  padding: 2px;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 34px;
+}
+
+.recorder-switch-track span {
+  background: var(--awkit-surface);
+  border-radius: 999px;
+  height: 14px;
+  transform: translateX(0);
+  transition: transform var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 14px;
+}
+
+.recorder-switch.is-on .recorder-switch-track {
+  background: var(--awkit-accent);
+}
+
+.recorder-switch-wait.is-on .recorder-switch-track {
+  background: var(--awkit-success);
+}
+
+.recorder-switch.is-on .recorder-switch-track span {
+  transform: translateX(16px);
+}
+
+.recorder-switch-note,
+.recorder-status-text,
+.recorder-save-hint {
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+}
+
+.recorder-status-text {
+  margin-left: auto;
+}
+
+.recorder-button-danger {
+  background: var(--awkit-danger);
+  border-color: var(--awkit-danger);
+  color: var(--awkit-accent-contrast);
+}
+
+.recorder-button-danger:hover:not(:disabled) {
+  background: var(--awkit-danger);
+  border-color: var(--awkit-danger);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.18);
+}
+
+.recorder-button-success {
+  background: var(--awkit-success);
+  border-color: var(--awkit-success);
+  color: var(--awkit-accent-contrast);
+}
+
+.recorder-button-success:hover:not(:disabled) {
+  background: var(--awkit-success);
+  border-color: var(--awkit-success);
+  box-shadow: 0 8px 18px rgba(34, 197, 94, 0.16);
+}
+
+.recorder-button-subtle {
+  background: var(--awkit-surface);
+  color: var(--awkit-text-secondary);
+}
+
+.recorder-page button:disabled,
+.recorder-page input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.recorder-button-danger:disabled,
+.recorder-button-success:disabled {
+  background: var(--awkit-surface-inset);
+  border-color: var(--awkit-border-strong);
+  box-shadow: none;
+  color: var(--awkit-text-muted);
+}
+
+.recorder-handoff-panel {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  display: grid;
+  gap: 12px;
+}
+
+.recorder-handoff-panel.is-error {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+}
+
+.recorder-handoff-head {
+  align-items: center;
+  color: var(--awkit-warning);
+  display: flex;
+  gap: 10px;
+}
+
+.recorder-handoff-panel.is-error .recorder-handoff-head {
+  color: var(--awkit-danger);
+}
+
+.recorder-handoff-head h3,
+.recorder-handoff-panel p {
+  margin: 0;
+}
+
+.recorder-handoff-head h3 {
+  font-size: 16px;
+}
+
+.recorder-handoff-panel p {
+  color: var(--awkit-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recorder-handoff-meta {
+  color: var(--awkit-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px 16px;
+}
+
+.recorder-handoff-error {
+  background: var(--awkit-danger-soft);
+  border: 1px solid var(--awkit-danger-muted);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-danger);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.recorder-handoff-session {
+  max-width: 360px;
+}
+
+.recorder-handoff-session span {
+  color: var(--awkit-text-secondary);
+  font-size: 12px;
+}
+
+.recorder-handoff-resuming {
+  align-items: center;
+  color: var(--awkit-success);
+  display: inline-flex;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.recorder-main-grid {
+  align-items: start;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.recorder-actions-panel,
+.recorder-save-panel,
+.recorder-saved-urls-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.recorder-actions-panel {
+  min-height: 420px;
+}
+
+.recorder-recording-dot {
+  animation: recorder-pulse 1.35s ease-out infinite;
+  background: var(--awkit-danger);
+  border-radius: 999px;
+  height: 10px;
+  width: 10px;
+}
+
+.recorder-empty {
+  align-content: center;
+  color: var(--awkit-text-muted);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-height: 300px;
+  text-align: center;
+}
+
+.recorder-empty svg {
+  opacity: 0.55;
+}
+
+.recorder-empty strong {
+  color: var(--awkit-text);
+  font-size: 15px;
+}
+
+.recorder-empty span {
+  font-size: 12px;
+}
+
+.recorder-timeline {
+  display: grid;
+  gap: 10px;
+  max-height: 440px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.recorder-timeline-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.recorder-timeline-marker {
+  display: grid;
+  grid-template-rows: 28px 1fr;
+  justify-items: center;
+  min-height: 100%;
+}
+
+.recorder-timeline-marker span {
+  align-items: center;
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: 999px;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.recorder-timeline-row:not(:last-child) .recorder-timeline-marker::after {
+  background: var(--awkit-border);
+  content: "";
+  margin-top: 4px;
+  width: 1px;
+}
+
+.recorder-action-card {
+  align-items: start;
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: 12px;
+}
+
+.recorder-action-icon {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: 10px;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.recorder-action-icon.tone-nav {
+  background: var(--awkit-accent-soft);
+  border-color: var(--awkit-accent-muted);
+  color: var(--awkit-accent);
+}
+
+.recorder-action-icon.tone-click {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.recorder-action-icon.tone-input,
+.recorder-action-icon.tone-session {
+  background: var(--awkit-success-soft);
+  border-color: var(--awkit-success-muted);
+  color: var(--awkit-success);
+}
+
+.recorder-action-icon.tone-wait {
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text-secondary);
+}
+
+.recorder-action-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.recorder-action-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.recorder-action-head strong {
+  color: var(--awkit-text);
+  font-size: 14px;
+}
+
+.recorder-action-type,
+.recorder-action-badge {
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+.recorder-action-type {
+  background: var(--awkit-surface);
+  color: var(--awkit-text-secondary);
+}
+
+.recorder-action-badge {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.recorder-locator-code {
+  color: var(--awkit-text-secondary);
+  display: block;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recorder-wait-note {
+  color: var(--awkit-accent);
+  font-size: 12px;
+}
+
+.recorder-action-value {
+  align-items: center;
+  background: var(--awkit-lavender-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  max-width: 190px;
+  min-width: 0;
+  padding: 5px 8px;
+}
+
+.recorder-action-value span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recorder-save-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.recorder-save-button {
+  width: 100%;
+}
+
+.recorder-save-result {
+  align-items: flex-start;
+  border-radius: var(--radius-sm);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.recorder-save-result.success {
+  background: var(--awkit-success-soft);
+  border: 1px solid var(--awkit-success-muted);
+  color: var(--awkit-success);
+}
+
+.recorder-save-result.error {
+  background: var(--awkit-danger-soft);
+  border: 1px solid var(--awkit-danger-muted);
+  color: var(--awkit-danger);
+}
+
+.recorder-save-hint {
+  margin: 0;
+  text-align: center;
+}
+
+.recorder-url-search {
+  margin-bottom: 2px;
+  max-width: 460px;
+}
+
+@keyframes recorder-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@media (max-width: 1080px) {
+  .recorder-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .recorder-url-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .recorder-control-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .recorder-page {
+    padding: 12px;
+  }
+
+  .recorder-control-bar,
+  .recorder-handoff-panel,
+  .recorder-actions-panel,
+  .recorder-save-panel,
+  .recorder-saved-urls-panel {
+    padding: 14px;
+  }
+
+  .recorder-control-head,
+  .recorder-panel-header,
+  .recorder-command-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recorder-status-text {
+    margin-left: 0;
+  }
+
+  .recorder-action-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .recorder-action-value {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+  }
+}
+
 .recorded-urls-table {
   table-layout: fixed;
 }
@@ -5764,6 +7036,173 @@ button.recorded-url-use:disabled {
   font-size: 13px;
 }
 
+/* Workflow Reports — machine filters (B3) */
+.awkit-report-filters {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+  margin-bottom: 16px;
+}
+.awkit-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.awkit-filter-field > span {
+  color: var(--awkit-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.awkit-filter-field select {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text);
+  font-size: 13px;
+  min-width: 132px;
+  padding: 6px 10px;
+}
+.awkit-filter-field select:hover {
+  border-color: var(--awkit-border-strong);
+}
+.awkit-filter-toggle {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+  height: 33px;
+  padding: 0 14px;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+.awkit-filter-toggle:hover {
+  border-color: var(--awkit-border-strong);
+  color: var(--awkit-text);
+}
+.awkit-filter-toggle.is-active {
+  background: var(--awkit-purple-soft);
+  border-color: var(--awkit-purple);
+  color: var(--awkit-purple);
+}
+
+/* Trend + delta chips */
+.awkit-wf-name {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+.awkit-wf-machine {
+  color: var(--awkit-text-muted);
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+.awkit-trend-up {
+  color: var(--awkit-success);
+}
+.awkit-trend-down {
+  color: var(--awkit-danger);
+}
+.awkit-trend-flat {
+  color: var(--awkit-text-muted);
+}
+.awkit-trend-badge.is-new {
+  background: var(--awkit-blue);
+  border-radius: var(--radius-pill);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  text-transform: uppercase;
+}
+.awkit-delta-chip {
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+.awkit-delta-chip.is-up {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+.awkit-delta-chip.is-down {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+.awkit-delta-chip.is-neutral {
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text-muted);
+}
+.awkit-td-trend {
+  min-width: 132px;
+}
+.awkit-trend-empty {
+  display: inline-block;
+  text-align: center;
+  width: 100%;
+}
+.awkit-th-select,
+.awkit-td-select {
+  text-align: center;
+  width: 34px;
+}
+
+/* Compare mode (B3) */
+.awkit-compare-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.awkit-compare-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+.awkit-compare-title {
+  font-size: 14px;
+}
+.awkit-compare-stats {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.awkit-compare-stats > div {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.awkit-compare-stats dt {
+  color: var(--awkit-text-muted);
+  font-size: 12px;
+}
+.awkit-compare-stats dd {
+  color: var(--awkit-text);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-filter-toggle {
+    transition: none;
+  }
+}
+
 /* Charts */
 .awkit-sparkline {
   display: block;
@@ -5824,18 +7263,36 @@ button.recorded-url-use:disabled {
 .awkit-table-wrap {
   overflow-x: auto;
 }
+/* Reports: bound each table card's height and scroll its body internally (sticky header) so long run
+   lists fill the available width without pushing the page down. Horizontal scroll on narrow widths is
+   still handled by the .awkit-table-wrap overflow-x above. */
+.awkit-report-page .awkit-table-wrap {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.awkit-report-page .awkit-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
 .awkit-table {
   border-collapse: collapse;
   font-size: 13px;
   width: 100%;
+  /* Override the global `table { display: block }` (used for horizontally-scrolling wide tables) so
+     width:100% actually stretches the columns to fill the card instead of shrinking to content. */
+  display: table;
 }
 .awkit-table th {
+  background: var(--awkit-surface-soft);
   border-bottom: 1px solid var(--awkit-border);
   color: var(--awkit-text-muted);
   font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.04em;
   padding: 8px 10px;
   text-align: left;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 .awkit-table td {
@@ -6233,7 +7690,7 @@ button.recorded-url-use:disabled {
 .action-flow-node:hover:not(.selected),
 .scenario-flow-node:hover:not(.selected) {
   border-color: var(--awkit-border-strong);
-  box-shadow: var(--awkit-shadow-float);
+  box-shadow: var(--awkit-shadow-node-hover);
 }
 
 .modal-overlay {
@@ -6323,6 +7780,664 @@ button.recorded-url-use:disabled {
 }
 
 /* ==========================================================================
+   TEMPLATE COMPLETION PASS — Hologram-style structural details that the earlier
+   token-only re-skin left out: floating config drawer, template node-card anatomy,
+   template connectors (label pills + insert affordance + running flow), zoom pill
+   buttons, and drawer header/tabs/body/footer overflow behavior. Appended last so
+   it wins the cascade over the older organic rules; the reduced-motion neutralizer
+   still follows and disables the motion added here.
+   ========================================================================== */
+
+/* --- Connector + motion tokens (theme-aware) ------------------------------ */
+:root,
+[data-theme="light"] {
+  --awkit-connector-default: #7c3aed;
+  --awkit-connector-selected: #6b21c8;
+  --awkit-connector-failure: #d93f45;
+  --awkit-connector-success: #35b85f;
+  --awkit-connector-warning: #d99017;
+  --awkit-connector-loop: #7c3aed;
+  --awkit-connector-parallel: #0ea5a4;
+
+  --awkit-drawer-width: 440px;
+  --awkit-motion-panel: 240ms;
+}
+
+[data-theme="dark"] {
+  --awkit-connector-default: #a78bfa;
+  --awkit-connector-selected: #c4b5fd;
+  --awkit-connector-failure: #f87171;
+  --awkit-connector-success: #34d399;
+  --awkit-connector-warning: #fbbf24;
+  --awkit-connector-loop: #a78bfa;
+  --awkit-connector-parallel: #2dd4bf;
+}
+
+/* --- Right config inspector ------------------------------------------------ */
+/* A populated inspector stays inside the designer canvas. The canvas shell keeps its full width so
+   the action toolbar spans the complete surface; the canvas body reserves an internal strip for the
+   drawer so nodes/connectors are not covered. */
+.designer-layout {
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+}
+
+.designer-layout.has-right-panel {
+  --awkit-active-drawer-width: min(var(--awkit-drawer-width), calc(100% - calc(var(--space-5) * 2)));
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  padding-right: 0;
+}
+
+.designer-layout.has-right-panel.right-collapsed {
+  --awkit-active-drawer-width: calc(var(--space-5) * 2);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.designer-layout.has-right-panel .flow-designer-body {
+  box-sizing: border-box;
+  padding-right: calc(var(--awkit-active-drawer-width) + var(--space-3));
+}
+
+/* The canvas no longer has a properties column to its right, so drop the divider. */
+.designer-canvas {
+  border-right: 0;
+}
+
+.designer-right-drawer-slot {
+  bottom: 0;
+  min-width: 0;
+  pointer-events: none;
+  position: absolute;
+  right: var(--space-3);
+  top: 0;
+  width: var(--awkit-active-drawer-width);
+  z-index: var(--awkit-z-drawer);
+}
+
+/* Flush designer pages (Flow Designer, Workflow Designer) render an in-canvas action bar in the
+   first shell row; start the floating drawer below it so it never covers the Flow Name / Workflow
+   controls. Non-flush pages (Form Designer) have no action bar, so they keep the 18px inset. */
+.designer-layout.flush-layout .designer-right-drawer-slot {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+  /* --awkit-action-bar-h is measured live in DesignerCanvasLayout so the drawer clears the action bar
+     even when it wraps to multiple rows; the fixed value is the single-row fallback before first paint. */
+  padding-top: var(--awkit-action-bar-h, calc(var(--space-5) * 3 + var(--space-1)));
+}
+
+/* The toolbar inset is part of the slot's box. Let the inspector stretch only through the remaining
+   grid track instead of applying its generic 100% height on top of that inset. */
+.designer-layout.flush-layout .designer-right-drawer-slot > * {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+}
+
+.designer-right-drawer-slot > * {
+  height: 100%;
+  margin: 0;
+  max-height: 100%;
+  pointer-events: auto;
+}
+
+/* --- React Flow Controls Repositioning --- */
+/* When right drawer is collapsed (rail only): push right panels left of the rail */
+.designer-layout.right-collapsed .react-flow__panel.right {
+  right: 68px !important;
+}
+.designer-layout.right-collapsed .react-flow__panel.center {
+  left: calc(50% - 22px) !important;
+}
+
+/* When right drawer is expanded: push right panels left of the drawer, and center panels into the visible area */
+.designer-layout:not(.right-collapsed) .react-flow__panel.right {
+  right: calc(min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) + 36px) !important;
+}
+.designer-layout:not(.right-collapsed) .react-flow__panel.center {
+  left: calc(50% - (min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) / 2) - 60px) !important;
+}
+
+/* --- Config drawer shell: header / tabs / scroll body / footer ------------- */
+.properties-panel.template-config-drawer {
+  display: grid;
+  gap: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: 100%;
+  margin: 0;
+  max-height: 100%;
+  overflow: hidden;
+  padding: 0;
+  animation: awkit-drawer-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
+}
+
+@keyframes awkit-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.template-drawer-header {
+  align-items: center;
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 66px;
+  padding: 14px 16px;
+}
+
+.drawer-title-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.drawer-node-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: 11px;
+  color: var(--awkit-accent);
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 18px;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.template-drawer-header .properties-heading-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.template-drawer-header .properties-heading-text h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-button.danger {
+  color: var(--awkit-danger);
+}
+
+.icon-button.danger:hover {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+}
+
+.properties-tabs {
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  gap: 22px;
+  padding: 0 16px;
+}
+
+.properties-tab {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--awkit-text-secondary);
+  height: 40px;
+  padding: 0;
+  position: relative;
+}
+
+.properties-tab.active {
+  color: var(--awkit-text);
+  font-weight: 700;
+}
+
+.properties-tab.active::after {
+  background: var(--awkit-accent);
+  border-radius: 999px 999px 0 0;
+  bottom: -1px;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.properties-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* The ONLY scroll region inside the drawer — header/tabs/footer stay pinned. */
+.properties-body {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.properties-footer {
+  background: var(--awkit-surface);
+  border-top: 1px solid var(--awkit-border);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  padding: 12px 16px;
+}
+
+.properties-footer.single {
+  grid-template-columns: 1fr;
+}
+
+.properties-footer .toolbar-button {
+  height: 40px;
+  justify-content: center;
+}
+
+/* --- Template node-card anatomy ------------------------------------------- */
+/* Keep the card's own overflow:hidden (ports render as siblings so they are never
+   clipped; the icon tile, content, and kebab all sit inside the card bounds). */
+.action-flow-node {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+.action-node-icon {
+  height: 38px;
+  width: 38px;
+}
+
+.action-node-content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.action-node-meta {
+  align-items: center;
+  color: var(--awkit-text-secondary);
+  display: flex;
+  font-size: 12px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.action-node-meta > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-index {
+  background: var(--awkit-accent-soft);
+  border-radius: 6px;
+  color: var(--awkit-accent-hover);
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 1px 6px;
+}
+
+.action-node-title {
+  color: var(--awkit-text);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-description {
+  color: var(--awkit-text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-node-menu {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 28px;
+  justify-content: center;
+  /* Hover-reveal affordance (Workflow/FlowForge parity): the kebab stays hidden until the
+     node is hovered, selected, or the button itself is keyboard-focused. */
+  opacity: 0;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    color var(--awkit-dur-fast) var(--awkit-ease-out),
+    opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 28px;
+}
+
+.action-flow-node:hover .action-node-menu,
+.action-flow-node.selected .action-node-menu,
+.scenario-flow-node:hover .action-node-menu,
+.scenario-flow-node.selected .action-node-menu,
+.action-node-menu.open,
+.action-node-menu:focus-visible {
+  opacity: 1;
+}
+
+/* Keep the kebab readable on the scenario node's selected fill (mirrors the Flow Designer rule). */
+.scenario-flow-node.selected .action-node-menu {
+  color: var(--awkit-accent-hover);
+}
+
+.action-node-menu:hover {
+  background: var(--awkit-neutral-soft);
+  color: var(--awkit-text);
+}
+
+/* Selected node keeps the menu/index readable on the lavender fill. */
+.action-flow-node.selected .action-node-menu {
+  color: var(--awkit-accent-hover);
+}
+
+/* --- Template connectors: label pill, add button, running flow ------------ */
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    stroke var(--awkit-dur-fast) var(--awkit-ease-out),
+    stroke-width var(--awkit-dur-fast) var(--awkit-ease-out),
+    filter var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  filter: drop-shadow(0 2px 5px rgba(var(--awkit-accent-rgb), 0.3));
+  stroke-width: 2.5px;
+}
+
+/* Auto-layout glide (Workflow/FlowForge parity — docs/plan-workflow-visual-parity.md, Phase 1).
+   The canvas page adds `flow-animating` to the ReactFlow root for ~350ms around a programmatic
+   layout change (auto-arrange / load), so nodes and edges glide to their new positions instead
+   of snapping. Honors reduced-motion via the global media query below. */
+.flow-animating .react-flow__node {
+  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.flow-animating .react-flow__edge-path {
+  transition: d 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.template-edge-label {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: 999px;
+  color: var(--awkit-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  pointer-events: all;
+  position: absolute;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.template-edge-label.selected {
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent);
+}
+
+/* Circular midpoint "+" affordance (SRS-CANVAS-UX-001 §3.1): white pill, subtle lavender/gray
+   border, violet "+" icon — always visible at the connector midpoint (matches reference art). */
+.template-edge-add-button {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1.5px solid var(--awkit-border-strong);
+  border-radius: 999px;
+  box-shadow: var(--awkit-shadow-soft);
+  color: var(--awkit-connector-default);
+  cursor: pointer;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  opacity: 1;
+  padding: 0;
+  pointer-events: all;
+  position: absolute;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    border-color var(--awkit-dur-fast) var(--awkit-ease-out),
+    box-shadow var(--awkit-dur-fast) var(--awkit-ease-out),
+    color var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 22px;
+}
+
+.template-edge-add-button:hover,
+.template-edge-add-button:focus-visible {
+  background: var(--awkit-lavender-soft);
+  border-color: var(--awkit-accent);
+  box-shadow: var(--awkit-shadow-card);
+  color: var(--awkit-accent);
+  outline: none;
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  animation: awkit-edge-flow 700ms linear infinite;
+}
+
+@keyframes awkit-edge-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* Canvas mount motion (SRS-CANVAS-UX-001 §3.5): opacity-only. A transform on a React Flow node
+   wrapper perturbs its coordinate measurement (see AppShell CANVAS_ROUTES), so nodes and edges
+   fade in without any translate/scale. Runs once on mount (node cards persist across drag/select
+   re-renders, so it never re-flashes) and is neutralized by the reduced-motion block below. */
+/* Node mount animation is owned by framer-motion (nodeEnter: fade + scale spring, see
+   lib/motion.ts + ActionFlowNode/ScenarioFlowNode). Edges still fade in via CSS. */
+.react-flow__edge {
+  animation: awkit-fade-in var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+/* Button press feedback (FR-5.7). Toolbar/icon buttons live outside the canvas, so a tiny
+   translate is safe here; neutralized under reduced motion. */
+.toolbar-button:active,
+.icon-button:active {
+  transform: translateY(1px);
+}
+
+/* --- Bottom-center zoom pill buttons -------------------------------------- */
+.canvas-zoom-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--awkit-text);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  min-width: 34px;
+  padding: 0 6px;
+  transition:
+    background var(--awkit-dur-fast) var(--awkit-ease-out),
+    transform var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.canvas-zoom-button:hover {
+  background: var(--awkit-neutral-soft);
+  transform: translateY(-1px);
+}
+
+.canvas-zoom-button.zoom-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 54px;
+}
+
+.canvas-zoom-divider {
+  align-self: stretch;
+  background: var(--awkit-border);
+  margin: 4px 2px;
+  width: 1px;
+}
+
+/* --- Node palette float animation (canvas overlay panel) ------------------ */
+.flow-node-palette {
+  animation: awkit-panel-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
+}
+
+@keyframes awkit-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* --- Codex completion pass: loader utilities + status/template polish ------ */
+.status-bar {
+  scrollbar-width: thin;
+}
+
+.status-chip {
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.status-chip.warn {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.awkit-spinner,
+.spin,
+.session-spin {
+  animation: awkit-spinner-rotate 900ms linear infinite;
+  transform-origin: center;
+}
+
+.awkit-spinner {
+  border: 2px solid var(--awkit-border-strong);
+  border-radius: 999px;
+  border-top-color: var(--awkit-accent);
+  display: inline-block;
+  height: 18px;
+  width: 18px;
+}
+
+.awkit-loader-dot {
+  animation: awkit-loader-pulse 900ms var(--awkit-motion-ease) infinite;
+  background: var(--awkit-accent);
+  border-radius: 999px;
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+}
+
+.loading-panel {
+  align-items: center;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  gap: 10px;
+  min-height: 56px;
+  padding: 14px 16px;
+}
+
+.skeleton-card,
+.awkit-skeleton-card {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--awkit-radius-card);
+  box-shadow: var(--awkit-shadow-card);
+}
+
+.skeleton-shimmer,
+.awkit-skeleton-line,
+.awkit-skeleton-block {
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--awkit-accent-rgb), 0.08), transparent),
+    var(--awkit-surface-inset);
+  background-size: 220% 100%;
+  animation: awkit-skeleton-shimmer 1200ms var(--awkit-motion-ease) infinite;
+}
+
+.flow-node-palette,
+.properties-panel.template-config-drawer,
+.work-panel,
+.metric-card,
+.workflow-run-card {
+  border-color: var(--awkit-border);
+  box-shadow: var(--awkit-shadow-card);
+}
+
+.flow-node-palette {
+  border-radius: var(--awkit-radius-panel);
+}
+
+.flow-node-palette button:hover,
+.work-panel:hover,
+.workflow-run-card:hover {
+  box-shadow: var(--awkit-shadow-hover);
+}
+
+.properties-panel.template-config-drawer {
+  background: var(--awkit-surface-raised);
+}
+
+.designer-canvas,
+.react-flow-shell {
+  background-color: var(--awkit-canvas-bg);
+}
+
+.template-edge-add-button {
+  color: var(--awkit-connector-default);
+}
+.template-edge-add-button:hover,
+.template-edge-add-button:focus-visible {
+  color: var(--awkit-accent);
+}
+
+@keyframes awkit-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes awkit-loader-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes awkit-skeleton-shimmer {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+/* ==========================================================================
    Global reduced-motion honor (OS "reduce motion"). Neutralizes CSS animation
    and transitions everywhere; JS animations additionally check
    usePrefersReducedMotion(). Placed last so it wins the cascade.
@@ -6335,5 +8450,618 @@ button.recorded-url-use:disabled {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * Workflow-reference contextual editor surfaces
+ * ------------------------------------------------------------------ */
+.flow-designer-body {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.scenario-builder-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  position: relative;
+}
+
+/* Workflow Definition is now the contextual picker. Its former persistent
+   panel/rail remains compatibility-only for old persisted UI settings. */
+.scenario-builder-grid > .scenario-side-panel,
+.scenario-builder-grid > .scenario-side-rail,
+.scenario-builder-grid > div:has(> .scenario-side-panel) {
+  display: none !important;
+}
+
+.scenario-canvas-panel {
+  grid-column: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.scenario-properties-panel {
+  animation: awkit-drawer-in var(--awkit-motion-slow) var(--awkit-motion-ease) both;
+  background: var(--awkit-surface);
+  border: 0;
+  border-left: 1px solid var(--awkit-border);
+  box-shadow: -8px 0 30px rgba(var(--awkit-shadow-rgb), 0.08);
+  height: 100%;
+  max-width: 92vw;
+  overflow-y: auto;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 400px;
+  z-index: var(--awkit-z-drawer);
+}
+
+.scenario-properties-rail {
+  display: none;
+}
+
+@keyframes awkit-drawer-in {
+  from { opacity: 0.6; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.designer-right-drawer-slot > .properties-panel,
+.designer-right-drawer-slot > .flow-properties-panel,
+.designer-right-drawer-slot > .connection-properties-panel {
+  max-width: 92vw;
+  width: 100%;
+}
+
+/* Connection confirmation variant: branch icon and content proportions match the reference modal. */
+.modal-dialog-connect {
+  column-gap: var(--space-5);
+  grid-template-columns: calc(var(--space-5) * 3) minmax(0, 1fr);
+  max-width: 38rem;
+  padding: calc(var(--space-5) + var(--space-2));
+  row-gap: var(--space-3);
+}
+
+.modal-dialog-connect .modal-header {
+  display: contents;
+}
+
+.modal-dialog-connect .modal-header h2 {
+  align-self: center;
+  font-size: 1.5rem;
+}
+
+.modal-dialog-connect .modal-icon.connect {
+  align-items: center;
+  background: var(--awkit-accent-muted);
+  border-radius: var(--radius-lg);
+  color: var(--awkit-accent);
+  display: inline-flex;
+  grid-row: 1 / span 2;
+  height: calc(var(--space-5) * 3);
+  justify-content: center;
+  width: calc(var(--space-5) * 3);
+}
+
+.modal-dialog-connect .modal-body {
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+.modal-dialog-connect .modal-actions {
+  grid-column: 2;
+  margin-top: var(--space-3);
+}
+
+.modal-dialog-connect .modal-actions .toolbar-button {
+  font-size: 1rem;
+  min-height: calc(var(--space-5) * 2);
+  padding-inline: var(--space-5);
+}
+
+.canvas-item-picker {
+  background: var(--awkit-surface-raised);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--awkit-shadow-node-hover);
+  display: flex;
+  flex-direction: column;
+  max-height: min(520px, 70vh);
+  overflow: hidden;
+  position: absolute;
+  width: 340px;
+  z-index: var(--awkit-z-drawer);
+}
+
+.canvas-item-picker-header {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+
+.canvas-item-picker-header > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.canvas-item-picker-header span,
+.canvas-picker-scroll h3 {
+  color: var(--awkit-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.canvas-item-picker-header strong {
+  font-size: 15px;
+}
+
+.canvas-picker-search {
+  align-items: center;
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: 0 var(--space-3);
+}
+
+.canvas-picker-search:focus-within {
+  border-color: var(--awkit-accent);
+  box-shadow: var(--awkit-focus-ring);
+}
+
+.canvas-picker-search input {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  min-width: 0;
+  padding-inline: 0;
+  width: 100%;
+}
+
+.canvas-picker-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.canvas-picker-scroll h3 {
+  margin: var(--space-3) var(--space-2) var(--space-1);
+}
+
+.canvas-picker-scroll section > button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--awkit-text);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  text-align: left;
+  width: 100%;
+}
+
+.canvas-picker-scroll section > button:hover,
+.canvas-picker-scroll section > button:focus-visible {
+  background: var(--awkit-surface-soft);
+}
+
+.canvas-picker-scroll section > button > span:last-child {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.canvas-picker-scroll section > button strong,
+.canvas-picker-scroll section > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-picker-scroll section > button strong { font-size: 14px; }
+.canvas-picker-scroll section > button small { color: var(--awkit-text-muted); font-size: 12px; }
+
+.canvas-picker-icon {
+  align-items: center;
+  background: var(--awkit-accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-accent);
+  display: flex;
+  flex: 0 0 36px;
+  height: 36px;
+  justify-content: center;
+}
+
+.canvas-picker-empty {
+  color: var(--awkit-text-muted);
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.canvas-picker-footer {
+  align-items: center;
+  border-top: 1px solid var(--awkit-border);
+  color: var(--awkit-text-muted);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+  padding: var(--space-3);
+}
+
+.node-append-affordance {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  left: 50%;
+  position: absolute;
+  top: 100%;
+  transform: translateX(-50%);
+  z-index: var(--awkit-z-panel);
+}
+
+.node-append-affordance > span {
+  background: var(--awkit-edge);
+  height: var(--space-3);
+  width: 1px;
+}
+
+.node-append-affordance > button {
+  align-items: center;
+  background: var(--awkit-accent);
+  border: 4px solid var(--awkit-canvas-bg);
+  border-radius: var(--radius-pill);
+  color: var(--awkit-accent-contrast);
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  transition: transform var(--awkit-motion-fast) var(--awkit-motion-ease), background var(--awkit-motion-fast) var(--awkit-motion-ease);
+  width: 30px;
+}
+
+.node-append-affordance > button:hover,
+.node-append-affordance > button:focus-visible {
+  background: var(--awkit-accent-hover);
+  transform: scale(1.08);
+}
+
+.scenario-flow-node.start,
+.scenario-flow-node.end {
+  min-height: 76px;
+}
+
+.scenario-flow-node.start .scenario-node-order {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+
+.scenario-flow-node.end .scenario-node-order {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
+}
+
+.left-navigation {
+  width: 240px;
+}
+
+.left-navigation.collapsed {
+  width: 76px;
+}
+
+.nav-group-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--awkit-text-muted);
+  display: grid;
+  font-size: 11px;
+  font-weight: 700;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  letter-spacing: 0.06em;
+  padding: 6px var(--space-2);
+  text-align: left;
+  text-transform: uppercase;
+  width: 100%;
+}
+
+.nav-group-toggle:hover { color: var(--awkit-text-secondary); }
+.nav-group-toggle > span:nth-child(2) {
+  background: var(--awkit-surface-inset);
+  border-radius: 4px;
+  font-size: 10px;
+  min-width: 18px;
+  padding: 1px 4px;
+  text-align: center;
+}
+.nav-group-toggle svg { transition: transform 200ms ease-in-out; }
+.nav-group-toggle svg.collapsed { transform: rotate(-90deg); }
+/* Smooth accordion via grid-template-rows 0fr→1fr (animates to the exact content height, so it
+   never snaps or overshoots the way a fixed max-height does). */
+.nav-group-items {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  overflow: hidden;
+  transition: grid-template-rows 220ms var(--awkit-ease-out, ease), opacity 200ms ease;
+}
+.nav-group-items.open { grid-template-rows: 1fr; opacity: 1; }
+.nav-group-items-inner { min-height: 0; overflow: hidden; }
+
+/* ==========================================================================
+   Custom canvas engine (app/renderer/components/canvas) — Workflow/flowforge
+   design, no React Flow. Container, viewport transform, SVG edges, edge label
+   overlay, and the node card. Uses the --awkit-* design tokens so it themes
+   with the rest of the app.
+   ========================================================================== */
+.awkit-flow-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--awkit-canvas-bg);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.awkit-flow-canvas:active {
+  cursor: grabbing;
+}
+
+.awkit-flow-nodes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  /* The container spans the whole canvas but is transparent — without this it sits above the edge
+     "+"/label overlay (z-index 1) and silently swallows clicks on the insert button. Only the actual
+     node cards should be interactive; empty gaps let clicks reach the edge affordances beneath. */
+  pointer-events: none;
+}
+.awkit-flow-node {
+  pointer-events: auto;
+}
+
+/* Edges */
+.awkit-flow-edges {
+  z-index: 1;
+}
+.awkit-flow-edge-path {
+  stroke: var(--awkit-connector-default, #c9b8f5);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    stroke var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    stroke-width var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    filter var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
+}
+.awkit-flow-edge:hover .awkit-flow-edge-path,
+.awkit-flow-edge-path.is-selected {
+  stroke: var(--awkit-edge-strong, var(--awkit-accent));
+  stroke-width: 2.5;
+  filter: drop-shadow(0 2px 5px rgba(var(--awkit-accent-rgb), 0.3));
+}
+.awkit-flow-edge-interaction {
+  stroke: transparent;
+  cursor: pointer;
+}
+.awkit-flow-edge.is-animated .awkit-flow-edge-path {
+  stroke-dasharray: 6 4;
+  animation: awkit-edge-flow 700ms linear infinite;
+}
+
+/* Edge label + insert "+" overlay (portaled inside the transform) */
+.awkit-flow-edge-labels > * {
+  pointer-events: auto;
+}
+.awkit-edge-label {
+  position: absolute;
+  background: var(--awkit-canvas-bg);
+  color: var(--awkit-text-muted);
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+.awkit-edge-add {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--awkit-accent-muted);
+  background: var(--awkit-surface);
+  color: var(--awkit-accent);
+  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  transition:
+    transform var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    background var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    border-color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
+}
+.awkit-edge-add:hover,
+.awkit-edge-add:focus-visible {
+  transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.12);
+  background: var(--awkit-accent);
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
+  outline: none;
+}
+
+/* Node card (flowforge ServiceNode look, translated to plain CSS) */
+.awkit-step-node {
+  position: relative;
+  width: 320px;
+  border-radius: 12px;
+  border: 1px solid var(--awkit-node-border);
+  background: var(--awkit-node-surface);
+  box-shadow: var(--awkit-shadow-card);
+  text-align: left;
+  transition:
+    box-shadow var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    border-color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    transform var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
+}
+.awkit-step-node:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--awkit-shadow-card), 0 6px 16px rgba(var(--awkit-shadow-rgb, 32, 23, 47), 0.1);
+}
+.awkit-step-node.is-selected {
+  border-color: var(--awkit-accent);
+  box-shadow: 0 0 0 2px rgba(var(--awkit-accent-rgb), 0.4);
+}
+.awkit-step-node.is-muted .awkit-step-node-icon {
+  color: var(--awkit-text-muted);
+}
+.awkit-step-node-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.awkit-step-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--awkit-surface-soft);
+  box-shadow: inset 0 0 0 1px var(--awkit-border);
+  color: var(--awkit-text);
+}
+.awkit-step-node-text {
+  min-width: 0;
+  flex: 1;
+}
+.awkit-step-node-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.awkit-step-node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--awkit-text-muted);
+}
+.awkit-step-node-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.awkit-step-node-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--awkit-text);
+}
+.awkit-step-node-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--awkit-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    background var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
+}
+.awkit-step-node:hover .awkit-step-node-menu,
+.awkit-step-node-menu:focus-visible {
+  opacity: 1;
+}
+.awkit-step-node-menu:hover {
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text);
+}
+.awkit-step-node-trigger {
+  position: absolute;
+  top: -8px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+}
+.awkit-step-node-append {
+  position: absolute;
+  left: 50%;
+  bottom: -30px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--awkit-accent-muted);
+  background: var(--awkit-surface);
+  color: var(--awkit-accent);
+  box-shadow: var(--awkit-shadow-soft, 0 1px 2px rgba(0, 0, 0, 0.08));
+  cursor: pointer;
+  transition:
+    background var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
+    border-color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
+}
+.awkit-step-node-append:hover,
+.awkit-step-node-append:focus-visible {
+  background: var(--awkit-accent);
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
+  outline: none;
+}
+
+/* Programmatic layout glide (auto-arrange / load) */
+.awkit-flow-canvas.flow-animating .awkit-flow-node {
+  transition: left 350ms cubic-bezier(0.22, 1, 0.36, 1), top 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-step-node,
+  .awkit-flow-canvas.flow-animating .awkit-flow-node {
+    transition: none;
   }
 }

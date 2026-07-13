@@ -2,6 +2,16 @@
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 
+## Workflow-reference contextual editors (2026-07-11)
+
+- Flow Designer and Workflow Builder use one shared searchable contextual picker: blank-canvas
+  right-click, edge insertion, leaf append, and toolbar command. Permanent palette/definition rails are unmounted.
+- Both designers use overlay configuration drawers while preserving the existing real configuration controls.
+  Flow Designer bounds its drawer inside the full-width canvas below the action toolbar and reserves the
+  matching internal canvas strip so the drawer cannot exceed the canvas or cover nodes/connectors.
+- New workflows persist structural Start/End nodes plus a default connector. Runtime conversion strips
+  these sentinels deterministically; older workflows load without mutation.
+
 ## Confirmed (by module)
 
 ### Flow Designer — `app/renderer/pages/FlowChartDesigner.tsx`
@@ -103,18 +113,36 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   types. Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
 - ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
-  locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → positional
-  fallback), **never** utility/layout-class selectors (`flex`, `items-center`, …), validates each
-  against the live DOM, and saves the highest-priority candidate that resolves to exactly one element.
-  Each saved step carries `LocatorQuality` (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/
-  `candidateCount`) and (for role/text) an `exact` flag. Steps get human-readable names
-  ("Click Log in", "Fill Email"). Password field values are never stored. Verified by
-  `npm run verify:recorder`.
-- ✅ **Locator-quality surfacing:** Flow Designer Node Properties shows a locator-quality readout and
-  will not report a node as valid when its saved locator is non-unique (flow-level + node validation
-  messages). At run time `StepExecutor` fails a known-non-unique step early with a friendly message and
-  translates raw Playwright strict-mode violations into an end-user message (technical detail stays in
-  the structured logs).
+  locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → **compound
+  tree** → anchored/positional fallback), **never** utility/layout-class selectors (`flex`,
+  `items-center`, …), validates each against the live DOM, and saves the highest-priority candidate
+  that resolves to exactly one element. Each saved step carries `LocatorQuality`
+  (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`) and
+  (for role/text) an `exact` flag. Steps get human-readable names ("Click Log in", "Fill Email").
+  Password field values are never stored. Verified by `npm run verify:recorder`.
+- ✅ **Compound / tree locators for non-unique elements** (`recorderInitScript.ts`): when no single
+  strategy is unique, the recorder combines the element's meaningful features (stable attributes +
+  rare, non-utility classes) with the **fewest distinguishing ancestors** (descendant combinators,
+  skipping wrapper noise) until exactly one element matches — e.g. `#results .customer-card
+  input[type=checkbox]`. If a readable semantic locator (role+name/label/placeholder/text) can instead
+  be scoped to a stable **container** that isolates the exact element, that is preferred and saved as
+  `context.container` (verified in-page against the real ancestor). A guaranteed-unique anchored
+  positional path is the final fallback. `quality.disambiguation` records how uniqueness was reached
+  (`compound`/`container`/`positional`), so ordinary duplicates no longer surface the red "matches N
+  elements" warning.
+- ✅ **Runtime locator self-healing** (`src/runner/LocatorFactory.ts`): when a saved step matches
+  several elements at run time, the runner narrows deterministically and intent-free — a single
+  *visible* match, else a single *enabled* match, else a single *in-viewport* match. If two or more
+  remain equally actionable it does **not** guess and fails with the existing friendly diagnostic
+  (clicking the wrong twin is worse than a clear error). This heals legacy non-unique flows without
+  re-recording.
+- ✅ **Locator-quality surfacing:** Flow Designer Node Properties shows a locator-quality readout
+  (including how a non-unique element was disambiguated) and will not report a node as valid when its
+  saved locator is genuinely non-unique (flow-level + node validation messages). Recorder
+  `alternatives`/`context` now survive a Flow Designer load→save round-trip
+  (`FlowDesignerNodeData.locatorAlternatives`/`locatorContext`). At run time `StepExecutor` fails a
+  known-non-unique step early with a friendly message and translates raw Playwright strict-mode
+  violations into an end-user message (technical detail stays in the structured logs).
 
 ### Execution & reporting
 - ✅ Generic Playwright runner: `StepExecutor`, `FlowExecutor`, `PlaywrightRunner`,
@@ -137,11 +165,16 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   emits per-step events → `ExecutionEngine` writes a bounded `InstanceRuntimeState.liveProgress` snapshot →
   renderer 1s poll renders it; finished runs use the stored report. Built via `executionReportModel.ts` +
   `src/runner/RunnerProgress.ts`.
-- ✅ Concurrent Instance Monitor controls (Pause/Resume/Stop All/Clear Completed +
+- ✅ Concurrent Instance Monitor controls (Pause/Resume/**Stop Pending & Running**/Clear Completed +
   per-instance Pause/Resume/Stop/**Repeat**/Remove) all map to real `executionEngine` methods. Clear
   Completed removes terminal instances from the backend pool. Repeat re-runs a single finished instance
   from its retained run context. Logs/Screenshots buttons are enabled only for `failed` instances that
-  have an artifact path.
+  have an artifact path. Bulk stop includes pending/queued work, requires confirmation, and calls the
+  existing hard-cancel `executions.stopAll()` path.
+- ✅ **Workflow run summaries + instance drill-down:** Instance Monitor groups pool rows by unique
+  `executionId` and shows workflow status, active/pending/completed/failed counts, progress, total, and
+  duration. Selecting a record opens `WorkflowInstancesModal` with every instance's execution details and
+  a link to its live report; concurrent runs of the same workflow remain separate.
 - ✅ **Workflow cards grid** (`components/instances/WorkflowRunCard.tsx`): primary run UX — one card per
   saved workflow with status badge, summary metadata, and per-card run parameters revealed on
   hover/keyboard focus (independent per workflow; persisted to `settings.workflowRunCards`). Search by
@@ -173,7 +206,12 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `SkeletonCard`, `EmptyState`, `TrendDelta`, `AnimatedCounter`, `usePrefersReducedMotion`) in
   `components/shared/`; report/chart components in `components/reports/`; global reduced-motion honoring;
   a route-content fade (non-canvas routes). Designer nodes visually modernized (token shadows/accent) with
-  all canvas invariants preserved.
+  all canvas invariants preserved. Codex's 2026-07-08 completion pass aligned the light tokens to the
+  requested Hologram palette, added named loader utilities (`.awkit-spinner`, `.awkit-loader-dot`,
+  `.loading-panel`, `.skeleton-shimmer`), and made the footer status bar show real runtime capacity
+  chips from `executions.runtimeStatus()` instead of static placeholder values. Flow Designer and Workflow
+  Builder now use the attached sparse dot canvas pattern (`gap={44}`, `size={2.4}`) with visible
+  light-mode lavender dots and a transparent React Flow pane.
 
 ### Settings & offline
 - ✅ Full Settings screen (Application, Paths, Designer Defaults, Execution Defaults, Data Storage,
@@ -197,6 +235,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `playwright`/`playwright-core` being asar-unpacked in packaged builds.
 - Settings store (`app/main/uiSettings.ts`) underpins state restore, table state, designer
   defaults, and custom paths; many features read/write it via `window.playwrightFlowStudio.settings`.
+- **`framer-motion`** (renderer UI animation; bundled by Vite into `out/renderer`, listed in the
+  offline `dependency-manifest`). Shared motion primitives live in `app/renderer/lib/motion.ts`
+  (node spring mount/hover, canvas auto-layout glide `useFlowGlide`, list/card variants). All motion
+  is reduced-motion aware; visual styling stays in `styles/global.css` (`--awkit-*` tokens, both themes).
 
 ## Unknown / Needs Verification
 

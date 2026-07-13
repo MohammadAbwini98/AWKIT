@@ -4,6 +4,43 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Confirmed (observed during development)
 
+- **RESOLVED & ROOT-CAUSED (2026-07-11): ordinary run completions falsely tripped "browser crash rate
+  high — pausing new dispatch", stranding the queue.** Symptom (from a 50-instance run): backpressure
+  engaged with `Crashes 5`, `Browsers 0/2`, ~46 instances frozen `Pending`, while the host was idle
+  (CPU 2.4%, Mem 48.8%). Root cause was a **browser-lifecycle ordering bug**, not real instability:
+  1. In **`browserContext` isolation** (the default, shown as "Context" in the monitor) the runtime owns
+     a real `Browser` (`BrowserContextFactory` non-persistent branch); `close()` calls `browser.close()`,
+     which emits Playwright's `disconnected`. (Persistent-context runs were immune — no `Browser` object.)
+  2. `PlaywrightRunner.executeScenario` closes the runtime **inside its own `finally`** (`closeRuntime`),
+     i.e. *before* it returns to the engine — and the engine only calls `browserPool.releaseSlot(slot)`
+     in *its* `finally`, *after* `executeScenario` returns. So at close time `slot.released` was still
+     `false`, and `BrowserWorkerPool`'s `disconnected` handler scored the **normal** close as a crash.
+  3. Every completed instance (pass *or* fail) therefore added one phantom crash to the 5-min window.
+     Past `maxRecentCrashes` (default 3), `BackpressureController.admit` blocked all new dispatch. The
+     failing instances here also died on "Navigate to …" (unreachable target → `navigation` class), which
+     just supplied the stream of quick completions that inflated the count (5 Failed ⇒ 5 "crashes").
+  - **Fix:** the runner announces intentional teardown via a new `onRuntimeClosing` option (fired in
+    `closeRuntime`, covering end-of-run, cancel, and Reuse Session swap); the engine wires it to
+    `BrowserWorkerPool.markExpectedClose(slot, generation)`, and the pool's `disconnected` handler skips
+    crash-counting when `slot.expectedCloseGeneration === generation`. Genuine crashes are unaffected — a
+    mid-run disconnect with no signal, a page `crash` event, and the engine's explicit `browser-crash`
+    classification all still count — and the signal is **generation-scoped** so a later generation's real
+    crash after a swap is still counted. Guarded by `verify:browser-pool` Part E (16/16).
+  - **Fragile area to respect:** `executeScenario` owns the browser close (in its `finally`) and it runs
+    **before** the engine releases the pool slot. Any future change to crash accounting must not assume
+    `slot.released` is set at close time.
+
+- **Compound/container locators (2026-07-11) — two design assumptions to keep in mind.**
+  1. **Manual locator edits keep the Recorder's `alternatives`/`context`** (approved default). Because
+     `LocatorFactory` resolves the primary *and* alternatives inside `context.container`, hand-authoring
+     a globally-scoped primary on a step that still carries a recorded container can mis-scope it (the
+     container narrows it to the wrong/zero match). If a manual locator misbehaves, clear the strategy or
+     re-record. Only the `quality` badge is cleared on value/name edits; container/alternatives persist.
+  2. **Runtime self-healing never guesses.** `LocatorFactory.narrowToActionable` only resolves an
+     ambiguous match when exactly one is visible/enabled/in-viewport; two+ equally-actionable twins fail
+     with the friendly diagnostic by design (clicking the wrong twin is worse). It only turns failures
+     into successes — it never changes which element an already-unambiguous step resolves to.
+
 - **Phase 5 packaged-walkthrough findings (2026-07-06) — read before writing any script that drives
   the packaged app.** Discovered while building `npm run verify:packaged-walkthrough` (five
   calibration runs against the real `dist/win-unpacked` EXE):
@@ -395,6 +432,19 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 - Large renderer bundle (~900 KB) — fine for desktop, but no code-splitting.
 
 ## Repeated problems pattern
+
+- **Optional grid panels must not leave empty slot elements or state classes behind.** In
+  `DesignerCanvasLayout`, an explicit `rightPanel={null}` means there is no second grid child. Rendering
+  an empty drawer slot in the one-column state creates an implicit second row and halves the canvas;
+  applying `right-collapsed` without a panel reserves an empty narrow column. The Flow Designer GUI
+  verifier guards both dimensions and requires zero slots in the no-inspector state.
+
+- **Canvas pointer gesture refs must not be read from queued React state updaters.** Pointer-up releases
+  `panState`/drag state immediately, while React may execute a pointer-move updater or commit `setDrag`
+  afterward. Snapshot immutable pointer-down values before calling a state setter, and keep the latest
+  computed node position in the gesture ref for pointer-up/drop. Regression coverage lives in the real
+  Electron Flow Designer verifier (rapid pane drag plus hit-tested node-over-node drag). Do not replace
+  this with optional chaining or error suppression; that would hide a broken gesture.
 
 - When packaging fails at the startup gate, the cause has historically been a **manifest** issue
   (BOM or stale path/name), not a missing file. Check `resources/dependency-manifest.json` first.

@@ -3,12 +3,15 @@ import { Activity, AlertTriangle, Camera, CheckCircle2, Clock, Loader2, X, XCirc
 import type { InstanceRuntimeState } from "@src/instances/InstanceRuntimeState";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import type { WorkflowComparisonRow } from "@src/reports/TelemetryContracts";
 import {
   buildLiveExecutionReport,
+  compareElapsedToHistory,
   isLiveExecutionStatus,
   type ExecutionReportStep,
   type ExecutionStepStatus,
-  type LiveExecutionReport
+  type LiveExecutionReport,
+  type WorkflowHistoryBaseline
 } from "./executionReportModel";
 
 type StoredReport = ConcurrentRunReport & { id: string };
@@ -64,6 +67,7 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
   const [report, setReport] = useState<StoredReport | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [baseline, setBaseline] = useState<WorkflowHistoryBaseline | undefined>(undefined);
   const shouldPollReport = isLiveExecutionStatus(instance.status);
 
   useEffect(() => {
@@ -94,11 +98,51 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
     return () => window.clearInterval(interval);
   }, [shouldPollReport]);
 
+  // B4 — this workflow's historical per-run baseline (avg/p95), scoped to the current machine so a
+  // live run is compared only against runs on the same hardware; falls back to all machines when the
+  // current machine has no history (e.g. only pre-v3 runs). Fetched once per opened instance.
+  useEffect(() => {
+    const scenarioId = instance.scenarioId;
+    if (!scenarioId) {
+      setBaseline(undefined);
+      return;
+    }
+    let cancelled = false;
+    const pick = (rows: WorkflowComparisonRow[]) => rows.find((row) => row.scenarioId === scenarioId);
+    void (async () => {
+      let machineId: string | undefined;
+      try {
+        machineId = (await window.playwrightFlowStudio.system.capacityPreview()).capabilities.machineId;
+      } catch {
+        machineId = undefined;
+      }
+      try {
+        let scoped = Boolean(machineId);
+        let rows = await window.playwrightFlowStudio.telemetry.workflowComparison("all", machineId ? { machineId } : undefined);
+        let row = pick(rows);
+        if ((!row || row.totalRuns === 0) && machineId) {
+          scoped = false;
+          rows = await window.playwrightFlowStudio.telemetry.workflowComparison("all");
+          row = pick(rows);
+        }
+        if (cancelled) return;
+        setBaseline(row && row.totalRuns > 0 ? { avgMs: row.duration.avgMs, p95Ms: row.duration.p95Ms, runs: row.totalRuns, machineScoped: scoped } : undefined);
+      } catch {
+        if (!cancelled) setBaseline(undefined);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [instance.scenarioId]);
+
   const model = useMemo<LiveExecutionReport>(
     () => buildLiveExecutionReport(instance, workflow, report, new Date(nowMs).toISOString()),
     [instance, workflow, report, nowMs]
   );
   const updateLabel = model.live ? `Updated ${formatRelativeTime(model.updatedAt, nowMs)}` : `Final update: ${formatTime(model.updatedAt)}`;
+  const historyComparison = useMemo(() => compareElapsedToHistory(instance.durationMs, baseline, model.live), [instance.durationMs, baseline, model.live]);
+  const historyScopeLabel = baseline ? (baseline.machineScoped ? "this machine" : "all machines") : "";
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
@@ -131,6 +175,13 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
           <div className="report-banner-meta">
             <span><Clock size={12} /> Started {formatTime(model.startedAt)}</span>
             <span>Elapsed {formatDuration(instance.durationMs)}</span>
+            {baseline?.avgMs != null ? (
+              <span className="report-history-vs">
+                vs history: avg {formatDuration(baseline.avgMs)}{baseline.p95Ms != null ? ` · p95 ${formatDuration(baseline.p95Ms)}` : ""}
+                {historyComparison ? <em className={`report-vs-chip tone-${historyComparison.tone}`}>{historyComparison.label}</em> : null}
+                <small>{historyScopeLabel} · {baseline.runs} run{baseline.runs === 1 ? "" : "s"}</small>
+              </span>
+            ) : null}
             <span>{updateLabel}</span>
           </div>
         </section>
@@ -182,7 +233,9 @@ export function LiveExecutionReportModal({ instance, workflow, onClose }: LiveEx
               <StatCard label="Pending" value={model.stats.pendingSteps} />
               <StatCard label="Running / waiting" value={model.stats.runningSteps} />
               <StatCard label="Success rate" value={model.stats.successRate != null ? `${model.stats.successRate}%` : undefined} />
-              <StatCard label="Elapsed" value={formatDuration(model.stats.elapsedMs)} />
+              <StatCard label="Elapsed" value={formatDuration(model.stats.elapsedMs)} hint={historyComparison?.label} />
+              <StatCard label={baseline ? `History avg · ${historyScopeLabel}` : "History avg"} value={baseline?.avgMs != null ? formatDuration(baseline.avgMs) : undefined} />
+              <StatCard label="History p95" value={baseline?.p95Ms != null ? formatDuration(baseline.p95Ms) : undefined} />
               <StatCard label="Avg step" value={model.stats.averageStepDurationMs != null ? formatDuration(model.stats.averageStepDurationMs) : undefined} />
               <StatCard label="Longest step" value={model.stats.longestStepDurationMs != null ? formatDuration(model.stats.longestStepDurationMs) : undefined} hint={model.stats.longestStepLabel} />
               <StatCard label="Screenshots" value={model.stats.screenshotCount} />

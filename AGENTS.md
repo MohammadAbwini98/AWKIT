@@ -48,6 +48,7 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 
 - Inspect files before editing; make **minimal, scoped** diffs; no unrelated refactors.
 - Match existing patterns (TypeScript, plain CSS in `app/renderer/styles/global.css`, React Flow, JSON profile stores).
+- **UI = Hologram design tokens:** new/changed UI must use `global.css` tokens (`var(--awkit-*)`, `--space-*`, `--radius-*`, motion/shadow tokens) — no hardcoded hex or arbitrary px, no parallel class systems; don't change the `.app-shell`/`.app-main` grids without explicit permission. See `docs/ai/RULES.md` › UI.
 - Do **not** rename the `window.playwrightFlowStudio` preload API identifier (internal contract).
 - Preserve **offline-first**: no runtime internet, no CDN/remote fonts/scripts, no global Node/Playwright/Chromium; never write mutable data into `resources/` or `app.asar`.
 - Mutable runtime data goes under `%LOCALAPPDATA%/WebFlow Studio/` (or user-configured Settings paths).

@@ -15,8 +15,10 @@ changes them.
 
 ## Coding style / architecture
 - TypeScript throughout; keep `tsc --noEmit` clean (the `build` gate runs it).
-- Renderer: React function components + hooks; `@xyflow/react` for canvases; **plain CSS** in
-  `app/renderer/styles/global.css` (no CSS-in-JS, no new UI framework without explicit instruction).
+- Renderer: React function components + hooks; canvases use the **in-house engine** at
+  `app/renderer/components/canvas/` (`FlowCanvas` + `useCanvas`/`FlowCanvasHandle`) — **not** React
+  Flow / `@xyflow` (removed 2026-07-11); **plain CSS** in `app/renderer/styles/global.css` (no
+  CSS-in-JS, no new UI framework without explicit instruction).
 - Keep `src/` framework-agnostic (no Electron/React imports) except the established bridge where the
   runner/IPC imports `app/main/appPaths`.
 - Match existing module layout (`app/main/ipc/*` + `preload.ts` for IPC; `src/profiles` for schemas;
@@ -49,6 +51,21 @@ changes them.
 - Honor the unsaved-changes dialog (`pageChrome` dirty flag) for navigation away from editors.
 - No fake/no-op controls: every enabled control must do something real, or be disabled with a tooltip.
 - No demo/seed data presented as real user records — use empty states.
+- **Design tokens (Hologram re-skin):** all new/changed UI MUST resolve color, spacing, radius,
+  shadow, and motion through the existing `global.css` tokens (`var(--awkit-*)`, `--space-*`,
+  `--radius-*`, `--awkit-motion-*`/`--awkit-dur-*`/`--awkit-ease-out`, `--awkit-shadow-*`). Do NOT
+  hardcode hex colors or arbitrary pixel spacing/radii. Every token has a `[data-theme="dark"]`
+  override, so token use keeps light/dark correct automatically. (Known intentional exception: the
+  `ReportsFailures` category-hue chart palette.) Do not introduce parallel class systems that
+  duplicate existing base styling (global `input/select/textarea`, `.toolbar-button`, `.awkit-table`,
+  `.modal-overlay`/`.modal-dialog`, `MetricCard`/`EmptyState`/`SkeletonCard`).
+- **App-shell grids:** do NOT modify the global `.app-shell` / `.app-main` grid layouts (or the
+  full-height left sidebar / header-over-content relationship) without explicit permission — changing
+  them breaks the sidebar/header/status structure across every route.
+- **Accessibility:** keep a visible `:focus-visible` style on every focusable element (never
+  `outline: none` without an alternative — the global `:focus-visible` ring is that alternative);
+  use semantic elements (`<button>` for actions, `<a>` for links) rather than clickable `<div>`s;
+  keep motion behind the last-in-cascade `prefers-reduced-motion` neutralizer.
 
 ## Logging / errors / secrets
 - Mask secrets in logs and reports. Never hardcode secrets or environment-specific values.

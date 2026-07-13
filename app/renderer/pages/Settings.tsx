@@ -14,7 +14,21 @@ import {
   Download
 } from "lucide-react";
 import type { UiSettings } from "../../main/uiSettings";
+import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
+import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
+
+const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string; hint: string }[] = [
+  { id: "sequential", label: "Sequential", hint: "One instance at a time — safest, machine-independent." },
+  { id: "auto", label: "Auto", hint: "Derive a safe concurrency from this machine's CPU/RAM." },
+  { id: "manual", label: "Manual", hint: "Set explicit host caps (still safety-limited)." }
+];
+const WORKLOAD_CLASSES: WorkloadClass[] = ["light", "medium", "heavy", "custom"];
+
+function formatMb(mb: number | undefined): string {
+  if (!mb || mb <= 0) return "—";
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
 
 type Stats = {
   appVersion: string;
@@ -60,6 +74,15 @@ function validateClient(settings: UiSettings): string[] {
   if (e.defaultConcurrentRuns > e.maxConcurrentRuns) errors.push("Default concurrent runs cannot exceed maximum concurrent runs.");
   if (e.defaultConcurrentRuns > e.defaultRuns) errors.push("Default concurrent runs cannot exceed default runs.");
   if (e.maxConcurrentRuns > e.maxRuns) errors.push("Maximum concurrent runs cannot exceed maximum runs.");
+  const r = settings.runtime;
+  if (!["sequential", "auto", "manual"].includes(r.capacityMode)) errors.push("Capacity mode must be sequential, auto, or manual.");
+  if (!["light", "medium", "heavy", "custom"].includes(r.workloadClass)) errors.push("Workload class must be light, medium, heavy, or custom.");
+  if (!Number.isInteger(r.maxBrowsers) || r.maxBrowsers < 1 || r.maxBrowsers > 16) errors.push("Max browsers must be an integer between 1 and 16.");
+  if (!Number.isInteger(r.maxActiveFlows) || r.maxActiveFlows < 1 || r.maxActiveFlows > 64) errors.push("Max active flows must be an integer between 1 and 64.");
+  if (!Number.isInteger(r.absoluteSafetyMaximum) || r.absoluteSafetyMaximum < 1 || r.absoluteSafetyMaximum > 256) errors.push("Absolute safety maximum must be an integer between 1 and 256.");
+  if (!(typeof r.capacitySafetyFactor === "number" && r.capacitySafetyFactor >= 0.1 && r.capacitySafetyFactor <= 1)) errors.push("Capacity safety factor must be between 0.1 and 1.");
+  if (!Number.isInteger(r.reservedLogicalCpuCount) || r.reservedLogicalCpuCount < 0 || r.reservedLogicalCpuCount > 64) errors.push("Reserved logical CPU count must be an integer between 0 and 64.");
+  if (r.administratorMaximumConcurrency !== null && (!Number.isInteger(r.administratorMaximumConcurrency) || r.administratorMaximumConcurrency < 1)) errors.push("Administrator maximum concurrency must be a positive integer or unset.");
   for (const { key, label } of PATH_FIELDS) {
     if (!settings.paths[key]?.trim()) errors.push(`${label} path must not be empty.`);
   }
@@ -75,8 +98,21 @@ export function SettingsPage() {
   const [banner, setBanner] = useState<Banner>(null);
   const [saving, setSaving] = useState(false);
   const [defaultPaths, setDefaultPaths] = useState<Record<string, string>>({});
+  const [capacity, setCapacity] = useState<CapacityPreview | null>(null);
+  const [capacityLoading, setCapacityLoading] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const api = window.playwrightFlowStudio.settings;
+
+  const loadCapacity = useCallback(async (workloadClass?: WorkloadClass) => {
+    setCapacityLoading(true);
+    try {
+      setCapacity(await window.playwrightFlowStudio.system.capacityPreview(workloadClass));
+    } catch {
+      setCapacity(null);
+    } finally {
+      setCapacityLoading(false);
+    }
+  }, []);
 
   const loadStats = useCallback(async () => {
     const [s, p, dp] = await Promise.all([api.getStorageStats(), api.validatePaths(), api.getDefaultPaths()]);
@@ -104,8 +140,16 @@ export function SettingsPage() {
     void reload();
   }, [reload]);
 
+  // Refresh the machine capacity readout on load and whenever the workload class changes (so Auto's
+  // recommendation reflects the selected class live, before saving).
+  const workloadClass = settings?.runtime.workloadClass;
+  useEffect(() => {
+    if (!settings) return;
+    void loadCapacity(workloadClass);
+  }, [settings ? true : false, workloadClass, loadCapacity]);
+
   const patch = useCallback(
-    <S extends "designerDefaults" | "execution" | "paths">(section: S, key: keyof UiSettings[S], value: unknown) => {
+    <S extends "designerDefaults" | "execution" | "paths" | "runtime">(section: S, key: keyof UiSettings[S], value: unknown) => {
       setSettings((prev) => (prev ? { ...prev, [section]: { ...prev[section], [key]: value } } : prev));
       setBanner(null);
     },
@@ -125,6 +169,7 @@ export function SettingsPage() {
       await api.update({
         designerDefaults: settings.designerDefaults,
         execution: settings.execution,
+        runtime: settings.runtime,
         paths: settings.paths
       });
       setBanner({ type: "success", text: "Settings saved." });
@@ -203,6 +248,7 @@ export function SettingsPage() {
 
   const d = settings.designerDefaults;
   const e = settings.execution;
+  const r = settings.runtime;
 
   return (
     <section className="page">
@@ -328,26 +374,6 @@ export function SettingsPage() {
               Default node height (px)
               <input type="number" min={1} value={d.defaultNodeHeight} onChange={(ev) => patch("designerDefaults", "defaultNodeHeight", Number(ev.target.value))} />
             </label>
-            <label>
-              Workflow Definition width (px)
-              <input type="number" min={260} max={560} value={d.workflowDefinitionWidth} onChange={(ev) => patch("designerDefaults", "workflowDefinitionWidth", Number(ev.target.value))} />
-            </label>
-            <label className="inline-check">
-              <input type="checkbox" checked={d.nodePaletteCollapsed} onChange={(ev) => patch("designerDefaults", "nodePaletteCollapsed", ev.target.checked)} />
-              Node Palette collapsed by default
-            </label>
-            <label className="inline-check">
-              <input type="checkbox" checked={d.nodePropertiesCollapsed} onChange={(ev) => patch("designerDefaults", "nodePropertiesCollapsed", ev.target.checked)} />
-              Node Properties collapsed by default
-            </label>
-            <label className="inline-check">
-              <input type="checkbox" checked={d.workflowDataSourceCollapsed} onChange={(ev) => patch("designerDefaults", "workflowDataSourceCollapsed", ev.target.checked)} />
-              Workflow Data Source collapsed by default
-            </label>
-            <label className="inline-check">
-              <input type="checkbox" checked={d.selectedConnectorCollapsed} onChange={(ev) => patch("designerDefaults", "selectedConnectorCollapsed", ev.target.checked)} />
-              Selected Connector collapsed by default
-            </label>
           </div>
         </section>
 
@@ -390,6 +416,135 @@ export function SettingsPage() {
               Stop on error
             </label>
           </div>
+        </section>
+
+        {/* Runtime Concurrency — machine-aware capacity (Sequential / Auto / Manual) */}
+        <section className="work-panel settings-card">
+          <div className="settings-card-head">
+            <Gauge size={16} />
+            <h2>Runtime Concurrency</h2>
+          </div>
+          <p className="settings-card-hint">
+            How many workflow instances run at once. Host caps also drive the Chrome Consumption gauges.
+            A browser-count change applies when no run is in progress; safety limits apply in every mode.
+          </p>
+
+          <div className="capacity-mode-row" role="group" aria-label="Capacity mode">
+            {CAPACITY_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={`toolbar-button ${r.capacityMode === m.id ? "primary" : "secondary"}`}
+                aria-pressed={r.capacityMode === m.id}
+                onClick={() => patch("runtime", "capacityMode", m.id)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <p className="settings-card-hint">{CAPACITY_MODES.find((m) => m.id === r.capacityMode)?.hint}</p>
+
+          <div className="capacity-readout">
+            {capacityLoading && !capacity ? (
+              <span className="awkit-muted">Detecting this machine…</span>
+            ) : capacity ? (
+              <>
+                <div className="readiness-list">
+                  <span>This machine</span>
+                  <strong>
+                    {capacity.capabilities.logicalCpuCount} logical CPUs · {formatMb(capacity.capabilities.totalMemoryMb)} RAM (
+                    {formatMb(capacity.capabilities.availableMemoryMb)} free)
+                  </strong>
+                  <span>Applied concurrency</span>
+                  <strong>{capacity.effectiveTarget} instance{capacity.effectiveTarget === 1 ? "" : "s"}</strong>
+                  <span>Auto recommendation</span>
+                  <strong>
+                    {capacity.autoTarget} · {capacity.recommendation.bindingConstraint}-bound · {capacity.recommendation.categoryName} ·{" "}
+                    {capacity.profile.benchmarkTestedCapacity != null ? "benchmarked" : "estimate"}
+                  </strong>
+                </div>
+                {capacity.recommendation.requiresBenchmark && capacity.profile.benchmarkTestedCapacity == null ? (
+                  <p className="form-message">
+                    Server-grade machine — Auto stays conservative until a benchmark runs on this host.
+                  </p>
+                ) : null}
+                {capacity.requiresRecalibration ? (
+                  <p className="form-message warn">Hardware change detected — recalibration recommended.</p>
+                ) : null}
+              </>
+            ) : (
+              <span className="awkit-muted">Machine capacity unavailable.</span>
+            )}
+          </div>
+
+          {r.capacityMode === "sequential" ? (
+            <p className="form-message">Runs one instance at a time in queue order — independent of machine size.</p>
+          ) : null}
+
+          {r.capacityMode === "auto" ? (
+            <div className="settings-grid">
+              <label>
+                Workload class
+                <select value={r.workloadClass} onChange={(ev) => patch("runtime", "workloadClass", ev.target.value)}>
+                  {WORKLOAD_CLASSES.map((c) => (
+                    <option key={c} value={c}>
+                      {c[0].toUpperCase() + c.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
+
+          {r.capacityMode === "manual" ? (
+            <>
+              <div className="settings-grid">
+                <label>
+                  Max browsers
+                  <input type="number" min={1} max={16} value={r.maxBrowsers} onChange={(ev) => patch("runtime", "maxBrowsers", Number(ev.target.value))} />
+                </label>
+                <label>
+                  Max active flows
+                  <input type="number" min={1} max={64} value={r.maxActiveFlows} onChange={(ev) => patch("runtime", "maxActiveFlows", Number(ev.target.value))} />
+                </label>
+              </div>
+              {capacity && r.maxActiveFlows > capacity.autoTarget ? (
+                <p className="form-message warn">
+                  Manual concurrency ({r.maxActiveFlows}) exceeds the recommended {capacity.autoTarget} for this machine.
+                </p>
+              ) : null}
+            </>
+          ) : null}
+
+          {r.capacityMode !== "sequential" ? (
+            <details className="capacity-advanced">
+              <summary>Advanced safety limits</summary>
+              <div className="settings-grid">
+                <label>
+                  Administrator max
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="unset"
+                    value={r.administratorMaximumConcurrency ?? ""}
+                    onChange={(ev) => patch("runtime", "administratorMaximumConcurrency", ev.target.value === "" ? null : Number(ev.target.value))}
+                  />
+                </label>
+                <label>
+                  Absolute safety maximum
+                  <input type="number" min={1} max={256} value={r.absoluteSafetyMaximum} onChange={(ev) => patch("runtime", "absoluteSafetyMaximum", Number(ev.target.value))} />
+                </label>
+                <label>
+                  Capacity safety factor
+                  <input type="number" min={0.1} max={1} step={0.05} value={r.capacitySafetyFactor} onChange={(ev) => patch("runtime", "capacitySafetyFactor", Number(ev.target.value))} />
+                </label>
+                <label>
+                  Reserved CPU cores
+                  <input type="number" min={0} max={64} value={r.reservedLogicalCpuCount} onChange={(ev) => patch("runtime", "reservedLogicalCpuCount", Number(ev.target.value))} />
+                </label>
+              </div>
+            </details>
+          ) : null}
         </section>
 
         {/* Data Storage */}

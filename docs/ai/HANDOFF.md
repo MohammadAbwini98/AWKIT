@@ -1,8 +1,9 @@
 # Agent Handoff
 
-Last updated: 2026-07-07 (Phase 5.1 verification — Chromium no-egress hardening validated end-to-end
-[strict-net packaged walkthrough 70/70], packaged-process teardown proven, full re-verification,
-packaging-OOM finding — completed by Claude Fable 5)
+Last updated: 2026-07-11 (React Flow removal — the three canvases now run on an in-house custom
+canvas engine; `@xyflow/react` fully removed from source and `package.json`. Renderer-only; working
+tree modified & uncommitted on `feature/smart-wait-engine`. The UI-migration and release-hardening
+context below is historical; its release gates remain the real remaining gates.)
 
 ## Purpose
 
@@ -12,6 +13,126 @@ agent (Claude Code, Codex, Gemini, Antigravity, future agents) and human develop
 Use this file when work is paused, blocked, or moving from one agent/tool to another.
 
 ## Current Handoff
+
+### From / To
+
+- **From:** the agent that removed React Flow and built the in-house canvas engine.
+- **To:** any next agent or human developer.
+- **Branch:** `feature/smart-wait-engine` (level with `origin/feature/smart-wait-engine`; the working
+  tree is **modified & uncommitted / unpushed**, and already carried prior sessions' UI-migration work
+  before this task). Do not fetch/pull/push/PR unless the user asks.
+
+### Active Task — Remove React Flow (`@xyflow/react`) from the canvases: COMPLETE
+
+The user asked to replace the React Flow-based canvases with the **same custom UI design as their
+`Workflow` (flowforge) reference project, but implemented without the React Flow library**. Note the
+reference project is itself built on `@xyflow/react`, so this required building a small in-house canvas
+engine (viewport pan/zoom, node drag, SVG smooth-step edges, dotted grid, fit-view, screen↔flow
+mapping) and porting all three canvases onto it. Renderer-only — **no route, IPC, preload API
+(`window.playwrightFlowStudio`), runner/runtime, profile schema, storage contract, or packaging
+behavior changed.** Per the user's explicit choice ("adopt flowforge nodes as-is"), the extra
+node features listed under Known Risks were intentionally dropped.
+
+### Completed Work (React Flow removal)
+
+- **New in-house engine** `app/renderer/components/canvas/` (all untracked, no `@xyflow` anywhere):
+  `FlowCanvas.tsx` (viewport pan/zoom via CSS transform, node drag with DOM measurement, SVG edge
+  layer, fit-view, `useCanvas`/`useViewport`, `FlowCanvasHandle` imperative ref exposing
+  `fitView`/`zoomTo`/`screenToFlowPosition`, `getIntersectingNodes`), `geometry.ts` (a faithful port
+  of React Flow's `getSmoothStepPath` / `getViewportForBounds` math), `edgeComponents.tsx` +
+  `edgeLabelContext.ts` (`BaseEdge`/`EdgeLabelRenderer` portaling into an in-transform HTML overlay),
+  `Background.tsx` (dotted grid that pans/scales), `CanvasZoomControl.tsx` (glass zoom pill),
+  `state.ts` (`useNodesState`/`useEdgesState`/`addEdge` compat helpers), `nodes/StepNode.tsx`,
+  `edges/SmoothEdge.tsx` (insert `+`), `edges/LoopEdge.tsx` (self-loop), `types.ts`, `index.ts` barrel.
+  The flow runs **top→bottom**: every edge leaves a node's bottom-center and enters the next node's
+  top-center (self-loops when source === target).
+- **All three canvases converted** to `<FlowCanvas>`: `pages/WorkflowDesigner.tsx` (read-only
+  overview, uses `StepNode`), `pages/FlowChartDesigner.tsx`, `pages/ScenarioBuilder.tsx`. Their
+  save/load/validation/serialization logic is unchanged — only the rendering layer swapped.
+- **Node components rebuilt on the engine** (kept their existing flowforge-parity card markup/CSS):
+  `components/workflow/ActionFlowNode.tsx`, `components/scenario/ScenarioFlowNode.tsx`. Resize +
+  connector-port rendering removed; loop create/remove moved to the kebab menu via new
+  `onToggleLoop`/`hasLoop` data callbacks (page owns the edge mutation).
+- **Shared edits:** `components/shared/connectorStyle.ts` dropped its `@xyflow` import; `buildConnectorVisual`
+  now returns `{ type: "smooth" | "loop", animated, style }` (was `templateSmooth`/`circular`).
+  `components/workflow/FlowNodePropertiesPanel.tsx` `Node` type now imports from the engine.
+  `flowDesignerTypes.ts` / `scenarioDesignerTypes.ts` gained `hasLoop`/`onToggleLoop`.
+- **Deleted** (React-Flow-only, orphaned by the swap): `components/shared/TemplateSmoothEdge.tsx`,
+  `components/shared/SelfLoopEdge.tsx`, `components/shared/ConnectorPorts.tsx`,
+  `components/workflow/CanvasZoomControl.tsx`. Removed the `@xyflow/react/dist/style.css` import from
+  `main.tsx` and the `@xyflow/react` dependency line from `package.json`.
+- **Engine CSS** appended to `global.css` (`.awkit-flow-*`, `.awkit-step-node*`, `.awkit-edge-*`),
+  translating the reference's Tailwind card design to AWKIT `--awkit-*` tokens (AWKIT has no Tailwind).
+- **Both GUI verify scripts rewritten** against the new DOM (`.awkit-flow-node[data-id]`,
+  `g.awkit-flow-edge[data-source][data-target]`, `.awkit-edge-add`, `.awkit-flow-canvas`), dropping the
+  removed branch-port geometry checks. `AGENTS.md` (renderer) architecture note updated.
+
+### Changed Files (this task, on top of the pre-existing uncommitted tree)
+
+- **New (untracked):** `app/renderer/components/canvas/**` (engine).
+- **Modified:** `app/renderer/pages/{WorkflowDesigner,FlowChartDesigner,ScenarioBuilder}.tsx`,
+  `app/renderer/components/workflow/{ActionFlowNode,FlowNodePropertiesPanel,flowDesignerTypes}.tsx`,
+  `app/renderer/components/scenario/{ScenarioFlowNode,scenarioDesignerTypes}.tsx`,
+  `app/renderer/components/shared/connectorStyle.ts`, `app/renderer/main.tsx`,
+  `app/renderer/styles/global.css`, `app/renderer/AGENTS.md`, `package.json`,
+  `scripts/verify-flow-designer-gui.mjs`, `scripts/verify-workflow-builder-gui.mjs`.
+- **Deleted:** `app/renderer/components/shared/{TemplateSmoothEdge,SelfLoopEdge,ConnectorPorts}.tsx`,
+  `app/renderer/components/workflow/CanvasZoomControl.tsx`.
+- **Note:** the working tree also holds many *pre-existing* uncommitted changes from earlier sessions
+  (Workflow UI migration, Hologram reskin — e.g. `Recorder.tsx`, `LeftNavigation.tsx`, `Settings.tsx`,
+  `src/profiles/WorkflowProfile.ts`, `mock-site/*`, doc/`.md` files, `package-lock.json`). Those are
+  **not** from this task; leave them as-is unless the user asks.
+
+### Commands / Tests Run (this task)
+
+- `npx tsc --noEmit` — **clean**.
+- `npx electron-vite build` — **clean** (main + preload + renderer). Renderer bundle
+  **1,589 kB → 1,235 kB** (~355 kB smaller, React Flow gone; modules 2214 → 2049).
+- `node scripts/verify-flow-designer-gui.mjs` (real Electron GUI) — **14/14**.
+- `node scripts/verify-workflow-builder-gui.mjs` (real Electron GUI) — **14/14**.
+- `grep -rn "@xyflow" app/` — no imports remain in source.
+- **Not run** (no runner/runtime/mock-site/packaging code touched): `verify:runner`, `verify:recorder`,
+  `verify:mock-site`, `verify:workflow-sentinels`, `validate:offline`, packaging verifiers. `npm test` /
+  `npm run lint` still do not exist.
+
+### Remaining Work / Recommended Next Step
+
+- **Run `npm install`** — `@xyflow/react` was removed from `package.json` but **still exists in
+  `package-lock.json` (6 refs) and `node_modules/`** (install was not run). Sync the lockfile + prune
+  the module. This is the top remaining item.
+- **Regenerate the offline dependency manifest + re-validate** after the install:
+  `npm run offline:manifest` then `npm run validate:offline`. `scripts/generate-dependency-manifest.ps1`
+  still references React Flow / `@xyflow` — confirm the manifest no longer lists it and that offline
+  validation passes (a dependency was removed).
+- **Optional — free node-to-node connect:** the engine currently connects via the `+` insert / append /
+  Logic-picker affordances only. Port-drag-to-connect and edge-reconnect were dropped with the port
+  model; if arbitrary connect-any-two-nodes is wanted, add flowforge-style drag-a-node-onto-another
+  (the engine already exposes `getIntersectingNodes`).
+- **Optional cleanup:** the now-unused port helpers remain in `components/shared/connectorStyle.ts`
+  (`ConnectorPortFlags`, `computePortFlags`, `reconcileBranchConnectors`, `portHandlesForKind`,
+  `branchSourceHandle`, `portPositions`) and the `portFlags?` fields on the two node-data types — dead
+  after this task; safe to prune later.
+- **Recommended next step:** run `npm install`, then `npm run build`, then `verify:flow-designer` +
+  `verify:workflow-builder` to confirm still-green, before committing. Read
+  `.claude/skills/git-full-cycle/SKILL.md` before any Git commit. Do not push/PR unless asked.
+
+### Known Risks / Behavior Changes
+
+- **Intentionally dropped features** (from the user's "adopt flowforge nodes as-is" choice): node
+  resize, branch-port dragging, edge reconnect, and free port-drag-to-connect. Connections are now made
+  via the `+`/append/Logic-picker affordances; loop is toggled from the node kebab menu. All connector
+  *kinds* (conditional/parallel/loop), their config, and save/validation logic are preserved.
+- **The engine is new hand-written code.** It has been GUI-verified (14/14 ×2) but is less battle-tested
+  than React Flow — watch pan/zoom/drag edge cases. Node size is measured from the rendered DOM
+  (`ResizeObserver`), so edges attach after first paint.
+- The old `docs/ai/CURRENT_STATE.md` "Structured connectors (Checkpoint B)" section still describes the
+  **removed** port/handle/`reconcileBranchConnectors` rendering model — the *runtime* connector
+  semantics it documents are unchanged, but the renderer half (ports, `useUpdateNodeInternals`,
+  branch-pair handles, `.react-flow__*` DOM) no longer exists. See the new dated CURRENT_STATE entry.
+
+---
+
+## Prior release-hardening context (historical — the release gates below are still the real gates)
 
 ### Codex Git-Cycle Update
 

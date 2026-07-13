@@ -174,6 +174,26 @@ export const RUNTIME_STORE_MIGRATIONS: RuntimeStoreMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_process_ts ON runtime_process_samples (timestamp)`,
       `CREATE INDEX IF NOT EXISTS idx_attempts_errorclass ON runtime_node_attempts (errorClass)`
     ]
+  },
+  {
+    version: 3,
+    name: "machine-run-context",
+    // Additive only: nullable per-run machine-context columns so reports can be filtered/compared BY
+    // machine (cross-machine runs are never silently compared). v1/v2 databases upgrade in place; readers
+    // treat NULL as "Unknown". See docs/ai/CONCURRENCY_CAPACITY_AND_REPORTS_PLAN.md §B1.
+    statements: [
+      `ALTER TABLE runtime_runs ADD COLUMN machineId TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN logicalCpuCount INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN totalMemoryMb INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN availableMemoryMbAtStart INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN executionMode TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN browserPoolMode TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN configuredConcurrency INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN observedPeakConcurrency INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN workloadClass TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN capacityRecommendationAtRun INTEGER`,
+      `CREATE INDEX IF NOT EXISTS idx_runs_machine ON runtime_runs (machineId, startedAt)`
+    ]
   }
 ];
 
@@ -202,6 +222,17 @@ export interface DurableRunRecord {
   retryCount?: number;
   recoveryCount?: number;
   reportCategory?: string;
+  /** Per-run machine context (migration v3; all nullable for pre-v3 rows). */
+  machineId?: string;
+  logicalCpuCount?: number;
+  totalMemoryMb?: number;
+  availableMemoryMbAtStart?: number;
+  executionMode?: string; // sequential | auto | manual
+  browserPoolMode?: string; // shared | dedicated
+  configuredConcurrency?: number;
+  observedPeakConcurrency?: number;
+  workloadClass?: string;
+  capacityRecommendationAtRun?: number;
   updatedAt: string;
 }
 

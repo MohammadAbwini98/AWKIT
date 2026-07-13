@@ -8,9 +8,13 @@ import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
 import type { DeepPartial, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
+import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import type { DurableArtifactRecord, DurableAttemptRecord, DurableRunRecord } from "@src/runner/store/RuntimeStoreSchema";
 import type {
   FailureBreakdown,
+  MachineFilter,
+  MachineSummary,
   ProcessHistoryPoint,
   RunDetail,
   RunHistoryFilter,
@@ -20,13 +24,17 @@ import type {
   TelemetryOverview,
   TelemetryPage,
   TelemetryRangePreset,
-  WorkflowReportRow
+  WorkflowComparisonRow,
+  WorkflowReportRow,
+  WorkflowTrend
 } from "@src/reports/TelemetryContracts";
 
 const api = {
   system: {
     openPath: (path: string) => ipcRenderer.invoke("system:openPath", path) as Promise<string>,
-    browseFolder: (defaultPath?: string) => ipcRenderer.invoke("system:browseFolder", defaultPath) as Promise<string | null>
+    browseFolder: (defaultPath?: string) => ipcRenderer.invoke("system:browseFolder", defaultPath) as Promise<string | null>,
+    capacityPreview: (workloadClass?: WorkloadClass) =>
+      ipcRenderer.invoke("system:capacityPreview", workloadClass) as Promise<CapacityPreview>
   },
   auth: {
     getCapabilities: () =>
@@ -154,6 +162,11 @@ const api = {
   telemetry: {
     overview: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:overview", range) as Promise<TelemetryOverview>,
     workflows: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:workflows", range) as Promise<WorkflowReportRow[]>,
+    workflowComparison: (range?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+      ipcRenderer.invoke("telemetry:workflowComparison", range, machineFilter) as Promise<WorkflowComparisonRow[]>,
+    workflowTrend: (scenarioId: string | undefined, range?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+      ipcRenderer.invoke("telemetry:workflowTrend", scenarioId, range, machineFilter) as Promise<WorkflowTrend>,
+    machines: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:machines", range) as Promise<MachineSummary[]>,
     runHistory: (range?: TelemetryRangePreset, page?: TelemetryPage, filter?: RunHistoryFilter) =>
       ipcRenderer.invoke("telemetry:runHistory", range, page, filter) as Promise<RunHistoryPage>,
     runDetail: (instanceId: string) => ipcRenderer.invoke("telemetry:runDetail", instanceId) as Promise<RunDetail>,

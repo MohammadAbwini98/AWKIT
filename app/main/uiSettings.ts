@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getRuntimePaths } from "./appPaths";
+import { createSerialQueue } from "./writeQueue";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -82,6 +83,28 @@ export interface UiSettings {
     defaultRunMode: "headed" | "headless";
     screenshotOnFailure: boolean;
     stopOnError: boolean;
+  };
+  /** Host concurrency caps for the browser runtime (mirror ConcurrencyConfig; applied to the engine
+   *  at startup, whenever settings are saved, and at each run start). Replace the env-only defaults.
+   *  Machine-agnostic: `auto` derives caps from the detected host; `manual` uses the explicit numbers;
+   *  `sequential` pins to one active instance. See CONCURRENCY_CAPACITY_AND_REPORTS_PLAN.md §A4. */
+  runtime: {
+    /** Capacity mode. `manual` is the back-compat default (uses maxBrowsers/maxActiveFlows verbatim). */
+    capacityMode: "sequential" | "auto" | "manual";
+    /** Manual mode: max simultaneously-open browsers (ConcurrencyLimits.maxBrowsersPerHost). */
+    maxBrowsers: number;
+    /** Manual mode: max concurrently-running flows admitted (ConcurrencyLimits.maxActiveFlows). */
+    maxActiveFlows: number;
+    /** Auto mode: workflow class used to estimate per-instance cost. */
+    workloadClass: "light" | "medium" | "heavy" | "custom";
+    /** Hard administrator cap enforced in every mode (null = unset). */
+    administratorMaximumConcurrency: number | null;
+    /** Absolute safety ceiling — never exceeded by any mode, including Manual. */
+    absoluteSafetyMaximum: number;
+    /** Auto: fraction applied when turning the detected estimate into a conservative recommendation. */
+    capacitySafetyFactor: number;
+    /** Auto: logical cores reserved for the OS/AWKIT before estimating CPU capacity. */
+    reservedLogicalCpuCount: number;
   };
   /** Per-workflow run-card parameters (Concurrent Instance Monitor). Keyed by workflow id. */
   workflowRunCards: Record<
@@ -171,6 +194,16 @@ const defaultSettings: UiSettings = {
     screenshotOnFailure: true,
     stopOnError: false
   },
+  runtime: {
+    capacityMode: "manual",
+    maxBrowsers: 2,
+    maxActiveFlows: 4,
+    workloadClass: "medium",
+    administratorMaximumConcurrency: null,
+    absoluteSafetyMaximum: 64,
+    capacitySafetyFactor: 0.75,
+    reservedLogicalCpuCount: 1
+  },
   workflowRunCards: {},
   paths: {
     screenshotsPath: "",
@@ -219,6 +252,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     selections: { ...defaultSettings.selections, ...parsed.selections },
     designerDefaults: { ...defaultSettings.designerDefaults, ...parsed.designerDefaults },
     execution: { ...defaultSettings.execution, ...parsed.execution },
+    runtime: { ...defaultSettings.runtime, ...parsed.runtime },
     workflowRunCards: { ...defaultSettings.workflowRunCards, ...parsed.workflowRunCards },
     paths: { ...defaultSettings.paths, ...parsed.paths },
     tables: {
@@ -241,6 +275,7 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
     selections: { ...current.selections, ...patch.selections },
     designerDefaults: { ...current.designerDefaults, ...patch.designerDefaults },
     execution: { ...current.execution, ...patch.execution },
+    runtime: { ...current.runtime, ...patch.runtime },
     workflowRunCards: { ...current.workflowRunCards, ...patch.workflowRunCards } as UiSettings["workflowRunCards"],
     paths: { ...current.paths, ...patch.paths },
     tables: {
@@ -258,21 +293,55 @@ export async function getUiSettings(): Promise<UiSettings> {
   }
 }
 
+/**
+ * Serializes all settings mutations. The renderer fires many fire-and-forget
+ * `settings.update` calls in quick succession (one per node/edge selection, zoom
+ * step, panel toggle, …). Each mutation is a read-modify-write of the whole
+ * `ui-settings.json`; running them concurrently races (last-write-wins) and can
+ * silently drop patches, as well as overlap file writes. The serial queue makes every
+ * read-modify-write atomic and every write sequential; a failed task never breaks the
+ * chain for the next one. `flushSettingsWrites()` lets the app wait for pending writes on
+ * shutdown so a last-moment edit is not lost.
+ */
+const settingsQueue = createSerialQueue();
+function enqueueSettingsWrite<T>(task: () => Promise<T>): Promise<T> {
+  return settingsQueue.run(task);
+}
+
+/**
+ * Await all settings writes queued so far. Called on Electron `before-quit` so the last
+ * fire-and-forget `settings.update` is flushed to disk before the process exits. Never
+ * rejects (individual failures are already isolated) so it can't deadlock shutdown.
+ */
+export function flushSettingsWrites(): Promise<void> {
+  return settingsQueue.flush();
+}
+
+/** Pending settings-write count (diagnostics). */
+export function pendingSettingsWrites(): number {
+  return settingsQueue.size;
+}
+
 export async function updateUiSettings(patch: DeepPartial<UiSettings>): Promise<UiSettings> {
-  const next = mergePatch(await getUiSettings(), patch);
-  await writeSettings(next);
-  return next;
+  return enqueueSettingsWrite(async () => {
+    const next = mergePatch(await getUiSettings(), patch);
+    await writeSettings(next);
+    return next;
+  });
 }
 
 /** Restore all settings to defaults (keeps the just-set launch time). */
 export async function resetUiSettings(): Promise<UiSettings> {
-  const next = hydrate({ app: { lastLaunchedAt: new Date().toISOString() } });
-  await writeSettings(next);
-  return next;
+  return enqueueSettingsWrite(async () => {
+    const next = hydrate({ app: { lastLaunchedAt: new Date().toISOString() } });
+    await writeSettings(next);
+    return next;
+  });
 }
 
 /** Reset only layout/UI state. Does NOT touch flows, workflows, reports, paths, or execution defaults. */
 export async function clearUiState(): Promise<UiSettings> {
+  return enqueueSettingsWrite(async () => {
   const current = await getUiSettings();
   const next: UiSettings = {
     ...current,
@@ -286,8 +355,9 @@ export async function clearUiState(): Promise<UiSettings> {
     selections: { ...defaultSettings.selections },
     tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
   };
-  await writeSettings(next);
-  return next;
+    await writeSettings(next);
+    return next;
+  });
 }
 
 /** Validate and replace the entire settings document (used by Import). */
@@ -295,11 +365,13 @@ export async function replaceUiSettings(incoming: unknown): Promise<UiSettings> 
   if (!incoming || typeof incoming !== "object") {
     throw new Error("Invalid settings file: expected a JSON object.");
   }
-  const next = hydrate(incoming as Partial<UiSettings>);
-  const errors = validateSettings(next);
-  if (errors.length) throw new Error(`Settings failed validation: ${errors.join(" ")}`);
-  await writeSettings(next);
-  return next;
+  return enqueueSettingsWrite(async () => {
+    const next = hydrate(incoming as Partial<UiSettings>);
+    const errors = validateSettings(next);
+    if (errors.length) throw new Error(`Settings failed validation: ${errors.join(" ")}`);
+    await writeSettings(next);
+    return next;
+  });
 }
 
 /** Returns a list of human-readable validation errors (empty when valid). */
@@ -328,6 +400,32 @@ export function validateSettings(settings: UiSettings): string[] {
   if (e.defaultConcurrentRuns > e.defaultRuns) errors.push("Default concurrent runs cannot exceed default runs.");
   if (e.maxConcurrentRuns > e.maxRuns) errors.push("Maximum concurrent runs cannot exceed maximum runs.");
 
+  const r = settings.runtime;
+  if (!["sequential", "auto", "manual"].includes(r.capacityMode)) {
+    errors.push("Capacity mode must be sequential, auto, or manual.");
+  }
+  if (!["light", "medium", "heavy", "custom"].includes(r.workloadClass)) {
+    errors.push("Workload class must be light, medium, heavy, or custom.");
+  }
+  if (!Number.isInteger(r.maxBrowsers) || r.maxBrowsers < 1 || r.maxBrowsers > 16) {
+    errors.push("Max browsers must be an integer between 1 and 16.");
+  }
+  if (!Number.isInteger(r.maxActiveFlows) || r.maxActiveFlows < 1 || r.maxActiveFlows > 64) {
+    errors.push("Max active flows must be an integer between 1 and 64.");
+  }
+  if (!Number.isInteger(r.absoluteSafetyMaximum) || r.absoluteSafetyMaximum < 1 || r.absoluteSafetyMaximum > 256) {
+    errors.push("Absolute safety maximum must be an integer between 1 and 256.");
+  }
+  if (!(typeof r.capacitySafetyFactor === "number" && r.capacitySafetyFactor >= 0.1 && r.capacitySafetyFactor <= 1)) {
+    errors.push("Capacity safety factor must be between 0.1 and 1.");
+  }
+  if (!Number.isInteger(r.reservedLogicalCpuCount) || r.reservedLogicalCpuCount < 0 || r.reservedLogicalCpuCount > 64) {
+    errors.push("Reserved logical CPU count must be an integer between 0 and 64.");
+  }
+  if (r.administratorMaximumConcurrency !== null && (!Number.isInteger(r.administratorMaximumConcurrency) || r.administratorMaximumConcurrency < 1)) {
+    errors.push("Administrator maximum concurrency must be a positive integer or unset.");
+  }
+
   for (const [key, value] of Object.entries(settings.paths)) {
     if (!value || !String(value).trim()) errors.push(`Path "${key}" must not be empty.`);
   }
@@ -337,7 +435,19 @@ export function validateSettings(settings: UiSettings): string[] {
 async function writeSettings(settings: UiSettings): Promise<void> {
   const path = getSettingsPath();
   await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  // Atomic write: serialize to a temp file in the same directory, then rename over the target.
+  // libuv's rename replaces the destination atomically on Windows (MOVEFILE_REPLACE_EXISTING),
+  // so a crash or power loss mid-write can never leave a half-written / truncated ui-settings.json.
+  // Writes are already serialized through `settingsQueue`, so the temp name only needs to be
+  // unique per process. On rename failure the temp file is cleaned up so it can't accumulate.
+  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tmp, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  try {
+    await rename(tmp, path);
+  } catch (error) {
+    await rm(tmp, { force: true }).catch(() => undefined);
+    throw error;
+  }
 }
 
 function getSettingsPath(): string {

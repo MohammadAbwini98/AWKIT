@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { PanelRightClose, PanelRightOpen, Trash2 } from "lucide-react";
-import type { Node } from "@xyflow/react";
+import { PanelRightClose, PanelRightOpen, SlidersHorizontal, Trash2 } from "lucide-react";
+import type { CanvasNode as Node } from "../canvas";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { getNodeDefinition } from "./flowNodeRegistry";
@@ -20,6 +20,7 @@ interface FlowNodePropertiesPanelProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onUpdateNode: (nodeId: string, data: Partial<FlowDesignerNodeData>) => void;
+  onDelete?: () => void;
 }
 
 export function FlowNodePropertiesPanel({
@@ -29,7 +30,8 @@ export function FlowNodePropertiesPanel({
   flows,
   collapsed,
   onToggleCollapsed,
-  onUpdateNode
+  onUpdateNode,
+  onDelete
 }: FlowNodePropertiesPanelProps) {
   // Saved sessions for the Reuse Session node's dropdown (fetched from the Main process).
   const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string; targetUrl?: string }[]>([]);
@@ -126,20 +128,42 @@ export function FlowNodePropertiesPanel({
   );
 
   return (
-    <aside className="properties-panel">
-      <div className="properties-heading with-action">
-        <div className="properties-heading-text">
-          <h2>Node Properties</h2>
-          <span>
-            {selectedNode ? selectedNode.id : "No node selected"}
-            {definition ? ` · ${definition.category}` : ""}
-          </span>
+    <aside className="properties-panel template-config-drawer">
+      <div className="properties-heading with-action template-drawer-header">
+        <div className="drawer-title-row">
+          <div className="drawer-node-icon" aria-hidden="true">
+            <SlidersHorizontal size={18} />
+          </div>
+          <div className="properties-heading-text">
+            <h2>{data?.name ?? "Node Properties"}</h2>
+            <span>
+              {selectedNode ? selectedNode.id : "No node selected"}
+              {definition ? ` · ${definition.category}` : ""}
+            </span>
+          </div>
         </div>
-        <button className="icon-button" onClick={onToggleCollapsed} title="Collapse properties" type="button">
-          <PanelRightClose size={18} />
+        <div style={{ display: "flex", gap: "4px" }}>
+          {selectedNode ? (
+            <button className="icon-button danger" onClick={onDelete} title="Delete node" type="button">
+              <Trash2 size={17} />
+            </button>
+          ) : null}
+          <button className="icon-button" onClick={onToggleCollapsed} title="Collapse properties" type="button">
+            <PanelRightClose size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="properties-tabs" role="tablist" aria-label="Node configuration tabs">
+        <button className="properties-tab active" type="button" role="tab" aria-selected="true">
+          Setup
+        </button>
+        <button className="properties-tab" type="button" role="tab" aria-selected="false" disabled title="Not available yet">
+          Test
         </button>
       </div>
 
+      <div className="properties-body">
       {data && selectedNode && definition ? (
         <>
           <details className="property-group" open>
@@ -207,7 +231,15 @@ export function FlowNodePropertiesPanel({
                   <div className={`locator-quality ${data.locatorQuality.isUnique ? "ok" : "warn"}`}>
                     <strong>
                       {data.locatorQuality.isUnique
-                        ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence`
+                        ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence${
+                            data.locatorQuality.disambiguation === "container"
+                              ? " · scoped to container"
+                              : data.locatorQuality.disambiguation === "compound"
+                                ? " · compound selector"
+                                : data.locatorQuality.disambiguation === "positional"
+                                  ? " · positional fallback"
+                                  : ""
+                          }`
                         : `Locator warning: matches ${data.locatorQuality.matchCount} elements`}
                     </strong>
                     {data.locatorQuality.warning ? <span>{data.locatorQuality.warning}</span> : null}
@@ -761,6 +793,15 @@ export function FlowNodePropertiesPanel({
           )}
         </div>
       </section>
+      </div>
+
+      {/* Node edits are live-bound (onUpdateNode) — the footer only offers a safe "Done"/collapse
+          action; there is no fake save here. */}
+      <div className="properties-footer single">
+        <button className="toolbar-button primary" type="button" onClick={onToggleCollapsed}>
+          Done
+        </button>
+      </div>
     </aside>
   );
 }

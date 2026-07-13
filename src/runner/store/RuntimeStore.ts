@@ -7,13 +7,17 @@
 import type { CapacitySnapshot } from "../concurrency/CapacitySnapshot";
 import type {
   FailureBreakdown,
+  MachineFilter,
+  MachineSummary,
   RunHistoryFilter,
   RunHistoryPage,
   RuntimeSeriesPoint,
   TelemetryOverview,
   TelemetryPage,
   TelemetryRange,
-  WorkflowReportRow
+  WorkflowComparisonRow,
+  WorkflowReportRow,
+  WorkflowTrend
 } from "@src/reports/TelemetryContracts";
 import type {
   DurableArtifactRecord,
@@ -43,6 +47,12 @@ export interface RuntimeStore {
   // ── Reporting queries (read-only, windowed; aggregation done in the store) ──
   queryOverview(range: TelemetryRange): TelemetryOverview;
   queryWorkflows(range: TelemetryRange): WorkflowReportRow[];
+  /** Per-workflow current-vs-previous-window comparison (machine-aware). */
+  queryWorkflowComparison(range: TelemetryRange, machineFilter?: MachineFilter): WorkflowComparisonRow[];
+  /** Run-over-run trend for one workflow split into `buckets` time buckets. */
+  queryWorkflowTrend(scenarioId: string | undefined, range: TelemetryRange, buckets: number, machineFilter?: MachineFilter): WorkflowTrend;
+  /** Distinct machines seen in run history within range (reports machine filter). */
+  listRunMachines(range?: TelemetryRange): MachineSummary[];
   queryRunHistory(range: TelemetryRange, page: TelemetryPage, filter?: RunHistoryFilter): RunHistoryPage;
   queryFailures(range: TelemetryRange): FailureBreakdown;
   queryRuntimeSeries(range: TelemetryRange, bucketMs: number): RuntimeSeriesPoint[];
@@ -91,6 +101,15 @@ export class NullRuntimeStore implements RuntimeStore {
     };
   }
   queryWorkflows(): WorkflowReportRow[] {
+    return [];
+  }
+  queryWorkflowComparison(): WorkflowComparisonRow[] {
+    return [];
+  }
+  queryWorkflowTrend(scenarioId: string | undefined): WorkflowTrend {
+    return { scenarioId, scenarioName: undefined, points: [] };
+  }
+  listRunMachines(): MachineSummary[] {
     return [];
   }
   queryRunHistory(_range: TelemetryRange, page: TelemetryPage): RunHistoryPage {

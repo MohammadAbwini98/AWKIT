@@ -207,7 +207,7 @@ export function SessionsManager() {
       </div>
 
       {/* ── Capture Session Panel ────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
         <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <KeyRound size={18} />
           Capture Session
@@ -224,7 +224,7 @@ export function SessionsManager() {
             padding: "16px 20px",
             background: "var(--awkit-warning-soft)",
             borderRadius: "8px",
-            border: "1px solid #fde68a",
+            border: "1px solid var(--awkit-warning-muted)",
             display: "flex",
             flexDirection: "column",
             gap: "12px"
@@ -267,7 +267,7 @@ export function SessionsManager() {
                   onChange={(e) => setSessionName(e.target.value)}
                   placeholder="e.g. Google Work Account"
                   style={{
-                    padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: "6px",
+                    padding: "10px 12px", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px",
                     outline: "none", fontSize: "13px", width: "100%", boxSizing: "border-box"
                   }}
                 />
@@ -276,7 +276,7 @@ export function SessionsManager() {
                 <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--awkit-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Target URL <span style={{ fontWeight: 400, textTransform: "none" }}>(optional)</span>
                 </label>
-                <div style={{ display: "flex", alignItems: "center", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "0 10px" }}>
+                <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", padding: "0 10px" }}>
                   <Globe size={14} color="var(--awkit-text-muted)" />
                   <input
                     type="text"
@@ -313,7 +313,7 @@ export function SessionsManager() {
                 style={{
                   display: "flex", alignItems: "center", gap: "4px", padding: "10px 12px",
                   background: "transparent", color: "var(--awkit-text-secondary)",
-                  border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer"
+                  border: "1px solid var(--awkit-border-strong)", borderRadius: "6px", cursor: "pointer"
                 }}
               >
                 <RefreshCw size={14} />
@@ -326,7 +326,7 @@ export function SessionsManager() {
       {/* ── Info Banner ─────────────────────────────────────────── */}
       <div style={{
         display: "flex", alignItems: "flex-start", gap: "10px", padding: "12px 16px",
-        background: "var(--awkit-accent-soft)", borderRadius: "8px", border: "1px solid #bfdbfe"
+        background: "var(--awkit-accent-soft)", borderRadius: "8px", border: "1px solid var(--awkit-accent-muted)"
       }}>
         <Info size={16} color="var(--awkit-accent)" style={{ marginTop: 2, flexShrink: 0 }} />
         <div style={{ fontSize: "12px", color: "var(--awkit-accent)", lineHeight: 1.5 }}>
@@ -338,7 +338,7 @@ export function SessionsManager() {
       </div>
 
       {/* ── Saved Sessions Table ─────────────────────────────────── */}
-      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid #dfe6ef" }}>
+      <div className="form-panel" style={{ padding: "20px", background: "var(--awkit-surface)", borderRadius: "8px", border: "1px solid var(--awkit-border)" }}>
         <h3 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "var(--awkit-text)", display: "flex", alignItems: "center", gap: "8px" }}>
           <KeyRound size={18} />
           Saved Sessions ({filtered.length})
@@ -419,7 +419,7 @@ export function SessionsManager() {
                               if (e.key === "Escape") setRenamingId(null);
                             }}
                             style={{
-                              padding: "4px 8px", border: "1px solid #3b82f6", borderRadius: "4px",
+                              padding: "4px 8px", border: "1px solid var(--awkit-accent)", borderRadius: "4px",
                               outline: "none", fontSize: "13px", width: "100%", boxSizing: "border-box"
                             }}
                           />
@@ -510,7 +510,7 @@ export function SessionsManager() {
         <div
           style={{
             display: "flex", alignItems: "center", gap: "10px", padding: "14px 20px",
-            background: "var(--awkit-success-soft)", borderRadius: "8px", border: "1px solid #a7f3d0"
+            background: "var(--awkit-success-soft)", borderRadius: "8px", border: "1px solid var(--awkit-success-muted)"
           }}
         >
           <CheckCircle2 size={18} color="var(--awkit-success)" />

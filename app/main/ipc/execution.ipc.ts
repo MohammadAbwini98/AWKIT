@@ -10,8 +10,11 @@ import type { ResolvedDataSource } from "@src/runner/InstanceExecutionContext";
 import { createDataSourceProfileStore, createFlowProfileStore, createWorkflowProfileStore, createReportStore } from "../profileStores";
 import { getResourcesRoot, getRuntimePaths } from "../appPaths";
 import { getConfiguredPaths } from "../storagePaths";
+import { getUiSettings } from "../uiSettings";
+import { computeEffectiveConcurrency, buildMachineRunContext } from "../capacityService";
 import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
+import type { ConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
 import { getSessionService } from "./session.ipc";
 
 export interface RunWorkflowRequest {
@@ -91,6 +94,44 @@ export function registerExecutionIpc(): void {
   void executionEngine.initializeDurableRuntime(resolveStorageDirs()).catch((error) => {
     console.warn(`[execution] durable runtime startup init failed: ${error instanceof Error ? error.message : String(error)}`);
   });
+
+  // Apply the user's configured host concurrency caps at startup so the idle Chrome Consumption
+  // gauges and admission reflect Settings (not just the env/default 2 browsers / 4 flows).
+  void applyRuntimeConcurrencyFromSettings();
+}
+
+/**
+ * Push the Settings-configured browser/flow caps into the execution engine. Called at startup, after a
+ * settings save (settings.ipc), and before each run. Best-effort — a read failure leaves the current
+ * (env/default) limits in place and never blocks a run.
+ */
+export async function applyRuntimeConcurrencyFromSettings(): Promise<void> {
+  try {
+    const { runtime } = await getUiSettings();
+    // Resolve the capacity mode (sequential / auto / manual) into concrete host caps. Auto derives them
+    // from the detected machine (and refreshes the per-machine profile); sequential pins to one active
+    // instance; manual uses the explicit numbers. All modes are clamped to the absolute safety ceiling.
+    const effective = await computeEffectiveConcurrency(runtime);
+    const overrides: Partial<ConcurrencyLimits> = {
+      maxBrowsersPerHost: effective.maxBrowsers,
+      maxActiveFlows: effective.maxActiveFlows
+    };
+    // Sequential means "one thing at a time" — also pin every operation limiter to 1 so parallel
+    // branches within a single instance can't run concurrent launches/navigations/downloads either.
+    if (effective.mode === "sequential") {
+      overrides.maxConcurrentBrowserLaunches = 1;
+      overrides.maxConcurrentContextCreations = 1;
+      overrides.maxConcurrentNavigations = 1;
+      overrides.maxConcurrentDownloads = 1;
+      overrides.maxConcurrentScreenshots = 1;
+    }
+    executionEngine.configureConcurrency(overrides);
+    // Phase B1: stamp upcoming runs with their machine context (mode/class/machine) for machine-aware
+    // reporting. Best-effort — a detection failure never blocks the run.
+    executionEngine.setMachineRunContext(await buildMachineRunContext(runtime, effective));
+  } catch (error) {
+    console.warn(`[execution] failed to apply runtime concurrency settings: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /** Effective storage directories (honours user-configured Settings paths). */
@@ -145,7 +186,11 @@ async function runWorkflow(request: RunWorkflowRequest) {
 
   const flows = await createFlowProfileStore().list();
   const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);
-  
+
+  // Ensure this run honours the latest Settings-configured host caps (idempotent; the browser-slot
+  // resize only applies while the pool is idle, i.e. no other run is in flight).
+  await applyRuntimeConcurrencyFromSettings();
+
   const executionId = randomUUID();
   const totalInstances = request.totalInstances ?? 1;
   const maxConcurrentInstances = request.maxConcurrentInstances ?? 1;

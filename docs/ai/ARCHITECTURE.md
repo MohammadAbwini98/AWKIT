@@ -9,7 +9,10 @@ app/
     windowManager.ts    BrowserWindow (title, icon)
     preload.ts          contextBridge → window.playwrightFlowStudio (IPC API)
     appPaths.ts         runtime data root, resources root, isProductionOffline()
-    uiSettings.ts       persisted settings store (UiSettings) + validation
+    uiSettings.ts       persisted settings store (UiSettings) + validation; all mutations run through
+                        a serial queue (writeQueue.ts) with atomic temp-file+rename writes;
+                        flushSettingsWrites() runs on before-quit so last-moment edits aren't lost
+    writeQueue.ts       createSerialQueue() — FIFO async queue (failure-isolated, flush()) used by uiSettings
     storagePaths.ts     getConfiguredPaths() — resolves user Settings paths w/ fallback
     offlineRuntimeValidator.ts
     profileStores.ts    JSON profile stores (flows/workflows/dataSources/reports/...)
@@ -22,7 +25,8 @@ app/
                         InstanceMonitor, ExecutionMonitor, ExecutionReports, OfflineRuntimeStatus,
                         Settings, ImplementationRoadmap, ProjectContract, WorkflowDesigner
     components/         workflow/ (nodes, registry, panels, zoom), table/ (state+UI),
-                        data-binding/, reports/, scenario/, shared/
+                        data-binding/, reports/, scenario/, shared/ (CanvasItemPicker,
+                        NodeAppendButton, themed canvas edges/dialogs/primitives)
     layout/             AppShell, TopHeader, LeftNavigation, StatusBar, DesignerCanvasLayout, RightPropertiesPanel
     state/              navigation.tsx, pageChrome.tsx (header actions + dirty flag)
     styles/global.css   single plain-CSS stylesheet
@@ -77,6 +81,10 @@ resources/              bundled assets: browsers/chromium, dependency-manifest.j
 vendor/                 offline vendor copies (browsers, dependency-manifest, native-modules, npm-cache)
 scripts/                PowerShell packaging/offline scripts + generate-app-icon.mjs +
                         verify-runner.mts + verify-data-editor.mts + verify-instance-monitor.mts +
+                        verify-canvas-perf.mjs (canvas render-count regression guard, real Electron) +
+                        verify-write-queue.mts (serial-queue unit test) +
+                        verify-settings-persistence.mjs (atomic write + before-quit flush, real Electron) +
+                        measure-large-graphs.mjs (40/100/200/500-node perf report tool) +
                         seed-mock-fixtures.mjs + ai-memory/check-memory.mjs
 mock-site/              offline Feature Test Lab (node http server) for runner/recorder/wait/designer verification
 tests/                  runner.mocksite.spec.ts (@playwright/test)
@@ -127,6 +135,10 @@ must be documented in `mock-site/README.md` and AI memory files.
   sidebar and opened from the Data Source Manager (target id via `selections.lastSelectedDataSourceId`).
 - **Storage:** JSON files via `JsonProfileStore` (`src/storage`) under the runtime data root;
   seed samples from `resources/sample-*`. No database.
+- **Workflow structural sentinels:** new Workflow Builder documents may persist `start`/`end`
+  `WorkflowSentinelNode`s around real `flowRef` nodes. They are canvas-only structure:
+  `workflowToScenarioProfile()` filters them and their boundary edges before orchestration. Existing
+  pre-sentinel workflow JSON remains valid and is not mutated merely by loading.
 - **Build:** `electron-vite` builds `app/main` → `out/main`, `app/main/preload.ts` → `out/preload`,
   `app/renderer` → `out/renderer`. `tsc --noEmit` typechecks first. TS path aliases: `@main/*`,
   `@renderer/*`, `@src/*` (`tsconfig.json`).

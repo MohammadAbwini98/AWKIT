@@ -22,4 +22,7 @@ export interface CapacitySnapshot {
   /** True when the backpressure controller is currently refusing new dispatch. */
   dispatchBlocked: boolean;
   blockedReason?: string;
+  /** Phase A7 — live adaptive active-flow target and health state (undefined when adaptive is off). */
+  adaptiveTarget?: number;
+  adaptiveState?: string;
 }

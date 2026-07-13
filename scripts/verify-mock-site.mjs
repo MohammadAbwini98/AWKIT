@@ -109,11 +109,28 @@ try {
   await page.getByRole("button", { name: "Render dynamic row" }).click();
   check("dynamic DOM keeps stable test id", await page.getByTestId("dynamic-customer-card").isVisible());
 
+  // Non-unique controls: same role+name/text repeated, distinguishable only by a stable container.
+  check("duplicate package cards exist", (await page.locator("[data-testid^='package-']").count()) === 2);
+  check("both checkboxes share the same accessible name (non-unique by role)", (await page.getByRole("checkbox", { name: "0796713928" }).count()) === 2);
+  check("both cards repeat the same Select button text (non-unique by text)", (await page.getByRole("button", { name: "Select package" }).count()) === 2);
+  await page.getByTestId("package-pro").getByRole("button", { name: "Select package" }).click();
+  check("container-scoped Select targets the Pro card", ((await page.getByTestId("duplicate-result").textContent()) ?? "").includes("package-pro"));
+  await page.getByTestId("package-basic").getByRole("checkbox", { name: "0796713928" }).check();
+  check("container-scoped checkbox targets the Basic card", ((await page.getByTestId("duplicate-result").textContent()) ?? "").includes("package-basic"));
+  check("customer table repeats Edit per row", (await page.locator("[data-testid='duplicate-customer-table'] .row-edit").count()) === 2);
+
   console.log("Designer scenarios:");
   await page.goto(`${BASE}/designer-lab`);
   check("designer page has canvas region", await page.getByRole("region", { name: "Mock designer canvas" }).isVisible());
   check("mock nodes are clickable", (await page.locator(".mock-node").count()) === 3);
+  check("contextual picker and drawer contract is documented", (await page.locator("[data-testid='contextual-picker-contract'] button").count()) === 3);
   check("workflow cards grid has six cards", (await page.locator("article[data-testid^='workflow-card-']").count()) === 6);
+  check("instance monitor workflow run summary exists", await page.getByTestId("mock-workflow-run-record").isVisible());
+  await page.getByTestId("mock-workflow-run-record").click();
+  check("workflow record opens the all-instances modal", await page.getByTestId("mock-workflow-instances-modal").isVisible());
+  check("workflow modal lists every instance in the run", (await page.getByTestId("mock-workflow-instance-row").count()) === 3);
+  await page.getByTestId("close-workflow-instances-modal").click();
+  check("workflow instances modal closes", !(await page.getByTestId("mock-workflow-instances-modal").isVisible()));
   check("stable saved flow names exist", await page.getByTestId("saved-flow-smart-waits").isVisible());
   check("smart wait JSON example exists", /beforeWaits/.test((await page.getByTestId("smart-wait-json-example").textContent()) ?? ""));
 

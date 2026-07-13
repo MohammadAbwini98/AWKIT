@@ -116,3 +116,4 @@ get-videos.mjs
 !src/data/
 !app/renderer/components/instances/
 !app/renderer/components/reports/
+.benchmark-runtime/

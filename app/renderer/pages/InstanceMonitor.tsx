@@ -5,11 +5,16 @@ import { WorkflowRunCard, type WorkflowCardParams, type WorkflowCardStatus } fro
 import { RecoverableRunsPanel } from "../components/instances/RecoverableRunsPanel";
 import { ProtectedLoginHandoffPanel, type ProtectedLoginCapabilities } from "../components/auth/ProtectedLoginHandoffPanel";
 import { LiveExecutionReportModal } from "../components/instances/LiveExecutionReportModal";
+import { WorkflowInstancesModal } from "../components/instances/WorkflowInstancesModal";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import {
   filterWorkflows,
+  isInstanceStoppable,
   resolveWorkflowName,
+  summarizeWorkflowRuns,
   validateCardParams as validateCardParamsPure,
-  visibleCardCount as computeVisibleCardCount
+  visibleCardCount as computeVisibleCardCount,
+  type WorkflowRunSummaryStatus
 } from "@src/instances/instanceCardLogic";
 import { ConcurrentExecutionCoordinator } from "@src/orchestrator/ConcurrentExecutionCoordinator";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
@@ -113,6 +118,9 @@ export function InstanceMonitor() {
   const [classicOpen, setClassicOpen] = useState(false);
   const [authCaps, setAuthCaps] = useState<ProtectedLoginCapabilities | null>(null);
   const [reportInstanceId, setReportInstanceId] = useState<string | null>(null);
+  const [workflowRunExecutionId, setWorkflowRunExecutionId] = useState<string | null>(null);
+  const [stopAllConfirmOpen, setStopAllConfirmOpen] = useState(false);
+  const [stoppingAll, setStoppingAll] = useState(false);
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusSnapshot | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridColumns = useGridColumns(gridRef);
@@ -244,11 +252,13 @@ export function InstanceMonitor() {
   const counts = useMemo(
     () => ({
       active: instances.filter((instance) => ["running", "starting", "waitingForManualAction", "paused"].includes(instance.status)).length,
-      queued: instances.filter((instance) => instance.status === "queued").length,
+      pending: instances.filter((instance) => ["pending", "queued"].includes(instance.status)).length,
       completed: instances.filter((instance) => ["completed", "failed", "cancelled"].includes(instance.status)).length
     }),
     [instances]
   );
+  const workflowRuns = useMemo(() => summarizeWorkflowRuns(instances), [instances]);
+  const stoppableCount = useMemo(() => instances.filter((instance) => isInstanceStoppable(instance.status)).length, [instances]);
 
   const validationErrors = useMemo(() => validateRunSettings(selectedWorkflowId, runCount, maxParallel), [maxParallel, runCount, selectedWorkflowId]);
 
@@ -424,8 +434,8 @@ export function InstanceMonitor() {
 
   // Phase 05: functional toolbar controls
   const hasActive = counts.active > 0;
+  const hasStoppable = stoppableCount > 0;
   const hasPaused = instances.some((i) => i.status === "paused" || i.status === "waitingForManualAction");
-  const hasAny = instances.length > 0;
 
   const pauseAll = () => {
     window.playwrightFlowStudio.executions.pauseInstance("all").catch(() => undefined);
@@ -433,8 +443,22 @@ export function InstanceMonitor() {
   const resumeAll = () => {
     window.playwrightFlowStudio.executions.resumeInstance("all").catch(() => undefined);
   };
-  const stopAll = () => {
-    window.playwrightFlowStudio.executions.stopAll().catch(() => undefined);
+  const requestStopAll = () => {
+    if (hasStoppable) setStopAllConfirmOpen(true);
+  };
+  const stopAll = async () => {
+    setStopAllConfirmOpen(false);
+    setStoppingAll(true);
+    try {
+      await window.playwrightFlowStudio.executions.stopAll();
+      const endedAt = new Date().toISOString();
+      setInstances((current) => current.map((instance) => isInstanceStoppable(instance.status) ? { ...instance, status: "cancelled", endedAt } : instance));
+      setRunMessage(`Stop requested for ${stoppableCount} pending or running instance${stoppableCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setRunMessage(error instanceof Error ? error.message : "Unable to stop pending or running instances.");
+    } finally {
+      setStoppingAll(false);
+    }
   };
 
   // Phase 03+05: clear only completed/failed/cancelled/stopped — never adds dummy replacements.
@@ -460,16 +484,16 @@ export function InstanceMonitor() {
       actions: [
         {
           id: "stop",
-          label: "Stop All",
+          label: stoppingAll ? "Stopping…" : "Stop All Active",
           variant: "primary",
-          onClick: stopAll,
-          disabled: !hasActive,
-          title: hasActive ? "Stop all active instances (all workflows)" : "No active instances to stop"
+          onClick: requestStopAll,
+          disabled: !hasStoppable || stoppingAll,
+          title: hasStoppable ? `Stop ${stoppableCount} pending or running instances across all workflows` : "No pending or running instances to stop"
         }
       ],
       dirty: false
     },
-    [hasActive]
+    [hasStoppable, stoppableCount, stoppingAll]
   );
 
   // Phase 05: per-instance status-aware controls
@@ -535,7 +559,7 @@ export function InstanceMonitor() {
         <div className="section-heading">
           <h1>Concurrent Instance Monitor</h1>
           <span>
-            {counts.active} active, {counts.queued} queued, {counts.completed} completed
+            {counts.active} active, {counts.pending} pending, {counts.completed} completed
           </span>
         </div>
 
@@ -689,9 +713,16 @@ export function InstanceMonitor() {
             <RotateCcw size={15} />
             Resume All
           </button>
-          <button disabled={!hasActive} id="im-stop-all" onClick={stopAll} title={hasActive ? "Stop all active instances" : "No active instances"} type="button">
+          <button
+            className="im-stop-all-button"
+            disabled={!hasStoppable || stoppingAll}
+            id="im-stop-all"
+            onClick={requestStopAll}
+            title={hasStoppable ? `Stop ${stoppableCount} pending or running instances across all workflows` : "No pending or running instances"}
+            type="button"
+          >
             <Square size={15} />
-            Stop All
+            {stoppingAll ? "Stopping…" : "Stop Pending & Running"}
           </button>
           <button
             disabled={counts.completed === 0}
@@ -791,6 +822,52 @@ export function InstanceMonitor() {
           onOpenOAuth={(provider) => void openOAuthHandoff(provider)}
         />
 
+        {workflowRuns.length ? (
+          <section className="im-workflow-runs" aria-labelledby="im-workflow-runs-title">
+            <div className="section-heading im-workflow-runs-heading">
+              <div>
+                <h2 id="im-workflow-runs-title">Workflow runs</h2>
+                <span>Running workflows and recent run summaries. Select a record to inspect every instance.</span>
+              </div>
+              <span>{workflowRuns.length} run{workflowRuns.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="im-workflow-run-list" data-testid="workflow-run-records">
+              {workflowRuns.map((summary) => {
+                const workflow = resolveWorkflow(summary.scenarioId);
+                const active = summary.running + summary.paused;
+                return (
+                  <button
+                    aria-label={`Open ${workflow.name} run with ${summary.total} instances`}
+                    className="im-workflow-run-record"
+                    data-testid="workflow-run-record"
+                    key={summary.executionId}
+                    onClick={() => setWorkflowRunExecutionId(summary.executionId)}
+                    type="button"
+                  >
+                    <span className="im-workflow-run-main">
+                      <span className="im-workflow-run-icon" aria-hidden><Activity size={17} /></span>
+                      <span>
+                        <strong className={workflow.missing ? "instance-workflow-missing" : undefined}>{workflow.name}</strong>
+                        <small>{summary.executionId}</small>
+                      </span>
+                    </span>
+                    <span className={`state-pill ${workflowRunStatusClass(summary.status)}`}>{formatWorkflowRunStatus(summary.status)}</span>
+                    <span className="im-workflow-run-stat"><strong>{active}</strong><small>Active</small></span>
+                    <span className="im-workflow-run-stat"><strong>{summary.pending}</strong><small>Pending</small></span>
+                    <span className="im-workflow-run-stat"><strong>{summary.completed}</strong><small>Completed</small></span>
+                    <span className={summary.failed ? "im-workflow-run-stat tone-danger" : "im-workflow-run-stat"}><strong>{summary.failed}</strong><small>Failed</small></span>
+                    <span className="im-workflow-run-progress">
+                      <span><strong>{summary.progressPercent}%</strong><small>{summary.total} instances</small></span>
+                      <span className="report-progress-track" aria-hidden><span className="report-progress-fill" style={{ width: `${summary.progressPercent}%` }} /></span>
+                    </span>
+                    <span className="im-workflow-run-duration"><strong>{formatDuration(summary.durationMs)}</strong><small>Duration</small></span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {/* Phase 04: stable table with overflow-x wrapper */}
         {instances.length === 0 ? (
           <div className="empty-state" id="im-empty-state" style={{ marginTop: "16px" }}>
@@ -836,7 +913,7 @@ export function InstanceMonitor() {
                   const isActive = ["running", "starting", "waitingForManualAction"].includes(instance.status);
                   const isPaused = instance.status === "paused" || instance.status === "waitingForManualAction";
                   const isRunning = instance.status === "running" || instance.status === "starting";
-                  const isStoppable = ["running", "queued", "starting", "paused", "waitingForManualAction"].includes(instance.status);
+                  const isStoppable = isInstanceStoppable(instance.status);
                   const isDone = ["completed", "failed", "cancelled", "stopped"].includes(instance.status);
 
                   const workflow = resolveWorkflow(instance.scenarioId);
@@ -936,6 +1013,27 @@ export function InstanceMonitor() {
         )}
       </section>
 
+      {workflowRunExecutionId
+        ? (() => {
+            const summary = workflowRuns.find((run) => run.executionId === workflowRunExecutionId);
+            if (!summary) return null;
+            const workflow = resolveWorkflow(summary.scenarioId);
+            return (
+              <WorkflowInstancesModal
+                summary={summary}
+                workflowName={workflow.name}
+                workflowMissing={workflow.missing}
+                instances={instances.filter((instance) => instance.executionId === summary.executionId)}
+                onClose={() => setWorkflowRunExecutionId(null)}
+                onOpenReport={(instanceId) => {
+                  setWorkflowRunExecutionId(null);
+                  setReportInstanceId(instanceId);
+                }}
+              />
+            );
+          })()
+        : null}
+
       {reportInstanceId
         ? (() => {
             const target = instances.find((instance) => instance.instanceId === reportInstanceId);
@@ -949,6 +1047,17 @@ export function InstanceMonitor() {
             );
           })()
         : null}
+
+      {stopAllConfirmOpen ? (
+        <ConfirmDialog
+          title="Stop all pending and running instances?"
+          message={`This will cancel ${stoppableCount} pending or running instance${stoppableCount === 1 ? "" : "s"} across every workflow. Completed records will remain available.`}
+          confirmLabel="Stop instances"
+          danger
+          onConfirm={() => void stopAll()}
+          onCancel={() => setStopAllConfirmOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1044,6 +1153,18 @@ function formatDuration(durationMs: number): string {
   const seconds = Math.floor(durationMs / 1000);
   const minutes = Math.floor(seconds / 60);
   return `${minutes.toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+}
+
+function formatWorkflowRunStatus(status: WorkflowRunSummaryStatus): string {
+  if (status === "attention") return "Needs attention";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function workflowRunStatusClass(status: WorkflowRunSummaryStatus): string {
+  if (status === "attention") return "paused";
+  if (status === "stopping") return "running";
+  if (status === "mixed") return "completed";
+  return status;
 }
 
 function formatIsolation(isolationMode: InstanceIsolationMode): string {

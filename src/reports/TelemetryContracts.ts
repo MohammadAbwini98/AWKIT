@@ -20,8 +20,34 @@ export interface TelemetryPage {
   offset?: number;
 }
 
-/** Optional filters for run-history queries (workflow drill-down, status filtering). */
-export interface RunHistoryFilter {
+/**
+ * Per-run machine context (migration v3). Lets reports label + filter runs by the machine they ran on,
+ * so runs from different machines are never silently compared. All fields optional (pre-v3 rows / partial
+ * detection read back as "Unknown").
+ */
+export interface MachineRunContext {
+  machineId?: string;
+  logicalCpuCount?: number;
+  totalMemoryMb?: number;
+  availableMemoryMbAtStart?: number;
+  executionMode?: string; // sequential | auto | manual
+  browserPoolMode?: string; // shared | dedicated
+  configuredConcurrency?: number;
+  observedPeakConcurrency?: number;
+  workloadClass?: string;
+  capacityRecommendationAtRun?: number;
+}
+
+/** Machine/mode/pool/class filter shared by comparison, trend, and run-history queries. */
+export interface MachineFilter {
+  machineId?: string;
+  executionMode?: string;
+  browserPoolMode?: string;
+  workloadClass?: string;
+}
+
+/** Optional filters for run-history queries (workflow drill-down, status + machine filtering). */
+export interface RunHistoryFilter extends MachineFilter {
   scenarioId?: string;
   status?: string;
 }
@@ -66,6 +92,49 @@ export interface WorkflowReportRow {
   avgQueueWaitMs?: number;
   retryCount: number;
   lastRunStatus?: string;
+  lastRunAt?: string;
+}
+
+/** Per-metric change of a workflow vs the previous window (undefined when there is no prior data). */
+export interface WorkflowDelta {
+  successRate?: number;
+  avgMs?: number;
+  p95Ms?: number;
+  totalRuns?: number;
+}
+
+/**
+ * One workflow's current-window stats plus its previous-window comparison. `previous` is undefined when
+ * the workflow had no runs in the prior window (then `trend` is `new`). Deltas are `current − previous`.
+ */
+export interface WorkflowComparisonRow extends WorkflowReportRow {
+  previous?: WorkflowReportRow;
+  delta: WorkflowDelta;
+  trend: "up" | "down" | "flat" | "new";
+  /** Representative machine context (from this workflow's most recent run in the current window). */
+  machineContext?: MachineRunContext;
+}
+
+/** One time-bucket of a single workflow's run-over-run trend. */
+export interface WorkflowTrendPoint {
+  bucketIso: string;
+  totalRuns: number;
+  success: number;
+  failed: number;
+  successRate: number;
+  avgMs?: number;
+  p95Ms?: number;
+}
+
+export interface WorkflowTrend {
+  scenarioId?: string;
+  scenarioName?: string;
+  points: WorkflowTrendPoint[];
+}
+
+/** A machine seen in run history (for the reports machine filter). */
+export interface MachineSummary extends MachineRunContext {
+  runs: number;
   lastRunAt?: string;
 }
 
@@ -159,6 +228,22 @@ export function processSampleToHistoryPoint(sample: DurableProcessSampleRecord):
     activeBrowsers: sample.activeBrowsers,
     pageCount: sample.pageCount,
     availability: sample.availability
+  };
+}
+
+/** Project a durable run row's machine-context columns into a MachineRunContext (undefined fields dropped). */
+export function machineContextFromRun(run: DurableRunRecord): MachineRunContext {
+  return {
+    machineId: run.machineId,
+    logicalCpuCount: run.logicalCpuCount,
+    totalMemoryMb: run.totalMemoryMb,
+    availableMemoryMbAtStart: run.availableMemoryMbAtStart,
+    executionMode: run.executionMode,
+    browserPoolMode: run.browserPoolMode,
+    configuredConcurrency: run.configuredConcurrency,
+    observedPeakConcurrency: run.observedPeakConcurrency,
+    workloadClass: run.workloadClass,
+    capacityRecommendationAtRun: run.capacityRecommendationAtRun
   };
 }
 

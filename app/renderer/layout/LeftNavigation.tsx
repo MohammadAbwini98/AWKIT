@@ -1,4 +1,5 @@
-import { Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon } from "lucide-react";
+import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Sun, Workflow } from "lucide-react";
+import { useState } from "react";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 
@@ -36,11 +37,12 @@ interface LeftNavigationProps {
 export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onToggle }: LeftNavigationProps) {
   const { resolvedTheme, setAppearance } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(routeGroups.map((group) => [group.label, true])));
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
       <div className="brand-block">
         <div className="brand-tile">
-          <span className="brand-mark">WFS</span>
+          <span className="brand-mark"><Workflow size={17} strokeWidth={2.4} /></span>
           {!collapsed ? (
             <span className="brand-name">
               <span>WebFlow Studio</span>
@@ -62,25 +64,38 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
       <div className="navigation-list">
         {routeGroups.map((group) => (
           <section className="nav-group" key={group.label}>
-            {!collapsed ? <span className="nav-group-label">{group.label}</span> : null}
-            {group.routes.map((routeId) => {
-              const route = routes.find((item) => item.id === routeId);
-              if (!route) return null;
+            {!collapsed ? (
+              <button
+                type="button"
+                className="nav-group-toggle"
+                aria-expanded={openGroups[group.label]}
+                onClick={() => setOpenGroups((current) => ({ ...current, [group.label]: !current[group.label] }))}
+              >
+                <span>{group.label}</span>
+                <span>{group.routes.length}</span>
+                <ChevronDown size={14} className={openGroups[group.label] ? "" : "collapsed"} />
+              </button>
+            ) : null}
+            <div className={collapsed || openGroups[group.label] ? "nav-group-items open" : "nav-group-items"}>
+              <div className="nav-group-items-inner">{group.routes.map((routeId) => {
+                const route = routes.find((item) => item.id === routeId);
+                if (!route) return null;
 
-              const Icon = route.icon;
-              return (
-                <button
-                  className={route.id === activeRouteId ? "nav-item active" : "nav-item"}
-                  key={route.id}
-                  onClick={() => onRouteChange(route.id)}
-                  title={collapsed ? route.label : route.description}
-                  type="button"
-                >
-                  <Icon size={17} />
-                  {!collapsed ? <span>{route.label}</span> : null}
-                </button>
-              );
-            })}
+                const Icon = route.icon;
+                return (
+                  <button
+                    className={route.id === activeRouteId ? "nav-item active" : "nav-item"}
+                    key={route.id}
+                    onClick={() => onRouteChange(route.id)}
+                    title={collapsed ? route.label : route.description}
+                    type="button"
+                  >
+                    <Icon size={17} />
+                    {!collapsed ? <span>{route.label}</span> : null}
+                  </button>
+                );
+              })}</div>
+            </div>
           </section>
         ))}
       </div>
@@ -94,6 +109,10 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
           <SettingsIcon size={17} />
           {!collapsed ? <span>Settings</span> : null}
         </button>
+        <button className="nav-item" onClick={() => onRouteChange("projectContract")} title={collapsed ? "Help Center" : undefined} type="button">
+          <HelpCircle size={17} />
+          {!collapsed ? <span>Help Center</span> : null}
+        </button>
         <button
           className="nav-item nav-theme-toggle"
           aria-pressed={isDark}
@@ -101,7 +120,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
           title={isDark ? "Switch to light mode" : "Switch to dark mode"}
           type="button"
         >
-          <Moon size={17} />
+          {isDark ? <Moon size={17} /> : <Sun size={17} />}
           {!collapsed ? (
             <>
               <span>Dark Mode</span>
@@ -113,7 +132,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
         </button>
         {!collapsed ? (
           <div className="nav-workspace" aria-hidden="true">
-            <span className="nav-workspace-mark">WFS</span>
+            <span className="nav-workspace-mark"><Workflow size={15} /></span>
             <span className="nav-workspace-name">
               <span>WebFlow Studio</span>
               <small>Offline workspace</small>

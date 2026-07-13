@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./layout/AppShell";
+import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { UnsavedChangesDialog } from "./components/shared/UnsavedChangesDialog";
 import { routes, type RouteId } from "./routes";
 import { PageChromeContext, type PageChrome } from "./state/pageChrome";
@@ -12,8 +13,11 @@ export function App() {
   const [activeRouteId, setActiveRouteId] = useState<RouteId>("dashboard");
   const [routeHistory, setRouteHistory] = useState<RouteId[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [appearance, setAppearanceState] = useState<AppearanceMode>("light");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+  const [appearance, setAppearanceState] = useState<AppearanceMode>(() => {
+    const saved = window.localStorage.getItem("awkit-appearance");
+    return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+  });
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => document.documentElement.dataset.theme === "dark" ? "dark" : "light");
   const [chrome, setChromeState] = useState<PageChrome>(emptyChrome);
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [savingBeforeLeave, setSavingBeforeLeave] = useState(false);
@@ -29,6 +33,7 @@ export function App() {
         setSidebarCollapsed(settings.sidebarCollapsed);
         if (settings.appearance === "light" || settings.appearance === "dark" || settings.appearance === "system") {
           setAppearanceState(settings.appearance);
+          window.localStorage.setItem("awkit-appearance", settings.appearance);
         }
       })
       .catch(() => undefined);
@@ -50,6 +55,7 @@ export function App() {
 
   const setAppearance = useCallback((mode: AppearanceMode) => {
     setAppearanceState(mode);
+    window.localStorage.setItem("awkit-appearance", mode);
     window.playwrightFlowStudio.settings.update({ appearance: mode }).catch(() => undefined);
   }, []);
 
@@ -175,7 +181,9 @@ export function App() {
           onRouteChange={changeRoute}
           onToggleSidebar={toggleSidebar}
         >
-          <ActivePage />
+          <ErrorBoundary key={activeRouteId} area={activeRoute.label}>
+            <ActivePage />
+          </ErrorBoundary>
         </AppShell>
         {unsavedOpen ? (
           <UnsavedChangesDialog

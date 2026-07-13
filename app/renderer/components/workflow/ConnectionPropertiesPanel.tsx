@@ -23,6 +23,13 @@ export type FlowConnectionData = {
   conditional?: ConditionalConnectorConfig;
   parallel?: ParallelConnectorConfig;
   loop?: LoopConnectorConfig;
+  /**
+   * Display-only fields injected per-render by the canvas (Flow Designer `edgesForCanvas`) for the
+   * `templateSmooth` edge. NEVER persisted — `toFlowProfile` reads connector fields explicitly and
+   * ignores these.
+   */
+  showAddButton?: boolean;
+  onInsertNode?: (edgeId: string, anchor: HTMLElement) => void;
 };
 
 const OPERATOR_OPTIONS: { value: ConnectorConditionOperator; label: string }[] = [
@@ -132,12 +139,34 @@ export function ConnectionPropertiesPanel({ edge, onUpdate, onDelete, dataSource
   };
 
   return (
-    <aside className="properties-panel">
-      <div className="properties-heading">
-        <h2>Connection Properties</h2>
-        <span>{edge ? `${edge.source} → ${edge.target}` : "No connection selected"}</span>
+    <aside className="properties-panel template-config-drawer connection-config-drawer">
+      <div className="properties-heading with-action template-drawer-header">
+        <div className="drawer-title-row">
+          <div className="drawer-node-icon connector-icon" aria-hidden="true">
+            ↗
+          </div>
+          <div className="properties-heading-text">
+            <h2>Connection</h2>
+            <span>{edge ? `${edge.source} → ${edge.target}` : "No connection selected"}</span>
+          </div>
+        </div>
+        {edge ? (
+          <button className="icon-button danger" onClick={() => onDelete(edge.id)} title="Delete connection" type="button">
+            <Trash2 size={17} />
+          </button>
+        ) : null}
       </div>
 
+      <div className="properties-tabs" role="tablist" aria-label="Connection configuration tabs">
+        <button className="properties-tab active" type="button" role="tab" aria-selected="true">
+          Setup
+        </button>
+        <button className="properties-tab" type="button" role="tab" aria-selected="false" disabled title="Not available yet">
+          Test
+        </button>
+      </div>
+
+      <div className="properties-body">
       {edge ? (
         <>
           <section className="property-section">
@@ -331,6 +360,11 @@ export function ConnectionPropertiesPanel({ edge, onUpdate, onDelete, dataSource
                     value={lp?.maxIterations ?? 3}
                     onChange={(event) => onUpdate(edge.id, { loop: { ...(lp ?? { mode: "count" }), maxIterations: parseInt(event.target.value, 10) || 1 } })}
                   />
+                  <small>
+                    The loop takes priority over this node&apos;s other exits: while its condition is satisfied the flow re-enters the
+                    loop; only once the loop finishes (condition fails or max iterations reached) does it continue along the node&apos;s
+                    Conditional exit connector(s).
+                  </small>
                 </label>
                 {lp?.mode === "staticList" ? (
                   <label>
@@ -417,6 +451,18 @@ export function ConnectionPropertiesPanel({ edge, onUpdate, onDelete, dataSource
       ) : (
         <div className="empty-properties">Select a connection on the canvas to edit its type, label, and condition.</div>
       )}
+      </div>
+
+      {/* Connector edits are live-bound (onUpdate) — no fake save. "Run Test" has no runtime yet,
+          so it stays disabled; "Done" is a safe no-op affordance matching the template drawer. */}
+      <div className="properties-footer">
+        <button className="toolbar-button" type="button" disabled title="Not available yet">
+          Run Test
+        </button>
+        <button className="toolbar-button primary" type="button" disabled={!edge}>
+          Done
+        </button>
+      </div>
     </aside>
   );
 }

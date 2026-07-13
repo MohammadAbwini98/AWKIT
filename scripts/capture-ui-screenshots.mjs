@@ -13,6 +13,7 @@ import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sub = process.argv[2] || "before";
+const viewport = process.argv[3] === "compact" ? { width: 1366, height: 768 } : { width: 1600, height: 1000 };
 const outDir = path.join(root, "docs/ai/ui-reskin-template-plan/mockups/screenshots", sub);
 mkdirSync(outDir, { recursive: true });
 
@@ -36,7 +37,7 @@ try {
   const win = await app.firstWindow();
   await win.waitForLoadState("domcontentloaded");
   await win.waitForTimeout(1500);
-  await win.setViewportSize({ width: 1600, height: 1000 });
+  await win.setViewportSize(viewport);
 
   async function nav(label) {
     // Exact label match (expanded sidebar renders the label in a <span>). Using has-text here would

@@ -13,13 +13,17 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { BrowserContext } from "playwright";
+import { loadArtifactProfile, resolveArtifactSettings } from "./ArtifactProfile";
 
 export type TraceMode = "off" | "onFailure" | "always";
 
 export function loadTraceMode(): TraceMode {
-  const raw = (process.env.AWKIT_TRACE_MODE ?? "onFailure").toLowerCase();
+  const raw = (process.env.AWKIT_TRACE_MODE ?? "").toLowerCase();
   if (raw === "off" || raw === "always") return raw;
-  return "onFailure";
+  if (raw === "onfailure") return "onFailure";
+  // Unset/unrecognized: defer to the Phase A9 artifact profile (default "balanced" → onFailure, so the
+  // historical default is unchanged). AWKIT_TRACE_MODE, when set, always wins above.
+  return resolveArtifactSettings(loadArtifactProfile()).traceMode;
 }
 
 export class TraceService {

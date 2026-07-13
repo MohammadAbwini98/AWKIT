@@ -20,7 +20,11 @@ export function createMainWindow(): BrowserWindow {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    // Never open the renderer window itself; hand off to the OS browser — but only for http(s), so a
+    // file:/other-scheme window.open can't be launched. Mirrors the guard in auth.ipc.ts openExternal.
+    if (/^https?:\/\//i.test(url)) {
+      void shell.openExternal(url);
+    }
     return { action: "deny" };
   });
 

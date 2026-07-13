@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorQuality, LocatorStrategy, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -17,6 +17,10 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorExact: boolean;
   /** Uniqueness/quality metadata captured by the Recorder (undefined for hand-authored steps). */
   locatorQuality?: LocatorQuality;
+  /** Ranked runtime fallbacks the runner tries when the primary is missing/ambiguous (from Recorder). */
+  locatorAlternatives?: LocatorCandidate[];
+  /** Container/frame scoping applied to the primary and every alternative (from Recorder). */
+  locatorContext?: LocatorContext;
   valueSourceType: ValueSourceType;
   value: string;
   // Dynamic JSON binding:
@@ -86,9 +90,19 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
 
   // ── Dynamic connector ports (Point 1, render-only — not persisted to FlowStep) ──
   portFlags?: ConnectorPortFlags;
+  /** Contextual-picker append affordance (render-only; never serialized). */
+  isLeaf?: boolean;
+  onAppendNode?: (nodeId: string, anchor: HTMLElement) => void;
+  /** Per-node kebab menu actions (render-only; never serialized). */
+  onConfigure?: (nodeId: string) => void;
+  onDeleteNode?: (nodeId: string) => void;
+  /** Whether this node currently carries a self-loop connector (render-only). */
+  hasLoop?: boolean;
+  /** Toggle the node's self-loop connector from its kebab menu (render-only). */
+  onToggleLoop?: (nodeId: string) => void;
 }
 
-export const DEFAULT_NODE_WIDTH = 220;
+export const DEFAULT_NODE_WIDTH = 320;
 export const DEFAULT_NODE_HEIGHT = 96;
 
 export const defaultNodeData = (stepType: StepType, label: string, description: string): FlowDesignerNodeData => ({
@@ -100,6 +114,8 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorName: "",
   locatorExact: false,
   locatorQuality: undefined,
+  locatorAlternatives: undefined,
+  locatorContext: undefined,
   valueSourceType: "static",
   value: stepType === "goto" ? "${BASE_URL}/login" : "",
   dataSourceScope: "workflow",

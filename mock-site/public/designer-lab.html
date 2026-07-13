@@ -10,18 +10,23 @@
     <main class="card lab">
       <h1>Designer and Instance Lab</h1>
       <p class="hint">
-        Expected behavior: these static scenarios provide stable targets for canvas, panel, workflow-card,
+        Expected behavior: these static scenarios provide stable targets for canvas, contextual-picker, right-drawer, workflow-card,
         and saved-flow behavior. Related AWKIT features: Flow Designer, Workflow Builder, Instance Monitor.
       </p>
 
       <section data-testid="designer-canvas">
-        <h2>Canvas side-panel collapse area</h2>
-        <p>Expected: clicking empty canvas-like space can be used to validate panel collapse behavior.</p>
+        <h2>Contextual canvas interaction area</h2>
+        <p>Expected: right-clicking empty canvas opens the add picker; edge and leaf plus buttons open the same picker; selecting a node or connector opens the right drawer.</p>
         <div class="mock-canvas" data-testid="mock-canvas" role="region" aria-label="Mock designer canvas">
           <button class="mock-node" data-testid="mock-node-start" type="button">Start Node</button>
           <button class="mock-node" data-testid="mock-node-action" type="button">Action Node</button>
           <button class="mock-node" data-testid="mock-node-end" type="button">End Node</button>
           <span class="mock-empty-space" data-testid="mock-empty-canvas-space">Empty canvas space</span>
+        </div>
+        <div data-testid="contextual-picker-contract" aria-label="Contextual picker contract">
+          <button type="button" data-testid="mock-edge-add">Edge + picker</button>
+          <button type="button" data-testid="mock-leaf-add">Leaf + picker</button>
+          <button type="button" data-testid="mock-right-drawer">Selection drawer</button>
         </div>
       </section>
 
@@ -36,6 +41,26 @@
           <article data-testid="workflow-card-data"><h3>Mock Data Workflow</h3><p>Bind row data to form fields.</p></article>
           <article data-testid="workflow-card-failure"><h3>Mock Failure Workflow</h3><p>Exercise error routing.</p></article>
         </div>
+      </section>
+
+      <section data-testid="instance-monitor-run-summary">
+        <h2>Instance Monitor workflow run record</h2>
+        <p>Expected: the monitor groups instances by execution, shows running/pending/completed/failed summary counts, and opens one modal containing every instance in that run.</p>
+        <button aria-haspopup="dialog" data-testid="mock-workflow-run-record" id="open-workflow-run-record" type="button">
+          Mock Login Workflow · 3 instances · 1 running · 1 pending · 1 completed
+        </button>
+        <dialog aria-labelledby="mock-workflow-run-title" data-testid="mock-workflow-instances-modal" id="mock-workflow-instances-modal">
+          <h3 id="mock-workflow-run-title">Mock Login Workflow instances</h3>
+          <table>
+            <thead><tr><th>Instance</th><th>Status</th><th>Current step</th></tr></thead>
+            <tbody>
+              <tr data-testid="mock-workflow-instance-row"><td>Instance 1</td><td>Running</td><td>Submit login</td></tr>
+              <tr data-testid="mock-workflow-instance-row"><td>Instance 2</td><td>Pending</td><td>Not started</td></tr>
+              <tr data-testid="mock-workflow-instance-row"><td>Instance 3</td><td>Completed</td><td>Done</td></tr>
+            </tbody>
+          </table>
+          <button data-testid="close-workflow-instances-modal" id="close-workflow-instances-modal" type="button">Close</button>
+        </dialog>
       </section>
 
       <section data-testid="saved-flow-reopen">
@@ -58,5 +83,10 @@
 }</code></pre>
       </section>
     </main>
+    <script>
+      const workflowRunDialog = document.getElementById("mock-workflow-instances-modal");
+      document.getElementById("open-workflow-run-record").addEventListener("click", () => workflowRunDialog.showModal());
+      document.getElementById("close-workflow-instances-modal").addEventListener("click", () => workflowRunDialog.close());
+    </script>
   </body>
 </html>

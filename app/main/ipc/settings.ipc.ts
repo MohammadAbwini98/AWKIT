@@ -13,6 +13,7 @@ import {
   type UiSettings
 } from "../uiSettings";
 import { getRuntimeDataRoot, isProductionOffline } from "../appPaths";
+import { applyRuntimeConcurrencyFromSettings } from "./execution.ipc";
 import {
   createDataSourceProfileStore,
   createFlowProfileStore,
@@ -44,11 +45,26 @@ async function checkPath(path: string): Promise<{ path: string; exists: boolean;
 
 export function registerSettingsIpc(): void {
   ipcMain.handle("settings:get", async () => getUiSettings());
-  ipcMain.handle("settings:update", async (_, patch: DeepPartial<UiSettings>) => updateUiSettings(patch));
-  ipcMain.handle("settings:reset", async () => resetUiSettings());
+  // After any mutation that can change the runtime caps, push them into the engine so the idle Chrome
+  // Consumption gauges + admission reflect the new values immediately (best-effort, never blocks).
+  const applyConcurrency = () => void applyRuntimeConcurrencyFromSettings();
+  ipcMain.handle("settings:update", async (_, patch: DeepPartial<UiSettings>) => {
+    const next = await updateUiSettings(patch);
+    applyConcurrency();
+    return next;
+  });
+  ipcMain.handle("settings:reset", async () => {
+    const next = await resetUiSettings();
+    applyConcurrency();
+    return next;
+  });
   ipcMain.handle("settings:clearUiState", async () => clearUiState());
   ipcMain.handle("settings:export", async () => getUiSettings());
-  ipcMain.handle("settings:import", async (_, incoming: unknown) => replaceUiSettings(incoming));
+  ipcMain.handle("settings:import", async (_, incoming: unknown) => {
+    const next = await replaceUiSettings(incoming);
+    applyConcurrency();
+    return next;
+  });
   ipcMain.handle("settings:validate", async () => validateSettings(await getUiSettings()));
 
   ipcMain.handle("settings:getDefaultPaths", async () => getDefaultPaths());

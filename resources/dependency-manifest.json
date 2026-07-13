@@ -7,8 +7,8 @@
     "application":  {
                         "name":  "WebFlow Studio",
                         "version":  "0.1.0",
-                        "buildMode":  "production-offline",
-                        "builtAt":  "2026-07-06T21:03:20.0756143Z"
+                        "buildMode":  "development-offline-prep",
+                        "builtAt":  "2026-07-10T20:24:22.7657179Z"
                     },
     "offline":  {
                     "internetRequired":  false,
@@ -77,6 +77,7 @@
                          "playwright":  "^1.49.1",
                          "react":  "^18.3.1",
                          "reactFlow":  "12.3.6",
+                         "framerMotion":  "11.18.2",
                          "sqlJs":  "1.13.0",
                          "sqlite":  "sql.js 1.13.0 (WASM, no native driver)"
                      }

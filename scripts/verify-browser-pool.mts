@@ -9,6 +9,7 @@
 import { EventEmitter } from "node:events";
 import { BrowserWorkerPool } from "@src/runner/browser/BrowserWorkerPool";
 import { BackpressureController } from "@src/runner/concurrency/BackpressureController";
+import { closeIsolatedRuntime } from "@src/runner/BrowserContextFactory";
 
 let passed = 0;
 let failed = 0;
@@ -93,6 +94,86 @@ async function main(): Promise<void> {
   check("backpressure blocks when active flows exceed the cap", !blocked.allow);
   const snap = bp.snapshot(1, 2);
   check("capacity snapshot carries pool counts + queue depth", snap.activeBrowsers === pool.snapshot().activeSlots && snap.queueDepth === 2);
+
+  // Regression: the runner closes its own browser at end-of-run; that intentional "disconnected"
+  // must not be scored as a crash (it used to, so ordinary run completions inflated the crash
+  // window and tripped "browser crash rate high — pausing new dispatch", stranding the queue).
+  console.log("\nPart E — intentional teardown is not a crash (backpressure false-positive)");
+  const teardownPool = new BrowserWorkerPool({ maxBrowsersPerHost: 4, crashWindowMs: 60_000, minFreeMemoryMb: 0 });
+
+  const t1 = teardownPool.tryAcquireSlot("t1")!;
+  const crashBrowser = new FakeBrowser();
+  teardownPool.registerRuntime(t1, { browser: crashBrowser as never, context: new FakeContext() as never }, 1);
+  crashBrowser.emit("disconnected"); // no expected-close signal → genuine crash
+  check("unexpected browser disconnect still counts as a crash", teardownPool.recentCrashCount() === 1 && t1.unhealthy);
+
+  const t2 = teardownPool.tryAcquireSlot("t2")!;
+  const okBrowser = new FakeBrowser();
+  teardownPool.registerRuntime(t2, { browser: okBrowser as never, context: new FakeContext() as never }, 1);
+  teardownPool.markExpectedClose(t2, 1); // runner announces intentional end-of-run close
+  okBrowser.emit("disconnected");
+  check("intentional teardown close is NOT counted as a crash", teardownPool.recentCrashCount() === 1 && !t2.unhealthy);
+
+  const t3 = teardownPool.tryAcquireSlot("t3")!;
+  teardownPool.registerRuntime(t3, { browser: new FakeBrowser() as never, context: new FakeContext() as never }, 1);
+  teardownPool.markExpectedClose(t3, 1); // old generation's swap-close is expected…
+  const gen2Browser = new FakeBrowser();
+  teardownPool.registerRuntime(t3, { browser: gen2Browser as never, context: new FakeContext() as never }, 2);
+  gen2Browser.emit("disconnected"); // …but a real crash of the newer generation still counts
+  check("expected-close is generation-scoped (later-generation crash still counts)", teardownPool.recentCrashCount() === 2);
+
+  // Regression (audit A4): the isolated-context teardown must always close the browser, even when
+  // context.close() rejects — otherwise a throwing context close orphans the Chromium process.
+  console.log("\nPart F — isolated teardown always closes the browser (A4)");
+  {
+    let browserClosed = false;
+    const throwingContext = { close: async () => { throw new Error("context already crashed"); } };
+    const okBrowser = { close: async () => { browserClosed = true; } };
+    let propagated = false;
+    await closeIsolatedRuntime(throwingContext, okBrowser).catch(() => { propagated = true; });
+    check("browser is closed even when context.close() rejects", browserClosed);
+    check("the context close error still propagates (not swallowed)", propagated);
+  }
+  {
+    // Happy path: both close, no throw.
+    let ctxClosed = false;
+    let brwClosed = false;
+    let threw = false;
+    await closeIsolatedRuntime(
+      { close: async () => { ctxClosed = true; } },
+      { close: async () => { brwClosed = true; } }
+    ).catch(() => { threw = true; });
+    check("normal teardown closes context then browser without error", ctxClosed && brwClosed && !threw);
+  }
+  {
+    // A failing browser.close must not mask the (successful) context close — it is swallowed.
+    let threw = false;
+    await closeIsolatedRuntime(
+      { close: async () => undefined },
+      { close: async () => { throw new Error("browser close failed"); } }
+    ).catch(() => { threw = true; });
+    check("a failing browser.close is swallowed when context closed cleanly", !threw);
+  }
+
+  // Settings-driven caps (Settings UI → engine.configureConcurrency → pool.reconfigure).
+  console.log("\nPart G — reconfigure applies Settings caps (live flows; guarded browser resize)");
+  {
+    const rp = new BrowserWorkerPool({ maxBrowsersPerHost: 2, maxActiveFlows: 4, crashWindowMs: 60_000, minFreeMemoryMb: 0 });
+    rp.reconfigure({ maxActiveFlows: 9 });
+    check("maxActiveFlows updates live", rp.concurrencyLimits.maxActiveFlows === 9);
+
+    rp.reconfigure({ maxBrowsersPerHost: 5 }); // idle → resize allowed
+    check("idle reconfigure raises the browser slot cap", rp.snapshot().maxSlots === 5, `maxSlots=${rp.snapshot().maxSlots}`);
+    const held = [1, 2, 3, 4, 5].map((n) => rp.tryAcquireSlot(`g${n}`));
+    check("all 5 slots are grantable after raising the cap", held.every((s) => s !== null) && rp.tryAcquireSlot("g6") === null);
+
+    rp.reconfigure({ maxBrowsersPerHost: 8 }); // busy → deferred, stays in sync with the live semaphore
+    check("busy reconfigure does NOT resize (cap stays in sync)", rp.snapshot().maxSlots === 5 && rp.concurrencyLimits.maxBrowsersPerHost === 5);
+
+    held.forEach((s) => s && rp.releaseSlot(s));
+    rp.reconfigure({ maxBrowsersPerHost: 8 }); // idle again → applies
+    check("reconfigure applies once the pool is idle again", rp.snapshot().maxSlots === 8, `maxSlots=${rp.snapshot().maxSlots}`);
+  }
 
   console.log(`\nResult: ${passed} passed, ${failed} failed.`);
   if (failed > 0) process.exit(1);
