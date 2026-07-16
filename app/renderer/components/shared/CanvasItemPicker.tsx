@@ -77,7 +77,7 @@ export function CanvasItemPicker<T extends string>({
         <motion.div
           ref={panelRef}
           className="canvas-item-picker"
-          style={{ left: x, top: y }}
+          style={{ left: x, top: y, transformOrigin: "top left" }}
           role="menu"
           aria-label={title}
           initial={reducedMotion ? false : { opacity: 0, y: -8, scale: 0.97 }}

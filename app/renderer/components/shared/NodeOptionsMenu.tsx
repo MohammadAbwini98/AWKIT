@@ -32,7 +32,7 @@ const MENU_MARGIN = 12;
 export function NodeOptionsMenu({ open, anchor, items, onClose }: NodeOptionsMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const reducedMotion = usePrefersReducedMotion();
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number; origin: "top" | "bottom" } | null>(null);
 
   useLayoutEffect(() => {
     if (!open || !anchor) {
@@ -44,8 +44,12 @@ export function NodeOptionsMenu({ open, anchor, items, onClose }: NodeOptionsMen
     const left = Math.max(MENU_MARGIN, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - MENU_MARGIN));
     // Below the button by default; flip above when it would overflow the viewport.
     let top = rect.bottom + 6;
-    if (top + estHeight > window.innerHeight - MENU_MARGIN) top = Math.max(MENU_MARGIN, rect.top - estHeight - 6);
-    setPos({ left, top });
+    let origin: "top" | "bottom" = "top";
+    if (top + estHeight > window.innerHeight - MENU_MARGIN) {
+      top = Math.max(MENU_MARGIN, rect.top - estHeight - 6);
+      origin = "bottom";
+    }
+    setPos({ left, top, origin });
   }, [open, anchor, items.length]);
 
   useEffect(() => {
@@ -73,10 +77,10 @@ export function NodeOptionsMenu({ open, anchor, items, onClose }: NodeOptionsMen
         role="menu"
         aria-label="Node actions"
         className="node-options-menu"
-        style={{ left: pos.left, top: pos.top, width: MENU_WIDTH }}
-        initial={reducedMotion ? false : { opacity: 0, y: -6, scale: 0.97 }}
+        style={{ left: pos.left, top: pos.top, width: MENU_WIDTH, transformOrigin: `center ${pos.origin}` }}
+        initial={reducedMotion ? false : { opacity: 0, y: pos.origin === "top" ? -6 : 6, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={reducedMotion ? undefined : { opacity: 0, y: -4, scale: 0.98 }}
+        exit={reducedMotion ? undefined : { opacity: 0, y: pos.origin === "top" ? -4 : 4, scale: 0.98 }}
         transition={reducedMotion ? { duration: 0 } : menuSpring}
         onPointerDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
