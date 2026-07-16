@@ -1,34 +1,30 @@
 /**
- * Shared-browser eligibility classification (Concurrency Capacity plan — Phase A5).
+ * Shared-browser eligibility (Concurrency Capacity plan — Phase A5).
  *
- * Decides whether an instance may run on a SHARED Chromium process (many isolated contexts per browser)
- * or needs its OWN dedicated browser. Dedicated is required whenever the instance owns a persistent
- * profile or performs a mid-run browser swap (Reuse Session / Auto Secure Login / protected-login
- * handoff) — those cannot safely share a process with other instances. Pure + framework-agnostic.
+ * Thin, back-compatible surface over the authoritative `BrowserIsolationResolver`. `isSharedEligible`
+ * answers the engine's yes/no dispatch question by delegating to the resolver (single source of truth),
+ * so the eligibility rules can never drift from the four-class classification. The resolver additionally
+ * exposes the isolation class + the launch-arg-aware compatibility key (see BrowserIsolationResolver.ts).
  */
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
+import { resolveBrowserIsolation, scenarioUsesBrowserSwap, sharedCompatibilityKey } from "./BrowserIsolationResolver";
 
-/** Node types whose runtime behaviour closes/relaunches (swaps) the automation browser mid-run. */
-const BROWSER_SWAP_NODE_TYPES = new Set(["autoSecureLogin", "reuseSession", "protectedLoginHandoff"]);
+export { scenarioUsesBrowserSwap, sharedCompatibilityKey };
 
-/** True when any flow in the scenario contains a node that swaps the automation browser mid-run. */
-export function scenarioUsesBrowserSwap(flows: FlowProfile[]): boolean {
-  return flows.some((flow) => (flow.nodes ?? []).some((node) => BROWSER_SWAP_NODE_TYPES.has(node.type)));
+/**
+ * Shared-eligible = classified SHARED_CONTEXT by the resolver (shared-pool flag on, `browserContext`
+ * isolation, no persistent profile / captured session, and no mid-run browser-swap node).
+ */
+export function isSharedEligible(config: InstanceConfig, flows: FlowProfile[], sharedFlagEnabled: boolean): boolean {
+  return resolveBrowserIsolation(config, flows, { sharedPoolEnabled: sharedFlagEnabled }).shareable;
 }
 
 /**
- * Shared-eligible = the shared-pool flag is on, the instance uses isolated `browserContext` isolation
- * (not a persistent profile / captured session), and none of its flows swap the browser mid-run.
+ * Legacy human-readable group key (browser + headed/headless). Superseded by `sharedCompatibilityKey`,
+ * which also folds in the browser-level launch-arg deltas so instances with incompatible launch configs
+ * never share a process. Retained for back-compat and diagnostics.
  */
-export function isSharedEligible(config: InstanceConfig, flows: FlowProfile[], sharedFlagEnabled: boolean): boolean {
-  if (!sharedFlagEnabled) return false;
-  if (config.isolationMode !== "browserContext") return false;
-  if (config.sessionProfileId || config.userDataDir) return false;
-  return !scenarioUsesBrowserSwap(flows);
-}
-
-/** Group key so only compatible browsers are shared (headed and headless never share a process). */
 export function sharedLaunchKey(config: InstanceConfig): string {
   return `${config.browser}:${config.headless ? "headless" : "headed"}`;
 }

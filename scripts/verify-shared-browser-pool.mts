@@ -67,6 +67,23 @@ async function main() {
     check("contexts spread evenly (4 per browser)", perBrowser.every((n) => n === 4) && snap.activeContexts === 16, `perBrowser=${perBrowser}`);
   }
 
+  // 1b. CONCURRENT acquisition must respect maxBrowsers. Regression guard: the real ExecutionEngine
+  //     processQueue starts instances CONCURRENTLY, so many leases race into acquireContext at once. A
+  //     check-then-await-launch gap previously let each concurrent lease launch its own Chromium (6+
+  //     browsers at maxBrowsers=2 → the shared pool delivered no process/RSS saving under real dispatch).
+  //     The launch here awaits a timer so the concurrent leases genuinely interleave across the await.
+  {
+    const state = makeState();
+    const pool = new SharedBrowserPool({ maxBrowsers: 2, maxContextsPerBrowser: 4, maxContextsPerBrowserHardLimit: 8, recycleAfterContexts: 999 });
+    const slowLauncher: SharedBrowserLauncher = {
+      launchKey: "chromium:headless",
+      async launch() { await new Promise((r) => setTimeout(r, 15)); state.launched += 1; return makeFakeBrowser(state); },
+      async newContext() { state.createdContexts += 1; return { closed: false, async close() { if (!this.closed) { this.closed = true; state.closedContexts += 1; } } } as any; }
+    };
+    const snap = await Promise.all(Array.from({ length: 8 }, () => pool.acquireContext(slowLauncher))).then(() => pool.snapshot());
+    check("concurrent acquisition respects maxBrowsers (no over-launch race)", snap.totalBrowsers === 2 && state.launched === 2 && snap.activeContexts === 8, `browsers=${snap.totalBrowsers} launched=${state.launched} contexts=${snap.activeContexts}`);
+  }
+
   // 2. Least-loaded reuse: after releasing a browser's only context, the next acquire reuses it.
   {
     const state = makeState();

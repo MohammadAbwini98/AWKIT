@@ -11,7 +11,7 @@ import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
 import { StepExecutor, type BrowserRestarter, type ChildFlowRunner } from "./StepExecutor";
-import { TraceService } from "./artifacts/TraceService";
+import { TraceService, type TraceMode } from "./artifacts/TraceService";
 import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ValueResolver } from "./ValueResolver";
@@ -75,6 +75,12 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   cancellation?: CancellationToken;
   /** Dynamic origin-claim tracker for this instance (Phase 3). */
   originClaims?: OriginClaimTracker;
+  /**
+   * Browser Resource Optimization: effective trace mode from the resolved profile (honours the
+   * AWKIT_TRACE_MODE env override). When omitted, TraceService falls back to its own env default —
+   * i.e. today's behaviour.
+   */
+  traceMode?: TraceMode;
 }
 
 export class PlaywrightRunner {
@@ -121,7 +127,7 @@ export class PlaywrightRunner {
       generation: holder.generation
     }, logger, context);
     this.options.onBrowserRuntime?.({ runtime: holder.runtime, generation: holder.generation });
-    this.traceService = new TraceService(context.paths.traces);
+    this.traceService = new TraceService(context.paths.traces, this.options.traceMode);
     await this.traceService.attach(holder.runtime.context);
 
     // Hard cancellation: close the CURRENT runtime (whichever generation is live) so any

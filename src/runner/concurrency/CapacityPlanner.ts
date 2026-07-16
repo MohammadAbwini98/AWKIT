@@ -33,13 +33,22 @@ export interface PerWorkloadEnvelope {
 
 /** One config object holding every seed/bound — no scattered machine-specific constants. */
 export interface CapacityTuning {
-  // Reserves — support BOTH absolute (Mb) and percentage (of total RAM); precedence in resolveReserveMb.
+  // ── Memory reserves (see planCapacity for how they compose) ──────────────────────────────────────────
+  // `available` already nets out the OS + other apps' CURRENT usage, so the OS reserve is applied as a
+  // CEILING on planning memory (never plan to use more than total − OS reserve), NOT re-subtracted from
+  // available — subtracting a %-of-TOTAL OS reserve from already-current available double-counts the OS and
+  // (on large machines under pressure) can exceed available and zero out real free memory. See the reserve
+  // re-evaluation in EXECUTION_ENGINE_CAPACITY_REPORT.md §7.
   reservedMemoryMb?: number;
-  reservedMemoryPercent?: number;
-  awkitReservedMemoryMb?: number;
+  reservedMemoryPercent?: number; // OS share — applied as a ceiling: planning memory ≤ total − this
+  awkitReservedMemoryMb?: number; // absolute app/Electron baseline (measured; machine-independent)
   awkitReservedMemoryPercent?: number;
-  safetyReservedMemoryMb?: number;
-  safetyReservedMemoryPercent?: number;
+  /** Machine-relative AWKIT runtime GROWTH headroom on top of the baseline: % of total, bounded [min,max]. */
+  awkitGrowthPercentOfTotal?: number;
+  awkitGrowthReserveMinMb?: number;
+  awkitGrowthReserveMaxMb?: number;
+  safetyReservedMemoryMb?: number;       // absolute safety floor
+  safetyReservedMemoryPercent?: number;  // safety cushion as a % of PLANNING (available) memory, not total
   reservedLogicalCpuCount: number;
 
   // Conservative seed envelopes, replaced by measured values once a benchmark/history exists.
@@ -64,14 +73,19 @@ export interface CapacityTuning {
 }
 
 /**
- * Default tuning. These are configurable SEEDS, not machine targets. Percentage reserves scale with any
- * machine; the AWKIT/Electron baseline is an absolute (its footprint does not grow with host RAM). The
+ * Default tuning. These are configurable SEEDS, not machine targets. The AWKIT/Electron baseline is an
+ * absolute (its footprint does not grow with host RAM); a machine-relative GROWTH reserve + a safety cushion
+ * that scales with actually-available memory provide the machine-relative headroom (see planCapacity). The
  * per-instance envelopes are conservative starting bands, superseded by measurement (Phase A10).
  */
 export const DEFAULT_CAPACITY_TUNING: CapacityTuning = {
-  reservedMemoryPercent: 20, // operating system
-  awkitReservedMemoryMb: 1024, // AWKIT/Electron/Node baseline (roughly fixed regardless of machine)
-  safetyReservedMemoryPercent: 10, // configurable safety headroom
+  reservedMemoryPercent: 20,   // OS share — a CEILING (planning memory ≤ total − 20%), not subtracted from available
+  awkitReservedMemoryMb: 1024, // AWKIT/Electron/Node baseline (measured ~230–320 MB engine core + Electron chrome)
+  awkitGrowthPercentOfTotal: 5, // machine-relative runtime growth headroom, bounded:
+  awkitGrowthReserveMinMb: 512,
+  awkitGrowthReserveMaxMb: 4096,
+  safetyReservedMemoryMb: 1024, // absolute safety floor
+  safetyReservedMemoryPercent: 10, // safety cushion as a % of PLANNING (available) memory
   reservedLogicalCpuCount: 1,
 
   conservativeMemoryPerInstanceMb: { light: 350, medium: 700, heavy: 1100 },
@@ -180,10 +194,27 @@ export function planCapacity(inputs: CapacityPlannerInputs): CapacityRecommendat
   const totalMb = Math.max(0, caps.totalMemoryMb || 0);
   const availableMb = Math.max(0, inputs.liveAvailableMemoryMb ?? caps.availableMemoryMb ?? 0);
 
+  // Memory reserve model (re-evaluated 2026-07-15; see EXECUTION_ENGINE_CAPACITY_REPORT.md §7):
+  //  1. `available` already reflects OS + other-app CURRENT usage. The OS reserve therefore caps PLANNING
+  //     memory at (total − OS reserve) instead of being re-subtracted from available (which double-counts
+  //     and can exceed available on large machines under pressure, zeroing out real free memory).
+  //  2. AWKIT baseline (absolute) + a machine-relative, bounded GROWTH reserve model the app's footprint.
+  //  3. The safety cushion scales with PLANNING memory (what's actually available), never below an absolute
+  //     floor — so it tracks real headroom rather than a fixed fraction of total.
+  //  Runtime BackpressureController/AdaptiveController remain the live guardrail; this is a conservative seed.
   const osReserve = resolveReserveMb(tuning.reservedMemoryMb, tuning.reservedMemoryPercent, totalMb);
-  const awkitReserve = resolveReserveMb(tuning.awkitReservedMemoryMb, tuning.awkitReservedMemoryPercent, totalMb);
-  const safetyReserve = resolveReserveMb(tuning.safetyReservedMemoryMb, tuning.safetyReservedMemoryPercent, totalMb);
-  const usableMemoryMb = Math.max(0, availableMb - osReserve - awkitReserve - safetyReserve);
+  const planningMemoryMb = Math.min(availableMb, Math.max(0, totalMb - osReserve));
+  const awkitBaseline = resolveReserveMb(tuning.awkitReservedMemoryMb, tuning.awkitReservedMemoryPercent, totalMb);
+  const awkitGrowthReserve = clampRange(
+    ((tuning.awkitGrowthPercentOfTotal ?? 0) / 100) * totalMb,
+    tuning.awkitGrowthReserveMinMb ?? 0,
+    tuning.awkitGrowthReserveMaxMb ?? Number.POSITIVE_INFINITY
+  );
+  const safetyReserve = Math.max(
+    tuning.safetyReservedMemoryMb ?? 0,
+    ((tuning.safetyReservedMemoryPercent ?? 0) / 100) * planningMemoryMb
+  );
+  const usableMemoryMb = Math.max(0, planningMemoryMb - awkitBaseline - awkitGrowthReserve - safetyReserve);
 
   const memPerInstance = inputs.measuredMemoryPerInstanceMb ?? tuning.conservativeMemoryPerInstanceMb[key];
   const memoryCapacityEstimate = memPerInstance > 0 ? Math.floor(usableMemoryMb / memPerInstance) : 0;
@@ -246,4 +277,10 @@ function clamp01(value: number): number {
   if (value < 0) return 0;
   if (value > 1) return 1;
   return value;
+}
+
+/** Clamp `value` into [lo, hi]; a non-finite value falls back to `lo` (used for the growth reserve). */
+function clampRange(value: number, lo: number, hi: number): number {
+  if (!Number.isFinite(value)) return lo;
+  return Math.max(lo, Math.min(hi, value));
 }

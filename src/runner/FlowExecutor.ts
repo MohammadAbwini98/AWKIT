@@ -1,5 +1,6 @@
 import type { FlowEdge, FlowProfile, FlowStep, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { connectorKind, validateConnectorStructure } from "@src/profiles/FlowProfile";
+import { normalizeFlowBounds } from "@src/profiles/FlowValidation";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { evaluateBoolean } from "./ExpressionEvaluator";
 import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
@@ -68,6 +69,13 @@ export class FlowExecutor {
     const structuralIssues = validateConnectorStructure(flow.edges);
     if (structuralIssues.length) {
       return this.finish(flow.id, startedAt, steps, outputs, "failed", structuralIssues[0]);
+    }
+
+    // Runtime bounds normalization (audit F-03): clamp DoS-prone timeouts / iteration counts /
+    // oversized arrays from manipulated flow JSON before executing. Lenient — never rejects the run.
+    const boundsWarnings = normalizeFlowBounds(flow);
+    if (boundsWarnings.length) {
+      console.warn(`[flow ${flow.id}] normalized ${boundsWarnings.length} out-of-bounds field(s): ${boundsWarnings.slice(0, 5).join(" ")}`);
     }
 
     const byId = new Map(flow.nodes.map((node) => [node.id, node]));
