@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { AppRoute, RouteId } from "../routes";
 import type { PageAction } from "../state/pageChrome";
+import { AppFrame } from "./AppFrame";
 import { LeftNavigation } from "./LeftNavigation";
 import { StatusBar } from "./StatusBar";
 import { TopHeader } from "./TopHeader";
@@ -39,16 +40,20 @@ export function AppShell({
 }: AppShellProps) {
   const animateContent = !CANVAS_ROUTES.has(activeRouteId);
   return (
-    // Template shell: full-height sidebar on the left, header/content/status stacked in app-main.
-    <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
-      <LeftNavigation activeRouteId={activeRouteId} collapsed={sidebarCollapsed} onRouteChange={onRouteChange} onToggle={onToggleSidebar} />
-      <div className="app-main">
-        <TopHeader activeRoute={activeRoute} actions={headerActions} canGoBack={canGoBack} dirty={dirty} onBack={onBack} />
-        {/* keyed by route so the fade re-triggers on each navigation (not on in-page updates) */}
-        <main key={activeRouteId} className={animateContent ? "main-surface main-surface-animated" : "main-surface"}>
-          {children}
-        </main>
-        <StatusBar />
+    // Application window: the custom AWKIT frame spans the top; the existing shell fills the rest.
+    <div className="app-window">
+      <AppFrame areaLabel={activeRoute.label} />
+      {/* Template shell: full-height sidebar on the left, header/content/status stacked in app-main. */}
+      <div className={sidebarCollapsed ? "app-shell sidebar-collapsed" : "app-shell"}>
+        <LeftNavigation activeRouteId={activeRouteId} collapsed={sidebarCollapsed} onRouteChange={onRouteChange} onToggle={onToggleSidebar} />
+        <div className="app-main">
+          <TopHeader activeRoute={activeRoute} actions={headerActions} canGoBack={canGoBack} dirty={dirty} onBack={onBack} />
+          {/* keyed by route so the fade re-triggers on each navigation (not on in-page updates) */}
+          <main key={activeRouteId} className={animateContent ? "main-surface main-surface-animated" : "main-surface"}>
+            {children}
+          </main>
+          <StatusBar />
+        </div>
       </div>
     </div>
   );
