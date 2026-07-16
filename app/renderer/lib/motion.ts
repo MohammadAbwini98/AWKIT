@@ -72,67 +72,11 @@ export const instant: Transition = { duration: 0 };
  * Variants
  * ------------------------------------------------------------------ */
 
-/** Fade in (150ms) — the reference's `animation: fade-in`. */
-export const fadeIn: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.15, ease: "easeOut" } }
-};
-
 /** Node card entrance: fade + subtle scale, settled with `nodeSpring`. */
 export const nodeEnter: Variants = {
   hidden: { opacity: 0, scale: 0.9 },
   visible: { opacity: 1, scale: 1, transition: nodeSpring }
 };
-
-/** Drawer / side panel slide-in from the right. */
-export const drawerRight: Variants = {
-  hidden: { opacity: 0, x: 24 },
-  visible: { opacity: 1, x: 0, transition: easeSlow },
-  exit: { opacity: 0, x: 24, transition: easeFast }
-};
-
-/**
- * Pop-in for menus, popovers, toasts. Consumers MUST set `style={{ transformOrigin: <trigger edge> }}`
- * on the motion element — a variant cannot carry transform-origin, and a trigger-anchored surface must
- * scale from its trigger, not from its center.
- */
-export const popIn: Variants = {
-  hidden: { opacity: 0, scale: 0.96, y: 4 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: easeFast },
-  exit: { opacity: 0, scale: 0.96, y: 4, transition: instant }
-};
-
-/** Page/section enter with a light upward drift. */
-export const pageEnter: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: easeBase }
-};
-
-/** Parent that staggers children (lists, card grids). Pair with `listItem`. */
-export const listContainer: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.04, delayChildren: 0.02 } }
-};
-
-export const listItem: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: easeBase }
-};
-
-/* ------------------------------------------------------------------ *
- * Interaction presets — spread onto a motion element.
- * ------------------------------------------------------------------ */
-
-/** Primary button feel: lift on hover, press on tap. */
-export const hoverTap = {
-  whileHover: { scale: 1.02 },
-  whileTap: { scale: 0.98 }
-} as const;
-
-/** Node hover: nudge up 1px (matches the reference's `whileHover={{ y: -1 }}`). */
-export const hoverLift = {
-  whileHover: { y: -1 }
-} as const;
 
 /* ------------------------------------------------------------------ *
  * Reduced-motion helpers

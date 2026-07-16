@@ -1466,17 +1466,6 @@ textarea {
   width: 320px;
 }
 
-/* Resize handles sit slightly inside the node's rounded border. */
-.react-flow__resize-control.handle {
-  border-color: var(--awkit-accent);
-}
-
-/* Show resize handles/lines only on the selected node (belt-and-suspenders with
-   NodeResizer isVisible={selected}). Unselected nodes stay clean. */
-.react-flow__node:not(.selected) .react-flow__resize-control {
-  display: none;
-}
-
 .node-size-row {
   align-items: center;
   color: var(--awkit-text-secondary);
@@ -3120,96 +3109,6 @@ table {
 /* The mock board keeps a workspace width but no longer forces window width. */
 .workflow-board {
   min-width: 0;
-}
-
-/* ── React Flow canvas theming (template dot grid; colors follow the theme) ── */
-.react-flow,
-.react-flow__pane {
-  background: var(--awkit-canvas-bg);
-}
-
-.react-flow__pane {
-  background: transparent;
-}
-
-/* Dot/line pattern color: CSS wins over the SVG presentation attribute, so the
-   <Background> component stays theme-aware without per-render color props. */
-.react-flow__background {
-  pointer-events: none;
-}
-
-.react-flow__background circle {
-  fill: var(--awkit-canvas-dot);
-}
-
-.react-flow__background path {
-  stroke: var(--awkit-canvas-dot);
-}
-
-/* Floating zoom/fit controls restyled as a soft white cluster. */
-.react-flow__controls {
-  border-radius: var(--radius-md);
-  box-shadow: var(--awkit-shadow-card);
-  overflow: hidden;
-}
-
-.react-flow__controls-button {
-  background: var(--awkit-surface);
-  border-bottom: 1px solid var(--awkit-border);
-  color: var(--awkit-text-secondary);
-  height: 26px;
-  width: 26px;
-}
-
-.react-flow__controls-button:hover {
-  background: var(--awkit-surface-soft);
-  color: var(--awkit-text);
-}
-
-.react-flow__controls-button svg {
-  fill: currentColor;
-}
-
-.react-flow__minimap {
-  background: var(--awkit-surface);
-  border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--awkit-shadow-card);
-  overflow: hidden;
-}
-
-.react-flow__minimap-mask {
-  fill: rgba(var(--awkit-shadow-rgb), 0.08);
-}
-
-.react-flow__attribution {
-  background: transparent;
-  color: var(--awkit-text-muted);
-}
-
-/* Selected/clickable connections are easier to target and read. */
-.react-flow__edge {
-  cursor: pointer;
-}
-
-.react-flow__edge:hover .react-flow__edge-path {
-  stroke-width: 3;
-}
-
-.react-flow__edge.selected .react-flow__edge-path,
-.react-flow__edge:focus .react-flow__edge-path {
-  stroke-width: 3.5;
-}
-
-/* Connector labels read as small neutral pills (template "If true / If false"). */
-.react-flow__edge-text {
-  fill: var(--awkit-text-secondary);
-  font-size: var(--text-2xs);
-  font-weight: 600;
-}
-
-.react-flow__edge-textbg {
-  fill: var(--awkit-surface);
 }
 
 /* Collapsible "Advanced" grouping inside properties panels. */
@@ -6254,9 +6153,7 @@ table {
 .timeline-item.level-error .timeline-dot { background: var(--awkit-danger); }
 .timeline-item.level-error .timeline-message { color: var(--awkit-danger); }
 
-.spin { animation: report-spin 1s linear infinite; }
-
-@keyframes report-spin { to { transform: rotate(360deg); } }
+.spin { animation: awkit-spinner-rotate 1s linear infinite; }
 
 @keyframes report-heartbeat {
   0% { box-shadow: 0 0 0 0 rgba(var(--awkit-accent-rgb), 0.55); }
@@ -7353,7 +7250,7 @@ button.recorded-url-use:disabled {
   color: var(--awkit-text);
 }
 .awkit-spin {
-  animation: report-spin 0.9s linear infinite;
+  animation: awkit-spinner-rotate 0.9s linear infinite;
 }
 
 .awkit-primary-button {
@@ -8301,23 +8198,6 @@ button.recorded-url-use:disabled {
   pointer-events: auto;
 }
 
-/* --- React Flow Controls Repositioning --- */
-/* When right drawer is collapsed (rail only): push right panels left of the rail */
-.designer-layout.right-collapsed .react-flow__panel.right {
-  right: 68px !important;
-}
-.designer-layout.right-collapsed .react-flow__panel.center {
-  left: calc(50% - 22px) !important;
-}
-
-/* When right drawer is expanded: push right panels left of the drawer, and center panels into the visible area */
-.designer-layout:not(.right-collapsed) .react-flow__panel.right {
-  right: calc(min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) + 36px) !important;
-}
-.designer-layout:not(.right-collapsed) .react-flow__panel.center {
-  left: calc(50% - (min(var(--awkit-drawer-width, 440px), calc(100% - 88px)) / 2) - 60px) !important;
-}
-
 /* --- Config drawer shell: header / tabs / scroll body / footer ------------- */
 .properties-panel.template-config-drawer {
   display: grid;
@@ -8564,21 +8444,6 @@ button.recorded-url-use:disabled {
 }
 
 /* --- Template connectors: label pill, add button, running flow ------------ */
-.react-flow__edge-path {
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition:
-    stroke var(--awkit-dur-fast) var(--awkit-ease-out),
-    stroke-width var(--awkit-dur-fast) var(--awkit-ease-out),
-    filter var(--awkit-dur-fast) var(--awkit-ease-out);
-}
-
-.react-flow__edge:hover .react-flow__edge-path,
-.react-flow__edge.selected .react-flow__edge-path {
-  filter: drop-shadow(0 2px 5px rgba(var(--awkit-accent-rgb), 0.3));
-  stroke-width: 2.5px;
-}
-
 .template-edge-label {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
@@ -8632,24 +8497,10 @@ button.recorded-url-use:disabled {
   outline: none;
 }
 
-.react-flow__edge.animated .react-flow__edge-path {
-  animation: awkit-edge-flow 700ms linear infinite;
-}
-
 @keyframes awkit-edge-flow {
   to {
     stroke-dashoffset: -14;
   }
-}
-
-/* Canvas mount motion (SRS-CANVAS-UX-001 §3.5): opacity-only. A transform on a React Flow node
-   wrapper perturbs its coordinate measurement (see AppShell CANVAS_ROUTES), so nodes and edges
-   fade in without any translate/scale. Runs once on mount (node cards persist across drag/select
-   re-renders, so it never re-flashes) and is neutralized by the reduced-motion block below. */
-/* Node mount animation is owned by framer-motion (nodeEnter: fade + scale spring, see
-   lib/motion.ts + ActionFlowNode/ScenarioFlowNode). Edges still fade in via CSS. */
-.react-flow__edge {
-  animation: awkit-fade-in var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
 /* --- Bottom-center zoom pill buttons -------------------------------------- */
