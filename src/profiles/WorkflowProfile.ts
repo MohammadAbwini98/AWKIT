@@ -91,6 +91,35 @@ export interface WorkflowProfile {
   updatedAt?: string;
 }
 
+/**
+ * Build a blank, saveable workflow with the given name: a Start → End scaffold and
+ * sequential defaults. Shared by the Workflows library "Create Workflow" flow and the
+ * Workflow Builder "New" action so both persist an identical starting document and then
+ * land on it in the builder.
+ */
+export function createBlankWorkflowProfile(name: string): WorkflowProfile {
+  const now = new Date().toISOString();
+  return {
+    id: `workflow-${Date.now().toString(36)}`,
+    name,
+    description: "Saved workflow of reusable flow profiles",
+    version: 1,
+    nodes: [
+      { id: "start", type: "start", alias: "Start", order: 0, position: { x: 280, y: 100 } },
+      { id: "end", type: "end", alias: "End", order: 1, position: { x: 280, y: 420 } }
+    ],
+    edges: [{ id: "edge-start-end", source: "start", target: "end", type: "always", label: "always" }],
+    runtimeInputs: [],
+    execution: {
+      mode: "sequential",
+      maxConcurrentInstances: 1,
+      stopOnRequiredFlowFailure: true
+    },
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
 export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioProfile {
   const flowNodes = workflow.nodes.filter(isWorkflowFlowNode);
   const flowNodeById = new Map(flowNodes.map((node) => [node.id, node]));

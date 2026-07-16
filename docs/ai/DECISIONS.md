@@ -4,6 +4,28 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-15 — Browser Resource Optimization: balanced stays default; background throttling removed on evidence
+- **Decision:** Per-instance Chromium cost is controlled by one authoritative resolver
+  (`src/runner/browserProfile/BrowserRuntimeConfigurationResolver`) over four profiles
+  (maximum-compatibility / **balanced (default)** / low-resource / custom). Balanced == today's exact
+  behaviour and stays the default (zero risk). `low-resource` is recommended for unattended / image-heavy
+  runs only. Workflow **capabilities only ever RELAX** an optimization (never break a workflow).
+  **Background throttling was REMOVED from low-resource** (kept in `custom` only). GPU/WebGL/renderer-limit
+  are Custom-only, not in any default preset.
+- **Reason (measured):** 20/20/15-rep benchmarks (`reports/browser-performance/`,
+  `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`). Background throttling gave **no CPU benefit** — Playwright keeps
+  automated pages `visibilityState:visible` (timers never throttle) and minimizing already floors CPU (rAF
+  60→1/s); behaviour stayed 100%. The real, safe wins are **network −~99%** (asset-heavy pages, deterministic)
+  and **RAM −7…13%** (image-blocking-dominated, workload-dependent); CPU is not a reliable per-instance lever.
+  The earlier "21% RAM" was 3-rep noise. GPU/WebGL/renderer-limit stayed Custom-only pending a clean-machine
+  benchmark (risk of raising CPU / breaking rendering).
+- **Impact:** New additive modules + one wiring seam; default path byte-for-byte unchanged (verified). New
+  env `AWKIT_BROWSER_RESOURCE_PROFILE` + `AWKIT_WORKFLOW_REQUIRES_*` hints. `ProcessTreeSampler` now counts
+  `chrome-headless-shell.exe`. No IPC/schema/UI change; Settings UI + unattended→low-resource auto-rule are
+  follow-ups.
+
+---
+
 ### 2026-07 — Loop connectors became self-loops; three connector-structure rules now block Save/execution
 - **Decision:** A `loop`-kind connector's source and target must be the same node (AWKIT point 4); a node
   may have at most one standard outgoing connector (point 2); a node with a self-loop forces every other

@@ -147,6 +147,15 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 ### Execution & reporting
 - ✅ Generic Playwright runner: `StepExecutor`, `FlowExecutor`, `PlaywrightRunner`,
   `ExecutionEngine`, `LocatorFactory`, `ValueResolver`, `ExpressionEvaluator`.
+- ✅ **Browser Resource Optimization (per-instance Chromium cost):** selectable profiles
+  (`maximum-compatibility` / `balanced` = default = today / `low-resource` / `custom`) resolved through one
+  authoritative `BrowserRuntimeConfigurationResolver` (`src/runner/browserProfile/`). Low-resource blocks
+  image/media/font + analytics hosts, blocks service workers, reduces motion, fixes device-scale, sets
+  production artifacts + bounded 64 MB disk cache. Workflow **capabilities** (screenshots→images,
+  downloads, popups→pages, persistent→service workers, animations, WebGL/GPU/media via env hints) only ever
+  RELAX the profile so an aggressive setting can't break a workflow. Env: `AWKIT_BROWSER_RESOURCE_PROFILE`
+  (default balanced == today). Measured (see `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`): network −~99% and
+  RAM −7…13% on image-heavy pages, duration unchanged; background throttling removed (no measured benefit).
 - ✅ **Multi-Window / Popup Handling:** `StepExecutor` targets steps to specific windows via `pageAlias` and `PageRegistry`. Click steps with `opensPopup` capture and register popups. Support for `switchToPopup`, `switchToMainPage`, and `closePopup` nodes. Flow Designer canvas shows active page badges. Verified via `npm run verify:popup`.
 - ✅ **Smart Wait execution diagnostics:** `StepExecutor` runs `beforeWaits`/`afterWaits` around steps and
   reports failed waits with phase, sanitized current URL, wait condition, timeout, recorded reason, last

@@ -6,6 +6,7 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
 }
 
 * {
@@ -25,24 +26,65 @@ body {
 }
 
 :root {
+  /* Spacing — one canonical 4px grid. --awkit-space-* are back-compat aliases mapped by VALUE, not
+     index: the awkit family was shifted (awkit-5 = 20, awkit-6 = 24), so it resolves onto
+     --space-4h / --space-5 to preserve every rendered value. Do not add new --awkit-space-* uses. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-4h: 20px;
   --space-5: 24px;
-  --awkit-space-1: 4px;
-  --awkit-space-2: 8px;
-  --awkit-space-3: 12px;
-  --awkit-space-4: 16px;
-  --awkit-space-5: 20px;
-  --awkit-space-6: 24px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --awkit-space-1: var(--space-1);
+  --awkit-space-2: var(--space-2);
+  --awkit-space-3: var(--space-3);
+  --awkit-space-4: var(--space-4);
+  --awkit-space-5: var(--space-4h);
+  --awkit-space-6: var(--space-5);
+
+  /* Radius — one unified scale (docs/ui-design-and-motion-direction.md §6.3). Small controls migrated
+     from --radius-sm → --radius-xs to keep 8px; --radius-md (12→14) and --radius-lg (16→18) adopt the
+     canonical values. Old --awkit-radius-* names are aliased in the awkit token block below. */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --radius-pill: 999px;
+
+  /* Type scale — rem-based (root = 16px), size-specific leading + tracking (§6.1). Spine only:
+     call sites are not migrated yet. Pair each --text-* with its matching --leading-* / --tracking-*. */
+  --text-2xs: 0.6875rem;  /* 11px */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.8125rem;   /* 13px */
+  --text-base: 0.875rem;  /* 14px — default body */
+  --text-md: 1rem;        /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.375rem;    /* 22px */
+  --text-2xl: 1.75rem;    /* 28px */
+  --leading-2xs: 1.4;
+  --leading-xs: 1.45;
+  --leading-sm: 1.5;
+  --leading-base: 1.5;
+  --leading-md: 1.45;
+  --leading-lg: 1.35;
+  --leading-xl: 1.25;
+  --leading-2xl: 1.15;
+  --tracking-2xs: 0.02em;
+  --tracking-xs: 0.01em;
+  --tracking-sm: 0;
+  --tracking-base: 0;
+  --tracking-md: 0;
+  --tracking-lg: -0.01em;
+  --tracking-xl: -0.015em;
+  --tracking-2xl: -0.02em;
+
+  --titlebar-height: 36px;
   --header-height: 64px;
   --status-height: 32px;
-  --shell-chrome: calc(var(--header-height) + var(--status-height));
+  /* Vertical chrome above/below scrolling content: custom title bar + page header + status bar.
+     Canvas/designer surfaces size themselves as calc(100vh - var(--shell-chrome)). */
+  --shell-chrome: calc(var(--titlebar-height) + var(--header-height) + var(--status-height));
 }
 
 /*
@@ -128,15 +170,20 @@ body {
   /* rgb triplets for translucent glows/shadows built inline with rgba() */
   --awkit-accent-rgb: 124, 58, 237;
   --awkit-shadow-rgb: 32, 23, 47;
-  --awkit-glass: rgba(255, 255, 255, 0.92);
+  /* Material: genuinely translucent glass for floating-over-canvas chrome only (§6.6), paired with a
+     real blur. --awkit-glass-blur is theme-independent (dark inherits it). --awkit-scrim is the modal/
+     drawer dimming spine (kept alongside --awkit-overlay; not yet applied). */
+  --awkit-glass: rgba(255, 255, 255, 0.72);
+  --awkit-glass-blur: blur(20px) saturate(180%);
   --awkit-overlay: rgba(32, 23, 47, 0.4);
+  --awkit-scrim: rgba(32, 23, 47, 0.4);
 
-  /* depth & radius (extends the --radius-* scale above) */
-  --awkit-radius-sm: 10px;
-  --awkit-radius-md: 14px;
-  --awkit-radius-card: 18px;
-  --awkit-radius-panel: 22px;
-  --awkit-radius-pill: 999px;
+  /* depth & radius — back-compat aliases onto the unified --radius-* scale above (§6.3). */
+  --awkit-radius-sm: var(--radius-sm);
+  --awkit-radius-md: var(--radius-md);
+  --awkit-radius-card: var(--radius-lg);
+  --awkit-radius-panel: var(--radius-xl);
+  --awkit-radius-pill: var(--radius-pill);
   --awkit-shadow-soft: 0 4px 20px rgba(32, 23, 47, 0.04);
   --shadow-soft: var(--awkit-shadow-soft);
   --awkit-shadow-card: 0 1px 2px rgba(32, 23, 47, 0.04), 0 12px 32px rgba(32, 23, 47, 0.06);
@@ -147,15 +194,20 @@ body {
   --awkit-shadow-node-hover: 0 4px 8px rgba(32, 23, 47, 0.08), 0 12px 28px rgba(32, 23, 47, 0.14);
   --awkit-focus-ring: 0 0 0 3px rgba(124, 58, 237, 0.22);
 
-  /* motion */
-  --awkit-motion-fast: 120ms;
-  --awkit-motion-base: 180ms;
-  --awkit-motion-slow: 260ms;
-  --awkit-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* motion — one canonical spine; --awkit-motion-* kept as back-compat aliases (do not add new uses) */
+  --awkit-dur-press: 90ms;
   --awkit-dur-fast: 120ms;
   --awkit-dur-med: 180ms;
+  --awkit-dur-panel: 240ms;
   --awkit-dur-slow: 260ms;
+  --awkit-dur-modal: 300ms;
+  --awkit-ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* entering / exiting UI */
+  --awkit-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* moving / morphing on screen */
+  --awkit-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like drawer / sheet curve */
+  --awkit-motion-fast: var(--awkit-dur-fast);
+  --awkit-motion-base: var(--awkit-dur-med);
+  --awkit-motion-slow: var(--awkit-dur-slow);
+  --awkit-motion-ease: var(--awkit-ease-out);
 
   /* z-layers */
   --awkit-z-panel: 20;
@@ -219,8 +271,9 @@ body {
   /* rgb triplets + glass/overlay */
   --awkit-accent-rgb: 139, 92, 246;
   --awkit-shadow-rgb: 0, 0, 0;
-  --awkit-glass: rgba(22, 21, 28, 0.88);
+  --awkit-glass: rgba(22, 21, 28, 0.62);
   --awkit-overlay: rgba(0, 0, 0, 0.6);
+  --awkit-scrim: rgba(0, 0, 0, 0.6);
 
   /* depth */
   --awkit-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.24);
@@ -249,10 +302,33 @@ button:disabled {
   opacity: 0.55;
 }
 
+/* Universal pointer-down press feedback (docs/ui-design-and-motion-direction.md §8): every enabled
+   pressable nudges 1px down on press. Uses the independent `translate` property (not `transform`) so
+   it composes with transform-based positioning (e.g. .awkit-edge-add centering) and hover transforms
+   instead of clobbering them. Plain buttons animate the settle; class-styled buttons that own their
+   `transition` press instantly — 1px at 90ms is imperceptible either way. Toggles opt out (§14: only
+   the thumb moves). Neutralized to an instant nudge under the reduced-motion block. */
+button,
+[role="button"] {
+  transition: translate var(--awkit-dur-press) var(--awkit-ease-out);
+}
+button:not(:disabled):not([role="switch"]):active,
+[role="button"]:not([aria-disabled="true"]):not([role="switch"]):active {
+  translate: 0 1px;
+}
+
+/* Outer application window: custom frame on top, shell fills the remaining viewport height. */
+.app-window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
-  height: 100vh;
+  height: calc(100vh - var(--titlebar-height));
   overflow: hidden;
   /* Animate the sidebar collapse/expand (Workflow/FlowForge parity). Chromium (Electron)
      animates grid-template-columns; neutralized by the reduced-motion block. */
@@ -261,6 +337,126 @@ button:disabled {
 
 .app-shell.sidebar-collapsed {
   grid-template-columns: 76px minmax(0, 1fr);
+}
+
+/* ==========================================================================
+   AWKIT application frame — the custom title bar that replaces the native OS
+   frame (frame:false). A thin, full-width, draggable strip: brand identity +
+   current area on the left, window controls flush right. See layout/AppFrame.tsx.
+   ========================================================================== */
+.app-frame {
+  /* The passive surface is an OS drag region; interactive children opt back out (no-drag). */
+  -webkit-app-region: drag;
+  app-region: drag;
+  align-items: center;
+  background: var(--awkit-surface);
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  height: var(--titlebar-height);
+  padding-left: 12px;
+  user-select: none;
+}
+
+.app-frame-identity {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-frame-mark {
+  align-items: center;
+  color: var(--awkit-accent);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.app-frame-wordmark {
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.app-frame-divider {
+  background: var(--awkit-border);
+  flex-shrink: 0;
+  height: 14px;
+  width: 1px;
+}
+
+.app-frame-context {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Flexible draggable gap; also the primary double-click-to-maximize target. */
+.app-frame-spacer {
+  align-self: stretch;
+  flex: 1;
+  min-width: 24px;
+}
+
+.app-frame-controls {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  align-self: stretch;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.win-control {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--awkit-text-secondary);
+  cursor: default;
+  display: inline-flex;
+  height: 100%;
+  justify-content: center;
+  padding: 0;
+  transition: background-color var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
+  width: 46px;
+}
+
+/* Hover/press are the only motion here — a background wash, gated to fine pointers. This bar is
+   seen constantly, so nothing moves; feedback is immediate color, not a transform. */
+@media (hover: hover) and (pointer: fine) {
+  .win-control:hover {
+    background: var(--awkit-surface-inset);
+    color: var(--awkit-text);
+  }
+
+  .win-control-close:hover {
+    background: var(--awkit-danger);
+    color: #ffffff;
+  }
+}
+
+/* Immediate pointer-down feedback: the press wash snaps in instantly (transition:none), while the
+   release still eases back via the base transition — press-instant / release-eased, the craft standard. */
+.win-control:active {
+  background: var(--awkit-border-strong);
+  color: var(--awkit-text);
+  transition: none;
+}
+
+.win-control-close:active {
+  background: #b52d2d; /* fallback: darkened danger */
+  background: color-mix(in srgb, var(--awkit-danger) 85%, black);
+  color: #ffffff;
+}
+
+.win-control:focus-visible {
+  box-shadow: inset var(--awkit-focus-ring);
+  outline: none;
 }
 
 /* Right side of the shell: header, scrolling content, then the status bar. */
@@ -304,7 +500,7 @@ button:disabled {
 .form-section-title span,
 .runtime-summary span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .header-context {
@@ -316,7 +512,7 @@ button:disabled {
 }
 
 .header-context strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .header-status-chip {
@@ -327,7 +523,7 @@ button:disabled {
   color: var(--awkit-warning);
   display: inline-flex;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   gap: 6px;
   height: 26px;
@@ -399,17 +595,13 @@ button:disabled {
   border-color: var(--awkit-border-strong);
 }
 
-.toolbar-button:active:not(:disabled),
-.icon-button:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
 .left-navigation {
   background: var(--awkit-surface);
   border-right: 1px solid var(--awkit-border);
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  /* Fill the shell row (viewport minus the custom title bar), not the whole viewport. */
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
@@ -422,7 +614,7 @@ button:disabled {
   align-items: center;
   border-bottom: 1px solid var(--awkit-border);
   display: flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   gap: 8px;
   height: 60px;
@@ -492,7 +684,7 @@ button:disabled {
   color: var(--awkit-accent-contrast);
   display: inline-flex;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   height: 32px;
   justify-content: center;
@@ -521,7 +713,7 @@ button:disabled {
 
 .nav-group-label {
   color: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   padding: 0 10px 4px;
@@ -532,7 +724,7 @@ button:disabled {
   align-items: center;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-secondary);
   display: flex;
   font-weight: 500;
@@ -599,7 +791,7 @@ button:disabled {
   color: var(--awkit-text-secondary);
   display: inline-flex;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   height: 30px;
   justify-content: center;
@@ -614,7 +806,7 @@ button:disabled {
 }
 
 .nav-workspace-name > span:first-child {
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -623,7 +815,7 @@ button:disabled {
 
 .nav-workspace-name small {
   color: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .theme-switch {
@@ -696,41 +888,9 @@ button:disabled {
   gap: 12px;
 }
 
-/* Card-grid stagger (Workflow/FlowForge parity): grid children rise + fade in sequence on page
-   mount. `backwards` fill holds the hidden state during each item's delay, then reverts to the
-   element's own styles so hover transforms keep working. Neutralized by the reduced-motion block. */
-.page-grid > * {
-  animation: awkit-card-rise var(--awkit-motion-slow) var(--awkit-ease-out) backwards;
-}
-.page-grid > *:nth-child(2) {
-  animation-delay: 45ms;
-}
-.page-grid > *:nth-child(3) {
-  animation-delay: 90ms;
-}
-.page-grid > *:nth-child(4) {
-  animation-delay: 135ms;
-}
-.page-grid > *:nth-child(5) {
-  animation-delay: 180ms;
-}
-.page-grid > *:nth-child(6) {
-  animation-delay: 225ms;
-}
-.page-grid > *:nth-child(n + 7) {
-  animation-delay: 270ms;
-}
-
-@keyframes awkit-card-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Card-grid entrance removed (plans/007): grid children previously rose + faded in a stagger on every
+   navigation to a grid page (tens/day). Replaying entrance motion on frequent revisits is friction, not
+   delight — cards now render instantly; the light page-level opacity fade (.main-surface-animated) stays. */
 
 .metrics-grid {
   grid-template-columns: repeat(4, minmax(150px, 1fr));
@@ -755,13 +915,14 @@ button:disabled {
 
 .metric-card strong {
   display: block;
-  font-size: 30px;
+  font-size: var(--text-2xl); /* was 30px → nearest step 28px */
+  letter-spacing: var(--tracking-2xl); /* optical tightening for the large metric value (§6.1) */
   margin-top: 4px;
 }
 
 .metric-card p {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 0;
 }
 
@@ -788,7 +949,7 @@ button:disabled {
 
 .empty-state span {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .section-heading {
@@ -803,7 +964,7 @@ button:disabled {
 .section-heading h1,
 .node-palette h2,
 .properties-panel h2 {
-  font-size: 16px;
+  font-size: var(--text-md);
   margin: 0;
 }
 
@@ -821,7 +982,7 @@ button:disabled {
 .designer-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  min-height: calc(100vh - 92px);
+  min-height: calc(100vh - var(--titlebar-height) - 92px);
 }
 
 .designer-canvas {
@@ -856,7 +1017,7 @@ button:disabled {
 .properties-heading span,
 .property-section h3 {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .property-section {
@@ -872,7 +1033,7 @@ button:disabled {
 label {
   color: var(--awkit-text-secondary);
   display: grid;
-  font-size: 13px;
+  font-size: var(--text-sm);
   gap: 6px;
 }
 
@@ -1019,7 +1180,7 @@ textarea {
   background: var(--awkit-accent-soft);
   border-radius: 999px;
   color: var(--awkit-accent-hover);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: normal;
   padding: 4px 8px;
 }
@@ -1145,7 +1306,7 @@ textarea {
 }
 
 .react-flow-shell {
-  height: calc(100vh - 92px);
+  height: calc(100vh - var(--titlebar-height) - 92px);
   margin-left: 236px;
 }
 
@@ -1157,7 +1318,7 @@ textarea {
   display: grid;
   gap: 10px;
   left: 16px;
-  max-height: calc(100vh - 132px);
+  max-height: calc(100vh - var(--titlebar-height) - 132px);
   padding: 12px;
   position: absolute;
   top: 74px;
@@ -1166,7 +1327,7 @@ textarea {
 }
 
 .flow-node-palette h2 {
-  font-size: 14px;
+  font-size: var(--text-base);
   margin: 0;
 }
 
@@ -1180,7 +1341,7 @@ textarea {
 .flow-action-bar span,
 .empty-properties {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .palette-scroll {
@@ -1264,7 +1425,7 @@ textarea {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   gap: 6px;
   min-height: 30px;
@@ -1320,7 +1481,7 @@ textarea {
   align-items: center;
   color: var(--awkit-text-secondary);
   display: flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 8px;
   justify-content: space-between;
 }
@@ -1378,14 +1539,14 @@ textarea {
 
 .action-node-copy span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .action-flow-node em {
   background: var(--awkit-accent-soft);
   border-radius: 999px;
   color: var(--awkit-accent-hover);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: normal;
   padding: 4px 8px;
 }
@@ -1454,7 +1615,7 @@ textarea {
   color: var(--awkit-text);
   cursor: pointer;
   display: flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 500;
   gap: 10px;
   padding: 7px 10px;
@@ -1488,7 +1649,7 @@ textarea {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   padding: 2px 6px;
   pointer-events: none;
@@ -1522,7 +1683,7 @@ textarea {
   border: 1px solid var(--awkit-warning-muted);
   border-radius: 6px;
   color: var(--awkit-warning);
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 8px;
 }
 
@@ -1531,7 +1692,7 @@ textarea {
   border: 1px solid var(--awkit-success-muted);
   border-radius: 6px;
   color: var(--awkit-success);
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 8px;
 }
 
@@ -1545,7 +1706,7 @@ textarea {
   gap: 4px;
   border-radius: 6px;
   padding: 8px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .locator-quality.ok {
@@ -1562,13 +1723,13 @@ textarea {
 
 .locator-quality .locator-quality-meta {
   opacity: 0.85;
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .form-message {
   color: var(--awkit-text-secondary);
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .form-message.error {
@@ -1591,7 +1752,7 @@ textarea {
 
 .smart-wait-list-heading strong {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .smart-wait-list-heading .toolbar-button {
@@ -1610,18 +1771,18 @@ textarea {
 
 .smart-wait-card strong {
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .smart-wait-card span,
 .smart-wait-card small {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
 
 .smart-wait-card label {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .form-designer {
@@ -1711,7 +1872,7 @@ textarea {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 12px;
-  min-height: calc(100vh - 92px);
+  min-height: calc(100vh - var(--titlebar-height) - 92px);
 }
 
 .scenario-toolbar {
@@ -1740,7 +1901,7 @@ textarea {
 .output-mapping-list span,
 .scenario-node-copy span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .scenario-toolbar label {
@@ -1779,7 +1940,7 @@ textarea {
 
 .scenario-side-panel h2,
 .scenario-properties-panel h2 {
-  font-size: 14px;
+  font-size: var(--text-base);
   margin: 0 0 10px;
 }
 
@@ -1838,14 +1999,14 @@ textarea {
 }
 
 .flow-order-item-name strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .flow-order-item-name span {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-secondary);
 }
 
@@ -1982,7 +2143,7 @@ table {
 th,
 td {
   border-bottom: 1px solid var(--awkit-surface-inset);
-  font-size: 13px;
+  font-size: var(--text-sm);
   padding: 12px;
   text-align: left;
 }
@@ -2040,14 +2201,14 @@ table {
 .instance-dashboard span,
 .instance-paths {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .state-pill,
 .status-chip {
   border-radius: 999px;
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   padding: 4px 9px;
   white-space: nowrap;
@@ -2176,7 +2337,7 @@ table {
 .data-source-stats span,
 .variable-mapper span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .binding-preview strong,
@@ -2222,7 +2383,7 @@ table {
   background: var(--awkit-accent-soft);
   border-radius: 999px;
   color: var(--awkit-accent-hover);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: normal;
   padding: 4px 8px;
 }
@@ -2247,7 +2408,7 @@ table {
   border-radius: 8px;
   color: var(--awkit-surface-inset);
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.5;
   margin: 0;
   max-height: 260px;
@@ -2345,7 +2506,7 @@ table {
 .timeline.structured span,
 .security-note span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .report-summary-grid strong {
@@ -2413,7 +2574,7 @@ table {
   background: var(--awkit-surface-inset);
   border-radius: 999px;
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: normal;
   font-weight: 800;
   padding: 4px 8px;
@@ -2481,12 +2642,12 @@ table {
 .roadmap-next-panel span,
 .roadmap-acceptance span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .dashboard-roadmap-summary strong {
   color: var(--awkit-text);
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 .dashboard-roadmap-next {
@@ -2535,7 +2696,7 @@ table {
 
 .roadmap-next-panel p {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 0;
 }
 
@@ -2579,7 +2740,7 @@ table {
 
 .roadmap-phase-id {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -2588,7 +2749,7 @@ table {
   align-items: center;
   border-radius: 999px;
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   gap: 5px;
   padding: 5px 9px;
@@ -2615,13 +2776,13 @@ table {
 }
 
 .roadmap-card h2 {
-  font-size: 16px;
+  font-size: var(--text-md);
   margin: 0;
 }
 
 .roadmap-card p {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.45;
   margin: 0;
 }
@@ -2637,7 +2798,7 @@ table {
   border: 1px solid var(--awkit-border);
   border-radius: 999px;
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 5px 8px;
 }
 
@@ -2650,7 +2811,7 @@ table {
 
 .roadmap-acceptance strong {
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   line-height: 1.45;
 }
@@ -2696,7 +2857,7 @@ table {
 .contract-items span,
 .contract-phase-list small {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .contract-overview strong {
@@ -2747,7 +2908,7 @@ table {
   border: 1px solid var(--awkit-border);
   border-radius: 999px;
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 6px 9px;
 }
 
@@ -2758,7 +2919,7 @@ table {
 .contract-list {
   color: var(--awkit-text-secondary);
   display: grid;
-  font-size: 13px;
+  font-size: var(--text-sm);
   gap: 8px;
   line-height: 1.4;
   margin: 0;
@@ -2773,7 +2934,7 @@ table {
 .contract-items strong,
 .contract-phase-list strong {
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .contract-phase-list {
@@ -2799,7 +2960,7 @@ table {
   border-radius: 999px;
   color: var(--awkit-accent-hover);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   height: 28px;
   justify-content: center;
@@ -2965,16 +3126,6 @@ table {
 .react-flow,
 .react-flow__pane {
   background: var(--awkit-canvas-bg);
-  /* React Flow v12 theme variables — its components read these before class CSS. */
-  --xy-background-color: var(--awkit-canvas-bg);
-  --xy-minimap-background-color: var(--awkit-surface);
-  --xy-minimap-mask-background-color: rgba(var(--awkit-shadow-rgb), 0.12);
-  --xy-controls-button-background-color: var(--awkit-surface);
-  --xy-controls-button-background-color-hover: var(--awkit-surface-soft);
-  --xy-controls-button-color: var(--awkit-text-secondary);
-  --xy-controls-button-color-hover: var(--awkit-text);
-  --xy-controls-button-border-color: var(--awkit-border);
-  --xy-attribution-background-color: transparent;
 }
 
 .react-flow__pane {
@@ -3053,7 +3204,7 @@ table {
 /* Connector labels read as small neutral pills (template "If true / If false"). */
 .react-flow__edge-text {
   fill: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 
@@ -3072,7 +3223,7 @@ table {
 .property-advanced > summary {
   color: var(--awkit-text-secondary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   list-style: revert;
   padding: 8px 0 2px;
@@ -3092,7 +3243,7 @@ table {
 .property-group > summary {
   color: var(--awkit-text-secondary);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   list-style: none;
   padding: 8px 0 4px;
@@ -3204,7 +3355,7 @@ table {
 }
 
 .flow-action-bar label {
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .flow-action-title {
@@ -3309,7 +3460,7 @@ table {
 /* Vertical panel-name label beneath the expand button. */
 .panel-rail-label {
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   margin: 0;
@@ -3366,7 +3517,7 @@ table {
 
 .wl-table {
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-sm);
   min-width: 900px;
   table-layout: fixed;
   width: 100%;
@@ -3383,7 +3534,7 @@ table {
 .wl-table th {
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -3402,7 +3553,7 @@ table {
   border: none;
   color: var(--awkit-accent);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   padding: 0;
   text-align: left;
@@ -3415,12 +3566,12 @@ table {
 
 .wl-name-cell small {
   color: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .wl-desc-cell {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3429,8 +3580,34 @@ table {
 
 .wl-date-cell {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   white-space: nowrap;
+}
+
+/* Workflows table (point 5): one line per cell — overflow is clipped and the full value lives
+   in each cell's title tooltip; per-row actions collapse into a single "…" kebab menu. */
+.wl-table-workflows td {
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wl-table-workflows .wl-name-cell {
+  display: block;
+}
+
+.wl-table-workflows .wl-name-link {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.wl-kebab {
+  color: var(--awkit-text-secondary);
 }
 
 /* ── Instance Monitor Table ─────────────────────────────────────────────────── */
@@ -3446,7 +3623,7 @@ table {
      horizontal scrolling is handled by .instance-table-wrapper, not the table itself. */
   display: table;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--text-xs);
   min-width: 900px;
   table-layout: fixed;
   width: 100%;
@@ -3466,7 +3643,7 @@ table {
 .instance-table th {
   background: var(--awkit-surface-soft);
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -3484,7 +3661,7 @@ table {
 
 .instance-name-cell strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3552,7 +3729,7 @@ table {
   border-radius: 8px;
   color: var(--awkit-text-secondary);
   display: grid;
-  font-size: 13px;
+  font-size: var(--text-sm);
   gap: 6px;
   justify-items: center;
   left: 50%;
@@ -3568,7 +3745,7 @@ table {
 
 .scenario-canvas-empty strong {
   color: var(--awkit-text);
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 /* ── Phase 02: Compact Scenario Builder Toolbar ─────────────────────────────── */
@@ -3630,7 +3807,7 @@ table {
 
 .sb-save-state {
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3672,19 +3849,19 @@ table {
   width: 100%;
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
-  border-radius: var(--radius-lg, 16px);
+  border-radius: var(--radius-lg, 18px);
   box-shadow: var(--awkit-shadow-float);
   padding: 24px 28px;
 }
 .error-boundary-card h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: var(--text-lg);
   color: var(--awkit-text);
 }
 .error-boundary-card p {
   margin: 0 0 14px;
   color: var(--awkit-text-secondary);
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .error-boundary-detail {
   max-height: 220px;
@@ -3692,9 +3869,9 @@ table {
   margin: 0 0 16px;
   padding: 12px;
   background: var(--awkit-surface-inset);
-  border-radius: var(--radius-md, 12px);
+  border-radius: var(--radius-md, 14px);
   color: var(--awkit-danger, #ef4444);
-  font-size: 12px;
+  font-size: var(--text-xs);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -3718,7 +3895,7 @@ table {
 .sb-section-header strong,
 .sb-section-header h2 {
   flex: 1;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   margin: 0;
   overflow: hidden;
@@ -3786,7 +3963,7 @@ table {
 /* Ensure properties panel scrolls internally and doesn't overflow. */
 .scenario-properties-panel,
 .scenario-side-panel {
-  max-height: calc(100vh - 170px);
+  max-height: calc(100vh - var(--titlebar-height) - 170px);
   overflow-y: auto;
 }
 
@@ -3854,7 +4031,7 @@ table {
 
 .reports-empty-state span {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   max-width: 400px;
 }
 
@@ -3880,12 +4057,12 @@ table {
 }
 
 .report-card-meta strong {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .report-card-meta small {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .report-card-actions {
@@ -3897,6 +4074,7 @@ table {
 /* ── App modal (unsaved changes, confirmations) ─────────────────────────────── */
 .modal-overlay {
   align-items: center;
+  animation: awkit-fade-in var(--awkit-dur-fast) var(--awkit-ease-out);
   background: var(--awkit-overlay);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
@@ -3928,7 +4106,7 @@ table {
 }
 
 .modal-header h2 {
-  font-size: 16px;
+  font-size: var(--text-md);
   margin: 0;
 }
 
@@ -3946,10 +4124,30 @@ table {
   color: var(--awkit-warning);
 }
 
+.modal-icon.create {
+  background: var(--awkit-accent-muted);
+  color: var(--awkit-accent);
+}
+
+/* Single-field prompt (name a new resource) — label stacked above the full-width input. */
+.modal-field {
+  display: grid;
+  gap: 6px;
+}
+
+.modal-field > span {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.modal-field input {
+  width: 100%;
+}
+
 .modal-body {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
   margin: 0;
 }
 
@@ -3986,7 +4184,7 @@ table {
 .settings-banner {
   border: 1px solid;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   padding: 10px 12px;
 }
 
@@ -4023,7 +4221,7 @@ table {
 
 .settings-card-hint {
   color: var(--awkit-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
   margin: 0 0 12px;
 }
@@ -4064,7 +4262,7 @@ table {
 .capacity-advanced summary {
   color: var(--awkit-text-secondary);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -4078,6 +4276,49 @@ table {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Secrets card (audit §15) — add form + stored-secret rows. Name-only management; no values shown. */
+.settings-secret-form {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.settings-secret-form label {
+  display: grid;
+  flex: 1 1 200px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-secret-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.settings-secret-row {
+  align-items: center;
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text);
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.settings-secret-row strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.settings-secret-row span {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+  margin-left: auto;
 }
 
 .settings-path-field {
@@ -4115,20 +4356,41 @@ table {
   color: var(--awkit-danger);
 }
 
+/* Path fields need room for a long path input PLUS Browse + Reset, so give them wider tracks than the
+   generic .settings-grid (which also holds narrow number/select fields). At 340px min they hold the row
+   on one line; they collapse to a single column on narrow windows. */
+.settings-paths-grid {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
 .settings-path-row {
+  align-items: center;
   display: flex;
   gap: 6px;
+  /* Belt-and-suspenders: if a cell is ever too narrow, Browse/Reset wrap below the input instead of
+     overflowing the cell and overlapping the neighbouring field. */
+  flex-wrap: wrap;
 }
 
 .settings-path-row input {
-  flex: 1;
+  /* Grow to fill, keep a usable min so the buttons wrap rather than squishing the input to nothing. */
+  flex: 1 1 160px;
   min-width: 0;
+}
+
+/* Buttons keep their intrinsic size — never shrink or overflow the cell. */
+.settings-path-row .toolbar-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* ── Canvas zoom control (React Flow panel) ─────────────────────────────────── */
 .canvas-zoom-control {
   align-items: center;
-  background: var(--awkit-surface);
+  /* Glass: floating zoom pill over the canvas (§6.6). Solid fallbacks in the a11y media queries below. */
+  background: var(--awkit-glass);
+  backdrop-filter: var(--awkit-glass-blur);
+  -webkit-backdrop-filter: var(--awkit-glass-blur);
   border: 1px solid var(--awkit-border);
   border-radius: 12px;
   box-shadow: var(--shadow-soft);
@@ -4157,7 +4419,7 @@ table {
 }
 
 .canvas-zoom-control .zoom-value {
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   min-width: 46px;
@@ -4217,7 +4479,7 @@ table {
 
 .table-filter-field {
   display: grid;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 4px;
 }
 
@@ -4239,7 +4501,7 @@ table {
   cursor: pointer;
   display: inline-flex;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   gap: 4px;
   letter-spacing: 0.02em;
@@ -4269,7 +4531,7 @@ table {
 
 .table-total {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-right: auto;
 }
 
@@ -4277,7 +4539,7 @@ table {
   align-items: center;
   color: var(--awkit-text-secondary);
   display: flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 6px;
 }
 
@@ -4293,7 +4555,7 @@ table {
 
 .table-page-indicator {
   color: var(--awkit-text);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -4303,7 +4565,7 @@ table {
   border-radius: 6px;
   color: var(--awkit-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 6px 12px;
 }
 
@@ -4361,7 +4623,7 @@ table {
   color: var(--awkit-text);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.02em;
   padding: 4px 2px;
@@ -4374,7 +4636,7 @@ table {
 }
 
 .ds-col-head input {
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 4px 6px;
   width: 100%;
 }
@@ -4396,7 +4658,7 @@ table {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 5px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   padding: 5px 7px;
   width: 100%;
 }
@@ -4473,7 +4735,7 @@ table {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text);
 }
 
@@ -4503,8 +4765,28 @@ table {
   border-radius: 8px;
   border: 1px solid transparent;
   box-shadow: 0 8px 24px rgba(var(--awkit-shadow-rgb), 0.18);
-  font-size: 13px;
-  animation: app-toast-in 0.16s ease-out;
+  font-size: var(--text-sm);
+  /* Transition-driven enter/exit (docs/ui-design-and-motion-direction.md §8): CSS transitions, not a
+     keyframe, so a rapid re-toast retargets from wherever the previous one was mid-flight. It enters
+     and exits along the SAME bottom edge (spatial continuity). Under reduced motion the transform
+     snaps and only the opacity fade survives (see the reduced-motion allow-list at §8501). */
+  transition:
+    opacity var(--awkit-dur-med) var(--awkit-ease-out),
+    transform var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+/* Off-screen resting state for both the pre-enter frame and the exit (same edge). */
+.app-toast[data-phase="enter"],
+.app-toast[data-phase="leave"] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* Dismissal is snappier than arrival (exit faster than enter — docs §12). */
+.app-toast[data-phase="leave"] {
+  transition:
+    opacity var(--awkit-dur-fast) var(--awkit-ease-out),
+    transform var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
 .app-toast span {
@@ -4540,22 +4822,11 @@ table {
   opacity: 1;
 }
 
-@keyframes app-toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* ── Concurrent Instance Monitor: workflow cards grid ─────────────────────────── */
 .im-cards-hint {
   margin: 0 0 10px;
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .im-card-search {
@@ -4578,7 +4849,7 @@ table {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text);
 }
 
@@ -4623,7 +4894,14 @@ table {
 .workflow-card:focus-within {
   border-color: var(--awkit-accent-muted);
   box-shadow: 0 10px 26px rgba(var(--awkit-shadow-rgb), 0.12);
+}
+.workflow-card:focus-within {
   transform: translateY(-2px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .workflow-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .workflow-card:focus-visible {
@@ -4659,7 +4937,7 @@ table {
 
 .workflow-card-title strong {
   color: var(--awkit-text);
-  font-size: 14px;
+  font-size: var(--text-base);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4667,7 +4945,7 @@ table {
 
 .workflow-card-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
@@ -4693,7 +4971,7 @@ table {
 .workflow-card-desc {
   margin: 0;
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -4707,7 +4985,7 @@ table {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 12px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text-secondary);
 }
 
@@ -4718,7 +4996,7 @@ table {
 }
 
 .workflow-card-updated {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-muted);
 }
 
@@ -4726,7 +5004,7 @@ table {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-danger);
   background: var(--awkit-danger-soft);
   border-radius: 6px;
@@ -4764,24 +5042,36 @@ table {
 
 .workflow-card-hint {
   margin-top: auto;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-muted);
   font-style: italic;
 }
 
-/* Hover/focus: cross-fade to the params layer without changing card height. */
-.workflow-card:hover .workflow-card-summary,
+/* Hover/focus: cross-fade to the params layer without changing card height.
+   Focus (keyboard) stays ungated; pointer hover is gated so a touch tap can't stick the swap. */
 .workflow-card:focus-within .workflow-card-summary {
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
 }
 
-.workflow-card:hover .workflow-card-params,
 .workflow-card:focus-within .workflow-card-params {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .workflow-card:hover .workflow-card-summary {
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+  }
+  .workflow-card:hover .workflow-card-params {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
 }
 
 .workflow-card-params-grid {
@@ -4795,13 +5085,13 @@ table {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-secondary);
 }
 
 .workflow-card-params-grid input,
 .workflow-card-params-grid select {
-  font-size: 13px;
+  font-size: var(--text-sm);
   padding: 5px 7px;
   border: 1px solid var(--awkit-border);
   border-radius: 6px;
@@ -4817,7 +5107,7 @@ table {
   flex-direction: row;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .workflow-card-toggles .inline-check.disabled {
@@ -4828,7 +5118,7 @@ table {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-danger);
 }
 
@@ -5051,13 +5341,13 @@ table {
 }
 
 .workflow-run-modal-summary > div > strong {
-  font-size: 1rem;
+  font-size: var(--text-md);
   grid-column: 1 / -1;
 }
 
 .workflow-run-modal-summary > div > span {
   color: var(--awkit-text-muted);
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
 }
 
 .workflow-instances-table-wrap {
@@ -5131,7 +5421,7 @@ table {
 
 .im-classic > summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--awkit-text-secondary);
   display: flex;
@@ -5188,18 +5478,18 @@ table {
 }
 
 .plh-head strong {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .plh-instance {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-warning);
 }
 
 .plh-message {
   margin: 8px 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text-secondary);
 }
 
@@ -5224,7 +5514,7 @@ table {
 
 .plh-meta dd {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text);
 }
 
@@ -5243,7 +5533,7 @@ table {
 
 .plh-note {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-muted);
 }
 
@@ -5280,7 +5570,7 @@ table {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text);
 }
 
@@ -5301,7 +5591,7 @@ table {
 .palette-empty {
   margin: 8px 4px;
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* ── Searchable combobox (node property dropdowns) ───────────────────────────── */
@@ -5322,7 +5612,7 @@ table {
   border-radius: 6px;
   background: var(--awkit-surface);
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   cursor: pointer;
   text-align: left;
 }
@@ -5346,6 +5636,22 @@ table {
   border-radius: 8px;
   box-shadow: 0 10px 26px rgba(var(--awkit-shadow-rgb), 0.16);
   overflow: hidden;
+  transform-origin: top;
+  animation: awkit-menu-in var(--awkit-dur-med) var(--awkit-ease-out);
+}
+
+/* Origin-aware dropdown entrance (docs/ui-design-and-motion-direction.md §8): the menu scales in from
+   its top edge — the trigger it hangs from — rather than appearing flat. This combobox always opens
+   below the trigger, so transform-origin is top. Neutralized (snaps in) by the reduced-motion block. */
+@keyframes awkit-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .searchable-select-search {
@@ -5363,7 +5669,7 @@ table {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text);
 }
 
@@ -5387,7 +5693,7 @@ table {
 
 .searchable-select-option small {
   color: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .searchable-select-option:hover {
@@ -5402,7 +5708,7 @@ table {
   margin: 0;
   padding: 10px;
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* ── Live Execution Report modal ─────────────────────────────────────────────── */
@@ -5456,7 +5762,7 @@ table {
 }
 
 .report-banner-title span {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text-muted);
 }
 
@@ -5467,7 +5773,7 @@ table {
   flex-shrink: 0;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   text-transform: capitalize;
   background: var(--awkit-surface-inset);
@@ -5484,7 +5790,7 @@ table {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text-secondary);
 }
 
@@ -5506,7 +5812,7 @@ table {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 16px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text-muted);
 }
 
@@ -5526,7 +5832,7 @@ table {
 }
 .report-vs-chip {
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: normal;
   font-weight: 600;
   padding: 1px 7px;
@@ -5554,7 +5860,7 @@ table {
 
 .report-section h3 {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--awkit-text-secondary);
@@ -5562,7 +5868,7 @@ table {
 
 .report-empty, .report-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text-muted);
 }
 
@@ -5595,17 +5901,17 @@ table {
 }
 
 .report-process-summary strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text);
 }
 
 .report-process-summary span {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-secondary);
 }
 
 .report-progress-percent {
-  font-size: 16px !important;
+  font-size: var(--text-md) !important;
   font-weight: 800;
   color: var(--awkit-accent-hover) !important;
 }
@@ -5622,7 +5928,7 @@ table {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--awkit-accent), var(--awkit-success));
-  transition: width 0.3s ease;
+  transition: width var(--awkit-dur-slow) var(--awkit-ease-out);
 }
 
 .report-process-scroll {
@@ -5676,7 +5982,7 @@ table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 800;
   background: var(--awkit-surface-inset);
   color: var(--awkit-text-secondary);
@@ -5701,7 +6007,7 @@ table {
 }
 
 .report-node header strong {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5795,7 +6101,7 @@ table {
 
 .report-node-msg {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.35;
   color: var(--awkit-text-secondary);
 }
@@ -5807,7 +6113,7 @@ table {
   gap: 5px;
   align-self: flex-start;
   margin-top: 1px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--awkit-danger);
 }
@@ -5833,17 +6139,23 @@ table {
   transition: opacity 0.14s ease, transform 0.14s ease;
 }
 
-.report-node-error-hint:hover .report-node-tooltip,
 .report-node:focus-within .report-node-tooltip {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
 }
+@media (hover: hover) and (pointer: fine) {
+  .report-node-error-hint:hover .report-node-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
 
 .report-node-tooltip strong {
   display: block;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-secondary);
   text-transform: uppercase;
 }
@@ -5861,7 +6173,7 @@ table {
   flex-wrap: wrap;
   gap: 4px 12px;
   margin-top: auto;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-muted);
 }
 
@@ -5889,19 +6201,19 @@ table {
 }
 
 .report-stat-value {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 800;
   color: var(--awkit-text);
 }
 
 .report-stat-label {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-secondary);
 }
 
 .report-stat.tone-ok .report-stat-value { color: var(--awkit-success); }
 .report-stat.tone-bad .report-stat-value { color: var(--awkit-danger); }
-.report-stat.unavailable .report-stat-value { font-size: 13px; font-weight: 600; color: var(--awkit-text-muted); }
+.report-stat.unavailable .report-stat-value { font-size: var(--text-sm); font-weight: 600; color: var(--awkit-text-muted); }
 
 /* Timeline */
 .report-timeline {
@@ -5918,12 +6230,12 @@ table {
   align-items: start;
   gap: 8px;
   padding: 5px 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--awkit-text-secondary);
 }
 
 .timeline-time {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--awkit-text-muted);
   font-variant-numeric: tabular-nums;
   padding-top: 1px;
@@ -6029,7 +6341,7 @@ table {
 .recorder-control-title h3,
 .recorder-panel-title h3 {
   color: var(--awkit-text);
-  font-size: 16px;
+  font-size: var(--text-md);
   margin: 0;
 }
 
@@ -6037,7 +6349,7 @@ table {
 .recorder-panel-title span {
   color: var(--awkit-text-secondary);
   display: block;
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-top: 2px;
 }
 
@@ -6047,7 +6359,7 @@ table {
   border-radius: var(--radius-pill);
   display: inline-flex;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   gap: 7px;
   min-height: 26px;
@@ -6107,7 +6419,7 @@ table {
 
 .recorder-field-label {
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -6154,7 +6466,7 @@ table {
 .recorder-handoff-session input {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   box-sizing: border-box;
   min-height: 38px;
   padding: 0 10px;
@@ -6180,7 +6492,7 @@ table {
   color: var(--awkit-text-secondary);
   cursor: pointer;
   display: inline-flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 700;
   gap: 8px;
   min-height: 32px;
@@ -6239,7 +6551,7 @@ table {
 .recorder-status-text,
 .recorder-save-hint {
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .recorder-status-text {
@@ -6318,12 +6630,12 @@ table {
 }
 
 .recorder-handoff-head h3 {
-  font-size: 16px;
+  font-size: var(--text-md);
 }
 
 .recorder-handoff-panel p {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -6331,16 +6643,16 @@ table {
   color: var(--awkit-text-secondary);
   display: flex;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 8px 16px;
 }
 
 .recorder-handoff-error {
   background: var(--awkit-danger-soft);
   border: 1px solid var(--awkit-danger-muted);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-danger);
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 8px 10px;
 }
 
@@ -6350,14 +6662,14 @@ table {
 
 .recorder-handoff-session span {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .recorder-handoff-resuming {
   align-items: center;
   color: var(--awkit-success);
   display: inline-flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   gap: 6px;
 }
 
@@ -6407,7 +6719,7 @@ table {
 }
 
 .recorder-empty span {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .recorder-timeline {
@@ -6439,7 +6751,7 @@ table {
   border-radius: 999px;
   color: var(--awkit-text-secondary);
   display: inline-flex;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 800;
   height: 28px;
   justify-content: center;
@@ -6517,13 +6829,13 @@ table {
 
 .recorder-action-head strong {
   color: var(--awkit-text);
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .recorder-action-type,
 .recorder-action-badge {
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   padding: 2px 7px;
 }
@@ -6542,7 +6854,7 @@ table {
   color: var(--awkit-text-secondary);
   display: block;
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6550,16 +6862,16 @@ table {
 
 .recorder-wait-note {
   color: var(--awkit-accent);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .recorder-action-value {
   align-items: center;
   background: var(--awkit-lavender-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-accent);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   gap: 6px;
   max-width: 190px;
@@ -6584,9 +6896,9 @@ table {
 
 .recorder-save-result {
   align-items: flex-start;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   display: flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 8px;
   padding: 8px 10px;
 }
@@ -6690,7 +7002,7 @@ table {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--awkit-text);
 }
 
@@ -6742,7 +7054,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   border-radius: var(--radius-pill);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   gap: 5px;
   line-height: 1;
@@ -6814,12 +7126,12 @@ button.recorded-url-use:disabled {
   width: 36px;
 }
 .awkit-section-header h2 {
-  font-size: 18px;
+  font-size: var(--text-lg);
   margin: 0;
 }
 .awkit-section-header p {
   color: var(--awkit-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 4px 0 0;
 }
 .awkit-section-header-actions {
@@ -6849,7 +7161,7 @@ button.recorded-url-use:disabled {
   );
   background-size: 400% 100%;
   animation: awkit-shimmer 1.4s ease infinite;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
 }
 .awkit-skeleton-line {
   height: 12px;
@@ -6898,11 +7210,56 @@ button.recorded-url-use:disabled {
 }
 .awkit-empty-state-hint {
   color: var(--awkit-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   max-width: 46ch;
 }
 .awkit-empty-state-action {
   margin-top: 8px;
+}
+
+/* First-render delight (docs/ui-design-and-motion-direction.md §8 empty states, §7.4 stagger): a gentle
+   staggered rise of icon → headline → hint → CTA. Empty states are the "rare / first-time" tier that may
+   spend a little delight budget. Pure CSS + first mount only (the node is freshly mounted whenever the
+   empty state appears), 45ms/step within the stagger budget, and `both` fill so each child holds its
+   pre-enter opacity during its delay instead of flashing. Reduced motion removes it entirely below. */
+.awkit-empty-state-icon,
+.awkit-empty-state strong,
+.awkit-empty-state-hint,
+.awkit-empty-state-action {
+  animation: awkit-empty-rise var(--awkit-dur-med) var(--awkit-ease-out) both;
+}
+.awkit-empty-state-icon {
+  animation-delay: 0ms;
+}
+.awkit-empty-state strong {
+  animation-delay: 45ms;
+}
+.awkit-empty-state-hint {
+  animation-delay: 90ms;
+}
+.awkit-empty-state-action {
+  animation-delay: 135ms;
+}
+
+@keyframes awkit-empty-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Snap to the resting state — no stagger, no movement, no delayed opacity flash. */
+  .awkit-empty-state-icon,
+  .awkit-empty-state strong,
+  .awkit-empty-state-hint,
+  .awkit-empty-state-action {
+    animation: none;
+  }
 }
 
 /* TrendDelta */
@@ -6910,7 +7267,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   border-radius: var(--radius-pill);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 700;
   gap: 3px;
   padding: 2px 7px;
@@ -6932,16 +7289,14 @@ button.recorded-url-use:disabled {
    route id so it re-triggers on navigation); `.awkit-page-enter` remains available for opt-in use. */
 .awkit-page-enter,
 .main-surface-animated {
-  animation: awkit-page-enter var(--awkit-dur-med) var(--awkit-ease-out);
+  animation: awkit-page-enter var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 @keyframes awkit-page-enter {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -6968,7 +7323,7 @@ button.recorded-url-use:disabled {
   border: none;
   border-radius: var(--radius-pill);
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   padding: 5px 12px;
   transition: background var(--awkit-dur-fast) var(--awkit-ease-out), color var(--awkit-dur-fast) var(--awkit-ease-out);
@@ -7015,7 +7370,7 @@ button.recorded-url-use:disabled {
 
 .awkit-muted {
   color: var(--awkit-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .awkit-report-panel {
@@ -7033,7 +7388,60 @@ button.recorded-url-use:disabled {
 }
 .awkit-report-panel-head span {
   color: var(--awkit-text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
+}
+
+/* Runtime Observability & Historical Analytics — capacity/anomaly tables */
+.awkit-obs-tables {
+  display: grid;
+  gap: var(--space-4, 16px);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: var(--space-4, 16px);
+}
+.awkit-obs-table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  width: 100%;
+}
+.awkit-obs-table th,
+.awkit-obs-table td {
+  border-bottom: 1px solid var(--awkit-border);
+  padding: 8px 10px;
+  text-align: left;
+}
+.awkit-obs-table th {
+  color: var(--awkit-text-muted);
+  font-weight: 600;
+}
+.awkit-obs-table td {
+  color: var(--awkit-text);
+}
+.awkit-obs-env {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs, 11px);
+  font-style: italic;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
+.awkit-sev {
+  border-radius: var(--radius-pill, 999px);
+  display: inline-block;
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  padding: 2px 8px;
+  text-transform: capitalize;
+}
+.awkit-sev-info {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-info);
+}
+.awkit-sev-warning {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+.awkit-sev-critical {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
 }
 
 /* Workflow Reports — machine filters (B3) */
@@ -7051,7 +7459,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-filter-field > span {
   color: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -7061,7 +7469,7 @@ button.recorded-url-use:disabled {
   border: 1px solid var(--awkit-border);
   border-radius: var(--radius-md);
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   min-width: 132px;
   padding: 6px 10px;
 }
@@ -7075,7 +7483,7 @@ button.recorded-url-use:disabled {
   border-radius: var(--radius-md);
   color: var(--awkit-text-secondary);
   display: inline-flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   gap: 6px;
   height: 33px;
@@ -7101,7 +7509,7 @@ button.recorded-url-use:disabled {
 .awkit-wf-machine {
   color: var(--awkit-text-muted);
   display: block;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   margin-top: 2px;
 }
 .awkit-trend-up {
@@ -7125,7 +7533,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-delta-chip {
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   margin-left: 6px;
   padding: 1px 6px;
@@ -7173,7 +7581,7 @@ button.recorded-url-use:disabled {
   padding: 14px;
 }
 .awkit-compare-title {
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 .awkit-compare-stats {
   display: grid;
@@ -7188,11 +7596,11 @@ button.recorded-url-use:disabled {
 }
 .awkit-compare-stats dt {
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .awkit-compare-stats dd {
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   margin: 0;
 }
@@ -7222,7 +7630,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-bar-label {
   color: var(--awkit-text-secondary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7241,7 +7649,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-bar-value {
   color: var(--awkit-text);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   text-align: right;
 }
@@ -7251,12 +7659,12 @@ button.recorded-url-use:disabled {
 }
 .awkit-donut-center {
   fill: var(--awkit-text);
-  font-size: 22px;
+  font-size: var(--text-xl);
   font-weight: 700;
 }
 .awkit-donut-center-sub {
   fill: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 /* Report tables */
@@ -7277,7 +7685,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-table {
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-sm);
   width: 100%;
   /* Override the global `table { display: block }` (used for horizontally-scrolling wide tables) so
      width:100% actually stretches the columns to fill the card instead of shrinking to content. */
@@ -7287,7 +7695,7 @@ button.recorded-url-use:disabled {
   background: var(--awkit-surface-soft);
   border-bottom: 1px solid var(--awkit-border);
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   padding: 8px 10px;
@@ -7369,7 +7777,7 @@ button.recorded-url-use:disabled {
   gap: 6px;
 }
 .awkit-distribution-item strong {
-  font-size: 22px;
+  font-size: var(--text-xl);
 }
 
 /* Run-detail drawer */
@@ -7380,7 +7788,7 @@ button.recorded-url-use:disabled {
   z-index: var(--awkit-z-drawer);
 }
 .awkit-drawer {
-  animation: awkit-drawer-in var(--awkit-dur-med) var(--awkit-ease-out);
+  animation: awkit-drawer-in-nudge var(--awkit-dur-med) var(--awkit-ease-out);
   background: var(--awkit-surface);
   box-shadow: var(--awkit-shadow-float);
   display: flex;
@@ -7390,7 +7798,7 @@ button.recorded-url-use:disabled {
   max-width: 560px;
   width: 90%;
 }
-@keyframes awkit-drawer-in {
+@keyframes awkit-drawer-in-nudge {
   from {
     transform: translateX(24px);
     opacity: 0.4;
@@ -7412,7 +7820,7 @@ button.recorded-url-use:disabled {
   font-size: 15px;
 }
 .awkit-drawer-head .awkit-muted {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .awkit-drawer-body {
   display: flex;
@@ -7438,10 +7846,10 @@ button.recorded-url-use:disabled {
 }
 .awkit-detail-grid dt {
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .awkit-detail-grid dd {
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 600;
   margin: 2px 0 0;
 }
@@ -7449,13 +7857,13 @@ button.recorded-url-use:disabled {
   background: var(--awkit-danger-soft);
   border-radius: var(--radius-md);
   color: var(--awkit-danger);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin-top: 12px;
   padding: 10px 12px;
   word-break: break-word;
 }
 .awkit-detail-section h3 {
-  font-size: 14px;
+  font-size: var(--text-base);
   margin: 0 0 10px;
 }
 .awkit-artifact-list {
@@ -7473,8 +7881,8 @@ button.recorded-url-use:disabled {
 }
 .awkit-artifact-kind {
   background: var(--awkit-surface-inset);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
   padding: 2px 8px;
 }
 
@@ -7507,7 +7915,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   color: var(--awkit-text-muted);
   display: flex;
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-weight: 600;
   justify-content: space-between;
 }
@@ -7530,11 +7938,11 @@ button.recorded-url-use:disabled {
 }
 .awkit-gauge-unit {
   fill: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 .awkit-gauge-caption {
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin: 0;
   text-align: center;
 }
@@ -7552,10 +7960,10 @@ button.recorded-url-use:disabled {
 }
 .awkit-availability-notice strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .awkit-availability-notice .awkit-muted {
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .awkit-availability-notice.awkit-backpressure {
   background: var(--awkit-danger-soft);
@@ -7580,10 +7988,10 @@ button.recorded-url-use:disabled {
 }
 .awkit-process-stats span {
   color: var(--awkit-text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .awkit-process-stats strong {
-  font-size: 18px;
+  font-size: var(--text-lg);
 }
 
 /* Consumption timeline */
@@ -7598,7 +8006,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-timeline-axis {
   fill: var(--awkit-text-muted);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 .awkit-timeline-legend {
   display: flex;
@@ -7609,7 +8017,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   color: var(--awkit-text-secondary);
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 6px;
 }
 .awkit-timeline-legend i {
@@ -7620,7 +8028,7 @@ button.recorded-url-use:disabled {
 }
 .awkit-timeline-legend strong {
   color: var(--awkit-text);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* Failure + server analytics */
@@ -7641,7 +8049,7 @@ button.recorded-url-use:disabled {
   padding-left: 18px;
 }
 .awkit-insights li {
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 .awkit-failure-grid {
   display: grid;
@@ -7693,10 +8101,8 @@ button.recorded-url-use:disabled {
   box-shadow: var(--awkit-shadow-node-hover);
 }
 
-.modal-overlay {
-  animation: awkit-fade-in var(--awkit-dur-fast) var(--awkit-ease-out);
-}
-
+/* .modal-overlay entrance is defined with the base .modal-overlay block above; the child pop-in
+   stays here next to its keyframes. */
 .modal-overlay > * {
   animation: awkit-pop-in var(--awkit-dur-med) var(--awkit-ease-out);
 }
@@ -7734,7 +8140,11 @@ button.recorded-url-use:disabled {
 
 .metric-card:hover {
   box-shadow: var(--awkit-shadow-float);
-  transform: translateY(-2px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .metric-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .toolbar-button.primary {
@@ -7747,7 +8157,7 @@ button.recorded-url-use:disabled {
 :focus-visible {
   outline: none;
   box-shadow: var(--awkit-focus-ring);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
 }
 
 ::selection {
@@ -7800,7 +8210,7 @@ button.recorded-url-use:disabled {
   --awkit-connector-parallel: #0ea5a4;
 
   --awkit-drawer-width: 440px;
-  --awkit-motion-panel: 240ms;
+  --awkit-motion-panel: var(--awkit-dur-panel);
 }
 
 [data-theme="dark"] {
@@ -7837,6 +8247,10 @@ button.recorded-url-use:disabled {
 .designer-layout.has-right-panel .flow-designer-body {
   box-sizing: border-box;
   padding-right: calc(var(--awkit-active-drawer-width) + var(--space-3));
+  /* Glide the canvas inset when the inspector opens/collapses (docs §9.1) instead of snapping — the
+     --awkit-active-drawer-width var isn't itself animatable, but the resolved padding length is.
+     Excluded from the reduced-motion transition allow-list, so it snaps there. */
+  transition: padding-right var(--awkit-dur-panel) var(--awkit-ease-in-out);
 }
 
 /* The canvas no longer has a properties column to its right, so drop the divider. */
@@ -7853,6 +8267,9 @@ button.recorded-url-use:disabled {
   top: 0;
   width: var(--awkit-active-drawer-width);
   z-index: var(--awkit-z-drawer);
+  /* Match the canvas inset glide (docs §9.1): the floating inspector's width eases in step with the
+     canvas padding-right so open/collapse reads as one motion, not two snaps. */
+  transition: width var(--awkit-dur-panel) var(--awkit-ease-in-out);
 }
 
 /* Flush designer pages (Flow Designer, Workflow Designer) render an in-canvas action bar in the
@@ -7911,10 +8328,10 @@ button.recorded-url-use:disabled {
   max-height: 100%;
   overflow: hidden;
   padding: 0;
-  animation: awkit-drawer-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
+  animation: awkit-config-drawer-in var(--awkit-motion-panel) var(--awkit-ease-out) both;
 }
 
-@keyframes awkit-drawer-in {
+@keyframes awkit-config-drawer-in {
   from {
     opacity: 0;
     transform: translateX(16px) scale(0.99);
@@ -7949,7 +8366,7 @@ button.recorded-url-use:disabled {
   color: var(--awkit-accent);
   display: flex;
   flex: 0 0 auto;
-  font-size: 18px;
+  font-size: var(--text-lg);
   height: 38px;
   justify-content: center;
   width: 38px;
@@ -8063,7 +8480,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   color: var(--awkit-text-secondary);
   display: flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   gap: 6px;
   min-width: 0;
 }
@@ -8087,7 +8504,7 @@ button.recorded-url-use:disabled {
 
 .action-node-title {
   color: var(--awkit-text);
-  font-size: 14px;
+  font-size: var(--text-base);
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8096,7 +8513,7 @@ button.recorded-url-use:disabled {
 
 .action-node-description {
   color: var(--awkit-text-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -8162,24 +8579,12 @@ button.recorded-url-use:disabled {
   stroke-width: 2.5px;
 }
 
-/* Auto-layout glide (Workflow/FlowForge parity — docs/plan-workflow-visual-parity.md, Phase 1).
-   The canvas page adds `flow-animating` to the ReactFlow root for ~350ms around a programmatic
-   layout change (auto-arrange / load), so nodes and edges glide to their new positions instead
-   of snapping. Honors reduced-motion via the global media query below. */
-.flow-animating .react-flow__node {
-  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.flow-animating .react-flow__edge-path {
-  transition: d 350ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 .template-edge-label {
   background: var(--awkit-surface);
   border: 1px solid var(--awkit-border);
   border-radius: 999px;
   color: var(--awkit-text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   padding: 2px 9px;
   pointer-events: all;
@@ -8247,13 +8652,6 @@ button.recorded-url-use:disabled {
   animation: awkit-fade-in var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
-/* Button press feedback (FR-5.7). Toolbar/icon buttons live outside the canvas, so a tiny
-   translate is safe here; neutralized under reduced motion. */
-.toolbar-button:active,
-.icon-button:active {
-  transform: translateY(1px);
-}
-
 /* --- Bottom-center zoom pill buttons -------------------------------------- */
 .canvas-zoom-button {
   align-items: center;
@@ -8273,7 +8671,11 @@ button.recorded-url-use:disabled {
 
 .canvas-zoom-button:hover {
   background: var(--awkit-neutral-soft);
-  transform: translateY(-1px);
+}
+@media (hover: hover) and (pointer: fine) {
+  .canvas-zoom-button:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .canvas-zoom-button.zoom-value {
@@ -8446,10 +8848,38 @@ button.recorded-url-use:disabled {
   *,
   *::before,
   *::after {
+    /* Reduced motion = fewer/gentler, not none: movement snaps (transform/left/top/width/height are
+       NOT in the allow-list), while opacity/color/shadow fades that aid comprehension are preserved. */
+    transition-property: opacity, color, background-color, border-color, box-shadow, fill, stroke !important;
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Glass a11y fallbacks (§10): solidify the translucent canvas chrome for users who reduce transparency
+   or raise contrast — drop the blur, restore an opaque surface, firm the border. Scoped to the two
+   glassed floating surfaces only (never tables / forms / the properties inspector). */
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-item-picker {
+    background: var(--awkit-surface-raised);
+  }
+  .canvas-zoom-control {
+    background: var(--awkit-surface);
+  }
+  .canvas-item-picker,
+  .canvas-zoom-control {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .canvas-item-picker,
+  .canvas-zoom-control {
+    background: var(--awkit-surface);
+    border-color: var(--awkit-border-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -8480,7 +8910,7 @@ button.recorded-url-use:disabled {
 }
 
 .scenario-properties-panel {
-  animation: awkit-drawer-in var(--awkit-motion-slow) var(--awkit-motion-ease) both;
+  animation: awkit-side-panel-in var(--awkit-motion-slow) var(--awkit-motion-ease) both;
   background: var(--awkit-surface);
   border: 0;
   border-left: 1px solid var(--awkit-border);
@@ -8499,7 +8929,7 @@ button.recorded-url-use:disabled {
   display: none;
 }
 
-@keyframes awkit-drawer-in {
+@keyframes awkit-side-panel-in {
   from { opacity: 0.6; transform: translateX(100%); }
   to { opacity: 1; transform: translateX(0); }
 }
@@ -8526,7 +8956,8 @@ button.recorded-url-use:disabled {
 
 .modal-dialog-connect .modal-header h2 {
   align-self: center;
-  font-size: 1.5rem;
+  font-size: var(--text-xl); /* was 1.5rem/24px → nearest step (22px) */
+  letter-spacing: var(--tracking-xl); /* optical tightening for large text (§6.1) */
 }
 
 .modal-dialog-connect .modal-icon.connect {
@@ -8542,8 +8973,8 @@ button.recorded-url-use:disabled {
 }
 
 .modal-dialog-connect .modal-body {
-  font-size: 1.125rem;
-  line-height: 1.45;
+  font-size: var(--text-lg);
+  line-height: var(--leading-md); /* body copy keeps looser 1.45 leading than --text-lg's title default */
 }
 
 .modal-dialog-connect .modal-actions {
@@ -8552,13 +8983,17 @@ button.recorded-url-use:disabled {
 }
 
 .modal-dialog-connect .modal-actions .toolbar-button {
-  font-size: 1rem;
+  font-size: var(--text-md);
   min-height: calc(var(--space-5) * 2);
   padding-inline: var(--space-5);
 }
 
 .canvas-item-picker {
-  background: var(--awkit-surface-raised);
+  /* Glass: this contextual node palette floats over the canvas (§6.6, §9.5). Solid fallbacks under
+     prefers-reduced-transparency / prefers-contrast below. */
+  background: var(--awkit-glass);
+  backdrop-filter: var(--awkit-glass-blur);
+  -webkit-backdrop-filter: var(--awkit-glass-blur);
   border: 1px solid var(--awkit-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--awkit-shadow-node-hover);
@@ -8587,20 +9022,20 @@ button.recorded-url-use:disabled {
 .canvas-item-picker-header span,
 .canvas-picker-scroll h3 {
   color: var(--awkit-text-muted);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.08em; /* uppercase label tracking — kept over the scale's --tracking-2xs */
   text-transform: uppercase;
 }
 
 .canvas-item-picker-header strong {
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 
 .canvas-picker-search {
   align-items: center;
   border: 1px solid var(--awkit-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   display: flex;
   gap: var(--space-2);
   margin: 0 var(--space-3) var(--space-2);
@@ -8635,7 +9070,7 @@ button.recorded-url-use:disabled {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text);
   display: flex;
   gap: var(--space-3);
@@ -8662,13 +9097,13 @@ button.recorded-url-use:disabled {
   white-space: nowrap;
 }
 
-.canvas-picker-scroll section > button strong { font-size: 14px; }
-.canvas-picker-scroll section > button small { color: var(--awkit-text-muted); font-size: 12px; }
+.canvas-picker-scroll section > button strong { font-size: var(--text-base); }
+.canvas-picker-scroll section > button small { color: var(--awkit-text-muted); font-size: var(--text-xs); }
 
 .canvas-picker-icon {
   align-items: center;
   background: var(--awkit-accent-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-accent);
   display: flex;
   flex: 0 0 36px;
@@ -8687,7 +9122,7 @@ button.recorded-url-use:disabled {
   border-top: 1px solid var(--awkit-border);
   color: var(--awkit-text-muted);
   display: flex;
-  font-size: 12px;
+  font-size: var(--text-xs);
   justify-content: space-between;
   padding: var(--space-3);
 }
@@ -8726,7 +9161,14 @@ button.recorded-url-use:disabled {
 .node-append-affordance > button:hover,
 .node-append-affordance > button:focus-visible {
   background: var(--awkit-accent-hover);
+}
+.node-append-affordance > button:focus-visible {
   transform: scale(1.08);
+}
+@media (hover: hover) and (pointer: fine) {
+  .node-append-affordance > button:hover {
+    transform: scale(1.08);
+  }
 }
 
 .scenario-flow-node.start,
@@ -8756,10 +9198,10 @@ button.recorded-url-use:disabled {
   align-items: center;
   background: transparent;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--awkit-text-muted);
   display: grid;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   gap: var(--space-2);
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -8788,7 +9230,7 @@ button.recorded-url-use:disabled {
   grid-template-rows: 0fr;
   opacity: 0;
   overflow: hidden;
-  transition: grid-template-rows 220ms var(--awkit-ease-out, ease), opacity 200ms ease;
+  transition: grid-template-rows var(--awkit-dur-panel) var(--awkit-ease-in-out), opacity var(--awkit-dur-med) var(--awkit-ease-out);
 }
 .nav-group-items.open { grid-template-rows: 1fr; opacity: 1; }
 .nav-group-items-inner { min-height: 0; overflow: hidden; }
@@ -8824,6 +9266,29 @@ button.recorded-url-use:disabled {
 }
 .awkit-flow-node {
   pointer-events: auto;
+}
+
+/* Deleted-node exit (docs/ui-design-and-motion-direction.md §9.2): a removed node lingers ~150ms as a
+   non-interactive "ghost" that fades + scales down instead of teleporting. The animation runs on the
+   ghost's mount (a fresh keyed element can't play a transition, so use a keyframe). Scale/opacity live
+   on the node's CHILD so the outer's translate3d positioning transform is never disturbed; live nodes
+   and 1:1 drag stay animation-free. `forwards` holds the end frame until React unmounts it. */
+.awkit-flow-node.is-exiting {
+  pointer-events: none;
+}
+.awkit-flow-node.is-exiting > * {
+  animation: awkit-node-exit var(--awkit-dur-fast) var(--awkit-ease-out) forwards;
+  transform-origin: center;
+}
+@keyframes awkit-node-exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 
 /* Edges */
@@ -8865,7 +9330,7 @@ button.recorded-url-use:disabled {
   color: var(--awkit-text-muted);
   border-radius: 6px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 500;
   white-space: nowrap;
   user-select: none;
@@ -8892,11 +9357,18 @@ button.recorded-url-use:disabled {
 }
 .awkit-edge-add:hover,
 .awkit-edge-add:focus-visible {
-  transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.12);
   background: var(--awkit-accent);
   border-color: var(--awkit-accent);
   color: var(--awkit-accent-contrast);
   outline: none;
+}
+.awkit-edge-add:focus-visible {
+  transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.12);
+}
+@media (hover: hover) and (pointer: fine) {
+  .awkit-edge-add:hover {
+    transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.12);
+  }
 }
 
 /* Node card (flowforge ServiceNode look, translated to plain CSS) */
@@ -8914,8 +9386,12 @@ button.recorded-url-use:disabled {
     transform var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
 }
 .awkit-step-node:hover {
-  transform: translateY(-1px);
   box-shadow: var(--awkit-shadow-card), 0 6px 16px rgba(var(--awkit-shadow-rgb, 32, 23, 47), 0.1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .awkit-step-node:hover {
+    transform: translateY(-1px);
+  }
 }
 .awkit-step-node.is-selected {
   border-color: var(--awkit-accent);
@@ -8955,7 +9431,7 @@ button.recorded-url-use:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 500;
   color: var(--awkit-text-muted);
 }
@@ -9054,9 +9530,10 @@ button.recorded-url-use:disabled {
   outline: none;
 }
 
-/* Programmatic layout glide (auto-arrange / load) */
+/* Programmatic layout glide (auto-arrange / load) — transform-only, GPU-composited */
 .awkit-flow-canvas.flow-animating .awkit-flow-node {
-  transition: left 350ms cubic-bezier(0.22, 1, 0.36, 1), top 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--awkit-dur-slow) var(--awkit-ease-in-out);
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

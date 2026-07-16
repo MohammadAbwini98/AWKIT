@@ -4,6 +4,65 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Confirmed (observed during development)
 
+- **Soak-benchmark accounting bugs — FIXED (2026-07-16), not observability defects.** In
+  `scripts/benchmark-engine-soak.mts`: (1) the run-summary invariant compared `runObsSummaries` (all terminal
+  runs) against `durableTerminalRuns = completed + failed` read **pre-teardown** — omitting the `cancelled`
+  runs that `stopAll()` finalizes at teardown, so a healthy soak reported a spurious `runSummaries MISMATCH`.
+  Now recomputed post-teardown incl. `cancelled` (verified: `4666 == 4666`, and a 40 s re-run `203/203 MATCH`).
+  (2) A single NaN event-loop-delay sample (a `monitorEventLoopDelay` window with no events → `.mean` is NaN)
+  poisoned `Math.max(...series)` → `peak=NaN`; now a NaN-safe `peakOf()` (corrected 30-min peak 44.5 ms). The
+  run-summary finalization and leak-free teardown were always correct — only the harness's derived display was wrong.
+- **Packaged-EXE observability-UI validation is a remaining release gate (2026-07-16).** The shippable `dist/`
+  EXE is from 2026-07-07 — **before** the (uncommitted) observability work — so it lacks the Runtime Analytics
+  observability panels; and a fresh `electron-builder` package OOMs on this 16 GB host (see the `-mx=9` note
+  below). Final Phase 5 UI validation therefore used `_electron.launch` on the **current-code dev build**
+  (`out/`, the production renderer bundle) with a seeded `LOCALAPPDATA` — the strongest available local method
+  (`verify:runtime-analytics-gui` 36/36). Re-package on a higher-memory host and re-run the walkthrough against
+  the actual EXE before declaring `PRODUCTION-READY`. Seed fixtures with `seed:observability-fixtures`.
+- **Observability query latency is aggregation-bound, not sub-ms (2026-07-16).** Measured
+  (`benchmark:observability-storage`): run-aggregating analytics (overview, workflow summary, capacity
+  analytics, rankings, run-history deep page) are **tens-to-~500 ms P95** at 5k–50k runs — acceptable for the
+  async/windowed page but the earlier "sub-millisecond" claim was wrong. Cost is JS aggregation over the
+  window, not missing indexes (EXPLAIN confirms index use); do **not** add speculative indexes. Storage is
+  ~3 MB/day uncapped (not ~1 MB/day), bounded in steady state by retention.
+- **Shared pool over-launched browsers under concurrent dispatch — check-then-act race, FIXED (2026-07-15).**
+  `SharedBrowserPool.selectOrLaunch` read the per-key browser count, then `await`ed `launch()` *before*
+  registering the record, so N contexts acquired at once each saw "under cap" and launched their own browser
+  (`maxBrowsers=2, concurrency=6` → **6** browsers, 1 launch key). The per-context-factory benchmark never hit
+  it (contexts created serially); only the real concurrent `ExecutionEngine` dispatch path exposed it. Fixed
+  by reserving the browser+context slot **atomically under the pool mutex** and creating the context outside
+  the lock (rollback on failure). Peak browsers 6 → 2. Guarded by a regression test in
+  `verify:shared-browser-pool` (delayed launch, 8 concurrent acquisitions, cap holds). Lesson: any
+  read-count-then-await-launch pool logic must reserve the slot before releasing the mutex.
+- **Playwright 1.61 `Browser` exposes no `process()` — per-browser PID attribution unavailable (2026-07-15).**
+  Only `BrowserServer` and `ElectronApplication` declare `process(): ChildProcess`; a locally-launched
+  `chromium.launch()` `Browser` has `typeof browser.process === "undefined"` at runtime (verified). So
+  `SharedBrowserPool.browserRoots()` is always empty and **memory-based browser recycling (`browserRecycleMemoryMb`)
+  ships wired but inert** — `BrowserProcessSampler` and the drain lifecycle are complete and unit-tested, but
+  never fire without a root PID. It would activate unchanged if a launch path surfaced the PID (remote
+  `launchServer()`+`connect`, or a future Playwright). Do not claim recycling is proven end-to-end on this stack.
+  The pool's `closeReasons` telemetry confirms it: `MEMORY_THRESHOLD` is always 0; browser relaunches are
+  `CONTEXT_COUNT_RECYCLE` (after `browserRecycleAfterContexts`) + `IDLE_DRAIN`/`POOL_SHUTDOWN`. Do NOT describe
+  those (or falling Chromium RSS from them) as "memory-based recycling".
+- **Shared pool + A8 weighted admission now default ON (2026-07-15).** `ConcurrencyConfig.ts` ships
+  `useSharedBrowserPool: true`, and `workloadWeights` defaults to the resolved pool state (never on without the
+  pool — Config C measured harmful). Integration verifiers now exercise the shared path by default. Turn off
+  with `AWKIT_SHARED_BROWSER_POOL=0`; explicit `AWKIT_WORKLOAD_WEIGHTS` overrides either way. Not yet validated
+  on a clean packaged machine or lower-spec hardware — flag as a release-gate risk.
+- **Playwright headless Chromium runs as `chrome-headless-shell.exe`, NOT `chrome.exe` (2026-07-15).** Any
+  process-tree / consumption sampling that filters by image name must include it. `ProcessTreeSampler`
+  (`CHROMIUM_IMAGE_NAMES`) was missing it → the Chrome Consumption dashboard undercounted headless instances
+  (each is 4+ helper processes). Fixed. AWKIT's default run is HEADED (`execution.ipc` `headless = request.headless ?? false`),
+  so this only affected headless runs. The benchmark harness matches `Name LIKE '%chrom%'` to be safe.
+- **Playwright keeps automated pages `visibilityState: visible`, so Chromium background throttling never
+  engages (2026-07-15).** The 20-rep occlusion benchmark (`scripts/benchmark-occlusion.mts`) proved that
+  re-enabling `--disable-background-timer-throttling` / `--disable-backgrounding-occluded-windows` /
+  `--disable-renderer-backgrounding` (via selective `ignoreDefaultArgs`) yields NO CPU saving for AWKIT
+  instances — even a genuinely minimized window + background tab reports `pageHidden 0%`, so page timers stay
+  full-rate. Minimizing already stops the compositor (rAF 60→1/s), flooring CPU at ~1.5% in the current
+  default. Trap for anyone trying to cut idle CPU via throttling: it does nothing here. (Background throttling
+  was removed from the low-resource profile for this reason; kept in `custom` only.)
+
 - **RESOLVED & ROOT-CAUSED (2026-07-11): ordinary run completions falsely tripped "browser crash rate
   high — pausing new dispatch", stranding the queue.** Symptom (from a 50-instance run): backpressure
   engaged with `Crashes 5`, `Browsers 0/2`, ~46 instances frozen `Pending`, while the host was idle

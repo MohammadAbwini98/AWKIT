@@ -156,6 +156,30 @@ async function main() {
     check("empty category rules → safe custom fallback", cat.name === "custom" && cat.requiresBenchmarkBeforeHighConcurrency === true);
   }
 
+  // 16. Reserve model (re-evaluated): a large machine with substantial FREE memory is never zeroed out by
+  //     total-based reserves. 128 GB with ~20 GB genuinely available must yield real usable memory (the old
+  //     %-of-total OS+safety reserves exceeded available here → usable 0 → capacity 1, which was the defect).
+  {
+    const r = plan(caps(32, 128, 20), "medium");
+    check("big machine + 20 GB free → usable memory not zeroed", r.usableMemoryMb > 8000, `usableMb=${r.usableMemoryMb}`);
+    check("big machine + 20 GB free → memory estimate well above 1", r.memoryCapacityEstimate >= 10, `memEst=${r.memoryCapacityEstimate}`);
+  }
+
+  // 17. Usable planning memory never exceeds what is actually available (OS ceiling can't inflate it).
+  {
+    for (const m of [caps(4, 4, 3.8), caps(8, 16, 15), caps(32, 128, 120)]) {
+      const r = plan(m, "medium");
+      check(`usable ≤ available (${m.totalMemoryMb}MB/${m.availableMemoryMb}MB free)`, r.usableMemoryMb <= m.availableMemoryMb, `usableMb=${r.usableMemoryMb} availMb=${m.availableMemoryMb}`);
+    }
+  }
+
+  // 18. Small/pressured machines stay protective under the new model (floor near 1, never over-admit).
+  {
+    const tiny = plan(caps(2, 4, 1.5), "medium").conservativeRecommendedCapacity;   // 4 GB, 1.5 GB free
+    const pressured = plan(caps(8, 16, 2.9), "medium").conservativeRecommendedCapacity; // 16 GB under pressure
+    check("tiny/pressured machines remain conservative (≤ 2)", tiny <= 2 && pressured <= 2, `tiny=${tiny} pressured=${pressured}`);
+  }
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\nCapacity planner: ${passed}/${results.length} checks passed`);
   process.exit(passed === results.length ? 0 : 1);

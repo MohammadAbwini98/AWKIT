@@ -121,7 +121,9 @@ export type ValueSourceType =
   | "flowOutput"
   | "generated"
   | "currentRow"
-  | "instanceVariable";
+  | "instanceVariable"
+  /** Named secret resolved at run time from the encrypted local secret store (never stored in JSON). */
+  | "secret";
 
 /** How a dynamic value resolves the object id within its data source. */
 export type DynamicIdMode = "explicit" | "instanceOrder";
@@ -146,6 +148,8 @@ export interface ValueSource {
   flowId?: string;
   outputKey?: string;
   generator?: "uuid" | "timestamp" | "randomEmail" | "randomNumber";
+  /** Name of a stored secret (used when `type === "secret"`). */
+  secretName?: string;
 }
 
 export type WaitHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

@@ -40,10 +40,11 @@ export interface ConcurrencyLimits {
   /** Resource sampler interval. */
   resourceSampleIntervalMs: number;
   /**
-   * Phase A5 (experimental, default OFF): route shared-eligible instances (browserContext isolation,
-   * no session-swap nodes) through a shared Chromium pool so many isolated contexts share a few browser
-   * processes instead of one process per instance. Persistent/Reuse-Session/protected-login instances
-   * always keep their own dedicated browser. Toggle via AWKIT_SHARED_BROWSER_POOL.
+   * Phase A5 (default ON since the real-ExecutionEngine capacity benchmark): route shared-eligible
+   * instances (browserContext isolation, no session-swap nodes) through a shared Chromium pool so many
+   * isolated contexts share a few browser processes instead of one process per instance. Persistent/
+   * Reuse-Session/protected-login instances always keep their own dedicated browser. An operator can turn
+   * it OFF with AWKIT_SHARED_BROWSER_POOL=0 (or false/no/off).
    */
   useSharedBrowserPool: boolean;
   /** Hard cap on contexts per shared browser — always enforced for crash isolation. */
@@ -83,10 +84,13 @@ export interface ConcurrencyLimits {
   adaptivePressureEventLoopMs: number;
   adaptiveCriticalEventLoopMs: number;
   /**
-   * Phase A8 (experimental, default OFF): admit new dispatch against a WEIGHTED cost budget instead of a
-   * raw active-flow count. Heavier instances (persistent profiles, headed, downloads, parallel branches,
-   * trace/video, …) consume more of the budget, so two heavy flows can weigh as much as several light
-   * ones. Flag-off preserves today's exact count-based admission. Toggle via AWKIT_WORKLOAD_WEIGHTS.
+   * Phase A8: admit new dispatch against a WEIGHTED cost budget instead of a raw active-flow count.
+   * Heavier instances (persistent profiles, headed, downloads, parallel branches, trace/video, …) consume
+   * more of the budget, so two heavy flows can weigh as much as several light ones. Weighted admission is
+   * **strictly dependent on the Shared Browser Pool**: the benchmark measured it beneficial only WITH the
+   * pool (Config D) and net-harmful without it (Config C), so it can never resolve ON while the pool is
+   * OFF — not by default and not even when explicitly requested (see `resolveWeightedAdmission`). When the
+   * pool is ON it defaults to ON; an explicit AWKIT_WORKLOAD_WEIGHTS=false still turns it off.
    */
   workloadWeights: boolean;
   /** Weighted budget per configured active flow (budget = maxActiveFlows × this). 1.0 == base cost. */
@@ -112,7 +116,7 @@ const DEFAULTS: ConcurrencyLimits = {
   maxProcessMemoryMb: 2048,
   maxCpuPercent: 85,
   resourceSampleIntervalMs: 2000,
-  useSharedBrowserPool: false,
+  useSharedBrowserPool: true,
   maxContextsPerBrowserHardLimit: 8,
   browserRecycleAfterContexts: 50,
   browserRecycleMemoryMb: 2500,
@@ -132,9 +136,53 @@ const DEFAULTS: ConcurrencyLimits = {
   adaptiveCriticalMemoryPercent: 92,
   adaptivePressureEventLoopMs: 200,
   adaptiveCriticalEventLoopMs: 500,
-  workloadWeights: false,
+  workloadWeights: true, // resolved as "follow the shared pool, never ON while pool OFF" (see below)
   workloadWeightBudgetPerFlow: 1.0
 };
+
+/**
+ * The single searchable diagnostic emitted when an operator explicitly requests weighted admission while
+ * the Shared Browser Pool is disabled. Exported so tests/tools can match on the exact wording.
+ */
+export const WEIGHTED_ADMISSION_REQUIRES_POOL_DIAGNOSTIC =
+  "AWKIT_WORKLOAD_WEIGHTS=true ignored because Shared Browser Pool is disabled. Weighted admission requires Shared Browser Pool.";
+
+export interface WeightedAdmissionResolution {
+  /** Effective weighted-admission state after enforcing the pool dependency. */
+  workloadWeights: boolean;
+  /** Set only when an explicit request was overridden (so the caller can warn once). */
+  diagnostic?: string;
+}
+
+/**
+ * Enforce the Shared Browser Pool → A8 weighted-admission dependency. Weighted admission is only ever
+ * beneficial WITH the pool (Config D); running it without the pool (Config C) measured net-harmful. So
+ * weights can NEVER resolve ON while the pool is OFF — even when explicitly requested. When the operator
+ * explicitly asked for weights while the pool is off, the request is forced OFF and a single searchable
+ * diagnostic is returned (no startup error, no silent Config C). This is the one authoritative rule; both
+ * env resolution and programmatic overrides pass through it.
+ */
+export function resolveWeightedAdmission(input: {
+  useSharedBrowserPool: boolean;
+  requestedWeights: boolean;
+  weightsExplicit: boolean;
+}): WeightedAdmissionResolution {
+  if (!input.useSharedBrowserPool && input.requestedWeights) {
+    return {
+      workloadWeights: false,
+      diagnostic: input.weightsExplicit ? WEIGHTED_ADMISSION_REQUIRES_POOL_DIAGNOSTIC : undefined
+    };
+  }
+  return { workloadWeights: input.requestedWeights };
+}
+
+/** Process-once dedupe for the pool/weights diagnostic (loadConcurrencyLimits runs from many modules). */
+const emittedDiagnostics = new Set<string>();
+function emitWeightedAdmissionDiagnostic(message: string): void {
+  if (emittedDiagnostics.has(message)) return;
+  emittedDiagnostics.add(message);
+  console.warn(`[concurrency] ${message}`);
+}
 
 function envInt(name: string, fallback: number, min = 1): number {
   const raw = process.env[name];
@@ -157,7 +205,16 @@ function envBool(name: string, fallback: boolean): boolean {
 }
 
 export function loadConcurrencyLimits(overrides: Partial<ConcurrencyLimits> = {}): ConcurrencyLimits {
-  return {
+  // Resolve the shared pool first; A8 weighted admission then DEFAULTS to the pool's state when its own
+  // env var is unspecified. Enabling weights while the pool is OFF (Config C) measured net-harmful, so the
+  // Shared Pool → A8 dependency is enforced below (resolveWeightedAdmission): weights can never resolve ON
+  // while the pool is OFF — not by default and not even when explicitly requested. An explicit
+  // AWKIT_WORKLOAD_WEIGHTS=false is still honoured while the pool is ON.
+  const useSharedBrowserPool = envBool("AWKIT_SHARED_BROWSER_POOL", DEFAULTS.useSharedBrowserPool);
+  const weightsRaw = process.env.AWKIT_WORKLOAD_WEIGHTS;
+  const weightsExplicitEnv = weightsRaw !== undefined && weightsRaw !== "";
+  const requestedWeights = envBool("AWKIT_WORKLOAD_WEIGHTS", useSharedBrowserPool);
+  const merged: ConcurrencyLimits = {
     maxBrowsersPerHost: envInt("AWKIT_MAX_BROWSERS", DEFAULTS.maxBrowsersPerHost),
     maxContextsPerBrowser: envInt("AWKIT_MAX_CONTEXTS_PER_BROWSER", DEFAULTS.maxContextsPerBrowser),
     maxPagesPerContext: envInt("AWKIT_MAX_PAGES_PER_CONTEXT", DEFAULTS.maxPagesPerContext),
@@ -176,7 +233,7 @@ export function loadConcurrencyLimits(overrides: Partial<ConcurrencyLimits> = {}
     maxProcessMemoryMb: envInt("AWKIT_MAX_PROCESS_MEMORY_MB", DEFAULTS.maxProcessMemoryMb, 64),
     maxCpuPercent: envInt("AWKIT_MAX_CPU_PERCENT", DEFAULTS.maxCpuPercent, 1),
     resourceSampleIntervalMs: envInt("AWKIT_RESOURCE_SAMPLE_INTERVAL_MS", DEFAULTS.resourceSampleIntervalMs, 250),
-    useSharedBrowserPool: envBool("AWKIT_SHARED_BROWSER_POOL", DEFAULTS.useSharedBrowserPool),
+    useSharedBrowserPool,
     maxContextsPerBrowserHardLimit: envInt("AWKIT_MAX_CONTEXTS_PER_BROWSER_HARD_LIMIT", DEFAULTS.maxContextsPerBrowserHardLimit),
     browserRecycleAfterContexts: envInt("AWKIT_BROWSER_RECYCLE_AFTER_CONTEXTS", DEFAULTS.browserRecycleAfterContexts),
     browserRecycleMemoryMb: envInt("AWKIT_BROWSER_RECYCLE_MEMORY_MB", DEFAULTS.browserRecycleMemoryMb),
@@ -196,10 +253,22 @@ export function loadConcurrencyLimits(overrides: Partial<ConcurrencyLimits> = {}
     adaptiveCriticalMemoryPercent: envInt("AWKIT_ADAPTIVE_CRITICAL_MEMORY_PERCENT", DEFAULTS.adaptiveCriticalMemoryPercent, 1),
     adaptivePressureEventLoopMs: envInt("AWKIT_ADAPTIVE_PRESSURE_EVENT_LOOP_MS", DEFAULTS.adaptivePressureEventLoopMs, 1),
     adaptiveCriticalEventLoopMs: envInt("AWKIT_ADAPTIVE_CRITICAL_EVENT_LOOP_MS", DEFAULTS.adaptiveCriticalEventLoopMs, 1),
-    workloadWeights: envBool("AWKIT_WORKLOAD_WEIGHTS", DEFAULTS.workloadWeights),
+    workloadWeights: requestedWeights,
     workloadWeightBudgetPerFlow: envFloat("AWKIT_WORKLOAD_WEIGHT_BUDGET_PER_FLOW", DEFAULTS.workloadWeightBudgetPerFlow, 0.1),
     ...overrides
   };
+
+  // Enforce the Shared Pool → A8 dependency on the FINAL resolved values (env AND any programmatic
+  // overrides): weighted admission may never resolve ON while the pool is OFF. One authoritative path.
+  const weightsExplicit = weightsExplicitEnv || overrides.workloadWeights !== undefined;
+  const resolution = resolveWeightedAdmission({
+    useSharedBrowserPool: merged.useSharedBrowserPool,
+    requestedWeights: merged.workloadWeights,
+    weightsExplicit
+  });
+  merged.workloadWeights = resolution.workloadWeights;
+  if (resolution.diagnostic) emitWeightedAdmissionDiagnostic(resolution.diagnostic);
+  return merged;
 }
 
 /**

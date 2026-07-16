@@ -157,8 +157,12 @@ try {
   }
 
   // --- 3. New workflows use the structural Start -> End scaffold and contextual picker ---
+  // "New" now prompts for a workflow name (points 6/7), then creates + loads that workflow.
   await win.click("#sb-new");
-  await win.waitForTimeout(400);
+  await win.waitForTimeout(300);
+  await win.fill('.modal-dialog input[type="text"]', `GUI New ${Date.now().toString(36)}`).catch(() => {});
+  await win.click('.modal-dialog button[type="submit"]').catch(() => {});
+  await win.waitForTimeout(600);
   const scaffold = await win.evaluate(() => ({
     starts: document.querySelectorAll(".scenario-flow-node.start").length,
     ends: document.querySelectorAll(".scenario-flow-node.end").length,

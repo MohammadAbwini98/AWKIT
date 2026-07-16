@@ -10,6 +10,8 @@ import { ManualHandoffController, type ManualHandoffResumeAction } from "./Manua
 import type { LiveStepStatus, RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
 import { ValueResolver } from "./ValueResolver";
+import { assertNavigableUrl } from "./urlPolicy";
+import { isPathInside } from "@src/utils/pathSafety";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
 import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatch";
@@ -34,6 +36,19 @@ export type ChildFlowRunner = (flowId: string) => Promise<FlowExecutionResult>;
  */
 export type BrowserRestarter = (options?: { closeOnly?: boolean; newUserDataDir?: string }) => Promise<void>;
 export type BrowserRuntimeLivenessCheck = (label: string) => Promise<void>;
+
+/**
+ * Reduce a site-suggested download filename to a safe, path-free base name (audit F-08).
+ * Splits on both separators and takes the final segment so `..\..\evil.exe` cannot traverse,
+ * strips characters illegal on Windows, and never returns an empty name.
+ */
+export function sanitizeDownloadFileName(name: string): string {
+  const segments = (name ?? "").split(/[\\/]+/);
+  const last = segments[segments.length - 1] ?? "";
+  // eslint-disable-next-line no-control-regex
+  const cleaned = last.replace(/[<>:"|?*]+/g, "_").replace(/[\x00-\x1f]+/g, "_").replace(/^\.+/, "").trim();
+  return cleaned || `download-${Date.now()}`;
+}
 
 export class StepExecutor {
   /** Currently-active page (the page actions run on when no alias overrides). */
@@ -262,6 +277,23 @@ export class StepExecutor {
    */
   private guardLocatorQuality(step: FlowStep): void {
     const quality = step.locator?.quality;
+
+    // Integrity hardening (audit §16, "wrong privileged action"): a step that performs a sensitive
+    // mutation must not rely on a fragile positional/index locator — it could target the wrong
+    // Submit/Delete/Approve control. Fail early and ask for a stable locator, even when the resolver
+    // could otherwise recover a match. Non-dangerous steps keep the lenient fallback behavior.
+    const positional = quality?.strategy === "fallback" || quality?.disambiguation === "positional";
+    if (positional) {
+      const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
+      if (sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit") {
+        throw new Error(
+          `This step performs a sensitive action (${sideEffectLevel}) but its locator is a fragile ` +
+            `positional/index fallback that could target the wrong element. Re-record it or add a stable ` +
+            `data-testid or unique accessible name before running. (locator: ${step.locator?.strategy}=${step.locator?.value})`
+        );
+      }
+    }
+
     if (!quality || quality.isUnique !== false) return;
     if (StepExecutor.MULTI_MATCH_STEP_TYPES.has(step.type)) return;
     if (step.type === "assertText" && step.config?.assertionType === "count") return;
@@ -652,6 +684,7 @@ export class StepExecutor {
       case "goto": {
         const url = await this.resolveStepValue(step, step.url);
         if (!url) throw new Error(`Step ${step.id} is missing a URL.`);
+        assertNavigableUrl(url);
         await this.limitOp("navigation", () => this.activePage.goto(url, { timeout: step.timeoutMs ?? 30_000 }));
         return { status: "passed" };
       }
@@ -663,6 +696,10 @@ export class StepExecutor {
           const alias = expectation.popupAlias;
           const timeout = expectation.timeoutMs ?? 15_000;
           const popupPromise = this.activePage.context().waitForEvent("page", { timeout });
+          // Keep the armed listener from becoming an UNHANDLED rejection if the click (or a mid-flight
+          // cancellation closing the context/page) fails before we await it below. The awaited value/throw
+          // is still handled in-context; this extra no-op handler only marks the rejection as observed.
+          popupPromise.catch(() => undefined);
           await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
           const popupPage = await popupPromise;
           // Wait for initial load state.
@@ -829,6 +866,7 @@ export class StepExecutor {
       case "uploadFile": {
         const filePath = await this.resolveStepValue(step, step.value);
         if (!filePath) throw new Error(`Upload step ${step.id} requires a file path.`);
+        this.assertUploadAllowed(step, filePath);
         await (await this.locatorFactory.resolve(step)).setInputFiles(filePath);
         this.mapOutputs(step, outputs, { uploadedFileName: basename(filePath), uploadedFilePath: filePath });
         return { status: "passed" };
@@ -836,10 +874,16 @@ export class StepExecutor {
 
       case "downloadFile": {
         const downloadPromise = this.activePage.waitForEvent("download", { timeout: step.timeoutMs ?? 30_000 });
+        // Prevent an UNHANDLED rejection if the click (or a mid-flight cancellation) closes the page before
+        // the download fires; the awaited value/throw below is still handled in-context.
+        downloadPromise.catch(() => undefined);
         await (await this.locatorFactory.resolve(step)).click();
         const download = await downloadPromise;
         await mkdir(this.context.paths.downloads, { recursive: true });
-        const filePath = join(this.context.paths.downloads, download.suggestedFilename());
+        // The suggested filename comes from the (untrusted) target site's Content-Disposition.
+        // Strip any path components / traversal so the download can only land inside the
+        // downloads folder (audit F-08). Downloads are saved only, never opened/executed.
+        const filePath = join(this.context.paths.downloads, sanitizeDownloadFileName(download.suggestedFilename()));
         await this.limitOp("download", () => download.saveAs(filePath));
         this.mapOutputs(step, outputs, { downloadedFilePath: filePath });
         return { status: "passed", downloadedFilePath: filePath };
@@ -975,6 +1019,7 @@ export class StepExecutor {
       }
       case "navigateCurrentPage": {
         if (!urlValue) throw new Error(`Route Change step ${step.id} requires a URL value.`);
+        assertNavigableUrl(urlValue);
         await this.limitOp("navigation", () => this.activePage.goto(urlValue, { timeout }));
         target = this.activePage;
         break;
@@ -1009,6 +1054,27 @@ export class StepExecutor {
   }
 
   /**
+   * Block uploads that would exfiltrate AWKIT's own credential/artifact material (audit F-01).
+   * A manipulated workflow can set an arbitrary upload path via `step.value`; refuse the app's
+   * saved sessions, run logs, reports, screenshots, and traces (and any `..` traversal into them).
+   * General user files remain allowed — desktop automation legitimately uploads them.
+   */
+  private assertUploadAllowed(step: FlowStep, filePath: string): void {
+    const p = this.context.paths;
+    const blockedRoots = [p.sessions, p.logs, p.reports, p.screenshots, p.traces, ...(p.protectedUploadRoots ?? [])].filter(
+      Boolean
+    ) as string[];
+    for (const root of blockedRoots) {
+      if (isPathInside(root, filePath)) {
+        throw new Error(
+          `Upload step ${step.id} was blocked: "${filePath}" is inside a WebFlow Studio data folder ` +
+            `(saved sessions/logs/reports/screenshots/traces). Uploading application credential or artifact data is not allowed.`
+        );
+      }
+    }
+  }
+
+  /**
    * Save the current browser context's storage state (cookies + localStorage/origins) to a
    * JSON file under the runtime sessions folder so a later run can reuse the login. Never logs
    * cookie/token/localStorage values — only the artifact path (and only when masking is off).
@@ -1020,10 +1086,13 @@ export class StepExecutor {
     const safeName = this.sanitizeSessionName(rawName);
     if (!safeName) throw new Error(`Save Session step ${step.id} has an invalid (non file-safe) session name.`);
 
-    const baseDir =
-      cfg.sessionFolder && cfg.sessionFolder.trim()
-        ? cfg.sessionFolder.trim()
-        : this.context.paths.sessions ?? join(dirname(this.context.paths.reports), "sessions");
+    const sessionsRoot = this.context.paths.sessions ?? join(dirname(this.context.paths.reports), "sessions");
+    const baseDir = cfg.sessionFolder && cfg.sessionFolder.trim() ? cfg.sessionFolder.trim() : sessionsRoot;
+    // Session state contains cookies/tokens; confine writes to the sessions directory so a
+    // manipulated workflow can't drop credential material into an arbitrary/synced folder (audit F-04).
+    if (!isPathInside(sessionsRoot, baseDir)) {
+      throw new Error(`Save Session folder must be inside the sessions directory (${sessionsRoot}).`);
+    }
     const filePath = join(baseDir, `${safeName}.json`);
 
     try {

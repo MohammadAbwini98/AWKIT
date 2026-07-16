@@ -13,6 +13,8 @@ export function resolveJsonPath(source: unknown, path: string): unknown {
     }
 
     if (typeof current === "object") {
+      // Never traverse into prototype-chain keys (defense-in-depth against pollution/leakage).
+      if (segment === "__proto__" || segment === "constructor" || segment === "prototype") return undefined;
       return (current as Record<string, unknown>)[segment];
     }
 

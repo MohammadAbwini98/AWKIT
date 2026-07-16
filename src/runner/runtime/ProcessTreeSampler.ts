@@ -27,7 +27,9 @@ export interface ProcessTreeSample {
   availabilityReason?: string;
 }
 
-const CHROMIUM_IMAGE_NAMES = ["chrome.exe", "chromium.exe", "msedge.exe"];
+// chrome-headless-shell.exe is Playwright's dedicated headless binary — without it, headless automation
+// runs are undercounted in the Chrome Consumption dashboard (a headless instance is 4+ helper processes).
+const CHROMIUM_IMAGE_NAMES = ["chrome.exe", "chromium.exe", "msedge.exe", "chrome-headless-shell.exe"];
 
 export class ProcessTreeSampler {
   private timer: ReturnType<typeof setInterval> | undefined;

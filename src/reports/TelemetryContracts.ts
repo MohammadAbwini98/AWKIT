@@ -159,6 +159,21 @@ export interface RunHistoryPage {
   offset: number;
 }
 
+/**
+ * Complete run counts computed by an UNBOUNDED SQL aggregate (`COUNT(*) … GROUP BY status`) — never a
+ * materialized/paginated row read. Correct regardless of how many runs are in range. `total` and the
+ * coarse buckets (`success`/`failed`/`cancelled`/`other`) use the same status mapping as the reports;
+ * `byStatus` is the raw per-status breakdown.
+ */
+export interface RunStatusCounts {
+  total: number;
+  success: number;
+  failed: number;
+  cancelled: number;
+  other: number;
+  byStatus: Record<string, number>;
+}
+
 export interface RunDetail {
   run?: DurableRunRecord;
   attempts: DurableAttemptRecord[];

@@ -1067,6 +1067,26 @@ export function installRecorderCapture(): void {
     }
   })();
 
+  // Fields whose captured value must be redacted so secrets never enter the recorded flow
+  // (audit F-07). Password fields were always redacted; this also covers OTP/one-time-code,
+  // card number, CVV/CVC/CSC, PIN, SSN and similar, identified by type/autocomplete/name/id/
+  // aria-label/placeholder.
+  const SENSITIVE_FIELD_PATTERN =
+    /otp|one[-_ ]?time|passcode|\bpin\b|\bcvv\b|\bcvc\b|\bcsc\b|card[-_ ]?number|cardnumber|credit[-_ ]?card|\bssn\b|social[-_ ]?security|\bsecret\b|\btoken\b/i;
+  function shouldRedactValue(el: Element, type: string): boolean {
+    if (type === "password") return true;
+    const ac = (el.getAttribute("autocomplete") || "").toLowerCase();
+    if (ac === "one-time-code" || ac.indexOf("cc-number") >= 0 || ac.indexOf("cc-csc") >= 0) return true;
+    const hay = [
+      el.getAttribute("name") || "",
+      el.id || "",
+      el.getAttribute("aria-label") || "",
+      el.getAttribute("placeholder") || "",
+      ac
+    ].join(" ");
+    return SENSITIVE_FIELD_PATTERN.test(hay);
+  }
+
   window.addEventListener(
     "click",
     (event) => {
@@ -1106,8 +1126,8 @@ export function installRecorderCapture(): void {
         } else if (type === "radio") {
           if (input.checked) record({ type: "radio", name: "Select " + label, locator: g.locator });
         } else {
-          // Never store password values in the recorded flow.
-          const value = type === "password" ? "" : input.value;
+          // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
+          const value = shouldRedactValue(input, type) ? "" : input.value;
           record({ type: "fill", name: "Fill " + label, locator: g.locator, valueSource: { type: "static", value } });
         }
       } else if (tag === "select") {
@@ -1136,8 +1156,8 @@ export function installRecorderCapture(): void {
       if (type === "checkbox" || type === "radio") return;
       const g = generate(target);
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
-      // Never store password values in the recorded flow.
-      const value = type === "password" ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
+      // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
+      const value = shouldRedactValue(target, type) ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
       record({ type: "fill", name: "Fill " + label, locator: g.locator, valueSource: { type: "static", value } });
     },
     true

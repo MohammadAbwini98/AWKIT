@@ -16,6 +16,8 @@ import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { ConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
 import { getSessionService } from "./session.ipc";
+import { assertTrustedSender } from "./senderGuard";
+import { getSecretStore } from "../secretStore";
 
 export interface RunWorkflowRequest {
   workflowId: string;
@@ -32,9 +34,16 @@ export interface RunWorkflowRequest {
 }
 
 export function registerExecutionIpc(): void {
+  // Let the runner resolve `type:"secret"` value sources from the encrypted secret store at run time
+  // (audit §15). Values live only in the main process; they never enter workflow JSON or the renderer.
+  executionEngine.setSecretResolver((name) => getSecretStore().get(name));
+
   ipcMain.handle("execution:list", async () => executionEngine.getInstances());
   ipcMain.handle("execution:validate", async (_, workflowId: string) => validateWorkflow(workflowId));
-  ipcMain.handle("execution:runWorkflow", async (_, request: RunWorkflowRequest) => runWorkflow(request));
+  ipcMain.handle("execution:runWorkflow", async (event, request: RunWorkflowRequest) => {
+    assertTrustedSender(event);
+    return runWorkflow(request);
+  });
   ipcMain.handle("execution:pauseInstance", async (_, instanceId: string) => {
     executionEngine.pauseInstance(instanceId);
     return { instanceId, state: "pause-requested" };

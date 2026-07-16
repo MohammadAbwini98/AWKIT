@@ -1,6 +1,372 @@
 # CURRENT_STATE
 
-**Last updated:** 2026-07-13 (Claude — Concurrency Capacity plan: PR-CAP-1 [A1–A4] + shared browser
+## Runtime Observability & Historical Analytics — full phase set (2026-07-16)
+
+Extends the EXISTING durable telemetry stack (one SQLite store, one contract, one IPC surface) with a
+complete observability/analytics layer — **no second database**. Report:
+[`RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md`](RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md) (16 sections).
+
+- **Data model (migration v4 `observability-analytics`, additive/nullable):** per-run dimensions
+  (`headed`/`resourceProfile`/`isolationClass`/`workloadWeight`/`pressureStateAtRun`) + per-run
+  ENVIRONMENTAL observation summary (`obs*` CPU/mem/Chromium-RSS/AWKIT-RSS mean/P95 over the run window —
+  correlation, NOT per-workflow ownership under a shared pool); new bounded tables `runtime_capacity_buckets`,
+  `runtime_admission_buckets`, `runtime_browser_lifecycle_buckets`, `runtime_anomalies`. v1/v2/v3 upgrade in
+  place; pre-v4 rows read NULL.
+- **Collection (reuses the existing ProcessTreeSampler tick — no new loop):** pure
+  `RuntimeObservationCollector` accumulates per-run summaries + 30s capacity buckets
+  (`AWKIT_OBSERVABILITY_BUCKET_MS`); normalized admission-delay reasons recorded from the REAL dispatch loop
+  (`AdmissionReason` enum, single free-text→enum mapping); browser close-reason deltas. All best-effort —
+  never fails a run. Node heap added to the sample.
+- **Read models (store-side, windowed):** per-workflow historical stats + trend (hour/day/week auto) +
+  run-vs-history + rankings (`observabilityAggregation.ts`); capacity/queue effectiveness
+  (adaptive-target & capacity utilization, admission-reason breakdown, failure-at-pressure, pool
+  effectiveness) — explainable, no opaque score.
+- **Anomaly/regression (deterministic, no AI — `AnomalyDetector.ts`):** run-level vs 30-day history (min 8
+  runs) + regression recent-7d-vs-prev-7d (min 10/window) with configurable thresholds, info/warning/critical,
+  dedup/cooldown/recovery. Fired after each run finalizes + throttled regression per workflow.
+- **UI (existing Runtime Analytics page, no redesign):** live Current-runtime strip + Capacity & queue
+  effectiveness panel + Anomalies panel (token-only). 7 additive `telemetry:*` IPC channels + preload.
+- **Retention (per-table):** raw samples 24h; observability buckets 14d; anomalies 90d (all env-tunable).
+- **Verification:** `npm run build` clean; new **`verify:observability` 65/65**; `verify:telemetry` **61/61**
+  (strengthened to assert v4 in-place upgrade); regression `verify:runner` 82/82, `verify:concurrency` 78/78,
+  `verify:concurrency-defaults` 18/18, `verify:shared-browser-pool` 19/19, `verify:browser-isolation` 27/27;
+  bounded Config-D real-engine soak (1.5 min) 299 completed / 0 failed / teardown CLEAN / durable=live MATCH.
+- **Final production-validation (2026-07-16) — decision `PRODUCTION-CANDIDATE`** (report §17): controlled A/B
+  overhead (`benchmark:observability-ab`, 3A+3B) → per-tick negligible (event-loop P95 +0.5 ms), throughput
+  ~1.5–2.5 %, RSS unresolvable vs drift; **full 30-min soak** (`AWKIT_SOAK_MS=1800000`) 4661 completed / 0
+  failed / teardown CLEAN / 4666 run-summaries==4666 terminal / leak-free (`soak-30min.json`); **storage/query**
+  (`benchmark:observability-storage`, 5k/25k/50k) ~465 B/run, ~3.1 MB/day uncapped (retention-bounded), analytics
+  queries tens-to-~500 ms (NOT sub-ms), retention boundaries validated; **UI walkthrough**
+  `verify:runtime-analytics-gui` **36/36** across normal/empty/migration/high-data (real `out/` Electron, 7 IPC
+  channels + malformed inputs, screenshots). Corrected the report's overhead/query/storage/"Experimental: none"
+  claims. Fixed 2 soak-harness accounting bugs (cancelled-run count; NaN event-loop peak). **Remaining gate:**
+  fresh packaged-EXE build + walkthrough on a higher-memory host (dist/ EXE is pre-observability; re-package OOMs).
+
+## Concurrency closing task — enforced pool→A8 dependency + proven durable root cause (2026-07-15)
+
+Closes the three remaining concurrency validation gaps. Report: [`EXECUTION_ENGINE_CAPACITY_REPORT.md`](EXECUTION_ENGINE_CAPACITY_REPORT.md)
+§13–§20. Changes are **not committed** (GitHub intentionally untouched).
+
+- **Shared-Pool → A8 dependency now ENFORCED (`ConcurrencyConfig.ts`):** this was a genuine gap — an explicit
+  `AWKIT_WORKLOAD_WEIGHTS=true` could still recreate the harmful Config C while the pool was OFF. New
+  `resolveWeightedAdmission` forces weights OFF whenever the pool is OFF (even when explicitly requested) and
+  emits one searchable diagnostic (`AWKIT_WORKLOAD_WEIGHTS=true ignored because Shared Browser Pool is
+  disabled…`). `weights=false` while the pool is ON is still honoured. Enforced on the final merged values —
+  the single place the app resolves pool/weights. `verify:concurrency-defaults` **18/18** (was 12/12).
+- **Durable `~3822 vs 495` root cause PROVEN (not "likely"):** `SqliteRuntimeStore.queryRunHistory` hard-clamps
+  a page to `Math.min(500, …)`; the soak counted `rows` of one `{ limit: 200000 }` page (≤500) against a live
+  in-memory counter (~3822). NOT lost/unflushed/pruned/overwritten writes (in-memory sql.js is synchronous; a
+  reopened on-disk store returns every row; retention 5000 never triggered; `instanceId` is the PRIMARY KEY).
+- **Read-model hardened:** added `countRunsByStatus` (unbounded `GROUP BY status` aggregate) + keyed `getRun`
+  to the store; `queryOverview` counts now use the aggregate (was a ≤5000 materialized read — latent under-count
+  once >5000 runs land in a window); `getTelemetryRunDetail` uses `getRun`; new `getTelemetryStatusCounts` +
+  `persistDurableNow`; benchmark harness/soak paginate via `readAllRunHistory` (live-vs-durable reconciliation
+  logged). No UI redesign.
+- **Durable accuracy verifier (`verify:durable-accuracy`, N=600):** real engine, 600 OK + 40 fail + 40 cancelled,
+  explicit drain. **27/27** — submitted 680 = 600+40+40; expected persisted 648 = actual 648; clamp reproduced
+  (500 < 648); no dup/missing IDs; disk-reopen sees all; retention deterministic. Artifact
+  `reports/browser-performance/durable-accuracy.json`.
+- **Verification:** build ✅; `verify:concurrency-defaults` 18/18, `verify:telemetry` 61/61 (new Part I),
+  `verify:durable-accuracy` 27/27, `verify:concurrency` 78/78, `verify:runner` 82/82,
+  `verify:shared-browser-pool` 19/19, `verify:browser-isolation` 27/27.
+
+## Shared pool + A8 ON by default, reserve-formula change, close-reason telemetry, 30-min soak (2026-07-15)
+
+Follow-up to the capacity benchmark below — applies the measured recommendation and resolves four completion
+items. Report: [`EXECUTION_ENGINE_CAPACITY_REPORT.md`](EXECUTION_ENGINE_CAPACITY_REPORT.md).
+
+- **Production defaults flipped (`ConcurrencyConfig.ts`):** `useSharedBrowserPool` now defaults **ON**;
+  `workloadWeights` defaults to the **resolved pool state** (ON with the pool, never independently — Config C
+  is harmful). Explicit `AWKIT_SHARED_BROWSER_POOL` / `AWKIT_WORKLOAD_WEIGHTS` env always win. Proven by
+  `verify:concurrency-defaults` (12/12).
+- **CapacityPlanner memory reserve changed (Model C):** a replay across 4–128 GB × low/med/high pressure
+  (`benchmark:capacity-reserve`) showed the old formula double-counted the OS (%-of-total subtracted from
+  already-current available) → a 128 GB host with 23 GB free got usable=0 / capacity 1. Now the OS reserve is
+  a **ceiling** (`min(available, total−OS%)`), plus an absolute 1024 MB app baseline + a bounded machine-
+  relative growth reserve + a safety cushion off available. Small/pressured machines unchanged (still floor to
+  1). `verify:capacity-planner` 35/35 (added anti-pathology + `usable ≤ available` checks).
+- **Browser close-reason telemetry (`SharedBrowserPool`):** every retirement is now attributed to an exact
+  reason (`CONTEXT_COUNT_RECYCLE | MEMORY_THRESHOLD | IDLE_DRAIN | UNHEALTHY | CRASH | POOL_SHUTDOWN |
+  LAUNCH_FAILURE | OTHER`), exposed on the snapshot as `closeReasons` + `launchFailures`. Resolves the report
+  contradiction: soak relaunches are routine `CONTEXT_COUNT_RECYCLE` + `IDLE_DRAIN`, `MEMORY_THRESHOLD`=0
+  (memory recycling stays inert — no PID on Playwright 1.61).
+- **30-min soak (Config D, MIXED, conc 6):** ≈3822 completed (~127/min), 0 failed / 0 retries / 0 crashes;
+  JS heap flat (172→170 MB), handles flat, browsers/contexts bounded (≤4/≤5); AWKIT RSS mild +55 MB native
+  drift (bounded); 80 relaunched = 80 closed, all `CONTEXT_COUNT_RECYCLE`(77)+`IDLE_DRAIN`(3),
+  `MEMORY_THRESHOLD`=0; teardown **CLEAN** (active/leased/stale/orphan-contexts/orphan-pages/orphan-Chromium
+  all 0). Leak-free by the load-bearing signals (report §9).
+- **Headed Production Anchor (Phase 01, `benchmark:engine-headed`):** headed Config A vs D at F=6, 50 s each,
+  real ExecutionEngine. D beats A by **+122 % throughput** (116.6 vs 52.5/min), **−63.5 % P95 duration**
+  (2394 vs 6554 ms), **−16 % CPU P95** (83.8 vs 99.7 — A pins the CPU with 6 dedicated headed browsers), and
+  **−52 % RSS peak** (1065 vs 2215 MB); median Chromium RSS +4.9 % (a wash). 0 failures/crashes, teardown
+  clean both. **Confirms the pool + A8 defaults — the win is larger headed than headless.**
+- **Verification:** `npm run build` clean; concurrency-defaults 12/12, capacity-planner 35/35, capacity-modes
+  10/10, machine-capabilities 20/20, benchmark-planner 36/36, shared-browser-pool 19/19, browser-isolation
+  27/27, runner 82/82, concurrency 78/78, shared-browser-live 5/5.
+
+## Real-ExecutionEngine capacity benchmark + shared-pool race fix + Phase 6–10 (2026-07-15)
+
+Drove real workflow instances through the full `ExecutionEngine.startRun` dispatch path (queue → adaptive →
+backpressure → weighted admission → limiters → worker pool → isolation resolver → `BrowserContextFactory` →
+`SharedBrowserPool` → `PlaywrightRunner`) under sustained concurrent load — the first benchmark that exercises
+the **complete production scheduler**, not just the context factory. Full write-up:
+[`docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md`](EXECUTION_ENGINE_CAPACITY_REPORT.md).
+
+- **Real defect found + fixed (SharedBrowserPool):** a check-then-act race in `selectOrLaunch` (read count →
+  `await launch()` → register) over-launched browsers under concurrent dispatch (`maxBrowsers=2, conc=6` → 6
+  browsers). Fixed by reserving the browser+context slot **atomically under the pool mutex**, creating the
+  context outside the lock, rolling back on failure. Peak browsers 6 → 2; guarded by a new regression test.
+  The prior context-factory benchmark created contexts serially and never hit it — only the real engine did.
+- **A/B/C/D result (MIXED, 45 s holds):** at equal load (F=6) Config D (pool ON + A8 weights ON) vs baseline A:
+  Chromium procs −50 % (10 vs 20), RSS −56 % (727 vs 1656 MB), throughput +12.7 %, P95 duration −34 %; and
+  **stable concurrency +50 %** (D=9 vs A=6, 0 failures through F=9). Weighting-ALONE (C) is a net negative
+  (stable drops to 3) — it only pays off *with* the pool.
+- **Phase 6 weight calibration:** the WAITING workflow runs 5.3× longer than LIGHT but uses ~0 CPU and less
+  RAM → the feature-based (duration-agnostic) weight correctly does not over-charge it. Weight seeds kept
+  unchanged (validated, not inaccurate); phase-aware weighting deliberately NOT added (no measured value).
+- **Phase 7 CapacityPlanner:** the fixed 1024 MB AWKIT reserve is correct precisely because it's absolute (app
+  footprint is machine-independent) and already complemented by 20 % OS + 10 % safety percentage reserves that
+  scale with the machine. Formula reviewed, documented, unchanged.
+- **Phase 8 browser memory recycling:** fully wired (`SharedBrowserPool.applyMemorySamples` moving-window
+  drain + `BrowserProcessSampler` Windows subtree walk + throttled engine evaluator) but **inert on this
+  stack** — Playwright 1.61's launched `Browser` exposes no `process()`, so no per-browser root PID → empty
+  samples → no-op. Kept wired + documented per the task's "disable-with-evidence" instruction; lights up
+  unchanged if a PID-bearing launch path appears. Default path unaffected.
+- **Phase 9 soak (Config D, MIXED, 10 min local):** 497 completed / 0 failed / 0 retries; Chromium RSS
+  1082→558 MB (−48 %), AWKIT RSS 232→228 MB (flat), heap 125→137 MB; shared browsers steady at 3–4;
+  teardown **CLEAN** (active=0, leased=0, stale=0, orphan contexts/pages=0). Leak-free under real sustained load.
+- **Recommendation (Phase 10):** enable BOTH the shared pool and A8 weighted admission by default (Config D);
+  never weighting-only. Shipped default flags left unchanged pending owner sign-off (one-line follow-up).
+- **Verification:** `npm run build` clean; `verify:shared-browser-pool` 19/19 (new race regression),
+  `verify:browser-isolation` 27/27, `verify:runner` 82/82, `verify:concurrency` 78/78.
+
+## Shared-browser capacity — authoritative isolation resolver + launch-arg-aware compatibility key (2026-07-15)
+
+Hardens the A5 shared Chromium pool so it can be enabled safely for higher concurrency. **No default-path
+behaviour change** (shared pool stays flag-OFF; `balanced` profile → one stable compatibility key → sharing
+is byte-for-byte as before). Proven from code + runtime before touching anything; A5 reused, not rewritten.
+
+- **Traced + confirmed A5:** `execution.ipc → ExecutionEngine.processQueue (500 ms dispatch tick) →
+  AdaptiveController (A7, hysteresis) + BackpressureController + [A8 weighted] admission → isSharedEligible?
+  `acquireContextSlot` (virtual, bounded by `maxActiveFlows`) : `tryAcquireSlot` (real browser semaphore) →
+  PlaywrightRunner → BrowserContextFactory.create`. A5 leases a **fresh isolated `BrowserContext` per
+  instance** on a shared `Browser`, spreads across browsers before packing (crash isolation), drops crashed
+  browsers on `disconnected`, recycles after N contexts (drain→close), `drainIdle` at run end. Dynamic
+  machine-aware admission (A7), workload cost (A8), and the machine-aware memory reserve (A2 `CapacityPlanner`)
+  already exist — the task's Phases 7–13 were largely present.
+- **Gap fixed (latent correctness):** the shared launch key was only `browser:headed/headless`, ignoring the
+  per-instance resolved `launchArgOverrides`. With the pool ON **and** a non-`balanced` profile, instances
+  with divergent launch flags (gpu/webgl/cache / throttle drops) could reuse one browser carrying only the
+  first leaser's flags. Now closed.
+- **New (`src/runner/browser/BrowserIsolationResolver.ts`):** THE authoritative resolver — classifies every
+  instance into `SHARED_CONTEXT | DEDICATED_BROWSER | PERSISTENT_BROWSER | HANDOFF_BROWSER` with a
+  `{decision,value,source}` diagnostic per rule (precedence: persistent profile > mid-run browser swap >
+  shared-flag > catch-all dedicated), plus `sharedCompatibilityKey(config, launchArgOverrides)` folding the
+  **browser-level** launch config (headed/headless + resolved launch-arg deltas) into the key. Context-level
+  options (viewport, device scale, storageState, request routing) stay isolated per `BrowserContext` and are
+  deliberately excluded. Delimited + collision-safe, no hash dependency; pure/framework-agnostic.
+- **Wiring:** `browserSharing.isSharedEligible` delegates to the resolver (single source of truth — the
+  dispatch loop and the factory can't drift); `BrowserContextFactory` shared launcher keys on
+  `sharedCompatibilityKey(config, launchArgOverrides)` so incompatible launch configs get their own process;
+  `ExecutionEngine.runInstanceInner` logs the isolation class + diagnostics **only when the shared pool is
+  enabled** (silent on the default path). `sharedLaunchKey` kept as a legacy human-readable diagnostic.
+- **Verified (no regression):** `npm run build` clean; new `verify:browser-isolation` **27/27** (four-class
+  classification, precedence, shareability, `isSharedEligible` parity, key folds launch args but NOT
+  context-level diffs, pool honours the key); `verify:shared-browser-pool` **18/18**,
+  `verify:shared-browser-live` **5/5** (real Chromium — 4 contexts on 2 processes preserved), `verify:runner`
+  **82/82**, `verify:concurrency` **78/78**, `verify:workload-weights` **53/53**, `verify:resource-routing`
+  **42/42**, `verify:chromium-hardening` **13/13**, `verify:browser-resource-profile` **51/51**,
+  `verify:adaptive-concurrency` **14/14**, `verify:operation-limiters` **10/10**, `verify:telemetry` **54/54**.
+- **Measured (new `benchmark:shared-pool`, drives the REAL factory + pool, headless, i7/12c/16GB):** Model A
+  browser-per-workflow vs Model B shared browser + one isolated context each, subtree process/RSS medians,
+  per-context cookie isolation held in every cell. Sharing kicks in above `maxBrowsers` (spread-first keeps
+  ≤ N dedicated at low N): **N=4 → −37.5% processes / −27% RSS** (16→10 procs, 906→661 MB); **N=8 → −56%
+  processes / −39% RSS** (32→14 procs, 1807→1108 MB). The saving is **RAM + process count**, not CPU
+  (per-page render CPU is unchanged by process sharing) — so the pool raises the *memory-bound* ceiling.
+- **Baseline `benchmark:concurrency` (this machine, competing load, one-browser-per-instance — flag inert
+  here):** highest sustainable **7**, production-approved **5**, stop at 8 on **P95 CPU 96.5% > 95%** (i.e.
+  this machine is CPU-bound, so the pool's RAM saving wouldn't lift *this* stop; it lifts RAM-bound hosts).
+- **Not done / external gate:** the shared pool remains **default OFF** (owner decision D4). A full flag-ON
+  run *through `ExecutionEngine` dispatch* under sustained load on a clean machine + the default flip are the
+  remaining gate; the factory+pool lease itself is now measured. Reuse Session / Auto Secure Login / Manual
+  Handoff / persistent-profile / popup / parallel-isolated-page behaviour is unchanged.
+
+## Browser Resource Optimization — deep benchmark evidence + throttling removed (2026-07-15)
+
+Follow-up to the profile/resolver work below: 20/20/15-rep experiments replaced the initial 3-rep run and
+**corrected the headline**. Harness: `scripts/benchmark/lib.mts` + `benchmark-workloads.mts` /
+`benchmark-ablation.mts` / `benchmark-occlusion.mts` (full mean/median/p95/max/stddev; server-side network;
+Win32 subtree CPU/RAM). Details + tables in `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md` §7.
+
+- **Occlusion (20 reps, genuinely minimized headed window + background tab):** re-enabling the 3 Playwright
+  background-throttle switches (individually + combined, via selective `ignoreDefaultArgs`) gives **no CPU
+  reduction** — minimizing already floors CPU at ~1.5% (compositor stops frames, rAF 60→1/s) and page timers
+  never throttle because Playwright keeps automated pages `visibilityState:visible`. Behaviour 100%
+  (waitForResponse/popup/click/timers). **→ Removed background throttling from the low-resource default**
+  (`BrowserResourceProfile.ts` low-resource `backgroundThrottling.enabled=false`); mechanism kept for
+  `custom`. Verifier updated (now asserts low-resource does NOT re-enable throttling + a Custom-throttling
+  mechanism test) → `verify:browser-resource-profile` **51/51**.
+- **Ablation (20 reps, image-heavy):** the profile's RAM/network win is **almost entirely image blocking**
+  (−5.98% RAM, −98.95% network); fonts add ~0.7%; media/analytics/reduced-motion/SW/device-scale/throttling
+  are within noise. COMBINED low-resource ≈ image-blocking alone.
+- **Workload matrix (15 reps, Balanced vs Low-Resource, 8 workloads):** RAM saving is **workload-dependent**
+  — image-heavy pages −7…13% (multitab −12.7%, image-heavy −7.3%, spa −4.7%), image-light ~0% (form/table).
+  Network −~99% wherever sub-resources exist. **Duration unchanged; behaviour 100%** (download/popup/multitab/
+  form all pass under Low-Resource — capability overrides validated live).
+- **Correction:** the earlier **21% RAM was 3-rep noise**; stable figure is ~6% (image-heavy) and workload-
+  dependent. The big reliable win is **network (~99%)**, not RAM/CPU.
+- **Recommendation:** keep `balanced` default; use `low-resource` for unattended/image-heavy runs (safe,
+  capability-guarded). Multi-instance RAM estimate ~24–45 MB/instance on image-heavy (LABELLED estimate —
+  not multi-instance-benchmarked). Full 11-point recommendation in the doc §9.
+- **Verified (no regression):** build clean; `verify:browser-resource-profile` 51/51, `verify:runner` 82/82,
+  `verify:chromium-hardening` 13/13, `verify:lean-mode` 12/12, `verify:resource-routing` 42/42,
+  `verify:concurrency` 78/78, `verify:workload-weights` 53/53, `verify:telemetry` 54/54. Artifacts in
+  `reports/browser-performance/` (workloads.json, ablation.json, occlusion.json + logs).
+
+## Browser Resource Optimization — per-instance Chromium profiles + authoritative resolver (2026-07-15)
+
+Reduces the CPU/RAM/network/disk cost of ONE running Chromium automation instance while preserving
+workflow behaviour. **Default is `balanced` == today's exact behaviour** (proven byte-for-byte); every
+optimization is additive, env-gated, and relaxed by workflow capabilities so it can't break a run. See
+`docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md` for the full lifecycle trace, launch audit, and benchmark.
+
+- **New pure core (`src/runner/browserProfile/`):** `BrowserResourceProfile.ts` (declarative profile +
+  4 presets: maximum-compatibility / balanced / low-resource / custom; maps blocking onto the existing
+  `ResourceProfile` — no duplication), `WorkflowCapabilities.ts` (static analysis reusing
+  `WorkloadWeights.extractWorkloadFeatures` — needsImages/downloads/serviceWorkers/multiplePages/…; hint
+  escape hatches; capabilities only ever RELAX), `BrowserRuntimeConfigurationResolver.ts` (THE authoritative
+  resolver — deterministic, records a `{setting,value,source}` diagnostic per decision, `explainResolution`),
+  `resolveForRun.ts` (env entry, default balanced).
+- **Wiring (default-preserving):** `BrowserContextFactory` gained `launchArgOverrides` (extra switches +
+  selective `ignoreDefaultArgs`, NEVER `true`); `ChromiumHardening.buildChromiumHardeningArgs` gained
+  `omitBackgroundTimerThrottlePin` so low-resource can RE-ENABLE Chromium background throttling (drops the
+  pin + Playwright's 3 throttle switches); `PlaywrightRunner` threads `traceMode`/`resourceRouting`;
+  `ExecutionEngine.runInstance` resolves once per instance (machine-aware) and logs non-default resolutions.
+- **low-resource profile:** lean routing (image/media/font) + analytics-host URL blocking + block service
+  workers + reduced motion + device-scale 1 + background throttling ON + production artifacts (trace off) +
+  bounded 64 MB disk cache + page cleanup. Selected via `AWKIT_BROWSER_RESOURCE_PROFILE` (default balanced).
+- **Measurement fix:** `ProcessTreeSampler` now also counts `chrome-headless-shell.exe` (Playwright's
+  headless binary) — the Chrome Consumption dashboard previously undercounted headless instances.
+- **Benchmark (`npm run benchmark:browser-resource`, `scripts/benchmark-browser-resource.mts`):** one
+  instance, resolver-derived options, blank→navigate→idle→form, server-side network bytes + Chromium-subtree
+  RAM/CPU, 3 reps. On i7-8750H/12c/16GB, low-resource vs balanced: **network −100% bytes / −96.8% req**;
+  RAM **−8% avg headless**, **−21% avg headed** (headed holds decoded image bitmaps in the compositor — and
+  headed is AWKIT's default run mode); navigate CPU −20.6% headless. CPU is a wash overall (rAF canvas +
+  compositor dominate; a single foreground window/page is never background-throttled). Artifacts in
+  `reports/browser-performance/` (+ `*.headed.json`).
+- **Verified:** `npm run build` clean; new `verify:browser-resource-profile` **49/49** (balanced==today
+  invariant, capability relaxations, throttle-pin toggle, mode parsing); regression `verify:runner` **82/82**,
+  `verify:chromium-hardening` **13/13**, `verify:lean-mode` **12/12**, `verify:resource-routing` **42/42**,
+  `verify:concurrency` **78/78**, `verify:workload-weights` **53/53**, `verify:telemetry` **54/54**.
+- **Not done / follow-ups:** headed/occluded throttling win not yet measured (display-dependent);
+  GPU/WebGL/renderer-limit stay Custom-only pending clean-machine benchmark; Settings UI + per-workflow
+  `WorkflowProfile` capability hints (env hints exist today); adopting low-resource as default is an owner
+  decision needing the headed benchmark.
+
+## Workflows library + Workflow Builder header/toolbar cleanup (2026-07-14)
+
+- **Create Workflow now names-then-opens (points 6/7).** Both the Workflows library **Create Workflow**
+  buttons and the Workflow Builder toolbar **New** (`#sb-new`) open the shared `PromptDialog` for a name,
+  then persist a Start→End workflow via the new `createBlankWorkflowProfile(name)` factory
+  (`src/profiles/WorkflowProfile.ts`) and open it in the builder (library navigates with
+  `selectedBuilderWorkflowId`; the builder loads it in place via `createNamedWorkflow`). One source of truth
+  for the blank scaffold shared by both entry points.
+- **Workflow Builder header** (`ScenarioBuilder.tsx` `usePageChrome`) now exposes **only Save** — New and
+  Run removed; the dead `runWorkflow` handler was deleted. The toolbar **Reload** button, **Mode** select,
+  and **Parallel** input are `disabled` (kept visible for context).
+- **Workflows table** (`WorkflowsLibrary.tsx`) is one line per row: the **Max Parallel** column
+  (header/body/colgroup + adapter accessor + its two advanced-filter fields) and the grey `<small>{id}</small>`
+  sub-line are gone; every cell clips to one line with the full value in a `title` tooltip
+  (`.wl-table-workflows` token CSS). Per-row action buttons collapsed into a single `.wl-kebab`
+  (`MoreVertical`) that opens the existing `NodeOptionsMenu` — Open in Builder / Clone / Export JSON /
+  Delete (danger). Delete now confirms through `ConfirmDialog` instead of the old inline Confirm/Cancel.
+- **Verification:** `npm run build` clean (tsc + 3 bundles); `verify:workflow-builder` **20/20** (section 3
+  updated to drive the New name modal); throwaway `_electron` Workflows-library walkthrough **7/7** (no Max
+  Parallel header, no id sub-line, single kebab per row → 4-action menu, Create opens the modal, no console
+  errors). `verify:workflow-builder` now leaves one blank "GUI New …" workflow per run (New persists by
+  design).
+
+## New Flow now names-then-opens in the Flow Designer (2026-07-14)
+
+- **Change:** the **New Flow** action on the Flows page (`FlowLibrary.tsx`) no longer silently creates a
+  flow literally named "New Flow" and leaves the user on the library. All three triggers (page-chrome
+  action, toolbar button, empty-state button) now open a name-input dialog first.
+- **Dialog:** new reusable `app/renderer/components/shared/PromptDialog.tsx` — single-field, app-styled
+  modal reusing the `.modal-overlay`/`.modal-dialog` shell. Autofocuses + selects the field, Enter
+  confirms, Escape/overlay cancels, and the Create button stays disabled until the name has
+  non-whitespace content. Token-only CSS added (`.modal-icon.create`, `.modal-field`) — no hardcoded
+  hex/px.
+- **After confirm:** `createFlow(name)` creates the flow with the entered name and the unchanged
+  Start→End scaffold (only a `start` and `end` node + one `always` edge), then reuses `openFlow(profile)`
+  to persist `lastSelectedFlowId` and navigate to `flowChart`, so the flow opens immediately in the
+  Flow Designer.
+- **Verification:** `npm run build` clean (tsc + 3 bundles). Live GUI walkthrough not run (the Electron
+  renderer can't be driven from the Browser pane; `window.playwrightFlowStudio` IPC is absent there).
+
+## Security-audit hardening — all findings fixed (2026-07-14)
+
+Full security audit (`docs/security/FULL_SECURITY_AUDIT.md`) plus remediation of every finding. **No
+runtime contract/route/schema change; behavior tightened at existing sinks.** New helpers:
+`src/runner/urlPolicy.ts` (navigation allowlist), `src/utils/pathSafety.ts` (`isPathInside`),
+`app/main/ipc/senderGuard.ts` (`assertTrustedSender`), `src/profiles/FlowValidation.ts`
+(`normalizeFlowBounds`).
+
+- **Navigation (F-02):** `page.goto`/`routeChange` now go through `assertNavigableUrl` — `file:`/`chrome*`/
+  `devtools:`/`javascript:` blocked; http(s)/about/data allowed (internal/localhost still allowed).
+- **Upload (F-01):** `StepExecutor.assertUploadAllowed` blocks `setInputFiles` into AWKIT sessions/logs/
+  reports/screenshots/traces (+ traversal); general user files still uploadable.
+- **Workflow bounds (F-03):** `normalizeFlowBounds` clamps timeouts/retries/loop iterations + caps
+  alternatives/waits arrays at `FlowExecutor.executeFlow` (lenient — legacy flows still load).
+- **Filesystem (F-04/F-05):** data-source writes confined to the workspace; `saveSession` folder confined
+  to the sessions root; `system:openPath` confined to app data folders + executable-extension block.
+- **Electron (F-06/F-09):** `will-navigate`/`will-redirect` lockdown; `assertTrustedSender` on
+  `execution:runWorkflow`, `dataSources:writeJson/createFromScratch`, `session:startCapture`,
+  `system:openPath`.
+- **Recorder (F-07):** value redaction extended to OTP/one-time-code/card/CVV/PIN/SSN/token fields.
+- **Downloads (F-08) / session capture (F-11):** site-suggested filenames sanitized; capture rejects
+  non-http(s) targets.
+- **Secret store (§15):** DPAPI-backed encrypted local secret store (`src/secrets/SecretStore.ts` +
+  `app/main/secretStore.ts` via Electron `safeStorage`; `secrets.ipc.ts` manages by NAME only — no channel
+  returns a value). Steps reference secrets by name (`valueSource.type = "secret"`); the runner resolves them
+  per-run in the main process (`ExecutionEngine.setSecretResolver` → `InstanceExecutionContext.secrets`) and
+  masks the literals in logs/reports. Managed from **Settings → Secrets** (add/update/delete, keystore-
+  unavailable banner). Keeps credentials out of workflow JSON and `.env`.
+- **Data-source read (§14):** every JSON data-source read goes through `readJsonFileGuarded`
+  (`dataSource.ipc.ts`) — a 25 MB size cap + `isReadableDataSourceFile` (`src/utils/pathSafety.ts`) that
+  refuses runtime-internal files (sessions/profiles/secret store/logs/reports) while allowing external user
+  files and the workspace.
+- **Verified:** `npm run build` clean; `verify:security` **39/39** (incl. data-source read confinement),
+  `verify:secrets` **16/16**; regression `verify:runner` **82/82**, `verify:recorder` **72/72**,
+  `verify:ipc-contract` **4/4** (129 handlers), `verify:data-editor` **27/27**, `verify:waits` **21/21**,
+  `verify:protected-login` **16/16** + **34/34**. Settings → Secrets card verified in a token-faithful HTML
+  harness (light + dark, no horizontal overflow). Not committed (local only).
+- **Residual (P2):** `assertTrustedSender` is applied globally via `installGlobalSenderGuard`; optional
+  `sandbox:true` still deferred (ESM-preload-under-sandbox). Remaining audit follow-ups: code signing (§20),
+  offline hash validation (§19), artifact retention (§22).
+
+## Custom AWKIT application frame (2026-07-14)
+
+The main window is **frameless** (`windowManager.ts` `frame: false`, security prefs unchanged) with an
+application-owned title bar. `AppShell` wraps the shell in `.app-window` and renders `layout/AppFrame.tsx`
+(brand mark + wordmark + active-area context, draggable via `-webkit-app-region: drag`, double-click →
+maximize toggle) above `layout/WindowControls.tsx` (minimize / maximize↔restore / close; icon + aria label
+follow the **real** window state). Window ops go through a minimal preload `appWindow` domain
+(minimize/toggleMaximize/close/isMaximized + `onMaximizedChange`) backed by `ipc/window.ipc.ts`
+(`registerWindowIpc`, sender-scoped, multi-window-safe); the main process pushes `window:maximizedChanged`
+on maximize/unmaximize/full-screen so the control never drifts. Layout: `--titlebar-height: 36px` is folded
+into `--shell-chrome`, and `.app-shell`/`.left-navigation`/legacy `calc(100vh - …)` designer heights subtract
+it, so canvas sizing is unchanged (`verify:flow-designer` 24/24, `verify:canvas-perf` 13/13). Frame styling is
+token-only, theme-aware, hover gated to fine pointers, close-hover = danger, press feedback instant
+(`review-animations` → Approve). Playwright automation browsers are unaffected.
+
+
+**Last updated:** 2026-07-15 (Claude — Browser Resource Optimization: per-instance Chromium profiles
+(maximum-compatibility / balanced / low-resource / custom) + workflow-capability guards + one authoritative
+`BrowserRuntimeConfigurationResolver`; default balanced == today; measured network −100%/RAM −8%/navigate
+CPU −20.6% on low-resource. See the top section + `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`. Prior:
+custom AWKIT application frame: native window frame removed,
+app-owned title bar + secure window-control IPC; see the section directly below. Prior:
+Concurrency Capacity plan: PR-CAP-1 [A1–A4] + shared browser
 pool [A5, flag-guarded] + operation limiters [A6] + adaptive controller [A7] + workload weights
 [A8, flag-guarded] + resource-reduction profiles [A9] + machine-relative benchmark harness [A10] landed.
 Concurrency workstream A complete; reporting workstream B complete — B1 read-model + B2 IPC + B3

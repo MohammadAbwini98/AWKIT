@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { join } from "node:path";
 import { SessionCaptureService } from "@src/session/SessionCaptureService";
 import { getRuntimeDataRoot } from "../appPaths";
+import { assertTrustedSender } from "./senderGuard";
 
 let service: SessionCaptureService | null = null;
 
@@ -18,7 +19,8 @@ export function registerSessionIpc(): void {
     return getService().list();
   });
 
-  ipcMain.handle("session:startCapture", async (_, args: { name: string; targetUrl: string }) => {
+  ipcMain.handle("session:startCapture", async (event, args: { name: string; targetUrl: string }) => {
+    assertTrustedSender(event);
     return getService().startCapture(args.name, args.targetUrl);
   });
 

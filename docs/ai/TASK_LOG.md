@@ -4,6 +4,356 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-16 — Claude — Runtime Observability final production-validation (Phases 1–6; not committed)
+
+- **Task:** prove the observability layer production-ready via controlled A/B overhead, full 30-min soak,
+  measured storage/query benchmarks, packaged-renderer UI walkthrough, admission-semantics check, and an
+  evidence-based release decision. No product-code redesign; only benchmark/validation tooling + docs.
+- **Phase 1 — A/B overhead** (`benchmark:observability-ab`, already run): 3A+3B, Config D, MIXED, conc 6,
+  interleaved order. Honest read: per-tick cost negligible (event-loop delay P95 **+0.5 ms**, CPU +2 pts within
+  noise); throughput **~1.5–2.5 %** (median −1.53 %, confounded w/ run-order drift); **RSS unresolvable** — the
+  OFF config's own RSS P95 spans 180→344 MB (SD 69) ≫ the +10 MB between-config delta, so the JSON "+48 MB" is
+  a median-of-reps artifact, not a real cost. `AWKIT_RUNTIME_OBSERVABILITY=0` disables only the incremental work.
+- **Phase 2 — full 30-min soak** (`AWKIT_SOAK_MS=1800000`): 4661 completed / 0 failed / 0 crashes; teardown
+  CLEAN; durable==live; **4666 run summaries == 4666 terminal runs**; leak-free (handles flat 51→51, RSS end≈start,
+  Chromium RSS down). Found+fixed **2 soak-harness bugs** in `scripts/benchmark-engine-soak.mts` (`durableTerminalRuns`
+  omitted `cancelled`→spurious MISMATCH; NaN poisoned event-loop `peak`) — validated on a 40 s re-run; neither an
+  observability defect. Canonical artifact `soak-30min.json`.
+- **Phase 3 — storage/query** (`benchmark:observability-storage`, 5k/25k/50k): ~465 B/run, 322 B/cap-bucket,
+  237 B/anomaly; **~3.1 MB/day** uncapped (corrects the old "~1 MB/day"); retention-bounded; all cutoff boundaries
+  validated. Analytics queries **tens-to-~500 ms** P95 (corrects "sub-millisecond"); aggregation-bound, not
+  index-bound (EXPLAIN confirms index use); no speculative indexes added.
+- **Phase 4 — admission semantics:** already the honest **rename** (queue-delay proxy; "Runtime admission delays …
+  not per-workflow"; ENV tags) — confirmed in code + the live UI. No per-workflow reason attribution claimed.
+- **Phase 5 — packaged-renderer UI:** new `scripts/seed-observability-fixtures.mts` (normal/empty/migration/
+  high-data seeded DBs + `lastRouteId` deep-link) + `scripts/verify-runtime-analytics-gui.mjs` — real built
+  Electron (`out/`) driven per state via `_electron`, all 7 IPC channels (incl. malformed inputs) exercised.
+  **36/36**; panels populated (capacity/admission/anomalies), no NaN/undefined/errors; screenshots under
+  `reports/browser-performance/phase5-ui-evidence/`. (dist/ EXE is pre-observability + re-package OOMs → packaged-EXE
+  walkthrough is the one remaining gate.)
+- **Phase 6 — report:** rewrote `RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md` (§5/10/11/12/13/15/16 + new §17
+  with methods/tables/deltas). Corrected "measured-negligible overhead", "sub-millisecond queries", "~1 MB/day",
+  "Experimental: none". **Decision: `PRODUCTION-CANDIDATE`** — remaining gate: fresh packaged-EXE build + walkthrough
+  on a higher-memory host; provisional: anomaly thresholds (uncalibrated), precise A/B RSS figure.
+- **Files:** modified `scripts/benchmark-engine-soak.mts`, `package.json` (2 script aliases), `.gitignore`,
+  `docs/ai/RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md`; new `scripts/seed-observability-fixtures.mts`,
+  `scripts/verify-runtime-analytics-gui.mjs`. No `src/` change.
+- **Verification:** `npm run build` clean; `verify:observability` **65/65**; `verify-runtime-analytics-gui` **36/36**;
+  the 3 benchmarks green. Not re-run (no product-code change): the broader runner/concurrency regression suite
+  (green in the prior entry). `npm test`/`npm run lint` still do not exist.
+
+---
+
+## 2026-07-15 — Claude — Concurrency closing task Phases 02–06 (enforce dependency + prove durable root cause, not committed)
+
+- **Task:** close the three remaining concurrency validation gaps — enforce the Shared-Pool → A8 dependency
+  (Phase 02), PROVE the `~3822 live vs 495 durable` root cause (Phase 03), add durable-accuracy verification
+  (Phase 04), audit reporting/statistics impact (Phase 05), final verification + report (Phase 06). GitHub
+  intentionally not used.
+- **Phase 02 (ENFORCED — this WAS a real gap):** the prior session's claim that the dependency was already
+  enforced was wrong — `envBool("AWKIT_WORKLOAD_WEIGHTS", pool)` still let an explicit `=true` recreate Config C
+  while the pool was OFF. Added `resolveWeightedAdmission` + `WEIGHTED_ADMISSION_REQUIRES_POOL_DIAGNOSTIC` in
+  `ConcurrencyConfig.ts`; weights now resolve OFF whenever the pool is OFF (even explicit true) with one
+  searchable diagnostic; enforced on the final merged values (one authoritative path). Inverted the stale
+  verifier assertion. `verify:concurrency-defaults` **12/12 → 18/18**.
+- **Phase 03 (PROVEN):** exact cause = `SqliteRuntimeStore.queryRunHistory` hard-clamps a page to
+  `Math.min(500, …)`; the soak counted `rows` of a single `{ limit: 200000 }` page (≤500) vs a live in-memory
+  counter (~3822). NOT lost/unflushed/pruned/overwritten writes — the in-memory sql.js DB is synchronous, a
+  reopened on-disk store returns every row, retention (5000) never triggered (3822<5000), `instanceId` is the
+  PRIMARY KEY (no collision). Reproduced at 648-vs-500 through the real engine.
+- **Fix:** added `countRunsByStatus` (unbounded SQL aggregate) + `getRun` to the store; `queryOverview` counts
+  now use the aggregate (was a ≤5000 materialized read — latent under-count >5000); `getTelemetryRunDetail`
+  uses the keyed `getRun`; added `getTelemetryStatusCounts` + `persistDurableNow`; benchmark harness/soak now
+  paginate via `readAllRunHistory` + aggregate (live-vs-durable reconciliation logged).
+- **Phase 04:** `scripts/verify-durable-accuracy.mts` (`verify:durable-accuracy`) — real engine, 600 OK + 40
+  fail + 40 cancelled, explicit drain. **27/27**: submitted 680 = 600+40+40; expected persisted 648 = actual
+  648; clamp reproduced (500 < 648); no dup/missing IDs; disk-reopen sees all; retention deterministic.
+- **Phase 05:** impact matrix — no shipped stat was wrong except the latent `queryOverview` count under-count
+  (fixed to aggregate); run-history `total`, workflow/failure aggregations, Instance Monitor (live), and Live
+  Report were already correct. No UI redesign.
+- **Verification:** `build` ✅ · `verify:concurrency-defaults` 18/18 · `verify:telemetry` 61/61 (new Part I) ·
+  `verify:durable-accuracy` 27/27 · `verify:concurrency` 78/78 · `verify:runner` 82/82 ·
+  `verify:shared-browser-pool` 19/19 · `verify:browser-isolation` 27/27.
+- **Files:** `src/runner/concurrency/ConcurrencyConfig.ts`, `src/runner/store/{RuntimeStore,SqliteRuntimeStore}.ts`,
+  `src/reports/TelemetryContracts.ts`, `src/runner/ExecutionEngine.ts`, `scripts/benchmark/engineHarness.mts`,
+  `scripts/benchmark-engine-soak.mts`, `scripts/verify-concurrency-defaults.mts`, `scripts/verify-telemetry.mts`,
+  `scripts/verify-durable-accuracy.mts` (new), `package.json`, `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md`
+  (§13 truth table + §14–§20), `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+
+## 2026-07-15 — Claude — Headed Production Anchor (closing Phase 01, not committed)
+
+- **Task:** run the missing headed cross-check anchoring the pool+A8 production defaults against AWKIT's real
+  default headed (`activeOnly`) execution — Config A vs D, MIXED, F=6, 50 s each, real `ExecutionEngine`.
+- **New:** `scripts/benchmark-engine-headed-anchor.mts` (`benchmark:engine-headed`), reuses the engine harness
+  (`runStage`, headed) — no new architecture, no `chromium.launch()` per instance. Artifact
+  `reports/browser-performance/headed-anchor.json`.
+- **Result:** D vs A headed — throughput **+122 %** (116.6 vs 52.5/min), P95 duration **−63.5 %** (2394 vs
+  6554 ms), CPU P95 **−16 %** (83.8 vs 99.7 — A's 6 dedicated headed browsers pin CPU at 99.7 %), Chromium
+  procs −10.5 %, RSS peak −52 % (1065 vs 2215 MB), median RSS +4.9 % (wash); 0 failures/crashes, clean
+  teardown both. **Production defaults CONFIRMED (win larger headed than headless).** No regression → no fix.
+- **Files:** `scripts/benchmark-engine-headed-anchor.mts` (new), `package.json`,
+  `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md` (§4a + exec summary/§10/§11), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Note:** master overview also lists Phase 02 (enforce pool→A8 dependency — already implemented + verified
+  by `verify:concurrency-defaults` last session) and Phase 03 (root-cause the 3822-vs-495 durable count — still
+  open). Not executed here; awaiting their phase files / go-ahead.
+
+## 2026-07-15 — Claude — Apply capacity defaults + reserve-formula change + close-reason telemetry + 30-min soak (not committed)
+
+- **Task:** four completion items on top of the capacity report — (1) flip production defaults, (2) run the
+  full 30-min soak, (3) resolve the browser-recycling contradiction with exact close-reason attribution,
+  (4) re-evaluate the CapacityPlanner memory reserve across machine sizes.
+- **(1) Defaults:** `ConcurrencyConfig.ts` — `useSharedBrowserPool` default → **true**; `workloadWeights`
+  now defaults to the resolved pool state (dependency: ON with pool, never independently; explicit env wins).
+  New `verify:concurrency-defaults` (12/12) proves the two required examples + override precedence.
+- **(3) Close reasons:** `SharedBrowserPool` stamps + counts an exact reason per retirement
+  (CONTEXT_COUNT_RECYCLE / MEMORY_THRESHOLD / IDLE_DRAIN / UNHEALTHY / CRASH / POOL_SHUTDOWN / LAUNCH_FAILURE /
+  OTHER); exposed on the snapshot. Forced-recycle smoke → CONTEXT_COUNT_RECYCLE=22, IDLE_DRAIN=3,
+  MEMORY_THRESHOLD=0. Report corrected: relaunches are context-count recycling + idle drain, never memory.
+- **(4) Reserve:** replay (`benchmark:capacity-reserve`) showed the old formula under-admits on big machines
+  (128 GB/23 GB-free → cap 1, usable=0) by subtracting %-of-total OS+safety from already-current available.
+  Changed `CapacityPlanner.planCapacity` to Model C (OS reserve = ceiling; 1024 MB baseline + bounded growth;
+  safety off available). Small/pressured machines unchanged. `verify:capacity-planner` 35/35 (+anti-pathology).
+- **(2) 30-min soak (Config D, MIXED, conc 6):** ≈3822 completed (~127/min), 0 failed/retries/crashes; JS heap
+  flat, handles flat, browsers/contexts bounded (≤4/≤5); AWKIT RSS +55 MB native drift (bounded); 80 relaunched
+  = 80 closed (CONTEXT_COUNT_RECYCLE=77, IDLE_DRAIN=3, MEMORY_THRESHOLD=0); teardown CLEAN (all orphan/stale=0).
+- **Files:** `src/runner/concurrency/ConcurrencyConfig.ts`, `src/runner/concurrency/CapacityPlanner.ts`,
+  `src/runner/browser/SharedBrowserPool.ts`, `scripts/benchmark-engine-soak.mts`,
+  `scripts/verify-concurrency-defaults.mts` (new), `scripts/benchmark-capacity-reserve.mts` (new),
+  `scripts/verify-capacity-planner.mts`, `package.json`, `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md`,
+  `docs/ai/CURRENT_STATE.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/ai/TASK_LOG.md`.
+- **Verification:** build clean; concurrency-defaults 12/12, capacity-planner 35/35, capacity-modes 10/10,
+  machine-capabilities 20/20, benchmark-planner 36/36, shared-browser-pool 19/19, browser-isolation 27/27,
+  runner 82/82, concurrency 78/78, shared-browser-live 5/5.
+- **Not run / risks:** clean-machine packaged GUI walkthrough with pool-ON default; lower-spec hardware; the
+  new reserve model admits more on large machines (bounded by benchmark-gating + runtime backpressure).
+
+## 2026-07-15 — Claude — Real-ExecutionEngine capacity benchmark, shared-pool race fix, Phases 6–10 (not committed)
+
+- **Task:** activate + calibrate the shared-browser dynamic capacity through the REAL `ExecutionEngine`
+  dispatch path (not the context factory), across A/B/C/D configs, MIXED workloads, machine-relative ramp,
+  weight calibration, memory-formula review, browser recycling, and a sustained soak; recommend defaults.
+- **Continuation:** resumed a prior session that hit its limit mid-Phase-8 — the build was broken
+  (`ExecutionEngine` called `evaluateSharedBrowserMemoryRecycling` which didn't exist; `SharedBrowserPool`
+  used `browser.process()` which isn't on Playwright's typed `Browser`). Completed both.
+- **Real defect found + fixed:** `SharedBrowserPool.selectOrLaunch` check-then-act race over-launched browsers
+  under concurrent dispatch (maxBrowsers=2,conc=6 → 6 browsers). Reserved slot atomically under the pool
+  mutex; peak 6 → 2; added a regression test to `verify:shared-browser-pool` (19/19).
+- **Phase 8:** memory recycling wired end-to-end (`applyMemorySamples` moving-window drain + Windows
+  `BrowserProcessSampler` subtree walk + throttled engine evaluator) but **inert** — Playwright 1.61 `Browser`
+  has no `process()` (verified via types + runtime), so no per-browser root PID. Kept wired + documented
+  ("disable-with-evidence") rather than rebuilding the launch path.
+- **Findings:** Config D (pool+weights) at F=6 vs baseline A: procs −50 %, RSS −56 %, throughput +12.7 %, P95
+  duration −34 %, stable concurrency +50 % (9 vs 6, 0 failures). Weighting-alone (C) is a net negative.
+  Waiting workflows use ~0 CPU despite long duration → weight seeds validated + kept; no phase-aware weighting.
+  1024 MB AWKIT reserve reviewed + kept. **Recommendation: enable pool + A8 weights by default (Config D);**
+  shipped defaults left unchanged pending owner sign-off.
+- **Phase 9 soak (Config D, MIXED, 10 min):** 497 completed / 0 failed / 0 retries; Chromium RSS −48 %,
+  AWKIT RSS flat, browsers steady 3–4; teardown CLEAN (active/leased/stale/orphan all 0). Leak-free.
+- **Files:** `src/runner/browser/SharedBrowserPool.ts`, `src/runner/ExecutionEngine.ts`,
+  `src/runner/browser/BrowserProcessSampler.ts` (new), `scripts/benchmark/*` + `scripts/benchmark-engine-abcd.mts`
+  / `-weight-calibration.mts` / `-engine-soak.mts` (new), `scripts/verify-shared-browser-pool.mts`,
+  `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md` (new), `docs/ai/CURRENT_STATE.md`, `docs/ai/KNOWN_ISSUES.md`,
+  `docs/ai/TASK_LOG.md`, `docs/ai/HANDOFF.md`.
+- **Verification:** `npm run build` clean; `verify:shared-browser-pool` 19/19, `verify:browser-isolation`
+  27/27, `verify:runner` 82/82, `verify:concurrency` 78/78. Reports in `reports/browser-performance/`.
+- **Not run / risks:** single machine, single run/stage, synthetic flows; heavy-class CPU undersampled;
+  30-min soak not run (10-min practical); recycling unexercised (no PID on this stack); default-flag flip
+  left for owner.
+
+## 2026-07-15 — Handoff prepared (shared-browser capacity)
+
+- Updated `docs/ai/HANDOFF.md` current handoff to the shared-browser capacity task (branch `main`, HEAD level
+  with `origin/main`, working tree modified & uncommitted; prior React-Flow-removal note demoted to a preserved
+  "prior session" block; earlier uncommitted sessions — canvas engine, secret store/security audit, browser
+  resource optimization, custom app frame — listed as "not this task").
+- Verification re-confirmed green (see the entry below). `node scripts/ai-memory/check-memory.mjs` run.
+- Next agent: decide whether to commit the tree (read the git-full-cycle skill first); do not push/PR unless asked.
+
+---
+
+## 2026-07-15 — Claude — Shared-browser capacity: authoritative isolation resolver + launch-arg-aware compatibility key (not committed)
+
+- **Task:** maximise stable concurrent capacity by safely sharing Chromium processes. Prove the existing
+  A5 shared-pool from code + runtime first; implement only the real gaps; do not rewrite working systems.
+- **Investigation (proven from code):** traced `execution.ipc → ExecutionEngine.processQueue (500 ms tick)
+  → Adaptive (A7) + Backpressure + [A8 weighted] admission → isSharedEligible? contextSlot : browserSlot
+  → PlaywrightRunner → BrowserContextFactory.create (persistent | A5 shared lease | dedicated isolated)`.
+  Confirmed A5 leases a fresh isolated `BrowserContext` per instance on a shared `Browser`, spreads then
+  packs, drops crashed browsers, recycles after N contexts, drains idle at run end. Dynamic admission
+  (A7 hysteresis), workload cost (A8), machine-aware memory reserve (A2 CapacityPlanner) already exist.
+- **Gap found (latent correctness bug):** the shared launch key was only `browser:headed/headless` — it
+  ignored the per-instance resolved `launchArgOverrides`. With the shared pool ON **and** a non-`balanced`
+  resource profile, two instances with divergent launch flags (gpu/webgl/cache / throttle drops) would
+  reuse one browser configured with only the first leaser's flags. No four-class isolation taxonomy or
+  decision diagnostics existed either.
+- **Built:** `src/runner/browser/BrowserIsolationResolver.ts` — authoritative resolver classifying every
+  instance into `SHARED_CONTEXT | DEDICATED_BROWSER | PERSISTENT_BROWSER | HANDOFF_BROWSER` with
+  `{decision,value,source}` diagnostics, plus `sharedCompatibilityKey(config, launchArgOverrides)` folding
+  the browser-LEVEL launch config into the key (context-level options stay isolated per context). Delimited,
+  collision-safe, dependency-free; `balanced`/no-overrides → one stable key (unchanged sharing).
+- **Wired:** `browserSharing.isSharedEligible` now delegates to the resolver (single source of truth, no
+  drift); `BrowserContextFactory` shared launcher uses `sharedCompatibilityKey(config, launchArgOverrides)`
+  so incompatible launch configs never share a process; `ExecutionEngine.runInstanceInner` logs the
+  isolation class + diagnostics only when the shared pool is enabled (quiet on the default path).
+- **Files:** `src/runner/browser/BrowserIsolationResolver.ts` (new), `src/runner/browser/browserSharing.ts`,
+  `src/runner/BrowserContextFactory.ts`, `src/runner/ExecutionEngine.ts`, `scripts/verify-browser-isolation.mts`
+  (new), `package.json`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+- **Verified (no regression):** `npm run build` clean; new `verify:browser-isolation` **27/27** (four-class
+  classification, precedence, shareability, isSharedEligible parity, compat-key folds launch args but not
+  context-level diffs, pool honours the key); `verify:shared-browser-pool` **18/18**, `verify:shared-browser-live`
+  **5/5** (real Chromium — 4 contexts on 2 processes preserved), `verify:runner` **82/82**, `verify:concurrency`
+  **78/78**, `verify:workload-weights` **53/53**, `verify:resource-routing` **42/42**, `verify:chromium-hardening`
+  **13/13**, `verify:browser-resource-profile` **51/51**, `verify:adaptive-concurrency` **14/14**,
+  `verify:operation-limiters` **10/10**, `verify:telemetry` **54/54**.
+- **Benchmarked:** ran `benchmark:concurrency` with `AWKIT_SHARED_BROWSER_POOL=1` — found the flag is INERT
+  in that harness (it `chromium.launch()`es one browser per instance, bypassing ExecutionEngine/factory/pool).
+  It reported this machine's baseline: highest sustainable **7**, production-approved **5**, stop at 8 on P95
+  CPU 96.5% (CPU-bound). Built + ran new `benchmark:shared-pool` (`scripts/benchmark-shared-pool.mts`) that
+  drives the REAL `BrowserContextFactory` + `SharedBrowserPool` and compares Model A (browser/workflow) vs
+  Model B (shared): **N=4 −37.5% procs / −27% RSS; N=8 −56% procs / −39% RSS** (headless, maxBrowsers=2),
+  per-context cookie isolation held every cell. Saving is RAM+process count, not CPU.
+- **Not done / risks:** shared pool stays **default OFF** (owner decision D4). A full flag-ON run *through
+  ExecutionEngine dispatch* under sustained load on a clean machine + the default flip remain the gate; the
+  factory+pool lease is now measured. Persistent/Handoff dedicated paths and Reuse Session / Auto Secure
+  Login / Manual Handoff / popup / parallel-page behaviour are unchanged.
+
+---
+
+## 2026-07-15 — Claude — Browser Resource Optimization: deep benchmark evidence + throttling removed (not committed)
+
+- **Task:** raise statistical confidence (20–30 reps), test minimized/occluded headed windows, ablate each
+  optimization, build a representative workload matrix, and produce an evidence-based production recommendation.
+- **Built:** `scripts/benchmark/lib.mts` (shared: stats, multi-workload server, subtree sampling, Win32
+  minimize) + `benchmark-occlusion.mts` / `benchmark-ablation.mts` / `benchmark-workloads.mts` (+ npm scripts).
+- **Ran:** occlusion 20 reps (5 throttle configs on a genuinely minimized window), ablation 20 reps (per-knob,
+  image-heavy), workloads 15 reps (Balanced vs Low-Resource × 8 workloads). Artifacts + logs in
+  `reports/browser-performance/`.
+- **Findings:** background throttling gives **zero** CPU benefit for automated instances (minimize already
+  floors CPU; Playwright keeps pages `visible` so timers never throttle; behaviour 100%) → **removed from
+  low-resource default**. RAM win is ~all image blocking (−6% RAM / −99% net); earlier 21% was 3-rep noise;
+  RAM saving is workload-dependent (~0–13%). Duration unchanged; capability overrides validated live.
+- **Fix applied:** `BrowserResourceProfile.ts` low-resource `backgroundThrottling.enabled=false` (mechanism
+  kept for `custom`); `verify-browser-resource-profile.mts` updated (51/51). Doc `BROWSER_RESOURCE_OPTIMIZATION.md`
+  rewritten (§4/§5/§7/§9) with tables + recommendation; `.env.example` + CURRENT_STATE corrected.
+- **Files:** `src/runner/browserProfile/BrowserResourceProfile.ts`, `scripts/benchmark/lib.mts`,
+  `scripts/benchmark-{occlusion,ablation,workloads}.mts`, `scripts/verify-browser-resource-profile.mts`,
+  `package.json`, `.env.example`, `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`, `reports/browser-performance/*`.
+- **Verified (no regression):** build clean; `verify:browser-resource-profile` 51/51, `verify:runner` 82/82,
+  `verify:chromium-hardening` 13/13, `verify:lean-mode` 12/12, `verify:resource-routing` 42/42,
+  `verify:concurrency` 78/78, `verify:workload-weights` 53/53, `verify:telemetry` 54/54.
+- **Not done / risks:** multi-instance RAM totals are a labelled linear estimate (not multi-instance-benchmarked);
+  CPU is not a reliable per-instance lever (rendering-dominated); GPU/WebGL/renderer-limit stay Custom-only;
+  Settings UI + unattended→low-resource auto-rule are follow-ups.
+
+---
+
+## 2026-07-15 — Claude — Browser Resource Optimization: per-instance Chromium profiles + resolver (not committed)
+
+- **Task:** reduce per-instance Chromium CPU/RAM/network/disk cost while preserving workflow behaviour;
+  build a safe, configurable, measurable optimization architecture (not a concurrency change).
+- **Investigation:** traced the full launch lifecycle (single site = `BrowserContextFactory.create`) and
+  audited the real launch args (Playwright 1.61.0 defaults + `ChromiumHardening`); found the A9
+  `ResourceRoutingPolicy`/`ArtifactProfile` were env-only and never wired to `PlaywrightRunner`, with no
+  unified profile / resolver. Full write-up: `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`.
+- **Implemented (additive, default = today):** `src/runner/browserProfile/` — `BrowserResourceProfile.ts`
+  (4 presets), `WorkflowCapabilities.ts` (capabilities only RELAX), `BrowserRuntimeConfigurationResolver.ts`
+  (authoritative + per-decision diagnostics), `resolveForRun.ts`. Wired via
+  `BrowserContextFactory.launchArgOverrides` (selective `ignoreDefaultArgs`, never `true`),
+  `ChromiumHardening.omitBackgroundTimerThrottlePin` (re-enable background throttling for low-resource),
+  `PlaywrightRunner.traceMode/resourceRouting`, `ExecutionEngine.runInstance` (resolve once/instance).
+  Measurement fix: `ProcessTreeSampler` now counts `chrome-headless-shell.exe`.
+- **Files:** `src/runner/browserProfile/{BrowserResourceProfile,WorkflowCapabilities,BrowserRuntimeConfigurationResolver,resolveForRun}.ts`,
+  `src/runner/ChromiumHardening.ts`, `src/runner/BrowserContextFactory.ts`, `src/runner/PlaywrightRunner.ts`,
+  `src/runner/ExecutionEngine.ts`, `src/runner/runtime/ProcessTreeSampler.ts`,
+  `scripts/verify-browser-resource-profile.mts`, `scripts/benchmark-browser-resource.mts`, `package.json`,
+  `.env.example`, `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` clean; `verify:browser-resource-profile` **49/49**; regression
+  `verify:runner` **82/82**, `verify:chromium-hardening` **13/13**, `verify:lean-mode` **12/12**,
+  `verify:resource-routing` **42/42**, `verify:concurrency` **78/78**, `verify:workload-weights` **53/53**,
+  `verify:telemetry` **54/54**. Benchmark (i7-8750H/12c/16GB headless, 3 reps): low-resource vs balanced —
+  network **−100% bytes / −96.8% req**, RAM **−8% avg / −9.6% peak**, navigate CPU **−20.6%**; idle CPU a
+  wash (foreground headless doesn't background-throttle). Artifacts: `reports/browser-performance/`.
+- **Not run / risks:** headed/occluded throttling win (display-dependent) not measured; GPU/WebGL/renderer-limit
+  Custom-only pending clean-machine benchmark; Settings UI + per-workflow capability hints are follow-ups;
+  low-resource-as-default is an owner decision. No packaged/offline walkthrough run (no offline-path behaviour changed).
+
+---
+
+## 2026-07-14 — Claude — Security hardening batch 2: residuals + defense-in-depth (not committed)
+
+- **Task:** close the F-01/F-09 residuals and add the §13/§16 hardening; attempt `sandbox:true`.
+- **F-01 residual:** global runtime root threaded into the execution context as `protectedUploadRoots`
+  (`InstanceExecutionContext` + `ExecutionEngine` + `StepExecutor.assertUploadAllowed`) → uploads of
+  captured browser profiles (cookies/Login Data) + durable store are now blocked.
+- **F-09 residual:** `installGlobalSenderGuard()` in `app/main/ipc/index.ts` wraps every `ipcMain.handle`
+  with `isTrustedSender` (covers all channels, not just the high-privilege ones).
+- **Prototype pollution (§13):** `setJsonAtPath` rejects `__proto__`/`constructor`/`prototype` keys;
+  `resolveJsonPath` refuses to traverse them (`TableEditing.ts`, `JsonPathResolver.ts`).
+- **Smart Locator integrity (§16):** `guardLocatorQuality` fails a dangerousMutation/externalCommit step
+  with a positional/fallback locator (wrong-privileged-action risk).
+- **`sandbox:true`:** attempted, **reverted** — broke the ESM `preload.mjs` in a real-Electron GUI smoke
+  (`verify:flow-designer` timed out on render). Needs preload→CJS migration; tracked as standalone. F-06
+  `will-navigate` lockdown already removes the exploitable vector.
+- **Also fixed:** a stray control byte in `StepExecutor.ts` (download-sanitizer regex) that made the file
+  read as binary to ripgrep — rewritten as clean ASCII (`/[\x00-\x1f]+/`).
+- **Verified:** `npm run build` clean; `verify:security` **33/33**; GUI `verify:flow-designer` **24/24**
+  (no console errors, proves sender guard + IPC intact); `verify:runner` **82/82**, `verify:data-editor`
+  **27/27**, `verify:ipc-contract` **4/4**.
+
+## 2026-07-14 — Claude — Security hardening: LOW+MEDIUM+HIGH audit fixes (not committed)
+
+- **Task:** fix the findings from `docs/security/FULL_SECURITY_AUDIT.md`, ascending severity. LOW+MEDIUM
+  first; HIGH (F-01, F-03) applied after owner review chose the "recommended" approach. No commit, no GitHub.
+- **HIGH fixes:** F-01 upload crown-jewels blocklist — `StepExecutor.assertUploadAllowed` refuses uploads
+  inside AWKIT sessions/logs/reports/screenshots/traces (+ traversal), general user files still allowed;
+  F-03 lenient bounds normalization — new `src/profiles/FlowValidation.ts` `normalizeFlowBounds` clamps
+  timeouts/retries/loop iterations + caps alternatives/waits arrays + warns on duplicate ids, wired into
+  `FlowExecutor.executeFlow` (keeps unknown-step-type rejection; does not reject unknown props → legacy
+  flows still load). `verify:security` extended to 29/29; `verify:runner` 82/82, `verify:waits` 21/21.
+  Residual P2: global session-capture profile dir not yet in the upload blocklist (needs runtime root
+  threaded into the execution context).
+- **New helpers:** `src/runner/urlPolicy.ts` (navigation allowlist), `src/utils/pathSafety.ts`
+  (`isPathInside` confinement), `app/main/ipc/senderGuard.ts` (`assertTrustedSender`).
+- **Fixes:** F-02 `assertNavigableUrl` on both `goto` sinks (blocks `file:`/`javascript:`/`chrome*`/
+  `devtools:`; allows http(s)/about/data); F-04 data-source writes confined to workspace + `saveSession`
+  folder confined to sessions root; F-05 `system:openPath` confined to app data folders + exe-extension
+  block; F-06 `will-navigate`/`will-redirect` lockdown in `windowManager.ts`; F-07 recorder redaction
+  extended to OTP/one-time-code/card/CVV/PIN/SSN/token fields; F-08 `sanitizeDownloadFileName`;
+  F-09 `assertTrustedSender` on `execution:runWorkflow`, `dataSources:writeJson/createFromScratch`,
+  `session:startCapture`, `system:openPath`; F-11 session capture rejects non-http(s) targets.
+- **Files:** `src/runner/StepExecutor.ts`, `src/session/SessionCaptureService.ts`, `src/recorder/
+  recorderInitScript.ts`, `app/main/windowManager.ts`, `app/main/ipc/{system,dataSource,execution,session}.ipc.ts`,
+  + the 3 new helpers, `scripts/verify-security.mts`, `package.json` (`verify:security`).
+- **Verified:** `npm run build` clean; new `verify:security` **20/20**; regression `verify:runner` **82/82**,
+  `verify:recorder` **72/72**, `verify:ipc-contract` **4/4**, `verify:data-editor` **27/27**,
+  `verify:waits` **21/21**, `verify:protected-login` **16/16**, `verify:protected-login-recorder` **34/34**.
+- **Behaviour notes:** data-source edits to a file outside the workspace now save a workspace copy (were
+  written in place); `goto`/`routeChange` to `file://` now error; `system:openPath` outside app folders
+  returns a message instead of opening. Remediation status table added to the audit report.
+
+## 2026-07-14 — Claude — Full security audit (report-only, no code changes)
+
+- **Task:** perform an evidence-based security audit of the actual AWKIT codebase per
+  `docs/security/SECURITY_AUDIT_BRIEF.md` (added from `UI Samples/Security Audit.md`). Audit-and-report
+  only — no fixes applied, no commit, no GitHub interaction (per user instruction and the brief).
+- **Produced:** `docs/security/FULL_SECURITY_AUDIT.md` (executive summary, threat model, architecture,
+  privileged-op inventory, IPC/workflow-trust reviews, 11 findings, roadmap). Rating **C**; recommendation
+  **YES WITH CONDITIONS**.
+- **Key findings (all traced to current source):** F-01 arbitrary local-file upload via `uploadFile`
+  `setInputFiles` unbounded path (`StepExecutor.ts:832`, HIGH); F-03 no runtime schema/bounds validation of
+  workflow JSON (`FlowProfile.ts`, HIGH); F-02 no `goto` protocol allowlist (`file://` reachable, MEDIUM);
+  F-04 arbitrary FS write via data-source `file`/`saveSession` folder (MEDIUM); F-05 `system:openPath`
+  unrestricted (MEDIUM); F-06 no `will-navigate` guard + `sandbox:false` (MEDIUM); F-07 recorder captures
+  non-password field values literally (MEDIUM).
+- **Strong existing controls confirmed:** no eval/Function/vm; safe hand-written condition evaluators;
+  arg-array spawn (no shell injection); http(s)-only external open; recorder password/URL redaction; no
+  CAPTCHA/MFA-bypass or stealth; parameterized SQL; atomic writes + profile locks; downloads never executed.
+- **Tests run:** `npm audit` (dev-only advisories, not shipped). **Not run:** live malformed-workflow repro,
+  packaged-EXE signing/storage check, concurrent-session isolation stress (called out in the report).
+- **No source code changed.**
+
 ## 2026-07-13 — Claude — Live-vs-history on the execution report (phase B4)
 
 - **Task:** show a running/finished instance's elapsed vs the workflow's historical per-run avg/p95 (for
@@ -3322,3 +3672,186 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   settings-persistence; the caps→pool logic covered by browser-pool Part G).
 - **Result:** users set Max browsers / Max active flows in Settings; the caps drive admission and the
   Chrome Consumption gauge denominators (applied on save + each run; browser-cap resize when idle).
+
+## 2026-07-14 — Claude — UI/motion direction: spatial-continuity completions + type-scale migration
+
+- **Task:** Continue implementing `docs/ui-design-and-motion-direction.md`. Phases 0–4 (foundation tokens,
+  motion vocabulary, origin-aware surfaces, hover gating, canvas transforms, glass materials, a11y media
+  queries) were already applied (uncommitted, from the 7 `plans/00x` motion plans + Phase-0 foundation).
+  This session closed the additive "missed opportunities" and started the Phase-4 type migration.
+- **Change:**
+  - **Toast exit** (`components/shared/Toast.tsx`, `global.css` `.app-toast`): enter→shown→leave state
+    machine; fades out along the same bottom edge via CSS transitions (not a keyframe). Removed the now
+    unused `@keyframes app-toast-in`.
+  - **Empty-state first-render delight** (`global.css` `.awkit-empty-state`): staggered rise
+    icon→headline→hint→CTA (45ms/step, `--awkit-dur-med` ease-out), fully removed under reduced motion.
+  - **Node-deletion exit** (`components/canvas/FlowCanvas.tsx`, `global.css` `.awkit-flow-node.is-exiting`):
+    manual exit-tracking (no `AnimatePresence`) renders a deleted node ~150ms as a non-interactive ghost
+    that fades+scales out (keyframe on the node's child; outer `translate3d` untouched). Gated on the
+    `nodes` reference so pan/zoom/typing never re-render the memoized node subtree.
+  - **Properties-panel glide:** confirmed already implemented (§9.1). Coordinated `panBy` deferred (needs
+    cross-boundary ref threading; documented in `plans/README.md`).
+  - **Type-scale migration:** 199 exact-match `font-size` literals (11/12/13/14/16/18/22px) → `--text-*`
+    tokens (zero visual change). 28 off-scale one-offs left; `--leading-*`/`--tracking-*` application is a
+    per-section visual follow-on.
+- **Files:** `app/renderer/components/shared/Toast.tsx`, `app/renderer/components/canvas/FlowCanvas.tsx`,
+  `app/renderer/styles/global.css`, `plans/README.md`, `docs/ai/TASK_LOG.md`. (CURRENT_STATE.md left
+  unchanged — it tracks committed app state; this whole UI-motion body is intentionally uncommitted.)
+- **Verification:** `npm run build` ✅; `verify:flow-designer` **24/24** (incl. node add/delete flows, no
+  console errors); `verify:reports` **31/31**; `verify:canvas-perf` **7/10** — the 3 failures are
+  pre-existing on baseline `7c4b260` (harness "no draggable node found" / seed nodeCount=3), and all
+  memoization assertions (zoom/typing → 0 node/card/edge re-renders) pass before and after.
+- **Not run:** clean-machine packaged GUI walkthrough; light/dark + reduced-motion visual pass (Electron
+  renderer can't be driven from the Browser pane). Motion is CSS-token-driven and reduced-motion-guarded.
+- **Result:** toasts, empty states, and node deletion complete their spatial loops; font sizes are
+  single-sourced. Whole UI-motion body remains uncommitted for user review (per request).
+
+## 2026-07-14 — Claude — Fix Settings › Paths & Directories button overlap (UI)
+
+- **Task:** User reported the Browse/Reset buttons in Settings → Paths & Directories were misaligned —
+  each field's Reset button overlapped the next field's path input (`ResetC:\Users\...`), last column clipped.
+- **Cause:** Path fields used the shared `.settings-grid` (`auto-fit, minmax(240px,1fr)`) — too narrow for a
+  long path input + Browse + Reset. Measured overflow was a constant **+80px** per field (Reset spilling
+  into the neighbour's cell).
+- **Change:** Scoped a `.settings-paths-grid` modifier (added to the paths grid in `Settings.tsx`):
+  `minmax(340px,1fr)` tracks; `.settings-path-row` gets `align-items:center` + `flex-wrap:wrap`; input
+  `flex:1 1 160px; min-width:0`; buttons `flex:0 0 auto; white-space:nowrap` so they never shrink/overflow.
+- **Files:** `app/renderer/pages/Settings.tsx`, `app/renderer/styles/global.css`, `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` ✅. Reproduced in a faithful standalone HTML harness (real CSS + markup)
+  and measured via DOM rects: BEFORE = 4 cols, **+80px** Reset overflow on every field; AFTER = 3 cols,
+  **0px** overflow, no wrap. Forced a 300px cell → buttons wrap below the input (row 74px), still 0 overflow.
+- **Result:** buttons align within each field; no cross-field overlap; degrades gracefully on narrow windows.
+
+## 2026-07-14 — Claude — Custom AWKIT application frame (remove native Electron/Windows frame)
+
+- **Task:** Remove the native OS title bar from the main window and replace it with an application-owned,
+  theme-aware AWKIT title bar (brand + current area + window controls), integrated into the existing shell.
+- **Main process:** `windowManager.ts` sets `frame: false` (security prefs untouched — contextIsolation on,
+  nodeIntegration off) and forwards real `maximize`/`unmaximize`/`enter|leave-full-screen` to the renderer
+  via `window:maximizedChanged` so the control state never drifts from the OS. New `ipc/window.ipc.ts`
+  (`registerWindowIpc`, registered first in `ipc/index.ts`) exposes minimize / toggleMaximize / close /
+  isMaximized, each resolving the window from `event.sender` (multi-window-safe, missing-window = no-op).
+- **Preload:** added a narrowly-scoped `appWindow` domain (minimize/toggleMaximize/close/isMaximized +
+  leak-free `onMaximizedChange` returning an unsubscribe). No `ipcRenderer`/`BrowserWindow`/Node exposed;
+  `window.playwrightFlowStudio` identifier unchanged.
+- **Renderer:** `layout/AppFrame.tsx` (thin draggable title bar; double-click toggles maximize) +
+  `layout/WindowControls.tsx` (three caption buttons, inline SVG glyphs, `useWindowMaximized` seeds from
+  `isMaximized()` then syncs via the event; maximize↔restore icon + aria label follow real state). `AppShell`
+  now wraps the shell in `.app-window` with the frame on top.
+- **Styling (`global.css`):** new `--titlebar-height: 36px`; `--shell-chrome` now includes it; `.app-shell`
+  & `.left-navigation` heights adjusted; legacy `calc(100vh - 92px|132px|170px)` designer/scenario calcs
+  updated to subtract the title bar. Frame + `.win-control` styling uses only design tokens; hover gated to
+  fine pointers, close-hover = danger, press = instant wash (asymmetric), color-only motion (120ms ease-out).
+- **Design/motion:** applied emil-design-eng + apple-design (immediate pointer-down feedback, restraint,
+  theme-aware opaque material, no entrance motion on persistent chrome, interruptible CSS transitions).
+  Strict `review-animations` pass: one press-immediacy finding fixed (`:active { transition:none }`) → **Approve**.
+- **Files:** `app/main/windowManager.ts`, `app/main/ipc/window.ipc.ts`, `app/main/ipc/index.ts`,
+  `app/main/preload.ts`, `app/renderer/layout/AppFrame.tsx`, `app/renderer/layout/WindowControls.tsx`,
+  `app/renderer/layout/AppShell.tsx`, `app/renderer/styles/global.css`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` clean (tsc + 3 bundles); `verify:ipc-contract` **4/4** (125 handlers,
+  the 4 new window channels have handlers, no dupes); `verify:canvas-perf` **13/13**; `verify:flow-designer`
+  **24/24** (canvas fills the frame-adjusted height, panels contained, 0 console errors). Real Electron
+  manual inspection (light + dark): native frame gone; maximize→restore icon sync; double-click toggle;
+  minimize; close hover = red; Dashboard + Flow Designer stack cleanly under the frame; context label tracks
+  the active route.
+- **Not run / risks:** OS window *move* via drag confirmed by implementation (standard `-webkit-app-region:
+  drag`; buttons + double-click on the region both fire) but not visually reproduced — synthetic drag input
+  didn't drive the OS non-client move; no snap-layout hover flyout on the maximize button (would need a
+  WM_NCHITTEST/titleBarOverlay hook). Automation browsers launched by Playwright are untouched.
+
+## 2026-07-14 — Claude — Security follow-ups: Settings → Secrets UI (§15) + data-source read confinement verifier (§14)
+
+- **Task:** Continue the security-audit remediation follow-ups — finish the DPAPI secret store (§15) and the
+  data-source read confinement (§14). The backends were already implemented and passing (`verify:secrets`
+  16/16); the gaps were the operator-facing **Settings → Secrets** UI and regression coverage for the
+  data-source read guard.
+- **Secret store UI (§15):** added a **Secrets** card to `Settings.tsx` — add/update by name (name pattern
+  mirrored client-side as `SECRET_NAME_RE`, password-masked value input, Enter-to-add), delete-with-confirm,
+  a stored-secret list (name + last-updated, no values), and a keystore-unavailable banner. Calls the existing
+  name-only preload API (`window.playwrightFlowStudio.secrets.isAvailable/list/set/delete`); no channel returns
+  a decrypted value. New token-only CSS (`.settings-secret-form/-list/-row`) — no hardcoded hex/px.
+- **Data-source read (§14):** extracted the read-confinement decision into a pure predicate
+  `isReadableDataSourceFile(runtimeRoot, dataSourcesDir, resolved)` in `src/utils/pathSafety.ts` and switched
+  `dataSource.ipc.ts::assertReadableDataFile` to it (behavior unchanged: 25 MB cap + refuse runtime-internal
+  files that aren't the data workspace). Added 6 regression checks to `verify-security.mts`.
+- **Files:** `app/renderer/pages/Settings.tsx`, `app/renderer/styles/global.css`, `src/utils/pathSafety.ts`,
+  `app/main/ipc/dataSource.ipc.ts`, `scripts/verify-security.mts`, `docs/security/FULL_SECURITY_AUDIT.md`,
+  `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` clean (tsc + 3 bundles); `verify:security` **39/39** (+6 data-source
+  read-confinement checks), `verify:secrets` **16/16**, `verify:data-editor` **27/27**, `verify:ipc-contract`
+  **4/4** (129 handlers). Settings → Secrets card verified in a token-faithful standalone HTML harness (real
+  `global.css`, all three states) via the Browser pane — computed styles confirm flex form, inset rows,
+  right-aligned timestamps, danger banner, and **no horizontal overflow** in both light and dark themes.
+- **Not run / risks:** real packaged-Electron DPAPI round-trip and the clean-machine GUI walkthrough (the
+  Electron renderer can't be driven from the Browser pane; the harness proves layout only, not live IPC). The
+  secret set/list/delete IPC path itself is covered by `verify:secrets`. Whole security batch remains
+  uncommitted (local only) per the standing "do not push unless asked" note.
+
+## 2026-07-14 — Claude — New Flow: name dialog + auto-open in Flow Designer
+
+- **Task:** The Flows page **New Flow** button should pop a dialog to set the flow name, then create the
+  flow and open it automatically in the Flow Designer with only a Start and End step.
+- **Change:** Added reusable `app/renderer/components/shared/PromptDialog.tsx` (single-field modal:
+  autofocus+select, Enter to confirm, Escape/overlay to cancel, confirm disabled until non-empty). Routed
+  all three New/Create Flow triggers in `FlowLibrary.tsx` through a `namingFlow` state that opens the
+  dialog. `createFlow(name)` now creates the Start→End-only flow with the entered name and calls the
+  existing `openFlow(profile)` (persist `lastSelectedFlowId` + navigate to `flowChart`). Token-only CSS
+  (`.modal-icon.create`, `.modal-field`) in `global.css`.
+- **Files:** `app/renderer/components/shared/PromptDialog.tsx` (new), `app/renderer/pages/FlowLibrary.tsx`,
+  `app/renderer/styles/global.css`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` clean (tsc --noEmit + main/preload/renderer bundles).
+- **Not run / risks:** live Electron GUI walkthrough (Browser pane can't exercise `window.playwrightFlowStudio`
+  IPC). Start/End scaffold unchanged, so no runner/verifier surface touched.
+
+## 2026-07-14 — Claude — Workflows library + Workflow Builder header/toolbar cleanup
+
+- **Task:** (1) header keeps only **Save** (remove New/Run); (2) disable Reload, Mode, and Parallel in the
+  builder toolbar; (3) drop the **Max Parallel** column from the Workflows table; (4) remove the grey id line
+  under each workflow name; (5) one line per row with full text in a title tooltip and per-row actions
+  collapsed into a single "…" kebab menu; (6) **Create Workflow** opens a name modal, persists the workflow,
+  then opens it in the builder; (7) the builder toolbar **New** does the same.
+- **Change:** New shared factory `createBlankWorkflowProfile(name)` in `WorkflowProfile.ts` (Start→End
+  scaffold, sequential defaults) — the single source both entry points use. **ScenarioBuilder.tsx:** header
+  chrome trimmed to Save only; removed the now-dead `runWorkflow`; `#sb-new` and a new `namingWorkflow`
+  `PromptDialog` route through `createNamedWorkflow` (create → list → `loadWorkflowProfile` → Saved); `#sb-reload`,
+  Mode `<select>`, and Parallel `<input>` marked `disabled`. **WorkflowsLibrary.tsx:** removed the Max Parallel
+  column (header/body/colgroup) + its adapter accessor and two filter fields; removed `<small>{id}</small>`;
+  per-row action buttons replaced by a single `.wl-kebab` (`MoreVertical`) that opens the existing
+  `NodeOptionsMenu` (Open in Builder / Clone / Export JSON / Delete-danger); Delete now uses `ConfirmDialog`;
+  **Create Workflow** (toolbar + empty-state) opens a `PromptDialog` → `createWorkflow(name)` persists via
+  `createBlankWorkflowProfile` + navigates to the builder. Token-only CSS: `.wl-table-workflows` single-line
+  cells + `.wl-kebab`.
+- **Files:** `src/profiles/WorkflowProfile.ts`, `app/renderer/pages/ScenarioBuilder.tsx`,
+  `app/renderer/pages/WorkflowsLibrary.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-workflow-builder-gui.mjs` (New now names the workflow first), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Verification:** `npm run build` clean (tsc + 3 bundles). `verify:workflow-builder` **20/20** (updated
+  section 3 drives the New name modal). Workflows library covered by a throwaway `_electron` walkthrough
+  (**7/7**): no Max Parallel header, no id sub-line, one kebab per row opening the 4-action menu, Create
+  opens the name modal, zero renderer console errors.
+- **Not run / risks:** clean-machine packaged walkthrough. The `verify:workflow-builder` run now persists one
+  blank "GUI New …" workflow per run (New persists by design) — cosmetic data-dir leftover only.
+
+## 2026-07-16 — Claude — Runtime Observability & Historical Analytics (full phase set 01–09)
+
+- **Task:** Build the production Runtime Observability & Historical Analytics layer per
+  `AWKIT_RUNTIME_OBSERVABILITY_ANALYTICS_PHASES` (audit → data model → collection → per-workflow analytics →
+  capacity/queue effectiveness → anomaly/regression → UI integration → retention → verification/soak/report).
+- **Approach:** Extend the EXISTING durable telemetry stack (one SQLite store, one contract, one IPC surface)
+  — migration v4, no second database. Reuse the existing samplers (no new polling loop). Environmental
+  resource fields labelled as correlations, never per-workflow ownership.
+- **Files:** `src/runner/store/RuntimeStoreSchema.ts`, `SqliteRuntimeStore.ts`, `RuntimeStore.ts`;
+  new `src/reports/ObservabilityContracts.ts`, `src/reports/observabilityAggregation.ts`,
+  `src/runner/runtime/RuntimeObservationCollector.ts`, `src/runner/runtime/AnomalyDetector.ts`;
+  `src/runner/ExecutionEngine.ts`; `app/main/ipc/telemetry.ipc.ts`, `app/main/preload.ts`;
+  `app/renderer/pages/ReportsRuntime.tsx`, `app/renderer/styles/global.css`;
+  new `scripts/verify-observability.mts`, `package.json`, `scripts/verify-telemetry.mts` (v4 assertion);
+  docs (`RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md`, `CURRENT_STATE.md`, `COMMANDS.md`, `.env.example`).
+- **Tests run:** build clean; `verify:observability` 65/65; `verify:telemetry` 61/61; `verify:runner` 82/82;
+  `verify:concurrency` 78/78; `verify:concurrency-defaults` 18/18; `verify:shared-browser-pool` 19/19;
+  `verify:browser-isolation` 27/27; bounded Config-D real-engine soak (1.5 min) 299 done / 0 failed /
+  teardown CLEAN / durable=live MATCH.
+- **Not run / risks:** full ≥30-min production soak (documented pre-release gate); packaged-EXE walkthrough.
+  Environmental attribution is correlation not ownership (labelled); capacity-window P95 is a bucketed ceiling.
+- **Result:** Complete + verified; ON by default at measured-negligible overhead, bounded storage.

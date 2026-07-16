@@ -4,11 +4,12 @@ import type { Browser, BrowserContext, BrowserType, LaunchOptions } from "playwr
 import { chromium } from "playwright";
 import { BundledBrowserResolver } from "@src/offline/BundledBrowserResolver";
 import { buildChromiumHardeningArgs } from "./ChromiumHardening";
+import type { LaunchArgOverrides } from "./browserProfile/BrowserRuntimeConfigurationResolver";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { globalProfileLocks, type ProfileLease } from "@src/profiles/ProfileLockManager";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import type { SharedBrowserPool, SharedBrowserLauncher } from "./browser/SharedBrowserPool";
-import { sharedLaunchKey } from "./browser/browserSharing";
+import { sharedCompatibilityKey } from "./browser/browserSharing";
 import type { OperationLimiters } from "./concurrency/OperationLimiters";
 import {
   loadResourceRoutingConfig,
@@ -34,6 +35,12 @@ export interface BrowserContextFactoryOptions {
    * context options to every context this factory creates.
    */
   resourceRouting?: ResourceRoutingConfig;
+  /**
+   * Browser Resource Optimization: launch-argument deltas from the resolved profile — extra Chromium
+   * switches (gpu/webgl/cache) plus the specific Playwright default switches to drop for background
+   * throttling. When omitted, launch args are exactly today's hardened defaults.
+   */
+  launchArgOverrides?: LaunchArgOverrides;
 }
 
 export interface BrowserRuntime {
@@ -169,7 +176,10 @@ export class BrowserContextFactory {
     const sharedPool = this.options.sharedBrowserPool;
     if (sharedPool) {
       const launcher: SharedBrowserLauncher = {
-        launchKey: sharedLaunchKey(config),
+        // Only browsers with an identical browser-LEVEL launch config may share a Chromium process. The
+        // key folds in the resolved launch-arg deltas so a low-resource/custom-profile instance can never
+        // reuse a browser launched with different flags (context-level options stay isolated per context).
+        launchKey: sharedCompatibilityKey(config, this.options.launchArgOverrides),
         launch: () => this.limit("browserLaunch", () => browserType.launch(launchOptions)),
         newContext: (browser) =>
           this.limit("contextCreation", () =>
@@ -214,12 +224,21 @@ export class BrowserContextFactory {
   }
 
   private createLaunchOptions(config: InstanceConfig): LaunchOptions {
+    const overrides = this.options.launchArgOverrides;
     const launchOptions: LaunchOptions = {
       headless: config.headless,
       timeout: config.timeoutMs,
       // No-egress hardening (Phase 5.1C): suppress Chromium background service calls
-      // (time/variations/component updates). Page-level networking is untouched.
-      args: buildChromiumHardeningArgs(),
+      // (time/variations/component updates). Page-level networking is untouched. The Browser Resource
+      // Optimization profile may append switches (gpu/webgl/cache) and, for the low-resource profile,
+      // re-enable background throttling (omit the throttle pin here + drop Playwright's copy via
+      // ignoreDefaultArgs below). When no overrides are supplied this is exactly today's arg set.
+      args: [
+        ...buildChromiumHardeningArgs(process.env, {
+          omitBackgroundTimerThrottlePin: overrides?.omitBackgroundTimerThrottlePin
+        }),
+        ...(overrides?.add ?? [])
+      ],
       // Embedded in a long-running Electron host: let the runner own the browser lifecycle so a
       // host-process signal (or a sibling browser being torn down during a mid-run swap) can't
       // reap the freshly launched browser out from under the next step.
@@ -227,6 +246,12 @@ export class BrowserContextFactory {
       handleSIGTERM: false,
       handleSIGHUP: false
     };
+
+    // Selectively drop specific Playwright default switches (never `ignoreDefaultArgs: true`) — used
+    // only to re-enable Chromium's normal background throttling under the low-resource profile.
+    if (overrides && overrides.ignoreDefaultArgs.length > 0) {
+      launchOptions.ignoreDefaultArgs = overrides.ignoreDefaultArgs;
+    }
 
     if (this.options.productionOffline) {
       const bundledBrowser = new BundledBrowserResolver(this.options.resourcesRoot).resolveChromium();

@@ -25,6 +25,7 @@ import {
   type RunHistoryFilter,
   type RunHistoryPage,
   type RunHistoryRow,
+  type RunStatusCounts,
   type RunsSeriesPoint,
   type RuntimeSeriesPoint,
   type TelemetryOverview,
@@ -36,16 +37,66 @@ import {
   type WorkflowTrendPoint
 } from "@src/reports/TelemetryContracts";
 import { toReportCategory, type ReportCategory } from "@src/reports/ReportCategories";
+import {
+  computeCapacityAnalytics,
+  computeRunVsHistory,
+  computeWorkflowHistoricalStats,
+  computeWorkflowHistoricalTrend,
+  computeWorkflowRankings,
+  selectTrendBucketWidth
+} from "@src/reports/observabilityAggregation";
+import type {
+  AnomalyEvent,
+  AnomalyScope,
+  AnomalySeverity,
+  CapacityAnalytics,
+  RunVsHistoryComparison,
+  TrendBucketWidth,
+  WorkflowHistoricalStats,
+  WorkflowHistoricalTrend,
+  WorkflowRanking,
+  WorkflowRankingMetric
+} from "@src/reports/ObservabilityContracts";
 import type { ErrorClass } from "../runtime/ErrorClassifier";
 import { loadSqlJs } from "./SqlJsLoader";
 import {
   RUNTIME_STORE_MIGRATIONS,
+  type DurableAdmissionBucketRecord,
+  type DurableAnomalyRecord,
   type DurableArtifactRecord,
   type DurableAttemptRecord,
+  type DurableBrowserLifecycleBucketRecord,
   type DurableCancellationRecord,
+  type DurableCapacityBucketRecord,
   type DurableProcessSampleRecord,
   type DurableRunRecord
 } from "./RuntimeStoreSchema";
+
+/** Column order for runtime_capacity_buckets inserts (keeps the wide INSERT in one place). */
+const CAPACITY_BUCKET_COLUMNS = [
+  "bucketStart", "bucketEnd", "sampleCount",
+  "cpuMean", "cpuP95", "cpuMax",
+  "memoryMean", "memoryP95", "memoryMax",
+  "awkitRssMeanMb", "awkitRssP95Mb", "awkitRssMaxMb",
+  "chromiumRssMeanMb", "chromiumRssP95Mb", "chromiumRssMaxMb",
+  "nodeHeapMeanMb", "nodeHeapMaxMb",
+  "adaptiveTargetMean", "adaptiveTargetMin", "adaptiveTargetMax",
+  "weightedBudgetMean", "weightedBudgetMin", "weightedBudgetMax",
+  "activeWeightMean", "activeWeightP95", "activeWeightMax",
+  "activeFlowsMean", "activeFlowsP95", "activeFlowsMax",
+  "queuedFlowsMean", "queuedFlowsP95", "queuedFlowsMax",
+  "sharedBrowsersMean", "sharedBrowsersMax",
+  "contextCountMean", "contextCountMax",
+  "pageCountMean", "pageCountMax",
+  "weightedAdmissionActive"
+] as const;
+
+/** Coerce an optional/boolean bucket field to a SQLite-storable param (undefined → null, bool → 0/1). */
+function normalizeParam(value: unknown): unknown {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "boolean") return value ? 1 : 0;
+  return value;
+}
 
 const PERSIST_DEBOUNCE_MS = 300;
 /** Active-looking statuses that indicate a run was interrupted if its app instance is gone. */
@@ -126,8 +177,12 @@ export class SqliteRuntimeStore implements RuntimeStore {
           lastHeartbeatAt, lastKnownUrl, error, errorClass, recoverable, recoveryNote,
           scenarioName, triggerType, queueWaitMs, durationMs, retryCount, recoveryCount, reportCategory,
           machineId, logicalCpuCount, totalMemoryMb, availableMemoryMbAtStart, executionMode, browserPoolMode,
-          configuredConcurrency, observedPeakConcurrency, workloadClass, capacityRecommendationAtRun, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          configuredConcurrency, observedPeakConcurrency, workloadClass, capacityRecommendationAtRun,
+          headed, resourceProfile, isolationClass, workloadWeight, dispatchLatencyMs, pressureStateAtRun,
+          obsSampleCount, obsSystemCpuMean, obsSystemCpuP95, obsSystemMemoryMean, obsSystemMemoryP95,
+          obsChromiumRssMeanMb, obsChromiumRssP95Mb, obsAwkitRssMeanMb, obsAwkitRssP95Mb, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           merged.instanceId,
           merged.executionId,
@@ -161,6 +216,21 @@ export class SqliteRuntimeStore implements RuntimeStore {
           merged.observedPeakConcurrency ?? null,
           merged.workloadClass ?? null,
           merged.capacityRecommendationAtRun ?? null,
+          merged.headed === undefined ? null : merged.headed ? 1 : 0,
+          merged.resourceProfile ?? null,
+          merged.isolationClass ?? null,
+          merged.workloadWeight ?? null,
+          merged.dispatchLatencyMs ?? null,
+          merged.pressureStateAtRun ?? null,
+          merged.obsSampleCount ?? null,
+          merged.obsSystemCpuMean ?? null,
+          merged.obsSystemCpuP95 ?? null,
+          merged.obsSystemMemoryMean ?? null,
+          merged.obsSystemMemoryP95 ?? null,
+          merged.obsChromiumRssMeanMb ?? null,
+          merged.obsChromiumRssP95Mb ?? null,
+          merged.obsAwkitRssMeanMb ?? null,
+          merged.obsAwkitRssP95Mb ?? null,
           merged.updatedAt
         ]
       );
@@ -318,19 +388,224 @@ export class SqliteRuntimeStore implements RuntimeStore {
     return this.selectAll("runtime_process_samples", clause, params) as unknown as DurableProcessSampleRecord[];
   }
 
+  // ── Observability-analytics writes (migration v4) ───────────────────────────
+
+  /** Persist one bounded capacity time bucket (Phase 03/05). Bounded to the most recent 5000 buckets. */
+  recordCapacityBucket(bucket: DurableCapacityBucketRecord): void {
+    this.safeRun(() => {
+      const columns = CAPACITY_BUCKET_COLUMNS;
+      const placeholders = columns.map(() => "?").join(", ");
+      this.db.run(
+        `INSERT INTO runtime_capacity_buckets (${columns.join(", ")}) VALUES (${placeholders})`,
+        columns.map((c) => normalizeParam((bucket as unknown as Record<string, unknown>)[c])) as never
+      );
+      this.db.run("DELETE FROM runtime_capacity_buckets WHERE id NOT IN (SELECT id FROM runtime_capacity_buckets ORDER BY id DESC LIMIT 60000)");
+    });
+  }
+
+  /** Persist one admission-delay reason bucket (Phase 03/05). Bounded to the most recent 20000 rows. */
+  recordAdmissionBucket(bucket: DurableAdmissionBucketRecord): void {
+    this.safeRun(() => {
+      this.db.run("INSERT INTO runtime_admission_buckets (bucketStart, reason, pressureState, count) VALUES (?, ?, ?, ?)", [
+        bucket.bucketStart,
+        bucket.reason,
+        bucket.pressureState ?? null,
+        bucket.count
+      ]);
+      this.db.run("DELETE FROM runtime_admission_buckets WHERE id NOT IN (SELECT id FROM runtime_admission_buckets ORDER BY id DESC LIMIT 20000)");
+    });
+  }
+
+  /** Persist one browser-lifecycle (retirement) reason bucket (Phase 03/05). */
+  recordBrowserLifecycleBucket(bucket: DurableBrowserLifecycleBucketRecord): void {
+    this.safeRun(() => {
+      this.db.run("INSERT INTO runtime_browser_lifecycle_buckets (bucketStart, reason, count) VALUES (?, ?, ?)", [
+        bucket.bucketStart,
+        bucket.reason,
+        bucket.count
+      ]);
+      this.db.run("DELETE FROM runtime_browser_lifecycle_buckets WHERE id NOT IN (SELECT id FROM runtime_browser_lifecycle_buckets ORDER BY id DESC LIMIT 20000)");
+    });
+  }
+
+  /** Persist one deterministic anomaly/regression event (Phase 06). Critical write (immediate flush). */
+  recordAnomaly(record: DurableAnomalyRecord): void {
+    this.safeRun(() => {
+      this.db.run(
+        `INSERT INTO runtime_anomalies
+         (workflowId, runId, detectedAt, scope, signalType, severity, currentValue, baselineValue,
+          thresholdRule, windowLabel, sampleCount, state, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.workflowId ?? null,
+          record.runId ?? null,
+          record.detectedAt,
+          record.scope,
+          record.signalType,
+          record.severity,
+          record.currentValue ?? null,
+          record.baselineValue ?? null,
+          record.thresholdRule ?? null,
+          record.windowLabel ?? null,
+          record.sampleCount ?? null,
+          record.state,
+          record.note ?? null
+        ]
+      );
+    }, true);
+  }
+
+  listCapacityBuckets(sinceIso?: string): DurableCapacityBucketRecord[] {
+    const clause = sinceIso ? "WHERE bucketStart >= ? ORDER BY bucketStart ASC LIMIT 5000" : "ORDER BY bucketStart ASC LIMIT 5000";
+    const params = sinceIso ? [sinceIso] : [];
+    return this.selectAll("runtime_capacity_buckets", clause, params) as unknown as DurableCapacityBucketRecord[];
+  }
+
+  listAdmissionBuckets(sinceIso?: string): DurableAdmissionBucketRecord[] {
+    const clause = sinceIso ? "WHERE bucketStart >= ? ORDER BY bucketStart ASC LIMIT 20000" : "ORDER BY bucketStart ASC LIMIT 20000";
+    const params = sinceIso ? [sinceIso] : [];
+    return this.selectAll("runtime_admission_buckets", clause, params) as unknown as DurableAdmissionBucketRecord[];
+  }
+
+  listBrowserLifecycleBuckets(sinceIso?: string): DurableBrowserLifecycleBucketRecord[] {
+    const clause = sinceIso ? "WHERE bucketStart >= ? ORDER BY bucketStart ASC LIMIT 20000" : "ORDER BY bucketStart ASC LIMIT 20000";
+    const params = sinceIso ? [sinceIso] : [];
+    return this.selectAll("runtime_browser_lifecycle_buckets", clause, params) as unknown as DurableBrowserLifecycleBucketRecord[];
+  }
+
+  listAnomalies(sinceIso?: string, workflowId?: string, limit = 500): DurableAnomalyRecord[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (sinceIso) {
+      conditions.push("detectedAt >= ?");
+      params.push(sinceIso);
+    }
+    if (workflowId) {
+      conditions.push("workflowId = ?");
+      params.push(workflowId);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")} ` : "";
+    return this.selectAll("runtime_anomalies", `${where}ORDER BY detectedAt DESC LIMIT ?`, [...params, limit]) as unknown as DurableAnomalyRecord[];
+  }
+
+  /** Full durable run rows for one scenario within a window (anomaly/regression baselines). */
+  listRunsForScenario(scenarioId: string | undefined, sinceIso?: string): DurableRunRecord[] {
+    return this.runsInWindow(sinceIso, undefined, {}).filter((r) => (r.scenarioId ?? undefined) === (scenarioId ?? undefined));
+  }
+
+  // ── Observability analytics read models (Phase 04/05/06) ────────────────────
+
+  /** Per-workflow historical stats over the window (store-side; renderer never scans full history). */
+  queryWorkflowHistoricalStats(scenarioId: string | undefined, range: TelemetryRange, machineFilter: MachineFilter = {}): WorkflowHistoricalStats {
+    const runs = this.runsInWindow(range.sinceIso, undefined, machineFilter).filter((r) => (r.scenarioId ?? undefined) === scenarioId);
+    const scenarioName = runs.find((r) => r.scenarioName)?.scenarioName;
+    return computeWorkflowHistoricalStats(scenarioId, scenarioName, runs);
+  }
+
+  /** Per-workflow historical trend; bucket width auto-selected from the range unless forced. */
+  queryWorkflowHistoricalTrend(
+    scenarioId: string | undefined,
+    range: TelemetryRange,
+    machineFilter: MachineFilter = {},
+    forceWidth?: TrendBucketWidth
+  ): WorkflowHistoricalTrend {
+    const runs = this.runsInWindow(range.sinceIso, undefined, machineFilter).filter((r) => (r.scenarioId ?? undefined) === scenarioId);
+    const scenarioName = runs.find((r) => r.scenarioName)?.scenarioName;
+    const rangeMs = range.sinceIso ? Date.now() - Date.parse(range.sinceIso) : undefined;
+    const width = forceWidth ?? selectTrendBucketWidth(rangeMs);
+    return computeWorkflowHistoricalTrend(scenarioId, scenarioName, runs, width);
+  }
+
+  /** One run compared to its workflow's historical window (for the run-vs-history card). */
+  queryRunVsHistory(instanceId: string, range: TelemetryRange = {}): RunVsHistoryComparison | undefined {
+    const run = this.getRun(instanceId);
+    if (!run) return undefined;
+    const history = this.runsInWindow(range.sinceIso, undefined, {}).filter((r) => (r.scenarioId ?? undefined) === (run.scenarioId ?? undefined));
+    return computeRunVsHistory(run, history);
+  }
+
+  /** Cross-workflow ranking by a normalized metric (most-executed, slowest-P95, …). */
+  queryWorkflowRankings(range: TelemetryRange, metric: WorkflowRankingMetric, limit = 10, machineFilter: MachineFilter = {}): WorkflowRanking {
+    const runs = this.runsInWindow(range.sinceIso, undefined, machineFilter);
+    const groups = new Map<string, DurableRunRecord[]>();
+    for (const run of runs) {
+      const key = run.scenarioId ?? "(unknown)";
+      const list = groups.get(key) ?? [];
+      list.push(run);
+      groups.set(key, list);
+    }
+    const stats: WorkflowHistoricalStats[] = [...groups.entries()].map(([key, group]) =>
+      computeWorkflowHistoricalStats(key === "(unknown)" ? undefined : key, group.find((r) => r.scenarioName)?.scenarioName, group)
+    );
+    return computeWorkflowRankings(stats, metric, limit);
+  }
+
+  /** Capacity & queue-effectiveness analytics over the window (buckets + admission + lifecycle + runs). */
+  queryCapacityAnalytics(range: TelemetryRange): CapacityAnalytics {
+    return computeCapacityAnalytics(
+      this.listCapacityBuckets(range.sinceIso),
+      this.listAdmissionBuckets(range.sinceIso),
+      this.listBrowserLifecycleBuckets(range.sinceIso),
+      this.selectRunsInRange(range, 10000)
+    );
+  }
+
+  /** Anomaly/regression events over the window (mapped to the UI contract). */
+  queryAnomalies(range: TelemetryRange = {}, workflowId?: string, limit = 500): AnomalyEvent[] {
+    return this.listAnomalies(range.sinceIso, workflowId, limit).map((row) => ({
+      id: row.id,
+      workflowId: row.workflowId,
+      runId: row.runId,
+      detectedAt: row.detectedAt,
+      scope: row.scope as AnomalyScope,
+      signalType: row.signalType,
+      severity: row.severity as AnomalySeverity,
+      currentValue: row.currentValue,
+      baselineValue: row.baselineValue,
+      thresholdRule: row.thresholdRule,
+      windowLabel: row.windowLabel,
+      sampleCount: row.sampleCount,
+      state: row.state === "recovered" ? "recovered" : "active",
+      note: row.note
+    }));
+  }
+
+  /** Most-recent active anomaly of a given (workflow, signalType, scope) — for dedup/cooldown (Phase 06). */
+  latestAnomaly(workflowId: string | undefined, signalType: string, scope: string): DurableAnomalyRecord | undefined {
+    const rows = this.selectAll(
+      "runtime_anomalies",
+      "WHERE (workflowId IS ? OR workflowId = ?) AND signalType = ? AND scope = ? ORDER BY detectedAt DESC LIMIT 1",
+      [workflowId ?? null, workflowId ?? null, signalType, scope]
+    ) as unknown as DurableAnomalyRecord[];
+    return rows[0];
+  }
+
   /**
    * Bounded time/count retention (reporting). Never touches user artifacts/screenshots on disk —
    * only DB rows. Terminal runs older than the cutoff (and beyond the run cap) are removed with
    * their attempts/heartbeats/artifacts; interrupted/recoverable runs are always kept. Never throws.
    */
-  sweepRetention(opts: { retentionHours?: number; retentionRuns?: number } = {}): void {
+  sweepRetention(opts: { retentionHours?: number; retentionRuns?: number; observabilityBucketDays?: number; anomalyDays?: number } = {}): void {
     const retentionHours = opts.retentionHours ?? 24;
     const retentionRuns = opts.retentionRuns ?? 5000;
+    // Per-table retention (Phase 08): raw high-frequency samples get the short raw window; the bounded
+    // observability BUCKETS keep a longer window (they are already aggregated + small per row) so
+    // multi-day/multi-week capacity comparisons remain possible; anomalies (sparse + high-value) keep the
+    // longest. NOT one blanket retention unit applied to every table.
+    const observabilityBucketDays = opts.observabilityBucketDays ?? 14;
+    const anomalyDays = opts.anomalyDays ?? 90;
     this.safeRun(() => {
       const cutoffIso = new Date(Date.now() - retentionHours * 3600_000).toISOString();
+      const bucketCutoffIso = new Date(Date.now() - observabilityBucketDays * 86_400_000).toISOString();
+      const anomalyCutoffIso = new Date(Date.now() - anomalyDays * 86_400_000).toISOString();
       // High-frequency samples: drop anything older than the raw-retention window.
       this.db.run("DELETE FROM runtime_capacity_snapshots WHERE timestamp < ?", [cutoffIso]);
       this.db.run("DELETE FROM runtime_process_samples WHERE timestamp < ?", [cutoffIso]);
+      // Observability buckets (Phase 08): longer window than raw samples; still bounded + small per row.
+      this.db.run("DELETE FROM runtime_capacity_buckets WHERE bucketStart < ?", [bucketCutoffIso]);
+      this.db.run("DELETE FROM runtime_admission_buckets WHERE bucketStart < ?", [bucketCutoffIso]);
+      this.db.run("DELETE FROM runtime_browser_lifecycle_buckets WHERE bucketStart < ?", [bucketCutoffIso]);
+      this.db.run("DELETE FROM runtime_anomalies WHERE detectedAt < ?", [anomalyCutoffIso]);
       // Runs: keep only the most recent `retentionRuns` TERMINAL runs; keep every interrupted/
       // recoverable run regardless (they still need review). Cascade to child rows.
       const doomed = this.db.exec(
@@ -396,29 +671,25 @@ export class SqliteRuntimeStore implements RuntimeStore {
   // ── Reporting queries (read-only; SQL SELECT + bounded JS aggregation) ──────
 
   queryOverview(range: TelemetryRange): TelemetryOverview {
+    // Counts/rates come from the UNBOUNDED aggregate so totals are correct no matter how many runs are in
+    // range (they are NOT derived from a limited row read — see countRunsByStatus). Duration/queue-wait
+    // percentiles need materialized values, so they use the most-recent N runs in range (the reporting
+    // window; N ≥ the default retention cap of 5000, so it is the full population unless retention is
+    // configured well past it). The sparkline series is a coarse bucketing over that same window.
+    const counts = this.countRunsByStatus(range);
     const runs = this.selectRunsInRange(range, 5000);
     const durations = runs.map((r) => r.durationMs).filter((v): v is number => typeof v === "number");
     const queueWaits = runs.map((r) => r.queueWaitMs).filter((v): v is number => typeof v === "number");
-    let successRuns = 0;
-    let failedRuns = 0;
-    let cancelledRuns = 0;
-    for (const run of runs) {
-      const bucket = statusBucket(run.status);
-      if (bucket === "success") successRuns += 1;
-      else if (bucket === "failed") failedRuns += 1;
-      else if (bucket === "cancelled") cancelledRuns += 1;
-    }
-    const otherRuns = runs.length - successRuns - failedRuns - cancelledRuns;
-    const denom = successRuns + failedRuns;
+    const denom = counts.success + counts.failed;
     return {
       storeEnabled: true,
-      totalRuns: runs.length,
-      successRuns,
-      failedRuns,
-      cancelledRuns,
-      otherRuns,
-      successRate: denom ? successRuns / denom : 0,
-      failureRate: denom ? failedRuns / denom : 0,
+      totalRuns: counts.total,
+      successRuns: counts.success,
+      failedRuns: counts.failed,
+      cancelledRuns: counts.cancelled,
+      otherRuns: counts.other,
+      successRate: denom ? counts.success / denom : 0,
+      failureRate: denom ? counts.failed / denom : 0,
       duration: durationStats(durations),
       avgQueueWaitMs: queueWaits.length ? Math.round(queueWaits.reduce((a, b) => a + b, 0) / queueWaits.length) : undefined,
       runsSeries: buildRunsSeries(runs)
@@ -575,9 +846,12 @@ export class SqliteRuntimeStore implements RuntimeStore {
     );
   }
 
-  queryRunHistory(range: TelemetryRange, page: TelemetryPage, filter: RunHistoryFilter = {}): RunHistoryPage {
-    const limit = Math.min(500, Math.max(1, page.limit ?? 50));
-    const offset = Math.max(0, page.offset ?? 0);
+  /**
+   * WHERE clause + params for run-history filters (range window + scenario/status/machine/mode/pool/class).
+   * Shared by `queryRunHistory` and `countRunsByStatus` so a page's rows and the aggregate count always
+   * describe the identical population.
+   */
+  private runFilterClause(range: TelemetryRange, filter: RunHistoryFilter): { clause: string; params: unknown[] } {
     const conditions: string[] = [];
     const params: unknown[] = [];
     if (range.sinceIso) {
@@ -608,7 +882,43 @@ export class SqliteRuntimeStore implements RuntimeStore {
       conditions.push("workloadClass = ?");
       params.push(filter.workloadClass);
     }
-    const clause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", params };
+  }
+
+  /**
+   * Complete run counts by status via an UNBOUNDED SQL aggregate (`COUNT(*) … GROUP BY status`). Unlike a
+   * paginated/materialized row read (`queryRunHistory` clamps a single page to 500 rows), this is correct
+   * no matter how many runs are in range — the authoritative source for totals/success/failure statistics.
+   */
+  countRunsByStatus(range: TelemetryRange = {}, filter: RunHistoryFilter = {}): RunStatusCounts {
+    const { clause, params } = this.runFilterClause(range, filter);
+    const result = this.db.exec(`SELECT status, COUNT(*) AS n FROM runtime_runs ${clause} GROUP BY status`, params as never);
+    const byStatus: Record<string, number> = {};
+    let total = 0;
+    let success = 0;
+    let failed = 0;
+    let cancelled = 0;
+    let other = 0;
+    if (result.length) {
+      for (const row of result[0].values) {
+        const status = String(row[0]);
+        const n = Number(row[1]);
+        byStatus[status] = n;
+        total += n;
+        const bucket = statusBucket(status);
+        if (bucket === "success") success += n;
+        else if (bucket === "failed") failed += n;
+        else if (bucket === "cancelled") cancelled += n;
+        else other += n;
+      }
+    }
+    return { total, success, failed, cancelled, other, byStatus };
+  }
+
+  queryRunHistory(range: TelemetryRange, page: TelemetryPage, filter: RunHistoryFilter = {}): RunHistoryPage {
+    const limit = Math.min(500, Math.max(1, page.limit ?? 50));
+    const offset = Math.max(0, page.offset ?? 0);
+    const { clause, params } = this.runFilterClause(range, filter);
     const countResult = this.db.exec(`SELECT COUNT(*) FROM runtime_runs ${clause}`, params as never);
     const total = countResult.length ? Number(countResult[0].values[0][0]) : 0;
     const rowsRaw = this.selectAll(
@@ -783,6 +1093,7 @@ export class SqliteRuntimeStore implements RuntimeStore {
         record[column] = row[index] ?? undefined;
       });
       if (record.recoverable !== undefined) record.recoverable = record.recoverable === 1;
+      if (record.headed !== undefined) record.headed = record.headed === 1;
       return record as unknown as DurableRunRecord;
     });
   }
