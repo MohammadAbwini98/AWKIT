@@ -2,6 +2,7 @@ import { Copy, Download, FilePlus2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { PromptDialog } from "../components/shared/PromptDialog";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { applyTable, useTableState, type RowAdapter } from "../components/table/tableState";
 import { AdvancedTableFilters, DataTablePagination, SortableHeaderCell, TableEmptyState, type FilterFieldDef } from "../components/table/TableUI";
@@ -46,6 +47,7 @@ export function FlowLibrary() {
   const { navigateTo } = useNavigation();
   const [flows, setFlows] = useState<FlowProfile[]>([]);
   const [status, setStatus] = useState("Loading saved flows");
+  const [namingFlow, setNamingFlow] = useState(false);
   const table = useTableState("flows");
 
   // Open a flow in the Flow Designer (persist the selection so the designer loads it).
@@ -59,7 +61,7 @@ export function FlowLibrary() {
   }, []);
 
   usePageChrome(
-    { actions: [{ id: "new", label: "New Flow", variant: "primary", onClick: () => void createFlow(), title: "Create a new flow" }], dirty: false },
+    { actions: [{ id: "new", label: "New Flow", variant: "primary", onClick: () => setNamingFlow(true), title: "Create a new flow" }], dirty: false },
     []
   );
 
@@ -73,12 +75,13 @@ export function FlowLibrary() {
       .catch((error) => setStatus(error instanceof Error ? error.message : "Unable to load flows"));
   };
 
-  const createFlow = async () => {
+  // Create a start/end-only flow with the chosen name, then open it in the Flow Designer.
+  const createFlow = async (name: string) => {
     const id = `flow-${Date.now().toString(36)}`;
     const now = new Date().toISOString();
-    await window.playwrightFlowStudio.flows.create({
+    const profile = await window.playwrightFlowStudio.flows.create({
       id,
-      name: "New Flow",
+      name,
       description: "New reusable Playwright automation flow.",
       version: 1,
       createdAt: now,
@@ -89,7 +92,8 @@ export function FlowLibrary() {
       ],
       edges: [{ id: "edge-start-end", source: "start", target: "end", type: "always" }]
     });
-    refreshFlows();
+    setNamingFlow(false);
+    await openFlow(profile);
   };
 
   const cloneFlow = async (flow: FlowProfile) => {
@@ -124,7 +128,7 @@ export function FlowLibrary() {
         </div>
 
         <div className="library-toolbar">
-          <button className="toolbar-button primary" onClick={createFlow} type="button">
+          <button className="toolbar-button primary" onClick={() => setNamingFlow(true)} type="button">
             <FilePlus2 size={15} />
             New Flow
           </button>
@@ -149,7 +153,7 @@ export function FlowLibrary() {
             title="No flows created yet."
             hint="Create your first flow using the Flow Designer or Recorder."
             action={
-              <button className="toolbar-button primary" onClick={createFlow} type="button">
+              <button className="toolbar-button primary" onClick={() => setNamingFlow(true)} type="button">
                 <FilePlus2 size={15} />
                 Create Flow
               </button>
@@ -229,6 +233,19 @@ export function FlowLibrary() {
           </>
         )}
       </section>
+
+      {namingFlow ? (
+        <PromptDialog
+          title="New Flow"
+          message="Name your flow. It opens in the Flow Designer with a Start and End step ready to build on."
+          label="Flow name"
+          placeholder="e.g. Login and export report"
+          initialValue="New Flow"
+          confirmLabel="Create Flow"
+          onConfirm={(name) => void createFlow(name)}
+          onCancel={() => setNamingFlow(false)}
+        />
+      ) : null}
     </section>
   );
 }

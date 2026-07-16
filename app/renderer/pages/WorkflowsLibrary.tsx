@@ -1,7 +1,10 @@
-import { Copy, Download, FolderOpen, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Copy, Download, FolderOpen, MoreVertical, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { useNavigation } from "../state/navigation";
+import { PromptDialog } from "../components/shared/PromptDialog";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { NodeOptionsMenu, type NodeMenuItem } from "../components/shared/NodeOptionsMenu";
 import { applyTable, useTableState, type RowAdapter } from "../components/table/tableState";
 import { AdvancedTableFilters, DataTablePagination, SortableHeaderCell, TableEmptyState, type FilterFieldDef } from "../components/table/TableUI";
 
@@ -16,8 +19,7 @@ const workflowAdapter: RowAdapter<WorkflowProfile> = {
   updatedAt: (w) => w.updatedAt,
   flows: (w) => w.nodes?.length ?? 0,
   dataSource: (w) => w.dataSource?.dataSourceId ?? "",
-  mode: (w) => w.execution?.mode ?? "sequential",
-  maxParallel: (w) => w.execution?.maxConcurrentInstances ?? 1
+  mode: (w) => w.execution?.mode ?? "sequential"
 };
 
 const workflowFilterFields: FilterFieldDef[] = [
@@ -57,9 +59,7 @@ const workflowFilterFields: FilterFieldDef[] = [
   { key: "nodesMin", label: "Min nodes", type: "number" },
   { key: "nodesMax", label: "Max nodes", type: "number" },
   { key: "connectorsMin", label: "Min connectors", type: "number" },
-  { key: "connectorsMax", label: "Max connectors", type: "number" },
-  { key: "maxParallelMin", label: "Min max-parallel", type: "number" },
-  { key: "maxParallelMax", label: "Max max-parallel", type: "number" }
+  { key: "connectorsMax", label: "Max connectors", type: "number" }
 ];
 
 export function WorkflowsLibrary() {
@@ -68,6 +68,10 @@ export function WorkflowsLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [namingWorkflow, setNamingWorkflow] = useState(false);
+  // Point 5: a single "…" kebab per row opens a context menu of the row's actions.
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const table = useTableState("workflows");
 
@@ -95,10 +99,21 @@ export function WorkflowsLibrary() {
     [navigateTo]
   );
 
-  const createNew = useCallback(async () => {
-    await window.playwrightFlowStudio.settings.update({ selectedBuilderWorkflowId: "" }).catch(() => undefined);
-    navigateTo("scenarioBuilder");
-  }, [navigateTo]);
+  // Point 6: name the workflow in a modal, persist it, then open it in the Workflow Builder.
+  const createWorkflow = useCallback(
+    async (name: string) => {
+      setNamingWorkflow(false);
+      try {
+        const profile = createBlankWorkflowProfile(name);
+        await window.playwrightFlowStudio.workflows.create(profile);
+        await window.playwrightFlowStudio.settings.update({ selectedBuilderWorkflowId: profile.id }).catch(() => undefined);
+        navigateTo("scenarioBuilder");
+      } catch {
+        setError("Failed to create workflow.");
+      }
+    },
+    [navigateTo]
+  );
 
   const cloneWorkflow = useCallback(
     async (id: string) => {
@@ -155,6 +170,17 @@ export function WorkflowsLibrary() {
 
   const { paged, total, totalPages, page } = applyTable(workflows, table.state, workflowAdapter);
 
+  const menuWorkflow = menuFor ? workflows.find((w) => w.id === menuFor) ?? null : null;
+  const deleteTarget = deleteConfirmId ? workflows.find((w) => w.id === deleteConfirmId) ?? null : null;
+  const workflowMenuItems: NodeMenuItem[] = menuWorkflow
+    ? [
+        { id: "open", label: "Open in Builder", icon: FolderOpen, onSelect: () => void openInBuilder(menuWorkflow.id) },
+        { id: "clone", label: "Clone", icon: Copy, onSelect: () => void cloneWorkflow(menuWorkflow.id) },
+        { id: "export", label: "Export JSON", icon: Download, onSelect: () => void exportWorkflow(menuWorkflow.id, menuWorkflow.name) },
+        { id: "delete", label: "Delete", icon: Trash2, tone: "danger", onSelect: () => setDeleteConfirmId(menuWorkflow.id) }
+      ]
+    : [];
+
   return (
     <section className="page">
       <section className="work-panel">
@@ -164,7 +190,7 @@ export function WorkflowsLibrary() {
         </div>
 
         <div className="library-toolbar">
-          <button className="toolbar-button primary" id="wl-create-new" onClick={() => void createNew()} type="button">
+          <button className="toolbar-button primary" id="wl-create-new" onClick={() => setNamingWorkflow(true)} type="button">
             <Plus size={15} />
             Create Workflow
           </button>
@@ -215,7 +241,7 @@ export function WorkflowsLibrary() {
             title="No workflows created yet."
             hint="Create your first workflow by linking saved flows."
             action={
-              <button className="toolbar-button primary" id="wl-empty-create" onClick={() => void createNew()} type="button">
+              <button className="toolbar-button primary" id="wl-empty-create" onClick={() => setNamingWorkflow(true)} type="button">
                 <Plus size={14} />
                 Create Workflow
               </button>
@@ -226,17 +252,16 @@ export function WorkflowsLibrary() {
         ) : (
           <>
             <div className="wl-table-wrapper">
-              <table className="wl-table">
+              <table className="wl-table wl-table-workflows">
                 <colgroup>
                   <col style={{ width: "190px" }} />
                   <col style={{ minWidth: "140px" }} />
                   <col style={{ width: "70px" }} />
                   <col style={{ minWidth: "120px" }} />
                   <col style={{ width: "110px" }} />
-                  <col style={{ width: "90px" }} />
                   <col style={{ width: "100px" }} />
                   <col style={{ width: "90px" }} />
-                  <col style={{ width: "200px" }} />
+                  <col style={{ width: "64px" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -245,30 +270,29 @@ export function WorkflowsLibrary() {
                     <SortableHeaderCell label="Flows" columnKey="flows" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Data Source" columnKey="dataSource" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
                     <SortableHeaderCell label="Mode" columnKey="mode" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
-                    <SortableHeaderCell label="Max Parallel" columnKey="maxParallel" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Updated" columnKey="updatedAt" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
                     <SortableHeaderCell label="Status" columnKey="status" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
-                    <th>Actions</th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {paged.map((workflow) => (
                     <tr key={workflow.id}>
                       <td className="wl-name-cell">
-                        <button className="wl-name-link" title={`Open "${workflow.name}" in Workflow Builder`} type="button" onClick={() => void openInBuilder(workflow.id)}>
+                        <button className="wl-name-link" title={workflow.name} type="button" onClick={() => void openInBuilder(workflow.id)}>
                           {workflow.name}
                         </button>
-                        <small>{workflow.id}</small>
                       </td>
-                      <td className="wl-desc-cell">{workflow.description ?? "—"}</td>
+                      <td className="wl-desc-cell" title={workflow.description ?? "—"}>{workflow.description ?? "—"}</td>
                       <td style={{ textAlign: "center" }}>{workflow.nodes?.length ?? 0}</td>
-                      <td>{workflow.dataSource?.dataSourceId ?? <span style={{ color: "var(--awkit-text-muted)" }}>None</span>}</td>
+                      <td title={workflow.dataSource?.dataSourceId ?? "None"}>
+                        {workflow.dataSource?.dataSourceId ?? <span style={{ color: "var(--awkit-text-muted)" }}>None</span>}
+                      </td>
                       <td>
                         <span className="state-pill" style={{ textTransform: "capitalize", background: "var(--awkit-accent-soft)", color: "var(--awkit-accent)" }}>
                           {workflow.execution?.mode ?? "sequential"}
                         </span>
                       </td>
-                      <td style={{ textAlign: "center" }}>{workflow.execution?.maxConcurrentInstances ?? 1}</td>
                       <td className="wl-date-cell">{workflow.updatedAt ? new Date(workflow.updatedAt).toLocaleDateString() : "—"}</td>
                       <td>
                         <span className={`state-pill ${workflowAdapter.status(workflow) === "active" ? "pill-active" : "pill-inactive"}`}>
@@ -276,37 +300,19 @@ export function WorkflowsLibrary() {
                         </span>
                       </td>
                       <td>
-                        <div className="table-actions" style={{ flexWrap: "wrap" }}>
-                          <button title="Open in Workflow Builder" type="button" onClick={() => void openInBuilder(workflow.id)}>
-                            <FolderOpen size={13} />
-                          </button>
-                          <button title="Clone this workflow" type="button" onClick={() => void cloneWorkflow(workflow.id)}>
-                            <Copy size={13} />
-                          </button>
-                          <button title="Export as JSON" type="button" onClick={() => void exportWorkflow(workflow.id, workflow.name)}>
-                            <Download size={13} />
-                          </button>
-                          {deleteConfirmId === workflow.id ? (
-                            <>
-                              <button
-                                className="wl-delete-confirm"
-                                style={{ background: "var(--awkit-danger-soft)", borderColor: "var(--awkit-danger-muted)", color: "var(--awkit-danger)" }}
-                                title="Confirm delete"
-                                type="button"
-                                onClick={() => void deleteWorkflow(workflow.id)}
-                              >
-                                Confirm
-                              </button>
-                              <button title="Cancel" type="button" onClick={() => setDeleteConfirmId(null)}>
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <button title="Delete this workflow" type="button" onClick={() => setDeleteConfirmId(workflow.id)}>
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
+                        <button
+                          className="icon-button wl-kebab"
+                          title="Workflow actions"
+                          type="button"
+                          aria-haspopup="menu"
+                          aria-expanded={menuFor === workflow.id}
+                          onClick={(event) => {
+                            setMenuAnchor(event.currentTarget);
+                            setMenuFor(workflow.id);
+                          }}
+                        >
+                          <MoreVertical size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -317,6 +323,32 @@ export function WorkflowsLibrary() {
           </>
         )}
       </section>
+
+      <NodeOptionsMenu open={Boolean(menuFor)} anchor={menuAnchor} items={workflowMenuItems} onClose={() => setMenuFor(null)} />
+
+      {namingWorkflow ? (
+        <PromptDialog
+          title="New Workflow"
+          message="Name your workflow. It opens in the Workflow Builder with a Start and End ready to link flows."
+          label="Workflow name"
+          placeholder="e.g. Customer onboarding"
+          initialValue="New Workflow"
+          confirmLabel="Create Workflow"
+          onConfirm={(name) => void createWorkflow(name)}
+          onCancel={() => setNamingWorkflow(false)}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <ConfirmDialog
+          title="Delete workflow?"
+          message={`Permanently delete "${deleteTarget.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => void deleteWorkflow(deleteTarget.id)}
+          onCancel={() => setDeleteConfirmId(null)}
+        />
+      ) : null}
     </section>
   );
 }

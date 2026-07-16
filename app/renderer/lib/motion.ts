@@ -4,7 +4,7 @@
  *
  * Rules of the road:
  *  - Import variants/transitions from here instead of hand-writing spring numbers in components.
- *  - Durations/easings intentionally match the `--awkit-motion-*` / `--awkit-dur-*` tokens in
+ *  - Durations/easings intentionally match the `--awkit-dur-*` / `--awkit-ease-out` tokens in
  *    styles/global.css so CSS transitions and framer-motion animations feel identical.
  *  - Respect reduced-motion: gate entrance/movement with `usePrefersReducedMotion()` (or
  *    framer-motion's own `useReducedMotion`) and fall back to `instant`.
@@ -91,7 +91,11 @@ export const drawerRight: Variants = {
   exit: { opacity: 0, x: 24, transition: easeFast }
 };
 
-/** Pop-in for menus, popovers, toasts. */
+/**
+ * Pop-in for menus, popovers, toasts. Consumers MUST set `style={{ transformOrigin: <trigger edge> }}`
+ * on the motion element — a variant cannot carry transform-origin, and a trigger-anchored surface must
+ * scale from its trigger, not from its center.
+ */
 export const popIn: Variants = {
   hidden: { opacity: 0, scale: 0.96, y: 4 },
   visible: { opacity: 1, scale: 1, y: 0, transition: easeFast },
@@ -147,8 +151,8 @@ export function motionSafe<T extends Transition>(reduced: boolean | null, transi
  * ------------------------------------------------------------------ */
 
 /**
- * Drives the `.flow-animating` class used by the React Flow canvas glide (see the
- * `.flow-animating .react-flow__node` rules in styles/global.css). Call `arm()` in the same
+ * Drives the `.flow-animating` class used by the in-house canvas glide (see the
+ * `.awkit-flow-canvas.flow-animating .awkit-flow-node` rule in styles/global.css). Call `arm()` in the same
  * tick you apply a programmatic layout change (auto-arrange / load); nodes and edges then
  * transition to their new positions for `durationMs` before snapping behavior returns.
  *

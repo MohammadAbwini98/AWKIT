@@ -1,4 +1,4 @@
-import { createContext, memo, useCallback, useContext, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
 import { Position, getRectOfNodes, getViewportForBounds, pointToFlowPosition, getOverlappingArea, clamp, type Rect, type XYPosition } from "./geometry";
 import { EdgeLabelContext } from "./edgeLabelContext";
 import { bumpRenderProbe } from "./renderProbe";
@@ -15,6 +15,12 @@ import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, No
 
 const MIN_ZOOM_DEFAULT = 0.3;
 const MAX_ZOOM_DEFAULT = 2;
+/** Screen-pixel movement before a node pointer-down is treated as a drag rather than a click.
+ *  Measured in screen space so it's zoom-independent; ~3px filters hand tremor (docs §9.3). */
+const NODE_DRAG_THRESHOLD_PX = 3;
+/** How long a deleted node lingers as a fading "ghost" before unmount — matches the `.awkit-flow-node.is-exiting`
+ *  transition in global.css (--awkit-dur-fast, 120ms) plus a small buffer (docs §9.2). */
+const NODE_EXIT_MS = 150;
 
 interface MeasuredSize {
   width: number;
@@ -128,6 +134,35 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
 
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+
+  // ── Node exit animation (docs §9.2) ──────────────────────────────────────────
+  // A node removed from `nodes` (deletion) lingers briefly as a fading "ghost" with an `is-exiting`
+  // class instead of teleporting out. Driven solely by the `nodes` reference, so it never runs — and
+  // never re-renders the memoized node subtree — during pan/zoom/typing (guarded by verify:canvas-perf).
+  const [exitingNodes, setExitingNodes] = useState<CanvasNode[]>([]);
+  const prevNodesRef = useRef(nodes);
+  useEffect(() => {
+    const prev = prevNodesRef.current;
+    prevNodesRef.current = nodes;
+    const currentIds = new Set(nodes.map((n) => n.id));
+    const removed = prev.filter((n) => !currentIds.has(n.id));
+    if (removed.length === 0) return;
+    setExitingNodes((list) => {
+      const known = new Set(list.map((e) => e.id));
+      const toAdd = removed.filter((r) => !known.has(r.id));
+      return toAdd.length ? [...list, ...toAdd] : list;
+    });
+    const removedIds = removed.map((r) => r.id);
+    const timer = window.setTimeout(() => {
+      setExitingNodes((list) => list.filter((e) => !removedIds.includes(e.id)));
+    }, NODE_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [nodes]);
+  // Drop any ghost whose id has returned to `nodes` so we never emit a duplicate React key.
+  const currentNodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
+  const visibleExiting = exitingNodes.filter((n) => !currentNodeIds.has(n.id));
+  // Stable no-op so ghost nodes don't re-report sizes (and can't defeat NodeContainer's memo).
+  const noopMeasure = useCallback(() => {}, []);
 
   const didFitRef = useRef(false);
   const [labelOverlay, setLabelOverlay] = useState<HTMLDivElement | null>(null);
@@ -415,6 +450,18 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
                 onNodeDragEnd={handleNodeDragEnd}
               />
             ))}
+            {/* Deleted nodes fade out as non-interactive ghosts before unmount (docs §9.2). */}
+            {visibleExiting.map((node) => (
+              <NodeContainer
+                key={`exiting-${node.id}`}
+                node={node}
+                nodeTypes={nodeTypes}
+                draggable={false}
+                exiting
+                viewportRef={viewportRef}
+                onMeasure={noopMeasure}
+              />
+            ))}
           </div>
         </div>
         {children}
@@ -434,6 +481,8 @@ interface NodeContainerProps {
   node: CanvasNode;
   nodeTypes: NodeTypes;
   draggable: boolean;
+  /** Rendered as a fading exit "ghost" (deleted node); ignores pointer input while it animates out. */
+  exiting?: boolean;
   viewportRef: MutableRefObject<Viewport>;
   onMeasure: (id: string, size: MeasuredSize) => void;
   onNodeClick?: (id: string) => void;
@@ -449,6 +498,7 @@ const NodeContainer = memo(function NodeContainer({
   node,
   nodeTypes,
   draggable,
+  exiting,
   viewportRef,
   onMeasure,
   onNodeClick,
@@ -494,9 +544,15 @@ const NodeContainer = memo(function NodeContainer({
     (event: React.PointerEvent) => {
       if (!dragRef.current) return;
       const zoom = viewportRef.current.zoom || 1;
-      const dx = (event.clientX - dragRef.current.startX) / zoom;
-      const dy = (event.clientY - dragRef.current.startY) / zoom;
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) dragRef.current.moved = true;
+      const screenDx = event.clientX - dragRef.current.startX;
+      const screenDy = event.clientY - dragRef.current.startY;
+      const dx = screenDx / zoom;
+      const dy = screenDy / zoom;
+      // Latch "moved" from the SCREEN-space delta (zoom-independent) so a small hand tremor on a
+      // click isn't read as a drag; placement below still uses the exact canvas-space delta.
+      if (Math.abs(screenDx) > NODE_DRAG_THRESHOLD_PX || Math.abs(screenDy) > NODE_DRAG_THRESHOLD_PX) {
+        dragRef.current.moved = true;
+      }
       const next = { x: dragRef.current.originX + dx, y: dragRef.current.originY + dy };
       dragPositionRef.current = next;
       setDrag(next);
@@ -536,8 +592,9 @@ const NodeContainer = memo(function NodeContainer({
       ref={elementRef}
       data-canvas-node={node.id}
       data-id={node.id}
-      className="awkit-flow-node"
-      style={{ position: "absolute", left: pos.x, top: pos.y, cursor: draggable ? "grab" : "default" }}
+      className={exiting ? "awkit-flow-node is-exiting" : "awkit-flow-node"}
+      aria-hidden={exiting ? true : undefined}
+      style={{ position: "absolute", top: 0, left: 0, transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`, cursor: draggable ? "grab" : "default" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
