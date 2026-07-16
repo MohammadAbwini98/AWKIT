@@ -22,10 +22,16 @@ export function validateRowArray(value: unknown): { ok: boolean; message?: strin
   return { ok: true };
 }
 
+/** Property names that must never be written through a JSON path (prototype-pollution guard). */
+const FORBIDDEN_JSON_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 /** Set `value` at a simple dot JSON path (`$`, `$.customers`, `$.a.b`), preserving siblings. */
 export function setJsonAtPath(data: unknown, path: string, value: unknown): unknown {
   const keys = path.replace(/^\$\.?/, "").split(".").filter(Boolean);
   if (keys.length === 0) return value;
+  if (keys.some((key) => FORBIDDEN_JSON_KEYS.has(key))) {
+    throw new Error("Invalid JSON path: reserved property name (__proto__/constructor/prototype).");
+  }
   const root: JsonRow = isPlainObject(data) ? { ...data } : {};
   let node = root;
   for (let i = 0; i < keys.length - 1; i += 1) {

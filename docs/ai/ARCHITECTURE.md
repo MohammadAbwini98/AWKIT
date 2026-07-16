@@ -34,7 +34,14 @@ src/                    framework-agnostic core (no Electron/React imports, exce
   runner/               PlaywrightRunner, FlowExecutor, StepExecutor, ExecutionEngine,
                         BrowserContextFactory, LocatorFactory, ValueResolver, ExpressionEvaluator,
                         ConnectorConditionEvaluator (structured conditional connectors),
-                        ManualHandoffController, BrowserProcessManager, RunnerWorker(Host), RunnerResult
+                        ManualHandoffController, BrowserProcessManager, RunnerWorker(Host), RunnerResult,
+                        ResourceRoutingPolicy (A9 request blocking), ChromiumHardening (no-egress args)
+    browserProfile/     Browser Resource Optimization (per-instance Chromium cost): BrowserResourceProfile
+                        (maximum-compatibility/balanced/low-resource/custom presets), WorkflowCapabilities
+                        (static analysis; only RELAX optimizations), BrowserRuntimeConfigurationResolver
+                        (THE authoritative resolver → launch args + context routing + trace mode +
+                        {setting,value,source} diagnostics), resolveForRun (env entry, default balanced==today).
+                        Wired at ExecutionEngine.runInstance → PlaywrightRunner → BrowserContextFactory.
     concurrency/        ResourceKey, Semaphore, ResourceLockManager (exclusive/shared/semaphore,
                         TTL leases, fencing versions, atomic multi-acquire, snapshot(sweepFirst),
                         kind-prefix semaphore capacities origin:*/account:*),

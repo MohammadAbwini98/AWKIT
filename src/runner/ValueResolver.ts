@@ -25,6 +25,8 @@ export class ValueResolver {
         return String(process.env[valueSource.envKey ?? ""] ?? "");
       case "generated":
         return this.generateValue(valueSource.generator);
+      case "secret":
+        return this.resolveSecret(valueSource);
       case "currentRow":
         return stringifyResolvedValue(resolveJsonPath(this.context.currentRow, valueSource.path ?? "$"));
       case "json":
@@ -93,6 +95,16 @@ export class ValueResolver {
     const cached = this.context.jsonData?.[file];
     const source = cached ?? JSON.parse(await readFile(file, "utf8"));
     return stringifyResolvedValue(resolveJsonPath(source, path));
+  }
+
+  private resolveSecret(valueSource: ValueSource): string {
+    const name = valueSource.secretName?.trim();
+    if (!name) throw new Error("Secret value source requires a secret name.");
+    const value = this.context.secrets?.[name];
+    if (value === undefined) {
+      throw new Error(`Secret "${name}" is not available. Add it in Settings → Secrets before running.`);
+    }
+    return value;
   }
 
   private generateValue(generator?: ValueSource["generator"]): string {

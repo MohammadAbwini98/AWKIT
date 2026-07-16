@@ -224,7 +224,10 @@ try {
     return null;
   });
   if (inspectablePoint) await win.mouse.click(inspectablePoint.x, inspectablePoint.y);
-  await win.waitForTimeout(220);
+  // The canvas inset now glides open over --awkit-dur-panel (240ms, docs §9.1). Measure at rest,
+  // after the glide settles, so the panel-vs-canvas geometry reflects the final layout, not a frame
+  // mid-animation (the at-rest invariant canvasEngineRight <= panelLeft is what the checks assert).
+  await win.waitForTimeout(360);
   const expandedLayout = await readInspectorGeometry(win);
   check(
     "Node Properties is contained inside the full-width designer canvas and toolbar",

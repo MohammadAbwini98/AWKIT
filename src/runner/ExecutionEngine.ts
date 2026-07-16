@@ -15,9 +15,11 @@ import { InstancePool } from "../instances/InstancePool";
 import { ConcurrentExecutionCoordinator } from "../orchestrator/ConcurrentExecutionCoordinator";
 import type { ConcurrentRunProfile } from "../instances/ConcurrentRunProfile";
 import type { InstanceRuntimeState } from "../instances/InstanceRuntimeState";
-import { getAppMode, getResourcesRoot, isProductionOffline } from "../../app/main/appPaths";
+import { getAppMode, getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../../app/main/appPaths";
 import { getSessionService } from "../../app/main/ipc/session.ipc";
 import type { FlowProfile } from "../profiles/FlowProfile";
+import { collectSecretNames } from "../profiles/FlowValidation";
+import { registerSecretValues } from "../reports/SecretMasker";
 import type { ScenarioProfile } from "../profiles/ScenarioProfile";
 import type { ResolvedDataSource } from "./InstanceExecutionContext";
 import { ReportService } from "../reports/ReportService";
@@ -27,8 +29,10 @@ import { RunLogger } from "./artifacts/RunLogger";
 import { writeRunStateArtifacts } from "./artifacts/RunStateArtifacts";
 import { BrowserWorkerPool, BrowserPoolSaturatedError, type BrowserWorkerSlot } from "./browser/BrowserWorkerPool";
 import os from "node:os";
-import { SharedBrowserPool } from "./browser/SharedBrowserPool";
+import { SharedBrowserPool, type SharedBrowserSnapshot } from "./browser/SharedBrowserPool";
+import { createBrowserSubtreeSampler, type BrowserSubtreeSampler } from "./browser/BrowserProcessSampler";
 import { isSharedEligible } from "./browser/browserSharing";
+import { resolveBrowserIsolation } from "./browser/BrowserIsolationResolver";
 import { OperationLimiters } from "./concurrency/OperationLimiters";
 import { AdaptiveController, type AdaptiveThresholds } from "./concurrency/AdaptiveController";
 import {
@@ -39,6 +43,8 @@ import {
   DEFAULT_WORKLOAD_WEIGHT_CONFIG
 } from "./concurrency/WorkloadWeights";
 import { loadTraceMode } from "./artifacts/TraceService";
+import { resolveBrowserConfigurationForRun } from "./browserProfile/resolveForRun";
+import { explainResolution } from "./browserProfile/BrowserRuntimeConfigurationResolver";
 import { BackpressureController } from "./concurrency/BackpressureController";
 import type { CapacitySnapshot } from "./concurrency/CapacitySnapshot";
 import { buildDispatchClaims } from "./concurrency/DispatchClaims";
@@ -55,7 +61,22 @@ import type { WatchdogSnapshot } from "./runtime/WatchdogService";
 import { globalProfileLocks } from "../profiles/ProfileLockManager";
 import { classifyError, RETRYABLE_ERROR_CLASSES } from "./runtime/ErrorClassifier";
 import { NodeAttemptLog, type NodeAttempt } from "./runtime/NodeAttempt";
-import { ProcessTreeSampler } from "./runtime/ProcessTreeSampler";
+import { ProcessTreeSampler, type ProcessTreeSample } from "./runtime/ProcessTreeSampler";
+import { RuntimeObservationCollector } from "./runtime/RuntimeObservationCollector";
+import { detectRegressions, detectRunAnomalies, reconcileRegressions, type RegressionInput } from "./runtime/AnomalyDetector";
+import { ADMISSION_REASON_LABELS, normalizeAdmissionReason, normalizePressureState } from "../reports/ObservabilityContracts";
+import type {
+  AnomalyEvent,
+  CapacityAnalytics,
+  RunVsHistoryComparison,
+  RuntimeObservabilitySummary,
+  WorkflowHistoricalStats,
+  WorkflowHistoricalTrend,
+  WorkflowRanking,
+  WorkflowRankingMetric
+} from "../reports/ObservabilityContracts";
+import { QUEUE_DELAY_PROXY_MS } from "../reports/observabilityAggregation";
+import type { DurableAnomalyRecord } from "./store/RuntimeStoreSchema";
 import { FlowRunStateMachine } from "./runtime/RuntimeStateMachine";
 import { WatchdogService, type WatchdogFinding } from "./runtime/WatchdogService";
 import { toReportCategory } from "../reports/ReportCategories";
@@ -69,6 +90,7 @@ import {
   type RunDetail,
   type RunHistoryFilter,
   type RunHistoryPage,
+  type RunStatusCounts,
   type RuntimeSeriesPoint,
   type TelemetryOverview,
   type TelemetryPage,
@@ -127,6 +149,26 @@ export class ExecutionEngine {
   private readonly processSampler = new ProcessTreeSampler();
   /** Throttle for persisting process-tree history rows (ms epoch of last write). */
   private lastProcessSampleWriteAt = 0;
+  /**
+   * Runtime observability collector (Runtime Observability & Historical Analytics phase). Fed by the
+   * existing sampler ticks — starts NO timers of its own. Accumulates per-run environmental summaries +
+   * bounded capacity/admission/browser-lifecycle time buckets. Best-effort: never affects a run.
+   */
+  private readonly observations = new RuntimeObservationCollector();
+  /**
+   * Runtime observability master switch (Runtime Observability & Historical Analytics phase). Default ON;
+   * `AWKIT_RUNTIME_OBSERVABILITY=0` disables ONLY the incremental observability work — per-run environmental
+   * summaries, capacity/admission/browser-lifecycle time buckets, and anomaly/regression detection — for A/B
+   * overhead benchmarking and troubleshooting. The load-bearing runtime is untouched: the `ResourceSampler`
+   * that feeds backpressure and the process-tree history sampling both keep running, and static run
+   * dimensions (headed / resourceProfile / isolationClass / workloadWeight / pressureStateAtRun) are still
+   * recorded (they are already-resolved config, not sampling overhead). Never a production default of OFF.
+   */
+  private readonly observabilityEnabled = process.env.AWKIT_RUNTIME_OBSERVABILITY !== "0";
+  /** Capacity/admission/lifecycle bucket width (ms). Env-tunable; default 30s (see report §4). */
+  private readonly observationBucketMs = observationBucketMsFromEnv();
+  /** Per-workflow throttle for the regression check (epoch ms of last run). */
+  private readonly lastRegressionCheckAt = new Map<string, number>();
   /** Admission control: pool saturation + host memory/CPU + crash rate → allow/queue with a reason. */
   private readonly backpressure = new BackpressureController(this.browserPool, this.browserPool.concurrencyLimits, this.sampler);
   /**
@@ -165,6 +207,13 @@ export class ExecutionEngine {
    * the instance's lifetime. Only consulted when limits.workloadWeights is enabled.
    */
   private readonly instanceWeights = new Map<string, number>();
+  /**
+   * Phase A5+ memory-based recycling: samples each pooled browser's process-tree RSS so a browser whose OWN
+   * footprint stays over `browserRecycleMemoryMb` for a moving window is drained + replaced. Windows-only
+   * attribution (empty elsewhere → feature stays inert). Evaluated on a throttle from the dispatch loop.
+   */
+  private readonly browserSubtreeSampler: BrowserSubtreeSampler = createBrowserSubtreeSampler();
+  private lastMemRecycleAt = 0;
   /**
    * Phase B1 — the machine identity for runs started now (machineId / CPU / RAM / mode / workload class /
    * recommendation), pushed in by the main process (the src/ core never detects the machine itself). Live
@@ -209,6 +258,15 @@ export class ExecutionEngine {
 
   public getInstances(): InstanceRuntimeState[] {
     return this.pool.list();
+  }
+
+  /**
+   * Whether the incremental runtime-observability collection/persistence is active (per-run environmental
+   * summaries, capacity/admission/lifecycle buckets, anomaly/regression detection). Default true; gated off
+   * with `AWKIT_RUNTIME_OBSERVABILITY=0` for A/B overhead benchmarking. Read-only view of the resolved flag.
+   */
+  public isObservabilityEnabled(): boolean {
+    return this.observabilityEnabled;
   }
 
   /**
@@ -261,7 +319,9 @@ export class ExecutionEngine {
         // Bounded reporting retention (DB rows only; never user artifacts). Env-overridable.
         this.durableStore.sweepRetention({
           retentionHours: Number(process.env.AWKIT_REPORT_RETENTION_HOURS) || 24,
-          retentionRuns: Number(process.env.AWKIT_REPORT_RETENTION_RUNS) || 5000
+          retentionRuns: Number(process.env.AWKIT_REPORT_RETENTION_RUNS) || 5000,
+          observabilityBucketDays: Number(process.env.AWKIT_OBSERVABILITY_BUCKET_RETENTION_DAYS) || 14,
+          anomalyDays: Number(process.env.AWKIT_ANOMALY_RETENTION_DAYS) || 90
         });
 
         await this.durableStore.persistNow();
@@ -308,8 +368,37 @@ export class ExecutionEngine {
     return this.browserPool.snapshot();
   }
 
+  /**
+   * Read-only view of the shared Chromium pool (Phase A5): live shared-browser count, contexts, and
+   * per-browser recycle/health state. Additive diagnostics for the capacity benchmark + a future Instance
+   * Monitor gauge; empty/zeroed only when no shared browsers exist (pool turned off, or none created yet).
+   */
+  public getSharedBrowserSnapshot(): SharedBrowserSnapshot {
+    return this.sharedBrowserPool.snapshot();
+  }
+
+  /**
+   * Close every shared browser that currently has no active contexts (Phase A5). The engine already
+   * drains idle shared browsers at each run's end; this exposes the same operation so a caller can reclaim
+   * shared Chromium that fell idle AFTER the last run finished (e.g. capacity-benchmark teardown, or a
+   * future explicit "release idle browsers" control). No-op when the shared pool is turned off.
+   */
+  public drainIdleSharedBrowsers(): Promise<void> {
+    return this.sharedBrowserPool.drainIdle();
+  }
+
   public getWatchdogSnapshot(): WatchdogSnapshot {
     return this.watchdog.snapshot();
+  }
+
+  /**
+   * Explicit durable-store flush: resolve only once every accepted run write has been committed to the
+   * SQLite file on disk. In-process reads already see writes immediately (the sql.js DB is mutated
+   * synchronously on each upsert), so this is for cross-process/at-rest durability and for benchmarks/
+   * verifiers that need a deterministic drain point rather than an arbitrary sleep.
+   */
+  public async persistDurableNow(): Promise<void> {
+    await this.durableStore.persistNow();
   }
 
   /** Aggregated runtime status for the IPC status API / Instance Monitor strip. */
@@ -349,6 +438,32 @@ export class ExecutionEngine {
    */
   public setMachineRunContext(context: MachineRunContext): void {
     this.machineRunContext = { ...context };
+  }
+
+  /**
+   * Injected by the main process (audit §15): resolve a named secret to its decrypted value from the
+   * encrypted secret store. Kept as a callback so `src/` never imports Electron `safeStorage`; the tsx
+   * verifiers that don't set it simply run with secrets unavailable.
+   */
+  private secretResolver?: (name: string) => string | undefined;
+
+  public setSecretResolver(resolver: (name: string) => string | undefined): void {
+    this.secretResolver = resolver;
+  }
+
+  /** Resolve the secret names a scenario's flows reference into a per-run map (undefined when none/no resolver). */
+  private resolveSecretsForFlows(flows: FlowProfile[]): Record<string, string> | undefined {
+    if (!this.secretResolver) return undefined;
+    const names = collectSecretNames(flows);
+    if (!names.length) return undefined;
+    const map: Record<string, string> = {};
+    for (const name of names) {
+      const value = this.secretResolver(name);
+      if (value !== undefined) map[name] = value;
+    }
+    if (!Object.keys(map).length) return undefined;
+    registerSecretValues(Object.values(map)); // scrub these literals from logs/diagnostics
+    return map;
   }
 
   /** Machine-context columns for a run starting now: static identity + live pool/cap/memory readings. */
@@ -409,6 +524,10 @@ export class ExecutionEngine {
     if (process.env.AWKIT_PROCESS_SAMPLING === "0") return;
     this.processSampler.start((sample) => {
       const now = Date.now();
+      // Observability tick — runs EVERY sampler tick (reuses this existing loop; no new timer). Never
+      // throws; a collector fault must not affect execution or the process-history write below.
+      this.collectObservationTick(sample, now);
+      // Durable process-history write (throttled to ~15s; unchanged from the reporting refactor).
       if (now - this.lastProcessSampleWriteAt < 15_000) return;
       this.lastProcessSampleWriteAt = now;
       const pool = this.browserPool.snapshot();
@@ -425,6 +544,87 @@ export class ExecutionEngine {
         availability: sample.availability
       });
     });
+  }
+
+  /**
+   * Feed one shared host sample + live capacity context into the observation collector and flush any
+   * completed time bucket. Reuses the already-computed capacity snapshot + pool snapshots — no extra OS
+   * scan. Best-effort: any fault is swallowed so observability never affects a run.
+   */
+  private collectObservationTick(processSample: ProcessTreeSample, nowMs: number): void {
+    if (!this.observabilityEnabled) return;
+    try {
+      const capacity = this.getCapacitySnapshot();
+      const sharedSnap = this.sharedBrowserPool.snapshot();
+      const limits = this.browserPool.concurrencyLimits;
+      const weightedActive = limits.workloadWeights;
+      this.observations.observeTick(
+        {
+          systemCpuPercent: capacity.cpuPercent,
+          systemMemoryPercent: capacity.systemMemoryPercent,
+          chromiumRssMb: processSample.chromiumMemoryMb,
+          awkitRssMb: processSample.electronMainMemoryMb ?? capacity.processRssMb,
+          nodeHeapMb: safeHeapUsedMb()
+        },
+        {
+          adaptiveTarget: capacity.adaptiveTarget,
+          weightedBudget: weightedActive ? weightedBudget(limits.maxActiveFlows, limits.workloadWeightBudgetPerFlow) : undefined,
+          activeWeight: this.activeWeightedCost(),
+          activeFlows: capacity.activeFlows,
+          queuedFlows: capacity.queueDepth,
+          sharedBrowsers: sharedSnap.totalBrowsers,
+          contextCount: capacity.activeContexts,
+          pageCount: capacity.activePages,
+          weightedAdmissionActive: weightedActive
+        }
+      );
+      this.observations.observeRetirements(sharedSnap.closeReasons as unknown as Record<string, number>);
+      this.flushObservationBuckets(nowMs);
+    } catch {
+      /* observability must never affect execution */
+    }
+  }
+
+  /** Finalize a run's environmental observation summary into its durable run columns. Best-effort. */
+  private finalizeRunObservation(instanceId: string): Partial<DurableRunRecord> {
+    if (!this.observabilityEnabled) return {};
+    try {
+      const summary = this.observations.finalizeRun(instanceId);
+      if (!summary) return {};
+      return {
+        obsSampleCount: summary.sampleCount,
+        obsSystemCpuMean: summary.observedSystemCpuMeanDuringRun,
+        obsSystemCpuP95: summary.observedSystemCpuP95DuringRun,
+        obsSystemMemoryMean: summary.observedSystemMemoryMeanDuringRun,
+        obsSystemMemoryP95: summary.observedSystemMemoryP95DuringRun,
+        obsChromiumRssMeanMb: summary.observedChromiumRssMeanMbDuringRun,
+        obsChromiumRssP95Mb: summary.observedChromiumRssP95MbDuringRun,
+        obsAwkitRssMeanMb: summary.observedAwkitRssMeanMbDuringRun,
+        obsAwkitRssP95Mb: summary.observedAwkitRssP95MbDuringRun
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  /** Record one admission-delay episode (normalized reason + current pressure state). Best-effort. */
+  private recordAdmissionDelay(rawReason: string | undefined): void {
+    if (!this.observabilityEnabled) return;
+    try {
+      this.observations.recordAdmissionDelay(normalizeAdmissionReason(rawReason), normalizePressureState(this.adaptive.currentState));
+    } catch {
+      /* observability must never affect execution */
+    }
+  }
+
+  /** Persist any completed capacity/admission/lifecycle bucket. `force` rolls a partial bucket (teardown). */
+  private flushObservationBuckets(nowMs: number, force = false): void {
+    if (!this.observabilityEnabled) return;
+    const rolled = this.observations.maybeRollBuckets(nowMs, this.observationBucketMs, force);
+    if (!rolled) return;
+    if (rolled.capacity) this.durableStore.recordCapacityBucket(rolled.capacity);
+    for (const admission of rolled.admission) this.durableStore.recordAdmissionBucket(admission);
+    for (const lifecycle of rolled.lifecycle) this.durableStore.recordBrowserLifecycleBucket(lifecycle);
   }
 
   // ── Reporting queries (read-only; delegate to the durable store) ────────────
@@ -453,8 +653,14 @@ export class ExecutionEngine {
     return this.durableStore.queryRunHistory(range, page, filter);
   }
 
+  /** Complete run counts by status via an unbounded aggregate (correct beyond any pagination/row cap). */
+  getTelemetryStatusCounts(range: TelemetryRange, filter?: RunHistoryFilter): RunStatusCounts {
+    return this.durableStore.countRunsByStatus(range, filter);
+  }
+
   getTelemetryRunDetail(instanceId: string): RunDetail {
-    const run = this.durableStore.listRuns(1000).find((candidate) => candidate.instanceId === instanceId);
+    // Keyed lookup — NOT a recent-N scan, so detail is available for any run still in the store.
+    const run = this.durableStore.getRun(instanceId);
     return { run, attempts: this.durableStore.listAttempts(instanceId), artifacts: this.durableStore.listArtifacts(instanceId) };
   }
 
@@ -468,6 +674,124 @@ export class ExecutionEngine {
 
   getTelemetryProcessHistory(sinceIso?: string, limit?: number): ProcessHistoryPoint[] {
     return this.durableStore.listProcessSamples(sinceIso, limit).map(processSampleToHistoryPoint);
+  }
+
+  // ── Observability analytics getters (delegate to the durable store) ─────────
+
+  getTelemetryWorkflowHistoricalStats(scenarioId: string | undefined, range: TelemetryRange, machineFilter?: MachineFilter): WorkflowHistoricalStats {
+    return this.durableStore.queryWorkflowHistoricalStats(scenarioId, range, machineFilter);
+  }
+
+  getTelemetryWorkflowHistoricalTrend(scenarioId: string | undefined, range: TelemetryRange, machineFilter?: MachineFilter): WorkflowHistoricalTrend {
+    return this.durableStore.queryWorkflowHistoricalTrend(scenarioId, range, machineFilter);
+  }
+
+  getTelemetryRunVsHistory(instanceId: string, range?: TelemetryRange): RunVsHistoryComparison | undefined {
+    return this.durableStore.queryRunVsHistory(instanceId, range);
+  }
+
+  getTelemetryWorkflowRankings(range: TelemetryRange, metric: WorkflowRankingMetric, limit?: number, machineFilter?: MachineFilter): WorkflowRanking {
+    return this.durableStore.queryWorkflowRankings(range, metric, limit, machineFilter);
+  }
+
+  getTelemetryCapacityAnalytics(range: TelemetryRange): CapacityAnalytics {
+    return this.durableStore.queryCapacityAnalytics(range);
+  }
+
+  getTelemetryAnomalies(range: TelemetryRange, workflowId?: string, limit?: number): AnomalyEvent[] {
+    return this.durableStore.queryAnomalies(range, workflowId, limit);
+  }
+
+  /** Live observability summary for the Instance Monitor strip (Phase 07). */
+  getObservabilitySummary(): RuntimeObservabilitySummary {
+    const capacity = this.getCapacitySnapshot();
+    const limits = this.browserPool.concurrencyLimits;
+    const shared = this.sharedBrowserPool.snapshot();
+    const weightedActive = limits.workloadWeights;
+    const reason = normalizeAdmissionReason(capacity.blockedReason);
+    return {
+      pressureState: normalizePressureState(capacity.adaptiveState),
+      activeWorkflows: capacity.activeFlows,
+      queuedWorkflows: capacity.queueDepth,
+      adaptiveTarget: capacity.adaptiveTarget,
+      weightedBudget: weightedActive ? weightedBudget(limits.maxActiveFlows, limits.workloadWeightBudgetPerFlow) : undefined,
+      activeWeight: weightedActive ? this.activeWeightedCost() : undefined,
+      weightedAdmissionActive: weightedActive,
+      sharedBrowsers: shared.totalBrowsers,
+      browserContexts: capacity.activeContexts,
+      pageCount: capacity.activePages,
+      cpuPercent: capacity.cpuPercent,
+      systemMemoryPercent: capacity.systemMemoryPercent,
+      chromiumRssMb: this.processSampler.latest?.chromiumMemoryMb,
+      currentAdmissionReason: capacity.dispatchBlocked ? reason : undefined,
+      currentAdmissionReasonLabel: capacity.dispatchBlocked ? ADMISSION_REASON_LABELS[reason] : undefined
+    };
+  }
+
+  /**
+   * Deterministic run-level anomaly + throttled regression detection after a run finalizes (Phase 06).
+   * Best-effort — a detection fault never affects the run. Run-level checks compare the run to its 30-day
+   * history; regression checks compare recent 7 days vs the previous 7 days (throttled to 5 min/workflow).
+   */
+  private runAnomalyChecks(instanceId: string, scenarioId: string | undefined): void {
+    if (!this.observabilityEnabled) return;
+    try {
+      const run = this.durableStore.getRun(instanceId);
+      if (!run) return;
+      const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
+      const history = this.durableStore.listRunsForScenario(scenarioId, since30);
+      const nowIso = new Date().toISOString();
+      for (const anomaly of detectRunAnomalies(run, history)) {
+        this.durableStore.recordAnomaly({
+          workflowId: scenarioId,
+          runId: instanceId,
+          detectedAt: nowIso,
+          scope: anomaly.scope,
+          signalType: anomaly.signalType,
+          severity: anomaly.severity,
+          currentValue: anomaly.currentValue,
+          baselineValue: anomaly.baselineValue,
+          thresholdRule: anomaly.thresholdRule,
+          windowLabel: anomaly.windowLabel,
+          sampleCount: anomaly.sampleCount,
+          state: "active",
+          note: anomaly.note
+        });
+      }
+      const key = scenarioId ?? "(unknown)";
+      const now = Date.now();
+      if (now - (this.lastRegressionCheckAt.get(key) ?? 0) >= 5 * 60_000) {
+        this.lastRegressionCheckAt.set(key, now);
+        this.runRegressionCheck(scenarioId, now);
+      }
+    } catch {
+      /* observability must never affect execution */
+    }
+  }
+
+  private runRegressionCheck(scenarioId: string | undefined, nowMs: number): void {
+    const windowMs = 7 * 86_400_000;
+    const all = this.durableStore.listRunsForScenario(scenarioId, new Date(nowMs - 2 * windowMs).toISOString());
+    const epoch = (r: DurableRunRecord) => Date.parse(r.endedAt ?? r.startedAt ?? r.updatedAt);
+    const recent = all.filter((r) => epoch(r) >= nowMs - windowMs);
+    const previous = all.filter((r) => {
+      const t = epoch(r);
+      return t >= nowMs - 2 * windowMs && t < nowMs - windowMs;
+    });
+    const input: RegressionInput = {
+      recent,
+      previous,
+      recentQueueDelays: recent.filter((r) => (r.queueWaitMs ?? 0) > QUEUE_DELAY_PROXY_MS).length,
+      previousQueueDelays: previous.filter((r) => (r.queueWaitMs ?? 0) > QUEUE_DELAY_PROXY_MS).length,
+      windowLabel: "recent 7d vs previous 7d"
+    };
+    const detected = detectRegressions(input);
+    // Latest anomaly per signal (DESC list → first per signal is newest) for dedup/cooldown/recovery.
+    const existing = this.durableStore.listAnomalies(undefined, scenarioId, 200).filter((a) => a.scope === "regression");
+    const latestPerSignal = new Map<string, DurableAnomalyRecord>();
+    for (const a of existing) if (!latestPerSignal.has(a.signalType)) latestPerSignal.set(a.signalType, a);
+    const rows = reconcileRegressions(detected, [...latestPerSignal.values()], scenarioId, new Date(nowMs).toISOString());
+    for (const row of rows) this.durableStore.recordAnomaly(row);
   }
 
   /** Durable runs view (recovery inspection). */
@@ -485,7 +809,8 @@ export class ExecutionEngine {
     attempts: DurableAttemptRecord[];
     artifacts: DurableArtifactRecord[];
   } {
-    const run = this.durableStore.listRuns(1000).find((candidate) => candidate.instanceId === instanceId);
+    // Keyed lookup — available for any retained run, not just the most recent 1000.
+    const run = this.durableStore.getRun(instanceId);
     return {
       run,
       attempts: this.durableStore.listAttempts(instanceId),
@@ -627,6 +952,33 @@ export class ExecutionEngine {
     return total;
   }
 
+  /**
+   * Phase A5+ memory recycling (throttled, non-blocking — called from the dispatch loop). Samples each
+   * pooled browser's OWN Chromium subtree RSS and DRAINS any whose footprint stays over `thresholdMb`
+   * across the moving window, so a long-lived shared pool can't accumulate memory. Draining never touches
+   * active workflows: a marked browser stops taking new leases and closes once its last context releases
+   * (existing recycle lifecycle). Fully inert unless per-browser root PIDs are attributable — on Playwright
+   * 1.61 a launched Browser exposes no process handle, so `browserRoots()` is empty and this returns before
+   * any sampling cost. Attribution is also empty off Windows or on a sampler error → skipped, never guessed.
+   */
+  private async evaluateSharedBrowserMemoryRecycling(thresholdMb: number): Promise<void> {
+    const roots = this.sharedBrowserPool.browserRoots();
+    if (roots.length === 0) return; // no attributable root PIDs → recycling inert (see field doc)
+    const byPid = await this.browserSubtreeSampler.sample(roots.map((r) => r.pid));
+    if (byPid.size === 0) return; // attribution unavailable (non-Windows / query failure) → do not guess
+    const byId = new Map<string, number>();
+    for (const { id, pid } of roots) {
+      const mb = byPid.get(pid);
+      if (mb !== undefined) byId.set(id, mb);
+    }
+    const recycled = await this.sharedBrowserPool.applyMemorySamples(byId, thresholdMb);
+    if (recycled.length > 0) {
+      console.warn(
+        `[shared-pool] draining ${recycled.length} browser(s) whose subtree RSS held over ${thresholdMb}MB: ${recycled.join(", ")}.`
+      );
+    }
+  }
+
   private async processQueue(
     executionId: string,
     profile: ConcurrentRunProfile,
@@ -663,6 +1015,8 @@ export class ExecutionEngine {
         await store.import({ ...finalReport, id: executionId });
         // Phase A5: close shared browsers that no other run is still using (idle → no lingering Chromium).
         await this.sharedBrowserPool.drainIdle().catch(() => undefined);
+        // Observability: flush any partial capacity/admission/lifecycle bucket so teardown loses nothing.
+        this.flushObservationBuckets(Date.now(), true);
         break;
       }
 
@@ -692,11 +1046,23 @@ export class ExecutionEngine {
         recentCrashes: this.browserPool.recentCrashCount(),
         queueDepth: queuedGlobal
       }).target;
+      // Phase A5+ memory recycling: throttled, non-blocking. Drains a shared browser whose own subtree RSS
+      // stays over budget (moving window), so long-lived pools don't accumulate memory. No-op unless the
+      // shared pool is on with a positive threshold; attribution is Windows-only (inert elsewhere).
+      const memLimits = this.browserPool.concurrencyLimits;
+      if (memLimits.useSharedBrowserPool && memLimits.browserRecycleMemoryMb > 0 && Date.now() - this.lastMemRecycleAt > 20_000) {
+        this.lastMemRecycleAt = Date.now();
+        void this.evaluateSharedBrowserMemoryRecycling(memLimits.browserRecycleMemoryMb);
+      }
+
       const admission = this.backpressure.admit(activeGlobal, queuedGlobal, adaptiveTarget);
       if (!admission.allow) {
         if (admission.reason !== this.lastThrottleReason) {
           this.lastThrottleReason = admission.reason;
           console.warn(`[backpressure] new instance dispatch blocked: ${admission.reason} (queued: ${queuedGlobal}).`);
+          // Observability: count this admission-delay episode by its NORMALIZED reason (once per episode,
+          // not per 500ms retry). Real dispatch-loop decision — never inferred later from CPU values.
+          this.recordAdmissionDelay(admission.reason);
         }
         await new Promise(resolve => setTimeout(resolve, 500));
         continue;
@@ -708,10 +1074,10 @@ export class ExecutionEngine {
       const newlyStarted = started.filter(i => i.status === "running" && this.pool.get(i.instanceId)?.status === "pending");
 
       for (const instance of newlyStarted) {
-        // Phase A8 (flag-gated, default OFF): admit against a WEIGHTED budget so heavy instances
-        // (persistent profile / headed / downloads / parallel branches / trace-video) consume more of
-        // the host than light ones. Flag-off skips this — count-based admission is unchanged. Never
-        // deadlocks: an idle host always admits at least one instance (see canAdmitWeighted).
+        // Phase A8 (defaults ON with the shared pool; off when weights are disabled): admit against a
+        // WEIGHTED budget so heavy instances (persistent profile / headed / downloads / parallel branches /
+        // trace-video) consume more of the host than light ones. Weights-off skips this — count-based
+        // admission is unchanged. Never deadlocks: an idle host always admits at least one (canAdmitWeighted).
         const limits = this.browserPool.concurrencyLimits;
         if (limits.workloadWeights) {
           const activeWeight = this.activeWeightedCost();
@@ -722,6 +1088,7 @@ export class ExecutionEngine {
             if (reason !== this.lastThrottleReason) {
               this.lastThrottleReason = reason;
               console.warn(`[backpressure] instance ${instance.instanceId} queued: ${reason}.`);
+              this.recordAdmissionDelay(reason);
             }
             continue; // stay pending; retried next tick as active weighted cost drains
           }
@@ -745,6 +1112,7 @@ export class ExecutionEngine {
           if (reason !== this.lastThrottleReason) {
             this.lastThrottleReason = reason;
             console.warn(`[backpressure] instance ${instance.instanceId} queued: ${reason}.`);
+            this.recordAdmissionDelay(reason);
           }
           continue;
         }
@@ -885,6 +1253,8 @@ export class ExecutionEngine {
       flowRunStatus: machine.status,
       startedAt: runStartedAtIso,
       queueWaitMs,
+      // Observability: pressure state at dispatch (failure-at-pressure correlation, Phase 05).
+      pressureStateAtRun: this.adaptive.currentState,
       // Phase B1: stamp the run with its machine context so reports can filter/compare by machine.
       ...this.buildRunMachineContext()
     });
@@ -898,11 +1268,55 @@ export class ExecutionEngine {
     });
 
     const progress = this.createProgressReporter(instance.instanceId, flows, { runLogger, attempts, instance, slot });
+
+    // Browser Resource Optimization: resolve this instance's browser runtime configuration ONCE from the
+    // selected profile (env, default balanced == today's behaviour) + the workflow's static capabilities.
+    // The default path yields normal routing, no launch-arg deltas, and today's trace mode.
+    const browserConfig = resolveBrowserConfigurationForRun(instance.config, flows, {
+      machine: { logicalCpuCount: this.machineRunContext?.logicalCpuCount }
+    });
+    if (browserConfig.profileMode !== "balanced") {
+      runLogger.log({
+        runId: instance.executionId,
+        workflowId: instance.scenarioId,
+        workerId: instance.instanceId,
+        event: "browser.profile",
+        message: `Browser resource profile resolved:\n${explainResolution(browserConfig).join("\n")}`
+      });
+    }
+
+    // Shared-browser isolation routing: classify this instance's isolation (SHARED_CONTEXT /
+    // DEDICATED_BROWSER / PERSISTENT_BROWSER / HANDOFF_BROWSER). Resolved unconditionally so the run's
+    // observability dimension is always recorded; the diagnostic is only LOGGED when the pool is on
+    // (keeps the default path quiet), preserving the previous behaviour.
+    const isolation = resolveBrowserIsolation(instance.config, flows, {
+      sharedPoolEnabled: this.browserPool.concurrencyLimits.useSharedBrowserPool,
+      launchArgOverrides: browserConfig.launchArgOverrides
+    });
+    if (this.browserPool.concurrencyLimits.useSharedBrowserPool) {
+      runLogger.log({
+        runId: instance.executionId,
+        workflowId: instance.scenarioId,
+        workerId: instance.instanceId,
+        event: "browser.isolation",
+        message: `Browser isolation: ${isolation.isolationClass} — ${isolation.diagnostics
+          .map((d) => `${d.decision}=${d.value} (${d.source})`)
+          .join("; ")}`
+      });
+    }
+
+    // Observability: begin accumulating this run's environmental resource summary. Registered only now
+    // (browser config resolved, about to execute) so a pre-execution throw can't leak an accumulator.
+    if (this.observabilityEnabled) this.observations.startRun(instance.instanceId);
+
     const runner = new PlaywrightRunner({
       resourcesRoot: getResourcesRoot(),
       productionOffline: isProductionOffline(),
       flows,
       progress,
+      resourceRouting: browserConfig.resourceRouting,
+      launchArgOverrides: browserConfig.launchArgOverrides,
+      traceMode: browserConfig.traceMode,
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),
@@ -930,8 +1344,10 @@ export class ExecutionEngine {
           workflowDataSource,
           dataSources,
           flowOutputs: {},
+          secrets: this.resolveSecretsForFlows(flows),
           // Saved browser sessions live in a stable runtime folder, not per-execution.
-          paths: { ...instance.paths, sessions: join(dirs.root, "sessions") }
+          // The global runtime root (captured profiles, durable store) is upload-blocked (F-01).
+          paths: { ...instance.paths, sessions: join(dirs.root, "sessions"), protectedUploadRoots: [getRuntimeDataRoot()] }
         },
         instance.config
       );
@@ -1005,6 +1421,9 @@ export class ExecutionEngine {
       const endedAtIso = new Date().toISOString();
       const endErrorClass = runError ? classifyError(runError) : undefined;
       const retryCount = attempts.list().reduce((sum, attempt) => sum + Math.max(0, (attempt.tryNumber ?? 1) - 1), 0);
+      // Observability: finalize this run's ENVIRONMENTAL observation summary + record its resolved
+      // dimensions. Best-effort; a collector fault leaves the columns NULL and never blocks run finalization.
+      const observation = this.finalizeRunObservation(instance.instanceId);
       this.durableStore.upsertRun({
         instanceId: instance.instanceId,
         executionId: instance.executionId,
@@ -1017,8 +1436,16 @@ export class ExecutionEngine {
         errorClass: endErrorClass,
         reportCategory: runError ? toReportCategory(endErrorClass) : undefined,
         // Phase B1: the peak simultaneous instance count observed for this run (reporting).
-        observedPeakConcurrency: this.executionPeakConcurrency.get(instance.executionId)
+        observedPeakConcurrency: this.executionPeakConcurrency.get(instance.executionId),
+        // Observability run dimensions + environmental summary (migration v4).
+        headed: resolveHeaded(instance.config),
+        resourceProfile: browserConfig.profileMode,
+        isolationClass: isolation.isolationClass,
+        workloadWeight: this.instanceWeights.get(instance.instanceId) ?? this.instanceWeight(instance, flows),
+        ...observation
       });
+      // Observability: deterministic anomaly + regression detection for this finalized run (Phase 06).
+      this.runAnomalyChecks(instance.instanceId, instance.scenarioId);
       void this.durableStore.persistNow();
       runLogger.log({
         runId: instance.executionId,
@@ -1387,6 +1814,30 @@ export class ExecutionEngine {
     void this.runInstance(fresh, context.flows, context.scenario, context.workflowDataSource, context.dataSources, context.dirs).catch(
       console.error
     );
+  }
+}
+
+/** Observability bucket width from env (AWKIT_OBSERVABILITY_BUCKET_MS), clamped to [5s, 5min]; default 30s. */
+function observationBucketMsFromEnv(): number {
+  const raw = process.env.AWKIT_OBSERVABILITY_BUCKET_MS;
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+  if (!Number.isFinite(parsed)) return 30_000;
+  return Math.min(300_000, Math.max(5_000, parsed));
+}
+
+/** Resolve the run's headed dimension from its config (headless === false → headed; undefined when unknown). */
+function resolveHeaded(config: { headless?: boolean } | undefined): boolean | undefined {
+  if (config?.headless === true) return false;
+  if (config?.headless === false) return true;
+  return undefined;
+}
+
+/** Node heap used (MB); best-effort, undefined if unavailable. */
+function safeHeapUsedMb(): number | undefined {
+  try {
+    return Math.round(process.memoryUsage().heapUsed / (1024 * 1024));
+  } catch {
+    return undefined;
   }
 }
 

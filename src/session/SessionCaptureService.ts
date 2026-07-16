@@ -217,6 +217,11 @@ export class SessionCaptureService {
     if (url && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url) && !/^(about:|data:|file:)/i.test(url)) {
       url = `https://${url}`;
     }
+    // Only open http(s) (or about:) capture targets in the user's real browser; a file:/data:
+    // target could open a local file in their browser (audit F-11).
+    if (url && !/^https?:\/\//i.test(url) && !/^about:/i.test(url)) {
+      throw new Error("Session capture only supports http(s) target URLs.");
+    }
 
     // Launch the real Chrome/Edge with the custom user-data-dir.
     const args = [

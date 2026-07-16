@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import { dialog, ipcMain } from "electron";
@@ -7,8 +7,47 @@ import { resolveJsonPath } from "@src/data/JsonPathResolver";
 import { isPlainObject, setJsonAtPath, validateRowArray, type JsonRow } from "@src/data/TableEditing";
 import { sanitizeProfileId } from "@src/storage/ProfileStore";
 import { createDataSourceProfileStore } from "../profileStores";
-import { getResourcesRoot } from "../appPaths";
+import { getResourcesRoot, getRuntimeDataRoot } from "../appPaths";
 import { getConfiguredPaths } from "../storagePaths";
+import { isPathInside, isReadableDataSourceFile } from "@src/utils/pathSafety";
+import { assertTrustedSender } from "./senderGuard";
+
+/** Max size of a JSON file we will open/preview as a data source (audit §14 — huge-file DoS guard). */
+const MAX_DATA_SOURCE_BYTES = 25 * 1024 * 1024;
+
+/** Read failures that must surface to the user (confinement / oversize), not be treated as "file missing". */
+class DataSourceReadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DataSourceReadError";
+  }
+}
+
+/**
+ * Confine data-source reads (audit §14). A data source may point anywhere the user browsed to, but it must
+ * never be an AWKIT-internal file: block anything inside the runtime data root (saved sessions/captured
+ * browser profiles/durable store/logs/reports) that is NOT the data-sources workspace. External user files
+ * and the workspace are allowed; the read-only `resources/` samples live outside the runtime root.
+ */
+function assertReadableDataFile(resolved: string): void {
+  if (isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)) return;
+  throw new DataSourceReadError(
+    "This file is inside a WebFlow Studio data folder (sessions/reports/logs/runtime store) and cannot be used as a data source."
+  );
+}
+
+/** Read + parse a JSON data file with confinement + size guards. Throws {@link DataSourceReadError}
+ *  for confinement/oversize; ENOENT/parse errors propagate as their native errors. */
+async function readJsonFileGuarded(resolved: string): Promise<unknown> {
+  assertReadableDataFile(resolved);
+  const info = await stat(resolved);
+  if (info.size > MAX_DATA_SOURCE_BYTES) {
+    throw new DataSourceReadError(
+      `Data source file is too large to open (${(info.size / 1048576).toFixed(1)} MB; max 25 MB).`
+    );
+  }
+  return JSON.parse(await readFile(resolved, "utf8"));
+}
 
 type DataRow = JsonRow;
 type DataStore = ReturnType<typeof createDataSourceProfileStore>;
@@ -38,8 +77,14 @@ export function registerDataSourceIpc(): void {
 
   // ── Visual table editor channels ──────────────────────────────────────────
   ipcMain.handle("dataSources:readJson", async (_, id: string) => readDataSourceRows(store, id));
-  ipcMain.handle("dataSources:writeJson", async (_, id: string, rows: DataRow[]) => writeDataSourceRows(store, id, rows));
-  ipcMain.handle("dataSources:createFromScratch", async (_, payload: CreateFromScratchPayload) => createFromScratch(store, payload));
+  ipcMain.handle("dataSources:writeJson", async (event, id: string, rows: DataRow[]) => {
+    assertTrustedSender(event);
+    return writeDataSourceRows(store, id, rows);
+  });
+  ipcMain.handle("dataSources:createFromScratch", async (event, payload: CreateFromScratchPayload) => {
+    assertTrustedSender(event);
+    return createFromScratch(store, payload);
+  });
 
   ipcMain.handle("dataSource:list", async () => ensureDefaultDataSource(store));
 }
@@ -80,8 +125,9 @@ async function readDataSourceRows(store: DataStore, id: string) {
   let data: unknown;
   let fileExists = true;
   try {
-    data = JSON.parse(await readFile(dataPath, "utf8"));
-  } catch {
+    data = await readJsonFileGuarded(dataPath);
+  } catch (error) {
+    if (error instanceof DataSourceReadError) throw error; // confinement/oversize → surface to the user
     fileExists = false;
     data = profile.path === "$" ? [] : {};
   }
@@ -113,8 +159,12 @@ async function writeDataSourceRows(store: DataStore, id: string, rows: DataRow[]
   let path = profile.path;
   const resolved = resolveDataFile(profile);
   const collidesWithMetadata = resolveProjectPath(profile.file) === metadataPath(profile.id);
+  // Confine editor writes to the data-sources workspace so a manipulated/imported profile with an
+  // arbitrary absolute `file` cannot overwrite files elsewhere on disk (audit F-04). Out-of-workspace
+  // targets are redirected into the writable `files/` folder instead of written in place.
+  const outsideWorkspace = !isPathInside(getConfiguredPaths().dataSources, resolved);
 
-  if (isProtectedFile(profile.file) || collidesWithMetadata) {
+  if (isProtectedFile(profile.file) || collidesWithMetadata || outsideWorkspace) {
     // Migrate a read-only sample (or a legacy collided file) into the writable
     // data-sources `files/` folder as a root array.
     const target = join(dataFilesDir(), `${sanitizeProfileId(id)}.json`);
@@ -193,7 +243,7 @@ async function browseJsonDataSource(store: ReturnType<typeof createDataSourcePro
   }
 
   const file = result.filePaths[0];
-  const data = JSON.parse(await readFile(file, "utf8"));
+  const data = await readJsonFileGuarded(file);
   const paths = collectJsonPaths(data);
   const firstArrayPath = paths.find((path) => Array.isArray(resolveJsonPath(data, path))) ?? "$";
   const rows = resolveJsonPath(data, firstArrayPath);
@@ -268,8 +318,7 @@ async function getJsonPaths(store: ReturnType<typeof createDataSourceProfileStor
 }
 
 async function readJson(file: string): Promise<unknown> {
-  const path = resolveProjectPath(file);
-  return JSON.parse(await readFile(path, "utf8"));
+  return readJsonFileGuarded(resolveProjectPath(file));
 }
 
 function resolveProjectPath(file: string): string {

@@ -62,8 +62,13 @@ async function main(): Promise<void> {
   const upgraded = await SqliteRuntimeStore.open(upgradePath, () => undefined);
   const migrations = upgraded.appliedMigrations();
   check(
-    "v2 + v3 migrations applied on top of a v1-only database",
-    migrations.length === 3 && migrations[1].version === 2 && migrations[2].version === 3 && migrations[2].name === "machine-run-context",
+    "v2 + v3 + v4 migrations applied on top of a v1-only database",
+    migrations.length === 4 &&
+      migrations[1].version === 2 &&
+      migrations[2].version === 3 &&
+      migrations[2].name === "machine-run-context" &&
+      migrations[3].version === 4 &&
+      migrations[3].name === "observability-analytics",
     JSON.stringify(migrations)
   );
   const legacy = upgraded.listRuns(10).find((run) => run.instanceId === "legacy-1");
@@ -258,9 +263,33 @@ async function main(): Promise<void> {
   check("run history browserPoolMode filter", q2.queryRunHistory(range2h, {}, { browserPoolMode: "shared" }).total === 1);
   await q2.close();
 
+  console.log("\nPart I — unbounded aggregate vs clamped page (>500 rows; the 3822-vs-495 defect class)");
+  const big = await SqliteRuntimeStore.open(join(root, "big.sqlite"), () => undefined);
+  const TOTAL = 640; // > the 500 single-page clamp
+  const FAILED = 40;
+  const CANCELLED = 20;
+  for (let i = 0; i < TOTAL; i++) {
+    const status = i < FAILED ? "failed" : i < FAILED + CANCELLED ? "cancelled" : "completed";
+    big.upsertRun({ instanceId: `big-${i}`, executionId: `big-e-${i}`, scenarioId: "s-big", scenarioName: "Big", status, startedAt: "2026-07-07T09:00:00.000Z", endedAt: "2026-07-07T09:00:05.000Z", durationMs: 1000 });
+  }
+  const bigCounts = big.countRunsByStatus({});
+  check("countRunsByStatus.total is the UNBOUNDED count (640, not clamped)", bigCounts.total === TOTAL, `total=${bigCounts.total}`);
+  check("countRunsByStatus buckets by status", bigCounts.success === TOTAL - FAILED - CANCELLED && bigCounts.failed === FAILED && bigCounts.cancelled === CANCELLED, JSON.stringify(bigCounts));
+  const bigPage = big.queryRunHistory({}, { limit: 1_000_000, offset: 0 });
+  check("a single run-history page is CLAMPED to 500 rows (the historical read bug)", bigPage.rows.length === 500 && bigPage.total === TOTAL, `rows=${bigPage.rows.length} total=${bigPage.total}`);
+  const bigOverview = big.queryOverview({});
+  check("queryOverview totals come from the aggregate (correct beyond 500, not rows.length)", bigOverview.totalRuns === TOTAL && bigOverview.successRuns === TOTAL - FAILED - CANCELLED && bigOverview.failedRuns === FAILED && bigOverview.cancelledRuns === CANCELLED, JSON.stringify({ t: bigOverview.totalRuns, s: bigOverview.successRuns, f: bigOverview.failedRuns, c: bigOverview.cancelledRuns }));
+  check("getRun is a keyed lookup (finds a row beyond the recent-1000 scan window)", big.getRun("big-5")?.instanceId === "big-5" && big.getRun("nope") === undefined);
+  // Full pagination reads every row with no dup / no missing IDs.
+  const seen = new Set<string>();
+  for (let offset = 0; offset < bigPage.total; offset += 500) for (const r of big.queryRunHistory({}, { limit: 500, offset }).rows) seen.add(r.instanceId);
+  check("pagination reads every row exactly once (no dup / no missing)", seen.size === TOTAL, `seen=${seen.size}`);
+  await big.close();
+
   const nullStore = new NullRuntimeStore();
   check("NullRuntimeStore overview reports storeEnabled=false", nullStore.queryOverview({}).storeEnabled === false);
   check("NullRuntimeStore queries are empty and never throw", nullStore.queryWorkflows({}).length === 0 && nullStore.queryRunHistory({}, {}).total === 0 && nullStore.queryFailures({}).total === 0 && nullStore.queryRuntimeSeries({}, 1000).length === 0);
+  check("NullRuntimeStore aggregate count is empty and never throws", nullStore.countRunsByStatus({}).total === 0 && nullStore.getRun("x") === undefined);
   check("NullRuntimeStore machine-aware queries are empty and never throw", nullStore.queryWorkflowComparison({}).length === 0 && nullStore.queryWorkflowTrend("s", {}, 4).points.length === 0 && nullStore.listRunMachines().length === 0);
 
   await upgraded.close();

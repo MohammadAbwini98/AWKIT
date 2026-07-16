@@ -9,6 +9,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { MachineFilter, RunHistoryFilter, ServerReport, StorageUsage, TelemetryPage, TelemetryRange, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
+import type { WorkflowRankingMetric } from "@src/reports/ObservabilityContracts";
 import { getConfiguredPaths } from "../storagePaths";
 
 const RANGE_MS: Record<Exclude<TelemetryRangePreset, "all">, number> = {
@@ -86,6 +87,33 @@ export function registerTelemetryIpc(): void {
     const range = resolveRange(preset);
     return executionEngine.getTelemetryProcessHistory(range.sinceIso, limit);
   });
+
+  // ── Observability analytics (Runtime Observability & Historical Analytics phase) ──
+  ipcMain.handle("telemetry:capacityAnalytics", async (_, preset?: TelemetryRangePreset) =>
+    executionEngine.getTelemetryCapacityAnalytics(resolveRange(preset))
+  );
+
+  ipcMain.handle("telemetry:workflowHistoricalStats", async (_, scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+    executionEngine.getTelemetryWorkflowHistoricalStats(scenarioId, resolveRange(preset), machineFilter)
+  );
+
+  ipcMain.handle("telemetry:workflowHistoricalTrend", async (_, scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+    executionEngine.getTelemetryWorkflowHistoricalTrend(scenarioId, resolveRange(preset), machineFilter)
+  );
+
+  ipcMain.handle("telemetry:runVsHistory", async (_, instanceId: string, preset?: TelemetryRangePreset) =>
+    executionEngine.getTelemetryRunVsHistory(instanceId, resolveRange(preset))
+  );
+
+  ipcMain.handle("telemetry:workflowRankings", async (_, preset?: TelemetryRangePreset, metric?: WorkflowRankingMetric, limit?: number, machineFilter?: MachineFilter) =>
+    executionEngine.getTelemetryWorkflowRankings(resolveRange(preset), metric ?? "most-executed", limit, machineFilter)
+  );
+
+  ipcMain.handle("telemetry:anomalies", async (_, preset?: TelemetryRangePreset, workflowId?: string, limit?: number) =>
+    executionEngine.getTelemetryAnomalies(resolveRange(preset), workflowId, limit)
+  );
+
+  ipcMain.handle("telemetry:observabilitySummary", async () => executionEngine.getObservabilitySummary());
 
   ipcMain.handle("telemetry:server", async (): Promise<ServerReport> => {
     const status = await executionEngine.getRuntimeStatus();

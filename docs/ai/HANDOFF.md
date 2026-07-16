@@ -1,9 +1,31 @@
 # Agent Handoff
 
-Last updated: 2026-07-11 (React Flow removal — the three canvases now run on an in-house custom
-canvas engine; `@xyflow/react` fully removed from source and `package.json`. Renderer-only; working
-tree modified & uncommitted on `feature/smart-wait-engine`. The UI-migration and release-hardening
-context below is historical; its release gates remain the real remaining gates.)
+Last updated: 2026-07-16 (**Runtime Observability final production-validation** — Phases 1–6). Controlled A/B
+overhead + full 30-min soak + measured storage/query benchmarks + real-Electron UI walkthrough (36/36) across
+seeded normal/empty/migration/high-data DBs. **Decision: `PRODUCTION-CANDIDATE`** (report §16–17). Corrected the
+report's overhead/query/storage/"Experimental" claims. Fixed 2 soak-harness accounting bugs (`cancelled`-run
+count; NaN event-loop peak) in `scripts/benchmark-engine-soak.mts`; **no `src/` change** this session. New:
+`scripts/seed-observability-fixtures.mts`, `scripts/verify-runtime-analytics-gui.mjs`, 2 `package.json` aliases,
+`.gitignore` (`.fixtures-observability/`). Working tree still modified & uncommitted on `main`.
+**Remaining gate:** fresh packaged-EXE build + the same walkthrough against the EXE on a higher-memory host (the
+`dist/` EXE predates observability; re-packaging OOMs on the 16 GB dev host — see `KNOWN_ISSUES`). Provisional:
+anomaly numeric thresholds (uncalibrated) + a precise A/B RSS figure (variance-limited). Prior handoff below is
+history.
+
+---
+
+Previously: 2026-07-15 (Real-`ExecutionEngine` capacity benchmark + shared-pool over-launch **race fix** +
+Phases 6–10. New benchmark harness drives real workflow instances through the full production scheduler; the
+race fix and Phase 8 completion touch `src/runner` core (`SharedBrowserPool`, `ExecutionEngine`,
+`BrowserProcessSampler`). Default path unchanged (pool + A8 weights stay flag-OFF pending owner sign-off).
+Full write-up: `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md`. **Open decision for the owner:** the evidence
+recommends enabling BOTH the shared pool and A8 weighted admission by default (Config D) — a one-line default
+flip in `src/runner/concurrency/ConcurrencyConfig.ts`, not yet applied. Working tree modified & uncommitted on
+`main`. Earlier uncommitted sessions also remain in the tree — see history below.)
+
+Previous: Shared-browser concurrency capacity — authoritative `BrowserIsolationResolver` + launch-arg-aware
+compatibility key hardening the A5 shared Chromium pool (`src/runner` core only; default path byte-for-byte
+unchanged). Prior handoff sections are preserved as history.
 
 ## Purpose
 
@@ -13,6 +35,110 @@ agent (Claude Code, Codex, Gemini, Antigravity, future agents) and human develop
 Use this file when work is paused, blocked, or moving from one agent/tool to another.
 
 ## Current Handoff
+
+### From / To
+
+- **From:** the agent that hardened the A5 shared Chromium browser pool (isolation resolver + compatibility key).
+- **To:** any next agent or human developer.
+- **Branch:** `main` (HEAD level with `origin/main`). The working tree is **modified & uncommitted / unpushed**
+  and carries several earlier sessions' work in addition to this task (see "Other uncommitted work already in
+  the tree"). Do not fetch/pull/commit/push/PR unless the user asks.
+
+### Active Task — Shared-browser concurrency capacity: COMPLETE (pool stays default-OFF)
+
+Goal: maximise stable concurrent workflow capacity by safely sharing Chromium processes. The A5 shared pool
++ adaptive/backpressure/weighted admission + machine-aware capacity core already existed (plan phases
+A1–A10); this task **proved them from code + runtime**, then closed the real gaps. `src/runner` core only —
+**no route, IPC, preload (`window.playwrightFlowStudio`), profile schema, or packaging change; the default
+path is byte-for-byte unchanged** (shared pool stays flag-OFF via `AWKIT_SHARED_BROWSER_POOL`; the `balanced`
+resource profile resolves to one stable compatibility key → sharing behaves exactly as before).
+
+### Completed Work (shared-browser capacity)
+
+- **New `src/runner/browser/BrowserIsolationResolver.ts`** — THE authoritative resolver. Classifies every
+  instance into `SHARED_CONTEXT | DEDICATED_BROWSER | PERSISTENT_BROWSER | HANDOFF_BROWSER` with a
+  `{decision,value,source}` diagnostic per rule (precedence: persistent profile > mid-run browser-swap node >
+  shared-flag > catch-all dedicated), plus `sharedCompatibilityKey(config, launchArgOverrides)` that folds the
+  **browser-level** launch config (headed/headless + resolved launch-arg deltas) into the pool grouping key.
+  Context-level options (viewport, device scale, storageState, request routing) are deliberately EXCLUDED —
+  they stay isolated per `BrowserContext`. Pure/framework-agnostic; delimited + collision-safe (no hash dep).
+- **Latent correctness bug fixed:** the shared pool previously grouped browsers only by `browser:headed/headless`
+  and ignored per-instance `launchArgOverrides`. With the pool ON **and** a non-`balanced` resource profile,
+  two instances with divergent launch flags could reuse one browser carrying only the first leaser's flags.
+  `sharedCompatibilityKey` now separates them.
+- **Wiring:** `browserSharing.isSharedEligible` now delegates to the resolver (single source of truth — the
+  dispatch loop and the factory can't drift); `BrowserContextFactory` shared launcher keys on
+  `sharedCompatibilityKey(config, this.options.launchArgOverrides)`; `ExecutionEngine.runInstanceInner` logs the
+  isolation class + diagnostics **only when the shared pool is enabled** (silent on the default path).
+  `sharedLaunchKey` kept as a legacy human-readable diagnostic.
+- **Benchmarks:** ran `benchmark:concurrency` with `AWKIT_SHARED_BROWSER_POOL=1` and found the flag is **inert
+  in that harness** (it `chromium.launch()`es one browser per instance, bypassing engine/factory/pool). It
+  reported this machine's baseline (highest sustainable **7**, production-approved **5**, stop at 8 on P95 CPU
+  96.5%). Built + ran new **`scripts/benchmark-shared-pool.mts`** (`npm run benchmark:shared-pool`) that drives
+  the REAL `BrowserContextFactory` + `SharedBrowserPool`: Model A (browser/workflow) vs Model B (shared) →
+  **N=4 −37.5% processes / −27% RSS; N=8 −56% / −39%** (headless, maxBrowsers=2); per-context cookie isolation
+  held in every cell. The pool saves **RAM + process count, NOT CPU** (per-page render CPU is unchanged), so it
+  raises the memory-bound ceiling only.
+
+### Changed Files (this task, on top of the pre-existing uncommitted tree)
+
+- **New (untracked):** `src/runner/browser/BrowserIsolationResolver.ts`, `scripts/verify-browser-isolation.mts`,
+  `scripts/benchmark-shared-pool.mts`.
+- **Modified (tracked):** `src/runner/browser/browserSharing.ts`, `src/runner/BrowserContextFactory.ts`,
+  `src/runner/ExecutionEngine.ts`, `package.json`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`,
+  `docs/ai/HANDOFF.md`.
+
+### Commands / Tests Run (this task, all green)
+
+- `npm run build` — clean (tsc + electron-vite main/preload/renderer).
+- New `verify:browser-isolation` **27/27**.
+- Regression: `verify:shared-browser-pool` 18/18, `verify:shared-browser-live` 5/5 (real Chromium),
+  `verify:runner` 82/82, `verify:concurrency` 78/78, `verify:workload-weights` 53/53, `verify:resource-routing`
+  42/42, `verify:chromium-hardening` 13/13, `verify:browser-resource-profile` 51/51,
+  `verify:adaptive-concurrency` 14/14, `verify:operation-limiters` 10/10, `verify:telemetry` 54/54.
+- Benchmarks: `benchmark:concurrency` (baseline; profile written to the gitignored `.benchmark-runtime/`),
+  `benchmark:shared-pool` (Model A vs B, above).
+- **Not run** (untouched areas): recorder/protected-login/GUI/mock-site/packaging verifiers. `npm test` /
+  `npm run lint` still do not exist.
+
+### Remaining Work / Recommended Next Step (shared-browser capacity)
+
+- **External gate (unchanged):** a full flag-ON run *through `ExecutionEngine` dispatch* under sustained load on
+  a clean machine, then the owner decision to flip the shared pool default ON (owner decision D4). The
+  factory+pool lease itself is now measured; sharing does not lift a CPU-bound ceiling (it helps RAM-bound hosts).
+- **Optional follow-ups:** wire `browserRecycleMemoryMb` (config field exists; the pool recycles by context
+  count only); enable A8 weighted admission (`AWKIT_WORKLOAD_WEIGHTS`, default OFF) once per-class costs are
+  calibrated; surface the isolation class / shared-browser count in the Instance Monitor.
+- **Recommended next step:** decide whether to commit the working tree. Read the git-full-cycle skill for your
+  agent surface (`.claude`/`.codex`/`.gemini` mirror) before any Git operation. Do not push/PR unless asked.
+
+### Known Risks (shared-browser capacity)
+
+- The shared pool is **experimental, default OFF**. Turning it on is now *safe* (incompatible launch configs are
+  separated by the compatibility key) but should follow the clean-machine engine-dispatch benchmark.
+- `BrowserIsolationResolver` is the single source of truth for browser isolation — do NOT re-derive eligibility
+  elsewhere; extend the resolver instead.
+- Reuse Session / Auto Secure Login / Manual Handoff / persistent-profile / popup / parallel-isolated-page
+  behaviour is unchanged and must stay that way (they map to PERSISTENT/HANDOFF/DEDICATED classes).
+
+### Other uncommitted work already in the tree (NOT this task — leave as-is unless asked)
+
+The working tree carries several earlier sessions beyond this task; do not revert or "clean up" without the
+user's ask:
+
+- **Custom in-house canvas engine** (React Flow removal) — see the preserved "Prior uncommitted session" block
+  below. Still needs `npm install` to sync `package-lock.json` (`@xyflow/react` removed from `package.json`) +
+  `npm run offline:manifest` re-validate.
+- **DPAPI secret store + full security-audit remediation** — `src/secrets/`, `app/main/secretStore.ts`,
+  `app/main/ipc/{secrets,senderGuard,window}.ipc.ts`, `src/utils/pathSafety.ts`, `src/runner/urlPolicy.ts`,
+  `src/profiles/FlowValidation.ts`, `docs/security/`.
+- **Browser Resource Optimization** profiles — `src/runner/browserProfile/`, `scripts/benchmark-*.mts`,
+  `scripts/benchmark/`, `verify:browser-resource-profile`, `docs/ai/BROWSER_RESOURCE_OPTIMIZATION.md`.
+- **Custom app window frame** — `app/renderer/layout/{AppFrame,WindowControls}.tsx`, frameless window changes.
+
+---
+
+## Prior uncommitted session — custom canvas engine (React Flow removal)
 
 ### From / To
 

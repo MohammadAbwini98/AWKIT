@@ -7,6 +7,7 @@ import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
 import type { DeepPartial, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
+import type { SecretSummary } from "./secretStore";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
@@ -28,8 +29,35 @@ import type {
   WorkflowReportRow,
   WorkflowTrend
 } from "@src/reports/TelemetryContracts";
+import type {
+  AnomalyEvent,
+  CapacityAnalytics,
+  RunVsHistoryComparison,
+  RuntimeObservabilitySummary,
+  WorkflowHistoricalStats,
+  WorkflowHistoricalTrend,
+  WorkflowRanking,
+  WorkflowRankingMetric
+} from "@src/reports/ObservabilityContracts";
 
 const api = {
+  // Custom application-frame window controls. Deliberately minimal: the renderer can only drive
+  // these passive window operations and observe the maximized state — no BrowserWindow, no ipcRenderer.
+  appWindow: {
+    minimize: () => ipcRenderer.invoke("window:minimize") as Promise<void>,
+    toggleMaximize: () => ipcRenderer.invoke("window:toggleMaximize") as Promise<boolean>,
+    close: () => ipcRenderer.invoke("window:close") as Promise<void>,
+    isMaximized: () => ipcRenderer.invoke("window:isMaximized") as Promise<boolean>,
+    /**
+     * Subscribe to real maximize/restore/full-screen state changes. Returns an unsubscribe function;
+     * callers must invoke it on unmount so remounts don't stack duplicate listeners.
+     */
+    onMaximizedChange: (callback: (maximized: boolean) => void) => {
+      const listener = (_event: unknown, maximized: boolean) => callback(maximized);
+      ipcRenderer.on("window:maximizedChanged", listener);
+      return () => ipcRenderer.removeListener("window:maximizedChanged", listener);
+    }
+  },
   system: {
     openPath: (path: string) => ipcRenderer.invoke("system:openPath", path) as Promise<string>,
     browseFolder: (defaultPath?: string) => ipcRenderer.invoke("system:browseFolder", defaultPath) as Promise<string | null>,
@@ -174,7 +202,20 @@ const api = {
     runtimeSeries: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:runtimeSeries", range) as Promise<RuntimeSeriesPoint[]>,
     processHistory: (range?: TelemetryRangePreset, limit?: number) =>
       ipcRenderer.invoke("telemetry:processHistory", range, limit) as Promise<ProcessHistoryPoint[]>,
-    server: () => ipcRenderer.invoke("telemetry:server") as Promise<ServerReport>
+    server: () => ipcRenderer.invoke("telemetry:server") as Promise<ServerReport>,
+    // Runtime Observability & Historical Analytics phase.
+    capacityAnalytics: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:capacityAnalytics", range) as Promise<CapacityAnalytics>,
+    workflowHistoricalStats: (scenarioId: string | undefined, range?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+      ipcRenderer.invoke("telemetry:workflowHistoricalStats", scenarioId, range, machineFilter) as Promise<WorkflowHistoricalStats>,
+    workflowHistoricalTrend: (scenarioId: string | undefined, range?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+      ipcRenderer.invoke("telemetry:workflowHistoricalTrend", scenarioId, range, machineFilter) as Promise<WorkflowHistoricalTrend>,
+    runVsHistory: (instanceId: string, range?: TelemetryRangePreset) =>
+      ipcRenderer.invoke("telemetry:runVsHistory", instanceId, range) as Promise<RunVsHistoryComparison | undefined>,
+    workflowRankings: (range?: TelemetryRangePreset, metric?: WorkflowRankingMetric, limit?: number, machineFilter?: MachineFilter) =>
+      ipcRenderer.invoke("telemetry:workflowRankings", range, metric, limit, machineFilter) as Promise<WorkflowRanking>,
+    anomalies: (range?: TelemetryRangePreset, workflowId?: string, limit?: number) =>
+      ipcRenderer.invoke("telemetry:anomalies", range, workflowId, limit) as Promise<AnomalyEvent[]>,
+    observabilitySummary: () => ipcRenderer.invoke("telemetry:observabilitySummary") as Promise<RuntimeObservabilitySummary>
   },
   recorder: {
     start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
@@ -194,6 +235,14 @@ const api = {
     captureSessionAndResume: (sessionName?: string) =>
       ipcRenderer.invoke("recorder:captureSessionAndResume", sessionName) as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
     cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>
+  },
+  secrets: {
+    // Manage operator secrets by NAME only. `set` sends a plaintext value to be encrypted in the
+    // main process; no channel ever returns a decrypted value (audit §15).
+    isAvailable: () => ipcRenderer.invoke("secrets:isAvailable") as Promise<boolean>,
+    list: () => ipcRenderer.invoke("secrets:list") as Promise<SecretSummary[]>,
+    set: (name: string, value: string) => ipcRenderer.invoke("secrets:set", name, value) as Promise<SecretSummary[]>,
+    delete: (name: string) => ipcRenderer.invoke("secrets:delete", name) as Promise<SecretSummary[]>
   },
   session: {
     list: () => ipcRenderer.invoke("session:list") as Promise<SessionProfile[]>,

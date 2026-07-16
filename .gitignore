@@ -117,3 +117,6 @@ get-videos.mjs
 !app/renderer/components/instances/
 !app/renderer/components/reports/
 .benchmark-runtime/
+
+# Phase 5 observability UI walkthrough fixtures (seeded DBs; regenerate with seed-observability-fixtures.mts)
+.fixtures-observability/

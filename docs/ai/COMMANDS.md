@@ -76,7 +76,18 @@ npm run verify:watchdog     # tsx scripts/verify-watchdog.mts — stale-heartbea
 npm run verify:artifacts    # tsx scripts/verify-artifacts.mts — JSONL logs, failure trace zips + default screenshots (live Chromium), run-state files
 npm run verify:runtime-status # tsx scripts/verify-runtime-status.mts — dispatch claims, lock debug snapshot, capacity counts, aggregated runtime status
 npm run verify:durable-store  # tsx scripts/verify-durable-store.mts — SQLite runtime store (sql.js): migrations, run/attempt persistence across restart
-npm run verify:telemetry      # tsx scripts/verify-telemetry.mts — reporting read-model: v1→v2 in-place migration, run-summary + process samples, retention, ReportCategories, ProcessTreeSampler
+npm run verify:telemetry      # tsx scripts/verify-telemetry.mts — reporting read-model: v1→v2→v3→v4 in-place migration, run-summary + process samples, retention, ReportCategories, ProcessTreeSampler
+npm run verify:observability  # tsx scripts/verify-observability.mts — Runtime Observability & Historical Analytics: migration v4, admission-reason normalization, RuntimeObservationCollector, per-workflow + capacity aggregation, anomaly/regression rules, store round-trip, per-table retention
+npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-profile.mts — Browser Resource
+                            # Optimization resolver (pure): balanced == today invariant, capability relaxations,
+                            # low-resource has background throttling OFF (+ Custom-throttling mechanism still works),
+                            # mode parsing, routing mapping. (51 checks)
+# Browser Resource Optimization benchmarks (headed Windows; write reports/browser-performance/*.json):
+npm run benchmark:browser-resource # simple Balanced-vs-Low-Resource per-instance run (blank/nav/idle/form)
+npm run benchmark:workloads   # Balanced vs Low-Resource across 8 representative workloads (RAM/CPU/net/duration, N reps)
+npm run benchmark:ablation    # per-optimization RAM/network attribution on the image-heavy workload (N reps)
+npm run benchmark:occlusion   # minimized/occluded headed window: the 3 background-throttle switches individually + combined
+                            # (+ behavioural correctness: timer rate, rAF, waitForResponse, popup, click). Shared lib: scripts/benchmark/lib.mts
 npm run verify:durable-locks  # tsx scripts/verify-durable-locks.mts — cross-process durable locks (real spawned second process), stale quarantine, fencing
 npm run verify:cancellation   # tsx scripts/verify-cancellation.mts — hard cancellation with live Chromium (browser closed, profile lock freed, no retry)
 npm run verify:safety-policy  # tsx scripts/verify-safety-policy.mts — FlowStep.safety metadata precedence over keyword heuristic in RetryPolicy
@@ -128,6 +139,16 @@ npm run ai:memory:check     # alias of ai:memory
 - There is **no** `lint` script and **no** `test` npm script.
 - `@playwright/test` is installed and `tests/runner.mocksite.spec.ts` exists, but the Playwright
   test runner cannot load the TS/ESM config on Node 18.16 (needs Node ≥18.19). Use `verify:runner`.
+
+## Capacity benchmarks (dev-only; real ExecutionEngine, offline mock-site)
+```bash
+npm run benchmark:engine         # A/B/C/D machine-relative ramp, MIXED workload → reports/browser-performance/engine-abcd.json
+npm run benchmark:engine-weights # Phase 6 A8 workload-weight calibration → reports/browser-performance/weight-calibration.json
+npm run benchmark:engine-soak    # Phase 9 Config-D soak (30 min; AWKIT_SOAK_MS=600000 for 10 min) → reports/browser-performance/soak.json
+```
+These drive real workflow instances through `ExecutionEngine.startRun` under an `electron` stub (via
+`scripts/benchmark/run.mjs`, which sets the origin-cap / trace-off / bench-tsconfig env). Not part of the
+standard verify workflow. Full write-up + results: `docs/ai/EXECUTION_ENGINE_CAPACITY_REPORT.md`.
 
 ## Offline preparation & packaging (PowerShell)
 ```bash

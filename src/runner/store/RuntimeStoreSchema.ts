@@ -194,6 +194,97 @@ export const RUNTIME_STORE_MIGRATIONS: RuntimeStoreMigration[] = [
       `ALTER TABLE runtime_runs ADD COLUMN capacityRecommendationAtRun INTEGER`,
       `CREATE INDEX IF NOT EXISTS idx_runs_machine ON runtime_runs (machineId, startedAt)`
     ]
+  },
+  {
+    version: 4,
+    name: "observability-analytics",
+    // Additive only (Runtime Observability & Historical Analytics phase). Extends the SINGLE existing store
+    // — no separate analytics database (Phase 02). New per-run dimension + environmental-observation columns,
+    // plus bounded time-bucket tables for capacity/admission/browser-lifecycle series and an anomaly table.
+    // v1/v2/v3 databases upgrade in place; readers treat NULL as "Unavailable". Every environmental resource
+    // field is named to make it clear it is an observation AROUND the run window, never exclusive per-workflow
+    // ownership under a shared browser pool. See docs/ai/RUNTIME_OBSERVABILITY_ANALYTICS_REPORT.md §3.
+    statements: [
+      // Per-run dimensions resolved at dispatch (Phase 02 run dimensions).
+      `ALTER TABLE runtime_runs ADD COLUMN headed INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN resourceProfile TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN isolationClass TEXT`,
+      `ALTER TABLE runtime_runs ADD COLUMN workloadWeight REAL`,
+      `ALTER TABLE runtime_runs ADD COLUMN dispatchLatencyMs INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN pressureStateAtRun TEXT`,
+      // Per-run ENVIRONMENTAL observation summary (aggregated from the shared host samplers over the run
+      // window; NOT exclusive per-workflow resource ownership — see the naming rule in Phase 02).
+      `ALTER TABLE runtime_runs ADD COLUMN obsSampleCount INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsSystemCpuMean REAL`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsSystemCpuP95 REAL`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsSystemMemoryMean REAL`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsSystemMemoryP95 REAL`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsChromiumRssMeanMb INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsChromiumRssP95Mb INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsAwkitRssMeanMb INTEGER`,
+      `ALTER TABLE runtime_runs ADD COLUMN obsAwkitRssP95Mb INTEGER`,
+      // Capacity time buckets: bounded periodic aggregate of the capacity/pressure context (Phase 03/05).
+      `CREATE TABLE IF NOT EXISTS runtime_capacity_buckets (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         bucketStart TEXT NOT NULL,
+         bucketEnd TEXT NOT NULL,
+         sampleCount INTEGER NOT NULL,
+         cpuMean REAL, cpuP95 REAL, cpuMax REAL,
+         memoryMean REAL, memoryP95 REAL, memoryMax REAL,
+         awkitRssMeanMb INTEGER, awkitRssP95Mb INTEGER, awkitRssMaxMb INTEGER,
+         chromiumRssMeanMb INTEGER, chromiumRssP95Mb INTEGER, chromiumRssMaxMb INTEGER,
+         nodeHeapMeanMb INTEGER, nodeHeapMaxMb INTEGER,
+         adaptiveTargetMean REAL, adaptiveTargetMin INTEGER, adaptiveTargetMax INTEGER,
+         weightedBudgetMean REAL, weightedBudgetMin REAL, weightedBudgetMax REAL,
+         activeWeightMean REAL, activeWeightP95 REAL, activeWeightMax REAL,
+         activeFlowsMean REAL, activeFlowsP95 REAL, activeFlowsMax INTEGER,
+         queuedFlowsMean REAL, queuedFlowsP95 REAL, queuedFlowsMax INTEGER,
+         sharedBrowsersMean REAL, sharedBrowsersMax INTEGER,
+         contextCountMean REAL, contextCountMax INTEGER,
+         pageCountMean REAL, pageCountMax INTEGER,
+         weightedAdmissionActive INTEGER
+       )`,
+      // Admission-delay reason buckets: bounded (time bucket × normalized reason enum). Counts real
+      // dispatch-loop block episodes; never inferred later from CPU values (Phase 03/05).
+      `CREATE TABLE IF NOT EXISTS runtime_admission_buckets (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         bucketStart TEXT NOT NULL,
+         reason TEXT NOT NULL,
+         pressureState TEXT,
+         count INTEGER NOT NULL
+       )`,
+      // Browser lifecycle (retirement) reason buckets: periodic deltas of the pool's close-reason counters.
+      `CREATE TABLE IF NOT EXISTS runtime_browser_lifecycle_buckets (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         bucketStart TEXT NOT NULL,
+         reason TEXT NOT NULL,
+         count INTEGER NOT NULL
+       )`,
+      // Deterministic anomaly/regression events (Phase 06). Only meaningful detections are stored — never a
+      // "normal" row per run. `state` supports the dedup/cooldown transition model.
+      `CREATE TABLE IF NOT EXISTS runtime_anomalies (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         workflowId TEXT,
+         runId TEXT,
+         detectedAt TEXT NOT NULL,
+         scope TEXT NOT NULL,
+         signalType TEXT NOT NULL,
+         severity TEXT NOT NULL,
+         currentValue REAL,
+         baselineValue REAL,
+         thresholdRule TEXT,
+         windowLabel TEXT,
+         sampleCount INTEGER,
+         state TEXT NOT NULL,
+         note TEXT
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_capacity_buckets_ts ON runtime_capacity_buckets (bucketStart)`,
+      `CREATE INDEX IF NOT EXISTS idx_admission_buckets_ts ON runtime_admission_buckets (bucketStart)`,
+      `CREATE INDEX IF NOT EXISTS idx_admission_buckets_reason ON runtime_admission_buckets (reason)`,
+      `CREATE INDEX IF NOT EXISTS idx_lifecycle_buckets_ts ON runtime_browser_lifecycle_buckets (bucketStart)`,
+      `CREATE INDEX IF NOT EXISTS idx_anomalies_workflow ON runtime_anomalies (workflowId, detectedAt)`,
+      `CREATE INDEX IF NOT EXISTS idx_anomalies_detected ON runtime_anomalies (detectedAt)`
+    ]
   }
 ];
 
@@ -233,7 +324,108 @@ export interface DurableRunRecord {
   observedPeakConcurrency?: number;
   workloadClass?: string;
   capacityRecommendationAtRun?: number;
+  /**
+   * Observability-analytics extensions (migration v4; all nullable for pre-v4 rows). The `obs*` fields are
+   * ENVIRONMENTAL observations aggregated from the shared host samplers over this run's window — they are a
+   * correlation with the run, NOT exclusive per-workflow resource ownership under a shared browser pool.
+   */
+  headed?: boolean;
+  resourceProfile?: string; // maximum-compatibility | balanced | low-resource | custom
+  isolationClass?: string; // SHARED_CONTEXT | DEDICATED_BROWSER | PERSISTENT_BROWSER | HANDOFF_BROWSER
+  workloadWeight?: number;
+  dispatchLatencyMs?: number;
+  /** Adaptive-controller pressure state at dispatch (healthy|stable|pressure|critical) — failure-at-pressure. */
+  pressureStateAtRun?: string;
+  obsSampleCount?: number;
+  obsSystemCpuMean?: number;
+  obsSystemCpuP95?: number;
+  obsSystemMemoryMean?: number;
+  obsSystemMemoryP95?: number;
+  obsChromiumRssMeanMb?: number;
+  obsChromiumRssP95Mb?: number;
+  obsAwkitRssMeanMb?: number;
+  obsAwkitRssP95Mb?: number;
   updatedAt: string;
+}
+
+/** One bounded capacity time bucket (migration v4 `runtime_capacity_buckets`). Every field nullable-safe. */
+export interface DurableCapacityBucketRecord {
+  id?: number;
+  bucketStart: string;
+  bucketEnd: string;
+  sampleCount: number;
+  cpuMean?: number;
+  cpuP95?: number;
+  cpuMax?: number;
+  memoryMean?: number;
+  memoryP95?: number;
+  memoryMax?: number;
+  awkitRssMeanMb?: number;
+  awkitRssP95Mb?: number;
+  awkitRssMaxMb?: number;
+  chromiumRssMeanMb?: number;
+  chromiumRssP95Mb?: number;
+  chromiumRssMaxMb?: number;
+  nodeHeapMeanMb?: number;
+  nodeHeapMaxMb?: number;
+  adaptiveTargetMean?: number;
+  adaptiveTargetMin?: number;
+  adaptiveTargetMax?: number;
+  weightedBudgetMean?: number;
+  weightedBudgetMin?: number;
+  weightedBudgetMax?: number;
+  activeWeightMean?: number;
+  activeWeightP95?: number;
+  activeWeightMax?: number;
+  activeFlowsMean?: number;
+  activeFlowsP95?: number;
+  activeFlowsMax?: number;
+  queuedFlowsMean?: number;
+  queuedFlowsP95?: number;
+  queuedFlowsMax?: number;
+  sharedBrowsersMean?: number;
+  sharedBrowsersMax?: number;
+  contextCountMean?: number;
+  contextCountMax?: number;
+  pageCountMean?: number;
+  pageCountMax?: number;
+  /** 1 when weighted admission (A8) was active during the bucket — capacity utilization is only meaningful then. */
+  weightedAdmissionActive?: boolean;
+}
+
+/** One admission-delay reason bucket (migration v4 `runtime_admission_buckets`). */
+export interface DurableAdmissionBucketRecord {
+  id?: number;
+  bucketStart: string;
+  reason: string;
+  pressureState?: string;
+  count: number;
+}
+
+/** One browser-lifecycle (retirement) reason bucket (migration v4 `runtime_browser_lifecycle_buckets`). */
+export interface DurableBrowserLifecycleBucketRecord {
+  id?: number;
+  bucketStart: string;
+  reason: string;
+  count: number;
+}
+
+/** One deterministic anomaly/regression event (migration v4 `runtime_anomalies`). */
+export interface DurableAnomalyRecord {
+  id?: number;
+  workflowId?: string;
+  runId?: string;
+  detectedAt: string;
+  scope: string; // run | regression
+  signalType: string;
+  severity: string; // info | warning | critical
+  currentValue?: number;
+  baselineValue?: number;
+  thresholdRule?: string;
+  windowLabel?: string;
+  sampleCount?: number;
+  state: string; // active | recovered
+  note?: string;
 }
 
 /** Chrome/Playwright + host consumption sample (migration v2 `runtime_process_samples`). */

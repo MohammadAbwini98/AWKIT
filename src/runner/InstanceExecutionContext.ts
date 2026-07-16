@@ -26,6 +26,11 @@ export interface InstanceExecutionContext {
   /** Specific data sources keyed by id (used by dynamic value sources with scope = specific). */
   dataSources?: Record<string, ResolvedDataSource>;
   flowOutputs: Record<string, unknown>;
+  /**
+   * Named secrets resolved from the encrypted local secret store (audit §15). Populated by the
+   * main process at run start for the secret names a flow references; never persisted or logged.
+   */
+  secrets?: Record<string, string>;
   paths: {
     downloads: string;
     screenshots: string;
@@ -35,5 +40,11 @@ export interface InstanceExecutionContext {
     sessions?: string;
     /** Per-run trace output dir — presence of this path is what arms failure-trace capture. */
     traces?: string;
+    /**
+     * Extra roots that `uploadFile` must never read from (audit F-01) — e.g. the global runtime
+     * data root that holds captured browser profiles (cookies/Login Data) and the durable store.
+     * Blocked in addition to the sessions/logs/reports/screenshots/traces dirs above.
+     */
+    protectedUploadRoots?: string[];
   };
 }
