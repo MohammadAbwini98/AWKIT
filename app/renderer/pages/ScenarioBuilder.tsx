@@ -40,6 +40,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScenarioFlowNode } from "../components/scenario/ScenarioFlowNode";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
+import { PromptDialog } from "../components/shared/PromptDialog";
 import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
 import { buildConnectorVisual, hasCustomStyle } from "../components/shared/connectorStyle";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
@@ -58,7 +59,7 @@ import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import { connectorKind, type ConnectorKind, type EdgeVisualStyle, type FlowProfile } from "@src/profiles/FlowProfile";
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
-import { workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
+import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
 
 type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
 type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
@@ -209,6 +210,8 @@ function ScenarioBuilderContent() {
   // Task 03/04: Saved Flows search + incremental "Load More"
   const [flowSearch, setFlowSearch] = useState("");
   const [flowVisibleCount, setFlowVisibleCount] = useState(SAVED_FLOWS_PAGE_SIZE);
+  // Points 6/7: "New" prompts for a workflow name, then creates + loads that workflow.
+  const [namingWorkflow, setNamingWorkflow] = useState(false);
 
   const persistBuilderZoom = useCallback((percent: number) => {
     window.playwrightFlowStudio.settings.update({ workflowBuilderZoomPercent: percent }).catch(() => undefined);
@@ -843,21 +846,25 @@ function ScenarioBuilderContent() {
     window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
   }, [edges, nodes, setNodes, armLayoutGlide]);
 
-  const createNewWorkflow = useCallback(() => {
-    const next = createWorkflowScaffold();
-    setNodes(next.nodes);
-    setEdges(next.edges);
-    setWorkflowId(generateWorkflowId());
-    setWorkflowName("New Workflow");
-    setExecutionMode("sequential");
-    setMaxParallelFlows(1);
-    setWorkflowDataSourceId("");
-    setWorkflowRootArrayPath("$.customers");
-    setSelectedEdgeId(null);
-    setSelectedNodeId(null);
-    setSaveState("New — unsaved");
-    pendingSnapshot.current = true; // a brand-new empty workflow is the clean baseline (not dirty)
-  }, [setEdges, setNodes]);
+  // Points 6/7: create a named workflow from the "New" prompt, persist it, then load it into the
+  // builder — the same flow the Workflows library uses (createBlankWorkflowProfile), so both entry
+  // points produce and land on an identical saved workflow.
+  const createNamedWorkflow = useCallback(
+    async (name: string) => {
+      setNamingWorkflow(false);
+      const profile = createBlankWorkflowProfile(name);
+      try {
+        await window.playwrightFlowStudio.workflows.create(profile);
+        setWorkflows(await window.playwrightFlowStudio.workflows.list());
+        loadWorkflowProfile(profile);
+        setSaveState("Saved");
+        setToast({ tone: "success", message: `Workflow created: ${name}` });
+      } catch (error) {
+        setToast({ tone: "error", message: `Failed to create workflow. ${error instanceof Error ? error.message : ""}`.trim() });
+      }
+    },
+    [loadWorkflowProfile]
+  );
 
   const loadScenario = useCallback(async () => {
     const profile = await window.playwrightFlowStudio.workflows.get(workflowId);
@@ -877,12 +884,6 @@ function ScenarioBuilderContent() {
     link.click();
     URL.revokeObjectURL(href);
   }, [workflowProfile]);
-
-  const runWorkflow = useCallback(async () => {
-    await saveScenario();
-    const result = await window.playwrightFlowStudio.executions.runWorkflow({ workflowId: workflowProfile.id, dryRun: true });
-    setSaveState(typeof result === "object" && result !== null && "status" in result ? `Run ${String(result.status)}` : "Run requested");
-  }, [saveScenario, workflowProfile.id]);
 
   const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
 
@@ -958,17 +959,15 @@ function ScenarioBuilderContent() {
     [persistBuilderZoom]
   );
 
-  // Phase 02: Top header only has Save + Run (no duplicates inside page toolbar)
+  // Top header exposes only Save (New moved to the toolbar with a name prompt; Run removed).
   usePageChrome(
     {
       actions: [
-        { id: "new", label: "New", onClick: createNewWorkflow, title: "Create a new empty workflow" },
-        { id: "save", label: "Save", variant: "primary", onClick: () => saveScenario(), title: "Save this workflow" },
-        { id: "run", label: "Run", onClick: () => void runWorkflow(), title: "Save and dry-run" }
+        { id: "save", label: "Save", variant: "primary", onClick: () => saveScenario(), title: "Save this workflow" }
       ],
       dirty: isDirty
     },
-    [saveScenario, runWorkflow, isDirty, createNewWorkflow]
+    [saveScenario, isDirty]
   );
 
   return (
@@ -1011,11 +1010,11 @@ function ScenarioBuilderContent() {
             />
           </label>
 
-          <button className="toolbar-button" id="sb-new" onClick={createNewWorkflow} title="Create a new empty workflow" type="button">
+          <button className="toolbar-button" id="sb-new" onClick={() => setNamingWorkflow(true)} title="Create a new named workflow" type="button">
             <FilePlus size={14} />
             New
           </button>
-          <button className="toolbar-button" id="sb-reload" onClick={() => void loadScenario()} title="Reload this workflow from the last saved copy" type="button">
+          <button className="toolbar-button" id="sb-reload" disabled onClick={() => void loadScenario()} title="Reload this workflow from the last saved copy" type="button">
             <FolderOpen size={14} />
             Reload
           </button>
@@ -1056,7 +1055,7 @@ function ScenarioBuilderContent() {
         <div className="sb-toolbar-group" role="group" aria-label="Execution">
           <label className="sb-toolbar-field">
             <span>Mode</span>
-            <select value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
+            <select disabled value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
               <option value="sequential">Sequential</option>
               <option value="conditional">Conditional</option>
               <option value="parallel">Parallel</option>
@@ -1068,6 +1067,7 @@ function ScenarioBuilderContent() {
           <label className="sb-toolbar-field">
             <span>Parallel</span>
             <input
+              disabled
               min="1"
               style={{ width: "58px" }}
               type="number"
@@ -1550,6 +1550,18 @@ function ScenarioBuilderContent() {
         )}
       </div>
       <Toast toast={toast} onDismiss={() => setToast(null)} />
+      {namingWorkflow ? (
+        <PromptDialog
+          title="New Workflow"
+          message="Name your workflow. It opens in the Workflow Builder with a Start and End ready to link flows."
+          label="Workflow name"
+          placeholder="e.g. Customer onboarding"
+          initialValue="New Workflow"
+          confirmLabel="Create Workflow"
+          onConfirm={(name) => void createNamedWorkflow(name)}
+          onCancel={() => setNamingWorkflow(false)}
+        />
+      ) : null}
       {connectPrompt ? (
         <ConfirmDialog
           title="Connect these flows?"
