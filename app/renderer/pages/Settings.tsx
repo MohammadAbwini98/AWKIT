@@ -6,14 +6,18 @@ import {
   FolderOpen,
   Gauge,
   HardDrive,
+  KeyRound,
+  Plus,
   RotateCcw,
   Save,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Upload,
   Download
 } from "lucide-react";
 import type { UiSettings } from "../../main/uiSettings";
+import type { SecretSummary } from "../../main/secretStore";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
@@ -24,6 +28,10 @@ const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string
   { id: "manual", label: "Manual", hint: "Set explicit host caps (still safety-limited)." }
 ];
 const WORKLOAD_CLASSES: WorkloadClass[] = ["light", "medium", "heavy", "custom"];
+
+/** Client mirror of `SECRET_NAME_PATTERN` (src/secrets/SecretStore) — kept inline so the renderer
+ *  bundle never imports the node:fs-backed store module. Main-process validation is authoritative. */
+const SECRET_NAME_RE = /^[A-Za-z0-9._-]{1,64}$/;
 
 function formatMb(mb: number | undefined): string {
   if (!mb || mb <= 0) return "—";
@@ -102,6 +110,16 @@ export function SettingsPage() {
   const [capacityLoading, setCapacityLoading] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const api = window.playwrightFlowStudio.settings;
+  const secretsApi = window.playwrightFlowStudio.secrets;
+
+  // Secret store (audit §15) — managed by NAME only; values are encrypted in the main process and
+  // never returned to the renderer.
+  const [secrets, setSecrets] = useState<SecretSummary[]>([]);
+  const [secretsAvailable, setSecretsAvailable] = useState(true);
+  const [secretName, setSecretName] = useState("");
+  const [secretValue, setSecretValue] = useState("");
+  const [secretBusy, setSecretBusy] = useState(false);
+  const [secretError, setSecretError] = useState<string | null>(null);
 
   const loadCapacity = useCallback(async (workloadClass?: WorkloadClass) => {
     setCapacityLoading(true);
@@ -121,6 +139,54 @@ export function SettingsPage() {
     setDefaultPaths(dp);
   }, [api]);
 
+  const loadSecrets = useCallback(async () => {
+    try {
+      const [available, list] = await Promise.all([secretsApi.isAvailable(), secretsApi.list()]);
+      setSecretsAvailable(available);
+      setSecrets(list);
+    } catch {
+      setSecretsAvailable(false);
+    }
+  }, [secretsApi]);
+
+  const addSecret = useCallback(async () => {
+    const name = secretName.trim();
+    if (!SECRET_NAME_RE.test(name)) {
+      setSecretError("Name must be 1–64 characters: letters, numbers, dot, dash or underscore.");
+      return;
+    }
+    if (!secretValue) {
+      setSecretError("Enter a value to store.");
+      return;
+    }
+    const isUpdate = secrets.some((s) => s.name === name);
+    setSecretBusy(true);
+    setSecretError(null);
+    try {
+      setSecrets(await secretsApi.set(name, secretValue));
+      setSecretName("");
+      setSecretValue("");
+      setBanner({ type: "success", text: `Secret "${name}" ${isUpdate ? "updated" : "saved"}.` });
+    } catch (error) {
+      setSecretError(error instanceof Error ? error.message : "Failed to save the secret.");
+    } finally {
+      setSecretBusy(false);
+    }
+  }, [secretsApi, secretName, secretValue, secrets]);
+
+  const deleteSecret = useCallback(
+    async (name: string) => {
+      if (!window.confirm(`Delete secret "${name}"? Steps that reference it will fail until it is re-added.`)) return;
+      try {
+        setSecrets(await secretsApi.delete(name));
+        setBanner({ type: "success", text: `Secret "${name}" deleted.` });
+      } catch {
+        setBanner({ type: "error", text: `Failed to delete secret "${name}".` });
+      }
+    },
+    [secretsApi]
+  );
+
   const browsePath = useCallback(
     async (key: keyof UiSettings["paths"], current: string) => {
       const picked = await window.playwrightFlowStudio.system.browseFolder(current);
@@ -138,7 +204,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    void loadSecrets();
+  }, [reload, loadSecrets]);
 
   // Refresh the machine capacity readout on load and whenever the workload class changes (so Auto's
   // recommendation reflects the selected class live, before saving).
@@ -320,7 +387,7 @@ export function SettingsPage() {
             <FolderOpen size={16} />
             <h2>Paths &amp; Directories</h2>
           </div>
-          <div className="settings-grid">
+          <div className="settings-grid settings-paths-grid">
             {PATH_FIELDS.map(({ key, label }) => {
               const status = pathStatus[key];
               return (
@@ -544,6 +611,80 @@ export function SettingsPage() {
                 </label>
               </div>
             </details>
+          ) : null}
+        </section>
+
+        {/* Secrets — encrypted operator credentials referenced from steps by name (audit §15) */}
+        <section className="work-panel settings-card">
+          <div className="settings-card-head">
+            <KeyRound size={16} />
+            <h2>Secrets</h2>
+          </div>
+          <p className="settings-card-hint">
+            Store portal passwords and API tokens encrypted on this machine (Windows DPAPI) and reference them
+            from steps by name via a <strong>Secret</strong> value source. Values never appear in workflow JSON,
+            logs, screenshots, or reports.
+          </p>
+          {secretsAvailable ? (
+            <>
+              <div className="settings-secret-form">
+                <label>
+                  Name
+                  <input
+                    type="text"
+                    value={secretName}
+                    placeholder="portal_password"
+                    spellCheck={false}
+                    autoComplete="off"
+                    onChange={(ev) => {
+                      setSecretName(ev.target.value);
+                      setSecretError(null);
+                    }}
+                  />
+                </label>
+                <label>
+                  Value
+                  <input
+                    type="password"
+                    value={secretValue}
+                    placeholder="Enter secret value"
+                    autoComplete="off"
+                    onChange={(ev) => {
+                      setSecretValue(ev.target.value);
+                      setSecretError(null);
+                    }}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter") void addSecret();
+                    }}
+                  />
+                </label>
+                <button className="toolbar-button primary" type="button" disabled={secretBusy} onClick={() => void addSecret()}>
+                  <Plus size={15} />
+                  {secrets.some((s) => s.name === secretName.trim()) ? "Update" : "Add"}
+                </button>
+              </div>
+              {secretError ? <p className="form-message error-text">{secretError}</p> : null}
+            </>
+          ) : (
+            <div className="settings-banner error">
+              Secure storage is not available on this system, so secrets cannot be saved.
+            </div>
+          )}
+          {secrets.length ? (
+            <div className="settings-secret-list">
+              {secrets.map((s) => (
+                <div className="settings-secret-row" key={s.name}>
+                  <KeyRound size={14} />
+                  <strong>{s.name}</strong>
+                  <span>updated {new Date(s.updatedAt).toLocaleDateString()}</span>
+                  <button className="icon-button danger" type="button" title={`Delete ${s.name}`} onClick={() => void deleteSecret(s.name)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : secretsAvailable ? (
+            <p className="form-message">No secrets stored yet.</p>
           ) : null}
         </section>
 

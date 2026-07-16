@@ -88,7 +88,8 @@ const HARDENING_SWITCHES = [
   // Behavioral defaults Playwright 1.61 sets today; pinned here (not egress-related) so a future
   // Playwright that drops them can't silently change AWKIT automation behavior — e.g.
   // --disable-popup-blocking is load-bearing for the multi-window/popup flow feature.
-  "--disable-background-timer-throttling",
+  // NOTE: --disable-background-timer-throttling is pinned separately/conditionally below so the
+  // low-resource profile can RE-ENABLE Chromium background throttling (see options.omitBackgroundTimerThrottlePin).
   "--disable-hang-monitor",
   "--disable-popup-blocking",
   "--disable-prompt-on-repost",
@@ -141,16 +142,32 @@ function parseExtraArgs(env: NodeJS.ProcessEnv): string[] {
   return (env.AWKIT_CHROMIUM_EXTRA_ARGS ?? "").split(/\s+/).filter(Boolean);
 }
 
+export interface ChromiumHardeningOptions {
+  /**
+   * When true, do NOT pin `--disable-background-timer-throttling`. The Browser Resource Optimization
+   * low-resource profile sets this (together with `ignoreDefaultArgs` dropping Playwright's copy) to
+   * RE-ENABLE Chromium's normal background throttling. Default false preserves today's behaviour.
+   */
+  omitBackgroundTimerThrottlePin?: boolean;
+}
+
 /**
  * Launch args for every AWKIT-owned bundled-Chromium launch (runner + recorder). NEVER apply
  * these to the user's real Chrome/Edge (SessionCaptureService) — the manual-login browser must
  * stay a plain, unflagged consumer browser.
  */
-export function buildChromiumHardeningArgs(env: NodeJS.ProcessEnv = process.env): string[] {
+export function buildChromiumHardeningArgs(
+  env: NodeJS.ProcessEnv = process.env,
+  options: ChromiumHardeningOptions = {}
+): string[] {
   const extra = parseExtraArgs(env);
   if (!isChromiumHardeningEnabled(env)) return extra;
+  // Pinned by default (mirrors the Playwright default so a Playwright upgrade can't silently change it);
+  // omitted only when a profile is re-enabling background throttling.
+  const throttlePin = options.omitBackgroundTimerThrottlePin ? [] : ["--disable-background-timer-throttling"];
   return [
     ...HARDENING_SWITCHES,
+    ...throttlePin,
     `--disable-features=${[...PLAYWRIGHT_DISABLED_FEATURES, ...AWKIT_DISABLED_FEATURES].join(",")}`,
     `--host-resolver-rules=${hostResolverRules()}`,
     ...extra
