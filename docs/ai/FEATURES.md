@@ -95,6 +95,19 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   persisted table state (`components/table/*`).
 - ✅ Data Source Manager (JSON sources, click a row to preview, validate, **Edit Table**, duplicate,
   export, **Create Data Source** from scratch); Runtime Input panel; Form Designer.
+- 🟡 **Oracle Data Sources + Oracle node (read-only; `INTEGRATION-CANDIDATE`, 2026-07-17):** Oracle-backed
+  Data Sources in **Runtime** mode (query executes lazily, only when a consumer actually needs the rows —
+  single-flight per run) or **Snapshot** mode (query runs once, rows persist for fully offline use), plus an
+  `oracle` `StepType` node. Both resolve through `DataSourceResolver` to the same array-of-objects contract
+  as JSON sources, so they work anywhere JSON sources do (node mappings, workflow/flow inputs, loops,
+  previews). UI: "Add Oracle Source" in `DataSourceManager` → `OracleDataSourceModal`; node panel via
+  `OracleNodeSection`. Credentials live in the DPAPI `SecretStore` and are referenced by name only.
+  **Read-only by policy** (SELECT / WITH…SELECT only). Behaviorally important:
+  - a **packaged build never serves mock rows** — with no real driver the feature reports *unavailable*
+    rather than returning synthetic data (Snapshot sources keep working, they never launch the bridge);
+  - the real Oracle driver has **not** yet been linked and **no authorized Oracle DB has been used** —
+    everything here is verified against a database-free mock executor. See
+    `ORACLE_JDBC_VALIDATION_GATES.md` for what must clear before this is production-ready.
 - ✅ **Data Source Editor** (`pages/DataSourceEditor.tsx`, hidden route `dataSourceEditor`):
   visual table editor for root-array JSON — inline cell editing (type-preserving), add/delete/
   duplicate rows, add/rename/delete columns, search, pagination (25/50/100/All), import/export,

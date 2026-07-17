@@ -1,4 +1,37 @@
-# Oracle JDBC — External Validation Gates (Phases 06, 09, 10)
+# Oracle JDBC — External Validation Gates
+
+> **Blocker verification — 2026-07-17.** These gates are not assumed; they were probed on this machine and
+> confirmed. Re-run these checks before claiming a gate is still blocked:
+>
+> | Probe | Command | Result |
+> |---|---|---|
+> | ojdbc/ucp jars anywhere | `find ~/.m2 ~/Downloads ~/Desktop -iname "ojdbc*.jar" -o -iname "ucp*.jar"` | **none found** |
+> | Artifact acquisition | `curl -m 12 https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc11/maven-metadata.xml` | **HTTP 000 (blocked)** |
+> | Local Oracle container | `docker --version` | **not available** |
+> | Authorized DB credentials | `env | grep AWKIT_ORACLE_LIVE` | **unset** |
+> | JDK for the bridge | `java -version` | ✅ 17.0.8 (bridge builds) |
+>
+> Consequence: every gate below is blocked at its **first** step — acquiring the artifacts. Nothing
+> downstream (compile → live suite → pooling → packaging → EXE → soak) can start until that clears. Per the
+> governing rule, these are documented as **not run** rather than approximated or claimed.
+>
+> **Phase-numbering note.** Two plans cover this work with different numbering. Mapping the 2026-07-17
+> "pending implementation" plan (01–12) onto this document:
+>
+> | Pending-plan phase | State |
+> |---|---|
+> | 01 Confirm committed baseline | ✅ done — `main` @ `b6e473d`, build + 226 Oracle checks green |
+> | 02 Lock & stage runtime artifacts | ⛔ **BLOCKED** — no jars/JRE, acquisition network blocked (§Prerequisite) |
+> | 03 Compile real JDBC/UCP executor | ⛔ **BLOCKED** by 02 (stub-compile passes; real-jar compile cannot run) |
+> | 04 Revalidate fail-closed | 🟡 **4 of 5 rows proven** without jars; only `packaged + valid real bundle → real executor` is blocked by 02 |
+> | 05 Authorized Oracle integration suite | ⛔ **BLOCKED** — no authorized DB (§Phase 06 below) |
+> | 06 Real UCP pooling & cancellation | ⛔ **BLOCKED** by 02 + 05 |
+> | 07 Lazy runtime Data Source behavior | ✅ done — now proven against the **real bridge process** with real `executeQuery` RPC counters (20/20) |
+> | 08 Full AWKIT regression | ✅ done — green; one pre-existing `durable-store` failure proven unrelated (fails identically at `dee283e`, pre-Oracle) |
+> | 09 Package private Java/JDBC runtime | ⛔ **BLOCKED** by 02 (wiring + validator implemented; the artifacts do not exist) |
+> | 10 Validate actual packaged EXE | ⛔ **BLOCKED** by 09 + no clean Windows machine |
+> | 11 Real performance & soak | ⛔ **BLOCKED** by 05 |
+> | 12 Final report & release status | ✅ done — status stays **INTEGRATION-CANDIDATE** (see the report's §17 summary block) |
 
 Everything in the AWKIT Oracle feature that can be verified **without** a real Oracle database, the
 vendored driver jars, or a packaged clean machine is implemented and automated (see the `verify:oracle-*`
