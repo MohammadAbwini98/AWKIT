@@ -15,11 +15,21 @@ export const ORACLE_BRIDGE_MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
 export type OracleBridgeOp =
   | "hello"
   | "health"
+  | "driverProbe"
   | "testConnection"
   | "executeQuery"
   | "cancelQuery"
   | "closePool"
   | "shutdown";
+
+/** Result of the reflective `driverProbe` op — used to validate an imported driver bundle. */
+export interface OracleBridgeDriverProbe {
+  driverAvailable: boolean;
+  driverVersion: string;
+  ucpAvailable: boolean;
+  ucpVersion: string;
+  javaVersion: string;
+}
 
 /** Safe, low-cardinality error categories. Oracle `ORA-` codes are kept internal to the bridge. */
 export type OracleBridgeErrorCategory =

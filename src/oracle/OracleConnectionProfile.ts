@@ -38,6 +38,12 @@ export interface OracleConnectionProfile {
   queryTimeoutMs: number;
   pool: OraclePoolSettings;
   readOnly: true;
+  /**
+   * Id of the managed Oracle JDBC **driver bundle** this profile uses (Phase 05/07). Absent ⇒ the
+   * app-wide default bundle. Never a raw JAR path/classpath — only a bundle reference. Profiles with
+   * different bundles are isolated into different Java bridge processes at runtime.
+   */
+  driverBundleId?: string;
   createdAt?: string;
   updatedAt?: string;
 }

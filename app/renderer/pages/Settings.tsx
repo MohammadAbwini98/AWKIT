@@ -21,6 +21,7 @@ import type { SecretSummary } from "../../main/secretStore";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
+import { OracleDriverSettings } from "./OracleDriverSettings";
 
 const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string; hint: string }[] = [
   { id: "sequential", label: "Sequential", hint: "One instance at a time — safest, machine-independent." },
@@ -687,6 +688,9 @@ export function SettingsPage() {
             <p className="form-message">No secrets stored yet.</p>
           ) : null}
         </section>
+
+        {/* Oracle JDBC Drivers — import/validate/manage driver bundles (Phase 05) */}
+        <OracleDriverSettings />
 
         {/* Data Storage */}
         <section className="work-panel settings-card">
