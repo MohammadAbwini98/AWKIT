@@ -9,7 +9,7 @@ import { resolveJsonPath, stringifyResolvedValue } from "@src/data/JsonPathResol
 import { buildDefaultRuntimeValues, validateRuntimeValues } from "@src/data/RuntimeInputDefinition";
 import type { ValueSource } from "@src/profiles/FlowProfile";
 
-const runtimeValuesStorageKey = "playwright-flow-studio.runtime-input-values";
+const runtimeValuesStorageKey = "specterstudio.runtime-input-values";
 
 export function RuntimeInputPanel() {
   const [runtimeValues, setRuntimeValues] = useState<Record<string, unknown>>(() => buildDefaultRuntimeValues(runtimeInputDefinitions));

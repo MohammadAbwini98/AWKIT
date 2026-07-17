@@ -5,7 +5,9 @@ import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
 import { getNodeDefinition } from "./flowNodeRegistry";
 import { SearchableSelect } from "../shared/SearchableSelect";
-import type { WaitCondition } from "@src/profiles/FlowProfile";
+import { OracleNodeSection } from "./OracleNodeSection";
+import { defaultOracleNodeConfig } from "./flowDesignerTypes";
+import type { OracleNodeConfig, WaitCondition } from "@src/profiles/FlowProfile";
 
 interface DataSourceOption {
   id: string;
@@ -626,7 +628,7 @@ export function FlowNodePropertiesPanel({
                   Mask sensitive output in logs
                 </label>
                 <span className="form-message">
-                  Saves cookies + localStorage to the runtime sessions folder ($LOCALAPPDATA/WebFlow Studio/sessions). Session
+                  Saves cookies + localStorage to the runtime sessions folder ($LOCALAPPDATA/SpecterStudio/sessions). Session
                   files are sensitive local files — never committed or printed.
                 </span>
               </section>
@@ -681,7 +683,7 @@ export function FlowNodePropertiesPanel({
                   <input type="number" min={0} value={data.handoffTimeoutMs} onChange={(e) => set({ handoffTimeoutMs: Number(e.target.value) })} />
                 </label>
                 <span className="form-message">
-                  This node pauses the run and shows approved handoff options. WebFlow Studio never bypasses CAPTCHA, MFA, or
+                  This node pauses the run and shows approved handoff options. SpecterStudio never bypasses CAPTCHA, MFA, or
                   bot-detection. Unsupported modes (OAuth, saved/test session) are shown disabled with a reason.
                 </span>
               </section>
@@ -730,6 +732,13 @@ export function FlowNodePropertiesPanel({
                 </span>
               </section>
             </details>
+          ) : null}
+
+          {has("oracle") ? (
+            <OracleNodeSection
+              oracle={data.oracle ?? defaultOracleNodeConfig()}
+              onChange={(patch: Partial<OracleNodeConfig>) => set({ oracle: { ...(data.oracle ?? defaultOracleNodeConfig()), ...patch } })}
+            />
           ) : null}
 
           {has("execution") ? (

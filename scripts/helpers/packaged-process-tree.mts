@@ -2,7 +2,7 @@
  * Packaged-app process-tree ownership helpers (Phase 5.1D).
  *
  * LAUNCHER-STUB WARNING (verified empirically in Phase 5): the packaged
- * "WebFlow Studio.exe" that Playwright/`spawn` starts is a LAUNCHER STUB — the real Electron
+ * "SpecterStudio.exe" that Playwright/`spawn` starts is a LAUNCHER STUB — the real Electron
  * main process is its CHILD. `app.process().pid` is the stub; killing only the stub can leave
  * a live zombie app (and Node's `process.kill()` does not reliably terminate the packaged
  * Electron root on Windows). Every packaged verifier MUST:

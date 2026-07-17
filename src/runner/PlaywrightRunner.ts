@@ -12,6 +12,7 @@ import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
 import { StepExecutor, type BrowserRestarter, type ChildFlowRunner } from "./StepExecutor";
 import { TraceService, type TraceMode } from "./artifacts/TraceService";
+import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ValueResolver } from "./ValueResolver";
@@ -81,6 +82,8 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * i.e. today's behaviour.
    */
   traceMode?: TraceMode;
+  /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
+  oracleNodeRunner?: OracleNodeRunner;
 }
 
 export class PlaywrightRunner {
@@ -455,7 +458,8 @@ export class PlaywrightRunner {
       this.traceService,
       this.options.cancellation,
       this.options.originClaims,
-      this.options.operationLimiters
+      this.options.operationLimiters,
+      this.options.oracleNodeRunner
     );
 
     // ── Popup registry wiring ───────────────────────────────────────────────
@@ -503,7 +507,8 @@ export class PlaywrightRunner {
         this.traceService,
         this.options.cancellation,
         this.options.originClaims,
-        this.options.operationLimiters
+        this.options.operationLimiters,
+        this.options.oracleNodeRunner
       );
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };

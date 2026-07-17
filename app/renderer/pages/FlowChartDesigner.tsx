@@ -26,7 +26,7 @@ import { SearchableSelect } from "../components/shared/SearchableSelect";
 import { FlowNodePropertiesPanel } from "../components/workflow/FlowNodePropertiesPanel";
 import { flowNodeCatalog, getFlowNodeCatalogItem } from "../components/workflow/flowNodeCatalog";
 import { getNodeDefinition } from "../components/workflow/flowNodeRegistry";
-import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, type FlowDesignerNodeData } from "../components/workflow/flowDesignerTypes";
+import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, defaultOracleNodeConfig, type FlowDesignerNodeData } from "../components/workflow/flowDesignerTypes";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -1199,7 +1199,8 @@ function toNodeConfig(data: FlowDesignerNodeData): NodeConfig {
     handoffTimeoutMs: data.stepType === "protectedLoginHandoff" ? data.handoffTimeoutMs : undefined,
     detectBeforeHandoff: data.stepType === "protectedLoginHandoff" ? data.detectBeforeHandoff : undefined,
     reuseSessionMode: data.stepType === "reuseSession" ? data.reuseSessionMode : undefined,
-    reuseSessionId: data.stepType === "reuseSession" && data.reuseSessionMode === "selected" ? data.reuseSessionId || undefined : undefined
+    reuseSessionId: data.stepType === "reuseSession" && data.reuseSessionMode === "selected" ? data.reuseSessionId || undefined : undefined,
+    oracle: data.stepType === "oracle" ? data.oracle : undefined
   };
 }
 
@@ -1293,6 +1294,7 @@ function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     handoffTimeoutMs: step.config?.handoffTimeoutMs ?? 0,
     detectBeforeHandoff: step.config?.detectBeforeHandoff ?? true,
     reuseSessionMode: step.config?.reuseSessionMode ?? (step.config?.reuseSessionId ? "selected" : "autoDetect"),
-    reuseSessionId: step.config?.reuseSessionId ?? ""
+    reuseSessionId: step.config?.reuseSessionId ?? "",
+    oracle: step.type === "oracle" ? (step.config?.oracle ?? defaultOracleNodeConfig()) : undefined
   };
 }

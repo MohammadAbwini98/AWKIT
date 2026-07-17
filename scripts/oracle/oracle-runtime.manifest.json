@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "feature": "oracle-jdbc",
+  "description": "Locked inputs for the private Oracle JDBC runtime bundle. This is the SOURCE-OF-TRUTH manifest consumed by `npm run prepare:oracle-runtime`. Real jars/JRE are acquired out-of-band (build-time network is blocked) and staged into a source directory; the prepare step verifies each artifact against the sha256 recorded here, stages it under resources/oracle-jdbc/, and regenerates checksums.json. Empty sha256 values MUST be filled from the official vendor download before a production bundle is cut (see docs/ai/ORACLE_JDBC_RUNTIME_MATRIX.md).",
+  "platform": {
+    "os": "win32",
+    "arch": "x64"
+  },
+  "java": {
+    "vendor": "Eclipse Temurin (or an equivalent redistribution-permitted OpenJDK)",
+    "featureVersion": 17,
+    "minVersion": 17,
+    "notes": "A private, jlink-trimmed JRE staged as resources/oracle-jdbc/runtime/. Never uses system Java or JAVA_HOME/PATH."
+  },
+  "bridge": {
+    "artifactId": "awkit-oracle-jdbc-bridge",
+    "bytecodeTarget": 17,
+    "built": "reproducibly by scripts/build-oracle-bridge.mjs (pinned JDK 17)"
+  },
+  "oracleDatabaseSupport": ["19c", "21c", "23ai"],
+  "tls": {
+    "thinDriverTls": true,
+    "walletSupported": true,
+    "scope": "Thin-driver TLS (TCPS) with optional Oracle Wallet; wallet path supplied per connection profile, never bundled."
+  },
+  "artifacts": [
+    {
+      "id": "jre",
+      "kind": "runtime-dir",
+      "source": "runtime",
+      "stageTo": "runtime",
+      "sha256": "",
+      "license": "temurin",
+      "notes": "Directory tree with bin/java(.exe). sha256 here is over a stable archive of the tree if provided; otherwise per-file hashes land in checksums.json."
+    },
+    {
+      "id": "ojdbc",
+      "kind": "jar",
+      "filename": "ojdbc11.jar",
+      "version": "REQUIRED — record the exact vendored version (e.g. 23.x)",
+      "source": "ojdbc11.jar",
+      "stageTo": "lib",
+      "sha256": "",
+      "license": "oracle-otn"
+    },
+    {
+      "id": "ucp",
+      "kind": "jar",
+      "filename": "ucp11.jar",
+      "version": "REQUIRED — match the ojdbc release train",
+      "source": "ucp11.jar",
+      "stageTo": "lib",
+      "sha256": "",
+      "license": "oracle-otn"
+    }
+  ],
+  "licenses": [
+    {
+      "id": "oracle-otn",
+      "name": "Oracle Free Use Terms and Conditions / OTN License (confirm the exact terms shipped with the vendored jars)",
+      "file": "ORACLE-LICENSE.txt",
+      "appliesTo": ["ojdbc", "ucp"],
+      "required": true
+    },
+    {
+      "id": "temurin",
+      "name": "Eclipse Temurin / OpenJDK license + THIRD-PARTY notices (confirm the exact terms shipped with the JRE)",
+      "file": "JRE-LICENSE.txt",
+      "appliesTo": ["jre"],
+      "required": true
+    }
+  ]
+}

@@ -11,7 +11,7 @@ alwaysApply: false
 # Storage + IPC Rules
 
 Rules:
-- Mutable runtime data must live under `%LOCALAPPDATA%/WebFlow Studio/` or user-configured settings paths.
+- Mutable runtime data must live under `%LOCALAPPDATA%/SpecterStudio/` or user-configured settings paths.
 - Do not write mutable data into `resources/` or `app.asar`.
 - Keep JSON profile storage backward compatible.
 - IPC must validate inputs and avoid leaking internal file paths or secrets.

@@ -83,6 +83,9 @@ export class ValueResolver {
 
   private async loadRows(dataSource: ResolvedDataSource): Promise<unknown[]> {
     if (dataSource.rows && dataSource.rows.length) return dataSource.rows;
+    // Runtime Oracle sources resolve lazily (and cache single-flight) via loadRows(); there is no file.
+    if (dataSource.loadRows) return dataSource.loadRows();
+    if (!dataSource.file) return [];
     const data = JSON.parse(await readFile(dataSource.file, "utf8"));
     const resolved = resolveJsonPath(data, dataSource.rootArrayPath || "$");
     return Array.isArray(resolved) ? resolved : [];

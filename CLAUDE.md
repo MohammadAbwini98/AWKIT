@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# CLAUDE.md — Claude Code instructions for WebFlow Studio
+# CLAUDE.md — Claude Code instructions for SpecterStudio
 
 Shared rules live in `AGENTS.md` (imported above) and `docs/ai/`. This file adds
 Claude Code-specific behavior.
@@ -23,7 +23,7 @@ Claude Code-specific behavior.
 - Match existing conventions: TypeScript, React + `@xyflow/react`, plain CSS in
   `app/renderer/styles/global.css`, JSON profile stores, IPC via `app/main/ipc/*` + `preload.ts`.
 - Keep the offline-first constraints in `docs/ai/RULES.md` (no runtime network, no writes to
-  `resources/`/`app.asar`, data under `%LOCALAPPDATA%/WebFlow Studio/`).
+  `resources/`/`app.asar`, data under `%LOCALAPPDATA%/SpecterStudio/`).
 - Treat `mock-site/` as AWKIT's local Feature Test Lab. For Recorder, Runner, Smart Wait, Flow Designer,
   Workflow Builder, Instance Monitor, locator, node, wait, or execution features, check
   `mock-site/README.md`, update an applicable scenario, and use `.claude/skills/mock-site-maintainer`

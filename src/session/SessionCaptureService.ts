@@ -184,7 +184,7 @@ export class SessionCaptureService {
     if (!browser.found) {
       throw new Error(
         "No Chrome or Edge browser found on this system. Install Google Chrome or Microsoft Edge, " +
-          "then try again. (WebFlow Studio cannot use its bundled Chromium for session capture because " +
+          "then try again. (SpecterStudio cannot use its bundled Chromium for session capture because " +
           "it would be detected as an automation browser.)"
       );
     }

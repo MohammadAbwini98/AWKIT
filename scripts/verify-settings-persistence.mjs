@@ -57,7 +57,7 @@ let storageDir = "";
 // Resolve the ui-settings.json directory (…/storage) from LOCALAPPDATA, and check for tmp files.
 {
   const base = process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || root, "AppData", "Local");
-  const storage = path.join(base, "WebFlow Studio", "storage");
+  const storage = path.join(base, "SpecterStudio", "storage");
   let tmpCount = -1;
   try {
     const files = await readdir(storage);

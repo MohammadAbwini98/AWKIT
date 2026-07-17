@@ -74,7 +74,7 @@ $manifest = [ordered]@{
     sourceTemplate = "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
   }
   application = [ordered]@{
-    name = "WebFlow Studio"
+    name = "SpecterStudio"
     version = [string]$packageJson.version
     buildMode = $BuildMode
     builtAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -107,19 +107,19 @@ $manifest = [ordered]@{
     }
   )
   paths = [ordered]@{
-    runtimeDataRoot = "%LOCALAPPDATA%/WebFlow Studio"
-    flows = "%LOCALAPPDATA%/WebFlow Studio/flows"
-    workflows = "%LOCALAPPDATA%/WebFlow Studio/workflows"
-    scenarios = "%LOCALAPPDATA%/WebFlow Studio/scenarios"
-    instances = "%LOCALAPPDATA%/WebFlow Studio/instances"
-    data = "%LOCALAPPDATA%/WebFlow Studio/data"
-    runtimeInputs = "%LOCALAPPDATA%/WebFlow Studio/runtime-inputs"
-    storage = "%LOCALAPPDATA%/WebFlow Studio/storage"
-    downloads = "%LOCALAPPDATA%/WebFlow Studio/downloads"
-    screenshots = "%LOCALAPPDATA%/WebFlow Studio/screenshots"
-    logs = "%LOCALAPPDATA%/WebFlow Studio/logs"
-    reports = "%LOCALAPPDATA%/WebFlow Studio/reports"
-    temp = "%LOCALAPPDATA%/WebFlow Studio/temp"
+    runtimeDataRoot = "%LOCALAPPDATA%/SpecterStudio"
+    flows = "%LOCALAPPDATA%/SpecterStudio/flows"
+    workflows = "%LOCALAPPDATA%/SpecterStudio/workflows"
+    scenarios = "%LOCALAPPDATA%/SpecterStudio/scenarios"
+    instances = "%LOCALAPPDATA%/SpecterStudio/instances"
+    data = "%LOCALAPPDATA%/SpecterStudio/data"
+    runtimeInputs = "%LOCALAPPDATA%/SpecterStudio/runtime-inputs"
+    storage = "%LOCALAPPDATA%/SpecterStudio/storage"
+    downloads = "%LOCALAPPDATA%/SpecterStudio/downloads"
+    screenshots = "%LOCALAPPDATA%/SpecterStudio/screenshots"
+    logs = "%LOCALAPPDATA%/SpecterStudio/logs"
+    reports = "%LOCALAPPDATA%/SpecterStudio/reports"
+    temp = "%LOCALAPPDATA%/SpecterStudio/temp"
   }
   validation = [ordered]@{
     bundledBrowserExists = $browserExists

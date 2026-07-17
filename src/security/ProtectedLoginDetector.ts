@@ -93,13 +93,13 @@ function buildMessage(provider: ProtectedLoginProvider, reason: ProtectedLoginRe
   if (provider === "google" && reason === "blocked-automation-browser") {
     return (
       "Google sign-in cannot be completed inside the automation browser. Google rejected this browser " +
-      'context ("This browser or app may not be secure."). WebFlow Studio will not bypass Google security ' +
+      'context ("This browser or app may not be secure."). SpecterStudio will not bypass Google security ' +
       "protections — choose a supported handoff option (cancel, a previously saved session, OAuth in your " +
       "system browser, or a test-authenticated session for your own application)."
     );
   }
   const label = provider === "unknown" ? "A protected login / security page" : `A ${provider} protected login page`;
-  return `${label} was detected (${reason}). WebFlow Studio will not bypass login protections. Choose a supported handoff option.`;
+  return `${label} was detected (${reason}). SpecterStudio will not bypass login protections. Choose a supported handoff option.`;
 }
 
 /**

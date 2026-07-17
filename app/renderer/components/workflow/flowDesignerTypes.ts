@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -88,6 +88,9 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   reuseSessionMode: "autoDetect" | "selected";
   reuseSessionId: string;
 
+  // ── Oracle query node (nested config; present only on `oracle` steps) ─────────
+  oracle?: OracleNodeConfig;
+
   // ── Dynamic connector ports (Point 1, render-only — not persisted to FlowStep) ──
   portFlags?: ConnectorPortFlags;
   /** Contextual-picker append affordance (render-only; never serialized). */
@@ -104,6 +107,28 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
 
 export const DEFAULT_NODE_WIDTH = 320;
 export const DEFAULT_NODE_HEIGHT = 96;
+
+/** A fresh Oracle node config (read-only, sensible limits, string return by default). */
+export const defaultOracleNodeConfig = (): OracleNodeConfig => ({
+  connectionSource: "dataSource",
+  dataSourceId: "",
+  connectionProfileId: "",
+  sql: "",
+  binds: [],
+  timeoutMs: 30000,
+  maxRows: 10000,
+  fetchSize: 200,
+  returnType: "list",
+  selectedColumn: "",
+  selectedRowIndex: 0,
+  emptyBehavior: "null",
+  defaultValue: "",
+  multiRowBehavior: "first",
+  listMode: "rows",
+  booleanTrueValues: "Y,1,true,YES",
+  booleanFalseValues: "N,0,false,NO",
+  outputVariable: ""
+});
 
 export const defaultNodeData = (stepType: StepType, label: string, description: string): FlowDesignerNodeData => ({
   stepType,
@@ -168,5 +193,6 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   handoffTimeoutMs: 0,
   detectBeforeHandoff: true,
   reuseSessionMode: "autoDetect",
-  reuseSessionId: ""
+  reuseSessionId: "",
+  oracle: stepType === "oracle" ? defaultOracleNodeConfig() : undefined
 });

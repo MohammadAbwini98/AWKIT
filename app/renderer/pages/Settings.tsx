@@ -355,7 +355,7 @@ export function SettingsPage() {
           </div>
           <div className="readiness-list">
             <span>Application name</span>
-            <strong>WebFlow Studio</strong>
+            <strong>SpecterStudio</strong>
             <span>Version</span>
             <strong>{stats?.appVersion ?? "—"}</strong>
             <span>Last launched</span>

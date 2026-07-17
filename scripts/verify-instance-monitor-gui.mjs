@@ -12,7 +12,7 @@ import { _electron as electron } from "playwright";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-instance-monitor-"));
 const localAppData = path.join(tempRoot, "LocalAppData");
-const runtimeRoot = path.join(localAppData, "WebFlow Studio");
+const runtimeRoot = path.join(localAppData, "SpecterStudio");
 const port = 4412;
 const base = `http://127.0.0.1:${port}`;
 const results = [];

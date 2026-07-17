@@ -1,7 +1,7 @@
 import type { FlowEdge, FlowProfile, FlowStep, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { connectorKind, validateConnectorStructure } from "@src/profiles/FlowProfile";
 import { normalizeFlowBounds } from "@src/profiles/FlowValidation";
-import type { InstanceExecutionContext } from "./InstanceExecutionContext";
+import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
 import { evaluateBoolean } from "./ExpressionEvaluator";
 import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
 import { loadConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
@@ -387,7 +387,7 @@ export class FlowExecutor {
         return (cfg.staticValues ?? []).slice(0, maxIterations);
       case "dataSource": {
         const dataSource = cfg.dataSourceId ? context.dataSources?.[cfg.dataSourceId] : context.workflowDataSource;
-        const rows = dataSource?.rows ?? [];
+        const rows = dataSource ? await materializeDataSourceRows(dataSource) : [];
         const binding = cfg.dataSourceBinding?.trim();
         const values = binding ? rows.map((row) => (row && typeof row === "object" ? (row as Record<string, unknown>)[binding] : undefined)) : rows;
         return values.slice(0, maxIterations);

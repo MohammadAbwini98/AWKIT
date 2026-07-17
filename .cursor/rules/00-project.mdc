@@ -5,7 +5,7 @@ alwaysApply: true
 
 # AWKIT Project Rule
 
-AWKIT / WebFlow Studio is an offline-capable Windows desktop app for visual Playwright web automation.
+AWKIT / SpecterStudio is an offline-capable Windows desktop app for visual Playwright web automation.
 
 Before editing:
 - Read `AGENTS.md`.

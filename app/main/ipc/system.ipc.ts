@@ -54,7 +54,7 @@ export function registerSystemIpc(): void {
       return "File or folder does not exist yet.";
     }
     if (!isOpenPathAllowed(path)) {
-      return "This location is outside WebFlow Studio's data folders and cannot be opened from here.";
+      return "This location is outside SpecterStudio's data folders and cannot be opened from here.";
     }
     try {
       const pathStat = await stat(path);
@@ -68,7 +68,7 @@ export function registerSystemIpc(): void {
       }
       // Never launch an executable/script via the OS default handler.
       if (BLOCKED_OPEN_EXTENSIONS.has(extname(path).toLowerCase())) {
-        return "This file type cannot be opened from WebFlow Studio for safety reasons.";
+        return "This file type cannot be opened from SpecterStudio for safety reasons.";
       }
       return shell.openPath(path);
     } catch (e: any) {

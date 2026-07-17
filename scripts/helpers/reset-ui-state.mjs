@@ -3,7 +3,7 @@
 // The GUI verifiers (`verify:flow-designer`, `verify:workflow-builder`, …) navigate the sidebar by
 // visible label or by nav `title`, so they depend on the app opening in a compatible route +
 // sidebar-collapse state. Because the app persists `lastRouteId`/`sidebarCollapsed` to
-// `%LOCALAPPDATA%/WebFlow Studio/storage/ui-settings.json` between runs, a previous session can leave
+// `%LOCALAPPDATA%/SpecterStudio/storage/ui-settings.json` between runs, a previous session can leave
 // the app on an incompatible state and time a verifier out (documented gotcha in CURRENT_STATE).
 //
 // This helper resets ONLY those two persisted UI fields to a known state before launching a
@@ -24,7 +24,7 @@ const routeId = process.argv[2] ?? "dashboard";
 const collapsed = String(process.argv[3] ?? "false").toLowerCase() === "true";
 
 const localAppData = process.env.LOCALAPPDATA ?? path.join(process.env.USERPROFILE ?? "", "AppData", "Local");
-const settingsPath = path.join(localAppData, "WebFlow Studio", "storage", "ui-settings.json");
+const settingsPath = path.join(localAppData, "SpecterStudio", "storage", "ui-settings.json");
 
 if (!existsSync(settingsPath)) {
   console.log(`[reset-ui-state] no settings file at ${settingsPath} — the app will create defaults on first launch; nothing to reset.`);

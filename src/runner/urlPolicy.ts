@@ -29,7 +29,7 @@ export function assertNavigableUrl(url: string): string {
   if (!isNavigableUrl(url)) {
     const scheme = (url ?? "").trim().split(":")[0];
     throw new Error(
-      `Navigation to "${scheme}:" URLs is not allowed by WebFlow Studio. Only http(s) automation targets are permitted.`
+      `Navigation to "${scheme}:" URLs is not allowed by SpecterStudio. Only http(s) automation targets are permitted.`
     );
   }
   return url;

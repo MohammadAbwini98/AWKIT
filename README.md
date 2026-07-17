@@ -1,4 +1,4 @@
-# WebFlow Studio
+# SpecterStudio
 
 Windows desktop application for visually designing and running authorized Playwright UI automation.
 
@@ -82,7 +82,7 @@ The following large, generated, or sensitive paths are intentionally **not** com
 | `.env` | **Secrets** | Copy from `.env.example` |
 | `.claude/settings.local.json` | Machine-specific local editor settings | Local only |
 
-In production, all mutable runtime data lives under `%LOCALAPPDATA%/WebFlow Studio`, never inside
+In production, all mutable runtime data lives under `%LOCALAPPDATA%/SpecterStudio`, never inside
 the app bundle or `resources/`.
 
 ## Restoring the bundled Chromium / vendor resources
@@ -123,7 +123,7 @@ Phase 10 is available inside the app at System > Roadmap. The same status is sum
 
 The master build prompt is available inside the app at System > Project Contract and is backed by `src/project/ProjectContract.ts`.
 
-Production packaging must preserve the offline rules in `AGENTS.md`: no runtime downloads, no global Node/Playwright/browser dependency, and all mutable runtime data under `%LOCALAPPDATA%/WebFlow Studio`. See [docs/OFFLINE_STANDALONE_PACKAGING.md](docs/OFFLINE_STANDALONE_PACKAGING.md) for the full offline packaging guide.
+Production packaging must preserve the offline rules in `AGENTS.md`: no runtime downloads, no global Node/Playwright/browser dependency, and all mutable runtime data under `%LOCALAPPDATA%/SpecterStudio`. See [docs/OFFLINE_STANDALONE_PACKAGING.md](docs/OFFLINE_STANDALONE_PACKAGING.md) for the full offline packaging guide.
 
 ## Offline Packaging
 

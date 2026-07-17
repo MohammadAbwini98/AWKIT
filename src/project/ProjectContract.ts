@@ -16,7 +16,7 @@ export interface ContractPhase {
 
 export const projectContract = {
   source: "playwright_flow_studio_updated_phases/11_MASTER_CLAUDE_CODEX_PROMPT.md",
-  appName: "WebFlow Studio",
+  appName: "SpecterStudio",
   goal:
     "Build a no-code / low-code Windows desktop application for authorized web UI automation using Playwright.",
   stack: [

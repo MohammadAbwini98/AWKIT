@@ -35,6 +35,12 @@ electron.vite.config.*.mjs
 vendor/
 resources/browsers/
 
+# === Oracle JDBC bridge: compiled artifacts + vendored private runtime/jars (like Chromium) ===
+oracle-jdbc-bridge/target/
+resources/oracle-jdbc/runtime/
+resources/oracle-jdbc/bridge/
+resources/oracle-jdbc/lib/
+
 # === Playwright ===
 test-results/
 playwright-report/

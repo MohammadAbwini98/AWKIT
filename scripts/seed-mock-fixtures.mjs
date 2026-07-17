@@ -287,7 +287,7 @@ const workflows = [simpleWorkflow, failureWorkflow, dataDrivenWorkflow, routeCha
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..");
-const runtimeRoot = path.join(process.env.LOCALAPPDATA || os.homedir(), "WebFlow Studio");
+const runtimeRoot = path.join(process.env.LOCALAPPDATA || os.homedir(), "SpecterStudio");
 
 let flowsDir = path.join(runtimeRoot, "flows");
 let workflowsDir = path.join(runtimeRoot, "workflows");

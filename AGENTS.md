@@ -1,11 +1,11 @@
-# AGENTS.md — WebFlow Studio
+# AGENTS.md — SpecterStudio
 
 Shared instruction file for AI coding agents (Claude Code, OpenAI Codex, Gemini).
 Keep this file concise. Detailed, evolving context lives under `docs/ai/`.
 
 ## What this project is
 
-**WebFlow Studio** is an offline-capable **Windows desktop app** (Electron + React + TypeScript)
+**SpecterStudio** is an offline-capable **Windows desktop app** (Electron + React + TypeScript)
 for visually building and running **Playwright** web-automation flows and workflows. It runs
 fully offline in production with a bundled Chromium — no internet, global Node, global
 Playwright, or admin rights required.
@@ -51,7 +51,7 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 - **UI = Hologram design tokens:** new/changed UI must use `global.css` tokens (`var(--awkit-*)`, `--space-*`, `--radius-*`, motion/shadow tokens) — no hardcoded hex or arbitrary px, no parallel class systems; don't change the `.app-shell`/`.app-main` grids without explicit permission. See `docs/ai/RULES.md` › UI.
 - Do **not** rename the `window.playwrightFlowStudio` preload API identifier (internal contract).
 - Preserve **offline-first**: no runtime internet, no CDN/remote fonts/scripts, no global Node/Playwright/Chromium; never write mutable data into `resources/` or `app.asar`.
-- Mutable runtime data goes under `%LOCALAPPDATA%/WebFlow Studio/` (or user-configured Settings paths).
+- Mutable runtime data goes under `%LOCALAPPDATA%/SpecterStudio/` (or user-configured Settings paths).
 - Keep TypeScript clean — `npm run build` runs `tsc --noEmit` and must pass.
 
 ## Mock Site Feature Test Lab

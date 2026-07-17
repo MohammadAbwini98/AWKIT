@@ -165,6 +165,45 @@ Output: `dist/WebFlow Studio <version>.exe` (portable), `dist/WebFlow Studio Set
 > First packaging needs internet (electron-builder downloads NSIS/codesign helper binaries) or a warm
 > electron-builder cache; the produced app itself needs no internet.
 
+## Oracle JDBC (offline; no database required unless noted)
+```bash
+npm run build:oracle-bridge          # compile the Java bridge with a PINNED JDK 17 (never JAVA_HOME/PATH).
+                                     # Compiles the gated real UCP executor ONLY when ojdbc/ucp jars are
+                                     # vendored under resources/oracle-jdbc/lib/; otherwise core-only (mock).
+npm run prepare:oracle-runtime       # stage the private runtime bundle from out-of-band artifacts:
+                                     # verify sha256 vs scripts/oracle/oracle-runtime.manifest.json,
+                                     # validate arch + Java version, require license notices, build the
+                                     # bridge, regenerate checksums.json. Offline + FAIL-CLOSED.
+                                     # SKIPS cleanly (exit 0) when ./oracle-runtime-src is absent
+                                     # (override with AWKIT_ORACLE_RUNTIME_SRC). External gate: the jars.
+
+# Verifiers (all green offline; 218 checks total):
+npm run verify:oracle-bridge             # 32 — framing/protocol, handshake, cancellation, restart, redaction
+npm run verify:oracle-bridge-real-build  # 11 — real-executor contract + STUB-COMPILE vs real JDK java.sql;
+                                         #      runs the LIVE real build only when jars are vendored
+npm run verify:oracle-profiles           # 22 — profile CRUD, DPAPI secret routing, connection testing
+npm run verify:oracle-data-source        # 28 — snapshot staleness, resolver normalization, binds, loops
+npm run verify:oracle-runtime            # 36 — binds/types, result limits, timeout, telemetry,
+                                         #      expanded hello + FAIL-CLOSED production policy
+npm run verify:oracle-runtime-prep       # 20 — prepare:oracle-runtime logic (synthetic fixtures)
+npm run verify:oracle-sql-policy         # 30 — TS↔Java read-only SQL parity over an adversarial corpus
+npm run verify:oracle-packaging          # 19 — checksums + runtime resolution + fail-closed paths
+npm run verify:oracle-lazy-resolution    # 12 — lazy runtime execution, single-flight, snapshot = 0 DB
+npm run verify:oracle-offline-bundle     #  8 — packaged-bundle audit (integrity, layout, no secrets)
+
+npm run verify:oracle-live               # REAL Oracle — credential-gated; skips cleanly with no config and
+                                         # NEVER falls back to mock. Requires an authorized, non-prod,
+                                         # read-only account:
+                                         #   AWKIT_ORACLE_LIVE_URL / _USER / _PASSWORD
+                                         #   AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1
+                                         #   AWKIT_ORACLE_LIVE_TEST_TABLE (default awkit_types_test)
+                                         # Writes redacted reports/oracle-validation/oracle-live.json.
+```
+> Fail-closed rule: a **packaged** build never uses the mock executor. Packaged launches force
+> `AWKIT_ORACLE_REQUIRE_REAL=1`; `AWKIT_ORACLE_BRIDGE_MOCK=1` is honored **only** in dev/unpackaged.
+> Packaged + missing/failed driver ⇒ Oracle live queries unavailable (Snapshot Data Sources still work).
+> See `ORACLE_JDBC_VALIDATION_GATES.md` for the external-gate procedures.
+
 ## Assets
 ```bash
 npm run icon:generate    # node scripts/generate-app-icon.mjs (build resources/icon.ico from icon-source.png)

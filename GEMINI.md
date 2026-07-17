@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# GEMINI.md — Gemini instructions for WebFlow Studio
+# GEMINI.md — Gemini instructions for SpecterStudio
 
 Shared rules live in `AGENTS.md` (imported above) and `docs/ai/`. This file adds
 Gemini-specific behavior.

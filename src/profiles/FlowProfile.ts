@@ -31,6 +31,8 @@ export type StepType =
   | "closePopup"
   /** Switch the active automation context back to the main page. */
   | "switchToMainPage"
+  /** Run a read-only Oracle SQL query (Data Source or connection profile) and map the result. */
+  | "oracle"
   | "end";
 
 export type LocatorStrategy = "role" | "label" | "placeholder" | "text" | "testId" | "id" | "css" | "xpath" | "tagName";
@@ -340,6 +342,59 @@ export interface NodeConfig {
   // ── Multi-Window / Popup ──────────────────────────────────────────────────
   /** Alias of the popup page this closePopup/switchToMainPage step acts on. */
   popupAlias?: string;
+  // ── Oracle node ────────────────────────────────────────────────────────────
+  /** Oracle query node configuration (present only on `oracle` steps). */
+  oracle?: OracleNodeConfig;
+}
+
+/** JDBC bind type used to convert a resolved value before binding (prepared statement). */
+export type OracleJdbcBindType = "STRING" | "NUMBER" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "DATE" | "TIMESTAMP" | "NULL";
+
+/** One prepared-statement bind for an Oracle node query. Values are ALWAYS bound, never interpolated. */
+export interface OracleNodeBind {
+  /** 1-based ordinal for positional binds, or a `name` for named (`:name`) binds. */
+  position?: number;
+  name?: string;
+  jdbcType: OracleJdbcBindType;
+  /** Where the value comes from — reuses AWKIT's existing dynamic value resolution. */
+  valueSource: ValueSource;
+  required?: boolean;
+  /** Fallback when a non-required dynamic source resolves to empty. */
+  defaultValue?: string;
+}
+
+/** Configuration for the Oracle query node (`FlowStep.config.oracle`). */
+export interface OracleNodeConfig {
+  /** Use an existing Oracle Data Source, or a connection profile directly. */
+  connectionSource: "dataSource" | "profile";
+  /** Selected Oracle Data Source id (when `connectionSource === "dataSource"`). */
+  dataSourceId?: string;
+  /** Selected Oracle connection profile id (when `connectionSource === "profile"`). */
+  connectionProfileId?: string;
+  /** SQL: required for `profile`; an optional override of the Data Source's own query for `dataSource`. */
+  sql?: string;
+  binds?: OracleNodeBind[];
+  timeoutMs?: number;
+  maxRows?: number;
+  fetchSize?: number;
+  /** Deterministic mapping of the result to a typed value. */
+  returnType: "string" | "number" | "boolean" | "list";
+  /** Column to read for scalar/primitive-list mappings (defaults to the first column). */
+  selectedColumn?: string;
+  /** Row index to read for scalar mappings (defaults to 0). */
+  selectedRowIndex?: number;
+  /** What to return when the result is empty. */
+  emptyBehavior?: "null" | "error" | "default";
+  defaultValue?: string;
+  /** Scalar mappings with multiple rows: take the first, or fail. */
+  multiRowBehavior?: "first" | "error";
+  /** List: array of row objects, or a primitive array of the selected column. */
+  listMode?: "rows" | "column";
+  /** Comma-separated values mapped to boolean true / false (case-insensitive). */
+  booleanTrueValues?: string;
+  booleanFalseValues?: string;
+  /** Instance variable to store the mapped value into (in addition to step outputs). */
+  outputVariable?: string;
 }
 
 export type FlowEdgeType =

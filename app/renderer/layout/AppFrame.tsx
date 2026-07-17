@@ -20,7 +20,7 @@ export function AppFrame({ areaLabel }: AppFrameProps) {
         <span className="app-frame-mark" aria-hidden="true">
           <Workflow size={14} strokeWidth={2.4} />
         </span>
-        <span className="app-frame-wordmark">WebFlow Studio</span>
+        <span className="app-frame-wordmark">SpecterStudio</span>
       </div>
       <span className="app-frame-divider" aria-hidden="true" />
       <span className="app-frame-context" title={areaLabel}>

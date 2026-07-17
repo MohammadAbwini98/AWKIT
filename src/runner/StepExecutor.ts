@@ -4,7 +4,7 @@ import type { Locator, Page } from "playwright";
 import type { FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
-import type { InstanceExecutionContext } from "./InstanceExecutionContext";
+import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
 import { ManualHandoffController, type ManualHandoffResumeAction } from "./ManualHandoffController";
 import type { LiveStepStatus, RunnerProgressReporter } from "./RunnerProgress";
@@ -20,6 +20,9 @@ import type { CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
+import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
+import { safeMessageForCategory } from "@src/oracle/OracleErrors";
+import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
@@ -75,7 +78,9 @@ export class StepExecutor {
     /** Dynamic origin-claim re-evaluation after navigation (Phase 3). */
     private readonly originClaims?: OriginClaimTracker,
     /** Phase A6: staggers simultaneous navigations / downloads / screenshots across instances. */
-    private readonly operationLimiters?: OperationLimiters
+    private readonly operationLimiters?: OperationLimiters,
+    /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
+    private readonly oracleNodeRunner?: OracleNodeRunner
   ) {
     this.activePage = page;
     this.pageRegistry = new Map([["main", page]]);
@@ -932,6 +937,9 @@ export class StepExecutor {
         return { status: "passed", outcome: "manualContinued" };
       }
 
+      case "oracle":
+        return this.executeOracle(step, outputs);
+
       case "condition":
         // Routing for condition nodes is decided by FlowExecutor, which has the
         // full flow/instance output scope needed to evaluate the expression.
@@ -1067,7 +1075,7 @@ export class StepExecutor {
     for (const root of blockedRoots) {
       if (isPathInside(root, filePath)) {
         throw new Error(
-          `Upload step ${step.id} was blocked: "${filePath}" is inside a WebFlow Studio data folder ` +
+          `Upload step ${step.id} was blocked: "${filePath}" is inside a SpecterStudio data folder ` +
             `(saved sessions/logs/reports/screenshots/traces). Uploading application credential or artifact data is not allowed.`
         );
       }
@@ -1469,7 +1477,7 @@ export class StepExecutor {
     const message =
       instructions ||
       detectedMessage ||
-      "Protected login handoff: complete authentication using a supported, approved method. WebFlow Studio will not bypass login protections.";
+      "Protected login handoff: complete authentication using a supported, approved method. SpecterStudio will not bypass login protections.";
 
     const allowed: ProtectedLoginHandoffAction[] = ["cancel", "continue"];
     if (cfg.allowRetry !== false) allowed.push("retry");
@@ -1561,7 +1569,8 @@ export class StepExecutor {
     if (loopType === "elements") {
       count = step.locator ? await this.locatorFactory.create(step.locator).count() : 0;
     } else if (loopType === "dataRows") {
-      count = this.context.workflowDataSource?.rows.length ?? 0;
+      const ds = this.context.workflowDataSource;
+      count = ds ? (await materializeDataSourceRows(ds)).length : 0;
     } else {
       count = cfg.iterationCount ?? 1;
     }
@@ -1627,6 +1636,57 @@ export class StepExecutor {
       await this.limitOp("screenshot", () => this.activePage.screenshot({ path: screenshotPath, fullPage: options?.fullPage ?? true }));
     }
     return screenshotPath;
+  }
+
+  /**
+   * Execute an Oracle query node: resolve binds via the ValueResolver, run the query through the
+   * injected main-process runner (OracleQueryService), map the result to the node's typed value, and
+   * store it in outputs + an optional instance variable. Bridges the run's CancellationToken to an
+   * AbortSignal so a cancelled run promptly cancels the in-flight query.
+   */
+  private async executeOracle(
+    step: FlowStep,
+    outputs: Record<string, unknown>
+  ): Promise<Pick<StepExecutionResult, "status">> {
+    const cfg = step.config?.oracle;
+    if (!cfg) throw new Error(`Oracle step ${step.id} is not configured.`);
+    if (!this.oracleNodeRunner) {
+      throw new Error("Oracle is not available in this runtime (the bundled Oracle JDBC runtime is missing).");
+    }
+
+    const controller = new AbortController();
+    const unsubscribe = this.cancellation?.onCancel(() => controller.abort());
+    try {
+      const mapped = await runOracleNode(cfg, {
+        resolveValue: (vs) => this.valueResolver.resolve(vs),
+        runner: this.oracleNodeRunner,
+        signal: controller.signal
+      });
+      this.mapOutputs(step, outputs, {
+        value: mapped.value,
+        rowCount: mapped.rowCount,
+        truncated: mapped.truncated,
+        source: mapped.source
+      });
+      const outputVariable = cfg.outputVariable?.trim();
+      if (outputVariable) {
+        this.context.instanceInputs[outputVariable] = mapped.value;
+      }
+      this.log(
+        "info",
+        step,
+        `Oracle query ${mapped.source} → ${mapped.rowCount} row(s)${mapped.truncated ? " (truncated)" : ""}, returnType=${cfg.returnType}`
+      );
+      return { status: "passed" };
+    } catch (err) {
+      // Map bridge categories to safe messages; never surface raw ORA text / secrets.
+      if (err instanceof OracleBridgeCallError) {
+        throw new Error(`Oracle query failed (${err.category}): ${safeMessageForCategory(err.category)}`);
+      }
+      throw err;
+    } finally {
+      unsubscribe?.();
+    }
   }
 
   private mapOutputs(step: FlowStep, outputs: Record<string, unknown>, produced: Record<string, unknown>): void {
