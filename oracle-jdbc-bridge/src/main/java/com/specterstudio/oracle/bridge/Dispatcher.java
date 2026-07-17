@@ -71,6 +71,9 @@ public final class Dispatcher {
             case Protocol.OP_HEALTH:
                 writeResult(id, health());
                 return;
+            case Protocol.OP_DRIVER_PROBE:
+                writeResult(id, driverProbe());
+                return;
             case Protocol.OP_CANCEL_QUERY: {
                 String target = str(params.get("requestId"));
                 CancellationToken token = target == null ? null : inFlight.get(target);
@@ -161,6 +164,46 @@ public final class Dispatcher {
         r.put("inFlight", inFlight.size());
         r.put("uptimeMs", java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime());
         return r;
+    }
+
+    /**
+     * Reflective driver-load probe used to validate an imported driver bundle: attempts to load the
+     * Oracle driver (and UCP) classes from THIS process's classpath and reports their versions. Runs
+     * in the core with no executor and no database, so it validates a candidate jar regardless of
+     * whether the real query executors were compiled into this bridge build.
+     */
+    private Map<String, Object> driverProbe() {
+        boolean driver = classPresent("oracle.jdbc.OracleDriver");
+        boolean ucp = classPresent("oracle.ucp.jdbc.PoolDataSource");
+        Map<String, Object> r = new LinkedHashMap<>();
+        r.put("driverAvailable", driver);
+        r.put("driverVersion", driver ? nn(versionOf("oracle.jdbc.OracleDriver")) : "unavailable");
+        r.put("ucpAvailable", ucp);
+        r.put("ucpVersion", ucp ? nn(versionOf("oracle.ucp.jdbc.PoolDataSource")) : "unavailable");
+        r.put("javaVersion", System.getProperty("java.version", "unknown"));
+        return r;
+    }
+
+    private static boolean classPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (Throwable notPresent) {
+            return false;
+        }
+    }
+
+    private static String versionOf(String className) {
+        try {
+            Package pkg = Class.forName(className).getPackage();
+            return pkg == null ? null : pkg.getImplementationVersion();
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String nn(String s) {
+        return (s == null || s.isEmpty()) ? "unknown" : s;
     }
 
     public void shutdown() {

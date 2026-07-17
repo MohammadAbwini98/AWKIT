@@ -149,7 +149,9 @@ export class OracleProfileService {
       queryTimeoutMs: profile.queryTimeoutMs,
       readOnly: true,
       poolKey: connectionFingerprint(profile),
-      pool: profile.pool
+      pool: profile.pool,
+      // Routes to the isolated Java bridge for this profile's driver bundle (Phase 07). Not a secret.
+      driverBundleId: profile.driverBundleId
     };
     return { descriptor, redactedUrl: redactJdbcUrl(url) };
   }

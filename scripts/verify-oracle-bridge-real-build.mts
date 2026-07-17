@@ -37,7 +37,7 @@ function check(name: string, cond: boolean): void {
   }
 }
 
-const EXECUTOR_SRC = join(
+const JAVA_ORACLE_EXEC_DIR = join(
   repoRoot,
   "oracle-jdbc-bridge",
   "src",
@@ -47,9 +47,10 @@ const EXECUTOR_SRC = join(
   "specterstudio",
   "oracle",
   "bridge",
-  "exec",
-  "OracleUcpQueryExecutor.java"
+  "exec"
 );
+const EXECUTOR_SRC = join(JAVA_ORACLE_EXEC_DIR, "OracleUcpQueryExecutor.java");
+const JDBC_EXECUTOR_SRC = join(JAVA_ORACLE_EXEC_DIR, "OracleJdbcQueryExecutor.java");
 
 function staticContractChecks(): void {
   console.log("Static contract checks (executor source + build wiring):");
@@ -64,9 +65,19 @@ function staticContractChecks(): void {
   check("maps SQLException to safe categories", /mapSqlException/.test(src) && /ERR_AUTHENTICATION_FAILED|AUTHENTICATION_FAILED/.test(src));
   check("never concatenates SQL literals", !/"SELECT\s/.test(src.replace(/\/\/.*$/gm, "")));
 
-  // Build wiring: the build script compiles java-oracle only when jars are vendored.
+  // Non-pooled JDBC executor (compiled when ojdbc is present but ucp is not — JDBC-only live path).
+  check("JDBC-only executor source exists", existsSync(JDBC_EXECUTOR_SRC));
+  const jsrc = existsSync(JDBC_EXECUTOR_SRC) ? readFileSync(JDBC_EXECUTOR_SRC, "utf8") : "";
+  check("JDBC executor implements QueryExecutor", /implements\s+QueryExecutor/.test(jsrc));
+  check("JDBC executor uses DriverManager (no UCP)", /DriverManager/.test(jsrc) && !/oracle\.ucp/.test(jsrc));
+  check("JDBC executor reports ucpVersion 'unavailable'", /"unavailable"/.test(jsrc));
+  check("JDBC executor binds via PreparedStatement + sets read-only", /PreparedStatement/.test(jsrc) && /setReadOnly\(true\)/.test(jsrc));
+
+  // Build wiring: the build script compiles java-oracle only when an ojdbc jar is available, and only
+  // adds the UCP executor when a ucp jar is also present (else JDBC-only).
   const buildScript = readFileSync(join(repoRoot, "scripts", "build-oracle-bridge.mjs"), "utf8");
-  check("build script gates java-oracle behind vendored jars", /java-oracle/.test(buildScript) && /vendoredJars\.length\s*>\s*0/.test(buildScript));
+  check("build script gates java-oracle behind an available ojdbc jar", /java-oracle/.test(buildScript) && /hasOjdbc/.test(buildScript));
+  check("build script adds the UCP executor only when a ucp jar is present", /OracleUcpQueryExecutor\.java/.test(buildScript) && /hasUcp/.test(buildScript));
 }
 
 /**
@@ -127,6 +138,17 @@ function stubCompileExecutor(): void {
       { stdio: "pipe" }
     );
     check("gated executor compiles clean against java.sql + UCP stubs", true);
+
+    // The non-pooled JDBC executor imports NO oracle.* types (pure java.sql + core), so it compiles
+    // against the plain JDK with no stubs at all — proving the JDBC-only live path stays valid.
+    const jdbcOut = join(tmp, "jdbc-classes");
+    mkdirSync(jdbcOut, { recursive: true });
+    execFileSync(
+      built.jdk.javac,
+      ["-encoding", "UTF-8", "-cp", built.classesDir, "-d", jdbcOut, JDBC_EXECUTOR_SRC],
+      { stdio: "pipe" }
+    );
+    check("JDBC-only executor compiles clean against plain java.sql (no stubs)", true);
   } catch (err) {
     const msg = (err as { stderr?: Buffer; message?: string }).stderr?.toString() ?? (err as Error).message;
     console.log(`    javac output:\n${msg}`);

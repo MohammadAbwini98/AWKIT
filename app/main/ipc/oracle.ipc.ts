@@ -1,13 +1,21 @@
-import { ipcMain } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
 import { assertTrustedSender } from "./senderGuard";
 import {
   deleteOracleDataSource,
   getOracleDataSource,
+  getOracleDriverBundle,
+  getOracleDriverBundleUsage,
   getOracleServices,
+  importOracleDriverBundle,
   listOracleDataSources,
+  listOracleDriverBundles,
   oracleAvailability,
   refreshOracleDataSourceSnapshot,
+  removeOracleDriverBundle,
   saveOracleDataSource,
+  setDefaultOracleDriverBundle,
+  testOracleDriverBundleLoad,
+  validateOracleDriverBundle,
   type OracleDataSourceInput
 } from "../oracleService";
 import type { OracleProfileInput } from "@src/oracle/OracleProfileService";
@@ -56,5 +64,42 @@ export function registerOracleIpc(): void {
   ipcMain.handle("oracle:dataSources:refreshSnapshot", async (event, id: string) => {
     assertTrustedSender(event);
     return refreshOracleDataSourceSnapshot(id);
+  });
+
+  // ── Managed Oracle JDBC driver bundles (Phases 05–07) ────────────────────────────────────────────
+  ipcMain.handle("oracle:drivers:list", async () => listOracleDriverBundles());
+  ipcMain.handle("oracle:drivers:get", async (_event, id: string) => getOracleDriverBundle(id));
+  ipcMain.handle("oracle:drivers:usage", async (_event, id: string) => getOracleDriverBundleUsage(id));
+
+  // Import opens a native file dialog in the main process — imported JARs are executable code and are
+  // load-tested in an isolated Java bridge before being copied into managed storage. The renderer must
+  // have already shown the security warning + explicit confirmation (it passes { name }).
+  ipcMain.handle("oracle:drivers:import", async (event, input: { name: string }) => {
+    assertTrustedSender(event);
+    const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    const picked = await dialog.showOpenDialog(win!, {
+      title: "Select Oracle JDBC driver jar(s)",
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "Java Archives", extensions: ["jar"] }]
+    });
+    if (picked.canceled || picked.filePaths.length === 0) return null;
+    return importOracleDriverBundle({ name: input.name, sourceFiles: picked.filePaths });
+  });
+
+  ipcMain.handle("oracle:drivers:validate", async (event, id: string) => {
+    assertTrustedSender(event);
+    return validateOracleDriverBundle(id);
+  });
+  ipcMain.handle("oracle:drivers:setDefault", async (event, id: string) => {
+    assertTrustedSender(event);
+    return setDefaultOracleDriverBundle(id);
+  });
+  ipcMain.handle("oracle:drivers:remove", async (event, id: string) => {
+    assertTrustedSender(event);
+    return removeOracleDriverBundle(id);
+  });
+  ipcMain.handle("oracle:drivers:testLoad", async (event, id: string) => {
+    assertTrustedSender(event);
+    return testOracleDriverBundleLoad(id);
   });
 }

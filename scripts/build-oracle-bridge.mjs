@@ -98,19 +98,41 @@ export function buildOracleBridge({ quiet = false } = {}) {
 
   const coreSources = listJava(join(moduleRoot, "src", "main", "java"));
   const oracleSrcDir = join(moduleRoot, "src", "main", "java-oracle");
+  const haveOracleSrc = existsSync(oracleSrcDir);
+
+  // Compile jars come from (1) the packaged vendoring path resources/oracle-jdbc/lib and (2) an
+  // explicit AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH env (path-list) — used to compile the real
+  // executors against an imported ojdbc jar WITHOUT dumping it into resources/ (which would flip the
+  // dev runtime's driverExpected). The runtime classpath is assembled separately from the selected
+  // Settings driver bundle.
+  const sep = isWin ? ";" : ":";
   const vendoredJars =
     existsSync(libDir) ? readdirSync(libDir).filter((f) => f.endsWith(".jar")).map((f) => join(libDir, f)) : [];
-  const haveOracleSrc = existsSync(oracleSrcDir);
-  const compileOracle = haveOracleSrc && vendoredJars.length > 0;
+  const envJars = (process.env.AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH ?? "")
+    .split(sep)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && existsSync(s));
+  const compileJars = [...new Set([...vendoredJars, ...envJars])];
+  const hasOjdbc = compileJars.some((j) => /(^|[\\/])ojdbc[\w.-]*\.jar$/i.test(j));
+  const hasUcp = compileJars.some((j) => /(^|[\\/])ucp[\w.-]*\.jar$/i.test(j));
 
   const sources = [...coreSources];
   let classpath = "";
-  if (compileOracle) {
-    sources.push(...listJava(oracleSrcDir));
-    classpath = vendoredJars.join(isWin ? ";" : ":");
-    log(`[oracle-bridge] compiling Oracle executor against ${vendoredJars.length} vendored jar(s).`);
+  let compileOracle = false;
+  if (haveOracleSrc && hasOjdbc) {
+    // The non-pooled JDBC executor needs only ojdbc; the UCP executor additionally needs ucp.
+    const oracleSources = listJava(oracleSrcDir).filter(
+      (f) => !f.endsWith("OracleUcpQueryExecutor.java") || hasUcp
+    );
+    sources.push(...oracleSources);
+    classpath = compileJars.join(sep);
+    compileOracle = true;
+    log(
+      `[oracle-bridge] compiling Oracle executor(s) against ${compileJars.length} jar(s) ` +
+        `(ojdbc=${hasOjdbc}, ucp=${hasUcp}${hasUcp ? "" : " → JDBC-only, no UCP pooling"}).`
+    );
   } else if (haveOracleSrc) {
-    log("[oracle-bridge] ojdbc/ucp jars not vendored — building CORE only (mock executor at runtime).");
+    log("[oracle-bridge] ojdbc jars not available — building CORE only (mock executor at runtime).");
   }
 
   const argsFile = join(targetDir, "javac-args.txt");

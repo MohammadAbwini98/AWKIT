@@ -4,6 +4,7 @@
  * OPTIONAL — if the bundled runtime/dev jar is absent, the services still construct and report the
  * feature as unavailable rather than breaking non-Oracle workflows.
  */
+import { join } from "node:path";
 import { getAppMode, getResourcesRoot, getRuntimePaths } from "./appPaths";
 import { getConfiguredPaths } from "./storagePaths";
 import { getSecretStore } from "./secretStore";
@@ -14,7 +15,14 @@ import { OracleProfileService, type OracleSecretVault } from "@src/oracle/Oracle
 import { OracleQueryService, type OracleQueryResult } from "@src/oracle/OracleQueryService";
 import { resolveOracleRuntime, type OracleRuntimeResolution } from "@src/oracle/OracleRuntimeResolver";
 import type { OracleNodeExecuteRequest, OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
-import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
+import { ORACLE_BRIDGE_PROTOCOL_VERSION, OracleBridgeCallError, type OracleBridgeOp } from "@src/oracle/OracleBridgeProtocol";
+import { OracleDriverBundleStore, type DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
+import {
+  compatibilityLabelFor,
+  driverBundleCompatibilityKey,
+  type OracleDriverBundle,
+  type OracleDriverBundleView
+} from "@src/oracle/OracleDriverBundle";
 import { resolveDataSourceBinds } from "@src/oracle/OracleDataSourceBinds";
 import type { JsonScalar } from "@src/oracle/OracleTypeConversion";
 import { validateReadOnlySql } from "@src/oracle/OracleSqlPolicy";
@@ -31,7 +39,6 @@ import {
 } from "@src/data/DataSourceProfile";
 
 interface OracleServices {
-  manager: OracleJdbcBridgeManager;
   profiles: OracleProfileService;
   query: OracleQueryService;
   resolution: OracleRuntimeResolution;
@@ -39,10 +46,28 @@ interface OracleServices {
 
 let singleton: OracleServices | null = null;
 
+/**
+ * Phase 07 — one Java bridge process per driver-bundle **compatibility key**, so different Oracle
+ * driver versions never share a classpath. Managers are created lazily and cached here; all are
+ * disposed on app quit (teardown invariant: no orphan Java).
+ */
+const bridgeRegistry = new Map<string, OracleJdbcBridgeManager>();
+const isWin = process.platform === "win32";
+const CLASSPATH_SEP = isWin ? ";" : ":";
+const BRIDGE_MAIN_CLASS = "com.specterstudio.oracle.bridge.Main";
+
 function createProfileStore(): JsonProfileStore<OracleConnectionProfile> {
   return new JsonProfileStore<OracleConnectionProfile>({
     folder: getRuntimePaths().folders["oracle-profiles"],
     createClone: (profile, nextId) => ({ ...profile, id: nextId, name: `${profile.name} Copy` })
+  });
+}
+
+/** The managed Oracle JDBC driver-bundle store (with a real isolated-bridge probe injected). */
+function driverBundleStore(): OracleDriverBundleStore {
+  return new OracleDriverBundleStore({
+    folder: getRuntimePaths().folders["oracle-drivers"],
+    probe: probeDriverClasspath
   });
 }
 
@@ -57,41 +82,142 @@ function secretVault(): OracleSecretVault {
   };
 }
 
-function resolveLaunchSpec(): BridgeLaunchSpec {
-  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
-  if (!resolution.available || !resolution.launchSpec) {
-    throw new Error(resolution.reason ?? "Oracle bridge runtime is unavailable.");
-  }
-  // The resolver bakes the fail-closed env into the launch spec: `AWKIT_ORACLE_REQUIRE_REAL` in
-  // packaged production (never mock), or `AWKIT_ORACLE_BRIDGE_MOCK` only in dev without a driver.
-  return resolution.launchSpec;
+/** Absolute classpath jars for a managed bundle (driver + optional UCP + companions). */
+function bundleClasspathJars(bundle: OracleDriverBundle): string[] {
+  return [
+    join(bundle.managedDirectory, bundle.jdbcJar),
+    ...(bundle.ucpJar ? [join(bundle.managedDirectory, bundle.ucpJar)] : []),
+    ...bundle.companionJars.map((c) => join(bundle.managedDirectory, c))
+  ];
 }
 
-export function getOracleServices(): OracleServices {
-  if (singleton) return singleton;
+/** Build a bridge launch spec, adding a managed bundle's jars to the classpath (a real driver). */
+function bundleLaunchSpec(base: BridgeLaunchSpec, bundle: OracleDriverBundle | undefined): BridgeLaunchSpec {
+  if (!bundle) return base; // vendored driver (packaged) or dev mock — resolver already baked the env
+  const env: Record<string, string | undefined> = { ...base.env };
+  // A managed bundle IS a real driver — never force the mock, and require a real load (fail closed).
+  delete env.AWKIT_ORACLE_BRIDGE_MOCK;
+  env.AWKIT_ORACLE_REQUIRE_REAL = "1";
+  return {
+    ...base,
+    classpath: [base.jarPath, ...bundleClasspathJars(bundle)].join(CLASSPATH_SEP),
+    mainClass: BRIDGE_MAIN_CLASS,
+    env
+  };
+}
+
+/**
+ * Resolve (creating + caching lazily) the isolated Java bridge for a given driver bundle id. A tampered
+ * or corrupted bundle fails closed here — the bridge is never launched. `undefined` ⇒ the store's
+ * default bundle, else the resolver's base spec (vendored driver in packaged production, or dev mock).
+ */
+function getManagerForBundle(bundleId: string | undefined): OracleJdbcBridgeManager {
   const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+  if (!resolution.available || !resolution.launchSpec) {
+    throw new OracleBridgeCallError("DRIVER_UNAVAILABLE", resolution.reason ?? "Oracle bridge runtime is unavailable.");
+  }
+  const store = driverBundleStore();
+  const effectiveId = bundleId ?? store.getDefaultId();
+  const bundle = effectiveId ? store.get(effectiveId) ?? undefined : undefined;
+
+  const key = driverBundleCompatibilityKey({
+    driverBundleId: bundle?.id ?? "__base__",
+    javaIdentity: resolution.launchSpec.javaPath,
+    protocolVersion: ORACLE_BRIDGE_PROTOCOL_VERSION
+  });
+  const existing = bridgeRegistry.get(key);
+  if (existing) return existing;
+
+  // Fail closed on a tampered/corrupt bundle — validate integrity before the first launch.
+  if (bundle) {
+    const status = store.revalidateChecksums(bundle.id);
+    if (status === "checksum-failed" || status === "missing") {
+      throw new OracleBridgeCallError(
+        "DRIVER_UNAVAILABLE",
+        `The Oracle driver bundle "${bundle.name}" failed integrity validation (${status}). It will not be loaded.`
+      );
+    }
+  }
+
+  const spec = bundleLaunchSpec(resolution.launchSpec, bundle);
   const manager = new OracleJdbcBridgeManager({
-    resolveLaunchSpec,
-    // Fail closed in packaged production: reject a mock / driver-unavailable handshake at startup so
-    // Oracle live queries can never run against synthetic results.
-    requireRealDriver: resolution.requireRealDriver,
+    resolveLaunchSpec: () => spec,
+    // Fail closed: with a real bundle (or in packaged production) reject a mock/unavailable handshake.
+    requireRealDriver: resolution.requireRealDriver || !!bundle,
     logger: (level, message) => {
       if (level === "error") console.error(message);
       else if (level === "warn") console.warn(message);
     },
     onStderr: (line) => console.warn(`[oracle-bridge:stderr] ${line}`)
   });
-  const profiles = new OracleProfileService(createProfileStore(), secretVault(), manager, (level, message) => {
+  bridgeRegistry.set(key, manager);
+  return manager;
+}
+
+/**
+ * A routing facade over the per-bundle registry: `.call()` reads the profile's `driverBundleId` from
+ * the descriptor and dispatches to that bundle's isolated bridge. Existing services (profile/query)
+ * keep calling `bridge.call(...)` unchanged.
+ */
+const routingBridge = {
+  call: (op: OracleBridgeOp, params: Record<string, unknown>, options?: { timeoutMs?: number; signal?: AbortSignal }) => {
+    const bundleId = typeof params.driverBundleId === "string" && params.driverBundleId ? params.driverBundleId : undefined;
+    return getManagerForBundle(bundleId).call(op, params, options);
+  }
+};
+
+/**
+ * Load-test a candidate classpath in a temporary isolated bridge (Phase 06 import validation). Uses
+ * the reflective `driverProbe` op so it works even when the real query executors were not compiled
+ * into this bridge build. Returns `probed:false` when the bridge itself cannot launch (couldn't test).
+ */
+async function probeDriverClasspath(classpathJars: string[]): Promise<DriverProbeResult> {
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+  if (!resolution.available || !resolution.launchSpec) {
+    return { probed: false, driverAvailable: false, reason: "The Oracle bridge runtime is unavailable in this build." };
+  }
+  const base = resolution.launchSpec;
+  const env: Record<string, string | undefined> = { ...base.env };
+  delete env.AWKIT_ORACLE_BRIDGE_MOCK; // probe the REAL driver on the candidate classpath, never the mock
+  const manager = new OracleJdbcBridgeManager({
+    resolveLaunchSpec: () => ({
+      ...base,
+      classpath: [base.jarPath, ...classpathJars].join(CLASSPATH_SEP),
+      mainClass: BRIDGE_MAIN_CLASS,
+      env
+    })
+    // No requireRealDriver: we want the handshake to succeed so we can inspect the probe result.
+  });
+  try {
+    const probe = await manager.call("driverProbe", {}, { timeoutMs: 20_000 });
+    return {
+      probed: true,
+      driverAvailable: probe.driverAvailable === true,
+      driverVersion: typeof probe.driverVersion === "string" ? probe.driverVersion : undefined,
+      ucpVersion: typeof probe.ucpVersion === "string" ? probe.ucpVersion : undefined,
+      javaVersion: typeof probe.javaVersion === "string" ? probe.javaVersion : undefined
+    };
+  } catch (err) {
+    return { probed: false, driverAvailable: false, reason: err instanceof OracleBridgeCallError ? `Bridge error (${err.category}).` : "Bridge could not run the driver probe." };
+  } finally {
+    await manager.dispose().catch(() => undefined);
+  }
+}
+
+export function getOracleServices(): OracleServices {
+  if (singleton) return singleton;
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+  const profiles = new OracleProfileService(createProfileStore(), secretVault(), routingBridge, (level, message) => {
     if (level === "warn") console.warn(message);
   });
   const query = new OracleQueryService({
-    bridge: manager,
+    bridge: routingBridge,
     resolveDescriptor: (id) => profiles.resolveDescriptorForId(id),
     log: (level, message) => {
       if (level === "warn") console.warn(message);
     }
   });
-  singleton = { manager, profiles, query, resolution };
+  singleton = { profiles, query, resolution };
   return singleton;
 }
 
@@ -345,9 +471,89 @@ export function oracleAvailability(): { available: boolean; source: string; reas
   };
 }
 
-/** Graceful shutdown on app quit — guarantees no orphaned Java process. */
+/** Graceful shutdown on app quit — disposes every per-bundle bridge (no orphaned Java process). */
 export async function disposeOracleServices(): Promise<void> {
-  if (!singleton) return;
-  await singleton.manager.dispose().catch(() => undefined);
+  const managers = [...bridgeRegistry.values()];
+  bridgeRegistry.clear();
+  await Promise.all(managers.map((m) => m.dispose().catch(() => undefined)));
   singleton = null;
+}
+
+// ── Managed Oracle JDBC driver bundles (Phases 05–07) ─────────────────────────────────────────────
+
+/** Count how many connection profiles reference a bundle (blocks deletion while > 0). */
+async function driverBundleUsageCount(bundleId: string): Promise<number> {
+  const profiles = await createProfileStore().list();
+  return profiles.filter((p) => p.driverBundleId === bundleId).length;
+}
+
+/** Renderer-safe projection of a bundle (adds default flag, usage count, pooling support). */
+async function toDriverBundleView(bundle: OracleDriverBundle, defaultId: string | undefined): Promise<OracleDriverBundleView> {
+  return {
+    ...bundle,
+    isDefault: bundle.id === defaultId,
+    usageCount: await driverBundleUsageCount(bundle.id),
+    supportsPooling: !!bundle.ucpJar,
+    // The bridge JDK major is not known synchronously here; the label degrades gracefully without it.
+    compatibilityLabel: compatibilityLabelFor(bundle)
+  };
+}
+
+export async function listOracleDriverBundles(): Promise<OracleDriverBundleView[]> {
+  const store = driverBundleStore();
+  const defaultId = store.getDefaultId();
+  return Promise.all(store.list().map((b) => toDriverBundleView(b, defaultId)));
+}
+
+export async function getOracleDriverBundle(id: string): Promise<OracleDriverBundleView | null> {
+  const store = driverBundleStore();
+  const bundle = store.get(id);
+  return bundle ? toDriverBundleView(bundle, store.getDefaultId()) : null;
+}
+
+/** Import a bundle from user-selected jar files (validated + copied + load-tested). */
+export async function importOracleDriverBundle(input: { name: string; sourceFiles: string[] }): Promise<OracleDriverBundleView> {
+  const store = driverBundleStore();
+  const bundle = await store.import(input);
+  // First imported bundle becomes the default automatically.
+  if (!store.getDefaultId()) store.setDefault(bundle.id);
+  return toDriverBundleView(bundle, store.getDefaultId());
+}
+
+/** Re-run checksum + isolated-bridge load validation for a bundle. */
+export async function validateOracleDriverBundle(id: string): Promise<OracleDriverBundleView> {
+  const store = driverBundleStore();
+  const bundle = await store.validate(id);
+  return toDriverBundleView(bundle, store.getDefaultId());
+}
+
+export async function setDefaultOracleDriverBundle(id: string): Promise<void> {
+  driverBundleStore().setDefault(id);
+}
+
+/** Delete a bundle. Refuses while any connection profile still references it. */
+export async function removeOracleDriverBundle(id: string): Promise<void> {
+  const usage = await driverBundleUsageCount(id);
+  if (usage > 0) {
+    throw new OracleBridgeCallError(
+      "INVALID_CONFIGURATION",
+      `This driver bundle is used by ${usage} connection profile${usage === 1 ? "" : "s"}. Remap them to another bundle before deleting it.`
+    );
+  }
+  driverBundleStore().remove(id);
+}
+
+export async function getOracleDriverBundleUsage(id: string): Promise<number> {
+  return driverBundleUsageCount(id);
+}
+
+/** "Test bridge loading" — launch an isolated bridge with the bundle's jars and report the probe. */
+export async function testOracleDriverBundleLoad(id: string): Promise<DriverProbeResult> {
+  const bundle = driverBundleStore().get(id);
+  if (!bundle) throw new OracleBridgeCallError("INVALID_CONFIGURATION", `Driver bundle "${id}" was not found.`);
+  const checksum = driverBundleStore().revalidateChecksums(id);
+  if (checksum === "checksum-failed" || checksum === "missing") {
+    return { probed: false, driverAvailable: false, reason: `Bundle integrity check failed (${checksum}).` };
+  }
+  return probeDriverClasspath(bundleClasspathJars(bundle));
 }

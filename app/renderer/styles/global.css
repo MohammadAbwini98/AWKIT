@@ -4231,6 +4231,146 @@ table {
   margin-left: auto;
 }
 
+/* ── Oracle JDBC Drivers card (Settings › Oracle driver bundles) ─────────────── */
+.form-message.ok-text {
+  color: var(--awkit-success);
+}
+
+.oracle-driver-warning {
+  align-items: flex-start;
+  background: var(--awkit-warning-soft);
+  border: 1px solid var(--awkit-warning-muted);
+  border-radius: var(--radius-md);
+  color: var(--awkit-text-secondary);
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.oracle-driver-warning svg {
+  color: var(--awkit-warning);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.oracle-driver-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.oracle-driver-row {
+  align-items: flex-start;
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.oracle-driver-main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.oracle-driver-title {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.oracle-driver-title strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.oracle-driver-default {
+  color: var(--awkit-accent);
+}
+
+.oracle-driver-badge {
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 8px;
+  text-transform: uppercase;
+}
+
+.oracle-driver-badge.ok {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+
+.oracle-driver-badge.warn {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.oracle-driver-badge.bad {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.oracle-driver-badge.default {
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
+}
+
+.oracle-driver-badge.muted {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  color: var(--awkit-text-muted);
+}
+
+.oracle-driver-meta {
+  color: var(--awkit-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: var(--space-1) var(--space-4);
+}
+
+.oracle-driver-meta strong {
+  color: var(--awkit-text-secondary);
+  font-weight: 600;
+}
+
+.oracle-driver-checksums {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.oracle-driver-checksums div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.oracle-driver-checksums code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.oracle-driver-checksums code.muted {
+  color: var(--awkit-text-muted);
+}
+
+.oracle-driver-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+}
+
 .settings-path-field {
   display: grid;
   gap: 4px;

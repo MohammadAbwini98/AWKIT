@@ -25,6 +25,7 @@
     "verify:oracle-runtime-prep": "tsx scripts/verify-oracle-runtime-prep.mts",
     "verify:oracle-profiles": "tsx scripts/verify-oracle-profiles.mts",
     "verify:oracle-data-source": "tsx scripts/verify-oracle-data-source.mts",
+    "verify:oracle-driver-bundle": "tsx scripts/verify-oracle-driver-bundle.mts",
     "verify:oracle-runtime": "tsx scripts/verify-oracle-runtime.mts",
     "verify:oracle-packaging": "tsx scripts/verify-oracle-packaging.mts",
     "verify:mock-site": "node scripts/verify-mock-site.mjs",

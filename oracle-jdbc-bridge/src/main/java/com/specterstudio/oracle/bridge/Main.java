@@ -34,8 +34,10 @@ import java.util.Map;
  */
 public final class Main {
 
-    private static final String ORACLE_EXECUTOR_CLASS =
+    private static final String ORACLE_UCP_EXECUTOR_CLASS =
         "com.specterstudio.oracle.bridge.exec.OracleUcpQueryExecutor";
+    private static final String ORACLE_JDBC_EXECUTOR_CLASS =
+        "com.specterstudio.oracle.bridge.exec.OracleJdbcQueryExecutor";
 
     public static void main(String[] args) {
         // Capture the true stdout for framing BEFORE redirecting System.out.
@@ -130,15 +132,18 @@ public final class Main {
             System.err.println("[oracle-bridge] using MockQueryExecutor (forced by AWKIT_ORACLE_BRIDGE_MOCK).");
             return new MockQueryExecutor();
         }
-        try {
-            Class<?> cls = Class.forName(ORACLE_EXECUTOR_CLASS);
-            Object instance = cls.getDeclaredConstructor().newInstance();
-            if (instance instanceof QueryExecutor) {
-                System.err.println("[oracle-bridge] using OracleUcpQueryExecutor.");
-                return (QueryExecutor) instance;
-            }
-        } catch (Throwable notPresent) {
-            // Oracle jars/executor absent (offline/dev checkout, or a corrupt/incompatible bundle).
+        // Prefer the real UCP executor when BOTH the ojdbc driver and the ucp pool classes are on the
+        // classpath; else fall back to the non-pooled JDBC executor when only the driver is present.
+        // A driver bundle imported through Settings puts exactly one of these on the classpath.
+        boolean driverPresent = classPresent("oracle.jdbc.OracleDriver");
+        boolean ucpPresent = classPresent("oracle.ucp.jdbc.PoolDataSource");
+        if (driverPresent && ucpPresent) {
+            QueryExecutor ucp = tryInstantiate(ORACLE_UCP_EXECUTOR_CLASS, "OracleUcpQueryExecutor");
+            if (ucp != null) return ucp;
+        }
+        if (driverPresent) {
+            QueryExecutor jdbc = tryInstantiate(ORACLE_JDBC_EXECUTOR_CLASS, "OracleJdbcQueryExecutor (no UCP pooling)");
+            if (jdbc != null) return jdbc;
         }
         if (requireReal) {
             // Production requires a real driver and none loaded — refuse the mock and fail closed.
@@ -149,5 +154,29 @@ public final class Main {
         }
         System.err.println("[oracle-bridge] Oracle driver unavailable — using MockQueryExecutor.");
         return new MockQueryExecutor();
+    }
+
+    /** Whether a class is loadable from the current classpath (drives real-executor selection). */
+    private static boolean classPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (Throwable notPresent) {
+            return false;
+        }
+    }
+
+    /** Reflectively instantiate a compiled executor; returns null if absent or it fails to link. */
+    private static QueryExecutor tryInstantiate(String className, String label) {
+        try {
+            Object instance = Class.forName(className).getDeclaredConstructor().newInstance();
+            if (instance instanceof QueryExecutor) {
+                System.err.println("[oracle-bridge] using " + label + ".");
+                return (QueryExecutor) instance;
+            }
+        } catch (Throwable notPresent) {
+            // Executor class not compiled into this build, or a referenced Oracle class is missing.
+        }
+        return null;
     }
 }

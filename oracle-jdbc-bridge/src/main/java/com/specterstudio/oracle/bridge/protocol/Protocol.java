@@ -19,6 +19,8 @@ public final class Protocol {
     // ── Operations ───────────────────────────────────────────────────────────
     public static final String OP_HELLO = "hello";
     public static final String OP_HEALTH = "health";
+    /** Reflective driver-load probe (core; no executor/DB needed) — used to validate imported bundles. */
+    public static final String OP_DRIVER_PROBE = "driverProbe";
     public static final String OP_TEST_CONNECTION = "testConnection";
     public static final String OP_EXECUTE_QUERY = "executeQuery";
     public static final String OP_CANCEL_QUERY = "cancelQuery";
