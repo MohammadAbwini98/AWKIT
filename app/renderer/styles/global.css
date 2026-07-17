@@ -692,6 +692,17 @@ button:not(:disabled):not([role="switch"]):active,
   width: 32px;
 }
 
+/* SpecterStudio app mark (concept 1c) used as the sidebar brand icon. The squircle shape
+   is baked into the SVG (transparent corners); the radius here only rounds the drop shadow. */
+.brand-app-icon {
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(16, 15, 21, 0.24);
+  display: block;
+  flex-shrink: 0;
+  height: 32px;
+  width: 32px;
+}
+
 .navigation-list {
   display: flex;
   flex-direction: column;

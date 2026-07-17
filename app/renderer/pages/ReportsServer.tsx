@@ -71,7 +71,7 @@ function ServerContent({ data }: { data: ServerReport }) {
         <MetricCard
           label="Chromium memory"
           value={data.chromiumMemoryMb === undefined ? "—" : `${data.chromiumMemoryMb.toLocaleString()} MB`}
-          detail={data.processAvailability === "full" ? "AWKIT-owned Chromium tree" : "process sampling unavailable"}
+          detail={data.processAvailability === "full" ? "SpecterStudio-owned Chromium tree" : "process sampling unavailable"}
           icon={<Cpu size={22} />}
         />
       </div>

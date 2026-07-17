@@ -145,7 +145,7 @@ function RuntimeContent({ data }: { data: RuntimeHistory }) {
         <div className="awkit-report-panel-head">
           <div>
             <strong>Chrome processes over time</strong>
-            <span>AWKIT-owned Chromium process count</span>
+            <span>SpecterStudio-owned Chromium process count</span>
           </div>
         </div>
         <ConsumptionTimeline series={procCount} />
@@ -244,7 +244,7 @@ function CapacityEffectivenessPanel({ capacity }: { capacity: CapacityAnalytics 
     { label: "System CPU", value: fmtStat(capacity.systemCpu, "%"), environmental: true },
     { label: "System memory", value: fmtStat(capacity.systemMemory, "%"), environmental: true },
     { label: "Chromium RSS", value: fmtStat(capacity.chromiumRssMb, " MB"), environmental: true },
-    { label: "AWKIT RSS", value: fmtStat(capacity.awkitRssMb, " MB"), environmental: true },
+    { label: "SpecterStudio RSS", value: fmtStat(capacity.awkitRssMb, " MB"), environmental: true },
     { label: "Adaptive target", value: fmtStat(capacity.adaptiveTarget) },
     { label: "Active workflows", value: fmtStat(capacity.activeFlows) },
     { label: "Queued workflows", value: fmtStat(capacity.queuedFlows) },

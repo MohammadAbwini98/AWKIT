@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Final refinement: Specter ringed segmented S -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Specter segmented S application icon</title>
+  <desc id="desc">A dark violet glass squircle with a bold five-segment S inside a restrained lavender ring.</desc>
+
+  <defs>
+    <linearGradient id="tile-field" x1="119" y1="108" x2="397" y2="405" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.66"/>
+      <stop offset="0.26" stop-color="#7c3aed" stop-opacity="0.35"/>
+      <stop offset="0.58" stop-color="#0e1016" stop-opacity="0.90"/>
+      <stop offset="1" stop-color="#0e1016"/>
+    </linearGradient>
+
+    <radialGradient id="violet-bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(157 130) rotate(45) scale(264)">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.78"/>
+      <stop offset="0.28" stop-color="#8b5cf6" stop-opacity="0.46"/>
+      <stop offset="0.60" stop-color="#7c3aed" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="corner-depth" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(386 390) rotate(-135) scale(238)">
+      <stop offset="0" stop-color="#0e1016" stop-opacity="0.94"/>
+      <stop offset="0.64" stop-color="#0e1016" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="glass-sheen" x1="132" y1="104" x2="308" y2="282" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f3f0ff" stop-opacity="0.24"/>
+      <stop offset="0.36" stop-color="#f3f0ff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#f3f0ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="rim-light" x1="111" y1="104" x2="393" y2="406" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f3f0ff" stop-opacity="0.34"/>
+      <stop offset="0.46" stop-color="#a78bfa" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0.46"/>
+    </linearGradient>
+
+    <linearGradient id="ring-light" x1="166" y1="146" x2="350" y2="371" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f3f0ff"/>
+      <stop offset="0.54" stop-color="#f3f0ff" stop-opacity="0.82"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+
+    <clipPath id="tile-clip">
+      <path d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"/>
+    </clipPath>
+
+    <filter id="tile-shadow" x="58" y="61" width="396" height="414" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="15" flood-color="#0e1016" flood-opacity="0.74"/>
+    </filter>
+  </defs>
+
+  <g id="tile" filter="url(#tile-shadow)">
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="#0e1016"
+    />
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="url(#tile-field)"
+    />
+  </g>
+
+  <g id="glass" clip-path="url(#tile-clip)">
+    <rect x="97" y="97" width="318" height="318" fill="url(#violet-bloom)"/>
+    <rect x="97" y="97" width="318" height="318" fill="url(#corner-depth)"/>
+    <path
+      d="M97 97H415V194C352 170 291 168 230 185C177 200 135 200 97 187V97Z"
+      fill="url(#glass-sheen)"
+    />
+    <path
+      d="M114 187C114 145 139 116 181 108H321"
+      fill="none"
+      stroke="#f3f0ff"
+      stroke-width="7"
+      stroke-linecap="round"
+      stroke-opacity="0.18"
+    />
+    <path
+      d="M121 361C164 388 214 399 269 396C320 394 362 380 394 356"
+      fill="none"
+      stroke="#0e1016"
+      stroke-width="20"
+      stroke-linecap="round"
+      stroke-opacity="0.24"
+    />
+  </g>
+
+  <g id="tile-rim">
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="none"
+      stroke="url(#rim-light)"
+      stroke-width="5"
+    />
+  </g>
+
+  <g id="ring">
+    <circle
+      cx="256"
+      cy="256"
+      r="138"
+      fill="#0e1016"
+      fill-opacity="0.08"
+      stroke="url(#ring-light)"
+      stroke-width="10"
+    />
+  </g>
+
+  <g id="specter-mark" fill="#f3f1f8">
+    <rect x="186" y="158" width="140" height="34" rx="10"/>
+    <rect x="178" y="202" width="42" height="36" rx="10"/>
+    <rect x="202" y="246" width="124" height="34" rx="10"/>
+    <rect x="292" y="290" width="42" height="36" rx="10"/>
+    <rect x="186" y="334" width="140" height="34" rx="10"/>
+  </g>
+</svg>

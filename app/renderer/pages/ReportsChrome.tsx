@@ -99,7 +99,7 @@ function ChromeContent({ status }: { status: NonNullable<ReturnType<typeof useRu
         <MetricCard
           label="Chromium processes"
           value={proc?.chromiumProcessCount === undefined ? "—" : <AnimatedCounter value={proc.chromiumProcessCount} />}
-          detail={proc?.availability === "full" ? "AWKIT-owned process tree" : "process sampling unavailable"}
+          detail={proc?.availability === "full" ? "SpecterStudio-owned process tree" : "process sampling unavailable"}
           icon={<Cpu size={22} />}
         />
         <MetricCard
