@@ -74,7 +74,7 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
     if (!(section in manifest)) issues.push(`Manifest is missing required section: ${section}.`);
   }
 
-  if (manifest.application?.name !== "WebFlow Studio") issues.push("Manifest application name must be WebFlow Studio.");
+  if (manifest.application?.name !== "SpecterStudio") issues.push("Manifest application name must be SpecterStudio.");
   if (!manifest.application?.version) issues.push("Manifest application version is required.");
   if (!manifest.application?.buildMode) issues.push("Manifest build mode is required.");
   if (!manifest.application?.builtAt) issues.push("Manifest build timestamp is required.");
@@ -106,7 +106,7 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
 
   for (const pathKey of requiredPaths) {
     const value = manifest.paths?.[pathKey];
-    if (!value?.startsWith("%LOCALAPPDATA%/WebFlow Studio")) {
+    if (!value?.startsWith("%LOCALAPPDATA%/SpecterStudio")) {
       issues.push(`Manifest path must use the user profile runtime root: ${pathKey}.`);
     }
   }

@@ -44,9 +44,9 @@ import { capturePackagedAppPids, ensurePackagedAppDead, type PackagedAppPids } f
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
-const exePath = join(unpackedDir, "WebFlow Studio.exe");
-const portableExePath = join(root, "dist", "WebFlow Studio 0.1.0.exe");
-const setupExePath = join(root, "dist", "WebFlow Studio Setup 0.1.0.exe");
+const exePath = join(unpackedDir, "SpecterStudio.exe");
+const portableExePath = join(root, "dist", "SpecterStudio 0.1.0.exe");
+const setupExePath = join(root, "dist", "SpecterStudio Setup 0.1.0.exe");
 const latestYmlPath = join(root, "dist", "latest.yml");
 const fixturesRoot = join(root, "resources", "test-fixtures", "mock-site");
 
@@ -264,7 +264,7 @@ async function pidAlive(pid: number): Promise<boolean> {
 }
 
 /**
- * The packaged "WebFlow Studio.exe" that Playwright spawns is a LAUNCHER STUB — the real
+ * The packaged "SpecterStudio.exe" that Playwright spawns is a LAUNCHER STUB — the real
  * Electron main process is its child (verified empirically: spawned pid != main process.pid,
  * and killing the stub leaves the app alive). Register BOTH pids (chrome roots are children
  * of the real main) and always target the real main for kill scenarios. Every launched
@@ -469,7 +469,7 @@ async function main(): Promise<void> {
     );
     summary.environment = envA;
 
-    const appRoot = join(freshRootA, "WebFlow Studio");
+    const appRoot = join(freshRootA, "SpecterStudio");
     for (const folder of ["flows", "workflows", "logs", "screenshots", "runtime"]) {
       check(`fresh runtime folder created: ${folder}/`, existsSync(join(appRoot, folder)));
     }
@@ -759,11 +759,11 @@ async function main(): Promise<void> {
     console.log("\nPart K — the ACTUAL portable EXE boots on a second fresh profile");
     portableProc = spawn(portableExePath, [], { env: appEnv(freshRootB) as never, stdio: "ignore", detached: false });
     const portablePid = portableProc.pid!;
-    const portableSqlite = join(freshRootB, "WebFlow Studio", "runtime", "runtime.sqlite");
+    const portableSqlite = join(freshRootB, "SpecterStudio", "runtime", "runtime.sqlite");
     const portableBooted = await pollUntil(async () => (existsSync(portableSqlite) ? true : null), 240000, 2000);
     check("portable EXE created the durable runtime on a fresh profile", portableBooted === true, portableSqlite);
     if (portableBooted) {
-      check("portable-run runtime folders created", existsSync(join(freshRootB, "WebFlow Studio", "flows")));
+      check("portable-run runtime folders created", existsSync(join(freshRootB, "SpecterStudio", "flows")));
       const bytes = await readFile(portableSqlite);
       check("portable-run runtime.sqlite has a valid SQLite header", bytes.subarray(0, 16).toString("utf8").startsWith("SQLite format 3"));
     }
@@ -778,7 +778,7 @@ async function main(): Promise<void> {
       hash.update(await readFile(setupExePath));
       const actual = hash.digest("base64");
       // electron-builder writes the URL-safe (dash-separated) artifact name into latest.yml.
-      check("latest.yml declares the Setup artifact", yml.includes("WebFlow-Studio-Setup-0.1.0.exe") || yml.includes("WebFlow Studio Setup 0.1.0.exe"));
+      check("latest.yml declares the Setup artifact", yml.includes("SpecterStudio-Setup-0.1.0.exe") || yml.includes("SpecterStudio Setup 0.1.0.exe"));
       check("NSIS installer sha512 matches latest.yml (bit-exact build)", declared === actual, `declared ${declared.slice(0, 16)}… vs actual ${actual.slice(0, 16)}…`);
     } else {
       check("NSIS installer + latest.yml present for integrity check", false);

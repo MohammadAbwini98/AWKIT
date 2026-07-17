@@ -101,7 +101,7 @@ export function ProtectedLoginHandoffPanel({ instances, capabilities, workflowNa
             </div>
 
             <p className="plh-note">
-              WebFlow Studio will not bypass CAPTCHA, MFA, or bot-detection. OAuth (when configured) is for
+              SpecterStudio will not bypass CAPTCHA, MFA, or bot-detection. OAuth (when configured) is for
               provider-approved API auth in your system browser — it does not transfer UI cookies into the automation browser.
             </p>
           </section>

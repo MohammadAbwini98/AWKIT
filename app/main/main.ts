@@ -22,8 +22,8 @@ async function passesOfflineStartupGate(): Promise<boolean> {
 
   dialog.showMessageBoxSync({
     type: "error",
-    title: "WebFlow Studio",
-    message: "WebFlow Studio cannot start because required offline runtime assets are missing.",
+    title: "SpecterStudio",
+    message: "SpecterStudio cannot start because required offline runtime assets are missing.",
     detail:
       `${gate.blockingFailures.map((failure) => `• ${failure}`).join("\n")}\n\n` +
       "Rebuild the offline bundle with:\n  npm run prepare:offline\n  npm run package:offline",

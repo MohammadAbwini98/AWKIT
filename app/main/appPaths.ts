@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createRuntimePaths, runtimeFolderNames, type RuntimePaths } from "@src/offline/PortablePathResolver";
 
 /** Stable runtime-data folder name under %LOCALAPPDATA% (matches the product name). */
-export const RUNTIME_DATA_FOLDER = "WebFlow Studio";
+export const RUNTIME_DATA_FOLDER = "SpecterStudio";
 
 export function getRuntimeDataRoot(): string {
   return join(process.env.LOCALAPPDATA ?? app.getPath("appData"), RUNTIME_DATA_FOLDER);

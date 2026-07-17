@@ -14,7 +14,7 @@ Root `AGENTS.md` + `docs/ai/COMMANDS.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/OFFLI
   JSON via `[System.IO.File]::WriteAllText(path, json, (New-Object System.Text.UTF8Encoding($false)))`.
 - **Keep validators in sync.** The dependency-manifest is validated in **both**
   `validate-offline-bundle.ps1` and `src/offline/DependencyManifest.ts`; the app name/paths
-  (`WebFlow Studio`, `%LOCALAPPDATA%/WebFlow Studio/...`) must match across the generator and both
+  (`SpecterStudio`, `%LOCALAPPDATA%/SpecterStudio/...`) must match across the generator and both
   validators, or strict packaging / the startup gate will fail.
 - **Safety:** scripts should be repeatable and non-destructive by default; don't print secrets;
   document any required env vars (e.g. `MOCK_SITE_PORT`). Packaging needs internet on first run

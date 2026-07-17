@@ -18,13 +18,13 @@ live scenarios in `mock-site/README.md` and prefer extending existing lab URLs (
 ```bash
 npm run mock-site          # start the offline mock website (terminal 1)
 npm run seed:mock-fixtures # import these fixtures into the local runtime userData folders (terminal 2)
-npm run dev                # open WebFlow Studio; the Mock — flows/workflows/data source appear
+npm run dev                # open SpecterStudio; the Mock — flows/workflows/data source appear
 ```
 
 `seed:mock-fixtures` is explicit and dev-only. It writes:
-- flows  → `%LOCALAPPDATA%/WebFlow Studio/flows/`
-- workflows → `%LOCALAPPDATA%/WebFlow Studio/workflows/`
-- data source → `%LOCALAPPDATA%/WebFlow Studio/data/` (+ data file under `data/files/`)
+- flows  → `%LOCALAPPDATA%/SpecterStudio/flows/`
+- workflows → `%LOCALAPPDATA%/SpecterStudio/workflows/`
+- data source → `%LOCALAPPDATA%/SpecterStudio/data/` (+ data file under `data/files/`)
 
 (or the custom paths configured in Settings → Paths). Re-running is idempotent.
 

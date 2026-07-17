@@ -32,7 +32,7 @@ class DataSourceReadError extends Error {
 function assertReadableDataFile(resolved: string): void {
   if (isReadableDataSourceFile(getRuntimeDataRoot(), getConfiguredPaths().dataSources, resolved)) return;
   throw new DataSourceReadError(
-    "This file is inside a WebFlow Studio data folder (sessions/reports/logs/runtime store) and cannot be used as a data source."
+    "This file is inside a SpecterStudio data folder (sessions/reports/logs/runtime store) and cannot be used as a data source."
   );
 }
 

@@ -22,7 +22,7 @@ concurrency:
 jobs:
   build:
     name: Typecheck & Build
-    # WebFlow Studio is a Windows desktop app; run CI on the target OS so the
+    # SpecterStudio is a Windows desktop app; run CI on the target OS so the
     # bundling step matches the documented developer commands.
     runs-on: windows-latest
 

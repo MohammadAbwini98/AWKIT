@@ -22,10 +22,10 @@ const APPDATA_ROOT = process.env.AWKIT_BENCH_APPDATA ?? join(os.tmpdir(), "awkit
 /** electron.app — path/mode provider. isPackaged=false → dev paths (resources = cwd/resources). */
 export const app = {
   isPackaged: false,
-  name: "WebFlow Studio",
+  name: "SpecterStudio",
   getPath: (name) => join(APPDATA_ROOT, String(name ?? "appData")),
   getAppPath: () => process.cwd(),
-  getName: () => "WebFlow Studio",
+  getName: () => "SpecterStudio",
   getVersion: () => "0.0.0-bench",
   getLocale: () => "en-US",
   whenReady: () => Promise.resolve(),

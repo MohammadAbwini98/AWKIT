@@ -1,6 +1,6 @@
 {
-  "appId": "com.webflowstudio.app",
-  "productName": "WebFlow Studio",
+  "appId": "com.specterstudio.app",
+  "productName": "SpecterStudio",
   "directories": {
     "output": "dist",
     "buildResources": "resources"

@@ -27,7 +27,7 @@ const asar = requireFromHere("@electron/asar") as { listPackage(archive: string,
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
-const exePath = join(unpackedDir, "WebFlow Studio.exe");
+const exePath = join(unpackedDir, "SpecterStudio.exe");
 const asarPath = join(unpackedDir, "resources", "app.asar");
 const packagedResources = join(unpackedDir, "resources", "resources");
 
@@ -117,9 +117,9 @@ async function main(): Promise<void> {
     );
     const localAppData = process.env.LOCALAPPDATA ?? "";
     check(
-      "runtime root is the writable %LOCALAPPDATA%/WebFlow Studio (not resources/app.asar)",
+      "runtime root is the writable %LOCALAPPDATA%/SpecterStudio (not resources/app.asar)",
       typeof environment?.runtimeRoot === "string" &&
-        environment.runtimeRoot.toLowerCase().startsWith(join(localAppData, "WebFlow Studio").toLowerCase()) &&
+        environment.runtimeRoot.toLowerCase().startsWith(join(localAppData, "SpecterStudio").toLowerCase()) &&
         !environment.runtimeRoot.includes("app.asar"),
       environment?.runtimeRoot
     );

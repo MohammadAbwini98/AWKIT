@@ -4,7 +4,7 @@
  * Writes real `SqliteRuntimeStore` databases into per-state roots laid out exactly like the app expects, so
  * launching Electron with `LOCALAPPDATA` pointed at a state root makes the app read that fixture:
  *
- *   <root>/<state>/WebFlow Studio/runtime/runtime.sqlite   ← engine opens join(LOCALAPPDATA, "WebFlow Studio", "runtime", "runtime.sqlite")
+ *   <root>/<state>/SpecterStudio/runtime/runtime.sqlite   ← engine opens join(LOCALAPPDATA, "SpecterStudio", "runtime", "runtime.sqlite")
  *
  * States produced (default all): normal, empty, migration, high-data. Deterministic (seeded PRNG).
  *
@@ -24,7 +24,7 @@ import {
   type DurableRunRecord
 } from "@src/runner/store/RuntimeStoreSchema";
 
-const RUNTIME_DATA_FOLDER = "WebFlow Studio";
+const RUNTIME_DATA_FOLDER = "SpecterStudio";
 const DAY_MS = 86_400_000;
 const WORKFLOWS = 10;
 

@@ -1,5 +1,5 @@
 {
-  "applicationName": "WebFlow Studio",
+  "applicationName": "SpecterStudio",
   "offlineMode": true,
   "productionOffline": true,
   "requiresInternet": false,
@@ -13,5 +13,5 @@
     "executablePath": "resources/browsers/chromium/chrome.exe"
   },
   "runtimeDataLocation": "Electron userData (fixed under %LOCALAPPDATA%)",
-  "runtimeDataPath": "%LOCALAPPDATA%/WebFlow Studio"
+  "runtimeDataPath": "%LOCALAPPDATA%/SpecterStudio"
 }

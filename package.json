@@ -1,5 +1,6 @@
 {
-  "name": "playwright-flow-studio",
+  "name": "specterstudio",
+  "productName": "SpecterStudio",
   "version": "0.1.0",
   "description": "Offline-capable Windows desktop studio for visual Playwright automation.",
   "private": true,
