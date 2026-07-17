@@ -134,3 +134,8 @@ get-videos.mjs
 
 # Phase 5 observability UI walkthrough fixtures (seeded DBs; regenerate with seed-observability-fixtures.mts)
 .fixtures-observability/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+.beads/proxieddb/
