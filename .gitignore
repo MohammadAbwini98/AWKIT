@@ -41,6 +41,14 @@ resources/oracle-jdbc/runtime/
 resources/oracle-jdbc/bridge/
 resources/oracle-jdbc/lib/
 
+# === Logo design exploration: superseded pre-rename families ===
+# The SHIPPED mark's design source of truth is logos/specter-violet/, which IS tracked — do not
+# add a blanket `logos/` rule here or new files under it would be silently ignored.
+logos/awkit-violet/
+logos/concepts/
+logos/iterations/
+logos/preview.html
+
 # === Playwright ===
 test-results/
 playwright-report/
