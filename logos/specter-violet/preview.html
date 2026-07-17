@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Specter Icon — Concepts and Final</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0e1016;
+    color: #f3f1f8;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  h1, h2 { margin: 0; }
+  h1 { font-size: 1.5rem; }
+  h2 { margin-top: 2.5rem; font-size: 1.1rem; }
+  p { color: #a78bfa; }
+  button {
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.25rem;
+  }
+  .card {
+    overflow: hidden;
+    border: 1px solid rgba(167, 139, 250, 0.24);
+    border-radius: 1rem;
+    background: #151722;
+  }
+  .card.final { border-color: rgba(167, 139, 250, 0.72); }
+  .card-img {
+    display: grid;
+    min-height: 260px;
+    place-items: center;
+    padding: 1.75rem;
+    background:
+      linear-gradient(45deg, #171a24 25%, transparent 25%),
+      linear-gradient(-45deg, #171a24 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #171a24 75%),
+      linear-gradient(-45deg, transparent 75%, #171a24 75%),
+      #0e1016;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-size: 16px 16px;
+  }
+  .card-img img { width: min(100%, 220px); height: auto; }
+  .card-label { padding: 0.85rem 1rem; border-top: 1px solid rgba(167, 139, 250, 0.18); }
+  .card-label strong { display: block; }
+  .card-label span { color: #a78bfa; font-size: 0.85rem; }
+  .size-strip {
+    display: flex;
+    align-items: end;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding: 1.25rem;
+    border: 1px solid rgba(167, 139, 250, 0.24);
+    border-radius: 1rem;
+    background: #151722;
+  }
+  .size {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+    color: #a78bfa;
+    font-size: 0.75rem;
+  }
+  body.light { background: #f3f1f8; color: #0e1016; }
+  body.light p, body.light .card-label span, body.light .size { color: #7c3aed; }
+  body.light .card, body.light .size-strip { background: #ffffff; border-color: rgba(124, 58, 237, 0.22); }
+  body.light .card-label { border-color: rgba(124, 58, 237, 0.14); }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Specter Application Icon</h1>
+      <p>Hologram violet segmented-S exploration and selected refinement.</p>
+    </div>
+    <button type="button" onclick="document.body.classList.toggle('light')">Toggle theme</button>
+  </header>
+
+  <div class="grid">
+    <article class="card final">
+      <div class="card-img">
+        <img src="iterations/iteration-1-specter-ringed.svg" alt="Selected Specter ringed segmented S">
+      </div>
+      <div class="card-label">
+        <strong>Selected — Ringed Specter S</strong>
+        <span>Five macro segments, restrained ring, dark Hologram glass tile.</span>
+      </div>
+    </article>
+  </div>
+
+  <h2>Exploration</h2>
+  <div class="grid">
+    <article class="card">
+      <div class="card-img">
+        <img src="concepts/concept-1-ringed-s.svg" alt="Ringed macro-segment S concept">
+      </div>
+      <div class="card-label">
+        <strong>Ringed macro S</strong>
+        <span>Reference-emblem enclosure with five large segments.</span>
+      </div>
+    </article>
+    <article class="card">
+      <div class="card-img">
+        <img src="concepts/concept-2-luminous-s.svg" alt="Luminous multi-brick S concept">
+      </div>
+      <div class="card-label">
+        <strong>Luminous brick S</strong>
+        <span>Eleven violet-to-white blocks without an enclosure.</span>
+      </div>
+    </article>
+    <article class="card">
+      <div class="card-img">
+        <img src="concepts/concept-3-halo-s.svg" alt="Open-halo segmented S concept">
+      </div>
+      <div class="card-label">
+        <strong>Open-halo S</strong>
+        <span>Five segments framed by opposing technical arcs.</span>
+      </div>
+    </article>
+  </div>
+
+  <h2>Favicon size check</h2>
+  <div class="size-strip">
+    <div class="size"><img src="iterations/iteration-1-specter-ringed.svg" width="64" height="64" alt=""><span>64px</span></div>
+    <div class="size"><img src="iterations/iteration-1-specter-ringed.svg" width="48" height="48" alt=""><span>48px</span></div>
+    <div class="size"><img src="iterations/iteration-1-specter-ringed.svg" width="32" height="32" alt=""><span>32px</span></div>
+    <div class="size"><img src="iterations/iteration-1-specter-ringed.svg" width="24" height="24" alt=""><span>24px</span></div>
+    <div class="size"><img src="iterations/iteration-1-specter-ringed.svg" width="16" height="16" alt=""><span>16px</span></div>
+  </div>
+</body>
+</html>

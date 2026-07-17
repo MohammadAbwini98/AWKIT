@@ -2,15 +2,76 @@ import { BrowserWindow, shell } from "electron";
 import { join } from "node:path";
 import { getResourcesRoot } from "./appPaths";
 
-export function createMainWindow(): BrowserWindow {
+/**
+ * Frameless launch splash. Shows the Specter Studio brand animation (a self-contained,
+ * offline canvas loop in `renderer/splash.html`) while the main window boots, then fades out.
+ * Deliberately has no preload/node access — it only draws to a canvas.
+ */
+export function createSplashWindow(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 760,
+    height: 570, // 4:3, matching the reference composition
+    resizable: false,
+    frame: false,
+    show: false,
+    center: true,
+    title: "SpecterStudio",
+    icon: join(getResourcesRoot(), "icon.ico"),
+    backgroundColor: "#0e1016",
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  splash.once("ready-to-show", () => {
+    if (!splash.isDestroyed()) splash.show();
+  });
+
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+  if (rendererUrl) {
+    void splash.loadURL(new URL("splash.html", rendererUrl).href);
+  } else {
+    void splash.loadFile(join(__dirname, "../renderer/splash.html"));
+  }
+
+  return splash;
+}
+
+/**
+ * Fade a window's opacity to zero over ~0.45s, then close it. Used to dissolve the splash
+ * into the main window once it is ready, avoiding a hard cut.
+ */
+export function fadeOutAndClose(win: BrowserWindow): void {
+  if (win.isDestroyed()) return;
+  let opacity = 1;
+  const step = (): void => {
+    if (win.isDestroyed()) return;
+    opacity -= 0.08;
+    if (opacity <= 0) {
+      win.close();
+      return;
+    }
+    win.setOpacity(opacity);
+    setTimeout(step, 16);
+  };
+  step();
+}
+
+export function createMainWindow(options: { show?: boolean } = {}): BrowserWindow {
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1100,
     minHeight: 720,
-    title: "WebFlow Studio",
+    title: "SpecterStudio",
     icon: join(getResourcesRoot(), "icon.ico"),
     backgroundColor: "#f6f7fb",
+    // Defer painting until the renderer is ready when a splash is coordinating the handoff.
+    show: options.show ?? true,
     // The native OS/Electron title bar is removed; AWKIT draws its own application frame in the
     // renderer (see layout/AppFrame.tsx). The window stays resizable via the OS edge hit-testing.
     frame: false,

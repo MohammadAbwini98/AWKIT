@@ -39,7 +39,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          renderer: resolve(__dirname, "app/renderer/index.html")
+          renderer: resolve(__dirname, "app/renderer/index.html"),
+          splash: resolve(__dirname, "app/renderer/splash.html")
         }
       }
     },

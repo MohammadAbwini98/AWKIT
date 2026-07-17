@@ -4,6 +4,13 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Confirmed (observed during development)
 
+- **ICO frame-offset corruption in `png-to-ico` 2.1.0 — FIXED (2026-07-16).**
+  `scripts/generate-app-icon.mjs` previously passed multiple PNGs to `png-to-ico`. Its DIB writer appended
+  an AND mask but omitted those bytes from each directory entry's length and the next frame's offset, so a
+  nominally multi-frame ICO could point into previous-frame mask data. The generator now embeds each RGBA
+  PNG directly in the ICO, calculates exact offsets, and validates frame signature/dimensions/bit depth
+  before writing. The package may remain installed as an unused dev dependency, but do not reintroduce it
+  into the icon path without a byte-level multi-frame validation.
 - **Soak-benchmark accounting bugs — FIXED (2026-07-16), not observability defects.** In
   `scripts/benchmark-engine-soak.mts`: (1) the run-summary invariant compared `runObsSummaries` (all terminal
   runs) against `durableTerminalRuns = completed + failed` read **pre-teardown** — omitting the `cancelled`

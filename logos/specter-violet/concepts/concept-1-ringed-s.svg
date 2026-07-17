@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Concept 1: Specter Ringed Macro-Segment S -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Specter ringed S application icon</title>
+  <desc id="desc">A violet glass squircle containing a bold segmented S inside a lavender ring.</desc>
+
+  <defs>
+    <linearGradient id="tile-depth" x1="0.08" y1="0.04" x2="0.92" y2="0.96">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.32"/>
+      <stop offset="0.26" stop-color="#8b5cf6" stop-opacity="0.24"/>
+      <stop offset="0.58" stop-color="#7c3aed" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0.98"/>
+    </linearGradient>
+
+    <radialGradient id="violet-glow" cx="0.2" cy="0.14" r="0.88">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.58"/>
+      <stop offset="0.25" stop-color="#8b5cf6" stop-opacity="0.38"/>
+      <stop offset="0.56" stop-color="#7c3aed" stop-opacity="0.17"/>
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="glass-sheen" x1="0.14" y1="0.03" x2="0.72" y2="0.8">
+      <stop offset="0" stop-color="#f3f0ff" stop-opacity="0.22"/>
+      <stop offset="0.32" stop-color="#f3f0ff" stop-opacity="0.07"/>
+      <stop offset="0.72" stop-color="#f3f0ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="ring-light" x1="0.16" y1="0.08" x2="0.86" y2="0.92">
+      <stop offset="0" stop-color="#f3f0ff" stop-opacity="0.96"/>
+      <stop offset="0.48" stop-color="#f3f0ff" stop-opacity="0.74"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0.86"/>
+    </linearGradient>
+
+    <linearGradient id="rim-light" x1="0.05" y1="0.02" x2="0.82" y2="0.94">
+      <stop offset="0" stop-color="#f3f0ff" stop-opacity="0.28"/>
+      <stop offset="0.42" stop-color="#f3f0ff" stop-opacity="0.08"/>
+      <stop offset="0.72" stop-color="#f3f0ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <clipPath id="tile-clip">
+      <rect x="97" y="97" width="318" height="318" rx="70"/>
+    </clipPath>
+
+    <filter id="tile-shadow" x="-30%" y="-30%" width="160%" height="175%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+
+    <filter id="mark-depth" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" result="blur"/>
+      <feOffset in="blur" dy="4" result="offset"/>
+      <feFlood flood-color="#0e1016" flood-opacity="0.54" result="shadow-color"/>
+      <feComposite in="shadow-color" in2="offset" operator="in" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g id="tile">
+    <rect x="111" y="120" width="290" height="302" rx="65"
+      fill="#0e1016" opacity="0.72" filter="url(#tile-shadow)"/>
+    <rect x="97" y="97" width="318" height="318" rx="70" fill="#0e1016"/>
+    <rect x="97" y="97" width="318" height="318" rx="70" fill="url(#tile-depth)"/>
+    <rect x="97" y="97" width="318" height="318" rx="70" fill="url(#violet-glow)"/>
+  </g>
+
+  <g id="glass" clip-path="url(#tile-clip)">
+    <path d="M97 97h318v124c-69-25-137-29-201-12-43 11-82 9-117-5z"
+      fill="url(#glass-sheen)"/>
+    <ellipse cx="176" cy="143" rx="116" ry="76" fill="#f3f0ff" opacity="0.045"/>
+    <path d="M112 192c0-44 31-80 75-80h133"
+      fill="none" stroke="#f3f0ff" stroke-width="8" stroke-linecap="round" opacity="0.16"/>
+    <rect x="102.5" y="102.5" width="307" height="307" rx="65"
+      fill="none" stroke="url(#rim-light)" stroke-width="5"/>
+    <path d="M123 361c44 28 93 40 147 37 48-2 89-15 122-39"
+      fill="none" stroke="#0e1016" stroke-width="22" stroke-linecap="round" opacity="0.2"/>
+  </g>
+
+  <g id="ring">
+    <circle cx="256" cy="256" r="120"
+      fill="#0e1016" fill-opacity="0.08"
+      stroke="url(#ring-light)" stroke-width="12"/>
+    <path d="M170 172a120 120 0 0 1 161-7"
+      fill="none" stroke="#f3f0ff" stroke-width="4" stroke-linecap="round" opacity="0.22"/>
+  </g>
+
+  <g id="specter-mark" fill="#f3f1f8" filter="url(#mark-depth)">
+    <rect x="196" y="173" width="120" height="34" rx="10"/>
+    <rect x="194" y="213" width="38" height="38" rx="10"/>
+    <rect x="210" y="257" width="106" height="34" rx="10"/>
+    <rect x="280" y="297" width="38" height="38" rx="10"/>
+    <rect x="196" y="341" width="120" height="34" rx="10"/>
+  </g>
+</svg>

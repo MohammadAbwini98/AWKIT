@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Concept 3: Open-Halo Engineered S -->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+  role="img"
+  aria-labelledby="specter-title specter-description"
+>
+  <title id="specter-title">Specter open-halo application icon</title>
+  <desc id="specter-description">
+    A violet glass squircle containing a bold segmented S framed by two open halo arcs.
+  </desc>
+
+  <defs>
+    <clipPath id="tile-clip">
+      <path d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z" />
+    </clipPath>
+
+    <linearGradient id="tile-field" x1="123" y1="111" x2="395" y2="405" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7c3aed" />
+      <stop offset="0.2" stop-color="#8b5cf6" />
+      <stop offset="0.48" stop-color="#0e1016" />
+      <stop offset="1" stop-color="#0e1016" />
+    </linearGradient>
+
+    <radialGradient id="violet-bloom" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(151 132) rotate(45) scale(262)">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.9" />
+      <stop offset="0.22" stop-color="#8b5cf6" stop-opacity="0.65" />
+      <stop offset="0.5" stop-color="#7c3aed" stop-opacity="0.32" />
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="corner-depth" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(387 390) rotate(-135) scale(225)">
+      <stop offset="0" stop-color="#0e1016" stop-opacity="0.9" />
+      <stop offset="0.6" stop-color="#0e1016" stop-opacity="0.38" />
+      <stop offset="1" stop-color="#0e1016" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="glass-sheen" x1="137" y1="108" x2="312" y2="314" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26" />
+      <stop offset="0.22" stop-color="#ffffff" stop-opacity="0.1" />
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="upper-halo" x1="337" y1="155" x2="138" y2="242" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f3f0ff" />
+      <stop offset="0.5" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#8b5cf6" />
+    </linearGradient>
+
+    <linearGradient id="lower-halo" x1="175" y1="342" x2="374" y2="270" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6" />
+      <stop offset="0.5" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#f3f0ff" />
+    </linearGradient>
+
+    <filter id="tile-shadow" x="65" y="72" width="382" height="390" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="13" stdDeviation="13" flood-color="#0e1016" flood-opacity="0.78" />
+    </filter>
+
+    <filter id="mark-depth" x="166" y="137" width="181" height="250" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#0e1016" flood-opacity="0.62" />
+    </filter>
+  </defs>
+
+  <g id="tile" filter="url(#tile-shadow)">
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="#0e1016"
+    />
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="url(#tile-field)"
+    />
+  </g>
+
+  <g id="glass" clip-path="url(#tile-clip)">
+    <rect x="97" y="97" width="318" height="318" fill="url(#violet-bloom)" />
+    <rect x="97" y="97" width="318" height="318" fill="url(#corner-depth)" />
+    <path
+      d="M118 171C129 127 151 112 192 108H342C369 108 388 118 400 137C362 127 324 128 286 142C231 162 181 177 118 171Z"
+      fill="url(#glass-sheen)"
+    />
+    <path
+      d="M126 118C111 132 105 150 105 176V331"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-opacity="0.16"
+    />
+    <path
+      d="M113 357C125 390 146 404 182 407H337"
+      fill="none"
+      stroke="#f3f0ff"
+      stroke-width="3"
+      stroke-linecap="round"
+      stroke-opacity="0.08"
+    />
+  </g>
+
+  <g id="tile-rim">
+    <path
+      d="M167 97H345C390 97 415 122 415 167V345C415 390 390 415 345 415H167C122 415 97 390 97 345V167C97 122 122 97 167 97Z"
+      fill="none"
+      stroke="#f3f0ff"
+      stroke-width="3"
+      stroke-opacity="0.16"
+    />
+  </g>
+
+  <g id="halo" fill="none" stroke-linecap="round">
+    <path
+      d="M337 168C305 133 251 125 205 143C162 160 138 196 138 242"
+      stroke="url(#upper-halo)"
+      stroke-width="14"
+    />
+    <path
+      d="M175 342C207 379 261 388 307 370C350 354 374 317 374 270"
+      stroke="url(#lower-halo)"
+      stroke-width="14"
+    />
+  </g>
+
+  <g id="specter-mark" fill="#f3f1f8" filter="url(#mark-depth)">
+    <rect x="190" y="151" width="132" height="36" rx="9" />
+    <rect x="178" y="195" width="36" height="40" rx="9" />
+    <rect x="196" y="243" width="132" height="36" rx="9" />
+    <rect x="298" y="287" width="36" height="40" rx="9" />
+    <rect x="190" y="335" width="132" height="36" rx="9" />
+  </g>
+</svg>

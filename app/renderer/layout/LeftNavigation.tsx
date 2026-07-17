@@ -1,7 +1,41 @@
 import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Sun, Workflow } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
+
+/**
+ * The SpecterStudio application mark (concept "1c" — spectral edge): a near-black continuous-corner
+ * squircle with an off-white brick-form "S" whose trailing brick catches a subtle spectrum accent.
+ * Matches resources/icon.* so the in-app brand and the OS/taskbar icon are the same identity.
+ */
+function SpecterAppIcon({ size = 32 }: { size?: number }) {
+  const rid = useId().replace(/:/g, "");
+  const grad = `sp-${rid}`;
+  const clip = `sq-${rid}`;
+  return (
+    <svg className="brand-app-icon" width={size} height={size} viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#7cc7ff" />
+          <stop offset="50%" stopColor="#b98cff" />
+          <stop offset="100%" stopColor="#ff8fa3" />
+        </linearGradient>
+        <clipPath id={clip}>
+          <path d="M512 0 C880 0 1024 144 1024 512 C1024 880 880 1024 512 1024 C144 1024 0 880 0 512 C0 144 144 0 512 0 Z" />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clip})`}>
+        <rect x="0" y="0" width="1024" height="1024" fill="#0f0f0f" />
+        <g transform="translate(302,272) scale(1.4)">
+          <rect x="0" y="0" width="130" height="150" rx="20" fill="#f6f6f6" />
+          <path d="M160 0 H225 Q300 0 300 75 Q300 150 225 150 H160 Z" fill="#f6f6f6" />
+          <path d="M75 190 H140 V340 H75 Q0 340 0 265 Q0 190 75 190 Z" fill={`url(#${grad})`} />
+          <rect x="170" y="190" width="130" height="150" rx="20" fill="#f6f6f6" />
+        </g>
+      </g>
+    </svg>
+  );
+}
 
 const routeGroups = [
   {
@@ -42,11 +76,10 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
       <div className="brand-block">
         <div className="brand-tile">
-          <span className="brand-mark"><Workflow size={17} strokeWidth={2.4} /></span>
+          <SpecterAppIcon size={32} />
           {!collapsed ? (
             <span className="brand-name">
-              <span>WebFlow Studio</span>
-              <small>Automation workbench</small>
+              <span>SpecterStudio</span>
             </span>
           ) : null}
         </div>
@@ -134,7 +167,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
           <div className="nav-workspace" aria-hidden="true">
             <span className="nav-workspace-mark"><Workflow size={15} /></span>
             <span className="nav-workspace-name">
-              <span>WebFlow Studio</span>
+              <span>SpecterStudio</span>
               <small>Offline workspace</small>
             </span>
           </div>
