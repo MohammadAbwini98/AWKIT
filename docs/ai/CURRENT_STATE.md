@@ -1,5 +1,57 @@
 # CURRENT_STATE
 
+## Oracle pending-phase run — 5 of 12 executed, 7 blocked on verified-absent artifacts (2026-07-17)
+
+Ran the 12-phase "pending implementation" plan against merged `main` (`b6e473d`). **Status unchanged:
+`INTEGRATION-CANDIDATE`.** Oracle now **226/226** across 10 verifiers (was 218).
+
+- **Executed:** 01 baseline (build + verifiers green, all 3 fail-closed layers present); 04 fail-closed
+  revalidation (4 of 5 truth-table rows + the plan's Required Product Behavior); **07 lazy behavior — a real
+  gap the plan caught**; 08 full regression; 12 report + summary block.
+- **07 is the substantive change:** the lazy suite used to count an *injected stub*. It now drives the
+  **real Java bridge process** and counts actual `executeQuery` **RPCs at the wire** (12 → 20 checks). The
+  strongest proofs are negative — a Snapshot source and an unreferenced Runtime source leave the Java
+  process **never started** (`manager.isRunning() === false`). Also proves single-flight (3 parallel
+  consumers → 1 RPC), one-query-per-run, and failed-attempt cache eviction → retry re-executes.
+  It additionally covers "runtime unavailable → JSON + Snapshot keep working, Runtime fails safely with
+  `DRIVER_UNAVAILABLE`, no crash".
+- **Blocked (02, 03, 05, 06, 09, 10, 11) — probed, not assumed:** no `ojdbc*/ucp*.jar` anywhere
+  (`~/.m2`/Downloads/Desktop), Maven Central **HTTP 000**, no Docker, no `AWKIT_ORACLE_LIVE_*` creds, no
+  clean Windows box. All seven fail at the same first step — acquiring the artifacts. Evidence table +
+  per-phase unblock steps in `ORACLE_JDBC_VALIDATION_GATES.md`.
+- **Plan assumptions corrected, not obeyed:** it targets "the committed Oracle feature branch" (merged +
+  deleted; baseline is `main`) and expects "rebrand/splash absent" (present **by design** — the rename is
+  an Oracle dependency). Its `ORACLE_RUNTIME_UNAVAILABLE` token maps to the existing `DRIVER_UNAVAILABLE`
+  category; not renamed for cosmetics.
+- **Known non-regression:** `verify:durable-store` **9/2** (SQLite migration checks) fails **identically at
+  `dee283e`**, pre-Oracle (proven in an isolated worktree). Not ours; left alone.
+
+## Shipped to `main` — Oracle JDBC + SpecterStudio rename + launch splash (2026-07-17)
+
+`main` is at `b6e473d`, CI green. Everything below is **merged and no longer local-only**:
+
+- **PR #11** (`476dc29`) — `chore:` rename WebFlow Studio / playwright-flow-studio → **SpecterStudio**
+  (38 files, renames only) + `feat(oracle):` the Oracle JDBC feature (79 files). The rename shipped with
+  Oracle because the Oracle work is SpecterStudio-native (`com.specterstudio.*` Java packages,
+  `com.specterstudio.app` appId, `%LOCALAPPDATA%/SpecterStudio/`), so shipping Oracle alone would have
+  left the rename half-applied.
+- **PR #12** (`b6e473d`) — `feat(branding):` launch splash (`app/renderer/splash.html`, a frameless,
+  offline, canvas-only window with **no preload/node access**), the new SpecterStudio logo + regenerated
+  icons (`icon-source.png` 5.1MB→51KB, `icon.png` 1.4MB→51KB, `icon.ico` 372KB→27KB), the sidebar brand
+  mark, and a `generate-app-icon.mjs` rewrite that drops `png-to-ico` (its DIB writer mis-computed
+  multi-frame ICO offsets — see KNOWN_ISSUES). `logos/specter-violet/` is the tracked design source of
+  truth; the superseded pre-rename families are gitignored.
+
+Verified on merged `main`: `npm run build` clean (emits `splash.html`), Oracle **218/218** across 10
+verifiers, `verify:runner` 82/82, `verify:recorder` 72/72, GitHub Actions "Typecheck & Build" success.
+
+**Release status is still `INTEGRATION-CANDIDATE`** — merging shipped the code, not the validation. The
+four external gates are unchanged (see `ORACLE_JDBC_VALIDATION_GATES.md`).
+
+> CI gotcha: `.github/workflows/ci.yml` triggers only on `push`/`pull_request` to `main`, so a **stacked**
+> PR based on another branch gets **no CI at all**. PR #12 merged without CI having run on it (verified
+> locally instead; CI then passed on `main`). Verify stacked PRs locally or retarget before relying on CI.
+
 ## Oracle JDBC — status corrected to INTEGRATION-CANDIDATE; fail-closed production, real UCP executor authored, SQL hardening, live/lazy/packaging harnesses (2026-07-17)
 
 Response to a supplied 10-phase **validation & release** track (distinct numbering from the original 14
@@ -78,12 +130,13 @@ database-free / mock-bridge verifiable; live JDBC + real Oracle remain external 
 - **Phase 14:** migration needs no code — the `jsonArray | oracle` union already treats a missing
   `type` field as `jsonArray`, so pre-Oracle profile JSON on disk loads unchanged. Wrote
   [`ORACLE_JDBC_DATA_SOURCE_NODE_REPORT.md`](ORACLE_JDBC_DATA_SOURCE_NODE_REPORT.md) (17-section final
-  report): **PRODUCTION-CANDIDATE**, exact blockers listed (vendor jars/JRE, real-Oracle validation,
-  packaged-EXE rebuild, real-latency performance check).
+  report): ~~PRODUCTION-CANDIDATE~~ — **superseded: corrected to INTEGRATION-CANDIDATE on 2026-07-17**
+  (the real executor had never compiled and no authorized Oracle was ever used); exact blockers listed
+  (vendor jars/JRE, real-Oracle validation, packaged-EXE rebuild, real-latency performance check).
 - **Verification:** `npm run build` clean; new `verify:oracle-packaging` **11/11**; `verify:oracle-runtime`
   **27/27** (+5: result-limit coverage); `verify:oracle-bridge` **32/32**, `verify:oracle-profiles`
   **22/22**, `verify:oracle-data-source` **28/28**, `verify:runner` **82/82** (no regression). 120 total
-  Oracle checks green. Not committed (local only).
+  Oracle checks green. (Merged to `main` 2026-07-17 via PR #11 — see the top entry.)
 
 ## Oracle JDBC — node + Data-Source execution wiring & snapshot capture (Phases 06, 08–10) (2026-07-17)
 
@@ -118,7 +171,7 @@ remain external gates.
   **32/32**, `verify:oracle-profiles` **22/22**, `verify:oracle-runtime` **22/22**.
 - **Remaining:** Phase 05 **renderer** UI (create/edit Oracle Data Sources + snapshot refresh button in
   `DataSourceManager`), 11 (extra hardening), 12 (packaging + checksum validation + `validate:offline`),
-  13 (real-Oracle external gate), 14 (final report). Not committed (local only).
+  13 (real-Oracle external gate), 14 (final report). (Merged to `main` 2026-07-17 via PR #11.)
 
 ## Oracle JDBC Data Source & Node — backend foundation (Phases 01–04 + 07) (2026-07-16)
 
@@ -162,7 +215,7 @@ vendored ojdbc/ucp jars + private JRE, and real-Oracle validation are **external
   08/09 (Oracle node + result mapping), 10 (wire the resolver/query-service into
   `resolveWorkflowDataSources`), 11 (extra hardening/observability), 12 (packaging + `OracleRuntimeResolver`
   checksum validation + `validate:offline`), 13 (tests + **real-Oracle external gate**), 14 (final
-  report). Not committed (local only).
+  report). (Merged to `main` 2026-07-17 via PR #11.)
 
 ## Splash hold-on-brief + concept-1c icon + simplified sidebar brand (2026-07-16)
 
@@ -610,7 +663,8 @@ runtime contract/route/schema change; behavior tightened at existing sinks.** Ne
   `verify:secrets` **16/16**; regression `verify:runner` **82/82**, `verify:recorder` **72/72**,
   `verify:ipc-contract` **4/4** (129 handlers), `verify:data-editor` **27/27**, `verify:waits` **21/21**,
   `verify:protected-login` **16/16** + **34/34**. Settings → Secrets card verified in a token-faithful HTML
-  harness (light + dark, no horizontal overflow). Not committed (local only).
+  harness (light + dark, no horizontal overflow). (Stale note corrected 2026-07-17: this work **is**
+  committed — see `c99eaea` "feat: DPAPI secret store + IPC/security-audit hardening".)
 - **Residual (P2):** `assertTrustedSender` is applied globally via `installGlobalSenderGuard`; optional
   `sandbox:true` still deferred (ESM-preload-under-sandbox). Remaining audit follow-ups: code signing (§20),
   offline hash validation (§19), artifact retention (§22).

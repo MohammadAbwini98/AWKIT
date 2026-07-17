@@ -17,7 +17,11 @@ app/
     offlineRuntimeValidator.ts
     profileStores.ts    JSON profile stores (flows/workflows/dataSources/reports/...)
     ipc/                IPC handlers: flow, scenario(workflow), execution, instance,
-                        dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime
+                        dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime,
+                        oracle
+    oracleService.ts    Main-process Oracle wiring (lazy singleton): profile store + DPAPI secret vault +
+                        bridge manager + profile/query services; owns the fail-closed launch decision and
+                        disposes the Java child on before-quit (no orphan process)
   renderer/             React UI (Vite)
     App.tsx, routes.tsx, main.tsx
     pages/              Dashboard, FlowChartDesigner, ScenarioBuilder, Flow/WorkflowsLibrary,
@@ -31,6 +35,21 @@ app/
     state/              navigation.tsx, pageChrome.tsx (header actions + dirty flag)
     styles/global.css   single plain-CSS stylesheet
 src/                    framework-agnostic core (no Electron/React imports, except runner→appPaths)
+  data/                 DataSourceProfile (jsonArray | oracle union; a missing `type` means jsonArray, so
+                        pre-Oracle profile JSON loads unchanged), DataSourceResolver — THE authority that
+                        normalizes every source type to one array-of-objects contract. Runtime Oracle =
+                        single-flight, per-run-cached lazy loader (`loadRows`; failed attempts are NOT
+                        cached); Snapshot = stored rows, no loader, never touches the bridge.
+  oracle/               Oracle JDBC feature core (no Electron): OracleJdbcBridgeManager (owns the Java
+                        child: lazy start, handshake, correlation, timeouts, cancellation, bounded restart,
+                        clean dispose), OracleBridgeProtocol (wire types + framing codec),
+                        OracleQueryService (THE query authority: SQL gate → descriptor/secret resolution →
+                        typed binds → executeQuery → normalize + defensive limits → timeout/cancel/retry/
+                        bounded concurrency/telemetry), OracleRuntimeResolver (owns the FAIL-CLOSED
+                        packaged-vs-dev launch decision), OracleBundleChecksums + OracleOfflineBundle
+                        (bundle integrity), OracleSqlPolicy (TS mirror of the authoritative Java gate),
+                        OracleProfileService, OracleConnectionProfile, OracleDataSourceBinds,
+                        OracleNodeExecution, OracleResultMapper, OracleTypeConversion, OracleErrors
   runner/               PlaywrightRunner, FlowExecutor, StepExecutor, ExecutionEngine,
                         BrowserContextFactory, LocatorFactory, ValueResolver, ExpressionEvaluator,
                         ConnectorConditionEvaluator (structured conditional connectors),
@@ -430,11 +449,47 @@ must be documented in `mock-site/README.md` and AI memory files.
   a route-content fade in `AppShell` for non-canvas routes. Designer node cards were recolored to
   tokens (CSS-only) with all canvas geometry/port/serializer invariants preserved.
 
+## Oracle JDBC bridge (separate process boundary)
+
+```text
+oracle-jdbc-bridge/     Zero-dependency, pure-JDK Maven module — the ONLY component that talks JDBC.
+  src/main/java/        Bridge CORE (always compiled, no external deps): Main (executor selection +
+                        stdio loop), Dispatcher (routing, in-flight cancellation, authoritative SQL
+                        re-validation), Framing/Protocol/Json/BridgeException, CancellationToken,
+                        sql/SqlReadOnlyPolicy (AUTHORITATIVE read-only gate), and three QueryExecutor
+                        implementations: MockQueryExecutor (database-free; dev/test ONLY),
+                        DriverUnavailableExecutor (fail-closed: every query → DRIVER_UNAVAILABLE)
+  src/main/java-oracle/ GATED source set — OracleUcpQueryExecutor (real Oracle JDBC Thin + UCP).
+                        Compiled ONLY when ojdbc/ucp jars are vendored; otherwise the core builds alone.
+                        `verify:oracle-bridge-real-build` stub-compiles it against the real JDK java.sql
+                        every run so it cannot rot while the jars remain an external gate.
+resources/oracle-jdbc/  Vendored private runtime (gitignored, like bundled Chromium):
+  runtime/ bridge/ lib/   private JRE, bridge jar, ojdbc/ucp jars
+  LICENSES/ manifest.json checksums.json   (staged + hashed by `prepare:oracle-runtime`)
+```
+
+**Transport:** the main process spawns the bridge as a child and speaks framed JSON-RPC over stdio —
+a 4-byte big-endian length prefix + UTF-8 JSON. **No network port.** stdout carries protocol bytes only
+(`System.out` is redirected to stderr so a stray library print cannot corrupt the stream); stderr is a
+redacted diagnostic channel and never carries results.
+
+**Fail-closed (the load-bearing invariant):** a packaged build can never serve mock rows. Enforced in
+three independent layers — (1) `OracleRuntimeResolver` bakes `AWKIT_ORACLE_REQUIRE_REAL=1` into packaged
+launches and never the mock flag (packaged + missing driver ⇒ feature unavailable); (2)
+`OracleJdbcBridgeManager` rejects any non-`real` handshake at startup; (3) Java `Main` ignores a mock flag
+under `AWKIT_ORACLE_REQUIRE_REAL` and picks `DriverUnavailableExecutor`. Snapshot Data Sources are
+unaffected — they read stored rows and never launch the bridge.
+
+**Trust boundary:** the SQL read-only gate exists on BOTH sides — TypeScript rejects before the bridge is
+spawned, Java re-validates authoritatively so a racing/compromised caller cannot bypass it. Both are
+defense in depth; the primary boundary is a least-privilege Oracle account.
+
 ## Architectural constraints (Confirmed)
 
 - Offline-first: production must not download browsers or require internet/global toolchains;
-  launch Playwright through `BundledBrowserResolver`.
-- Mutable runtime data only under `%LOCALAPPDATA%/WebFlow Studio/` (or configured Settings paths) —
+  launch Playwright through `BundledBrowserResolver`. The Oracle bridge follows the same rule: a private
+  JRE + jars are vendored at package time — never a system Java, never a runtime download.
+- Mutable runtime data only under `%LOCALAPPDATA%/SpecterStudio/` (or configured Settings paths) —
   never `resources/`/`app.asar`/install dir.
 - `src/` core stays UI-agnostic; the one bridge is `ExecutionEngine`/IPC importing
   `app/main/appPaths` for resource/data roots and offline mode.

@@ -4,6 +4,91 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-17 — Claude — Oracle pending-phase plan (01–12): 5 executed, 7 blocked on verified-absent artifacts
+
+- **Task:** User supplied a 12-phase "pending implementation" plan and asked to review/validate/modify it,
+  then start execution.
+- **Audit:** plan is sound and correctly holds status at INTEGRATION-CANDIDATE, but is written against a
+  pre-merge world. Corrections: (1) "work only against the committed Oracle feature branch" — that branch is
+  merged + deleted, baseline is `main` @ `b6e473d`; (2) Phase 01 expects "rebrand/splash absent" — present
+  **by design**, the rename is an Oracle dependency, so reverting would be wrong; (3) Phase 04's
+  `ORACLE_RUNTIME_UNAVAILABLE` maps to the existing `DRIVER_UNAVAILABLE` wire category — not renamed for
+  cosmetics; (4) Phase 07's "use real bridge/query counters" identified a **genuine gap** worth fixing now.
+- **Blockers PROBED, not assumed:** `ojdbc*/ucp*.jar` absent from `~/.m2`, Downloads, Desktop; Maven Central
+  unreachable (**HTTP 000**); `docker` unavailable; `AWKIT_ORACLE_LIVE_*` unset; JDK 17.0.8 present. All
+  seven blocked phases fail at the same first step — acquiring the artifacts.
+- **Phase 01 (done):** baseline green — build PASS, Oracle 137/137 on the listed verifiers, all three
+  fail-closed layers present, docs read INTEGRATION-CANDIDATE.
+- **Phase 07 (done — the real work):** rewrote `verify-oracle-lazy-resolution.mts` to drive the **real Java
+  bridge process** and count actual `executeQuery` RPCs at the wire, replacing an injected stub counter.
+  12 → **20 checks**. Negative proofs are the valuable ones: snapshot + unreferenced Runtime sources leave
+  the Java process **never started**. Also folded in Phase 04's Required Product Behavior (runtime
+  unavailable ⇒ JSON + Snapshot keep working, Runtime fails safely, no crash, no cache poisoning).
+- **Phase 04 (done, 4/5):** truth-table rows proven across resolver + TS manager + Java executor selection.
+  Row `packaged + valid real bundle → real executor` blocked on jars.
+- **Phase 08 (done):** full regression green — Oracle **226/226**; runner 82, concurrency 78, observability
+  65, recorder 72, telemetry 61/61, security 39, data-editor 27, browser-isolation 27/27, waits 21,
+  safety-policy 17, recorder-draft 17/17, secrets 16, protected-login 16, locks 15, runtime-status 15,
+  artifacts 13, chromium-hardening 13, recorder-flow 13/13, profile-store 13/13, cancellation 12,
+  startup-recovery 10, write-queue 7/7, ipc-contract 4/4, workflow-sentinels 4/4; `validate:offline` passes
+  (correctly warns Oracle not bundled). **`verify:durable-store` 9/2 is PRE-EXISTING** — fails identically
+  at `dee283e` (pre-Oracle), proven in an isolated worktree; this session never touched the durable store.
+  Left alone per the plan's "fix only actual regressions" rule.
+- **Phase 12 (done):** report §16b + the plan's required final summary block; status stays
+  **INTEGRATION-CANDIDATE**.
+- **Phases 02/03/05/06/09/10/11 (blocked):** documented with the probe evidence table + per-phase unblock
+  steps in `ORACLE_JDBC_VALIDATION_GATES.md`, mapped to this plan's numbering.
+- **Files:** `scripts/verify-oracle-lazy-resolution.mts` (rewritten); `docs/ai/{CURRENT_STATE,TASK_LOG,
+  ORACLE_JDBC_VALIDATION_GATES,ORACLE_JDBC_DATA_SOURCE_NODE_REPORT}.md`.
+- **Tests run:** build PASS; Oracle 226/226 (10 verifiers); the impacted regression set above; validate:offline.
+- **Not run:** real-jar compile, live Oracle suite, real UCP pooling, packaging, packaged EXE, soak — all
+  externally blocked, none approximated.
+- **Result:** 5 of 12 phases executed and green; 7 blocked with verified evidence. Status unchanged.
+
+---
+
+## 2026-07-17 — Claude — Ship it: Oracle JDBC + SpecterStudio rename + launch splash merged to `main`; AI memory refreshed
+
+- **Task:** User asked to commit the session's work, then open/merge the PRs, then update the memory files.
+- **Classification first (the tree was mixed):** the working tree held ~101 changed files spanning several
+  uncommitted scopes. Audited before staging and found the "other" scope was **not** a sibling feature but a
+  repo-wide rename (`WebFlow Studio`/`playwright-flow-studio` → **SpecterStudio**) that the Oracle work is
+  built on (`com.specterstudio.*` packages, `com.specterstudio.app`, `%LOCALAPPDATA%/SpecterStudio/`). An
+  Oracle-only commit would have left the rename half-applied, so the user chose rename + Oracle as two
+  commits on one branch, with the splash/icons/nav excluded.
+- **PR #11 → `main` (`476dc29`), 114 files:** `488eabf` chore(rename, 38 files, renames only) +
+  `5e7977d` feat(oracle, 79 files). `git add -p` is unavailable (interactive), so the 3 files mixing scopes
+  (`package.json`, `electron-builder.json`, `app/main/main.ts`) were split by staging hand-built blobs
+  (`git hash-object -w` + `git update-index --cacheinfo`) — precise, and it never writes the working tree.
+- **PR #12 → `main` (`b6e473d`), 33 files:** `feat(branding)` launch splash + logo/icons + `png-to-ico`
+  removal, and `chore` gitignoring the superseded logo families. Stacked on the Oracle branch because these
+  files already carried the rename. `logos/specter-violet/` tracked; `awkit-violet/` + duplicate top-level
+  sets gitignored (scoped rule, **not** a blanket `logos/`, since specter-violet is tracked).
+- **Two mistakes worth recording:** (1) I reported the #11 merge as "not landed" after fetching too early
+  and reading a stale ref — `git ls-remote origin refs/heads/main` is the authoritative check. (2)
+  `gh pr merge --delete-branch` **closed** stacked PR #12 instead of retargeting it; recovery hit a
+  catch-22 (can't retarget a closed PR, can't reopen without its base branch) and needed the base ref
+  restored from `5e7977d`, then reopen → retarget → re-delete. Using a **merge commit** (repo convention)
+  rather than squash is what kept the stack cheap to fix — the Oracle SHAs stayed in `main`.
+- **Found:** CI never ran on #12 — `.github/workflows/ci.yml` triggers only on `main`, so stacked PRs get
+  **no checks**, and a CLEAN merge state there means "nothing blocking", not "verified". Verified locally
+  instead; CI then passed on `main`. Recorded in KNOWN_ISSUES.
+- **Memory refresh (this entry's second half):** FEATURES/ARCHITECTURE/DECISIONS/KNOWN_ISSUES had **zero**
+  Oracle coverage; HANDOFF still claimed an uncommitted tree on `feature/smart-wait-engine` and told agents
+  not to push; the report header and several CURRENT_STATE entries still said "not committed (local only)";
+  DECISIONS still recorded the superseded "WebFlow Studio" rename as current. All corrected.
+- **Files:** `docs/ai/{CURRENT_STATE,TASK_LOG,FEATURES,ARCHITECTURE,DECISIONS,KNOWN_ISSUES,HANDOFF,
+  ORACLE_JDBC_DATA_SOURCE_NODE_REPORT}.md`; personal memory `oracle-jdbc-feature.md`, `git-pr-strategy.md`,
+  `MEMORY.md`.
+- **Tests run (on merged `main`):** `npm run build` clean (emits `splash.html`); Oracle **218/218** across
+  10 verifiers; `verify:runner` 82/82; `verify:recorder` 72/72; GitHub Actions "Typecheck & Build" success.
+- **Not run:** the four Oracle external gates (real-jar compile, authorized Oracle DB, packaged-EXE
+  walkthrough, perf/soak) — unchanged, and impossible in this environment.
+- **Result:** `main` at `b6e473d`, working tree clean, no open PRs. Oracle remains **INTEGRATION-CANDIDATE**
+  — merging shipped the code, not the validation.
+
+---
+
 ## 2026-07-17 — Claude — Oracle JDBC: status corrected to INTEGRATION-CANDIDATE; fail-closed production, real UCP executor, SQL hardening, validation harnesses (validation track 01–10)
 
 - **Task:** User supplied `AWKIT_ORACLE_NEXT_REQUIRED_PHASES/` (11 docs, a 10-phase validation & release

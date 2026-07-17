@@ -4,6 +4,54 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-17 — Oracle ships behind a private Java bridge, read-only, and fails closed in production
+- **Decision:** Oracle Database support runs **only** through a bundled private Java bridge — a
+  zero-dependency, pure-JDK child process speaking framed JSON-RPC over **stdio (no network port)** — with
+  a private JRE + ojdbc/ucp jars vendored at package time, exactly like bundled Chromium. The initial
+  release is **read-only** (single `SELECT` / `WITH … SELECT`). A **packaged build may never serve mock
+  rows**: packaged mode forces `AWKIT_ORACLE_REQUIRE_REAL`, refuses the mock flag, and treats a
+  missing/failed driver as *feature unavailable*.
+- **Reason:** Node has no first-party Oracle driver that satisfies AWKIT's offline/no-admin/no-global-
+  toolchain constraints; JDBC does, but only from a JVM. Isolating JDBC in a child process keeps the
+  driver out of the Electron process and lets the core compile and be fully tested with a plain JDK and
+  no database. Fail-closed exists because the opposite is a silent-correctness disaster: a user could act
+  on synthetic rows believing they came from Oracle. This closed a **live leak** — `oracleService` used to
+  force `AWKIT_ORACLE_BRIDGE_MOCK=1` on any missing driver with no packaged guard.
+- **Impact:** Three independent enforcement layers (`OracleRuntimeResolver` → launch env,
+  `OracleJdbcBridgeManager` → handshake rejection, Java `Main` → `DriverUnavailableExecutor`). Snapshot
+  Data Sources deliberately bypass all of it (stored rows, bridge never launched), so offline use survives
+  a driverless build. `MockQueryExecutor` is dev/test only, by construction.
+- **Related files:** `src/oracle/*`, `oracle-jdbc-bridge/**`, `app/main/oracleService.ts`,
+  `scripts/prepare-oracle-runtime.mjs`, `docs/ai/ORACLE_JDBC_*.md`.
+
+### 2026-07-17 — Oracle is INTEGRATION-CANDIDATE; merging ships code, not validation
+- **Decision:** Gate the release behind explicit status transitions —
+  `INTEGRATION-CANDIDATE` → (real executor compiles against real jars **and** an authorized Oracle suite
+  passes) → `PRODUCTION-CANDIDATE` → (bundled runtime + packaged EXE + clean-machine validation) →
+  `PRODUCTION-READY`. Merging PR #11 did **not** advance the status.
+- **Reason:** An earlier report claimed `PRODUCTION-CANDIDATE`, which was **over-stated**: the real
+  `OracleUcpQueryExecutor` had never compiled and no authorized Oracle database had ever been used. The
+  code being merged and the code being validated are different claims, and conflating them is how a
+  feature ships broken.
+- **Impact:** `verify:oracle-live` is credential-gated and skips cleanly rather than falling back to mock;
+  the gated executor is stub-compiled against the real JDK `java.sql` every run so it cannot rot. The four
+  external gates (jars, authorized DB, packaged EXE, perf/soak) are documented as *not run*, with exact
+  procedures, rather than silently skipped.
+- **Related files:** `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`, `ORACLE_JDBC_DATA_SOURCE_NODE_REPORT.md`.
+
+### 2026-07-17 — SQL read-only gate is defense in depth; the database account is the real boundary
+- **Decision:** Keep the tokenizer gate mirrored in TypeScript **and** Java (Java authoritative), and treat
+  it explicitly as defense in depth. The primary control is a dedicated least-privilege, read-only Oracle
+  account. `Connection.setReadOnly(true)` is set but is **not** a security boundary.
+- **Reason:** A tokenizer can be out-thought; a privilege model cannot. But a read-only `SELECT` can still
+  invoke a stored function, so the gate must also reject `UTL_`/`DBMS_`/`OWA_` package calls (SSRF/file
+  access), database links, and inline PL/SQL (`WITH FUNCTION`/`WITH PROCEDURE` — which previously **passed**
+  both engines, since `WITH` leads legally and `FUNCTION`/`PROCEDURE` weren't forbidden).
+- **Impact:** `verify:oracle-sql-policy` drives one adversarial corpus through both engines via the real
+  Dispatcher and requires identical decisions — keeping the mirror honest is now enforced, not hoped for.
+- **Related files:** `src/oracle/OracleSqlPolicy.ts`, `oracle-jdbc-bridge/.../sql/SqlReadOnlyPolicy.java`,
+  `docs/ai/ORACLE_JDBC_DB_ACCOUNT_RUNBOOK.md`.
+
 ### 2026-07-15 — Browser Resource Optimization: balanced stays default; background throttling removed on evidence
 - **Decision:** Per-instance Chromium cost is controlled by one authoritative resolver
   (`src/runner/browserProfile/BrowserRuntimeConfigurationResolver`) over four profiles
@@ -142,10 +190,24 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
-### 2026-06 — Product rename to "WebFlow Studio"
+### 2026-07-17 — Product rename to "SpecterStudio" (supersedes the WebFlow Studio rename)
+- **Decision:** Rename the product to **SpecterStudio**; package `specterstudio`, `appId`
+  `com.specterstudio.app`, runtime data root `%LOCALAPPDATA%/SpecterStudio/`. Shipped as its own commit
+  inside PR #11 (renames only, no behavior change), alongside a new logo, launch splash, and icons (PR #12).
+- **Reason:** Branding. It shipped **with** Oracle rather than separately because the Oracle work is
+  SpecterStudio-native throughout (`com.specterstudio.*` Java packages, `com.specterstudio.app`,
+  `%LOCALAPPDATA%/SpecterStudio/`, branded error text) — landing Oracle alone would have left the rename
+  half-applied and the repo internally inconsistent.
+- **Impact:** Same surface as the previous rename (titles, brand, `electron-builder.json`, dependency
+  manifests + their PS/TS validators, agent rule docs, data root). `window.playwrightFlowStudio` is still
+  **not** renamed — see the decision below. Old data folders are not migrated (pre-1.0).
+- **Related files:** the 38 rename-only files in `488eabf`, plus `package.json`, `electron-builder.json`,
+  `app/main/main.ts`.
+
+### ~~2026-06 — Product rename to "WebFlow Studio"~~ (SUPERSEDED 2026-07-17 by the SpecterStudio rename)
 - **Decision:** Rename the product from "Playwright Flow Studio" to **WebFlow Studio**; `appId`
   `com.webflowstudio.app`; runtime data root `%LOCALAPPDATA%/WebFlow Studio`.
-- **Reason:** Branding.
+- **Reason:** Branding. **No longer current** — kept for history only.
 - **Impact:** Window/HTML title, sidebar brand, `electron-builder.json`, dependency manifests +
   their validators (PS and TS), README, runtime data folder. Old `PlaywrightFlowStudio` data is not
   migrated (pre-1.0).
