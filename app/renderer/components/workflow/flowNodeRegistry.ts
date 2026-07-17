@@ -20,6 +20,7 @@ export type PropertySection =
   | "session"
   | "protectedLogin"
   | "reuseSession"
+  | "oracle"
   | "execution"
   | "output";
 
@@ -150,8 +151,34 @@ const META: Record<StepType, RegistryMeta> = {
     category: "navigation",
     sections: ["execution"],
     executable: true
+  },
+  oracle: {
+    category: "capture",
+    sections: ["oracle", "output", "execution"],
+    executable: true,
+    validate: (d) => validateOracle(d)
   }
 };
+
+/** Validation for the Oracle query node. */
+function validateOracle(d: FlowDesignerNodeData): string[] {
+  const messages: string[] = [];
+  const cfg = d.oracle;
+  if (!cfg) return ["Oracle node is not configured."];
+  if (cfg.connectionSource === "dataSource") {
+    if (!cfg.dataSourceId?.trim()) messages.push("Select an Oracle Data Source.");
+  } else {
+    if (!cfg.connectionProfileId?.trim()) messages.push("Select an Oracle connection profile.");
+    if (!cfg.sql?.trim()) messages.push("A SQL query is required when using a connection profile.");
+  }
+  if ((cfg.returnType === "string" || cfg.returnType === "number" || cfg.returnType === "boolean") && !cfg.selectedColumn?.trim()) {
+    messages.push("Select a column to read for this return type.");
+  }
+  if (cfg.returnType === "list" && cfg.listMode === "column" && !cfg.selectedColumn?.trim()) {
+    messages.push("Select a column for a primitive list.");
+  }
+  return messages;
+}
 
 /** Validation + capability notes for the Protected Login Handoff node. */
 function validateProtectedLogin(d: FlowDesignerNodeData): string[] {

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Version-lock manifest for the Oracle JDBC bridge. The OFFLINE default build is the pinned-javac
+    script (scripts/build-oracle-bridge.mjs) which needs no Maven and no network; this POM documents
+    the exact driver/UCP/JDK/test versions for the vendored-jar build once network + jars are
+    available. Re-check Oracle's official JDBC/JDK/DB compatibility matrix at implementation time
+    (see docs REFERENCES) before bumping any version below.
+  -->
+  <groupId>com.specterstudio</groupId>
+  <artifactId>awkit-oracle-jdbc-bridge</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+    <!-- LOCKED versions — do not float. -->
+    <ojdbc.version>23.5.0.24.07</ojdbc.version>
+    <ucp.version>23.5.0.24.07</ucp.version>
+    <junit.version>5.10.2</junit.version>
+  </properties>
+
+  <dependencies>
+    <!--
+      Oracle JDBC Thin driver + UCP. `provided` scope: these are NOT bundled into the bridge jar by
+      Maven — AWKIT vendors them under resources/oracle-jdbc/lib/ and the bridge jar's manifest
+      Class-Path references them. This keeps redistribution explicit and license-gated.
+    -->
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc11</artifactId>
+      <version>${ojdbc.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ucp11</artifactId>
+      <version>${ucp.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>awkit-oracle-jdbc-bridge</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.1</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>com.specterstudio.oracle.bridge.Main</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

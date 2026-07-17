@@ -23,7 +23,15 @@
         "**/*",
         "!icon-source.png",
         "!icon.png",
-        "!test-fixtures/**"
+        "!test-fixtures/**",
+        "!oracle-jdbc/**/*.env",
+        "!oracle-jdbc/**/*.p12",
+        "!oracle-jdbc/**/*.sso",
+        "!oracle-jdbc/**/*.jks",
+        "!oracle-jdbc/**/*.pem",
+        "!oracle-jdbc/**/*.key",
+        "!oracle-jdbc/**/tnsnames.ora",
+        "!oracle-jdbc/**/sqlnet.ora"
       ]
     },
     {

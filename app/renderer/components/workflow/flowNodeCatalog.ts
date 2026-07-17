@@ -4,6 +4,7 @@ import {
   Circle,
   CircleDot,
   Code2,
+  Database,
   Download,
   Eye,
   ExternalLink,
@@ -71,6 +72,7 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "switchToPopup", label: "Switch to Popup", description: "Wait for a new popup/window and switch to it", icon: Layers },
   { type: "closePopup", label: "Close Popup", description: "Wait for a popup/window to close and return to main", icon: Layers },
   { type: "switchToMainPage", label: "Switch to Main Page", description: "Return automation context to the main page", icon: Layers },
+  { type: "oracle", label: "Oracle Query", description: "Run a read-only Oracle SQL query", icon: Database },
   { type: "end", label: "End", description: "Flow exit point", icon: Download }
 ];
 

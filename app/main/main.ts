@@ -3,6 +3,7 @@ import { ensureRuntimeFolders, isProductionOffline } from "./appPaths";
 import { getOfflineRuntimeStatus } from "./offlineRuntimeValidator";
 import { registerIpcHandlers } from "./ipc";
 import { createMainWindow } from "./windowManager";
+import { disposeOracleServices } from "./oracleService";
 import { updateUiSettings, flushSettingsWrites } from "./uiSettings";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
 
@@ -72,7 +73,8 @@ app.on("before-quit", (event) => {
   if (settingsFlushed) return;
   event.preventDefault();
   const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
-  void Promise.race([flushSettingsWrites(), timeout]).finally(() => {
+  // Also dispose the Oracle JDBC bridge so no Java child process is orphaned.
+  void Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices()]), timeout]).finally(() => {
     settingsFlushed = true;
     app.quit();
   });

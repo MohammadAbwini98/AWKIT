@@ -1,8 +1,9 @@
-import { Copy, Download, Eye, FilePlus2, ShieldCheck, Table2, Trash2, Upload } from "lucide-react";
+import { Copy, Database, Download, Eye, FilePlus2, Pencil, RefreshCw, ShieldCheck, Table2, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
-import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
+import type { JsonArrayDataSourceProfile, OracleDataSourceProfile } from "@src/data/DataSourceProfile";
+import { OracleDataSourceModal } from "./OracleDataSourceModal";
 
 type RowStatus = "unknown" | "valid" | "invalid";
 
@@ -15,15 +16,26 @@ interface PreviewState {
 export function DataSourceManager() {
   const { navigateTo } = useNavigation();
   const [dataSources, setDataSources] = useState<JsonArrayDataSourceProfile[]>([]);
+  const [oracleSources, setOracleSources] = useState<OracleDataSourceProfile[]>([]);
   const [statusById, setStatusById] = useState<Record<string, RowStatus>>({});
   const [recordsById, setRecordsById] = useState<Record<string, number>>({});
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // null = closed; { profile } = open (profile null → create, set → edit).
+  const [oracleModal, setOracleModal] = useState<{ profile: OracleDataSourceProfile | null } | null>(null);
   const [message, setMessage] = useState("Loading data sources…");
 
   useEffect(() => {
     void init();
   }, []);
+
+  const loadOracle = async (): Promise<void> => {
+    try {
+      setOracleSources(await window.playwrightFlowStudio.oracle.listDataSources());
+    } catch {
+      /* Oracle services unavailable — leave the Oracle section empty (non-fatal). */
+    }
+  };
 
   const load = async (): Promise<JsonArrayDataSourceProfile[]> => {
     try {
@@ -39,6 +51,7 @@ export function DataSourceManager() {
 
   // Restore the last selected data source if it still exists; otherwise clear it safely.
   const init = async () => {
+    void loadOracle();
     const profiles = await load();
     try {
       const settings = await window.playwrightFlowStudio.settings.get();
@@ -54,6 +67,36 @@ export function DataSourceManager() {
 
   const refresh = () => {
     void load();
+    void loadOracle();
+  };
+
+  // ── Oracle Data Source actions ────────────────────────────────────────────
+  const onOracleSaved = (profile: OracleDataSourceProfile) => {
+    setOracleModal(null);
+    setMessage(`Saved Oracle Data Source ${profile.name}`);
+    void loadOracle();
+  };
+
+  const refreshOracleSnapshot = async (profile: OracleDataSourceProfile) => {
+    setMessage(`Refreshing snapshot for ${profile.name}…`);
+    try {
+      const updated = await window.playwrightFlowStudio.oracle.refreshSnapshot(profile.id);
+      const snap = updated.snapshot;
+      setMessage(
+        snap?.status === "error"
+          ? `${profile.name}: ${snap.error ?? "snapshot refresh failed"}`
+          : `${profile.name} snapshot updated (${snap?.rowCount ?? 0} row(s)).`
+      );
+      void loadOracle();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Snapshot refresh failed");
+    }
+  };
+
+  const removeOracle = async (profile: OracleDataSourceProfile) => {
+    await window.playwrightFlowStudio.oracle.deleteDataSource(profile.id).catch(() => undefined);
+    setMessage(`Deleted ${profile.name}`);
+    void loadOracle();
   };
 
   const addJson = async () => {
@@ -188,6 +231,15 @@ export function DataSourceManager() {
             <Upload size={15} />
             Add JSON
           </button>
+          <button
+            className="toolbar-button"
+            onClick={() => setOracleModal({ profile: null })}
+            type="button"
+            title="Create an Oracle-backed data source"
+          >
+            <Database size={15} />
+            Add Oracle Source
+          </button>
         </div>
 
         {dataSources.length ? (
@@ -269,6 +321,65 @@ export function DataSourceManager() {
           </section>
         )}
 
+        {oracleSources.length ? (
+          <div className="report-section">
+            <div className="section-heading compact">
+              <h2>Oracle Data Sources</h2>
+              <span>{oracleSources.length} Oracle source{oracleSources.length === 1 ? "" : "s"}</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Connection</th>
+                  <th>Mode</th>
+                  <th>Records</th>
+                  <th>Snapshot</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {oracleSources.map((source) => {
+                  const snap = source.snapshot;
+                  const snapClass = snap?.status === "ready" ? "ok" : snap?.status === "error" ? "warn" : "neutral";
+                  return (
+                    <tr key={source.id}>
+                      <td title={source.description ?? undefined}>{source.name}</td>
+                      <td>{source.connectionProfileId}</td>
+                      <td>{source.mode === "snapshot" ? "Snapshot" : "Runtime"}</td>
+                      <td>{source.mode === "snapshot" ? snap?.rowCount ?? "—" : "live"}</td>
+                      <td>
+                        {source.mode === "snapshot" ? (
+                          <span className={`status-chip ${snapClass}`}>{snap ? snap.status : "none"}</span>
+                        ) : (
+                          <span className="status-chip neutral">—</span>
+                        )}
+                      </td>
+                      <td>{source.updatedAt ? source.updatedAt.slice(0, 10) : "—"}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button onClick={() => setOracleModal({ profile: source })} title="Edit Oracle Data Source" type="button">
+                            <Pencil size={14} />
+                          </button>
+                          {source.mode === "snapshot" ? (
+                            <button onClick={() => void refreshOracleSnapshot(source)} title="Refresh offline snapshot" type="button">
+                              <RefreshCw size={14} />
+                            </button>
+                          ) : null}
+                          <button onClick={() => void removeOracle(source)} title="Delete Oracle Data Source" type="button">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
         {preview ? (
           <div className="report-section">
             <div className="section-heading compact">
@@ -284,6 +395,14 @@ export function DataSourceManager() {
         <CreateDataSourceModal
           onCancel={() => setCreateOpen(false)}
           onCreate={createDataSource}
+        />
+      ) : null}
+
+      {oracleModal ? (
+        <OracleDataSourceModal
+          initial={oracleModal.profile}
+          onClose={() => setOracleModal(null)}
+          onSaved={onOracleSaved}
         />
       ) : null}
     </section>

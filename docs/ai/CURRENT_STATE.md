@@ -1,5 +1,276 @@
 # CURRENT_STATE
 
+## Oracle JDBC — status corrected to INTEGRATION-CANDIDATE; fail-closed production, real UCP executor authored, SQL hardening, live/lazy/packaging harnesses (2026-07-17)
+
+Response to a supplied 10-phase **validation & release** track (distinct numbering from the original 14
+implementation phases). Its core correction: the prior `PRODUCTION-CANDIDATE` label was **over-stated** —
+the real executor had never compiled and no authorized Oracle had ever been used. Release status is now
+**INTEGRATION-CANDIDATE**. **218 Oracle checks green across 10 verifiers** (was 120/5); `npm run build`,
+`verify:runner` 82/82, `verify:security` 39/39, `verify:secrets` 16/16, `verify:ipc-contract` 4/4 clean.
+
+- **Fail-closed production (Phase 01) — fixed a LIVE mock leak.** `app/main/oracleService.ts` previously
+  forced `AWKIT_ORACLE_BRIDGE_MOCK=1` whenever the driver jars were absent, **with no packaged-mode
+  guard** — a packaged build with a driverless bundle would have silently served synthetic rows. Now
+  `OracleRuntimeResolver` owns the policy (`mockAllowed`/`requireRealDriver`), baking
+  `AWKIT_ORACLE_REQUIRE_REAL=1` into packaged launches and the mock only into dev; packaged + missing
+  driver ⇒ **feature unavailable** (Snapshot Data Sources still work — they never launch the bridge).
+  The Java bridge honors `AWKIT_ORACLE_REQUIRE_REAL` by ignoring any mock flag and selecting the new
+  `DriverUnavailableExecutor` (every query → `DRIVER_UNAVAILABLE`) instead of `MockQueryExecutor`; the
+  bridge manager independently rejects a non-`real` handshake (`requireRealDriver`). `hello` now reports
+  `executionMode`/`ucpVersion`/`javaVersion`.
+- **Real UCP executor authored (Phase 03).** `oracle-jdbc-bridge/src/main/java-oracle/.../OracleUcpQueryExecutor.java`
+  now exists (it never did — a prior memory claim was false): UCP pool-per-compatibility-key, prepared
+  statements, typed binds, query timeout, `Statement.cancel()` via `CancellationToken.onCancel`, result
+  metadata + Oracle type conversion (precision-preserving NUMBER, ISO timestamps, capped CLOB), and safe
+  ORA→category error mapping that never leaks ORA text/SQL/binds. It compiles only against vendored jars
+  (external gate) but `verify:oracle-bridge-real-build` **stub-compiles it against the real JDK
+  `java.sql`** on every run, so its JDBC usage stays validated. This caught a real defect: `BridgeException`
+  had no `(category, message, retriable)` constructor the executor needed.
+- **SQL policy hardened (Phase 04), TS↔Java parity proven.** `WITH FUNCTION`/`WITH PROCEDURE` (inline
+  PL/SQL, 12c+) previously **passed** both gates — `WITH` is a legal lead keyword and `FUNCTION`/
+  `PROCEDURE` weren't forbidden. Now rejected, along with database links (`@`) and `UTL_`/`DBMS_`/`OWA_`
+  package calls (a read-only SELECT can still invoke a stored function → SSRF/file access).
+  `verify:oracle-sql-policy` runs one 30-case adversarial corpus through the TS mirror **and** the
+  authoritative Java gate (via the real Dispatcher) requiring identical decisions — including
+  false-positive guards (an email in a literal is not a dblink).
+- **New commands:** `prepare:oracle-runtime` (reproducible, offline, fail-closed bundle staging against a
+  locked manifest — verifies sha256/arch/Java-version/licenses, builds the bridge, regenerates
+  `checksums.json`; skips cleanly with no staged artifacts), `verify:oracle-{bridge-real-build,
+  runtime-prep,sql-policy,live,lazy-resolution,offline-bundle}`. `verify:oracle-live` is credential-gated,
+  never falls back to mock, and writes a redacted `reports/oracle-validation/oracle-live.json`.
+- **Packaging (Phase 08):** `validate-offline-bundle.ps1` gained an Oracle section (checksums, layout,
+  real driver required, no secrets/wallets, size report) backed by the shared `auditOracleOfflineBundle`;
+  `electron-builder.json` excludes any `.env`/wallet/key under `oracle-jdbc/`.
+- **New docs:** `ORACLE_JDBC_RUNTIME_MATRIX.md` (compatibility/licensing/acquisition),
+  `ORACLE_JDBC_DB_ACCOUNT_RUNBOOK.md` (least-privilege account — the *primary* read-only boundary),
+  `ORACLE_JDBC_VALIDATION_GATES.md` (exact procedure for the external gates).
+- **External gates (unchanged, cannot run here):** vendor real `ojdbc`/`ucp` jars + a private JRE
+  (build-time network blocked) → real-jar compile; authorized read-only Oracle run (Phase 06, no DB/Docker);
+  packaged-EXE clean-machine walkthrough (Phase 09); real perf/soak (Phase 10). Status advances to
+  PRODUCTION-CANDIDATE only after Phase 06, and PRODUCTION-READY only after 09+10.
+
+## Oracle JDBC — DS renderer UI, defensive result limits, packaging checksums, final report (Phases 05, 11, 12, 14) (2026-07-17)
+
+Continuation of the same-day increment below. Closes the renderer UI gap, hardens Phase 11's result
+limits, adds Phase 12 checksum-validation infrastructure, and writes the Phase 14 final report. Still
+database-free / mock-bridge verifiable; live JDBC + real Oracle remain external gates.
+
+- **Phase 05 renderer UI (done, GUI-verified live):** `OracleDataSourceModal.tsx` (create/edit form —
+  name/mode/description/connection-profile/SQL/binds/limits) wired into `DataSourceManager.tsx` via an
+  "Add Oracle Source" toolbar button + a `oracleModal` state slot. Verified in the real Electron window
+  (not just build/bundle-inclusion): modal opens, fields bind correctly, and client-side validation
+  blocks `Create` with "Select an Oracle connection profile." when none exists — zero DevTools console
+  errors. See [[electron-gui-verify-workflow]] for the DPI-awareness automation fix this uncovered.
+- **Phase 11 hardening:** `OracleTypeConversion.enforceResultLimits` previously declared `maxCellBytes`
+  in its interface but never checked it, and `OracleQueryService` never passed `maxColumns`/
+  `maxSerializedBytes` from any real caller — all three were dead limits. Now `OracleQueryService`
+  applies defensive built-in defaults (`DEFAULT_MAX_COLUMNS=200`, `DEFAULT_MAX_CELL_BYTES=1_000_000`,
+  `DEFAULT_MAX_SERIALIZED_BYTES=25_000_000`) even when a node/Data Source doesn't set its own, and
+  `enforceResultLimits` now actually walks each row's string cells against `maxCellBytes`.
+- **Phase 12 packaging:** new `OracleBundleChecksums.validateOracleBundleChecksums` — reads an optional
+  `resources/oracle-jdbc/checksums.json` (sha256 per bundle-relative file); absent = nothing to validate
+  (lazy availability preserved), present = every file must exist and match or the bundle is rejected.
+  Wired into `OracleRuntimeResolver`'s bundled-runtime branch so production **fails closed** on a
+  corrupted/tampered/incomplete bundle instead of launching it. The actual jar/JRE vendoring into
+  `resources/oracle-jdbc/` and the `electron-builder.json` `extraResources` entry are still not done —
+  network is blocked at build time here (external gate); the validation *logic* is complete and tested
+  against synthetic fixtures.
+- **Phase 14:** migration needs no code — the `jsonArray | oracle` union already treats a missing
+  `type` field as `jsonArray`, so pre-Oracle profile JSON on disk loads unchanged. Wrote
+  [`ORACLE_JDBC_DATA_SOURCE_NODE_REPORT.md`](ORACLE_JDBC_DATA_SOURCE_NODE_REPORT.md) (17-section final
+  report): **PRODUCTION-CANDIDATE**, exact blockers listed (vendor jars/JRE, real-Oracle validation,
+  packaged-EXE rebuild, real-latency performance check).
+- **Verification:** `npm run build` clean; new `verify:oracle-packaging` **11/11**; `verify:oracle-runtime`
+  **27/27** (+5: result-limit coverage); `verify:oracle-bridge` **32/32**, `verify:oracle-profiles`
+  **22/22**, `verify:oracle-data-source` **28/28**, `verify:runner` **82/82** (no regression). 120 total
+  Oracle checks green. Not committed (local only).
+
+## Oracle JDBC — node + Data-Source execution wiring & snapshot capture (Phases 06, 08–10) (2026-07-17)
+
+Builds on the 01–04 + 07 foundation below. The Oracle **node** (Phases 08/09) and its **workflow
+execution wiring** (Phase 10) are complete, and Oracle **Data Sources** now execute end-to-end
+(runtime + offline snapshot). Still database-free / mock-bridge verifiable; live JDBC + real Oracle
+remain external gates.
+
+- **Oracle node (Phases 08/09):** `oracle` `StepType` + `OracleNodeSection` panel (connection source =
+  profile | Data Source, SQL, binds, return-type mapping) + `OracleNodeExecution` (bind resolve →
+  runner → `OracleResultMapper`). `execution.ipc` sets the main-process node runner
+  (`getOracleNodeRunner`) which owns the JDBC bridge via `OracleQueryService`.
+- **Data-Source execution wiring (Phase 10, DS-side):** `resolveWorkflowDataSources` now branches on the
+  discriminator — jsonArray keeps its eager file/path path; **Oracle sources resolve through
+  `DataSourceResolver`** (snapshot = stored rows; runtime = single-flight per-run lazy loader backed by
+  `runOracleDataSourceQuery`). A workflow-bound Oracle source is **materialized eagerly** so row-count
+  loops (`dataRows`) work; `FlowExecutor`/`StepExecutor` loop consumers use the new
+  `materializeDataSourceRows` helper so a lazy runtime source is loaded on demand.
+- **DS bind resolution:** new `OracleDataSourceBinds.resolveDataSourceBinds` — Data-Source queries bind
+  only resolution-time sources (`static` / `env` / `workflowInput`); per-row / previous-output / flow
+  binds are rejected with a clear message (they belong on the node, which runs in step context).
+- **Snapshot capture (Phase 06):** `refreshOracleDataSourceSnapshot(id)` executes the query once,
+  normalizes to an array of JSON objects, and **atomically persists** it (`store.update` = temp+rename)
+  with `queryHash` + `connectionFingerprint` for staleness; on failure it keeps the last good rows
+  (offline safety) and records a **secret-safe** `error` summary (category only, never SQL/values).
+- **Oracle Data-Source IPC/preload (Phase 05 backend):** `oracle:dataSources:{list,get,save,delete,
+  refreshSnapshot}` (mutations sender-guarded) + preload `oracle.{listDataSources,getDataSource,
+  saveDataSource,deleteDataSource,refreshSnapshot}`. `saveOracleDataSource` validates read-only SQL up
+  front and preserves any existing snapshot across edits. **Renderer DS-management UI is still todo.**
+- **Verification (this increment):** `npm run build` clean; `verify:oracle-data-source` **28/28**
+  (+8: DS binds + `materializeDataSourceRows`); `verify:runner` **82/82**; `verify:oracle-bridge`
+  **32/32**, `verify:oracle-profiles` **22/22**, `verify:oracle-runtime` **22/22**.
+- **Remaining:** Phase 05 **renderer** UI (create/edit Oracle Data Sources + snapshot refresh button in
+  `DataSourceManager`), 11 (extra hardening), 12 (packaging + checksum validation + `validate:offline`),
+  13 (real-Oracle external gate), 14 (final report). Not committed (local only).
+
+## Oracle JDBC Data Source & Node — backend foundation (Phases 01–04 + 07) (2026-07-16)
+
+First tranche of the Oracle JDBC feature (plan: [`ORACLE_JDBC_DATA_SOURCE_NODE_PLAN.md`](ORACLE_JDBC_DATA_SOURCE_NODE_PLAN.md)).
+Adds Oracle database support via a **bundled private Java bridge** (framed JSON-RPC over stdio — no
+network port), reusing AWKIT's Data Source, secret, IPC, and packaging systems. **Read-only** initial
+release. All work is **offline-verifiable with a database-free mock executor**; the live JDBC path,
+vendored ojdbc/ucp jars + private JRE, and real-Oracle validation are **external gates**.
+
+- **Java bridge (`oracle-jdbc-bridge/`):** zero-dependency pure-JDK **core** (JSON codec, 4-byte
+  length framing, dispatch + cancellation registry, authoritative read-only SQL policy, database-free
+  `MockQueryExecutor`) compiles/runs with a **pinned JDK 17** and no network. `Main` reserves stdout
+  for frames and reflectively loads the real Oracle UCP executor when jars are vendored, else falls back
+  to the mock (like a dev checkout lacking Chromium). Build: `npm run build:oracle-bridge`.
+- **TS bridge client (`src/oracle/`):** `OracleJdbcBridgeManager` (lazy spawn, `hello` handshake +
+  protocol-version check, request correlation, per-request timeout, AbortSignal→`cancelQuery`
+  propagation, bounded restart after crash, orphan-free `dispose`) + `OracleBridgeProtocol`
+  (envelope/framing/error categories). Disposed on app `before-quit`.
+- **Connection profiles + secrets (Phase 03):** `OracleConnectionProfile` (JDBC-URL builder,
+  credential redaction, pool fingerprint, validation) + pure `OracleProfileService` (CRUD; inline
+  passwords routed into the existing **by-name DPAPI `SecretStore`** as `oracle.<id>.password`;
+  `testConnection` via bridge; error-category→safe-message). `app/main/oracleService.ts` +
+  `ipc/oracle.ipc.ts` (7 sender-guarded channels) + preload `oracle` domain. Renderer only ever gets
+  `hasPassword` — never a secret value. New `oracle-profiles` runtime folder.
+- **Data Source model + resolver (Phase 04):** `DataSourceProfile` is now a backward-compatible
+  `jsonArray | oracle` union (legacy profiles + all existing `dataSource.ipc` behavior unchanged).
+  Authoritative pure **`DataSourceResolver`** normalizes every type to one `ResolvedDataSource`
+  array-of-objects contract: JSON = unchanged lazy file read; Oracle snapshot = stored offline rows;
+  Oracle **runtime = single-flight per-run-cached lazy loader** (failed attempts not cached).
+  `ResolvedDataSource` gained optional `loadRows()`/`type`/`oracleMode`; `ValueResolver` honors it.
+- **Runtime query service (Phase 07):** `OracleQueryService` is the **single query authority** (SQL
+  gate → descriptor/secret resolution → typed binds → bridge `executeQuery` → normalize + defensive
+  limits → timeout/cancel/transient-retry/bounded-concurrency/telemetry). Node executors and the
+  resolver call this, never the bridge directly. Deterministic bind/type conversion keeps
+  high-precision numbers as strings.
+- **Verification:** `npm run build` clean (tsc + bundles); `verify:ipc-contract` **4/4** (143 handlers);
+  `verify:oracle-bridge` **32/32**, `verify:oracle-profiles` **22/22**, `verify:oracle-data-source`
+  **20/20**, `verify:oracle-runtime` **22/22** — all driving the **real Java mock bridge**, no DB.
+  Orphan-Java check clean.
+- **Remaining (not yet done):** Phase 05 (Data Source UI), 06 (snapshot execution + atomic persist),
+  08/09 (Oracle node + result mapping), 10 (wire the resolver/query-service into
+  `resolveWorkflowDataSources`), 11 (extra hardening/observability), 12 (packaging + `OracleRuntimeResolver`
+  checksum validation + `validate:offline`), 13 (tests + **real-Oracle external gate**), 14 (final
+  report). Not committed (local only).
+
+## Splash hold-on-brief + concept-1c icon + simplified sidebar brand (2026-07-16)
+
+- **Splash launch contract (revised):** the splash now always plays exactly ONE round and settles on
+  the resolved frame that shows the app brief (`HOLD_T = 11.70s` in `app/renderer/splash.html` — the reel
+  no longer loops). Then `app/main/main.ts` reveals the app at `max(one-round, ready-to-show)`:
+  if the main window is ready by the time the round finishes it dissolves the splash immediately; if the
+  app still needs time, the splash **holds on the brief frame and shows a small bottom-right spinner**
+  (`window.__splashHold()`, triggered from main via `executeJavaScript` — the splash stays preload-free)
+  until `ready-to-show`. A 30s hard cap prevents any hang. Constants: `ONE_ROUND_MS = 11_800`,
+  `HARD_CAP_MS = 30_000`.
+- **Application icon → concept "1c" (spectral edge):** `resources/icon-source.png` / `icon.png` / `icon.ico`
+  regenerated (via `scripts/generate-app-icon.mjs`) from a near-black continuous-corner squircle with an
+  off-white brick-form "S" whose trailing (bottom-left) brick carries a subtle blue→violet→pink spectrum
+  gradient. Matches `UI Samples/Application icon design/Spectr Icon.dc.html` id 1c. Transparent corners,
+  RGBA, all seven ICO frames valid.
+- **Sidebar brand simplified:** `LeftNavigation.tsx` gained an inline `SpecterAppIcon` SVG (the same 1c
+  mark, `useId`-namespaced defs) that replaces the old violet `Workflow` glyph in the brand tile, and the
+  `Automation workbench` subtitle was removed so the brand shows **just the app icon + "SpecterStudio"**.
+  New `.brand-app-icon` rule in `global.css`. The footer workspace chip and the top `AppFrame` wordmark are
+  unchanged.
+- **Validation:** `npm run build` passed (tsc + bundles; `splash.html` 20.12 kB). Verified by (1) rendering
+  the built splash at the brief timestamp with the spinner shown (bundled-Chromium screenshot), (2) viewing
+  `resources/icon.png`, and (3) launching the real Electron app and screen-capturing the running window —
+  sidebar shows the new mark + "SpecterStudio" only, and the splash handed off cleanly ("Electron shell:
+  Online", "IPC bridge: Connected"). **Not run:** packaged EXE rebuild (taskbar icon) / clean-machine
+  walkthrough.
+
+## Product rename → SpecterStudio (2026-07-16)
+
+- **What:** the product/application identity was renamed from **WebFlow Studio** to **SpecterStudio**
+  everywhere it is the app's own name — window/dialog/HTML titles, renderer UI (app frame, left nav,
+  Settings "Application name"), packaging (`electron-builder.json` `productName` + `appId`
+  `com.specterstudio.app`), npm `name`/`productName` in `package.json`(+lock), and every user-facing
+  message string in `app/**` and `src/**` (IPC guards, `ProtectedLoginDetector`, `StepExecutor`,
+  `urlPolicy`, `SessionCaptureService`, `ProjectContract`).
+- **Runtime data root:** `RUNTIME_DATA_FOLDER` in `app/main/appPaths.ts` is now `"SpecterStudio"`, so data
+  lives under `%LOCALAPPDATA%/SpecterStudio/`. The offline chain was kept consistent: `resources/
+  dependency-manifest.json` (`application.name` + all `paths`), `resources/offline-runtime.json`,
+  `src/offline/DependencyManifest.ts` validator, and both PS scripts (`generate-dependency-manifest.ps1`,
+  `validate-offline-bundle.ps1`) all agree on `SpecterStudio` / `%LOCALAPPDATA%/SpecterStudio`. Seed/verify
+  tooling that locates the runtime folder or packaged EXE was updated to match (`seed-mock-fixtures`,
+  `seed-observability-fixtures`, `reset-ui-state`, `verify-instance-monitor-gui`, `verify-settings-
+  persistence`, `verify-packaged-runtime`, `verify-packaged-walkthrough`, `packaged-process-tree`,
+  `benchmark/electron-stub`).
+- **Deliberately NOT changed:** the `window.playwrightFlowStudio` preload API identifier (internal
+  contract), the `--awkit-*` CSS design tokens, the `AWKIT_*` env-var names / `awkitRssMb` data field
+  (functional identifiers — only their user-facing display labels became "SpecterStudio"), the
+  `playwright-flow-studio-offline-dependency-manifest` manifest *schema* name, and dated historical records
+  (DECISIONS.md rename entry, `OFFLINE_STANDALONE_PACKAGING.md` + phase walkthroughs that reference the
+  already-built `WebFlow Studio 0.1.0.exe`/`Setup` artifacts). Live project-identity files were updated
+  (`README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursor/rules/00-project.mdc`,
+  `.cursor/rules/30-storage-ipc.mdc`, `ci.yml` comment).
+- **Migration note:** existing installs keep data under the old `%LOCALAPPDATA%/WebFlow Studio/` folder; the
+  renamed build reads/writes the new `SpecterStudio` folder and will not auto-migrate prior data.
+- **Validation:** `npm run build` passed (tsc + bundles); `npm run validate:offline` passed (development
+  mode, no failures) with the manifest name/path checks satisfied. **Not run:** packaged EXE/NSIS rebuild
+  (artifacts would gain the new name) and clean-machine GUI walkthrough.
+
+## Specter Studio launch splash screen (2026-07-16)
+
+- **What:** an offline, frameless launch splash that recreates the reference "flexible logo" motion reel
+  (`UI Samples/SplashScreen.mp4`) rebranded to **Specter Studio**. New file `app/renderer/splash.html` —
+  fully self-contained (inline CSS+JS, canvas-rendered, CSP `default-src 'none'`, no remote assets/fonts).
+- **Animation:** a single parametric layout (two display words, two modular grids, counter, tagline, body
+  paragraph, credits) driven through scene keyframes on a **13.716667s loop** matching the source's beats:
+  wide 10×3 Format A → collapse to a minimal 2×2 grid (~3s) → **isolated 2×2 pivots 90° clockwise through
+  the 45° diamond and settles upright while type fades (~3–4.3s)** → portrait column (~5.4s) → wide
+  snap-back 8×3 (~7.3s) → resolved layout with body copy fading in (~8.4–9s) → **dead-still hold ~9.8–11.7s**
+  → loop wind-up → seamless return to Format A. Grid `cols/rows` interpolate via a rounded lerp to reproduce
+  the responsive cell-count reflow; `pivotRotation(t)` handles the diamond spin; each word's baseline sits
+  just above its grid. `window.__renderAt(t)` exposes deterministic rendering for frame extraction/compare.
+- **Look:** strict high-contrast monochrome — crisp white grid + near-white uppercase wordmark
+  (**SPECTER / STUDIO**) on the Hologram near-black `#0e1016`, with a **whisper** of project violet
+  (subtle top-left `rgba(124,58,237,0.08)` radial glow + violet `1.0.7` counter).
+  Copy, credits (Year 2026 / Mohammad Abwini / Arab Bank — Limited / Version 1.0.7), and the
+  `VISUAL AUTOMATION PLATFORM` tagline are the user-supplied Specter Studio text.
+- **Integration:** `windowManager.ts` adds `createSplashWindow()` (760×570, frameless, alwaysOnTop, no
+  preload/node, `backgroundColor #0e1016`) and `fadeOutAndClose()`; `createMainWindow()` gained a
+  `{ show }` option. `main.ts` shows the splash, boots the main window hidden, and on `ready-to-show`
+  (min 2.4s display, 8s hard fallback) shows the main window and dissolves the splash. `splash.html` is a
+  second renderer input in `electron.vite.config.ts` → builds to `out/renderer/splash.html`.
+- **Validation:** `npm run build` passed (tsc + bundles; splash emitted at 17.36 kB, self-contained
+  verified — no external `src`/`href`). Recreation validated by extracting the source clip's real frames
+  (Playwright + bundled Chromium, `requestVideoFrameCallback`) and comparing side-by-side at matched
+  timestamps. **Not run:** live packaged-EXE GUI launch walkthrough (no clean-machine run here).
+
+## AWKIT application icon refresh — Specter segmented S (2026-07-16)
+
+- **Design:** new transparent application icon under `logos/specter-violet/`; the selected Specter mark is
+  a bold five-segment geometric S inside a restrained lavender ring. The front-facing 318/512px
+  (**62.109%**) squircle uses the Hologram palette (`#0e1016`, `#7c3aed`, `#8b5cf6`, `#a78bfa`,
+  `#f3f1f8`, `#f3f0ff`) with top-left glass sheen, internal violet bloom, dark corner depth, and no
+  visible text or unrelated hues.
+- **Production assets:** `resources/icon-source.png` is the square 1024px alpha source;
+  `resources/icon.png` is the generated 1024px master; `resources/icon.ico` contains 32-bit-alpha frames
+  at **256/128/64/48/32/24/16px**. Editable SVG, 16–2048px PNG exports, three concept directions,
+  light/dark embedded-ICO size evidence, and a preview page live in `logos/specter-violet/`.
+- **Exporter hardening:** `scripts/generate-app-icon.mjs` no longer uses `png-to-ico` 2.1.0. That packer
+  excluded its AND-mask bytes from ICO entry lengths/offsets, allowing later directory entries to point
+  into prior frame data. The script now writes standards-compliant PNG-compressed ICO entries directly
+  and validates every frame's offset, dimensions, 32-bit declaration, RGBA color type, and PNG signature
+  before writing.
+- **Validation:** `npm run icon:generate` passed; all seven embedded ICO frames independently decode with
+  RGBA alpha and transparent corners; SVG/XML and no-visible-text checks passed; true-size visual checks
+  passed at 16–256px on light and dark backgrounds; `npm run build` passed;
+  `npm run validate:offline` passed (development mode).
+
 ## Runtime Observability & Historical Analytics — full phase set (2026-07-16)
 
 Extends the EXISTING durable telemetry stack (one SQLite store, one contract, one IPC surface) with a

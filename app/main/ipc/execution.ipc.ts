@@ -6,6 +6,8 @@ import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { PreRunValidator } from "@src/reports/PreRunValidator";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
+import { DataSourceResolver } from "@src/data/DataSourceResolver";
+import { isOracleDataSource, type DataSourceProfile, type JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { ResolvedDataSource } from "@src/runner/InstanceExecutionContext";
 import { createDataSourceProfileStore, createFlowProfileStore, createWorkflowProfileStore, createReportStore } from "../profileStores";
 import { getResourcesRoot, getRuntimePaths } from "../appPaths";
@@ -18,6 +20,7 @@ import type { ConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfi
 import { getSessionService } from "./session.ipc";
 import { assertTrustedSender } from "./senderGuard";
 import { getSecretStore } from "../secretStore";
+import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
 
 export interface RunWorkflowRequest {
   workflowId: string;
@@ -37,6 +40,9 @@ export function registerExecutionIpc(): void {
   // Let the runner resolve `type:"secret"` value sources from the encrypted secret store at run time
   // (audit §15). Values live only in the main process; they never enter workflow JSON or the renderer.
   executionEngine.setSecretResolver((name) => getSecretStore().get(name));
+
+  // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
+  executionEngine.setOracleNodeRunner(getOracleNodeRunner());
 
   ipcMain.handle("execution:list", async () => executionEngine.getInstances());
   ipcMain.handle("execution:validate", async (_, workflowId: string) => validateWorkflow(workflowId));
@@ -263,12 +269,27 @@ async function resolveWorkflowDataSources(
   workflow: WorkflowProfile
 ): Promise<{ workflowDataSource?: ResolvedDataSource; dataSources: Record<string, ResolvedDataSource> }> {
   const store = createDataSourceProfileStore();
-  const profiles = await store.list();
+  // The data-sources folder holds a discriminated union (jsonArray | oracle); the store reads the raw
+  // JSON regardless of its generic, so widen to the union to branch on the discriminator.
+  const profiles = (await store.list()) as unknown as DataSourceProfile[];
   const dataSources: Record<string, ResolvedDataSource> = {};
+
+  // One resolver per run defines the runtime cache scope: an Oracle runtime source executes once and
+  // shares that result (single-flight) across every consumer in the run. JSON arrays keep their
+  // existing eager file/path path below and are not routed through the resolver.
+  const resolver = new DataSourceResolver({
+    readJsonRows: async () => [],
+    runOracleRuntimeQuery: (profile) => runOracleDataSourceQuery(profile)
+  });
 
   for (const profile of profiles) {
     try {
-      dataSources[profile.id] = await toResolvedDataSource(profile.id, profile.name, profile.file, profile.path);
+      if (isOracleDataSource(profile)) {
+        dataSources[profile.id] = resolver.resolve(profile);
+      } else {
+        const json = profile as JsonArrayDataSourceProfile;
+        dataSources[json.id] = await toResolvedDataSource(json.id, json.name, json.file, json.path);
+      }
     } catch {
       // Skip unreadable data sources
     }
@@ -277,7 +298,12 @@ async function resolveWorkflowDataSources(
   let workflowDataSource: ResolvedDataSource | undefined;
   if (workflow.dataSource?.dataSourceId) {
     const bound = dataSources[workflow.dataSource.dataSourceId];
-    if (bound) {
+    if (bound?.type === "oracle") {
+      // Materialize the bound Oracle source eagerly so `.rows`-driven loops (dataRows) see a real
+      // count. Snapshot rows are already present; a runtime source executes its query once here.
+      const rows = bound.rows.length ? bound.rows : bound.loadRows ? await bound.loadRows() : [];
+      workflowDataSource = { ...bound, rows };
+    } else if (bound) {
       workflowDataSource = {
         ...bound,
         rootArrayPath: workflow.dataSource.rootArrayPath || bound.rootArrayPath,

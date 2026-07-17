@@ -22,6 +22,7 @@ import { collectSecretNames } from "../profiles/FlowValidation";
 import { registerSecretValues } from "../reports/SecretMasker";
 import type { ScenarioProfile } from "../profiles/ScenarioProfile";
 import type { ResolvedDataSource } from "./InstanceExecutionContext";
+import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { ReportService } from "../reports/ReportService";
 import type { InstanceReport } from "../reports/ExecutionReport";
 import { createReportStore } from "../../app/main/profileStores";
@@ -449,6 +450,16 @@ export class ExecutionEngine {
 
   public setSecretResolver(resolver: (name: string) => string | undefined): void {
     this.secretResolver = resolver;
+  }
+
+  /**
+   * Runs Oracle query nodes (main process only — owns the JDBC bridge). Kept as a callback so `src/`
+   * never imports Electron; verifiers that don't set it run with Oracle nodes reporting unavailable.
+   */
+  private oracleNodeRunner?: OracleNodeRunner;
+
+  public setOracleNodeRunner(runner: OracleNodeRunner): void {
+    this.oracleNodeRunner = runner;
   }
 
   /** Resolve the secret names a scenario's flows reference into a per-run map (undefined when none/no resolver). */
@@ -1326,7 +1337,8 @@ export class ExecutionEngine {
       // Phase A5: only shared-eligible instances lease from the shared Chromium pool.
       sharedBrowserPool: shared ? this.sharedBrowserPool : undefined,
       // Phase A6: stagger expensive operations across every instance.
-      operationLimiters: this.operationLimiters
+      operationLimiters: this.operationLimiters,
+      oracleNodeRunner: this.oracleNodeRunner
     });
 
     let runError: string | undefined;

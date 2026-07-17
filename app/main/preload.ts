@@ -8,6 +8,10 @@ import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
 import type { DeepPartial, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
 import type { SecretSummary } from "./secretStore";
+import type { OracleConnectionProfileView } from "@src/oracle/OracleConnectionProfile";
+import type { OracleProfileInput, TestConnectionResult } from "@src/oracle/OracleProfileService";
+import type { OracleDataSourceProfile } from "@src/data/DataSourceProfile";
+import type { OracleDataSourceInput } from "./oracleService";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
@@ -254,6 +258,26 @@ const api = {
     stopCapture: () => ipcRenderer.invoke("session:stopCapture") as Promise<void>,
     getById: (id: string) => ipcRenderer.invoke("session:getById", id) as Promise<SessionProfile | null>,
     markUsed: (id: string) => ipcRenderer.invoke("session:markUsed", id) as Promise<void>
+  },
+  oracle: {
+    // Oracle connection profiles. Renderer only ever receives credential-free views
+    // (`hasPassword`/`hasTrustStoreSecret`) — passwords are stored by name in the encrypted secret
+    // store and never returned.
+    availability: () =>
+      ipcRenderer.invoke("oracle:availability") as Promise<{ available: boolean; source: string; reason?: string; driverExpected: boolean }>,
+    listProfiles: () => ipcRenderer.invoke("oracle:profiles:list") as Promise<OracleConnectionProfileView[]>,
+    getProfile: (id: string) => ipcRenderer.invoke("oracle:profiles:get", id) as Promise<OracleConnectionProfileView | null>,
+    saveProfile: (input: OracleProfileInput) => ipcRenderer.invoke("oracle:profiles:save", input) as Promise<OracleConnectionProfileView>,
+    deleteProfile: (id: string) => ipcRenderer.invoke("oracle:profiles:delete", id) as Promise<void>,
+    testProfile: (id: string) => ipcRenderer.invoke("oracle:profiles:test", id) as Promise<TestConnectionResult>,
+    testDraft: (input: OracleProfileInput) => ipcRenderer.invoke("oracle:profiles:testDraft", input) as Promise<TestConnectionResult>,
+    // Oracle Data Sources (runtime/snapshot). Profiles hold only a connection-profile reference, never
+    // credentials; snapshot rows are normalized JSON stored for offline use.
+    listDataSources: () => ipcRenderer.invoke("oracle:dataSources:list") as Promise<OracleDataSourceProfile[]>,
+    getDataSource: (id: string) => ipcRenderer.invoke("oracle:dataSources:get", id) as Promise<OracleDataSourceProfile | null>,
+    saveDataSource: (input: OracleDataSourceInput) => ipcRenderer.invoke("oracle:dataSources:save", input) as Promise<OracleDataSourceProfile>,
+    deleteDataSource: (id: string) => ipcRenderer.invoke("oracle:dataSources:delete", id) as Promise<void>,
+    refreshSnapshot: (id: string) => ipcRenderer.invoke("oracle:dataSources:refreshSnapshot", id) as Promise<OracleDataSourceProfile>
   }
 };
 

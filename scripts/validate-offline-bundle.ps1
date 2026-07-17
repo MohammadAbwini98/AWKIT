@@ -95,8 +95,8 @@ foreach ($path in @($sampleFlows, $sampleWorkflows, $sampleScenarios, $sampleDat
 }
 
 if (Test-Property $manifestJson "application") {
-  if ($manifestJson.application.name -ne "WebFlow Studio") {
-    $failures.Add("Manifest application name must be WebFlow Studio.")
+  if ($manifestJson.application.name -ne "SpecterStudio") {
+    $failures.Add("Manifest application name must be SpecterStudio.")
   }
   if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.version)) {
     $failures.Add("Manifest application version is required.")
@@ -147,7 +147,7 @@ if (Test-Property $manifestJson "browsers") {
 
 if (Test-Property $manifestJson "paths") {
   foreach ($pathName in @("runtimeDataRoot", "flows", "workflows", "scenarios", "instances", "data", "downloads", "screenshots", "logs", "reports")) {
-    if (-not (Test-Property $manifestJson.paths $pathName) -or -not ([string]$manifestJson.paths.$pathName).StartsWith("%LOCALAPPDATA%/WebFlow Studio")) {
+    if (-not (Test-Property $manifestJson.paths $pathName) -or -not ([string]$manifestJson.paths.$pathName).StartsWith("%LOCALAPPDATA%/SpecterStudio")) {
       $failures.Add("Manifest path must use the user profile runtime root: $pathName")
     }
   }
@@ -180,6 +180,57 @@ if (Test-Property $manifestJson "startupChecklist") {
   if ($manifestJson.startupChecklist.bundledBrowserExecutableExists -ne (Test-Path $browser)) {
     $failures.Add("Startup checklist bundledBrowserExecutableExists flag does not match the browser executable on disk.")
   }
+}
+
+# === Oracle JDBC private runtime (optional feature) ===
+# When the bundle is present it MUST be checksum-valid, complete, carry a real driver, and contain no
+# secrets/wallets. When absent, Oracle is simply an un-bundled optional feature (a warning, not a fail).
+$oracleDir = Join-Path $root "resources\oracle-jdbc"
+if (Test-Path $oracleDir) {
+  Write-Host "Validating bundled Oracle JDBC runtime..."
+  $oracleChecksums = Join-Path $oracleDir "checksums.json"
+  if (-not (Test-Path $oracleChecksums)) {
+    $failures.Add("Oracle bundle present but checksums.json is missing (cannot verify integrity).")
+  } else {
+    $sums = Get-Content -Raw $oracleChecksums | ConvertFrom-Json
+    foreach ($prop in $sums.PSObject.Properties) {
+      $rel = $prop.Name
+      $expected = ($prop.Value -replace '^sha256:', '').ToLower()
+      $abs = Join-Path $oracleDir ($rel -replace '/', '\')
+      if (-not (Test-Path $abs)) {
+        $failures.Add("Oracle bundle: checksums.json lists a missing file: $rel")
+      } else {
+        $actual = (Get-FileHash -Algorithm SHA256 $abs).Hash.ToLower()
+        if ($actual -ne $expected) {
+          $failures.Add("Oracle bundle: checksum mismatch for $rel (corrupted or tampered).")
+        }
+      }
+    }
+  }
+  foreach ($required in @("manifest.json", "bridge\awkit-oracle-jdbc-bridge.jar", "runtime\bin\java.exe")) {
+    if (-not (Test-Path (Join-Path $oracleDir $required))) {
+      $failures.Add("Oracle bundle: missing required file: $required")
+    }
+  }
+  $libDir = Join-Path $oracleDir "lib"
+  $libJars = @()
+  if (Test-Path $libDir) {
+    $libJars = @(Get-ChildItem -Path $libDir -Filter *.jar -ErrorAction SilentlyContinue)
+  }
+  if ($libJars.Count -eq 0) {
+    $failures.Add("Oracle bundle: no ojdbc/ucp jars in lib/ (packaged builds require a real driver; the app fails closed without one).")
+  }
+  $forbidden = @(Get-ChildItem -Path $oracleDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
+    $_.Name -match '\.(env|pem|p12|sso|jks|key)$' -or $_.Name -ieq 'tnsnames.ora' -or $_.Name -ieq 'sqlnet.ora'
+  })
+  foreach ($f in $forbidden) {
+    $failures.Add("Oracle bundle: forbidden secret/wallet artifact present: $($f.Name)")
+  }
+  $oracleSize = (Get-ChildItem -Path $oracleDir -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+  $oracleSizeMb = [math]::Round(($oracleSize / 1MB), 1)
+  Write-Host "Oracle bundle size: $oracleSizeMb MB"
+} else {
+  $warnings.Add("Oracle JDBC runtime not bundled (optional feature). Run 'npm run prepare:oracle-runtime' to include it.")
 }
 
 foreach ($warning in $warnings) {
