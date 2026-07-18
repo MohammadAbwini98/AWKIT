@@ -11,7 +11,8 @@
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
+import { resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixtureRoot = path.resolve(root, process.env.AWKIT_FIXTURE_ROOT ?? ".fixtures-observability");
@@ -63,11 +64,17 @@ async function bodyText(win) {
 
 async function walkState(state) {
   console.log(`\n── State: ${state} ──`);
-  const env = { ...process.env, LOCALAPPDATA: path.join(fixtureRoot, state) };
+  const stateRoot = path.join(fixtureRoot, state);
+  // Keep the walkthrough idempotent: the seeded observability DB persists, but a prior run provisions a
+  // Super User into <state>/SpecterStudio/security, so a re-run without a fresh seed would hit the login
+  // form instead of first-run and signInFirstRun would time out. Clear only the security store so every
+  // run is a clean first-run (the observability fixture the walkthrough asserts on is left untouched).
+  rmSync(path.join(stateRoot, "SpecterStudio", "security"), { recursive: true, force: true });
+  const env = { ...process.env, LOCALAPPDATA: stateRoot };
   delete env.ELECTRON_RUN_AS_NODE; // must run as a GUI app, not plain Node
   const app = await electron.launch({ args: [root], cwd: root, env });
   try {
-    const win = await app.firstWindow();
+    const win = await resolveMainWindow(app);
     const pageErrors = [];
     const consoleErrors = [];
     win.on("pageerror", (e) => pageErrors.push(e.message));
@@ -75,6 +82,9 @@ async function walkState(state) {
       if (m.type() === "error" && !BENIGN.some((re) => re.test(m.text()))) consoleErrors.push(m.text());
     });
     await win.waitForLoadState("domcontentloaded");
+    // Each seeded fixture root is a fresh profile with no security user — drive first-run sign-in past
+    // the SecurityGate (PR #15) to reach the app shell before asserting on the page (bd awkit-gmn).
+    await signInFirstRun(win);
     await win.waitForTimeout(1500); // let async telemetry queries resolve
 
     // Ensure we're on Runtime Analytics (seeded lastRouteId). Fall back to clicking the nav item.

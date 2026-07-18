@@ -1,6 +1,22 @@
 # Agent Handoff
 
-Last updated: 2026-07-16 (**Runtime Observability final production-validation** — Phases 1–6). Controlled A/B
+Last updated: 2026-07-18 (**Release-readiness audit** via the `fullstack-webapp-testing` skill, on merged
+`main` @ `93162d6`). **State correction:** the Secure Login work (PR #15, `93162d6`) and the Oracle
+user-selected-Java/direct-JDBC work (PR #14, `79e20a5`) are **merged to `main`** — every note below that says
+"branch `feature/secure-login-auth`", "branch `feature/oracle-jdbc-driver-settings`", or "NOTHING COMMITTED"
+is history. Working tree is clean apart from this audit's own doc/tracker/`test-artifacts/` edits + the
+reports-verifier fix. **Decision: `CONDITIONAL GO`** for `main` as a dev/integration checkpoint (NOT a
+production-ship verdict — the standing external gates are unchanged and un-run). Fresh safe-test evidence
+(build; ipc-contract 4/4; security 39/39; secrets 16/16; auth 41/41; auth-gui 13/13; profile-store 13/13;
+write-queue 7/7; mock-site 39/39; runner 82/82) + full report under
+`test-artifacts/2026-07-18-release-readiness-audit/`. Found the GUI-verifier regression is bigger than bd
+`awkit-gmn` recorded — the splash **and** the new `SecurityGate` both block the app shell; **fixed
+`scripts/verify-reports-gui.mjs` (31/31)** as the reference (resolveMainWindow + isolated-LOCALAPPDATA
+first-run), 5+ sibling GUI verifiers still need the same recipe. Prior handoff below is history.
+
+---
+
+Previously: 2026-07-16 (**Runtime Observability final production-validation** — Phases 1–6). Controlled A/B
 overhead + full 30-min soak + measured storage/query benchmarks + real-Electron UI walkthrough (36/36) across
 seeded normal/empty/migration/high-data DBs. **Decision: `PRODUCTION-CANDIDATE`** (report §16–17). Corrected the
 report's overhead/query/storage/"Experimental" claims. Fixed 2 soak-harness accounting bugs (`cancelled`-run

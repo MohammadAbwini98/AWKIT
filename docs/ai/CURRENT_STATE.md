@@ -1,5 +1,64 @@
 # CURRENT_STATE
 
+## Secure Login + Oracle driver-settings MERGED to `main`; release-readiness audit run (2026-07-18)
+
+**State correction (read first):** the two entries below, and the older `HANDOFF.md` notes, describe the
+Secure Login work (trusted core + login UI) and the Oracle user-selected-Java/direct-JDBC work as living on
+feature branches / "NOTHING COMMITTED". **That is now stale.** Both shipped to `main` on 2026-07-18:
+- **PR #14** (`79e20a5`) — Oracle: user-selected Java runtime + direct JDBC (UCP removed).
+- **PR #15** (`93162d6`, current `main` HEAD) — Secure Login: trusted core + login UI.
+
+`main` is at `93162d6`; the working tree is clean apart from this audit's own doc/tracker edits. Where the
+entries below say "on branch `feature/secure-login-auth`" or "Nothing committed", read "merged to `main`".
+
+**Release-readiness audit (`fullstack-webapp-testing` skill), decision `CONDITIONAL GO` for `main` as a
+dev/integration checkpoint — explicitly NOT a production-ship verdict.** Report + evidence under
+`test-artifacts/2026-07-18-release-readiness-audit/`. Fresh safe-test evidence on `93162d6`: `npm run build`
+clean; `verify:ipc-contract` 4/4 (172 handlers); `verify:security` 39/39; `verify:secrets` 16/16;
+`verify:auth` 41/41; `verify:auth-gui` 13/13 (real Electron); `verify:profile-store` 13/13;
+`verify:write-queue` 7/7; `verify:mock-site` 39/39; `verify:runner` 82/82 (real Chromium core E2E). Manual
+secret-leakage scan of tracked source clean (only mock/test fixtures + one enum constant match); `.env`
+gitignored; no key/cert files tracked. No P0/P1 defects in anything tested. Un-run (scope/time, not failures):
+the Oracle 350+-check suite, concurrency/stress/soak, packaging/offline validation, Recorder/Smart-Wait/
+popup/canvas-perf/chromium-hardening, automated a11y (none wired in this repo), and the standing external
+gates (clean-machine offline VM walkthrough, signed packaged EXE, Oracle live perf/soak) — all unchanged by
+this audit.
+
+**GUI-verifier regression fixed across the general verifiers (bd `awkit-gmn`; 2026-07-19 sweep).** Root
+cause is two-part: the branding splash breaks `app.firstWindow()` (returns the bridge-less splash, which
+self-closes), **and** PR #15's `SecurityGate` now gates every route — the real `<App/>` shell never mounts
+pre-auth. Fixed with a shared harness `scripts/lib/gui-verify-harness.mjs` (`resolveMainWindow` +
+`signInFirstRun` + `isolatedLaunchEnv`): **verify:reports 31/31** (original reference), **capacity-settings
+12/12**, **instance-monitor-gui 12/12**, **runtime-analytics-gui 36/36** (all four seeded states), **workflow-builder
+20/20** (seeds flows+workflow), **flow-designer 24/24** (seeds a flow; launches + signs in + every
+behaviour check passes). `verify:settings-persistence` is **3/3 unchanged** (pure preload IPC, never gated).
+All counts re-verified independently 2026-07-19. **flow-designer's 5 stale geometry assertions modernized
+(bd `awkit-9p6`, CLOSED):** rewritten from the old docked-column model (`canvasEngineRight <= panelLeft`,
+`panelRight <= canvasRight`) to the actual floating-overlay invariants — the flow engine keeps the full
+canvas width and the fixed-width drawer floats over its right edge (measured: ~1.8px right overhang, panel
+below the action bar, collapsed rail = 48px = CSS `calc(space-5*2)`); the collapse measurement now waits for
+the 240ms glide to settle instead of racing it (was flaky at 220ms). **`verify-oracle-drivers-gui` made
+self-contained + gate-threaded (bd `awkit-xjv`, CLOSED): 30/30** — now launches on an isolated empty
+`%LOCALAPPDATA%`, **copies** the validation stores (`java-runtimes` + `oracle-drivers`) from the source
+profile into it (machine-global `java.exe` path + the bundle's own managed jar → same ids), signs in past
+the SecurityGate, and reaches Settings via nav clicks (no session-dropping reload); the real bridge still
+launches Java + loads the real ojdbc driver end-to-end (`driverAvailable=true driver=23.26.2.0.0`). It only
+reads the source profile, so it is non-destructive; needs `build:oracle-bridge` + the real java.exe/ojdbc
+jar present (override the source with `AWKIT_GUI_SOURCE_LOCALAPPDATA`). One idempotency defect found + fixed
+during re-verification (bd `awkit-7ek`,
+CLOSED): `runtime-analytics-gui` uses persisted `.fixtures-observability/<state>` dirs, so a re-run left a
+provisioned Super User behind and hit the login form (0/4); `walkState` now clears
+`<state>/SpecterStudio/security` before each launch — proven idempotent (36/36 twice, no re-seed).
+
+**Secure Login hardening landed (2026-07-19): `awkit-ekd.6` + `awkit-ekd.7` CLOSED.**
+- **Session rotation (ekd.7):** `changePassword` now revokes every *other* active session for the user
+  (keeps the current one) — `SessionManager.revokeOthersForUser` → `SecurityStore.revokeSessionsForUserExcept`.
+  `verify:auth` is now **45/45** (added 4 Session-rotation checks).
+- **Single-instance guard (ekd.6):** `app/main/main.ts` acquires `app.requestSingleInstanceLock()`; a second
+  launch focuses the running window (`second-instance`) and quits before opening any window/store, so two
+  processes can't race on `security.sqlite`/ui-settings per profile. New **verify:single-instance 3/3**.
+  The finer DurableLockStore-around-writes remains optional defense-in-depth (`awkit-ekd.8` P3 still open).
+
 ## Secure Login — trusted core + login UI IMPLEMENTED & verified (real Electron); authz/licensing pending (2026-07-18)
 
 The **login UI (Phase 6)** is now built on top of the trusted core, on branch `feature/secure-login-auth`.

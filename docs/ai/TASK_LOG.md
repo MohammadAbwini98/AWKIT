@@ -4,6 +4,96 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Oracle Drivers GUI verifier: self-contained isolated profile + gate auth (awkit-xjv)
+
+- **What:** `verify-oracle-drivers-gui.mjs` was the one GUI verifier the awkit-gmn shared-harness fix didn't
+  resolve on its own — it launched against the developer's REAL profile (so PR #15's SecurityGate blocked
+  the app shell) and depended on the real validation store. Reworked it to be self-contained + non-destructive
+  like the others.
+- **How:** launch on an **isolated empty `%LOCALAPPDATA%`** (`isolatedLaunchEnv`), then **copy** the
+  validation stores (`java-runtimes` + `oracle-drivers`) from the source profile into it before launch. The
+  copy resolves to the same ids because the Java record holds a machine-global `java.exe` path and the driver
+  bundle's managed dir carries its own jar (manifest uses a **relative** `jdbcJar`). Then `signInFirstRun`
+  past the SecurityGate, and reach Settings via **nav-item clicks** instead of `win.reload()` (a reload
+  re-mounts the gate and drops the session — same lesson as capacity-settings); the post-save re-render is a
+  nav bounce (`remountSettings`) rather than a reload. Source profile overridable via
+  `AWKIT_GUI_SOURCE_LOCALAPPDATA`; a clear `exit 2` if the validation store is absent.
+- **Non-destructive:** the real profile is only **read** (copied from); all writes (probe profile, sign-in,
+  set-default) land in the temp profile, which `cleanup()` deletes.
+- **Files:** `scripts/verify-oracle-drivers-gui.mjs` (removed the local `resolveMainWindow`/`env`, added
+  seed-copy + `gotoSettings`/`remountSettings` nav helpers + first-run auth). No `src/` change.
+- **Tests:** `npm run build:oracle-bridge` OK; **verify:oracle-drivers-gui 30/30 twice** (was blocked by the
+  gate) — real bridge launches Java 17.0.8 + loads the real ojdbc `23.26.2.0.0` end-to-end; no temp-profile
+  leftovers. Requires the Oracle validation env (real java.exe + ojdbc jar). bd `awkit-xjv` CLOSED.
+
+---
+
+## 2026-07-19 — Claude — Flow Designer GUI verifier: modernize stale geometry assertions (awkit-9p6)
+
+- **What:** the 5 flow-designer geometry checks asserted the pre-Hologram **docked-column** model
+  (`canvasEngineRight <= panelLeft`, `panelRight <= canvasRight`, `panelTop ≈ canvasAreaTop`, and
+  engine-width-grows-on-collapse). The design is now a **floating overlay drawer** — measured the live
+  geometry and rewrote them to the real invariants.
+- **Measured (real Electron):** expanded drawer → `.react-flow-shell` keeps the **full canvas width**
+  (1200/1696/784 == canvasWidth at 1440/1936/1024), fixed **435px** drawer floats over the right edge with
+  a consistent **~1.8px** overhang past `canvasRight`, `panelTop` 2–3px below `canvasAreaTop` (below the
+  action bar); collapsed rail = **48px** (CSS `calc(var(--space-5) * 2)` — resolves the bead's rail-width
+  question), `bodyPaddingRight` 0 open → ~60px collapsed.
+- **New assertions:** engine spans full canvas width (`|canvasEngineWidth - canvasWidth| <= 2`), drawer
+  contained left + `panelRight <= canvasRight + 4`, `panelTop >= canvasAreaTop - 2`,
+  `panelBottom <= canvasAreaBottom + 2`, and collapse shrinks the rail well below the open drawer width
+  (`railWidth <= 96 && railWidth < panelWidth/2`). Also fixed a **races-the-animation** bug: the collapse
+  measurement waited a fixed 220ms (< the 240ms `--awkit-dur-panel` glide) and sometimes read the drawer
+  mid-collapse (~440px) → replaced with `waitForFunction` polling until the rail settles ≤96px.
+- **Files:** `scripts/verify-flow-designer-gui.mjs` (`readInspectorGeometry` gains `bodyPaddingRight`; the
+  5 checks + collapse wait rewritten). No `src/` change.
+- **Tests:** `npm run build` clean; **verify:flow-designer 24/24 twice** (was 19/24). bd `awkit-9p6` CLOSED.
+
+---
+
+## 2026-07-19 — Claude — GUI-verifier sweep (awkit-gmn) + auth hardening (awkit-ekd.6/.7)
+
+- **GUI-verifier sweep (bd `awkit-gmn`):** added shared harness `scripts/lib/gui-verify-harness.mjs`
+  (`resolveMainWindow` splash-poll + `signInFirstRun` SecurityGate first-run + `isolatedLaunchEnv`).
+  Fixed the app-shell verifiers to launch on an isolated empty `%LOCALAPPDATA%` and sign in past the
+  gate: **verify:capacity-settings-gui 12/12** (nav to Settings instead of a session-dropping reload),
+  **verify:instance-monitor-gui 12/12**, **verify:runtime-analytics-gui 36/36** (all four seeded states),
+  **verify:workflow-builder 20/20** (seeds 2 flows + 1 workflow),
+  **verify:flow-designer 19/24** (seeds 1 multi-node flow; now launches + signs in + all behaviour checks
+  pass). `verify:settings-persistence` confirmed **3/3 unchanged** (pure preload IPC, never gated).
+- **Residuals split out:** flow-designer's 5 remaining failures are **stale post-Hologram geometry
+  assertions** (assert the old docked-column `canvasEngineRight <= panelLeft`; the design is now a floating
+  overlay drawer with a `padding-right` canvas inset — global.css ~8286) → **bd `awkit-9p6`**.
+  `verify-oracle-drivers-gui` needs the auth half **plus** its Oracle validation store (Java runtime +
+  ojdbc bundle) seeded into an isolated profile → **bd `awkit-xjv`** (Oracle-epic GUI gate).
+- **Idempotency fix (bd `awkit-7ek`, found + fixed during re-verification):** `verify-runtime-analytics-gui`
+  points `LOCALAPPDATA` at persisted `.fixtures-observability/<state>` dirs, so the first run provisioned a
+  Super User into `<state>/SpecterStudio/security` and a re-run (without a fresh seed) hit the login form —
+  `signInFirstRun` then timed out and the walkthrough silently reported **0/4**. `walkState` now `rmSync`s
+  `<state>/SpecterStudio/security` before each launch (leaving the observability fixture untouched), so every
+  run is a clean first-run. Proven idempotent: **36/36 twice back-to-back with no re-seed**.
+- **awkit-ekd.7 (session rotation):** `AuthenticationService.changePassword` now revokes every other active
+  session for the user, keeping the current one (`SessionManager.revokeOthersForUser` →
+  `SecurityStore.revokeSessionsForUserExcept`). `verify:auth` **45/45** (added 4 Session-rotation checks).
+- **awkit-ekd.6 (single-instance guard):** added `app.requestSingleInstanceLock()` in `app/main/main.ts`
+  (second launch focuses the running window via `second-instance` and quits before opening any window/store)
+  so two processes can't race on `security.sqlite`/ui-settings per profile. New **verify:single-instance 3/3**.
+- **Files:** `scripts/lib/gui-verify-harness.mjs` (new), `scripts/verify-single-instance.mjs` (new),
+  `scripts/verify-{capacity-settings,instance-monitor,runtime-analytics,workflow-builder,flow-designer}-gui.mjs`,
+  `scripts/verify-auth.mts`, `src/security/{auth/AuthenticationService,session/SessionManager,store/SecurityStore}.ts`,
+  `app/main/main.ts`, `package.json` (verify:single-instance).
+- **Tests run (all re-verified independently 2026-07-19):** build (typecheck+bundles) clean; verify:auth
+  **45/45**, verify:single-instance **3/3**, verify:capacity-settings-gui **12/12**,
+  verify:instance-monitor-gui **12/12**, verify:runtime-analytics-gui **36/36** (idempotent, twice),
+  verify:workflow-builder **20/20**, verify:flow-designer **19/24** (5 known geometry residuals → awkit-9p6).
+  Earlier session also: verify:auth-gui 13/13, verify:security 39/39, verify:secrets 16/16,
+  verify:settings-persistence 3/3. **Not run:** verify:oracle-drivers-gui (awkit-xjv) and the wider
+  Oracle/concurrency/packaging suites (out of scope).
+- **Result:** awkit-gmn's splash/gate breakage resolved across the general verifiers; ekd.6 + ekd.7 closed;
+  awkit-7ek (runtime-analytics idempotency) fixed + closed.
+
+---
+
 ## 2026-07-18 — Claude — Oracle `verify:oracle-live` gate PASSED against real local Oracle 19c
 
 - **Task:** Complete the unfinished Oracle JDBC driver-settings work by running the credential-gated
@@ -4455,3 +4545,43 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   electron-builder) + clean-machine walkthrough; sustained real-world soak — external gates.
 - **Result:** epic complete → **PRODUCTION-CANDIDATE**. Nothing committed (conservative git profile, ephemeral
   branch); handoff reports the changed-file set + proposed commit for approval.
+  > **Superseded same day:** this branch was committed and merged to `main` via PR #14 (`79e20a5`) later on
+  > 2026-07-18. See the audit entry below — this log entry's "nothing committed" is stale.
+
+## 2026-07-18 — Claude Sonnet 5 — Full-stack release-readiness audit (`fullstack-webapp-testing` skill)
+
+- **Task:** ran the `fullstack-webapp-testing` skill's audit + safe-tests + release-gate workflow against
+  `main` @ `93162d6`. Full report: `test-artifacts/2026-07-18-release-readiness-audit/full-test-report.md`
+  (+ `system-map.md`, `execution-summary.json` in the same folder). Tracked as beads `awkit-7s5`.
+- **State correction:** the Oracle WS-D..I entry directly above, and `docs/ai/HANDOFF.md`'s "Current
+  Handoff" section, both describe the Oracle driver-settings work and the Secure Login trusted-core+UI
+  work as uncommitted. That changed later the same day: **both merged to `main`** — PR #14 Oracle
+  (`79e20a5`) and PR #15 Secure Login (`93162d6`). Working tree is clean on `main`. `CURRENT_STATE.md` and
+  `HANDOFF.md` were **not** rewritten as part of this audit (kept out of scope to avoid a rushed partial
+  edit) — flagged as the top follow-up action in the report instead.
+- **Safe tests executed today (fresh evidence):** `npm run build` clean (tsc + 3 bundles); `verify:ipc-
+  contract` 4/4; `verify:security` 39/39; `verify:secrets` 16/16; `verify:auth` 41/41 (headless secure-login
+  core); `verify:profile-store` 13/13; `verify:write-queue` 7/7; `verify:mock-site` 39/39; `verify:auth-gui`
+  13/13 (real Electron); `verify:runner` 82/82 (real Chromium, core E2E). Manual read-only secret-pattern
+  scan of tracked source (excl. `node_modules`/`out`/`dist`/`vendor`): 4 regex hits, all confirmed benign
+  (1 `ReasonCodes.ts` constant, 3 mock/test-fixture credentials in `seed-mock-fixtures.mjs` and two Oracle
+  verifier/benchmark scripts). `.env` confirmed gitignored; `.env.example` placeholder-only; no `.pem/.pfx/
+  .p12/.key/id_rsa/.env` tracked in git.
+- **Defect confirmed (not new — reproduced an open bug):** `verify:reports` fails (`Target page, context or
+  browser has been closed` waiting for `.awkit-report-page`), reproducing `awkit-gmn` (branding-splash
+  breaks `app.firstWindow()`-based GUI verifiers). Confirmed via the codebase graph that
+  `resolveMainWindow()` already exists in `verify-oracle-drivers-gui.mjs`, `verify-settings-persistence.mjs`,
+  and `verify-auth-gui.mjs` (all pass), but not yet in `verify-reports-gui.mjs` or (per `awkit-gmn`, not
+  independently re-checked) `verify-flow-designer-gui.mjs`, `verify-workflow-builder-gui.mjs`,
+  `verify-instance-monitor-gui.mjs`, `verify-capacity-settings-gui.mjs`, `verify-runtime-analytics-gui.mjs`.
+- **Not run (scope/time — see report for full reasoning):** the Oracle 350+-check suite, the concurrency/
+  stress/soak suite, packaging/offline validation, the 5 other "likely affected" GUI verifiers, Recorder/
+  Smart-Wait/popup/canvas-perf/Chromium-hardening suites, automated accessibility scanning (none exists in
+  this repo), and any destructive/load/production test (none authorized or applicable to a local
+  single-user desktop app).
+- **Result:** **CONDITIONAL GO** for `main` as a development/integration checkpoint (no P0/P1 found; every
+  critical journey tested today passed with fresh evidence). Explicitly **not** a production-ship verdict —
+  the project's own pre-existing, already-tracked external gates (clean-machine offline VM walkthrough,
+  code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
+  by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
+  (this audit) closed with the report as its resolution.

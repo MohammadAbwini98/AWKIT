@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron } from "playwright";
+import { resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-instance-monitor-"));
@@ -117,12 +118,15 @@ try {
   };
   delete env.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({ args: [root], cwd: root, env });
-  const win = await app.firstWindow();
+  const win = await resolveMainWindow(app);
   const consoleErrors = [];
   const pageErrors = [];
   win.on("console", (message) => message.type() === "error" && consoleErrors.push(message.text()));
   win.on("pageerror", (error) => pageErrors.push(error.message));
   await win.waitForLoadState("domcontentloaded");
+  // The SecurityGate (PR #15) gates every route on this fresh isolated profile — drive first-run
+  // sign-in to reach the app shell before opening the Instances view (bd awkit-gmn).
+  await signInFirstRun(win);
   await win.getByRole("button", { name: "Instances", exact: true }).click();
 
   const card = win.locator('article[aria-label="Workflow Mock — Instance Summary Workflow"]');

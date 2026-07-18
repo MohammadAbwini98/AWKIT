@@ -4,14 +4,17 @@
 //   • Workload class affects the Auto recommendation.
 //   • The Settings "Runtime Concurrency" card + mode buttons render with no renderer console errors.
 //
+// Runs against an ISOLATED, empty %LOCALAPPDATA% and signs in past the SecurityGate first-run (PR #15
+// gates every route until authenticated); see bd awkit-gmn.
+//
 // Run: node scripts/verify-capacity-settings-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
-delete env.ELECTRON_RUN_AS_NODE;
+const { env, cleanup } = isolatedLaunchEnv("awkit-capacity-settings-gui");
 
 const results = [];
 function check(name, pass, detail) {
@@ -20,12 +23,13 @@ function check(name, pass, detail) {
 }
 
 const app = await electron.launch({ args: [root], cwd: root, env });
-const win = await app.firstWindow();
+const win = await resolveMainWindow(app);
 const consoleErrors = [];
 win.on("console", (msg) => {
   if (msg.type() === "error") consoleErrors.push(msg.text());
 });
 await win.waitForLoadState("domcontentloaded");
+await signInFirstRun(win);
 await win.waitForTimeout(400);
 
 // Snapshot the user's real settings so this test restores them exactly (non-destructive).
@@ -77,10 +81,15 @@ const byClass = await win.evaluate(async () => {
 check("workload class is monotonic (light >= heavy)", byClass.light >= byClass.heavy, `light=${byClass.light} heavy=${byClass.heavy}`);
 
 // 6. The Settings "Runtime Concurrency" card renders with its three mode buttons.
-await win.evaluate(() => window.playwrightFlowStudio.settings.update({ lastRouteId: "settings" }));
-await win.reload();
-await win.waitForLoadState("domcontentloaded");
-await win.waitForTimeout(500);
+// Navigate to Settings via the nav item rather than win.reload() — a full reload re-mounts the
+// SecurityGate and would drop us out of the authenticated shell (bd awkit-gmn).
+await win.evaluate(() => {
+  const items = [...document.querySelectorAll("button.nav-item")];
+  const target = items.find((b) => (b.textContent || "").trim() === "Settings" || b.getAttribute("title") === "Settings");
+  target?.click();
+});
+await win.getByRole("heading", { name: "Runtime Concurrency" }).first().waitFor({ timeout: 10000 }).catch(() => {});
+await win.waitForTimeout(300);
 const heading = await win.getByRole("heading", { name: "Runtime Concurrency" }).count();
 check("Runtime Concurrency card renders", heading >= 1, `headings=${heading}`);
 for (const label of ["Sequential", "Auto", "Manual"]) {
@@ -98,6 +107,7 @@ await win.evaluate(async (orig) => {
   await window.playwrightFlowStudio.settings.update({ runtime: orig.runtime, lastRouteId: orig.lastRouteId });
 }, original);
 await app.close();
+cleanup();
 
 const passed = results.filter((r) => r.pass).length;
 console.log(`\nCapacity settings GUI: ${passed}/${results.length} checks passed`);

@@ -73,4 +73,9 @@ export class SessionManager {
   async revokeAllForUser(userId: string): Promise<void> {
     await this.store.revokeSessionsForUser(userId, new Date(this.now()).toISOString());
   }
+
+  /** Revoke all of a user's sessions except the one supplied — session rotation on password change. */
+  async revokeOthersForUser(userId: string, keepSessionId: string): Promise<void> {
+    await this.store.revokeSessionsForUserExcept(userId, keepSessionId, new Date(this.now()).toISOString());
+  }
 }

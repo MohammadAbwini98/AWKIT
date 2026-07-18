@@ -227,6 +227,10 @@ export class AuthenticationService {
       updatedAt: nowIso,
       updatedBy: user.id
     });
+    // Rotate sessions: a password change revokes every other active session for this user so a
+    // credential that may have leaked can no longer ride an old session (awkit-ekd.7). The current
+    // session (the one that performed the change) is kept so the user is not bounced to login.
+    await this.sessions.revokeOthersForUser(user.id, sessionRef);
     await this.audit({ eventType: "PASSWORD_CHANGE", result: "success", actorUserId: user.id, sessionId: sessionRef });
     return { ok: true };
   }
