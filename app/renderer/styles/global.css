@@ -9404,3 +9404,282 @@ button.recorded-url-use:disabled {
     transition: none;
   }
 }
+
+/* ── Secure sign-in (SecurityGate / LockedShell) ────────────────────────────────
+   Pre-authentication surfaces. Token-only; themes itself via the shared palette. The
+   card entrance + spinner honor prefers-reduced-motion (block at the end of this file). */
+.awkit-login-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: var(--awkit-bg);
+  overflow: auto;
+}
+
+.awkit-login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--awkit-shadow-panel, 0 18px 48px rgba(20, 14, 40, 0.14));
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  animation: awkit-login-rise var(--awkit-dur-panel) var(--awkit-ease-out);
+}
+
+@keyframes awkit-login-rise {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.awkit-login-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.awkit-login-brand {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  margin-bottom: var(--space-2);
+}
+
+.awkit-login-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
+}
+
+.awkit-login-mark-warn {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.awkit-login-brand h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 650;
+  color: var(--awkit-text);
+}
+
+.awkit-login-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  color: var(--awkit-text-secondary);
+}
+
+.awkit-login-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.awkit-login-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--awkit-surface-soft);
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--awkit-dur-fast) var(--awkit-ease-out), background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-login-tab.is-active {
+  border-color: var(--awkit-accent);
+  background: var(--awkit-accent-soft);
+  color: var(--awkit-accent);
+}
+
+.awkit-login-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.awkit-login-tab:focus-visible {
+  outline: none;
+  border-color: var(--awkit-accent);
+  box-shadow: var(--awkit-focus-ring);
+}
+
+.awkit-login-soon {
+  font-style: normal;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-2xs);
+  text-transform: uppercase;
+  color: var(--awkit-text-muted);
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-pill);
+  padding: 2px 6px;
+}
+
+.awkit-login-field {
+  display: grid;
+  gap: 6px;
+}
+
+.awkit-login-field-label {
+  font-size: var(--text-sm);
+  color: var(--awkit-text-secondary);
+}
+
+.awkit-login-field input {
+  width: 100%;
+  height: 38px;
+}
+
+.awkit-login-password {
+  position: relative;
+  display: flex;
+}
+
+.awkit-login-password input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.awkit-login-reveal {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--awkit-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.awkit-login-reveal:hover:not(:disabled) {
+  color: var(--awkit-text-secondary);
+}
+
+.awkit-login-reveal:focus-visible {
+  outline: none;
+  box-shadow: var(--awkit-focus-ring);
+}
+
+.awkit-login-caps {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--awkit-warning);
+}
+
+.awkit-login-hint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-xs);
+  color: var(--awkit-text-muted);
+}
+
+.awkit-login-errors {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--awkit-danger);
+}
+
+.awkit-login-submit {
+  width: 100%;
+  height: 40px;
+}
+
+.awkit-login-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.awkit-login-actions .awkit-login-submit {
+  width: auto;
+  flex: 1;
+}
+
+.awkit-login-loading {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.awkit-login-spin {
+  animation: awkit-login-spin 0.9s linear infinite;
+}
+
+@keyframes awkit-login-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── AppFrame session chip (authenticated) ─────────────────────────────────────── */
+.app-frame-session {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: var(--space-2);
+}
+
+.app-frame-user {
+  font-size: var(--text-xs);
+  color: var(--awkit-text-secondary);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-frame-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--awkit-text-muted);
+  cursor: pointer;
+  transition: color var(--awkit-dur-fast) var(--awkit-ease-out), background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.app-frame-logout:hover {
+  color: var(--awkit-danger);
+  background: var(--awkit-danger-soft);
+}
+
+.app-frame-logout:focus-visible {
+  outline: none;
+  box-shadow: var(--awkit-focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-login-card { animation: none; }
+  .awkit-login-spin { animation: none; }
+}

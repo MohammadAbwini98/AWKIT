@@ -1,5 +1,59 @@
 # CURRENT_STATE
 
+## Secure Login — trusted core + login UI IMPLEMENTED & verified (real Electron); authz/licensing pending (2026-07-18)
+
+The **login UI (Phase 6)** is now built on top of the trusted core, on branch `feature/secure-login-auth`.
+`app/renderer/main.tsx` renders a new `SecurityGate` (`app/renderer/security/`) that mounts **only** the
+sign-in surfaces until the trusted main process confirms a session — the real `<App/>` and every protected
+route are never mounted before auth, so **protected pages cannot flash** (asserted by the GUI verifier).
+Surfaces: `LockedShell` (reuses the custom `AppFrame`), `LoginScreen` (Virtual User active; **Active
+Directory a disabled "Coming soon" tab**), `FirstRunSetup` (one-time Super-User provisioning → auto sign-in),
+`ForcedPasswordChange`, `SecurityUnavailable` (fail-closed), `PasswordField` (show/hide + Caps-Lock),
+`SessionContext` + a title-bar user chip & sign-out in `AppFrame`. Styling is token-only in `global.css`
+(`.awkit-login-*`), light/dark, reduced-motion-aware, keyboard-accessible.
+- **Verify:** `npm run verify:auth-gui` → **13/13 in real Electron** (isolated temp `%LOCALAPPDATA%`):
+  no-flash, first-run → app shell, session chip + sign-out → login, AD disabled/coming-soon, re-login,
+  zero console errors. Screenshots in `reports/security-login/`. `npm run build` + `verify:auth` (41/41) +
+  `verify:ipc-contract` (4/4) green. Follow-up bead `awkit-l6h` (proactive idle-lock + dark-mode visual pass).
+
+## Secure Login — trusted auth core IMPLEMENTED + headless-verified; UI pending (2026-07-18)
+
+On branch `feature/secure-login-auth` (epic `awkit-ekd`), the **Phase 1+2 backend trusted core** for
+local virtual-user authentication is implemented and verified headless — **no login UI yet** (deliberate:
+"prove the core before the UI"). New code (all under `src/security/**` + `app/main/security/**` +
+`app/main/ipc/security.ipc.ts`, distinct `security:*` IPC namespace — the existing `auth:*`/`session:*`
+are automation-only and untouched):
+- `SecurityStore` (sql.js + versioned migrations, single-writer atomic-rename persistence, `passwordSecret`
+  column wrapped by an injected `ColumnCrypto` — Windows DPAPI `safeStorage` in main, passthrough in tests).
+- scrypt password hashing (`node:crypto`, per-user salt, `timingSafeEqual`, rehash-on-login) + password
+  policy + username rules.
+- `AuthenticationService` (one-time first-run Super-User bootstrap, login with uniform errors, failed-login
+  counting, temporary lockout, sessions with idle+absolute timeout, logout invalidation, self-service +
+  forced password change, audit) + `AuthenticationProvider` abstraction (Local active; **Active Directory
+  a disabled inert stub**) + `SessionManager` + `SecurityKernel` facade.
+- `security.ipc.ts` (sender-guarded, schema-validated, fail-closed reason codes) + `.security` preload
+  namespace; kernel lazily opened, disposed on quit.
+- **Verify:** `npm run verify:auth` → **41/41** (bootstrap one-time, login success/uniform-failure, lockout,
+  disabled account, sessions/logout/idle/absolute, password policy/change/forced-change, migrations,
+  persistence, no-plaintext-on-disk). `npm run build` + `tsc --noEmit` clean; `verify:ipc-contract` 4/4,
+  `verify:secrets`/`verify:security` unaffected.
+- **Self-reviewed;** 5 findings — 2 fixed (fail-closed on kernel-open failure; dead-branch simplification),
+  3 filed as follow-up beads: `awkit-ekd.6` cross-process single-writer lock (DurableLockStore +
+  requestSingleInstanceLock), `awkit-ekd.7` revoke other sessions on password change, `awkit-ekd.8`
+  debounced persistence.
+- **Remaining (future phases):** authorization/RBAC, Super-User admin UI, machine licensing, and the login
+  UI (SecurityGate/LockedShell/LoginScreen + no-flash startup integration). Design authority:
+
+A full implementation-ready design exists at
+[`docs/plans/SECURE_LOGIN_AUTHORIZATION_LICENSING_IMPLEMENTATION_PLAN.md`](../plans/SECURE_LOGIN_AUTHORIZATION_LICENSING_IMPLEMENTATION_PLAN.md)
+for adding local virtual-user authentication, RBAC authorization, Super-User administration, and per-machine
+Ed25519-signed licensing — all offline, no admin, preserving packaging/theme. **No production code has been
+written.** The plan reuses the `sql.js` migration framework, DPAPI `safeStorage`, the global IPC sender guard,
+and Hologram tokens; it introduces new `security`/`license` IPC namespaces (the existing `auth`/`session`
+namespaces are automation-only and are left untouched). Startup gains a `SecurityGate` so the login page
+follows the splash with no protected-page flash. 10 open decisions (O-1..O-10) must be confirmed before Phase 1.
+Tracking bead `awkit-bn2`. Not started; nothing committed.
+
 ## Oracle JDBC — status corrected to INTEGRATION-CANDIDATE; fail-closed production, real UCP executor authored, SQL hardening, live/lazy/packaging harnesses (2026-07-17)
 
 Response to a supplied 10-phase **validation & release** track (distinct numbering from the original 14

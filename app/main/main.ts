@@ -5,6 +5,7 @@ import { registerIpcHandlers } from "./ipc";
 import { createMainWindow, createSplashWindow, fadeOutAndClose } from "./windowManager";
 import { updateUiSettings, flushSettingsWrites } from "./uiSettings";
 import { disposeOracleServices } from "./oracleService";
+import { disposeSecurityKernel } from "./security/securityKernel";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
 
 let mainWindow: BrowserWindow | null = null;
@@ -122,7 +123,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
   // Also dispose the Oracle JDBC bridge so no Java child process is orphaned.
-  void Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices()]), timeout]).finally(() => {
+  void Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices(), disposeSecurityKernel()]), timeout]).finally(() => {
     settingsFlushed = true;
     app.quit();
   });

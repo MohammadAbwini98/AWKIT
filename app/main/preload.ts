@@ -12,6 +12,7 @@ import type { OracleConnectionProfileView } from "@src/oracle/OracleConnectionPr
 import type { OracleProfileInput, TestConnectionResult } from "@src/oracle/OracleProfileService";
 import type { OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { OracleDataSourceInput } from "./oracleService";
+import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
@@ -81,6 +82,24 @@ const api = {
   },
   offlineRuntime: {
     getStatus: () => ipcRenderer.invoke("offlineRuntime:getStatus") as Promise<OfflineRuntimeStatus>
+  },
+  // App identity: local virtual-user authentication (distinct from the automation `auth`/`session`
+  // namespaces above, which are for browser-login handoff). The renderer only ever receives a
+  // PrincipalSnapshot (UI hint) or a safe reason code — never password material or hashes. All
+  // decisions happen in the main process; this bridge is invoke-only.
+  security: {
+    getBootState: () =>
+      ipcRenderer.invoke("security:getBootState") as Promise<{ provisioned: boolean; secureStorageAvailable: boolean }>,
+    getLoginOptions: () => ipcRenderer.invoke("security:getLoginOptions") as Promise<LoginOption[]>,
+    bootstrapSuperUser: (input: { username: string; password: string; displayName?: string }) =>
+      ipcRenderer.invoke("security:bootstrapSuperUser", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
+    login: (request: { providerId: ProviderId; username: string; password: string }) =>
+      ipcRenderer.invoke("security:login", request) as Promise<LoginResult>,
+    validateSession: (sessionRef: string) =>
+      ipcRenderer.invoke("security:validateSession", sessionRef) as Promise<SessionValidationResult>,
+    logout: (sessionRef: string) => ipcRenderer.invoke("security:logout", sessionRef) as Promise<void>,
+    changePassword: (input: { sessionRef: string; currentPassword: string; newPassword: string }) =>
+      ipcRenderer.invoke("security:changePassword", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get") as Promise<UiSettings>,

@@ -35,6 +35,8 @@
     "verify:profile-store": "tsx scripts/verify-profile-store.mts",
     "verify:ipc-contract": "tsx scripts/verify-ipc-contract.mts",
     "verify:security": "tsx scripts/verify-security.mts",
+    "verify:auth": "tsx scripts/verify-auth.mts",
+    "verify:auth-gui": "node scripts/verify-auth-gui.mjs",
     "verify:secrets": "tsx scripts/verify-secrets.mts",
     "verify:settings-persistence": "node scripts/verify-settings-persistence.mjs",
     "verify:workflow-sentinels": "tsx scripts/verify-workflow-sentinels.mts",

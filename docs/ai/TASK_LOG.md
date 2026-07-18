@@ -4162,3 +4162,88 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   logic or renderer behavior changed.
 - **Result:** the application now uses the requested Specter segmented-S identity while preserving the
   hardened, validated Windows ICO pipeline.
+
+## 2026-07-18 — Secure Login / Authorization / Machine-Licensing — PLAN ONLY (no code)
+- **Agent:** Claude (Opus 4.8). **Task:** produce an implementation-ready design plan for adding secure
+  authentication, RBAC authorization, Super-User administration, and per-machine signed licensing to AWKIT.
+  **Explicitly planning-only — no production code created or modified.**
+- **Inspected (grounding):** startup `app/main/main.ts` (splash coordinator + `passesOfflineStartupGate` = the
+  pre-window init hook), state-machine router `app/renderer/App.tsx`/`routes.tsx` (no gate today → flash risk),
+  IPC trust (`ipc/index.ts` global sender guard, `senderGuard.ts`, `windowManager.ts` will-navigate lockdown),
+  storage (`SqliteRuntimeStore` + `RUNTIME_STORE_MIGRATIONS` + `DurableLockStore`; `JsonProfileStore`; DPAPI
+  `secretStore.ts`/`SecretStore.ts`), machine identity (`MachineCapabilityDetector` — copyable random-UUID +
+  hardware fingerprint), packaging (`electron-builder.json` portable+nsis, per-user, no admin), theme tokens
+  (`global.css`, `AppFrame`). Noted the `auth`/`session` namespace collision (existing = automation OAuth/login
+  sessions, NOT app login) → new subsystem uses `security`/`license` namespaces.
+- **Deliverable:** `docs/plans/SECURE_LOGIN_AUTHORIZATION_LICENSING_IMPLEMENTATION_PLAN.md` — 34 sections:
+  exec summary, current assessment, gaps, arch, startup/routing, auth-provider abstraction (Local active / AD
+  disabled-visible), virtual-user auth (scrypt), Super User, RBAC + permission registry, sessions, machine
+  identity (augmented fingerprint), Ed25519 signed licenses (private key OFF client — Model 2), lifecycle,
+  secure storage (sql.js `security.sqlite` + DPAPI wrap), schema+migrations, trust boundaries, IPC security,
+  UI/UX, error handling, audit (hash-chained), threat model, 10-phase plan, file-by-file map, tests, migration,
+  recovery, future AD, risks, acceptance, order, 10 open decisions.
+- **Tests run:** none (planning task; no code). **Not done:** implementation (intentional).
+- **Result:** plan committed to `docs/plans/`. Feature NOT implemented; 10 open decisions (O-1..O-10) need
+  confirmation before Phase 1. Tracking bead `awkit-bn2`. Conservative git — nothing committed/pushed.
+
+## 2026-07-18 — Machine fingerprint design spec (companion to secure-login plan §14) — PLAN ONLY
+- **Agent:** Claude (Opus 4.8). Design-only; no production code. Deliverable:
+  `docs/plans/MACHINE_FINGERPRINT_DESIGN.md`, cross-linked from the master plan §14.
+- **Verified on the real host, non-elevated** (`IsInRole(Administrator)=False`): all four primary claims
+  readable without admin — SMBIOS UUID (`Win32_ComputerSystemProduct`), BIOS serial (`Win32_BIOS`),
+  MachineGuid (registry, no WMI), system disk serial (`Win32_DiskDrive` Index 0) — plus aux baseboard +
+  C: volume serial. Raw values redacted/never persisted. Cost measured: registry ~0.17s, `vol` ~0.04s,
+  3× CIM warm ~0.31s (cold ~0.9s) → collection must run async off the splash critical path.
+- **Spec covers:** version envelope, claim model (status present/missing/restricted/placeholder/malformed),
+  main-only collectors (batched CIM + cheap non-WMI paths, execFile timeout+AbortSignal, no wmic),
+  normalization + placeholder denylist/heuristics, deterministic salted-hash-before-persist (raw discarded),
+  weighted matching (SMBIOS .35/MachineGuid .30/disk .20/BIOS .15 + aux; bind ≥0.60 AND ≥1 strong anchor;
+  degraded band 0.40–0.60), issuance trust gate (fail-closed), safe renderer contract (request code + status
+  only), Crockford-base32 request code (hashes only), fail-closed + manual activation + signed admin-recovery
+  token (private key stays off client), tests, privacy/VM-clone limits, 5 open decisions F-O-1..F-O-5.
+- **Tests run:** none (design). **Result:** spec committed under docs/plans/. Not implemented. Conservative git.
+
+## 2026-07-18 — Secure login trusted core (Phase 1+2 backend) IMPLEMENTED — branch feature/secure-login-auth
+- **Agent:** Claude (Opus 4.8). **Epic:** awkit-ekd. **Scope chosen with user:** trusted core first
+  (backend, headless-verified, no UI) on a dedicated branch.
+- **Created (src/security/**):** errors/ReasonCodes, crypto/ColumnCrypto (+PassthroughColumnCrypto),
+  crypto/PasswordHasher (scrypt), auth/{UsernameRules,PasswordPolicy,AuthTypes,AuthenticationProvider
+  (+ActiveDirectoryProvider disabled stub),LocalVirtualUserProvider,AuthenticationService},
+  session/SessionManager, store/{SecurityStoreSchema,SecurityStore} (sql.js + migrations + DPAPI-wrapped
+  passwordSecret), ipc/SecurityIpcSchema (payload validators), SecurityKernel.
+- **Created (app/main):** security/securityKernel.ts (safeStorage-backed ColumnCrypto singleton),
+  ipc/security.ipc.ts (sender-guarded, schema-validated, fail-closed). **Modified:** ipc/index.ts
+  (register), preload.ts (`.security` namespace — `playwrightFlowStudio` identifier untouched; distinct
+  from automation `auth`/`session`), main.ts (dispose on quit). **Created:** scripts/verify-auth.mts;
+  package.json `verify:auth`.
+- **Tests run:** `npm run verify:auth` **41/41**; `npm run build` (tsc --noEmit + electron-vite) clean;
+  `verify:ipc-contract` 4/4 (172 handlers, security channels exposed); `verify:secrets` 16/16,
+  `verify:security` 39/39 unaffected. **Not run:** verify:runner (unrelated live runner; untouched),
+  packaged-EXE (external gate), any GUI (no UI in this slice).
+- **Self-review (code-review skill, high):** 5 findings. Fixed now: fail-closed try/catch on
+  getBootState/getLoginOptions kernel-open failure; removed dead `instanceof InvalidPayloadError` branch.
+  Deferred to beads: awkit-ekd.6 (cross-process single-writer lock + requestSingleInstanceLock),
+  awkit-ekd.7 (revoke other sessions on password change), awkit-ekd.8 (debounced persistence).
+- **Result:** trusted core complete + verified. **Nothing committed** (conservative git; new branch
+  feature/secure-login-auth shares the working tree with the in-flight Oracle changes — security files are
+  all new/isolated). Next: authorization (Phase 3) or login UI (Phase 6) per user direction.
+
+## 2026-07-18 — Secure login UI (Phase 6) IMPLEMENTED — branch feature/secure-login-auth
+- **Agent:** Claude (Opus 4.8). **Epic:** awkit-an7 (closed). Built the renderer login UI on the verified
+  trusted core; user direction "build the login UI next".
+- **Created (app/renderer/security/):** SecurityGate (state machine loading/unavailable/firstRun/login/
+  forcedChange/authed; themes pre-auth; re-validates session on focus/visibility), LockedShell,
+  SessionContext (+useSession), reasonMessages (safe reason→copy, generic fallback), components/PasswordField
+  (show/hide + Caps-Lock), screens/{LoginScreen (AD disabled "Coming soon" tab, uniform errors, duplicate-submit
+  guard), FirstRunSetup (one-time SU → auto sign-in), ForcedPasswordChange, SecurityUnavailable (fail-closed)}.
+- **Modified:** main.tsx (render SecurityGate instead of App), layout/AppFrame.tsx (title-bar user chip +
+  sign-out via SessionContext; no chip pre-auth), styles/global.css (+~280 lines `.awkit-login-*` /
+  `.app-frame-session`, token-only, light/dark, reduced-motion). No IPC/preload/backend changes.
+- **No-flash:** protected `<App/>` (and all routes) mount only in the `authed` state; GUI verifier asserts
+  `.app-shell` is absent on every pre-auth surface.
+- **Tests run:** `npm run verify:auth-gui` **13/13** real Electron (isolated temp %LOCALAPPDATA%): no-flash,
+  first-run→shell, session chip+sign-out→login, AD disabled/coming-soon, re-login, 0 console errors +
+  screenshots reports/security-login/{login,authed-shell}.png. `npm run build` clean; `verify:auth` 41/41;
+  `verify:ipc-contract` 4/4. **Not run:** packaged EXE (external gate); dark-mode visual pass (bead awkit-l6h).
+- **Follow-up bead:** awkit-l6h (proactive idle-lock activity tracking + dark-mode login screenshot assertion).
+- **Result:** login flow complete and verified in the real app. **Nothing committed** (conservative git).

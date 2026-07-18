@@ -1,5 +1,6 @@
-import { Workflow } from "lucide-react";
+import { LogOut, Workflow } from "lucide-react";
 import { WindowControls } from "./WindowControls";
+import { useSession } from "../security/SessionContext";
 
 interface AppFrameProps {
   /** The current major area (active route label) shown as window-level context. */
@@ -13,6 +14,8 @@ interface AppFrameProps {
  */
 export function AppFrame({ areaLabel }: AppFrameProps) {
   const toggleMaximize = () => void window.playwrightFlowStudio.appWindow.toggleMaximize().catch(() => undefined);
+  // Present only inside the authenticated app (SessionContext provider); the pre-auth LockedShell has none.
+  const session = useSession();
 
   return (
     <header className="app-frame" onDoubleClick={toggleMaximize}>
@@ -27,6 +30,22 @@ export function AppFrame({ areaLabel }: AppFrameProps) {
         {areaLabel}
       </span>
       <div className="app-frame-spacer" />
+      {session ? (
+        <div className="app-frame-session">
+          <span className="app-frame-user" title={session.principal.username}>
+            {session.principal.displayName}
+          </span>
+          <button
+            type="button"
+            className="app-frame-logout"
+            onClick={session.logout}
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={13} strokeWidth={2.2} />
+          </button>
+        </div>
+      ) : null}
       <WindowControls />
     </header>
   );
