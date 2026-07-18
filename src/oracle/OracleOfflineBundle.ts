@@ -3,17 +3,19 @@ import { join } from "node:path";
 import { validateOracleBundleChecksums } from "./OracleBundleChecksums";
 
 /**
- * Audit a packaged Oracle JDBC bundle (`resources/oracle-jdbc/`) for offline integrity — Phase 08.
+ * Audit a packaged Oracle JDBC bundle (`resources/oracle-jdbc/`) for offline integrity — Phase 08,
+ * user-selected-Java model. The only Oracle artifact Specter bundles is its own tiny **bridge jar**;
+ * the Java runtime and Oracle JDBC driver are **user-selected in Settings** and are never bundled.
  * Shared by the offline validator and packaging verifier. The bundle is OPTIONAL: when it is absent,
  * the audit is a clean pass with `present: false` (Oracle is simply un-bundled). When present, it must
- * be checksum-valid, structurally complete, carry a real driver, and contain NO secrets/wallets.
+ * be checksum-valid, structurally complete (bridge jar + manifest + checksums), carry NO private JRE
+ * and NO driver jars, and contain NO secrets/wallets.
  */
 export interface OracleBundleAudit {
   ok: boolean;
   present: boolean;
   issues: string[];
   sizeBytes: number;
-  driverPresent: boolean;
 }
 
 const REQUIRED_FILES = ["manifest.json", "checksums.json", join("bridge", "awkit-oracle-jdbc-bridge.jar")];
@@ -35,7 +37,7 @@ function walkFiles(dir: string): string[] {
 
 export function auditOracleOfflineBundle(oracleDir: string, platform: NodeJS.Platform = process.platform): OracleBundleAudit {
   if (!existsSync(oracleDir)) {
-    return { ok: true, present: false, issues: [], sizeBytes: 0, driverPresent: false };
+    return { ok: true, present: false, issues: [], sizeBytes: 0 };
   }
 
   const issues: string[] = [];
@@ -48,19 +50,21 @@ export function auditOracleOfflineBundle(oracleDir: string, platform: NodeJS.Pla
     issues.push("checksums.json is missing — bundle integrity cannot be verified.");
   }
 
-  // Structure.
+  // Structure: only Specter's own bridge jar (+ manifest + checksums) is bundled.
   for (const rel of REQUIRED_FILES) {
     if (!existsSync(join(oracleDir, rel))) issues.push(`missing required file: ${rel.replace(/\\/g, "/")}`);
   }
-  const javaExe = platform === "win32" ? "java.exe" : "java";
-  if (!existsSync(join(oracleDir, "runtime", "bin", javaExe))) {
-    issues.push(`missing private JRE (runtime/bin/${javaExe}).`);
-  }
 
-  // A real driver is mandatory in a packaged bundle (the app fails closed without one).
+  // Selection model: Specter must NOT bundle a private JRE or an Oracle driver — those are chosen by
+  // the user in Settings → Database Drivers. Flag any that slipped into the packaged bundle.
+  const javaExe = platform === "win32" ? "java.exe" : "java";
+  if (existsSync(join(oracleDir, "runtime", "bin", javaExe))) {
+    issues.push(`bundle must not ship a private JRE (found runtime/bin/${javaExe}); Java is user-selected.`);
+  }
   const libDir = join(oracleDir, "lib");
-  const driverPresent = existsSync(libDir) && readdirSync(libDir).some((f) => f.toLowerCase().endsWith(".jar"));
-  if (!driverPresent) issues.push("no ojdbc/ucp jars in lib/ — packaged builds require a real driver.");
+  if (existsSync(libDir) && readdirSync(libDir).some((f) => f.toLowerCase().endsWith(".jar"))) {
+    issues.push("bundle must not ship Oracle driver jars (found lib/*.jar); drivers are user-selected.");
+  }
 
   // No secrets/wallets may ship.
   let sizeBytes = 0;
@@ -72,5 +76,5 @@ export function auditOracleOfflineBundle(oracleDir: string, platform: NodeJS.Pla
     }
   }
 
-  return { ok: issues.length === 0, present: true, issues, sizeBytes, driverPresent };
+  return { ok: issues.length === 0, present: true, issues, sizeBytes };
 }

@@ -7,8 +7,9 @@ import java.util.Map;
  * compiles and is fully testable with a plain offline JDK. Two implementations:
  * <ul>
  *   <li>{@code MockQueryExecutor} — no database; deterministic results for contract tests.</li>
- *   <li>{@code OracleUcpQueryExecutor} — real Oracle JDBC Thin + UCP, compiled only when the ojdbc
- *       and ucp jars are vendored (network-blocked environments build the core alone).</li>
+ *   <li>{@code OracleJdbcQueryExecutor} — real Oracle JDBC Thin via {@code DriverManager} (one
+ *       connection per query, no pooling), compiled only when the ojdbc jar is vendored/selected
+ *       (network-blocked environments build the core alone).</li>
  * </ul>
  *
  * <p>All params/results are plain JSON structures ({@link Map}/{@code List}/String/Long/Double/
@@ -21,7 +22,7 @@ public interface QueryExecutor {
     boolean driverAvailable();
 
     /**
-     * Execution mode for the {@code hello} handshake: {@code "real"} (Oracle JDBC/UCP),
+     * Execution mode for the {@code hello} handshake: {@code "real"} (Oracle JDBC),
      * {@code "mock"} (database-free), or {@code "unavailable"} (real required but driver absent —
      * every query fails closed). The TypeScript side rejects a non-{@code "real"} mode in packaged
      * production so a build can never silently serve mock rows.
@@ -30,9 +31,6 @@ public interface QueryExecutor {
 
     /** Driver version string for diagnostics (or {@code "unavailable"}). */
     String driverVersion();
-
-    /** Oracle UCP version string for diagnostics (or {@code "unavailable"}). */
-    String ucpVersion();
 
     /**
      * Open a connection, validate it, and return safe metadata:
@@ -47,9 +45,13 @@ public interface QueryExecutor {
      */
     Map<String, Object> executeQuery(Map<String, Object> params, CancellationToken token);
 
-    /** Drain and close the pool identified by the compatibility key in {@code params} (best-effort). */
+    /**
+     * Release any resources associated with the key in {@code params}. Connections are opened and
+     * closed per query (no pooling), so this is a best-effort no-op retained for protocol
+     * compatibility (e.g. validation-harness teardown).
+     */
     void closePool(Map<String, Object> params);
 
-    /** Drain all pools and release driver resources on bridge shutdown. */
+    /** Release any driver resources on bridge shutdown. */
     void shutdown();
 }

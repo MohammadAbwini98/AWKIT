@@ -98,6 +98,11 @@ export class OracleJdbcBridgeManager {
     return !!this.live;
   }
 
+  /** In-flight bridge calls awaiting a response — a teardown invariant (0 when idle). */
+  pendingCount(): number {
+    return this.pending.size;
+  }
+
   /** The handshake info from the running (or last-started) process, if any. */
   helloInfo(): OracleBridgeHello | undefined {
     return this.live?.hello;

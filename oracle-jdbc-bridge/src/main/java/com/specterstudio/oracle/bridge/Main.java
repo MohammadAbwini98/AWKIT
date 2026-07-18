@@ -23,9 +23,10 @@ import java.util.Map;
  * {@link System#err} so any stray library print cannot corrupt the stream. stderr is a redacted
  * diagnostic channel and never carries results.
  *
- * <p>The executor is chosen at startup: the real Oracle UCP executor is loaded reflectively when its
- * class (and the ojdbc/ucp jars) are present; otherwise — or when {@code AWKIT_ORACLE_BRIDGE_MOCK=1}
- * — the database-free {@link MockQueryExecutor} is used so the protocol still runs offline.
+ * <p>The executor is chosen at startup: the real {@code OracleJdbcQueryExecutor} (direct JDBC, one
+ * connection per query) is loaded reflectively when the ojdbc driver class is on the classpath;
+ * otherwise — or when {@code AWKIT_ORACLE_BRIDGE_MOCK=1} — the database-free {@link MockQueryExecutor}
+ * is used so the protocol still runs offline.
  *
  * <p><b>Fail-closed in production.</b> When {@code AWKIT_ORACLE_REQUIRE_REAL=1} (set by the packaged
  * app), the bridge MUST NOT fall back to the mock: an explicit {@code AWKIT_ORACLE_BRIDGE_MOCK} flag
@@ -34,8 +35,8 @@ import java.util.Map;
  */
 public final class Main {
 
-    private static final String ORACLE_EXECUTOR_CLASS =
-        "com.specterstudio.oracle.bridge.exec.OracleUcpQueryExecutor";
+    private static final String ORACLE_JDBC_EXECUTOR_CLASS =
+        "com.specterstudio.oracle.bridge.exec.OracleJdbcQueryExecutor";
 
     public static void main(String[] args) {
         // Capture the true stdout for framing BEFORE redirecting System.out.
@@ -130,15 +131,13 @@ public final class Main {
             System.err.println("[oracle-bridge] using MockQueryExecutor (forced by AWKIT_ORACLE_BRIDGE_MOCK).");
             return new MockQueryExecutor();
         }
-        try {
-            Class<?> cls = Class.forName(ORACLE_EXECUTOR_CLASS);
-            Object instance = cls.getDeclaredConstructor().newInstance();
-            if (instance instanceof QueryExecutor) {
-                System.err.println("[oracle-bridge] using OracleUcpQueryExecutor.");
-                return (QueryExecutor) instance;
-            }
-        } catch (Throwable notPresent) {
-            // Oracle jars/executor absent (offline/dev checkout, or a corrupt/incompatible bundle).
+        // Load the real direct-JDBC executor when the ojdbc driver class is on the classpath. A driver
+        // bundle imported through Settings puts exactly one ojdbc version on the classpath. There is no
+        // UCP path — connections are opened and closed per query.
+        boolean driverPresent = classPresent("oracle.jdbc.OracleDriver");
+        if (driverPresent) {
+            QueryExecutor jdbc = tryInstantiate(ORACLE_JDBC_EXECUTOR_CLASS, "OracleJdbcQueryExecutor (direct JDBC)");
+            if (jdbc != null) return jdbc;
         }
         if (requireReal) {
             // Production requires a real driver and none loaded — refuse the mock and fail closed.
@@ -149,5 +148,29 @@ public final class Main {
         }
         System.err.println("[oracle-bridge] Oracle driver unavailable — using MockQueryExecutor.");
         return new MockQueryExecutor();
+    }
+
+    /** Whether a class is loadable from the current classpath (drives real-executor selection). */
+    private static boolean classPresent(String className) {
+        try {
+            Class.forName(className);
+            return true;
+        } catch (Throwable notPresent) {
+            return false;
+        }
+    }
+
+    /** Reflectively instantiate a compiled executor; returns null if absent or it fails to link. */
+    private static QueryExecutor tryInstantiate(String className, String label) {
+        try {
+            Object instance = Class.forName(className).getDeclaredConstructor().newInstance();
+            if (instance instanceof QueryExecutor) {
+                System.err.println("[oracle-bridge] using " + label + ".");
+                return (QueryExecutor) instance;
+            }
+        } catch (Throwable notPresent) {
+            // Executor class not compiled into this build, or a referenced Oracle class is missing.
+        }
+        return null;
     }
 }

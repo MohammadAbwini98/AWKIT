@@ -7,6 +7,8 @@ export const runtimeFolderNames = [
   "instances",
   "data",
   "oracle-profiles",
+  "oracle-drivers",
+  "java-runtimes",
   "runtime-inputs",
   "storage",
   "downloads",

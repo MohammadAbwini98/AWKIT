@@ -7,7 +7,7 @@
   <!--
     Version-lock manifest for the Oracle JDBC bridge. The OFFLINE default build is the pinned-javac
     script (scripts/build-oracle-bridge.mjs) which needs no Maven and no network; this POM documents
-    the exact driver/UCP/JDK/test versions for the vendored-jar build once network + jars are
+    the exact driver/JDK/test versions for the vendored-jar build once network + jars are
     available. Re-check Oracle's official JDBC/JDK/DB compatibility matrix at implementation time
     (see docs REFERENCES) before bumping any version below.
   -->
@@ -21,26 +21,20 @@
     <maven.compiler.release>17</maven.compiler.release>
     <!-- LOCKED versions — do not float. -->
     <ojdbc.version>23.5.0.24.07</ojdbc.version>
-    <ucp.version>23.5.0.24.07</ucp.version>
     <junit.version>5.10.2</junit.version>
   </properties>
 
   <dependencies>
     <!--
-      Oracle JDBC Thin driver + UCP. `provided` scope: these are NOT bundled into the bridge jar by
-      Maven — AWKIT vendors them under resources/oracle-jdbc/lib/ and the bridge jar's manifest
-      Class-Path references them. This keeps redistribution explicit and license-gated.
+      Oracle JDBC Thin driver. `provided` scope: it is NOT bundled into the bridge jar by Maven — the
+      driver jar is user-selected (a Settings driver bundle) or vendored under
+      resources/oracle-jdbc/lib/, and the bridge jar's manifest Class-Path references it. This keeps
+      redistribution explicit and license-gated. Specter does not use UCP (no connection pooling).
     -->
     <dependency>
       <groupId>com.oracle.database.jdbc</groupId>
       <artifactId>ojdbc11</artifactId>
       <version>${ojdbc.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.oracle.database.jdbc</groupId>
-      <artifactId>ucp11</artifactId>
-      <version>${ucp.version}</version>
       <scope>provided</scope>
     </dependency>
 

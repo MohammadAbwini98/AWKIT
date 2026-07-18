@@ -419,6 +419,28 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Risky assumptions / to verify
 
+- **Oracle: the real UCP path has never linked against real jars or opened a real connection.** This is the
+  Oracle feature's highest residual risk. `OracleUcpQueryExecutor` lives in the gated
+  `oracle-jdbc-bridge/src/main/java-oracle/` source set, which compiles only when ojdbc/ucp are vendored —
+  and they cannot be vendored here (build-time network is blocked). It IS stub-compiled against the real
+  JDK `java.sql` on every `verify:oracle-bridge-real-build`, so its JDBC usage and internal signatures are
+  validated; the **UCP API shape is not**. Specifically unverified: whether real UCP method signatures match
+  (e.g. `setConnectionWaitTimeout(int)` vs. newer Duration-based setters), real pool lifecycle/teardown
+  semantics, and real ORA-code → error-category mappings. Do not assume the executor works because it
+  "compiles" — the compile is against stubs. Clear via `ORACLE_JDBC_VALIDATION_GATES.md`.
+- **Oracle: everything green is green against a MOCK executor.** 218 checks pass with no database. They
+  prove the protocol, SQL gate, cancellation, timeout, limits, lazy resolution, and fail-closed policy —
+  they prove nothing about real driver connectivity, real pooling under load, or real latency. Treat
+  `INTEGRATION-CANDIDATE` literally.
+- **Oracle: `MockQueryExecutor` must never become reachable in a packaged build.** Three layers enforce
+  this (resolver env, manager handshake, Java `Main`). If you touch `OracleRuntimeResolver`,
+  `OracleJdbcBridgeManager.start()`, or `Main.selectExecutor()`, re-run `verify:oracle-runtime` +
+  `verify:oracle-packaging` — they exist specifically to catch a regression here. The original bug was
+  exactly this: `oracleService` forced the mock flag on any missing driver with no packaged guard.
+- **CI does not run on stacked PRs.** `.github/workflows/ci.yml` triggers only on `push`/`pull_request` to
+  `main`, so a PR based on another branch gets **no checks at all**, and `mergeStateStatus=CLEAN` then means
+  "nothing blocking", not "verified". PR #12 merged this way (verified locally instead). Verify stacked PRs
+  locally, or retarget to `main` and wait for CI, before trusting a green-looking merge state.
 - **Recorder data (actions + captured URLs) is in-memory and session-scoped.** `RecorderService` keeps
   `actions` and `recordedUrls` in the main-process singleton for the current start→stop session; they
   survive navigating away/back to the Recording screen but NOT an app restart (same as recorded actions).

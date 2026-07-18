@@ -6,13 +6,6 @@ import { createHash } from "node:crypto";
  * (`passwordSecretName` / `trustStoreSecretName`) — the source plan's `passwordSecretRef` maps onto
  * an existing by-name secret. Pure/framework-agnostic (no Electron/React).
  */
-export interface OraclePoolSettings {
-  minSize: number;
-  initialSize: number;
-  maxSize: number;
-  inactiveTimeoutSeconds: number;
-}
-
 export type OracleConnectionMode = "basic" | "jdbc-url" | "wallet";
 export type OracleNetworkProtocol = "TCP" | "TCPS";
 
@@ -36,8 +29,19 @@ export interface OracleConnectionProfile {
   networkProtocol: OracleNetworkProtocol;
   connectTimeoutMs: number;
   queryTimeoutMs: number;
-  pool: OraclePoolSettings;
   readOnly: true;
+  /**
+   * Id of the managed Oracle JDBC **driver bundle** this profile uses. Absent ⇒ the app-wide default
+   * bundle. Never a raw JAR path/classpath — only a bundle reference. Profiles with different bundles
+   * are isolated into different Java bridge processes at runtime.
+   */
+  driverBundleId?: string;
+  /**
+   * Id of the user-selected **Java runtime** used to launch the isolated bridge for this profile.
+   * Absent ⇒ the app-wide default Java runtime. Never a raw executable path. Different Java/driver
+   * combinations run in separate bridge processes.
+   */
+  javaRuntimeProfileId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,28 +52,22 @@ export interface OracleConnectionProfileView extends Omit<OracleConnectionProfil
   hasTrustStoreSecret: boolean;
 }
 
-export const DEFAULT_ORACLE_POOL: OraclePoolSettings = {
-  minSize: 0,
-  initialSize: 0,
-  maxSize: 4,
-  inactiveTimeoutSeconds: 60
-};
-
 export function secretNameForProfile(profileId: string, kind: "password" | "truststore"): string {
   return `oracle.${profileId}.${kind}`;
 }
 
 /** Default a partial profile into a complete, valid-shaped one. */
 export function normalizeOracleProfile(input: Partial<OracleConnectionProfile> & { id: string; name: string }): OracleConnectionProfile {
+  // Drop any legacy `pool` block from stored profiles (UCP connection pooling was removed).
+  const { pool: _legacyPool, ...rest } = input as Partial<OracleConnectionProfile> & { id: string; name: string; pool?: unknown };
   return {
     provider: "oracle-jdbc",
-    connectionMode: input.connectionMode ?? "basic",
-    networkProtocol: input.networkProtocol ?? "TCP",
-    connectTimeoutMs: input.connectTimeoutMs ?? 15_000,
-    queryTimeoutMs: input.queryTimeoutMs ?? 30_000,
-    pool: { ...DEFAULT_ORACLE_POOL, ...(input.pool ?? {}) },
+    connectionMode: rest.connectionMode ?? "basic",
+    networkProtocol: rest.networkProtocol ?? "TCP",
+    connectTimeoutMs: rest.connectTimeoutMs ?? 15_000,
+    queryTimeoutMs: rest.queryTimeoutMs ?? 30_000,
     readOnly: true,
-    ...input,
+    ...rest,
     // force-invariant fields last so a partial input cannot override them
     id: input.id,
     name: input.name
@@ -94,8 +92,6 @@ export function validateOracleProfile(p: OracleConnectionProfile): string[] {
   if (p.networkProtocol === "TCPS" && p.connectionMode !== "wallet" && !p.trustStorePath?.trim() && !p.walletDirectory?.trim()) {
     errors.push("TCPS requires a wallet directory or a trust store.");
   }
-  if (p.pool.maxSize < 1) errors.push("Pool max size must be at least 1.");
-  if (p.pool.minSize < 0 || p.pool.minSize > p.pool.maxSize) errors.push("Pool min size must be between 0 and max size.");
   if (p.queryTimeoutMs <= 0) errors.push("Query timeout must be positive.");
   return errors;
 }
