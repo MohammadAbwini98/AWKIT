@@ -244,6 +244,31 @@ async function main(): Promise<void> {
     await kernel.close();
   }
 
+  // ── Session rotation on password change (awkit-ekd.7) ────────────────────────
+  console.log("Session rotation:");
+  {
+    const { kernel, clock } = await freshKernel();
+    await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD });
+    await addUser(kernel.store, clock.now, { username: "rotator", password: OP_PASSWORD });
+
+    const a = await kernel.auth.login({ providerId: "local", username: "rotator", password: OP_PASSWORD });
+    const b = await kernel.auth.login({ providerId: "local", username: "rotator", password: OP_PASSWORD });
+    const refA = a.ok ? a.principal.sessionRef : "";
+    const refB = b.ok ? b.principal.sessionRef : "";
+    const bothValid = (await kernel.auth.validateSession(refA)).valid === true && (await kernel.auth.validateSession(refB)).valid === true;
+    check("two concurrent sessions both validate before change", bothValid);
+
+    const changed = await kernel.auth.changePassword(refA, OP_PASSWORD, "Zephyr!Vault42");
+    check("password change (from session A) succeeds", changed.ok === true);
+
+    const stillA = await kernel.auth.validateSession(refA);
+    check("current session stays valid after its own password change", stillA.valid === true);
+    const revokedB = await kernel.auth.validateSession(refB);
+    check("other sessions are revoked on password change", revokedB.valid === false && revokedB.reason === AuthReason.SESSION_EXPIRED);
+
+    await kernel.close();
+  }
+
   // ── Persistence across reopen ────────────────────────────────────────────────
   console.log("Persistence:");
   {

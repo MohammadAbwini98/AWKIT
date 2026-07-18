@@ -221,6 +221,15 @@ export class SecurityStore {
     await this.persist();
   }
 
+  /** Revoke every active session for a user except one (used to rotate sessions on password change). */
+  async revokeSessionsForUserExcept(userId: string, keepSessionId: string, revokedAt: string): Promise<void> {
+    this.db.run(
+      "UPDATE security_sessions SET revokedAt = ? WHERE userId = ? AND id != ? AND revokedAt IS NULL",
+      [revokedAt, userId, keepSessionId]
+    );
+    await this.persist();
+  }
+
   // ── Audit ─────────────────────────────────────────────────────────────────
 
   async appendAudit(event: AuditEvent): Promise<void> {

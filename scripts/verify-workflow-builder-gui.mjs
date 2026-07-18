@@ -5,14 +5,77 @@
 // Flow — rendering `.awkit-flow-node[data-id]` cards (wrapping `.scenario-flow-node`) and
 // `g.awkit-flow-edge` connectors. The kebab menu toggles a node's self-loop connector.
 //
+// Runs against an ISOLATED, empty %LOCALAPPDATA% and signs in past the SecurityGate first-run
+// (PR #15 gates every route until authenticated), then seeds two flows + one workflow so the builder
+// auto-opens a workflow with a cross-node edge and the picker's "Saved Flows" section is populated.
+// See bd awkit-gmn.
+//
 // Run: node scripts/verify-workflow-builder-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
-delete env.ELECTRON_RUN_AS_NODE; // must run as a GUI app, not plain Node
+const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-workflow-builder-gui");
+seedWorkflowFixture(dataRoot);
+
+// Seed two saved flows and one workflow (flowA → flowB) so the builder auto-loads a workflow with a
+// connector + a loopable flowRef node, and the contextual picker's "Saved Flows" section has entries.
+function seedWorkflowFixture(localAppData) {
+  const now = new Date().toISOString();
+  const specter = path.join(localAppData, "SpecterStudio");
+  const flowsDir = path.join(specter, "flows");
+  const workflowsDir = path.join(specter, "workflows");
+  mkdirSync(flowsDir, { recursive: true });
+  mkdirSync(workflowsDir, { recursive: true });
+  const mkFlow = (id, name) => ({
+    id,
+    name,
+    description: "Workflow Builder GUI verifier fixture flow.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start" },
+      { id: "goto", type: "goto", name: "Open Page", url: "http://localhost:4321/login", valueSource: { type: "static", value: "http://localhost:4321/login" } },
+      { id: "end", type: "end", name: "End" }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "goto", type: "success" },
+      { id: "e1", source: "goto", target: "end", type: "success" }
+    ]
+  });
+  const mkRef = (flowId, order) => ({
+    id: flowId,
+    type: "flowRef",
+    flowId,
+    alias: flowId,
+    order,
+    required: true,
+    inputBindings: {},
+    retryPolicy: { count: 0, delayMs: 0 },
+    failurePolicy: "stop",
+    position: { x: 140 + (order - 1) * 320, y: 180 }
+  });
+  for (const [id, name] of [["verify-flow-a", "Verify — Flow A"], ["verify-flow-b", "Verify — Flow B"]]) {
+    writeFileSync(path.join(flowsDir, `${id}.json`), `${JSON.stringify(mkFlow(id, name), null, 2)}\n`, "utf8");
+  }
+  const workflow = {
+    id: "verify-workflow",
+    name: "Verify — Workflow",
+    description: "Two-flow workflow with a cross-node connector for the Workflow Builder verifier.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [mkRef("verify-flow-a", 1), mkRef("verify-flow-b", 2)],
+    edges: [{ id: "w0", source: "verify-flow-a", target: "verify-flow-b", type: "success" }],
+    runtimeInputs: [],
+    execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
+  };
+  writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
+}
 
 const results = [];
 function check(name, pass, detail) {
@@ -54,12 +117,13 @@ const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
 
 const app = await electron.launch({ args: [root], cwd: root, env });
 try {
-  const win = await app.firstWindow();
+  const win = await resolveMainWindow(app);
   const consoleErrors = [];
   win.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   await win.waitForLoadState("domcontentloaded");
+  await signInFirstRun(win);
   await win.waitForTimeout(1200);
 
   // Navigate to the Workflow Builder (sidebar may be expanded or collapsed).
@@ -261,6 +325,7 @@ try {
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n${passed}/${results.length} GUI checks passed`);
   await app.close();
+  cleanup();
   process.exit(passed === results.length ? 0 : 1);
 } catch (err) {
   console.error("GUI walkthrough error:", err);
@@ -269,5 +334,6 @@ try {
   } catch {
     /* ignore */
   }
+  cleanup();
   process.exit(2);
 }

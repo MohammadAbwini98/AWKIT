@@ -4,6 +4,49 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — GUI-verifier sweep (awkit-gmn) + auth hardening (awkit-ekd.6/.7)
+
+- **GUI-verifier sweep (bd `awkit-gmn`):** added shared harness `scripts/lib/gui-verify-harness.mjs`
+  (`resolveMainWindow` splash-poll + `signInFirstRun` SecurityGate first-run + `isolatedLaunchEnv`).
+  Fixed the app-shell verifiers to launch on an isolated empty `%LOCALAPPDATA%` and sign in past the
+  gate: **verify:capacity-settings-gui 12/12** (nav to Settings instead of a session-dropping reload),
+  **verify:instance-monitor-gui 12/12**, **verify:runtime-analytics-gui 36/36** (all four seeded states),
+  **verify:workflow-builder 20/20** (seeds 2 flows + 1 workflow),
+  **verify:flow-designer 19/24** (seeds 1 multi-node flow; now launches + signs in + all behaviour checks
+  pass). `verify:settings-persistence` confirmed **3/3 unchanged** (pure preload IPC, never gated).
+- **Residuals split out:** flow-designer's 5 remaining failures are **stale post-Hologram geometry
+  assertions** (assert the old docked-column `canvasEngineRight <= panelLeft`; the design is now a floating
+  overlay drawer with a `padding-right` canvas inset — global.css ~8286) → **bd `awkit-9p6`**.
+  `verify-oracle-drivers-gui` needs the auth half **plus** its Oracle validation store (Java runtime +
+  ojdbc bundle) seeded into an isolated profile → **bd `awkit-xjv`** (Oracle-epic GUI gate).
+- **Idempotency fix (bd `awkit-7ek`, found + fixed during re-verification):** `verify-runtime-analytics-gui`
+  points `LOCALAPPDATA` at persisted `.fixtures-observability/<state>` dirs, so the first run provisioned a
+  Super User into `<state>/SpecterStudio/security` and a re-run (without a fresh seed) hit the login form —
+  `signInFirstRun` then timed out and the walkthrough silently reported **0/4**. `walkState` now `rmSync`s
+  `<state>/SpecterStudio/security` before each launch (leaving the observability fixture untouched), so every
+  run is a clean first-run. Proven idempotent: **36/36 twice back-to-back with no re-seed**.
+- **awkit-ekd.7 (session rotation):** `AuthenticationService.changePassword` now revokes every other active
+  session for the user, keeping the current one (`SessionManager.revokeOthersForUser` →
+  `SecurityStore.revokeSessionsForUserExcept`). `verify:auth` **45/45** (added 4 Session-rotation checks).
+- **awkit-ekd.6 (single-instance guard):** added `app.requestSingleInstanceLock()` in `app/main/main.ts`
+  (second launch focuses the running window via `second-instance` and quits before opening any window/store)
+  so two processes can't race on `security.sqlite`/ui-settings per profile. New **verify:single-instance 3/3**.
+- **Files:** `scripts/lib/gui-verify-harness.mjs` (new), `scripts/verify-single-instance.mjs` (new),
+  `scripts/verify-{capacity-settings,instance-monitor,runtime-analytics,workflow-builder,flow-designer}-gui.mjs`,
+  `scripts/verify-auth.mts`, `src/security/{auth/AuthenticationService,session/SessionManager,store/SecurityStore}.ts`,
+  `app/main/main.ts`, `package.json` (verify:single-instance).
+- **Tests run (all re-verified independently 2026-07-19):** build (typecheck+bundles) clean; verify:auth
+  **45/45**, verify:single-instance **3/3**, verify:capacity-settings-gui **12/12**,
+  verify:instance-monitor-gui **12/12**, verify:runtime-analytics-gui **36/36** (idempotent, twice),
+  verify:workflow-builder **20/20**, verify:flow-designer **19/24** (5 known geometry residuals → awkit-9p6).
+  Earlier session also: verify:auth-gui 13/13, verify:security 39/39, verify:secrets 16/16,
+  verify:settings-persistence 3/3. **Not run:** verify:oracle-drivers-gui (awkit-xjv) and the wider
+  Oracle/concurrency/packaging suites (out of scope).
+- **Result:** awkit-gmn's splash/gate breakage resolved across the general verifiers; ekd.6 + ekd.7 closed;
+  awkit-7ek (runtime-analytics idempotency) fixed + closed.
+
+---
+
 ## 2026-07-18 — Claude — Oracle `verify:oracle-live` gate PASSED against real local Oracle 19c
 
 - **Task:** Complete the unfinished Oracle JDBC driver-settings work by running the credential-gated

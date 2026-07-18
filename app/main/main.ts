@@ -10,6 +10,12 @@ import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck"
 
 let mainWindow: BrowserWindow | null = null;
 
+// Cross-process guard (awkit-ekd.6): only one SpecterStudio instance may run per user-data profile.
+// SecurityStore / uiSettings / the runtime SQLite stores have no cross-process writer lock, so two
+// processes sharing a profile could lose writes to security.sqlite. Acquiring the single-instance lock
+// makes a second launch hand focus to the running window and quit before it opens any window or store.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
 /**
  * In packaged/offline-production mode, verify the bundled runtime assets are
  * present before opening any window. Returns true when startup may proceed.
@@ -98,33 +104,49 @@ async function bootstrap(): Promise<void> {
   }, HARD_CAP_MS);
 }
 
-app.whenReady().then(() => {
-  void bootstrap();
-
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0 && mainWindow !== null) {
-      mainWindow = createMainWindow();
+if (!gotSingleInstanceLock) {
+  // A primary instance is already running for this profile — bounce this launch immediately. No
+  // window, no store access, and none of the lifecycle handlers below are registered, so the quit is
+  // clean (nothing to flush).
+  app.quit();
+} else {
+  // A second launch attempt raises this on the primary — surface the existing window instead.
+  app.on("second-instance", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
     }
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
+  app.whenReady().then(() => {
+    void bootstrap();
 
-// Flush any queued settings writes before the process exits, so a last-moment edit (the user
-// closes the window immediately after changing something) is not lost. Bounded by a 2s timeout
-// so a stuck write can never deadlock shutdown; the guard makes the re-entrant quit a no-op.
-let settingsFlushed = false;
-app.on("before-quit", (event) => {
-  if (settingsFlushed) return;
-  event.preventDefault();
-  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
-  // Also dispose the Oracle JDBC bridge so no Java child process is orphaned.
-  void Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices(), disposeSecurityKernel()]), timeout]).finally(() => {
-    settingsFlushed = true;
-    app.quit();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0 && mainWindow !== null) {
+        mainWindow = createMainWindow();
+      }
+    });
   });
-});
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+
+  // Flush any queued settings writes before the process exits, so a last-moment edit (the user
+  // closes the window immediately after changing something) is not lost. Bounded by a 2s timeout
+  // so a stuck write can never deadlock shutdown; the guard makes the re-entrant quit a no-op.
+  let settingsFlushed = false;
+  app.on("before-quit", (event) => {
+    if (settingsFlushed) return;
+    event.preventDefault();
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
+    // Also dispose the Oracle JDBC bridge so no Java child process is orphaned.
+    void Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices(), disposeSecurityKernel()]), timeout]).finally(() => {
+      settingsFlushed = true;
+      app.quit();
+    });
+  });
+}

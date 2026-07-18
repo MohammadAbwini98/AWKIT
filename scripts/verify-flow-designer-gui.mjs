@@ -7,14 +7,51 @@
 // connectors, the contextual Node Palette, the append/insert "+" affordances, and the
 // kebab-menu loop toggle. Branch-port geometry checks were removed with the port model.
 //
+// Runs against an ISOLATED, empty %LOCALAPPDATA% and signs in past the SecurityGate first-run
+// (PR #15 gates every route until authenticated), then seeds one multi-node flow so the designer
+// auto-opens it (FlowChartDesigner loads profiles[0]). See bd awkit-gmn.
+//
 // Run: node scripts/verify-flow-designer-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
-delete env.ELECTRON_RUN_AS_NODE; // must run as a GUI app, not plain Node
+const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-flow-designer-gui");
+seedFlowFixture(dataRoot);
+
+// Seed a single flow with action nodes + a connector so the designer canvas has something to render
+// (start → goto → fill → click → end): satisfies the >=2 action-node, cross-node edge, and loopable
+// action-node assertions below without depending on the developer's real profile.
+function seedFlowFixture(localAppData) {
+  const now = new Date().toISOString();
+  const flowsDir = path.join(localAppData, "SpecterStudio", "flows");
+  mkdirSync(flowsDir, { recursive: true });
+  const flow = {
+    id: "verify-flow-designer",
+    name: "Verify — Flow Designer",
+    description: "Multi-node fixture for the Flow Designer GUI verifier.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start" },
+      { id: "goto", type: "goto", name: "Open Page", url: "http://localhost:4321/login", valueSource: { type: "static", value: "http://localhost:4321/login" } },
+      { id: "fill", type: "fill", name: "Fill Username", locator: { strategy: "id", value: "username" }, valueSource: { type: "static", value: "user1" } },
+      { id: "click", type: "click", name: "Submit", locator: { strategy: "id", value: "loginButton" } },
+      { id: "end", type: "end", name: "End" }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "goto", type: "success" },
+      { id: "e1", source: "goto", target: "fill", type: "success" },
+      { id: "e2", source: "fill", target: "click", type: "success" },
+      { id: "e3", source: "click", target: "end", type: "success" }
+    ]
+  };
+  writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
+}
 
 const results = [];
 function check(name, pass, detail) {
@@ -88,7 +125,7 @@ async function loopItemLabel(win, nodeId) {
 
 const app = await electron.launch({ args: [root], cwd: root, env });
 try {
-  const win = await app.firstWindow();
+  const win = await resolveMainWindow(app);
   const pageErrors = [];
   const consoleErrors = [];
   win.on("pageerror", (error) => pageErrors.push(error.message));
@@ -96,6 +133,7 @@ try {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   await win.waitForLoadState("domcontentloaded");
+  await signInFirstRun(win);
 
   // Ensure we're on the Flow Designer (the app restores the last route).
   if (!(await win.$(".action-flow-node"))) {
@@ -447,6 +485,7 @@ try {
   const passed = results.filter((r) => r.pass).length;
   console.log(`\n${passed}/${results.length} GUI checks passed`);
   await app.close();
+  cleanup();
   process.exit(passed === results.length ? 0 : 1);
 } catch (err) {
   console.error("GUI walkthrough error:", err);
@@ -455,5 +494,6 @@ try {
   } catch {
     /* ignore */
   }
+  cleanup();
   process.exit(2);
 }
