@@ -21,9 +21,26 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+// The app shows a branding splash window first; wait for the MAIN window that exposes the
+// `window.playwrightFlowStudio` preload bridge (the splash has no bridge).
+async function resolveMainWindow(app, timeoutMs = 40000) {
+  const deadline = Date.now() + timeoutMs;
+  await app.firstWindow().catch(() => undefined);
+  while (Date.now() < deadline) {
+    for (const w of app.windows()) {
+      try {
+        const ready = await w.evaluate(() => typeof window.playwrightFlowStudio !== "undefined" && !!window.playwrightFlowStudio.settings);
+        if (ready) return w;
+      } catch { /* window navigating/closing — retry */ }
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error("main window with the playwrightFlowStudio bridge did not appear within timeout");
+}
+
 async function launch() {
   const app = await electron.launch({ args: [root], cwd: root, env });
-  const win = await app.firstWindow();
+  const win = await resolveMainWindow(app);
   await win.waitForLoadState("domcontentloaded");
   await win.waitForTimeout(400);
   return { app, win };

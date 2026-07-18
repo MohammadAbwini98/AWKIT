@@ -14,6 +14,8 @@ import type { OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { OracleDataSourceInput } from "./oracleService";
 import type { OracleDriverBundleView } from "@src/oracle/OracleDriverBundle";
 import type { DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
+import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
+import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
@@ -83,6 +85,24 @@ const api = {
   },
   offlineRuntime: {
     getStatus: () => ipcRenderer.invoke("offlineRuntime:getStatus") as Promise<OfflineRuntimeStatus>
+  },
+  // App identity: local virtual-user authentication (distinct from the automation `auth`/`session`
+  // namespaces above, which are for browser-login handoff). The renderer only ever receives a
+  // PrincipalSnapshot (UI hint) or a safe reason code — never password material or hashes. All
+  // decisions happen in the main process; this bridge is invoke-only.
+  security: {
+    getBootState: () =>
+      ipcRenderer.invoke("security:getBootState") as Promise<{ provisioned: boolean; secureStorageAvailable: boolean }>,
+    getLoginOptions: () => ipcRenderer.invoke("security:getLoginOptions") as Promise<LoginOption[]>,
+    bootstrapSuperUser: (input: { username: string; password: string; displayName?: string }) =>
+      ipcRenderer.invoke("security:bootstrapSuperUser", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
+    login: (request: { providerId: ProviderId; username: string; password: string }) =>
+      ipcRenderer.invoke("security:login", request) as Promise<LoginResult>,
+    validateSession: (sessionRef: string) =>
+      ipcRenderer.invoke("security:validateSession", sessionRef) as Promise<SessionValidationResult>,
+    logout: (sessionRef: string) => ipcRenderer.invoke("security:logout", sessionRef) as Promise<void>,
+    changePassword: (input: { sessionRef: string; currentPassword: string; newPassword: string }) =>
+      ipcRenderer.invoke("security:changePassword", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get") as Promise<UiSettings>,
@@ -291,6 +311,20 @@ const api = {
       setDefault: (id: string) => ipcRenderer.invoke("oracle:drivers:setDefault", id) as Promise<void>,
       remove: (id: string) => ipcRenderer.invoke("oracle:drivers:remove", id) as Promise<void>,
       testLoad: (id: string) => ipcRenderer.invoke("oracle:drivers:testLoad", id) as Promise<DriverProbeResult>
+    },
+    // User-selected Java runtimes (Settings). Specter no longer bundles a JRE — the user selects an
+    // installed java(.exe)/JRE/JDK. The renderer never receives executable bytes, only metadata; add
+    // opens a native file/dir dialog in the main process.
+    java: {
+      list: () => ipcRenderer.invoke("oracle:java:list") as Promise<JavaRuntimeProfileView[]>,
+      get: (id: string) => ipcRenderer.invoke("oracle:java:get", id) as Promise<JavaRuntimeProfileView | null>,
+      usage: (id: string) => ipcRenderer.invoke("oracle:java:usage", id) as Promise<number>,
+      addExecutable: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addExe", input) as Promise<JavaRuntimeProfileView | null>,
+      addDirectory: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addDir", input) as Promise<JavaRuntimeProfileView | null>,
+      validate: (id: string) => ipcRenderer.invoke("oracle:java:validate", id) as Promise<JavaRuntimeProfileView>,
+      setDefault: (id: string) => ipcRenderer.invoke("oracle:java:setDefault", id) as Promise<void>,
+      remove: (id: string) => ipcRenderer.invoke("oracle:java:remove", id) as Promise<void>,
+      testBridge: (id: string, driverBundleId?: string) => ipcRenderer.invoke("oracle:java:testBridge", id, driverBundleId) as Promise<DriverProbeResult>
     }
   }
 };

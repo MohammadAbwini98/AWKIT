@@ -182,9 +182,11 @@ if (Test-Property $manifestJson "startupChecklist") {
   }
 }
 
-# === Oracle JDBC private runtime (optional feature) ===
-# When the bundle is present it MUST be checksum-valid, complete, carry a real driver, and contain no
-# secrets/wallets. When absent, Oracle is simply an un-bundled optional feature (a warning, not a fail).
+# === Oracle JDBC bridge bundle (optional feature, user-selected-Java model) ===
+# Specter bundles ONLY its own bridge jar; the Java runtime + Oracle driver are user-selected in
+# Settings and are never bundled. When present, the bundle MUST be checksum-valid, contain the bridge
+# jar (+ manifest), carry NO private JRE, NO driver jars, and NO secrets/wallets. When absent, Oracle
+# is simply an un-bundled optional feature (a warning, not a fail).
 $oracleDir = Join-Path $root "resources\oracle-jdbc"
 if (Test-Path $oracleDir) {
   Write-Host "Validating bundled Oracle JDBC runtime..."
@@ -207,18 +209,22 @@ if (Test-Path $oracleDir) {
       }
     }
   }
-  foreach ($required in @("manifest.json", "bridge\awkit-oracle-jdbc-bridge.jar", "runtime\bin\java.exe")) {
+  foreach ($required in @("manifest.json", "bridge\awkit-oracle-jdbc-bridge.jar")) {
     if (-not (Test-Path (Join-Path $oracleDir $required))) {
       $failures.Add("Oracle bundle: missing required file: $required")
     }
   }
+  # Selection model: the bundle must NOT ship a private JRE or Oracle driver jars — both are chosen by
+  # the user in Settings -> Database Drivers.
+  if (Test-Path (Join-Path $oracleDir "runtime\bin\java.exe")) {
+    $failures.Add("Oracle bundle: must not ship a private JRE (found runtime\bin\java.exe); Java is user-selected.")
+  }
   $libDir = Join-Path $oracleDir "lib"
-  $libJars = @()
   if (Test-Path $libDir) {
     $libJars = @(Get-ChildItem -Path $libDir -Filter *.jar -ErrorAction SilentlyContinue)
-  }
-  if ($libJars.Count -eq 0) {
-    $failures.Add("Oracle bundle: no ojdbc/ucp jars in lib/ (packaged builds require a real driver; the app fails closed without one).")
+    if ($libJars.Count -gt 0) {
+      $failures.Add("Oracle bundle: must not ship Oracle driver jars (found lib\*.jar); drivers are user-selected.")
+    }
   }
   $forbidden = @(Get-ChildItem -Path $oracleDir -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
     $_.Name -match '\.(env|pem|p12|sso|jks|key)$' -or $_.Name -ieq 'tnsnames.ora' -or $_.Name -ieq 'sqlnet.ora'
@@ -230,7 +236,7 @@ if (Test-Path $oracleDir) {
   $oracleSizeMb = [math]::Round(($oracleSize / 1MB), 1)
   Write-Host "Oracle bundle size: $oracleSizeMb MB"
 } else {
-  $warnings.Add("Oracle JDBC runtime not bundled (optional feature). Run 'npm run prepare:oracle-runtime' to include it.")
+  $warnings.Add("Oracle JDBC bridge not bundled (optional feature). Run 'npm run prepare:oracle-runtime' to stage Specter's bridge jar. Java + Oracle drivers are always user-selected in Settings.")
 }
 
 foreach ($warning in $warnings) {
