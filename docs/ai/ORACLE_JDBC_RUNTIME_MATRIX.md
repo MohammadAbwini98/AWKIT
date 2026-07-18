@@ -1,87 +1,81 @@
-# Oracle JDBC Private Runtime — Compatibility, Licensing & Acquisition (Phase 02)
+# Oracle JDBC Runtime — User-Selected Java + Driver (Compatibility & Setup)
 
-This document locks the inputs required to compile and package the **real** Oracle JDBC/UCP executor
-into AWKIT's private, offline Java runtime. It is the human-readable companion to the machine-readable
-manifest at [`scripts/oracle/oracle-runtime.manifest.json`](../../scripts/oracle/oracle-runtime.manifest.json),
-which is what `npm run prepare:oracle-runtime` actually consumes.
+**Specter does not bundle Java or UCP.** Oracle live queries run through Specter's own isolated **bridge
+jar** (the only Oracle artifact that ships) using **direct JDBC** (`DriverManager`, one connection per
+query — no connection pool). Both the **Java runtime** and the **Oracle JDBC driver** are **selected by the
+user in Settings → Database Drivers** and are never vendored into the app. Non-Oracle workflows, JSON data
+sources, and Oracle **Snapshot** Data Sources never need Java at all.
 
-> **Why values are marked "confirm at vendoring time".** Build-time network access is blocked in the
-> development environment, so the real `ojdbc`/`ucp` jars and a private JRE cannot be downloaded or
-> hashed here. Exact versions, SHA-256 hashes, and license text MUST be filled in from the official
-> vendor artifacts when the bundle is first cut. The manifest carries empty `sha256` fields precisely
-> so the preparation step fails closed until they are populated.
+The path is: `Settings → selected java.exe → isolated bridge → imported ojdbc*.jar → Oracle`.
 
-## 1. Compatibility matrix
+This replaces the former "private jlink'd JRE + vendored ojdbc/ucp jars" model. UCP (Universal Connection
+Pool) is **removed entirely** — importing a `ucp*.jar` is rejected.
 
-| Component | Locked choice | Notes / confirm at vendoring time |
+## 1. What the user configures (Settings → Database Drivers)
+
+| Item | How | Notes |
 |---|---|---|
-| Bundled Java runtime | Eclipse Temurin (or equivalent redistribution-permitted OpenJDK), **feature 17** | jlink-trimmed private JRE staged at `resources/oracle-jdbc/runtime/`. Never system Java. |
-| Bridge bytecode target | **17** | `scripts/build-oracle-bridge.mjs` pins JDK 17; matches the bundled JRE. |
-| Oracle JDBC | `ojdbc11.jar` | The `ojdbc11` build targets JDK 11+/17; record the **exact** release (e.g. 23.x) actually vendored. |
-| Oracle UCP | `ucp11.jar` | Must match the ojdbc release train. |
-| Companion jars | record if the chosen release requires any | e.g. `oraclepki`/`osdt_*` only if wallet/PKI features are enabled. Add to the manifest `artifacts` if so. |
-| Supported Oracle Database | 19c, 21c, 23ai | Confirm against the Oracle JDBC support matrix for the vendored driver version. |
-| Windows architecture | **x64** | The manifest `platform.arch` is enforced by the preparation step. |
-| TLS / wallet scope | Thin-driver TLS (TCPS) + optional Oracle Wallet | Wallet path is supplied per connection profile at runtime; **wallets are never bundled**. |
+| **Java runtime** | "Java Runtime for Database Drivers" → *Select java.exe…* or *Select JRE/JDK folder…* | Any installed JRE/JDK, **Java 8+**. Specter records only its path + probed version/vendor/arch and launches it in a child process (`java -version`, then the bridge). Never system Java / `JAVA_HOME` / `PATH` auto-scan. |
+| **Oracle JDBC driver** | "Oracle JDBC Drivers" → *Import driver bundle…* (an `ojdbc*.jar`) | Copied into managed storage (`%LOCALAPPDATA%/SpecterStudio/oracle-drivers/<id>/`), hashed, and load-tested in the isolated bridge. Companion jars (`oraclepki`, `osdt_core`, `osdt_cert`, `ons`, `simplefan`) are kept for wallet/TCPS. A `ucp*.jar` is **rejected** ("UCP is no longer supported"). |
+| **Per-profile selection** | Each Oracle connection profile may name a `javaRuntimeProfileId` + `driverBundleId` | Absent ⇒ the app-wide default runtime/bundle. Different Java/driver combinations run in **separate** bridge processes (folded into the compatibility key). |
 
-## 2. Approved acquisition
+## 2. Java ⇄ JDBC compatibility
 
-Artifacts are acquired **out-of-band** (no runtime or build-time downloads are ever added to AWKIT) from
-one authorized source, then placed in a local staging directory for `prepare:oracle-runtime`:
+The driver's required Java feature-version is derived from the ojdbc filename (`ojdbc8 ⇒ 8`, `ojdbc11 ⇒ 11`,
+`ojdbc17 ⇒ 17`) and cross-checked against the JAR's class-file version and a real bridge load test. Statuses
+surfaced in Settings: **Valid**, **Compatible-but-unverified**, **Incompatible**, **Missing**,
+**Validation-failed**. A driver whose required Java major exceeds the selected runtime is **incompatible**
+and rejected as a default. (Example: `ojdbc17` needs Java 17+; selecting a Java 11 runtime is incompatible.)
 
-- an internal artifact repository (preferred), **or**
-- the official vendor download (Oracle OTN / Maven Central for the driver; the JRE vendor's download), **or**
-- a secure, hash-pinned build cache.
+Validated locally: `ojdbc17.jar` 23.26.2.0.0 (JDBC-only) + Eclipse-equivalent **Oracle JDK 17.0.8 (x64)** →
+**Valid**, real handshake + real query against Oracle 19c.
 
-Staging directory (default `./oracle-runtime-src`, overridable with `AWKIT_ORACLE_RUNTIME_SRC`):
+## 3. Supported databases & TLS
 
-```text
-oracle-runtime-src/
-├── runtime/                 # private JRE tree (bin/java.exe, lib/, ...)
-├── ojdbc11.jar
-├── ucp11.jar
-├── ORACLE-LICENSE.txt       # required notice for ojdbc/ucp
-└── JRE-LICENSE.txt          # required notice(s) for the JRE
-```
+- **Oracle Database**: 19c, 21c, 23ai (per the imported driver's support matrix).
+- **TLS / wallet**: Thin-driver TLS (TCPS) with optional Oracle Wallet. The wallet path is supplied **per
+  connection profile** at runtime — wallets are never bundled and never committed.
 
-`prepare:oracle-runtime` **verifies checksums, validates architecture and Java version, stages** the
-artifacts under `resources/oracle-jdbc/`, builds the bridge, and **regenerates `checksums.json`**. It
-never trusts an arbitrary `JAVA_HOME`/`PATH`, and it never reaches the network.
+## 4. What Specter bundles (the bridge, and only the bridge)
 
-## 3. Licensing review (confirm exact terms at vendoring time)
-
-- **Oracle JDBC / UCP** — redistribution is governed by the license shipped with the specific driver
-  release (historically the OTN License; more recent drivers are published under the Oracle Free Use
-  Terms and Conditions and mirrored to Maven Central). Confirm the exact terms for the vendored version,
-  include the required notice as `ORACLE-LICENSE.txt`, and retain any attribution text the license
-  requires. Do not commit the jars to source control (they are gitignored under `resources/oracle-jdbc/lib/`).
-- **Bundled JRE (Temurin/OpenJDK)** — redistributable under GPLv2 + Classpath Exception; include the
-  license and THIRD-PARTY notices as `JRE-LICENSE.txt`. Retain the vendor's required notices.
-- **Artifact storage policy** — vendored binaries live only under the gitignored
-  `resources/oracle-jdbc/{runtime,bridge,lib}` (like bundled Chromium) and in the approved artifact
-  source; they are never committed. License notices ARE bundled (staged into `resources/oracle-jdbc/LICENSES/`).
-
-## 4. Reproducible preparation
+The only Oracle artifact in a packaged build is Specter's own tiny bridge jar, staged by
+`npm run prepare:oracle-runtime`:
 
 ```text
-npm run prepare:oracle-runtime          # stage + verify + build + generate checksums.json
-npm run verify:oracle-runtime-prep      # unit-test the preparation logic (synthetic fixtures)
+resources/oracle-jdbc/
+├── bridge/awkit-oracle-jdbc-bridge.jar   # Specter's own code, built reproducibly (pinned JDK 17)
+├── manifest.json                          # resolved from scripts/oracle/oracle-runtime.manifest.json
+└── checksums.json                         # sha256 over the staged tree (integrity gate)
 ```
 
-The preparation is deterministic: given the same staged inputs it produces the same `checksums.json`.
-It **fails closed** on a missing artifact, a checksum mismatch, the wrong architecture, an unsupported
-Java version, or a missing license notice. With no staging directory present it **skips cleanly**
-(documented external gate) rather than producing a partial bundle.
+There is **no** `runtime/` (private JRE) and **no** `lib/` (driver jars). The offline validator
+(`npm run validate:offline`) and `verify:oracle-offline-bundle` **fail** if a JRE or driver jar ever
+appears in the bundle, and the whole `resources/oracle-jdbc/` tree is gitignored (generated, never
+committed).
 
-## 5. Definition of done (Phase 02)
+## 5. Reproducible preparation
 
-- [x] Compatibility matrix documented (this file).
-- [x] Machine-readable manifest with versions, architecture, filenames, and sha256 slots.
-- [x] Approved-acquisition + no-runtime-download policy documented.
-- [x] Licensing terms, required notices, and artifact-storage policy documented.
-- [x] `prepare:oracle-runtime` verifies checksums, stages artifacts, builds the bridge, and generates
-      `checksums.json`, never trusting `JAVA_HOME`/`PATH`.
-- [x] `verify:oracle-runtime-prep` covers missing files, checksum mismatch, wrong architecture,
-      unsupported Java, missing notices, and repeatable preparation.
-- [ ] **External gate:** real versions + sha256 hashes + license text filled in from the official
-      vendored artifacts (requires the artifacts, which are not present in this environment).
+```text
+npm run build:oracle-bridge          # compile the bridge with a pinned JDK 17 (pure JDK; no UCP)
+npm run prepare:oracle-runtime       # build + stage the bridge jar, write manifest.json + checksums.json
+npm run verify:oracle-runtime-prep   # unit-test the preparation logic (synthetic fixtures) — 14 checks
+```
+
+Preparation is deterministic (same bridge jar ⇒ same `checksums.json`) and **fails closed** on a wrong
+architecture or a missing bridge jar. No network, no out-of-band artifacts to acquire — the bridge is built
+from this repo's own source.
+
+## 6. Licensing
+
+Specter bundles only its own bridge jar (this repo's source) — there is **no** third-party Oracle driver or
+JRE redistribution, so no Oracle OTN / Temurin license notice needs shipping. The user supplies their own
+licensed Java runtime and Oracle JDBC driver, obtained from a source they are authorized to use.
+
+## 7. Definition of done
+
+- [x] User selects Java (`java.exe`/JDK dir) + imports an ojdbc jar in Settings; UCP import rejected.
+- [x] Java ⇄ JDBC compatibility validated (filename major + class-file version + real bridge load test).
+- [x] Only the bridge jar is bundled; no private JRE, no vendored driver; offline validator enforces it.
+- [x] `prepare:oracle-runtime` builds + stages the bridge and regenerates `checksums.json`, fail-closed.
+- [x] `verify:oracle-runtime-prep` covers happy path, missing bridge jar, wrong architecture, repeatability.
+- [x] Live-validated against real Oracle 19c via the Settings path (`ojdbc17` 23.26.2.0.0 + JDK 17.0.8).

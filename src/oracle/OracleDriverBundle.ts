@@ -29,7 +29,7 @@ export type OracleDriverCompatibilityLabel =
   | "Unknown";
 
 /** Roles a jar can play in a bundle, inferred from its filename (never trusted alone — see the probe). */
-export type OracleDriverJarRole = "jdbc" | "ucp" | "companion" | "unknown";
+export type OracleDriverJarRole = "jdbc" | "companion" | "unknown";
 
 export interface OracleDriverBundle {
   id: string;
@@ -39,14 +39,10 @@ export interface OracleDriverBundle {
   managedDirectory: string;
   /** Filename (within `managedDirectory`) of the required ojdbc jar. */
   jdbcJar: string;
-  /** Filename of the UCP jar, when present (required for real UCP pooling). */
-  ucpJar?: string;
   /** Filenames of optional companion jars (oraclepki, osdt_core, osdt_cert, ons, simplefan). */
   companionJars: string[];
   /** Oracle JDBC implementation version reported by the bridge probe (e.g. `23.26.2.0.0`). */
   jdbcVersion?: string;
-  /** Oracle UCP version reported by the probe, or absent when UCP is not included. */
-  ucpVersion?: string;
   /** Minimum Java major inferred from the ojdbc filename (ojdbc17 ⇒ 17). */
   requiredJavaMajor?: number;
   supportedDatabaseVersions?: string[];
@@ -64,8 +60,6 @@ export interface OracleDriverBundleView extends OracleDriverBundle {
   isDefault: boolean;
   /** Number of connection profiles referencing this bundle (blocks deletion when > 0). */
   usageCount: number;
-  /** Whether real UCP pooling is available (a ucp jar is included). */
-  supportsPooling: boolean;
 }
 
 /** Optional companion jars accepted alongside the required ojdbc jar (Phase 05). */
@@ -83,9 +77,18 @@ export function classifyDriverJar(filename: string): OracleDriverJarRole {
   if (!base.endsWith(".jar")) return "unknown";
   const stem = base.slice(0, -".jar".length);
   if (/^ojdbc\d*$/.test(stem) || stem === "ojdbc") return "jdbc";
-  if (/^ucp(\d+)?$/.test(stem)) return "ucp";
   if (ORACLE_COMPANION_JAR_NAMES.some((c) => stem === c || stem.startsWith(`${c}-`))) return "companion";
   return "unknown";
+}
+
+/**
+ * Whether a filename looks like an Oracle UCP jar. Specter no longer supports UCP (direct JDBC only),
+ * so the import path uses this to reject a `ucp*.jar` with a clear message instead of silently ignoring it.
+ */
+export function isUcpJar(filename: string): boolean {
+  const base = filename.toLowerCase();
+  if (!base.endsWith(".jar")) return false;
+  return /^ucp\d*$/.test(base.slice(0, -".jar".length));
 }
 
 /** Infer the minimum Java major from an ojdbc filename (`ojdbc17.jar` ⇒ 17, `ojdbc8.jar` ⇒ 8). */

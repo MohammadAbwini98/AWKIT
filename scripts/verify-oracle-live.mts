@@ -10,20 +10,26 @@
  *     `reports/oracle-validation/oracle-live.json` (versions, per-test outcomes, durations, error
  *     categories, pool/teardown state — never credentials, bind values, or row contents).
  *
+ * Both the Java runtime and the driver bundle are resolved through the SAME Settings-managed stores the
+ * app uses (no hidden system Java or classpath), and Java/JDBC compatibility is asserted before the run.
+ *
  * Configuration (environment only — never written anywhere):
  *   AWKIT_ORACLE_LIVE_URL, AWKIT_ORACLE_LIVE_USER, AWKIT_ORACLE_LIVE_PASSWORD
- *   AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1   (explicit authorized-non-prod confirmation; required)
- *   AWKIT_ORACLE_LIVE_TEST_TABLE          (default: awkit_types_test — provision via scripts/oracle/oracle-live-fixture.sql)
+ *   AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1              (explicit authorized-non-prod confirmation; required)
+ *   AWKIT_ORACLE_LIVE_TEST_TABLE                     (default: awkit_types_test)
+ *   AWKIT_ORACLE_LIVE_DRIVER_BUNDLE_ID               (Settings driver bundle; absent ⇒ resources/oracle-jdbc/lib)
+ *   AWKIT_ORACLE_LIVE_JAVA_RUNTIME_PROFILE_ID        (Settings Java runtime; absent ⇒ pinned dev JDK 17)
  *
  * Run: `npm run verify:oracle-live`.
  */
-import { mkdirSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildOracleBridge } from "./build-oracle-bridge.mjs";
-import { oracleDriverJarsPresent } from "../src/oracle/OracleRuntimeResolver";
 import { OracleJdbcBridgeManager, type BridgeLaunchSpec } from "../src/oracle/OracleJdbcBridgeManager";
 import { OracleBridgeCallError } from "../src/oracle/OracleBridgeProtocol";
+import { OracleDriverBundleStore } from "../src/oracle/OracleDriverBundleStore";
+import { JavaRuntimeStore } from "../src/oracle/JavaRuntimeStore";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWin = process.platform === "win32";
@@ -40,9 +46,10 @@ interface LiveArtifact {
   schemaVersion: number;
   startedAt: string;
   finishedAt?: string;
-  bridge: { protocolVersion?: number; bridgeVersion?: string; executionMode?: string; driverVersion?: string; ucpVersion?: string; javaVersion?: string };
+  bridge: { protocolVersion?: number; bridgeVersion?: string; executionMode?: string; driverVersion?: string; javaVersion?: string };
+  runtime?: { javaRuntimeProfileId?: string; javaMajor?: number; driverBundleId?: string; requiredJavaMajor?: number; compatible?: boolean };
   steps: StepResult[];
-  pool: { closedAtTeardown: boolean; note: string };
+  connections: { closedAtTeardown: boolean; note: string };
   teardown: { disposed: boolean };
 }
 
@@ -61,13 +68,13 @@ function redactionSelfTest(): boolean {
   const artifact: LiveArtifact = {
     schemaVersion: 1,
     startedAt: new Date().toISOString(),
-    bridge: { executionMode: "real", driverVersion: "oracle-jdbc", ucpVersion: "ucp", javaVersion: "17" },
+    bridge: { executionMode: "real", driverVersion: "oracle-jdbc", javaVersion: "17" },
     steps: [
       { name: "testConnection", outcome: "pass", durationMs: 5 },
       { name: "select-small", outcome: "pass", durationMs: 3, detail: "rows=3" },
       { name: "invalid-sql", outcome: "pass", durationMs: 1, errorCategory: "SQL_POLICY_VIOLATION" }
     ],
-    pool: { closedAtTeardown: true, note: "borrowed-connection count not exposed by this bridge release" },
+    connections: { closedAtTeardown: true, note: "direct JDBC — one connection per query, closed in try-with-resources" },
     teardown: { disposed: true }
   };
   const leaks = assertRedacted(artifact, REDACTION_SENTINELS);
@@ -117,21 +124,84 @@ async function expectCat(name: string, fn: () => Promise<unknown>, category: str
 async function runLive(cfg: NonNullable<ReturnType<typeof liveConfig>>): Promise<number> {
   console.log("Live Oracle validation:");
 
-  // Fail closed: require the real driver to be compiled/vendored.
-  const built = buildOracleBridge({ quiet: true });
-  if (!built.oracleCompiled || !oracleDriverJarsPresent(join(repoRoot, "resources"))) {
-    console.error("  ✗ real Oracle driver is not vendored/compiled — refusing to run (no mock fallback).");
-    return 1;
-  }
   if (!cfg.confirmedNonProd) {
     console.error("  ✗ AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1 is required (authorized, non-production target).");
     return 1;
   }
 
-  const libDir = join(repoRoot, "resources", "oracle-jdbc", "lib");
-  const jars = readdirSync(libDir).filter((f) => f.endsWith(".jar")).map((f) => join(libDir, f));
-  const classpath = [built.jarPath, ...jars].join(isWin ? ";" : ":");
-  const spec: BridgeLaunchSpec = { javaPath: built.jdk.java, jarPath: built.jarPath, classpath, env: { AWKIT_ORACLE_REQUIRE_REAL: "1" } };
+  const specterData = join(process.env.LOCALAPPDATA ?? process.env.APPDATA ?? repoRoot, "SpecterStudio");
+  const sep = isWin ? ";" : ":";
+
+  // Phase 08 — resolve the driver jars from the SAME Settings-managed bundle the app uses at runtime
+  // (no hidden classpath). AWKIT_ORACLE_LIVE_DRIVER_BUNDLE_ID selects the bundle; absent ⇒ the packaged
+  // resources/oracle-jdbc/lib vendoring path. Specter no longer supports UCP — direct JDBC only.
+  let driverJars: string[];
+  let requiredJavaMajor: number | undefined;
+  const bundleId = process.env.AWKIT_ORACLE_LIVE_DRIVER_BUNDLE_ID;
+  if (bundleId) {
+    const store = new OracleDriverBundleStore({ folder: join(specterData, "oracle-drivers") });
+    const bundle = store.get(bundleId);
+    if (!bundle) {
+      console.error(`  ✗ driver bundle "${bundleId}" not found under ${join(specterData, "oracle-drivers")} — import it in Settings first.`);
+      return 1;
+    }
+    const integrity = store.revalidateChecksums(bundleId);
+    if (integrity === "checksum-failed" || integrity === "missing") {
+      console.error(`  ✗ driver bundle "${bundleId}" failed integrity validation (${integrity}).`);
+      return 1;
+    }
+    requiredJavaMajor = bundle.requiredJavaMajor;
+    driverJars = [join(bundle.managedDirectory, bundle.jdbcJar), ...bundle.companionJars.map((c) => join(bundle.managedDirectory, c))];
+    // Compile the executors against the bundle's ojdbc so the bridge can run real queries.
+    process.env.AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH = driverJars.join(sep);
+    console.log(`  • driver bundle "${bundle.name}" (${bundle.jdbcJar}, direct JDBC — no UCP).`);
+  } else {
+    const libDir = join(repoRoot, "resources", "oracle-jdbc", "lib");
+    driverJars = existsSync(libDir) ? readdirSync(libDir).filter((f) => f.endsWith(".jar")).map((f) => join(libDir, f)) : [];
+  }
+
+  // Phase 08 — resolve the JAVA runtime through the SAME Settings-managed store the app uses (no hidden
+  // system Java). AWKIT_ORACLE_LIVE_JAVA_RUNTIME_PROFILE_ID selects the runtime; absent ⇒ the pinned dev
+  // JDK 17 the bridge build uses (dev convenience).
+  const built = buildOracleBridge({ quiet: true });
+  let runtimeJava = built.jdk.java;
+  let runtimeMajor: number | undefined;
+  const javaProfileId = process.env.AWKIT_ORACLE_LIVE_JAVA_RUNTIME_PROFILE_ID;
+  if (javaProfileId) {
+    const javaStore = new JavaRuntimeStore({ folder: join(specterData, "java-runtimes") });
+    const profile = javaStore.get(javaProfileId);
+    if (!profile) {
+      console.error(`  ✗ Java runtime "${javaProfileId}" not found under ${join(specterData, "java-runtimes")} — add it in Settings first.`);
+      return 1;
+    }
+    if (!existsSync(profile.javaExecutablePath)) {
+      console.error(`  ✗ Java runtime "${javaProfileId}" executable is missing (${profile.status}).`);
+      return 1;
+    }
+    if (profile.status !== "valid") {
+      console.error(`  ✗ Java runtime "${javaProfileId}" is not validated (status=${profile.status}) — validate it in Settings.`);
+      return 1;
+    }
+    runtimeJava = profile.javaExecutablePath;
+    runtimeMajor = profile.javaMajorVersion;
+    console.log(`  • Java runtime "${profile.name}" (Java ${profile.javaVersion}, ${profile.architecture}).`);
+  }
+
+  // Java/JDBC compatibility gate — a driver's required Java major must not exceed the selected runtime.
+  const compatible = requiredJavaMajor == null || runtimeMajor == null || runtimeMajor >= requiredJavaMajor;
+  if (!compatible) {
+    console.error(`  ✗ incompatible: driver needs Java ${requiredJavaMajor}+ but the selected runtime is Java ${runtimeMajor}.`);
+    return 1;
+  }
+
+  // Fail closed: require the real driver to be compiled + available (no mock fallback).
+  if (!built.oracleCompiled || driverJars.length === 0) {
+    console.error("  ✗ real Oracle driver is not available (no Settings bundle / vendored jars) — refusing to run.");
+    return 1;
+  }
+
+  const classpath = [built.jarPath, ...driverJars].join(sep);
+  const spec: BridgeLaunchSpec = { javaPath: runtimeJava, jarPath: built.jarPath, classpath, env: { AWKIT_ORACLE_REQUIRE_REAL: "1" } };
   const manager = new OracleJdbcBridgeManager({ resolveLaunchSpec: () => spec, requireRealDriver: true, handshakeTimeoutMs: 30_000 });
 
   const descriptor = { url: cfg.url, username: cfg.user, password: cfg.password, poolKey: "oracle-live" };
@@ -139,8 +209,9 @@ async function runLive(cfg: NonNullable<ReturnType<typeof liveConfig>>): Promise
     schemaVersion: 1,
     startedAt: new Date().toISOString(),
     bridge: {},
+    runtime: { javaRuntimeProfileId: javaProfileId, javaMajor: runtimeMajor, driverBundleId: bundleId, requiredJavaMajor, compatible },
     steps: [],
-    pool: { closedAtTeardown: false, note: "borrowed-connection count not exposed by this bridge release" },
+    connections: { closedAtTeardown: false, note: "direct JDBC — one connection per query, closed in try-with-resources" },
     teardown: { disposed: false }
   };
 
@@ -151,7 +222,6 @@ async function runLive(cfg: NonNullable<ReturnType<typeof liveConfig>>): Promise
       bridgeVersion: hello.bridgeVersion,
       executionMode: hello.executionMode,
       driverVersion: hello.driverVersion,
-      ucpVersion: hello.ucpVersion,
       javaVersion: hello.javaVersion
     };
     if (hello.executionMode !== "real" || !hello.driverAvailable) {
@@ -179,17 +249,21 @@ async function runLive(cfg: NonNullable<ReturnType<typeof liveConfig>>): Promise
       manager.call("executeQuery", { ...descriptor, sql: `DELETE FROM ${cfg.table}`, maxRows: 1 }, { timeoutMs: 10_000 }), "SQL_POLICY_VIOLATION"));
     artifact.steps.push(await expectCat("permission-or-missing-object", () =>
       manager.call("executeQuery", { ...descriptor, sql: "SELECT 1 FROM awkit_nonexistent_obj_zzz", maxRows: 1 }, { timeoutMs: 10_000 }), "DRIVER_ERROR"));
-    // Cancellation: a deliberately heavy read cancelled mid-flight.
+    // Cancellation: a deliberately heavy read cancelled mid-flight. The per-row string concat + LIKE
+    // over a 3-way cross join forces Oracle to evaluate every one of the ~8.5M rows (no cardinality
+    // shortcut, no index), so the query runs long enough to be cancelled deterministically.
     {
       const controller = new AbortController();
-      const p = manager.call("executeQuery", { ...descriptor, sql: `SELECT COUNT(*) FROM ${cfg.table} a, ${cfg.table} b, ${cfg.table} c`, maxRows: 1 }, { timeoutMs: 30_000, signal: controller.signal });
+      const heavySql = `SELECT COUNT(*) FROM ${cfg.table} a, ${cfg.table} b, ${cfg.table} c WHERE a.name || b.name || c.name LIKE '%__awkit_nomatch_zzz__%'`;
+      const p = manager.call("executeQuery", { ...descriptor, sql: heavySql, maxRows: 1 }, { timeoutMs: 30_000, signal: controller.signal });
       setTimeout(() => controller.abort(), 250);
       artifact.steps.push(await expectCat("cancellation", () => p, "CANCELLED"));
     }
 
-    // Teardown: close the pool + dispose.
+    // Teardown: release per-query resources + dispose. Connections are per-query (no pool); closePool is
+    // a documented no-op retained for protocol compatibility.
     await manager.call("closePool", { poolKey: "oracle-live" }, { timeoutMs: 10_000 }).catch(() => undefined);
-    artifact.pool.closedAtTeardown = true;
+    artifact.connections.closedAtTeardown = true;
     return finish(artifact.steps.every((s) => s.outcome === "pass") ? 0 : 1);
   } finally {
     await manager.dispose().catch(() => undefined);

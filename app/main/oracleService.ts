@@ -4,6 +4,7 @@
  * OPTIONAL — if the bundled runtime/dev jar is absent, the services still construct and report the
  * feature as unavailable rather than breaking non-Oracle workflows.
  */
+import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { getAppMode, getResourcesRoot, getRuntimePaths } from "./appPaths";
 import { getConfiguredPaths } from "./storagePaths";
@@ -23,6 +24,9 @@ import {
   type OracleDriverBundle,
   type OracleDriverBundleView
 } from "@src/oracle/OracleDriverBundle";
+import { JavaRuntimeStore, type JavaVersionProbe } from "@src/oracle/JavaRuntimeStore";
+import { javaRuntimeIdentity, parseJavaVersionOutput, type JavaRuntimeProfile, type JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
+import { existsSync } from "node:fs";
 import { resolveDataSourceBinds } from "@src/oracle/OracleDataSourceBinds";
 import type { JsonScalar } from "@src/oracle/OracleTypeConversion";
 import { validateReadOnlySql } from "@src/oracle/OracleSqlPolicy";
@@ -71,6 +75,54 @@ function driverBundleStore(): OracleDriverBundleStore {
   });
 }
 
+/** The managed user-selected Java runtime store (with the real `java -version` probe injected). */
+function javaRuntimeStore(): JavaRuntimeStore {
+  return new JavaRuntimeStore({
+    folder: getRuntimePaths().folders["java-runtimes"],
+    probe: probeJavaVersion
+  });
+}
+
+/**
+ * Spawn the selected `java` directly (no shell) with `-XshowSettings:properties -version` and parse
+ * its version/vendor/architecture. Used by the Java runtime store to validate a selection before it is
+ * saved. Never runs through cmd.exe/PowerShell and never loads Java classes in this process.
+ */
+function probeJavaVersion(javaExecutablePath: string): Promise<JavaVersionProbe> {
+  return new Promise((resolve) => {
+    execFile(
+      javaExecutablePath,
+      ["-XshowSettings:properties", "-version"],
+      { timeout: 15_000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        const output = `${stderr ?? ""}\n${stdout ?? ""}`;
+        const parsed = parseJavaVersionOutput(output);
+        if (parsed.version && parsed.major) {
+          resolve({ ran: true, version: parsed.version, major: parsed.major, vendor: parsed.vendor, architecture: parsed.architecture });
+        } else {
+          resolve({ ran: false, reason: err ? "The selected java executable did not run." : "Unrecognized java -version output." });
+        }
+      }
+    );
+  });
+}
+
+/**
+ * Resolve the Java runtime for a profile: the profile's `javaRuntimeProfileId`, else the app-wide
+ * default. Returns the executable path (when it still exists on disk) plus a stable identity used to
+ * key the per-runtime bridge process. Absent selection ⇒ `path: undefined` (the resolver then falls
+ * back to the dev-only env, or reports `ORACLE_RUNTIME_NOT_CONFIGURED` in packaged production).
+ */
+function resolveSelectedJava(javaRuntimeProfileId: string | undefined): { path?: string; identity?: string } {
+  const store = javaRuntimeStore();
+  const id = javaRuntimeProfileId ?? store.getDefaultId();
+  const profile = id ? store.get(id) : null;
+  if (profile && existsSync(profile.javaExecutablePath)) {
+    return { path: profile.javaExecutablePath, identity: javaRuntimeIdentity(profile) };
+  }
+  return {};
+}
+
 /** Adapt the DPAPI SecretStore to the by-name vault the Oracle services expect. */
 function secretVault(): OracleSecretVault {
   const store = getSecretStore();
@@ -82,11 +134,10 @@ function secretVault(): OracleSecretVault {
   };
 }
 
-/** Absolute classpath jars for a managed bundle (driver + optional UCP + companions). */
+/** Absolute classpath jars for a managed bundle (ojdbc driver + optional wallet/TCPS companions). */
 function bundleClasspathJars(bundle: OracleDriverBundle): string[] {
   return [
     join(bundle.managedDirectory, bundle.jdbcJar),
-    ...(bundle.ucpJar ? [join(bundle.managedDirectory, bundle.ucpJar)] : []),
     ...bundle.companionJars.map((c) => join(bundle.managedDirectory, c))
   ];
 }
@@ -111,18 +162,24 @@ function bundleLaunchSpec(base: BridgeLaunchSpec, bundle: OracleDriverBundle | u
  * or corrupted bundle fails closed here — the bridge is never launched. `undefined` ⇒ the store's
  * default bundle, else the resolver's base spec (vendored driver in packaged production, or dev mock).
  */
-function getManagerForBundle(bundleId: string | undefined): OracleJdbcBridgeManager {
-  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+function getManagerFor(routing: { driverBundleId?: string; javaRuntimeProfileId?: string }): OracleJdbcBridgeManager {
+  const selectedJava = resolveSelectedJava(routing.javaRuntimeProfileId);
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode(), selectedJavaPath: selectedJava.path });
   if (!resolution.available || !resolution.launchSpec) {
-    throw new OracleBridgeCallError("DRIVER_UNAVAILABLE", resolution.reason ?? "Oracle bridge runtime is unavailable.");
+    throw new OracleBridgeCallError(
+      resolution.notConfigured ? "ORACLE_RUNTIME_NOT_CONFIGURED" : "DRIVER_UNAVAILABLE",
+      resolution.reason ?? "Oracle bridge runtime is unavailable."
+    );
   }
   const store = driverBundleStore();
-  const effectiveId = bundleId ?? store.getDefaultId();
+  const effectiveId = routing.driverBundleId ?? store.getDefaultId();
   const bundle = effectiveId ? store.get(effectiveId) ?? undefined : undefined;
 
   const key = driverBundleCompatibilityKey({
     driverBundleId: bundle?.id ?? "__base__",
-    javaIdentity: resolution.launchSpec.javaPath,
+    // Different Java runtimes get separate bridge processes. Falls back to the resolved (dev-env) java
+    // path when no runtime is selected, so dev keeps a single bridge per java.
+    javaIdentity: selectedJava.identity ?? resolution.launchSpec.javaPath,
     protocolVersion: ORACLE_BRIDGE_PROTOCOL_VERSION
   });
   const existing = bridgeRegistry.get(key);
@@ -161,8 +218,9 @@ function getManagerForBundle(bundleId: string | undefined): OracleJdbcBridgeMana
  */
 const routingBridge = {
   call: (op: OracleBridgeOp, params: Record<string, unknown>, options?: { timeoutMs?: number; signal?: AbortSignal }) => {
-    const bundleId = typeof params.driverBundleId === "string" && params.driverBundleId ? params.driverBundleId : undefined;
-    return getManagerForBundle(bundleId).call(op, params, options);
+    const driverBundleId = typeof params.driverBundleId === "string" && params.driverBundleId ? params.driverBundleId : undefined;
+    const javaRuntimeProfileId = typeof params.javaRuntimeProfileId === "string" && params.javaRuntimeProfileId ? params.javaRuntimeProfileId : undefined;
+    return getManagerFor({ driverBundleId, javaRuntimeProfileId }).call(op, params, options);
   }
 };
 
@@ -171,10 +229,17 @@ const routingBridge = {
  * the reflective `driverProbe` op so it works even when the real query executors were not compiled
  * into this bridge build. Returns `probed:false` when the bridge itself cannot launch (couldn't test).
  */
-async function probeDriverClasspath(classpathJars: string[]): Promise<DriverProbeResult> {
-  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+async function probeDriverClasspath(classpathJars: string[], javaOverride?: string): Promise<DriverProbeResult> {
+  // A "Test bridge launch" overrides the Java with the runtime being tested; otherwise use the selected
+  // default runtime (or the dev-only env fallback). No Java configured ⇒ the probe cannot run.
+  const selectedJavaPath = javaOverride ?? resolveSelectedJava(undefined).path;
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode(), selectedJavaPath });
   if (!resolution.available || !resolution.launchSpec) {
-    return { probed: false, driverAvailable: false, reason: "The Oracle bridge runtime is unavailable in this build." };
+    return {
+      probed: false,
+      driverAvailable: false,
+      reason: resolution.notConfigured ? "No Java runtime is configured — select one in Settings → Database Drivers." : "The Oracle bridge runtime is unavailable in this build."
+    };
   }
   const base = resolution.launchSpec;
   const env: Record<string, string | undefined> = { ...base.env };
@@ -194,7 +259,6 @@ async function probeDriverClasspath(classpathJars: string[]): Promise<DriverProb
       probed: true,
       driverAvailable: probe.driverAvailable === true,
       driverVersion: typeof probe.driverVersion === "string" ? probe.driverVersion : undefined,
-      ucpVersion: typeof probe.ucpVersion === "string" ? probe.ucpVersion : undefined,
       javaVersion: typeof probe.javaVersion === "string" ? probe.javaVersion : undefined
     };
   } catch (err) {
@@ -206,7 +270,7 @@ async function probeDriverClasspath(classpathJars: string[]): Promise<DriverProb
 
 export function getOracleServices(): OracleServices {
   if (singleton) return singleton;
-  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode(), selectedJavaPath: resolveSelectedJava(undefined).path });
   const profiles = new OracleProfileService(createProfileStore(), secretVault(), routingBridge, (level, message) => {
     if (level === "warn") console.warn(message);
   });
@@ -460,14 +524,21 @@ export function getOracleNodeRunner(): OracleNodeRunner {
   };
 }
 
-/** Whether the Oracle feature can run in this build (bundled runtime or dev jar present). */
+/**
+ * Whether the Oracle feature can run in this build: the bridge jar is present and a Java runtime is
+ * configured (a user selection, or the dev-only env fallback). `driverExpected` reports whether a real
+ * driver will be used — i.e. a Settings-managed driver bundle is selected as the default. The renderer
+ * uses `available && !driverExpected` to surface "configure a driver / mock mode" hints.
+ */
 export function oracleAvailability(): { available: boolean; source: string; reason?: string; driverExpected: boolean } {
-  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode() });
+  const selectedJava = resolveSelectedJava(undefined);
+  const resolution = resolveOracleRuntime({ resourcesRoot: getResourcesRoot(), appMode: getAppMode(), selectedJavaPath: selectedJava.path });
+  const hasDriverBundle = !!driverBundleStore().getDefaultId();
   return {
     available: resolution.available,
     source: resolution.source,
     reason: resolution.reason,
-    driverExpected: resolution.driverExpected
+    driverExpected: resolution.available && hasDriverBundle
   };
 }
 
@@ -487,13 +558,12 @@ async function driverBundleUsageCount(bundleId: string): Promise<number> {
   return profiles.filter((p) => p.driverBundleId === bundleId).length;
 }
 
-/** Renderer-safe projection of a bundle (adds default flag, usage count, pooling support). */
+/** Renderer-safe projection of a bundle (adds default flag, usage count, compatibility label). */
 async function toDriverBundleView(bundle: OracleDriverBundle, defaultId: string | undefined): Promise<OracleDriverBundleView> {
   return {
     ...bundle,
     isDefault: bundle.id === defaultId,
     usageCount: await driverBundleUsageCount(bundle.id),
-    supportsPooling: !!bundle.ucpJar,
     // The bridge JDK major is not known synchronously here; the label degrades gracefully without it.
     compatibilityLabel: compatibilityLabelFor(bundle)
   };
@@ -556,4 +626,84 @@ export async function testOracleDriverBundleLoad(id: string): Promise<DriverProb
     return { probed: false, driverAvailable: false, reason: `Bundle integrity check failed (${checksum}).` };
   }
   return probeDriverClasspath(bundleClasspathJars(bundle));
+}
+
+// ── User-selected Java runtimes (WS-B) ────────────────────────────────────────────────────────────
+
+/** Count connection profiles referencing a Java runtime (blocks deletion while > 0). */
+async function javaRuntimeUsageCount(runtimeId: string): Promise<number> {
+  const profiles = await createProfileStore().list();
+  return profiles.filter((p) => p.javaRuntimeProfileId === runtimeId).length;
+}
+
+/** Renderer-safe projection of a Java runtime (adds default flag + usage count). */
+async function toJavaRuntimeView(profile: JavaRuntimeProfile, defaultId: string | undefined): Promise<JavaRuntimeProfileView> {
+  return {
+    ...profile,
+    isDefault: profile.id === defaultId,
+    usageCount: await javaRuntimeUsageCount(profile.id)
+  };
+}
+
+export async function listJavaRuntimes(): Promise<JavaRuntimeProfileView[]> {
+  const store = javaRuntimeStore();
+  const defaultId = store.getDefaultId();
+  return Promise.all(store.list().map((r) => toJavaRuntimeView(r, defaultId)));
+}
+
+export async function getJavaRuntime(id: string): Promise<JavaRuntimeProfileView | null> {
+  const store = javaRuntimeStore();
+  const profile = store.get(id);
+  return profile ? toJavaRuntimeView(profile, store.getDefaultId()) : null;
+}
+
+/** Add a Java runtime from a user-selected `java(.exe)` path or JRE/JDK directory (validated first). */
+export async function addJavaRuntime(input: { name: string; selectedPath: string }): Promise<JavaRuntimeProfileView> {
+  const store = javaRuntimeStore();
+  const profile = await store.add(input);
+  // First added runtime becomes the default automatically.
+  if (!store.getDefaultId()) store.setDefault(profile.id);
+  return toJavaRuntimeView(profile, store.getDefaultId());
+}
+
+/** Re-resolve + re-probe an existing Java runtime and persist its status. */
+export async function validateJavaRuntime(id: string): Promise<JavaRuntimeProfileView> {
+  const store = javaRuntimeStore();
+  const profile = await store.validate(id);
+  return toJavaRuntimeView(profile, store.getDefaultId());
+}
+
+export async function setDefaultJavaRuntime(id: string): Promise<void> {
+  javaRuntimeStore().setDefault(id);
+}
+
+/** Delete a Java runtime. Refuses while any connection profile still references it. */
+export async function removeJavaRuntime(id: string): Promise<void> {
+  const usage = await javaRuntimeUsageCount(id);
+  if (usage > 0) {
+    throw new OracleBridgeCallError(
+      "INVALID_CONFIGURATION",
+      `This Java runtime is used by ${usage} connection profile${usage === 1 ? "" : "s"}. Remap them to another runtime before deleting it.`
+    );
+  }
+  javaRuntimeStore().remove(id);
+}
+
+export async function getJavaRuntimeUsage(id: string): Promise<number> {
+  return javaRuntimeUsageCount(id);
+}
+
+/**
+ * "Test bridge launch" — launch the isolated bridge using the selected Java runtime (and, if present,
+ * the given/default driver bundle's jars) and report the handshake probe. Proves the user-selected
+ * `java` can start the bridge and, with a driver, load a real Oracle driver.
+ */
+export async function testJavaRuntimeBridge(id: string, driverBundleId?: string): Promise<DriverProbeResult> {
+  const runtime = javaRuntimeStore().get(id);
+  if (!runtime) throw new OracleBridgeCallError("INVALID_CONFIGURATION", `Java runtime "${id}" was not found.`);
+  const store = driverBundleStore();
+  const effectiveBundleId = driverBundleId ?? store.getDefaultId();
+  const bundle = effectiveBundleId ? store.get(effectiveBundleId) ?? undefined : undefined;
+  const classpathJars = bundle ? bundleClasspathJars(bundle) : [];
+  return probeDriverClasspath(classpathJars, runtime.javaExecutablePath);
 }

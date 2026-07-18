@@ -23,9 +23,10 @@ import java.util.Map;
  * {@link System#err} so any stray library print cannot corrupt the stream. stderr is a redacted
  * diagnostic channel and never carries results.
  *
- * <p>The executor is chosen at startup: the real Oracle UCP executor is loaded reflectively when its
- * class (and the ojdbc/ucp jars) are present; otherwise — or when {@code AWKIT_ORACLE_BRIDGE_MOCK=1}
- * — the database-free {@link MockQueryExecutor} is used so the protocol still runs offline.
+ * <p>The executor is chosen at startup: the real {@code OracleJdbcQueryExecutor} (direct JDBC, one
+ * connection per query) is loaded reflectively when the ojdbc driver class is on the classpath;
+ * otherwise — or when {@code AWKIT_ORACLE_BRIDGE_MOCK=1} — the database-free {@link MockQueryExecutor}
+ * is used so the protocol still runs offline.
  *
  * <p><b>Fail-closed in production.</b> When {@code AWKIT_ORACLE_REQUIRE_REAL=1} (set by the packaged
  * app), the bridge MUST NOT fall back to the mock: an explicit {@code AWKIT_ORACLE_BRIDGE_MOCK} flag
@@ -34,8 +35,6 @@ import java.util.Map;
  */
 public final class Main {
 
-    private static final String ORACLE_UCP_EXECUTOR_CLASS =
-        "com.specterstudio.oracle.bridge.exec.OracleUcpQueryExecutor";
     private static final String ORACLE_JDBC_EXECUTOR_CLASS =
         "com.specterstudio.oracle.bridge.exec.OracleJdbcQueryExecutor";
 
@@ -132,17 +131,12 @@ public final class Main {
             System.err.println("[oracle-bridge] using MockQueryExecutor (forced by AWKIT_ORACLE_BRIDGE_MOCK).");
             return new MockQueryExecutor();
         }
-        // Prefer the real UCP executor when BOTH the ojdbc driver and the ucp pool classes are on the
-        // classpath; else fall back to the non-pooled JDBC executor when only the driver is present.
-        // A driver bundle imported through Settings puts exactly one of these on the classpath.
+        // Load the real direct-JDBC executor when the ojdbc driver class is on the classpath. A driver
+        // bundle imported through Settings puts exactly one ojdbc version on the classpath. There is no
+        // UCP path — connections are opened and closed per query.
         boolean driverPresent = classPresent("oracle.jdbc.OracleDriver");
-        boolean ucpPresent = classPresent("oracle.ucp.jdbc.PoolDataSource");
-        if (driverPresent && ucpPresent) {
-            QueryExecutor ucp = tryInstantiate(ORACLE_UCP_EXECUTOR_CLASS, "OracleUcpQueryExecutor");
-            if (ucp != null) return ucp;
-        }
         if (driverPresent) {
-            QueryExecutor jdbc = tryInstantiate(ORACLE_JDBC_EXECUTOR_CLASS, "OracleJdbcQueryExecutor (no UCP pooling)");
+            QueryExecutor jdbc = tryInstantiate(ORACLE_JDBC_EXECUTOR_CLASS, "OracleJdbcQueryExecutor (direct JDBC)");
             if (jdbc != null) return jdbc;
         }
         if (requireReal) {
