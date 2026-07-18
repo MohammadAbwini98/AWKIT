@@ -1,7 +1,8 @@
 // WS-E — Real-Electron walkthrough of Settings › Database Drivers (Phase 10): the user-selected Java
 // runtime + managed Oracle JDBC driver bundle sections. Drives the actual app through Playwright's
-// `_electron` launcher (non-destructive: it creates and deletes only a temporary probe profile and
-// restores the original route). It asserts:
+// `_electron` launcher. Self-contained + non-destructive: it runs against an ISOLATED, empty temp
+// %LOCALAPPDATA% profile (seeded with the validation store by copy, first-run sign-in past the
+// SecurityGate), so it never mutates or depends on the developer's real profile. It asserts:
 //   • both cards render (headings, hints, security warnings);
 //   • the seeded Java runtime + driver bundle display with correct metadata + status badges;
 //   • validate() returns valid for both; availability() reports the configured runtime;
@@ -14,16 +15,18 @@
 //   • zero renderer console errors throughout.
 //
 // Run: node scripts/verify-oracle-drivers-gui.mjs   (after `npm run build` + `npm run build:oracle-bridge`)
-// Expects the local validation store: Java runtime "Local-JDK-17" + bundle
-// "Oracle-ojdbc17-local-19c-validation" (seeded by add-java-runtime.mts / import-driver-bundle.mts).
+// Requires the local validation store in the SOURCE profile (default %LOCALAPPDATA%, override with
+// AWKIT_GUI_SOURCE_LOCALAPPDATA): Java runtime "Local-JDK-17" + bundle
+// "Oracle-ojdbc17-local-19c-validation" (seeded by add-java-runtime.mts / import-driver-bundle.mts). It
+// is copied into the isolated temp profile at launch; the real java.exe + ojdbc jar must still be present
+// since validate()/testBridge/testLoad re-probe them for real.
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, cpSync, existsSync } from "node:fs";
 import path from "node:path";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
-delete env.ELECTRON_RUN_AS_NODE;
 
 const JAVA_ID = process.env.AWKIT_GUI_JAVA_RUNTIME_ID ?? "Local-JDK-17";
 const BUNDLE_ID = process.env.AWKIT_GUI_DRIVER_BUNDLE_ID ?? "Oracle-ojdbc17-local-19c-validation";
@@ -35,21 +38,58 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-// The app shows a branding splash window first; wait for the MAIN window that exposes the
-// `window.playwrightFlowStudio` preload bridge (the splash has no bridge).
-async function resolveMainWindow(app, timeoutMs = 40000) {
-  const deadline = Date.now() + timeoutMs;
-  await app.firstWindow().catch(() => undefined);
-  while (Date.now() < deadline) {
-    for (const w of app.windows()) {
-      try {
-        const ready = await w.evaluate(() => typeof window.playwrightFlowStudio !== "undefined" && !!window.playwrightFlowStudio.settings);
-        if (ready) return w;
-      } catch { /* window navigating/closing — retry */ }
-    }
-    await new Promise((r) => setTimeout(r, 300));
+// Navigate to Settings via the nav item rather than win.reload() — a full reload re-mounts the
+// SecurityGate (PR #15) and would drop us out of the authenticated shell (bd awkit-gmn/awkit-xjv).
+async function gotoSettings(win) {
+  await win.evaluate(() => {
+    const items = [...document.querySelectorAll("button.nav-item")];
+    const target = items.find((b) => (b.textContent || "").trim() === "Settings" || b.getAttribute("title") === "Settings");
+    target?.click();
+  });
+  await win.getByRole("heading", { name: "Java Runtime for Database Drivers" }).first().waitFor({ timeout: 10000 }).catch(() => {});
+  await win.waitForTimeout(500);
+}
+// Bounce off Settings and back so the Database Drivers cards re-mount and re-fetch usage counts (the
+// replacement for the old post-save win.reload()).
+async function remountSettings(win) {
+  await win.evaluate(() => {
+    const items = [...document.querySelectorAll("button.nav-item")];
+    const other = items.find((b) => (b.textContent || "").trim() !== "Settings" && b.getAttribute("title") !== "Settings");
+    other?.click();
+  });
+  await win.waitForTimeout(250);
+  await gotoSettings(win);
+}
+
+// Self-contained + non-destructive: run against an ISOLATED, empty %LOCALAPPDATA% temp profile and seed
+// the Oracle validation store (Java runtime + ojdbc driver bundle) into it, rather than mutating — or
+// depending on the auth state of — the developer's real profile. The seed is COPIED from the real
+// validation store: the Java record holds a machine-global java.exe path and the bundle's managed dir
+// carries its own jar copy, so the copy resolves to the same ids. Override the source profile with
+// AWKIT_GUI_SOURCE_LOCALAPPDATA. Prereq: npm run build + npm run build:oracle-bridge, and a real
+// validation store (Java runtime "Local-JDK-17" + bundle "Oracle-ojdbc17-local-19c-validation" seeded via
+// scripts/oracle/add-java-runtime.mts + import-driver-bundle.mts). See bd awkit-xjv.
+const sourceLocalAppData = process.env.AWKIT_GUI_SOURCE_LOCALAPPDATA ?? process.env.LOCALAPPDATA ?? process.env.APPDATA;
+const sourceSpecter = sourceLocalAppData ? path.join(sourceLocalAppData, "SpecterStudio") : undefined;
+const seededStores = ["java-runtimes", "oracle-drivers"];
+for (const store of seededStores) {
+  if (!sourceSpecter || !existsSync(path.join(sourceSpecter, store))) {
+    console.error(
+      `\nMISSING validation store "${store}" under ${sourceSpecter ?? "(no LOCALAPPDATA)"}.\n` +
+      `verify:oracle-drivers-gui needs the Oracle validation environment: a Java runtime "${JAVA_ID}" and a\n` +
+      `driver bundle "${BUNDLE_ID}" seeded via scripts/oracle/add-java-runtime.mts + import-driver-bundle.mts\n` +
+      `(see bd awkit-xjv). Point AWKIT_GUI_SOURCE_LOCALAPPDATA at a profile that has them.`
+    );
+    process.exit(2);
   }
-  throw new Error("main window with the playwrightFlowStudio bridge did not appear within timeout");
+}
+
+const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-oracle-drivers-gui");
+// Copy the validation stores into the isolated profile so the app resolves the same runtime + bundle ids.
+const destSpecter = path.join(dataRoot, "SpecterStudio");
+mkdirSync(destSpecter, { recursive: true });
+for (const store of seededStores) {
+  cpSync(path.join(sourceSpecter, store), path.join(destSpecter, store), { recursive: true });
 }
 
 const app = await electron.launch({ args: [root], cwd: root, env });
@@ -59,20 +99,14 @@ win.on("console", (msg) => {
   if (msg.type() === "error") consoleErrors.push(msg.text());
 });
 await win.waitForLoadState("domcontentloaded");
+// Drive first-run sign-in past the SecurityGate (empty temp profile → provision Super User → app shell).
+await signInFirstRun(win);
 await win.waitForTimeout(400);
 
-// Snapshot the real route so the test restores it exactly (non-destructive).
-const original = await win.evaluate(async () => {
-  const s = await window.playwrightFlowStudio.settings.get();
-  return { lastRouteId: s.lastRouteId };
-});
-
 try {
-  // Render Settings (the Database Drivers cards live inline on the settings route).
-  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ lastRouteId: "settings" }));
-  await win.reload();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(600);
+  // Render Settings (the Database Drivers cards live inline on the settings route) via nav click — a
+  // reload would re-mount the SecurityGate and drop the authenticated shell.
+  await gotoSettings(win);
 
   // 1. Both cards render.
   const javaHeading = await win.getByRole("heading", { name: "Java Runtime for Database Drivers" }).count();
@@ -158,10 +192,9 @@ try {
   check("referencing profile increments Java usage", afterJavaUse === beforeJavaUse + 1, `before=${beforeJavaUse} after=${afterJavaUse}`);
   check("referencing profile increments bundle usage", afterBundleUse === beforeBundleUse + 1, `before=${beforeBundleUse} after=${afterBundleUse}`);
 
-  // Rendered remove buttons must be disabled while referenced.
-  await win.reload();
-  await win.waitForLoadState("domcontentloaded");
-  await win.waitForTimeout(500);
+  // Rendered remove buttons must be disabled while referenced. Re-mount the cards (nav bounce) so they
+  // re-fetch usage — a reload would drop the authenticated shell.
+  await remountSettings(win);
   const disabledRemoves = await win.evaluate(() =>
     Array.from(document.querySelectorAll(".oracle-driver-row"))
       .map((row) => {
@@ -196,10 +229,10 @@ try {
   // 12. No renderer console errors during the whole flow.
   check("no renderer console errors", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {
-  // Best-effort cleanup: delete the probe profile if it survived, restore the original route.
+  // Best-effort cleanup: delete the probe profile, close the app, and remove the isolated temp profile.
   await win.evaluate((id) => window.playwrightFlowStudio.oracle.deleteProfile(id).catch(() => undefined), TEMP_PROFILE_ID).catch(() => undefined);
-  await win.evaluate((orig) => window.playwrightFlowStudio.settings.update({ lastRouteId: orig.lastRouteId }), original).catch(() => undefined);
   await app.close();
+  cleanup();
 }
 
 const passed = results.filter((r) => r.pass).length;

@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Oracle Drivers GUI verifier: self-contained isolated profile + gate auth (awkit-xjv)
+
+- **What:** `verify-oracle-drivers-gui.mjs` was the one GUI verifier the awkit-gmn shared-harness fix didn't
+  resolve on its own — it launched against the developer's REAL profile (so PR #15's SecurityGate blocked
+  the app shell) and depended on the real validation store. Reworked it to be self-contained + non-destructive
+  like the others.
+- **How:** launch on an **isolated empty `%LOCALAPPDATA%`** (`isolatedLaunchEnv`), then **copy** the
+  validation stores (`java-runtimes` + `oracle-drivers`) from the source profile into it before launch. The
+  copy resolves to the same ids because the Java record holds a machine-global `java.exe` path and the driver
+  bundle's managed dir carries its own jar (manifest uses a **relative** `jdbcJar`). Then `signInFirstRun`
+  past the SecurityGate, and reach Settings via **nav-item clicks** instead of `win.reload()` (a reload
+  re-mounts the gate and drops the session — same lesson as capacity-settings); the post-save re-render is a
+  nav bounce (`remountSettings`) rather than a reload. Source profile overridable via
+  `AWKIT_GUI_SOURCE_LOCALAPPDATA`; a clear `exit 2` if the validation store is absent.
+- **Non-destructive:** the real profile is only **read** (copied from); all writes (probe profile, sign-in,
+  set-default) land in the temp profile, which `cleanup()` deletes.
+- **Files:** `scripts/verify-oracle-drivers-gui.mjs` (removed the local `resolveMainWindow`/`env`, added
+  seed-copy + `gotoSettings`/`remountSettings` nav helpers + first-run auth). No `src/` change.
+- **Tests:** `npm run build:oracle-bridge` OK; **verify:oracle-drivers-gui 30/30 twice** (was blocked by the
+  gate) — real bridge launches Java 17.0.8 + loads the real ojdbc `23.26.2.0.0` end-to-end; no temp-profile
+  leftovers. Requires the Oracle validation env (real java.exe + ojdbc jar). bd `awkit-xjv` CLOSED.
+
+---
+
 ## 2026-07-19 — Claude — Flow Designer GUI verifier: modernize stale geometry assertions (awkit-9p6)
 
 - **What:** the 5 flow-designer geometry checks asserted the pre-Hologram **docked-column** model

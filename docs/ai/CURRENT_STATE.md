@@ -37,9 +37,15 @@ All counts re-verified independently 2026-07-19. **flow-designer's 5 stale geome
 `panelRight <= canvasRight`) to the actual floating-overlay invariants — the flow engine keeps the full
 canvas width and the fixed-width drawer floats over its right edge (measured: ~1.8px right overhang, panel
 below the action bar, collapsed rail = 48px = CSS `calc(space-5*2)`); the collapse measurement now waits for
-the 240ms glide to settle instead of racing it (was flaky at 220ms). One residual left: **`verify-oracle-drivers-gui`**
-needs the auth half plus its Oracle validation store seeded into an isolated profile → bd `awkit-xjv`
-(Oracle-epic GUI gate). One idempotency defect found + fixed during re-verification (bd `awkit-7ek`,
+the 240ms glide to settle instead of racing it (was flaky at 220ms). **`verify-oracle-drivers-gui` made
+self-contained + gate-threaded (bd `awkit-xjv`, CLOSED): 30/30** — now launches on an isolated empty
+`%LOCALAPPDATA%`, **copies** the validation stores (`java-runtimes` + `oracle-drivers`) from the source
+profile into it (machine-global `java.exe` path + the bundle's own managed jar → same ids), signs in past
+the SecurityGate, and reaches Settings via nav clicks (no session-dropping reload); the real bridge still
+launches Java + loads the real ojdbc driver end-to-end (`driverAvailable=true driver=23.26.2.0.0`). It only
+reads the source profile, so it is non-destructive; needs `build:oracle-bridge` + the real java.exe/ojdbc
+jar present (override the source with `AWKIT_GUI_SOURCE_LOCALAPPDATA`). One idempotency defect found + fixed
+during re-verification (bd `awkit-7ek`,
 CLOSED): `runtime-analytics-gui` uses persisted `.fixtures-observability/<state>` dirs, so a re-run left a
 provisioned Super User behind and hit the login form (0/4); `walkState` now clears
 `<state>/SpecterStudio/security` before each launch — proven idempotent (36/36 twice, no re-seed).
