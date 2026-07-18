@@ -1,0 +1,107 @@
+# .cbmignore — Codebase Memory MCP index exclusions for SpecterStudio (AWKIT)
+#
+# The indexer also honors .gitignore; this file makes the intent explicit and adds a
+# few tracked assets (package-lock.json, design media) that add no value to a CODE graph.
+# Uses gitignore syntax. Top-level runtime dirs are ROOT-ANCHORED (leading "/") because
+# real source dirs share their names (e.g. src/reports/, app/renderer/components/reports/,
+# src/profiles/, src/storage/, src/data/, src/instances/). See
+# docs/ai/CODEBASE-MEMORY-AND-BEADS.md for the rationale.
+
+# --- Dependencies & package-manager metadata ---
+node_modules/
+.pnpm-store/
+.yarn/
+/package-lock.json
+
+# --- Build / bundle / packaging output ---
+/dist/
+/build/
+/out/
+/release/
+.vite/
+.cache/
+.temp/
+/electron-builder/
+*.asar
+# Generated timestamped electron-vite configs (source of truth is electron.vite.config.ts)
+electron.vite.config.*.mjs
+
+# --- Bundled offline runtime (large binaries: Chromium, native modules, JDBC jars) ---
+/vendor/
+resources/browsers/
+resources/oracle-jdbc/runtime/
+resources/oracle-jdbc/bridge/
+resources/oracle-jdbc/lib/
+# Compiled Java bridge artifacts (source under oracle-jdbc-bridge/ stays indexed)
+oracle-jdbc-bridge/target/
+
+# --- Runtime-generated dev workspace (production data lives in %LOCALAPPDATA%) ---
+/logs/
+/temp/
+/tmp/
+/screenshots/
+/downloads/
+/reports/
+/instances/
+/runtime-inputs/
+/storage/
+/data/
+/.benchmark-runtime/
+/.fixtures-observability/
+
+# --- Test / trace output ---
+/test-results/
+/playwright-report/
+/blob-report/
+playwright/.cache/
+/traces/
+/videos/
+/coverage/
+
+# --- Browser profiles / sessions / auth state (sensitive + not code) ---
+storage-state.json
+auth-state.json
+*.storageState.json
+session-profiles.json
+/user-data-dir/
+/browser-profiles/
+/profiles/
+/sessions/
+/cookies/
+*.har
+
+# --- Secrets (never index) ---
+.env
+.env.*
+!.env.example
+
+# --- Local databases / logs / backups ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.bak
+package.json.bak.*
+
+# --- Non-code design assets & one-off scrapers (not useful for a code graph) ---
+/logos/
+UI Samples/
+*.mp4
+*.mov
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.webp
+/ui-mock.html
+/capture-dribbble.mjs
+/get-videos.mjs
+
+# --- Beads tracker data (Dolt DB, JSONL exports, audit trail — not code) ---
+.beads/
+
+# --- Codebase Memory's own generated graph artifact directory ---
+.codebase-memory/

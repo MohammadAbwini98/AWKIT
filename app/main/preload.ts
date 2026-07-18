@@ -12,6 +12,9 @@ import type { OracleConnectionProfileView } from "@src/oracle/OracleConnectionPr
 import type { OracleProfileInput, TestConnectionResult } from "@src/oracle/OracleProfileService";
 import type { OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { OracleDataSourceInput } from "./oracleService";
+import type { OracleDriverBundleView } from "@src/oracle/OracleDriverBundle";
+import type { DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
+import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
 import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
@@ -296,7 +299,33 @@ const api = {
     getDataSource: (id: string) => ipcRenderer.invoke("oracle:dataSources:get", id) as Promise<OracleDataSourceProfile | null>,
     saveDataSource: (input: OracleDataSourceInput) => ipcRenderer.invoke("oracle:dataSources:save", input) as Promise<OracleDataSourceProfile>,
     deleteDataSource: (id: string) => ipcRenderer.invoke("oracle:dataSources:delete", id) as Promise<void>,
-    refreshSnapshot: (id: string) => ipcRenderer.invoke("oracle:dataSources:refreshSnapshot", id) as Promise<OracleDataSourceProfile>
+    refreshSnapshot: (id: string) => ipcRenderer.invoke("oracle:dataSources:refreshSnapshot", id) as Promise<OracleDataSourceProfile>,
+    // Managed Oracle JDBC driver bundles (Settings). The renderer never receives JAR bytes — only
+    // metadata/validation status. Import opens a native file dialog in the main process.
+    drivers: {
+      list: () => ipcRenderer.invoke("oracle:drivers:list") as Promise<OracleDriverBundleView[]>,
+      get: (id: string) => ipcRenderer.invoke("oracle:drivers:get", id) as Promise<OracleDriverBundleView | null>,
+      usage: (id: string) => ipcRenderer.invoke("oracle:drivers:usage", id) as Promise<number>,
+      import: (input: { name: string }) => ipcRenderer.invoke("oracle:drivers:import", input) as Promise<OracleDriverBundleView | null>,
+      validate: (id: string) => ipcRenderer.invoke("oracle:drivers:validate", id) as Promise<OracleDriverBundleView>,
+      setDefault: (id: string) => ipcRenderer.invoke("oracle:drivers:setDefault", id) as Promise<void>,
+      remove: (id: string) => ipcRenderer.invoke("oracle:drivers:remove", id) as Promise<void>,
+      testLoad: (id: string) => ipcRenderer.invoke("oracle:drivers:testLoad", id) as Promise<DriverProbeResult>
+    },
+    // User-selected Java runtimes (Settings). Specter no longer bundles a JRE — the user selects an
+    // installed java(.exe)/JRE/JDK. The renderer never receives executable bytes, only metadata; add
+    // opens a native file/dir dialog in the main process.
+    java: {
+      list: () => ipcRenderer.invoke("oracle:java:list") as Promise<JavaRuntimeProfileView[]>,
+      get: (id: string) => ipcRenderer.invoke("oracle:java:get", id) as Promise<JavaRuntimeProfileView | null>,
+      usage: (id: string) => ipcRenderer.invoke("oracle:java:usage", id) as Promise<number>,
+      addExecutable: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addExe", input) as Promise<JavaRuntimeProfileView | null>,
+      addDirectory: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addDir", input) as Promise<JavaRuntimeProfileView | null>,
+      validate: (id: string) => ipcRenderer.invoke("oracle:java:validate", id) as Promise<JavaRuntimeProfileView>,
+      setDefault: (id: string) => ipcRenderer.invoke("oracle:java:setDefault", id) as Promise<void>,
+      remove: (id: string) => ipcRenderer.invoke("oracle:java:remove", id) as Promise<void>,
+      testBridge: (id: string, driverBundleId?: string) => ipcRenderer.invoke("oracle:java:testBridge", id, driverBundleId) as Promise<DriverProbeResult>
+    }
   }
 };
 

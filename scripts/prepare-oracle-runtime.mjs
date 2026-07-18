@@ -1,29 +1,23 @@
 /**
- * Reproducible, offline preparation of the private Oracle JDBC runtime bundle (Phase 02).
+ * Reproducible, offline preparation of Specter's Oracle JDBC **bridge** bundle (Phase 02,
+ * user-selected-Java model).
  *
- * Consumes the locked manifest (`scripts/oracle/oracle-runtime.manifest.json`) and a local STAGING
- * directory of out-of-band-acquired artifacts (a private JRE tree, the ojdbc/ucp jars, and license
- * notices), then:
- *   1. validates architecture + Java version (never trusting JAVA_HOME/PATH),
- *   2. verifies each artifact's SHA-256 against the manifest (when recorded),
- *   3. stages everything under `resources/oracle-jdbc/{runtime,bridge,lib,LICENSES}`,
- *   4. copies the reproducibly-built bridge jar,
- *   5. writes the resolved `manifest.json` and regenerates `checksums.json`.
+ * Specter bundles ONLY its own tiny bridge jar. It does NOT bundle a JRE or Oracle driver jars — the
+ * Java runtime and Oracle JDBC driver are selected by the user in Settings → Database Drivers and are
+ * never vendored. This step therefore just:
+ *   1. validates architecture + OS against the locked manifest (`oracle-runtime.manifest.json`),
+ *   2. stages the reproducibly-built bridge jar under `resources/oracle-jdbc/bridge/`,
+ *   3. records the jar's SHA-256 in the resolved `manifest.json` and regenerates `checksums.json`.
  *
- * It NEVER touches the network and FAILS CLOSED: a missing artifact, checksum mismatch, wrong
- * architecture, unsupported Java, or missing license notice aborts before any checksums.json is
- * written (so a partial/tampered bundle can never validate). With no staging directory present the
- * CLI skips cleanly — an documented external gate, not a failure.
+ * It NEVER touches the network and FAILS CLOSED: a wrong architecture or a missing bridge jar aborts
+ * before any checksums.json is written (so a partial/tampered bundle can never validate).
  */
-import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const isWin = process.platform === "win32";
-const javaExeName = isWin ? "java.exe" : "java";
 
 function sha256(filePath) {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
@@ -43,40 +37,15 @@ function listFilesRel(dir) {
   return out;
 }
 
-/** Default Java-version probe: runs `<runtimeDir>/bin/java -version` and parses the feature version. */
-function defaultProbeJavaMajor(runtimeDir) {
-  try {
-    const javaBin = join(runtimeDir, "bin", javaExeName);
-    // `java -version` prints to stderr; execFileSync throws on nonzero but we capture both streams.
-    const out = execFileSync(javaBin, ["-version"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    return parseJavaMajor(out);
-  } catch (err) {
-    const text = `${err?.stdout ?? ""}${err?.stderr ?? ""}`;
-    const major = parseJavaMajor(text);
-    return major || null;
-  }
-}
-
-function parseJavaMajor(text) {
-  const m = String(text).match(/version "(\d+)(?:\.(\d+))?/);
-  if (!m) return null;
-  const major = Number(m[1]);
-  // Legacy "1.8" scheme → feature version is the minor.
-  if (major === 1 && m[2]) return Number(m[2]);
-  return major;
-}
-
 /**
  * Pure preparation routine (injectable for tests). Returns `{ ok, staged, issues, checksumsPath, manifestPath }`.
- * Does not exit the process.
+ * Does not exit the process. Stages only Specter's own bridge jar (no JRE, no driver jars).
  */
 export function prepareOracleRuntime(options) {
   const {
     manifestPath,
-    sourceDir,
     resourcesRoot,
     bridgeJarPath,
-    probeJavaMajor = defaultProbeJavaMajor,
     platformOs = process.platform,
     platformArch = process.arch,
     quiet = false
@@ -101,82 +70,24 @@ export function prepareOracleRuntime(options) {
   }
 
   const oracleDir = join(resourcesRoot, "oracle-jdbc");
-  const libDir = join(oracleDir, "lib");
-  const licensesDir = join(oracleDir, "LICENSES");
-  const runtimeDir = join(oracleDir, "runtime");
   const bridgeDir = join(oracleDir, "bridge");
 
-  // Fresh staging (leave nothing stale behind); only proceed to copies if platform is ok so far.
+  // Fresh staging (leave nothing stale behind); only proceed to copies if the platform is ok.
   if (issues.length === 0) {
     rmSync(oracleDir, { recursive: true, force: true });
-    mkdirSync(libDir, { recursive: true });
-    mkdirSync(licensesDir, { recursive: true });
+    mkdirSync(bridgeDir, { recursive: true });
   }
 
-  // 2) Artifacts (jars + the private JRE tree).
-  for (const artifact of manifest.artifacts ?? []) {
-    if (issues.length && issues.some((i) => i.includes("mismatch"))) break; // platform already failed
-    if (artifact.kind === "jar") {
-      const src = join(sourceDir, artifact.source ?? artifact.filename);
-      if (!existsSync(src)) {
-        issues.push(`Missing artifact: ${artifact.filename} (expected at ${src}).`);
-        continue;
-      }
-      const actual = sha256(src);
-      if (artifact.sha256 && artifact.sha256.toLowerCase() !== actual.toLowerCase()) {
-        issues.push(`Checksum mismatch: ${artifact.filename} (manifest ${artifact.sha256}, actual sha256:${actual}).`);
-        continue;
-      }
-      cpSync(src, join(libDir, artifact.filename));
-      artifact.sha256 = `sha256:${actual}`;
-      staged.push(`lib/${artifact.filename}`);
-    } else if (artifact.kind === "runtime-dir") {
-      const srcRuntime = join(sourceDir, artifact.source ?? "runtime");
-      if (!existsSync(srcRuntime) || !statSync(srcRuntime).isDirectory()) {
-        issues.push(`Missing private JRE directory (expected at ${srcRuntime}).`);
-        continue;
-      }
-      const javaBin = join(srcRuntime, "bin", javaExeName);
-      if (!existsSync(javaBin)) {
-        issues.push(`Private JRE is missing bin/${javaExeName}.`);
-        continue;
-      }
-      const major = probeJavaMajor(srcRuntime);
-      const minVersion = manifest.java?.minVersion ?? 17;
-      if (!major) {
-        issues.push("Could not determine the bundled Java version.");
-      } else if (major < minVersion) {
-        issues.push(`Unsupported Java version: ${major} (need >= ${minVersion}).`);
-      }
-      if (issues.length === 0) {
-        cpSync(srcRuntime, runtimeDir, { recursive: true });
-        staged.push("runtime/");
-      }
-    }
-  }
-
-  // 3) License notices (required for redistribution).
-  for (const license of manifest.licenses ?? []) {
-    if (license.required === false) continue;
-    const src = join(sourceDir, license.file);
-    if (!existsSync(src)) {
-      issues.push(`Missing license notice: ${license.file} (required for ${license.appliesTo?.join(", ")}).`);
-      continue;
-    }
-    if (issues.length === 0) {
-      cpSync(src, join(licensesDir, license.file));
-      staged.push(`LICENSES/${license.file}`);
-    }
-  }
-
-  // 4) The reproducibly-built bridge jar.
+  // 2) The reproducibly-built bridge jar — the ONLY Oracle artifact Specter bundles.
   if (issues.length === 0) {
     if (!bridgeJarPath || !existsSync(bridgeJarPath)) {
       issues.push("Bridge jar not built (run scripts/build-oracle-bridge.mjs first).");
     } else {
-      mkdirSync(bridgeDir, { recursive: true });
       cpSync(bridgeJarPath, join(bridgeDir, "awkit-oracle-jdbc-bridge.jar"));
       staged.push("bridge/awkit-oracle-jdbc-bridge.jar");
+      // Record the jar's hash in the manifest's bridge artifact (informational; checksums.json is authoritative).
+      const bridgeArtifact = (manifest.artifacts ?? []).find((a) => a.id === "bridge");
+      if (bridgeArtifact) bridgeArtifact.sha256 = `sha256:${sha256(bridgeJarPath)}`;
     }
   }
 
@@ -186,7 +97,7 @@ export function prepareOracleRuntime(options) {
     return fail(issues);
   }
 
-  // 5) Resolved manifest + checksums over the whole staged tree. The resolved manifest is written
+  // 3) Resolved manifest + checksums over the whole staged tree. The resolved manifest is written
   //    WITHOUT a timestamp so the bundle (and its checksums.json) is byte-for-byte reproducible.
   const resolvedManifestPath = join(oracleDir, "manifest.json");
   writeFileSync(resolvedManifestPath, JSON.stringify(manifest, null, 2));
@@ -197,7 +108,7 @@ export function prepareOracleRuntime(options) {
   }
   const checksumsPath = join(oracleDir, "checksums.json");
   writeFileSync(checksumsPath, JSON.stringify(checksums, null, 2));
-  log(`[prepare:oracle-runtime] staged ${staged.length} artifact group(s); wrote ${Object.keys(checksums).length} checksums.`);
+  log(`[prepare:oracle-runtime] staged ${staged.length} artifact(s); wrote ${Object.keys(checksums).length} checksums.`);
 
   return { ok: true, staged, issues: [], checksumsPath, manifestPath: resolvedManifestPath };
 
@@ -209,32 +120,19 @@ export function prepareOracleRuntime(options) {
 // ── CLI ────────────────────────────────────────────────────────────────────
 async function cli() {
   const manifestPath = join(repoRoot, "scripts", "oracle", "oracle-runtime.manifest.json");
-  const sourceDir = process.env.AWKIT_ORACLE_RUNTIME_SRC
-    ? resolve(process.env.AWKIT_ORACLE_RUNTIME_SRC)
-    : join(repoRoot, "oracle-runtime-src");
   const resourcesRoot = join(repoRoot, "resources");
-
-  if (!existsSync(sourceDir)) {
-    console.log(
-      `[prepare:oracle-runtime] SKIPPED — no staged artifacts at ${sourceDir}.\n` +
-        "  This is the documented external gate: acquire the private JRE + ojdbc/ucp jars + license\n" +
-        "  notices out-of-band (build-time network is blocked), stage them there (or set\n" +
-        "  AWKIT_ORACLE_RUNTIME_SRC), then re-run. See docs/ai/ORACLE_JDBC_RUNTIME_MATRIX.md."
-    );
-    process.exit(0);
-  }
 
   // Build the bridge reproducibly (pinned JDK 17) so its jar can be staged + checksummed.
   const { buildOracleBridge } = await import("./build-oracle-bridge.mjs");
   const built = buildOracleBridge({ quiet: false });
 
-  const result = prepareOracleRuntime({ manifestPath, sourceDir, resourcesRoot, bridgeJarPath: built.jarPath });
+  const result = prepareOracleRuntime({ manifestPath, resourcesRoot, bridgeJarPath: built.jarPath });
   if (!result.ok) {
     console.error("[prepare:oracle-runtime] FAILED (fail-closed):");
     for (const issue of result.issues) console.error(`  ✗ ${issue}`);
     process.exit(1);
   }
-  console.log("[prepare:oracle-runtime] OK — bundle staged and checksummed.");
+  console.log("[prepare:oracle-runtime] OK — bridge bundle staged and checksummed (no JRE/driver bundled; both are user-selected).");
 }
 
 if (process.argv[1]?.endsWith("prepare-oracle-runtime.mjs")) {

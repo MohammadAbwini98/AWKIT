@@ -1,8 +1,9 @@
 # Oracle JDBC Data Source & Node — Final Report (Phase 14)
 
 Status date: 2026-07-17. Governing plan: [`ORACLE_JDBC_DATA_SOURCE_NODE_PLAN.md`](ORACLE_JDBC_DATA_SOURCE_NODE_PLAN.md)
-(the AWKIT-grounded, corrected version of the source 14-phase spec). Not committed — all Oracle work
-is local-only pending user review.
+(the AWKIT-grounded, corrected version of the source 14-phase spec). **Merged to `main`** on 2026-07-17
+via PR #11 (`476dc29`), together with the SpecterStudio rename it depends on. Release status remains
+**INTEGRATION-CANDIDATE** — merging shipped the code, not the external validation (see §13 and §17).
 
 ## 1. Executive Summary
 
@@ -317,6 +318,77 @@ StepExecutor,ValueResolver}.ts`, `src/profiles/FlowProfile.ts`, `src/offline/Por
 - **Snapshot capture at scale** (very large result sets, CLOB-heavy tables) is only exercised against
   the small, fixed mock dataset — the new cell/serialized-byte limits are unit-tested but not proven
   against a real large payload.
+
+## 16b. Pending-phase execution (2026-07-17, post-merge)
+
+A 12-phase "pending implementation" plan was run against the merged baseline. Two of its assumptions were
+corrected rather than obeyed: it targets "the committed Oracle feature branch" (merged and deleted — the
+baseline is `main` @ `b6e473d`) and expects "rebrand/splash work is absent" (present **by design** — the
+rename is a dependency of the Oracle work, so reverting it would have been wrong). It also names an
+`ORACLE_RUNTIME_UNAVAILABLE` token; the code's existing `DRIVER_UNAVAILABLE` wire category + resolver
+`available:false` carry that meaning and were not renamed for cosmetics.
+
+**Executed (5 of 12):**
+
+- **01 Baseline** — `main` @ `b6e473d`, tree clean apart from docs; build PASS; Oracle 137/137 on the
+  five originally-listed verifiers; all three fail-closed layers present; docs read INTEGRATION-CANDIDATE.
+- **04 Fail-closed revalidation** — 4 of the 5 truth-table rows proven without real jars
+  (`packaged + missing driver`, `packaged + corrupt checksum`, `packaged + mock flag`, `dev + mock flag`),
+  across all three layers. Plus the plan's **Required Product Behavior**, now explicitly tested: with the
+  Oracle runtime unavailable, JSON sources keep working, Snapshot sources keep working offline, Runtime
+  sources fail safely with `DRIVER_UNAVAILABLE` (no mock rows, no crash), and a failed Oracle source does
+  not poison subsequent resolution. Row 5 (`packaged + valid real bundle → real executor`) is blocked on jars.
+- **07 Lazy behavior — a real gap the plan caught.** The lazy suite previously counted an *injected stub*.
+  It now drives the **real Java bridge process** and counts actual `executeQuery` **RPCs at the wire**
+  (20/20). The load-bearing proofs are negative: a Snapshot source and an unreferenced Runtime source leave
+  the Java process **never started** (`manager.isRunning() === false`). Also proven: late node → 1 RPC when
+  reached; 3 parallel consumers → exactly 1 RPC (single-flight); two runs → exactly 2 RPCs; failed attempt
+  evicted from cache → retry re-executes.
+- **08 Full regression** — green. Build PASS; Oracle **226/226** across 10 verifiers; runner 82, concurrency
+  78, observability 65, recorder 72, telemetry 61/61, security 39, data-editor 27, browser-isolation 27/27,
+  waits 21, recorder-draft 17/17, safety-policy 17, secrets 16, protected-login 16, locks 15, runtime-status
+  15, artifacts 13, chromium-hardening 13, recorder-flow 13/13, profile-store 13/13, cancellation 12,
+  startup-recovery 10, write-queue 7/7, ipc-contract 4/4, workflow-sentinels 4/4; `validate:offline` passes
+  and correctly warns the Oracle runtime is not bundled. **One failure — `verify:durable-store` 9/2
+  (SQLite migration checks) — is PRE-EXISTING, not an Oracle regression:** it fails identically at
+  `dee283e`, the commit before any Oracle work (verified in an isolated worktree), and this session never
+  touched the durable store. Left alone per the plan's "fix only actual regressions" rule.
+- **12 Final report** — this section + the summary block below.
+
+**Blocked (7 of 12) — verified, not assumed.** `ojdbc*/ucp*.jar` exist nowhere on this machine
+(`~/.m2`, Downloads, Desktop); Maven Central is unreachable (**HTTP 000**); Docker is unavailable; no
+`AWKIT_ORACLE_LIVE_*` credentials are configured; no clean Windows machine. Every blocked phase (02, 03,
+05, 06, 09, 10, 11) fails at the same first step — **acquiring the artifacts** — and each is recorded with
+its precise unblock step in [`ORACLE_JDBC_VALIDATION_GATES.md`](ORACLE_JDBC_VALIDATION_GATES.md).
+
+### Required final summary
+
+```text
+Real executor compile:      NOT RUN — blocked: no ojdbc/ucp jars (Maven Central HTTP 000).
+                            Stub-compiled against the real JDK java.sql every verifier run; the
+                            UCP API shape itself remains unverified.
+Live Oracle suite:          NOT RUN — blocked: no authorized non-production Oracle database and no
+                            AWKIT_ORACLE_LIVE_* credentials. Harness (verify:oracle-live) is written,
+                            credential-gated, fail-closed, and skips cleanly.
+UCP pooling:                NOT RUN — blocked by the above (real pool behavior unproven).
+Cancellation:               PASS against the real bridge process (mock executor): abort → cancelQuery
+                            RPC → request ends < 3s vs an 8s query. Statement.cancel() against a real
+                            Oracle statement is NOT proven.
+Lazy execution:             PASS — 20/20 against the real bridge with real executeQuery RPC counters;
+                            snapshot/unreferenced never start the Java process.
+Full regression:            PASS — Oracle 226/226; all impacted suites green; build clean.
+                            (durable-store 9/2 fails pre-existing, proven unrelated at dee283e.)
+Portable package:           NOT RUN — blocked: no staged runtime to package.
+Installer package:          NOT RUN — blocked: same.
+Clean-machine validation:   NOT RUN — blocked: no clean Windows machine and no packaged artifact.
+Soak:                       NOT RUN — blocked: no authorized database.
+Final status:               INTEGRATION-CANDIDATE
+Remaining blockers:         (1) vendor ojdbc11.jar + ucp11.jar + a private JRE and fill their exact
+                                versions/SHA-256 into scripts/oracle/oracle-runtime.manifest.json;
+                            (2) an authorized, non-production, read-only Oracle database;
+                            (3) a clean Windows x64 machine for the packaged-EXE walkthrough.
+                            (1) gates (2) and (3). None are solvable in this environment.
+```
 
 ## 17. Production Recommendation
 

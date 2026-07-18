@@ -19,6 +19,8 @@ public final class Protocol {
     // ── Operations ───────────────────────────────────────────────────────────
     public static final String OP_HELLO = "hello";
     public static final String OP_HEALTH = "health";
+    /** Reflective driver-load probe (core; no executor/DB needed) — used to validate imported bundles. */
+    public static final String OP_DRIVER_PROBE = "driverProbe";
     public static final String OP_TEST_CONNECTION = "testConnection";
     public static final String OP_EXECUTE_QUERY = "executeQuery";
     public static final String OP_CANCEL_QUERY = "cancelQuery";
@@ -34,6 +36,9 @@ public final class Protocol {
     public static final String ERR_TIMEOUT = "TIMEOUT";
     public static final String ERR_DRIVER_ERROR = "DRIVER_ERROR";
     public static final String ERR_DRIVER_UNAVAILABLE = "DRIVER_UNAVAILABLE";
+    // Set by the TypeScript layer (never emitted by the bridge itself) when no Java/driver is
+    // configured in Settings — kept here so the two category sets stay in sync.
+    public static final String ERR_ORACLE_RUNTIME_NOT_CONFIGURED = "ORACLE_RUNTIME_NOT_CONFIGURED";
     public static final String ERR_SQL_POLICY_VIOLATION = "SQL_POLICY_VIOLATION";
     public static final String ERR_RESULT_LIMIT_EXCEEDED = "RESULT_LIMIT_EXCEEDED";
     public static final String ERR_INVALID_CONFIGURATION = "INVALID_CONFIGURATION";

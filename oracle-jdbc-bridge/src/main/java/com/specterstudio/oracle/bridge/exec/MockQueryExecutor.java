@@ -35,11 +35,6 @@ public final class MockQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public String ucpVersion() {
-        return "unavailable";
-    }
-
-    @Override
     public Map<String, Object> testConnection(Map<String, Object> params) {
         simulateIfRequested(params, null);
         Map<String, Object> result = new LinkedHashMap<>();

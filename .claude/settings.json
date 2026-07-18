@@ -1,14 +1,25 @@
 {
   "hooks": {
-    "Stop": [
+    "SessionStart": [
       {
-        "matcher": "*",
         "hooks": [
           {
-            "type": "command",
-            "command": "node scripts/ai-memory/check-memory.mjs"
+            "command": "bd prime --hook-json",
+            "type": "command"
           }
-        ]
+        ],
+        "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "node scripts/ai-memory/check-memory.mjs",
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
       }
     ]
   }

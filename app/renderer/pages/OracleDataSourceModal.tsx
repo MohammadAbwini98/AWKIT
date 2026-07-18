@@ -165,7 +165,8 @@ export function OracleDataSourceModal({ initial, onClose, onSaved }: OracleDataS
             ) : null}
             {availability?.available && !availability.driverExpected ? (
               <span className="form-message">
-                Running with the database-free mock driver (no Oracle JDBC jars vendored) — queries return sample data.
+                No Oracle JDBC driver is selected — running with the database-free mock (queries return sample data). Import and
+                select a driver in Settings → Database Drivers to run real queries.
               </span>
             ) : null}
 

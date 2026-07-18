@@ -5,9 +5,10 @@
  * JAVA_HOME/PATH, which on dev machines is often JDK 8/11) and packages a runnable jar at
  * `oracle-jdbc-bridge/target/awkit-oracle-jdbc-bridge.jar`.
  *
- * The Oracle UCP executor source set (`src/main/java-oracle`) is compiled ONLY when the ojdbc/ucp
- * jars are vendored under `resources/oracle-jdbc/lib/`. Absent jars → the core still builds and the
- * bridge runs against the database-free mock executor (exactly how a dev checkout lacks Chromium).
+ * The Oracle executor source set (`src/main/java-oracle`) is compiled ONLY when an ojdbc jar is
+ * available (vendored under `resources/oracle-jdbc/lib/` or on AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH).
+ * Absent jars → the core still builds and the bridge runs against the database-free mock executor
+ * (exactly how a dev checkout lacks Chromium). Specter does not use UCP.
  *
  * No network access is required or performed.
  *
@@ -93,24 +94,43 @@ export function buildOracleBridge({ quiet = false } = {}) {
   }
   log(`[oracle-bridge] JDK: ${jdk.home}`);
 
+  // Dev convenience: advertise the JDK this build used to the runtime resolver's dev-only fallback.
+  // The resolver never auto-scans for Java — in dev it uses AWKIT_ORACLE_BRIDGE_JDK_HOME, so any
+  // verifier that builds the bridge also makes that same JDK resolvable. Never runs in packaged.
+  if (!process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME) process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME = jdk.home;
+
   rmSync(classesDir, { recursive: true, force: true });
   mkdirSync(classesDir, { recursive: true });
 
   const coreSources = listJava(join(moduleRoot, "src", "main", "java"));
   const oracleSrcDir = join(moduleRoot, "src", "main", "java-oracle");
+  const haveOracleSrc = existsSync(oracleSrcDir);
+
+  // Compile jars come from (1) the packaged vendoring path resources/oracle-jdbc/lib and (2) an
+  // explicit AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH env (path-list) — used to compile the real
+  // executors against an imported ojdbc jar WITHOUT dumping it into resources/ (which would flip the
+  // dev runtime's driverExpected). The runtime classpath is assembled separately from the selected
+  // Settings driver bundle.
+  const sep = isWin ? ";" : ":";
   const vendoredJars =
     existsSync(libDir) ? readdirSync(libDir).filter((f) => f.endsWith(".jar")).map((f) => join(libDir, f)) : [];
-  const haveOracleSrc = existsSync(oracleSrcDir);
-  const compileOracle = haveOracleSrc && vendoredJars.length > 0;
-
+  const envJars = (process.env.AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH ?? "")
+    .split(sep)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && existsSync(s));
+  const compileJars = [...new Set([...vendoredJars, ...envJars])];
+  // The direct-JDBC executor references the Oracle driver ONLY via Class.forName (a string), so it has
+  // no compile-time Oracle dependency and is ALWAYS compiled into the bridge jar. A user-selected ojdbc
+  // driver added to the RUNTIME classpath activates it; without a driver the bridge runs the
+  // database-free mock. Any ojdbc jar on the compile classpath is an optional aid only.
   const sources = [...coreSources];
   let classpath = "";
-  if (compileOracle) {
+  let compileOracle = false;
+  if (haveOracleSrc) {
     sources.push(...listJava(oracleSrcDir));
-    classpath = vendoredJars.join(isWin ? ";" : ":");
-    log(`[oracle-bridge] compiling Oracle executor against ${vendoredJars.length} vendored jar(s).`);
-  } else if (haveOracleSrc) {
-    log("[oracle-bridge] ojdbc/ucp jars not vendored — building CORE only (mock executor at runtime).");
+    classpath = compileJars.join(sep);
+    compileOracle = true;
+    log(`[oracle-bridge] compiling Oracle direct-JDBC executor (pure JDK; ${compileJars.length} optional compile jar(s)).`);
   }
 
   const argsFile = join(targetDir, "javac-args.txt");

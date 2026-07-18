@@ -3,13 +3,11 @@ package com.specterstudio.oracle.bridge.exec;
 import com.specterstudio.oracle.bridge.protocol.BridgeException;
 import com.specterstudio.oracle.bridge.protocol.Protocol;
 
-import oracle.ucp.jdbc.PoolDataSource;
-import oracle.ucp.jdbc.PoolDataSourceFactory;
-
 import java.math.BigDecimal;
 import java.sql.Clob;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -21,29 +19,36 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Properties;
 
 /**
- * Real Oracle executor: Oracle JDBC Thin driver behind a Universal Connection Pool (UCP), one pool
- * per connection compatibility key. Compiled ONLY when the ojdbc/ucp jars are vendored under
- * {@code resources/oracle-jdbc/lib/} (see {@code scripts/build-oracle-bridge.mjs}); the network-blocked
- * dev checkout builds the core alone and runs {@link MockQueryExecutor}.
+ * The real Oracle executor: the Oracle JDBC Thin driver via {@link DriverManager}, one fresh
+ * connection opened and closed per query (no pooling). Compiled when the ojdbc jar is available —
+ * vendored under {@code resources/oracle-jdbc/lib/} or selected via a Settings driver bundle (see
+ * {@code scripts/build-oracle-bridge.mjs}). This is the ONLY real executor; Specter no longer
+ * supports UCP connection pooling.
  *
- * <p>Security invariants:
- * <ul>
- *   <li>Read-only in depth: {@code Connection.setReadOnly(true)} is set, but it is NOT the security
- *       boundary — the dedicated least-privilege Oracle account is (see the SQL policy + runbook).</li>
- *   <li>All values are bound via {@link PreparedStatement} — never string-concatenated.</li>
- *   <li>No password, wallet secret, bind value, ORA-text, or returned row ever appears in an exception
- *       message; every {@link SQLException} is mapped to a safe, low-cardinality category.</li>
- * </ul>
+ * <p>Reports {@code executionMode "real"}. Bounded concurrency is enforced by the TypeScript
+ * {@code OracleQueryService} limiter, not by a connection pool.
+ *
+ * <p>Security invariants: {@code Connection.setReadOnly(true)} (defense in depth — the least-privilege
+ * account is the real boundary), all values bound via {@link PreparedStatement}, and NO password /
+ * bind value / ORA-text / returned row ever placed in an exception message (every {@link SQLException}
+ * maps to a safe, low-cardinality category).
  */
-public final class OracleUcpQueryExecutor implements QueryExecutor {
+public final class OracleJdbcQueryExecutor implements QueryExecutor {
 
     /** Absolute ceiling on characters read from a single CLOB cell (defense against OOM). */
     private static final long MAX_CLOB_CHARS = 4_000_000L;
 
-    private final ConcurrentHashMap<String, PoolDataSource> pools = new ConcurrentHashMap<>();
+    public OracleJdbcQueryExecutor() {
+        // Ensure the driver class is loaded/registered even on JDKs without the service auto-load.
+        try {
+            Class.forName("oracle.jdbc.OracleDriver");
+        } catch (Throwable t) {
+            throw new IllegalStateException("Oracle JDBC driver class could not be loaded.");
+        }
+    }
 
     @Override
     public boolean driverAvailable() {
@@ -62,16 +67,9 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
     }
 
     @Override
-    public String ucpVersion() {
-        String v = versionOf("oracle.ucp.jdbc.PoolDataSource");
-        return v != null ? v : "ucp";
-    }
-
-    @Override
     public Map<String, Object> testConnection(Map<String, Object> params) {
         long started = System.nanoTime();
-        PoolDataSource pds = poolFor(params);
-        try (Connection conn = pds.getConnection()) {
+        try (Connection conn = open(params)) {
             applyConnectionDefaults(conn);
             boolean ok = conn.isValid(5);
             DatabaseMetaData md = conn.getMetaData();
@@ -80,6 +78,7 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
             result.put("latencyMs", (System.nanoTime() - started) / 1_000_000L);
             result.put("databaseProductVersion", safeProductVersion(md));
             result.put("driverVersion", nullToUnknown(md.getDriverVersion()));
+            result.put("pooled", false);
             return result;
         } catch (SQLException ex) {
             throw mapSqlException(ex);
@@ -95,12 +94,11 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
         final long timeoutMs = asLong(params.get("timeoutMs"), 60_000L);
         final List<Object> binds = asList(params.get("binds"));
 
-        PoolDataSource pds = poolFor(params);
         Connection conn = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            conn = pds.getConnection();
+            conn = open(params);
             applyConnectionDefaults(conn);
 
             ps = conn.prepareStatement(sql, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -109,7 +107,7 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
             ps.setFetchSize(Math.max(1, fetchSize));
             bindAll(ps, binds);
 
-            // Out-of-band cancellation: flip → Statement.cancel(). onCancel runs immediately if already cancelled.
+            // Out-of-band cancellation: flip → Statement.cancel(). Runs immediately if already cancelled.
             final PreparedStatement cancelTarget = ps;
             token.onCancel(() -> {
                 try {
@@ -157,53 +155,36 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
         } finally {
             closeQuietly(rs);
             closeQuietly(ps);
-            closeQuietly(conn); // returns the connection to the pool
+            closeQuietly(conn);
         }
     }
 
     @Override
     public void closePool(Map<String, Object> params) {
-        String key = poolKey(params);
-        PoolDataSource removed = pools.remove(key);
-        // UCP pools are managed by the pool manager; dropping our reference releases it. A pooled
-        // datasource has no public close(), so we rely on GC + the manager's idle retirement.
-        if (removed != null) {
-            // no-op: reference dropped
-        }
+        // No pool to close — connections are per-query and closed in the finally block.
     }
 
     @Override
     public void shutdown() {
-        pools.clear();
+        // Nothing pooled to drain.
     }
 
-    // ── Pool management ───────────────────────────────────────────────────────
+    // ── Connection ──────────────────────────────────────────────────────────────
 
-    private PoolDataSource poolFor(Map<String, Object> params) {
-        final String key = poolKey(params);
-        return pools.computeIfAbsent(key, k -> buildPool(params, k));
-    }
-
-    private PoolDataSource buildPool(Map<String, Object> params, String key) {
-        try {
-            PoolDataSource pds = PoolDataSourceFactory.getPoolDataSource();
-            pds.setConnectionFactoryClassName("oracle.jdbc.pool.OracleDataSource");
-            pds.setURL(str(params.get("url")));
-            String user = str(params.get("username"));
-            if (user != null) pds.setUser(user);
-            Object pw = params.get("password");
-            if (pw != null) pds.setPassword(String.valueOf(pw));
-            pds.setConnectionPoolName("awkit-oracle-" + Integer.toHexString(key.hashCode()));
-            pds.setInitialPoolSize(0);
-            pds.setMinPoolSize(0);
-            pds.setMaxPoolSize((int) asLong(params.get("maxPoolSize"), 4L));
-            pds.setValidateConnectionOnBorrow(true);
-            pds.setInactiveConnectionTimeout(60);
-            pds.setConnectionWaitTimeout((int) Math.max(1, asLong(params.get("poolWaitMs"), 10_000L) / 1000));
-            return pds;
-        } catch (SQLException ex) {
-            throw mapSqlException(ex);
+    private Connection open(Map<String, Object> params) throws SQLException {
+        final String url = str(params.get("url"));
+        if (url == null || url.isEmpty()) {
+            throw new BridgeException(Protocol.ERR_INVALID_CONFIGURATION, "A JDBC URL is required.");
         }
+        Properties props = new Properties();
+        String user = str(params.get("username"));
+        if (user != null) props.setProperty("user", user);
+        Object pw = params.get("password");
+        if (pw != null) props.setProperty("password", String.valueOf(pw));
+        // Arm a login timeout so an unreachable host fails fast rather than hanging the worker.
+        long connectMs = asLong(params.get("connectTimeoutMs"), 15_000L);
+        DriverManager.setLoginTimeout((int) Math.max(1, Math.ceil(connectMs / 1000.0)));
+        return DriverManager.getConnection(url, props);
     }
 
     private void applyConnectionDefaults(Connection conn) throws SQLException {
@@ -229,8 +210,6 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
             } else if (v instanceof Number) {
                 ps.setBigDecimal(idx, new BigDecimal(v.toString()));
             } else {
-                // Strings (incl. high-precision numerics + ISO dates the TS side normalized) bind as-is;
-                // Oracle applies implicit conversion for the target column.
                 ps.setString(idx, v.toString());
             }
         }
@@ -264,14 +243,12 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
                 BigDecimal bd = rs.getBigDecimal(col);
                 if (bd == null) return null;
                 if (bd.scale() <= 0) {
-                    // Integer-valued NUMBER: keep as Long when it fits, else a precise String.
                     try {
                         return bd.longValueExact();
                     } catch (ArithmeticException overflow) {
                         return bd.toPlainString();
                     }
                 }
-                // Fractional: preserve precision as a String (JSON doubles would round).
                 return bd.toPlainString();
             }
             case Types.TINYINT:
@@ -321,21 +298,21 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
         }
         int code = ex.getErrorCode(); // ORA-xxxxx
         switch (code) {
-            case 1017: // invalid username/password
+            case 1017:
             case 1005:
-            case 28000: // account locked
+            case 28000:
                 return new BridgeException(Protocol.ERR_AUTHENTICATION_FAILED, "Authentication failed.", false);
-            case 12514: // service not known to listener
+            case 12514:
             case 12505:
             case 12528:
                 return new BridgeException(Protocol.ERR_SERVICE_NOT_FOUND, "The database service was not found.", false);
-            case 12541: // no listener
-            case 12170: // connect timeout
-            case 17002: // IO error
+            case 12541:
+            case 12170:
+            case 17002:
                 return new BridgeException(Protocol.ERR_NETWORK_UNREACHABLE, "The database was unreachable.", true);
-            case 1013: // user requested cancel of current operation
+            case 1013:
                 return new BridgeException(Protocol.ERR_CANCELLED, "Query was cancelled.", false);
-            case 28759: // failure to open file (wallet)
+            case 28759:
             case 28750:
                 return new BridgeException(Protocol.ERR_WALLET_ERROR, "Wallet/credential store error.", false);
             default:
@@ -353,13 +330,6 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
 
     // ── Small helpers ─────────────────────────────────────────────────────────
 
-    private static String poolKey(Map<String, Object> params) {
-        Object key = params.get("poolKey");
-        if (key != null) return String.valueOf(key);
-        // Fall back to a coarse key from url+user (never includes the password).
-        return String.valueOf(params.get("url")) + "|" + String.valueOf(params.get("username"));
-    }
-
     private static String safeProductVersion(DatabaseMetaData md) {
         try {
             return nullToUnknown(md.getDatabaseProductVersion());
@@ -372,8 +342,7 @@ public final class OracleUcpQueryExecutor implements QueryExecutor {
         try {
             Class<?> cls = Class.forName(className);
             Package pkg = cls.getPackage();
-            String v = pkg == null ? null : pkg.getImplementationVersion();
-            return v;
+            return pkg == null ? null : pkg.getImplementationVersion();
         } catch (Throwable ignored) {
             return null;
         }

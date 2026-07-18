@@ -3,13 +3,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Checksum validation for the vendored Oracle bundle (`resources/oracle-jdbc/`) — Phase 12. The
- * bundle is populated at package time (private JRE + bridge jar + ojdbc/ucp jars, vendored like
- * Chromium; gitignored, not committed) and ships a flat `checksums.json` mapping each file's
- * bundle-relative path to `sha256:<hex>`. Absence of `checksums.json` is not itself a failure — a
- * dev checkout or a build that hasn't vendored jars yet has nothing to validate (lazy availability);
- * but once packaging writes one, every listed file MUST exist and match, and production must not
- * silently continue on a corrupted/tampered/incomplete bundle.
+ * Checksum validation for the packaged Oracle bundle (`resources/oracle-jdbc/`) — Phase 12. In the
+ * user-selected-Java model the bundle contains only Specter's own bridge jar (+ manifest); the Java
+ * runtime and Oracle driver are user-selected and never bundled. It ships a flat `checksums.json`
+ * mapping each file's bundle-relative path to `sha256:<hex>`. Absence of `checksums.json` is not itself
+ * a failure — a dev checkout or a build that hasn't staged the bridge yet has nothing to validate (lazy
+ * availability); but once packaging writes one, every listed file MUST exist and match, and production
+ * must not silently continue on a corrupted/tampered/incomplete bundle.
  */
 export interface ChecksumValidationResult {
   ok: boolean;

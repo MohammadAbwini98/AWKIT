@@ -7,8 +7,8 @@ import java.util.Map;
 
 /**
  * Fail-closed executor selected when a real Oracle driver is REQUIRED (packaged production, via
- * {@code AWKIT_ORACLE_REQUIRE_REAL=1}) but the {@code OracleUcpQueryExecutor} class and/or the
- * ojdbc/ucp jars are not present. It keeps the protocol alive so {@code hello}/{@code health} answer
+ * {@code AWKIT_ORACLE_REQUIRE_REAL=1}) but the {@code OracleJdbcQueryExecutor} class and/or the
+ * ojdbc jar are not present. It keeps the protocol alive so {@code hello}/{@code health} answer
  * cleanly and the TypeScript manager can detect the condition and report a precise
  * {@code DRIVER_UNAVAILABLE} error — but it NEVER returns query rows.
  *
@@ -30,11 +30,6 @@ public final class DriverUnavailableExecutor implements QueryExecutor {
 
     @Override
     public String driverVersion() {
-        return "unavailable";
-    }
-
-    @Override
-    public String ucpVersion() {
         return "unavailable";
     }
 
