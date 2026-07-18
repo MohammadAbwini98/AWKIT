@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Flow Designer GUI verifier: modernize stale geometry assertions (awkit-9p6)
+
+- **What:** the 5 flow-designer geometry checks asserted the pre-Hologram **docked-column** model
+  (`canvasEngineRight <= panelLeft`, `panelRight <= canvasRight`, `panelTop ≈ canvasAreaTop`, and
+  engine-width-grows-on-collapse). The design is now a **floating overlay drawer** — measured the live
+  geometry and rewrote them to the real invariants.
+- **Measured (real Electron):** expanded drawer → `.react-flow-shell` keeps the **full canvas width**
+  (1200/1696/784 == canvasWidth at 1440/1936/1024), fixed **435px** drawer floats over the right edge with
+  a consistent **~1.8px** overhang past `canvasRight`, `panelTop` 2–3px below `canvasAreaTop` (below the
+  action bar); collapsed rail = **48px** (CSS `calc(var(--space-5) * 2)` — resolves the bead's rail-width
+  question), `bodyPaddingRight` 0 open → ~60px collapsed.
+- **New assertions:** engine spans full canvas width (`|canvasEngineWidth - canvasWidth| <= 2`), drawer
+  contained left + `panelRight <= canvasRight + 4`, `panelTop >= canvasAreaTop - 2`,
+  `panelBottom <= canvasAreaBottom + 2`, and collapse shrinks the rail well below the open drawer width
+  (`railWidth <= 96 && railWidth < panelWidth/2`). Also fixed a **races-the-animation** bug: the collapse
+  measurement waited a fixed 220ms (< the 240ms `--awkit-dur-panel` glide) and sometimes read the drawer
+  mid-collapse (~440px) → replaced with `waitForFunction` polling until the rail settles ≤96px.
+- **Files:** `scripts/verify-flow-designer-gui.mjs` (`readInspectorGeometry` gains `bodyPaddingRight`; the
+  5 checks + collapse wait rewritten). No `src/` change.
+- **Tests:** `npm run build` clean; **verify:flow-designer 24/24 twice** (was 19/24). bd `awkit-9p6` CLOSED.
+
+---
+
 ## 2026-07-19 — Claude — GUI-verifier sweep (awkit-gmn) + auth hardening (awkit-ekd.6/.7)
 
 - **GUI-verifier sweep (bd `awkit-gmn`):** added shared harness `scripts/lib/gui-verify-harness.mjs`

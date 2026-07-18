@@ -82,6 +82,10 @@ async function readInspectorGeometry(win) {
       canvasAreaBottom: a.bottom,
       canvasEngineRight: e.right,
       canvasEngineWidth: e.width,
+      // The floating drawer reserves usable canvas room via padding-right on .flow-designer-body
+      // (see global.css .designer-layout.has-right-panel .flow-designer-body) rather than by shrinking
+      // the full-width .react-flow-shell — so the inset lives here, not in the engine width.
+      bodyPaddingRight: parseFloat(getComputedStyle(canvasArea).paddingRight) || 0,
       toolbarRight: t.right,
       panelLeft: p.left,
       panelTop: p.top,
@@ -247,8 +251,11 @@ try {
     geometry ? `pathTop=${geometry.pathTop.toFixed(0)} sourceBottom=${geometry.sourceBottom.toFixed(0)} pathBottom=${geometry.pathBottom.toFixed(0)} targetTop=${geometry.targetTop.toFixed(0)}` : "no cross-node edge found"
   );
 
-  // --- 2b. The properties inspector stays inside the full-width designer canvas while the usable
-  // canvas body reserves room for it, then returns that room when the inspector collapses. ---
+  // --- 2b. The properties inspector is a FLOATING OVERLAY drawer (post-Hologram re-skin): the flow
+  // engine (.react-flow-shell) keeps the full canvas width and the drawer floats over its right edge
+  // (.designer-right-drawer-slot is position:absolute). So the checks assert containment of the
+  // floating drawer within the canvas, NOT the old docked-column invariant (canvasEngineRight <=
+  // panelLeft) which no longer holds — see bd awkit-9p6. ---
   const inspectablePoint = await win.evaluate(() => {
     const canvas = document.querySelector(".awkit-flow-canvas")?.getBoundingClientRect();
     if (!canvas) return null;
@@ -262,41 +269,44 @@ try {
     return null;
   });
   if (inspectablePoint) await win.mouse.click(inspectablePoint.x, inspectablePoint.y);
-  // The canvas inset now glides open over --awkit-dur-panel (240ms, docs §9.1). Measure at rest,
-  // after the glide settles, so the panel-vs-canvas geometry reflects the final layout, not a frame
-  // mid-animation (the at-rest invariant canvasEngineRight <= panelLeft is what the checks assert).
+  // The floating drawer glides open over --awkit-dur-panel (240ms, docs §9.1). Measure at rest, after
+  // the glide settles, so the drawer-vs-canvas geometry reflects the final layout, not a mid-animation
+  // frame.
   await win.waitForTimeout(360);
   const expandedLayout = await readInspectorGeometry(win);
   check(
-    "Node Properties is contained inside the full-width designer canvas and toolbar",
+    "Node Properties floats as a right-edge overlay inside the full-width designer canvas and toolbar",
     Boolean(inspectablePoint) && expandedLayout &&
       Math.abs(expandedLayout.canvasWidth - fullHeightLayout.canvasWidth) <= 1 &&
       Math.abs(expandedLayout.toolbarRight - expandedLayout.canvasRight) <= 1 &&
+      // Floating overlay: the flow engine keeps the full canvas width; the fixed-width drawer floats
+      // over the canvas's right edge (contained left, ~2px overhang past the right edge tolerated).
+      Math.abs(expandedLayout.canvasEngineWidth - expandedLayout.canvasWidth) <= 2 &&
+      expandedLayout.panelWidth < expandedLayout.canvasWidth &&
       expandedLayout.panelLeft >= expandedLayout.canvasLeft &&
-      expandedLayout.panelRight <= expandedLayout.canvasRight,
+      expandedLayout.panelRight <= expandedLayout.canvasRight + 4,
     expandedLayout ? JSON.stringify(expandedLayout) : "no hit-testable node or inspector did not open"
   );
   check(
-    "Node Properties stays within the vertical canvas area below the toolbar without covering the usable canvas",
+    "Node Properties stays within the vertical canvas area below the action bar",
     expandedLayout &&
-      Math.abs(expandedLayout.panelTop - expandedLayout.canvasAreaTop) <= 1 &&
-      expandedLayout.panelBottom <= expandedLayout.canvasAreaBottom + 1 &&
-      expandedLayout.canvasEngineRight <= expandedLayout.panelLeft,
+      expandedLayout.panelTop >= expandedLayout.canvasAreaTop - 2 &&
+      expandedLayout.panelBottom <= expandedLayout.canvasAreaBottom + 2,
     expandedLayout ? JSON.stringify(expandedLayout) : "inspector geometry not found"
   );
   await win.setViewportSize({ width: 1936, height: 1290 });
   await win.waitForTimeout(180);
   const wideLayout = await readInspectorGeometry(win);
   check(
-    "Node Properties remains inside the canvas at the reported 1936x1290 viewport",
+    "Node Properties remains a right-edge overlay inside the canvas at the reported 1936x1290 viewport",
     wideLayout &&
       wideLayout.viewportWidth === 1936 && wideLayout.viewportHeight === 1290 &&
       Math.abs(wideLayout.toolbarRight - wideLayout.canvasRight) <= 1 &&
+      Math.abs(wideLayout.canvasEngineWidth - wideLayout.canvasWidth) <= 2 &&
       wideLayout.panelLeft >= wideLayout.canvasLeft &&
-      wideLayout.panelRight <= wideLayout.canvasRight &&
-      Math.abs(wideLayout.panelTop - wideLayout.canvasAreaTop) <= 1 &&
-      wideLayout.panelBottom <= wideLayout.canvasAreaBottom + 1 &&
-      wideLayout.canvasEngineRight <= wideLayout.panelLeft,
+      wideLayout.panelRight <= wideLayout.canvasRight + 4 &&
+      wideLayout.panelTop >= wideLayout.canvasAreaTop - 2 &&
+      wideLayout.panelBottom <= wideLayout.canvasAreaBottom + 2,
     wideLayout ? JSON.stringify(wideLayout) : "wide inspector geometry not found"
   );
   if (process.env.AWKIT_FLOW_DESIGNER_EVIDENCE) {
@@ -306,33 +316,47 @@ try {
   await win.waitForTimeout(180);
   const compactLayout = await readInspectorGeometry(win);
   check(
-    "Node Properties remains inside the canvas when the toolbar wraps at a compact viewport",
+    "Node Properties remains a right-edge overlay inside the canvas when the toolbar wraps at a compact viewport",
     compactLayout &&
       compactLayout.viewportWidth === 1024 && compactLayout.viewportHeight === 768 &&
       Math.abs(compactLayout.toolbarRight - compactLayout.canvasRight) <= 1 &&
+      Math.abs(compactLayout.canvasEngineWidth - compactLayout.canvasWidth) <= 2 &&
       compactLayout.panelLeft >= compactLayout.canvasLeft &&
-      compactLayout.panelRight <= compactLayout.canvasRight &&
-      Math.abs(compactLayout.panelTop - compactLayout.canvasAreaTop) <= 1 &&
-      compactLayout.panelBottom <= compactLayout.canvasAreaBottom + 1 &&
-      compactLayout.canvasEngineRight <= compactLayout.panelLeft,
+      compactLayout.panelRight <= compactLayout.canvasRight + 4 &&
+      compactLayout.panelTop >= compactLayout.canvasAreaTop - 2 &&
+      compactLayout.panelBottom <= compactLayout.canvasAreaBottom + 2,
     compactLayout ? JSON.stringify(compactLayout) : "compact inspector geometry not found"
   );
   await win.setViewportSize({ width: expandedLayout.viewportWidth, height: expandedLayout.viewportHeight });
   await win.waitForTimeout(180);
   await win.getByTitle("Collapse properties").click();
-  await win.waitForTimeout(220);
+  // The collapse glides over --awkit-dur-panel (240ms); waiting a fixed 220ms raced the animation and
+  // sometimes measured the drawer still mid-collapse (~440px). Wait for the rail width to settle small.
+  await win.waitForFunction(() => {
+    const rail = document.querySelector(".properties-panel.collapsed");
+    return rail ? rail.getBoundingClientRect().width <= 96 : false;
+  }, undefined, { timeout: 4000 }).catch(() => {});
   const collapsedLayout = await win.evaluate(() => {
     const canvasEngine = document.querySelector(".react-flow-shell");
+    const canvasArea = document.querySelector(".flow-designer-body");
     const rail = document.querySelector(".properties-panel.collapsed");
-    if (!canvasEngine || !rail) return null;
+    if (!canvasEngine || !canvasArea || !rail) return null;
     const e = canvasEngine.getBoundingClientRect();
     const r = rail.getBoundingClientRect();
-    return { canvasEngineWidth: e.width, railWidth: r.width, railHeight: r.height };
+    return {
+      canvasEngineWidth: e.width,
+      bodyPaddingRight: parseFloat(getComputedStyle(canvasArea).paddingRight) || 0,
+      railWidth: r.width,
+      railHeight: r.height
+    };
   });
   check(
-    "Node Properties collapses to a compact rail and returns space to the canvas",
-    collapsedLayout && expandedLayout && collapsedLayout.railWidth <= 64 &&
-      collapsedLayout.canvasEngineWidth > expandedLayout.canvasEngineWidth,
+    "Node Properties collapses from the open drawer to a compact rail",
+    // Collapsed the floating drawer becomes a compact docked rail (~48px = CSS calc(space-5*2)); the
+    // open drawer overlays the full-width canvas, so "returns engine width on collapse" no longer
+    // applies — the meaningful signal is the rail shrinking far below the open drawer width.
+    collapsedLayout && expandedLayout && collapsedLayout.railWidth <= 96 &&
+      collapsedLayout.railWidth < expandedLayout.panelWidth / 2,
     collapsedLayout ? JSON.stringify(collapsedLayout) : "collapsed rail not found"
   );
 

@@ -30,10 +30,14 @@ self-closes), **and** PR #15's `SecurityGate` now gates every route — the real
 pre-auth. Fixed with a shared harness `scripts/lib/gui-verify-harness.mjs` (`resolveMainWindow` +
 `signInFirstRun` + `isolatedLaunchEnv`): **verify:reports 31/31** (original reference), **capacity-settings
 12/12**, **instance-monitor-gui 12/12**, **runtime-analytics-gui 36/36** (all four seeded states), **workflow-builder
-20/20** (seeds flows+workflow), **flow-designer 19/24** (seeds a flow; launches + signs in + every
+20/20** (seeds flows+workflow), **flow-designer 24/24** (seeds a flow; launches + signs in + every
 behaviour check passes). `verify:settings-persistence` is **3/3 unchanged** (pure preload IPC, never gated).
-All counts re-verified independently 2026-07-19. Two residuals split out: flow-designer's 5 remaining checks
-are **stale post-Hologram floating-drawer geometry assertions** → bd `awkit-9p6`; **`verify-oracle-drivers-gui`**
+All counts re-verified independently 2026-07-19. **flow-designer's 5 stale geometry assertions modernized
+(bd `awkit-9p6`, CLOSED):** rewritten from the old docked-column model (`canvasEngineRight <= panelLeft`,
+`panelRight <= canvasRight`) to the actual floating-overlay invariants — the flow engine keeps the full
+canvas width and the fixed-width drawer floats over its right edge (measured: ~1.8px right overhang, panel
+below the action bar, collapsed rail = 48px = CSS `calc(space-5*2)`); the collapse measurement now waits for
+the 240ms glide to settle instead of racing it (was flaky at 220ms). One residual left: **`verify-oracle-drivers-gui`**
 needs the auth half plus its Oracle validation store seeded into an isolated profile → bd `awkit-xjv`
 (Oracle-epic GUI gate). One idempotency defect found + fixed during re-verification (bd `awkit-7ek`,
 CLOSED): `runtime-analytics-gui` uses persisted `.fixtures-observability/<state>` dirs, so a re-run left a
