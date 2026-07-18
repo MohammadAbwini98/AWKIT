@@ -1,5 +1,76 @@
 # CURRENT_STATE
 
+## Oracle: user-selected Java runtime + direct JDBC, UCP removed → PRODUCTION-CANDIDATE (2026-07-18)
+
+Epic `awkit-kzo` (branch `feature/oracle-jdbc-driver-settings`) is complete and verified. **Specter no
+longer bundles Java or UCP.** The user selects a Java runtime and imports an Oracle JDBC driver in
+**Settings → Database Drivers**; Oracle runs through the isolated bridge via **direct JDBC** (one
+connection per query, no pool). UCP is removed entirely (ucp import rejected; `OracleUcpQueryExecutor`
+deleted; no dormant path). Specter stays usable with no Java configured — non-Oracle workflows, JSON, and
+Oracle **Snapshot** Data Sources need no Java. Full write-up:
+[`ORACLE_USER_SELECTED_JAVA_REMOVE_UCP_REPORT.md`](ORACLE_USER_SELECTED_JAVA_REMOVE_UCP_REPORT.md).
+
+- **Live 7/7** (`verify:oracle-live`, real Oracle 19c) via the Settings Java-runtime + driver-bundle path
+  (`Local-JDK-17` Java 17.0.8 + `Oracle-ojdbc17-local-19c-validation` ojdbc17 23.26.2.0.0). Deterministic
+  cancellation via a ~8.5M-row cross-join query. Ephemeral `SPECTER_READER` provisioned out-of-band + retired.
+- **GUI 30/30** (`verify:oracle-drivers-gui`, real Electron): both Database Drivers cards render; **selected
+  Java launches the bridge + loads the real ojdbc driver**; deletion guard; no secrets; 0 console errors.
+  Screenshots under `reports/oracle-validation/`.
+- **Verifiers**: 13 non-GUI Oracle suites **350/350**; `verify:oracle-direct-jdbc` 23/23, `-java-runtime`
+  48/48, `-driver-bundle` 47/47, `-packaging` 23/23, `-offline-bundle` 11/11 (rejects bundled JRE/driver),
+  `-runtime-prep` 14/14. `npm run build` clean; `validate:offline` clean (bridge-only bundle).
+- **Regression** cross-cutting green (ipc-contract, settings-persistence, profile-store, secrets,
+  data-editor, concurrency, cancellation). Found + fixed a pre-existing **branding-splash** regression that
+  broke `firstWindow()`-based Electron GUI verifiers (bd bug filed for the rest).
+- **Soak** ≥30 min direct-JDBC (`benchmark:oracle-jdbc`, live path): latency P50/P95, cancellation latency,
+  bridge+Node RSS, teardown invariants, no pool metrics — see the report §12 + `oracle-soak.json`.
+- **Packaging**: only the bridge jar is bundled (`prepare:oracle-runtime`); the offline validator now
+  **rejects** any bundled JRE or driver jar. `electron-builder.json` unchanged. `.gitignore` ignores the
+  whole generated `resources/oracle-jdbc/`.
+- **Remaining external gates**: packaged-EXE build (dev host OOMs on `electron-builder`) + clean-machine
+  walkthrough; sustained real-world soak. **Nothing committed** (conservative git profile, ephemeral branch).
+
+## Oracle `verify:oracle-live` gate PASSED against a real local Oracle 19c (2026-07-18)
+
+The **authorized read-only Oracle run** external gate is now met — via the existing local Oracle 19c
+(not Docker). On branch `feature/oracle-jdbc-driver-settings`, `npm run verify:oracle-live` ran **7/7 in
+real mode** against `jdbc:oracle:thin:@//localhost:1521/ORCLPDB` as least-privilege `SPECTER_READER`,
+resolving the driver from the Settings-managed bundle (`ojdbc17.jar` 23.26.2.0.0, JDBC-only). Steps:
+testConnection, select-small, truncation, type-conversion, policy-blocks-dml (`SQL_POLICY_VIOLATION`),
+permission-or-missing-object (`DRIVER_ERROR`), cancellation (`CANCELLED`). Bridge `executionMode=real`,
+Java 17.0.8. Redacted artifact `reports/oracle-validation/oracle-live.json` (gitignored) excludes
+credentials / binds / row content.
+
+- **Fixture mismatch resolved additively.** The harness expects `id`/`name` + 50+ rows, but the downloaded
+  pack made `CUSTOMERS`(3 rows)/`TYPE_SAMPLES`(1) with different column names. Provisioned the canonical
+  `SPECTER_FIXTURE.AWKIT_TYPES_TEST` (204 rows) via new `scripts/oracle/local-19c-awkit-types-fixture.sql`
+  (idempotent, OS-auth `sqlplus / as sysdba`), `GRANT SELECT` + private synonym
+  `SPECTER_READER.AWKIT_TYPES_TEST` created **as SYS** (reader never granted CREATE SYNONYM). Existing
+  `CUSTOMERS`/`TYPE_SAMPLES`/`V_ACTIVE_CUSTOMERS` left untouched. Ran with
+  `AWKIT_ORACLE_LIVE_TEST_TABLE=SPECTER_FIXTURE.AWKIT_TYPES_TEST` (schema-qualified SELECT is allowed by the
+  read-only SQL policy — tokenizer splits on `.`).
+- **Ephemeral credential, then retired.** Minted a strong random dev-only `SPECTER_READER` password via
+  OS-auth, stored **only** in a user-scoped scratchpad file (never printed to chat/logs/history/artifact);
+  used it for the single run; then rotated to a discarded random password + **ACCOUNT LOCK** and securely
+  deleted the secret file. Re-running the fixture SQL `UNLOCK`s the account for a future run.
+- **Regression:** `npm run build` clean (tsc + 3 bundles); `verify:oracle-driver-bundle` 43/43.
+- **Status stays `INTEGRATION-CANDIDATE`.** This clears one of the four external gates. Still open: the
+  **UCP pooled executor is unvalidated** (no UCP jar → the live run used the non-pooled JDBC executor,
+  `ucpVersion=unavailable`); the bundled private-JRE `prepare:oracle-runtime` + **packaged-EXE clean-machine
+  walkthrough**; and **real perf/soak**. Part B tooling (Docker orchestration, `import-driver-bundle.mts`,
+  the `verify-oracle-live.mts` bundle wiring, and this fixture SQL) remains **uncommitted** on the branch.
+
+## Local Oracle fixture provisioned and read-only account verified (2026-07-18)
+
+The downloaded Specter Oracle fixture pack was run successfully against the existing local Oracle 19c
+instance (`ORCLPDB`, port 1521). It created/opened `SPECTER_FIXTURE` and `SPECTER_READER`, valid
+`CUSTOMERS` / `TYPE_SAMPLES` tables and `V_ACTIVE_CUSTOMERS` view, with deterministic counts 3 / 1 / 2.
+Direct grant inspection confirms the reader has only `CREATE SESSION` plus non-grantable `SELECT` on the
+three fixture objects and no roles; the supplied verifier also proved `INSERT` is rejected. The downloaded
+setup required one external-only idempotency correction because it attempted to open an already-open PDB.
+No credentials were persisted or documented. This proves the fixture pack, not yet SpecterStudio's
+`verify:oracle-live` application path, so release status remains `INTEGRATION-CANDIDATE`.
+
 ## Oracle pending-phase run — 5 of 12 executed, 7 blocked on verified-absent artifacts (2026-07-17)
 
 Ran the 12-phase "pending implementation" plan against merged `main` (`b6e473d`). **Status unchanged:

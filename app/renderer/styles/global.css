@@ -4343,6 +4343,14 @@ table {
   font-weight: 600;
 }
 
+.oracle-driver-path {
+  font-family: var(--font-mono, monospace);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .oracle-driver-checksums {
   display: grid;
   gap: var(--space-1);

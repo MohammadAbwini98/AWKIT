@@ -36,6 +36,27 @@ Use this file when work is paused, blocked, or moving from one agent/tool to ano
 
 ## Current Handoff
 
+> **ORACLE LIVE-VALIDATION GATE DONE 2026-07-18 — `verify:oracle-live` PASSED 7/7 against the real local
+> Oracle 19c.** On branch `feature/oracle-jdbc-driver-settings`. Resolved the fixture/schema mismatch by
+> provisioning the canonical `SPECTER_FIXTURE.AWKIT_TYPES_TEST` (204 rows) **additively** via new
+> `scripts/oracle/local-19c-awkit-types-fixture.sql` (`GRANT SELECT` + a SYS-created private synonym to
+> `SPECTER_READER`; existing `CUSTOMERS`/`TYPE_SAMPLES`/`V_ACTIVE_CUSTOMERS` untouched), imported
+> `ojdbc17.jar` into the Settings-managed bundle store (`Oracle-ojdbc17-local-19c-validation`, 23.26.2.0.0,
+> JDBC-only), and ran the gate in **real** mode against `jdbc:oracle:thin:@//localhost:1521/ORCLPDB` as
+> `SPECTER_READER` with `AWKIT_ORACLE_LIVE_TEST_TABLE=SPECTER_FIXTURE.AWKIT_TYPES_TEST`. An ephemeral
+> read-only credential was minted → used → **rotated + ACCOUNT LOCKED** and its secret file securely deleted
+> (value never printed anywhere). `npm run build` clean; `verify:oracle-driver-bundle` 43/43. **Docker was
+> NOT needed** — the crash-loop note below is moot. Part B tooling remains **uncommitted**. Overall status
+> stays INTEGRATION-CANDIDATE (UCP pooled path + private-JRE/packaged-EXE walkthrough + perf/soak gates
+> remain). Full detail: top of `docs/ai/CURRENT_STATE.md` + `docs/ai/TASK_LOG.md`.
+
+> **RESOLVED (was: PAUSED 2026-07-17 — Docker crash-loop).** The live-validation run no longer depends on
+> Docker — it was completed against the pre-existing local Oracle 19c (see the DONE note above), so the
+> Docker-reboot resume path in `docs/ai/ORACLE_LIVE_VALIDATION_RESUME.md` is obsolete for this gate. Part A
+> (Settings-managed JDBC driver bundles + non-pooled JDBC executor) remains committed (`fc50227`); Part B
+> (dev-only Docker orchestration + live-validation tooling + the new fixture) remains authored, uncommitted,
+> and typechecks.
+
 > **STATE CHANGE 2026-07-17 — the long-standing uncommitted tree is GONE.** Everything that had piled up
 > across earlier sessions (Oracle JDBC, the SpecterStudio rename, the launch splash/logo/icons, and the
 > already-committed security work) is now **merged to `main`** via PR #11 (`476dc29`) and PR #12

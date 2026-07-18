@@ -166,43 +166,51 @@ Output: `dist/WebFlow Studio <version>.exe` (portable), `dist/WebFlow Studio Set
 > electron-builder cache; the produced app itself needs no internet.
 
 ## Oracle JDBC (offline; no database required unless noted)
+> **Model:** Specter does **not** bundle Java or UCP. The user selects a Java runtime + imports an ojdbc
+> driver in Settings → Database Drivers; Oracle runs via **direct JDBC** (one connection per query, no pool).
 ```bash
 npm run build:oracle-bridge          # compile the Java bridge with a PINNED JDK 17 (never JAVA_HOME/PATH).
-                                     # Compiles the gated real UCP executor ONLY when ojdbc/ucp jars are
-                                     # vendored under resources/oracle-jdbc/lib/; otherwise core-only (mock).
-npm run prepare:oracle-runtime       # stage the private runtime bundle from out-of-band artifacts:
-                                     # verify sha256 vs scripts/oracle/oracle-runtime.manifest.json,
-                                     # validate arch + Java version, require license notices, build the
-                                     # bridge, regenerate checksums.json. Offline + FAIL-CLOSED.
-                                     # SKIPS cleanly (exit 0) when ./oracle-runtime-src is absent
-                                     # (override with AWKIT_ORACLE_RUNTIME_SRC). External gate: the jars.
+                                     # Pure JDK — no UCP; the direct-JDBC executor is the sole real executor.
+npm run prepare:oracle-runtime       # build + stage ONLY Specter's bridge jar under resources/oracle-jdbc/,
+                                     # write manifest.json + checksums.json. No JRE, no driver jars (both are
+                                     # user-selected). Offline, deterministic, FAIL-CLOSED (missing jar / bad arch).
 
-# Verifiers (all green offline; 218 checks total):
+# Verifiers (all green offline; 350 checks across the 13 non-GUI suites):
 npm run verify:oracle-bridge             # 32 — framing/protocol, handshake, cancellation, restart, redaction
-npm run verify:oracle-bridge-real-build  # 11 — real-executor contract + STUB-COMPILE vs real JDK java.sql;
-                                         #      runs the LIVE real build only when jars are vendored
+npm run verify:oracle-bridge-real-build  # 16 — real-executor contract + STUB-COMPILE vs real JDK java.sql
 npm run verify:oracle-profiles           # 22 — profile CRUD, DPAPI secret routing, connection testing
 npm run verify:oracle-data-source        # 28 — snapshot staleness, resolver normalization, binds, loops
-npm run verify:oracle-runtime            # 36 — binds/types, result limits, timeout, telemetry,
-                                         #      expanded hello + FAIL-CLOSED production policy
-npm run verify:oracle-runtime-prep       # 20 — prepare:oracle-runtime logic (synthetic fixtures)
+npm run verify:oracle-runtime            # 36 — binds/types, result limits, timeout, telemetry, fail-closed
+npm run verify:oracle-java-runtime       # 48 — Java runtime store: add/validate/set-default/bridge-test/remove
+npm run verify:oracle-driver-bundle      # 47 — managed ojdbc bundle import/validate/load-test (UCP rejected)
+npm run verify:oracle-runtime-prep       # 14 — prepare:oracle-runtime logic (bridge-only, synthetic fixtures)
 npm run verify:oracle-sql-policy         # 30 — TS↔Java read-only SQL parity over an adversarial corpus
-npm run verify:oracle-packaging          # 19 — checksums + runtime resolution + fail-closed paths
-npm run verify:oracle-lazy-resolution    # 12 — lazy runtime execution, single-flight, snapshot = 0 DB
-npm run verify:oracle-offline-bundle     #  8 — packaged-bundle audit (integrity, layout, no secrets)
+npm run verify:oracle-packaging          # 23 — checksums + selection-model runtime resolution + fail-closed
+npm run verify:oracle-lazy-resolution    # 20 — lazy runtime execution, single-flight, snapshot = 0 DB
+npm run verify:oracle-offline-bundle     # 11 — packaged bundle audit (bridge-only; rejects JRE/driver/secrets)
+npm run verify:oracle-direct-jdbc        # 23 — direct-JDBC concurrency/cancellation/teardown (mock bridge)
 
-npm run verify:oracle-live               # REAL Oracle — credential-gated; skips cleanly with no config and
-                                         # NEVER falls back to mock. Requires an authorized, non-prod,
-                                         # read-only account:
+npm run verify:oracle-drivers-gui        # 30 — REAL Electron: Database Drivers settings render + real bridge
+                                         #      launch + real ojdbc load + deletion guard (needs `npm run build`)
+npm run verify:oracle-live               # 7 — REAL Oracle — credential-gated; skips cleanly with no config and
+                                         # NEVER falls back to mock. Resolves BOTH the Java runtime + driver via
+                                         # the Settings-managed stores. Requires an authorized non-prod reader:
                                          #   AWKIT_ORACLE_LIVE_URL / _USER / _PASSWORD
                                          #   AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1
                                          #   AWKIT_ORACLE_LIVE_TEST_TABLE (default awkit_types_test)
+                                         #   AWKIT_ORACLE_LIVE_DRIVER_BUNDLE_ID / _JAVA_RUNTIME_PROFILE_ID
                                          # Writes redacted reports/oracle-validation/oracle-live.json.
+npm run benchmark:oracle-jdbc            # direct-JDBC soak (≥30 min): latency P50/P95, cancellation latency,
+                                         # bridge+Node RSS, teardown invariants, NO pool metrics. Same live env
+                                         # as verify:oracle-live (falls back to the mock bridge if unset).
+                                         # Tunables: AWKIT_ORACLE_SOAK_MINUTES / _CONCURRENCY / _DRIVERS.
+                                         # Writes redacted reports/oracle-validation/oracle-soak.json.
 ```
 > Fail-closed rule: a **packaged** build never uses the mock executor. Packaged launches force
 > `AWKIT_ORACLE_REQUIRE_REAL=1`; `AWKIT_ORACLE_BRIDGE_MOCK=1` is honored **only** in dev/unpackaged.
-> Packaged + missing/failed driver ⇒ Oracle live queries unavailable (Snapshot Data Sources still work).
-> See `ORACLE_JDBC_VALIDATION_GATES.md` for the external-gate procedures.
+> Packaged + no Java/driver configured ⇒ Oracle live queries unavailable with a "Settings → Database Drivers"
+> message (Snapshot Data Sources + non-Oracle workflows still work, no Java needed).
+> See `ORACLE_JDBC_VALIDATION_GATES.md` for the gate status and the external-gate procedures.
 
 ## Assets
 ```bash

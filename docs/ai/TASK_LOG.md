@@ -4,6 +4,66 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-18 — Claude — Oracle `verify:oracle-live` gate PASSED against real local Oracle 19c
+
+- **Task:** Complete the unfinished Oracle JDBC driver-settings work by running the credential-gated
+  `verify:oracle-live` application gate against the user's real local Oracle DB
+  (`jdbc:oracle:thin:@//localhost:1521/ORCLPDB`, user `SPECTER_READER`). Branch
+  `feature/oracle-jdbc-driver-settings`.
+- **Driver bundle:** imported `ojdbc17.jar` (23.26.2.0.0) into the Settings-managed store via
+  `scripts/oracle/import-driver-bundle.mts` → bundle `Oracle-ojdbc17-local-19c-validation`, status valid,
+  JDBC-only (no UCP). Real driver loaded in an isolated bridge.
+- **Fixture mismatch (decided with the user):** the downloaded pack created
+  `SPECTER_FIXTURE.CUSTOMERS`(3)/`TYPE_SAMPLES`(1) with columns unlike the harness's `id`/`name`+50-row
+  expectation. Chose to **provision the canonical fixture additively** rather than weaken the harness. New
+  `scripts/oracle/local-19c-awkit-types-fixture.sql` (idempotent) creates `SPECTER_FIXTURE.AWKIT_TYPES_TEST`
+  (204 rows), `GRANT SELECT` to `SPECTER_READER`, private synonym `SPECTER_READER.AWKIT_TYPES_TEST` **as
+  SYS**; existing objects untouched. Ran via OS-auth `sqlplus` from the registered 19c home
+  (`C:\Users\moham\Downloads\WINDOWS.X64_193000_db_home`; not on PATH).
+- **Credential (decided with the user):** minted a strong random dev-only `SPECTER_READER` password via
+  OS-auth (`ALTER USER … IDENTIFIED BY`), stored only in a user-scoped scratchpad file — never printed to
+  chat/logs/history/the redacted artifact. After the run: rotated to a discarded random password + **ACCOUNT
+  LOCK**, then securely overwrote+deleted the secret file. No persistent env var set.
+- **Result:** `npm run verify:oracle-live` **7/7 in real mode** (testConnection, select-small, truncation,
+  type-conversion, policy-blocks-dml=`SQL_POLICY_VIOLATION`, permission-or-missing-object=`DRIVER_ERROR`,
+  cancellation=`CANCELLED`). Bridge `executionMode=real`, driver 23.26.2.0.0, Java 17.0.8. Redacted artifact
+  `reports/oracle-validation/oracle-live.json` (gitignored). Pre-run read-only self-check also confirmed
+  `SELECT` works (qualified + via synonym) and `INSERT` is blocked (ORA-01031).
+- **Regression:** `npm run build` clean; `npm run verify:oracle-driver-bundle` 43/43.
+- **Status:** external gate #2 (authorized read-only Oracle run) is **met**; overall release status stays
+  `INTEGRATION-CANDIDATE` — UCP pooled path still unvalidated (no UCP jar), private-JRE/packaged-EXE
+  walkthrough and perf/soak gates remain. **Not committed** (conservative profile; awaiting user go-ahead).
+- **Files:** new `scripts/oracle/local-19c-awkit-types-fixture.sql`; docs `CURRENT_STATE`/`HANDOFF`/`TASK_LOG`
+  + `ORACLE_LIVE_VALIDATION_RESUME.md`. No app source changed.
+
+---
+
+## 2026-07-18 — Codex — Provision and verify local Specter Oracle fixture
+
+- **Task:** Execute the downloaded `SPECTER_ORACLE_FIXTURE_SETUP` PowerShell setup and verifier and confirm
+  that every expected Oracle artifact was created.
+- **Environment discovery:** local Oracle Database 19c was already running as `ORCL` with PDB `ORCLPDB`
+  open read/write on port 1521. SQL*Plus was present in the registered Oracle home but absent from `PATH`;
+  commands used that exact Oracle-home binary. Docker remained stopped and was not needed.
+- **Setup correction:** the first run exited 1 before creating anything because the downloaded setup script
+  unconditionally opened an already-open PDB (`ORA-65019`). Updated only the downloaded (non-repository)
+  script's open step to query `V$PDBS` and open the PDB only when needed; the rerun exited 0.
+- **Created:** open users `SPECTER_FIXTURE` and `SPECTER_READER`; valid table objects `CUSTOMERS` and
+  `TYPE_SAMPLES`; valid view `V_ACTIVE_CUSTOMERS`; deterministic counts 3 customers / 1 type sample /
+  2 active customers.
+- **Least privilege:** `SPECTER_READER` has only `CREATE SESSION`, non-grantable `SELECT` on those three
+  objects, and no roles. The supplied reader verifier exited 0 and proved `INSERT` is rejected.
+- **Secrets:** both passwords were entered in local interactive PowerShell prompts; none were printed,
+  persisted by Codex, or copied into repository memory.
+- **Repository files:** `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md` only. The corrected downloaded script
+  is outside the repository.
+- **Tests run:** setup process exit 0; direct SYSDBA object/count/grant inspection exit 0; supplied
+  `verify-specter-reader.ps1 -ServiceName ORCLPDB` exit 0; final sentinel-row check exit 0.
+- **Not run:** application `verify:oracle-live`, build, and packaging checks; no app source or package changed.
+- **Result:** downloaded fixture setup is complete and independently verified on local `ORCLPDB`.
+
+---
+
 ## 2026-07-17 — Claude — Oracle pending-phase plan (01–12): 5 executed, 7 blocked on verified-absent artifacts
 
 - **Task:** User supplied a 12-phase "pending implementation" plan and asked to review/validate/modify it,
@@ -4247,3 +4307,67 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   logic or renderer behavior changed.
 - **Result:** the application now uses the requested Specter segmented-S identity while preserving the
   hardened, validated Windows ICO pipeline.
+
+## 2026-07-17 — Claude — Install & integrate Codebase Memory MCP + Beads
+
+- **Task:** Install, configure, verify, and document two persistent project-memory tools — Codebase Memory
+  MCP (code-structure knowledge graph) and Beads (`bd`, task/blocker tracker) — for this repo, preserving all
+  existing config/hooks/instructions and excluding generated/runtime/binary content.
+- **Codebase Memory MCP (v0.9.0):** ran the official DeusData `install.ps1` (inspected first; checksum-verified
+  binary → `%LOCALAPPDATA%\Programs\codebase-memory-mcp`). It auto-configured Claude Code **globally**
+  (`~/.claude/.mcp.json` single entry; PreToolUse Grep/Glob augmenter + SessionStart/SubagentStart user hooks;
+  `codebase-memory` skill). Set `auto_index`/`auto_watch=true`. Authored root-anchored `.cbmignore` (source dirs
+  that share names with runtime dirs — `src/reports/` etc. — are kept). Indexed `--mode full` (no persistence):
+  ~8,750 nodes / ~20,500 edges, 23 dirs excluded, langs TS/HTML/Java/TOML/SQL/CSS/YAML. Verified architecture,
+  entry points, preload boundary, `trace_path`, and `detect_changes` (40 files → 924 impacted symbols) against
+  real source (`oracle.ipc.ts` callees matched).
+- **Beads (v1.1.0, Dolt embedded):** ran the official gastownhall `install.ps1` (inspected; checksum-verified
+  → `%LOCALAPPDATA%\Programs\bd`, added to User PATH, `beads.exe` alias). `bd init --prefix awkit` +
+  `bd setup claude` added a project `SessionStart` hook (`bd prime`) and merged a managed block into `CLAUDE.md`
+  — the existing `Stop` hook (`check-memory.mjs`) and original CLAUDE.md content were preserved. Metrics off;
+  JSONL auto-export on. Seeded a backlog (setup epic + real Oracle work `awkit-jz5`/`awkit-cm8`); CRUD +
+  dependencies + `bd remember` verified. `bd init` made one scoped commit (`a4ce464`) of `.beads/` scaffolding.
+- **Files changed:** new `.cbmignore`, `docs/ai/CODEBASE-MEMORY-AND-BEADS.md`, `.beads/**`; modified `.gitignore`,
+  `CLAUDE.md`, `.claude/settings.json`. **No application source (`app/`, `src/`) changed.** Config backups saved
+  to the session scratchpad.
+- **Verification:** both tools' versions/config confirmed; all touched JSON + `config.yaml` parse cleanly.
+- **Not run / remaining:** a one-time Claude Code **restart** is required before the `mcp__…` graph tools load
+  in-session (the CLI works now). Codebase Memory config is global/machine-specific (not portable to teammates).
+- **Result:** both tools installed, verified, and documented; Beads is the authoritative active-work tracker.
+
+## 2026-07-18 — Claude (Opus 4.8) — Oracle: user-selected Java runtime + direct JDBC, remove UCP (epic awkit-kzo, WS-D..I)
+
+- **Task:** completed the approved epic (branch `feature/oracle-jdbc-driver-settings`). WS-A/B/C were done in
+  prior sessions; this session finished **WS-D → WS-I**. Model: Specter no longer bundles Java or UCP — the
+  user selects a Java runtime + imports an ojdbc driver in Settings → Database Drivers; Oracle runs via direct
+  JDBC (one connection per query, no pool). Full report:
+  [`ORACLE_USER_SELECTED_JAVA_REMOVE_UCP_REPORT.md`](ORACLE_USER_SELECTED_JAVA_REMOVE_UCP_REPORT.md).
+- **WS-D — live 7/7 + concurrency:** re-provisioned an ephemeral `SPECTER_READER` out-of-band (never printed),
+  ran `verify:oracle-live` **7/7** real mode via the Settings Java-runtime+bundle path (`Local-JDK-17` 17.0.8 +
+  `Oracle-ojdbc17-local-19c-validation` 23.26.2.0.0). Deterministic cancellation now uses a per-row concat+LIKE
+  over a ~8.5M-row 3-way cross join (Oracle can't cardinality-shortcut it). `verify:oracle-direct-jdbc` 23/23.
+- **WS-E — GUI 30/30:** new `verify:oracle-drivers-gui` (real Electron via Playwright `_electron`, resolves the
+  main window past the branding splash). Both Database Drivers cards render; `testBridge` launches the bridge
+  with the selected Java and loads the **real ojdbc 23.26.2.0.0**; deletion guard; no secrets; 0 console errors.
+  Screenshots in `reports/oracle-validation/database-drivers-*.png`.
+- **WS-F — packaging:** rewrote `prepare-oracle-runtime.mjs` + `oracle-runtime.manifest.json` to stage ONLY the
+  bridge jar; `OracleOfflineBundle.ts` + `validate-offline-bundle.ps1` now **reject** a bundled JRE/driver
+  (inverse of the old "driver required" gate); `.gitignore` ignores all of `resources/oracle-jdbc/`. Real
+  `prepare:oracle-runtime → validate:offline` loop green ("0 optional compile jar(s)"). runtime-prep 14/14,
+  offline-bundle 11/11, packaging 23/23. `electron-builder.json` unchanged (generic copy carries the bridge jar).
+- **WS-G — regression:** build clean; 13 non-GUI Oracle verifiers **350/350**; cross-cutting ipc-contract 4/4,
+  settings-persistence 3/3, profile-store 13/13, secrets 16/16, data-editor 27/27, concurrency 78/78,
+  cancellation 12/12. Found + fixed a **pre-existing branding-splash regression** breaking `firstWindow()`-based
+  GUI verifiers (filed a bd bug for the others; fixed `verify-settings-persistence.mjs`).
+- **WS-H — soak:** new `benchmark:oracle-jdbc` — ≥30-min direct-JDBC soak through the live path + the app's
+  `OracleQueryService` limiter; measures latency P50/P95, cancellation latency, bridge+Node RSS, teardown
+  invariants; asserts no pool metrics. Redacted artifact `reports/oracle-validation/oracle-soak.json`.
+- **WS-I — docs:** updated CURRENT_STATE, COMMANDS, ORACLE_JDBC_RUNTIME_MATRIX (now selection-model
+  compatibility/setup), ORACLE_JDBC_VALIDATION_GATES (cleared gates), wrote the 19-section report, deleted the
+  obsolete ORACLE_LIVE_VALIDATION_RESUME.md, appended this entry.
+- **Tests run:** `npm run build`; all `verify:oracle-*` (350 non-GUI + live 7 + GUI 30); `validate:offline`;
+  cross-cutting regression above; 30-min soak. **Not run:** packaged-EXE build (dev host OOMs on
+  electron-builder) + clean-machine walkthrough; sustained real-world soak — external gates.
+- **Result:** epic complete → **PRODUCTION-CANDIDATE**. Nothing committed (conservative git profile, ephemeral
+  branch); handoff reports the changed-file set + proposed commit for approval.
+

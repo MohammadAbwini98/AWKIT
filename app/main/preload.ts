@@ -14,6 +14,7 @@ import type { OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { OracleDataSourceInput } from "./oracleService";
 import type { OracleDriverBundleView } from "@src/oracle/OracleDriverBundle";
 import type { DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
+import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
@@ -291,6 +292,20 @@ const api = {
       setDefault: (id: string) => ipcRenderer.invoke("oracle:drivers:setDefault", id) as Promise<void>,
       remove: (id: string) => ipcRenderer.invoke("oracle:drivers:remove", id) as Promise<void>,
       testLoad: (id: string) => ipcRenderer.invoke("oracle:drivers:testLoad", id) as Promise<DriverProbeResult>
+    },
+    // User-selected Java runtimes (Settings). Specter no longer bundles a JRE — the user selects an
+    // installed java(.exe)/JRE/JDK. The renderer never receives executable bytes, only metadata; add
+    // opens a native file/dir dialog in the main process.
+    java: {
+      list: () => ipcRenderer.invoke("oracle:java:list") as Promise<JavaRuntimeProfileView[]>,
+      get: (id: string) => ipcRenderer.invoke("oracle:java:get", id) as Promise<JavaRuntimeProfileView | null>,
+      usage: (id: string) => ipcRenderer.invoke("oracle:java:usage", id) as Promise<number>,
+      addExecutable: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addExe", input) as Promise<JavaRuntimeProfileView | null>,
+      addDirectory: (input: { name: string }) => ipcRenderer.invoke("oracle:java:addDir", input) as Promise<JavaRuntimeProfileView | null>,
+      validate: (id: string) => ipcRenderer.invoke("oracle:java:validate", id) as Promise<JavaRuntimeProfileView>,
+      setDefault: (id: string) => ipcRenderer.invoke("oracle:java:setDefault", id) as Promise<void>,
+      remove: (id: string) => ipcRenderer.invoke("oracle:java:remove", id) as Promise<void>,
+      testBridge: (id: string, driverBundleId?: string) => ipcRenderer.invoke("oracle:java:testBridge", id, driverBundleId) as Promise<DriverProbeResult>
     }
   }
 };
