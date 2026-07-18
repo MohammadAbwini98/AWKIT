@@ -1,16 +1,25 @@
 // Real GUI smoke check for the Reports Overview page (UI-reports refactor Phase 5).
-// Launches the built Electron app via Playwright's _electron, navigates to the Reports route,
-// and asserts the page renders one of its valid states (metrics OR a clean empty/disabled state)
-// with no console errors and a working time-range + refresh control.
+// Launches the built Electron app via Playwright's _electron, signs in past the SecurityGate,
+// navigates to the Reports route, and asserts the page renders one of its valid states (metrics OR a
+// clean empty/disabled state) with no console errors and a working time-range + refresh control.
+//
+// Runs against an ISOLATED, empty %LOCALAPPDATA% (temp dir): (1) the security gate (PR #15) now gates
+// every protected route, so we drive a clean first-run to reach the app shell, and (2) an empty durable
+// store is a valid Reports state (every check below accepts metrics OR an empty state). See bd awkit-gmn.
 //
 // Run: node scripts/verify-reports-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
+const dataRoot = mkdtempSync(path.join(tmpdir(), "awkit-reports-gui-"));
+const env = { ...process.env, LOCALAPPDATA: dataRoot };
 delete env.ELECTRON_RUN_AS_NODE; // GUI app, not plain Node
+
+const CREDS = { displayName: "Reports Tester", username: "reports1", password: "Str0ng!Passw0rd" };
 
 const results = [];
 function check(name, pass, detail) {
@@ -18,14 +27,49 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
+// The app renders SecurityGate first (PR #15); the real <App/> shell only mounts after auth. Drive the
+// clean-machine first-run (provision Super User → auto sign-in) so the protected routes become reachable.
+async function signInFirstRun(win) {
+  await win.waitForSelector(".awkit-login-card", { timeout: 20000 });
+  await win.fill("#awkit-setup-display", CREDS.displayName);
+  await win.fill("#awkit-setup-username", CREDS.username);
+  const pw = win.locator('.awkit-login-form input[type="password"]');
+  await pw.nth(0).fill(CREDS.password);
+  await pw.nth(1).fill(CREDS.password);
+  await win.getByRole("button", { name: "Create account" }).click();
+  await win.waitForSelector(".app-shell", { timeout: 25000 });
+}
+
+// The launch splash is shown first and has no preload bridge, so app.firstWindow() can return it
+// (which then self-closes) — poll for the real main window exposing window.playwrightFlowStudio. See bd awkit-gmn.
+async function resolveMainWindow(app, timeoutMs = 40000) {
+  const deadline = Date.now() + timeoutMs;
+  await app.firstWindow().catch(() => undefined);
+  while (Date.now() < deadline) {
+    for (const w of app.windows()) {
+      try {
+        const ready = await w.evaluate(
+          () => typeof window.playwrightFlowStudio !== "undefined" && !!window.playwrightFlowStudio.settings
+        );
+        if (ready) return w;
+      } catch {
+        /* window navigating/closing — retry */
+      }
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error("main window with the SpecterStudio bridge did not appear within timeout");
+}
+
 const consoleErrors = [];
 const app = await electron.launch({ args: [root], cwd: root, env });
 try {
-  const win = await app.firstWindow();
+  const win = await resolveMainWindow(app);
   win.on("console", (msg) => {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
   await win.waitForLoadState("domcontentloaded");
+  await signInFirstRun(win);
   await win.waitForTimeout(1000);
 
   // Navigate to the Reports route (match the nav item by label text or collapsed title).
@@ -211,7 +255,8 @@ try {
   const telemetryErrors = consoleErrors.filter((e) => /telemetry|undefined is not|cannot read/i.test(e));
   check("no telemetry/undefined console errors", telemetryErrors.length === 0, telemetryErrors.slice(0, 2).join(" | "));
 } finally {
-  await app.close();
+  await app.close().catch(() => undefined);
+  rmSync(dataRoot, { recursive: true, force: true });
 }
 
 const passed = results.filter((r) => r.pass).length;
