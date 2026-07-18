@@ -22,19 +22,19 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Real Oracle executor WITHOUT UCP: the Oracle JDBC Thin driver via {@link DriverManager}, one fresh
- * connection per query (no pooling). Compiled when the ojdbc jar is available but the ucp jar is NOT —
- * so live validation can run against a real Oracle with the driver jar alone (see
- * {@code scripts/build-oracle-bridge.mjs}). When a ucp jar is also vendored, {@link OracleUcpQueryExecutor}
- * is preferred by {@code Main.selectExecutor()} for real pooling.
+ * The real Oracle executor: the Oracle JDBC Thin driver via {@link DriverManager}, one fresh
+ * connection opened and closed per query (no pooling). Compiled when the ojdbc jar is available —
+ * vendored under {@code resources/oracle-jdbc/lib/} or selected via a Settings driver bundle (see
+ * {@code scripts/build-oracle-bridge.mjs}). This is the ONLY real executor; Specter no longer
+ * supports UCP connection pooling.
  *
- * <p>Reports {@code executionMode "real"} and {@code ucpVersion "unavailable"} — the TypeScript layer
- * surfaces the "JDBC without UCP: no connection pooling" limitation from the missing UCP version.
+ * <p>Reports {@code executionMode "real"}. Bounded concurrency is enforced by the TypeScript
+ * {@code OracleQueryService} limiter, not by a connection pool.
  *
- * <p>Security invariants mirror {@link OracleUcpQueryExecutor}: {@code Connection.setReadOnly(true)}
- * (defense in depth — the least-privilege account is the real boundary), all values bound via
- * {@link PreparedStatement}, and NO password / bind value / ORA-text / returned row ever placed in an
- * exception message (every {@link SQLException} maps to a safe, low-cardinality category).
+ * <p>Security invariants: {@code Connection.setReadOnly(true)} (defense in depth — the least-privilege
+ * account is the real boundary), all values bound via {@link PreparedStatement}, and NO password /
+ * bind value / ORA-text / returned row ever placed in an exception message (every {@link SQLException}
+ * maps to a safe, low-cardinality category).
  */
 public final class OracleJdbcQueryExecutor implements QueryExecutor {
 
@@ -64,12 +64,6 @@ public final class OracleJdbcQueryExecutor implements QueryExecutor {
     public String driverVersion() {
         String v = versionOf("oracle.jdbc.OracleDriver");
         return v != null ? v : "oracle-jdbc";
-    }
-
-    @Override
-    public String ucpVersion() {
-        // No UCP in this executor — signals the "JDBC without pooling" limitation to the TS layer.
-        return "unavailable";
     }
 
     @Override

@@ -1,16 +1,20 @@
 {
   "schemaVersion": 1,
   "feature": "oracle-jdbc",
-  "description": "Locked inputs for the private Oracle JDBC runtime bundle. This is the SOURCE-OF-TRUTH manifest consumed by `npm run prepare:oracle-runtime`. Real jars/JRE are acquired out-of-band (build-time network is blocked) and staged into a source directory; the prepare step verifies each artifact against the sha256 recorded here, stages it under resources/oracle-jdbc/, and regenerates checksums.json. Empty sha256 values MUST be filled from the official vendor download before a production bundle is cut (see docs/ai/ORACLE_JDBC_RUNTIME_MATRIX.md).",
+  "description": "Locked inputs for Specter's Oracle JDBC bridge bundle (user-selected-Java model). Specter bundles ONLY its own tiny bridge jar — it does NOT bundle a JRE or Oracle driver jars. The Java runtime and Oracle JDBC driver are selected by the user in Settings → Database Drivers and are never vendored. Consumed by `npm run prepare:oracle-runtime`, which builds the bridge reproducibly (pinned JDK 17), stages it under resources/oracle-jdbc/bridge/, and regenerates checksums.json. See docs/ai/ORACLE_JDBC_RUNTIME_MATRIX.md.",
   "platform": {
     "os": "win32",
     "arch": "x64"
   },
+  "runtimeModel": "user-selected",
   "java": {
-    "vendor": "Eclipse Temurin (or an equivalent redistribution-permitted OpenJDK)",
-    "featureVersion": 17,
-    "minVersion": 17,
-    "notes": "A private, jlink-trimmed JRE staged as resources/oracle-jdbc/runtime/. Never uses system Java or JAVA_HOME/PATH."
+    "model": "user-selected",
+    "minVersion": 8,
+    "notes": "Specter does NOT bundle a JRE. Oracle live queries launch the isolated bridge with the java.exe the user selects in Settings → Database Drivers. System Java / JAVA_HOME / PATH are never auto-used."
+  },
+  "driver": {
+    "model": "user-selected",
+    "notes": "Specter does NOT bundle an Oracle driver. The user imports an ojdbc*.jar into the Settings-managed driver store; it is never vendored into resources/. UCP is not supported."
   },
   "bridge": {
     "artifactId": "awkit-oracle-jdbc-bridge",
@@ -25,49 +29,14 @@
   },
   "artifacts": [
     {
-      "id": "jre",
-      "kind": "runtime-dir",
-      "source": "runtime",
-      "stageTo": "runtime",
-      "sha256": "",
-      "license": "temurin",
-      "notes": "Directory tree with bin/java(.exe). sha256 here is over a stable archive of the tree if provided; otherwise per-file hashes land in checksums.json."
-    },
-    {
-      "id": "ojdbc",
+      "id": "bridge",
       "kind": "jar",
-      "filename": "ojdbc11.jar",
-      "version": "REQUIRED — record the exact vendored version (e.g. 23.x)",
-      "source": "ojdbc11.jar",
-      "stageTo": "lib",
+      "filename": "awkit-oracle-jdbc-bridge.jar",
+      "source": "awkit-oracle-jdbc-bridge.jar",
+      "stageTo": "bridge",
       "sha256": "",
-      "license": "oracle-otn"
-    },
-    {
-      "id": "ucp",
-      "kind": "jar",
-      "filename": "ucp11.jar",
-      "version": "REQUIRED — match the ojdbc release train",
-      "source": "ucp11.jar",
-      "stageTo": "lib",
-      "sha256": "",
-      "license": "oracle-otn"
+      "notes": "Specter's own bridge jar — the only Oracle artifact bundled. Built reproducibly from oracle-jdbc-bridge/ (this repo's source); no third-party redistribution."
     }
   ],
-  "licenses": [
-    {
-      "id": "oracle-otn",
-      "name": "Oracle Free Use Terms and Conditions / OTN License (confirm the exact terms shipped with the vendored jars)",
-      "file": "ORACLE-LICENSE.txt",
-      "appliesTo": ["ojdbc", "ucp"],
-      "required": true
-    },
-    {
-      "id": "temurin",
-      "name": "Eclipse Temurin / OpenJDK license + THIRD-PARTY notices (confirm the exact terms shipped with the JRE)",
-      "file": "JRE-LICENSE.txt",
-      "appliesTo": ["jre"],
-      "required": true
-    }
-  ]
+  "licenses": []
 }

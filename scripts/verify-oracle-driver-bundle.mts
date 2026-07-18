@@ -6,7 +6,7 @@
  *
  * A REAL section runs only when an actual `ojdbc17.jar` is available (env `AWKIT_ORACLE_DRIVER_JAR`, or
  * the supplied Downloads copy): it launches a real isolated Java bridge and asserts the driver loads
- * and reports version `23.x` with no UCP (JDBC-only) — the first time the real driver is validated.
+ * and reports version `23.x` (direct JDBC — Specter no longer supports UCP) — the first real-driver check.
  *
  * Run: `npm run verify:oracle-driver-bundle`.
  */
@@ -23,10 +23,12 @@ import {
   classifyDriverJar,
   compatibilityLabelFor,
   driverBundleCompatibilityKey,
+  isUcpJar,
   requiredJavaMajorFromOjdbcName
 } from "../src/oracle/OracleDriverBundle";
 import { resolveOracleRuntime } from "../src/oracle/OracleRuntimeResolver";
 import { OracleJdbcBridgeManager } from "../src/oracle/OracleJdbcBridgeManager";
+import { buildOracleBridge } from "./build-oracle-bridge.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -55,7 +57,6 @@ const okProbe: DriverProbeFn = async () => ({
   probed: true,
   driverAvailable: true,
   driverVersion: "23.26.2.0.0",
-  ucpVersion: "unavailable",
   javaVersion: "17.0.8"
 });
 const badProbe: DriverProbeFn = async () => ({ probed: true, driverAvailable: false, reason: "not a real driver" });
@@ -81,19 +82,22 @@ async function storeTests(): Promise<void> {
   try {
     const store = new OracleDriverBundleStore({ folder: join(root, "oracle-drivers"), probe: okProbe });
 
-    const bundle = await store.import({ name: "Oracle 23ai", sourceFiles: [ojdbc, ucp, pki] });
+    const bundle = await store.import({ name: "Oracle 23ai", sourceFiles: [ojdbc, pki] });
     check("valid import → status valid", bundle.validationStatus === "valid");
     check("import copies driver jar to managed dir", existsSync(join(bundle.managedDirectory, "ojdbc11.jar")));
-    check("import copies companion + ucp jars", existsSync(join(bundle.managedDirectory, "ucp11.jar")) && existsSync(join(bundle.managedDirectory, "oraclepki.jar")));
-    check("import records a checksum per file", Object.keys(bundle.checksums).length === 3);
+    check("import copies companion jar", existsSync(join(bundle.managedDirectory, "oraclepki.jar")));
+    check("import does NOT keep any ucp jar", !existsSync(join(bundle.managedDirectory, "ucp11.jar")));
+    check("import records a checksum per file", Object.keys(bundle.checksums).length === 2);
     check("import writes manifest.json + checksums.json", existsSync(join(bundle.managedDirectory, "manifest.json")) && existsSync(join(bundle.managedDirectory, "checksums.json")));
     check("import infers required Java major (ojdbc11 → 11)", bundle.requiredJavaMajor === 11);
     check("import records reported JDBC version", bundle.jdbcVersion === "23.26.2.0.0");
     check("list returns the imported bundle", store.list().length === 1 && store.get(bundle.id)?.name === "Oracle 23ai");
     check("manifest does not persist the absolute managed dir", !readFileSync(join(bundle.managedDirectory, "manifest.json"), "utf8").includes("managedDirectory"));
 
-    // Single-version + recognized-jar enforcement.
-    await expectReject("reject: no ojdbc jar", () => store.import({ name: "x", sourceFiles: [ucp] }));
+    // Single-version + recognized-jar enforcement (UCP is no longer supported → rejected on import).
+    await expectReject("reject: ucp jar (UCP no longer supported)", () => store.import({ name: "x", sourceFiles: [ojdbc, ucp] }));
+    await expectReject("reject: ucp jar alone", () => store.import({ name: "x", sourceFiles: [ucp] }));
+    await expectReject("reject: no ojdbc jar (companion only)", () => store.import({ name: "x", sourceFiles: [pki] }));
     await expectReject("reject: two ojdbc jars (mixed versions)", () => store.import({ name: "x", sourceFiles: [ojdbc, ojdbc2] }));
     await expectReject("reject: unrecognized jar", () => store.import({ name: "x", sourceFiles: [ojdbc, bad] }));
     check("rejected imports leave no partial bundle", store.list().length === 1);
@@ -113,7 +117,7 @@ async function storeTests(): Promise<void> {
 
     // Missing file detection on a fresh bundle.
     const store3 = new OracleDriverBundleStore({ folder: join(root, "oracle-drivers-3"), probe: okProbe });
-    const b3 = await store3.import({ name: "missing-test", sourceFiles: [ojdbc, ucp] });
+    const b3 = await store3.import({ name: "missing-test", sourceFiles: [ojdbc] });
     rmSync(join(b3.managedDirectory, "ojdbc11.jar"));
     check("deleted managed jar → missing", store3.revalidateChecksums(b3.id) === "missing");
 
@@ -134,7 +138,9 @@ async function storeTests(): Promise<void> {
 function modelTests(): void {
   console.log("\nModel helpers:");
   check("classify ojdbc17 → jdbc", classifyDriverJar("ojdbc17.jar") === "jdbc");
-  check("classify ucp11 → ucp", classifyDriverJar("ucp11.jar") === "ucp");
+  check("classify ucp11 → unknown (UCP unsupported)", classifyDriverJar("ucp11.jar") === "unknown");
+  check("isUcpJar detects ucp11.jar", isUcpJar("ucp11.jar") === true);
+  check("isUcpJar false for ojdbc17.jar", isUcpJar("ojdbc17.jar") === false);
   check("classify oraclepki → companion", classifyDriverJar("oraclepki.jar") === "companion");
   check("classify simplefan → companion", classifyDriverJar("simplefan.jar") === "companion");
   check("classify random → unknown", classifyDriverJar("random.jar") === "unknown");
@@ -181,7 +187,6 @@ async function realProbe(classpathJars: string[]): Promise<DriverProbeResult> {
       probed: true,
       driverAvailable: p.driverAvailable === true,
       driverVersion: String(p.driverVersion),
-      ucpVersion: String(p.ucpVersion),
       javaVersion: String(p.javaVersion)
     };
   } catch {
@@ -193,16 +198,27 @@ async function realProbe(classpathJars: string[]): Promise<DriverProbeResult> {
 
 async function realDriverTests(): Promise<void> {
   const ojdbc = process.env.AWKIT_ORACLE_DRIVER_JAR || "C:/Users/moham/Downloads/ojdbc17.jar";
-  const bridgeJar = join(repoRoot, "oracle-jdbc-bridge", "target", "awkit-oracle-jdbc-bridge.jar");
   console.log("\nReal driver load (isolated bridge):");
-  if (!existsSync(ojdbc) || !existsSync(bridgeJar)) {
-    console.log(`  • ojdbc jar or dev bridge jar absent — skipping (external gate). jar=${existsSync(ojdbc)} bridge=${existsSync(bridgeJar)}`);
+  if (!existsSync(ojdbc)) {
+    console.log(`  • ojdbc jar absent — skipping (external gate). jar=${existsSync(ojdbc)}`);
+    return;
+  }
+  // Build the bridge jar (also advertises the JDK to the resolver's dev-only java fallback via
+  // AWKIT_ORACLE_BRIDGE_JDK_HOME — the resolver no longer auto-scans for Java).
+  let bridgeJar: string;
+  try {
+    bridgeJar = buildOracleBridge({ quiet: true }).jarPath;
+  } catch (err) {
+    console.log(`  • could not build the dev bridge jar — skipping (external gate): ${(err as Error).message}`);
+    return;
+  }
+  if (!existsSync(bridgeJar)) {
+    console.log("  • dev bridge jar absent after build — skipping (external gate).");
     return;
   }
   const probe = await realProbe([ojdbc]);
   check("real ojdbc → driver class loads in isolated bridge", probe.probed && probe.driverAvailable);
   check("real ojdbc → reports version 23.x", (probe.driverVersion ?? "").startsWith("23."));
-  check("real ojdbc → no UCP (JDBC-only limitation)", probe.ucpVersion === "unavailable");
 
   // End-to-end import through the store with the REAL probe.
   const root = mkdtempSync(join(tmpdir(), "awkit-drv-real-"));
@@ -211,7 +227,7 @@ async function realDriverTests(): Promise<void> {
     const bundle = await store.import({ name: "Real ojdbc17", sourceFiles: [ojdbc] });
     check("real import → status valid", bundle.validationStatus === "valid");
     check("real import → JDBC version 23.x recorded", (bundle.jdbcVersion ?? "").startsWith("23."));
-    check("real import → no UCP jar (pooling gated)", bundle.ucpJar === undefined);
+    check("real import → companionJars empty (direct JDBC only)", bundle.companionJars.length === 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

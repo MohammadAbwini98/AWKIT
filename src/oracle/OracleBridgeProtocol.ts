@@ -26,8 +26,6 @@ export type OracleBridgeOp =
 export interface OracleBridgeDriverProbe {
   driverAvailable: boolean;
   driverVersion: string;
-  ucpAvailable: boolean;
-  ucpVersion: string;
   javaVersion: string;
 }
 
@@ -41,6 +39,7 @@ export type OracleBridgeErrorCategory =
   | "TIMEOUT"
   | "DRIVER_ERROR"
   | "DRIVER_UNAVAILABLE"
+  | "ORACLE_RUNTIME_NOT_CONFIGURED"
   | "SQL_POLICY_VIOLATION"
   | "RESULT_LIMIT_EXCEEDED"
   | "INVALID_CONFIGURATION"
@@ -70,7 +69,7 @@ export interface OracleBridgeResponse {
   error?: OracleBridgeError;
 }
 
-/** How the bridge is executing: real Oracle JDBC/UCP, database-free mock, or fail-closed unavailable. */
+/** How the bridge is executing: real Oracle JDBC, database-free mock, or fail-closed unavailable. */
 export type OracleBridgeExecutionMode = "real" | "mock" | "unavailable";
 
 export interface OracleBridgeHello {
@@ -84,9 +83,7 @@ export interface OracleBridgeHello {
   executionMode?: OracleBridgeExecutionMode;
   driverAvailable: boolean;
   driverVersion: string;
-  /** Oracle UCP version (or `"unavailable"`). */
-  ucpVersion?: string;
-  /** Bundled JRE version reported by the bridge process. */
+  /** JRE version reported by the (user-selected) bridge process runtime. */
   javaVersion?: string;
   maxMessageBytes: number;
 }

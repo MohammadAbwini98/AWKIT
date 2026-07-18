@@ -64,7 +64,7 @@ export function OracleDriverSettings() {
         type: result.validationStatus === "invalid" ? "error" : "success",
         text:
           result.validationStatus === "valid"
-            ? `Imported "${result.name}" — Oracle JDBC ${result.jdbcVersion ?? "driver"} loaded${result.supportsPooling ? " with UCP" : " (no UCP pooling)"}.`
+            ? `Imported "${result.name}" — Oracle JDBC ${result.jdbcVersion ?? "driver"} loaded.`
             : `Imported "${result.name}" (${STATUS_META[result.validationStatus].label}).`
       });
       await reload();
@@ -109,7 +109,7 @@ export function OracleDriverSettings() {
       const probe: DriverProbeResult = await drivers.testLoad(id);
       setBanner(
         probe.driverAvailable
-          ? { type: "success", text: `Bridge loaded the driver (JDBC ${probe.driverVersion ?? "?"}, Java ${probe.javaVersion ?? "?"}${probe.ucpVersion && probe.ucpVersion !== "unavailable" ? `, UCP ${probe.ucpVersion}` : ", no UCP"}).` }
+          ? { type: "success", text: `Bridge loaded the driver (JDBC ${probe.driverVersion ?? "?"}, Java ${probe.javaVersion ?? "?"}).` }
           : { type: "error", text: probe.probed ? "The driver did not load in the bridge." : probe.reason ?? "Could not run the load test." }
       );
     }),
@@ -137,7 +137,7 @@ export function OracleDriverSettings() {
         <h2>Oracle JDBC Drivers</h2>
       </div>
       <p className="settings-card-hint">
-        Import and manage the Oracle JDBC/UCP driver bundles Specter uses to reach Oracle databases. Each bundle
+        Import and manage the Oracle JDBC driver bundles Specter uses to reach Oracle databases. Each bundle
         is copied into managed storage, hashed, and load-tested inside an isolated Java process — driver JARs are
         never loaded in the app itself. Connection profiles reference a bundle by name, never a file path.
       </p>
@@ -172,7 +172,7 @@ export function OracleDriverSettings() {
       {loading ? (
         <p className="form-message">Loading driver bundles…</p>
       ) : bundles.length === 0 ? (
-        <p className="form-message">No driver bundles imported yet. Import an <code>ojdbc*.jar</code> (and optionally a <code>ucp*.jar</code> for pooling) to enable live Oracle queries.</p>
+        <p className="form-message">No driver bundles imported yet. Import an <code>ojdbc*.jar</code> to enable live Oracle queries.</p>
       ) : (
         <div className="oracle-driver-list">
           {bundles.map((b) => {
@@ -189,7 +189,6 @@ export function OracleDriverSettings() {
                   </div>
                   <div className="oracle-driver-meta">
                     <span>JDBC <strong>{b.jdbcVersion ?? "—"}</strong></span>
-                    <span>UCP <strong>{b.ucpJar ? b.ucpVersion ?? "included" : "not included"}</strong></span>
                     {b.requiredJavaMajor ? <span>Java <strong>{b.requiredJavaMajor}+</strong></span> : null}
                     <span>{b.compatibilityLabel ?? "Unknown"}</span>
                     {b.usageCount > 0 ? <span>Used by <strong>{b.usageCount}</strong></span> : null}

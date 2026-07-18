@@ -152,7 +152,6 @@ public final class Dispatcher {
         r.put("executionMode", executor.executionMode());
         r.put("driverAvailable", executor.driverAvailable());
         r.put("driverVersion", executor.driverVersion());
-        r.put("ucpVersion", executor.ucpVersion());
         r.put("javaVersion", System.getProperty("java.version", "unknown"));
         r.put("maxMessageBytes", Protocol.MAX_MESSAGE_BYTES);
         return r;
@@ -168,18 +167,15 @@ public final class Dispatcher {
 
     /**
      * Reflective driver-load probe used to validate an imported driver bundle: attempts to load the
-     * Oracle driver (and UCP) classes from THIS process's classpath and reports their versions. Runs
-     * in the core with no executor and no database, so it validates a candidate jar regardless of
-     * whether the real query executors were compiled into this bridge build.
+     * Oracle driver class from THIS process's classpath and reports its version. Runs in the core with
+     * no executor and no database, so it validates a candidate jar regardless of whether the real
+     * query executor was compiled into this bridge build.
      */
     private Map<String, Object> driverProbe() {
         boolean driver = classPresent("oracle.jdbc.OracleDriver");
-        boolean ucp = classPresent("oracle.ucp.jdbc.PoolDataSource");
         Map<String, Object> r = new LinkedHashMap<>();
         r.put("driverAvailable", driver);
         r.put("driverVersion", driver ? nn(versionOf("oracle.jdbc.OracleDriver")) : "unavailable");
-        r.put("ucpAvailable", ucp);
-        r.put("ucpVersion", ucp ? nn(versionOf("oracle.ucp.jdbc.PoolDataSource")) : "unavailable");
         r.put("javaVersion", System.getProperty("java.version", "unknown"));
         return r;
     }

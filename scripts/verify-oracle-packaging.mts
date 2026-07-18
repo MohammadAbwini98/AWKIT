@@ -1,8 +1,11 @@
 /**
- * Oracle JDBC bundle packaging + runtime resolution (Phase 12). No real Oracle jars/JRE are vendored
- * in this environment (network is blocked at build time — an external gate), so this exercises the
- * checksum-validation and runtime-resolution LOGIC against synthetic fixture files in a temp dir,
- * proving the mechanism is correct and ready for when packaging actually vendors the bundle.
+ * Oracle JDBC bridge packaging + runtime resolution (Phases 11–12, user-selected-Java model).
+ *
+ * Specter no longer bundles a JRE or Oracle driver jars — it ships only its own tiny bridge jar. The
+ * user selects a Java runtime + an Oracle JDBC driver in Settings. This verifier exercises the
+ * checksum-validation and runtime-resolution LOGIC against synthetic fixtures in a temp dir: the bridge
+ * jar must be present; a Java runtime must be selected (or, in dev only, `AWKIT_ORACLE_BRIDGE_JDK_HOME`);
+ * packaged production fails closed with a clear "not configured" message and never uses the mock.
  *
  * Run: `npm run verify:oracle-packaging`.
  */
@@ -24,24 +27,23 @@ function check(name: string, cond: boolean): void {
   }
 }
 
-function makeBundle(root: string, opts: { withDriver?: boolean } = {}): { oracleDir: string; javaExe: string; jarPath: string; driverJar?: string } {
+const isWin = process.platform === "win32";
+
+/** Create a packaged-style resources tree with ONLY Specter's bridge jar (no JRE, no driver jars). */
+function makeBridge(root: string): { oracleDir: string; jarPath: string } {
   const oracleDir = join(root, "oracle-jdbc");
-  const runtimeBin = join(oracleDir, "runtime", "bin");
   const bridgeDir = join(oracleDir, "bridge");
-  mkdirSync(runtimeBin, { recursive: true });
   mkdirSync(bridgeDir, { recursive: true });
-  const javaExe = join(runtimeBin, process.platform === "win32" ? "java.exe" : "java");
   const jarPath = join(bridgeDir, "awkit-oracle-jdbc-bridge.jar");
-  writeFileSync(javaExe, "fake-java-binary");
   writeFileSync(jarPath, "fake-bridge-jar");
-  let driverJar: string | undefined;
-  if (opts.withDriver) {
-    const libDir = join(oracleDir, "lib");
-    mkdirSync(libDir, { recursive: true });
-    driverJar = join(libDir, "ojdbc11.jar");
-    writeFileSync(driverJar, "fake-ojdbc-jar");
-  }
-  return { oracleDir, javaExe, jarPath, driverJar };
+  return { oracleDir, jarPath };
+}
+
+/** A fake, existing java(.exe) the resolver can accept as a user selection. */
+function makeFakeJava(root: string): string {
+  const p = join(root, isWin ? "java.exe" : "java");
+  writeFileSync(p, "fake-java-binary");
+  return p;
 }
 
 async function main(): Promise<void> {
@@ -49,17 +51,17 @@ async function main(): Promise<void> {
   {
     const root = mkdtempSync(join(tmpdir(), "awkit-oracle-checksums-"));
     try {
-      const { oracleDir, javaExe, jarPath } = makeBundle(root);
+      const { oracleDir, jarPath } = makeBridge(root);
 
       const noManifest = validateOracleBundleChecksums(oracleDir);
       check("no checksums.json → ok, not checked (lazy availability)", noManifest.ok === true && noManifest.checked === false);
 
-      const goodHash = computeSha256(javaExe);
-      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "runtime/bin/java.exe": `sha256:${goodHash}` }));
+      const goodHash = computeSha256(jarPath);
+      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": `sha256:${goodHash}` }));
       const valid = validateOracleBundleChecksums(oracleDir);
       check("matching checksum → ok", valid.ok === true && valid.checked === true && valid.issues.length === 0);
 
-      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "runtime/bin/java.exe": "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" }));
+      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" }));
       const mismatched = validateOracleBundleChecksums(oracleDir);
       check("wrong checksum → rejected", mismatched.ok === false && /mismatch/.test(mismatched.issues[0] ?? ""));
 
@@ -70,63 +72,94 @@ async function main(): Promise<void> {
       writeFileSync(join(oracleDir, "checksums.json"), "not json");
       const malformed = validateOracleBundleChecksums(oracleDir);
       check("malformed checksums.json → rejected, not a crash", malformed.ok === false);
-
-      void jarPath;
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   }
 
-  console.log("Runtime resolution (pure, synthetic fixtures):");
+  console.log("Runtime resolution — user-selected Java (pure, synthetic fixtures):");
   {
     const root = mkdtempSync(join(tmpdir(), "awkit-oracle-resolve-"));
+    const savedEnv = process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME;
+    delete process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME; // isolate from the dev fallback
     try {
-      const { oracleDir } = makeBundle(root, { withDriver: true });
+      makeBridge(root);
+      const fakeJava = makeFakeJava(root);
 
-      const noBundle = resolveOracleRuntime({ resourcesRoot: join(root, "nope"), appMode: "packaged" });
-      check("packaged + no bundle → unavailable, does not fall back", noBundle.available === false && noBundle.source === "none");
-      check("packaged + no bundle → clear reinstall reason", /reinstall/i.test(noBundle.reason ?? ""));
+      // Packaged, bridge jar missing entirely.
+      const noBridge = resolveOracleRuntime({ resourcesRoot: join(root, "nope"), appMode: "packaged", selectedJavaPath: fakeJava });
+      check("packaged + no bridge jar → unavailable, does not fall back", noBridge.available === false && noBridge.source === "none");
+      check("packaged + no bridge jar → clear reinstall reason", /reinstall/i.test(noBridge.reason ?? ""));
 
-      const bundledOk = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
-      check("packaged + valid bundle + driver jar → available", bundledOk.available === true && bundledOk.source === "bundled");
-      check("packaged + valid bundle → driverExpected + requireRealDriver, mock forbidden", bundledOk.driverExpected === true && bundledOk.requireRealDriver === true && bundledOk.mockAllowed === false);
-      check("packaged launch spec forces AWKIT_ORACLE_REQUIRE_REAL and never sets mock", bundledOk.launchSpec?.env?.AWKIT_ORACLE_REQUIRE_REAL === "1" && bundledOk.launchSpec?.env?.AWKIT_ORACLE_BRIDGE_MOCK === undefined);
+      // Packaged, bridge present but NO Java configured → fail closed with the not-configured message.
+      const packagedNoJava = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
+      check("packaged + no Java → unavailable, notConfigured", packagedNoJava.available === false && packagedNoJava.notConfigured === true);
+      check("packaged + no Java → message points to Settings → Database Drivers", /Settings\s*→\s*Database Drivers/.test(packagedNoJava.reason ?? ""));
+      check("packaged + no Java → mock forbidden", packagedNoJava.mockAllowed === false && packagedNoJava.requireRealDriver === true);
 
-      const goodHash = computeSha256(join(oracleDir, "bridge", "awkit-oracle-jdbc-bridge.jar"));
-      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": `sha256:${goodHash}` }));
-      const bundledValidChecksum = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
-      check("packaged + matching checksums.json → available", bundledValidChecksum.available === true);
+      // Packaged, bridge + selected Java → available, real required, mock never set.
+      const packagedOk = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged", selectedJavaPath: fakeJava });
+      check("packaged + bridge + selected Java → available, source bundled", packagedOk.available === true && packagedOk.source === "bundled");
+      check("packaged → requireRealDriver, mock forbidden, driverExpected false at base", packagedOk.requireRealDriver === true && packagedOk.mockAllowed === false && packagedOk.driverExpected === false);
+      check("packaged launch spec forces REQUIRE_REAL and never sets mock", packagedOk.launchSpec?.env?.AWKIT_ORACLE_REQUIRE_REAL === "1" && packagedOk.launchSpec?.env?.AWKIT_ORACLE_BRIDGE_MOCK === undefined);
+      check("packaged launch spec uses the selected java", packagedOk.launchSpec?.javaPath === fakeJava);
 
-      writeFileSync(join(oracleDir, "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" }));
-      const bundledBadChecksum = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
-      check("packaged + failing checksum → unavailable (fails closed, no silent launch)", bundledBadChecksum.available === false);
-      check("packaged + failing checksum → reason mentions checksum", /checksum/i.test(bundledBadChecksum.reason ?? ""));
+      // Bundled checksum gate still fails closed on tamper.
+      const goodHash = computeSha256(join(root, "oracle-jdbc", "bridge", "awkit-oracle-jdbc-bridge.jar"));
+      writeFileSync(join(root, "oracle-jdbc", "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": `sha256:${goodHash}` }));
+      const validChecksum = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged", selectedJavaPath: fakeJava });
+      check("packaged + matching checksums.json → available", validChecksum.available === true);
+
+      writeFileSync(join(root, "oracle-jdbc", "checksums.json"), JSON.stringify({ "bridge/awkit-oracle-jdbc-bridge.jar": "sha256:deadbeef00000000000000000000000000000000000000000000000000000000" }));
+      const badChecksum = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged", selectedJavaPath: fakeJava });
+      check("packaged + failing checksum → unavailable (fails closed)", badChecksum.available === false);
+      check("packaged + failing checksum → reason mentions checksum", /checksum/i.test(badChecksum.reason ?? ""));
     } finally {
+      if (savedEnv !== undefined) process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME = savedEnv;
       rmSync(root, { recursive: true, force: true });
     }
   }
 
-  console.log("Fail-closed production policy (Phase 01):");
+  console.log("Fail-closed production + dev fallback:");
   {
     const root = mkdtempSync(join(tmpdir(), "awkit-oracle-failclosed-"));
+    const savedEnv = process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME;
+    delete process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME;
     try {
-      // Runtime + bridge present, but NO ojdbc/ucp driver jars vendored.
-      makeBundle(root, { withDriver: false });
+      makeBridge(root); // (packaged resources tree — unused in dev, but harmless)
+      const fakeJava = makeFakeJava(root);
+      // Dev looks for the dev-built jar under repoRoot/oracle-jdbc-bridge/target.
+      const devJar = join(root, "oracle-jdbc-bridge", "target", "awkit-oracle-jdbc-bridge.jar");
+      mkdirSync(join(root, "oracle-jdbc-bridge", "target"), { recursive: true });
+      writeFileSync(devJar, "fake-dev-bridge-jar");
 
-      const packagedNoDriver = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
-      check("packaged + bundle but missing driver jars → unavailable (never mock)", packagedNoDriver.available === false && packagedNoDriver.source === "none");
-      check("packaged + missing driver → reason names the driver, notes Snapshot still works", /driver/i.test(packagedNoDriver.reason ?? "") && /snapshot/i.test(packagedNoDriver.reason ?? ""));
-      check("packaged + missing driver → mock is forbidden", packagedNoDriver.mockAllowed === false && packagedNoDriver.requireRealDriver === true);
+      // Dev, bridge present, Java selected → available via the database-free mock (dev only).
+      const devSelected = resolveOracleRuntime({ resourcesRoot: root, appMode: "dev", repoRoot: root, selectedJavaPath: fakeJava });
+      check("dev + selected Java → available, source dev, mock allowed", devSelected.available === true && devSelected.source === "dev" && devSelected.mockAllowed === true);
+      check("dev base spec sets the mock flag, never REQUIRE_REAL", devSelected.launchSpec?.env?.AWKIT_ORACLE_BRIDGE_MOCK === "1" && devSelected.launchSpec?.env?.AWKIT_ORACLE_REQUIRE_REAL === undefined);
 
-      // The same bundle in DEV is allowed to use the database-free mock so the protocol works offline.
-      const devNoDriver = resolveOracleRuntime({ resourcesRoot: root, appMode: "dev" });
-      check("dev + bundle, no driver → available via mock (dev only)", devNoDriver.available === true && devNoDriver.mockAllowed === true);
-      check("dev launch spec sets AWKIT_ORACLE_BRIDGE_MOCK, never AWKIT_ORACLE_REQUIRE_REAL", devNoDriver.launchSpec?.env?.AWKIT_ORACLE_BRIDGE_MOCK === "1" && devNoDriver.launchSpec?.env?.AWKIT_ORACLE_REQUIRE_REAL === undefined);
+      // Dev, NO selection but AWKIT_ORACLE_BRIDGE_JDK_HOME set → available via the dev env fallback.
+      const fakeHome = join(root, "fake-jdk");
+      mkdirSync(join(fakeHome, "bin"), { recursive: true });
+      writeFileSync(join(fakeHome, "bin", isWin ? "java.exe" : "java"), "fake-java-binary");
+      process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME = fakeHome;
+      const devEnvFallback = resolveOracleRuntime({ resourcesRoot: root, appMode: "dev", repoRoot: root });
+      check("dev + AWKIT_ORACLE_BRIDGE_JDK_HOME → available via env fallback", devEnvFallback.available === true && devEnvFallback.launchSpec?.javaPath === join(fakeHome, "bin", isWin ? "java.exe" : "java"));
 
-      // A forceMock request must be ignored under packaged production.
-      const packagedForceMock = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged", forceMock: true });
-      check("packaged + forceMock → still fails closed, mock flag not honored", packagedForceMock.available === false && packagedForceMock.launchSpec === undefined);
+      // Packaged NEVER honors the env fallback (production must not auto-use an env JDK).
+      const packagedNoEnv = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged" });
+      check("packaged ignores AWKIT_ORACLE_BRIDGE_JDK_HOME → not configured", packagedNoEnv.available === false && packagedNoEnv.notConfigured === true);
+      delete process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME;
+
+      // Dev, NO Java and NO env fallback → not configured (no auto-scan of hardcoded paths).
+      const devNoJava = resolveOracleRuntime({ resourcesRoot: root, appMode: "dev", repoRoot: root });
+      check("dev + no Java + no env → not configured (no auto-scan)", devNoJava.available === false && devNoJava.notConfigured === true);
+
+      // A forceMock request must be ignored under packaged production (still require-real).
+      const packagedForceMock = resolveOracleRuntime({ resourcesRoot: root, appMode: "packaged", forceMock: true, selectedJavaPath: fakeJava });
+      check("packaged + forceMock → mock flag not honored (require-real)", packagedForceMock.launchSpec?.env?.AWKIT_ORACLE_BRIDGE_MOCK === undefined && packagedForceMock.launchSpec?.env?.AWKIT_ORACLE_REQUIRE_REAL === "1");
     } finally {
+      if (savedEnv !== undefined) process.env.AWKIT_ORACLE_BRIDGE_JDK_HOME = savedEnv;
       rmSync(root, { recursive: true, force: true });
     }
   }

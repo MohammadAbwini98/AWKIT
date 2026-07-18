@@ -140,7 +140,7 @@ async function main(): Promise<void> {
     const hello = await manager.hello();
     check("mock bridge reports executionMode 'mock'", hello.executionMode === "mock");
     check("mock bridge driverAvailable false", hello.driverAvailable === false);
-    check("hello carries a ucpVersion field", typeof hello.ucpVersion === "string");
+    check("hello no longer carries a ucpVersion field (UCP removed)", !("ucpVersion" in (hello as unknown as Record<string, unknown>)));
     check("hello carries a javaVersion field", typeof hello.javaVersion === "string" && (hello.javaVersion?.length ?? 0) > 0);
   } finally {
     await manager.dispose();

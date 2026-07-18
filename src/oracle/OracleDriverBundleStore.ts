@@ -13,6 +13,7 @@ import {
 import { basename, join } from "node:path";
 import {
   classifyDriverJar,
+  isUcpJar,
   requiredJavaMajorFromOjdbcName,
   type OracleDriverBundle,
   type OracleDriverValidationStatus
@@ -36,7 +37,6 @@ export interface DriverProbeResult {
   driverAvailable: boolean;
   executionMode?: string;
   driverVersion?: string;
-  ucpVersion?: string;
   javaVersion?: string;
   /** Safe, secret-free diagnostic. */
   reason?: string;
@@ -125,8 +125,9 @@ export class OracleDriverBundleStore {
 
   /**
    * Validate the selected files, copy them into managed storage, hash them, and load-test in an
-   * isolated bridge. Rejects: no ojdbc jar, multiple ojdbc/ucp jars (mixed versions), unrecognized
-   * jars, or a driver that fails to load in a real probe. Returns the recorded bundle.
+   * isolated bridge. Rejects: no ojdbc jar, multiple ojdbc jars (mixed versions), a UCP jar (no longer
+   * supported), unrecognized jars, or a driver that fails to load in a real probe. Returns the recorded
+   * bundle.
    */
   async import(input: ImportBundleInput): Promise<OracleDriverBundle> {
     const name = input.name?.trim();
@@ -136,32 +137,33 @@ export class OracleDriverBundleStore {
 
     // Classify and enforce the single-version / recognized-jar rules.
     const jdbc: string[] = [];
-    const ucp: string[] = [];
     const companions: string[] = [];
     for (const file of files) {
       if (!existsSync(file) || !statSync(file).isFile()) throw new Error(`File is not readable: ${basename(file)}`);
+      if (isUcpJar(basename(file))) {
+        throw new Error(
+          `"${basename(file)}" is an Oracle UCP jar. Specter no longer supports UCP connection pooling — ` +
+            `import only the ojdbc driver jar (and optional wallet/TCPS companion jars).`
+        );
+      }
       switch (classifyDriverJar(basename(file))) {
         case "jdbc":
           jdbc.push(file);
-          break;
-        case "ucp":
-          ucp.push(file);
           break;
         case "companion":
           companions.push(file);
           break;
         default:
           throw new Error(
-            `Unrecognized jar "${basename(file)}". Only Oracle ojdbc*, ucp*, and companion jars may be imported.`
+            `Unrecognized jar "${basename(file)}". Only an Oracle ojdbc* driver jar and companion jars ` +
+              `(oraclepki, osdt_core, osdt_cert, ons, simplefan) may be imported.`
           );
       }
     }
     if (jdbc.length === 0) throw new Error("No ojdbc*.jar found. An Oracle JDBC driver jar is required.");
     if (jdbc.length > 1) throw new Error("Multiple ojdbc jars selected. A bundle must contain exactly one driver version.");
-    if (ucp.length > 1) throw new Error("Multiple ucp jars selected. A bundle must contain exactly one UCP version.");
 
     const jdbcName = basename(jdbc[0]);
-    const ucpName = ucp[0] ? basename(ucp[0]) : undefined;
     const companionNames = companions.map((c) => basename(c));
 
     // Stage into a temp dir, then rename into place on success (never a half-written bundle).
@@ -178,11 +180,11 @@ export class OracleDriverBundleStore {
         copyFileSync(src, join(staging, fname));
         checksums[fname] = `sha256:${sha256(join(staging, fname))}`;
       };
-      [jdbc[0], ...(ucp[0] ? [ucp[0]] : []), ...companions].forEach(copyOne);
+      [jdbc[0], ...companions].forEach(copyOne);
 
       // Load-test the staged jars in an isolated bridge.
       const probe = this.options.probe
-        ? await this.options.probe([join(staging, jdbcName), ...companionNames.map((n) => join(staging, n)), ...(ucpName ? [join(staging, ucpName)] : [])])
+        ? await this.options.probe([join(staging, jdbcName), ...companionNames.map((n) => join(staging, n))])
         : undefined;
 
       let validationStatus: OracleDriverValidationStatus;
@@ -203,10 +205,8 @@ export class OracleDriverBundleStore {
         source: "imported",
         managedDirectory: this.bundleDir(id),
         jdbcJar: jdbcName,
-        ucpJar: ucpName,
         companionJars: companionNames,
         jdbcVersion: probe?.driverVersion && probe.driverVersion !== "unavailable" ? probe.driverVersion : undefined,
-        ucpVersion: probe?.ucpVersion && probe.ucpVersion !== "unavailable" ? probe.ucpVersion : undefined,
         requiredJavaMajor: requiredJavaMajorFromOjdbcName(jdbcName),
         checksums,
         importedAt: now,
@@ -250,7 +250,6 @@ export class OracleDriverBundleStore {
     if (!this.options.probe) return bundle;
     const classpath = [
       join(bundle.managedDirectory, bundle.jdbcJar),
-      ...(bundle.ucpJar ? [join(bundle.managedDirectory, bundle.ucpJar)] : []),
       ...bundle.companionJars.map((c) => join(bundle.managedDirectory, c))
     ];
     const probe = await this.options.probe(classpath);
@@ -263,7 +262,6 @@ export class OracleDriverBundleStore {
       ...bundle,
       validationStatus: status,
       jdbcVersion: probe.driverVersion && probe.driverVersion !== "unavailable" ? probe.driverVersion : bundle.jdbcVersion,
-      ucpVersion: probe.ucpVersion && probe.ucpVersion !== "unavailable" ? probe.ucpVersion : bundle.ucpVersion,
       lastValidatedAt: probe.probed ? new Date().toISOString() : bundle.lastValidatedAt
     };
     this.writeManifest(updated);
