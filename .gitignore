@@ -136,6 +136,9 @@ get-videos.mjs
 # Phase 5 observability UI walkthrough fixtures (seeded DBs; regenerate with seed-observability-fixtures.mts)
 .fixtures-observability/
 
+# Test-run evidence/reports from the fullstack-webapp-testing audit skill (point-in-time; not source)
+test-artifacts/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key

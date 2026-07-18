@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## Secure Login + Oracle driver-settings MERGED to `main`; release-readiness audit run (2026-07-18)
+
+**State correction (read first):** the two entries below, and the older `HANDOFF.md` notes, describe the
+Secure Login work (trusted core + login UI) and the Oracle user-selected-Java/direct-JDBC work as living on
+feature branches / "NOTHING COMMITTED". **That is now stale.** Both shipped to `main` on 2026-07-18:
+- **PR #14** (`79e20a5`) — Oracle: user-selected Java runtime + direct JDBC (UCP removed).
+- **PR #15** (`93162d6`, current `main` HEAD) — Secure Login: trusted core + login UI.
+
+`main` is at `93162d6`; the working tree is clean apart from this audit's own doc/tracker edits. Where the
+entries below say "on branch `feature/secure-login-auth`" or "Nothing committed", read "merged to `main`".
+
+**Release-readiness audit (`fullstack-webapp-testing` skill), decision `CONDITIONAL GO` for `main` as a
+dev/integration checkpoint — explicitly NOT a production-ship verdict.** Report + evidence under
+`test-artifacts/2026-07-18-release-readiness-audit/`. Fresh safe-test evidence on `93162d6`: `npm run build`
+clean; `verify:ipc-contract` 4/4 (172 handlers); `verify:security` 39/39; `verify:secrets` 16/16;
+`verify:auth` 41/41; `verify:auth-gui` 13/13 (real Electron); `verify:profile-store` 13/13;
+`verify:write-queue` 7/7; `verify:mock-site` 39/39; `verify:runner` 82/82 (real Chromium core E2E). Manual
+secret-leakage scan of tracked source clean (only mock/test fixtures + one enum constant match); `.env`
+gitignored; no key/cert files tracked. No P0/P1 defects in anything tested. Un-run (scope/time, not failures):
+the Oracle 350+-check suite, concurrency/stress/soak, packaging/offline validation, Recorder/Smart-Wait/
+popup/canvas-perf/chromium-hardening, automated a11y (none wired in this repo), and the standing external
+gates (clean-machine offline VM walkthrough, signed packaged EXE, Oracle live perf/soak) — all unchanged by
+this audit.
+
+**GUI-verifier regression found + partly fixed (bd `awkit-gmn`, scope expanded).** The audit reproduced the
+open bug and found its real cause is **two-part**: the branding splash breaks `app.firstWindow()` (returns
+the bridge-less splash, which self-closes), **and** PR #15's `SecurityGate` now gates every route — the real
+`<App/>` shell (nav-items/routes) never mounts pre-auth. So every app-shell GUI verifier needs BOTH a
+`resolveMainWindow(app)` poll (for the window exposing `window.playwrightFlowStudio.settings`) **and**
+isolated-`LOCALAPPDATA` + first-run sign-in. **`scripts/verify-reports-gui.mjs` fixed with this recipe →
+31/31** (the reference implementation). Still to fix the same way (each needs individual re-verification):
+`verify-flow-designer-gui`, `verify-workflow-builder-gui`, `verify-instance-monitor-gui`,
+`verify-capacity-settings-gui`, `verify-runtime-analytics-gui` (and likely `verify-oracle-drivers-gui` /
+`verify-settings-persistence`, which were measured green on the pre-secure-login Oracle branch).
+
 ## Secure Login — trusted core + login UI IMPLEMENTED & verified (real Electron); authz/licensing pending (2026-07-18)
 
 The **login UI (Phase 6)** is now built on top of the trusted core, on branch `feature/secure-login-auth`.

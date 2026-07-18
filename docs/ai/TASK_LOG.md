@@ -4455,3 +4455,43 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   electron-builder) + clean-machine walkthrough; sustained real-world soak — external gates.
 - **Result:** epic complete → **PRODUCTION-CANDIDATE**. Nothing committed (conservative git profile, ephemeral
   branch); handoff reports the changed-file set + proposed commit for approval.
+  > **Superseded same day:** this branch was committed and merged to `main` via PR #14 (`79e20a5`) later on
+  > 2026-07-18. See the audit entry below — this log entry's "nothing committed" is stale.
+
+## 2026-07-18 — Claude Sonnet 5 — Full-stack release-readiness audit (`fullstack-webapp-testing` skill)
+
+- **Task:** ran the `fullstack-webapp-testing` skill's audit + safe-tests + release-gate workflow against
+  `main` @ `93162d6`. Full report: `test-artifacts/2026-07-18-release-readiness-audit/full-test-report.md`
+  (+ `system-map.md`, `execution-summary.json` in the same folder). Tracked as beads `awkit-7s5`.
+- **State correction:** the Oracle WS-D..I entry directly above, and `docs/ai/HANDOFF.md`'s "Current
+  Handoff" section, both describe the Oracle driver-settings work and the Secure Login trusted-core+UI
+  work as uncommitted. That changed later the same day: **both merged to `main`** — PR #14 Oracle
+  (`79e20a5`) and PR #15 Secure Login (`93162d6`). Working tree is clean on `main`. `CURRENT_STATE.md` and
+  `HANDOFF.md` were **not** rewritten as part of this audit (kept out of scope to avoid a rushed partial
+  edit) — flagged as the top follow-up action in the report instead.
+- **Safe tests executed today (fresh evidence):** `npm run build` clean (tsc + 3 bundles); `verify:ipc-
+  contract` 4/4; `verify:security` 39/39; `verify:secrets` 16/16; `verify:auth` 41/41 (headless secure-login
+  core); `verify:profile-store` 13/13; `verify:write-queue` 7/7; `verify:mock-site` 39/39; `verify:auth-gui`
+  13/13 (real Electron); `verify:runner` 82/82 (real Chromium, core E2E). Manual read-only secret-pattern
+  scan of tracked source (excl. `node_modules`/`out`/`dist`/`vendor`): 4 regex hits, all confirmed benign
+  (1 `ReasonCodes.ts` constant, 3 mock/test-fixture credentials in `seed-mock-fixtures.mjs` and two Oracle
+  verifier/benchmark scripts). `.env` confirmed gitignored; `.env.example` placeholder-only; no `.pem/.pfx/
+  .p12/.key/id_rsa/.env` tracked in git.
+- **Defect confirmed (not new — reproduced an open bug):** `verify:reports` fails (`Target page, context or
+  browser has been closed` waiting for `.awkit-report-page`), reproducing `awkit-gmn` (branding-splash
+  breaks `app.firstWindow()`-based GUI verifiers). Confirmed via the codebase graph that
+  `resolveMainWindow()` already exists in `verify-oracle-drivers-gui.mjs`, `verify-settings-persistence.mjs`,
+  and `verify-auth-gui.mjs` (all pass), but not yet in `verify-reports-gui.mjs` or (per `awkit-gmn`, not
+  independently re-checked) `verify-flow-designer-gui.mjs`, `verify-workflow-builder-gui.mjs`,
+  `verify-instance-monitor-gui.mjs`, `verify-capacity-settings-gui.mjs`, `verify-runtime-analytics-gui.mjs`.
+- **Not run (scope/time — see report for full reasoning):** the Oracle 350+-check suite, the concurrency/
+  stress/soak suite, packaging/offline validation, the 5 other "likely affected" GUI verifiers, Recorder/
+  Smart-Wait/popup/canvas-perf/Chromium-hardening suites, automated accessibility scanning (none exists in
+  this repo), and any destructive/load/production test (none authorized or applicable to a local
+  single-user desktop app).
+- **Result:** **CONDITIONAL GO** for `main` as a development/integration checkpoint (no P0/P1 found; every
+  critical journey tested today passed with fresh evidence). Explicitly **not** a production-ship verdict —
+  the project's own pre-existing, already-tracked external gates (clean-machine offline VM walkthrough,
+  code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
+  by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
+  (this audit) closed with the report as its resolution.
