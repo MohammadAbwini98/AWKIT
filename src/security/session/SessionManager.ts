@@ -32,6 +32,11 @@ export class SessionManager {
     private readonly now: () => number = () => Date.now()
   ) {}
 
+  /** The idle timeout (ms) the renderer uses to lock proactively before the server-side sweep. */
+  get idleTimeoutMs(): number {
+    return this.policy.idleMs;
+  }
+
   /** Create a new session bound to a user; returns the opaque session id. */
   async create(userId: string): Promise<string> {
     const id = randomBytes(32).toString("base64url");

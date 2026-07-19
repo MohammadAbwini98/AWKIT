@@ -92,7 +92,11 @@ const api = {
   // decisions happen in the main process; this bridge is invoke-only.
   security: {
     getBootState: () =>
-      ipcRenderer.invoke("security:getBootState") as Promise<{ provisioned: boolean; secureStorageAvailable: boolean }>,
+      ipcRenderer.invoke("security:getBootState") as Promise<{
+        provisioned: boolean;
+        secureStorageAvailable: boolean;
+        idleTimeoutMs?: number;
+      }>,
     getLoginOptions: () => ipcRenderer.invoke("security:getLoginOptions") as Promise<LoginOption[]>,
     bootstrapSuperUser: (input: { username: string; password: string; displayName?: string }) =>
       ipcRenderer.invoke("security:bootstrapSuperUser", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,

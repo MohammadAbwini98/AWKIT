@@ -12,6 +12,8 @@ export interface LoginSubmitResult {
 interface LoginScreenProps {
   options: LoginOption[];
   onSubmit: (providerId: ProviderId, username: string, password: string) => Promise<LoginSubmitResult>;
+  /** Optional status note shown above the form, e.g. after a proactive inactivity lock. */
+  notice?: string | null;
 }
 
 /**
@@ -20,7 +22,7 @@ interface LoginScreenProps {
  * layer also rejects any disabled provider). Errors are generic and never reveal whether a username
  * exists; the submit button is disabled while a request is in flight to prevent duplicate submissions.
  */
-export function LoginScreen({ options, onSubmit }: LoginScreenProps) {
+export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +58,12 @@ export function LoginScreen({ options, onSubmit }: LoginScreenProps) {
         <h1 id="awkit-login-title">SpecterStudio</h1>
         <p className="awkit-login-subtitle">Sign in to continue</p>
       </header>
+
+      {notice ? (
+        <p className="awkit-login-notice" role="status">
+          {notice}
+        </p>
+      ) : null}
 
       <div className="awkit-login-tabs" role="tablist" aria-label="Sign-in method">
         {options.map((option) => {

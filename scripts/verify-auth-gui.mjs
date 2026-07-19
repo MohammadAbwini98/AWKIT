@@ -6,7 +6,10 @@
 //   • the title-bar session chip shows the user + a working Sign-out that returns to the login screen;
 //   • the login screen shows Active Directory as a disabled "Coming soon" tab;
 //   • re-login with the created credentials reaches the app shell;
-//   • the theme is applied (data-theme) and there are zero renderer console errors.
+//   • the theme is applied (data-theme) and there are zero renderer console errors;
+//   • the login screen renders correctly in DARK mode (prefers-color-scheme: dark → data-theme=dark);
+//   • the proactive inactivity lock (bd awkit-l6h) returns an idle session to the login screen with an
+//     inactivity notice, driven by a tiny AWKIT_SESSION_IDLE_MS window (no focus/blur event needed).
 //
 // Run: node scripts/verify-auth-gui.mjs   (after `npm run build`)
 import { _electron as electron } from "playwright";
@@ -23,6 +26,8 @@ const env = { ...process.env, LOCALAPPDATA: dataRoot };
 delete env.ELECTRON_RUN_AS_NODE;
 
 const CREDS = { displayName: "Site Admin", username: "admin1", password: "Str0ng!Passw0rd" };
+const shotDir = path.join(root, "reports", "security-login");
+mkdirSync(shotDir, { recursive: true });
 
 const results = [];
 function check(name, pass, detail) {
@@ -78,8 +83,6 @@ try {
   check("title-bar session chip shows the display name", userChip.trim() === CREDS.displayName, userChip);
   check("sign-out control present", (await win.locator(".app-frame-logout").count()) === 1);
 
-  const shotDir = path.join(root, "reports", "security-login");
-  mkdirSync(shotDir, { recursive: true });
   await win.screenshot({ path: path.join(shotDir, "authed-shell.png") }).catch(() => undefined);
 
   // ── Sign out → back to login (shell gone) ────────────────────────────────────
@@ -95,6 +98,23 @@ try {
   check("Active Directory marked coming soon", (await win.getByText(/coming soon/i).count()) >= 1);
   await win.screenshot({ path: path.join(shotDir, "login.png") }).catch(() => undefined);
 
+  // ── Dark-mode visual pass of the login screen (bd awkit-l6h) ─────────────────
+  // Simulate a user who selected the dark appearance: persist the preference and reload the pre-auth
+  // login screen (a reload is safe here — there is no authenticated session to drop).
+  await win.evaluate(() => window.localStorage.setItem("awkit-appearance", "dark"));
+  await win.reload();
+  await win.waitForLoadState("domcontentloaded");
+  await win.waitForSelector("#awkit-login-username", { timeout: 20000 });
+  const darkTheme = await win.evaluate(() => document.documentElement.dataset.theme);
+  check("login screen applies the dark theme when dark appearance is selected", darkTheme === "dark", `theme=${darkTheme}`);
+  check("login card still renders in dark mode", (await win.locator(".awkit-login-card").count()) >= 1);
+  await win.screenshot({ path: path.join(shotDir, "login-dark.png") }).catch(() => undefined);
+  // Restore the default appearance for the remaining (light) steps.
+  await win.evaluate(() => window.localStorage.removeItem("awkit-appearance"));
+  await win.reload();
+  await win.waitForLoadState("domcontentloaded");
+  await win.waitForSelector("#awkit-login-username", { timeout: 20000 });
+
   // ── Re-login with the created credentials ────────────────────────────────────
   await win.fill("#awkit-login-username", CREDS.username);
   await win.locator('.awkit-login-form input[type="password"]').first().fill(CREDS.password);
@@ -106,6 +126,40 @@ try {
 } finally {
   await app.close().catch(() => undefined);
   rmSync(dataRoot, { recursive: true, force: true });
+}
+
+// ── Proactive inactivity lock (bd awkit-l6h) ───────────────────────────────────
+// Fresh profile + a tiny server idle window (AWKIT_SESSION_IDLE_MS) so the renderer's proactive lock
+// fires in seconds instead of 30 minutes. Provision + sign in, then stay idle (no pointer/keyboard) and
+// assert we are bounced back to the login screen with the inactivity notice — WITHOUT any focus/blur event.
+{
+  const idleRoot = mkdtempSync(path.join(tmpdir(), "awkit-auth-idle-"));
+  const idleEnv = { ...process.env, LOCALAPPDATA: idleRoot, AWKIT_SESSION_IDLE_MS: "4000" };
+  delete idleEnv.ELECTRON_RUN_AS_NODE;
+  const idleApp = await electron.launch({ args: [root], cwd: root, env: idleEnv });
+  try {
+    const win = await resolveMainWindow(idleApp);
+    await win.waitForLoadState("domcontentloaded");
+    await win.waitForSelector(".awkit-login-card", { timeout: 20000 });
+    await win.fill("#awkit-setup-display", CREDS.displayName);
+    await win.fill("#awkit-setup-username", CREDS.username);
+    const pw = win.locator('.awkit-login-form input[type="password"]');
+    await pw.nth(0).fill(CREDS.password);
+    await pw.nth(1).fill(CREDS.password);
+    await win.getByRole("button", { name: "Create account" }).click();
+    await win.waitForSelector(".app-shell", { timeout: 25000 });
+    check("idle-lock: first-run signs into the app shell", true);
+
+    // Stay idle: the proactive lock should return us to login within ~idle + one tick, no focus event.
+    await win.waitForSelector("#awkit-login-username", { timeout: 15000 });
+    check("idle-lock: proactively returns to the login screen after inactivity", (await win.locator(".app-shell").count()) === 0);
+    const notice = await win.locator(".awkit-login-notice").innerText().catch(() => "");
+    check("idle-lock: shows an inactivity notice on the login screen", /inactivity/i.test(notice), notice.trim());
+    await win.screenshot({ path: path.join(shotDir, "login-idle-locked.png") }).catch(() => undefined);
+  } finally {
+    await idleApp.close().catch(() => undefined);
+    rmSync(idleRoot, { recursive: true, force: true });
+  }
 }
 
 const failed = results.filter((r) => !r.pass).length;
