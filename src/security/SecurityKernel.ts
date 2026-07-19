@@ -17,6 +17,8 @@ import type { ProviderId } from "@src/security/auth/AuthTypes";
 
 export interface BootState {
   provisioned: boolean;
+  /** Idle timeout (ms) so the renderer can lock proactively in step with the server-side session sweep. */
+  idleTimeoutMs: number;
 }
 
 export interface SecurityKernelOptions {
@@ -28,7 +30,8 @@ export interface SecurityKernelOptions {
 export class SecurityKernel {
   private constructor(
     readonly store: SecurityStore,
-    readonly auth: AuthenticationService
+    readonly auth: AuthenticationService,
+    private readonly sessions: SessionManager
   ) {}
 
   static async open(dbPath: string, crypto: ColumnCrypto, options: SecurityKernelOptions = {}): Promise<SecurityKernel> {
@@ -39,12 +42,12 @@ export class SecurityKernel {
 
     const sessions = new SessionManager(store, options.sessionPolicy ?? DEFAULT_SESSION_POLICY, options.now);
     const auth = new AuthenticationService({ store, providers, sessions, lockout: options.lockout, now: options.now });
-    return new SecurityKernel(store, auth);
+    return new SecurityKernel(store, auth, sessions);
   }
 
-  /** State the renderer's SecurityGate needs on boot to route to first-run vs login. */
+  /** State the renderer's SecurityGate needs on boot: first-run vs login, and the idle-lock window. */
   getBootState(): BootState {
-    return { provisioned: this.store.isProvisioned() };
+    return { provisioned: this.store.isProvisioned(), idleTimeoutMs: this.sessions.idleTimeoutMs };
   }
 
   async close(): Promise<void> {

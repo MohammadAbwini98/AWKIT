@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Proactive idle-lock UI + dark-mode login pass (awkit-l6h)
+
+- **Proactive idle lock (renderer):** `SecurityGate` now tracks user activity (pointer/keyboard/wheel/
+  scroll/touch) while authenticated and locks after the idle window WITHOUT waiting for a focus/visibility
+  event — returns to the login screen with a *"You were signed out after N minutes of inactivity."* notice.
+  The same heartbeat, while the user is genuinely active, refreshes the server's sliding idle window
+  (`validateSession`) so a continuously-used, never-blurred window isn't logged out at 30 min, and catches
+  server-side invalidation. Tick/refresh cadence scale off the idle window.
+- **Idle window exposed:** `SessionManager.idleTimeoutMs` getter → `SecurityKernel.getBootState().idleTimeoutMs`
+  → renderer. Electron binding honors a numeric `AWKIT_SESSION_IDLE_MS` dev/test override (production keeps
+  `DEFAULT_SESSION_POLICY` 30 min / 12 h).
+- **Dark-mode login pass:** added `.awkit-login-notice` (info-toned, theme-aware) and a dark-mode assertion +
+  screenshot to the login verifier.
+- **Files:** `app/renderer/security/SecurityGate.tsx`, `app/renderer/security/screens/LoginScreen.tsx`,
+  `app/renderer/styles/global.css`, `src/security/SecurityKernel.ts`, `src/security/session/SessionManager.ts`,
+  `app/main/security/securityKernel.ts`, `app/main/preload.ts`, `scripts/verify-auth-gui.mjs`.
+- **Tests:** `npm run build` clean; **verify:auth-gui 18/18** (was 13/13; +dark-mode, +proactive-lock via a
+  4s `AWKIT_SESSION_IDLE_MS`), **verify:auth 45/45**. Screenshots `reports/security-login/login-dark.png` +
+  `login-idle-locked.png` inspected. On branch `feature/proactive-idle-lock`; nothing committed yet.
+
+---
+
 ## 2026-07-19 — Claude — Oracle Drivers GUI verifier: self-contained isolated profile + gate auth (awkit-xjv)
 
 - **What:** `verify-oracle-drivers-gui.mjs` was the one GUI verifier the awkit-gmn shared-harness fix didn't

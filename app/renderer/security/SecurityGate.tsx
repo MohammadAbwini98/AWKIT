@@ -12,9 +12,20 @@ import { SecurityUnavailable } from "./screens/SecurityUnavailable";
 
 type GateState = "loading" | "unavailable" | "firstRun" | "login" | "forcedChange" | "authed";
 
+/** Fallback idle window if the boot state doesn't report one (mirrors DEFAULT_SESSION_POLICY.idleMs). */
+const DEFAULT_IDLE_MS = 30 * 60 * 1000;
+
 function readAppearance(): AppearanceMode {
   const saved = window.localStorage.getItem("awkit-appearance");
   return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+}
+
+/** Human-readable "signed out after N minutes of inactivity" note for the login screen. */
+function inactivityNotice(idleMs: number): string {
+  const mins = Math.round(idleMs / 60000);
+  return mins >= 1
+    ? `You were signed out after ${mins} minute${mins === 1 ? "" : "s"} of inactivity.`
+    : "You were signed out after a period of inactivity.";
 }
 
 /**
@@ -27,7 +38,11 @@ export function SecurityGate() {
   const [state, setState] = useState<GateState>("loading");
   const [options, setOptions] = useState<LoginOption[]>([]);
   const [principal, setPrincipal] = useState<PrincipalSnapshot | null>(null);
+  const [lockNotice, setLockNotice] = useState<string | null>(null);
   const sessionRef = useRef<string>("");
+  const idleTimeoutRef = useRef<number>(DEFAULT_IDLE_MS);
+  const lastActivityRef = useRef<number>(Date.now());
+  const lastValidateRef = useRef<number>(Date.now());
 
   // Theme the pre-auth screens (matches App's logic). Once authenticated, App owns the theme.
   useLayoutEffect(() => {
@@ -49,6 +64,9 @@ export function SecurityGate() {
         setState("unavailable");
         return;
       }
+      if (typeof boot.idleTimeoutMs === "number" && boot.idleTimeoutMs > 0) {
+        idleTimeoutRef.current = boot.idleTimeoutMs;
+      }
       setOptions(await window.playwrightFlowStudio.security.getLoginOptions());
       setState(boot.provisioned ? "login" : "firstRun");
     } catch {
@@ -62,8 +80,20 @@ export function SecurityGate() {
 
   const applyPrincipal = useCallback((next: PrincipalSnapshot) => {
     sessionRef.current = next.sessionRef;
+    setLockNotice(null);
     setPrincipal(next);
     setState(next.mustChangePassword ? "forcedChange" : "authed");
+  }, []);
+
+  // Drop the session and return to the login screen, revoking it server-side (fail-closed). `notice`
+  // surfaces on the login screen (e.g. after an inactivity lock); pass null for a plain sign-out.
+  const lock = useCallback((notice: string | null) => {
+    const ref = sessionRef.current;
+    sessionRef.current = "";
+    setPrincipal(null);
+    setLockNotice(notice);
+    setState("login");
+    if (ref) void window.playwrightFlowStudio.security.logout(ref).catch(() => undefined);
   }, []);
 
   const doLogin = useCallback(
@@ -111,13 +141,7 @@ export function SecurityGate() {
     return result;
   }, []);
 
-  const logout = useCallback(() => {
-    const ref = sessionRef.current;
-    sessionRef.current = "";
-    setPrincipal(null);
-    setState("login");
-    if (ref) void window.playwrightFlowStudio.security.logout(ref).catch(() => undefined);
-  }, []);
+  const logout = useCallback(() => lock(null), [lock]);
 
   // Re-validate when the user returns to the window; catches idle/absolute expiry and deactivation.
   useEffect(() => {
@@ -125,11 +149,8 @@ export function SecurityGate() {
     const revalidate = async () => {
       if (document.visibilityState !== "visible" || !sessionRef.current) return;
       const validation = await window.playwrightFlowStudio.security.validateSession(sessionRef.current).catch(() => null);
-      if (validation && !validation.valid) {
-        sessionRef.current = "";
-        setPrincipal(null);
-        setState("login");
-      }
+      lastValidateRef.current = Date.now();
+      if (validation && !validation.valid) lock(null);
     };
     window.addEventListener("focus", revalidate);
     document.addEventListener("visibilitychange", revalidate);
@@ -137,7 +158,47 @@ export function SecurityGate() {
       window.removeEventListener("focus", revalidate);
       document.removeEventListener("visibilitychange", revalidate);
     };
-  }, [state]);
+  }, [state, lock]);
+
+  // Proactive idle lock: track renderer activity and lock after the idle window WITHOUT waiting for a
+  // focus/visibility event. While the user IS active this also refreshes the server's sliding idle window
+  // (validateSession) so a continuously-used, never-blurred window isn't logged out at the timeout, and it
+  // catches server-side invalidation (absolute expiry, deactivation, revoke-on-password-change).
+  useEffect(() => {
+    if (state !== "authed") return;
+    const now = Date.now();
+    lastActivityRef.current = now;
+    lastValidateRef.current = now;
+    const markActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+    const activityEvents = ["pointerdown", "keydown", "mousemove", "wheel", "touchstart", "scroll"];
+    for (const ev of activityEvents) window.addEventListener(ev, markActivity, { passive: true });
+
+    const idleMs = idleTimeoutRef.current;
+    const tickMs = Math.min(15000, Math.max(1000, Math.floor(idleMs / 6)));
+    const validateMinIntervalMs = Math.min(60000, Math.max(1000, Math.floor(idleMs / 3)));
+    const interval = window.setInterval(async () => {
+      if (!sessionRef.current) return;
+      const tickNow = Date.now();
+      if (tickNow - lastActivityRef.current >= idleMs) {
+        lock(inactivityNotice(idleMs));
+        return;
+      }
+      // Only refresh while genuinely active (activity since the last check), so an idle window still
+      // ages out server-side rather than being kept alive by the heartbeat itself.
+      if (lastActivityRef.current > lastValidateRef.current && tickNow - lastValidateRef.current >= validateMinIntervalMs) {
+        lastValidateRef.current = tickNow;
+        const validation = await window.playwrightFlowStudio.security.validateSession(sessionRef.current).catch(() => null);
+        if (validation && !validation.valid) lock(null);
+      }
+    }, tickMs);
+
+    return () => {
+      for (const ev of activityEvents) window.removeEventListener(ev, markActivity);
+      window.clearInterval(interval);
+    };
+  }, [state, lock]);
 
   if (state === "authed" && principal) {
     return (
@@ -184,7 +245,7 @@ export function SecurityGate() {
 
   return (
     <LockedShell areaLabel="Secure sign-in">
-      <LoginScreen options={options} onSubmit={doLogin} />
+      <LoginScreen options={options} onSubmit={doLogin} notice={lockNotice} />
     </LockedShell>
   );
 }

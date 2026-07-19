@@ -59,6 +59,28 @@ provisioned Super User behind and hit the login form (0/4); `walkState` now clea
   processes can't race on `security.sqlite`/ui-settings per profile. New **verify:single-instance 3/3**.
   The finer DurableLockStore-around-writes remains optional defense-in-depth (`awkit-ekd.8` P3 still open).
 
+## Proactive idle-lock UI + dark-mode login pass (2026-07-19, `awkit-l6h`)
+
+The login gate previously re-validated only on window focus/visibility (server idle/absolute timeouts still
+enforced). It now **locks proactively on user inactivity** and passes a dark-mode visual check.
+- **Renderer activity tracking (`SecurityGate`):** while authenticated, an activity heartbeat
+  (pointer/keyboard/wheel/scroll/touch) drives a poll that (a) **locks after the idle window** without
+  waiting for a focus event — returning to the login screen with a *"You were signed out after N minutes of
+  inactivity."* notice (`.awkit-login-notice`, info-toned, theme-aware), and (b) while the user is genuinely
+  active, **refreshes the server's sliding idle window** (`validateSession`) so a continuously-used,
+  never-blurred window isn't logged out at the timeout, and catches server-side invalidation (absolute
+  expiry, deactivation, revoke-on-password-change). Tick + refresh cadence scale off the idle window.
+- **Idle window surfaced to the renderer:** `SecurityKernel.getBootState()` now returns `idleTimeoutMs`
+  (from `SessionManager.idleTimeoutMs`); the Electron binding honors an optional numeric
+  `AWKIT_SESSION_IDLE_MS` override (dev/test only — production uses `DEFAULT_SESSION_POLICY`, 30 min).
+- **Verify:** `verify:auth-gui` **18/18** (was 13/13) — added dark-mode login (`data-theme=dark` when dark
+  appearance is selected; screenshot `reports/security-login/login-dark.png`) and a real proactive-lock test
+  (a 4s `AWKIT_SESSION_IDLE_MS` window → idle → bounced to login with the inactivity notice, no focus event;
+  screenshot `login-idle-locked.png`). `verify:auth` **45/45**, `npm run build` clean. Files:
+  `SecurityGate.tsx`, `screens/LoginScreen.tsx`, `global.css` (`.awkit-login-notice`),
+  `src/security/{SecurityKernel,session/SessionManager}.ts`, `app/main/{security/securityKernel,preload}.ts`,
+  `scripts/verify-auth-gui.mjs`.
+
 ## Secure Login — trusted core + login UI IMPLEMENTED & verified (real Electron); authz/licensing pending (2026-07-18)
 
 The **login UI (Phase 6)** is now built on top of the trusted core, on branch `feature/secure-login-auth`.
