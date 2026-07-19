@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
+import { AdminBanner, AdminLoading, AdminPage } from "./components/AdminUi";
 
 interface RoleView { id: string; name: string; description: string; permissions: string[] }
 
@@ -17,10 +18,9 @@ export function RolesPage() {
       setLoading(false);
     });
   }, [sessionRef]);
-  if (loading) return <div className="awkit-admin-page"><div className="awkit-login-loading"><Loader2 size={20} className="awkit-login-spin" /> Loading roles…</div></div>;
+  if (loading) return <AdminPage><AdminLoading label="Loading roles…" /></AdminPage>;
   return (
-    <div className="awkit-admin-page">
-      {error ? <p className="form-message error" role="alert">{error}</p> : null}
+    <AdminPage banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}>
       <p className="awkit-admin-muted">Built-in roles are fixed in this version. Assign them to users in Users. Custom roles are planned for a later release.</p>
       {roles.map((role) => (
         <section className="settings-card" key={role.id}>
@@ -31,6 +31,6 @@ export function RolesPage() {
           </div>
         </section>
       ))}
-    </div>
+    </AdminPage>
   );
 }

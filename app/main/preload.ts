@@ -18,6 +18,8 @@ import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
 import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
+import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
+import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
@@ -140,6 +142,22 @@ const api = {
       listAudit: (input: { sessionRef: string; limit?: number; offset?: number }) =>
         ipcRenderer.invoke("security:admin:listAudit", input) as Promise<AdminResponse<AuditRecord[]>>
     }
+  },
+  licensing: {
+    getStatus: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:getStatus", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+    revalidate: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:revalidate", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+    exportRequest: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:exportRequest", sessionRef) as Promise<AdminResponse<ActivationRequest>>,
+    import: (input: { sessionRef: string; license: LicenseDocument }) =>
+      ipcRenderer.invoke("licensing:import", input) as Promise<AdminResponse<ImportOutcome>>,
+    replace: (input: { sessionRef: string; license: LicenseDocument }) =>
+      ipcRenderer.invoke("licensing:replace", input) as Promise<AdminResponse<ImportOutcome>>,
+    revoke: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:revoke", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport; reason?: string }>>,
+    remove: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:remove", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport }>>
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get") as Promise<UiSettings>,

@@ -9606,6 +9606,21 @@ button.recorded-url-use:disabled {
   color: var(--awkit-accent);
 }
 
+/*
+ * Official SpecterStudio application icon on the login screen. The asset is a self-contained violet
+ * squircle, so it renders standalone (no accent-soft frame). Vector source stays sharp on Windows
+ * high-DPI displays; the intrinsic drop-shadow lives inside the SVG's viewBox padding, so no extra
+ * box-shadow is layered on. `awkit-login-mark` is kept as the offline-safe onError fallback.
+ */
+.awkit-login-logo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 .awkit-login-mark-warn {
   background: var(--awkit-warning-soft);
   color: var(--awkit-warning);
@@ -9798,52 +9813,106 @@ button.recorded-url-use:disabled {
   to { transform: rotate(360deg); }
 }
 
-/* ── AppFrame session chip (authenticated) ─────────────────────────────────────── */
-.app-frame-session {
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: var(--space-2);
-}
-
-.app-frame-user {
-  font-size: var(--text-xs);
-  color: var(--awkit-text-secondary);
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-frame-logout {
+/* ── Rounded user avatar (initials or uploaded image) ──────────────────────────── */
+.awkit-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  font-weight: 650;
+  line-height: 1;
+  color: #ffffff;
+  user-select: none;
+  -webkit-user-drag: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+/* Deterministic, theme-aware avatar palette (avatarPaletteIndex → tone-0…5). Not colour-coded meaning. */
+.awkit-avatar.tone-0 { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+.awkit-avatar.tone-1 { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.awkit-avatar.tone-2 { background: linear-gradient(135deg, #0891b2, #0e7490); }
+.awkit-avatar.tone-3 { background: linear-gradient(135deg, #059669, #047857); }
+.awkit-avatar.tone-4 { background: linear-gradient(135deg, #d97706, #b45309); }
+.awkit-avatar.tone-5 { background: linear-gradient(135deg, #db2777, #be185d); }
+
+/* ── AppFrame account menu (authenticated identity + actions) ──────────────────── */
+.awkit-account {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  position: relative;
+  margin-right: var(--space-2);
+}
+.awkit-account-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 220px;
+  padding: 3px var(--space-2) 3px 3px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--awkit-text-muted);
+  color: var(--awkit-text);
   cursor: pointer;
-  transition: color var(--awkit-dur-fast) var(--awkit-ease-out), background var(--awkit-dur-fast) var(--awkit-ease-out);
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out), border-color var(--awkit-dur-fast) var(--awkit-ease-out);
 }
+@media (hover: hover) and (pointer: fine) {
+  .awkit-account-trigger:hover { background: var(--awkit-surface-inset); border-color: var(--awkit-border); }
+}
+.awkit-account-trigger:focus-visible { outline: none; box-shadow: var(--awkit-focus-ring); }
+.awkit-account-trigger[aria-expanded="true"] { background: var(--awkit-surface-inset); border-color: var(--awkit-border); }
+.awkit-account-meta { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.15; }
+.awkit-account-name {
+  font-size: var(--text-xs); font-weight: 600; color: var(--awkit-text);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.awkit-account-role { font-size: 10px; color: var(--awkit-text-secondary); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.awkit-account-caret { color: var(--awkit-text-muted); flex: none; }
 
-.app-frame-logout:hover {
-  color: var(--awkit-danger);
-  background: var(--awkit-danger-soft);
+.awkit-account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--awkit-z-drawer, 40);
+  min-width: 232px;
+  padding: var(--space-2);
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--awkit-shadow-lg, 0 20px 60px rgba(0, 0, 0, 0.35));
+  /* Anchored to the trigger (top-right) and materialises from there; respects reduced-motion below. */
+  transform-origin: top right;
+  animation: awkit-account-pop var(--awkit-dur-fast, 140ms) var(--awkit-ease-out);
 }
-
-.app-frame-logout:focus-visible {
-  outline: none;
-  box-shadow: var(--awkit-focus-ring);
+@keyframes awkit-account-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(-4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
+.awkit-account-menu-head {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--awkit-border);
+  margin-bottom: var(--space-2);
+}
+.awkit-account-menu-identity { display: flex; flex-direction: column; min-width: 0; }
+.awkit-account-menu-identity strong { font-size: var(--text-sm); color: var(--awkit-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.awkit-account-menu-username { font-size: var(--text-xs); color: var(--awkit-text-secondary); }
+.awkit-account-menu-role { font-size: var(--text-xs); color: var(--awkit-accent); font-weight: 600; margin-top: 2px; }
+.awkit-account-menu-item {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+  padding: var(--space-2) var(--space-2);
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--awkit-text);
+  font-size: var(--text-sm); text-align: left; cursor: pointer;
+  transition: background var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+.awkit-account-menu-item:hover { background: var(--awkit-surface-inset); }
+.awkit-account-menu-item:focus-visible { outline: none; box-shadow: var(--awkit-focus-ring); }
 
 @media (prefers-reduced-motion: reduce) {
   .awkit-login-card { animation: none; }
   .awkit-login-spin { animation: none; }
+  .awkit-account-menu { animation: none; }
 }
 
 /* ── Super User Administration (Phase 3) ─────────────────────────────────────── */
@@ -9875,6 +9944,63 @@ button.recorded-url-use:disabled {
 .awkit-admin-status.disabled { color: var(--awkit-warning); }
 .awkit-admin-status.archived { color: var(--awkit-text-secondary); }
 [data-theme="dark"] .awkit-admin-status.active { color: #86efac; background: rgba(34,197,94,0.12); border-color: rgba(134,239,172,0.3); }
+
+/*
+ * Shared Administration status badge (AdminStatusBadge). One vocabulary for user, session, and licensing
+ * states across every Administration page. Icon + text means status never depends on colour alone; tones
+ * are theme-aware. Soft/text tokens are reused where they exist, with explicit dark overrides otherwise.
+ */
+.awkit-admin-badge {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  padding: 2px var(--space-2); border-radius: var(--radius-pill, 999px);
+  font-size: var(--text-xs); font-weight: 600; line-height: var(--leading-xs, 1.4);
+  border: 1px solid transparent;
+}
+.awkit-admin-badge svg { flex: none; }
+.awkit-admin-badge.tone-success { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+.awkit-admin-badge.tone-warning { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.awkit-admin-badge.tone-danger { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.awkit-admin-badge.tone-info { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.awkit-admin-badge.tone-neutral { color: var(--awkit-text-secondary); background: var(--awkit-surface-soft); border-color: var(--awkit-border-strong); }
+[data-theme="dark"] .awkit-admin-badge.tone-success { color: #86efac; background: rgba(34,197,94,0.14); border-color: rgba(134,239,172,0.28); }
+[data-theme="dark"] .awkit-admin-badge.tone-warning { color: #fcd34d; background: rgba(245,158,11,0.14); border-color: rgba(253,230,138,0.26); }
+[data-theme="dark"] .awkit-admin-badge.tone-danger { color: #fca5a5; background: rgba(239,68,68,0.14); border-color: rgba(254,202,202,0.24); }
+[data-theme="dark"] .awkit-admin-badge.tone-info { color: #93c5fd; background: rgba(59,130,246,0.14); border-color: rgba(191,219,254,0.24); }
+
+.awkit-admin-status-cell { display: inline-flex; align-items: center; gap: var(--space-2); }
+.awkit-admin-status-cell .awkit-admin-muted { font-size: var(--text-xs); }
+
+/* Destructive toolbar action (e.g. remove license) — token-driven, theme-aware. */
+.toolbar-button.danger { color: var(--awkit-danger); border-color: var(--awkit-danger-muted, var(--awkit-border-strong)); }
+.toolbar-button.danger:hover:not(:disabled) { background: var(--awkit-danger-soft); border-color: var(--awkit-danger); }
+
+/* ── Licensing Administration page ─────────────────────────────────────────────── */
+.awkit-license-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.awkit-license-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.awkit-license-field > span:first-child { font-size: var(--text-xs); }
+.awkit-license-field > span:last-child { font-size: var(--text-sm); color: var(--awkit-text); overflow-wrap: anywhere; }
+.awkit-license-mono { font-family: var(--awkit-font-mono, ui-monospace, monospace); font-size: var(--text-xs) !important; }
+.awkit-license-entitlements { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
+.awkit-license-machine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-2); }
+.awkit-license-code { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.awkit-license-code code { font-size: var(--text-sm); color: var(--awkit-text); overflow-wrap: anywhere; }
+.awkit-license-confidence { font-size: var(--text-xs); color: var(--awkit-text-secondary); }
+
+/* Shared Administration loading / empty / no-results state block. */
+.awkit-admin-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); padding: var(--space-5) var(--space-4);
+  color: var(--awkit-text-secondary); font-size: var(--text-sm); text-align: center;
+}
+.awkit-admin-state strong { color: var(--awkit-text); font-size: var(--text-md); font-weight: 620; }
+.awkit-admin-state-empty { border: 1px dashed var(--awkit-border-strong); border-radius: var(--radius-md); }
+.awkit-admin-spin { animation: awkit-login-spin 0.9s linear infinite; color: var(--awkit-accent); }
+@media (prefers-reduced-motion: reduce) { .awkit-admin-spin { animation: none; } }
 .awkit-admin-role-chip {
   display: inline-block; margin: 2px; padding: 2px var(--space-2); border-radius: var(--radius-sm);
   background: var(--awkit-accent-soft); color: var(--awkit-accent); font-size: var(--text-xs); font-weight: 600;

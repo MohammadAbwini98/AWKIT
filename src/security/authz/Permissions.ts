@@ -38,7 +38,14 @@ export const Permission = {
   USER_MANAGE: "user.manage",
   ROLE_VIEW: "role.view",
   AUDIT_VIEW: "audit.view",
-  LICENSE_MANAGE: "license.manage"
+  // ── Licensing (granular; independent of authentication/RBAC data) ───────────
+  LICENSE_MANAGE: "license.manage", // umbrella (kept for compatibility)
+  LICENSE_VIEW: "license.view",
+  LICENSE_EXPORT_REQUEST: "license.export_request",
+  LICENSE_IMPORT: "license.import",
+  LICENSE_REPLACE: "license.replace",
+  LICENSE_REVOKE: "license.revoke",
+  LICENSE_AUDIT_VIEW: "license.audit.view"
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -50,6 +57,9 @@ export const ALL_PERMISSIONS: readonly Permission[] = Object.freeze(Object.value
 export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   Permission.USER_MANAGE,
   Permission.LICENSE_MANAGE,
+  Permission.LICENSE_IMPORT,
+  Permission.LICENSE_REPLACE,
+  Permission.LICENSE_REVOKE,
   Permission.SETTINGS_EDIT
 ]);
 
@@ -85,9 +95,11 @@ const OPERATOR_PERMISSIONS: readonly Permission[] = [
   Permission.REPORT_EXPORT
 ];
 
-// Administrator = everything except user/license management (those stay Super-User-only).
+// Administrator = everything except user administration and licensing (those stay Super-User-only).
+// Every licensing permission (page.license + license.*) is withheld here so only the Super User manages
+// licenses — matching "Built-in Super User receives the required licensing permissions".
 const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
-  (p) => p !== Permission.USER_MANAGE && p !== Permission.LICENSE_MANAGE && p !== Permission.PAGE_LICENSE
+  (p) => p !== Permission.USER_MANAGE && p !== Permission.PAGE_LICENSE && !p.startsWith("license.")
 );
 
 /** Immutable built-in roles. Order = privilege rank (index 0 = highest). */

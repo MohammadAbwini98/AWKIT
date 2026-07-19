@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Loader2, ShieldAlert, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { ShieldAlert, UserPlus, Users as UsersIcon } from "lucide-react";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
+import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge } from "./components/AdminUi";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
 interface RoleView { id: string; name: string; description: string; permissions: string[] }
@@ -46,18 +47,25 @@ export function UserManagement() {
   }, [reload]);
 
   if (loading) {
-    return <div className="awkit-admin-page"><div className="awkit-login-loading"><Loader2 size={20} className="awkit-login-spin" /> Loading users…</div></div>;
+    return <AdminPage><AdminLoading label="Loading users…" /></AdminPage>;
   }
 
   return (
-    <div className="awkit-admin-page">
-      {error ? <p className="form-message error" role="alert">{error}</p> : null}
-      {notice ? <p className="form-message success" role="status">{notice}</p> : null}
-
+    <AdminPage
+      banner={
+        <>
+          {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
+          {notice ? <AdminBanner tone="success">{notice}</AdminBanner> : null}
+        </>
+      }
+    >
       <CreateUserCard roles={roles} onCreate={(input) => sensitive(() => security().admin.createUser({ sessionRef, ...input }))} />
 
       <section className="settings-card">
-        <h2>Users ({users.length})</h2>
+        <h2><UsersIcon size={16} /> Users ({users.length})</h2>
+        {users.length === 0 ? (
+          <AdminEmpty icon={UsersIcon} title="No users yet" hint="Create the first user with the form above." />
+        ) : (
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table">
             <thead>
@@ -72,7 +80,12 @@ export function UserManagement() {
                       <span>@{u.username}{u.isProtectedSuperUser ? <em className="awkit-admin-tag"><ShieldAlert size={12} /> Primary SU</em> : null}</span>
                     </div>
                   </td>
-                  <td><span className={`awkit-admin-status ${u.status}`}>{u.status}{u.mustChangePassword ? " · must reset" : ""}</span></td>
+                  <td>
+                    <div className="awkit-admin-status-cell">
+                      <AdminStatusBadge status={u.status} />
+                      {u.mustChangePassword ? <span className="awkit-admin-muted">must reset</span> : null}
+                    </div>
+                  </td>
                   <td>{u.roles.length ? u.roles.map((r) => <span key={r} className="awkit-admin-role-chip">{r}</span>) : <span className="awkit-admin-muted">none</span>}</td>
                   <td>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}</td>
                   <td>
@@ -93,6 +106,7 @@ export function UserManagement() {
             </tbody>
           </table>
         </div>
+        )}
       </section>
 
       {roleEditFor ? (
@@ -119,7 +133,7 @@ export function UserManagement() {
           onConfirmed={() => { const fn = pendingFn; setPendingFn(null); if (fn) void sensitive(fn); }}
         />
       ) : null}
-    </div>
+    </AdminPage>
   );
 }
 

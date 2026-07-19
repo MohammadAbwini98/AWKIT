@@ -1,10 +1,19 @@
-import { LogOut, Workflow } from "lucide-react";
+import { Workflow } from "lucide-react";
 import { WindowControls } from "./WindowControls";
 import { useSession } from "../security/SessionContext";
+import { AccountMenu } from "../components/shared/AccountMenu";
+
+import type { PrincipalSnapshot } from "@src/security/auth/AuthTypes";
 
 interface AppFrameProps {
   /** The current major area (active route label) shown as window-level context. */
   areaLabel: string;
+}
+
+/** Effective role/account classification shown next to the avatar. UI hint only — never an auth decision. */
+function roleLabelFor(principal: PrincipalSnapshot): string {
+  if (principal.isProtectedSuperUser) return "Super User";
+  return principal.roles[0] ?? "User";
 }
 
 /**
@@ -31,20 +40,12 @@ export function AppFrame({ areaLabel }: AppFrameProps) {
       </span>
       <div className="app-frame-spacer" />
       {session ? (
-        <div className="app-frame-session">
-          <span className="app-frame-user" title={session.principal.username}>
-            {session.principal.displayName}
-          </span>
-          <button
-            type="button"
-            className="app-frame-logout"
-            onClick={session.logout}
-            title="Sign out"
-            aria-label="Sign out"
-          >
-            <LogOut size={13} strokeWidth={2.2} />
-          </button>
-        </div>
+        <AccountMenu
+          displayName={session.principal.displayName}
+          username={session.principal.username}
+          roleLabel={roleLabelFor(session.principal)}
+          onSignOut={session.logout}
+        />
       ) : null}
       <WindowControls />
     </header>

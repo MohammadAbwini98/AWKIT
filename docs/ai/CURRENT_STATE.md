@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## Admin/Licensing package — login branding, admin UI kit, profile avatar, per-machine licensing (2026-07-19)
+
+Implements the external `specterstudio-admin-licensing-phases` (8-phase) package on branch
+`feature/superuser-admin-rbac` (NOT committed). Frontend UI built with the `apple-design` skill; token-only
+theming. Full write-up in **`docs/LICENSING.md`**.
+- **Login branding (Phase 1):** official `specter-violet` logo (`app/renderer/assets/brand/specter-logo.svg`)
+  on the login card, vector (high-DPI sharp), `onError` fallback to the built-in glyph. `LoginScreen.tsx`.
+- **Admin UI kit (Phase 2):** shared `pages/admin/components/AdminUi.tsx` — `AdminPage`, `AdminBanner`,
+  `AdminStatusBadge` (one 13-state vocabulary, icon+text, theme-aware), `AdminLoading`, `AdminEmpty`. All 5
+  admin pages compose it; audit "Refresh" moved into the canonical `TopHeader` via `usePageChrome`. Route
+  authorization was already enforced and is preserved.
+- **Profile avatar (Phase 3):** `lib/initials.ts` (Unicode/`Intl.Segmenter` Teams-style initials + FNV
+  deterministic palette), `components/shared/UserAvatar.tsx` + `AccountMenu.tsx`; `AppFrame` now shows the
+  rounded avatar + name + role + Sign out. `verify:avatar` = 24/24.
+- **Licensing core (Phase 4):** new `src/licensing/**` bounded context — Ed25519 signed licenses, multi-signal
+  hashed **machine fingerprint** (no IP), 11-status validator with exact-timestamp expiry, adaptive store
+  (LocalAppData primary / ProgramData optional-read, atomic + checksum), activation-request export. Separate
+  offline issuer `tools/license-issuer/**` (NOT bundled; private key external). App ships **public key only**.
+- **Licensing integration (Phase 5):** granular Super-User-only permissions (`license.*`), trusted
+  main-process `licenseRuntime` + `licensing.ipc.ts` (RBAC + reauth + audit), preload `licensing.*`,
+  full `LicensingPage.tsx` (replaces placeholder). **Enforcement is OPT-IN, default OFF**
+  (`SPECTER_LICENSE_ENFORCE=true`); the run gate sits in `execution.ipc.ts` before `startRun`.
+- **Verification:** `npm run build` (tsc) clean; `verify:licensing` = 56/56 (domain + RBAC); `verify:avatar`
+  = 24/24; real-key issuer→app E2E (VALID here, MACHINE_MISMATCH elsewhere); no private key in repo/package.
+  External gates unchanged (clean-machine offline, packaged EXE, live Electron GUI walkthrough — see
+  `docs/LICENSING.md` §6).
+
 ## Super User administration + RBAC authorization IMPLEMENTED & verified (Phase 3, 2026-07-19)
 
 Adds the authorization/administration layer on top of the auth trusted core (design plan Phase 3/11/12).

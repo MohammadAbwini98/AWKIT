@@ -3,6 +3,7 @@ import { Workflow, Loader2, Building2 } from "lucide-react";
 import type { LoginOption, ProviderId } from "@src/security/auth/AuthTypes";
 import { PasswordField } from "../components/PasswordField";
 import { messageForReason } from "../reasonMessages";
+import specterLogoUrl from "../../assets/brand/specter-logo.svg";
 
 export interface LoginSubmitResult {
   ok: boolean;
@@ -27,6 +28,8 @@ export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fall back to the built-in glyph if the packaged logo asset ever fails to load (offline-safe, no broken image).
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !submitting;
 
@@ -52,9 +55,22 @@ export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
   return (
     <form className="awkit-login-form" onSubmit={handleSubmit} aria-labelledby="awkit-login-title">
       <header className="awkit-login-brand">
-        <span className="awkit-login-mark" aria-hidden="true">
-          <Workflow size={22} strokeWidth={2.4} />
-        </span>
+        {logoFailed ? (
+          <span className="awkit-login-mark" aria-hidden="true">
+            <Workflow size={22} strokeWidth={2.4} />
+          </span>
+        ) : (
+          <img
+            className="awkit-login-logo"
+            src={specterLogoUrl}
+            alt=""
+            aria-hidden="true"
+            width={64}
+            height={64}
+            draggable={false}
+            onError={() => setLogoFailed(true)}
+          />
+        )}
         <h1 id="awkit-login-title">SpecterStudio</h1>
         <p className="awkit-login-subtitle">Sign in to continue</p>
       </header>

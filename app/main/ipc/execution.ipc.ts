@@ -21,6 +21,7 @@ import { getSessionService } from "./session.ipc";
 import { assertTrustedSender } from "./senderGuard";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
+import { evaluateRunGate } from "../licensing/licenseRuntime";
 
 export interface RunWorkflowRequest {
   workflowId: string;
@@ -196,6 +197,20 @@ async function runWorkflow(request: RunWorkflowRequest) {
       executionId: randomUUID(),
       validation,
       message: "Workflow validation passed. Browser execution is available when dryRun=false."
+    };
+  }
+
+  // Trusted per-machine license gate for a REAL run (validation/dry-run above stay available so diagnostics
+  // and reports work regardless of license state). Enforcement is opt-in (default OFF) — see licenseRuntime;
+  // with it off the gate always allows and this is a no-op. This is a machine/installation check, NOT a user
+  // authorization check — it is intentionally independent of authentication/RBAC.
+  const gate = evaluateRunGate();
+  if (!gate.allowed) {
+    return {
+      status: "licenseBlocked",
+      validation,
+      license: { status: gate.status.status, reasonCode: gate.status.reasonCode, userAction: gate.status.userAction },
+      error: gate.status.userAction
     };
   }
 

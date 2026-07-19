@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
+import { AdminBanner, AdminLoading, AdminPage } from "./components/AdminUi";
 
 interface RoleView { id: string; name: string; description: string; permissions: string[] }
 
@@ -24,10 +25,9 @@ export function PermissionsPage() {
     return [...all].sort();
   }, [roles]);
 
-  if (loading) return <div className="awkit-admin-page"><div className="awkit-login-loading"><Loader2 size={20} className="awkit-login-spin" /> Loading permissions…</div></div>;
+  if (loading) return <AdminPage><AdminLoading label="Loading permissions…" /></AdminPage>;
   return (
-    <div className="awkit-admin-page">
-      {error ? <p className="form-message error" role="alert">{error}</p> : null}
+    <AdminPage banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}>
       <section className="settings-card">
         <h2>Permission matrix</h2>
         <p className="awkit-admin-muted">Every permission and the built-in roles that grant it. Enforced deny-by-default in the main process.</p>
@@ -47,6 +47,6 @@ export function PermissionsPage() {
           </table>
         </div>
       </section>
-    </div>
+    </AdminPage>
   );
 }

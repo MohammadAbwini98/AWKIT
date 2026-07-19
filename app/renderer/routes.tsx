@@ -314,7 +314,7 @@ export const routes: AppRoute[] = [
   {
     id: "licensing",
     label: "Licensing",
-    description: "Machine licensing (placeholder — not yet implemented).",
+    description: "Per-machine offline license: status, activation, import, and revocation.",
     icon: KeyRound,
     component: LicensingPage
   }
