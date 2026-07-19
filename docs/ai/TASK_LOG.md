@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — SecurityStore debounced persistence (awkit-ekd.8)
+
+- **What:** `SecurityStore` exported + fsynced the whole DB on every mutation (login ≈ 4 full writes; the
+  idle-lock heartbeat's `touchSession` wrote on every validate). Adopted `SqliteRuntimeStore`'s debounced +
+  persist-on-critical-transition + flush-on-close model.
+- **Criticality split:** critical/immediate = `setProvisioned`, `insertUser`, `updateUser`, `revokeSession`,
+  `revokeSessionsForUser`, `revokeSessionsForUserExcept` (a provisioned/changed/revoked credential must
+  survive a crash). Debounced (300 ms) = `insertSession`, `touchSession`, `appendAudit`. A critical flush
+  exports the whole in-memory DB, so it sweeps up any pending debounced write; `close()` force-flushes the
+  trailing write; `open()` still forces the initial schema write. Crash-before-debounce is fail-closed
+  (re-login / slightly-stale idle / missing forensic row).
+- **Implementation:** `persist(critical=false)` marks dirty + either flushes now (critical, awaited) or arms
+  a single unref'd debounce timer; `persistNow()` → `flushDirty()` (dirty guard, atomic temp+rename, re-arm
+  dirty + rethrow on failure). Added a test-only `persistWriteCountForTest()`.
+- **Files:** `src/security/store/SecurityStore.ts`, `scripts/verify-auth.mts` (+4 debounce checks).
+- **Tests:** `npm run build` clean; **verify:auth 49/49** (was 45), **verify:auth-gui 18/18** (real Electron,
+  DPAPI + real close-on-quit), **verify:security 39/39**, **verify:single-instance 3/3**. Closes `awkit-ekd.8`.
+
+---
+
 ## 2026-07-19 — Claude — Proactive idle-lock UI + dark-mode login pass (awkit-l6h)
 
 - **Proactive idle lock (renderer):** `SecurityGate` now tracks user activity (pointer/keyboard/wheel/

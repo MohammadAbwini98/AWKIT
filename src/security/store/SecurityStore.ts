@@ -1,7 +1,11 @@
 /**
  * SQLite-backed security store (users, sessions, provisioning, audit) on the pure-WASM `sql.js` driver,
  * mirroring `src/runner/store/SqliteRuntimeStore`: in-memory database persisted to a real `.sqlite`
- * file with atomic-rename writes, single-writer. The `passwordSecret` column is wrapped by the injected
+ * file with atomic-rename writes, single-writer. Persistence is debounced + flushed on critical
+ * transitions and on close (like `SqliteRuntimeStore`): security-critical writes (provisioning, user
+ * records, session revocations) flush immediately, while high-frequency writes (session create/touch,
+ * audit) coalesce — so a login or the idle-lock heartbeat's session touches no longer fsync the whole DB
+ * on every mutation. The `passwordSecret` column is wrapped by the injected
  * {@link ColumnCrypto} (Windows DPAPI in production; a reversible fake in tsx verifiers) so a copied
  * database file does not expose the scrypt records for offline cracking.
  *
@@ -35,8 +39,15 @@ const UPDATABLE_USER_COLUMNS = new Set<keyof UserRecord>([
   "updatedBy"
 ]);
 
+/** Debounce window for non-critical writes (mirrors SqliteRuntimeStore). */
+const PERSIST_DEBOUNCE_MS = 300;
+
 export class SecurityStore {
   private persistChain: Promise<void> = Promise.resolve();
+  private persistTimer: ReturnType<typeof setTimeout> | undefined;
+  private dirty = false;
+  private closed = false;
+  private persistWrites = 0;
 
   private constructor(
     private readonly db: Database,
@@ -59,7 +70,7 @@ export class SecurityStore {
     }
     const store = new SecurityStore(db, dbPath, crypto);
     store.migrate();
-    await store.persist();
+    await store.persist(true); // ensure the file exists + schema is durable before returning
     return store;
   }
 
@@ -103,7 +114,7 @@ export class SecurityStore {
        ON CONFLICT(id) DO UPDATE SET provisioned = 1, provisionedAt = excluded.provisionedAt`,
       [at]
     );
-    await this.persist();
+    await this.persist(true);
   }
 
   userCount(): number {
@@ -148,7 +159,7 @@ export class SecurityStore {
         record.updatedBy
       ]
     );
-    await this.persist();
+    await this.persist(true);
     return record;
   }
 
@@ -171,7 +182,7 @@ export class SecurityStore {
     if (!assignments.length) return;
     params.push(id);
     this.db.run(`UPDATE security_users SET ${assignments.join(", ")} WHERE id = ?`, params);
-    await this.persist();
+    await this.persist(true);
   }
 
   // ── Sessions ────────────────────────────────────────────────────────────────
@@ -213,12 +224,12 @@ export class SecurityStore {
 
   async revokeSession(id: string, revokedAt: string): Promise<void> {
     this.db.run("UPDATE security_sessions SET revokedAt = ? WHERE id = ? AND revokedAt IS NULL", [revokedAt, id]);
-    await this.persist();
+    await this.persist(true);
   }
 
   async revokeSessionsForUser(userId: string, revokedAt: string): Promise<void> {
     this.db.run("UPDATE security_sessions SET revokedAt = ? WHERE userId = ? AND revokedAt IS NULL", [revokedAt, userId]);
-    await this.persist();
+    await this.persist(true);
   }
 
   /** Revoke every active session for a user except one (used to rotate sessions on password change). */
@@ -227,7 +238,7 @@ export class SecurityStore {
       "UPDATE security_sessions SET revokedAt = ? WHERE userId = ? AND id != ? AND revokedAt IS NULL",
       [revokedAt, userId, keepSessionId]
     );
-    await this.persist();
+    await this.persist(true);
   }
 
   // ── Audit ─────────────────────────────────────────────────────────────────
@@ -289,28 +300,70 @@ export class SecurityStore {
     }
   }
 
-  /** Serialize persistence so overlapping writes never interleave; atomic-rename the exported bytes. */
-  private persist(): Promise<void> {
-    this.persistChain = this.persistChain.then(() => this.persistNow(), () => this.persistNow());
+  /**
+   * Mark the DB dirty and persist. `critical` writes (provisioning, user records, session revocations)
+   * flush immediately and are awaited; other writes are debounced so a burst — a login, or the idle-lock
+   * heartbeat's repeated session touches — coalesces into a single atomic write. Debounced writes always
+   * land on close(), and any critical flush sweeps up whatever is pending (the whole in-memory DB is
+   * exported), so a debounced write is never lost as long as close() runs.
+   */
+  private persist(critical = false): Promise<void> {
+    this.dirty = true;
+    if (this.closed) return Promise.resolve();
+    if (critical) {
+      if (this.persistTimer) {
+        clearTimeout(this.persistTimer);
+        this.persistTimer = undefined;
+      }
+      return this.persistNow();
+    }
+    if (!this.persistTimer) {
+      this.persistTimer = setTimeout(() => {
+        this.persistTimer = undefined;
+        void this.persistNow().catch(() => undefined);
+      }, PERSIST_DEBOUNCE_MS);
+      // Don't let a pending debounce keep the process alive (e.g. tsx verifiers, app quit).
+      if (typeof this.persistTimer === "object" && "unref" in this.persistTimer) this.persistTimer.unref();
+    }
+    return Promise.resolve();
+  }
+
+  /** Serialize writes so overlapping exports never interleave; atomic-rename the exported bytes. */
+  private persistNow(): Promise<void> {
+    this.persistChain = this.persistChain.then(() => this.flushDirty(), () => this.flushDirty());
     return this.persistChain;
   }
 
-  private async persistNow(): Promise<void> {
+  private async flushDirty(): Promise<void> {
+    if (!this.dirty) return; // already written by an earlier flush in the chain
+    this.dirty = false;
     const data = Buffer.from(this.db.export());
     await mkdir(dirname(this.dbPath), { recursive: true });
     const tmp = `${this.dbPath}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(tmp, data);
     try {
+      await writeFile(tmp, data);
       await rename(tmp, this.dbPath);
+      this.persistWrites += 1;
     } catch (error) {
+      this.dirty = true; // let the next persist (or close) retry
       await rm(tmp, { force: true }).catch(() => undefined);
       throw error;
     }
   }
 
-  /** Flush and release the database. */
+  /** Flush pending writes and release the database. */
   async close(): Promise<void> {
-    await this.persistChain.catch(() => undefined);
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = undefined;
+    }
+    await this.persistNow().catch(() => undefined); // sweep up any debounced write
+    this.closed = true;
     this.db.close();
+  }
+
+  /** Count of atomic disk writes performed — test-only, used to assert debounce coalescing. */
+  persistWriteCountForTest(): number {
+    return this.persistWrites;
   }
 }
