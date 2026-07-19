@@ -132,7 +132,8 @@
     "validate:offline": "powershell -ExecutionPolicy Bypass -File scripts/validate-offline-bundle.ps1",
     "ai:memory": "node scripts/ai-memory/check-memory.mjs",
     "ai:memory:check": "node scripts/ai-memory/check-memory.mjs",
-    "verify:authz": "tsx scripts/verify-authz.mts"
+    "verify:authz": "tsx scripts/verify-authz.mts",
+    "verify:admin-gui": "node scripts/verify-admin-gui.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

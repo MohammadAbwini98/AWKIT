@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Super User administration + RBAC authorization (Phase 3)
+
+- **What:** built the authorization/administration layer the auth core lacked — RBAC + Super User admin +
+  user management, per the design plan (Phase 3/11/12). On branch `feature/superuser-admin-rbac`.
+- **Backend:** `authz/Permissions.ts` (registry + built-in SuperUser/Administrator/Operator/Viewer roles +
+  effectivePermissions), `authz/AuthorizationService.ts` (requirePermission = the real deny-by-default
+  boundary + requireFreshReauth 5-min window), `admin/UserAdminService.ts` (create/update/enable/disable/
+  archive/reset/revoke with final-active-SU protection, protected-SU immutability, no escalation, session
+  invalidation on security change, audit). Schema migration v2 (roles column + archived status);
+  AuthenticationService.reauthenticate + roles/permissions in PrincipalSnapshot; SessionManager reauth
+  helpers; SecurityStore list/roles/audit-read + SU counts. 9 `security:admin:*` + `security:reauth` IPC
+  (authorization-enforced, schema-validated) + preload.
+- **Renderer:** `usePermissions`/`RoutePermissions` gate nav + route mount (`NotAuthorized`); Super User
+  Administration area — Users (CRUD + role editor + reauth modal), Roles, Permissions matrix, Audit Log,
+  Licensing placeholder; token-only `.awkit-admin-*` CSS.
+- **Decisions resolved:** O-1 scrypt, O-2 built-in roles, O-4 roles-only v1, O-5 fresh login; O-8 recovery
+  codes deferred; licensing left as a clean placeholder (Phase 5).
+- **Files:** new `src/security/{authz/Permissions,authz/AuthorizationService,admin/UserAdminService,
+  ipc/SecurityAdminIpcSchema}.ts`, `app/renderer/security/{usePermissions,routePermissions,NotAuthorized}`,
+  `app/renderer/pages/admin/*` (6 files), `scripts/verify-{authz,admin-gui}`; modified SecurityStore(+Schema),
+  AuthenticationService, AuthTypes, ReasonCodes, SessionManager, SecurityKernel, security.ipc, preload,
+  routes.tsx, LeftNavigation, App.tsx, global.css, package.json.
+- **Tests:** `npm run build` clean; **verify:authz 40/40**, **verify:admin-gui 10/10** (real Electron),
+  **verify:auth 49/49**. Backend committed locally (part 1); renderer + tests pending local commit (part 2).
+  Follow-ups: SU recovery codes, per-user overrides/custom roles (v2), machine licensing (Phase 5), AD.
+
+---
+
 ## 2026-07-19 — Claude — SecurityStore debounced persistence (awkit-ekd.8)
 
 - **What:** `SecurityStore` exported + fsynced the whole DB on every mutation (login ≈ 4 full writes; the

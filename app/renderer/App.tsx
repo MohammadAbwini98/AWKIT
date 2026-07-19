@@ -6,6 +6,9 @@ import { routes, type RouteId } from "./routes";
 import { PageChromeContext, type PageChrome } from "./state/pageChrome";
 import { NavigationContext } from "./state/navigation";
 import { ThemeContext, resolveAppearance, type AppearanceMode } from "./state/theme";
+import { usePermissions } from "./security/usePermissions";
+import { RoutePermissions } from "./security/routePermissions";
+import { NotAuthorized } from "./security/NotAuthorized";
 
 const emptyChrome: PageChrome = { actions: [], dirty: false };
 
@@ -77,6 +80,9 @@ export function App() {
     [activeRouteId]
   );
   const ActivePage = activeRoute.component;
+  const { can } = usePermissions();
+  const routeRequires = RoutePermissions[activeRouteId];
+  const routeAuthorized = !routeRequires || can(routeRequires);
 
   // Resolve the unsaved-changes dialog with the user's choice. "save" awaits the
   // page's registered Save action before allowing navigation to proceed.
@@ -182,7 +188,7 @@ export function App() {
           onToggleSidebar={toggleSidebar}
         >
           <ErrorBoundary key={activeRouteId} area={activeRoute.label}>
-            <ActivePage />
+            {routeAuthorized ? <ActivePage /> : <NotAuthorized onGoHome={() => changeRoute("dashboard")} />}
           </ErrorBoundary>
         </AppShell>
         {unsavedOpen ? (

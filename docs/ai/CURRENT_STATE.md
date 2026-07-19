@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Super User administration + RBAC authorization IMPLEMENTED & verified (Phase 3, 2026-07-19)
+
+Adds the authorization/administration layer on top of the auth trusted core (design plan Phase 3/11/12).
+On branch `feature/superuser-admin-rbac` (NOT committed to `main`).
+- **RBAC core (`src/security/authz/`):** `Permissions.ts` — the single permission registry + immutable
+  built-in roles (**SuperUser / Administrator / Operator / Viewer**) + `effectivePermissions`. Decisions:
+  scrypt (O-1), built-in roles only (O-2), roles-only v1 (O-4), fresh-login-after-restart (O-5);
+  recovery codes deferred.
+- **Enforcement (`AuthorizationService`) is the real boundary:** every mutating IPC handler calls
+  `requirePermission(sessionRef, perm)` **after** session validation (deny-by-default); sensitive ops also
+  require a fresh **re-auth within 5 min** (`requireFreshReauth`, `security:reauth`). Hiding a UI control is
+  never the check — proven by tests that drive the IPC path directly.
+- **User management (`UserAdminService`):** create/update/enable/disable/archive(soft-delete)/reset-password/
+  revoke-sessions, with **final-active-Super-User protection**, protected-SU immutability (no delete/disable/
+  demote), no privilege escalation (USER_MANAGE is SuperUser-only), **session invalidation** on disable /
+  role-change / password-reset, and a full audit trail. Admin-created users are forced to change password.
+- **Schema migration v2:** per-user `roles` JSON column (protected SU backfilled with `SuperUser`) + an
+  `archived` status. `PrincipalSnapshot` now carries `roles` + effective `permissions` (UI hints).
+- **IPC + preload:** 9 authorization-enforced, schema-validated `security:admin:*` + `security:reauth`
+  handlers; `.security.admin.*` preload namespace.
+- **Renderer:** `usePermissions().can()` + `RoutePermissions` gate the nav (`LeftNavigation` hides
+  unpermitted items/groups) and the route mount (`App` shows `NotAuthorized` for a disallowed route).
+  New **Super User Administration** area: **Users** (full CRUD + role editor + reauth modal), **Roles**,
+  **Permissions** (matrix), **Audit Log**, **Licensing** (placeholder — machine licensing deferred, kept
+  separate from authz). Token-only `.awkit-admin-*` CSS, light/dark.
+- **Verify:** new **`verify:authz` 40/40** (permission enforcement, privilege-escalation denial, final-SU
+  protection, disable/role-change/reset session revocation, reauth gating, audit) + new **`verify:admin-gui`
+  10/10** (real Electron: SU sees admin nav, create user, Roles/Permissions/Audit/Licensing render, 0 console
+  errors). `verify:auth` **49/49**, `npm run build` clean. Screenshot `reports/security-admin/`.
+- **Remaining (follow-ups):** SU recovery codes; per-user permission overrides + custom roles (v2); machine
+  licensing (Phase 5); Active Directory provider; deeper per-action button gating on non-admin pages.
+
+
 ## Secure Login + Oracle driver-settings MERGED to `main`; release-readiness audit run (2026-07-18)
 
 **State correction (read first):** the two entries below, and the older `HANDOFF.md` notes, describe the
