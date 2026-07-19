@@ -9,6 +9,9 @@ export interface NodeMenuItem {
   label: string;
   icon: LucideIcon;
   tone?: "default" | "danger";
+  /** When set, the item renders disabled (e.g. the acting role lacks the permission) with `title` as the reason. */
+  disabled?: boolean;
+  title?: string;
   onSelect: () => void;
 }
 
@@ -93,7 +96,10 @@ export function NodeOptionsMenu({ open, anchor, items, onClose }: NodeOptionsMen
               type="button"
               role="menuitem"
               className={item.tone === "danger" ? "node-options-item danger" : "node-options-item"}
+              disabled={item.disabled}
+              title={item.title}
               onClick={() => {
+                if (item.disabled) return;
                 item.onSelect();
                 onClose();
               }}

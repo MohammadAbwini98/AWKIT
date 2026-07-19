@@ -47,6 +47,20 @@ remain structural and legacy workflows remain compatible.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
   for Flow Designer connector behavior and saved-flow dropdown behavior. As of the last run: **19 checks
   pass**.
+- **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
+  profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
+  (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):
+  `verify:e2e-auth` (**30** — full auth lifecycle incl. enumeration + idle lock), `verify:e2e-rbac`
+  (**49** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
+  are now DENIED and the footer nav is permission-filtered after the bd `awkit-b92` fix), `verify:e2e-licensing`
+  (**22** — activation-request privacy, forged-signature rejection, `SPECTER_LICENSE_ENFORCE` gate ON/OFF),
+  `verify:e2e-sweep` (**13** — 30 routes console-clean + screenshots, theme, resize, `:focus-visible`; the
+  seeded-samples check now asserts empty states after the bd `awkit-64x` fix). Coverage matrix +
+  reports: `docs/testing/E2E_{COVERAGE_MATRIX,EXECUTION_REPORT,DEFECTS}.md`; evidence:
+  `test-artifacts/2026-07-19-e2e-qa/`.
+- `scripts/verify-session-context.mts` (`npm run verify:session-context`) — domain-level checks for the
+  main-owned sender→session registry backing bd `awkit-b92`: bind/unbind lifecycle, window-destroyed
+  auto-unbind, and `assertSenderPermission` failing closed (`NOT_AUTHORIZED`) for unbound windows. **11/11**.
 - Phase 2 focused verifiers (all deterministic, no external websites): `verify:locks` (**15** —
   concurrent profile acquisition, release after success/throw/failed `launchPersistentContext`,
   kind-prefix origin/account capacities, active+stale snapshots), `verify:browser-pool` (**13** —

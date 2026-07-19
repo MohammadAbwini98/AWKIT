@@ -9,6 +9,7 @@
 import { ipcMain } from "electron";
 import { assertTrustedSender } from "./senderGuard";
 import { getSecurityKernel, isSecureStorageAvailable } from "../security/securityKernel";
+import { bindSession, unbindSession } from "../security/sessionContext";
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import { parseBootstrap, parseChangePassword, parseLoginRequest, parseSessionRef } from "@src/security/ipc/SecurityIpcSchema";
 import {
@@ -96,7 +97,11 @@ export function registerSecurityIpc(): void {
     try {
       const payload = parseLoginRequest(request);
       const kernel = await getSecurityKernel();
-      return await kernel.auth.login(payload);
+      const result = await kernel.auth.login(payload);
+      // Bind the window to the authenticated session so the sender-bound authorization gate
+      // (sessionContext) can derive the acting user from event.sender on every protected IPC call.
+      if (result.ok) bindSession(event, result.principal.sessionRef);
+      return result;
     } catch {
       return safeFailure();
     }
@@ -107,7 +112,11 @@ export function registerSecurityIpc(): void {
     try {
       const ref = parseSessionRef(sessionRef);
       const kernel = await getSecurityKernel();
-      return await kernel.auth.validateSession(ref);
+      const result = await kernel.auth.validateSession(ref);
+      // Keep the window binding in step with the live session: (re)bind while valid, clear when not.
+      if (result.valid) bindSession(event, result.principal.sessionRef);
+      else unbindSession(event);
+      return result;
     } catch {
       return { valid: false, reason: AuthReason.SESSION_EXPIRED };
     }
@@ -119,6 +128,7 @@ export function registerSecurityIpc(): void {
       const ref = parseSessionRef(sessionRef);
       const kernel = await getSecurityKernel();
       await kernel.auth.logout(ref);
+      unbindSession(event, ref);
     } catch {
       /* logout is best-effort; never surface internals */
     }
@@ -129,7 +139,11 @@ export function registerSecurityIpc(): void {
     try {
       const payload = parseChangePassword(input);
       const kernel = await getSecurityKernel();
-      return await kernel.auth.changePassword(payload.sessionRef, payload.currentPassword, payload.newPassword);
+      const result = await kernel.auth.changePassword(payload.sessionRef, payload.currentPassword, payload.newPassword);
+      // A forced first-login change keeps the same sessionRef; bind so the now-usable session is
+      // authorized on the sender-bound surface without a separate login round-trip.
+      if (result.ok) bindSession(event, payload.sessionRef);
+      return result;
     } catch {
       return safeFailure();
     }

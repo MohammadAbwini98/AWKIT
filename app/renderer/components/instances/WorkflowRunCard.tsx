@@ -27,6 +27,9 @@ interface WorkflowRunCardProps {
   maxConcurrentRuns: number;
   onChange: (patch: Partial<WorkflowCardParams>) => void;
   onRun: () => void;
+  /** When set, the Run button is disabled (e.g. the acting role lacks the Execute Workflows permission). */
+  runDisabled?: boolean;
+  runDisabledReason?: string;
 }
 
 const statusLabel: Record<WorkflowCardStatus, string> = {
@@ -58,10 +61,14 @@ export function WorkflowRunCard({
   maxRuns,
   maxConcurrentRuns,
   onChange,
-  onRun
+  onRun,
+  runDisabled = false,
+  runDisabledReason
 }: WorkflowRunCardProps) {
-  const runnable = status === "active" && paramErrors.length === 0;
-  const runTitle = blockReason || (paramErrors.length ? paramErrors.join(" ") : `Run ${workflow.name}`);
+  const runnable = status === "active" && paramErrors.length === 0 && !runDisabled;
+  const runTitle = runDisabled
+    ? runDisabledReason ?? "Not permitted"
+    : blockReason || (paramErrors.length ? paramErrors.join(" ") : `Run ${workflow.name}`);
 
   return (
     <article className={`workflow-card workflow-card-${status}`} tabIndex={0} aria-label={`Workflow ${workflow.name}`}>

@@ -2,6 +2,8 @@ import { Copy, Database, Download, Eye, FilePlus2, Pencil, RefreshCw, ShieldChec
 import { useEffect, useMemo, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import type { JsonArrayDataSourceProfile, OracleDataSourceProfile } from "@src/data/DataSourceProfile";
 import { OracleDataSourceModal } from "./OracleDataSourceModal";
 
@@ -15,6 +17,9 @@ interface PreviewState {
 
 export function DataSourceManager() {
   const { navigateTo } = useNavigation();
+  const { can } = usePermissions();
+  const canManage = can(Permission.DATASOURCE_MANAGE);
+  const manageHint = canManage ? undefined : "Requires the Manage Data Sources permission";
   const [dataSources, setDataSources] = useState<JsonArrayDataSourceProfile[]>([]);
   const [oracleSources, setOracleSources] = useState<OracleDataSourceProfile[]>([]);
   const [statusById, setStatusById] = useState<Record<string, RowStatus>>({});
@@ -204,12 +209,12 @@ export function DataSourceManager() {
   usePageChrome(
     {
       actions: [
-        { id: "create", label: "Create", variant: "primary", onClick: () => setCreateOpen(true), title: "Create a new data source" },
-        { id: "add", label: "Add JSON", onClick: () => void addJson(), title: "Add a JSON data source from disk" }
+        { id: "create", label: "Create", variant: "primary", onClick: () => setCreateOpen(true), title: canManage ? "Create a new data source" : manageHint, disabled: !canManage },
+        { id: "add", label: "Add JSON", onClick: () => void addJson(), title: canManage ? "Add a JSON data source from disk" : manageHint, disabled: !canManage }
       ],
       dirty: false
     },
-    []
+    [canManage]
   );
 
   const previewText = useMemo(() => (preview ? JSON.stringify(preview.rows.slice(0, 5), null, 2) : ""), [preview]);
@@ -223,19 +228,20 @@ export function DataSourceManager() {
         </div>
 
         <div className="library-toolbar">
-          <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} type="button">
+          <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} disabled={!canManage} title={manageHint} type="button">
             <FilePlus2 size={15} />
             Create Data Source
           </button>
-          <button className="toolbar-button" onClick={() => void addJson()} type="button" title="Add a JSON data source from disk">
+          <button className="toolbar-button" onClick={() => void addJson()} disabled={!canManage} type="button" title={canManage ? "Add a JSON data source from disk" : manageHint}>
             <Upload size={15} />
             Add JSON
           </button>
           <button
             className="toolbar-button"
             onClick={() => setOracleModal({ profile: null })}
+            disabled={!canManage}
             type="button"
-            title="Create an Oracle-backed data source"
+            title={canManage ? "Create an Oracle-backed data source" : manageHint}
           >
             <Database size={15} />
             Add Oracle Source
@@ -273,6 +279,8 @@ export function DataSourceManager() {
                         value={source.path}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => updateRootPath(source, event.target.value)}
+                        disabled={!canManage}
+                        title={manageHint}
                         aria-label={`Root array path for ${source.name}`}
                       />
                     </td>
@@ -285,7 +293,7 @@ export function DataSourceManager() {
                     <td>{source.updatedAt ? source.updatedAt.slice(0, 10) : "—"}</td>
                     <td>
                       <div className="table-actions" onClick={(event) => event.stopPropagation()}>
-                        <button onClick={() => void editTable(source)} title="Edit as table" type="button">
+                        <button onClick={() => void editTable(source)} disabled={!canManage} title={canManage ? "Edit as table" : manageHint} type="button">
                           <Table2 size={14} />
                         </button>
                         <button onClick={() => void validate(source)} title="Validate JSON" type="button">
@@ -294,13 +302,13 @@ export function DataSourceManager() {
                         <button onClick={() => void openPreview(source)} title="Preview records" type="button">
                           <Eye size={14} />
                         </button>
-                        <button onClick={() => void duplicate(source)} title="Duplicate data source" type="button">
+                        <button onClick={() => void duplicate(source)} disabled={!canManage} title={canManage ? "Duplicate data source" : manageHint} type="button">
                           <Copy size={14} />
                         </button>
                         <button onClick={() => void exportData(source)} title="Export JSON" type="button">
                           <Download size={14} />
                         </button>
-                        <button onClick={() => void remove(source)} title="Delete data source" type="button">
+                        <button onClick={() => void remove(source)} disabled={!canManage} title={canManage ? "Delete data source" : manageHint} type="button">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -314,7 +322,7 @@ export function DataSourceManager() {
           <section className="empty-state">
             <strong>No JSON data sources yet.</strong>
             <span>Create one from scratch, or add a JSON file from disk.</span>
-            <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} type="button">
+            <button className="toolbar-button primary" onClick={() => setCreateOpen(true)} disabled={!canManage} title={manageHint} type="button">
               <FilePlus2 size={15} />
               Create Data Source
             </button>
@@ -359,15 +367,15 @@ export function DataSourceManager() {
                       <td>{source.updatedAt ? source.updatedAt.slice(0, 10) : "—"}</td>
                       <td>
                         <div className="table-actions">
-                          <button onClick={() => setOracleModal({ profile: source })} title="Edit Oracle Data Source" type="button">
+                          <button onClick={() => setOracleModal({ profile: source })} disabled={!canManage} title={canManage ? "Edit Oracle Data Source" : manageHint} type="button">
                             <Pencil size={14} />
                           </button>
                           {source.mode === "snapshot" ? (
-                            <button onClick={() => void refreshOracleSnapshot(source)} title="Refresh offline snapshot" type="button">
+                            <button onClick={() => void refreshOracleSnapshot(source)} disabled={!canManage} title={canManage ? "Refresh offline snapshot" : manageHint} type="button">
                               <RefreshCw size={14} />
                             </button>
                           ) : null}
-                          <button onClick={() => void removeOracle(source)} title="Delete Oracle Data Source" type="button">
+                          <button onClick={() => void removeOracle(source)} disabled={!canManage} title={canManage ? "Delete Oracle Data Source" : manageHint} type="button">
                             <Trash2 size={14} />
                           </button>
                         </div>

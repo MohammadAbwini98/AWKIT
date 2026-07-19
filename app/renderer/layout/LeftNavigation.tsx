@@ -4,6 +4,7 @@ import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 import { usePermissions } from "../security/usePermissions";
 import { RoutePermissions } from "../security/routePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 
 /**
  * The SpecterStudio application mark (concept "1c" — spectral edge): a near-black continuous-corner
@@ -57,9 +58,9 @@ const routeGroups = [
     routes: ["reportsOverview", "reportsWorkflows", "reportsInstances", "reportsChrome", "reportsRuntime", "reportsFailures", "reportsServer", "reports"] satisfies RouteId[]
   },
   {
-    // Settings is surfaced in the pinned footer utility area (template pattern), not here.
+    // Settings + Help Center (projectContract) are surfaced in the pinned footer utility area, not here.
     label: "System",
-    routes: ["roadmap", "projectContract", "offlineRuntime"] satisfies RouteId[]
+    routes: ["roadmap", "offlineRuntime"] satisfies RouteId[]
   },
   {
     // Super User Administration — hidden entirely for users without the relevant permissions.
@@ -150,15 +151,17 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
         ))}
       </div>
       <div className="nav-footer">
-        <button
-          className={activeRouteId === "settings" ? "nav-item active" : "nav-item"}
-          onClick={() => onRouteChange("settings")}
-          title={collapsed ? "Settings" : undefined}
-          type="button"
-        >
-          <SettingsIcon size={17} />
-          {!collapsed ? <span>Settings</span> : null}
-        </button>
+        {can(Permission.PAGE_SETTINGS) ? (
+          <button
+            className={activeRouteId === "settings" ? "nav-item active" : "nav-item"}
+            onClick={() => onRouteChange("settings")}
+            title={collapsed ? "Settings" : undefined}
+            type="button"
+          >
+            <SettingsIcon size={17} />
+            {!collapsed ? <span>Settings</span> : null}
+          </button>
+        ) : null}
         <button className="nav-item" onClick={() => onRouteChange("projectContract")} title={collapsed ? "Help Center" : undefined} type="button">
           <HelpCircle size={17} />
           {!collapsed ? <span>Help Center</span> : null}

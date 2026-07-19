@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { coerceCellValue, deriveColumns, displayCellValue, normalizeRows } from "@src/data/TableEditing";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
@@ -26,6 +28,8 @@ const PAGE_SIZES = [25, 50, 100, 0] as const; // 0 = All
 
 export function DataSourceEditor() {
   const { navigateTo } = useNavigation();
+  const { can } = usePermissions();
+  const canManage = can(Permission.DATASOURCE_MANAGE);
   const [profile, setProfile] = useState<JsonArrayDataSourceProfile | null>(null);
   const [columns, setColumns] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
@@ -276,10 +280,13 @@ export function DataSourceEditor() {
   // Register the Save action so the unsaved-changes dialog's "Save and Continue" works.
   usePageChrome(
     {
-      actions: profile && !loadMessage ? [{ id: "save", label: "Save", variant: "primary", onClick: () => save(), title: "Save data source" }] : [],
+      actions:
+        profile && !loadMessage
+          ? [{ id: "save", label: "Save", variant: "primary", onClick: () => save(), title: canManage ? "Save data source" : "Requires the Manage Data Sources permission", disabled: !canManage }]
+          : [],
       dirty
     },
-    [profile, loadMessage, dirty, save]
+    [profile, loadMessage, dirty, save, canManage]
   );
 
   // ── Derived: filter + paginate ─────────────────────────────────────────────
@@ -354,7 +361,7 @@ export function DataSourceEditor() {
         {banner ? <div className={`settings-banner ${banner.type}`}>{banner.text}</div> : null}
 
         <div className="library-toolbar">
-          <button className="toolbar-button primary" type="button" onClick={() => void save()} disabled={!dirty}>
+          <button className="toolbar-button primary" type="button" onClick={() => void save()} disabled={!dirty || !canManage} title={canManage ? undefined : "Requires the Manage Data Sources permission"}>
             <Save size={15} /> Save
           </button>
           <button className="toolbar-button" type="button" onClick={addRow}>

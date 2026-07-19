@@ -4,6 +4,20 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 ## Confirmed (observed during development)
 
+- **Fresh install seeded bundled samples as real user records — FIXED (bd `awkit-64x`, found + fixed 2026-07-19).**
+  First-run profile stores seeded from `resources/sample-workflows` etc. (`app/main/profileStores.ts`
+  `seedFolder`), so a brand-new install showed "Customer Onboarding Workflow", "Login Flow", and
+  `customers.json` as ordinary user records — against RULES.md "no demo/seed data — use empty states".
+  **Resolution:** `seedFolder` dropped (flows + workflows) and the `ensureDefaultDataSource` /
+  `ensureDefaultRuntimeInputs` first-run injectors deleted (stores return `store.list()`); samples remain in
+  `resources/` via `npm run seed:mock-fixtures`. `verify:e2e-sweep` flipped to assert empty states (13/13).
+  Evidence: `test-artifacts/2026-07-19-e2e-qa/screenshots/e2e-sweep/`.
+- **GUI verifiers that assert shell chrome break silently when `AppFrame` changes (2026-07-19).**
+  PR #21's AccountMenu replaced `.app-frame-user`/`.app-frame-logout` and the licensing placeholder;
+  `verify:auth-gui` and `verify:admin-gui` kept asserting the old DOM and were broken on `main` until
+  repaired in the E2E QA assessment (now 18/18 and 11/11). When touching `AppFrame`/admin chrome,
+  re-run BOTH suites before merging.
+
 - **ICO frame-offset corruption in `png-to-ico` 2.1.0 — FIXED (2026-07-16).**
   `scripts/generate-app-icon.mjs` previously passed multiple PNGs to `png-to-ico`. Its DIB writer appended
   an AND mask but omitted those bytes from each directory entry's length and the next frame's offset, so a

@@ -1,13 +1,131 @@
 # Agent Handoff
 
-Last updated: 2026-07-19 (**Secure-login epic finished + GUI-verifier suite repaired + Oracle re-validated**,
+Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**
+on top of `main` @ `0a4500f` (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED). **Working tree: UNCOMMITTED**
+(production code + a new verifier + docs); no commit/PR yet — do that only when the user asks. Start from this
+tree. Read this block + the top of `docs/ai/CURRENT_STATE.md` and `docs/testing/E2E_DEFECTS.md` first.
+
+**Shipped this session (uncommitted):**
+- **awkit-64x (DEF-003)** — first-run sample seeding removed (`app/main/profileStores.ts` `seedFolder` dropped;
+  `dataSource.ipc.ts` `ensureDefaultDataSource` + `runtimeInput.ipc.ts` `ensureDefaultRuntimeInputs` deleted).
+  Fresh profile → empty states; samples stay in `resources/` via `npm run seed:mock-fixtures`.
+- **awkit-b92 (DEF-004/005)** — sender-bound trusted authorization: new `app/main/security/sessionContext.ts`
+  binds `event.sender.id → sessionRef`; `assertSenderPermission(event, perm)` fail-closed-gates `execution:*`,
+  flow/workflow CRUD, data-source CRUD, and substantive `settings.update`/reset/import. Renderer per-action
+  button gating (`usePermissions().can()`) across libraries/designers/DataSource/InstanceMonitor
+  (`NodeOptionsMenu`/`WorkflowRunCard` gained `disabled` props); footer nav permission-filtered.
+- **OBS-001/002** — StatusBar chips read "Active flows/browsers"; `AWKIT_REAUTH_WINDOW_MS` dev/test override
+  wired through `SecurityKernelOptions.reauthWindowMs`.
+- **New verifier:** `scripts/verify-session-context.mts` + `verify:session-context` alias (**11/11**).
+
+**Verification (all green):** `npm run build` (tsc + bundles) clean; `verify:session-context` **11/11**;
+`verify:e2e-rbac` **49/49** (Viewer `settings.update` + real run now DENIED; footer fixed); `verify:e2e-sweep`
+13/13; `verify:e2e-auth` 30 · `verify:e2e-licensing` 22 · `verify:runner` 82 · `verify:authz` 40 · `verify:auth`
+49 · `verify:security` 39 · `verify:licensing` 56 · `verify:ipc-contract` 4 · `verify:auth-gui` 18 ·
+`verify:admin-gui` 11 · `verify:avatar` 24.
+
+**⚠️ Load-bearing facts + open follow-ups:**
+- `assertSenderPermission` (main-process, deny-by-default) is the REAL boundary; renderer `can()` gating is a
+  hint only. The binding is set on login/change-password/validate and cleared on logout/destroy/expiry, so a
+  window with no bound session is denied (`NOT_AUTHORIZED`).
+- Residual gap: **`app/main/ipc/oracle.ipc.ts` backend is not yet sender-gated** (its UI IS gated) — bd
+  **`awkit-b3w`** (P2, "Gate Oracle data-source IPC with DATASOURCE_MANAGE").
+- **bd `awkit-2d8` (P3)** — automate the live ReauthDialog GUI flow (now unblocked by `AWKIT_REAUTH_WINDOW_MS`).
+- Pattern recorded: `bd remember` key `sender-bound-authz`. Details: `docs/testing/E2E_DEFECTS.md`
+  (DEF-003/004/005 marked FIXED) + `docs/ai/TASK_LOG.md` top entry.
+- External gates unchanged / NOT run: packaged EXE, clean-machine offline VM, multi-day soak (`awkit-cm8`).
+
+---
+
+Previously: **2026-07-19 (E2E QA session)** — **Full adapted E2E QA assessment of `main` @ `0a4500f`
+COMPLETE** (bd `awkit-xyo`, closed). The generic web-app QA template was adapted to this offline Electron
+app with owner approval; discovery/specs came from the earlier half of the session (before a usage-limit
+cut), and this half wrote + ran the executables and reports. **Working tree: UNCOMMITTED test/docs work**
+(no production code changed): new `scripts/verify-e2e-*-gui.mjs` + `scripts/verify-e2e-route-sweep.mjs` +
+`scripts/lib/e2e-qa-lib.mjs`, 4 `verify:e2e-*` npm aliases, `docs/testing/**` (matrix + execution report +
+defects), `specs/e2e/**`, healed `scripts/verify-{auth,admin}-gui.mjs`, docs/ai updates, beads export.
+Suggested next step: review + commit on a branch, PR to `main` (only when the user asks).
+
+**Results (all green):** `verify:e2e-auth` **30/30** · `verify:e2e-rbac` **42/42** ·
+`verify:e2e-licensing` **22/22** · `verify:e2e-sweep` **13/13** · healed `verify:auth-gui` **18/18** and
+`verify:admin-gui` **11/11** (both were silently broken on `main` by PR #21's AccountMenu/LicensingPage —
+E2E-DEF-001/-002) · regression `verify:licensing` 56 / `verify:avatar` 24 / `verify:ipc-contract` 4 /
+`verify:authz` 40 / `verify:auth` 49.
+
+**Open product findings from the assessment:**
+- **bd `awkit-64x` (P2, NEW)** — fresh install seeds bundled samples ("Customer Onboarding Workflow",
+  "Login Flow", `customers.json`) as REAL user records via `app/main/profileStores.ts` `seedFolder` —
+  violates RULES.md "no demo/seed data". `verify:e2e-sweep` has a tracked-defect check that must be
+  updated when this is fixed.
+- **bd `awkit-b92` (P3, pre-existing, now evidence-backed)** — `settings:*`/`execution:*` IPC have no
+  per-role authorization (Viewer can patch settings / reach `runWorkflow`; sender-guard only), and the
+  footer Settings/Help Center nav is not permission-filtered (route guard holds). `verify:e2e-rbac`
+  documents both as KNOWN GAP checks that flip when awkit-b92 lands.
+- OBS-002: consider an `AWKIT_REAUTH_WINDOW_MS` test override so the ReauthDialog GUI path becomes
+  verifiable (today: domain-level only via `verify:authz`).
+
+Read `docs/testing/E2E_EXECUTION_REPORT.md` + `E2E_DEFECTS.md` first. External gates unchanged and NOT
+run here: packaged EXE, clean-machine offline VM, multi-day soak (`awkit-cm8`).
+
+---
+
+Previously: **2026-07-19 (later session)** — **Admin/Licensing 8-phase package shipped**: login branding,
+Administration UI kit, signed-in profile avatar, and a complete **offline per-machine licensing** system.
+Merged to **clean `main` @ `0a4500f`** via **PR #21** (which also carried the two earlier RBAC / Super User
+admin commits `908be41`+`985329e` that hadn't reached `main`). Working tree **clean**, **no open PRs**, **no
+uncommitted work** — start the next task from `main`, normal Git flow (only push/PR when the user asks). Read
+this block + the top of `docs/ai/CURRENT_STATE.md` and **`docs/LICENSING.md`** first.
+
+**Shipped this session (PR #21 -> `main`):**
+- **Login branding** — official `specter-violet` logo on the login card
+  (`app/renderer/assets/brand/specter-logo.svg`), vector/high-DPI, `onError` fallback to the built-in glyph.
+- **Admin UI kit** — `app/renderer/pages/admin/components/AdminUi.tsx` (`AdminPage`/`Banner`/`StatusBadge`
+  [13-state, icon+text, theme-aware]/`Loading`/`Empty`); all 5 admin pages refactored; audit *Refresh*
+  moved to the canonical `TopHeader` via `usePageChrome`. Existing route authorization preserved.
+- **Profile avatar** — `app/renderer/lib/initials.ts` (Unicode `Intl.Segmenter` Teams initials + deterministic
+  FNV palette), `UserAvatar` + `AccountMenu` in `AppFrame`. `verify:avatar` **24/24**.
+- **Licensing core** — new `src/licensing/**`: Ed25519 signed per-machine licenses, multi-signal hashed
+  machine fingerprint (**no IP**), 11-status validator (exact-timestamp expiry), adaptive store (LocalAppData
+  primary / ProgramData optional-read, atomic + checksum). Separate offline issuer `tools/license-issuer/**`
+  (**NOT bundled**; private key external in `%LOCALAPPDATA%\SpecterStudio\issuer-keys\`). App ships the
+  **public key only** (`TrustedKeys.ts` key1).
+- **Licensing integration** — granular Super-User-only `license.*` permissions,
+  `app/main/licensing/licenseRuntime.ts` + `app/main/ipc/licensing.ipc.ts` (RBAC + reauth + audit), preload
+  `licensing.*`, full `LicensingPage.tsx` replacing the placeholder.
+
+**Verification (all green):** `npm run build` (tsc + bundles) clean; **`verify:licensing` 56/56** (domain +
+RBAC); **`verify:avatar` 24/24**; **`verify:ipc-contract` 4/4** (new `licensing:*` channels matched);
+real-key issuer->app E2E VALID here / MACHINE_MISMATCH elsewhere; security scan — **no private key** in
+repo/tree/package (`electron-builder.json` ships `out/**` only; `tools/**` excluded).
+
+**⚠️ Load-bearing facts for the next agent:**
+- **License enforcement is OPT-IN, default OFF** (`SPECTER_LICENSE_ENFORCE=true`). With it off the app runs
+  exactly as before (no run is blocked); the run gate is in `app/main/ipc/execution.ipc.ts` `runWorkflow`
+  (before `startRun`) via `evaluateRunGate()`. Turning on hard enforcement is a **product decision** —
+  bead **`awkit-1cc`**.
+- Licensing is **independent of auth/RBAC** — nothing under `src/licensing/**` imports `src/security/**`;
+  machine binding is enforced by the SIGNED fingerprint, not the file's directory (a copied `license.dat`
+  fails `MACHINE_MISMATCH`).
+- Issue a test license via `npx tsx tools/license-issuer/{keygen,issue-license}.mts` (see
+  `tools/license-issuer/README.md`); the dev key1 private half lives at
+  `%LOCALAPPDATA%\SpecterStudio\issuer-keys\key1.ed25519.pkcs8.b64`. Full reference: **`docs/LICENSING.md`**.
+
+**Open follow-ups (beads):** `awkit-1cc` (hard-enforcement rollout decision) + a global-status-banner /
+periodic-revalidation task (both P2). **Licensing external gates NOT run** (unchanged): clean-machine offline
+VM, packaged NSIS/portable EXE, and the **live Electron GUI walkthrough of the admin/licensing flows** — this
+session verified the UI via Playwright screenshots against the real `global.css` (the in-app Browser-pane
+preview was unavailable). The prior Oracle thread **`awkit-cm8`** remains open (its two external gates).
+
+---
+
+Previously: 2026-07-19 (**Secure-login epic finished + GUI-verifier suite repaired + Oracle re-validated**,
 all merged to **clean `main`** @ `f4f11f3`). The working tree is **clean**, there are **no open PRs**, and
 there is **no uncommitted work** — start the next task from `main` with normal Git flow (branch → commit →
 push → PR; still only push/PR when the user asks). Everything below the "Current Handoff" heading is
 **history**; read this block + the top of `docs/ai/CURRENT_STATE.md` first — older notes about uncommitted
 trees or feature branches are obsolete.
 
-**Shipped this session (all merged to `main`):**
+**Shipped in the secure-login session (PRs #16–#19, merged to `main`):**
 - **PR #16** — GUI-verifier remediation. New shared harness `scripts/lib/gui-verify-harness.mjs`
   (`resolveMainWindow` past the bridge-less splash + `signInFirstRun` past `SecurityGate` + `isolatedLaunchEnv`)
   fixes every real-Electron GUI verifier the splash + gate broke: capacity-settings 12/12, instance-monitor
@@ -86,7 +204,11 @@ Use this file when work is paused, blocked, or moving from one agent/tool to ano
 
 ## Current Handoff
 
-> **Current status (2026-07-19): clean `main`, nothing paused or blocked.** The full detail is the dated
+> **Current status (2026-07-19, later session): clean `main` @ `0a4500f`, nothing paused or blocked.** The
+> newest work is the **admin/licensing 8-phase package** (PR #21) — see the top block of this file +
+> **`docs/LICENSING.md`**. License enforcement ships **default OFF** (`SPECTER_LICENSE_ENFORCE=true`); the
+> open rollout decision is bead **`awkit-1cc`**. The secure-login/Oracle summary below is prior context.
+> The full detail is the dated
 > block at the top of this file + `docs/ai/CURRENT_STATE.md`. Summary: the secure-login epic (`awkit-ekd`) is
 > complete and the Oracle epic (`awkit-kzo`) is closed; both shipped to `main`. The GUI-verifier suite is
 > repaired and idempotent (shared `scripts/lib/gui-verify-harness.mjs`). Oracle is PRODUCTION-CANDIDATE,

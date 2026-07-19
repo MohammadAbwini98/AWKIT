@@ -48,6 +48,8 @@ import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphL
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import {
   SCENARIO_NODE_DEFAULT_HEIGHT,
   SCENARIO_NODE_DEFAULT_WIDTH,
@@ -204,6 +206,8 @@ function ScenarioBuilderContent() {
   const engineRef = useRef<FlowCanvasHandle>(null);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
   const navigation = useNavigation();
+  const { can } = usePermissions();
+  const canSaveWorkflow = can(Permission.WORKFLOW_EDIT);
 
   // Task 07: save success/failure toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -963,11 +967,11 @@ function ScenarioBuilderContent() {
   usePageChrome(
     {
       actions: [
-        { id: "save", label: "Save", variant: "primary", onClick: () => saveScenario(), title: "Save this workflow" }
+        { id: "save", label: "Save", variant: "primary", onClick: () => saveScenario(), title: canSaveWorkflow ? "Save this workflow" : "Requires the Edit Workflows permission", disabled: !canSaveWorkflow }
       ],
       dirty: isDirty
     },
-    [saveScenario, isDirty]
+    [saveScenario, isDirty, canSaveWorkflow]
   );
 
   return (

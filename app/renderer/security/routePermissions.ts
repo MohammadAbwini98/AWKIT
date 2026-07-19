@@ -30,7 +30,8 @@ export const RoutePermissions: Partial<Record<RouteId, Permission>> = {
   reports: Permission.PAGE_REPORTS,
   recorder: Permission.PAGE_RECORDER,
   roadmap: Permission.PAGE_SETTINGS,
-  projectContract: Permission.PAGE_SETTINGS,
+  // projectContract (the "Help Center" doc page) is intentionally NOT gated — it is reference
+  // documentation surfaced once in the pinned footer and available to every signed-in role.
   offlineRuntime: Permission.PAGE_SETTINGS,
   settings: Permission.PAGE_SETTINGS,
   // Super User Administration area

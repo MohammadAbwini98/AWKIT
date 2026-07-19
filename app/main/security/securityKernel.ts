@@ -13,17 +13,29 @@ import type { ColumnCrypto } from "@src/security/crypto/ColumnCrypto";
 import { SECURITY_DB_FILENAME } from "@src/security/store/SecurityStoreSchema";
 
 /**
- * Optional test/dev override for the session idle timeout (ms) via AWKIT_SESSION_IDLE_MS. Only a small,
- * positive finite number is honored so the proactive idle-lock can be exercised without a 30-minute wait;
- * production uses DEFAULT_SESSION_POLICY. The absolute timeout is left untouched.
+ * Optional test/dev overrides, each honored only as a positive finite number so a malformed value can
+ * never weaken production defaults:
+ *   - AWKIT_SESSION_IDLE_MS  — session idle timeout (ms), so the proactive idle-lock can be exercised
+ *     without a 30-minute wait (absolute timeout untouched; production uses DEFAULT_SESSION_POLICY).
+ *   - AWKIT_REAUTH_WINDOW_MS — the sensitive-op re-auth window (ms), so the ReauthDialog path can be
+ *     exercised without waiting out the 5-minute default.
  */
 function resolveKernelOptions(): SecurityKernelOptions {
-  const raw = process.env.AWKIT_SESSION_IDLE_MS;
-  const idleMs = raw ? Number(raw) : NaN;
+  const options: SecurityKernelOptions = {};
+
+  const idleRaw = process.env.AWKIT_SESSION_IDLE_MS;
+  const idleMs = idleRaw ? Number(idleRaw) : NaN;
   if (Number.isFinite(idleMs) && idleMs > 0) {
-    return { sessionPolicy: { ...DEFAULT_SESSION_POLICY, idleMs } };
+    options.sessionPolicy = { ...DEFAULT_SESSION_POLICY, idleMs };
   }
-  return {};
+
+  const reauthRaw = process.env.AWKIT_REAUTH_WINDOW_MS;
+  const reauthMs = reauthRaw ? Number(reauthRaw) : NaN;
+  if (Number.isFinite(reauthMs) && reauthMs > 0) {
+    options.reauthWindowMs = reauthMs;
+  }
+
+  return options;
 }
 
 const electronColumnCrypto: ColumnCrypto = {

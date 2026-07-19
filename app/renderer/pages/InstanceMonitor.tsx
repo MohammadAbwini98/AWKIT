@@ -1,6 +1,8 @@
 import { Activity, ChevronDown, FileImage, MonitorDot, Pause, Play, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import { WorkflowRunCard, type WorkflowCardParams, type WorkflowCardStatus } from "../components/instances/WorkflowRunCard";
 import { RecoverableRunsPanel } from "../components/instances/RecoverableRunsPanel";
 import { ProtectedLoginHandoffPanel, type ProtectedLoginCapabilities } from "../components/auth/ProtectedLoginHandoffPanel";
@@ -86,6 +88,9 @@ const baseRunProfile: ConcurrentRunProfile = {
 };
 
 export function InstanceMonitor() {
+  const { can } = usePermissions();
+  const canExecute = can(Permission.WORKFLOW_EXECUTE);
+  const canStop = can(Permission.WORKFLOW_STOP);
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
   const [maxParallel, setMaxParallel] = useState(3);
@@ -610,6 +615,8 @@ export function InstanceMonitor() {
                     maxConcurrentRuns={execDefaults.maxConcurrentRuns}
                     onChange={(patch) => updateCardParams(workflow.id, patch)}
                     onRun={() => void runWorkflowFromCard(workflow)}
+                    runDisabled={!canExecute}
+                    runDisabledReason="Requires the Execute Workflows permission"
                   />
                 );
               })}
@@ -705,30 +712,30 @@ export function InstanceMonitor() {
 
         {/* Monitor-wide controls (apply across every running workflow) */}
         <div className="toolbar-strip im-monitor-controls" style={{ flexWrap: "wrap", gap: "8px" }}>
-          <button disabled={!hasActive} id="im-pause-all" onClick={pauseAll} title={hasActive ? "Pause all active instances" : "No active instances"} type="button">
+          <button disabled={!hasActive || !canStop} id="im-pause-all" onClick={pauseAll} title={!canStop ? "Requires the Stop Workflows permission" : hasActive ? "Pause all active instances" : "No active instances"} type="button">
             <Pause size={15} />
             Pause All
           </button>
-          <button disabled={!hasPaused} id="im-resume-all" onClick={resumeAll} title={hasPaused ? "Resume all paused instances" : "No paused instances"} type="button">
+          <button disabled={!hasPaused || !canStop} id="im-resume-all" onClick={resumeAll} title={!canStop ? "Requires the Stop Workflows permission" : hasPaused ? "Resume all paused instances" : "No paused instances"} type="button">
             <RotateCcw size={15} />
             Resume All
           </button>
           <button
             className="im-stop-all-button"
-            disabled={!hasStoppable || stoppingAll}
+            disabled={!hasStoppable || stoppingAll || !canStop}
             id="im-stop-all"
             onClick={requestStopAll}
-            title={hasStoppable ? `Stop ${stoppableCount} pending or running instances across all workflows` : "No pending or running instances"}
+            title={!canStop ? "Requires the Stop Workflows permission" : hasStoppable ? `Stop ${stoppableCount} pending or running instances across all workflows` : "No pending or running instances"}
             type="button"
           >
             <Square size={15} />
             {stoppingAll ? "Stopping…" : "Stop Pending & Running"}
           </button>
           <button
-            disabled={counts.completed === 0}
+            disabled={counts.completed === 0 || !canStop}
             id="im-clear-completed"
             onClick={() => void clearCompleted()}
-            title={counts.completed > 0 ? "Remove completed/failed/cancelled rows (all workflows)" : "No completed instances to clear"}
+            title={!canStop ? "Requires the Stop Workflows permission" : counts.completed > 0 ? "Remove completed/failed/cancelled rows (all workflows)" : "No completed instances to clear"}
             type="button"
           >
             <Trash2 size={15} />
@@ -786,10 +793,10 @@ export function InstanceMonitor() {
               <input type="number" min="0" step="50" value={startDelayMs} onChange={(event) => setStartDelayMs(Number(event.target.value))} style={{ width: "80px" }} />
             </label>
             <button
-              disabled={validationErrors.length > 0}
+              disabled={validationErrors.length > 0 || !canExecute}
               id="im-start-all"
               onClick={() => void startAll()}
-              title={validationErrors.length ? validationErrors.join(" ") : "Start the selected workflow"}
+              title={!canExecute ? "Requires the Execute Workflows permission" : validationErrors.length ? validationErrors.join(" ") : "Start the selected workflow"}
               type="button"
             >
               <Play size={15} />
@@ -943,40 +950,40 @@ export function InstanceMonitor() {
                       <td>
                         <div className="table-actions instance-controls">
                           <button
-                            disabled={!isRunning}
-                            title={isRunning ? "Pause this instance" : "Instance is not running"}
+                            disabled={!isRunning || !canStop}
+                            title={!canStop ? "Requires the Stop Workflows permission" : isRunning ? "Pause this instance" : "Instance is not running"}
                             type="button"
                             onClick={() => updateInstanceStatus(instance.instanceId, "paused")}
                           >
                             <Pause size={13} />
                           </button>
                           <button
-                            disabled={!isPaused}
-                            title={isPaused ? "Resume this instance" : "Instance is not paused"}
+                            disabled={!isPaused || !canStop}
+                            title={!canStop ? "Requires the Stop Workflows permission" : isPaused ? "Resume this instance" : "Instance is not paused"}
                             type="button"
                             onClick={() => updateInstanceStatus(instance.instanceId, "running")}
                           >
                             <Play size={13} />
                           </button>
                           <button
-                            disabled={!isStoppable}
-                            title={isStoppable ? "Stop this instance" : "Instance cannot be stopped"}
+                            disabled={!isStoppable || !canStop}
+                            title={!canStop ? "Requires the Stop Workflows permission" : isStoppable ? "Stop this instance" : "Instance cannot be stopped"}
                             type="button"
                             onClick={() => updateInstanceStatus(instance.instanceId, "cancelled")}
                           >
                             <Square size={13} />
                           </button>
                           <button
-                            disabled={!isDone}
-                            title={isDone ? "Repeat (re-run) this instance" : "Instance must finish before it can be repeated"}
+                            disabled={!isDone || !canExecute}
+                            title={!canExecute ? "Requires the Execute Workflows permission" : isDone ? "Repeat (re-run) this instance" : "Instance must finish before it can be repeated"}
                             type="button"
                             onClick={() => void repeatInstance(instance.instanceId)}
                           >
                             <RefreshCw size={13} />
                           </button>
                           <button
-                            disabled={!isDone}
-                            title={isDone ? "Remove this instance" : "Cannot remove a running instance"}
+                            disabled={!isDone || !canStop}
+                            title={!canStop ? "Requires the Stop Workflows permission" : isDone ? "Remove this instance" : "Cannot remove a running instance"}
                             type="button"
                             onClick={() => removeInstance(instance.instanceId)}
                             style={{ color: isDone ? "var(--awkit-danger)" : "inherit" }}

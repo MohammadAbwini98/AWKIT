@@ -10,7 +10,8 @@ import { createDataSourceProfileStore } from "../profileStores";
 import { getResourcesRoot, getRuntimeDataRoot } from "../appPaths";
 import { getConfiguredPaths } from "../storagePaths";
 import { isPathInside, isReadableDataSourceFile } from "@src/utils/pathSafety";
-import { assertTrustedSender } from "./senderGuard";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 
 /** Max size of a JSON file we will open/preview as a data source (audit §14 — huge-file DoS guard). */
 const MAX_DATA_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -63,30 +64,48 @@ interface CreateFromScratchPayload {
 export function registerDataSourceIpc(): void {
   const store = createDataSourceProfileStore();
 
-  ipcMain.handle("dataSources:list", async () => ensureDefaultDataSource(store));
+  ipcMain.handle("dataSources:list", async () => store.list());
   ipcMain.handle("dataSources:get", async (_, id: string) => store.get(id));
-  ipcMain.handle("dataSources:create", async (_, profile: JsonArrayDataSourceProfile) => store.create(profile));
-  ipcMain.handle("dataSources:update", async (_, id: string, profile: JsonArrayDataSourceProfile) => store.update(id, profile));
-  ipcMain.handle("dataSources:delete", async (_, id: string) => store.delete(id));
-  ipcMain.handle("dataSources:clone", async (_, id: string, nextId?: string) => store.clone(id, nextId));
+  ipcMain.handle("dataSources:create", async (event, profile: JsonArrayDataSourceProfile) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return store.create(profile);
+  });
+  ipcMain.handle("dataSources:update", async (event, id: string, profile: JsonArrayDataSourceProfile) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return store.update(id, profile);
+  });
+  ipcMain.handle("dataSources:delete", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return store.delete(id);
+  });
+  ipcMain.handle("dataSources:clone", async (event, id: string, nextId?: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return store.clone(id, nextId);
+  });
   ipcMain.handle("dataSources:export", async (_, id: string) => store.export(id));
-  ipcMain.handle("dataSources:import", async (_, profile: JsonArrayDataSourceProfile) => store.import(profile));
-  ipcMain.handle("dataSources:browseJson", async (_, existingId?: string) => browseJsonDataSource(store, existingId));
+  ipcMain.handle("dataSources:import", async (event, profile: JsonArrayDataSourceProfile) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return store.import(profile);
+  });
+  ipcMain.handle("dataSources:browseJson", async (event, existingId?: string) => {
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
+    return browseJsonDataSource(store, existingId);
+  });
   ipcMain.handle("dataSources:preview", async (_, id: string, path?: string) => previewDataSource(store, id, path));
   ipcMain.handle("dataSources:getJsonPaths", async (_, id: string) => getJsonPaths(store, id));
 
   // ── Visual table editor channels ──────────────────────────────────────────
   ipcMain.handle("dataSources:readJson", async (_, id: string) => readDataSourceRows(store, id));
   ipcMain.handle("dataSources:writeJson", async (event, id: string, rows: DataRow[]) => {
-    assertTrustedSender(event);
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return writeDataSourceRows(store, id, rows);
   });
   ipcMain.handle("dataSources:createFromScratch", async (event, payload: CreateFromScratchPayload) => {
-    assertTrustedSender(event);
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return createFromScratch(store, payload);
   });
 
-  ipcMain.handle("dataSource:list", async () => ensureDefaultDataSource(store));
+  ipcMain.handle("dataSource:list", async () => store.list());
 }
 
 // ── Table editor helpers (pure logic shared via @src/data/TableEditing) ───────
@@ -270,24 +289,6 @@ async function browseJsonDataSource(store: ReturnType<typeof createDataSourcePro
     paths,
     data
   };
-}
-
-async function ensureDefaultDataSource(store: ReturnType<typeof createDataSourceProfileStore>): Promise<JsonArrayDataSourceProfile[]> {
-  const existing = await store.list();
-  if (existing.length > 0) return existing;
-
-  const sample: JsonArrayDataSourceProfile = {
-    id: "customers-json",
-    name: "customers.json",
-    type: "jsonArray",
-    file: "resources/sample-data/customers.json",
-    path: "$.customers",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  await store.import(sample);
-  return store.list();
 }
 
 async function previewDataSource(
