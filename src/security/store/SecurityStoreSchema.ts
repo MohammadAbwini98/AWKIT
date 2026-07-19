@@ -75,12 +75,23 @@ export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_security_sessions_user ON security_sessions (userId)`,
       `CREATE INDEX IF NOT EXISTS idx_security_audit_at ON security_audit (at)`
     ]
+  },
+  {
+    // Phase 3 (RBAC): per-user assigned roles as a JSON array of built-in role ids. Backfill the
+    // protected Super User with the SuperUser role so the existing bootstrapped account keeps full
+    // control. `status` additionally accepts "archived" (soft-delete) — no column change, it is TEXT.
+    version: 2,
+    name: "rbac-roles",
+    statements: [
+      `ALTER TABLE security_users ADD COLUMN roles TEXT NOT NULL DEFAULT '[]'`,
+      `UPDATE security_users SET roles = '["SuperUser"]' WHERE isProtectedSuperUser = 1`
+    ]
   }
 ];
 
 // ── Row/record shapes ────────────────────────────────────────────────────────
 
-export type UserStatus = "active" | "disabled";
+export type UserStatus = "active" | "disabled" | "archived";
 
 /** A user record as used in the trusted layer. `passwordSecret` is the UNWRAPPED scrypt record. */
 export interface UserRecord {
@@ -97,6 +108,8 @@ export interface UserRecord {
   lastLoginAt: string | null;
   passwordChangedAt: string;
   isProtectedSuperUser: boolean;
+  /** Assigned built-in role ids (JSON array in the DB). Empty for a user with no role yet. */
+  roles: string[];
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -124,4 +137,16 @@ export interface AuditEvent {
   reasonCode?: string | null;
   sessionId?: string | null;
   detail?: Record<string, unknown> | null;
+}
+
+/** A read-back audit row (newest-first) for the Audit Log admin view. Non-secret projection. */
+export interface AuditRecord {
+  seq: number;
+  at: string;
+  actorName: string | null;
+  eventType: string;
+  targetType: string | null;
+  targetId: string | null;
+  result: "success" | "failure";
+  reasonCode: string | null;
 }

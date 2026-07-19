@@ -83,4 +83,20 @@ export class SessionManager {
   async revokeOthersForUser(userId: string, keepSessionId: string): Promise<void> {
     await this.store.revokeSessionsForUserExcept(userId, keepSessionId, new Date(this.now()).toISOString());
   }
+
+  /** Record a fresh re-authentication on the session (used to gate sensitive admin operations). */
+  async markReauthenticated(sessionId: string): Promise<void> {
+    await this.store.touchReauth(sessionId, new Date(this.now()).toISOString());
+  }
+
+  /**
+   * Age (ms) of the last re-authentication on a session, or null if the session is gone. A just-created
+   * session counts as freshly reauthed (create sets lastReauthAt = now).
+   */
+  reauthAgeMs(sessionId: string): number | null {
+    const session = this.store.getSession(sessionId);
+    if (!session || session.revokedAt) return null;
+    const last = session.lastReauthAt ? Date.parse(session.lastReauthAt) : Date.parse(session.createdAt);
+    return this.now() - last;
+  }
 }

@@ -8,6 +8,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { AuthReason, type AuthReasonCode } from "@src/security/errors/ReasonCodes";
+import { effectivePermissions, SUPER_USER_ROLE } from "@src/security/authz/Permissions";
 import { hashPassword, needsRehash, verifyPassword } from "@src/security/crypto/PasswordHasher";
 import { validatePassword } from "./PasswordPolicy";
 import { normalizeUsername, validateUsername } from "./UsernameRules";
@@ -106,6 +107,7 @@ export class AuthenticationService {
       lastLoginAt: null,
       passwordChangedAt: nowIso,
       isProtectedSuperUser: true,
+      roles: [SUPER_USER_ROLE],
       createdAt: nowIso,
       createdBy: "bootstrap",
       updatedAt: nowIso,
@@ -235,6 +237,22 @@ export class AuthenticationService {
     return { ok: true };
   }
 
+  // ── Re-authentication (gates sensitive admin operations, §11) ────────────────
+
+  async reauthenticate(sessionRef: string, password: string): Promise<{ ok: true } | { ok: false; reason: AuthReasonCode }> {
+    const resolution = await this.sessions.validate(sessionRef);
+    if (!resolution.valid) return { ok: false, reason: AuthReason.SESSION_EXPIRED };
+    const user = this.store.getUserById(resolution.userId);
+    if (!user || user.status !== "active") return { ok: false, reason: AuthReason.SESSION_EXPIRED };
+    if (!verifyPassword(password, user.passwordSecret)) {
+      await this.audit({ eventType: "REAUTH", result: "failure", reasonCode: AuthReason.INVALID_CREDENTIALS, actorUserId: user.id, sessionId: sessionRef });
+      return { ok: false, reason: AuthReason.INVALID_CREDENTIALS };
+    }
+    await this.sessions.markReauthenticated(sessionRef);
+    await this.audit({ eventType: "REAUTH", result: "success", actorUserId: user.id, sessionId: sessionRef });
+    return { ok: true };
+  }
+
   // ── Internals ────────────────────────────────────────────────────────────────
 
   private isLocked(user: UserRecord): boolean {
@@ -259,13 +277,16 @@ export class AuthenticationService {
   }
 
   private snapshot(user: UserRecord, sessionRef: string): PrincipalSnapshot {
+    const permissions = effectivePermissions({ roles: user.roles, isProtectedSuperUser: user.isProtectedSuperUser });
     return {
       userId: user.id,
       username: user.username,
       displayName: user.displayName,
       isProtectedSuperUser: user.isProtectedSuperUser,
       mustChangePassword: user.mustChangePassword,
-      sessionRef
+      sessionRef,
+      roles: user.isProtectedSuperUser && !user.roles.includes(SUPER_USER_ROLE) ? [...user.roles, SUPER_USER_ROLE] : user.roles,
+      permissions: [...permissions]
     };
   }
 

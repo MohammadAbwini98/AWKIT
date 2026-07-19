@@ -34,6 +34,21 @@ export const AuthReason = {
   PROVIDER_DISABLED: "PROVIDER_DISABLED",
   /** Secure OS storage is unavailable, so credentials cannot be read/written safely. */
   STORAGE_UNAVAILABLE: "STORAGE_UNAVAILABLE",
+  // ── Authorization / administration (Phase 3) ─────────────────────────────────
+  /** The principal lacks the permission required for the requested operation (deny-by-default). */
+  NOT_AUTHORIZED: "NOT_AUTHORIZED",
+  /** A sensitive operation requires a fresh password re-confirmation (within the reauth window). */
+  REAUTH_REQUIRED: "REAUTH_REQUIRED",
+  /** Operation refused because it would remove/disable/demote the final active Super User. */
+  LAST_ACTIVE_SUPER_USER: "LAST_ACTIVE_SUPER_USER",
+  /** The protected Super User cannot be deleted, disabled, demoted, or have its protection removed. */
+  PROTECTED_SUPER_USER: "PROTECTED_SUPER_USER",
+  /** The requested username is already taken. */
+  USERNAME_TAKEN: "USERNAME_TAKEN",
+  /** The target user does not exist. */
+  USER_NOT_FOUND: "USER_NOT_FOUND",
+  /** A supplied role id is not a known built-in role. */
+  INVALID_ROLE: "INVALID_ROLE",
   /** Generic catch-all; details only in the audit log. */
   UNKNOWN: "UNKNOWN"
 } as const;
