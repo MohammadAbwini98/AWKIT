@@ -4,6 +4,69 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Fix all E2E-assessment defects (DEF-003/004/005 + OBS-001/002)
+
+- **Task:** implement the plan to fix the open E2E-QA findings on `main` @ `0a4500f` — sender-bound
+  trusted authorization, remove first-run seeding, footer nav, status labels, reauth-window override.
+- **Fix A (DEF-003 / bd `awkit-64x`):** removed first-run sample seeding — `profileStores.ts`
+  `seedFolder` dropped; `dataSource.ipc.ts` `ensureDefaultDataSource` + `runtimeInput.ipc.ts`
+  `ensureDefaultRuntimeInputs` deleted (stores return `store.list()`). Samples stay in `resources/`
+  via `seed:mock-fixtures`.
+- **Fix B (DEF-004 / bd `awkit-b92`):** new `app/main/security/sessionContext.ts` — main-owned,
+  sender-bound session registry (`event.sender.id → sessionRef`; bound on login/change-password/
+  validate, unbound on logout/destroy/expiry, match-guarded). `assertSenderPermission(event, perm)`
+  gates `execution:*` (real-run/repeat/recovery = EXECUTE; pause/resume/stop/… = STOP; dry-run open),
+  flow/workflow CRUD (create/clone/import = CREATE, update = EDIT, delete = DELETE), data-source CRUD
+  = DATASOURCE_MANAGE, substantive `settings.update`/reset/import = SETTINGS_EDIT. Fails closed.
+  Renderer B4 gating via `usePermissions().can()` across libraries, designers, DataSource pages,
+  InstanceMonitor (+ `NodeOptionsMenu`/`WorkflowRunCard` disabled props).
+- **Fix C (DEF-005):** footer Settings filtered by `can(PAGE_SETTINGS)`; Help Center universal
+  (`projectContract` dropped from `RoutePermissions` + the System nav group).
+- **Fix D/E:** StatusBar → "Active flows/browsers" (OBS-001); `AWKIT_REAUTH_WINDOW_MS` dev/test
+  override wired through `SecurityKernelOptions.reauthWindowMs` (OBS-002).
+- **New files:** `app/main/security/sessionContext.ts`, `scripts/verify-session-context.mts` +
+  `verify:session-context` alias.
+- **Modified (main):** `profileStores.ts`, `ipc/{dataSource,runtimeInput,execution,flow,scenario,settings,
+  security}.ts`, `security/{SecurityKernel,securityKernel}.ts`. **(renderer):** `LeftNavigation`,
+  `routePermissions`, `StatusBar`, `WorkflowsLibrary`, `FlowLibrary`, `DataSourceManager`,
+  `DataSourceEditor`, `FlowChartDesigner`, `ScenarioBuilder`, `InstanceMonitor`, `WorkflowRunCard`,
+  `components/shared/NodeOptionsMenu`. **(tests):** `verify-e2e-rbac-gui.mjs`, `verify-e2e-route-sweep.mjs`.
+- **Tests (all green):** build clean; `verify:session-context` 11/11; `verify:e2e-rbac` **49/49**;
+  `verify:e2e-sweep` 13/13; `verify:e2e-auth` 30 · `verify:e2e-licensing` 22 · `verify:runner` 82 ·
+  `verify:authz` 40 · `verify:auth` 49 · `verify:security` 39 · `verify:licensing` 56 ·
+  `verify:ipc-contract` 4 · `verify:auth-gui` 18 · `verify:admin-gui` 11 · `verify:avatar` 24.
+- **Beads:** closed `awkit-64x` + `awkit-b92`; filed Oracle-backend-gating (P2) + `awkit-2d8`
+  (live ReauthDialog GUI, P3); `bd remember` key `sender-bound-authz`.
+- **Not committed.** Residual: `oracle.ipc.ts` backend not yet gated (UI gated); live GUI ReauthDialog
+  not automated (a global short reauth window would destabilize the single-launch seed flow).
+
+---
+
+## 2026-07-19 — Claude — E2E QA assessment: executable suites + reports (bd awkit-xyo)
+
+- **Task:** complete the adapted full E2E QA of `main` @ `0a4500f` (prior session did discovery +
+  coverage matrix + specs; this session wrote and ran the executables, healed test defects, and
+  produced the reports).
+- **New files:** `scripts/lib/e2e-qa-lib.mjs` (shared login/nav/admin/direct-IPC drivers),
+  `scripts/verify-e2e-auth-gui.mjs`, `scripts/verify-e2e-rbac-gui.mjs`,
+  `scripts/verify-e2e-licensing-gui.mjs`, `scripts/verify-e2e-route-sweep.mjs`,
+  `docs/testing/E2E_EXECUTION_REPORT.md`, `docs/testing/E2E_DEFECTS.md`; 4 npm aliases (`verify:e2e-*`).
+- **Modified:** `scripts/verify-auth-gui.mjs` + `scripts/verify-admin-gui.mjs` (healed stale
+  post-PR-#21 selectors — E2E-DEF-001/-002), `package.json`, `docs/testing/E2E_COVERAGE_MATRIX.md`,
+  `docs/ai/{CURRENT_STATE,TESTING,COMMANDS,KNOWN_ISSUES,TASK_LOG,HANDOFF}.md`.
+- **Tests run (all green):** `verify:e2e-auth` 30/30 · `verify:e2e-rbac` 42/42 ·
+  `verify:e2e-licensing` 22/22 · `verify:e2e-sweep` 13/13 · repaired `verify:auth-gui` 18/18 ·
+  `verify:admin-gui` 11/11 · regression `verify:licensing` 56 / `verify:avatar` 24 /
+  `verify:ipc-contract` 4 / `verify:authz` 40 / `verify:auth` 49. Build was green at session start;
+  no production code changed.
+- **Findings:** product defect bd `awkit-64x` (fresh install seeds bundled samples as real records);
+  documented gaps on bd `awkit-b92` (settings/execution IPC not role-gated; footer nav unfiltered);
+  2 test defects fixed. Full detail: `docs/testing/E2E_DEFECTS.md`.
+- **Result:** assessment complete; external gates (packaged EXE, clean-machine VM, multi-day soak)
+  remain out of scope on this host.
+
+---
+
 ## 2026-07-19 — Claude — Admin/Licensing package: Phase 6 (validation) + Phase 7 (docs)
 
 - **Validation:** `npm run build` (tsc + bundles) clean; `verify:licensing` 56/56; `verify:avatar` 24/24;

@@ -135,7 +135,12 @@
     "ai:memory": "node scripts/ai-memory/check-memory.mjs",
     "ai:memory:check": "node scripts/ai-memory/check-memory.mjs",
     "verify:authz": "tsx scripts/verify-authz.mts",
-    "verify:admin-gui": "node scripts/verify-admin-gui.mjs"
+    "verify:session-context": "tsx scripts/verify-session-context.mts",
+    "verify:admin-gui": "node scripts/verify-admin-gui.mjs",
+    "verify:e2e-auth": "node scripts/verify-e2e-auth-gui.mjs",
+    "verify:e2e-rbac": "node scripts/verify-e2e-rbac-gui.mjs",
+    "verify:e2e-licensing": "node scripts/verify-e2e-licensing-gui.mjs",
+    "verify:e2e-sweep": "node scripts/verify-e2e-route-sweep.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

@@ -18,7 +18,8 @@ import { executionEngine } from "@src/runner/ExecutionEngine";
 import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { ConcurrencyLimits } from "@src/runner/concurrency/ConcurrencyConfig";
 import { getSessionService } from "./session.ipc";
-import { assertTrustedSender } from "./senderGuard";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
 import { evaluateRunGate } from "../licensing/licenseRuntime";
@@ -48,18 +49,26 @@ export function registerExecutionIpc(): void {
   ipcMain.handle("execution:list", async () => executionEngine.getInstances());
   ipcMain.handle("execution:validate", async (_, workflowId: string) => validateWorkflow(workflowId));
   ipcMain.handle("execution:runWorkflow", async (event, request: RunWorkflowRequest) => {
-    assertTrustedSender(event);
+    // A REAL run (dryRun:false) requires execute permission; validation/dry-run stays open (view-level —
+    // no browser is launched, so Viewer's pre-run preview still works). Authorization (who) precedes the
+    // licensing gate (which machine) inside runWorkflow — independent checks, authorization first.
+    if (request.dryRun === false) {
+      await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
+    }
     return runWorkflow(request);
   });
-  ipcMain.handle("execution:pauseInstance", async (_, instanceId: string) => {
+  ipcMain.handle("execution:pauseInstance", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     executionEngine.pauseInstance(instanceId);
     return { instanceId, state: "pause-requested" };
   });
-  ipcMain.handle("execution:resumeInstance", async (_, instanceId: string) => {
+  ipcMain.handle("execution:resumeInstance", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     executionEngine.resumeInstance(instanceId);
     return { instanceId, state: "resume-requested" };
   });
-  ipcMain.handle("execution:retryHandoff", async (_, instanceId: string) => {
+  ipcMain.handle("execution:retryHandoff", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     try {
       executionEngine.retryHandoff(instanceId);
       return { success: true };
@@ -67,15 +76,18 @@ export function registerExecutionIpc(): void {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle("execution:stopInstance", async (_, instanceId: string) => {
+  ipcMain.handle("execution:stopInstance", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     executionEngine.stopInstance(instanceId);
     return { instanceId, state: "stop-requested" };
   });
-  ipcMain.handle("execution:stopAll", async () => {
+  ipcMain.handle("execution:stopAll", async (event) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     executionEngine.stopAll();
     return { state: "stop-all-requested" };
   });
-  ipcMain.handle("execution:removeInstance", async (_, instanceId: string) => {
+  ipcMain.handle("execution:removeInstance", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_STOP);
     try {
       executionEngine.removeInstance(instanceId);
       return { success: true };
@@ -83,7 +95,8 @@ export function registerExecutionIpc(): void {
       return { success: false, error: e.message };
     }
   });
-  ipcMain.handle("execution:repeatInstance", async (_, instanceId: string) => {
+  ipcMain.handle("execution:repeatInstance", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
     try {
       executionEngine.repeatInstance(instanceId);
       return { success: true };
@@ -95,7 +108,8 @@ export function registerExecutionIpc(): void {
   ipcMain.handle("execution:runtimeStatus", async () => executionEngine.getRuntimeStatus());
   // Recoverable/interrupted prior runs (Phase 4C): durable detail + explicit user verdicts.
   ipcMain.handle("execution:recoveryDetails", async (_, instanceId: string) => executionEngine.getRecoveryDetails(instanceId));
-  ipcMain.handle("execution:recoveryAction", async (_, instanceId: string, action: "markReviewed" | "markAbandoned") => {
+  ipcMain.handle("execution:recoveryAction", async (event, instanceId: string, action: "markReviewed" | "markAbandoned") => {
+    await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
     try {
       await executionEngine.applyRecoveryAction(instanceId, action);
       return { success: true };

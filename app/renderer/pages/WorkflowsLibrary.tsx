@@ -2,6 +2,8 @@ import { Copy, Download, FolderOpen, MoreVertical, Plus, RefreshCw, Trash2, Uplo
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { useNavigation } from "../state/navigation";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import { PromptDialog } from "../components/shared/PromptDialog";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { NodeOptionsMenu, type NodeMenuItem } from "../components/shared/NodeOptionsMenu";
@@ -64,6 +66,9 @@ const workflowFilterFields: FilterFieldDef[] = [
 
 export function WorkflowsLibrary() {
   const { navigateTo } = useNavigation();
+  const { can } = usePermissions();
+  const canCreate = can(Permission.WORKFLOW_CREATE);
+  const canDelete = can(Permission.WORKFLOW_DELETE);
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -175,9 +180,9 @@ export function WorkflowsLibrary() {
   const workflowMenuItems: NodeMenuItem[] = menuWorkflow
     ? [
         { id: "open", label: "Open in Builder", icon: FolderOpen, onSelect: () => void openInBuilder(menuWorkflow.id) },
-        { id: "clone", label: "Clone", icon: Copy, onSelect: () => void cloneWorkflow(menuWorkflow.id) },
+        { id: "clone", label: "Clone", icon: Copy, disabled: !canCreate, title: canCreate ? undefined : "Requires the Create Workflows permission", onSelect: () => void cloneWorkflow(menuWorkflow.id) },
         { id: "export", label: "Export JSON", icon: Download, onSelect: () => void exportWorkflow(menuWorkflow.id, menuWorkflow.name) },
-        { id: "delete", label: "Delete", icon: Trash2, tone: "danger", onSelect: () => setDeleteConfirmId(menuWorkflow.id) }
+        { id: "delete", label: "Delete", icon: Trash2, tone: "danger", disabled: !canDelete, title: canDelete ? undefined : "Requires the Delete Workflows permission", onSelect: () => setDeleteConfirmId(menuWorkflow.id) }
       ]
     : [];
 
@@ -190,11 +195,11 @@ export function WorkflowsLibrary() {
         </div>
 
         <div className="library-toolbar">
-          <button className="toolbar-button primary" id="wl-create-new" onClick={() => setNamingWorkflow(true)} type="button">
+          <button className="toolbar-button primary" id="wl-create-new" onClick={() => setNamingWorkflow(true)} disabled={!canCreate} title={canCreate ? undefined : "Requires the Create Workflows permission"} type="button">
             <Plus size={15} />
             Create Workflow
           </button>
-          <button className="toolbar-button" id="wl-import" onClick={() => importInputRef.current?.click()} title="Import a workflow JSON file" type="button">
+          <button className="toolbar-button" id="wl-import" onClick={() => importInputRef.current?.click()} disabled={!canCreate} title={canCreate ? "Import a workflow JSON file" : "Requires the Create Workflows permission"} type="button">
             <Upload size={15} />
             Import
           </button>
@@ -241,7 +246,7 @@ export function WorkflowsLibrary() {
             title="No workflows created yet."
             hint="Create your first workflow by linking saved flows."
             action={
-              <button className="toolbar-button primary" id="wl-empty-create" onClick={() => setNamingWorkflow(true)} type="button">
+              <button className="toolbar-button primary" id="wl-empty-create" onClick={() => setNamingWorkflow(true)} disabled={!canCreate} title={canCreate ? undefined : "Requires the Create Workflows permission"} type="button">
                 <Plus size={14} />
                 Create Workflow
               </button>

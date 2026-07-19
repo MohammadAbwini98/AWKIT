@@ -1,5 +1,4 @@
-import { join } from "node:path";
-import { getResourcesRoot, getRuntimePaths } from "./appPaths";
+import { getRuntimePaths } from "./appPaths";
 import { getConfiguredPaths } from "./storagePaths";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { RuntimeInputDefinition } from "@src/data/RuntimeInputDefinition";
@@ -24,7 +23,6 @@ export interface InstanceProfile {
 export function createFlowProfileStore(): JsonProfileStore<FlowProfile> {
   return new JsonProfileStore<FlowProfile>({
     folder: getConfiguredPaths().flows,
-    seedFolder: join(getResourcesRoot(), "sample-flows"),
     createClone: (profile, nextId) => ({
       ...profile,
       id: nextId,
@@ -36,7 +34,6 @@ export function createFlowProfileStore(): JsonProfileStore<FlowProfile> {
 export function createWorkflowProfileStore(): JsonProfileStore<WorkflowProfile> {
   return new JsonProfileStore<WorkflowProfile>({
     folder: getConfiguredPaths().workflows,
-    seedFolder: join(getResourcesRoot(), "sample-workflows"),
     createClone: (profile, nextId) => ({
       ...profile,
       id: nextId,

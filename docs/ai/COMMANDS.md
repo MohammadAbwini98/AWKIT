@@ -132,6 +132,28 @@ npm run verify:stress:artifacts   # tsx scripts/verify-stress-artifacts.mts — 
                             # artifacts: complete, valid, never mixed between runs, secrets masked
                             # Stress tunables: AWKIT_STRESS_INSTANCES=25 AWKIT_STRESS_MAX_BROWSERS=2
                             # AWKIT_STRESS_TIMEOUT_MS=120000
+# Security / RBAC / licensing verifiers (added 2026-07-18/19):
+npm run verify:security     # tsx scripts/verify-security.mts — sender guard, IPC hardening (39)
+npm run verify:auth         # tsx scripts/verify-auth.mts — auth domain: policy, sessions, rotation (49)
+npm run verify:auth-gui     # node scripts/verify-auth-gui.mjs — REAL Electron sign-in walkthrough incl.
+                            # AccountMenu sign-out, dark login, proactive idle lock (18; needs build)
+npm run verify:authz        # tsx scripts/verify-authz.mts — RBAC deny-by-default, reauth, escalation guards (40)
+npm run verify:session-context # tsx scripts/verify-session-context.mts — main-owned sender→session registry +
+                            # assertSenderPermission fail-closed gating of non-admin IPC (11)
+npm run verify:admin-gui    # node scripts/verify-admin-gui.mjs — REAL Electron Super User admin area incl.
+                            # real Licensing page (11; needs build)
+npm run verify:avatar       # tsx scripts/verify-avatar-initials.mts — initials + palette (24)
+npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain + IPC RBAC (56)
+# E2E QA suites (2026-07-19 assessment — specs/e2e/*, report docs/testing/; all REAL Electron, isolated
+# fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):
+npm run verify:e2e-auth     # full auth lifecycle: first-run, create/duplicate/double-click, enumeration,
+                            # forced change, disable/reset, idle lock (30)
+npm run verify:e2e-rbac     # per-role nav/route-guard/direct-IPC authorization; Viewer settings.update +
+                            # real run now DENIED, footer nav filtered (awkit-b92 fixed) (49)
+npm run verify:e2e-licensing# Licensing page + activation-request privacy + forged import +
+                            # SPECTER_LICENSE_ENFORCE run-gate ON/OFF (22; seeds its own fixtures)
+npm run verify:e2e-sweep    # all 30 nav routes render console-clean + screenshots, theme toggle,
+                            # resize, keyboard/:focus-visible (13)
 npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import test-only mock flows/workflows/data source into runtime userData (for manual GUI testing)
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory

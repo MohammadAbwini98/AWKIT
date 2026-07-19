@@ -32,6 +32,8 @@ import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
 import { usePageChrome } from "../state/pageChrome";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, NodeConfig, StepType, ValueSource } from "@src/profiles/FlowProfile";
 import { connectorKind } from "@src/profiles/FlowProfile";
 
@@ -446,6 +448,9 @@ function FlowChartDesignerContent() {
     [setNodes]
   );
 
+  const { can } = usePermissions();
+  const canSaveFlow = can(Permission.WORKFLOW_EDIT);
+
   const saveFlow = useCallback(async () => {
     if (connectorIssues.length) {
       setToast({ tone: "error", message: `Cannot save: ${connectorIssues[0]}` });
@@ -843,12 +848,12 @@ function FlowChartDesignerContent() {
   usePageChrome(
     {
       actions: [
-        { id: "save", label: "Save", variant: "primary", onClick: () => saveFlow(), title: "Save this flow profile" },
+        { id: "save", label: "Save", variant: "primary", onClick: () => saveFlow(), title: canSaveFlow ? "Save this flow profile" : "Requires the Edit Flows permission", disabled: !canSaveFlow },
         { id: "export", label: "Export", onClick: exportFlow, title: "Export flow as JSON" }
       ],
       dirty: isDirty
     },
-    [saveFlow, exportFlow, isDirty]
+    [saveFlow, exportFlow, isDirty, canSaveFlow]
   );
 
   return (

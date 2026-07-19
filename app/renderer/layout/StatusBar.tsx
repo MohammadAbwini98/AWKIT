@@ -56,8 +56,8 @@ export function StatusBar() {
   return (
     <footer className="status-bar">
       <span className={`status-chip ${offlineTone}`}>Offline Runtime: {offlineReady}</span>
-      <span className="status-chip neutral">Flows: {activeFlows}</span>
-      <span className="status-chip neutral">Browsers: {activeBrowsers}</span>
+      <span className="status-chip neutral">Active flows: {activeFlows}</span>
+      <span className="status-chip neutral">Active browsers: {activeBrowsers}</span>
       <span className={queueDepth > 0 ? "status-chip warn" : "status-chip neutral"}>Queue: {queueDepth}</span>
       <span className={`status-chip ${runtimeTone}`} title={runtimeError ?? capacity?.blockedReason ?? runtimeStatus?.timestamp ?? undefined}>
         {runtimeLabel}

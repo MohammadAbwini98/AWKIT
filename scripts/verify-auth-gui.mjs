@@ -79,14 +79,17 @@ try {
 
   await win.waitForSelector(".app-shell", { timeout: 25000 });
   check("first-run provisioning signs into the app shell", true);
-  const userChip = await win.locator(".app-frame-user").innerText().catch(() => "");
-  check("title-bar session chip shows the display name", userChip.trim() === CREDS.displayName, userChip);
-  check("sign-out control present", (await win.locator(".app-frame-logout").count()) === 1);
+  // PR #21 replaced the plain title-bar chip (.app-frame-user/.app-frame-logout) with the
+  // AccountMenu (avatar trigger → popover with Sign out).
+  const userChip = await win.locator(".awkit-account-name").innerText().catch(() => "");
+  check("title-bar account chip shows the display name", userChip.trim() === CREDS.displayName, userChip);
+  check("account menu trigger present", (await win.locator(".awkit-account-trigger").count()) === 1);
 
   await win.screenshot({ path: path.join(shotDir, "authed-shell.png") }).catch(() => undefined);
 
   // ── Sign out → back to login (shell gone) ────────────────────────────────────
-  await win.locator(".app-frame-logout").click();
+  await win.locator(".awkit-account-trigger").click();
+  await win.getByRole("menuitem", { name: "Sign out" }).click();
   await win.waitForSelector("#awkit-login-username", { timeout: 15000 });
   check("sign-out returns to the login screen", (await win.locator(".awkit-login-card").count()) >= 1);
   check("app shell removed after sign-out", (await win.locator(".app-shell").count()) === 0);

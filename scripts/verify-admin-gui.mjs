@@ -66,8 +66,11 @@ try {
   await nav(win, "Audit Log");
   await win.waitForTimeout(400);
   check("Audit Log shows the USER_CREATE event", (await win.getByText("USER_CREATE").count()) >= 1);
+  // PR #21 replaced the licensing placeholder with the real LicensingPage (offline per-machine).
   await nav(win, "Licensing");
-  check("Licensing placeholder renders", (await win.getByText(/not yet implemented/i).count()) >= 1);
+  await win.getByRole("heading", { name: "License status" }).first().waitFor({ timeout: 10000 }).catch(() => {});
+  check("Licensing page renders the license status card", (await win.getByRole("heading", { name: "License status" }).count()) >= 1);
+  check("Licensing shows the not-activated state on a fresh profile", (await win.getByText("Not activated").count()) >= 1);
 
   check("no renderer console errors overall", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {

@@ -1,5 +1,48 @@
 # CURRENT_STATE
 
+## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
+
+Implemented the plan to close the open E2E-QA findings on `main` @ `0a4500f` (bd **`awkit-64x`** + **`awkit-b92`**,
+both CLOSED). **Production code changed; NOT committed.**
+- **awkit-64x (DEF-003) — first-run seeding removed:** `app/main/profileStores.ts` `seedFolder` dropped (flows +
+  workflows); `dataSource.ipc.ts` `ensureDefaultDataSource` + `runtimeInput.ipc.ts` `ensureDefaultRuntimeInputs`
+  deleted (stores return `store.list()`). A fresh profile now shows empty states; samples remain in `resources/`
+  via `npm run seed:mock-fixtures`. `verify:e2e-sweep` flipped to assert empty states.
+- **awkit-b92 (DEF-004/005) — sender-bound trusted authorization:** new `app/main/security/sessionContext.ts`
+  binds `event.sender.id → sessionRef` (on login/change-password/validate; unbound on logout/destroy/expiry).
+  `assertSenderPermission(event, perm)` fail-closed-gates the non-admin IPC surface — `execution:*` (EXECUTE/STOP),
+  flow/workflow CRUD (CREATE/EDIT/DELETE), data-source CRUD (DATASOURCE_MANAGE), substantive `settings.update`/
+  reset/import (SETTINGS_EDIT). Renderer per-action gating via `usePermissions().can()` disables Create/Edit/
+  Delete/Clone/Run/Stop/Save across libraries, designers, DataSource pages, InstanceMonitor (`NodeOptionsMenu`/
+  `WorkflowRunCard` gained `disabled` props). Footer nav permission-filtered (Settings hidden without
+  `page.settings`; Help Center universal).
+- **OBS-001/002:** StatusBar chips now read "Active flows/browsers"; `AWKIT_REAUTH_WINDOW_MS` dev/test override
+  wired through `SecurityKernelOptions.reauthWindowMs`.
+- **Verification (all green):** `npm run build` clean; new `verify:session-context` **11/11**; `verify:e2e-rbac`
+  **49/49** (Viewer `settings.update` + real run now DENIED, footer filtered); `verify:e2e-sweep` 13/13;
+  regression `verify:e2e-auth` 30 · `verify:e2e-licensing` 22 · `verify:runner` 82 · `verify:authz` 40 ·
+  `verify:auth` 49 · `verify:security` 39 · `verify:licensing` 56 · `verify:ipc-contract` 4 · `verify:auth-gui`
+  18 · `verify:admin-gui` 11 · `verify:avatar` 24.
+- **Residual (follow-ups):** `oracle.ipc.ts` backend not yet sender-gated (its UI is gated) — bd `awkit-b3w`
+  (P2); live ReauthDialog GUI automation — bd `awkit-2d8` (P3). Pattern saved: `bd remember` key
+  `sender-bound-authz`.
+
+## E2E QA assessment — auth/RBAC/licensing/route-sweep suites EXECUTED GREEN (2026-07-19, later session)
+
+Adapted full E2E QA of `main` @ `0a4500f` (bd `awkit-xyo`; the generic web-app template was adapted to
+Electron with owner approval). New assets: coverage matrix + reports under `docs/testing/`
+(`E2E_COVERAGE_MATRIX.md`, `E2E_EXECUTION_REPORT.md`, `E2E_DEFECTS.md`), specs under `specs/e2e/`,
+shared drivers `scripts/lib/e2e-qa-lib.mjs`, and four executable suites — `verify:e2e-auth` **30/30**,
+`verify:e2e-rbac` **42/42**, `verify:e2e-licensing` **22/22**, `verify:e2e-sweep` **13/13** (all real
+Electron, isolated fresh profiles). Healed two silently-broken existing suites (`verify:auth-gui` →
+18/18, `verify:admin-gui` → 11/11 — stale post-PR-#21 selectors). Regression rerun green:
+`verify:licensing` 56, `verify:avatar` 24, `verify:ipc-contract` 4, `verify:authz` 40, `verify:auth` 49.
+**Product findings (both since FIXED — see the section above):** bd **`awkit-64x`** — fresh install
+seeds bundled samples as real user records (RULES.md violation); bd **`awkit-b92`** (pre-existing) —
+`settings:update`/`execution:*` IPC carry no per-role check, and the footer Settings/Help Center nav
+is not permission-filtered (route guard holds). Evidence: `test-artifacts/2026-07-19-e2e-qa/`. This
+assessment session changed no production code (the fixes landed in the follow-on session above).
+
 ## Admin/Licensing package — login branding, admin UI kit, profile avatar, per-machine licensing (2026-07-19)
 
 Implements the external `specterstudio-admin-licensing-phases` (8-phase) package on branch

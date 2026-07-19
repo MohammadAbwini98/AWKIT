@@ -27,6 +27,8 @@ export interface SecurityKernelOptions {
   sessionPolicy?: SessionPolicy;
   lockout?: LockoutPolicy;
   now?: () => number;
+  /** Test/dev override for the sensitive-op re-auth window (ms); production uses the 5-minute default. */
+  reauthWindowMs?: number;
 }
 
 export class SecurityKernel {
@@ -46,7 +48,7 @@ export class SecurityKernel {
 
     const sessions = new SessionManager(store, options.sessionPolicy ?? DEFAULT_SESSION_POLICY, options.now);
     const auth = new AuthenticationService({ store, providers, sessions, lockout: options.lockout, now: options.now });
-    const authz = new AuthorizationService(store, sessions);
+    const authz = new AuthorizationService(store, sessions, { reauthWindowMs: options.reauthWindowMs });
     const userAdmin = new UserAdminService(store, sessions, authz, options.now);
     return new SecurityKernel(store, auth, authz, userAdmin, sessions);
   }
