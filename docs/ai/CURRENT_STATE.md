@@ -59,6 +59,23 @@ provisioned Super User behind and hit the login form (0/4); `walkState` now clea
   processes can't race on `security.sqlite`/ui-settings per profile. New **verify:single-instance 3/3**.
   The finer DurableLockStore-around-writes remains optional defense-in-depth (`awkit-ekd.8` P3 still open).
 
+## SecurityStore debounced persistence (2026-07-19, `awkit-ekd.8`)
+
+`SecurityStore` previously exported + atomic-renamed the whole DB on **every** mutation (a login was ~4
+full writes; the new idle-lock heartbeat's `touchSession` fsynced on every validate). It now mirrors
+`SqliteRuntimeStore`'s **debounced + persist-on-critical-transition + flush-on-close** model:
+- **Critical (immediate, awaited flush):** `setProvisioned`, `insertUser`, `updateUser`, and all three
+  `revoke*` — security correctness (a provisioned/changed/revoked credential must survive a crash).
+- **Debounced (300 ms, coalesced):** `insertSession`, `touchSession`, `appendAudit`. A burst collapses to
+  one write; any critical flush sweeps up whatever is pending (the whole in-memory DB is exported); a
+  crash before the debounce window is fail-closed (re-login / slightly-stale idle window / a missing
+  forensic row). `close()` (app quit → `disposeSecurityKernel`) force-flushes the trailing write, and
+  `open()` still forces the initial schema write.
+- **Verify:** `verify:auth` **49/49** (+4: burst does 0 synchronous writes → coalesces to 1; critical
+  revoke flushes immediately; `close()` flushes the trailing debounced write, via a test-only
+  `persistWriteCountForTest()`). `verify:auth-gui` **18/18** (real Electron, DPAPI + real close-on-quit),
+  `verify:security` **39/39**, `verify:single-instance` **3/3**, build clean. Closes `awkit-ekd.8`.
+
 ## Proactive idle-lock UI + dark-mode login pass (2026-07-19, `awkit-l6h`)
 
 The login gate previously re-validated only on window focus/visibility (server idle/absolute timeouts still

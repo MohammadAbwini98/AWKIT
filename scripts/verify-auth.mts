@@ -269,6 +269,41 @@ async function main(): Promise<void> {
     await kernel.close();
   }
 
+  // ── Debounced persistence (awkit-ekd.8) ──────────────────────────────────────
+  console.log("Debounced persistence:");
+  {
+    const DEBOUNCE_MS = 300; // must match SecurityStore.PERSIST_DEBOUNCE_MS
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const { kernel } = await freshKernel();
+    await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD });
+    await sleep(DEBOUNCE_MS + 120); // let bootstrap's debounced audit settle for a clean baseline
+    const store = kernel.store;
+    const userId = store.getUserByUsernameNorm("superuser")!.id;
+
+    // A burst of debounced writes (1 session insert + 5 idle-lock-style touches) must NOT fsync per call.
+    const base = store.persistWriteCountForTest();
+    const sid = randomUUID();
+    const iso = (offset: number) => new Date(Date.now() + offset).toISOString();
+    await store.insertSession({ id: sid, userId, createdAt: iso(0), lastActivityAt: iso(0), absoluteExpiresAt: iso(3_600_000), lastReauthAt: iso(0), revokedAt: null });
+    for (let i = 1; i <= 5; i++) await store.touchSession(sid, iso(i));
+    const immediateDelta = store.persistWriteCountForTest() - base;
+    check(`debounced burst does no synchronous disk write (delta=${immediateDelta})`, immediateDelta === 0);
+
+    await sleep(DEBOUNCE_MS + 120);
+    const coalescedDelta = store.persistWriteCountForTest() - base;
+    check(`debounced burst coalesces into one flush (delta=${coalescedDelta})`, coalescedDelta === 1);
+
+    // A critical write (session revocation) must flush immediately (security: revoked stays revoked).
+    const beforeCritical = store.persistWriteCountForTest();
+    await store.revokeSession(sid, iso(10));
+    check(`critical write (revoke) flushes immediately (delta=${store.persistWriteCountForTest() - beforeCritical})`, store.persistWriteCountForTest() === beforeCritical + 1);
+
+    // A debounced touch left pending must still be durable after close() (flush-on-close).
+    await store.touchSession(sid, iso(20));
+    await kernel.close();
+    check("close() flushes the trailing debounced write", store.persistWriteCountForTest() >= beforeCritical + 2);
+  }
+
   // ── Persistence across reopen ────────────────────────────────────────────────
   console.log("Persistence:");
   {
