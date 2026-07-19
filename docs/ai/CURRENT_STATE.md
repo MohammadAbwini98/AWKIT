@@ -2,8 +2,8 @@
 
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
-Implemented the plan to close the open E2E-QA findings on `main` @ `0a4500f` (bd **`awkit-64x`** + **`awkit-b92`**,
-both CLOSED). **Production code changed; NOT committed.**
+Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,
+both CLOSED). **Merged to `main` @ `79e9999` via PR #22.**
 - **awkit-64x (DEF-003) — first-run seeding removed:** `app/main/profileStores.ts` `seedFolder` dropped (flows +
   workflows); `dataSource.ipc.ts` `ensureDefaultDataSource` + `runtimeInput.ipc.ts` `ensureDefaultRuntimeInputs`
   deleted (stores return `store.list()`). A fresh profile now shows empty states; samples remain in `resources/`
