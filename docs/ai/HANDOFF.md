@@ -1,18 +1,52 @@
 # Agent Handoff
 
-Last updated: 2026-07-18 (**Release-readiness audit** via the `fullstack-webapp-testing` skill, on merged
+Last updated: 2026-07-19 (**Secure-login epic finished + GUI-verifier suite repaired + Oracle re-validated**,
+all merged to **clean `main`** @ `f4f11f3`). The working tree is **clean**, there are **no open PRs**, and
+there is **no uncommitted work** — start the next task from `main` with normal Git flow (branch → commit →
+push → PR; still only push/PR when the user asks). Everything below the "Current Handoff" heading is
+**history**; read this block + the top of `docs/ai/CURRENT_STATE.md` first — older notes about uncommitted
+trees or feature branches are obsolete.
+
+**Shipped this session (all merged to `main`):**
+- **PR #16** — GUI-verifier remediation. New shared harness `scripts/lib/gui-verify-harness.mjs`
+  (`resolveMainWindow` past the bridge-less splash + `signInFirstRun` past `SecurityGate` + `isolatedLaunchEnv`)
+  fixes every real-Electron GUI verifier the splash + gate broke: capacity-settings 12/12, instance-monitor
+  12/12, runtime-analytics 36/36 (now idempotent), workflow-builder 20/20, flow-designer 24/24, oracle-drivers
+  30/30 (reports 31/31 was the reference). Plus session rotation (`ekd.7`) + single-instance guard (`ekd.6`).
+  Closed `awkit-gmn`, `awkit-7ek`, `awkit-9p6`, `awkit-xjv`.
+- **PR #17** — proactive idle-lock UI (`awkit-l6h`): renderer activity tracking locks after the idle window
+  without a focus event (login notice), and keeps the server's sliding idle window fresh during active use;
+  `idleTimeoutMs` surfaced via `BootState`; `AWKIT_SESSION_IDLE_MS` dev/test override. Dark-mode login pass.
+- **PR #18** — debounced `SecurityStore` persistence (`awkit-ekd.8`): critical writes (provisioning/user/
+  revocations) flush immediately; `insertSession`/`touchSession`/`appendAudit` coalesce over 300 ms + flush on
+  close. **Completed the `awkit-ekd` secure-login epic (8/8).**
+- **PR #19** — rescoped the stale `awkit-cm8` Oracle-gates tracker.
+
+**Also closed:** `awkit-ekd` epic (secure-login trusted core, 8/8) and `awkit-kzo` (Oracle user-selected-Java)
+epic. **Oracle re-validated on current `main`:** 350/350 across 13 non-GUI verifiers, `validate:offline` clean,
+`build:oracle-bridge` OK, `verify:oracle-drivers-gui` 30/30, and **`verify:oracle-live` 7/7** vs the real local
+Oracle 19c (ephemeral `SPECTER_READER` credential minted → used → rotated + `ACCOUNT LOCK` → secret files
+deleted; confirmed LOCKED). Oracle feature is **PRODUCTION-CANDIDATE**.
+
+**Only open thread — `awkit-cm8` (P2, left open):** two genuinely-EXTERNAL gates remain, neither doable on this
+**15.9 GB** dev host: (1) packaged-EXE build + clean-machine offline walkthrough (`electron-builder` OOMs),
+(2) sustained days-long real-world soak. Both need a higher-memory build host / dedicated soak machine.
+Procedures: `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`. Everything else runnable in this environment is green.
+
+---
+
+Previously: 2026-07-18 (**Release-readiness audit** via the `fullstack-webapp-testing` skill, on merged
 `main` @ `93162d6`). **State correction:** the Secure Login work (PR #15, `93162d6`) and the Oracle
 user-selected-Java/direct-JDBC work (PR #14, `79e20a5`) are **merged to `main`** — every note below that says
 "branch `feature/secure-login-auth`", "branch `feature/oracle-jdbc-driver-settings`", or "NOTHING COMMITTED"
-is history. Working tree is clean apart from this audit's own doc/tracker/`test-artifacts/` edits + the
-reports-verifier fix. **Decision: `CONDITIONAL GO`** for `main` as a dev/integration checkpoint (NOT a
+is history. **Decision: `CONDITIONAL GO`** for `main` as a dev/integration checkpoint (NOT a
 production-ship verdict — the standing external gates are unchanged and un-run). Fresh safe-test evidence
 (build; ipc-contract 4/4; security 39/39; secrets 16/16; auth 41/41; auth-gui 13/13; profile-store 13/13;
 write-queue 7/7; mock-site 39/39; runner 82/82) + full report under
-`test-artifacts/2026-07-18-release-readiness-audit/`. Found the GUI-verifier regression is bigger than bd
-`awkit-gmn` recorded — the splash **and** the new `SecurityGate` both block the app shell; **fixed
-`scripts/verify-reports-gui.mjs` (31/31)** as the reference (resolveMainWindow + isolated-LOCALAPPDATA
-first-run), 5+ sibling GUI verifiers still need the same recipe. Prior handoff below is history.
+`test-artifacts/2026-07-18-release-readiness-audit/`. Flagged the GUI-verifier regression as bigger than bd
+`awkit-gmn` recorded — the splash **and** the new `SecurityGate` both block the app shell; fixed
+`scripts/verify-reports-gui.mjs` (31/31) as the reference. **That recipe is now applied across every GUI
+verifier (PR #16, 2026-07-19) — this item is DONE.**
 
 ---
 
@@ -52,41 +86,32 @@ Use this file when work is paused, blocked, or moving from one agent/tool to ano
 
 ## Current Handoff
 
-> **ORACLE LIVE-VALIDATION GATE DONE 2026-07-18 — `verify:oracle-live` PASSED 7/7 against the real local
-> Oracle 19c.** On branch `feature/oracle-jdbc-driver-settings`. Resolved the fixture/schema mismatch by
-> provisioning the canonical `SPECTER_FIXTURE.AWKIT_TYPES_TEST` (204 rows) **additively** via new
-> `scripts/oracle/local-19c-awkit-types-fixture.sql` (`GRANT SELECT` + a SYS-created private synonym to
-> `SPECTER_READER`; existing `CUSTOMERS`/`TYPE_SAMPLES`/`V_ACTIVE_CUSTOMERS` untouched), imported
-> `ojdbc17.jar` into the Settings-managed bundle store (`Oracle-ojdbc17-local-19c-validation`, 23.26.2.0.0,
-> JDBC-only), and ran the gate in **real** mode against `jdbc:oracle:thin:@//localhost:1521/ORCLPDB` as
-> `SPECTER_READER` with `AWKIT_ORACLE_LIVE_TEST_TABLE=SPECTER_FIXTURE.AWKIT_TYPES_TEST`. An ephemeral
-> read-only credential was minted → used → **rotated + ACCOUNT LOCKED** and its secret file securely deleted
-> (value never printed anywhere). `npm run build` clean; `verify:oracle-driver-bundle` 43/43. **Docker was
-> NOT needed** — the crash-loop note below is moot. Part B tooling remains **uncommitted**. Overall status
-> stays INTEGRATION-CANDIDATE (UCP pooled path + private-JRE/packaged-EXE walkthrough + perf/soak gates
-> remain). Full detail: top of `docs/ai/CURRENT_STATE.md` + `docs/ai/TASK_LOG.md`.
-
-> **RESOLVED (was: PAUSED 2026-07-17 — Docker crash-loop).** The live-validation run no longer depends on
-> Docker — it was completed against the pre-existing local Oracle 19c (see the DONE note above), so the
-> Docker-reboot resume path in `docs/ai/ORACLE_LIVE_VALIDATION_RESUME.md` is obsolete for this gate. Part A
-> (Settings-managed JDBC driver bundles + non-pooled JDBC executor) remains committed (`fc50227`); Part B
-> (dev-only Docker orchestration + live-validation tooling + the new fixture) remains authored, uncommitted,
-> and typechecks.
-
-> **STATE CHANGE 2026-07-17 — the long-standing uncommitted tree is GONE.** Everything that had piled up
-> across earlier sessions (Oracle JDBC, the SpecterStudio rename, the launch splash/logo/icons, and the
-> already-committed security work) is now **merged to `main`** via PR #11 (`476dc29`) and PR #12
-> (`b6e473d`). CI on `main` is green. **The working tree is clean and there are no open PRs.**
-> Notes below about "uncommitted work in the tree" and about being on `feature/smart-wait-engine` are
-> historical — ignore them.
+> **Current status (2026-07-19): clean `main`, nothing paused or blocked.** The full detail is the dated
+> block at the top of this file + `docs/ai/CURRENT_STATE.md`. Summary: the secure-login epic (`awkit-ekd`) is
+> complete and the Oracle epic (`awkit-kzo`) is closed; both shipped to `main`. The GUI-verifier suite is
+> repaired and idempotent (shared `scripts/lib/gui-verify-harness.mjs`). Oracle is PRODUCTION-CANDIDATE,
+> re-validated on current `main` (350/350 non-GUI + `verify:oracle-live` 7/7 vs the real local 19c, with a
+> minted-then-retired ephemeral credential).
 >
-> Start new work from clean `main`. Normal Git flow applies (branch → commit → push → PR); follow
-> `.claude/skills/git-full-cycle/SKILL.md`, and still don't push/PR without the user asking.
+> **The single open thread is `awkit-cm8`** — two genuinely-external gates (packaged-EXE clean-machine
+> walkthrough — `electron-builder` OOMs on this 15.9 GB host — and sustained days-long soak). Neither is
+> runnable here; both need a higher-memory build host / dedicated soak machine. Everything else runnable in
+> this environment is green. Procedures: `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`.
 >
-> **Only open thread:** the Oracle feature is `INTEGRATION-CANDIDATE`, not production-ready. Its four
-> external gates (vendor real ojdbc/ucp jars + a private JRE, an authorized read-only Oracle run, a
-> packaged-EXE clean-machine walkthrough, real perf/soak) are **not run** — none are doable in this
-> environment. Exact procedures: `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`.
+> **Live-Oracle re-run recipe (for the next agent, if asked):** the local Oracle 19c listens on
+> `:1521`; Java 17 + the ojdbc bundle are in the Settings store (`Local-JDK-17` /
+> `Oracle-ojdbc17-local-19c-validation`). `SPECTER_READER` is normally left **LOCKED** — re-run
+> `scripts/oracle/local-19c-awkit-types-fixture.sql` via OS-auth `sqlplus / as sysdba` (PowerShell, not Git
+> Bash — Bash mangles the `/ as sysdba` arg), mint a fresh ephemeral password, run `npm run verify:oracle-live`
+> with the `AWKIT_ORACLE_LIVE_*` env, then **rotate + `ACCOUNT LOCK`** and delete the secret file. Never print
+> the password.
+
+---
+
+> ⚠️ **Everything below this line is PRESERVED HISTORY** (older dated handoffs — shared-browser capacity,
+> React Flow removal, the Phase 2–5 packaging work, etc.). The **current** state is the top block + the
+> "Current status (2026-07-19)" note above. Every "uncommitted tree", "feature branch", and "Active Task"
+> below is history; do not act on it as if it were current.
 
 ### From / To
 
