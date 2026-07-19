@@ -20,7 +20,9 @@ import {
   Server,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   Table2,
+  Users,
   Workflow,
   type LucideIcon
 } from "lucide-react";
@@ -51,6 +53,11 @@ import { ReportsChrome } from "./pages/ReportsChrome";
 import { ReportsRuntime } from "./pages/ReportsRuntime";
 import { ReportsFailures } from "./pages/ReportsFailures";
 import { ReportsServer } from "./pages/ReportsServer";
+import { UserManagement } from "./pages/admin/UserManagement";
+import { RolesPage } from "./pages/admin/RolesPage";
+import { PermissionsPage } from "./pages/admin/PermissionsPage";
+import { AuditLogPage } from "./pages/admin/AuditLogPage";
+import { LicensingPage } from "./pages/admin/LicensingPage";
 
 export type RouteId =
   | "dashboard"
@@ -78,7 +85,12 @@ export type RouteId =
   | "offlineRuntime"
   | "settings"
   | "recorder"
-  | "sessions";
+  | "sessions"
+  | "userManagement"
+  | "roles"
+  | "permissionsMatrix"
+  | "auditLog"
+  | "licensing";
 
 export interface AppRoute {
   id: RouteId;
@@ -270,5 +282,40 @@ export const routes: AppRoute[] = [
     description: "Capture and manage browser login sessions for protected sites.",
     icon: KeyRound,
     component: SessionsManager
+  },
+  {
+    id: "userManagement",
+    label: "Users",
+    description: "Create users, assign roles, disable, reset passwords, and revoke sessions.",
+    icon: Users,
+    component: UserManagement
+  },
+  {
+    id: "roles",
+    label: "Roles",
+    description: "Built-in roles and the permissions each grants.",
+    icon: ShieldCheck,
+    component: RolesPage
+  },
+  {
+    id: "permissionsMatrix",
+    label: "Permissions",
+    description: "Permission-to-role matrix (deny-by-default reference).",
+    icon: ListChecks,
+    component: PermissionsPage
+  },
+  {
+    id: "auditLog",
+    label: "Audit Log",
+    description: "Security audit trail of privileged actions.",
+    icon: ClipboardList,
+    component: AuditLogPage
+  },
+  {
+    id: "licensing",
+    label: "Licensing",
+    description: "Per-machine offline license: status, activation, import, and revocation.",
+    icon: KeyRound,
+    component: LicensingPage
   }
 ];

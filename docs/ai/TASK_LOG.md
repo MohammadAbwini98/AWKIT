@@ -4,6 +4,160 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Admin/Licensing package: Phase 6 (validation) + Phase 7 (docs)
+
+- **Validation:** `npm run build` (tsc + bundles) clean; `verify:licensing` 56/56; `verify:avatar` 24/24;
+  real-key issuer→app E2E (VALID on this machine, MACHINE_MISMATCH elsewhere, masked serial). Security scan:
+  no private-key material in tracked files or the working tree (`git grep`/grep for the PKCS8 literal =
+  empty); only the **public** key in `TrustedKeys.ts`; `electron-builder.json` ships `out/**` only so
+  `tools/**` (issuer) is never bundled. Bypass resistance is by construction — enforcement + RBAC live in the
+  main process; renderer holds display hints only.
+- **Docs:** new **`docs/LICENSING.md`** (architecture, security/threat model, user+admin guidance, developer
+  reference, migration, and the Phase 6 validation matrix). `docs/ai/CURRENT_STATE.md` updated with the
+  whole package. Filed follow-up beads: `awkit-1cc` (hard-enforcement rollout decision) + the global-status/
+  periodic-revalidation task.
+- **External gates NOT run this session (unchanged):** clean-machine offline VM walkthrough, packaged
+  NSIS/portable EXE run, and the live Electron GUI walkthrough (Browser-pane preview was unavailable; UI was
+  verified via Playwright screenshots against the real `global.css`). No commit/push (local-only, per request).
+
+## 2026-07-19 — Claude — Admin/Licensing package: Phase 5 (licensing UI + trusted enforcement + RBAC)
+
+- **RBAC:** added granular licensing permissions to `src/security/authz/Permissions.ts`
+  (`license.view/export_request/import/replace/revoke/audit.view`), Super-User-only (Administrator/
+  Operator/Viewer excluded — filter now drops all `license.*` + `page.license`); import/replace/revoke are
+  SENSITIVE (require fresh reauth). Verified by 8 RBAC assertions in `verify:licensing`.
+- **Trusted main-process runtime** `app/main/licensing/licenseRuntime.ts`: single `LicenseService` wired to
+  real machine fingerprint + adaptive store (LocalAppData primary, ProgramData optional-read). Enforcement
+  is **OPT-IN, default OFF** (`SPECTER_LICENSE_ENFORCE=true`) so existing/unlicensed installs are NOT
+  blocked until an operator turns it on. `evaluateRunGate()` gates only REAL runs.
+- **Enforcement point:** `execution.ipc.ts` `runWorkflow` — before `executionEngine.startRun` (validation/
+  dry-run stay available so diagnostics/reports work). Blocked run returns `status:"licenseBlocked"` with a
+  safe action message; never throws. Machine/installation check, independent of auth/RBAC.
+- **IPC** `app/main/ipc/licensing.ipc.ts` (registered in `ipc/index.ts`): getStatus/revalidate/
+  exportRequest/import/replace/revoke/remove — each sender-guarded, RBAC-checked (deny-by-default), sensitive
+  ops reauth-gated, all audited into the shared trail (`targetType:"license"`, safe reason codes, no
+  secrets). Preload `window.playwrightFlowStudio.licensing.*` added.
+- **UI:** `LicensingPage.tsx` rewritten from placeholder to a full page using the shared admin kit —
+  status badge + actionable guidance, masked serial, license id, local-time issued/valid-from/expiry,
+  remaining, entitlements, source + conflict banner; machine code + copy + export activation request;
+  import/replace/revoke/remove with reauth dialog; loading / permission-denied states. Route description
+  updated (no longer "placeholder"). Licensing CSS + `toolbar-button.danger` added (tokens only).
+- **Verified:** `npm run verify:licensing` = **56/56** (48 domain + 8 RBAC). `npm run build` (tsc) clean.
+  Visual proof of the page (valid state) in light+dark via Playwright screenshot of the real `global.css`.
+- **Deferred (noted for Phase 6/7 + beads):** app-wide non-intrusive global status banner and a periodic
+  background revalidation timer (the gate already revalidates before each run); enforcement default-OFF
+  rollout decision. No commit/push.
+
+## 2026-07-19 — Claude — Admin/Licensing package: Phase 4 (licensing core, offline, per-machine)
+
+- **New bounded context `src/licensing/*`** — independent of auth/RBAC (imports nothing from
+  `src/security/*`): `LicenseTypes.ts` (schema v1, 11 statuses, entitlements, activation request, safe
+  views, policy), `MachineFingerprint.ts` (SHA-256 over multiple normalised non-admin signals — Windows
+  MachineGuid, cpu model/count, mem, platform, first stable MAC, hostname — tolerant of missing signals,
+  confidence high/medium/limited, **no IP/hostname-alone/MAC-alone**, raw values never stored),
+  `LicenseCanonical.ts` (deterministic signed-bytes + activation request), `crypto/TrustedKeys.ts` (PUBLIC
+  keys only; key1 embedded), `crypto/LicenseSignature.ts` (Ed25519 verify for the app; issuer-only sign
+  helper), `LicenseValidator.ts` (precedence CORRUPTED→UNSUPPORTED→INVALID_SIGNATURE→MACHINE_MISMATCH→
+  REVOKED→CLOCK_INTEGRITY_WARNING→NOT_YET_VALID→EXPIRED→EXPIRING_SOON→VALID; exact-timestamp expiry),
+  `store/LicenseStore.ts` (adaptive LocalAppData-primary / ProgramData-optional-read, atomic temp+rename,
+  SHA-256 corruption detection, precedence + conflict flag), `LicenseService.ts` (orchestration:
+  status/import/replace/revoke/remove/export, clock high-water maintenance).
+- **Separate offline issuer `tools/license-issuer/`** (NOT bundled — app ships from `app/**`+`out/**`):
+  `keygen.mts`, `issue-license.mts`, `README.md`. Private key sourced from an external path
+  (`%LOCALAPPDATA%\SpecterStudio\issuer-keys\`) / `SPECTER_ISSUER_KEY` — never in repo/resources/.env.
+- **Storage decision** implemented per user direction (bead memory `licensing-storage-decision`): per-user
+  location for admin-free activation; machine binding enforced ONLY by the signed fingerprint, so a copied
+  license fails MACHINE_MISMATCH regardless of directory.
+- **Verified:** `npm run verify:licensing` = **48/48** (valid/invalid signature, payload modification,
+  unsupported schema+algorithm, machine match/mismatch, missing-signal tolerance, exact valid-from/expiry
+  boundaries, expiring-soon, revoked, corrupted storage, atomic import/replace, precedence/conflict,
+  activation export). Real-key E2E (issuer signs w/ external key1 → app validates w/ embedded public key):
+  VALID on this machine, MACHINE_MISMATCH elsewhere, serial masked, high-confidence 7-signal fingerprint.
+  `npm run build` (tsc) clean.
+- **Security posture:** public key only in app; no private key in repo/package; no IP binding; licensing
+  isolated from auth/RBAC. Full threat-model/security-doc write-up deferred to Phase 7 (docs phase).
+- **Not done:** Phase 5 (Licensing UI + trusted IPC enforcement + audit), Phase 6 (validation), Phase 7
+  (docs). No commit/push.
+
+## 2026-07-19 — Claude — Admin/Licensing package: Phase 2 (admin UI kit) + Phase 3 (profile avatar)
+
+- **Phase 2 (Administration UI):** Added a shared admin UI kit `app/renderer/pages/admin/components/AdminUi.tsx`
+  (`AdminPage`, `AdminBanner`, `AdminStatusBadge`, `AdminLoading`, `AdminEmpty`). One status-badge
+  vocabulary (13 states: active/valid/disabled/locked/expiring/archived/not-activated/expired/revoked/
+  invalid-signature/machine-mismatch/corrupted/not-yet-valid) — icon + text, theme-aware, never colour
+  alone; unknown status falls back to a neutral badge with the raw text. Refactored UserManagement, Roles,
+  Permissions, and AuditLog pages to compose the kit; removed the login-spinner leak into admin. Audit
+  "Refresh" now publishes through the canonical `TopHeader` via `usePageChrome` instead of a card button.
+  Route authorization was already enforced (`RoutePermissions` + nav filter + route-mount guard + IPC) and
+  is preserved untouched. Deferred (needs live-UI verification): row-action overflow menus, table
+  search/sort/pagination — current buttons still work.
+- **Phase 3 (Profile avatar):** New shared, DOM-free `app/renderer/lib/initials.ts` (Unicode grapheme-aware
+  via `Intl.Segmenter`): `initialsFromName`, `initialsFromIdentity` (displayName→username→email local
+  part→"?"), `avatarPaletteIndex` (deterministic FNV-1a → stable colour). New `UserAvatar` (image→initials→
+  "?", 6-tone deterministic palette) and `AccountMenu` (avatar + name + role trigger → popover with Sign
+  out; keyboard + click-outside + origin-anchored pop, reduced-motion aware). `AppFrame` now renders the
+  account menu instead of the plain name+logout. Note: `PrincipalSnapshot` has no profile-image field yet,
+  so image source is wired but inactive (honest to the current model). Verifier `npm run verify:avatar`
+  (`scripts/verify-avatar-initials.mts`) = **24/24** incl. MA/SK/MO/M, Arabic multi/single word, combining
+  marks, whitespace/punctuation, email fallback, missing identity, deterministic palette.
+- **Files:** admin: `pages/admin/components/AdminUi.tsx` (new), `UserManagement.tsx`, `RolesPage.tsx`,
+  `PermissionsPage.tsx`, `AuditLogPage.tsx`; avatar: `lib/initials.ts` (new),
+  `components/shared/UserAvatar.tsx` (new), `components/shared/AccountMenu.tsx` (new), `layout/AppFrame.tsx`;
+  `styles/global.css`; `scripts/verify-avatar-initials.mts` (new) + `package.json` (verify:avatar).
+- **Verified:** `npm run build` passes (tsc clean); `npm run verify:avatar` 24/24; visual proof via
+  Playwright screenshots of the real `global.css` (admin badges/states, avatar + account menu) in light+dark.
+- **Not done:** Phases 4–7 (licensing core + integration, validation, docs). No commit/push.
+
+## 2026-07-19 — Claude — Admin/Licensing package: Phase 0 audit + Phase 1 login branding
+
+- **Scope:** Audited the external 8-phase `specterstudio-admin-licensing-phases` package against the
+  codebase, then executed Phase 1 (login-screen branding) using the `apple-design` skill for the UI work.
+- **Phase 0 (audit):** Login uses a generic `Workflow` lucide glyph (not the product logo); official vector
+  exists at `logos/specter-violet/export/logo.svg` (+ PNG exports); admin pages exist but share no admin
+  shell (Phase 2 work); `PrincipalSnapshot` has no profile-image field (Phase 3); `LicensingPage` is a pure
+  placeholder, bead `awkit-s05` already tracks it (Phases 4–5). No IP-binding / private-key-in-package
+  issues exist today (nothing implemented yet).
+- **Phase 1 changes:** Copied the official logo to `app/renderer/assets/brand/specter-logo.svg`; imported it
+  into `LoginScreen.tsx` and rendered it as the brand mark (self-contained squircle, standalone — not in the
+  accent-soft box), with an `onError` fallback to the existing `Workflow` glyph so a failed asset never
+  shows a broken image. Added `.awkit-login-logo` CSS (64px, vector = sharp on high-DPI). Added
+  `app/renderer/types/assets.d.ts` ambient module decl for `*.svg`/`*.png` imports.
+- **Files:** `app/renderer/security/screens/LoginScreen.tsx`, `app/renderer/styles/global.css`,
+  `app/renderer/types/assets.d.ts`, `app/renderer/assets/brand/specter-logo.svg` (new).
+- **Verified:** `npm run build` passes (tsc --noEmit clean; logo bundled as `assets/specter-logo-*.svg`).
+  Visual proof via a Playwright screenshot of the real `global.css` login card in light + dark (Browser
+  pane preview was timing out). Auth behavior, AD "Coming soon" tab, lockout, and session flow unchanged.
+- **Not done:** Phases 2–7 (admin UI shell, profile/avatar, licensing core + integration, full validation,
+  docs) remain. No commit/push (conservative profile; awaiting direction).
+
+## 2026-07-19 — Claude — Super User administration + RBAC authorization (Phase 3)
+
+- **What:** built the authorization/administration layer the auth core lacked — RBAC + Super User admin +
+  user management, per the design plan (Phase 3/11/12). On branch `feature/superuser-admin-rbac`.
+- **Backend:** `authz/Permissions.ts` (registry + built-in SuperUser/Administrator/Operator/Viewer roles +
+  effectivePermissions), `authz/AuthorizationService.ts` (requirePermission = the real deny-by-default
+  boundary + requireFreshReauth 5-min window), `admin/UserAdminService.ts` (create/update/enable/disable/
+  archive/reset/revoke with final-active-SU protection, protected-SU immutability, no escalation, session
+  invalidation on security change, audit). Schema migration v2 (roles column + archived status);
+  AuthenticationService.reauthenticate + roles/permissions in PrincipalSnapshot; SessionManager reauth
+  helpers; SecurityStore list/roles/audit-read + SU counts. 9 `security:admin:*` + `security:reauth` IPC
+  (authorization-enforced, schema-validated) + preload.
+- **Renderer:** `usePermissions`/`RoutePermissions` gate nav + route mount (`NotAuthorized`); Super User
+  Administration area — Users (CRUD + role editor + reauth modal), Roles, Permissions matrix, Audit Log,
+  Licensing placeholder; token-only `.awkit-admin-*` CSS.
+- **Decisions resolved:** O-1 scrypt, O-2 built-in roles, O-4 roles-only v1, O-5 fresh login; O-8 recovery
+  codes deferred; licensing left as a clean placeholder (Phase 5).
+- **Files:** new `src/security/{authz/Permissions,authz/AuthorizationService,admin/UserAdminService,
+  ipc/SecurityAdminIpcSchema}.ts`, `app/renderer/security/{usePermissions,routePermissions,NotAuthorized}`,
+  `app/renderer/pages/admin/*` (6 files), `scripts/verify-{authz,admin-gui}`; modified SecurityStore(+Schema),
+  AuthenticationService, AuthTypes, ReasonCodes, SessionManager, SecurityKernel, security.ipc, preload,
+  routes.tsx, LeftNavigation, App.tsx, global.css, package.json.
+- **Tests:** `npm run build` clean; **verify:authz 40/40**, **verify:admin-gui 10/10** (real Electron),
+  **verify:auth 49/49**. Backend committed locally (part 1); renderer + tests pending local commit (part 2).
+  Follow-ups: SU recovery codes, per-user overrides/custom roles (v2), machine licensing (Phase 5), AD.
+
+---
+
 ## 2026-07-19 — Claude — SecurityStore debounced persistence (awkit-ekd.8)
 
 - **What:** `SecurityStore` exported + fsynced the whole DB on every mutation (login ≈ 4 full writes; the

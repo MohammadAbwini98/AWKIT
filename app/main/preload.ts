@@ -16,7 +16,22 @@ import type { OracleDriverBundleView } from "@src/oracle/OracleDriverBundle";
 import type { DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
 import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
 import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
+import type { AdminUserView } from "@src/security/admin/UserAdminService";
+import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
+import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
+import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+
+/** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
+type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
+/** A built-in role as projected to the renderer's Roles view. */
+interface RoleView {
+  id: string;
+  name: string;
+  description: string;
+  builtIn: boolean;
+  permissions: string[];
+}
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import type { DurableArtifactRecord, DurableAttemptRecord, DurableRunRecord } from "@src/runner/store/RuntimeStoreSchema";
@@ -106,7 +121,43 @@ const api = {
       ipcRenderer.invoke("security:validateSession", sessionRef) as Promise<SessionValidationResult>,
     logout: (sessionRef: string) => ipcRenderer.invoke("security:logout", sessionRef) as Promise<void>,
     changePassword: (input: { sessionRef: string; currentPassword: string; newPassword: string }) =>
-      ipcRenderer.invoke("security:changePassword", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>
+      ipcRenderer.invoke("security:changePassword", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
+    reauth: (input: { sessionRef: string; password: string }) =>
+      ipcRenderer.invoke("security:reauth", input) as Promise<{ ok: boolean; reason?: string }>,
+    admin: {
+      listUsers: (sessionRef: string) =>
+        ipcRenderer.invoke("security:admin:listUsers", { sessionRef }) as Promise<AdminResponse<AdminUserView[]>>,
+      createUser: (input: { sessionRef: string; username: string; password: string; displayName?: string; roles: string[] }) =>
+        ipcRenderer.invoke("security:admin:createUser", input) as Promise<AdminResponse<AdminUserView>>,
+      updateUser: (input: { sessionRef: string; userId: string; displayName?: string; roles?: string[] }) =>
+        ipcRenderer.invoke("security:admin:updateUser", input) as Promise<AdminResponse<AdminUserView>>,
+      setStatus: (input: { sessionRef: string; userId: string; status: "active" | "disabled" | "archived" }) =>
+        ipcRenderer.invoke("security:admin:setStatus", input) as Promise<AdminResponse<AdminUserView>>,
+      resetPassword: (input: { sessionRef: string; userId: string; newPassword: string }) =>
+        ipcRenderer.invoke("security:admin:resetPassword", input) as Promise<AdminResponse<undefined>>,
+      revokeSessions: (input: { sessionRef: string; userId: string }) =>
+        ipcRenderer.invoke("security:admin:revokeSessions", input) as Promise<AdminResponse<undefined>>,
+      listRoles: (sessionRef: string) =>
+        ipcRenderer.invoke("security:admin:listRoles", { sessionRef }) as Promise<AdminResponse<RoleView[]>>,
+      listAudit: (input: { sessionRef: string; limit?: number; offset?: number }) =>
+        ipcRenderer.invoke("security:admin:listAudit", input) as Promise<AdminResponse<AuditRecord[]>>
+    }
+  },
+  licensing: {
+    getStatus: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:getStatus", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+    revalidate: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:revalidate", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+    exportRequest: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:exportRequest", sessionRef) as Promise<AdminResponse<ActivationRequest>>,
+    import: (input: { sessionRef: string; license: LicenseDocument }) =>
+      ipcRenderer.invoke("licensing:import", input) as Promise<AdminResponse<ImportOutcome>>,
+    replace: (input: { sessionRef: string; license: LicenseDocument }) =>
+      ipcRenderer.invoke("licensing:replace", input) as Promise<AdminResponse<ImportOutcome>>,
+    revoke: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:revoke", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport; reason?: string }>>,
+    remove: (sessionRef: string) =>
+      ipcRenderer.invoke("licensing:remove", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport }>>
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get") as Promise<UiSettings>,

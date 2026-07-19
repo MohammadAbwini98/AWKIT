@@ -13,6 +13,8 @@ import { AuthenticationService, type LockoutPolicy } from "@src/security/auth/Au
 import { ActiveDirectoryProvider, type AuthenticationProvider } from "@src/security/auth/AuthenticationProvider";
 import { LocalVirtualUserProvider } from "@src/security/auth/LocalVirtualUserProvider";
 import { DEFAULT_SESSION_POLICY, SessionManager, type SessionPolicy } from "@src/security/session/SessionManager";
+import { AuthorizationService } from "@src/security/authz/AuthorizationService";
+import { UserAdminService } from "@src/security/admin/UserAdminService";
 import type { ProviderId } from "@src/security/auth/AuthTypes";
 
 export interface BootState {
@@ -31,6 +33,8 @@ export class SecurityKernel {
   private constructor(
     readonly store: SecurityStore,
     readonly auth: AuthenticationService,
+    readonly authz: AuthorizationService,
+    readonly userAdmin: UserAdminService,
     private readonly sessions: SessionManager
   ) {}
 
@@ -42,7 +46,9 @@ export class SecurityKernel {
 
     const sessions = new SessionManager(store, options.sessionPolicy ?? DEFAULT_SESSION_POLICY, options.now);
     const auth = new AuthenticationService({ store, providers, sessions, lockout: options.lockout, now: options.now });
-    return new SecurityKernel(store, auth, sessions);
+    const authz = new AuthorizationService(store, sessions);
+    const userAdmin = new UserAdminService(store, sessions, authz, options.now);
+    return new SecurityKernel(store, auth, authz, userAdmin, sessions);
   }
 
   /** State the renderer's SecurityGate needs on boot: first-run vs login, and the idle-lock window. */

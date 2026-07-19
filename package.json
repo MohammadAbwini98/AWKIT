@@ -43,6 +43,8 @@
     "verify:flow-designer": "node scripts/verify-flow-designer-gui.mjs",
     "verify:workflow-builder": "node scripts/verify-workflow-builder-gui.mjs",
     "verify:canvas-perf": "node scripts/verify-canvas-perf.mjs",
+    "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
+    "verify:licensing": "tsx scripts/verify-licensing.mts",
     "verify:write-queue": "tsx scripts/verify-write-queue.mts",
     "verify:profile-store": "tsx scripts/verify-profile-store.mts",
     "verify:ipc-contract": "tsx scripts/verify-ipc-contract.mts",
@@ -131,7 +133,9 @@
     "package:offline": "npm run package:portable && npm run package:installer",
     "validate:offline": "powershell -ExecutionPolicy Bypass -File scripts/validate-offline-bundle.ps1",
     "ai:memory": "node scripts/ai-memory/check-memory.mjs",
-    "ai:memory:check": "node scripts/ai-memory/check-memory.mjs"
+    "ai:memory:check": "node scripts/ai-memory/check-memory.mjs",
+    "verify:authz": "tsx scripts/verify-authz.mts",
+    "verify:admin-gui": "node scripts/verify-admin-gui.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

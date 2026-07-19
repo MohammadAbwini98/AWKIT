@@ -1,7 +1,9 @@
 import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings as SettingsIcon, Sun, Workflow } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
+import { usePermissions } from "../security/usePermissions";
+import { RoutePermissions } from "../security/routePermissions";
 
 /**
  * The SpecterStudio application mark (concept "1c" — spectral edge): a near-black continuous-corner
@@ -58,6 +60,11 @@ const routeGroups = [
     // Settings is surfaced in the pinned footer utility area (template pattern), not here.
     label: "System",
     routes: ["roadmap", "projectContract", "offlineRuntime"] satisfies RouteId[]
+  },
+  {
+    // Super User Administration — hidden entirely for users without the relevant permissions.
+    label: "Administration",
+    routes: ["userManagement", "roles", "permissionsMatrix", "auditLog", "licensing"] satisfies RouteId[]
   }
 ];
 
@@ -70,8 +77,18 @@ interface LeftNavigationProps {
 
 export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onToggle }: LeftNavigationProps) {
   const { resolvedTheme, setAppearance } = useTheme();
+  const { can } = usePermissions();
   const isDark = resolvedTheme === "dark";
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(routeGroups.map((group) => [group.label, true])));
+  // Filter each group's routes by the signed-in principal's permissions; drop empty groups (UI hint only —
+  // the real boundary is the main-process IPC permission check).
+  const visibleGroups = useMemo(
+    () =>
+      routeGroups
+        .map((group) => ({ ...group, routes: group.routes.filter((id) => { const perm = RoutePermissions[id]; return !perm || can(perm); }) }))
+        .filter((group) => group.routes.length > 0),
+    [can]
+  );
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">
       <div className="brand-block">
@@ -95,7 +112,7 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
         </button>
       </div>
       <div className="navigation-list">
-        {routeGroups.map((group) => (
+        {visibleGroups.map((group) => (
           <section className="nav-group" key={group.label}>
             {!collapsed ? (
               <button

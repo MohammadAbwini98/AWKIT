@@ -19,6 +19,7 @@ import type { ColumnCrypto } from "@src/security/crypto/ColumnCrypto";
 import {
   SECURITY_STORE_MIGRATIONS,
   type AuditEvent,
+  type AuditRecord,
   type SessionRecord,
   type UserRecord,
   type UserStatus
@@ -35,12 +36,25 @@ const UPDATABLE_USER_COLUMNS = new Set<keyof UserRecord>([
   "lockedUntil",
   "lastLoginAt",
   "passwordChangedAt",
+  "isProtectedSuperUser",
+  "roles",
   "updatedAt",
   "updatedBy"
 ]);
 
 /** Debounce window for non-critical writes (mirrors SqliteRuntimeStore). */
 const PERSIST_DEBOUNCE_MS = 300;
+
+/** Parse the stored `roles` JSON column into a string[] (defensive: tolerate legacy null / bad JSON). */
+function parseRoles(value: unknown): string[] {
+  if (value == null) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed.filter((r): r is string => typeof r === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 export class SecurityStore {
   private persistChain: Promise<void> = Promise.resolve();
@@ -132,13 +146,40 @@ export class SecurityStore {
     return this.queryOneUser("SELECT * FROM security_users WHERE usernameNorm = ?", [usernameNorm]);
   }
 
+  /** All users ordered by creation (full records; callers project to a non-secret admin view). */
+  listUsers(): UserRecord[] {
+    const stmt = this.db.prepare("SELECT * FROM security_users ORDER BY createdAt");
+    const out: UserRecord[] = [];
+    try {
+      while (stmt.step()) out.push(this.mapUser(stmt.getAsObject()));
+    } finally {
+      stmt.free();
+    }
+    return out;
+  }
+
+  /** Count of ACTIVE protected Super Users — the final-Super-User protection invariant reads this. */
+  activeProtectedSuperUserCount(): number {
+    const result = this.db.exec(
+      "SELECT COUNT(*) FROM security_users WHERE isProtectedSuperUser = 1 AND status = 'active'"
+    );
+    return result.length ? Number(result[0].values[0][0]) : 0;
+  }
+
+  /** Count of ACTIVE users holding the SuperUser role (protected or assigned) — escalation guards. */
+  activeSuperUserCount(): number {
+    return this.listUsers().filter(
+      (u) => u.status === "active" && (u.isProtectedSuperUser || u.roles.includes("SuperUser"))
+    ).length;
+  }
+
   async createUser(record: UserRecord): Promise<UserRecord> {
     this.db.run(
       `INSERT INTO security_users
          (id, username, usernameNorm, displayName, status, passwordSecret, passwordAlgo, mustChangePassword,
-          failedLoginCount, lockedUntil, lastLoginAt, passwordChangedAt, isProtectedSuperUser,
+          failedLoginCount, lockedUntil, lastLoginAt, passwordChangedAt, isProtectedSuperUser, roles,
           createdAt, createdBy, updatedAt, updatedBy)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.id,
         record.username,
@@ -153,6 +194,7 @@ export class SecurityStore {
         record.lastLoginAt,
         record.passwordChangedAt,
         record.isProtectedSuperUser ? 1 : 0,
+        JSON.stringify(record.roles ?? []),
         record.createdAt,
         record.createdBy,
         record.updatedAt,
@@ -174,6 +216,12 @@ export class SecurityStore {
       } else if (key === "mustChangePassword") {
         assignments.push("mustChangePassword = ?");
         params.push(value ? 1 : 0);
+      } else if (key === "isProtectedSuperUser") {
+        assignments.push("isProtectedSuperUser = ?");
+        params.push(value ? 1 : 0);
+      } else if (key === "roles") {
+        assignments.push("roles = ?");
+        params.push(JSON.stringify(Array.isArray(value) ? value : []));
       } else {
         assignments.push(`${key} = ?`);
         params.push(value as SqlValue);
@@ -222,6 +270,12 @@ export class SecurityStore {
     await this.persist();
   }
 
+  /** Record a fresh re-authentication on a session (gates sensitive admin ops). Critical write. */
+  async touchReauth(id: string, lastReauthAt: string): Promise<void> {
+    this.db.run("UPDATE security_sessions SET lastReauthAt = ? WHERE id = ?", [lastReauthAt, id]);
+    await this.persist(true);
+  }
+
   async revokeSession(id: string, revokedAt: string): Promise<void> {
     this.db.run("UPDATE security_sessions SET revokedAt = ? WHERE id = ? AND revokedAt IS NULL", [revokedAt, id]);
     await this.persist(true);
@@ -268,6 +322,35 @@ export class SecurityStore {
     return result.length ? Number(result[0].values[0][0]) : 0;
   }
 
+  /** Recent audit rows, newest first — non-secret projection for the Audit Log admin view. */
+  listAudit(limit = 200, offset = 0): AuditRecord[] {
+    const cappedLimit = Math.max(1, Math.min(1000, Math.floor(limit)));
+    const cappedOffset = Math.max(0, Math.floor(offset));
+    const stmt = this.db.prepare(
+      "SELECT seq, at, actorName, eventType, targetType, targetId, result, reasonCode FROM security_audit ORDER BY seq DESC LIMIT ? OFFSET ?"
+    );
+    const out: AuditRecord[] = [];
+    try {
+      stmt.bind([cappedLimit, cappedOffset]);
+      while (stmt.step()) {
+        const row = stmt.getAsObject();
+        out.push({
+          seq: Number(row.seq),
+          at: String(row.at),
+          actorName: row.actorName == null ? null : String(row.actorName),
+          eventType: String(row.eventType),
+          targetType: row.targetType == null ? null : String(row.targetType),
+          targetId: row.targetId == null ? null : String(row.targetId),
+          result: String(row.result) === "failure" ? "failure" : "success",
+          reasonCode: row.reasonCode == null ? null : String(row.reasonCode)
+        });
+      }
+    } finally {
+      stmt.free();
+    }
+    return out;
+  }
+
   // ── Internals ────────────────────────────────────────────────────────────────
 
   private queryOneUser(sql: string, params: SqlValue[]): UserRecord | null {
@@ -275,29 +358,34 @@ export class SecurityStore {
     try {
       stmt.bind(params);
       if (!stmt.step()) return null;
-      const row = stmt.getAsObject();
-      return {
-        id: String(row.id),
-        username: String(row.username),
-        usernameNorm: String(row.usernameNorm),
-        displayName: String(row.displayName),
-        status: String(row.status) as UserStatus,
-        passwordSecret: this.crypto.unwrap(String(row.passwordSecret)),
-        passwordAlgo: String(row.passwordAlgo),
-        mustChangePassword: Number(row.mustChangePassword) === 1,
-        failedLoginCount: Number(row.failedLoginCount),
-        lockedUntil: row.lockedUntil == null ? null : String(row.lockedUntil),
-        lastLoginAt: row.lastLoginAt == null ? null : String(row.lastLoginAt),
-        passwordChangedAt: String(row.passwordChangedAt),
-        isProtectedSuperUser: Number(row.isProtectedSuperUser) === 1,
-        createdAt: String(row.createdAt),
-        createdBy: String(row.createdBy),
-        updatedAt: String(row.updatedAt),
-        updatedBy: String(row.updatedBy)
-      };
+      return this.mapUser(stmt.getAsObject());
     } finally {
       stmt.free();
     }
+  }
+
+  /** Map a raw security_users row (keyed object) to a UserRecord, unwrapping the password + parsing roles. */
+  private mapUser(row: Record<string, unknown>): UserRecord {
+    return {
+      id: String(row.id),
+      username: String(row.username),
+      usernameNorm: String(row.usernameNorm),
+      displayName: String(row.displayName),
+      status: String(row.status) as UserStatus,
+      passwordSecret: this.crypto.unwrap(String(row.passwordSecret)),
+      passwordAlgo: String(row.passwordAlgo),
+      mustChangePassword: Number(row.mustChangePassword) === 1,
+      failedLoginCount: Number(row.failedLoginCount),
+      lockedUntil: row.lockedUntil == null ? null : String(row.lockedUntil),
+      lastLoginAt: row.lastLoginAt == null ? null : String(row.lastLoginAt),
+      passwordChangedAt: String(row.passwordChangedAt),
+      isProtectedSuperUser: Number(row.isProtectedSuperUser) === 1,
+      roles: parseRoles(row.roles),
+      createdAt: String(row.createdAt),
+      createdBy: String(row.createdBy),
+      updatedAt: String(row.updatedAt),
+      updatedBy: String(row.updatedBy)
+    };
   }
 
   /**
