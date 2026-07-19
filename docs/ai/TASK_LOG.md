@@ -37,7 +37,7 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   `verify:ipc-contract` 4 · `verify:auth-gui` 18 · `verify:admin-gui` 11 · `verify:avatar` 24.
 - **Beads:** closed `awkit-64x` + `awkit-b92`; filed Oracle-backend-gating (P2) + `awkit-2d8`
   (live ReauthDialog GUI, P3); `bd remember` key `sender-bound-authz`.
-- **Not committed.** Residual: `oracle.ipc.ts` backend not yet gated (UI gated); live GUI ReauthDialog
+- **Merged to `main` via PR #22 (`79e9999`).** Residual: `oracle.ipc.ts` backend not yet gated (UI gated); live GUI ReauthDialog
   not automated (a global short reauth window would destabilize the single-launch seed flow).
 
 ---

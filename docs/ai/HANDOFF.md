@@ -1,11 +1,12 @@
 # Agent Handoff
 
-Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**
-on top of `main` @ `0a4500f` (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED). **Working tree: UNCOMMITTED**
-(production code + a new verifier + docs); no commit/PR yet — do that only when the user asks. Start from this
-tree. Read this block + the top of `docs/ai/CURRENT_STATE.md` and `docs/testing/E2E_DEFECTS.md` first.
+Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
+merged to **clean `main` @ `79e9999`** via **PR #22** (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED).
+Working tree **clean**, **no open PRs**, **no uncommitted work** — start the next task from `main`, normal Git
+flow (push/PR only when the user asks). Read this block + the top of `docs/ai/CURRENT_STATE.md` and
+`docs/testing/E2E_DEFECTS.md` first.
 
-**Shipped this session (uncommitted):**
+**Shipped this session (PR #22 → `main`):**
 - **awkit-64x (DEF-003)** — first-run sample seeding removed (`app/main/profileStores.ts` `seedFolder` dropped;
   `dataSource.ipc.ts` `ensureDefaultDataSource` + `runtimeInput.ipc.ts` `ensureDefaultRuntimeInputs` deleted).
   Fresh profile → empty states; samples stay in `resources/` via `npm run seed:mock-fixtures`.
