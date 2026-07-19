@@ -148,12 +148,14 @@ npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing dom
 # fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):
 npm run verify:e2e-auth     # full auth lifecycle: first-run, create/duplicate/double-click, enumeration,
                             # forced change, disable/reset, idle lock (30)
-npm run verify:e2e-rbac     # per-role nav/route-guard/direct-IPC authorization; Viewer settings.update +
-                            # real run now DENIED, footer nav filtered (awkit-b92 fixed) (49)
+npm run verify:e2e-rbac     # per-role nav/route-guard/direct-IPC authorization; Viewer settings.update,
+                            # real run + Oracle data-source mutators DENIED, footer filtered (b92+b3w) (51)
 npm run verify:e2e-licensing# Licensing page + activation-request privacy + forged import +
                             # SPECTER_LICENSE_ENFORCE run-gate ON/OFF (22; seeds its own fixtures)
 npm run verify:e2e-sweep    # all 30 nav routes render console-clean + screenshots, theme toggle,
                             # resize, keyboard/:focus-visible (13)
+npm run verify:e2e-reauth   # live ReauthDialog GUI (dedicated launch, short AWKIT_REAUTH_WINDOW_MS): a
+                            # sensitive admin op → dialog; wrong pw keeps it; correct pw applies (awkit-2d8) (9)
 npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import test-only mock flows/workflows/data source into runtime userData (for manual GUI testing)
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory

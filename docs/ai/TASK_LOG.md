@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-19 — Claude — Close E2E follow-ups: Oracle IPC authz (awkit-b3w) + live ReauthDialog test (awkit-2d8)
+
+- **Task:** implement + close the two open follow-ups so the four-bead E2E-assessment cluster
+  (awkit-64x/b92/b3w/2d8) is fully done.
+- **awkit-b3w:** gated `app/main/ipc/oracle.ipc.ts` data-source mutators (`oracle:dataSources:save`/`delete`/
+  `refreshSnapshot`) with `assertSenderPermission(event, DATASOURCE_MANAGE)` (were trusted-sender only) —
+  matches the JSON `dataSources:*` surface + the DataSourceManager `canManage` UI gate; a Viewer's direct
+  preload call is now `NOT_AUTHORIZED`. Added two Viewer-denied Oracle checks to `verify-e2e-rbac-gui.mjs`.
+- **awkit-2d8:** new `scripts/verify-e2e-reauth-gui.mjs` + `verify:e2e-reauth` alias — a dedicated Electron
+  launch with a short `AWKIT_REAUTH_WINDOW_MS` exercises the live ReauthDialog (sensitive create → dialog +
+  held action; wrong pw keeps it + error + no-apply; correct pw closes + applies). Spec step 10 in
+  `specs/e2e/E2E-RBAC.md`.
+- **Files:** `app/main/ipc/oracle.ipc.ts`, `scripts/verify-e2e-rbac-gui.mjs`, `scripts/verify-e2e-reauth-gui.mjs`
+  (new), `package.json`, `specs/e2e/E2E-RBAC.md`, docs (`CURRENT_STATE`/`HANDOFF`/`COMMANDS`/`TESTING`/
+  `KNOWN_ISSUES`, `docs/testing/E2E_DEFECTS.md`).
+- **Tests (all green):** `npm run build` clean; `verify:e2e-rbac` **51/51** (was 49; +2 Oracle checks);
+  `verify:e2e-reauth` **9/9**. Gotcha hit + recorded in KNOWN_ISSUES: orphaned `electron.exe` from earlier
+  launches makes `_electron.launch` fail ("Target … closed"); clearing the strays fixed it.
+- **Beads:** closed `awkit-b3w` + `awkit-2d8`; no open follow-ups remain from this cluster.
+- **Not committed** at time of writing (feature branch).
+
+---
+
 ## 2026-07-19 — Claude — Fix all E2E-assessment defects (DEF-003/004/005 + OBS-001/002)
 
 - **Task:** implement the plan to fix the open E2E-QA findings on `main` @ `0a4500f` — sender-bound

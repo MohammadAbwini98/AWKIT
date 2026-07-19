@@ -1,6 +1,30 @@
 # Agent Handoff
 
-Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
+Last updated: **2026-07-19 (E2E follow-ups session)** — **Oracle IPC authz gate (`awkit-b3w`) + live
+ReauthDialog GUI test (`awkit-2d8`) DONE**; the four-bead E2E-assessment cluster
+(`awkit-64x`/`awkit-b92`/`awkit-b3w`/`awkit-2d8`) is fully CLOSED. **Working tree: UNCOMMITTED** on a feature
+branch — commit/PR when the user asks. The prior work is already on `main` @ `382847c` (PRs #22 + #23). Read
+this block + the top of `docs/ai/CURRENT_STATE.md` first.
+
+**This session (uncommitted):**
+- **awkit-b3w** — `app/main/ipc/oracle.ipc.ts` data-source mutators (`save`/`delete`/`refreshSnapshot`) now
+  require `DATASOURCE_MANAGE` via `assertSenderPermission` (was trusted-sender only), matching the JSON
+  data-source surface; a Viewer's direct preload call is now `NOT_AUTHORIZED`. RBAC verifier +2 checks → **51/51**.
+- **awkit-2d8** — new `scripts/verify-e2e-reauth-gui.mjs` (`verify:e2e-reauth`, **9/9**): a dedicated launch
+  with a short `AWKIT_REAUTH_WINDOW_MS` drives the live ReauthDialog (appears + holds the action; wrong pw
+  keeps it open with an error; correct pw applies). Documented as step 10 in `specs/e2e/E2E-RBAC.md`.
+
+**Verification (all green):** `npm run build` clean; `verify:e2e-rbac` **51/51**; `verify:e2e-reauth` **9/9**.
+
+**⚠️ GUI-verifier gotcha (new):** orphaned `electron.exe` from earlier launches makes `_electron.launch` fail
+with "Target page, context or browser has been closed" (Electron quits immediately, exit 0). Kill stale
+`electron.exe` (`Get-Process electron | Stop-Process -Force`) before re-running — see `docs/ai/KNOWN_ISSUES.md`.
+
+No open follow-ups remain from this cluster. External gates unchanged (packaged EXE, clean-machine VM, soak).
+
+---
+
+Previously: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
 merged to **clean `main` @ `79e9999`** via **PR #22** (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED).
 Working tree **clean**, **no open PRs**, **no uncommitted work** — start the next task from `main`, normal Git
 flow (push/PR only when the user asks). Read this block + the top of `docs/ai/CURRENT_STATE.md` and

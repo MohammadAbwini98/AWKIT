@@ -51,8 +51,9 @@ remain structural and legacy workflows remain compatible.
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):
   `verify:e2e-auth` (**30** — full auth lifecycle incl. enumeration + idle lock), `verify:e2e-rbac`
-  (**49** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
-  are now DENIED and the footer nav is permission-filtered after the bd `awkit-b92` fix), `verify:e2e-licensing`
+  (**51** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
+  and the Oracle data-source mutators are DENIED and the footer nav is permission-filtered, after the bd
+  `awkit-b92`+`awkit-b3w` fixes), `verify:e2e-licensing`
   (**22** — activation-request privacy, forged-signature rejection, `SPECTER_LICENSE_ENFORCE` gate ON/OFF),
   `verify:e2e-sweep` (**13** — 30 routes console-clean + screenshots, theme, resize, `:focus-visible`; the
   seeded-samples check now asserts empty states after the bd `awkit-64x` fix). Coverage matrix +
@@ -61,6 +62,10 @@ remain structural and legacy workflows remain compatible.
 - `scripts/verify-session-context.mts` (`npm run verify:session-context`) — domain-level checks for the
   main-owned sender→session registry backing bd `awkit-b92`: bind/unbind lifecycle, window-destroyed
   auto-unbind, and `assertSenderPermission` failing closed (`NOT_AUTHORIZED`) for unbound windows. **11/11**.
+- `scripts/verify-e2e-reauth-gui.mjs` (`npm run verify:e2e-reauth`, bd `awkit-2d8`) — the live ReauthDialog GUI
+  flow in a dedicated Electron launch with a short `AWKIT_REAUTH_WINDOW_MS`: a sensitive admin op (create user)
+  after the window lapses pops the real dialog and holds the action; a wrong password keeps it open with an
+  error; the correct password closes it and the held action is retried + applied. **9/9**.
 - Phase 2 focused verifiers (all deterministic, no external websites): `verify:locks` (**15** —
   concurrent profile acquisition, release after success/throw/failed `launchPersistentContext`,
   kind-prefix origin/account capacities, active+stale snapshots), `verify:browser-pool` (**13** —

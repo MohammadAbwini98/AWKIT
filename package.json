@@ -140,7 +140,8 @@
     "verify:e2e-auth": "node scripts/verify-e2e-auth-gui.mjs",
     "verify:e2e-rbac": "node scripts/verify-e2e-rbac-gui.mjs",
     "verify:e2e-licensing": "node scripts/verify-e2e-licensing-gui.mjs",
-    "verify:e2e-sweep": "node scripts/verify-e2e-route-sweep.mjs"
+    "verify:e2e-sweep": "node scripts/verify-e2e-route-sweep.mjs",
+    "verify:e2e-reauth": "node scripts/verify-e2e-reauth-gui.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

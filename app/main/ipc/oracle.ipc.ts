@@ -1,5 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { assertTrustedSender } from "./senderGuard";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 import {
   addJavaRuntime,
   deleteOracleDataSource,
@@ -31,7 +33,9 @@ import type { OracleProfileInput } from "@src/oracle/OracleProfileService";
 /**
  * IPC surface for Oracle connection profiles + test-connection. Renderer channels return only
  * credential-free views (`hasPassword`/`hasTrustStoreSecret`, never a value). Mutating channels
- * additionally assert a trusted sender (defense in depth on top of the global guard).
+ * additionally assert a trusted sender (defense in depth on top of the global guard); the Oracle
+ * data-source mutators (`save`/`delete`/`refreshSnapshot`) further require the `DATASOURCE_MANAGE`
+ * permission, matching the JSON data-source surface so a direct preload call cannot bypass the UI gate.
  */
 export function registerOracleIpc(): void {
   ipcMain.handle("oracle:availability", async () => oracleAvailability());
@@ -62,15 +66,15 @@ export function registerOracleIpc(): void {
   ipcMain.handle("oracle:dataSources:get", async (_event, id: string) => getOracleDataSource(id));
 
   ipcMain.handle("oracle:dataSources:save", async (event, input: OracleDataSourceInput) => {
-    assertTrustedSender(event);
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return saveOracleDataSource(input);
   });
   ipcMain.handle("oracle:dataSources:delete", async (event, id: string) => {
-    assertTrustedSender(event);
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return deleteOracleDataSource(id);
   });
   ipcMain.handle("oracle:dataSources:refreshSnapshot", async (event, id: string) => {
-    assertTrustedSender(event);
+    await assertSenderPermission(event, Permission.DATASOURCE_MANAGE);
     return refreshOracleDataSourceSnapshot(id);
   });
 

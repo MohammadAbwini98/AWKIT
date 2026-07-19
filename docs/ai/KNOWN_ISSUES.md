@@ -17,6 +17,14 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   `verify:auth-gui` and `verify:admin-gui` kept asserting the old DOM and were broken on `main` until
   repaired in the E2E QA assessment (now 18/18 and 11/11). When touching `AppFrame`/admin chrome,
   re-run BOTH suites before merging.
+- **Orphaned `electron.exe` processes break `_electron.launch` GUI verifiers (2026-07-19).** After several
+  real-Electron verifier runs, stale `electron.exe` processes can linger and make the *next* `_electron.launch`
+  fail immediately with "Target page, context or browser has been closed" — Electron attaches the inspector,
+  prints "Waiting for the debugger to disconnect...", and exits 0 before any window opens. It is environmental,
+  not a code defect: the identical suite passes once the strays are cleared (both `verify:e2e-rbac` and
+  `verify:e2e-reauth` hit this, then went 51/51 and 9/9 after cleanup). Fix on Windows:
+  `Get-Process electron | Stop-Process -Force` (PowerShell) before re-running. Affects any
+  `scripts/verify-*-gui.mjs` / `verify:e2e-*` suite.
 
 - **ICO frame-offset corruption in `png-to-ico` 2.1.0 — FIXED (2026-07-16).**
   `scripts/generate-app-icon.mjs` previously passed multiple PNGs to `png-to-ico`. Its DIB writer appended

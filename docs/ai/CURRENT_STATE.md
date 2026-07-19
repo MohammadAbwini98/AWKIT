@@ -1,5 +1,21 @@
 # CURRENT_STATE
 
+## E2E follow-ups CLOSED — Oracle IPC authz gate + live ReauthDialog GUI test (2026-07-19, later session)
+
+Closed the two remaining E2E-assessment follow-ups (bd `awkit-b3w` + `awkit-2d8`); the whole four-bead cluster
+(`awkit-64x`/`awkit-b92`/`awkit-b3w`/`awkit-2d8`) is now CLOSED. **On a feature branch — commit/PR pending.**
+- **awkit-b3w — Oracle data-source IPC authorization:** `app/main/ipc/oracle.ipc.ts` `oracle:dataSources:save`/
+  `delete`/`refreshSnapshot` now call `assertSenderPermission(event, DATASOURCE_MANAGE)` (previously a
+  trusted-sender check only), closing a bypass where a direct preload call skipped the DataSourceManager UI
+  gate. Mirrors the JSON `dataSources:*` surface. `verify:e2e-rbac` gained two Viewer-denied Oracle checks → **51/51**.
+- **awkit-2d8 — live ReauthDialog GUI test:** new `scripts/verify-e2e-reauth-gui.mjs` + `verify:e2e-reauth`
+  alias — a dedicated Electron launch with a short `AWKIT_REAUTH_WINDOW_MS` drives the real dialog: a sensitive
+  admin op (create user) after the window lapses pops ReauthDialog and holds the action; a wrong password keeps
+  it open with an error (no apply); the correct password closes it and the held create is applied. **9/9**.
+- **Verification:** `npm run build` clean; `verify:e2e-rbac` **51/51**; `verify:e2e-reauth` **9/9**. GUI-verifier
+  gotcha: orphaned `electron.exe` from prior launches makes `_electron.launch` fail with "Target … closed" — kill
+  stale `electron.exe` before a run (see `docs/ai/KNOWN_ISSUES.md`).
+
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
 Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,

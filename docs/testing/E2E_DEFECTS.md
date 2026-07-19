@@ -67,7 +67,12 @@ end). Evidence lives under `test-artifacts/2026-07-19-e2e-qa/`.
   perm)`, deriving the acting session from `event.sender` (never renderer-supplied) and failing closed.
   Substantive `settings.update` (paths/runtime/execution/designerDefaults) requires `SETTINGS_EDIT`; a
   real run (`dryRun:false`) requires `WORKFLOW_EXECUTE` (validation/dry-run stays open).
-  `verify:e2e-rbac` flipped to assert denial — **49/49 green**; new `verify:session-context` **11/11**.
+- **Follow-up resolution (bd `awkit-b3w`, 2026-07-19):** the same gate now covers the **Oracle** data-source
+  mutators (`oracle:dataSources:save`/`delete`/`refreshSnapshot` in `app/main/ipc/oracle.ipc.ts`), which
+  previously carried only a trusted-sender check — a Viewer's direct preload call is now `NOT_AUTHORIZED`,
+  matching the JSON data-source surface and the DataSourceManager UI gate (denied before the existence check).
+  `verify:e2e-rbac` flipped to assert denial — **51/51 green** (incl. the two Oracle-mutator checks); new
+  `verify:session-context` **11/11**.
 
 ## E2E-DEF-005 — Footer "Settings" / "Help Center" nav not permission-filtered — PRODUCT UX, FIXED (bd `awkit-b92`)
 
@@ -92,5 +97,8 @@ end). Evidence lives under `test-artifacts/2026-07-19-e2e-qa/`.
   `app/renderer/layout/StatusBar.tsx`.
 - **OBS-002 — ReauthDialog reauth-window override — FIXED (2026-07-19):** added `AWKIT_REAUTH_WINDOW_MS`
   (dev/test only, mirrors `AWKIT_SESSION_IDLE_MS`) — `SecurityKernelOptions.reauthWindowMs` threaded
-  into `AuthorizationService`. The reauth contract stays covered by `verify:authz` (40/40); automating
-  the live GUI dialog is tracked as bd `awkit-2d8`.
+  into `AuthorizationService`. The reauth contract stays covered by `verify:authz` (40/40); the live GUI
+  dialog is now automated too — bd `awkit-2d8`, `scripts/verify-e2e-reauth-gui.mjs`
+  (`npm run verify:e2e-reauth`, **9/9**): a dedicated launch with a short window pops the real ReauthDialog on
+  a sensitive op (create user), a wrong password keeps it open with an error and applies nothing, and the
+  correct password closes it and applies the held action.
