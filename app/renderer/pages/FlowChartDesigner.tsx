@@ -14,7 +14,7 @@ import {
   type Viewport
 } from "../components/canvas";
 import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
 import { buildConnectorVisual } from "../components/shared/connectorStyle";
@@ -42,6 +42,13 @@ import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
 import type { FlowEdgeType, FlowProfile, StepType } from "@src/profiles/FlowProfile";
 import { connectorKind } from "@src/profiles/FlowProfile";
+import {
+  executionBlockingErrorsOf,
+  validateFlowDefinition,
+  warningsOf,
+  type FlowValidationIssue,
+  type FlowValidationReport
+} from "@src/validation/FlowValidator";
 
 const nodeTypes = {
   actionNode: ActionFlowNode
@@ -115,6 +122,8 @@ function FlowChartDesignerContent() {
   const [edges, setEdges] = useEdgesState<FlowConnectionData>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  /** Whether the validation-issues panel (opened from the chip) is showing. */
+  const [issuesOpen, setIssuesOpen] = useState(false);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
   const [flowId, setFlowId] = useState("login-flow");
   const [flowName, setFlowName] = useState("Login Flow");
@@ -170,12 +179,30 @@ function FlowChartDesignerContent() {
       engine.panBy(panX, 0, { duration: 260 });
     }
   }, [drawerOpen, selectedEdgeId, selectedNodeId]);
-  const validationMessages = useMemo(() => validateFlow(nodes, edges), [nodes, edges]);
   const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName, flowMeta), [edges, flowId, flowMeta, flowName, nodes]);
-  // Points 2–4: connector-structure issues block Save until fixed (subset of validationMessages).
-  const connectorIssues = useMemo(
-    () => connectorStructureIssues(edges, (id) => nodes.find((node) => node.id === id)?.data.name ?? id),
-    [edges, nodes]
+
+  // ── Shared validation engine (Stage 2b) ────────────────────────────────────
+  // One source of truth: the same `validateFlowDefinition` the run gate uses, driven through the
+  // designer's own `toFlowProfile` mapping. Deferred so rapid property-panel keystrokes render the
+  // canvas first and the (already cheap, O(nodes+edges)) revalidation follows a beat behind —
+  // validation itself is never skipped.
+  const savedFlowIds = useMemo(() => new Set([...savedFlows.map((profile) => profile.id), flowId]), [savedFlows, flowId]);
+  const deferredProfile = useDeferredValue(flowProfile);
+  const validationReport: FlowValidationReport = useMemo(
+    () => validateFlowDefinition(deferredProfile, { referenceableFlowIds: savedFlowIds }),
+    [deferredProfile, savedFlowIds]
+  );
+  // Blocking = would the run gate reject this flow right now (active-path errors + connector
+  // structure). DERIVED state only — never persisted onto the profile.
+  const blockingIssues = useMemo(() => executionBlockingErrorsOf(validationReport), [validationReport]);
+  const warningIssues = useMemo(() => warningsOf(validationReport), [validationReport]);
+  // Renderer-only advisories the engine has no rule for yet (locator uniqueness, conditional
+  // config completeness, ambiguous priorities). Additive on top of the engine — never a second
+  // implementation of an engine rule.
+  const advisoryMessages = useMemo(() => rendererAdvisories(nodes, edges), [nodes, edges]);
+  const validationMessages = useMemo(
+    () => [...validationReport.issues.map((issue) => issue.message), ...advisoryMessages],
+    [validationReport, advisoryMessages]
   );
 
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
@@ -410,6 +437,20 @@ function FlowChartDesignerContent() {
     setSelectedEdgeId(null);
   }, []);
 
+  /**
+   * Structured-location navigation (Stage 2b): an issue anchors to a node or connector id, so one
+   * click selects the offending object (the existing selection effects then pan it into view and
+   * open its properties panel). Flow-level issues have no anchor and only close the panel.
+   */
+  const navigateToIssue = useCallback(
+    (issue: FlowValidationIssue) => {
+      if (issue.nodeId) selectNode(issue.nodeId);
+      else if (issue.edgeId) selectEdge(issue.edgeId);
+      setIssuesOpen(false);
+    },
+    [selectEdge, selectNode]
+  );
+
   const handlePaneClick = useCallback(() => {
     clearSelection();
     setPicker(null);
@@ -437,10 +478,10 @@ function FlowChartDesignerContent() {
   const canSaveFlow = can(Permission.WORKFLOW_EDIT);
 
   const saveFlow = useCallback(async () => {
-    if (connectorIssues.length) {
-      setToast({ tone: "error", message: `Cannot save: ${connectorIssues[0]}` });
-      return;
-    }
+    // Stage 2b: save NEVER blocks on validation. An invalid flow saves as a Draft, exactly as
+    // built — nothing is auto-fixed, removed or reconnected. Only a document-level failure (the
+    // IPC/store rejecting the write) fails a save, and that is reported as a save failure, not a
+    // validation failure. Runnability is derived from fresh validation, never persisted.
     const now = new Date().toISOString();
     try {
       const existing = await window.playwrightFlowStudio.flows.get(flowProfile.id);
@@ -452,14 +493,25 @@ function FlowChartDesignerContent() {
       }
       const profiles = await window.playwrightFlowStudio.flows.list();
       setSavedFlows(profiles);
-      setSaveState("Saved profile");
       setSavedSnapshot(serializeFlowDoc(toSave)); // clear dirty: current document is now the saved baseline
-      setToast({ tone: "success", message: `Flow saved successfully: ${toSave.name}` });
+      // Validate what was ACTUALLY saved (not the live canvas) so the draft message is truthful.
+      const savedReport = validateFlowDefinition(toSave, { referenceableFlowIds: new Set(profiles.map((profile) => profile.id)) });
+      const savedBlocking = executionBlockingErrorsOf(savedReport);
+      if (savedBlocking.length > 0) {
+        setSaveState("Saved draft");
+        setToast({
+          tone: "info",
+          message: `Saved as draft: ${toSave.name}. ${savedBlocking.length} validation error${savedBlocking.length === 1 ? "" : "s"} must be fixed before it can run.`
+        });
+      } else {
+        setSaveState("Saved profile");
+        setToast({ tone: "success", message: `Flow saved successfully: ${toSave.name}` });
+      }
     } catch (error) {
       setSaveState("Save failed");
       setToast({ tone: "error", message: `Failed to save changes. ${error instanceof Error ? error.message : ""}`.trim() });
     }
-  }, [flowProfile, connectorIssues]);
+  }, [flowProfile]);
 
   const loadProfile = useCallback(
     (profile: FlowProfile) => {
@@ -917,11 +969,48 @@ function FlowChartDesignerContent() {
             <LayoutGrid size={15} />
             Auto-arrange
           </button>
-          <span className={validationMessages.length ? "validation-chip warn" : "validation-chip ok"}>
+          {/* Derived runnability (Stage 2b): blocking = the run gate would reject this flow now.
+              Never persisted. Clicking opens the issue list; each row navigates to its node/connector. */}
+          <button
+            type="button"
+            className={`validation-chip ${blockingIssues.length ? "block" : validationMessages.length ? "warn" : "ok"}`}
+            onClick={() => setIssuesOpen((open) => !open)}
+            title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationMessages.length ? "Click to review validation findings" : "No validation findings"}
+            data-testid="flow-validation-chip"
+          >
             <ShieldCheck size={14} />
-            {validationMessages.length ? `${validationMessages.length} issues` : "Valid"}
-          </span>
+            {blockingIssues.length
+              ? `Draft — not runnable (${blockingIssues.length})`
+              : validationMessages.length
+                ? `${validationMessages.length} finding${validationMessages.length === 1 ? "" : "s"}`
+                : "Runnable"}
+          </button>
         </div>
+
+        {issuesOpen && (validationReport.issues.length > 0 || advisoryMessages.length > 0) ? (
+          <div className="validation-issues-panel" data-testid="flow-validation-panel">
+            {validationReport.issues.map((issue) => (
+              <button
+                key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "flow"}-${issue.message}`}
+                type="button"
+                className={`validation-issue-row ${issue.severity}`}
+                onClick={() => navigateToIssue(issue)}
+                title={issue.nodeId ? "Select the affected node" : issue.edgeId ? "Select the affected connector" : "Flow-level finding"}
+              >
+                <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.onActivePath && issue.code !== "connectorStructure" ? " offpath" : ""}`}>
+                  {issue.severity === "warning" ? "warning" : issue.onActivePath || issue.code === "connectorStructure" ? "blocks run" : "off-path"}
+                </span>
+                <span>{issue.message}</span>
+              </button>
+            ))}
+            {advisoryMessages.map((message) => (
+              <div key={message} className="validation-issue-row advisory">
+                <span className="validation-issue-badge advisory">advisory</span>
+                <span>{message}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flow-designer-body">
           <div ref={canvasRef} className="react-flow-shell">
@@ -977,36 +1066,35 @@ export function FlowChartDesigner() {
   return <FlowChartDesignerContent />;
 }
 
-function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
+/**
+ * Renderer-only validation advisories (Stage 2b).
+ *
+ * The graph/step rules that used to live here (start/end counts, connectivity, required locator/
+ * value, loop bounds, connector structure) are now owned by the shared engine —
+ * `validateFlowDefinition` in `src/validation/FlowValidator.ts` — driven through `toFlowProfile`,
+ * so the designer, run gate, library and import can never disagree. This function keeps ONLY the
+ * checks the engine has no rule for, using designer-local knowledge:
+ *  - locator uniqueness quality captured by the Recorder (`locatorQuality`);
+ *  - conditional-connector config completeness (expected value / variable path);
+ *  - static-list loop connectors with no values;
+ *  - ambiguous same-priority conditional connectors;
+ *  - a dead-end non-End node (reachable but with no outgoing connector) — candidate engine rule.
+ * These are advisories: they never block save and never block the run gate.
+ */
+function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
   const messages: string[] = [];
-  const startCount = nodes.filter((node) => node.data.stepType === "start").length;
-  const endCount = nodes.filter((node) => node.data.stepType === "end").length;
-
-  if (startCount !== 1) messages.push("Flow requires exactly one Start node.");
-  if (endCount < 1) messages.push("Flow requires at least one End node.");
-
-  const incoming = new Set(edges.map((edge) => edge.target));
+  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
   const outgoing = new Set(edges.map((edge) => edge.source));
 
   nodes.forEach((node) => {
-    const catalogItem = getFlowNodeCatalogItem(node.data.stepType);
-    if (node.data.stepType !== "start" && !incoming.has(node.id)) messages.push(`${node.data.name} has no incoming connector.`);
     if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push(`${node.data.name} has no outgoing connector.`);
-    if (catalogItem.requiresLocator && !node.data.locatorValue.trim()) messages.push(`${node.data.name} requires a locator value.`);
     if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false) {
       messages.push(`${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.`);
     }
-    if (catalogItem.requiresValue && !node.data.value.trim()) messages.push(`${node.data.name} requires a value source or value.`);
   });
 
-  // ── Connector validation (Checkpoint B) ────────────────────────────────────
-  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
   edges.forEach((edge) => {
     const data = edge.data;
-    if (!edge.target) {
-      messages.push(`A connector from ${nodeName(edge.source)} has no target.`);
-      return;
-    }
     const edgeKind = data?.kind ?? (data?.linkType === "conditional" || data?.linkType === "outcome" ? "conditional" : data?.linkType === "parallel" ? "parallel" : data?.linkType === "loop" || data?.linkType === "loopBack" ? "loop" : "normal");
     if (edgeKind === "conditional" && data?.conditional) {
       const c = data.conditional;
@@ -1020,8 +1108,6 @@ function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): str
     }
     if (edgeKind === "loop" && data?.loop) {
       const l = data.loop;
-      if (!l.maxIterations || l.maxIterations < 1) messages.push(`Loop connector from ${nodeName(edge.source)} needs a max iterations ≥ 1.`);
-      if (l.maxIterations > 1000) messages.push(`Loop connector from ${nodeName(edge.source)} max iterations is too high (limit 1000).`);
       if (l.mode === "staticList" && !(l.staticValues && l.staticValues.length)) messages.push(`Loop connector from ${nodeName(edge.source)} (static list) needs at least one value.`);
     }
   });
@@ -1038,57 +1124,6 @@ function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): str
   condBySource.forEach((priorities, source) => {
     const dupes = priorities.filter((p, i) => priorities.indexOf(p) !== i);
     if (dupes.length) messages.push(`${nodeName(source)} has multiple conditional connectors with the same priority — routing may be ambiguous.`);
-  });
-
-  messages.push(...connectorStructureIssues(edges, nodeName));
-
-  return messages;
-}
-
-/**
- * Connector-structure rules (Points 2–4) that block Save until fixed: at most one
- * standard (non-conditional/non-parallel) outgoing connector per node, loop connectors
- * must return to the same node, and additional connectors from a loop-controlled node
- * must be Conditional. Exposed separately from `validateFlow` so `saveFlow` can gate on
- * just these structural issues without also blocking on cosmetic/locator warnings.
- */
-function connectorStructureIssues(edges: FlowDesignerEdge[], nodeName: (id: string) => string): string[] {
-  const messages: string[] = [];
-  const kindOf = (edge: FlowDesignerEdge) => edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" });
-
-  // Point 4: loop connectors must connect a node to itself only. The legacy `loopBack`
-  // edge type (Enhanced Connectors, Phase 1) is an intentional cross-node back-edge and
-  // is exempt — only the new structured `loop` kind is self-only.
-  edges.forEach((edge) => {
-    const isStructuredLoop = edge.data?.kind === "loop" || edge.data?.linkType === "loop";
-    if (isStructuredLoop && edge.source !== edge.target) {
-      messages.push(`Loop connector from ${nodeName(edge.source)} is invalid — it must return to the same node.`);
-    }
-  });
-
-  // Point 2: a node cannot have more than one non-conditional/non-parallel outgoing connector.
-  const outgoingBySource = new Map<string, FlowDesignerEdge[]>();
-  edges.forEach((edge) => {
-    const list = outgoingBySource.get(edge.source) ?? [];
-    list.push(edge);
-    outgoingBySource.set(edge.source, list);
-  });
-  outgoingBySource.forEach((sourceEdges, source) => {
-    const standard = sourceEdges.filter((edge) => kindOf(edge) !== "conditional" && kindOf(edge) !== "parallel");
-    if (standard.length > 1) {
-      messages.push(
-        `Node "${nodeName(source)}" has multiple standard outgoing connectors. Use a Conditional or Parallel connector for additional outgoing paths, or remove the extra connector.`
-      );
-    }
-  });
-
-  // Point 3: a node with a self-loop connector must route any other outgoing connector as Conditional.
-  const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && kindOf(edge) === "loop").map((edge) => edge.source));
-  edges.forEach((edge) => {
-    if (!loopSources.has(edge.source) || edge.source === edge.target) return;
-    if (kindOf(edge) !== "conditional") {
-      messages.push(`Node "${nodeName(edge.source)}" has a loop connector. Additional outgoing connectors from a loop node must be Conditional.`);
-    }
   });
 
   return messages;

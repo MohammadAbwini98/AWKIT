@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import { navClick } from "./lib/e2e-qa-lib.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-flow-designer-gui");
@@ -51,6 +52,54 @@ function seedFlowFixture(localAppData) {
     ]
   };
   writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
+
+  // Stage 2b fixtures: an INVALID draft flow (missing locator on the active path + an orphan
+  // node off it) and two one-flow workflows, so the walkthrough can assert the draft-save model,
+  // the derived library status and the run gate's blocking policy end-to-end.
+  const invalidFlow = {
+    id: "verify-invalid-draft",
+    name: "Verify Invalid Draft",
+    description: "Invalid fixture: blocking missing locator + non-blocking orphan node.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start", position: { x: 280, y: 80 } },
+      { id: "click", type: "click", name: "Unlocated Click", position: { x: 280, y: 220 } },
+      { id: "orphan", type: "screenshot", name: "Orphan Shot", position: { x: 640, y: 80 }, config: { screenshotName: "orphan" } },
+      { id: "end", type: "end", name: "End", position: { x: 280, y: 360 } }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "click", type: "success" },
+      { id: "e1", source: "click", target: "end", type: "success" }
+    ]
+  };
+  writeFileSync(path.join(flowsDir, `${invalidFlow.id}.json`), `${JSON.stringify(invalidFlow, null, 2)}\n`, "utf8");
+
+  const workflowsDir = path.join(localAppData, "SpecterStudio", "workflows");
+  mkdirSync(workflowsDir, { recursive: true });
+  const workflowFor = (id, name, flowId) => ({
+    id,
+    name,
+    description: "Stage 2b run-gate fixture.",
+    version: 1,
+    nodes: [
+      { id: "start", type: "start", alias: "Start", order: 0 },
+      { id: "node-flow", type: "flowRef", flowId, alias: flowId, order: 1, required: true, inputBindings: {} },
+      { id: "end", type: "end", alias: "End", order: 2 }
+    ],
+    edges: [
+      { id: "e-start", source: "start", target: "node-flow", type: "always" },
+      { id: "e-end", source: "node-flow", target: "end", type: "always" }
+    ],
+    runtimeInputs: [],
+    execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true },
+    createdAt: now,
+    updatedAt: now
+  });
+  for (const workflow of [workflowFor("verify-wf-valid", "Verify WF Valid", "verify-flow-designer"), workflowFor("verify-wf-invalid", "Verify WF Invalid", "verify-invalid-draft")]) {
+    writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
+  }
 }
 
 const results = [];
@@ -503,6 +552,124 @@ try {
     const stillOpen = Boolean(await win.$(".searchable-select-menu"));
     check("Saved Flow dropdown opens, then closes on an outside canvas pointerdown", opened && !stillOpen, `opened=${opened} closedAfterCanvasClick=${!stillOpen}`);
   }
+
+  // --- 9. Stage 2b: shared validation engine — draft save, chip, navigation, gate, library ---
+  console.log("\nStage 2b: validation engine in the designer, library and run gate");
+
+  // 9a. Reload the pristine valid flow (the walkthrough above mutated the canvas document) and
+  // assert the chip derives "Runnable".
+  await win.click(".searchable-select-trigger");
+  await win.locator(".searchable-select-menu >> text=Verify — Flow Designer").first().click();
+  await win.waitForTimeout(600);
+  const chipRunnable = (await win.locator('[data-testid="flow-validation-chip"]').textContent().catch(() => "")) ?? "";
+  check("Validation chip shows Runnable for the valid flow", chipRunnable.trim() === "Runnable", `chip="${chipRunnable.trim()}"`);
+
+  // 9b. Switch to the seeded invalid draft via the Saved Flow dropdown. Re-open defensively —
+  // the trigger click can race the popover dismiss from the selection just made in 9a.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await win.click(".searchable-select-trigger");
+    await win.waitForTimeout(250);
+    if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
+  }
+  await win.locator(".searchable-select-menu >> text=Verify Invalid Draft").first().click({ timeout: 10_000 });
+  await win.waitForTimeout(500);
+  const chipDraft = (await win.locator('[data-testid="flow-validation-chip"]').textContent().catch(() => "")) ?? "";
+  check("Validation chip flips to Draft — not runnable for the invalid draft", chipDraft.includes("not runnable"), `chip="${chipDraft.trim()}"`);
+
+  // 9c. The chip opens the issue list, with blocking vs off-path badges.
+  await win.click('[data-testid="flow-validation-chip"]');
+  await win.waitForTimeout(200);
+  const panelBadges = await win.evaluate(() => {
+    const panel = document.querySelector('[data-testid="flow-validation-panel"]');
+    if (!panel) return null;
+    return [...panel.querySelectorAll(".validation-issue-badge")].map((badge) => (badge.textContent || "").trim());
+  });
+  check(
+    "Issue panel lists both a blocking and an off-path finding",
+    Array.isArray(panelBadges) && panelBadges.includes("blocks run") && panelBadges.includes("off-path"),
+    JSON.stringify(panelBadges)
+  );
+
+  // 9d. Clicking an issue navigates to the offending node (structured location, not prose).
+  await win.locator(".validation-issue-row", { hasText: "requires a locator" }).first().click();
+  await win.waitForTimeout(400);
+  const panelShowsNode = await win.evaluate(() => {
+    const panel = document.querySelector(".properties-panel");
+    return panel ? (panel.textContent || "").includes("Unlocated Click") : false;
+  });
+  check("Clicking the issue selects the offending node and opens its properties", panelShowsNode);
+
+  // 9e. Save succeeds as a DRAFT and changes nothing in the graph.
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(600);
+  const draftToast = await win.evaluate(() => document.querySelector(".app-toast-info")?.textContent ?? "");
+  check("Saving the invalid flow succeeds with a Saved-as-draft notice", draftToast.includes("Saved as draft"), `toast="${draftToast}"`);
+  const savedDraft = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-invalid-draft"));
+  const draftNodeIds = (savedDraft?.nodes ?? []).map((node) => node.id).sort().join(",");
+  const draftClick = (savedDraft?.nodes ?? []).find((node) => node.id === "click");
+  check(
+    "The saved draft still has every node — the orphan was NOT deleted, nothing was auto-fixed",
+    draftNodeIds === "click,end,orphan,start" && draftClick && draftClick.locator === undefined,
+    `nodes=${draftNodeIds} clickLocator=${JSON.stringify(draftClick?.locator ?? null)}`
+  );
+  const draftEdgeIds = (savedDraft?.edges ?? []).map((edge) => edge.id).sort().join(",");
+  check("The saved draft keeps its connectors unchanged", draftEdgeIds === "e0,e1", `edges=${draftEdgeIds}`);
+
+  // 9f. The run gate: fresh validation per run — blocking error rejects, off-path alone does not.
+  const runInvalid = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-invalid", dryRun: true }));
+  check(
+    "runWorkflow on the invalid draft returns validationFailed with structured issues",
+    runInvalid?.status === "validationFailed" &&
+      runInvalid?.validation?.valid === false &&
+      (runInvalid?.validation?.issues ?? []).some((issue) => issue.code === "missingRequiredLocator" && issue.nodeId === "click" && issue.blocking === true),
+    JSON.stringify({ status: runInvalid?.status, issues: (runInvalid?.validation?.issues ?? []).map((i) => i.code) })
+  );
+  check(
+    "…and the off-path orphan is reported but marked non-blocking",
+    (runInvalid?.validation?.issues ?? []).some((issue) => issue.code === "unreachableNode" && issue.blocking === false && issue.onActivePath === false),
+    JSON.stringify((runInvalid?.validation?.issues ?? []).filter((i) => i.code === "unreachableNode"))
+  );
+  const runValid = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-valid", dryRun: true }));
+  check(
+    "runWorkflow on the valid flow passes the gate despite the broken draft in the library (scoped validation)",
+    runValid?.status === "validated",
+    JSON.stringify({ status: runValid?.status, issues: (runValid?.validation?.issues ?? []).map((i) => i.code) })
+  );
+
+  // 9g. Flow Library: derived status with a real Checking… phase, never persisted.
+  await win.evaluate(() => {
+    window.__sawChecking = false;
+    const record = () => {
+      if (document.querySelector('[data-validation="checking"]')) window.__sawChecking = true;
+    };
+    const observer = new MutationObserver(record);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    record();
+  });
+  await navClick(win, "Flows");
+  await win.waitForTimeout(900);
+  const libraryPills = await win.evaluate(() => {
+    const rows = [...document.querySelectorAll(".wl-table tbody tr")];
+    const map = {};
+    for (const row of rows) {
+      const id = row.querySelectorAll("td")[1]?.textContent?.trim();
+      const pill = row.querySelector("[data-validation]");
+      if (id && pill) map[id] = pill.getAttribute("data-validation");
+    }
+    return { map, sawChecking: window.__sawChecking === true };
+  });
+  check("Library shows a Checking… phase before the derived verdict", libraryPills.sawChecking);
+  check(
+    "Library derives Runnable / Not runnable per flow from the engine",
+    libraryPills.map["verify-flow-designer"] === "runnable" && libraryPills.map["verify-invalid-draft"] === "not-runnable",
+    JSON.stringify(libraryPills.map)
+  );
+  const persistedDraft = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-invalid-draft"));
+  check(
+    "No runnable verdict is persisted onto the flow profile",
+    persistedDraft && !("runnable" in persistedDraft) && !("validation" in persistedDraft) && !("validatedAt" in persistedDraft),
+    Object.keys(persistedDraft ?? {}).join(",")
+  );
 
   check("Flow Designer walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 

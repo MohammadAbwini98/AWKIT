@@ -1,5 +1,48 @@
 # CURRENT_STATE
 
+## Randomized Test Lab — Tranche 2 Stage 2b: validation engine WIRED into production (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The shared `FlowValidator` engine now drives the run gate, the
+Flow Designer, the Workflow Builder, the Flow Library and `flows:import`. `awkit-7fm` (9 undetected
+defect classes) and `awkit-acw` (`radio` locator drift) are **closed** — `verify-random-oracle` asserts
+every rule is both detected and production-enforced (27/0).
+
+- **Run gate:** `PreRunValidator` is a thin adapter over `validateFlowSet` — no flow rules of its own;
+  the drifted hardcoded locator list is deleted. Every issue carries `blocking`, `code`, `flowId`,
+  `nodeId`/`edgeId`, `onActivePath`; `execution.ipc.ts` blocks iff `isRunBlocked(issues)`. Blocking =
+  active-path errors + ALL connector-structure errors (the runtime refuses those flow-wide). Warnings
+  and confirmed off-path errors (orphan nodes) report but never block. Unknown reachability (no single
+  Start) blocks conservatively. Validation is **scoped** to the scenario's flows + transitive `runFlow`
+  closure — previously the whole library was validated and an unrelated broken draft blocked every run
+  (pre-existing bug, fixed).
+- **Draft model:** designer and builder saves NEVER block on validation; an invalid flow saves as a
+  Draft exactly as built ("Saved as draft: N validation errors…" info toast). No `runnable` boolean is
+  persisted anywhere; runnability is derived fresh per surface.
+- **Designer:** the validation chip is derived (`Runnable` / `N findings` / `Draft — not runnable (N)`)
+  and opens a clickable issue list — each row navigates to the offending node/connector via the issue's
+  structured location. Engine rules replaced the old advisory `validateFlow`; renderer keeps only
+  advisories the engine lacks (locator uniqueness, conditional config completeness, dead-end non-End
+  node, ambiguous priorities). Revalidation is `useDeferredValue`-paced; `verify:canvas-perf` (13/13)
+  confirms no canvas re-render regressions.
+- **Library:** async derived status per flow — `Checking…` → `Runnable` / `Not runnable` / `N findings`
+  — computed off-tick, never written back to the profile.
+- **Import:** `flows:import` returns `{ profile, validation }`; parseable invalid flows import as
+  drafts; unparseable documents still fail as document errors (distinct from validation).
+- **Owner decisions:** canonical loop cap **1,000** lives in `src/validation/FlowLimits.ts`; FlowExecutor
+  `LOOP_CONNECTOR_HARD_CAP`, `FLOW_BOUNDS.maxLoopIterations` (was 10,000), the test-lab catalog and the
+  renderer read it. `validateConnectorStructureDetailed` (FlowProfile.ts) provides structured connector
+  findings; the legacy string form wraps it byte-identically. The test-lab generator derives
+  `config.targetFlowId` from the canonical `flowId` (they can no longer disagree).
+- **Verification:** `verify-validation` **124/0** · `verify-random-oracle` **27/0** ·
+  `verify-random-generator` **49/0** · `verify-random-roundtrip` **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **37/37 real Electron** (draft save, chip, navigation, gate, library Checking
+  state) · `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** (harness repaired: it
+  predated the splash window + SecurityGate; now isolated + signed-in like every other GUI verifier) ·
+  `verify:profile-store` **16/16** · `verify:instance-monitor` **43/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not yet (Stage 2c):** Legacy Compatibility status (deadlines/audit/banner), suggested-fix
+  preview/backup/undo/migration reports, inventory scan. Nothing of it was implemented early.
+
 ## Randomized Test Lab — Tranche 2 Stage 2a: pure Flow Validation Engine (2026-07-21, epic `awkit-wza`)
 
 **Branch `feature/randomized-test-lab`.** The shared validation engine exists and every one of the 9

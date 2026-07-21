@@ -249,7 +249,10 @@ function nodeConfigFor(type: StepType, ctx: ConfigurationContext): NodeConfig | 
       };
     case "runFlow":
       return {
-        targetFlowId: ctx.referenceableFlowIds.length > 0 ? rng.pick(ctx.referenceableFlowIds) : "",
+        // Placeholder only — `buildStepPayload` overwrites this with the SAME target it put on
+        // `flowId`, so the two can never disagree. Two independent picks here once generated a
+        // step whose `flowId` and `config.targetFlowId` named different flows (Stage 2b defect).
+        targetFlowId: "",
         stopParentOnChildFailure: rng.bool(0.7)
       };
     case "routeChange":
@@ -320,6 +323,10 @@ export function buildStepPayload(type: StepType, ctx: ConfigurationContext): Ste
 
   const config = nodeConfigFor(type, ctx);
   if (config) payload.config = config;
+
+  // `runFlow` invariant: `flowId` is canonical (the runner reads `flowId ?? config.targetFlowId`,
+  // StepExecutor.ts:955); `config.targetFlowId` is a derived alias and must always agree.
+  if (type === "runFlow" && payload.config) payload.config.targetFlowId = payload.flowId ?? "";
 
   if (type === "select") payload.selectionMode = rng.pick(["value", "label", "index"] as const);
 

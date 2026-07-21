@@ -1453,6 +1453,101 @@ textarea {
   color: var(--awkit-warning);
 }
 
+/* Stage 2b: the chip is a button (opens the issue list) and gains a blocking state. */
+button.validation-chip {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 800;
+}
+
+.validation-chip.block {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+/* Validation issue list (Flow Designer) — opened from the validation chip. */
+.validation-issues-panel {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--awkit-shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) var(--space-4) 0;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.validation-issue-row {
+  align-items: baseline;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--awkit-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+}
+
+.validation-issue-row:hover {
+  background: var(--awkit-surface-soft);
+}
+
+div.validation-issue-row {
+  cursor: default;
+}
+
+.validation-issue-badge {
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 1px 8px;
+  text-transform: uppercase;
+}
+
+.validation-issue-badge.error {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.validation-issue-badge.error.offpath {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.validation-issue-badge.warning {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.validation-issue-badge.advisory {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-info);
+}
+
+/* Workflow Builder: clickable referenced-flow finding (opens the flow in the Flow Designer). */
+.validation-flow-link {
+  background: transparent;
+  border: none;
+  color: var(--awkit-danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
 .action-flow-node {
   align-items: center;
   background: var(--awkit-node-surface);
@@ -4648,6 +4743,17 @@ table {
   text-transform: capitalize;
 }
 
+/* Stage 2b: derived validation states in the Flow Library. */
+.state-pill.pill-blocked {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.state-pill.pill-warning {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
 /* ── Data Source visual table editor ────────────────────────────────────────── */
 .ds-editor-table {
   min-width: 600px;
@@ -4861,6 +4967,12 @@ table {
   background: var(--awkit-danger-soft);
   border-color: var(--awkit-danger-muted);
   color: var(--awkit-danger);
+}
+
+.app-toast-info {
+  background: var(--awkit-info-soft);
+  border-color: var(--awkit-info-muted);
+  color: var(--awkit-info);
 }
 
 .app-toast-close {

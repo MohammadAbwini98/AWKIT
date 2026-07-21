@@ -9,9 +9,14 @@ import { RetryPolicy } from "./runtime/RetryPolicy";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
 import { StepExecutor } from "./StepExecutor";
+import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 
-/** Hard cap on loop-connector iterations regardless of configured maxIterations. */
-const LOOP_CONNECTOR_HARD_CAP = 1000;
+/**
+ * Hard cap on loop-connector iterations regardless of configured maxIterations.
+ * Stage 2b: reads the single canonical limit — the validator, designer, connector model and this
+ * runtime truncation point must never disagree again.
+ */
+const LOOP_CONNECTOR_HARD_CAP = FLOW_VALIDATION_LIMITS.maxLoopIterations;
 
 /** Max times a flow may auto-restart from Start after an Auto Secure Login capture. */
 const MAX_AUTO_LOGIN_RESTART = 1;

@@ -1,9 +1,9 @@
 # Flow Validation Engine — Design (Test Lab Tranche 2)
 
-Date: 2026-07-21 · Status: **Stage 2a IMPLEMENTED; 2b/2c awaiting approval** · Epic: `awkit-wza` (gaps
-`awkit-7fm`, `awkit-acw`)
+Date: 2026-07-21 · Status: **Stages 2a + 2b IMPLEMENTED; 2c awaiting approval** · Epic: `awkit-wza`
+(gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both closed by 2b)
 
-> **Stage 2a landed 2026-07-21** (`awkit-lqe`). `src/validation/FlowValidator.ts` +
+> **Stage 2a landed 2026-07-21** (`awkit-lqe`, commit `491eff0`). `src/validation/FlowValidator.ts` +
 > `StepRequirements.ts` + `scripts/verify-validation.mts` (99/0); `verify-random-oracle` 19/1 → **26/0**.
 > Additive only — the engine is wired into no production caller. Deviations from this design, all
 > deliberate: report helpers are standalone functions (`errorsOf`/`hasActivePathError`/…) rather than
@@ -11,6 +11,20 @@ Date: 2026-07-21 · Status: **Stage 2a IMPLEMENTED; 2b/2c awaiting approval** ·
 > `migrationFix`; `validateFlowSet` was added for nested/referenced-flow validation (duplicate flow ids +
 > `runFlow` cycles); `unreachableEndNode` was added so "an End exists but cannot be reached" blocks as an
 > active-path error while a plain orphan stays off-path.
+>
+> **Stage 2b landed 2026-07-21** (`awkit-nmg`). `PreRunValidator` is a thin adapter over the engine
+> (its drifted hardcoded locator list is deleted); the run gate blocks on `blocking` issues only
+> (active-path errors + all connector-structure errors — the latter regardless of path, a documented
+> deviation: `FlowExecutor` refuses such flows flow-wide, so an off-path structural error would just
+> become an immediate runtime failure). Gate validation is **scoped** to the scenario's flows plus the
+> transitive `runFlow` closure — before 2b, `validateWorkflow` validated the entire library and an
+> unrelated broken draft blocked every run. Designer/builder save-blocks removed (Draft model, nothing
+> auto-fixed); designer chip → clickable issue list with node/connector navigation; Flow Library derives
+> Checking…→Runnable/Not runnable per flow (never persisted); `flows:import` returns a validation
+> summary and always imports parseable flows as drafts. Owner decisions implemented: canonical loop cap
+> **1,000** in `src/validation/FlowLimits.ts` (FlowExecutor, FLOW_BOUNDS — was 10,000 —, test-lab
+> catalog and renderer all read it); `validateConnectorStructureDetailed` provides structured findings
+> (the string form wraps it); the generator derives `config.targetFlowId` from the canonical `flowId`.
 
 ## Context & goal
 

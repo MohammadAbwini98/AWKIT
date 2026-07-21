@@ -4971,3 +4971,44 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Result:** Stage 2a checkpoint. Every controlled defect class is now detected by a validator, but 10 of
   those rules are engine-only; the oracle asserts that exact set so it cannot be mistaken for product
   coverage. Paused for review before Stage 2b (wiring — a real behavior change).
+
+## 2026-07-21 — Claude — Test Lab Tranche 2 Stage 2b: wire the validation engine into production
+
+- **Task:** make `FlowValidator` the single validation source for the run gate, designer, builder,
+  library and import, per the approved Stage 2b spec. Product decisions implemented: canonical loop cap
+  1,000 (`src/validation/FlowLimits.ts`; `FLOW_BOUNDS` aligned from 10,000; no silent validation clamp);
+  structured connector findings (`validateConnectorStructureDetailed`, string form wraps it); test-lab
+  `runFlow` generator derives `config.targetFlowId` from `flowId`.
+- **Runtime gate:** `PreRunValidator` rewritten as a thin adapter — flow rules delegated to
+  `validateFlowSet`, hardcoded locator list deleted (`awkit-acw`), issues carry
+  `blocking/code/flowId/nodeId/edgeId/onActivePath`, `isRunBlocked` is the one policy call.
+  Blocking = active-path errors + all connector-structure errors (runtime refuses those flow-wide —
+  documented deviation). Scoped to scenario flows + transitive runFlow closure, fixing a pre-existing
+  bug where any broken library flow blocked every run.
+- **Files:** NEW `src/validation/FlowLimits.ts`; MODIFIED `src/validation/FlowValidator.ts`,
+  `src/profiles/FlowProfile.ts` (detailed findings), `src/profiles/FlowValidation.ts`,
+  `src/runner/FlowExecutor.ts` (cap constant only), `src/reports/PreRunValidator.ts` (rewrite),
+  `app/main/ipc/execution.ipc.ts`, `app/main/ipc/flow.ipc.ts` (+import validation),
+  `app/main/preload.ts`, `app/renderer/pages/FlowChartDesigner.tsx` (draft save, chip+issue panel,
+  navigation, advisories), `ScenarioBuilder.tsx` (save-block removed, engine findings surfaced),
+  `FlowLibrary.tsx` (Checking→derived status), `InstanceMonitor.tsx` (structured failure message),
+  `Toast.tsx` (+info tone), `global.css`, test lab (`TestExecutionOracle.ts`,
+  `RandomConfigurationGenerator.ts`, `ConnectorCatalog.ts`), verifiers (`verify-validation.mts` +25,
+  `verify-random-oracle.mts`, `verify-random-generator.mts`, `verify-profile-store.mts` +3,
+  `verify-flow-designer-gui.mjs` +13, `verify-canvas-perf.mjs` harness repair).
+- **Tests run:** `verify-validation` **124/0** · `verify-random-oracle` **27/0** ·
+  `verify-random-generator` **49/0** · `verify-random-roundtrip` **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **37/37** (real Electron: draft save, graph unchanged, chip, issue navigation,
+  gate validationFailed with structured issues, scoped validation, library Checking→derived, no
+  persisted verdict) · `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** ·
+  `verify:profile-store` **16/16** · `verify:instance-monitor` **43/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging change), packaged-EXE walkthrough.
+- **Defects found:** (1) pre-existing: `validateWorkflow` validated the ENTIRE flow library, so any
+  broken draft blocked every run — fixed by scoping. (2) pre-existing: `verify-canvas-perf` drove
+  `firstWindow()` (now the splash, no preload) against the developer's real profile (now auth-gated) —
+  repaired onto the isolated harness. (3) test-lab: generator could emit `runFlow` steps whose `flowId`
+  and `config.targetFlowId` disagreed — fixed + invariant test.
+- **Beads:** closed `awkit-7fm`, `awkit-acw`, `awkit-nmg`.
+- **Result:** Stage 2b checkpoint. No Legacy Compatibility persistence, no auto-fix, no migration
+  subsystem (all Stage 2c). Paused for review before Stage 2c.

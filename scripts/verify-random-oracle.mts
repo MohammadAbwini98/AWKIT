@@ -7,16 +7,14 @@
  *      it, a validator that rejects everything would score full marks on the mutation suite).
  *   2. A flow carrying exactly one controlled defect produces the outcome the oracle declares.
  *
- * ## Status after Tranche 2 Stage 2a
+ * ## Status after Tranche 2 Stage 2b
  *
  * Phase 2 found 9 of 13 controlled defect classes detected by nothing. Stage 2a closed all 9 in the
- * shared engine (`src/validation/FlowValidator.ts`), so `MUTATION_EXPECTATIONS` now declares every
- * kind `detected` and `KNOWN_VALIDATION_GAPS` is empty.
- *
- * That is **not** the same as the product validating them. Stage 2a wires the engine into nothing,
- * so each newly-closed rule carries `productionEnforced: false` and is reported under its own
- * heading as the Stage 2b wiring checklist. Reporting them as plain passes would claim the run gate
- * blocks defects it still lets through.
+ * shared engine (`src/validation/FlowValidator.ts`); Stage 2b wired that engine into production —
+ * `PreRunValidator` delegates all flow-definition rules to it (deleting the drifted hardcoded
+ * locator list of `awkit-acw`), the run gate blocks on the engine's blocking policy, and the
+ * designer/library/import surface the same reports. `KNOWN_VALIDATION_GAPS` and
+ * `PRODUCTION_UNENFORCED_RULES` are both empty and asserted so — they are regression guards now.
  *
  * Pure: no browser, no Electron. Writes a gap report to `reports/random-tests/`.
  */
@@ -135,15 +133,19 @@ const engineLocatorDrift = locatorRequiringTypes.filter((type) => !engineLocator
       .join(" | ")
   );
 
-  // PreRunValidator's own hardcoded list is untouched by Stage 2a and still drifts on `radio`
-  // (awkit-acw). Asserted as an exact set rather than dropped: if the drift changes in either
-  // direction this fails and the catalog must be updated. Stage 2b deletes the list entirely and
-  // this flips to a plain no-drift assertion.
-  const expectedProductionDrift = ["radio"];
+  // Stage 2b deleted PreRunValidator's hardcoded list — it delegates to the engine's
+  // STEP_REQUIREMENTS-derived set, so the production gate must now cover every type (`radio`
+  // included — awkit-acw closed). Any drift here is a regression in the delegation.
   check(
-    `PreRunValidator still drifts on exactly [${expectedProductionDrift.join(", ")}] — production fix is Stage 2b (awkit-acw)`,
-    locatorCoverageDrift.length === expectedProductionDrift.length && expectedProductionDrift.every((type) => locatorCoverageDrift.includes(type as (typeof locatorCoverageDrift)[number])),
-    `observed drift: [${locatorCoverageDrift.join(", ")}] — PreRunValidator.ts:55 hardcodes its type list`
+    `PreRunValidator (via engine delegation) enforces a locator for all ${locatorRequiringTypes.length} types — awkit-acw closed`,
+    locatorCoverageDrift.length === 0,
+    `observed drift: [${locatorCoverageDrift.join(", ")}]`
+  );
+
+  check(
+    "PRODUCTION_UNENFORCED_RULES is empty — every detected rule reaches a production caller",
+    PRODUCTION_UNENFORCED_RULES.length === 0,
+    PRODUCTION_UNENFORCED_RULES.map((expectation) => expectation.kind).join(", ")
   );
 }
 
@@ -209,7 +211,7 @@ for (const outcome of outcomes.filter((o) => MUTATION_EXPECTATIONS[o.kind].statu
 
 console.log("\n  Known validation gaps (asserted to STILL be gaps — these are holes, not passes):");
 if (KNOWN_VALIDATION_GAPS.length === 0) {
-  console.log("  — none: Stage 2a closed all 9. See the Stage 2b wiring checklist below.");
+  console.log("  — none: Stage 2a closed all 9 in the engine; Stage 2b wired them into the run gate.");
 }
 for (const outcome of outcomes.filter((o) => MUTATION_EXPECTATIONS[o.kind].status === "knownGap")) {
   check(
@@ -360,16 +362,19 @@ const md = [
     (entry) => `| \`${entry.kind}\` | ${entry.detectedBy} | ${entry.rejected}/${entry.applied} | ${entry.productionEnforced ? "yes" : "**no — Stage 2b**"} |`
   ),
   "",
-  `## Stage 2b wiring checklist (${gapReport.stage2bWiringChecklist.length})`,
+  `## Production-unenforced rules (${gapReport.stage2bWiringChecklist.length})`,
   "",
-  "Rules the shared engine detects that **no production caller enforces yet**. The defect classes are",
-  "closed at the engine level and proven by this campaign, but until the run gate, designer and import",
-  "call `validateFlowDefinition`, a profile that arrives by import, hand edit or IPC still reaches the",
-  "runner unchecked.",
+  gapReport.stage2bWiringChecklist.length === 0
+    ? "None — Stage 2b wired the engine into the run gate (PreRunValidator delegation), the designer, the library and import. An entry reappearing here means a rule stopped reaching production."
+    : "Rules the shared engine detects that **no production caller enforces**. Each is a wiring regression.",
   "",
-  "| Rule | Risk while unenforced |",
-  "|---|---|",
-  ...gapReport.stage2bWiringChecklist.map((entry) => `| \`${entry.kind}\` | ${entry.riskIfUnvalidated ?? "n/a"} |`),
+  ...(gapReport.stage2bWiringChecklist.length === 0
+    ? []
+    : [
+        "| Rule | Risk while unenforced |",
+        "|---|---|",
+        ...gapReport.stage2bWiringChecklist.map((entry) => `| \`${entry.kind}\` | ${entry.riskIfUnvalidated ?? "n/a"} |`)
+      ]),
   "",
   `## ⚠ Validation gaps (${gapReport.gaps.length})`,
   "",
@@ -397,7 +402,9 @@ console.log(
     : `\n⚠ ${KNOWN_VALIDATION_GAPS.length} of ${ALL_MUTATION_KINDS.length} controlled defects are not rejected by any validator. See validation-gaps.md.`
 );
 console.log(
-  `⚠ ${PRODUCTION_UNENFORCED_RULES.length} of those rules are detected by the shared engine but wired into NO production caller yet (Stage 2b). See validation-gaps.md.`
+  PRODUCTION_UNENFORCED_RULES.length === 0
+    ? `✓ Every detected rule is enforced by a production caller (run gate via PreRunValidator delegation).`
+    : `⚠ ${PRODUCTION_UNENFORCED_RULES.length} rule(s) are detected by the shared engine but wired into NO production caller — wiring regression. See validation-gaps.md.`
 );
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

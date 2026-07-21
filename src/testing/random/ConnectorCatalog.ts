@@ -16,6 +16,7 @@ import type {
   LoopConnectorConfig,
   ParallelConnectorConfig
 } from "../../profiles/FlowProfile";
+import { FLOW_VALIDATION_LIMITS } from "../../validation/FlowLimits";
 
 type JoinMode = ParallelConnectorConfig["joinMode"];
 type FailMode = ParallelConnectorConfig["failMode"];
@@ -229,9 +230,9 @@ export const LOOP_MODE_CATALOG: Record<LoopMode, LoopModeSpec> = {
 
 /**
  * Hard caps the generator must never exceed. Sourced from the runtime, not invented:
- * - `LOOP_CONNECTOR_HARD_CAP` (src/runner/FlowExecutor.ts) truncates loop connectors at 1000.
- * - `FLOW_BOUNDS.maxLoopIterations` (src/profiles/FlowValidation.ts) clamps persisted values at 10000.
- * - The Flow Designer rejects a saved loop above 1000.
+ * - `FLOW_VALIDATION_LIMITS.maxLoopIterations` (src/validation/FlowLimits.ts) is the single
+ *   canonical loop cap since Stage 2b — validator, designer, `LOOP_CONNECTOR_HARD_CAP` and the
+ *   F-03 runtime clamp all read it.
  * - `loopBack` edges default to `maxLoopCount = 2`.
  * - Run Another Flow is guarded at a nesting depth of 5.
  *
@@ -239,8 +240,8 @@ export const LOOP_MODE_CATALOG: Record<LoopMode, LoopModeSpec> = {
  * wedge a machine; a campaign may raise it up to `absoluteMaxLoopIterations`.
  */
 export const RUNTIME_LOOP_LIMITS = {
-  /** Designer save gate and FlowExecutor truncation point. */
-  absoluteMaxLoopIterations: 1000,
+  /** The canonical cap: validator error threshold, designer gate and runtime truncation point. */
+  absoluteMaxLoopIterations: FLOW_VALIDATION_LIMITS.maxLoopIterations,
   /** Default ceiling used when a campaign does not set one. */
   defaultMaxLoopIterations: 5,
   /** `edge.maxLoopCount` default for legacy loopBack edges. */

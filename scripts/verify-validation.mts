@@ -21,6 +21,7 @@ import {
   FLOW_VALIDATION_RULES,
   activePathErrorsOf,
   errorsOf,
+  executionBlockingErrorsOf,
   hasActivePathError,
   offPathErrorsOf,
   validateFlowDefinition,
@@ -31,11 +32,16 @@ import {
   type FlowValidationReport
 } from "@src/validation/FlowValidator";
 import { ALL_STEP_TYPES, STEP_REQUIREMENTS } from "@src/validation/StepRequirements";
+import { FLOW_BOUNDS } from "@src/profiles/FlowValidation";
+import { PreRunValidator, isRunBlocked, type PreRunValidationIssue } from "@src/reports/PreRunValidator";
+import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { ALL_FLOW_PATTERNS, resolveConstraints } from "@src/testing/random/GenerationConstraints";
 import { generateFlow } from "@src/testing/random/RandomFlowGenerator";
 import { SeededRandom } from "@src/testing/random/SeededRandom";
 import { NODE_CATALOG } from "@src/testing/random/NodeCatalog";
+import { RUNTIME_LOOP_LIMITS } from "@src/testing/random/ConnectorCatalog";
 import { flowNodeCatalog } from "@renderer/components/workflow/flowNodeCatalog";
+import { readFileSync } from "node:fs";
 
 let passed = 0;
 let failed = 0;
@@ -642,9 +648,32 @@ console.log("\nRequirement table parity (engine ↔ test lab ↔ renderer catalo
   );
 
   check(`the table covers all ${ALL_STEP_TYPES.length} step types`, ALL_STEP_TYPES.every((type) => STEP_REQUIREMENTS[type] !== undefined));
+
+  // Owner decision 1 (Stage 2b): ONE canonical loop cap of 1,000 across validator, runtime clamp,
+  // test-lab catalog and the runner's truncation point. FlowExecutor's private constant is checked
+  // at source level because it is deliberately not exported.
+  check("the canonical loop cap is 1000", FLOW_VALIDATION_LIMITS.maxLoopIterations === 1000);
   check(
-    `the engine's loop cap (${FLOW_VALIDATION_LIMITS.maxLoopIterations}) matches LOOP_CONNECTOR_HARD_CAP`,
-    FLOW_VALIDATION_LIMITS.maxLoopIterations === 1000
+    "FLOW_BOUNDS.maxLoopIterations (runtime clamp) reads the canonical cap",
+    FLOW_BOUNDS.maxLoopIterations === FLOW_VALIDATION_LIMITS.maxLoopIterations
+  );
+  check(
+    "RUNTIME_LOOP_LIMITS.absoluteMaxLoopIterations (test lab) reads the canonical cap",
+    RUNTIME_LOOP_LIMITS.absoluteMaxLoopIterations === FLOW_VALIDATION_LIMITS.maxLoopIterations
+  );
+  const flowExecutorSource = readFileSync("src/runner/FlowExecutor.ts", "utf8");
+  check(
+    "FlowExecutor's LOOP_CONNECTOR_HARD_CAP reads FLOW_VALIDATION_LIMITS.maxLoopIterations",
+    /LOOP_CONNECTOR_HARD_CAP\s*=\s*FLOW_VALIDATION_LIMITS\.maxLoopIterations/.test(flowExecutorSource)
+  );
+  // The former duplicated literals: 10_000 in the runtime clamp, `= 1000` in the runner, and the
+  // renderer's `> 1000` advisory. All three sites must now read the constant instead.
+  // Numeric literals only — the prose comment explaining the old divergence may say "10,000".
+  check("FlowValidation.ts no longer carries the divergent 10_000 literal", !/\b10_?000\b/.test(readFileSync("src/profiles/FlowValidation.ts", "utf8")));
+  check("FlowExecutor.ts no longer hardcodes a 1000 literal for the cap", !/HARD_CAP\s*=\s*1000\b/.test(flowExecutorSource));
+  check(
+    "FlowChartDesigner.tsx no longer hardcodes a 1000 loop-limit literal",
+    !/limit 1000|maxIterations > 1000/.test(readFileSync("app/renderer/pages/FlowChartDesigner.tsx", "utf8"))
   );
 }
 
@@ -660,6 +689,141 @@ console.log("\nMalformed input (hand-edited and imported JSON)");
   check("an empty flow reports missing Start and End rather than throwing", empty.issues.length === 2 && errorsOf(empty).length === 2);
 
   check("an empty flow set is handled", validateFlowSet([]).reports.length === 0);
+}
+
+/* ------------------------------------------------------------------ *
+ * 14. Run gate (Stage 2b): PreRunValidator delegates to the engine
+ * ------------------------------------------------------------------ */
+console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
+{
+  const validator = new PreRunValidator();
+  const scenarioFor = (...flowIds: string[]): ScenarioProfile => ({
+    id: "gate-scenario",
+    name: "Gate scenario",
+    executionMode: "sequential",
+    maxParallelFlows: 1,
+    flows: flowIds.map((flowId, order) => ({ order, flowId, required: true, inputs: {} })),
+    links: [],
+    failurePolicy: { stopOnRequiredFlowFailure: true, continueOnOptionalFlowFailure: true, takeScreenshotOnFailure: true }
+  });
+  const gate = (flows: FlowProfile[], scenario: ScenarioProfile): PreRunValidationIssue[] => validator.validate({ scenario, flows });
+
+  // 3. Active-path errors block execution.
+  const activeBroken = baseFlow({ id: "gate-active", nodes: [step("n-start", "start"), step("n-click", "click"), step("n-end", "end")] });
+  const activeIssues = gate([activeBroken], scenarioFor("gate-active"));
+  check("an active-path error blocks the run", isRunBlocked(activeIssues));
+  const activeIssue = activeIssues.find((issue) => issue.code === "missingRequiredLocator");
+  check(
+    "10. gate issues carry structured locations (code, flowId, nodeId, onActivePath, blocking)",
+    activeIssue !== undefined && activeIssue.flowId === "gate-active" && activeIssue.nodeId === "n-click" && activeIssue.onActivePath === true && activeIssue.blocking === true
+  );
+
+  // 4. Off-path errors do not block.
+  const offPath = baseFlow({ id: "gate-offpath", nodes: [...baseFlow().nodes, step("n-orphan", "screenshot")] });
+  const offPathIssues = gate([offPath], scenarioFor("gate-offpath"));
+  const orphanIssue = offPathIssues.find((issue) => issue.code === "unreachableNode");
+  check("an off-path error is reported but does NOT block the run", orphanIssue !== undefined && orphanIssue.severity === "error" && !isRunBlocked(offPathIssues));
+  check("...and it is explicitly marked non-blocking", orphanIssue?.blocking === false && orphanIssue?.onActivePath === false);
+
+  // Deviation (documented): connector-structure errors block regardless of path, because the
+  // runtime (FlowExecutor.ts:69-72) refuses such flows flow-wide.
+  const offPathStructure = baseFlow({
+    id: "gate-structure",
+    nodes: [...baseFlow().nodes, step("s1", "screenshot"), step("s2", "screenshot"), step("s3", "screenshot")],
+    edges: [
+      ...baseFlow().edges,
+      edge("os1", "s1", "s2"),
+      edge("os2", "s1", "s3") // two standard outgoing on unreachable s1 — runtime still refuses the flow
+    ]
+  });
+  check("an off-path connector-structure error still blocks (the runtime refuses the whole flow)", isRunBlocked(gate([offPathStructure], scenarioFor("gate-structure"))));
+
+  // 5. Unknown reachability is conservative.
+  const noStart = baseFlow({ id: "gate-nostart", nodes: [step("n-click", "click"), step("n-end", "end")], edges: [edge("e1", "n-click", "n-end")] });
+  check("with unknowable reachability, anchored errors block conservatively", isRunBlocked(gate([noStart], scenarioFor("gate-nostart"))));
+
+  // 6. Warnings never block.
+  const warnOnly = baseFlow({
+    id: "gate-warn",
+    nodes: [step("n-start", "start"), step("n-click", "click", { locator: { strategy: "css", value: "a" }, timeoutMs: FLOW_VALIDATION_LIMITS.warnTimeoutMs + 1 }), step("n-end", "end")]
+  });
+  const warnIssues = gate([warnOnly], scenarioFor("gate-warn"));
+  check("a warnings-only flow is not blocked", warnIssues.some((issue) => issue.severity === "warning") && !isRunBlocked(warnIssues));
+
+  // 12. Existing valid flows continue to execute.
+  check("a valid modern flow passes the gate", !isRunBlocked(gate([baseFlow({ id: "gate-valid" })], scenarioFor("gate-valid"))));
+  check("a valid legacy-shaped flow passes the gate", !isRunBlocked(gate([legacyFlow()], scenarioFor("legacy-flow"))));
+
+  // Scoping: an unrelated broken draft in the library must not block this scenario.
+  const brokenDraft = baseFlow({ id: "gate-unrelated-draft", nodes: [step("d-click", "click")], edges: [] });
+  const scopedIssues = gate([baseFlow({ id: "gate-valid" }), brokenDraft], scenarioFor("gate-valid"));
+  check("an unrelated broken library flow does not block the run", !isRunBlocked(scopedIssues));
+  check("...and its issues are not even reported for this scenario", !scopedIssues.some((issue) => issue.flowId === "gate-unrelated-draft"));
+
+  // Transitive closure: a broken flow reached via runFlow DOES block.
+  const parent = baseFlow({
+    id: "gate-parent",
+    nodes: [step("p-start", "start"), step("p-run", "runFlow", { flowId: "gate-child" }), step("p-end", "end")],
+    edges: [edge("e1", "p-start", "p-run"), edge("e2", "p-run", "p-end")]
+  });
+  const brokenChild = baseFlow({ id: "gate-child", nodes: [step("c-start", "start"), step("c-click", "click"), step("c-end", "end")] });
+  const closureIssues = gate([parent, brokenChild], scenarioFor("gate-parent"));
+  check("a broken flow reached transitively via runFlow blocks the run", isRunBlocked(closureIssues) && closureIssues.some((issue) => issue.flowId === "gate-child"));
+
+  // missingFlowReference at the gate.
+  const dangling = baseFlow({
+    id: "gate-dangling",
+    nodes: [step("p-start", "start"), step("p-run", "runFlow", { flowId: "no-such-flow" }), step("p-end", "end")],
+    edges: [edge("e1", "p-start", "p-run"), edge("e2", "p-run", "p-end")]
+  });
+  check("a runFlow step targeting a missing flow blocks the run", isRunBlocked(gate([dangling], scenarioFor("gate-dangling"))));
+
+  // referenceableFlowIds input: a partial flow set with an externally-known reference.
+  const externalRef = validator.validate({ scenario: scenarioFor("gate-parent"), flows: [parent], referenceableFlowIds: new Set(["gate-child"]) });
+  check("referenceableFlowIds lets a partial set resolve external targets", !externalRef.some((issue) => issue.code === "missingFlowReference"));
+
+  // 7. The gate is stateless — every call validates from scratch.
+  const before = gate([activeBroken], scenarioFor("gate-active"));
+  const fixed = baseFlow({ id: "gate-active" });
+  const after = gate([fixed], scenarioFor("gate-active"));
+  check("7. validation is fresh per call: fixing the flow immediately unblocks", isRunBlocked(before) && !isRunBlocked(after));
+  const repeat = gate([activeBroken], scenarioFor("gate-active"));
+  check("...and identical input yields identical output (no hidden caching)", JSON.stringify(before) === JSON.stringify(repeat));
+
+  // 13. CLI/Test Lab (engine) and the production gate agree on the same input.
+  const agreementFixtures: FlowProfile[] = [
+    baseFlow({ id: "agree-valid" }),
+    baseFlow({ id: "agree-orphan", nodes: [...baseFlow().nodes, step("n-orphan", "screenshot")] }),
+    baseFlow({ id: "agree-broken", nodes: [step("n-start", "start"), step("n-click", "click"), step("n-end", "end")] }),
+    legacyFlow()
+  ];
+  const disagreements = agreementFixtures.filter((flow) => {
+    const engineBlocking = executionBlockingErrorsOf(validateFlowDefinition(flow, { referenceableFlowIds: new Set(agreementFixtures.map((f) => f.id)) })).length > 0;
+    const gateBlocking = isRunBlocked(gate([flow], scenarioFor(flow.id)));
+    return engineBlocking !== gateBlocking;
+  });
+  check("13. the engine and the production gate agree flow-by-flow", disagreements.length === 0, disagreements.map((flow) => flow.id).join(", "));
+}
+
+/* ------------------------------------------------------------------ *
+ * 15. runFlow target precedence (owner decision 3)
+ * ------------------------------------------------------------------ */
+console.log("\nrunFlow target precedence (flowId is canonical; config.targetFlowId is an alias)");
+{
+  const conflicted = baseFlow({
+    id: "prec-flow",
+    nodes: [step("p-start", "start"), step("p-run", "runFlow", { flowId: "flow-a", config: { targetFlowId: "flow-b" } }), step("p-end", "end")],
+    edges: [edge("e1", "p-start", "p-run"), edge("e2", "p-run", "p-end")]
+  });
+  // The runner resolves `flowId ?? config.targetFlowId` (StepExecutor.ts:955) — so with both set,
+  // only `flowId` matters, and the engine must judge by the same precedence.
+  expectNoCode("with conflicting targets, the engine resolves flowId first (matches the runner)", validateFlowDefinition(conflicted, { referenceableFlowIds: new Set(["flow-a"]) }), "missingFlowReference");
+  expectCode(
+    "…and reports missingFlowReference when flowId (the canonical field) is the missing one",
+    validateFlowDefinition(conflicted, { referenceableFlowIds: new Set(["flow-b"]) }),
+    "missingFlowReference",
+    { nodeId: "p-run" }
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

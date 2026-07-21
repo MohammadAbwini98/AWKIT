@@ -43,28 +43,17 @@ import type {
   LoopConnectorConfig,
   ParallelConnectorConfig
 } from "../profiles/FlowProfile";
-import { connectorKind, validateConnectorStructure } from "../profiles/FlowProfile";
+import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 
 /* ------------------------------------------------------------------ *
  * Limits
  * ------------------------------------------------------------------ */
 
-/**
- * Bounds the engine enforces. These mirror values that already exist in the product; they are
- * restated here (not imported) because the originals live in a renderer component and in the
- * runner, and `scripts/verify-validation.mts` asserts they still agree.
- */
-export const FLOW_VALIDATION_LIMITS = {
-  /** `LOOP_CONNECTOR_HARD_CAP` (FlowExecutor.ts:14) and the designer's save gate. */
-  maxLoopIterations: 1000,
-  /** `FLOW_BOUNDS.maxTimeoutMs` (FlowValidation.ts) — the runtime clamp, not a rejection point. */
-  maxTimeoutMs: 600_000,
-  /** Above this a timeout is advisory-only: legal, but usually a mistake. */
-  warnTimeoutMs: 120_000,
-  /** Above this a loop bound is advisory-only: legal, but a long unattended run. */
-  warnLoopIterations: 100
-} as const;
+// Stage 2b: the limits moved to the leaf module `FlowLimits.ts` so the runner, the runtime bounds
+// clamp, the renderer and the test lab all read the SAME constant. Re-exported for API stability.
+import { FLOW_VALIDATION_LIMITS } from "./FlowLimits";
+export { FLOW_VALIDATION_LIMITS };
 
 /* ------------------------------------------------------------------ *
  * Contract
@@ -176,6 +165,9 @@ export interface FlowValidationIssue {
   readonly nodeId?: string;
   /** Connector the issue anchors to, when it anchors to one. */
   readonly edgeId?: string;
+  /** For connector issues: the connector's endpoints, so the UI can highlight both (Stage 2b). */
+  readonly sourceNodeId?: string;
+  readonly targetNodeId?: string;
   readonly message: string;
   readonly safeFix?: SafeFix;
 }
@@ -229,6 +221,28 @@ export function hasActivePathError(report: FlowValidationReport): boolean {
 /** Errors that exist only off the reachable path — the Legacy-Compatibility-tolerable set (2c). */
 export function offPathErrorsOf(report: FlowValidationReport): readonly FlowValidationIssue[] {
   return report.issues.filter((issue) => issue.severity === "error" && !issue.onActivePath);
+}
+
+/**
+ * Whether one issue must block execution — THE blocking policy, used by the run gate, the
+ * designer's Not-Runnable badge and the library status so they can never disagree.
+ *
+ * Blocking = an error that is on the active path, **plus** every `connectorStructure` error
+ * regardless of path: `FlowExecutor` refuses to execute a flow carrying any structural connector
+ * violation flow-wide (FlowExecutor.ts:69-72), so letting an off-path one through the gate would
+ * only convert a clear pre-run message into an immediate runtime failure.
+ *
+ * Warnings never block. Off-path errors (other than connector structure) never block — they are
+ * the Legacy-Compatibility-tolerable set that Stage 2c gives an explicit status.
+ */
+export function isExecutionBlocking(issue: FlowValidationIssue): boolean {
+  if (issue.severity !== "error") return false;
+  return issue.onActivePath || issue.code === "connectorStructure";
+}
+
+/** The subset of a report's issues that block execution. */
+export function executionBlockingErrorsOf(report: FlowValidationReport): readonly FlowValidationIssue[] {
+  return report.issues.filter(isExecutionBlocking);
 }
 
 /* ------------------------------------------------------------------ *
@@ -375,7 +389,7 @@ class IssueCollector {
 
   /** Connector issue. A connector is on the active path when its *source* is reachable. */
   edge(code: FlowValidationCode, edge: FlowEdge, message: string, safeFix?: SafeFix): void {
-    this.push(code, { edgeId: edge.id }, this.isActive(edge.source), message, safeFix);
+    this.push(code, { edgeId: edge.id, sourceNodeId: edge.source, targetNodeId: edge.target }, this.isActive(edge.source), message, safeFix);
   }
 
   /** Explicitly off-path issue (only `unreachableNode`, which is off-path by definition). */
@@ -390,7 +404,7 @@ class IssueCollector {
 
   private push(
     code: FlowValidationCode,
-    anchor: { nodeId?: string; edgeId?: string },
+    anchor: { nodeId?: string; edgeId?: string; sourceNodeId?: string; targetNodeId?: string },
     onActivePath: boolean,
     message: string,
     safeFix?: SafeFix
@@ -651,11 +665,19 @@ export function validateFlowDefinition(profile: FlowProfile, context: FlowValida
   validateSteps(profile, nodes, collect, context);
 
   // ── Wrapped legacy gate ────────────────────────────────────────────────────
-  // `validateConnectorStructure` is the existing, runtime-enforced connector gate. It is wrapped
-  // rather than reimplemented so this engine cannot disagree with what the runner already blocks.
-  // Its messages carry their own location text, which is why these issues have no id anchor.
-  for (const message of validateConnectorStructure(edges as FlowEdge[])) {
-    collect.flow("connectorStructure", message);
+  // `validateConnectorStructureDetailed` is the existing, runtime-enforced connector gate. It is
+  // wrapped rather than reimplemented so this engine cannot disagree with what the runner already
+  // blocks. Since Stage 2b the findings are structured, so each issue anchors to its connector (or
+  // to the over-connected node for the per-node degree rule) and classifies honestly by
+  // reachability. NOTE: the run gate still blocks every `connectorStructure` error regardless of
+  // path — see `isExecutionBlocking` — because the runtime refuses such flows flow-wide.
+  for (const finding of validateConnectorStructureDetailed(edges as FlowEdge[])) {
+    if (finding.edgeId !== undefined) {
+      const anchor: FlowEdge = { id: finding.edgeId, source: finding.sourceNodeId, target: finding.targetNodeId ?? finding.sourceNodeId, type: "success" };
+      collect.edge("connectorStructure", anchor, finding.message);
+    } else {
+      collect.node("connectorStructure", finding.sourceNodeId, finding.message);
+    }
   }
 
   const issues = [...collect.issues].sort(compareIssues);

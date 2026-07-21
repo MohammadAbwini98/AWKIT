@@ -168,13 +168,14 @@ npx tsx scripts/verify-validation.mts        # Flow Validation Engine (src/valid
                                              # every rule with positive AND negative controls, reachability
                                              # over all 9 generated patterns, active-path classification,
                                              # deterministic ordering, legacy+modern flows, requirement-table
-                                             # parity engine<->test lab<->renderer catalog (99)
+                                             # parity, canonical 1000 loop-cap parity, and the Stage 2b run
+                                             # gate (PreRunValidator delegation, blocking policy, scoping,
+                                             # runFlow precedence) (124)
 npx tsx scripts/verify-random-oracle.mts     # 13 controlled mutations judged against the real validators.
-                                             # EXPECTED: 26 passed / 0 failed since Tranche 2 Stage 2a closed
-                                             # all 9 gaps (awkit-7fm) in the shared engine. NOTE: 10 of those
-                                             # rules are engine-only — no production caller enforces them yet,
-                                             # and PreRunValidator still drifts on `radio` (awkit-acw). Both
-                                             # are asserted exactly and are wired up in Stage 2b.
+                                             # EXPECTED: 27/0 since Stage 2b — all rules detected AND
+                                             # production-enforced (run gate delegates to the engine;
+                                             # awkit-7fm + awkit-acw closed). KNOWN_VALIDATION_GAPS and
+                                             # PRODUCTION_UNENFORCED_RULES are empty regression guards.
 npx tsx scripts/verify-random-roundtrip.mts  # profile -> JSON -> profile and profile -> designer -> profile.
                                              # EXPECTED: 17 passed / 12 FAILED BY DESIGN — a baseline
                                              # discovery run over 11 catalogued product defects. Do NOT tune,

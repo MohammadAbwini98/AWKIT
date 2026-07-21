@@ -59,6 +59,7 @@ import {
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import { connectorKind, type ConnectorKind, type EdgeVisualStyle, type FlowProfile } from "@src/profiles/FlowProfile";
+import { isExecutionBlocking, validateFlowSet } from "@src/validation/FlowValidator";
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
@@ -168,6 +169,8 @@ function ScenarioBuilderContent() {
   const [nodes, setNodes] = useNodesState<ScenarioFlowNodeData>(scaffold.nodes);
   const [edges, setEdges] = useEdgesState<ScenarioLinkData>(scaffold.edges);
   const [flowLibrary, setFlowLibrary] = useState<typeof fallbackFlowLibrary>([]);
+  /** Full saved flow profiles, kept so referenced flows can be validated with the shared engine. */
+  const [flowProfiles, setFlowProfiles] = useState<FlowProfile[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowProfile[]>([]);
   const [workflowId, setWorkflowId] = useState(() => generateWorkflowId());
   const [workflowName, setWorkflowName] = useState("New Workflow");
@@ -245,11 +248,30 @@ function ScenarioBuilderContent() {
   const orderedNodes = useMemo(() => nodes.filter((node) => node.data.kind === "flowRef").sort((a, b) => a.data.order - b.data.order), [nodes]);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
 
-  // Points 2–4: connector-structure issues (blocks Save until fixed).
+  // Points 2–4: scenario connector-structure issues. Advisory since Stage 2b — save never blocks;
+  // the run gate (PreRunValidator) is what stops an invalid workflow from executing.
   const connectorIssues = useMemo(
     () => scenarioConnectorStructureIssues(edges, (id) => nodes.find((node) => node.id === id)?.data.name ?? id),
     [edges, nodes]
   );
+
+  // Stage 2b: run the shared flow validation engine over the flows this workflow references, so
+  // the builder shows the SAME blocking findings the run gate will enforce. Blocking errors only —
+  // warnings and off-path findings live in the Flow Designer where they can be navigated.
+  const flowValidationIssues = useMemo(() => {
+    const referencedIds = new Set(scenarioProfile.flows.map((flowRef) => flowRef.flowId));
+    const referenced = flowProfiles.filter((flow) => referencedIds.has(flow.id));
+    if (referenced.length === 0) return [];
+    const set = validateFlowSet(referenced, { referenceableFlowIds: new Set(flowProfiles.map((flow) => flow.id)) });
+    const nameOf = (id: string) => flowProfiles.find((flow) => flow.id === id)?.name ?? id;
+    return [...set.issues, ...set.reports.flatMap((report) => [...report.issues])]
+      .filter(isExecutionBlocking)
+      .map((issue, index) => ({
+        id: `flow-validation-${issue.flowId}-${issue.code}-${index}`,
+        flowId: issue.flowId,
+        message: `Flow "${nameOf(issue.flowId)}": ${issue.message}`
+      }));
+  }, [flowProfiles, scenarioProfile]);
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
   const loopControlledSources = useMemo(() => {
     const set = new Set<string>();
@@ -303,6 +325,7 @@ function ScenarioBuilderContent() {
 
         const library = toFlowLibraryItems(savedFlows);
         setFlowLibrary(library);
+        setFlowProfiles(savedFlows);
         setWorkflows(savedWorkflows);
         setDataSources(savedDataSources);
 
@@ -755,10 +778,9 @@ function ScenarioBuilderContent() {
   );
 
   const saveScenario = useCallback(async () => {
-    if (connectorIssues.length) {
-      setToast({ tone: "error", message: `Cannot save: ${connectorIssues[0]}` });
-      return;
-    }
+    // Stage 2b: save never blocks on validation — an invalid workflow saves as a Draft, unchanged.
+    // The run gate (PreRunValidator via execution.ipc) is what blocks execution, with the same
+    // dependency-resolver rules this page surfaces, so nothing invalid can slip into a run.
     const now = new Date().toISOString();
     const profileToSave: WorkflowProfile = {
       ...workflowProfile,
@@ -774,18 +796,24 @@ function ScenarioBuilderContent() {
       }
       const updated = await window.playwrightFlowStudio.workflows.list();
       setWorkflows(updated);
-      setSaveState("Saved");
       setSavedSnapshot(serializeWorkflowDoc(profileToSave)); // current document is now the saved baseline
       // Persist the active workflow so navigating away and back restores it.
       window.playwrightFlowStudio.settings
         .update({ selectedBuilderWorkflowId: profileToSave.id, selections: { lastSelectedWorkflowId: profileToSave.id } })
         .catch(() => undefined);
-      setToast({ tone: "success", message: `Workflow saved successfully: ${profileToSave.name}` });
+      const issueCount = connectorIssues.length + executionPlan.validationIssues.length + flowValidationIssues.length;
+      if (issueCount > 0) {
+        setSaveState("Saved draft");
+        setToast({ tone: "info", message: `Saved as draft: ${profileToSave.name}. ${issueCount} validation issue${issueCount === 1 ? "" : "s"} to review before it can run.` });
+      } else {
+        setSaveState("Saved");
+        setToast({ tone: "success", message: `Workflow saved successfully: ${profileToSave.name}` });
+      }
     } catch (error) {
       setSaveState("Save failed");
       setToast({ tone: "error", message: `Failed to save changes. ${error instanceof Error ? error.message : ""}`.trim() });
     }
-  }, [workflowProfile, connectorIssues]);
+  }, [workflowProfile, connectorIssues, executionPlan, flowValidationIssues]);
 
   /**
    * Task 01: double-clicking a workflow flow node opens that flow in the Flow Designer.
@@ -1091,16 +1119,27 @@ function ScenarioBuilderContent() {
           </button>
         </div>
 
-        {/* Right-aligned status: validation summary + save state */}
+        {/* Right-aligned status: validation summary + save state. Counts include the shared
+            engine's blocking findings for referenced flows (Stage 2b), so the chip and the run
+            gate agree on whether this workflow can execute. */}
         <div className="sb-toolbar-actions" role="status">
-          <span className={executionPlan.validationIssues.length || connectorIssues.length ? "validation-chip warn" : "validation-chip ok"} title={
-            executionPlan.validationIssues.length || connectorIssues.length
-              ? [...connectorIssues, ...executionPlan.validationIssues.map((i) => i.message)].join("; ")
-              : "Workflow is valid"
-          }>
+          <span
+            className={
+              flowValidationIssues.length
+                ? "validation-chip block"
+                : executionPlan.validationIssues.length || connectorIssues.length
+                  ? "validation-chip warn"
+                  : "validation-chip ok"
+            }
+            title={
+              executionPlan.validationIssues.length || connectorIssues.length || flowValidationIssues.length
+                ? [...connectorIssues, ...executionPlan.validationIssues.map((i) => i.message), ...flowValidationIssues.map((i) => i.message)].join("; ")
+                : "Workflow is valid"
+            }
+          >
             <ShieldCheck size={13} />
-            {executionPlan.validationIssues.length || connectorIssues.length
-              ? `${executionPlan.validationIssues.length + connectorIssues.length} issues`
+            {executionPlan.validationIssues.length || connectorIssues.length || flowValidationIssues.length
+              ? `${executionPlan.validationIssues.length + connectorIssues.length + flowValidationIssues.length} issues`
               : "Valid"}
           </span>
           <span className="sb-save-state" title={saveState}>{saveState}</span>
@@ -1536,13 +1575,26 @@ function ScenarioBuilderContent() {
             <section>
               <h2>Validation</h2>
               <div className="validation-list">
-                {connectorIssues.length || executionPlan.validationIssues.length ? (
+                {connectorIssues.length || executionPlan.validationIssues.length || flowValidationIssues.length ? (
                   <>
                     {connectorIssues.map((message, index) => (
                       <span key={`connector-${index}`}>{message}</span>
                     ))}
                     {executionPlan.validationIssues.map((issue) => (
                       <span key={issue.id}>{issue.message}</span>
+                    ))}
+                    {/* Blocking findings inside referenced flows — click opens that flow in the
+                        Flow Designer, where the issue list navigates to the exact node/connector. */}
+                    {flowValidationIssues.map((issue) => (
+                      <button
+                        key={issue.id}
+                        className="validation-flow-link"
+                        type="button"
+                        title="Open this flow in the Flow Designer"
+                        onClick={() => void openFlowInDesigner(issue.flowId)}
+                      >
+                        {issue.message}
+                      </button>
                     ))}
                   </>
                 ) : (

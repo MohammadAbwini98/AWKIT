@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
-import { PreRunValidator } from "@src/reports/PreRunValidator";
+import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
 import { DataSourceResolver } from "@src/data/DataSourceResolver";
 import { isOracleDataSource, type DataSourceProfile, type JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
@@ -191,7 +191,11 @@ async function validateWorkflow(workflowId: string) {
     scenario,
     plan,
     issues,
-    valid: issues.every((issue) => issue.severity !== "error")
+    // Stage 2b: block on BLOCKING issues only — errors on the active execution path (plus
+    // connector-structure errors, which the runtime rejects flow-wide). Warnings and confirmed
+    // off-path errors (e.g. an unreachable orphan node) report but never block. The issues array
+    // carries structured locations (code/flowId/nodeId/edgeId/onActivePath) for the UI.
+    valid: !isRunBlocked(issues)
   };
 }
 

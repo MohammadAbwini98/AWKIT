@@ -13,9 +13,13 @@
 import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const env = { ...process.env };
+// Isolated %LOCALAPPDATA% + first-run sign-in: this verifier predated the splash window and the
+// SecurityGate, so it drove `firstWindow()` (now the splash, which has no preload API) against the
+// developer's real profile (now auth-gated). Same harness as every other GUI verifier.
+const { env, cleanup } = isolatedLaunchEnv("awkit-canvas-perf");
 delete env.ELECTRON_RUN_AS_NODE;
 
 const results = [];
@@ -27,8 +31,11 @@ function check(name, pass, detail) {
 const SEED_ID = "perf-canvas-verify-flow";
 const app = await electron.launch({ args: [root], cwd: root, env });
 try {
-  const win = await app.firstWindow();
+  // The app shows a splash window first (no preload API) — `firstWindow()` would land on it and
+  // every `window.playwrightFlowStudio` call would fail. Resolve the real main window instead.
+  const win = await resolveMainWindow(app);
   await win.waitForLoadState("domcontentloaded");
+  await signInFirstRun(win);
 
   // Seed a 40-node vertical-chain flow and open it in the Flow Designer.
   const seed = await win.evaluate(async (seedId) => {
@@ -61,11 +68,9 @@ try {
   }, SEED_ID);
   check("Seed 40-node flow", seed.ok, seed.error);
 
-  await win.reload();
-  await win.waitForLoadState("domcontentloaded");
-  if (!(await win.$(".action-flow-node"))) {
-    await win.click('button.nav-item:has-text("Flow Designer")').catch(() => {});
-  }
+  // No reload — a reload would land back on the SecurityGate sign-in. The isolated profile holds
+  // exactly one flow (the seed), so opening the Flow Designer auto-loads it.
+  await win.click('button.nav-item:has-text("Flow Designer")').catch(() => {});
   await win.waitForSelector(".action-flow-node", { timeout: 20000 });
   await win.waitForTimeout(1000);
 
@@ -165,18 +170,11 @@ try {
     check("Editing one node re-renders only that node's card", false, `selected=${selected} input=${Boolean(editNameInput)}`);
   }
 } finally {
-  // Cleanup: remove the seeded flow and stop pointing the designer at it, so other verifiers
-  // (which restore the last route/flow) are unaffected.
-  try {
-    const win = await app.firstWindow();
-    await win.evaluate(async (seedId) => {
-      await window.playwrightFlowStudio.flows.delete(seedId).catch(() => undefined);
-      await window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: null } }).catch(() => undefined);
-    }, SEED_ID).catch(() => undefined);
-  } catch { /* ignore */ }
+  // The profile is isolated and thrown away, so no in-app cleanup of the seeded flow is needed.
   await app.close();
 }
 
+cleanup();
 const passed = results.filter((r) => r.pass).length;
 console.log(`\nCanvas perf: ${passed}/${results.length} checks passed`);
 process.exit(passed === results.length ? 0 : 1);

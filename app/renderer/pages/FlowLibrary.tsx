@@ -1,5 +1,6 @@
 import { Copy, Download, FilePlus2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { executionBlockingErrorsOf, errorsOf, validateFlowSet, warningsOf } from "@src/validation/FlowValidator";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
 import { usePermissions } from "../security/usePermissions";
@@ -45,6 +46,13 @@ const flowFilterFields: FilterFieldDef[] = [
   { key: "connectorsMax", label: "Max connectors", type: "number" }
 ];
 
+/** Derived per-flow validation state for the library list. NEVER persisted (owner decision 1). */
+interface FlowValidationStatus {
+  blocking: number;
+  errors: number;
+  warnings: number;
+}
+
 export function FlowLibrary() {
   const { navigateTo } = useNavigation();
   const { can } = usePermissions();
@@ -53,7 +61,30 @@ export function FlowLibrary() {
   const [flows, setFlows] = useState<FlowProfile[]>([]);
   const [status, setStatus] = useState("Loading saved flows");
   const [namingFlow, setNamingFlow] = useState(false);
+  // null = validation pending → the column shows "Checking…" instead of a cached/guessed verdict.
+  const [validationStatus, setValidationStatus] = useState<Map<string, FlowValidationStatus> | null>(null);
   const table = useTableState("flows");
+
+  // Runnable status is DERIVED, asynchronously, every time the list changes: reset to "Checking…"
+  // and validate off the current tick so a large library never blocks the renderer paint. The
+  // result is state only — nothing is written back into any flow profile.
+  useEffect(() => {
+    setValidationStatus(null);
+    if (flows.length === 0) return undefined;
+    const handle = window.setTimeout(() => {
+      const set = validateFlowSet(flows);
+      const next = new Map<string, FlowValidationStatus>();
+      for (const report of set.reports) {
+        next.set(report.flowId, {
+          blocking: executionBlockingErrorsOf(report).length,
+          errors: errorsOf(report).length,
+          warnings: warningsOf(report).length
+        });
+      }
+      setValidationStatus(next);
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [flows]);
 
   // Open a flow in the Flow Designer (persist the selection so the designer loads it).
   const openFlow = async (flow: FlowProfile) => {
@@ -195,13 +226,14 @@ export function FlowLibrary() {
             <div className="wl-table-wrapper">
               <table className="wl-table">
                 <colgroup>
-                  <col style={{ width: "26%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -211,6 +243,7 @@ export function FlowLibrary() {
                     <SortableHeaderCell label="Nodes" columnKey="nodes" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Connectors" columnKey="connectors" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Status" columnKey="status" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
+                    <th>Validation</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -239,6 +272,31 @@ export function FlowLibrary() {
                         <span className={`state-pill ${flowAdapter.status(flow) === "active" ? "pill-active" : "pill-inactive"}`}>
                           {flowAdapter.status(flow)}
                         </span>
+                      </td>
+                      <td>
+                        {/* Derived, never persisted: "Checking…" until async validation lands. */}
+                        {(() => {
+                          const flowValidation = validationStatus?.get(flow.id);
+                          if (!flowValidation) {
+                            return <span className="state-pill pill-inactive" data-validation="checking">Checking…</span>;
+                          }
+                          if (flowValidation.blocking > 0) {
+                            return (
+                              <span className="state-pill pill-blocked" data-validation="not-runnable" title={`${flowValidation.blocking} error${flowValidation.blocking === 1 ? "" : "s"} block execution`}>
+                                Not runnable
+                              </span>
+                            );
+                          }
+                          if (flowValidation.errors > 0 || flowValidation.warnings > 0) {
+                            const count = flowValidation.errors + flowValidation.warnings;
+                            return (
+                              <span className="state-pill pill-warning" data-validation="warnings" title={`${flowValidation.errors} off-path error(s), ${flowValidation.warnings} warning(s) — does not block execution`}>
+                                {count} finding{count === 1 ? "" : "s"}
+                              </span>
+                            );
+                          }
+                          return <span className="state-pill pill-active" data-validation="runnable">Runnable</span>;
+                        })()}
                       </td>
                       <td>
                         <div className="table-actions" onClick={(event) => event.stopPropagation()}>

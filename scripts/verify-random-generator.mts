@@ -254,6 +254,16 @@ console.log("\nGenerated graph validity (all patterns × 25 seeds)");
         if (item.requiresValue && !hasValue) failures.push(`${seed}: ${node.type} missing value`);
       }
 
+      // runFlow invariant (Stage 2b, owner decision 3): `flowId` is the canonical target and
+      // `config.targetFlowId` is a derived alias — two independent picks once let them disagree,
+      // which the runner's `flowId ?? config.targetFlowId` precedence silently masked.
+      for (const node of profile.nodes) {
+        if (node.type !== "runFlow") continue;
+        if (node.config?.targetFlowId !== undefined && node.config.targetFlowId !== node.flowId) {
+          idFailures.push(`${seed}: runFlow ${node.id} flowId=${String(node.flowId)} disagrees with config.targetFlowId=${String(node.config.targetFlowId)}`);
+        }
+      }
+
       // Sibling conditionals must carry distinct priorities or routing is ambiguous.
       const prioritiesBySource = new Map<string, number[]>();
       for (const edge of profile.edges) {

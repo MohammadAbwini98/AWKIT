@@ -192,7 +192,13 @@ const api = {
     delete: (id: string) => ipcRenderer.invoke("flows:delete", id) as Promise<void>,
     clone: (id: string, nextId?: string) => ipcRenderer.invoke("flows:clone", id, nextId) as Promise<FlowProfile>,
     export: (id: string) => ipcRenderer.invoke("flows:export", id) as Promise<FlowProfile>,
-    import: (profile: FlowProfile) => ipcRenderer.invoke("flows:import", profile) as Promise<FlowProfile>
+    // Stage 2b: import returns the stored profile plus a validation summary. A parseable invalid
+    // flow imports as a Draft; `validation.runnable` is derived and never persisted.
+    import: (profile: FlowProfile) =>
+      ipcRenderer.invoke("flows:import", profile) as Promise<{
+        profile: FlowProfile;
+        validation: { issues: unknown[]; errorCount: number; warningCount: number; blockingCount: number; runnable: boolean };
+      }>
   },
   workflows: {
     list: () => ipcRenderer.invoke("workflows:list") as Promise<WorkflowProfile[]>,
