@@ -4890,3 +4890,19 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Result:** RT-14 and RT-02 fixed and their catalog entries deleted, so a recurrence now reports
   as a regression rather than a known baseline. 11 round-trip defects remain.
 
+## 2026-07-21 — Claude — HANDOFF prepared (Randomized Automation Test Lab)
+
+- **Task:** prepare the repository for the next agent/human after the test-lab session.
+- **Files:** `docs/ai/HANDOFF.md` (new dated block at the top: branch table, active task, completed work,
+  the two intentionally-red verifiers, remaining work, risks, do-not-touch; the stale mid-file "clean main"
+  status marked SUPERSEDED), `docs/ai/CURRENT_STATE.md` (RT-14/RT-02 fix + branch reality),
+  `docs/ai/COMMANDS.md` (the three lab verifiers, with their expected-failure counts and the note that no
+  npm aliases exist yet), `docs/ai/TASK_LOG.md` (this entry).
+- **Repository state recorded:** working tree clean; `main` unchanged at `382847c`;
+  `chore/brand-logo-5b` @ `a1adcc2` (owner checkpoint) and `feature/randomized-test-lab` @ `562c29b`
+  (6 commits) both **local, unpushed, no PRs**.
+- **Checks run:** `git status --short --branch` (clean), `git diff --stat` (empty),
+  `node scripts/ai-memory/check-memory.mjs` (pass).
+- **Result:** `docs/ai/HANDOFF.md` is current and agent-agnostic. No secrets, tokens or credentials were
+  written to any Markdown file.
+

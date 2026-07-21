@@ -2,8 +2,10 @@
 
 ## Randomized Automation Test Lab — Phases 1-3 + Phase 0 prerequisites (2026-07-21, epic `awkit-wza`)
 
-**Branch `feature/randomized-test-lab`** (off `main`). Additive testing subsystem: deterministic
-generation, a validation oracle, and persistence round-trip discovery over the existing engine.
+**Branch `feature/randomized-test-lab`** (off `main`, 6 commits, **local — not pushed, no PR**). Additive
+testing subsystem: deterministic generation, a validation oracle, and persistence round-trip discovery over
+the existing engine. Separately, the owner's long-uncommitted branding/accent/HTTPS work was preserved as a
+single commit on `chore/brand-logo-5b` (`a1adcc2`, 64 files, also unpushed and unreviewed here).
 
 - **Phase 1 — generation core** (`src/testing/random/**`, `src/testing/fixtures/SafeTestData.ts`).
   Seeded PRNG with position-stable `derive()`; exhaustive `Record<Literal, ...>` catalogs so
@@ -32,7 +34,20 @@ generation, a validation oracle, and persistence round-trip discovery over the e
   top-level decoys). `uploadFile`/`downloadFile` are no longer gated in the generator.
   `npm run verify:mock-site` — **65/65**.
 
-Reports (gitignored) land in `reports/random-tests/`. Docs: `docs/testing/RANDOMIZED_TESTING_*.md`.
+- **First two defects FIXED** (`awkit-1w5`/RT-14 and `awkit-ihx`/RT-02, both closed). `fromFlowStep`
+  collapsed `FlowStep.value` and `FlowStep.valueSource` into one designer string with `step.url` at the head
+  of the recovery chain, so a `goto`'s typed source was overwritten by its URL and `secret`/`dynamic` sources
+  were dropped entirely. The properties panel only authors two of the nine kinds (`static`, `dynamic`), so
+  `FlowDesignerNodeData.valueSourceOriginal` now preserves the loaded source verbatim and `createValueSource`
+  reconstructs only those two, passing the rest through. Round-trip went **8 passed/15 failed →
+  17 passed/12 failed**, defect shapes **46 → 35**, with 0 unexpected new failures throughout. Both catalog
+  entries were deleted so any recurrence reports as a regression. `verify:flow-designer` 24/24 in real
+  Electron.
+
+**⚠️ Two verifiers are intentionally RED** (`verify-random-roundtrip` 17+12, `verify-random-oracle` 19+1) —
+each failure is a filed product defect. Fix the defect and delete its catalog entry; never weaken the
+assertion. Reports (gitignored) land in `reports/random-tests/`. Docs:
+`docs/testing/RANDOMIZED_TESTING_*.md`.
 
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 

@@ -1,6 +1,120 @@
 # Agent Handoff
 
-Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
+Last updated: **2026-07-21 (Randomized Automation Test Lab)** — work is on **two local branches, neither
+pushed and neither has a PR**. `main` is unchanged at `382847c`. Read this block first; everything below it
+is history and describes a state that no longer holds.
+
+## From / To
+
+- **From:** the agent that built the Randomized Automation Test Lab (epic `awkit-wza`) and fixed its first
+  two discovered defects.
+- **To:** any next agent or human developer.
+
+## Branch state — READ BEFORE ANY GIT OPERATION
+
+| Branch | Head | Contents |
+|---|---|---|
+| `main` | `382847c` | unchanged; level with `origin/main` |
+| `chore/brand-logo-5b` | `a1adcc2` | **owner's pre-existing checkpoint**, committed this session at their request: branding, accent theme, HTTPS certificate trust (64 files) |
+| `feature/randomized-test-lab` | `562c29b` | the lab, branched from `main` (6 commits) |
+
+Working tree is **clean**. Nothing is pushed; no PRs exist. Branch only from `main`, and push/PR only when
+the user asks.
+
+`chore/brand-logo-5b` was uncommitted for several sessions. It is now preserved as one commit. Its content
+was **not** authored or reviewed in this session — it was staged deliberately (`git add -u` plus the 19
+branding/accent/HTTPS files by name) and verified not to contain any lab file. Treat it as owner work
+awaiting their review.
+
+## Active task — Randomized Automation Test Lab (epic `awkit-wza`)
+
+A deterministic **generation + oracle + coverage** layer over the existing engine. It does not re-test what
+the ~130 existing verifiers already cover; it generates definitions from a seed, drives them through the
+**real** validators and persistence boundaries, and reports reproducible defects.
+
+Design docs: `docs/testing/RANDOMIZED_TESTING_ARCHITECTURE.md` (findings, incl. §6 "blocked or vacuous" —
+capabilities the original brief assumed that do not exist) and `RANDOMIZED_TESTING_IMPLEMENTATION_PLAN.md`
+(phase order + status table).
+
+### Completed
+
+- **Phase 0 — prerequisites** (`awkit-wza.1`, closed). `flowProfileMapping.ts` is now the single source of
+  the designer persistence mapping; `FlowChartDesigner.tsx` imports it (behavior-preserving). Two stale
+  `verify-durable-store.mts` assertions pinned at 2 migrations against an actual 4 now derive from
+  `RUNTIME_STORE_MIGRATIONS` — that verifier was **silently red** and is now 11/11. Mock site gained
+  `/runner-lab` and `/iframe-lab` + `/iframe-child` (see `mock-site/README.md`).
+- **Phase 1 — generation core** (closed). Seeded PRNG with position-stable `derive()`, exhaustive
+  `Record<Literal, …>` catalogs, and a valid-by-construction 9-pattern library.
+- **Phase 2 — validation oracle** (closed). 13 controlled mutations, exactly one defect per scenario.
+- **Phase 3 — persistence round-trip** (closed as a baseline discovery run). Field-level semantic diff plus
+  a defect catalog that separates known baseline failures from unexpected new ones.
+- **First two defects fixed** — `awkit-1w5` (RT-14) and `awkit-ihx` (RT-02), both closed.
+
+### ⚠️ Two verifiers are RED ON PURPOSE — do not "fix" them
+
+- `npx tsx scripts/verify-random-roundtrip.mts` — **17 passed / 12 failed**. The failures are 11 catalogued
+  **product** defects, one per filed bead. The assertions are deliberately untuned and no lost field is
+  excluded from the equality check.
+- `npx tsx scripts/verify-random-oracle.mts` — **19 passed / 1 failed**. The failure is a real product
+  defect (`awkit-acw`).
+
+To resolve one, **fix the product defect and delete its entry from
+`src/testing/roundtrip/RoundTripDefectCatalog.ts`**. The verifier then reports any recurrence as a
+regression. Never weaken an assertion to make these green — that is the one thing this subsystem exists to
+prevent.
+
+### Verification run this session (all as stated)
+
+`npm run build` clean · `verify:flow-designer` **24/24** (real Electron) · `verify:mock-site` **65/65**
+(was 39) · `verify-durable-store` **11/11** (was 10/1) · `verify-random-generator` **49/49** ·
+`verify-random-oracle` 19+1 · `verify-random-roundtrip` 17+12 · `check-memory.mjs` pass.
+
+**Not run:** `verify:runner` and `validate:offline` (no runner or packaging behavior changed); the packaged
+EXE / clean-machine / soak gates (unchanged, still external — `awkit-cm8`). **Phase 5 is not built, so no
+generated flow has ever been executed against a real browser.**
+
+### Remaining work
+
+Ready now (`bd ready`): **11 round-trip defect beads** (6 × P1, 4 × P2, 3 × P3), the two Phase 2 findings
+(`awkit-acw`, `awkit-7fm`), and **Phase 4** (`awkit-wza.5` — failure artifacts, shrinking, and the
+`test:random:*` npm aliases, which were deferred while `package.json` was dirty).
+
+Blocked behind their prerequisites: Phases 5–8 (`awkit-wza.6`–`.9`). Phase 7 (a Super-User Test Lab page)
+carries an **open product decision** — shipping a test-generation harness inside the production app is a
+real surface-area and packaging choice, and a CLI-only lab avoids it. Decide before building.
+
+Recommended next: `awkit-4t9` (RT-03, recorder popup metadata) — it breaks recorded multi-window flows
+outright, and `awkit-3lq` (RT-04, safety policy) is a small pass-through fix with security impact.
+
+### Known risks / load-bearing facts
+
+- **`flowProfileMapping.ts` is now the single source of the designer persistence mapping.** Changing it
+  changes what gets persisted. Read `RoundTripDefectCatalog.ts` before editing it.
+- The round-trip verifier's source-parity guard **retired itself** when task 0.1 landed; it now asserts the
+  designer imports the module. If someone re-inlines the mapping, that check flips back automatically.
+- **`tsx` can import renderer modules directly** (including `lucide-react`). That is what lets a headless
+  verifier drive the real `flowNodeCatalog` and designer mapping rather than a copy — do not replace those
+  imports with local duplicates.
+- A legacy `loopBack` edge must **not** set `kind: "loop"` — `validateConnectorStructure` treats an explicit
+  `kind` as a structured self-only loop and rejects it across nodes. The exemption relies on the kind being
+  *derived* from `type`.
+- `MAX_BRANCH_CONNECTORS = 2` is a hard port cap, so 3-way branching must chain two condition nodes.
+- Generated secrets are **opaque references only** and are never resolved, so no plaintext can reach a
+  fixture, diff, log or artifact. Keep it that way when extending the lab.
+- Campaign artifacts land in `reports/random-tests/` (already gitignored) and are byte-deterministic for a
+  fixed seed — a non-deterministic report means a generator bug.
+
+### Do not touch without confirmation
+
+- Do not weaken, skip or delete assertions in the two intentionally-red verifiers.
+- Do not commit, rebase, or amend `chore/brand-logo-5b` — it is the owner's checkpoint, unreviewed here.
+- Everything in the standing list still applies: do not rename `window.playwrightFlowStudio`; keep
+  offline-first (no runtime internet, no global Node/Playwright/Chromium, no writes to `resources/` or
+  `app.asar`); keep mock-site scenarios local-only and deterministic.
+
+---
+
+Previously: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
 merged to **clean `main` @ `79e9999`** via **PR #22** (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED).
 Working tree **clean**, **no open PRs**, **no uncommitted work** — start the next task from `main`, normal Git
 flow (push/PR only when the user asks). Read this block + the top of `docs/ai/CURRENT_STATE.md` and
@@ -205,7 +319,12 @@ Use this file when work is paused, blocked, or moving from one agent/tool to ano
 
 ## Current Handoff
 
-> **Current status (2026-07-19, later session): clean `main` @ `0a4500f`, nothing paused or blocked.** The
+> ⚠️ **SUPERSEDED — see the dated block at the very top of this file (2026-07-21).** The status quoted
+> below ("clean `main`, nothing uncommitted") is no longer true: there are now two unpushed local branches,
+> `chore/brand-logo-5b` and `feature/randomized-test-lab`. The rest of this block is still accurate as
+> *history* of the licensing/secure-login/Oracle threads.
+>
+> Historical status (2026-07-19, later session): clean `main` @ `0a4500f`, nothing paused or blocked. The
 > newest work is the **admin/licensing 8-phase package** (PR #21) — see the top block of this file +
 > **`docs/LICENSING.md`**. License enforcement ships **default OFF** (`SPECTER_LICENSE_ENFORCE=true`); the
 > open rollout decision is bead **`awkit-1cc`**. The secure-login/Oracle summary below is prior context.

@@ -157,6 +157,23 @@ npm run verify:e2e-sweep    # all 30 nav routes render console-clean + screensho
 npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import test-only mock flows/workflows/data source into runtime userData (for manual GUI testing)
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory
+
+# Randomized Automation Test Lab (2026-07-21, epic awkit-wza — pure, no browser, no Electron).
+# NOTE: these have NO npm aliases yet — invoke them directly. Adding the `test:random:*` script
+# entries is plan task in docs/testing/RANDOMIZED_TESTING_IMPLEMENTATION_PLAN.md Phase 4.
+npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
+                                             # flows through the real validateConnectorStructure, reachability,
+                                             # coverage accounting, no-secret/no-external-URL safety (49)
+npx tsx scripts/verify-random-oracle.mts     # 13 controlled mutations judged against the real validators.
+                                             # EXPECTED: 19 passed / 1 FAILED — the failure is a real product
+                                             # defect (awkit-acw, radio escapes locator validation). Also
+                                             # reports the 9 defect classes no validator rejects (awkit-7fm).
+npx tsx scripts/verify-random-roundtrip.mts  # profile -> JSON -> profile and profile -> designer -> profile.
+                                             # EXPECTED: 17 passed / 12 FAILED BY DESIGN — a baseline
+                                             # discovery run over 11 catalogued product defects. Do NOT tune,
+                                             # skip or weaken its assertions to make it green; fix the defect
+                                             # and delete its catalog entry instead.
+# Both write deterministic reports to reports/random-tests/ (gitignored).
 ```
 - There is **no** `lint` script and **no** `test` npm script.
 - `@playwright/test` is installed and `tests/runner.mocksite.spec.ts` exists, but the Playwright
