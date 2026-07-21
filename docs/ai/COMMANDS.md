@@ -164,10 +164,17 @@ npm run ai:memory:check     # alias of ai:memory
 npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
                                              # flows through the real validateConnectorStructure, reachability,
                                              # coverage accounting, no-secret/no-external-URL safety (49)
+npx tsx scripts/verify-validation.mts        # Flow Validation Engine (src/validation/FlowValidator.ts):
+                                             # every rule with positive AND negative controls, reachability
+                                             # over all 9 generated patterns, active-path classification,
+                                             # deterministic ordering, legacy+modern flows, requirement-table
+                                             # parity engine<->test lab<->renderer catalog (99)
 npx tsx scripts/verify-random-oracle.mts     # 13 controlled mutations judged against the real validators.
-                                             # EXPECTED: 19 passed / 1 FAILED — the failure is a real product
-                                             # defect (awkit-acw, radio escapes locator validation). Also
-                                             # reports the 9 defect classes no validator rejects (awkit-7fm).
+                                             # EXPECTED: 26 passed / 0 failed since Tranche 2 Stage 2a closed
+                                             # all 9 gaps (awkit-7fm) in the shared engine. NOTE: 10 of those
+                                             # rules are engine-only — no production caller enforces them yet,
+                                             # and PreRunValidator still drifts on `radio` (awkit-acw). Both
+                                             # are asserted exactly and are wired up in Stage 2b.
 npx tsx scripts/verify-random-roundtrip.mts  # profile -> JSON -> profile and profile -> designer -> profile.
                                              # EXPECTED: 17 passed / 12 FAILED BY DESIGN — a baseline
                                              # discovery run over 11 catalogued product defects. Do NOT tune,

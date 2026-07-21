@@ -121,7 +121,17 @@ export function applyMutation(
       delete target.value;
       delete target.valueSource;
       delete target.url;
-      return { profile, mutation: { kind, targetId: target.id, targetType: target.type, description: `Removed the value and value source from ${target.type} step ${target.id}.` } };
+      // `runFlow` resolves its target from `flowId`/`config.targetFlowId` and never reads `value`
+      // (StepExecutor.ts:955). Clearing only `value` there left a perfectly executable step, so the
+      // mutation injected no defect at all and the oracle scored "correctly not detected" against a
+      // flow that was never broken. Clear the real target so every requiresValue type gets a real
+      // defect. (Distinct from `missingFlowReference`: no target at all vs. a target that is absent.)
+      if (target.type === "runFlow") {
+        delete target.flowId;
+        if (target.config) delete target.config.targetFlowId;
+      }
+      const removed = target.type === "runFlow" ? "value, value source and target flow" : "value and value source";
+      return { profile, mutation: { kind, targetId: target.id, targetType: target.type, description: `Removed the ${removed} from ${target.type} step ${target.id}.` } };
     }
 
     case "invalidConnectorTarget": {

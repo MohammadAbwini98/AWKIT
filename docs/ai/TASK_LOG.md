@@ -4934,3 +4934,40 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   RT-10 was made edit-safe (a user edit to a previously-absent field is always persisted). Tranche 1
   checkpoint — paused for review before Tranche 2 (unified validation, an architectural checkpoint).
 
+
+## 2026-07-21 — Claude — Test Lab Tranche 2 Stage 2a: pure Flow Validation Engine
+
+- **Task:** build the shared `FlowValidator` (all 9 missing rules + reachability + active-path
+  classification), add `verify-validation.mts`, and rewire the Phase-2 oracle so every known validation
+  gap is detected. Explicitly behavior-neutral: nothing wired into save/run/import/designer/builder, no
+  flow file or schema changed, no Legacy Compatibility state, no auto-fix or migration.
+- **Approach:** one pure engine in `src/validation/` that *wraps* the existing
+  `validateConnectorStructure` (leaving the enforced runtime gate untouched) and adds the flow-level
+  rules. Reachability is a forward BFS from Start, lifted from `verify-random-generator.mts`; it drives
+  both `unreachableNode` and every issue's `onActivePath` flag. The engine is verdict-free — callers
+  decide blocking policy. Locator/value requirements moved into an exhaustive `Record<StepType, …>` so
+  the compiler, not a reviewer, catches drift.
+- **Files:** NEW `src/validation/FlowValidator.ts`, `src/validation/StepRequirements.ts`,
+  `scripts/verify-validation.mts`, `docs/plans/FLOW_VALIDATION_ENGINE_DESIGN.md`; MODIFIED (test lab only)
+  `src/testing/oracle/TestExecutionOracle.ts` (drives the engine, `productionEnforced` flag, 9 gaps →
+  detected, `PRODUCTION_UNENFORCED_RULES`), `src/testing/random/RandomMutator.ts` (one-line-class fix,
+  below), `scripts/verify-random-oracle.mts` (engine negative control, active-path section, Stage 2b
+  checklist in the report). **No production runtime file was touched.**
+- **Tests run:** `verify-validation` **99/0** (new) · `verify-random-oracle` **26/0** (was 19/1) ·
+  `verify-random-roundtrip` **26/0** · `verify-random-generator` **49/0** · `verify:runner` **82/0** ·
+  `verify:profile-store` **13/13** · `verify:ipc-contract` **4/4** · `verify:workflow-sentinels` **4/4** ·
+  `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging/offline change), `verify:flow-designer` GUI (no renderer
+  change), live GUI walkthrough.
+- **Defects found:** (1) the `missingRequiredValue` mutation was a **no-op on `runFlow`** — it cleared
+  `value`/`valueSource`/`url`, but the runner resolves `step.flowId ?? step.config?.targetFlowId`
+  (`StepExecutor.ts:955`), so the mutated flow stayed valid and the oracle scored "correctly undetected"
+  against a flow that was never broken. Fixed in the mutator so every `requiresValue` type gets a real
+  defect. (2) Loop-bound cap is inconsistent in the product: `FLOW_BOUNDS.maxLoopIterations` is 10_000
+  while the designer gate and `LOOP_CONNECTOR_HARD_CAP` are 1_000; the engine uses 1_000 and the
+  divergence is left for Stage 2b.
+- **Beads:** `awkit-lqe` (Stage 2a) closed. `awkit-7fm` and `awkit-acw` stay OPEN — detection is proven,
+  production enforcement is Stage 2b.
+- **Result:** Stage 2a checkpoint. Every controlled defect class is now detected by a validator, but 10 of
+  those rules are engine-only; the oracle asserts that exact set so it cannot be mistaken for product
+  coverage. Paused for review before Stage 2b (wiring — a real behavior change).

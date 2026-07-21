@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Randomized Test Lab — Tranche 2 Stage 2a: pure Flow Validation Engine (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The shared validation engine exists and every one of the 9
+validation gaps Phase 2 found (`awkit-7fm`) is closed **at the engine level**. `verify-random-oracle` is
+green for the first time (**26/0**, was 19/1).
+
+**Stage 2a is additive and behavior-neutral: the engine is wired into NOTHING.** No save, run, import,
+designer, builder or persistence path calls it, no flow file or schema changed, no Legacy Compatibility
+state exists yet, and nothing is auto-fixed or migrated. Low-risk, not risk-free — `TestExecutionOracle`
+and `RandomMutator` are shared test-lab modules, so a regression there would surface in the Test Lab
+verifiers rather than in the product.
+
+- **New engine:** `src/validation/FlowValidator.ts` (pure, framework-agnostic) — 20 rules, forward-BFS
+  reachability from Start, and an `onActivePath` flag on every issue. Verdict-free: it reports, callers
+  decide. `src/validation/StepRequirements.ts` holds the locator/value requirements as an exhaustive
+  `Record<StepType, …>`, so `tsc --noEmit` fails if a step type is added without a decision — the drift
+  that produced `awkit-acw` cannot recur there.
+- **Contract:** stable rule code · severity · `onActivePath` · flow/node/connector location · human message ·
+  optional `safeFix` metadata that is **described and never applied**. Output ordering is deterministic
+  (rule declaration order, then node id, connector id, message) and independent of input order.
+- **Wrapped, not reimplemented:** `validateConnectorStructure` stays the untouched runtime gate; the engine
+  wraps it so one call returns everything.
+- **Still open (Stage 2b):** 10 rules are detected by the engine but enforced by **no production caller**,
+  and `PreRunValidator.ts:55` still hardcodes its drifted locator list (`radio` escapes). Both are asserted
+  exactly by the oracle and reported as the "Stage 2b wiring checklist" in
+  `reports/random-tests/validation-gaps.md`.
+- **Verification:** `verify-validation` **99/0** (new) · `verify-random-oracle` **26/0** (was 19/1) ·
+  `verify-random-roundtrip` **26/0** · `verify-random-generator` **49/0** · `verify:runner` **82/0** ·
+  `verify:profile-store` **13/13** · `verify:ipc-contract` **4/4** · `verify:workflow-sentinels` **4/4** ·
+  `npm run build` clean.
+- **Design:** `docs/plans/FLOW_VALIDATION_ENGINE_DESIGN.md` (Stage 2b = wire into run gate + designer;
+  Stage 2c = Legacy Compatibility + migration subsystem).
+
 ## Randomized Test Lab — Tranche 1: all round-trip data-loss defects FIXED (2026-07-21, epic `awkit-wza`)
 
 **Branch `feature/randomized-test-lab`.** The Phase-3 designer round-trip is now **lossless** — the

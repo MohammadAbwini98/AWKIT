@@ -9,17 +9,23 @@
  *   - `validateConnectorStructure` (`src/profiles/FlowProfile.ts`) — the runtime save/execute gate
  *   - `PreRunValidator.validate` (`src/reports/PreRunValidator.ts`), which internally runs
  *     `FlowDependencyResolver.validate` and `SecurityPolicy`
+ *   - `validateFlowDefinition` (`src/validation/FlowValidator.ts`) — the shared engine added by
+ *     Tranche 2 Stage 2a
  *
- * ## Known validation gaps are recorded, not passed
+ * ## Detection and production enforcement are tracked separately
  *
- * Several defects the brief asks about are **not detected by anything today** — most notably there
- * is no flow-level reachability check at all. Asserting "the validator rejected it" for those would
- * fail; asserting "the validator accepted it" and calling that a pass would quietly bless the hole.
+ * Phase 2 recorded 9 controlled defects that **no validator detected**. Stage 2a closed all 9 in the
+ * shared engine, so they are now `status: "detected"`. But Stage 2a deliberately wires the engine
+ * into nothing — the run gate, designer, save path and import are untouched until Stage 2b.
  *
- * So each mutation declares `status: "detected" | "knownGap"`. A `knownGap` is asserted to *still*
- * be a gap and is reported under its own loud heading with a recommendation. A gap that closes, or
- * a new gap that appears, both fail — the catalog is a regression guard on validation coverage, not
- * an excuse list.
+ * Reporting those rules as simply "validated" would therefore overclaim: the *engine* catches them,
+ * the *product* does not yet. So every expectation also declares {@link
+ * MutationExpectation.productionEnforced} — whether a production caller actually blocks on it
+ * today. `detected && !productionEnforced` is exactly the Stage 2b wiring checklist, and the
+ * verifier reports that set under its own heading rather than letting it read as green.
+ *
+ * A defect that stops being detected, or a rule that silently becomes production-enforced without
+ * the catalog being updated, both fail — this remains a regression guard on validation coverage.
  *
  * Framework-agnostic: no Electron, no React, no Node built-ins.
  */
@@ -27,6 +33,16 @@ import type { FlowProfile, StepType } from "../../profiles/FlowProfile";
 import { validateConnectorStructure } from "../../profiles/FlowProfile";
 import type { ScenarioProfile } from "../../profiles/ScenarioProfile";
 import { PreRunValidator, type PreRunValidationIssue } from "../../reports/PreRunValidator";
+import {
+  activePathErrorsOf,
+  errorsOf,
+  validateFlowDefinition,
+  warningsOf,
+  type FlowValidationContext,
+  type FlowValidationIssue,
+  type FlowValidationReport
+} from "../../validation/FlowValidator";
+import { STEP_REQUIREMENTS } from "../../validation/StepRequirements";
 import { ALL_NODE_TYPES, NODE_CATALOG } from "../random/NodeCatalog";
 import type { Mutation, MutationKind } from "../random/RandomMutator";
 
@@ -34,6 +50,8 @@ import type { Mutation, MutationKind } from "../random/RandomMutator";
 export type DetectingValidator =
   | "validateConnectorStructure"
   | "preRunValidator"
+  /** The shared engine, `src/validation/FlowValidator.ts` (Tranche 2 Stage 2a). */
+  | "flowValidator"
   /** Nothing rejects it today. */
   | "none";
 
@@ -41,11 +59,18 @@ export interface MutationExpectation {
   readonly kind: MutationKind;
   readonly status: "detected" | "knownGap";
   readonly detectedBy: DetectingValidator;
+  /**
+   * Whether a **production** caller blocks on this defect today (run gate, save gate, import).
+   *
+   * `false` for every rule the Stage 2a engine detects but nothing calls yet. Kept separate from
+   * `status` so the report cannot present engine coverage as product coverage.
+   */
+  readonly productionEnforced: boolean;
   /** Why this is (or is not) caught, with the citation. */
   readonly rationale: string;
-  /** For gaps: what closing it would take. */
+  /** What wiring or fix the rule still needs. */
   readonly recommendation?: string;
-  /** For gaps: what the defect costs if it reaches the runner. */
+  /** What the defect costs if it reaches the runner unvalidated. */
   readonly riskIfUnvalidated?: string;
 }
 
@@ -54,6 +79,7 @@ export const MUTATION_EXPECTATIONS: Record<MutationKind, MutationExpectation> = 
     kind: "structuralLoopAcrossNodes",
     status: "detected",
     detectedBy: "validateConnectorStructure",
+    productionEnforced: true,
     rationale:
       "FlowProfile.ts:536-541 rejects any edge with `kind === \"loop\"` or `type === \"loop\"` whose source and target differ. Enforced at execution time by FlowExecutor.ts:69-72, so it holds even if the UI is bypassed."
   },
@@ -61,103 +87,117 @@ export const MUTATION_EXPECTATIONS: Record<MutationKind, MutationExpectation> = 
     kind: "multipleStandardOutgoing",
     status: "detected",
     detectedBy: "validateConnectorStructure",
+    productionEnforced: true,
     rationale: "FlowProfile.ts:549-554 rejects a node with more than one non-conditional / non-parallel outgoing connector."
   },
   loopNodeNonConditionalSibling: {
     kind: "loopNodeNonConditionalSibling",
     status: "detected",
     detectedBy: "validateConnectorStructure",
+    productionEnforced: true,
     rationale: "FlowProfile.ts:556-562 requires every additional outgoing connector from a self-looping node to be conditional."
   },
   missingRequiredLocator: {
     kind: "missingRequiredLocator",
     status: "detected",
     detectedBy: "preRunValidator",
+    productionEnforced: true,
     rationale:
-      "PreRunValidator.ts:55-57 rejects a missing locator for click/fill/select/check/uncheck/uploadFile/downloadFile/readText/assertText/assertVisible."
+      "PreRunValidator.ts:55-57 rejects a missing locator for click/fill/select/check/uncheck/uploadFile/downloadFile/readText/assertText/assertVisible. `radio` is absent from that hardcoded list (`awkit-acw`) and is judged by UNVALIDATED_LOCATOR_TYPE_EXPECTATION instead; the Stage 2a engine derives the list from STEP_REQUIREMENTS and covers every type."
   },
 
-  // ── Gaps ────────────────────────────────────────────────────────────────────
+  // ── Closed by the Stage 2a engine; production wiring lands in Stage 2b ──────
   missingRequiredValue: {
     kind: "missingRequiredValue",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "PreRunValidator checks locators but never values. The renderer's `validateFlow` does check `requiresValue` (FlowChartDesigner.tsx:1003) — but it is advisory only and is not the save gate, and nothing in `src/` mirrors it.",
+      "FlowValidator's `missingRequiredValue` rule checks `STEP_REQUIREMENTS[type].requiresValue` against value/valueSource (plus `url` for `goto` and the resolved target for `runFlow`). PreRunValidator still checks locators but never values, and the renderer's `validateFlow` (FlowChartDesigner.tsx:1003) remains advisory.",
     riskIfUnvalidated:
       "A `fill` with no value resolves to empty at run time and silently types nothing; a `goto` with no value fails deep in the runner with a URL error instead of before launch.",
-    recommendation: "Mirror the `requiresValue` check into PreRunValidator alongside the existing locator check."
+    recommendation: "Stage 2b: PreRunValidator delegates to the engine, so this rule reaches the run gate."
   },
   invalidConnectorTarget: {
     kind: "invalidConnectorTarget",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "`validateConnectorStructure` only inspects edge kinds and per-source degree — it never checks that `edge.source`/`edge.target` resolve to real nodes. `FlowDependencyResolver` does this check, but at the *scenario* level for flow links, not inside a flow.",
+      "FlowValidator's `brokenConnectorEndpoint` rule resolves every `edge.source`/`edge.target` against the node set. `validateConnectorStructure` still only inspects edge kinds and per-source degree, and `FlowDependencyResolver` checks flow links at the *scenario* level, not inside a flow.",
     riskIfUnvalidated: "Execution walks off the graph: the edge leads nowhere and the branch terminates without an error the user can act on.",
-    recommendation: "Add a node-existence check for every edge endpoint to `validateConnectorStructure`, which is already the enforced runtime gate."
+    recommendation: "Stage 2b: wire the engine into the run gate and designer."
   },
   unsupportedOperator: {
     kind: "unsupportedOperator",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "`ConnectorConditionOperator` is enforced by TypeScript at author time only. `JsonProfileStore` parses with an unvalidated cast (ProfileStore.ts:145,174), so an imported or hand-edited profile carries the bad literal straight through.",
+      "FlowValidator's `unsupportedOperator` rule validates the operator literal against an exhaustive `Record<ConnectorConditionOperator, true>`. TypeScript still enforces the union at author time only, and `JsonProfileStore` parses with an unvalidated cast (ProfileStore.ts:145,174), so an imported profile carries the bad literal straight through to the runner.",
     riskIfUnvalidated: "The conditional silently never matches, so the branch is skipped and the flow takes a path the author did not intend — with no error at all.",
-    recommendation: "Validate connector config literals at the persistence boundary; this is the general case for the store's unvalidated cast."
+    recommendation: "Stage 2b: validate at the persistence/import boundary; this is the general case for the store's unvalidated cast."
   },
   duplicateNodeId: {
     kind: "duplicateNodeId",
-    status: "knownGap",
-    detectedBy: "none",
-    rationale: "No validator checks node-id uniqueness within a flow. `FlowDependencyResolver` checks duplicate *order* across scenario flows, which is a different thing.",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
+    rationale:
+      "FlowValidator's `duplicateNodeId`/`duplicateEdgeId` rules count ids within the flow. Nothing in production checks id uniqueness; `FlowDependencyResolver` checks duplicate *order* across scenario flows, which is a different thing.",
     riskIfUnvalidated: "Edge resolution and per-node run records key off the id, so two nodes sharing one id corrupt both routing and reporting.",
-    recommendation: "Add a uniqueness check for node and edge ids to `validateConnectorStructure`."
+    recommendation: "Stage 2b: wire the engine into the run gate and designer."
   },
   missingEndNode: {
     kind: "missingEndNode",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "The start/end-count rule lives only in the renderer's advisory `validateFlow` (FlowChartDesigner.tsx:989-990). It does not block save — `connectorStructureIssues` is the only save gate — and nothing in `src/` enforces it.",
+      "FlowValidator's `missingStartNode`/`multipleStartNodes`/`missingEndNode`/`unreachableEndNode` rules own flow structure. The equivalent rule still lives only in the renderer's advisory `validateFlow` (FlowChartDesigner.tsx:989-990), which does not block save — `connectorStructureIssues` is the only save gate.",
     riskIfUnvalidated: "The flow runs to a dead end and reports completion without ever reaching a terminal node.",
-    recommendation: "Promote the exactly-one-start / at-least-one-end rule into the shared runtime validator."
+    recommendation: "Stage 2b: wire the engine into the run gate and designer."
   },
   unreachableNode: {
     kind: "unreachableNode",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "**There is no reachability check anywhere.** Validation is per-node degree only; no BFS or DFS from Start exists at the flow level (see RANDOMIZED_TESTING_ARCHITECTURE.md §4).",
+      "FlowValidator computes a forward BFS from Start (lifted from `verify-random-generator.mts`) and reports every unreached node. This was the one defect class with **no check anywhere** in the product; there is still none outside the engine.",
     riskIfUnvalidated: "Silently dead steps. The author believes a step runs; it never does, and nothing reports it — the most confusing possible failure mode.",
     recommendation:
-      "Add a forward BFS from the Start node and report unreachable nodes. `verify-random-generator.mts` already implements exactly this walk and can be lifted into `src/`."
+      "Stage 2b: wire into the designer as a Not-Runnable badge. Note this issue is classified `onActivePath: false` by definition, so under the design's staged enforcement it is Legacy-Compatibility-tolerable rather than an immediate block."
   },
   invalidLoopLimit: {
     kind: "invalidLoopLimit",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "The `1 ≤ maxIterations ≤ 1000` rule lives only in the renderer's advisory `validateFlow` (FlowChartDesigner.tsx:1027-1028). `FlowExecutor` truncates at `LOOP_CONNECTOR_HARD_CAP` at run time rather than rejecting.",
+      "FlowValidator's `invalidLoopBounds` rule range-checks connector `loop.maxIterations`, `maxLoopCount`, and node `loop.maxIterations`/`config.iterationCount`/`config.maxIterations` against 1…1000. The rule still lives in production only in the renderer's advisory `validateFlow` (FlowChartDesigner.tsx:1027-1028); `FlowExecutor` truncates at `LOOP_CONNECTOR_HARD_CAP` rather than rejecting.",
     riskIfUnvalidated: "A 0 silently skips the loop body; an over-cap value is silently truncated. Both change behavior without telling anyone.",
-    recommendation: "Mirror the bounds check into `validateConnectorStructure` so it is enforced outside the renderer."
+    recommendation: "Stage 2b: wire the engine into the run gate and designer."
   },
   invalidTimeout: {
     kind: "invalidTimeout",
-    status: "knownGap",
-    detectedBy: "none",
-    rationale: "No validator inspects `FlowStep.timeoutMs`. A negative value reaches Playwright directly.",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
+    rationale:
+      "FlowValidator's `invalidTimeout` rule rejects a non-positive or non-finite `timeoutMs` on a step or on any before/after wait. No production validator inspects `FlowStep.timeoutMs`; a negative value still reaches Playwright directly.",
     riskIfUnvalidated: "Playwright treats a non-positive timeout as 'no timeout', so a step that should fail fast can hang until the campaign deadline.",
-    recommendation: "Range-check `timeoutMs` in PreRunValidator."
+    recommendation: "Stage 2b: wire the engine into the run gate."
   },
   missingFlowReference: {
     kind: "missingFlowReference",
-    status: "knownGap",
-    detectedBy: "none",
+    status: "detected",
+    detectedBy: "flowValidator",
+    productionEnforced: false,
     rationale:
-      "PreRunValidator.ts:44-48 checks the flow ids referenced by `scenario.flows`, but nothing checks the `flowId` on a `runFlow` *step* inside a flow.",
+      "FlowValidator's `missingFlowReference` rule resolves each `runFlow` step's target exactly as the runner does (`step.flowId ?? step.config?.targetFlowId`, StepExecutor.ts:955) against the context's flow ids. PreRunValidator.ts:44-48 still checks only the ids referenced by `scenario.flows`, never a `runFlow` step inside a flow.",
     riskIfUnvalidated: "The nested-flow call fails mid-run instead of before launch, after the browser is already open and earlier steps have applied their side effects.",
-    recommendation: "Extend the existing PreRunValidator reference check to cover `runFlow` step targets — the flow set is already in scope there."
+    recommendation: "Stage 2b: PreRunValidator passes its flow set to the engine as `referenceableFlowIds` — the set is already in scope there."
   }
 };
 
@@ -178,18 +218,36 @@ export interface ValidationResult {
   readonly connectorIssues: readonly string[];
   readonly preRunErrors: readonly PreRunValidationIssue[];
   readonly preRunWarnings: readonly PreRunValidationIssue[];
+  /** Full report from the shared engine, including reachability and active-path classification. */
+  readonly flowReport: FlowValidationReport;
+  readonly flowErrors: readonly FlowValidationIssue[];
+  readonly flowWarnings: readonly FlowValidationIssue[];
+  /** The subset a Stage 2b run gate would block on. */
+  readonly flowActivePathErrors: readonly FlowValidationIssue[];
 }
 
 const preRunValidator = new PreRunValidator();
 
-/** Run a flow through every validator that applies to it. */
-export function validateFlowProfile(profile: FlowProfile): ValidationResult {
+/**
+ * Run a flow through every validator that applies to it.
+ *
+ * `context.referenceableFlowIds` must carry the flow library the profile belongs to. Without it the
+ * engine skips `missingFlowReference` entirely — an absent set means "the caller does not know the
+ * library", never "no flow exists" — so a corpus flow whose `runFlow` targets a sibling would
+ * otherwise be reported broken.
+ */
+export function validateFlowProfile(profile: FlowProfile, context: FlowValidationContext = {}): ValidationResult {
   const connectorIssues = validateConnectorStructure(profile.edges);
   const issues = preRunValidator.validate({ scenario: scenarioForFlow(profile), flows: [profile] });
+  const flowReport = validateFlowDefinition(profile, context);
   return {
     connectorIssues,
     preRunErrors: issues.filter((issue) => issue.severity === "error"),
-    preRunWarnings: issues.filter((issue) => issue.severity === "warning")
+    preRunWarnings: issues.filter((issue) => issue.severity === "warning"),
+    flowReport,
+    flowErrors: errorsOf(flowReport),
+    flowWarnings: warningsOf(flowReport),
+    flowActivePathErrors: activePathErrorsOf(flowReport)
   };
 }
 
@@ -222,24 +280,76 @@ export function deriveLocatorValidatedTypes(): Set<StepType> {
 }
 
 /**
- * The expectation used when a locator is stripped from a type `PreRunValidator` does not cover.
- * Kept separate from `MUTATION_EXPECTATIONS` because it is a property of the *type*, not the defect.
+ * The same measurement against the Stage 2a engine — **probed, not read from `STEP_REQUIREMENTS`**.
+ *
+ * Reading the table would only prove the table agrees with itself. This drives the real
+ * `validateFlowDefinition` with a minimal flow per locator-requiring type and records which ones it
+ * reports, so the verifier's drift check exercises the rule rather than the data behind it.
+ */
+export function deriveEngineLocatorValidatedTypes(): Set<StepType> {
+  const validated = new Set<StepType>();
+  for (const type of ALL_NODE_TYPES) {
+    if (!NODE_CATALOG[type].requiresLocator) continue;
+    const probe: FlowProfile = {
+      id: `engine-locator-probe-${type}`,
+      name: `engine locator probe ${type}`,
+      version: 1,
+      nodes: [{ id: "probe-node", type, name: `probe-${type}` }],
+      edges: []
+    };
+    const report = validateFlowDefinition(probe);
+    if (report.issues.some((issue) => issue.code === "missingRequiredLocator" && issue.nodeId === "probe-node")) {
+      validated.add(type);
+    }
+  }
+  return validated;
+}
+
+/**
+ * Node types the engine's `STEP_REQUIREMENTS` table and the test lab's `NODE_CATALOG` disagree
+ * about. Both mirror the renderer's `flowNodeCatalog.ts`; `scripts/verify-validation.mts` closes
+ * the triangle by comparing all three. A non-empty result means a requirement flag has drifted.
+ */
+export function requirementTableDrift(): Array<{ type: StepType; field: "requiresLocator" | "requiresValue"; engine: boolean; catalog: boolean }> {
+  const drift: Array<{ type: StepType; field: "requiresLocator" | "requiresValue"; engine: boolean; catalog: boolean }> = [];
+  for (const type of ALL_NODE_TYPES) {
+    for (const field of ["requiresLocator", "requiresValue"] as const) {
+      const engine = STEP_REQUIREMENTS[type][field];
+      const catalog = NODE_CATALOG[type][field];
+      if (engine !== catalog) drift.push({ type, field, engine, catalog });
+    }
+  }
+  return drift;
+}
+
+/**
+ * The expectation used when a locator is stripped from a type `PreRunValidator` does not cover
+ * (today: `radio` — `awkit-acw`). Kept separate from `MUTATION_EXPECTATIONS` because it is a
+ * property of the *type*, not the defect.
+ *
+ * Stage 2a flips this to `detected`: the engine derives its locator-required set from the
+ * exhaustive `STEP_REQUIREMENTS` table, so no type can escape the check. `productionEnforced`
+ * stays `false` because `PreRunValidator.ts:55` still holds its own hardcoded, drifted list —
+ * that is deleted in Stage 2b when it delegates to the engine.
  */
 export const UNVALIDATED_LOCATOR_TYPE_EXPECTATION: MutationExpectation = {
   kind: "missingRequiredLocator",
-  status: "knownGap",
-  detectedBy: "none",
+  status: "detected",
+  detectedBy: "flowValidator",
+  productionEnforced: false,
   rationale:
-    "PreRunValidator.ts:55 hardcodes the list of types it enforces a locator for, and that list has drifted from the node catalog's `requiresLocator` flags. A type marked as requiring a locator but absent from the list is never checked.",
+    "PreRunValidator.ts:55 hardcodes the list of types it enforces a locator for, and that list has drifted from the node catalog's `requiresLocator` flags. The Stage 2a engine derives the same set from `STEP_REQUIREMENTS`, an exhaustive `Record<StepType, …>` that `tsc --noEmit` fails on if a type is added without a decision, so the engine's set cannot drift the same way.",
   riskIfUnvalidated:
     "The step fails at run time with a raw Playwright resolution error, after the browser is open and earlier steps have already applied their side effects — instead of before launch with a clear message.",
   recommendation:
-    "Derive the list from the node catalog instead of hardcoding it, so the two cannot drift. `deriveLocatorValidatedTypes()` in this module measures the current drift."
+    "Stage 2b: PreRunValidator delegates to the engine and its hardcoded list is deleted. `deriveLocatorValidatedTypes()` in this module measures the remaining production drift until then."
 };
 
 export interface OracleContext {
   /** From `deriveLocatorValidatedTypes()`. Lets locator mutations be judged per node type. */
   readonly locatorValidatedTypes?: ReadonlySet<StepType>;
+  /** The flow library the judged profile belongs to, so `runFlow` targets resolve (see above). */
+  readonly referenceableFlowIds?: ReadonlySet<string>;
 }
 
 export interface OracleVerdict {
@@ -256,16 +366,19 @@ export interface OracleVerdict {
 
 /** Judge one mutated flow against its declared expectation. */
 export function judgeMutation(profile: FlowProfile, mutation: Mutation, context: OracleContext = {}): OracleVerdict {
-  // Whether a stripped locator is caught depends on the node type, so the expectation is resolved
-  // per mutation rather than read straight from the table.
+  // Whether a stripped locator is caught by *production* depends on the node type, so the
+  // expectation is resolved per mutation rather than read straight from the table.
   const unvalidatedType =
     mutation.kind === "missingRequiredLocator" &&
     context.locatorValidatedTypes !== undefined &&
     mutation.targetType !== undefined &&
     !context.locatorValidatedTypes.has(mutation.targetType);
   const expectation = unvalidatedType ? UNVALIDATED_LOCATOR_TYPE_EXPECTATION : MUTATION_EXPECTATIONS[mutation.kind];
-  const result = validateFlowProfile(profile);
-  const rejected = result.connectorIssues.length > 0 || result.preRunErrors.length > 0;
+  const result = validateFlowProfile(profile, { referenceableFlowIds: context.referenceableFlowIds });
+  // Any error-severity signal from any layer counts as rejection. Deliberately *not* restricted to
+  // active-path errors: `unreachableNode` is off-path by definition, and requiring an active-path
+  // error would score that rule as undetected even though the engine reports it correctly.
+  const rejected = result.connectorIssues.length > 0 || result.preRunErrors.length > 0 || result.flowErrors.length > 0;
 
   const shouldReject = expectation.status === "detected";
   const matchesExpectation = rejected === shouldReject;
@@ -276,7 +389,8 @@ export function judgeMutation(profile: FlowProfile, mutation: Mutation, context:
       ? `Expected ${expectation.detectedBy} to reject this defect, but every validator accepted it. Validation coverage has REGRESSED.`
       : `A validator now rejects this defect, which the catalog records as a known gap. The gap may have been closed — update the catalog. Signals: ${[
           ...result.connectorIssues,
-          ...result.preRunErrors.map((issue) => issue.message)
+          ...result.preRunErrors.map((issue) => issue.message),
+          ...result.flowErrors.map((issue) => `${issue.code}: ${issue.message}`)
         ].join(" | ")}`;
   }
 
@@ -285,7 +399,21 @@ export function judgeMutation(profile: FlowProfile, mutation: Mutation, context:
     : { mutation, expectation, result, rejected, matchesExpectation, discrepancy };
 }
 
-/** Every mutation the validators do not currently catch. */
+/**
+ * Every mutation no validator catches. Emptied by Stage 2a — kept as a regression guard: if this
+ * grows again, a defect class has stopped being detected.
+ */
 export const KNOWN_VALIDATION_GAPS: readonly MutationExpectation[] = Object.values(MUTATION_EXPECTATIONS).filter(
   (expectation) => expectation.status === "knownGap"
 );
+
+/**
+ * Rules the shared engine detects that **no production caller enforces yet** — the Stage 2b wiring
+ * checklist. Not a validation gap (the rule exists and is proven) and not done either: until the
+ * run gate, designer and import call the engine, a profile that arrives by import, hand edit or IPC
+ * still reaches the runner unchecked.
+ */
+export const PRODUCTION_UNENFORCED_RULES: readonly MutationExpectation[] = [
+  ...Object.values(MUTATION_EXPECTATIONS).filter((expectation) => expectation.status === "detected" && !expectation.productionEnforced),
+  UNVALIDATED_LOCATOR_TYPE_EXPECTATION
+];
