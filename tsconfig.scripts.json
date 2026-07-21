@@ -1,0 +1,28 @@
+{
+  // Type-checks the maintained `.mts` verifier/benchmark scripts, which `tsconfig.json` deliberately
+  // excludes (its `include` is app + src only, so the shipped bundles stay free of test tooling).
+  //
+  // Why this exists: the scripts import deeply from `app/` and `src/`, but nothing type-checked them.
+  // A removed export stayed invisible to `npm run build` and only failed at `tsx` runtime — exactly
+  // how a deleted `flowContentHash` import escaped the build during the Tranche 2 hardening work.
+  //
+  // Resolution deliberately mirrors the BASE config (`Bundler`), because that is how `tsx` actually
+  // resolves these files at runtime: extensionless relative imports, the `@src/*` / `@renderer/*`
+  // path aliases, and direct `.mts` imports. Using NodeNext here would report ~900 phantom
+  // resolution errors for code that runs correctly.
+  //
+  // Emits nothing; this is a gate, not a build step. Run via `npm run typecheck:scripts`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // These are Node programs, so they need `node:*` built-in types (the base config ships DOM libs
+    // for the renderer and no Node types).
+    "types": ["node"],
+    // The scripts import sibling helpers by their real `.mts` path; legal because nothing is emitted.
+    "allowImportingTsExtensions": true,
+    // Standalone programs, not bundler inputs.
+    "isolatedModules": false
+  },
+  // `app/**` and `src/**` are checked transitively through the imports these scripts make.
+  "include": ["scripts/**/*.mts"]
+}

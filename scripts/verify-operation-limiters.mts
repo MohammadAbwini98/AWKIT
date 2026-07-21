@@ -55,10 +55,11 @@ async function main() {
   {
     const limiters = new OperationLimiters({ ...cfg, navigation: 1, download: 3 });
     let downloadRan = false;
+    const didDownloadRun = () => downloadRan;
     const held = limiters.run("navigation", async () => sleep(60)); // hold the only navigation permit
     await limiters.run("download", async () => { downloadRan = true; }); // must not block on navigation
     await held;
-    check("a saturated kind does not block a different kind", downloadRan === true);
+    check("a saturated kind does not block a different kind", didDownloadRun() === true);
   }
 
   // 4. A permit is released even when the operation throws (finally), so the limiter isn't leaked.
@@ -66,8 +67,9 @@ async function main() {
     const limiters = new OperationLimiters({ ...cfg, navigation: 1 });
     await limiters.run("navigation", async () => { throw new Error("boom"); }).catch(() => undefined);
     let recovered = false;
+    const didRecover = () => recovered;
     await limiters.run("navigation", async () => { recovered = true; });
-    check("permit released after a throwing operation", recovered === true);
+    check("permit released after a throwing operation", didRecover() === true);
   }
 
   // 5. Reconfiguring raises the cap for subsequent operations.

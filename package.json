@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsc --noEmit && electron-vite build",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json",
+    "verify:all-typecheck": "npm run build && npm run typecheck:scripts",
     "typecheck": "tsc --noEmit",
     "preview": "electron-vite preview",
     "mock-site": "node mock-site/server.mjs",

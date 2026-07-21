@@ -20,8 +20,13 @@ npm run dev:mock-site    # same as mock-site
 
 ## Typecheck / build
 ```bash
-npm run typecheck        # tsc --noEmit
+npm run typecheck        # tsc --noEmit  (app + src, per tsconfig.json)
 npm run build            # tsc --noEmit && electron-vite build  (primary verification gate)
+npm run typecheck:scripts # tsc -p tsconfig.scripts.json — type-checks the .mts verifier/benchmark
+                         # scripts (which tsconfig.json excludes). Catches deleted imports, stale
+                         # APIs and incompatible types before `tsx` runtime. Bundler resolution to
+                         # match how tsx resolves them; emits nothing.
+npm run verify:all-typecheck # build + typecheck:scripts — the combined type gate.
 ```
 
 ## Test / verify

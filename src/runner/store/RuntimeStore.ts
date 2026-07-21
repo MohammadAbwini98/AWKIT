@@ -200,10 +200,10 @@ export class NullRuntimeStore implements RuntimeStore {
       failureAtPressure: []
     };
   }
-  queryAnomalies(): AnomalyEvent[] {
+  queryAnomalies(_range?: TelemetryRange, _workflowId?: string, _limit?: number): AnomalyEvent[] {
     return [];
   }
-  queryOverview(): TelemetryOverview {
+  queryOverview(_range: TelemetryRange): TelemetryOverview {
     return {
       storeEnabled: false,
       totalRuns: 0,
@@ -217,13 +217,13 @@ export class NullRuntimeStore implements RuntimeStore {
       runsSeries: []
     };
   }
-  queryWorkflows(): WorkflowReportRow[] {
+  queryWorkflows(_range: TelemetryRange): WorkflowReportRow[] {
     return [];
   }
-  queryWorkflowComparison(): WorkflowComparisonRow[] {
+  queryWorkflowComparison(_range: TelemetryRange, _machineFilter?: MachineFilter): WorkflowComparisonRow[] {
     return [];
   }
-  queryWorkflowTrend(scenarioId: string | undefined): WorkflowTrend {
+  queryWorkflowTrend(scenarioId: string | undefined, _range?: TelemetryRange, _buckets?: number, _machineFilter?: MachineFilter): WorkflowTrend {
     return { scenarioId, scenarioName: undefined, points: [] };
   }
   listRunMachines(): MachineSummary[] {
@@ -232,16 +232,16 @@ export class NullRuntimeStore implements RuntimeStore {
   queryRunHistory(_range: TelemetryRange, page: TelemetryPage): RunHistoryPage {
     return { rows: [], total: 0, limit: page.limit ?? 50, offset: page.offset ?? 0 };
   }
-  countRunsByStatus(): RunStatusCounts {
+  countRunsByStatus(_range?: TelemetryRange, _filter?: RunHistoryFilter): RunStatusCounts {
     return { total: 0, success: 0, failed: 0, cancelled: 0, other: 0, byStatus: {} };
   }
-  queryFailures(): FailureBreakdown {
+  queryFailures(_range: TelemetryRange): FailureBreakdown {
     return { total: 0, categories: [], topWorkflows: [] };
   }
-  queryRuntimeSeries(): RuntimeSeriesPoint[] {
+  queryRuntimeSeries(_range: TelemetryRange, _bucketMs: number): RuntimeSeriesPoint[] {
     return [];
   }
-  getRun(): DurableRunRecord | undefined {
+  getRun(_instanceId: string): DurableRunRecord | undefined {
     return undefined;
   }
   findInterruptedRuns(): DurableRunRecord[] {

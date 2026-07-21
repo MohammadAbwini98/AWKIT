@@ -428,7 +428,7 @@ console.log("\nRule: unsupported operators and configurations");
   const casing = validateFlowDefinition(conditional("NotEquals"));
   const fix = casing.issues.find((issue) => issue.code === "unsupportedOperator")?.safeFix;
   check("a casing-only operator mistake carries a normalizeEnumCasing safe fix", fix?.kind === "normalizeEnumCasing" && fix.to === "notEquals");
-  check("...and the profile is NOT modified by validation", (validateFlowDefinition(conditional("NotEquals")), conditional("NotEquals").edges[1]?.conditional?.operator === "NotEquals"));
+  check("...and the profile is NOT modified by validation", (validateFlowDefinition(conditional("NotEquals")), (conditional("NotEquals").edges[1]?.conditional?.operator as string) === "NotEquals"));
   check(
     "a genuinely unknown operator carries NO safe fix",
     validateFlowDefinition(conditional("isDefinitelyNotAnOperator")).issues.find((issue) => issue.code === "unsupportedOperator")?.safeFix === undefined

@@ -154,7 +154,7 @@ async function main() {
         await cleanupRoot(root);
         const stop = evaluateStopConditions(healthSample(result), DEFAULT_BENCHMARK_THRESHOLDS);
         results[name].push(compactStage(result, stop));
-        await writeFile(artifactPath, JSON.stringify({ machine: { machineId, ...caps }, recommendation: { R, ceiling, category: rec.categoryName, plannerStages }, sharedPoolBudgetP: P, holdMs: HOLD_MS, stages, mix: DEFAULT_MIX, results, stableConcurrency }, null, 2), "utf8");
+        await writeFile(artifactPath, JSON.stringify({ machine: { ...caps, machineId }, recommendation: { R, ceiling, category: rec.categoryName, plannerStages }, sharedPoolBudgetP: P, holdMs: HOLD_MS, stages, mix: DEFAULT_MIX, results, stableConcurrency }, null, 2), "utf8");
         const active = result.sustainedActive?.median ?? 0;
         console.log(`active≈${active} chromium=${result.chromiumProcs?.median}proc/${result.chromiumRssMb?.median}MB cpuP95=${result.cpuPercent?.p95}% tput=${result.throughputPerMin}/min fail=${result.failureRate} ${stop.stop ? `STOP(${stop.reasons?.join("; ")})` : "healthy"}${result.teardown.clean ? "" : " [LEAK]"}`);
         if (result.failureSamples.length) console.log(`      failures: ${result.failureSamples.join(" || ")}`);
@@ -175,7 +175,7 @@ async function main() {
       await cleanupRoot(root);
       results["D-headed"] = [compactStage(result, { stop: false })];
       console.log(`  headed active≈${result.sustainedActive?.median} chromium=${result.chromiumProcs?.median}proc/${result.chromiumRssMb?.median}MB peak=${result.chromiumPeakRssMb}MB cpuP95=${result.cpuPercent?.p95}%`);
-      await writeFile(artifactPath, JSON.stringify({ machine: { machineId, ...caps }, recommendation: { R, ceiling, category: rec.categoryName, plannerStages }, sharedPoolBudgetP: P, holdMs: HOLD_MS, stages, mix: DEFAULT_MIX, results, stableConcurrency }, null, 2), "utf8");
+      await writeFile(artifactPath, JSON.stringify({ machine: { ...caps, machineId }, recommendation: { R, ceiling, category: rec.categoryName, plannerStages }, sharedPoolBudgetP: P, holdMs: HOLD_MS, stages, mix: DEFAULT_MIX, results, stableConcurrency }, null, 2), "utf8");
     }
   } finally {
     wl.server.close();

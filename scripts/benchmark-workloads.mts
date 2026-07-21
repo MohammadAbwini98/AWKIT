@@ -30,7 +30,7 @@ const HEADED = !argv.includes("--headless");
 const PROFILES: BrowserResourceProfileMode[] = ["balanced", "low-resource"];
 
 const flow = (types: string[]): FlowProfile[] => [
-  { id: "f", name: "f", nodes: types.map((t, i) => ({ id: "n" + i, type: t, label: t })) as FlowStep[], edges: [] } as unknown as FlowProfile
+  { id: "f", name: "f", nodes: types.map((t, i) => ({ id: "n" + i, type: t, label: t })) as unknown as FlowStep[], edges: [] } as unknown as FlowProfile
 ];
 
 interface Workload { name: string; capFlow: FlowProfile[]; drive: (api: DriveApi) => Promise<Record<string, number | string | boolean>> }
