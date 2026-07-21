@@ -2,11 +2,19 @@
 
 ## Flow Validation Engine (Tranche 2) — INTEGRATION-CANDIDATE, hardened (2026-07-22, epic `awkit-wza`)
 
-**Status: `INTEGRATION-CANDIDATE — clean offline VM and installer validation pending`.** The two items
-the previous status named — SHA-256 grant binding and packaged validation — are **complete** (accepted
-2026-07-22). The status now names what actually remains: the clean **offline VM walkthrough** and
-**NSIS installer** validation. Green source, Electron-dev and packaged-on-dev-machine suites are not
-sufficient evidence for a production-ready claim.
+**Status (authoritative, 2026-07-22):**
+- `Tranche 2: IMPLEMENTED AND VERIFIED ON THE DEVELOPER MACHINE — CLEAN-MACHINE ACCEPTANCE PENDING`
+- `Product promotion: NOT YET APPROVED`
+- `Remaining acceptance gate: clean offline Windows environment validation`
+
+The two items the earlier status named — SHA-256 grant binding and packaged validation — are complete
+and accepted. All source, Electron-development, packaged-runtime, portable-build, SHA-256,
+authorization, migration, concurrency and 1,000-flow scale evidence is accepted **as
+developer-machine evidence only**; it is explicitly **not** clean-machine evidence and does not
+satisfy the remaining gate. Promotion to `Tranche 2: COMPLETE` / `Product: INTEGRATION-CANDIDATE` may
+occur **only** after [`CLEAN_MACHINE_VALIDATION_RUNBOOK.md`](../../CLEAN_MACHINE_VALIDATION_RUNBOOK.md)
+is executed successfully in a qualifying clean offline Windows environment. That runbook records every
+clean-machine step as **Not Executed**.
 
 - **SHA-256 grant binding.** Legacy Compatibility grants bind to
   `sha256:<64 hex>` over the flow's canonical executable content. A grant changes execution

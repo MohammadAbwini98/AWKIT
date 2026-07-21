@@ -5132,3 +5132,24 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   conditioned on the environment gate passing on a genuine clean machine, which this agent environment
   cannot provide. Everything runnable here is green; the remaining gate is the documented human
   walkthrough.
+
+## 2026-07-22 — Claude — Clean-machine validation runbook + status wording
+
+- **Task:** produce a standalone clean-machine validation runbook for a qualifying Windows
+  environment, and set the authoritative status wording. No product changes; preserve commits,
+  artifacts, checksums, logs and reports unchanged.
+- **Delivered:** `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` (repo root, standalone) — environment/standard-
+  user constraints, both artifact hashes + NotSigned status, offline setup, clean-profile and
+  upgrade-profile procedures, portable + NSIS install/upgrade/uninstall checks, the full
+  validation/grants/migration/backup/restart/undo scenario matrix, expected pass/fail (blockers vs
+  findings), evidence-to-collect, and a result template (tester, machine, Windows version, account
+  privilege, start/end, blockers, findings, final recommendation). Every clean-machine step is
+  labelled **Not Executed**; the runbook makes no pass claims.
+- **Status wording set** in CURRENT_STATE.md: `Tranche 2: IMPLEMENTED AND VERIFIED ON THE DEVELOPER
+  MACHINE — CLEAN-MACHINE ACCEPTANCE PENDING`; `Product promotion: NOT YET APPROVED`; remaining gate =
+  clean offline Windows environment validation. Prior evidence explicitly labelled developer-machine
+  only, not clean-machine.
+- **Not changed:** no product code; the four Tranche 2 commits and three hardening commits, the built
+  artifacts, their checksums, and the historical reports/logs are unchanged.
+- **Result:** checkpoint stopped as instructed. Promotion is gated on a successful runbook execution
+  in a qualifying environment. Nothing pushed; no PR.
