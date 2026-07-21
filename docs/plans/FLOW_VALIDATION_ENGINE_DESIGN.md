@@ -1,7 +1,19 @@
 # Flow Validation Engine — Design (Test Lab Tranche 2)
 
-Date: 2026-07-22 · Status: **COMPLETE — Stages 2a, 2b and 2c implemented** · Epic: `awkit-wza`
-(gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both closed by 2b)
+Date: 2026-07-22 · Status: **INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding
+pending** · Epic: `awkit-wza` (gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both closed by 2b)
+
+> **Hardening checkpoint 2026-07-22** (`awkit-xy3`). Grant binding moved from FNV-1a to **SHA-256**
+> computed at a trusted main-process boundary (`app/main/validation/contentDigest.ts`);
+> canonicalization stays pure and deterministic in `LegacyCompatibility.canonicalFlowContent`.
+> Pre-hardening (FNV-era) records are **retired, never migrated or replaced** — no deadline is
+> extended and no grant is created merely because an old format was seen. The inventory scan is
+> single-flight, fails closed, and serializes grant writes. A fresh package was built and validated
+> on clean and upgrade profiles (87/0), including all ten `validation:*` channels and their
+> authorization matrix.
+>
+> Status deliberately remains INTEGRATION-CANDIDATE: source, Electron-dev and packaged-on-dev-machine
+> suites are green, but the clean **offline VM** walkthrough has not been run.
 
 > **Stage 2c landed 2026-07-22** (`awkit-9xb`). Enforcement is now the full gate: off-path errors block
 > unless an explicit, time-limited, content-bound, audited Legacy Compatibility grant tolerates them

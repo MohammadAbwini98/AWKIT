@@ -1,5 +1,44 @@
 # CURRENT_STATE
 
+## Flow Validation Engine (Tranche 2) — INTEGRATION-CANDIDATE, hardened (2026-07-22, epic `awkit-wza`)
+
+**Status: `INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending` is now
+satisfied for both named items, but the status does NOT advance to production-ready:** the clean
+offline VM walkthrough remains unrun. Green source, Electron-dev and packaged-on-dev-machine suites
+are not sufficient evidence for that claim.
+
+- **SHA-256 grant binding.** Legacy Compatibility grants bind to
+  `sha256:<64 hex>` over the flow's canonical executable content. A grant changes execution
+  eligibility, so a non-cryptographic hash was not acceptable. Canonicalization stays **pure** in
+  `src/validation/LegacyCompatibility.ts` (`canonicalFlowContent`); the digest is computed at the
+  **trusted boundary** `app/main/validation/contentDigest.ts` (`node:crypto`) and injected — `src/`
+  still imports no Node built-ins. `PreRunValidator` takes `digestFor` and **fails closed** without it.
+- **Pre-hardening records are retired, never migrated.** A grant whose digest is not current-format
+  gets standing `legacyDigest`, is never honored, is revoked as `digestFormatRetired` for audit, and
+  is **not replaced** — so no deadline is extended and no grant appears merely because an old format
+  was encountered. A retired record cannot be revived by re-scanning.
+- **Scan hardening.** `runInventoryScan` is single-flight (10 concurrent callers → 1 scan, 1 grant
+  set); grant writes are serialized so audit counters cannot be lost (20 parallel audit writes → 20
+  recorded); the scan record is written **last**, so a storage failure leaves no scan record, issues
+  no grants, and retries next call. The run gate catches scan/store failures and applies the **strict**
+  gate rather than assuming exemption.
+- **Fresh package validated.** `dist/SpecterStudio 0.1.0.exe` rebuilt 2026-07-22T00:32:12+03:00,
+  310.2 MiB, sha256 `129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb`.
+  `verify:packaged-validation` **87/0** across a clean profile and an upgrade profile (60+4 flows,
+  FNV-era grant, old migration record, prior run history): all ten `validation:*` channels plus their
+  authorization matrix, grant creation/persistence-across-restart/invalidation/expiry, the full
+  migration ceremony including undo after restart and undo refusal after a later edit, draft save,
+  run blocking vs permitted legacy execution, every library state, offline posture, and clean-shutdown
+  on-disk integrity. First scan of 64 flows: **334 ms**, worst renderer round-trip during it **9 ms**.
+- **Verification:** `verify-legacy-compat` **138/0** · `verify-packaged-validation` **87/0** (new) ·
+  `verify:packaged-runtime` **25/0** (was 12/10 — pre-existing splash-window defect, fixed) ·
+  `verify-validation` **125/0** · `verify-random-oracle` **27/0** · generator **49/0** · roundtrip
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56** · `verify:workflow-builder`
+  **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16** · `verify:authz`
+  **40/0** · `verify:ipc-contract` **4/4** · `validate:offline --Strict` pass · build clean.
+- **Not run:** clean offline VM walkthrough (the outstanding gate), NSIS installer packaging,
+  sustained soak.
+
 ## Randomized Test Lab — Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem (2026-07-22, epic `awkit-wza`)
 
 **Branch `feature/randomized-test-lab`.** Tranche 2 is complete. Enforcement is now the **full gate**:

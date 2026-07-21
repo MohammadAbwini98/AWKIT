@@ -12,8 +12,8 @@ import {
 } from "@src/validation/FlowValidator";
 import {
   effectiveVerdict,
-  flowContentHash,
-  type CompatibilityGrant
+  type CompatibilityGrant,
+  type FlowContentDigest
 } from "@src/validation/LegacyCompatibility";
 import { SecurityPolicy, type SecurityPolicyIssue } from "./SecurityPolicy";
 
@@ -66,6 +66,14 @@ export interface PreRunValidationInput {
    */
   legacyCompatibility?: {
     grants: ReadonlyMap<string, CompatibilityGrant>;
+    /**
+     * Computes a flow's SHA-256 content digest. Supplied by the trusted boundary
+     * (`app/main/validation/contentDigest.ts`) because `src/` cannot import `node:crypto`.
+     *
+     * **Required for any grant to be honored.** Omitting it fails closed: without a trustworthy
+     * digest the gate cannot prove a granted flow is unmodified, so it applies the strict policy.
+     */
+    digestFor?: FlowContentDigest;
     /** Injectable clock for tests; defaults to the real time. */
     nowIso?: string;
   };
@@ -136,10 +144,13 @@ export class PreRunValidator {
     const nowIso = input.legacyCompatibility?.nowIso ?? new Date().toISOString();
     const flowsById = new Map(relevantFlows.map((flow) => [flow.id, flow]));
     let issueIndex = 0;
+    const digestFor = input.legacyCompatibility?.digestFor;
     for (const report of flowSetReport.reports) {
       const flow = flowsById.get(report.flowId);
       const grant = input.legacyCompatibility?.grants.get(report.flowId);
-      const verdict = effectiveVerdict(report, grant, flow ? flowContentHash(flow) : "", nowIso);
+      // No digest function, or no flow → empty digest → `compatibilityStanding` fails closed.
+      const digest = flow && digestFor ? digestFor(flow) : "";
+      const verdict = effectiveVerdict(report, grant, digest, nowIso);
       const blocking = new Set(verdict.blockingIssues);
       for (const issue of report.issues) {
         issues.push(this.toPreRunIssue(issue, issueIndex, blocking.has(issue)));

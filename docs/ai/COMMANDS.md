@@ -164,7 +164,16 @@ npm run ai:memory:check     # alias of ai:memory
 npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
                                              # flows through the real validateConnectorStructure, reachability,
                                              # coverage accounting, no-secret/no-external-URL safety (49)
-npx tsx scripts/verify-legacy-compat.mts     # Stage 2c: Legacy Compatibility grants (content hash, expiry,
+npx tsx scripts/verify-packaged-validation.mts # Tranche 2 hardening gate — run AFTER `npm run package:portable`.
+                                             # Drives the REAL packaged EXE on a clean profile AND an upgrade
+                                             # profile (FNV-era grant, old migration record, run history):
+                                             # all ten validation:* channels + their authorization matrix,
+                                             # grant persistence/invalidation/expiry across restarts, the full
+                                             # migration ceremony incl. undo, library states, offline posture,
+                                             # clean-shutdown integrity, scan timing + renderer responsiveness (87)
+npx tsx scripts/verify-legacy-compat.mts     # Stage 2c: Legacy Compatibility grants (SHA-256 digest format,
+                                             # collision resistance, canonicalization determinism, legacy-record
+                                             # retirement, concurrency/fail-safety), plus expiry,
                                              # standing), the full-gate blocking policy, inventory scan +
                                              # grant planning, and the suggested-fix ceremony (preview,
                                              # backup, apply, migration report, undo) against the REAL

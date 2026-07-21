@@ -6,6 +6,7 @@ import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
 import { getFlowValidationService } from "../validation";
+import type { CompatibilityGrant } from "@src/validation/LegacyCompatibility";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
 import { DataSourceResolver } from "@src/data/DataSourceResolver";
 import { isOracleDataSource, type DataSourceProfile, type JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
@@ -189,9 +190,21 @@ async function validateWorkflow(workflowId: string) {
   // unchanged — get their time-limited grant instead of breaking without warning. Grants only ever
   // tolerate OFF-PATH errors; validation still runs fresh on every call.
   const validationService = getFlowValidationService();
-  await validationService.ensureInventoryScan().catch(() => undefined);
-  const grants = await validationService.grantsMap().catch(() => new Map());
-  const issues = new PreRunValidator().validate({ scenario, flows, runtimeInputs: {}, legacyCompatibility: { grants } });
+  // Fail CLOSED: if the scan or the grant store is unavailable, run with NO grants — the strict
+  // gate — rather than assuming a flow was exempt. A storage failure must never widen tolerance.
+  let grants: ReadonlyMap<string, CompatibilityGrant> = new Map();
+  try {
+    await validationService.ensureInventoryScan();
+    grants = await validationService.grantsMap();
+  } catch (error) {
+    console.warn(`[validation] inventory/grant lookup failed; applying the strict gate: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const issues = new PreRunValidator().validate({
+    scenario,
+    flows,
+    runtimeInputs: {},
+    legacyCompatibility: { grants, digestFor: validationService.contentDigest }
+  });
   const plan = scenario ? new ScenarioOrchestrator().createExecutionPlan(scenario) : null;
 
   return {

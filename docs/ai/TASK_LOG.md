@@ -5049,3 +5049,47 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Beads:** closed `awkit-9xb`. Epic `awkit-wza` Tranche 2 complete.
 - **Result:** Stage 2c checkpoint. Enforcement is complete and recoverable: nothing auto-fixes, nothing
   is destroyed, every exemption is explicit, time-limited, content-bound and audited.
+
+## 2026-07-22 — Claude — Tranche 2 hardening: SHA-256 grant binding + packaged validation
+
+- **Task:** replace the FNV-1a content hash behind Legacy Compatibility grants with SHA-256 at a
+  trusted boundary; safely handle pre-hardening records; harden the inventory scan; then build a fresh
+  package and validate the whole subsystem packaged, on clean and upgrade profiles. Status stays
+  INTEGRATION-CANDIDATE.
+- **Hash:** canonicalization stays PURE (`canonicalFlowContent` — sorted keys, dropped `undefined`,
+  preserved array order, over `{version, nodes, edges}`); the digest is SHA-256 computed in
+  `app/main/validation/contentDigest.ts` (`node:crypto`) and injected, so `src/` still imports no Node
+  built-ins. Digests are tagged `sha256:` so stored records are self-identifying.
+  `PreRunValidator.legacyCompatibility.digestFor` is required for any grant to be honored — omitting
+  it fails closed.
+- **Old records:** a non-current digest yields standing `legacyDigest` (never honored, distinct from
+  `edited`), is revoked as `digestFormatRetired` for audit, and is **not replaced** — no deadline
+  extension, no auto-created grant, and a retired record cannot be revived by re-scanning.
+- **Scan hardening:** single-flight `runInventoryScan`; serialized grant writes; scan record written
+  last so a failure leaves no record, no grants, and retries; the run gate applies the strict gate if
+  the scan or grant store fails.
+- **Files:** NEW `app/main/validation/contentDigest.ts`, `scripts/verify-packaged-validation.mts`;
+  MODIFIED `src/validation/LegacyCompatibility.ts`, `src/reports/PreRunValidator.ts`,
+  `app/main/validation/flowValidationService.ts`, `app/main/ipc/validation.ipc.ts`,
+  `app/main/ipc/execution.ipc.ts`, `app/renderer/pages/FlowChartDesigner.tsx`,
+  `scripts/verify-legacy-compat.mts` (+48), `scripts/verify-validation.mts`,
+  `scripts/verify-packaged-runtime.mts` (splash-window fix), docs.
+- **Package:** `dist/SpecterStudio 0.1.0.exe`, built 2026-07-22T00:32:12+03:00, 325,296,994 bytes,
+  sha256 `129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb`.
+- **Tests run:** `verify-legacy-compat` **138/0** · `verify-packaged-validation` **87/0** (new) ·
+  `verify:packaged-runtime` **25/0** (was 12/10) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · generator **49/0** · roundtrip **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **56/56** · `verify:workflow-builder` **20/20** · `verify:canvas-perf`
+  **13/13** · `verify:profile-store` **16/16** · `verify:authz` **40/0** · `verify:ipc-contract`
+  **4/4** · `validate:offline -Strict` pass · `npm run build` clean.
+- **Not run:** clean offline VM walkthrough (the outstanding gate), NSIS installer, sustained soak.
+- **Defects found:** (1) pre-existing — `verify:packaged-runtime` used `firstWindow()`, which lands on
+  the splash window that has no preload API, so 10 packaged runtime assertions had been failing;
+  fixed by resolving the window that carries the preload bridge. (2) Two harness bugs in the new
+  packaged suite (asserting `legacyDigest` after retirement had already made it `revoked`; picking an
+  edited flow for the expiry test, where `edited` correctly outranks `expired`) — both fixed, and the
+  `legacyDigest` standing is now additionally asserted pre-scan.
+- **Beads:** closed `awkit-xy3`.
+- **Result:** hardening checkpoint. Status remains
+  `INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending` per instruction;
+  both named items are now done, and the remaining gate is the clean offline VM walkthrough.

@@ -21,21 +21,26 @@ import {
   FLOW_VALIDATOR_VERSION,
   LEGACY_COMPATIBILITY_WINDOW_DAYS,
   classifyForInventory,
-  flowContentHash,
   planGrants,
   type CompatibilityGrant,
+  type FlowContentDigest,
   type InventoryEntry
 } from "@src/validation/LegacyCompatibility";
 import { applySafeFixes, availableSafeFixes, type AppliedFix } from "@src/validation/SafeFixApplier";
 import { JsonProfileStore, type ProfileStore } from "@src/storage/ProfileStore";
+import { sha256FlowDigest } from "./contentDigest";
 
 export interface InventoryScanRecord {
   id: string;
   at: string;
   validatorVersion: number;
+  /** Digest algorithm this scan's grants are bound with. */
+  digestAlgorithm: "sha256";
   counts: Record<string, number>;
   grantsIssued: number;
   grantsRevokedRepaired: number;
+  /** Pre-hardening grants retired because their digest format is no longer trusted. */
+  grantsRetiredLegacyDigest: number;
   entries: InventoryEntry[];
 }
 
@@ -66,6 +71,8 @@ export interface FlowValidationServiceDeps {
   recentSuccessfulRuns?: () => { scenarioId?: string; endedAt?: string }[];
   /** Injectable clock for tests. */
   now?: () => string;
+  /** Override the content digest (tests only — production always uses SHA-256). */
+  digestFor?: FlowContentDigest;
 }
 
 export class FlowValidationService {
@@ -73,16 +80,41 @@ export class FlowValidationService {
   private readonly scanStore: JsonProfileStore<InventoryScanRecord>;
   private readonly migrationStore: JsonProfileStore<MigrationRecord>;
   private readonly backupsDir: string;
+  private readonly digestFor: FlowContentDigest;
+  /**
+   * Single-flight guard. Concurrent run requests all await the SAME scan rather than each starting
+   * one: parallel scans would race on the grant store and could issue duplicate grants or clobber
+   * each other's audit records. Cleared on settle so a failed scan can be retried.
+   */
+  private scanInFlight: Promise<InventoryScanRecord> | undefined;
+  /** Serializes grant writes within this process, so audit counters cannot be lost to interleaving. */
+  private grantWriteChain: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly deps: FlowValidationServiceDeps) {
     this.grantStore = new JsonProfileStore<CompatibilityGrant>({ folder: join(deps.validationRoot, "legacy-grants") });
     this.scanStore = new JsonProfileStore<InventoryScanRecord>({ folder: join(deps.validationRoot, "inventory-scans") });
     this.migrationStore = new JsonProfileStore<MigrationRecord>({ folder: join(deps.validationRoot, "migrations") });
     this.backupsDir = join(deps.validationRoot, "backups");
+    this.digestFor = deps.digestFor ?? sha256FlowDigest;
   }
 
   private nowIso(): string {
     return this.deps.now?.() ?? new Date().toISOString();
+  }
+
+  /** The digest function the run gate must use, so gate and scan always agree. */
+  get contentDigest(): FlowContentDigest {
+    return this.digestFor;
+  }
+
+  /** Run a grant-store mutation exclusively, FIFO. A failure rejects only its own caller. */
+  private serializeGrantWrite<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.grantWriteChain.then(task, task);
+    this.grantWriteChain = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
   }
 
   /* ── Inventory scan & grants ─────────────────────────────────────────────── */
@@ -103,7 +135,21 @@ export class FlowValidationService {
     return this.runInventoryScan();
   }
 
+  /**
+   * Classify the library and issue grants. **Single-flight**: overlapping callers (e.g. several run
+   * requests arriving together on first launch) await one scan instead of racing to write the same
+   * grant records.
+   */
   async runInventoryScan(): Promise<InventoryScanRecord> {
+    if (this.scanInFlight) return this.scanInFlight;
+    const run = this.performInventoryScan().finally(() => {
+      this.scanInFlight = undefined;
+    });
+    this.scanInFlight = run;
+    return run;
+  }
+
+  private async performInventoryScan(): Promise<InventoryScanRecord> {
     const now = this.nowIso();
     const flows = await this.deps.flowStore.list();
     const flowSet = validateFlowSet(flows);
@@ -112,26 +158,41 @@ export class FlowValidationService {
     const entries = flows.map((flow) => {
       const report = flowSet.byFlowId.get(flow.id);
       if (!report) throw new Error(`No validation report for flow ${flow.id}`);
-      return classifyForInventory(flow, report, { ranSuccessfullySinceLastEdit: successPredicate });
+      return classifyForInventory(flow, report, this.digestFor(flow), { ranSuccessfullySinceLastEdit: successPredicate });
     });
 
-    const existingGrants = new Map((await this.grantStore.list()).map((grant) => [grant.id, grant]));
-    const plan = planGrants(entries, existingGrants, now);
-    for (const grant of plan.issue) await this.grantStore.create(grant);
-    for (const revoked of plan.revokeRepaired) await this.grantStore.update(revoked.id, revoked);
+    // Grant writes are serialized and re-read inside the lock, so a concurrent
+    // `recordRunUnderCompatibility` cannot have its audit counter overwritten by this scan.
+    const plan = await this.serializeGrantWrite(async () => {
+      const existingGrants = new Map((await this.grantStore.list()).map((grant) => [grant.id, grant]));
+      const planned = planGrants(entries, existingGrants, now);
+      for (const grant of planned.issue) {
+        // Defensive: `create` throws on an existing id, so never overwrite a record we did not plan for.
+        if (!existingGrants.has(grant.id)) await this.grantStore.create(grant);
+      }
+      for (const revoked of [...planned.revokeRepaired, ...planned.revokeLegacyDigest]) {
+        await this.grantStore.update(revoked.id, revoked);
+      }
+      return planned;
+    });
 
     const counts: Record<string, number> = {};
     for (const entry of entries) counts[entry.classification] = (counts[entry.classification] ?? 0) + 1;
 
     const record: InventoryScanRecord = {
-      id: `scan-v${FLOW_VALIDATOR_VERSION}-${now.replace(/[:.]/g, "-")}`,
+      id: await this.uniqueId(this.scanStore, `scan-v${FLOW_VALIDATOR_VERSION}-${now.replace(/[:.]/g, "-")}`),
       at: now,
       validatorVersion: FLOW_VALIDATOR_VERSION,
+      digestAlgorithm: "sha256",
       counts,
       grantsIssued: plan.issue.length,
       grantsRevokedRepaired: plan.revokeRepaired.length,
+      grantsRetiredLegacyDigest: plan.revokeLegacyDigest.length,
       entries
     };
+    // The scan record is written LAST: if anything above failed, no record exists for this
+    // validator version, so `ensureInventoryScan` retries on the next call instead of treating a
+    // partial scan as complete.
     return this.scanStore.create(record);
   }
 
@@ -148,14 +209,19 @@ export class FlowValidationService {
     return new Map((await this.grantStore.list()).map((grant) => [grant.id, grant]));
   }
 
-  /** Audit a real (non-dry-run) execution that proceeded under a grant. */
+  /**
+   * Audit a real (non-dry-run) execution that proceeded under a grant. Serialized with every other
+   * grant write, and re-read inside the lock, so concurrent runs cannot lose an increment.
+   */
   async recordRunUnderCompatibility(flowIds: readonly string[]): Promise<void> {
     const now = this.nowIso();
-    for (const flowId of flowIds) {
-      const grant = await this.grantStore.get(flowId);
-      if (!grant) continue;
-      await this.grantStore.update(flowId, { ...grant, runsUnderCompatibility: grant.runsUnderCompatibility + 1, lastRunAt: now });
-    }
+    await this.serializeGrantWrite(async () => {
+      for (const flowId of flowIds) {
+        const grant = await this.grantStore.get(flowId);
+        if (!grant) continue;
+        await this.grantStore.update(flowId, { ...grant, runsUnderCompatibility: grant.runsUnderCompatibility + 1, lastRunAt: now });
+      }
+    });
   }
 
   /**
@@ -232,7 +298,7 @@ export class FlowValidationService {
 
     // Ids must be unique even when two migrations land in the same millisecond — otherwise the
     // second would overwrite the first's BACKUP, which is the one artifact that must never be lost.
-    const migrationId = await this.uniqueMigrationId(flowId, now);
+    const migrationId = await this.uniqueId(this.migrationStore, `${flowId}.${now.replace(/[:.]/g, "-")}`);
 
     await mkdir(this.backupsDir, { recursive: true });
     const backupPath = join(this.backupsDir, `${migrationId}.json`);
@@ -253,8 +319,8 @@ export class FlowValidationService {
       at: now,
       validatorVersion: FLOW_VALIDATOR_VERSION,
       backupPath,
-      beforeHash: flowContentHash(flow),
-      afterHash: flowContentHash(saved),
+      beforeHash: this.digestFor(flow),
+      afterHash: this.digestFor(saved),
       fixes: [...result.applied],
       skipped: [...result.skipped],
       beforeErrorCount: errorsOf(report).length,
@@ -275,7 +341,7 @@ export class FlowValidationService {
 
     const current = await this.deps.flowStore.get(flowId);
     if (!current) throw new Error(`Flow ${flowId} no longer exists.`);
-    if (flowContentHash(current) !== record.afterHash) {
+    if (this.digestFor(current) !== record.afterHash) {
       throw new Error(`Flow ${flowId} was edited after this migration — undo would destroy those changes. Restore manually from ${record.backupPath} if intended.`);
     }
 
@@ -291,10 +357,13 @@ export class FlowValidationService {
 
   /* ── helpers ─────────────────────────────────────────────────────────────── */
 
-  /** `flowId.timestamp`, with a numeric discriminator when that is already taken. */
-  private async uniqueMigrationId(flowId: string, nowIso: string): Promise<string> {
-    const base = `${flowId}.${nowIso.replace(/[:.]/g, "-")}`;
-    const taken = new Set((await this.migrationStore.list()).map((record) => record.id));
+  /**
+   * `base`, with a numeric discriminator when that id is already taken — ids must be unique beyond
+   * clock resolution, or a same-millisecond second write would overwrite the first record (and,
+   * for migrations, its BACKUP, the one artifact that must never be lost).
+   */
+  private async uniqueId<T extends { id: string }>(store: JsonProfileStore<T>, base: string): Promise<string> {
+    const taken = new Set((await store.list()).map((record) => record.id));
     if (!taken.has(base)) return base;
     let suffix = 2;
     while (taken.has(`${base}-${suffix}`)) suffix += 1;

@@ -24,16 +24,20 @@ import { JsonProfileStore } from "@src/storage/ProfileStore";
 import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
 import { validateFlowDefinition, errorsOf } from "@src/validation/FlowValidator";
 import {
+  DIGEST_PREFIX,
   FLOW_VALIDATOR_VERSION,
+  canonicalFlowContent,
   classifyForInventory,
   compatibilityStanding,
   effectiveVerdict,
-  flowContentHash,
+  isCurrentDigest,
   planGrants,
   type CompatibilityGrant
 } from "@src/validation/LegacyCompatibility";
+import { createHash } from "node:crypto";
 import { applySafeFixes, availableSafeFixes } from "@src/validation/SafeFixApplier";
 import { FlowValidationService } from "../app/main/validation/flowValidationService";
+import { sha256FlowDigest } from "../app/main/validation/contentDigest";
 
 let passed = 0;
 let failed = 0;
@@ -118,7 +122,7 @@ const AFTER_WINDOW = "2026-09-30T12:00:00.000Z";
 function grantFor(flow: FlowProfile, overrides: Partial<CompatibilityGrant> = {}): CompatibilityGrant {
   return {
     id: flow.id,
-    contentHash: flowContentHash(flow),
+    contentHash: sha256FlowDigest(flow),
     grantedAt: NOW,
     expiresAt: "2026-08-20T12:00:00.000Z",
     validatorVersion: FLOW_VALIDATOR_VERSION,
@@ -129,22 +133,117 @@ function grantFor(flow: FlowProfile, overrides: Partial<CompatibilityGrant> = {}
 }
 
 /* ------------------------------------------------------------------ *
+ * 0. Digest format & collision resistance
+ *
+ * A grant changes EXECUTION ELIGIBILITY, so its content binding must be collision-resistant: with a
+ * weak hash, a crafted flow could be made to collide with a granted one and inherit its exemption.
+ * ------------------------------------------------------------------ */
+console.log("\nDigest format and collision resistance");
+{
+  const digest = sha256FlowDigest(validFlow());
+  check("the digest is tagged with its algorithm and is 64 hex chars", /^sha256:[0-9a-f]{64}$/.test(digest), digest);
+  check("isCurrentDigest accepts it", isCurrentDigest(digest));
+
+  // Known-answer test: proves this is real SHA-256 over the canonical bytes, not some homebrew.
+  const canonical = canonicalFlowContent(validFlow());
+  const independent = `${DIGEST_PREFIX}${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
+  check("the digest equals an independently computed SHA-256 of the canonical content", digest === independent);
+  check(
+    "SHA-256 known-answer sanity (empty string)",
+    createHash("sha256").update("", "utf8").digest("hex") === "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  );
+
+  // Formats that must NOT be trusted: the pre-hardening FNV value, truncations, wrong case, junk.
+  for (const [label, value] of [
+    ["a pre-hardening 16-hex FNV value", "a1b2c3d4e5f60718"],
+    ["an untagged SHA-256", digest.slice(DIGEST_PREFIX.length)],
+    ["a truncated digest", `${digest.slice(0, 40)}`],
+    ["an uppercase digest", digest.toUpperCase()],
+    ["a different algorithm tag", digest.replace("sha256:", "sha1:")],
+    ["an empty string", ""]
+  ] as [string, string][]) {
+    check(`isCurrentDigest rejects ${label}`, !isCurrentDigest(value), value.slice(0, 24));
+  }
+  check("isCurrentDigest rejects undefined", !isCurrentDigest(undefined));
+
+  // Avalanche: a one-character change must change essentially the whole digest.
+  const nudged = { ...validFlow(), nodes: [step("n-start", "start"), step("n-click", "click", { locator: { strategy: "testId", value: "gp" } }), step("n-end", "end")] };
+  const a = digest.slice(DIGEST_PREFIX.length);
+  const b = sha256FlowDigest(nudged).slice(DIGEST_PREFIX.length);
+  const sameChars = [...a].filter((char, index) => char === b[index]).length;
+  check("a one-character content change avalanches the digest", a !== b && sameChars < 24, `${sameChars}/64 chars shared`);
+
+  // No collisions across a large, deliberately near-identical population.
+  const seen = new Map<string, string>();
+  let collision = "";
+  for (let index = 0; index < 3000; index += 1) {
+    const variant: FlowProfile = {
+      ...validFlow(`c-${index}`),
+      version: 1 + (index % 3),
+      nodes: [step("n-start", "start"), step("n-click", "click", { locator: { strategy: "testId", value: `go-${index}` } }), step("n-end", "end")]
+    };
+    // Ids are NOT part of the digest, so these differ only in the locator/version — the hardest case.
+    const value = sha256FlowDigest(variant);
+    const prior = seen.get(value);
+    if (prior !== undefined && prior !== canonicalFlowContent(variant)) collision = `${prior} vs ${canonicalFlowContent(variant)}`;
+    seen.set(value, canonicalFlowContent(variant));
+  }
+  check("3000 near-identical flow variants produce no digest collision", collision === "" && seen.size === 3000, collision || `${seen.size} distinct`);
+}
+
+/* ------------------------------------------------------------------ *
+ * 0b. Canonicalization determinism
+ * ------------------------------------------------------------------ */
+console.log("\nCanonical form determinism");
+{
+  const flow = validFlow();
+  check("canonicalization is stable across calls", canonicalFlowContent(flow) === canonicalFlowContent(validFlow()));
+  check(
+    "canonicalization covers exactly version, nodes and edges",
+    Object.keys(JSON.parse(canonicalFlowContent(flow)) as object).sort().join(",") === "edges,nodes,version"
+  );
+  check("top-level keys are emitted in sorted order", canonicalFlowContent(flow).startsWith('{"edges":'));
+
+  // Deep key reordering must not change the bytes.
+  const reorderedDeep: FlowProfile = {
+    ...flow,
+    nodes: flow.nodes.map((node) => ({ name: node.name, type: node.type, id: node.id, ...(node.locator ? { locator: { value: node.locator.value, strategy: node.locator.strategy } } : {}) })) as FlowStep[]
+  };
+  check("nested key order does not change the canonical form", canonicalFlowContent(reorderedDeep) === canonicalFlowContent(flow));
+
+  // `undefined` properties are dropped, so a round-tripped profile matches an in-memory one.
+  const withUndefined: FlowProfile = { ...flow, nodes: flow.nodes.map((node) => ({ ...node, description: undefined })) as FlowStep[] };
+  check("undefined properties are dropped", canonicalFlowContent(withUndefined) === canonicalFlowContent(flow));
+  check("a JSON round trip canonicalizes identically", canonicalFlowContent(JSON.parse(JSON.stringify(flow)) as FlowProfile) === canonicalFlowContent(flow));
+
+  // Array ORDER is meaningful and must be preserved — reordering nodes changes execution.
+  const reorderedNodes: FlowProfile = { ...flow, nodes: [...flow.nodes].reverse() };
+  check("node ORDER is significant (arrays are not sorted)", canonicalFlowContent(reorderedNodes) !== canonicalFlowContent(flow));
+
+  // Malformed input canonicalizes rather than throwing.
+  check(
+    "a profile with non-array nodes/edges still canonicalizes",
+    canonicalFlowContent({ id: "x", name: "x", version: 1, nodes: undefined as unknown as FlowStep[], edges: undefined as unknown as FlowEdge[] }) === '{"edges":[],"nodes":[],"version":1}'
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * 1. Content hash
  * ------------------------------------------------------------------ */
 console.log("\nContent hash (what voids a grant)");
 {
   const flow = validFlow();
-  check("the same content hashes identically", flowContentHash(flow) === flowContentHash(validFlow()));
+  check("the same content hashes identically", sha256FlowDigest(flow) === sha256FlowDigest(validFlow()));
   check(
     "key order does not change the hash",
-    flowContentHash(flow) === flowContentHash({ ...flow, edges: flow.edges.map((e) => ({ target: e.target, source: e.source, kind: e.kind, type: e.type, id: e.id })) as FlowEdge[] })
+    sha256FlowDigest(flow) === sha256FlowDigest({ ...flow, edges: flow.edges.map((e) => ({ target: e.target, source: e.source, kind: e.kind, type: e.type, id: e.id })) as FlowEdge[] })
   );
-  check("renaming the flow does NOT change the hash", flowContentHash({ ...flow, name: "Renamed" }) === flowContentHash(flow));
-  check("editing the description does NOT change the hash", flowContentHash({ ...flow, description: "new" }) === flowContentHash(flow));
-  check("touching updatedAt does NOT change the hash", flowContentHash({ ...flow, updatedAt: "2030-01-01T00:00:00.000Z" }) === flowContentHash(flow));
-  check("adding a node DOES change the hash", flowContentHash(offPathFlow("valid-flow")) !== flowContentHash(flow));
-  check("changing a locator DOES change the hash", flowContentHash({ ...flow, nodes: [flow.nodes[0] as FlowStep, { ...(flow.nodes[1] as FlowStep), locator: { strategy: "css", value: ".x" } }, flow.nodes[2] as FlowStep] }) !== flowContentHash(flow));
-  check("bumping version DOES change the hash", flowContentHash({ ...flow, version: 2 }) !== flowContentHash(flow));
+  check("renaming the flow does NOT change the hash", sha256FlowDigest({ ...flow, name: "Renamed" }) === sha256FlowDigest(flow));
+  check("editing the description does NOT change the hash", sha256FlowDigest({ ...flow, description: "new" }) === sha256FlowDigest(flow));
+  check("touching updatedAt does NOT change the hash", sha256FlowDigest({ ...flow, updatedAt: "2030-01-01T00:00:00.000Z" }) === sha256FlowDigest(flow));
+  check("adding a node DOES change the hash", sha256FlowDigest(offPathFlow("valid-flow")) !== sha256FlowDigest(flow));
+  check("changing a locator DOES change the hash", sha256FlowDigest({ ...flow, nodes: [flow.nodes[0] as FlowStep, { ...(flow.nodes[1] as FlowStep), locator: { strategy: "css", value: ".x" } }, flow.nodes[2] as FlowStep] }) !== sha256FlowDigest(flow));
+  check("bumping version DOES change the hash", sha256FlowDigest({ ...flow, version: 2 }) !== sha256FlowDigest(flow));
 }
 
 /* ------------------------------------------------------------------ *
@@ -153,11 +252,11 @@ console.log("\nContent hash (what voids a grant)");
 console.log("\nGrant standing");
 {
   const flow = offPathFlow();
-  const hash = flowContentHash(flow);
+  const hash = sha256FlowDigest(flow);
   check("no grant → none", compatibilityStanding(undefined, hash, IN_WINDOW) === "none");
   check("valid, unexpired, unchanged → granted", compatibilityStanding(grantFor(flow), hash, IN_WINDOW) === "granted");
   check("past the deadline → expired", compatibilityStanding(grantFor(flow), hash, AFTER_WINDOW) === "expired");
-  check("content changed → edited", compatibilityStanding(grantFor(flow), flowContentHash(validFlow()), IN_WINDOW) === "edited");
+  check("content changed → edited", compatibilityStanding(grantFor(flow), sha256FlowDigest(validFlow()), IN_WINDOW) === "edited");
   check("explicitly revoked → revoked", compatibilityStanding(grantFor(flow, { revokedAt: NOW, revokedReason: "migrated" }), hash, IN_WINDOW) === "revoked");
   check("expiry is inclusive — exactly at expiresAt is expired", compatibilityStanding(grantFor(flow), hash, "2026-08-20T12:00:00.000Z") === "expired");
 }
@@ -170,20 +269,20 @@ console.log("\nEffective verdict (Stage 2c full gate + grants)");
   const offPath = offPathFlow();
   const reportOff = validateFlowDefinition(offPath);
 
-  const strict = effectiveVerdict(reportOff, undefined, flowContentHash(offPath), IN_WINDOW);
+  const strict = effectiveVerdict(reportOff, undefined, sha256FlowDigest(offPath), IN_WINDOW);
   check("WITHOUT a grant, an off-path error now BLOCKS (the 2c full gate)", strict.blocked && strict.blockingIssues.some((issue) => issue.code === "unreachableNode"));
   check("...and reports no compatibility", !strict.underCompatibility && strict.standing === "none");
 
-  const granted = effectiveVerdict(reportOff, grantFor(offPath), flowContentHash(offPath), IN_WINDOW);
+  const granted = effectiveVerdict(reportOff, grantFor(offPath), sha256FlowDigest(offPath), IN_WINDOW);
   check("WITH a valid grant, the off-path error is tolerated", !granted.blocked && granted.underCompatibility);
   check("...and the tolerated issue is reported, never hidden", granted.toleratedIssues.some((issue) => issue.code === "unreachableNode"));
 
-  check("an expired grant stops tolerating", effectiveVerdict(reportOff, grantFor(offPath), flowContentHash(offPath), AFTER_WINDOW).blocked);
-  check("an edited flow stops tolerating", effectiveVerdict(reportOff, grantFor(validFlow("offpath-flow")), flowContentHash(offPath), IN_WINDOW).blocked);
+  check("an expired grant stops tolerating", effectiveVerdict(reportOff, grantFor(offPath), sha256FlowDigest(offPath), AFTER_WINDOW).blocked);
+  check("an edited flow stops tolerating", effectiveVerdict(reportOff, grantFor(validFlow("offpath-flow")), sha256FlowDigest(offPath), IN_WINDOW).blocked);
 
   // The rule that matters most: a grant can never excuse an active-path error.
   const active = activePathFlow();
-  const activeVerdict = effectiveVerdict(validateFlowDefinition(active), grantFor(active), flowContentHash(active), IN_WINDOW);
+  const activeVerdict = effectiveVerdict(validateFlowDefinition(active), grantFor(active), sha256FlowDigest(active), IN_WINDOW);
   check("a grant NEVER excuses an active-path error", activeVerdict.blocked && !activeVerdict.underCompatibility);
 
   // Nor a connector-structure error, which the runtime refuses flow-wide.
@@ -192,11 +291,11 @@ console.log("\nEffective verdict (Stage 2c full gate + grants)");
     nodes: [...validFlow("structural").nodes, step("n-extra", "screenshot")],
     edges: [edge("e1", "n-start", "n-click"), edge("e2", "n-click", "n-end"), edge("e3", "n-click", "n-extra")]
   };
-  const structuralVerdict = effectiveVerdict(validateFlowDefinition(structural), grantFor(structural), flowContentHash(structural), IN_WINDOW);
+  const structuralVerdict = effectiveVerdict(validateFlowDefinition(structural), grantFor(structural), sha256FlowDigest(structural), IN_WINDOW);
   check("a grant NEVER excuses a connector-structure error", structuralVerdict.blocked);
 
   // A grant on a clean flow tolerates nothing and says so.
-  const cleanVerdict = effectiveVerdict(validateFlowDefinition(validFlow()), grantFor(validFlow()), flowContentHash(validFlow()), IN_WINDOW);
+  const cleanVerdict = effectiveVerdict(validateFlowDefinition(validFlow()), grantFor(validFlow()), sha256FlowDigest(validFlow()), IN_WINDOW);
   check("a grant on a now-clean flow reports no compatibility", !cleanVerdict.blocked && !cleanVerdict.underCompatibility);
 }
 
@@ -208,7 +307,7 @@ console.log("\nRun gate with Legacy Compatibility");
   const validator = new PreRunValidator();
   const offPath = offPathFlow();
   const gate = (flows: FlowProfile[], grants?: Map<string, CompatibilityGrant>, nowIso = IN_WINDOW) =>
-    validator.validate({ scenario: scenarioFor(...flows.map((f) => f.id)), flows, legacyCompatibility: grants ? { grants, nowIso } : undefined });
+    validator.validate({ scenario: scenarioFor(...flows.map((f) => f.id)), flows, legacyCompatibility: grants ? { grants, nowIso, digestFor: sha256FlowDigest } : undefined });
 
   check("no grants → the off-path flow is blocked at the gate", isRunBlocked(gate([offPath])));
   const grantedIssues = gate([offPath], new Map([[offPath.id, grantFor(offPath)]]));
@@ -239,17 +338,17 @@ console.log("\nInventory scan classification");
     [activePathFlow("c-active"), "immediately-blocked"]
   ];
   for (const [flow, expected] of cases) {
-    const entry = classifyForInventory(flow, validateFlowDefinition(flow));
+    const entry = classifyForInventory(flow, validateFlowDefinition(flow), sha256FlowDigest(flow));
     check(`${flow.id} classifies as ${expected}`, entry.classification === expected, entry.classification);
   }
 
   // A flow the validator rejects but which already ran successfully post-edit is flagged for
   // review, not silently blocked and not silently granted.
   const suspicious = activePathFlow("c-suspicious");
-  const defectEntry = classifyForInventory(suspicious, validateFlowDefinition(suspicious), { ranSuccessfullySinceLastEdit: () => true });
+  const defectEntry = classifyForInventory(suspicious, validateFlowDefinition(suspicious), sha256FlowDigest(suspicious), { ranSuccessfullySinceLastEdit: () => true });
   check("a rejected flow that ran successfully since its last edit → possible-validator-defect", defectEntry.classification === "possible-validator-defect");
 
-  const entries = cases.map(([flow]) => classifyForInventory(flow, validateFlowDefinition(flow)));
+  const entries = cases.map(([flow]) => classifyForInventory(flow, validateFlowDefinition(flow), sha256FlowDigest(flow)));
   const plan = planGrants(entries, new Map(), NOW);
   check("only the off-path-only flow is granted", plan.issue.length === 1 && plan.issue[0]?.id === "c-offpath");
   check("the grant is time-limited", (plan.issue[0]?.expiresAt ?? "") > NOW);
@@ -262,7 +361,7 @@ console.log("\nInventory scan classification");
   check("re-scanning does NOT re-issue or extend an existing grant", rescan.issue.length === 0);
 
   // Repairing a flow revokes its grant (audit trail, not deletion).
-  const repaired = planGrants([classifyForInventory(validFlow("c-offpath"), validateFlowDefinition(validFlow("c-offpath")))], existing, NOW);
+  const repaired = planGrants([classifyForInventory(validFlow("c-offpath"), validateFlowDefinition(validFlow("c-offpath")), sha256FlowDigest(validFlow("c-offpath")))], existing, NOW);
   check("a repaired flow has its grant revoked as 'repaired'", repaired.revokeRepaired.length === 1 && repaired.revokeRepaired[0]?.revokedReason === "repaired");
 }
 
@@ -351,12 +450,12 @@ console.log("\nFlowValidationService (real service, temp folders)");
   // Migrating a granted flow ends its compatibility (the content changed).
   await flowStore.update("s-offpath", { ...offPathFlow("s-offpath"), description: "irrelevant" });
   const stillGranted = await service.grantsMap();
-  check("a metadata-only edit keeps the grant valid", compatibilityStanding(stillGranted.get("s-offpath"), flowContentHash((await flowStore.get("s-offpath")) as FlowProfile), IN_WINDOW) === "granted");
+  check("a metadata-only edit keeps the grant valid", compatibilityStanding(stillGranted.get("s-offpath"), sha256FlowDigest((await flowStore.get("s-offpath")) as FlowProfile), IN_WINDOW) === "granted");
 
   await flowStore.update("s-offpath", { ...offPathFlow("s-offpath"), nodes: [...offPathFlow("s-offpath").nodes, step("n-extra", "screenshot")] });
   check(
     "editing executable content voids the grant (content hash mismatch)",
-    compatibilityStanding((await service.grantsMap()).get("s-offpath"), flowContentHash((await flowStore.get("s-offpath")) as FlowProfile), IN_WINDOW) === "edited"
+    compatibilityStanding((await service.grantsMap()).get("s-offpath"), sha256FlowDigest((await flowStore.get("s-offpath")) as FlowProfile), IN_WINDOW) === "edited"
   );
 
   // Run auditing.
@@ -499,6 +598,141 @@ console.log("\nStale reports are skipped, never guessed");
   const result = applySafeFixes(changed, report.issues);
   check("a fix whose connector no longer exists is skipped", result.skipped.length === 2 && result.applied.length === 0);
   check("...and the profile is untouched", JSON.stringify(result.profile) === JSON.stringify(changed));
+}
+
+/* ------------------------------------------------------------------ *
+ * 11. Pre-hardening (FNV-era) grant records
+ *
+ * These were bound by a non-collision-resistant hash, so they must never be honored — and, just as
+ * importantly, encountering one must NOT silently mint a replacement grant with a fresh deadline.
+ * ------------------------------------------------------------------ */
+console.log("\nPre-hardening grant records (FNV-era)");
+{
+  const flow = offPathFlow("legacy-record");
+  /** What a Stage 2c-era record looked like: an untagged 16-hex FNV-1a value. */
+  const fnvGrant = grantFor(flow, { contentHash: "9f4c1a2b3d5e6f70" });
+
+  check("a legacy-format grant is never 'granted'", compatibilityStanding(fnvGrant, sha256FlowDigest(flow), IN_WINDOW) === "legacyDigest");
+  check("...even though it is unexpired and the flow is unchanged", fnvGrant.expiresAt > IN_WINDOW && !fnvGrant.revokedAt);
+  check("...and it is reported distinctly from 'edited'", compatibilityStanding(fnvGrant, sha256FlowDigest(flow), IN_WINDOW) !== "edited");
+
+  const verdict = effectiveVerdict(validateFlowDefinition(flow), fnvGrant, sha256FlowDigest(flow), IN_WINDOW);
+  check("a legacy-format grant tolerates nothing at the gate", verdict.blocked && !verdict.underCompatibility && verdict.standing === "legacyDigest");
+
+  // Fail-closed: a caller that cannot produce a trustworthy digest gets no tolerance either.
+  const sha256Grant = grantFor(flow);
+  check("an untrustworthy CURRENT digest also fails closed", compatibilityStanding(sha256Grant, "not-a-digest", IN_WINDOW) === "legacyDigest");
+  const gateNoDigest = new PreRunValidator().validate({
+    scenario: scenarioFor(flow.id),
+    flows: [flow],
+    legacyCompatibility: { grants: new Map([[flow.id, sha256Grant]]), nowIso: IN_WINDOW } // no digestFor
+  });
+  check("the gate refuses to honor a grant when no digest function is supplied", isRunBlocked(gateNoDigest));
+
+  // Planning: retire, never replace.
+  const entry = classifyForInventory(flow, validateFlowDefinition(flow), sha256FlowDigest(flow));
+  const plan = planGrants([entry], new Map([[flow.id, fnvGrant]]), NOW);
+  check("a legacy record is retired as digestFormatRetired", plan.revokeLegacyDigest.length === 1 && plan.revokeLegacyDigest[0]?.revokedReason === "digestFormatRetired");
+  check("...and NO replacement grant is issued", plan.issue.length === 0);
+  check("...so no new deadline is created", plan.revokeLegacyDigest[0]?.expiresAt === fnvGrant.expiresAt);
+  check("...and the original grant window is preserved in the audit record", plan.revokeLegacyDigest[0]?.grantedAt === fnvGrant.grantedAt);
+
+  // A retired record must not be resurrected by a later scan.
+  const retired = plan.revokeLegacyDigest[0] as CompatibilityGrant;
+  check("re-scanning does not re-grant a retired flow", planGrants([entry], new Map([[flow.id, retired]]), "2026-08-01T00:00:00.000Z").issue.length === 0);
+
+  // A digest we cannot trust must never be written INTO a grant.
+  const badEntry = { ...entry, contentDigest: "9f4c1a2b3d5e6f70" };
+  check("a grant is never issued with an untrusted digest", planGrants([badEntry], new Map(), NOW).issue.length === 0);
+
+  // End to end through the real service, with a legacy record already on disk.
+  const root = await mkdtemp(join(tmpdir(), "awkit-legacy-"));
+  const flowStore = new JsonProfileStore<FlowProfile>({ folder: join(root, "flows") });
+  const workflowStore = new JsonProfileStore<WorkflowProfile>({ folder: join(root, "workflows") });
+  await flowStore.create(flow);
+  const service = new FlowValidationService({ validationRoot: join(root, "validation"), flowStore, workflowStore, now: () => NOW });
+  // Seed the grant store directly, as an upgrade from the previous build would leave it.
+  await new JsonProfileStore<CompatibilityGrant>({ folder: join(root, "validation", "legacy-grants") }).create(fnvGrant);
+
+  const scan = await service.runInventoryScan();
+  check("the scan retires the legacy record", scan.grantsRetiredLegacyDigest === 1, JSON.stringify({ retired: scan.grantsRetiredLegacyDigest, issued: scan.grantsIssued }));
+  check("...and issues no replacement", scan.grantsIssued === 0);
+  check("the scan records its digest algorithm", scan.digestAlgorithm === "sha256");
+  const persisted = (await service.grantsMap()).get(flow.id);
+  check("the retired record is kept for audit, not deleted", persisted !== undefined && persisted.revokedAt === NOW && persisted.revokedReason === "digestFormatRetired");
+  check("the flow now blocks at the gate", isRunBlocked(new PreRunValidator().validate({
+    scenario: scenarioFor(flow.id),
+    flows: [flow],
+    legacyCompatibility: { grants: await service.grantsMap(), nowIso: IN_WINDOW, digestFor: sha256FlowDigest }
+  })));
+  await rm(root, { recursive: true, force: true });
+}
+
+/* ------------------------------------------------------------------ *
+ * 12. Concurrency, fail-safety and scan cost
+ * ------------------------------------------------------------------ */
+console.log("\nConcurrency, fail-safety and scan cost");
+{
+  const root = await mkdtemp(join(tmpdir(), "awkit-conc-"));
+  const flowStore = new JsonProfileStore<FlowProfile>({ folder: join(root, "flows") });
+  const workflowStore = new JsonProfileStore<WorkflowProfile>({ folder: join(root, "workflows") });
+
+  // A realistically-sized library: 200 flows, a third of them grant-eligible.
+  const LIBRARY_SIZE = 200;
+  for (let index = 0; index < LIBRARY_SIZE; index += 1) {
+    const kind = index % 3;
+    const flow = kind === 0 ? validFlow(`lib-${index}`) : kind === 1 ? offPathFlow(`lib-${index}`) : activePathFlow(`lib-${index}`);
+    await flowStore.create(flow);
+  }
+  const service = new FlowValidationService({ validationRoot: join(root, "validation"), flowStore, workflowStore, now: () => NOW });
+
+  // Ten simultaneous callers (the first-launch stampede) must produce ONE scan and ONE grant set.
+  const started = Date.now();
+  const results = await Promise.all(Array.from({ length: 10 }, () => service.ensureInventoryScan()));
+  const elapsedMs = Date.now() - started;
+  const uniqueScanIds = new Set(results.map((scan) => scan.id));
+  check(`10 concurrent ensureInventoryScan calls produce exactly ONE scan (${LIBRARY_SIZE} flows)`, uniqueScanIds.size === 1, [...uniqueScanIds].join(", "));
+
+  const grants = await service.grantsMap();
+  const expectedEligible = Math.ceil((LIBRARY_SIZE - 1) / 3);
+  check(`grants are issued once per eligible flow, with no duplicates`, grants.size === expectedEligible, `${grants.size} grants vs ${expectedEligible} eligible`);
+  const scanRecords = await new JsonProfileStore<{ id: string }>({ folder: join(root, "validation", "inventory-scans") }).list();
+  check("exactly one scan record was persisted", scanRecords.length === 1, `${scanRecords.length} records`);
+  console.log(`    ↳ first scan of ${LIBRARY_SIZE} flows under 10-way concurrency: ${elapsedMs}ms`);
+  check(`the first scan completes well inside a run request's tolerance (${elapsedMs}ms < 5000ms)`, elapsedMs < 5000, `${elapsedMs}ms`);
+
+  // A repeated scan must never extend a deadline.
+  const before = [...(await service.grantsMap()).values()].map((grant) => `${grant.id}:${grant.expiresAt}`).sort().join("|");
+  await service.runInventoryScan();
+  const after = [...(await service.grantsMap()).values()].map((grant) => `${grant.id}:${grant.expiresAt}`).sort().join("|");
+  check("a repeat scan changes no deadline", before === after);
+
+  // Parallel audit writes must not lose increments to interleaving.
+  const auditTarget = [...grants.keys()][0] as string;
+  await Promise.all(Array.from({ length: 20 }, () => service.recordRunUnderCompatibility([auditTarget])));
+  check("20 concurrent audit writes record all 20 runs", ((await service.grantsMap()).get(auditTarget)?.runsUnderCompatibility ?? 0) === 20, `${(await service.grantsMap()).get(auditTarget)?.runsUnderCompatibility}`);
+
+  // Storage failure must fail CLOSED and leave no partial scan record behind.
+  const failing = new FlowValidationService({
+    validationRoot: join(root, "validation-fail"),
+    flowStore: { ...flowStore, list: async () => { throw new Error("storage offline"); } } as unknown as JsonProfileStore<FlowProfile>,
+    workflowStore,
+    now: () => NOW
+  });
+  let scanFailed = false;
+  await failing.runInventoryScan().catch(() => { scanFailed = true; });
+  check("a storage failure fails the scan rather than reporting success", scanFailed);
+  const failedScans = await new JsonProfileStore<{ id: string }>({ folder: join(root, "validation-fail", "inventory-scans") }).list();
+  check("...and writes NO scan record, so the next call retries", failedScans.length === 0, `${failedScans.length} records`);
+  const failedGrants = await new JsonProfileStore<CompatibilityGrant>({ folder: join(root, "validation-fail", "legacy-grants") }).list();
+  check("...and issues NO grants (fails closed, never open)", failedGrants.length === 0, `${failedGrants.length} grants`);
+
+  // A failed scan must be retryable — the single-flight guard must have cleared.
+  let retried = false;
+  await failing.runInventoryScan().catch(() => { retried = true; });
+  check("the single-flight guard clears so a failed scan can be retried", retried);
+
+  await rm(root, { recursive: true, force: true });
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

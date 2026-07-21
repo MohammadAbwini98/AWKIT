@@ -1021,6 +1021,9 @@ function FlowChartDesignerContent() {
                   <strong>Not runnable</strong> — {loadBanner.blockingCount} issue(s) block execution.
                   {loadBanner.standing === "expired" ? " Its Legacy Compatibility period has ended." : null}
                   {loadBanner.standing === "edited" ? " Its Legacy Compatibility ended when the flow was edited." : null}
+                  {loadBanner.standing === "legacyDigest"
+                    ? " Its Legacy Compatibility record was retired by a security upgrade to how grants are bound, and was not renewed automatically."
+                    : null}
                 </>
               )}
             </span>

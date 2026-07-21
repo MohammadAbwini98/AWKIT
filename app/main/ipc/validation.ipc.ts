@@ -9,7 +9,8 @@
 import { ipcMain } from "electron";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { validateFlowDefinition } from "@src/validation/FlowValidator";
-import { effectiveVerdict, flowContentHash, type CompatibilityGrant } from "@src/validation/LegacyCompatibility";
+import { effectiveVerdict, type CompatibilityGrant } from "@src/validation/LegacyCompatibility";
+import { sha256FlowDigest } from "../validation/contentDigest";
 import { availableSafeFixes } from "@src/validation/SafeFixApplier";
 import { Permission } from "@src/security/authz/Permissions";
 import { assertSenderPermission } from "../security/sessionContext";
@@ -43,7 +44,7 @@ export function registerValidationIpc(): void {
     return flows.map((flow) => {
       const report = validateFlowDefinition(flow, { referenceableFlowIds });
       const grant = grants.get(flow.id);
-      const verdict = effectiveVerdict(report, grant, flowContentHash(flow), now);
+      const verdict = effectiveVerdict(report, grant, sha256FlowDigest(flow), now);
       const dto: FlowValidationStatusDto = {
         flowId: flow.id,
         issues: report.issues,

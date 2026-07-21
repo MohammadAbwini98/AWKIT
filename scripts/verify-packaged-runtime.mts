@@ -17,7 +17,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { _electron as electron } from "playwright";
+import { _electron as electron, type ElectronApplication } from "playwright";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
 import { capturePackagedAppPids, ensurePackagedAppDead } from "./helpers/packaged-process-tree.mts";
 
@@ -44,6 +44,22 @@ function check(label: string, condition: unknown, detail?: string): void {
 }
 
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+/** The main window is the one carrying the preload bridge — never the splash window. */
+async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  await app.firstWindow({ timeout: timeoutMs }).catch(() => undefined);
+  while (Date.now() < deadline) {
+    for (const candidate of app.windows()) {
+      const ready = await candidate
+        .evaluate(() => typeof (window as any).playwrightFlowStudio?.executions?.runtimeStatus === "function")
+        .catch(() => false);
+      if (ready) return candidate;
+    }
+    await sleep(400);
+  }
+  throw new Error("packaged main window with the preload bridge never appeared");
+}
 
 async function main(): Promise<void> {
   console.log("Packaged runtime smoke verification (dist/win-unpacked)");
@@ -89,7 +105,11 @@ async function main(): Promise<void> {
   let environment: any = null;
   let status: any = null;
   try {
-    const win = await app.firstWindow({ timeout: 60_000 });
+    // The app shows a SPLASH window first, which has no preload API — `firstWindow()` lands on it
+    // and every `window.playwrightFlowStudio` call silently returns nothing. Resolve the real main
+    // window by probing for the preload bridge. (Same defect class as verify-canvas-perf; this file
+    // predates the splash window.)
+    const win = await resolvePackagedMainWindow(app);
     await win.waitForLoadState("domcontentloaded");
     check("packaged app launched and opened a window", true);
 

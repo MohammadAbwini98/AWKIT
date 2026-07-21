@@ -42,10 +42,16 @@ export const FLOW_VALIDATOR_VERSION = 3;
 export const LEGACY_COMPATIBILITY_WINDOW_DAYS = 30;
 
 /* ------------------------------------------------------------------ *
- * Content hash
+ * Content digest
+ *
+ * A grant changes EXECUTION ELIGIBILITY, so its binding to a flow's content must be
+ * collision-resistant: anything weaker means a crafted flow could inherit another's exemption.
+ * The digest is therefore SHA-256 — but `src/` may not import Node built-ins (`src/AGENTS.md`), so
+ * this module owns only the *deterministic canonical form*, and the digest itself is computed at a
+ * trusted boundary (`app/main/validation/contentDigest.ts`) and passed back in.
  * ------------------------------------------------------------------ */
 
-/** Recursively sort object keys so semantically identical JSON hashes identically. */
+/** Recursively sort object keys so semantically identical JSON canonicalizes identically. */
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value !== null && typeof value === "object") {
@@ -60,26 +66,41 @@ function canonicalize(value: unknown): unknown {
 }
 
 /**
- * Fingerprint of a flow's **executable** content: nodes, edges and schema version — not name,
- * description or timestamps, which cannot change what runs. FNV-1a over canonical JSON: this is a
- * change detector, not a security primitive, and it must stay pure (`src/` allows no Node
- * built-ins, so `node:crypto` is off the table).
+ * The exact byte string a flow's digest is taken over: its **executable** content — schema version,
+ * nodes and edges. Deliberately excludes name, description and timestamps, which cannot change what
+ * runs, so renaming a flow or editing its description keeps a grant alive.
+ *
+ * Deterministic: object keys are sorted recursively and `undefined` properties are dropped, so two
+ * semantically identical profiles always produce identical bytes regardless of key order or how
+ * they were deserialized. **Array order is preserved** — node and connector order is meaningful.
  */
-export function flowContentHash(profile: FlowProfile): string {
-  const canonical = JSON.stringify(
-    canonicalize({ version: profile.version, nodes: profile.nodes ?? [], edges: profile.edges ?? [] })
+export function canonicalFlowContent(profile: FlowProfile): string {
+  return JSON.stringify(
+    canonicalize({
+      version: profile.version,
+      nodes: Array.isArray(profile.nodes) ? profile.nodes : [],
+      edges: Array.isArray(profile.edges) ? profile.edges : []
+    })
   );
-  // 64-bit FNV-1a via two 32-bit lanes (JS bitwise ops are 32-bit).
-  let hi = 0x811c9dc5;
-  let lo = 0xcbf29ce4;
-  for (let index = 0; index < canonical.length; index += 1) {
-    const code = canonical.charCodeAt(index);
-    lo ^= code & 0xff;
-    lo = (lo * 0x01000193) >>> 0;
-    hi ^= (code >>> 8) ^ (lo & 0xff);
-    hi = (hi * 0x01000193) >>> 0;
-  }
-  return `${hi.toString(16).padStart(8, "0")}${lo.toString(16).padStart(8, "0")}`;
+}
+
+/** Computes a flow's content digest. Supplied by the trusted boundary that owns SHA-256. */
+export type FlowContentDigest = (profile: FlowProfile) => string;
+
+/** Algorithm tag every current digest carries, so an older format is self-identifying. */
+export const DIGEST_PREFIX = "sha256:";
+
+const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+
+/**
+ * Whether a stored digest is in the current, collision-resistant format.
+ *
+ * Records written before this hardening carry an unprefixed 64-bit FNV-1a value. Those are treated
+ * as `legacyDigest` — never honored, never migrated to a new digest, and never replaced by an
+ * automatically-issued grant (which would silently restart the compatibility window).
+ */
+export function isCurrentDigest(value: string | undefined): boolean {
+  return typeof value === "string" && SHA256_DIGEST_PATTERN.test(value);
 }
 
 /* ------------------------------------------------------------------ *
@@ -90,7 +111,10 @@ export function flowContentHash(profile: FlowProfile): string {
 export interface CompatibilityGrant {
   /** Flow id (record key). */
   id: string;
-  /** Content hash of the flow at grant time — a mismatch means the flow was edited. */
+  /**
+   * `sha256:<64 hex>` digest of the flow's executable content at grant time — a mismatch means the
+   * flow was edited. A value not in this format is a pre-hardening record: see {@link isCurrentDigest}.
+   */
   contentHash: string;
   grantedAt: string;
   expiresAt: string;
@@ -113,18 +137,34 @@ export type CompatibilityStanding =
   /** The flow's executable content no longer matches the grant. */
   | "edited"
   | "revoked"
+  /**
+   * The grant predates the SHA-256 binding and is bound by a non-collision-resistant digest.
+   * Never honored. Not an error state the user caused — reported distinctly so the UI can explain
+   * that the flow must be repaired or re-assessed rather than implying it was edited.
+   */
+  | "legacyDigest"
   /** No grant exists for this flow. */
   | "none";
 
-/** Evaluate a grant against the flow's CURRENT content at a given moment. Pure. */
+/**
+ * Evaluate a grant against the flow's CURRENT content digest at a given moment. Pure.
+ *
+ * Order matters: the digest-format check comes FIRST, so a pre-hardening record can never be
+ * compared byte-wise against a SHA-256 digest and reported as a mere "edit".
+ *
+ * `currentDigest` must be a current-format digest. An empty/absent digest (a caller that could not
+ * compute one) fails closed: nothing is granted.
+ */
 export function compatibilityStanding(
   grant: CompatibilityGrant | undefined,
-  currentContentHash: string,
+  currentDigest: string,
   nowIso: string
 ): CompatibilityStanding {
   if (!grant) return "none";
   if (grant.revokedAt) return "revoked";
-  if (grant.contentHash !== currentContentHash) return "edited";
+  if (!isCurrentDigest(grant.contentHash)) return "legacyDigest";
+  if (!isCurrentDigest(currentDigest)) return "legacyDigest"; // fail closed, never "granted"
+  if (grant.contentHash !== currentDigest) return "edited";
   if (nowIso >= grant.expiresAt) return "expired";
   return "granted";
 }
@@ -156,12 +196,12 @@ export interface EffectiveValidationVerdict {
 export function effectiveVerdict(
   report: FlowValidationReport,
   grant: CompatibilityGrant | undefined,
-  currentContentHash: string,
+  currentDigest: string,
   nowIso: string
 ): EffectiveValidationVerdict {
   const floor = report.issues.filter(isExecutionBlocking);
   const offPathErrors = errorsOf(report).filter((issue) => !isExecutionBlocking(issue));
-  const standing = compatibilityStanding(grant, currentContentHash, nowIso);
+  const standing = compatibilityStanding(grant, currentDigest, nowIso);
   const tolerates = standing === "granted" && floor.length === 0;
 
   const blockingIssues = tolerates ? floor : [...floor, ...offPathErrors];
@@ -195,7 +235,8 @@ export interface InventoryEntry {
   readonly flowId: string;
   readonly flowName: string;
   readonly classification: InventoryClassification;
-  readonly contentHash: string;
+  /** Current-format (`sha256:…`) digest of the flow's executable content. */
+  readonly contentDigest: string;
   readonly errorCount: number;
   readonly blockingCount: number;
   readonly offPathErrorCount: number;
@@ -211,10 +252,14 @@ export interface InventoryContext {
   readonly ranSuccessfullySinceLastEdit?: (flowId: string) => boolean;
 }
 
-/** Classify one flow for the inventory report. Pure. */
+/**
+ * Classify one flow for the inventory report. Pure — the SHA-256 digest is computed by the trusted
+ * boundary and passed in.
+ */
 export function classifyForInventory(
   profile: FlowProfile,
   report: FlowValidationReport,
+  contentDigest: string,
   context: InventoryContext = {}
 ): InventoryEntry {
   const errors = errorsOf(report);
@@ -238,7 +283,7 @@ export function classifyForInventory(
     flowId: profile.id,
     flowName: profile.name,
     classification,
-    contentHash: flowContentHash(profile),
+    contentDigest,
     errorCount: errors.length,
     blockingCount: blocking.length,
     offPathErrorCount: offPath.length,
@@ -248,10 +293,17 @@ export function classifyForInventory(
 }
 
 export interface GrantPlan {
-  /** New grants to persist (flows newly eligible, no usable prior grant). */
+  /** New grants to persist (flows newly eligible, no prior grant record at all). */
   readonly issue: readonly CompatibilityGrant[];
   /** Existing grants to mark revoked because the flow was repaired (now valid). */
   readonly revokeRepaired: readonly CompatibilityGrant[];
+  /**
+   * Pre-hardening grants to mark revoked because their digest format is no longer trusted. These
+   * are **retired, not replaced**: no new grant is issued in their place, so a flow that relied on
+   * one blocks until it is repaired or an operator makes a deliberate decision. Retiring rather
+   * than deleting keeps the audit trail (who was tolerated, for what, until when).
+   */
+  readonly revokeLegacyDigest: readonly CompatibilityGrant[];
 }
 
 /**
@@ -260,10 +312,12 @@ export interface GrantPlan {
  *  - Only `temporarily-compatible` flows are eligible. `possible-validator-defect` flows are NOT
  *    silently granted — they are for human review (their off-path-only subset would be eligible on
  *    the next scan after review; their blocked subset never is).
- *  - One grant per flow, ever, per content: an existing grant for the same content is kept as-is
- *    (never extended — the deadline is the deadline). An expired or edited-content grant is not
- *    replaced; the flow is in the modern regime.
- *  - A grant whose flow is now `valid` is revoked as "repaired" (audit trail, not deletion).
+ *  - **One grant per flow, ever.** Any existing record — valid, expired, edited, revoked, or
+ *    legacy-format — suppresses issuance. A deadline is set once and never extended, and a retired
+ *    record can never be "refreshed" by re-running the scan.
+ *  - A grant whose flow is now `valid` is revoked as `repaired`.
+ *  - A grant in a pre-hardening digest format is revoked as `digestFormatRetired` and **not**
+ *    replaced. Encountering an old format must never, by itself, produce a grant.
  */
 export function planGrants(
   entries: readonly InventoryEntry[],
@@ -272,16 +326,24 @@ export function planGrants(
 ): GrantPlan {
   const issue: CompatibilityGrant[] = [];
   const revokeRepaired: CompatibilityGrant[] = [];
+  const revokeLegacyDigest: CompatibilityGrant[] = [];
   const expires = new Date(new Date(nowIso).getTime() + LEGACY_COMPATIBILITY_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   for (const entry of entries) {
     const existing = existingGrants.get(entry.flowId);
 
+    // Retire an untrusted-format record wherever it is found, regardless of classification.
+    if (existing && !existing.revokedAt && !isCurrentDigest(existing.contentHash)) {
+      revokeLegacyDigest.push({ ...existing, revokedAt: nowIso, revokedReason: "digestFormatRetired" });
+      continue; // deliberately no replacement grant
+    }
+
     if (entry.classification === "temporarily-compatible") {
-      if (existing) continue; // Keep the original grant and deadline — standing is evaluated at gate time.
+      // A digest we cannot trust must never be written into a new grant.
+      if (existing || !isCurrentDigest(entry.contentDigest)) continue;
       issue.push({
         id: entry.flowId,
-        contentHash: entry.contentHash,
+        contentHash: entry.contentDigest,
         grantedAt: nowIso,
         expiresAt: expires,
         validatorVersion: FLOW_VALIDATOR_VERSION,
@@ -296,5 +358,5 @@ export function planGrants(
     }
   }
 
-  return { issue, revokeRepaired };
+  return { issue, revokeRepaired, revokeLegacyDigest };
 }

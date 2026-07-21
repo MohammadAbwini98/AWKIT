@@ -33,7 +33,8 @@ import {
 } from "@src/validation/FlowValidator";
 import { ALL_STEP_TYPES, STEP_REQUIREMENTS } from "@src/validation/StepRequirements";
 import { FLOW_BOUNDS } from "@src/profiles/FlowValidation";
-import { FLOW_VALIDATOR_VERSION, effectiveVerdict, flowContentHash } from "@src/validation/LegacyCompatibility";
+import { FLOW_VALIDATOR_VERSION, effectiveVerdict } from "@src/validation/LegacyCompatibility";
+import { sha256FlowDigest } from "../app/main/validation/contentDigest";
 import { PreRunValidator, isRunBlocked, type PreRunValidationIssue } from "@src/reports/PreRunValidator";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { ALL_FLOW_PATTERNS, resolveConstraints } from "@src/testing/random/GenerationConstraints";
@@ -731,7 +732,8 @@ console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
     scenario: scenarioFor("gate-offpath"),
     flows: [offPath],
     legacyCompatibility: {
-      grants: new Map([[offPath.id, { id: offPath.id, contentHash: flowContentHash(offPath), grantedAt: "2026-07-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z", validatorVersion: FLOW_VALIDATOR_VERSION, issueCodes: ["unreachableNode"], runsUnderCompatibility: 0 }]]),
+      grants: new Map([[offPath.id, { id: offPath.id, contentHash: sha256FlowDigest(offPath), grantedAt: "2026-07-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z", validatorVersion: FLOW_VALIDATOR_VERSION, issueCodes: ["unreachableNode"], runsUnderCompatibility: 0 }]]),
+      digestFor: sha256FlowDigest,
       nowIso: "2026-07-21T00:00:00.000Z"
     }
   });
@@ -813,7 +815,7 @@ console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
   ];
   const disagreements = agreementFixtures.filter((flow) => {
     const report = validateFlowDefinition(flow, { referenceableFlowIds: new Set(agreementFixtures.map((f) => f.id)) });
-    const engineBlocking = effectiveVerdict(report, undefined, flowContentHash(flow), new Date().toISOString()).blocked;
+    const engineBlocking = effectiveVerdict(report, undefined, sha256FlowDigest(flow), new Date().toISOString()).blocked;
     const gateBlocking = isRunBlocked(gate([flow], scenarioFor(flow.id)));
     return engineBlocking !== gateBlocking;
   });
