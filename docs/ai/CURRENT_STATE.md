@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Randomized Automation Test Lab — Phases 1-3 + Phase 0 prerequisites (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`** (off `main`). Additive testing subsystem: deterministic
+generation, a validation oracle, and persistence round-trip discovery over the existing engine.
+
+- **Phase 1 — generation core** (`src/testing/random/**`, `src/testing/fixtures/SafeTestData.ts`).
+  Seeded PRNG with position-stable `derive()`; exhaustive `Record<Literal, ...>` catalogs so
+  `tsc --noEmit` fails when a node type or connector mode is added without teaching the generator;
+  a valid-by-construction pattern library (9 patterns) whose output satisfies the real
+  `validateConnectorStructure`. `npx tsx scripts/verify-random-generator.mts` — **49/49**.
+- **Phase 2 — validation oracle** (`src/testing/oracle/`, `RandomMutator.ts`). 13 controlled
+  mutations, exactly one defect per scenario, judged against the real validators.
+  `npx tsx scripts/verify-random-oracle.mts` — **19 passed, 1 failed**, the failure being a real
+  product defect (`awkit-acw`). Found that **9 of 13 defect classes are rejected by no validator**
+  (`awkit-7fm`) — several rules exist only in the renderer's *advisory* `validateFlow`, and there
+  is no flow-level reachability check at all.
+- **Phase 3 — persistence round-trip** (`src/testing/roundtrip/`). Field-level semantic diff plus a
+  defect catalog. `npx tsx scripts/verify-random-roundtrip.mts` — **8 passed, 15 failed BY DESIGN**.
+  JSON serialization is lossless; the designer mapping loses data in **13 catalogued ways** with
+  **0 unexpected failures**. **This verifier must stay failing** until the defects are fixed; do not
+  tune, skip or weaken its assertions. Worst finding (`awkit-1w5`, unpredicted): `fromFlowStep`
+  flattens `value` + `valueSource` into one string and `step.url` heads the recovery chain, so a
+  `goto`'s typed source is overwritten by its URL.
+- **Phase 0 — prerequisites.** `flowProfileMapping.ts` is now the single source of the designer
+  persistence mapping (`FlowChartDesigner.tsx` imports it; behavior-preserving). Two stale
+  `verify-durable-store.mts` assertions pinned at 2 migrations now derive from
+  `RUNTIME_STORE_MIGRATIONS` (4) — that verifier was silently red and is now **11/11**. Mock site
+  gained `/runner-lab` (downloads, HTTP failures + `Retry-After`, fail-twice-then-succeed, multipart
+  upload) and `/iframe-lab` + `/iframe-child` (same-origin interactive frame with deliberate
+  top-level decoys). `uploadFile`/`downloadFile` are no longer gated in the generator.
+  `npm run verify:mock-site` — **65/65**.
+
+Reports (gitignored) land in `reports/random-tests/`. Docs: `docs/testing/RANDOMIZED_TESTING_*.md`.
+
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
 Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,

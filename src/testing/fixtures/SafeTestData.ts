@@ -21,10 +21,20 @@ export interface MockPageFixture {
   /** Path appended to `constraints.baseUrl`. */
   readonly path: string;
   readonly title: string;
-  /** Clickable controls that do not navigate away or mutate destructively. */
+  /** Clickable controls that do not navigate away, mutate destructively, or start a download. */
   readonly clickTargets: readonly LocatorCandidate[];
   /** Text inputs / textareas safe to fill. */
   readonly fillTargets: readonly LocatorCandidate[];
+  /**
+   * `<input type="file">` controls. Kept separate from `fillTargets` because `setInputFiles`
+   * needs a file input specifically — filling a text input as if it were one fails at run time.
+   */
+  readonly uploadTargets?: readonly LocatorCandidate[];
+  /**
+   * Controls that raise a browser download when clicked. Kept out of `clickTargets` so an
+   * ordinary generated `click` never starts an unexpected download mid-run.
+   */
+  readonly downloadTargets?: readonly LocatorCandidate[];
   /** `<select>` controls, with an option value known to exist. */
   readonly selectTargets: readonly { locator: LocatorCandidate; option: string }[];
   /** Checkboxes safe to check/uncheck. */
@@ -85,8 +95,41 @@ export const MOCK_PAGES: readonly MockPageFixture[] = [
     checkTargets: [],
     radioTargets: [],
     assertTargets: [id("routeChangeTargetTitle")]
+  },
+  {
+    // Added by plan tasks 0.3/0.4/0.6. This is the only page that can satisfy `downloadFile`
+    // (a Content-Disposition link) and `uploadFile` (a real multipart endpoint), which is why
+    // both node types are no longer gated in NodeCatalog.
+    path: "/runner-lab",
+    title: "Runner Lab",
+    clickTargets: [testId("fail-404"), testId("flaky-reset")],
+    fillTargets: [id("uploadNote")],
+    uploadTargets: [testId("upload-input")],
+    downloadTargets: [testId("download-csv"), testId("download-json")],
+    selectTargets: [],
+    checkTargets: [],
+    radioTargets: [],
+    assertTargets: [css("h1"), testId("failure-status"), testId("flaky-attempts")]
+  },
+  {
+    // Added by plan task 0.5. Top-level targets only — frame-scoped generation needs the
+    // generator to emit `locator.context.frame`, which is tracked separately.
+    path: "/iframe-lab",
+    title: "Iframe Lab",
+    clickTargets: [testId("outer-submit")],
+    fillTargets: [testId("outer-input")],
+    selectTargets: [],
+    checkTargets: [],
+    radioTargets: [],
+    assertTargets: [css("h1"), testId("outer-status"), testId("mirror-message")]
   }
 ] as const;
+
+/**
+ * CSS selector for the mock site's interactive same-origin iframe, for generating a
+ * `LocatorFrameContext`. Frame-scoped generation is not wired into the generator yet.
+ */
+export const MOCK_IFRAME_SELECTOR = "[data-testid='lab-frame']";
 
 /**
  * Opaque secret *references*. These are names in the encrypted local secret store — not secrets.
@@ -123,6 +166,16 @@ export const SAFE_ENV_KEYS: readonly string[] = [
 ];
 
 export const SAFE_RUNTIME_INPUT_KEYS: readonly string[] = ["labInputAlpha", "labInputBravo"];
+
+/**
+ * File an `uploadFile` step points at. Deliberately a bare filename, not an absolute path: the
+ * live runner (Phase 5) materializes it inside the campaign's temp directory and rewrites the
+ * value, so generation stays machine-independent and reproducible.
+ */
+export const SAFE_UPLOAD_FIXTURE = {
+  filename: "awkit-lab-upload.txt",
+  content: "AWKIT lab upload fixture.\nDeterministic content, no sensitive data.\n"
+} as const;
 
 export const SAFE_OUTPUT_KEYS: readonly string[] = ["labOutputAlpha", "labOutputBravo"];
 

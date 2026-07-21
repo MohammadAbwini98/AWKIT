@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Runner Lab - downloads, failures, uploads</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Runner Lab</h1>
+      <p>
+        Download capture, controlled HTTP failures, bounded retry, and multipart upload. Every
+        response is local and deterministic - no external services and no random outcomes.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+
+      <!-- ── Downloads (downloadFile node) ─────────────────────────────────── -->
+      <section data-testid="download-section">
+        <h2>Downloads</h2>
+        <p>
+          Each link responds with <code>Content-Disposition: attachment</code>, so clicking one
+          raises a real browser download event for a <code>downloadFile</code> step to capture.
+        </p>
+        <ul>
+          <li><a href="/api/download?type=csv" data-testid="download-csv">Download CSV report</a> (<code>awkit-report.csv</code>, 3 rows)</li>
+          <li><a href="/api/download?type=txt" data-testid="download-txt">Download text notes</a> (<code>awkit-notes.txt</code>)</li>
+          <li><a href="/api/download?type=json" data-testid="download-json">Download JSON payload</a> (<code>awkit-payload.json</code>)</li>
+        </ul>
+      </section>
+
+      <!-- ── Controlled HTTP failures ──────────────────────────────────────── -->
+      <section data-testid="failure-section">
+        <h2>Controlled HTTP failures</h2>
+        <p>Each button calls <code>/api/http-status</code> and reports the exact status received.</p>
+        <button type="button" data-testid="fail-500">Trigger 500</button>
+        <button type="button" data-testid="fail-503">Trigger 503 (Retry-After)</button>
+        <button type="button" data-testid="fail-429">Trigger 429 (Retry-After)</button>
+        <button type="button" data-testid="fail-404">Trigger 404</button>
+        <p>Status: <span data-testid="failure-status">idle</span></p>
+        <p>Retry-After: <span data-testid="failure-retry-after">none</span></p>
+      </section>
+
+      <!-- ── Bounded retry (fail N times, then succeed) ────────────────────── -->
+      <section data-testid="retry-section">
+        <h2>Fail twice, then succeed</h2>
+        <p>
+          <code>/api/flaky</code> returns 503 for the first two calls of a key, then 200. Use it to
+          prove a retry policy eventually succeeds rather than masking a permanent failure.
+        </p>
+        <button type="button" data-testid="flaky-call">Call flaky endpoint</button>
+        <button type="button" data-testid="flaky-reset">Reset counter</button>
+        <p>Attempts made: <span data-testid="flaky-attempts">0</span></p>
+        <p>Last outcome: <span data-testid="flaky-outcome">idle</span></p>
+        <p data-testid="flaky-success" hidden>Flaky endpoint succeeded</p>
+      </section>
+
+      <!-- ── Multipart upload (uploadFile node) ────────────────────────────── -->
+      <section data-testid="upload-section">
+        <h2>Upload a file</h2>
+        <p>Posts <code>multipart/form-data</code> to <code>/api/upload</code>, which echoes the name, size, and a content preview.</p>
+        <form data-testid="upload-form">
+          <p>
+            <label for="uploadNote">Note</label>
+            <input id="uploadNote" name="note" type="text" placeholder="Optional note" />
+          </p>
+          <p>
+            <label for="uploadFile">File</label>
+            <input id="uploadFile" name="file" type="file" data-testid="upload-input" />
+          </p>
+          <button type="submit" data-testid="upload-submit">Upload file</button>
+        </form>
+        <p>Upload status: <span data-testid="upload-status">idle</span></p>
+        <p data-testid="upload-result" hidden></p>
+        <p>Uploaded name: <span data-testid="upload-filename"></span></p>
+        <p>Uploaded size: <span data-testid="upload-size"></span></p>
+      </section>
+    </main>
+
+    <script>
+      const text = (testId, value) => {
+        document.querySelector(`[data-testid="${testId}"]`).textContent = value;
+      };
+
+      async function callStatus(code) {
+        text("failure-status", "calling...");
+        text("failure-retry-after", "none");
+        const response = await fetch(`/api/http-status?code=${code}&retryAfter=2`);
+        text("failure-status", String(response.status));
+        text("failure-retry-after", response.headers.get("Retry-After") ?? "none");
+      }
+
+      for (const code of [500, 503, 429, 404]) {
+        document
+          .querySelector(`[data-testid="fail-${code}"]`)
+          .addEventListener("click", () => void callStatus(code));
+      }
+
+      let flakyAttempts = 0;
+      document.querySelector('[data-testid="flaky-call"]').addEventListener("click", async () => {
+        flakyAttempts += 1;
+        text("flaky-attempts", String(flakyAttempts));
+        const response = await fetch("/api/flaky?key=runner-lab&failures=2");
+        const body = await response.json();
+        text("flaky-outcome", `${response.status} - ${body.message}`);
+        document.querySelector('[data-testid="flaky-success"]').hidden = !body.ok;
+      });
+
+      document.querySelector('[data-testid="flaky-reset"]').addEventListener("click", async () => {
+        await fetch("/api/flaky/reset?key=runner-lab");
+        flakyAttempts = 0;
+        text("flaky-attempts", "0");
+        text("flaky-outcome", "idle");
+        document.querySelector('[data-testid="flaky-success"]').hidden = true;
+      });
+
+      document.querySelector('[data-testid="upload-form"]').addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const input = document.querySelector('[data-testid="upload-input"]');
+        if (!input.files || input.files.length === 0) {
+          text("upload-status", "no file selected");
+          return;
+        }
+        text("upload-status", "uploading...");
+        const form = new FormData();
+        form.append("note", document.querySelector("#uploadNote").value);
+        form.append("file", input.files[0]);
+        const response = await fetch("/api/upload", { method: "POST", body: form });
+        const body = await response.json();
+        if (body.ok) {
+          text("upload-status", "upload complete");
+          text("upload-filename", body.filename);
+          text("upload-size", `${body.size} bytes`);
+          const result = document.querySelector('[data-testid="upload-result"]');
+          result.textContent = `Uploaded ${body.filename} (${body.size} bytes)`;
+          result.hidden = false;
+        } else {
+          text("upload-status", `upload failed: ${body.message}`);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -4844,3 +4844,24 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
   by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
   (this audit) closed with the report as its resolution.
+
+## 2026-07-21 — Claude — Randomized Automation Test Lab: Phases 1-3 + Phase 0 prerequisites (epic `awkit-wza`)
+
+- **Task:** build the generation/oracle/round-trip layers of the randomized test lab, then take
+  Phase 0 (`awkit-wza.1`).
+- **Files:** new `src/testing/{random,oracle,roundtrip,fixtures}/**`, `scripts/verify-random-{generator,oracle,roundtrip}.mts`,
+  `app/renderer/components/workflow/flowProfileMapping.ts`, `docs/testing/RANDOMIZED_TESTING_{ARCHITECTURE,IMPLEMENTATION_PLAN}.md`,
+  `mock-site/public/{runner-lab,iframe-lab,iframe-child,index}.html`, `mock-site/server.mjs`,
+  `mock-site/README.md`; modified `app/renderer/pages/FlowChartDesigner.tsx` (extraction),
+  `scripts/verify-durable-store.mts` (stale assertions), `scripts/verify-mock-site.mjs`.
+- **Tests run:** `npm run build` passed; `verify-random-generator` 49/49; `verify-random-oracle`
+  19 passed / 1 failed (real defect `awkit-acw`); `verify-random-roundtrip` 8 passed / 15 failed by
+  design; `verify:mock-site` 65/65; `verify-durable-store` 11/11 (was 10/1);
+  `check-memory.mjs` passed.
+- **Not run:** `verify:runner`, `validate:offline`, packaged-EXE and clean-machine gates — no runner
+  or packaging behavior changed. Phase 5 (live execution) is not built, so no generated flow has yet
+  been executed against a browser.
+- **Result:** Phases 1-3 complete and Phase 0 complete. 15 defect issues filed under epic
+  `awkit-wza`; the 13 round-trip defects are blocked on Phase 0 in Beads because the fix lands in
+  the newly extracted mapping module. Two verifiers are intentionally red and must stay that way
+  until their product defects are fixed.

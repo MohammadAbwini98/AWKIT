@@ -33,6 +33,7 @@ import {
   SAFE_OUTPUT_KEYS,
   SAFE_RUNTIME_INPUT_KEYS,
   SAFE_TEXT_VALUES,
+  SAFE_UPLOAD_FIXTURE,
   SECRET_REFERENCES,
   type MockPageFixture
 } from "../fixtures/SafeTestData";
@@ -75,11 +76,13 @@ function pageSupports(page: MockPageFixture, type: StepType): boolean {
     case "check":
     case "uncheck":
       return page.checkTargets.length > 0;
-    case "fill":
     case "uploadFile":
+      return (page.uploadTargets?.length ?? 0) > 0;
+    case "downloadFile":
+      return (page.downloadTargets?.length ?? 0) > 0;
+    case "fill":
       return page.fillTargets.length > 0;
     case "click":
-    case "downloadFile":
       return page.clickTargets.length > 0;
     default:
       return page.assertTargets.length > 0;
@@ -105,10 +108,16 @@ function locatorFor(type: StepType, ctx: ConfigurationContext): LocatorCandidate
     readText: page.assertTargets,
     assertText: page.assertTargets,
     assertVisible: page.assertTargets,
-    downloadFile: page.clickTargets,
-    uploadFile: page.fillTargets
   };
 
+  if (type === "uploadFile") {
+    const target = page.uploadTargets?.[0];
+    return target ? { ...target } : undefined;
+  }
+  if (type === "downloadFile") {
+    const target = page.downloadTargets?.[0];
+    return target ? { ...target } : undefined;
+  }
   if (type === "select") {
     const target = page.selectTargets[0];
     return target ? { ...target.locator } : undefined;
@@ -184,6 +193,9 @@ function valueFor(type: StepType, ctx: ConfigurationContext): string {
     }
     case "fill":
       return rng.bool(0.3) ? rng.pick(SAFE_EMAIL_VALUES) : rng.pick(SAFE_TEXT_VALUES);
+    case "uploadFile":
+      // Bare filename by design - the live runner rewrites it to a path in the campaign temp dir.
+      return SAFE_UPLOAD_FIXTURE.filename;
     case "wait":
       // Bounded low: an unattended campaign must not spend its budget sleeping.
       return String(rng.int(1, 5) * 100);

@@ -106,9 +106,8 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
     role: "action",
     requiresLocator: true,
     requiresValue: true,
-    gate: "missingLocalFixture",
-    weight: 1,
-    note: "mock-site /form has a file input but no multipart endpoint; needs an upload fixture first."
+    weight: 2,
+    note: "Ungated by plan task 0.6 — mock-site /runner-lab posts multipart to /api/upload."
   },
 
   // ---- capture ----
@@ -131,9 +130,8 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
     role: "action",
     requiresLocator: true,
     requiresValue: false,
-    gate: "missingLocalFixture",
-    weight: 1,
-    note: "mock-site serves no downloadable file; needs a Content-Disposition route first."
+    weight: 2,
+    note: "Ungated by plan task 0.3 — mock-site /api/download serves Content-Disposition attachments."
   },
 
   // ---- assertion ----
