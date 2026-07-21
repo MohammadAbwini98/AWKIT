@@ -5012,3 +5012,40 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Beads:** closed `awkit-7fm`, `awkit-acw`, `awkit-nmg`.
 - **Result:** Stage 2b checkpoint. No Legacy Compatibility persistence, no auto-fix, no migration
   subsystem (all Stage 2c). Paused for review before Stage 2c.
+
+## 2026-07-22 — Claude — Test Lab Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem
+
+- **Task:** complete the staged enforcement model — off-path errors block under the full gate unless an
+  explicit, time-limited, audited Legacy Compatibility grant tolerates them; add the suggested-fix
+  migration subsystem (preview, backup, confirm, report, undo) and the inventory scan.
+- **Approach:** two new PURE modules so the policy is testable and shareable —
+  `src/validation/LegacyCompatibility.ts` (content hash, grant standing, `effectiveVerdict`, inventory
+  classification, grant planning) and `src/validation/SafeFixApplier.ts` (the only code that mutates a
+  flow, restricted to an exhaustive switch of schema-migration fields). The main-process
+  `FlowValidationService` owns storage and ceremony and is deliberately **electron-free** so
+  `verify-legacy-compat.mts` drives the real service against temp folders.
+- **Files:** NEW `src/validation/LegacyCompatibility.ts`, `src/validation/SafeFixApplier.ts`,
+  `app/main/validation/flowValidationService.ts`, `app/main/validation/index.ts`,
+  `app/main/ipc/validation.ipc.ts`, `scripts/verify-legacy-compat.mts`; MODIFIED
+  `src/validation/FlowValidator.ts` (casing fixes for every enum family; fixed inverted field paths),
+  `src/reports/PreRunValidator.ts` (grant-aware blocking + never-silent compatibility warning),
+  `app/main/ipc/execution.ipc.ts` (ensureInventoryScan, grants, run auditing),
+  `app/main/ipc/index.ts`, `app/main/preload.ts`, `app/renderer/pages/FlowChartDesigner.tsx`
+  (validate-on-load banner, preview dialog, undo), `FlowLibrary.tsx` (IPC-sourced status + Legacy
+  pill), `global.css`, `scripts/verify-validation.mts` (3 assertions retargeted to the 2c policy),
+  `scripts/verify-flow-designer-gui.mjs` (+22 checks, 2 retargeted).
+- **Tests run:** `verify-legacy-compat` **90/0** (new) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · `verify-random-generator` **49/0** · `verify-random-roundtrip`
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56** · `verify:workflow-builder`
+  **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16** ·
+  `verify:instance-monitor` **43/0** · `verify:authz` **40/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging change), packaged-EXE walkthrough.
+- **Defects found:** (1) migration ids and backup paths were `flowId.timestamp` — two migrations in the
+  same millisecond collided and the second would have OVERWRITTEN the first's backup (the one artifact
+  that must never be lost); ids are now uniquified. Found by the frozen test clock. (2) Stage 2a latent
+  bug: `safeFix.field` was inverted between conditional and loop-condition operators — descriptive-only
+  then, a silent no-op the moment an applier consumed it; both directions now pinned.
+- **Beads:** closed `awkit-9xb`. Epic `awkit-wza` Tranche 2 complete.
+- **Result:** Stage 2c checkpoint. Enforcement is complete and recoverable: nothing auto-fixes, nothing
+  is destroyed, every exemption is explicit, time-limited, content-bound and audited.

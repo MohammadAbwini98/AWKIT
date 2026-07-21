@@ -1535,6 +1535,74 @@ div.validation-issue-row {
   color: var(--awkit-info);
 }
 
+/* Stage 2c: validate-on-load banner (Flow Designer) + safe-fix preview dialog. */
+.validation-load-banner {
+  align-items: center;
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+.validation-load-banner-text {
+  flex: 1 1 320px;
+}
+
+.validation-load-banner.block {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+  color: var(--awkit-danger);
+}
+
+.validation-load-banner.legacy {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.validation-load-banner.warn {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.validation-load-banner.ok {
+  background: var(--awkit-success-soft);
+  border-color: var(--awkit-success-muted);
+  color: var(--awkit-success);
+}
+
+.validation-fix-dialog {
+  max-width: 620px;
+}
+
+.validation-fix-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0;
+}
+
+.validation-fix-list li {
+  border-left: 2px solid var(--awkit-accent-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-xs);
+  gap: 2px;
+  padding-left: var(--space-2);
+}
+
+.validation-fix-why {
+  color: var(--awkit-text-secondary);
+}
+
 /* Workflow Builder: clickable referenced-flow finding (opens the flow in the Flow Designer). */
 .validation-flow-link {
   background: transparent;
@@ -4751,6 +4819,14 @@ table {
 
 .state-pill.pill-warning {
   background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+/* Stage 2c: Legacy Compatibility — deliberately distinct from a plain warning, always with its
+   deadline, so a temporarily-tolerated flow can never be mistaken for a healthy one. */
+.state-pill.pill-legacy {
+  background: var(--awkit-warning-soft);
+  border: 1px dashed var(--awkit-warning-muted);
   color: var(--awkit-warning);
 }
 

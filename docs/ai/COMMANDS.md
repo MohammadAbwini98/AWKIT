@@ -164,6 +164,11 @@ npm run ai:memory:check     # alias of ai:memory
 npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
                                              # flows through the real validateConnectorStructure, reachability,
                                              # coverage accounting, no-secret/no-external-URL safety (49)
+npx tsx scripts/verify-legacy-compat.mts     # Stage 2c: Legacy Compatibility grants (content hash, expiry,
+                                             # standing), the full-gate blocking policy, inventory scan +
+                                             # grant planning, and the suggested-fix ceremony (preview,
+                                             # backup, apply, migration report, undo) against the REAL
+                                             # service in temp folders (90)
 npx tsx scripts/verify-validation.mts        # Flow Validation Engine (src/validation/FlowValidator.ts):
                                              # every rule with positive AND negative controls, reachability
                                              # over all 9 generated patterns, active-path classification,

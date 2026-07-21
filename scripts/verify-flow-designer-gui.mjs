@@ -76,6 +76,48 @@ function seedFlowFixture(localAppData) {
   };
   writeFileSync(path.join(flowsDir, `${invalidFlow.id}.json`), `${JSON.stringify(invalidFlow, null, 2)}\n`, "utf8");
 
+  // Stage 2c fixtures. `verify-zc-legacy-flow`: an orphan node and nothing else — off-path-only, so
+  // the inventory scan grants it Legacy Compatibility. `verify-zc-fixable-flow`: casing-only enum
+  // mistakes, the entire safe-fix surface.
+  const legacyFlow = {
+    id: "verify-zc-legacy-flow",
+    name: "Verify Legacy Flow",
+    description: "Off-path-only fixture: eligible for a Legacy Compatibility grant.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start", position: { x: 280, y: 80 } },
+      { id: "click", type: "click", name: "Click", locator: { strategy: "id", value: "go" }, position: { x: 280, y: 220 } },
+      { id: "orphan", type: "screenshot", name: "Orphan Shot", position: { x: 640, y: 80 }, config: { screenshotName: "orphan" } },
+      { id: "end", type: "end", name: "End", position: { x: 280, y: 360 } }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "click", type: "success" },
+      { id: "e1", source: "click", target: "end", type: "success" }
+    ]
+  };
+  writeFileSync(path.join(flowsDir, `${legacyFlow.id}.json`), `${JSON.stringify(legacyFlow, null, 2)}\n`, "utf8");
+
+  const fixableFlow = {
+    id: "verify-zc-fixable-flow",
+    name: "Verify Fixable Flow",
+    description: "Casing-only enum mistakes — the safe-fix surface.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start", position: { x: 280, y: 80 } },
+      { id: "click", type: "click", name: "Click", locator: { strategy: "id", value: "go" }, position: { x: 280, y: 220 } },
+      { id: "end", type: "end", name: "End", position: { x: 280, y: 360 } }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "click", type: "success" },
+      { id: "e-cond", source: "click", target: "end", type: "conditional", kind: "conditional", conditional: { sourceField: "Outcome", operator: "NotEquals", expectedValue: "fail" } }
+    ]
+  };
+  writeFileSync(path.join(flowsDir, `${fixableFlow.id}.json`), `${JSON.stringify(fixableFlow, null, 2)}\n`, "utf8");
+
   const workflowsDir = path.join(localAppData, "SpecterStudio", "workflows");
   mkdirSync(workflowsDir, { recursive: true });
   const workflowFor = (id, name, flowId) => ({
@@ -97,7 +139,11 @@ function seedFlowFixture(localAppData) {
     createdAt: now,
     updatedAt: now
   });
-  for (const workflow of [workflowFor("verify-wf-valid", "Verify WF Valid", "verify-flow-designer"), workflowFor("verify-wf-invalid", "Verify WF Invalid", "verify-invalid-draft")]) {
+  for (const workflow of [
+    workflowFor("verify-wf-valid", "Verify WF Valid", "verify-flow-designer"),
+    workflowFor("verify-wf-invalid", "Verify WF Invalid", "verify-invalid-draft"),
+    workflowFor("verify-wf-legacy", "Verify WF Legacy", "verify-zc-legacy-flow")
+  ]) {
     writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
   }
 }
@@ -624,9 +670,12 @@ try {
       (runInvalid?.validation?.issues ?? []).some((issue) => issue.code === "missingRequiredLocator" && issue.nodeId === "click" && issue.blocking === true),
     JSON.stringify({ status: runInvalid?.status, issues: (runInvalid?.validation?.issues ?? []).map((i) => i.code) })
   );
+  // Stage 2c: this flow has an ACTIVE-PATH error, so it is `immediately-blocked` by the inventory
+  // scan and gets no grant — its off-path orphan therefore blocks too, while still being reported
+  // as off the active path. (A grant only ever covers off-path-ONLY flows: see section 10.)
   check(
-    "…and the off-path orphan is reported but marked non-blocking",
-    (runInvalid?.validation?.issues ?? []).some((issue) => issue.code === "unreachableNode" && issue.blocking === false && issue.onActivePath === false),
+    "…and the off-path orphan is reported, classified off-path, and blocks without a grant",
+    (runInvalid?.validation?.issues ?? []).some((issue) => issue.code === "unreachableNode" && issue.blocking === true && issue.onActivePath === false),
     JSON.stringify((runInvalid?.validation?.issues ?? []).filter((i) => i.code === "unreachableNode"))
   );
   const runValid = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-valid", dryRun: true }));
@@ -670,6 +719,113 @@ try {
     persistedDraft && !("runnable" in persistedDraft) && !("validation" in persistedDraft) && !("validatedAt" in persistedDraft),
     Object.keys(persistedDraft ?? {}).join(",")
   );
+
+  // --- 10. Stage 2c: Legacy Compatibility + suggested-fix migration ceremony ---
+  console.log("\nStage 2c: Legacy Compatibility, inventory scan and safe-fix migration");
+
+  // 10a. The inventory scan classifies the library and grants only the off-path-only flow.
+  const scan = await win.evaluate(() => window.playwrightFlowStudio.validation.runInventoryScan());
+  check(
+    "Inventory scan groups the library by classification",
+    scan?.counts?.valid >= 1 && scan?.counts?.["temporarily-compatible"] === 1 && scan?.counts?.["immediately-blocked"] >= 1,
+    JSON.stringify(scan?.counts)
+  );
+  // The first run gate call already performed the initial scan (`ensureInventoryScan`), so this
+  // explicit re-scan must NOT re-issue or extend anything — the deadline is the deadline.
+  check("Re-scanning does not re-issue an existing grant", scan?.grantsIssued === 0, `issued=${scan?.grantsIssued}`);
+  const grants = await win.evaluate(() => window.playwrightFlowStudio.validation.grants());
+  check(
+    "Exactly one grant exists, for the off-path-only flow, and it is time-limited",
+    grants?.length === 1 && grants[0]?.id === "verify-zc-legacy-flow" && grants[0]?.expiresAt > grants[0]?.grantedAt,
+    JSON.stringify(grants?.map((g) => g.id))
+  );
+
+  // 10b. The run gate honours the grant — and still blocks the active-path flow.
+  const runLegacy = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-legacy", dryRun: true }));
+  check("A granted flow passes the run gate", runLegacy?.status === "validated", JSON.stringify({ status: runLegacy?.status }));
+  check(
+    "…and the run is never silent: a Legacy Compatibility warning names the deadline",
+    (runLegacy?.validation?.issues ?? []).some((issue) => issue.key?.startsWith("legacyCompatibility.") && issue.severity === "warning" && !issue.blocking),
+    JSON.stringify((runLegacy?.validation?.issues ?? []).map((i) => i.key))
+  );
+  const runStillInvalid = await win.evaluate(() => window.playwrightFlowStudio.executions.runWorkflow({ workflowId: "verify-wf-invalid", dryRun: true }));
+  check("An active-path error is still blocked after the scan", runStillInvalid?.status === "validationFailed");
+
+  // 10c. Library shows the Legacy pill with its deadline, distinct from Runnable.
+  await navClick(win, "Flows");
+  await win.waitForTimeout(900);
+  const pills = await win.evaluate(() => {
+    const map = {};
+    for (const row of document.querySelectorAll(".wl-table tbody tr")) {
+      const id = row.querySelectorAll("td")[1]?.textContent?.trim();
+      const pill = row.querySelector("[data-validation]");
+      if (id && pill) map[id] = { state: pill.getAttribute("data-validation"), text: (pill.textContent || "").trim() };
+    }
+    return map;
+  });
+  check(
+    "Library marks the granted flow as Legacy with its deadline",
+    pills["verify-zc-legacy-flow"]?.state === "legacy-compatibility" && /Legacy · until \d{4}-\d{2}-\d{2}/.test(pills["verify-zc-legacy-flow"]?.text ?? ""),
+    JSON.stringify(pills["verify-zc-legacy-flow"])
+  );
+  check("Library still marks the active-path flow Not runnable", pills["verify-invalid-draft"]?.state === "not-runnable", JSON.stringify(pills["verify-invalid-draft"]));
+  check("Library still marks the clean flow Runnable", pills["verify-flow-designer"]?.state === "runnable", JSON.stringify(pills["verify-flow-designer"]));
+
+  // 10d. Validate-on-load banner in the designer, and the fix ceremony.
+  await navClick(win, "Flow Designer");
+  await win.waitForTimeout(500);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await win.click(".searchable-select-trigger");
+    await win.waitForTimeout(250);
+    if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
+  }
+  await win.locator(".searchable-select-menu >> text=Verify Legacy Flow").first().click({ timeout: 10_000 });
+  await win.waitForTimeout(700);
+  const legacyBanner = await win.evaluate(() => document.querySelector('[data-testid="flow-validation-banner"]')?.textContent ?? "");
+  check("Opening a granted flow shows the Legacy Compatibility banner with its deadline", /Legacy Compatibility/.test(legacyBanner) && /\d{4}-\d{2}-\d{2}/.test(legacyBanner), `banner="${legacyBanner.slice(0, 120)}"`);
+  const legacyUnchanged = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-legacy-flow"));
+  check("Opening a legacy flow does NOT modify or save it", (legacyUnchanged?.nodes ?? []).some((node) => node.id === "orphan") && legacyUnchanged?.updatedAt === legacyUnchanged?.createdAt);
+
+  // 10e. Suggested fix: preview → confirm → apply → undo, on the fixable flow.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await win.click(".searchable-select-trigger");
+    await win.waitForTimeout(250);
+    if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
+  }
+  await win.locator(".searchable-select-menu >> text=Verify Fixable Flow").first().click({ timeout: 10_000 });
+  await win.waitForTimeout(700);
+  const beforeFix = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-fixable-flow"));
+  check("The fixable flow offers a Fix safe issues action", await win.locator('[data-testid="flow-fix-safe-issues"]').isVisible().catch(() => false));
+
+  await win.click('[data-testid="flow-fix-safe-issues"]');
+  await win.waitForTimeout(500);
+  const previewText = await win.evaluate(() => document.querySelector('[data-testid="flow-fix-preview"]')?.textContent ?? "");
+  check(
+    "A change preview lists each schema fix before anything is written",
+    /NotEquals/.test(previewText) && /notEquals/.test(previewText) && /Outcome/.test(previewText),
+    `preview="${previewText.slice(0, 160)}"`
+  );
+  const duringPreview = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-fixable-flow"));
+  check("Showing the preview writes nothing", JSON.stringify(duringPreview) === JSON.stringify(beforeFix));
+
+  await win.click('[data-testid="flow-fix-confirm"]');
+  await win.waitForTimeout(900);
+  const afterFix = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-fixable-flow"));
+  const fixedEdge = (afterFix?.edges ?? []).find((edge) => edge.id === "e-cond");
+  check("Confirming applies the normalization", fixedEdge?.conditional?.operator === "notEquals" && fixedEdge?.conditional?.sourceField === "outcome", JSON.stringify(fixedEdge?.conditional));
+  check(
+    "…and changes nothing else about the flow",
+    (afterFix?.nodes ?? []).length === (beforeFix?.nodes ?? []).length && (afterFix?.edges ?? []).length === (beforeFix?.edges ?? []).length
+  );
+  const migrations = await win.evaluate(() => window.playwrightFlowStudio.validation.migrations("verify-zc-fixable-flow"));
+  check("A migration report was recorded", migrations?.length === 1 && migrations[0]?.fixes?.length === 2, JSON.stringify(migrations?.map((m) => m.fixes?.length)));
+
+  check("An undo control is offered after the migration", await win.locator('[data-testid="flow-migration-undo"]').isVisible().catch(() => false));
+  await win.locator('[data-testid="flow-migration-undo"] >> text=Undo migration').click();
+  await win.waitForTimeout(900);
+  const afterUndo = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-fixable-flow"));
+  const undoneEdge = (afterUndo?.edges ?? []).find((edge) => edge.id === "e-cond");
+  check("Undo restores the original document", undoneEdge?.conditional?.operator === "NotEquals" && undoneEdge?.conditional?.sourceField === "Outcome", JSON.stringify(undoneEdge?.conditional));
 
   check("Flow Designer walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 

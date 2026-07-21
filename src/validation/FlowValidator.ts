@@ -296,9 +296,17 @@ function enumKey(value: string): string {
   return value.replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
-const OPERATOR_BY_ENUM_KEY: ReadonlyMap<string, string> = new Map(
-  Object.keys(CONDITION_OPERATORS).map((operator) => [enumKey(operator), operator])
-);
+/** enumKey → legal literal, per enum family — powers the casing-only safe fixes (Stage 2c). */
+function byEnumKey(record: Record<string, true>): ReadonlyMap<string, string> {
+  return new Map(Object.keys(record).map((literal) => [enumKey(literal), literal]));
+}
+
+const OPERATOR_BY_ENUM_KEY = byEnumKey(CONDITION_OPERATORS);
+const SOURCE_BY_ENUM_KEY = byEnumKey(CONDITION_SOURCES);
+const LOOP_MODE_BY_ENUM_KEY = byEnumKey(LOOP_MODES);
+const JOIN_MODE_BY_ENUM_KEY = byEnumKey(JOIN_MODES);
+const FAIL_MODE_BY_ENUM_KEY = byEnumKey(FAIL_MODES);
+const ISOLATION_BY_ENUM_KEY = byEnumKey(PARALLEL_ISOLATIONS);
 
 /* ------------------------------------------------------------------ *
  * Small helpers
@@ -505,35 +513,49 @@ function validateStepLoopBounds(step: FlowStep, collect: IssueCollector): void {
   check(step.config?.maxIterations, "a loop max-iterations of");
 }
 
+/** Casing-only safe fix for an enum literal, or undefined when the literal is genuinely unknown. */
+function casingFix(field: string, literal: string, legalByKey: ReadonlyMap<string, string>, noun: string): SafeFix | undefined {
+  const normalized = legalByKey.get(enumKey(literal));
+  return normalized === undefined
+    ? undefined
+    : {
+        kind: "normalizeEnumCasing",
+        field,
+        from: literal,
+        to: normalized,
+        description: `"${literal}" differs from the legal ${noun} "${normalized}" only by casing or separators.`
+      };
+}
+
 function validateConditional(
   conditional: ConditionalConnectorConfig,
   edge: FlowEdge,
-  where: string,
+  where: "condition" | "loop condition",
   collect: IssueCollector
 ): void {
+  // Stage 2c note: this prefix is CONSUMED by SafeFixApplier.setEnumField — it must name the real
+  // property path on the edge. (Stage 2a shipped these two inverted; harmless while the metadata
+  // was descriptive-only, caught the moment an applier existed. verify-legacy-compat pins both.)
+  const fieldPrefix = where === "condition" ? "conditional" : "loop.condition";
+
   const operator = conditional.operator as string | undefined;
   if (operator !== undefined && !(operator in CONDITION_OPERATORS)) {
-    const normalized = OPERATOR_BY_ENUM_KEY.get(enumKey(operator));
-    const message = `Connector ${edge.id} ${where} uses operator "${operator}", which is not a known operator — the condition can never match, so the branch is silently skipped.`;
     collect.edge(
       "unsupportedOperator",
       edge,
-      message,
-      normalized === undefined
-        ? undefined
-        : {
-            kind: "normalizeEnumCasing",
-            field: where === "condition" ? "loop.condition.operator" : "conditional.operator",
-            from: operator,
-            to: normalized,
-            description: `"${operator}" differs from the legal operator "${normalized}" only by casing or separators.`
-          }
+      `Connector ${edge.id} ${where} uses operator "${operator}", which is not a known operator — the condition can never match, so the branch is silently skipped.`,
+      casingFix(`${fieldPrefix}.operator`, operator, OPERATOR_BY_ENUM_KEY, "operator")
     );
   }
 
   const source = conditional.sourceField as string | undefined;
   if (source !== undefined && !(source in CONDITION_SOURCES)) {
-    collect.edge("unsupportedConfiguration", edge, `Connector ${edge.id} ${where} reads from "${source}", which is not a known condition source.`);
+    collect.edge(
+      "unsupportedConfiguration",
+      edge,
+      `Connector ${edge.id} ${where} reads from "${source}", which is not a known condition source.`,
+      casingFix(`${fieldPrefix}.sourceField`, source, SOURCE_BY_ENUM_KEY, "condition source")
+    );
   }
 }
 
@@ -551,7 +573,12 @@ function validateEdges(profile: FlowProfile, edges: readonly FlowEdge[], nodeIds
     if (edge.loop) {
       const mode = edge.loop.mode as string | undefined;
       if (mode !== undefined && !(mode in LOOP_MODES)) {
-        collect.edge("unsupportedConfiguration", edge, `Loop connector ${edge.id} uses mode "${mode}", which is not a known loop mode.`);
+        collect.edge(
+          "unsupportedConfiguration",
+          edge,
+          `Loop connector ${edge.id} uses mode "${mode}", which is not a known loop mode.`,
+          casingFix("loop.mode", mode, LOOP_MODE_BY_ENUM_KEY, "loop mode")
+        );
       }
       if (edge.loop.condition) validateConditional(edge.loop.condition, edge, "loop condition", collect);
       validateEdgeLoopBound(edge, edge.loop.maxIterations, "max iterations", collect);
@@ -561,13 +588,28 @@ function validateEdges(profile: FlowProfile, edges: readonly FlowEdge[], nodeIds
     if (edge.parallel) {
       const { joinMode, failMode, isolation } = edge.parallel;
       if (joinMode !== undefined && !((joinMode as string) in JOIN_MODES)) {
-        collect.edge("unsupportedConfiguration", edge, `Parallel connector ${edge.id} uses join mode "${joinMode}", which is not a known join mode.`);
+        collect.edge(
+          "unsupportedConfiguration",
+          edge,
+          `Parallel connector ${edge.id} uses join mode "${joinMode}", which is not a known join mode.`,
+          casingFix("parallel.joinMode", joinMode as string, JOIN_MODE_BY_ENUM_KEY, "join mode")
+        );
       }
       if (failMode !== undefined && !((failMode as string) in FAIL_MODES)) {
-        collect.edge("unsupportedConfiguration", edge, `Parallel connector ${edge.id} uses fail mode "${failMode}", which is not a known fail mode.`);
+        collect.edge(
+          "unsupportedConfiguration",
+          edge,
+          `Parallel connector ${edge.id} uses fail mode "${failMode}", which is not a known fail mode.`,
+          casingFix("parallel.failMode", failMode as string, FAIL_MODE_BY_ENUM_KEY, "fail mode")
+        );
       }
       if (isolation !== undefined && !((isolation as string) in PARALLEL_ISOLATIONS)) {
-        collect.edge("unsupportedConfiguration", edge, `Parallel connector ${edge.id} uses isolation "${isolation}", which is not a known isolation mode.`);
+        collect.edge(
+          "unsupportedConfiguration",
+          edge,
+          `Parallel connector ${edge.id} uses isolation "${isolation}", which is not a known isolation mode.`,
+          casingFix("parallel.isolation", isolation as string, ISOLATION_BY_ENUM_KEY, "isolation mode")
+        );
       }
     }
   }

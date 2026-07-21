@@ -10,6 +10,11 @@ import {
   validateFlowSet,
   type FlowValidationIssue
 } from "@src/validation/FlowValidator";
+import {
+  effectiveVerdict,
+  flowContentHash,
+  type CompatibilityGrant
+} from "@src/validation/LegacyCompatibility";
 import { SecurityPolicy, type SecurityPolicyIssue } from "./SecurityPolicy";
 
 export interface PreRunValidationIssue {
@@ -19,9 +24,10 @@ export interface PreRunValidationIssue {
   /**
    * Whether this issue must block the run. Computed here — the gate consumes it via
    * {@link isRunBlocked} and never re-derives policy from severity alone. Scenario/runtime errors
-   * (locks, offline browser, runtime inputs, …) always block; flow-definition errors block per the
-   * engine's {@link isExecutionBlocking} policy (active-path errors + all connector-structure
-   * errors); warnings and confirmed off-path errors never block.
+   * (locks, offline browser, runtime inputs, …) always block. Flow-definition errors block per the
+   * Stage 2c full gate: active-path and connector-structure errors always; off-path errors too,
+   * unless a valid Legacy Compatibility grant tolerates them (see `legacyCompatibility` input).
+   * Warnings never block.
    */
   blocking: boolean;
   /** Stable rule code, for engine-sourced flow issues (Stage 2b). */
@@ -51,6 +57,18 @@ export interface PreRunValidationInput {
    * missing. When `flows` already is the full library this can be omitted.
    */
   referenceableFlowIds?: ReadonlySet<string>;
+  /**
+   * Legacy Compatibility grants (Stage 2c), keyed by flow id, from the main-process grant store.
+   * **Absent means "no grants"** — the strict full gate, where off-path errors block too. A grant
+   * only tolerates off-path errors, only while unexpired and only while the flow's executable
+   * content still matches the granted hash; active-path and connector-structure errors block
+   * regardless. The gate always validates fresh — a grant never substitutes for validation.
+   */
+  legacyCompatibility?: {
+    grants: ReadonlyMap<string, CompatibilityGrant>;
+    /** Injectable clock for tests; defaults to the real time. */
+    nowIso?: string;
+  };
 }
 
 /** The run gate's single decision: block iff any issue is blocking. */
@@ -111,8 +129,39 @@ export class PreRunValidator {
     const referenceable = new Set<string>(flowIds);
     for (const id of input.referenceableFlowIds ?? []) referenceable.add(id);
     const flowSetReport = validateFlowSet(relevantFlows, { referenceableFlowIds: referenceable });
-    const engineIssues: FlowValidationIssue[] = [...flowSetReport.issues, ...flowSetReport.reports.flatMap((report) => [...report.issues])];
-    engineIssues.forEach((issue, index) => issues.push(this.toPreRunIssue(issue, index)));
+
+    // Stage 2c blocking policy, one flow at a time: `effectiveVerdict` decides which errors block,
+    // honouring a valid Legacy Compatibility grant (off-path errors only, unexpired, content
+    // unchanged). Without a grant the full gate applies and off-path errors block too.
+    const nowIso = input.legacyCompatibility?.nowIso ?? new Date().toISOString();
+    const flowsById = new Map(relevantFlows.map((flow) => [flow.id, flow]));
+    let issueIndex = 0;
+    for (const report of flowSetReport.reports) {
+      const flow = flowsById.get(report.flowId);
+      const grant = input.legacyCompatibility?.grants.get(report.flowId);
+      const verdict = effectiveVerdict(report, grant, flow ? flowContentHash(flow) : "", nowIso);
+      const blocking = new Set(verdict.blockingIssues);
+      for (const issue of report.issues) {
+        issues.push(this.toPreRunIssue(issue, issueIndex, blocking.has(issue)));
+        issueIndex += 1;
+      }
+      // "Never silent": a run tolerated by a grant announces itself as a warning the UI and run
+      // report can show, carrying the flow id so the caller can audit the run against the grant.
+      if (verdict.underCompatibility && grant) {
+        issues.push({
+          key: `legacyCompatibility.${report.flowId}`,
+          severity: "warning",
+          blocking: false,
+          flowId: report.flowId,
+          message: `Flow ${flow?.name ?? report.flowId} runs under Legacy Compatibility until ${grant.expiresAt.slice(0, 10)} — ${verdict.toleratedIssues.length} off-path error(s) tolerated. Fix or migrate it before the deadline.`
+        });
+      }
+    }
+    // Set-level issues (duplicate flow ids, runFlow cycles) are never grant-tolerable.
+    for (const issue of flowSetReport.issues) {
+      issues.push(this.toPreRunIssue(issue, issueIndex, isExecutionBlocking(issue)));
+      issueIndex += 1;
+    }
 
     // ── Run context: rules the engine cannot know ────────────────────────────
     relevantFlows.forEach((flow) => {
@@ -184,12 +233,12 @@ export class PreRunValidator {
     return flows.filter((flow) => relevant.has(flow.id));
   }
 
-  private toPreRunIssue(issue: FlowValidationIssue, index: number): PreRunValidationIssue {
+  private toPreRunIssue(issue: FlowValidationIssue, index: number, blocking: boolean): PreRunValidationIssue {
     const anchor = issue.nodeId ?? issue.edgeId ?? "flow";
     const result: PreRunValidationIssue = {
       key: `validation.${issue.flowId}.${issue.code}.${anchor}.${index}`,
       severity: issue.severity,
-      blocking: isExecutionBlocking(issue),
+      blocking,
       message: issue.message,
       code: issue.code,
       flowId: issue.flowId,

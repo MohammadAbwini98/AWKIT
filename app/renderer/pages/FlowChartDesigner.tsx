@@ -50,6 +50,10 @@ import {
   type FlowValidationReport
 } from "@src/validation/FlowValidator";
 
+/** Derived validation status of the SAVED flow, from `validation:status` (Stage 2c). */
+type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.status>>;
+type SafeFixPreview = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.previewSafeFixes>>;
+
 const nodeTypes = {
   actionNode: ActionFlowNode
 } satisfies NodeTypes;
@@ -124,6 +128,16 @@ function FlowChartDesignerContent() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   /** Whether the validation-issues panel (opened from the chip) is showing. */
   const [issuesOpen, setIssuesOpen] = useState(false);
+  /**
+   * Stage 2c validate-on-load: the SAVED flow's status, fetched when a profile is opened. Opening
+   * a flow never modifies or saves it — this is a read. Dismissed by the user or superseded by the
+   * next load.
+   */
+  const [loadBanner, setLoadBanner] = useState<FlowValidationStatus | null>(null);
+  /** Change preview for "Fix all safe issues". Non-null = the confirmation dialog is showing. */
+  const [fixPreview, setFixPreview] = useState<SafeFixPreview | null>(null);
+  /** The most recent migration, so the user can undo it while the flow is still untouched. */
+  const [lastMigration, setLastMigration] = useState<{ flowId: string; migrationId: string; backupPath: string } | null>(null);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
   const [flowId, setFlowId] = useState("login-flow");
   const [flowName, setFlowName] = useState("Login Flow");
@@ -451,6 +465,7 @@ function FlowChartDesignerContent() {
     [selectEdge, selectNode]
   );
 
+
   const handlePaneClick = useCallback(() => {
     clearSelection();
     setPicker(null);
@@ -559,9 +574,62 @@ function FlowChartDesignerContent() {
       setSaveState("Loaded profile");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);
+
+      // Stage 2c validate-on-load: report the SAVED flow's status (including any Legacy
+      // Compatibility standing). Read-only — the flow on disk is never touched by opening it.
+      setLoadBanner(null);
+      setLastMigration(null);
+      window.playwrightFlowStudio.validation
+        .status(profile.id)
+        .then((status) => {
+          if (status && (status.errorCount > 0 || status.warningCount > 0)) setLoadBanner(status);
+        })
+        .catch(() => undefined);
     },
     [setEdges, setNodes, armLayoutGlide]
   );
+
+  /* ── Stage 2c suggested fixes: preview → confirm → apply → undo ──────────── */
+
+  /** Step 1: ask main what the fixes WOULD change. Nothing is written. */
+  const openFixPreview = useCallback(async () => {
+    try {
+      const preview = await window.playwrightFlowStudio.validation.previewSafeFixes(flowId);
+      if (preview.fixes.length === 0) {
+        setToast({ tone: "info", message: "No safe fixes are available — these issues need a human decision." });
+        return;
+      }
+      setFixPreview(preview);
+    } catch (error) {
+      setToast({ tone: "error", message: `Could not prepare fixes. ${error instanceof Error ? error.message : ""}`.trim() });
+    }
+  }, [flowId]);
+
+  /** Step 2: explicit confirmation. Main writes an untouched backup before applying anything. */
+  const confirmApplyFixes = useCallback(async () => {
+    setFixPreview(null);
+    try {
+      const result = await window.playwrightFlowStudio.validation.applySafeFixes(flowId);
+      loadProfile(result.profile); // reload the migrated flow so the canvas shows what was saved
+      setLastMigration({ flowId, migrationId: result.record.id, backupPath: result.record.backupPath });
+      setToast({ tone: "success", message: `Applied ${result.record.fixes.length} safe fix(es). A backup was saved — you can undo this.` });
+    } catch (error) {
+      setToast({ tone: "error", message: `Could not apply fixes. ${error instanceof Error ? error.message : ""}`.trim() });
+    }
+  }, [flowId, loadProfile]);
+
+  /** Step 3: restore the untouched backup (allowed while the migrated flow is still unedited). */
+  const undoLastMigration = useCallback(async () => {
+    if (!lastMigration) return;
+    try {
+      const result = await window.playwrightFlowStudio.validation.undoMigration(lastMigration.flowId, lastMigration.migrationId);
+      loadProfile(result.profile);
+      setLastMigration(null);
+      setToast({ tone: "success", message: "Migration undone — the flow was restored from its backup." });
+    } catch (error) {
+      setToast({ tone: "error", message: error instanceof Error ? error.message : "Could not undo the migration." });
+    }
+  }, [lastMigration, loadProfile]);
 
   // Point 1c: manual "Auto-arrange" — re-run the layered layout (top-to-bottom) on the current
   // graph on demand, then frame it. Marks the document dirty; positions stay user-editable after.
@@ -934,6 +1002,54 @@ function FlowChartDesignerContent() {
       }
     >
       <div className="flow-designer-shell">
+        {/* Stage 2c validate-on-load banner. Opening a flow NEVER modifies or saves it — this
+            reports what was found and offers only deterministic, execution-preserving fixes. */}
+        {loadBanner ? (
+          <div className={`validation-load-banner ${loadBanner.underCompatibility ? "legacy" : loadBanner.runnable ? "warn" : "block"}`} data-testid="flow-validation-banner">
+            <span className="validation-load-banner-text">
+              {loadBanner.underCompatibility ? (
+                <>
+                  <strong>Legacy Compatibility</strong> — this flow still runs until{" "}
+                  <strong>{loadBanner.compatibilityExpiresAt?.slice(0, 10)}</strong> with {loadBanner.toleratedCount} off-path error(s) tolerated. Fix or migrate it before the deadline.
+                </>
+              ) : loadBanner.runnable ? (
+                <>
+                  This flow is runnable with <strong>{loadBanner.warningCount}</strong> warning(s).
+                </>
+              ) : (
+                <>
+                  <strong>Not runnable</strong> — {loadBanner.blockingCount} issue(s) block execution.
+                  {loadBanner.standing === "expired" ? " Its Legacy Compatibility period has ended." : null}
+                  {loadBanner.standing === "edited" ? " Its Legacy Compatibility ended when the flow was edited." : null}
+                </>
+              )}
+            </span>
+            <button className="toolbar-button" type="button" onClick={() => setIssuesOpen(true)}>
+              Review manually
+            </button>
+            {loadBanner.safeFixCount > 0 ? (
+              <button className="toolbar-button primary" type="button" onClick={() => void openFixPreview()} data-testid="flow-fix-safe-issues">
+                Fix {loadBanner.safeFixCount} safe issue{loadBanner.safeFixCount === 1 ? "" : "s"}…
+              </button>
+            ) : null}
+            <button className="toolbar-button" type="button" onClick={() => setLoadBanner(null)} aria-label="Dismiss validation banner">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {lastMigration ? (
+          <div className="validation-load-banner ok" data-testid="flow-migration-undo">
+            <span className="validation-load-banner-text">Safe fixes applied. The original was backed up before any change.</span>
+            <button className="toolbar-button" type="button" onClick={() => void undoLastMigration()}>
+              Undo migration
+            </button>
+            <button className="toolbar-button" type="button" onClick={() => setLastMigration(null)}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         <div className="flow-action-bar">
           <div className="flow-action-title">
             <strong>{flowName}</strong>
@@ -1047,6 +1163,37 @@ function FlowChartDesignerContent() {
           </div>
         </div>
       </div>
+      {/* Change preview + explicit confirmation — required before any fix is written (owner
+          decision 2). Every listed change is a schema migration that cannot alter execution. */}
+      {fixPreview ? (
+        <div className="modal-overlay" role="presentation">
+          <div className="modal-dialog validation-fix-dialog" role="dialog" aria-modal="true" aria-labelledby="fix-preview-title" data-testid="flow-fix-preview">
+            <h2 id="fix-preview-title">Apply {fixPreview.fixes.length} safe fix{fixPreview.fixes.length === 1 ? "" : "es"}?</h2>
+            <div className="modal-body">
+              <p>
+                These are schema-only corrections — they cannot change what the flow does. The original is backed up first and you can undo it.
+                Errors: <strong>{fixPreview.beforeErrorCount}</strong> → <strong>{fixPreview.afterErrorCount}</strong>.
+              </p>
+              <ul className="validation-fix-list">
+                {fixPreview.fixes.map((fix) => (
+                  <li key={`${fix.edgeId ?? "flow"}-${fix.field}-${fix.from}`}>
+                    <code>{fix.edgeId ? `${fix.edgeId}.` : ""}{fix.field}</code>: <code>{fix.from}</code> → <code>{fix.to}</code>
+                    <span className="validation-fix-why">{fix.description}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="modal-actions">
+              <button className="toolbar-button" type="button" onClick={() => setFixPreview(null)}>
+                Cancel
+              </button>
+              <button className="toolbar-button primary" type="button" onClick={() => void confirmApplyFixes()} data-testid="flow-fix-confirm">
+                Apply fixes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
       {connectPrompt ? (
         <ConfirmDialog

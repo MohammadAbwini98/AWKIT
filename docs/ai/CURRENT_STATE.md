@@ -1,5 +1,49 @@
 # CURRENT_STATE
 
+## Randomized Test Lab — Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem (2026-07-22, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** Tranche 2 is complete. Enforcement is now the **full gate**:
+off-path errors block too, unless the flow holds an explicit, time-limited, audited **Legacy
+Compatibility grant**. Suggested fixes exist, are never automatic, and are fully reversible.
+
+- **Policy core** (`src/validation/LegacyCompatibility.ts`, pure): `effectiveVerdict` is the single
+  Stage 2c decision used by the run gate, designer, library and IPC. A grant tolerates **off-path
+  errors only** — it can never excuse an active-path or connector-structure error. Grants are bound to
+  a **content hash** over `{version, nodes, edges}`: renaming a flow or editing its description keeps
+  the grant; changing anything executable voids it instantly (`standing: "edited"`). Grants expire
+  (30-day window), can be revoked (`repaired` / `migrated`), and count runs for audit. `runnable`
+  remains derived — nothing is persisted onto a flow profile.
+- **Inventory scan** (`app/main/validation/flowValidationService.ts`): classifies every flow as
+  `valid` · `temporarily-compatible` · `immediately-blocked` · `possible-validator-defect`, and issues
+  grants only to the off-path-only group. Re-scanning never re-issues or extends a deadline.
+  `possible-validator-defect` = the validator rejects a flow whose exact content already completed a
+  successful run after its last edit (from durable run history) — flagged for human review, never
+  silently granted. `ensureInventoryScan` runs on the first gate call, so tightening validation cannot
+  silently break flows that ran yesterday.
+- **Suggested fixes** (`src/validation/SafeFixApplier.ts`, pure): schema migration only — enum-casing
+  normalization and duplicate *connector* id regeneration. Ceremony: **preview → explicit confirm →
+  untouched backup → apply → migration report → undo**. Undo restores byte-for-byte and refuses if the
+  flow was edited after the migration. Duplicate *node* ids, missing locators/values, orphans, missing
+  End nodes, broken endpoints, unknown operators, bad timeouts and over-cap loops all carry **no** fix.
+- **UI:** designer validate-on-load banner (Legacy / warnings / not-runnable, with *Review manually*
+  and *Fix N safe issues…*); a change-preview dialog listing every rewrite; an undo banner after a
+  migration; the Flow Library shows a distinct dashed **"Legacy · until YYYY-MM-DD"** pill. Opening a
+  legacy flow never modifies or saves it (GUI-verified).
+- **New IPC:** `validation:*` (statusAll, status, meta, grants, latestScan, runInventoryScan,
+  previewSafeFixes, applySafeFixes, undoMigration, migrations). Mutating channels require
+  `WORKFLOW_EDIT`. 198 handlers, contract green.
+- **Verification:** `verify-legacy-compat` **90/0** (new) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · `verify-random-generator` **49/0** · `verify-random-roundtrip`
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56 real Electron** ·
+  `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16**
+  · `verify:instance-monitor` **43/0** · `verify:authz` **40/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Defect found & fixed:** migration ids/backup paths were `flowId.timestamp`, so two migrations in
+  the same millisecond collided and the second would have **overwritten the first's backup**. Ids are
+  now uniquified. Also corrected a Stage 2a latent bug: the `safeFix.field` path for conditional vs
+  loop-condition operators was inverted (harmless while metadata was descriptive-only; a silent no-op
+  once an applier consumed it) — both directions are now pinned by tests.
+
 ## Randomized Test Lab — Tranche 2 Stage 2b: validation engine WIRED into production (2026-07-21, epic `awkit-wza`)
 
 **Branch `feature/randomized-test-lab`.** The shared `FlowValidator` engine now drives the run gate, the

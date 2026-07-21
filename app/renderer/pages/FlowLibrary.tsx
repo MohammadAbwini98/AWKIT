@@ -1,6 +1,5 @@
 import { Copy, Download, FilePlus2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { executionBlockingErrorsOf, errorsOf, validateFlowSet, warningsOf } from "@src/validation/FlowValidator";
 import { usePageChrome } from "../state/pageChrome";
 import { useNavigation } from "../state/navigation";
 import { usePermissions } from "../security/usePermissions";
@@ -46,12 +45,13 @@ const flowFilterFields: FilterFieldDef[] = [
   { key: "connectorsMax", label: "Max connectors", type: "number" }
 ];
 
-/** Derived per-flow validation state for the library list. NEVER persisted (owner decision 1). */
-interface FlowValidationStatus {
-  blocking: number;
-  errors: number;
-  warnings: number;
-}
+/**
+ * Derived per-flow validation state for the library list. NEVER persisted (owner decision 1).
+ * Sourced from `validation:statusAll` in main, so the library, the designer banner and the run
+ * gate all apply the same Stage 2c policy — including Legacy Compatibility grants, which the
+ * renderer cannot see on its own.
+ */
+type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.statusAll>>[number];
 
 export function FlowLibrary() {
   const { navigateTo } = useNavigation();
@@ -66,24 +66,24 @@ export function FlowLibrary() {
   const table = useTableState("flows");
 
   // Runnable status is DERIVED, asynchronously, every time the list changes: reset to "Checking…"
-  // and validate off the current tick so a large library never blocks the renderer paint. The
+  // then ask main (which owns the Legacy Compatibility grants) for the current verdicts. The
   // result is state only — nothing is written back into any flow profile.
   useEffect(() => {
     setValidationStatus(null);
     if (flows.length === 0) return undefined;
-    const handle = window.setTimeout(() => {
-      const set = validateFlowSet(flows);
-      const next = new Map<string, FlowValidationStatus>();
-      for (const report of set.reports) {
-        next.set(report.flowId, {
-          blocking: executionBlockingErrorsOf(report).length,
-          errors: errorsOf(report).length,
-          warnings: warningsOf(report).length
-        });
-      }
-      setValidationStatus(next);
-    }, 0);
-    return () => window.clearTimeout(handle);
+    let cancelled = false;
+    window.playwrightFlowStudio.validation
+      .statusAll()
+      .then((statuses) => {
+        if (cancelled) return;
+        setValidationStatus(new Map(statuses.map((status) => [status.flowId, status])));
+      })
+      .catch(() => {
+        if (!cancelled) setValidationStatus(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [flows]);
 
   // Open a flow in the Flow Designer (persist the selection so the designer loads it).
@@ -280,17 +280,29 @@ export function FlowLibrary() {
                           if (!flowValidation) {
                             return <span className="state-pill pill-inactive" data-validation="checking">Checking…</span>;
                           }
-                          if (flowValidation.blocking > 0) {
+                          if (flowValidation.blockingCount > 0) {
                             return (
-                              <span className="state-pill pill-blocked" data-validation="not-runnable" title={`${flowValidation.blocking} error${flowValidation.blocking === 1 ? "" : "s"} block execution`}>
+                              <span className="state-pill pill-blocked" data-validation="not-runnable" title={`${flowValidation.blockingCount} error${flowValidation.blockingCount === 1 ? "" : "s"} block execution`}>
                                 Not runnable
                               </span>
                             );
                           }
-                          if (flowValidation.errors > 0 || flowValidation.warnings > 0) {
-                            const count = flowValidation.errors + flowValidation.warnings;
+                          // Persistent, never-silent Legacy Compatibility marker with its deadline.
+                          if (flowValidation.underCompatibility) {
                             return (
-                              <span className="state-pill pill-warning" data-validation="warnings" title={`${flowValidation.errors} off-path error(s), ${flowValidation.warnings} warning(s) — does not block execution`}>
+                              <span
+                                className="state-pill pill-legacy"
+                                data-validation="legacy-compatibility"
+                                title={`Runs under Legacy Compatibility until ${flowValidation.compatibilityExpiresAt?.slice(0, 10)} — ${flowValidation.toleratedCount} off-path error(s) tolerated. Fix or migrate before the deadline.`}
+                              >
+                                Legacy · until {flowValidation.compatibilityExpiresAt?.slice(0, 10)}
+                              </span>
+                            );
+                          }
+                          if (flowValidation.errorCount > 0 || flowValidation.warningCount > 0) {
+                            const count = flowValidation.errorCount + flowValidation.warningCount;
+                            return (
+                              <span className="state-pill pill-warning" data-validation="warnings" title={`${flowValidation.errorCount} error(s), ${flowValidation.warningCount} warning(s) — none block execution`}>
                                 {count} finding{count === 1 ? "" : "s"}
                               </span>
                             );

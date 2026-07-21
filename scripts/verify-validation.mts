@@ -33,6 +33,7 @@ import {
 } from "@src/validation/FlowValidator";
 import { ALL_STEP_TYPES, STEP_REQUIREMENTS } from "@src/validation/StepRequirements";
 import { FLOW_BOUNDS } from "@src/profiles/FlowValidation";
+import { FLOW_VALIDATOR_VERSION, effectiveVerdict, flowContentHash } from "@src/validation/LegacyCompatibility";
 import { PreRunValidator, isRunBlocked, type PreRunValidationIssue } from "@src/reports/PreRunValidator";
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { ALL_FLOW_PATTERNS, resolveConstraints } from "@src/testing/random/GenerationConstraints";
@@ -718,12 +719,23 @@ console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
     activeIssue !== undefined && activeIssue.flowId === "gate-active" && activeIssue.nodeId === "n-click" && activeIssue.onActivePath === true && activeIssue.blocking === true
   );
 
-  // 4. Off-path errors do not block.
+  // 4. Off-path errors: reported distinctly, and — since Stage 2c — blocking UNLESS a Legacy
+  // Compatibility grant tolerates them. (Stage 2b's universal off-path tolerance was the declared
+  // interim posture; `verify-legacy-compat.mts` owns the full grant matrix.)
   const offPath = baseFlow({ id: "gate-offpath", nodes: [...baseFlow().nodes, step("n-orphan", "screenshot")] });
   const offPathIssues = gate([offPath], scenarioFor("gate-offpath"));
   const orphanIssue = offPathIssues.find((issue) => issue.code === "unreachableNode");
-  check("an off-path error is reported but does NOT block the run", orphanIssue !== undefined && orphanIssue.severity === "error" && !isRunBlocked(offPathIssues));
-  check("...and it is explicitly marked non-blocking", orphanIssue?.blocking === false && orphanIssue?.onActivePath === false);
+  check("an off-path error is reported and blocks under the Stage 2c full gate", orphanIssue !== undefined && orphanIssue.severity === "error" && isRunBlocked(offPathIssues));
+  check("...and is still classified off the active path (so a grant can tolerate it)", orphanIssue?.onActivePath === false && orphanIssue?.blocking === true);
+  const tolerated = validator.validate({
+    scenario: scenarioFor("gate-offpath"),
+    flows: [offPath],
+    legacyCompatibility: {
+      grants: new Map([[offPath.id, { id: offPath.id, contentHash: flowContentHash(offPath), grantedAt: "2026-07-01T00:00:00.000Z", expiresAt: "2099-01-01T00:00:00.000Z", validatorVersion: FLOW_VALIDATOR_VERSION, issueCodes: ["unreachableNode"], runsUnderCompatibility: 0 }]]),
+      nowIso: "2026-07-21T00:00:00.000Z"
+    }
+  });
+  check("...and a valid Legacy Compatibility grant makes it non-blocking", !isRunBlocked(tolerated) && tolerated.some((issue) => issue.code === "unreachableNode" && !issue.blocking));
 
   // Deviation (documented): connector-structure errors block regardless of path, because the
   // runtime (FlowExecutor.ts:69-72) refuses such flows flow-wide.
@@ -790,7 +802,9 @@ console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
   const repeat = gate([activeBroken], scenarioFor("gate-active"));
   check("...and identical input yields identical output (no hidden caching)", JSON.stringify(before) === JSON.stringify(repeat));
 
-  // 13. CLI/Test Lab (engine) and the production gate agree on the same input.
+  // 13. CLI/Test Lab and the production gate agree on the same input. Compared through the SAME
+  // policy function the gate uses (`effectiveVerdict` — the Stage 2c full gate with no grants), so
+  // this proves the two callers agree rather than that two different policies coincide.
   const agreementFixtures: FlowProfile[] = [
     baseFlow({ id: "agree-valid" }),
     baseFlow({ id: "agree-orphan", nodes: [...baseFlow().nodes, step("n-orphan", "screenshot")] }),
@@ -798,7 +812,8 @@ console.log("\nRun gate: PreRunValidator as a thin adapter (Stage 2b)");
     legacyFlow()
   ];
   const disagreements = agreementFixtures.filter((flow) => {
-    const engineBlocking = executionBlockingErrorsOf(validateFlowDefinition(flow, { referenceableFlowIds: new Set(agreementFixtures.map((f) => f.id)) })).length > 0;
+    const report = validateFlowDefinition(flow, { referenceableFlowIds: new Set(agreementFixtures.map((f) => f.id)) });
+    const engineBlocking = effectiveVerdict(report, undefined, flowContentHash(flow), new Date().toISOString()).blocked;
     const gateBlocking = isRunBlocked(gate([flow], scenarioFor(flow.id)));
     return engineBlocking !== gateBlocking;
   });

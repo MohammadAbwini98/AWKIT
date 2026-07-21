@@ -1,7 +1,17 @@
 # Flow Validation Engine — Design (Test Lab Tranche 2)
 
-Date: 2026-07-21 · Status: **Stages 2a + 2b IMPLEMENTED; 2c awaiting approval** · Epic: `awkit-wza`
+Date: 2026-07-22 · Status: **COMPLETE — Stages 2a, 2b and 2c implemented** · Epic: `awkit-wza`
 (gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both closed by 2b)
+
+> **Stage 2c landed 2026-07-22** (`awkit-9xb`). Enforcement is now the full gate: off-path errors block
+> unless an explicit, time-limited, content-bound, audited Legacy Compatibility grant tolerates them
+> (`src/validation/LegacyCompatibility.ts` — pure policy; `effectiveVerdict` is the single decision
+> every surface uses). The inventory scan classifies the library into immediately-blocked ·
+> temporarily-compatible · valid · possible-validator-defect and grants only the off-path-only group;
+> re-scans never extend a deadline. Suggested fixes (`SafeFixApplier.ts`) cover schema migration only,
+> behind preview → confirm → backup → apply → report → undo. Deviation worth noting: grants are keyed
+> to a content HASH rather than a stored "unchanged" flag, so an edit voids compatibility even if the
+> app never observed the edit. `verify-legacy-compat.mts` (90/0) drives the real service.
 
 > **Stage 2a landed 2026-07-21** (`awkit-lqe`, commit `491eff0`). `src/validation/FlowValidator.ts` +
 > `StepRequirements.ts` + `scripts/verify-validation.mts` (99/0); `verify-random-oracle` 19/1 → **26/0**.
