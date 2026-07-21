@@ -4,9 +4,9 @@
 **Branch:** `feature/randomized-test-lab` (3 commits, **not pushed**)
 **Epic:** `awkit-wza` (Randomized Automation Test Lab) · **Tranche 2 = validation**
 **Design doc:** [`FLOW_VALIDATION_ENGINE_DESIGN.md`](./FLOW_VALIDATION_ENGINE_DESIGN.md)
-**Status:** `INTEGRATION-CANDIDATE` — Stages 2a, 2b, 2c implemented and verified, plus a hardening
-checkpoint (SHA-256 grant binding + packaged validation). The clean offline VM walkthrough remains
-the outstanding gate; see §12.
+**Status:** `INTEGRATION-CANDIDATE — clean offline VM and installer validation pending` — Stages 2a, 2b,
+2c implemented and verified, plus a hardening checkpoint (SHA-256 grant binding + packaged validation,
+both complete). The clean offline VM walkthrough and NSIS installer validation remain; see §12.
 
 ---
 
@@ -378,7 +378,7 @@ First inventory scan of 64 flows: **334 ms**, worst renderer round-trip during i
    `expired`). Both fixed; `legacyDigest` is now additionally asserted *before* the scan retires it.
 
 ### Status
-`INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending`. Both named items are
-now complete. Status deliberately does **not** advance: the clean **offline VM walkthrough** has not
-been run, and green source / Electron-dev / packaged-on-dev-machine suites are not sufficient
-evidence for a production-ready claim.
+`INTEGRATION-CANDIDATE — clean offline VM and installer validation pending`. The two items the previous
+status named (SHA-256 grant binding, packaged validation) are **complete**. The status now names what
+actually remains: the clean **offline VM walkthrough** and **NSIS installer** validation. Green source /
+Electron-dev / packaged-on-dev-machine suites are not sufficient evidence for a production-ready claim.

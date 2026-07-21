@@ -1,6 +1,6 @@
 # Flow Validation Engine — Design (Test Lab Tranche 2)
 
-Date: 2026-07-22 · Status: **INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding
+Date: 2026-07-22 · Status: **INTEGRATION-CANDIDATE — clean offline VM and installer validation
 pending** · Epic: `awkit-wza` (gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both closed by 2b)
 
 > **Hardening checkpoint 2026-07-22** (`awkit-xy3`). Grant binding moved from FNV-1a to **SHA-256**
@@ -12,8 +12,9 @@ pending** · Epic: `awkit-wza` (gaps `awkit-7fm` ✅, `awkit-acw` ✅ — both c
 > on clean and upgrade profiles (87/0), including all ten `validation:*` channels and their
 > authorization matrix.
 >
-> Status deliberately remains INTEGRATION-CANDIDATE: source, Electron-dev and packaged-on-dev-machine
-> suites are green, but the clean **offline VM** walkthrough has not been run.
+> Both items that status previously named are complete (SHA-256 binding; packaged validation 87/0).
+> Status remains INTEGRATION-CANDIDATE for the REMAINING gates: the clean **offline VM** walkthrough
+> and **NSIS installer** validation.
 
 > **Stage 2c landed 2026-07-22** (`awkit-9xb`). Enforcement is now the full gate: off-path errors block
 > unless an explicit, time-limited, content-bound, audited Legacy Compatibility grant tolerates them

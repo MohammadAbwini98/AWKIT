@@ -2,10 +2,11 @@
 
 ## Flow Validation Engine (Tranche 2) — INTEGRATION-CANDIDATE, hardened (2026-07-22, epic `awkit-wza`)
 
-**Status: `INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending` is now
-satisfied for both named items, but the status does NOT advance to production-ready:** the clean
-offline VM walkthrough remains unrun. Green source, Electron-dev and packaged-on-dev-machine suites
-are not sufficient evidence for that claim.
+**Status: `INTEGRATION-CANDIDATE — clean offline VM and installer validation pending`.** The two items
+the previous status named — SHA-256 grant binding and packaged validation — are **complete** (accepted
+2026-07-22). The status now names what actually remains: the clean **offline VM walkthrough** and
+**NSIS installer** validation. Green source, Electron-dev and packaged-on-dev-machine suites are not
+sufficient evidence for a production-ready claim.
 
 - **SHA-256 grant binding.** Legacy Compatibility grants bind to
   `sha256:<64 hex>` over the flow's canonical executable content. A grant changes execution
