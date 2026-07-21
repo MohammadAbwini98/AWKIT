@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import type { LoginOption, PrincipalSnapshot, ProviderId } from "@src/security/auth/AuthTypes";
 import { App } from "../App";
 import { resolveAppearance, type AppearanceMode } from "../state/theme";
+import { applyAccent, readCachedAccent } from "../state/accentTheme";
 import { SessionContext } from "./SessionContext";
 import { LockedShell } from "./LockedShell";
 import { LoginScreen, type LoginSubmitResult } from "./screens/LoginScreen";
@@ -48,7 +49,11 @@ export function SecurityGate() {
   useLayoutEffect(() => {
     if (state === "authed") return;
     const apply = () => {
-      document.documentElement.dataset.theme = resolveAppearance(readAppearance());
+      const theme = resolveAppearance(readAppearance());
+      document.documentElement.dataset.theme = theme;
+      // Honor a saved custom accent on the login/first-run screens too (initial paint is handled by
+      // the inline bootstrap script; this covers live OS light↔dark changes while signed out).
+      applyAccent(document.documentElement, readCachedAccent(), theme);
     };
     apply();
     const media = window.matchMedia("(prefers-color-scheme: dark)");

@@ -49,6 +49,27 @@ npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Elect
                             # drag re-renders only the dragged node (edges follow via the overlay, static
                             # EdgeLayer not per-frame), and editing one node re-renders only that node.
                             # Structural, not timing. Requires build. (13/13)
+npm run verify:accent-theme # tsx scripts/verify-accent-theme.mts — pure accent-color model: hex validation/
+                            # normalize, light/dark solid token derivation, WCAG foreground contrast, visibility
+                            # rescue, gradient stop derivation (text-safe vs vivid), legacy {color}→settings
+                            # migration, preset detection, angle clamp, corrupt-value fallback. No Electron. (71/71)
+npm run verify:branding     # tsx scripts/verify-branding.mts — pure custom-logo model: PNG signature +
+                            # IHDR dimension read, 5MB/32×32–2048×2048 rules, accepted input formats (incl.
+                            # SVG), BrandingLogoStore round-trip + corrupt/missing/tamper fallback +
+                            # atomic-replace-preserves-old + injected-decode gate, SETTINGS_BRANDING_MANAGE
+                            # permission wiring. No Electron. (47/47)
+npm run verify:branding-gui # node scripts/verify-branding-gui.mjs — real-Electron E2E for the Super-User
+                            # Workspace Logo: default icon → SU card + preview + Apply (sidebar updates) →
+                            # SVG rasterized-to-PNG + applied → Administrator sees the logo but NOT the card +
+                            # direct-IPC upload/remove DENIED → Replace cache-invalidation → Remove restores
+                            # default → restart persistence → corrupt-asset fallback (no broken image, no
+                            # crash). Requires build. (30/30)
+npm run verify:accent-gui   # node scripts/verify-accent-gui.mjs — real-Electron E2E for Appearance → Accent
+                            # Color (solid + gradient): default purple → solid custom (button + connector
+                            # recolor, status intact) → gradient custom (data-accent-mode=gradient, primary
+                            # button gradient, fine controls stay solid) → Specter Blue preset → Flow Designer +
+                            # login honor it → reload no-flash restore → Reset to solid default (ui-settings.json
+                            # shape asserted). Requires build. (33/33)
 npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
 npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
 npm run verify:ipc-contract  # tsx scripts/verify-ipc-contract.mts — renderer↔main IPC contract guard (no broken/duplicate/undocumented channels)
@@ -134,6 +155,14 @@ npm run verify:stress:artifacts   # tsx scripts/verify-stress-artifacts.mts — 
                             # AWKIT_STRESS_TIMEOUT_MS=120000
 # Security / RBAC / licensing verifiers (added 2026-07-18/19):
 npm run verify:security     # tsx scripts/verify-security.mts — sender guard, IPC hardening (39)
+npm run verify:https-certificates # tsx scripts/verify-https-certificates.mts — "Ignore invalid HTTPS
+                            # certificates": defaults/precedence/context options/fallback arg/error
+                            # messaging + LIVE Chromium against local self-signed, expired and
+                            # wrong-host HTTPS servers via BrowserContextFactory + RecorderService (55)
+npm run verify:https-certificates-gui # node scripts/verify-https-certificates-gui.mjs — REAL Electron
+                            # Settings → Recorder Security walkthrough: default off, confirmation dialog,
+                            # cancel/enable, restart persistence, legacy settings file, import guard
+                            # (31; needs build)
 npm run verify:auth         # tsx scripts/verify-auth.mts — auth domain: policy, sessions, rotation (49)
 npm run verify:auth-gui     # node scripts/verify-auth-gui.mjs — REAL Electron sign-in walkthrough incl.
                             # AccountMenu sign-out, dark login, proactive idle lock (18; needs build)

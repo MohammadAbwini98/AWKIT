@@ -2,6 +2,56 @@
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 
+## Custom workspace logo — Super User branding (2026-07-21)
+
+- ✅ **Settings → Appearance → Workspace Logo** (`app/renderer/pages/BrandingSettings.tsx`), **visible only
+  to a Super User** (`SETTINGS_BRANDING_MANAGE`; card hidden for other roles, enforced again in main): choose
+  a local image, live preview, **Apply**, **Replace Logo**, **Remove Custom Logo** (restores default), Cancel
+  a pending pick. Keyboard-accessible; token-only CSS; a11y-safe (the `.nav-workspace` block stays
+  `aria-hidden`, so the swapped `<img>` uses `alt=""`).
+- ✅ Replaces the **entire bottom sidebar workspace block** (`.nav-workspace` — icon + "SpecterStudio" +
+  "Offline workspace") with the custom logo when one is set; the default block (with the name/subtitle)
+  returns when it's removed. The top brand-tile app icon is unchanged. Custom logo is `object-fit: contain`,
+  transparency-safe, DPI-safe, never stretched or cropped.
+- ✅ Supports **PNG/JPG/JPEG/WEBP/SVG**; ≤ **5 MB**; **32×32–2048×2048**. Validated by real decode +
+  signature, not extension. The renderer normalizes any upload to a capped PNG (`<img>` + canvas, aspect/alpha
+  preserved, animation flattened); the main process re-validates (signature + size + `nativeImage` decode)
+  before storing — the renderer is never trusted. **SVG needs no separate sanitizer**: it is rasterized to
+  PNG in the browser's secure static image mode (no script execution, no external resource loads), the source
+  markup is discarded and never DOM-injected, and a tainted-canvas read is rejected.
+- ✅ Stored in an app-controlled managed folder `%LOCALAPPDATA%/SpecterStudio/branding/active/` (writable
+  without admin, offline, portable, survives restart; outside the install dir) as `logo.png` +
+  `manifest.json` — never the original source path. **Atomic replace** (old asset preserved on failure);
+  Apply updates all open windows immediately with no page/canvas reload. Content-addressed `data:` URL =
+  cache invalidation on replace.
+- ✅ **Falls back to the built-in icon automatically** on any missing/removed/disabled/unreadable/corrupt/
+  out-of-range/decode-failed state — never blocks startup, never shows a broken-image icon. Every mutation is
+  audited (`BRANDING_LOGO_UPDATED`/`_RESET`/`_UPDATE_REJECTED`); unauthorized direct-IPC calls are rejected.
+  Verified by `verify:branding` (45) + `verify:branding-gui` (26).
+
+## Accent Color theming — solid + gradient (2026-07-20)
+
+- ✅ **Appearance → Accent Color** setting (`app/renderer/pages/AccentColorSettings.tsx`): choose a **solid**
+  accent or a **two-color gradient** accent to replace the default Hologram purple (`#7C3AED`). Solid|Gradient
+  segmented control; **Default Purple / Specter Blue / Custom** presets; primary + (gradient-only) secondary
+  color pickers with validated hex + swatches + **Swap**; low-contrast warning; scoped live preview (primary
+  button / active nav / active tab / focus ring / selected node / port / toggle / badge / **decorative gradient
+  strip**); Apply (disabled while invalid/unchanged), Reset to Default Purple, "Unsaved" dirty chip.
+  Keyboard-accessible; honors `:focus-visible`.
+- ✅ **Specter Blue** built-in gradient preset (`#1D4ED8 → #38BDF8`, angle 135) — a controlled multi-stop flow
+  deep→royal→bright-cyan→cyan→deep. Derived from the brand description (no blue logo asset exists; the logo is
+  left untouched).
+- ✅ Applies app-wide instantly by overriding central accent CSS variables from a single stored accent. In
+  gradient mode a `data-accent-mode="gradient"` attribute layers a **text-safe** gradient onto high-value
+  surfaces (primary buttons, active nav, selected nodes) while **fine controls (ports, focus rings,
+  checkboxes, connectors) stay solid**; the vivid variant is used for decorative strips. Derivation is pure TS
+  (`src/theme/accentColor.ts`) with WCAG-aware foreground clamping and light/dark handling. Semantic status
+  colors are never changed; the canvas is recolored CSS-only (no graph rerender / no state reset).
+- ✅ Persists in `ui-settings.json` as `accent {mode, primaryColor, secondaryColor, preset, gradientAngle}`
+  (survives restart / refresh / sign-out / offline / packaged; legacy `{color}` migrates safely), restores with
+  no accent flash (localStorage bootstrap cache read before React mounts), and Reset restores the exact original
+  purple by removing the override. Verified by `verify:accent-theme` (71) + `verify:accent-gui` (33).
+
 ## Workflow-reference contextual editors (2026-07-11)
 
 - Flow Designer and Workflow Builder use one shared searchable contextual picker: blank-canvas
@@ -124,6 +174,15 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback. Recorder
   Controls exposes a persisted Smart Wait toggle, and the recorded-actions list summarizes captured wait
   types. Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
+- ✅ **Ignore invalid HTTPS certificates** (`Settings → Recorder Security`, `recorder.security.ignoreHttpsErrors`,
+  **default off**): lets Recorder AND workflow execution continue past untrusted/expired/self-signed/
+  wrong-host certificates in authorized internal/test environments. Applied as a Playwright **context**
+  option by `src/security/browser/CertificateTrust.ts` → `BrowserContextFactory` (persistent + pooled +
+  dedicated) and `RecorderService` (initial + post-handoff resume); never by clicking Chromium's
+  interstitial, and never on the user's real Chrome. Precedence run → workflow → app → false; enabling
+  requires `SETTINGS_EDIT` + a confirmation dialog; reports record `security.ignoreHttpsErrors`.
+  See `docs/HTTPS_CERTIFICATE_TRUST.md`; `npm run verify:https-certificates` (55) +
+  `verify:https-certificates-gui` (31).
 - ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
   locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → **compound

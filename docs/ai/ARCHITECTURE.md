@@ -18,7 +18,10 @@ app/
     profileStores.ts    JSON profile stores (flows/workflows/dataSources/reports/...)
     ipc/                IPC handlers: flow, scenario(workflow), execution, instance,
                         dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime,
-                        oracle
+                        oracle, branding
+    brandingService.ts  Main-process wiring for the custom workspace logo (lazy singleton): constructs the
+                        BrandingLogoStore over %LOCALAPPDATA%/SpecterStudio/branding/ + injects the Electron
+                        nativeImage decode used to reject corrupt uploads
     oracleService.ts    Main-process Oracle wiring (lazy singleton): profile store + DPAPI secret vault +
                         bridge manager + profile/query services; owns the fail-closed launch decision and
                         disposes the Java child on before-quit (no orphan process)
@@ -35,6 +38,11 @@ app/
     state/              navigation.tsx, pageChrome.tsx (header actions + dirty flag)
     styles/global.css   single plain-CSS stylesheet
 src/                    framework-agnostic core (no Electron/React imports, except runner→appPaths)
+  branding/             Custom workspace-logo core (no Electron): BrandingValidation (pure PNG signature +
+                        IHDR dimension read + 5 MB / 32×32–2048×2048 rules), BrandingLogoStore (managed
+                        single-asset folder, stage-then-atomic-publish, get() never throws → default
+                        fallback on any inconsistency, injected decodeAndVerify gate). Sole source of truth
+                        for the active logo; NOT mirrored into ui-settings.json.
   data/                 DataSourceProfile (jsonArray | oracle union; a missing `type` means jsonArray, so
                         pre-Oracle profile JSON loads unchanged), DataSourceResolver — THE authority that
                         normalizes every source type to one array-of-objects contract. Runtime Oracle =

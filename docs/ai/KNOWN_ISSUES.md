@@ -181,6 +181,23 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
      higher-memory machine (or with `"compression": "normal"` in `electron-builder.json`).
   All packaged verifiers (`verify:packaged-runtime`, `verify:packaged-walkthrough`) drive
   `dist/win-unpacked` directly, so they validate the hardened payload regardless of the final-EXE wrap.
+  **UPDATE (2026-07-21) — a shippable-size portable EXE now builds on this host.**
+  `npm run package:portable:lite` (= `package-portable.ps1 -Compression normal`, plus
+  `NODE_OPTIONS=--max-old-space-size=4096`) produced `dist\SpecterStudio 0.1.0.exe` at **310 MB** with **no
+  OOM** — the `"compression": "normal"` path this entry suggested. Strict offline validation passed and
+  **`verify:packaged-runtime` is 25/25** against it. So the `-mx=9`/`store` dilemma above is worked around
+  by `normal`; `maximum` remains untested here and is still presumed to OOM. Still NOT done: the
+  clean-machine offline VM walkthrough, the fuller `verify:packaged-walkthrough`, and **code signing**
+  (electron-builder logs `no signing info identified, signing is skipped`).
+
+- **`verify:packaged-runtime` was silently broken by the launch splash — FIXED (2026-07-21).** It used
+  `app.firstWindow()`, which returns the **bridge-less splash** BrowserWindow, so every
+  `window.playwrightFlowStudio.*` evaluate returned null and 10 of 22 checks failed against a
+  **perfectly good** packaged build (misleading "packaged app is broken" signal). PR #16 fixed this class
+  of bug for the `.mjs` GUI verifiers via `resolveMainWindow` in `scripts/lib/gui-verify-harness.mjs`, but
+  this `.mts` verifier was never migrated. It now polls `app.windows()` for the window that actually
+  exposes the preload bridge → **25/25**. If another `_electron` verifier reports an empty/undefined
+  runtime environment, suspect the splash first.
 
 - **Concurrency defaults throttle instance throughput (2026-07-06) — intentional, not a bug.** The new
   browser worker pool caps live Chromium processes at `AWKIT_MAX_BROWSERS` (default **2**) and active flows

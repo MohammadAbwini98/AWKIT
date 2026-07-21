@@ -33,6 +33,8 @@ export const Permission = {
   REPORT_EXPORT: "report.export",
   // ── System configuration ───────────────────────────────────────────────────
   SETTINGS_EDIT: "settings.edit",
+  /** Manage the custom workspace logo (Settings → Appearance → Branding). Super-User only. */
+  SETTINGS_BRANDING_MANAGE: "settings.appearance.branding.manage",
   CONFIG_VIEW_SENSITIVE: "config.viewSensitive",
   // ── Administration ─────────────────────────────────────────────────────────
   USER_MANAGE: "user.manage",
@@ -60,7 +62,8 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.LICENSE_IMPORT,
   Permission.LICENSE_REPLACE,
   Permission.LICENSE_REVOKE,
-  Permission.SETTINGS_EDIT
+  Permission.SETTINGS_EDIT,
+  Permission.SETTINGS_BRANDING_MANAGE
 ]);
 
 export type RoleId = "SuperUser" | "Administrator" | "Operator" | "Viewer";
@@ -95,11 +98,16 @@ const OPERATOR_PERMISSIONS: readonly Permission[] = [
   Permission.REPORT_EXPORT
 ];
 
-// Administrator = everything except user administration and licensing (those stay Super-User-only).
-// Every licensing permission (page.license + license.*) is withheld here so only the Super User manages
-// licenses — matching "Built-in Super User receives the required licensing permissions".
+// Administrator = everything except user administration, licensing, and workspace branding (those stay
+// Super-User-only). Every licensing permission (page.license + license.*) is withheld here so only the
+// Super User manages licenses — matching "Built-in Super User receives the required licensing
+// permissions" — and the custom-logo permission is withheld the same way (branding is Super-User-only).
 const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
-  (p) => p !== Permission.USER_MANAGE && p !== Permission.PAGE_LICENSE && !p.startsWith("license.")
+  (p) =>
+    p !== Permission.USER_MANAGE &&
+    p !== Permission.PAGE_LICENSE &&
+    p !== Permission.SETTINGS_BRANDING_MANAGE &&
+    !p.startsWith("license.")
 );
 
 /** Immutable built-in roles. Order = privilege rank (index 0 = highest). */

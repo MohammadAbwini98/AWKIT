@@ -31,6 +31,31 @@ const exePath = join(unpackedDir, "SpecterStudio.exe");
 const asarPath = join(unpackedDir, "resources", "app.asar");
 const packagedResources = join(unpackedDir, "resources", "resources");
 
+/**
+ * The launch splash is shown first and has NO preload bridge, so `app.firstWindow()` can return it (and
+ * it then self-closes, leaving a dead page). Poll `app.windows()` for the real main window that actually
+ * exposes `window.playwrightFlowStudio`. TS mirror of `resolveMainWindow` in
+ * `scripts/lib/gui-verify-harness.mjs`, which fixes the same trap for the .mjs GUI verifiers.
+ */
+async function resolveMainWindow(app: Awaited<ReturnType<typeof electron.launch>>, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  await app.firstWindow({ timeout: timeoutMs }).catch(() => undefined);
+  while (Date.now() < deadline) {
+    for (const w of app.windows()) {
+      try {
+        const ready = await w.evaluate(
+          () => typeof (window as any).playwrightFlowStudio !== "undefined" && !!(window as any).playwrightFlowStudio.executions
+        );
+        if (ready) return w;
+      } catch {
+        /* window navigating/closing — retry */
+      }
+    }
+    await sleep(300);
+  }
+  throw new Error("main window with the SpecterStudio bridge did not appear within timeout");
+}
+
 let passed = 0;
 let failed = 0;
 function check(label: string, condition: unknown, detail?: string): void {
@@ -89,7 +114,11 @@ async function main(): Promise<void> {
   let environment: any = null;
   let status: any = null;
   try {
-    const win = await app.firstWindow({ timeout: 60_000 });
+    // The launch splash is shown FIRST and has NO preload bridge, so `firstWindow()` can hand back a
+    // window where `window.playwrightFlowStudio` is undefined (and which then self-closes) — the same
+    // trap `scripts/lib/gui-verify-harness.mjs` `resolveMainWindow` solves for the .mjs GUI verifiers.
+    // Poll for the real main window that actually exposes the bridge.
+    const win = await resolveMainWindow(app, 60_000);
     await win.waitForLoadState("domcontentloaded");
     check("packaged app launched and opened a window", true);
 

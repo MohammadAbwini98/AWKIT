@@ -10,6 +10,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
@@ -21,8 +22,14 @@ import type { SecretSummary } from "../../main/secretStore";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
+import { DEFAULT_ACCENT_SETTINGS } from "@src/theme/accentColor";
+import { AccentColorSettings } from "./AccentColorSettings";
+import { BrandingSettings } from "./BrandingSettings";
 import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
 const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string; hint: string }[] = [
   { id: "sequential", label: "Sequential", hint: "One instance at a time — safest, machine-independent." },
@@ -100,7 +107,8 @@ function validateClient(settings: UiSettings): string[] {
 }
 
 export function SettingsPage() {
-  const { appearance, setAppearance } = useTheme();
+  const { appearance, setAppearance, setAccent } = useTheme();
+  const { can } = usePermissions();
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pathStatus, setPathStatus] = useState<PathStatus>({});
@@ -110,6 +118,8 @@ export function SettingsPage() {
   const [defaultPaths, setDefaultPaths] = useState<Record<string, string>>({});
   const [capacity, setCapacity] = useState<CapacityPreview | null>(null);
   const [capacityLoading, setCapacityLoading] = useState(false);
+  /** Gate for the "Ignore invalid HTTPS certificates" confirmation (shown only when ENABLING). */
+  const [confirmIgnoreHttps, setConfirmIgnoreHttps] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const api = window.playwrightFlowStudio.settings;
   const secretsApi = window.playwrightFlowStudio.secrets;
@@ -225,6 +235,32 @@ export function SettingsPage() {
     []
   );
 
+  /**
+   * Persist the certificate-trust toggle immediately (it is a security control, not a draft field that
+   * waits for "Save Changes"). Enabling always routes through the confirmation dialog first; disabling
+   * — the secure direction — applies straight away. On failure the local state is reverted so the
+   * checkbox can never show a value the main process did not accept.
+   */
+  const applyIgnoreHttpsErrors = useCallback(
+    async (next: boolean) => {
+      setConfirmIgnoreHttps(false);
+      setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, security: { ignoreHttpsErrors: next } } } : prev));
+      try {
+        await api.update({ recorder: { security: { ignoreHttpsErrors: next } } });
+        setBanner({
+          type: "success",
+          text: next
+            ? "HTTPS certificate validation is now DISABLED for Recorder and workflow execution."
+            : "HTTPS certificate validation restored."
+        });
+      } catch {
+        setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, security: { ignoreHttpsErrors: !next } } } : prev));
+        setBanner({ type: "error", text: "Failed to update the certificate validation setting." });
+      }
+    },
+    [api]
+  );
+
   const save = useCallback(async () => {
     if (!settings) return;
     const validation = validateClient(settings);
@@ -254,9 +290,10 @@ export function SettingsPage() {
     if (!window.confirm("Reset ALL settings to defaults? This does not delete flows, workflows, or reports.")) return;
     await api.reset();
     setAppearance("light"); // keep the live theme in sync with the reset appearance default
+    setAccent(DEFAULT_ACCENT_SETTINGS); // restore the default purple accent live
     setBanner({ type: "success", text: "Settings reset to defaults." });
     await reload();
-  }, [api, reload, setAppearance]);
+  }, [api, reload, setAppearance, setAccent]);
 
   const clearUi = useCallback(async () => {
     await api.clearUiState();
@@ -383,6 +420,13 @@ export function SettingsPage() {
           </div>
         </section>
 
+        {/* Appearance — Accent Color (user-selectable brand accent) */}
+        <AccentColorSettings />
+
+        {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
+            Renderer gating is a hint — the main-process branding IPC independently enforces it. */}
+        {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
+
         {/* Paths & Directories */}
         <section className="work-panel settings-card">
           <div className="settings-card-head">
@@ -486,6 +530,47 @@ export function SettingsPage() {
             </label>
           </div>
         </section>
+
+        {/* Recorder → Security. Privileged: the main process requires SETTINGS_EDIT for this group. */}
+        {can(Permission.SETTINGS_EDIT) ? (
+          <section className="work-panel settings-card">
+            <div className="settings-card-head">
+              <ShieldAlert size={16} />
+              <h2>Recorder Security</h2>
+            </div>
+            <p className="settings-card-hint">
+              Applies to Recorder sessions and to workflow execution. Saved immediately — it does not wait for
+              “Save Changes”.
+            </p>
+            <div className="settings-grid">
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  checked={settings.recorder.security.ignoreHttpsErrors}
+                  onChange={(ev) => {
+                    // Enabling requires explicit confirmation; disabling applies immediately.
+                    if (ev.target.checked) setConfirmIgnoreHttps(true);
+                    else void applyIgnoreHttpsErrors(false);
+                  }}
+                />
+                Ignore invalid HTTPS certificates
+              </label>
+            </div>
+            <p className="settings-card-hint">
+              Allows Recorder and workflow execution to continue when a website uses an untrusted, expired,
+              self-signed, or incorrectly configured HTTPS certificate. Disabled by default. Only enable it for
+              authorized internal, development, or testing environments — for production, install your
+              organization’s trusted root certificate authority instead.
+            </p>
+            {settings.recorder.security.ignoreHttpsErrors ? (
+              <div className="settings-banner error">
+                <AlertTriangle size={15} />
+                Certificate validation is disabled. Recorder and workflow runs will accept untrusted HTTPS
+                certificates.
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {/* Runtime Concurrency — machine-aware capacity (Sequential / Auto / Manual) */}
         <section className="work-panel settings-card">
@@ -768,6 +853,24 @@ export function SettingsPage() {
           </p>
         </section>
       </div>
+
+      {/* Cancelling leaves the setting untouched — the checkbox reflects `settings`, which is only
+          written after a successful save, so it stays disabled on cancel. */}
+      {confirmIgnoreHttps ? (
+        <ConfirmDialog
+          danger
+          cancelLabel="Cancel"
+          confirmLabel="Enable"
+          title="Disable HTTPS certificate validation?"
+          message={
+            "Ignoring HTTPS certificate errors disables certificate trust validation for automated browser sessions.\n\n" +
+            "Only enable this option for authorized internal, development, or testing environments. Do not use it for unknown or public websites.\n\n" +
+            "Continue?"
+          }
+          onCancel={() => setConfirmIgnoreHttps(false)}
+          onConfirm={() => void applyIgnoreHttpsErrors(true)}
+        />
+      ) : null}
     </section>
   );
 }

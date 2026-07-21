@@ -4,6 +4,92 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-21 — Custom workspace logo is a managed folder (not a settings field); renderer-decoded PNG
+- **Decision:** The Super-User custom logo is stored as its own managed asset under
+  `%LOCALAPPDATA%/SpecterStudio/branding/active/{logo.png,manifest.json}` — the **sole source of truth**,
+  deliberately **NOT** mirrored into `ui-settings.json` (so it is also **not** part of Settings
+  Export/Import, matching Oracle driver bundles / Java runtimes). The image is normalized to PNG **in the
+  renderer** (`<img>` + canvas: caps at 2048, preserves aspect/transparency, flattens animation), sent to
+  main as a `Uint8Array`, then **independently re-validated** by main (signature + size + `nativeImage`
+  decode with an `.isEmpty()` gate) before an atomic stage-then-publish.
+- **Reason:** A settings flag *plus* an asset file creates two copies of "is a logo active" that can drift
+  — exactly the state the "always fall back to the default on any missing/corrupt/invalid" requirement must
+  avoid; a single self-describing folder that `get()` re-verifies (hash + dimensions + decode) on every read
+  makes fallback the natural failure mode. Renderer decode avoids a new runtime dependency (`sharp` is a
+  build-time devDependency only; the repo already chose WASM `sql.js` to dodge native-ABI packaging) while
+  giving correct PNG/JPG/JPEG/WEBP decoding (a real Chromium page); main's re-decode keeps the renderer
+  untrusted. Normalizing everything to PNG makes storage, re-validation, and redisplay single-format.
+- **Authorization decision:** branding uses the **sender-bound** `assertSenderPermission` path (like
+  `SETTINGS_EDIT`), not the explicit-`sessionRef` licensing/admin path — branding is a Settings sub-feature
+  and needs no renderer session plumbing. New `SETTINGS_BRANDING_MANAGE` is Super-User-only (withheld from
+  Administrator alongside `USER_MANAGE`/`license.*`). `assertSenderPermission` was widened to return the
+  `AuthorizedActor` (it already computed it) so the audit log gets the acting user without a second lookup.
+- **SVG decision (updated on request):** SVG **is accepted**, without adding an SVG sanitizer. The feature
+  never stores or renders SVG markup — the upload is RASTERIZED to PNG in the renderer's secure static image
+  mode (`<img>`/canvas: scripts never run, external resources never load), the source SVG is discarded, and a
+  tainted-canvas `toBlob` throw is treated as a rejection. Because only the resulting PNG is ever persisted
+  or displayed (and main re-validates it as PNG), this sidesteps the spec's "SVG only with a sanitizer"
+  caveat while giving users vector-logo support. A dimensionless/small vector is rendered up to a 512px
+  crisp target.
+- **Sidebar target:** the **entire bottom `.nav-workspace` block** (icon + name + subtitle) is replaced by
+  the custom logo when set — user-directed, overriding the original spec's "keep the name/subtitle visible"
+  since a logo is often a full wordmark. The top `.brand-tile` `SpecterAppIcon` is intentionally left tied
+  to `resources/icon.*` (the OS/taskbar identity).
+- **Related files:** `src/branding/{BrandingValidation,BrandingLogoStore}.ts`, `app/main/brandingService.ts`,
+  `app/main/ipc/branding.ipc.ts`, `app/renderer/lib/brandingImage.ts`, `app/renderer/state/branding.tsx`,
+  `app/renderer/pages/BrandingSettings.tsx`, `src/security/authz/Permissions.ts`,
+  `app/main/security/sessionContext.ts`, `src/offline/PortablePathResolver.ts`.
+
+---
+
+### 2026-07-20 — Gradient accent is layered on high-value surfaces; Specter Blue is description-derived
+- **Decision:** The accent gains a `solid | gradient` mode (`accent.mode` + `primaryColor`/`secondaryColor`/
+  `preset`/`gradientAngle`, migrated from the old `{ color }`). In gradient mode the app sets a
+  `data-accent-mode="gradient"` attribute on `:root`; CSS applies the derived multi-stop gradient **only to a
+  curated set** of high-value surfaces (primary buttons, active nav, selected nodes, badges) while **fine
+  controls (ports, focus rings, checkboxes, thin borders, connectors) keep the solid derived accent**. Two
+  gradients are generated: a **text-safe** one for labelled surfaces (bright stop auto-clamped so the
+  foreground stays legible) and a **vivid** one for decorative strips. Selected-node styling is CSS-only.
+- **Reason:** Gradients on text-bearing controls risk unreadable labels and, on the canvas, risk perf/clarity
+  regressions. Gating behind an attribute keeps **solid mode byte-for-byte unchanged**, keeps the change
+  CSS-only on the canvas (no React/graph changes → no whole-graph rerender, no zoom/pan/selection reset), and
+  keeps fine controls crisp. The text-safe/vivid split satisfies "meet WCAG AA where achievable" without
+  losing the brand's bright-cyan pop on decorative surfaces.
+- **Logo/preset caveat:** the prompt referenced an *attached blue-gradient logo*, but the repo's
+  `app/renderer/assets/brand/specter-logo.svg` is the **purple "5b" mark** (no blue asset), and no image was
+  attached to the session. The **Specter Blue** preset (`primary #1D4ED8` royal, `secondary #38BDF8` cyan-sky,
+  angle 135) is therefore **derived from the written brand description, not sampled**, and the logo asset is
+  left unchanged (it is not theme-aware).
+- **Related files:** `src/theme/accentColor.ts` (`buildAccentGradient`, `deriveAccentTokensFor`,
+  `normalizeAccentSettings`), `app/renderer/state/accentTheme.ts`, `app/renderer/pages/AccentColorSettings.tsx`,
+  `app/renderer/styles/global.css` (`[data-accent-mode="gradient"]`), `app/main/uiSettings.ts`.
+
+---
+
+### 2026-07-20 — User accent color is a runtime CSS-variable override, not a re-theme
+- **Decision:** The user-selectable accent is implemented by overriding a small set of already-central
+  accent CSS custom properties inline on `:root` at runtime, derived from a single stored base hex
+  (`accent.color`, `null` = default `#7C3AED`). The pure model lives in `src/theme/accentColor.ts` and is
+  shared by main-process validation and the renderer. Only accent tokens are overridden — semantic
+  status colors (success/warning/danger/info), semantic connectors (failure/parallel), and the per-user
+  avatar palette are deliberately excluded. **Reset removes the override** (persists `null`) so the exact
+  original purple returns, rather than storing a duplicate default.
+- **Reason:** The stylesheet already resolves the whole app's accent through `--awkit-accent*` /
+  `--awkit-edge*` / `--awkit-connector-default|loop|selected` (each with a `[data-theme]` override), so a
+  token override recolors login + Flow Designer + every control with zero changes to thousands of call
+  sites and zero risk to status colors. Deriving shades in pure TS (no color library) preserves the
+  offline-first / no-new-dependency constraint. A localStorage token cache read by the `index.html` inline
+  script before React mounts prevents a default-purple flash — mirroring the existing light/dark bootstrap.
+- **Impact:** New `accent:{color}` field in `UiSettings` (sanitized on hydrate/patch, validated, in
+  export/import); no new IPC (accent is per-user UI state, not `SETTINGS_EDIT`-gated). Contrast is enforced
+  by choosing white/near-black foreground per WCAG, and pathological light/dark picks are nudged for
+  surface visibility. Verified by `verify:accent-theme` (42/42) + real-Electron `verify:accent-gui` (22/22).
+- **Related files:** `src/theme/accentColor.ts`, `app/renderer/state/accentTheme.ts`,
+  `app/renderer/pages/AccentColorSettings.tsx`, `app/main/uiSettings.ts`, `app/renderer/App.tsx`,
+  `app/renderer/index.html`, `app/renderer/styles/global.css`.
+
+---
+
 ### 2026-07-17 — Oracle ships behind a private Java bridge, read-only, and fails closed in production
 - **Decision:** Oracle Database support runs **only** through a bundled private Java bridge — a
   zero-dependency, pure-JDK child process speaking framed JSON-RPC over **stdio (no network port)** — with

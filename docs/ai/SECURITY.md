@@ -31,6 +31,19 @@
   URL/provider/reason — never cookies/tokens/localStorage/session contents. See
   `docs/PROTECTED_LOGIN_HANDOFF.md`.
 
+## HTTPS certificate trust
+- `Settings → Recorder Security → Ignore invalid HTTPS certificates` (`recorder.security.ignoreHttpsErrors`,
+  **default false**) lets Recorder and workflow execution continue past untrusted/expired/self-signed/
+  mismatched certificates in **authorized internal or test** environments.
+- Applied as a Playwright **context option** (`ignoreHTTPSErrors`) before any page is created — never by
+  automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase), and never to the
+  user's real Chrome in `SessionCaptureService`. It does not disable TLS, downgrade HTTPS, touch the OS
+  certificate store, or bypass CAPTCHA/MFA/bot detection.
+- Single source of truth: `src/security/browser/CertificateTrust.ts`. Precedence: run → workflow → app → false.
+  Enabling requires `settings.edit` + a confirmation dialog; a malformed persisted value falls back to `false`.
+- Never enable it automatically in response to a navigation error, and never log URLs/cookies/credentials with
+  the bypass warning. See `docs/HTTPS_CERTIFICATE_TRUST.md`; verify with `npm run verify:https-certificates`.
+
 ## Offline / network safety
 - Production offline mode must not execute remote scripts, load remote renderer code, fetch CDN
   assets, or attempt network downloads. Use bundled local resources only.

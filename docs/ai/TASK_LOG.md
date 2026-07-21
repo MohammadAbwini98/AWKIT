@@ -4,6 +4,94 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-21 — Claude — Super User custom workspace logo (branding)
+
+- **Task:** Super-User-only setting to replace the sidebar workspace icon with a custom logo; preview,
+  apply/replace/remove, persist across restart, fall back to the default on any invalid/corrupt/missing
+  state, enforce authorization outside the UI. bd `awkit-yqc`.
+- **Target:** the bottom `.nav-workspace` block (icon + "SpecterStudio" + "Offline workspace") — user-
+  confirmed. The top `.brand-tile` app icon (OS/taskbar identity) is left untouched.
+- **Storage:** managed folder (NOT `ui-settings.json`) — new `src/branding/BrandingLogoStore.ts` owns
+  `%LOCALAPPDATA%/SpecterStudio/branding/active/{logo.png,manifest.json}`, stage-then-atomic-publish like
+  `OracleDriverBundleStore`; `get()` never throws (any inconsistency → `active:false`); failed replace
+  preserves the previous logo. Added `"branding"` to `runtimeFolderNames`.
+- **Images:** `src/branding/BrandingValidation.ts` (pure: 5 MB, 32×32–2048×2048, PNG signature, IHDR read).
+  `app/renderer/lib/brandingImage.ts` normalizes PNG/JPG/JPEG/WEBP/**SVG** → capped PNG via `<img>`+canvas
+  (animated collapses to one frame). **SVG accepted safely by rasterizing** in the secure static image mode
+  (no scripts/external loads; source discarded, never DOM-injected; tainted canvas rejected) — no separate
+  sanitizer. Main re-validates + re-decodes via `nativeImage` (`.isEmpty()` gate) before writing. Upload
+  transport = structured-clone `Uint8Array`.
+- **Authz:** new `Permission.SETTINGS_BRANDING_MANAGE` (SU-only: withheld from Administrator, in
+  `SENSITIVE_PERMISSIONS`); `app/main/ipc/branding.ipc.ts` sender-bound-gates the mutating channels +
+  audits `BRANDING_LOGO_UPDATED/_RESET/_UPDATE_REJECTED`; `branding:getState` open. Widened
+  `assertSenderPermission` → returns `AuthorizedActor` (backward-compatible; ~30 call sites discard it).
+- **Files:** new `src/branding/{BrandingValidation,BrandingLogoStore}.ts`, `app/main/brandingService.ts`,
+  `app/main/ipc/branding.ipc.ts`, `app/renderer/lib/brandingImage.ts`, `app/renderer/state/branding.tsx`,
+  `app/renderer/pages/BrandingSettings.tsx`, `scripts/verify-branding.mts`, `scripts/verify-branding-gui.mjs`.
+  Edited `src/offline/PortablePathResolver.ts`, `src/security/authz/Permissions.ts`,
+  `app/main/security/sessionContext.ts`, `app/main/ipc/index.ts`, `app/main/preload.ts`,
+  `app/renderer/{App.tsx,pages/Settings.tsx,layout/LeftNavigation.tsx,styles/global.css}`, `package.json`.
+- **Tests:** `verify:branding` **47/47**; `verify:branding-gui` **30/30** real-Electron (SU apply/replace/
+  remove + SVG-rasterized-to-PNG + Administrator sees-logo-no-card + direct-IPC DENIED + restart persistence
+  + corrupt-asset fallback). `npm run build` clean. Regression: `verify:ipc-contract` 4/4, `verify:authz` 40/40,
+  `verify:session-context` 11/11, `verify:licensing` 56/56, `verify:settings-persistence` 3/3.
+  Screenshots `reports/branding/`. **Not committed** on `chore/brand-logo-5b`.
+- **Portable EXE built + verified (same session):** `package:portable:lite` (`-Compression normal`) →
+  `dist\SpecterStudio 0.1.0.exe` **310 MB, no OOM**, strict offline validation passed;
+  **`verify:packaged-runtime` 25/25**; branding confirmed live inside the packaged EXE (bridge present,
+  `getState` default, `branding/` folder auto-created, unauthenticated `uploadLogo` → `NOT_AUTHORIZED`).
+  Fixed a **pre-existing** verifier bug to get that signal: `scripts/verify-packaged-runtime.mts` used
+  `app.firstWindow()` and was reading the bridge-less splash window (10 false failures against a good
+  build) — now resolves the real main window like `gui-verify-harness.mjs` does. Remaining external gates:
+  clean-machine offline VM, `verify:packaged-walkthrough`, `maximum`-compression build, code signing.
+
+## 2026-07-20 — Claude — Accent color: secondary custom gradient + Specter Blue preset
+
+- **Task:** extend the accent feature so the user can choose a solid accent OR a two-color gradient accent,
+  with a built-in Specter Blue preset; preview, persist, migrate, reset. Reuses the existing accent architecture.
+- **Settings model:** `accent` → `{ mode, primaryColor, secondaryColor, preset, gradientAngle }` (was `{ color }`).
+  `normalizeAccentSettings` migrates the legacy shape and sanitizes/validates everything (invalid → default).
+- **Core (`src/theme/accentColor.ts`):** added `buildAccentGradient` (text-safe multi-stop with auto foreground
+  clamping + decorative vivid variant), `deriveAccentTokensFor` (solid always + gradient tokens in gradient mode),
+  `gradientReadability`, presets `DEFAULT_ACCENT_SETTINGS`/`SPECTER_BLUE_SETTINGS`, `normalizeAccentSettings`,
+  `isDefaultAccent`. 9 gradient tokens (`GRADIENT_TOKEN_NAMES`).
+- **Application:** `applyAccent` sets inline vars + `data-accent-mode`; CSS gates gradients behind
+  `:root[data-accent-mode="gradient"]` on primary buttons, active nav, selected canvas nodes (CSS-only glow →
+  no graph rerender), + scoped preview. Solid mode unchanged. `index.html`/`SecurityGate` restore mode pre-mount.
+- **Specter Blue:** `#1D4ED8 → #38BDF8`, gradient, angle 135 — **derived from the brand description** (the repo
+  logo is the purple "5b" mark; no blue asset to sample). Logo untouched.
+- **UI (`AccentColorSettings.tsx`):** Solid|Gradient control, Default/Specter/Custom presets, primary+secondary
+  pickers, swap, low-contrast warning, richer scoped preview (+ gradient strip, toggle, solid port dot).
+- **Files:** edited `uiSettings.ts`, `state/{theme.tsx,accentTheme.ts}`, `App.tsx`, `index.html`,
+  `security/SecurityGate.tsx`, `pages/{Settings,AccentColorSettings}.tsx`, `styles/global.css`,
+  `src/theme/accentColor.ts`, `scripts/verify-accent-{theme.mts,gui.mjs}`.
+- **Tests:** `verify:accent-theme` **71/71**; `verify:accent-gui` **33/33** real-Electron (solid regression +
+  gradient + Specter Blue + fine-controls-solid + designer/login + reload/no-flash + reset; on-disk shape).
+  `npm run build` clean; `validate:offline` unaffected. **Not committed** on `chore/brand-logo-5b`.
+
+## 2026-07-20 — Claude — User-selectable application accent color (Appearance → Accent Color)
+
+- **Task:** let the user replace the default Hologram purple accent with any `#RRGGBB`, applied app-wide,
+  persisted, restored on startup, resettable to the exact default — without touching semantic status colors.
+- **Key finding:** the accent was already centralized behind CSS custom properties in `global.css`, so this
+  is a runtime token-override, not a hunt-and-replace. Canonical default = **`#7C3AED`** (light) / `#8b5cf6` (dark).
+- **New files:** `src/theme/accentColor.ts` (pure color model — validate/normalize/derive/contrast, no deps),
+  `app/renderer/state/accentTheme.ts` (DOM apply + localStorage cache), `app/renderer/pages/AccentColorSettings.tsx`
+  (Settings card: picker + validated hex + swatch + scoped live preview + Apply + Reset-to-Default + dirty chip),
+  `scripts/verify-accent-theme.mts` (+ `verify:accent-theme`), `scripts/verify-accent-gui.mjs` (+ `verify:accent-gui`).
+- **Edited:** `app/main/uiSettings.ts` (new `accent:{color}` group + sanitizing hydrate/mergePatch + validation),
+  `app/renderer/state/theme.tsx` (ThemeContext accent API), `App.tsx` (load/apply/persist), `index.html`
+  (no-flash inline bootstrap), `security/SecurityGate.tsx` (login honors accent), `pages/Settings.tsx`
+  (render card + reset accent on Reset-to-Defaults), `styles/global.css` (accent card/preview styles only).
+- **Tokens overridden (12):** accent/-hover/-contrast/-soft/-muted, lavender-soft, edge/-strong, accent-rgb,
+  connector-default/-loop/-selected. Untouched: success/warning/danger/info, connector-failure/-parallel, avatar palette.
+- **Tests:** `verify:accent-theme` **42/42**; `verify:accent-gui` **22/22** real-Electron E2E (default→custom→
+  primary button + canvas connector recolor, status colors intact → Flow Designer + login use it → dark re-derive →
+  reload no-flash restore → Reset to exact default + persisted null; on-disk `ui-settings.json` verified).
+  `npm run build` clean; `validate:offline` unaffected (no new deps).
+- **Not committed** (working tree on `chore/brand-logo-5b`). Residual external gates: packaged-EXE build +
+  clean-machine walkthrough; full second-process restart not scripted (single-instance lock) — proven via reload + disk.
+
 ## 2026-07-19 — Claude — Fix all E2E-assessment defects (DEF-003/004/005 + OBS-001/002)
 
 - **Task:** implement the plan to fix the open E2E-QA findings on `main` @ `0a4500f` — sender-bound
@@ -4844,3 +4932,74 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
   by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
   (this audit) closed with the report as its resolution.
+
+## 2026-07-21 — Claude (Opus 4.8) — Configurable HTTPS certificate-error bypass
+
+**Task:** Add a secure, configurable "Ignore invalid HTTPS certificates" option covering Recorder,
+workflow execution, persistent contexts, isolated/parallel contexts, and restart/session-reuse flows.
+
+**Approach:** Mapped every browser/context creation site first. Only two factories exist —
+`BrowserContextFactory` (3 runtime paths) and `RecorderService` (2 paths); `SessionCaptureService` uses the
+user's real Chrome and is out of scope. No `connectOverCDP`/attach path exists, so the implementation is
+**context-level only** (`ignoreHTTPSErrors`) with the Chromium launch-arg fallback left as a documented,
+default-off env escape hatch.
+
+**Files added:** `src/security/browser/CertificateTrust.ts` (pure single source of truth),
+`scripts/lib/selfSignedCertificate.mts` (dependency-free X.509 generator for tests),
+`scripts/verify-https-certificates.mts`, `scripts/verify-https-certificates-gui.mjs`,
+`docs/HTTPS_CERTIFICATE_TRUST.md`.
+
+**Files changed:** `app/main/uiSettings.ts` (`recorder.security` group + hydrate/mergePatch/validate +
+import force-reset), `app/main/ipc/settings.ipc.ts` (SETTINGS_EDIT gate for `recorder.security`),
+`app/main/ipc/recorder.ipc.ts`, `app/main/ipc/execution.ipc.ts` (precedence resolution + run override),
+`app/main/preload.ts` (`RecorderStatus`), `app/renderer/pages/Settings.tsx` (card + ConfirmDialog),
+`app/renderer/pages/Recorder.tsx` (live banner), `app/renderer/styles/global.css`,
+`src/security/browser/CertificateTrust.ts`, `src/runner/BrowserContextFactory.ts`,
+`src/runner/browser/BrowserIsolationResolver.ts`, `src/runner/StepExecutor.ts` (`navigate()` helper),
+`src/runner/ExecutionEngine.ts`, `src/runner/InstanceExecutionContext.ts`, `src/recorder/RecorderService.ts`,
+`src/instances/InstanceConfig.ts`, `src/instances/InstanceManager.ts`, `src/profiles/WorkflowProfile.ts`,
+`src/reports/ExecutionReport.ts`, `src/reports/ReportService.ts`, `package.json`, `docs/ai/SECURITY.md`,
+`docs/ai/COMMANDS.md`, `docs/ai/CURRENT_STATE.md`.
+
+**Tests run:** `npm run build` PASS (tsc --noEmit + all 3 bundles); `verify:https-certificates` 55/55;
+`verify:https-certificates-gui` 31/31 (real Electron); `verify:runner` 82/82; `verify:browser-isolation`
+27/27; `verify:shared-browser-pool` 19/19; `verify:security` 39/39; `verify:concurrency` 78/78;
+`verify:locks` 15/15; `verify:settings-persistence` 3/3; `verify:ipc-contract` 4/4.
+
+**Not run:** packaged-EXE build and clean-machine offline walkthrough (pre-existing external gates,
+unchanged by this task). No lint script exists in this repo.
+
+**Notes / gotchas:**
+- `sharedCompatibilityKey` uses literal `\x01`/`\x02` control-char delimiters that the Read tool
+  normalizes away — edit only the control-char-free lines of that function.
+- The Settings checkbox is controlled by the persisted value, so it deliberately stays visually OFF until
+  the dialog is confirmed. Playwright's `.check()` throws on it; GUI tests must use `.click()`.
+- Chromium reports a self-signed *expired* cert as `ERR_CERT_AUTHORITY_INVALID` (authority is evaluated
+  first), so tests assert "is a certificate error", not one specific code.
+
+## 2026-07-21 — Claude (Opus 4.8) — Portable EXE rebuild (certificate feature included)
+
+**Task:** Generate a new portable .exe.
+
+**Command:** `npm run package:portable:lite` (= `package-portable.ps1 -Compression normal`). Full pipeline:
+`npm run build` → `generate-dependency-manifest.ps1 -BuildMode production-offline` →
+`validate-offline-bundle.ps1 -Strict` → `electron-builder --win portable`. **`-Compression normal` is
+required on this 16 GB host** — the default `maximum` (7-Zip `-mx=9`) OOMs (KNOWN_ISSUES, 2026-07-06).
+The electron-builder cache was already warm, so the pack ran fully offline.
+
+**Output:** `dist/SpecterStudio 0.1.0.exe` — 310.2 MB, sha256
+`7aaed6fce277ff899fcebb99e26674776d07c78e2f68ce60a8b0a4e05a7ff140`. Replaced the earlier same-day build of
+the same name. Unsigned (no code-signing identity configured — electron-builder logged
+`no signing info identified, signing is skipped` for every binary, which is the expected local behaviour).
+
+**Verified:** all five certificate-feature strings present inside the shipped `app.asar`; then
+`npm run verify:packaged-runtime` **25/25** against the REAL packaged EXE — appMode=packaged, durable store
+enabled with sql.js WASM resolved from inside `app.asar`, runtime root under writable `%LOCALAPPDATA%/
+SpecterStudio` (not `app.asar`), `runtime.sqlite` readable externally with 4 migrations, artifactsRoot
+writable, packaged process tree fully terminated.
+
+**Not run:** `verify:packaged-walkthrough` (Phase 5 dev-machine walkthrough) and the clean/offline **VM**
+checklist — both pre-existing external gates.
+
+**Note:** the EXE contains the whole current working tree, i.e. the certificate feature *plus* the
+uncommitted branding/accent work already on `chore/brand-logo-5b`. It is not a build of any committed state.

@@ -23,6 +23,11 @@ import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
 import { evaluateRunGate } from "../licensing/licenseRuntime";
+import {
+  CERTIFICATE_BYPASS_LOG_MESSAGE,
+  explainIgnoreHttpsErrors,
+  resolveIgnoreHttpsErrors
+} from "@src/security/browser/CertificateTrust";
 
 export interface RunWorkflowRequest {
   workflowId: string;
@@ -36,6 +41,11 @@ export interface RunWorkflowRequest {
   stopOnError?: boolean;
   /** When set, the run uses this captured session profile's persistent user-data directory. */
   sessionProfileId?: string;
+  /**
+   * Run-level certificate-trust override (highest precedence). Omitted = inherit the workflow /
+   * application setting. Present and `false` = force certificate validation for this run only.
+   */
+  ignoreHttpsErrors?: boolean;
 }
 
 export function registerExecutionIpc(): void {
@@ -255,7 +265,7 @@ async function runWorkflow(request: RunWorkflowRequest) {
       rowCount: workflowDataSource.rows.length,
       sampleRow: workflowDataSource.rows[0]
     } : { id: "", name: "", type: "jsonArray", file: "", path: "$", rowCount: 0, sampleRow: {} },
-    instanceTemplate: await resolveInstanceTemplate(request, headless),
+    instanceTemplate: await resolveInstanceTemplate(request, headless, validation.workflow),
     resourceControls: {
       maxBrowserContextsPerProcess: 5,
       delayBetweenInstanceStartsMs: 250
@@ -371,15 +381,37 @@ function resolveDataFilePath(file: string): string {
  */
 async function resolveInstanceTemplate(
   request: RunWorkflowRequest,
-  headless: boolean
+  headless: boolean,
+  workflow: WorkflowProfile
 ): Promise<ConcurrentRunProfile["instanceTemplate"]> {
+  // Certificate trust is resolved ONCE here, at the top of the run, and stamped onto the instance
+  // template. Precedence: run override → workflow security → application setting → false. Every context
+  // the run creates (initial, retry, restart, parallel isolated) inherits this single value.
+  const { recorder } = await getUiSettings();
+  const certificateTrustSources = {
+    run: request.ignoreHttpsErrors,
+    workflow: workflow.security,
+    app: recorder.security
+  };
+  const ignoreHttpsErrors = resolveIgnoreHttpsErrors(certificateTrustSources);
+
   const base: ConcurrentRunProfile["instanceTemplate"] = {
     browser: "chromium",
     headless,
     isolationMode: request.isolationMode ?? "browserContext",
     timeoutMs: 30000,
-    viewport: { width: 1365, height: 768 }
+    viewport: { width: 1365, height: 768 },
+    ignoreHttpsErrors,
+    ignoreHttpsErrorsSource: explainIgnoreHttpsErrors(certificateTrustSources)
   };
+
+  if (ignoreHttpsErrors) {
+    // One warning per run (ids only — never URLs or credentials). Per-context warnings are emitted by
+    // BrowserContextFactory into the run log.
+    console.warn(
+      `[security] ${CERTIFICATE_BYPASS_LOG_MESSAGE} — workflowId=${workflow.id} source=${base.ignoreHttpsErrorsSource}`
+    );
+  }
 
   if (request.sessionProfileId) {
     const profile = await getSessionService().getById(request.sessionProfileId);

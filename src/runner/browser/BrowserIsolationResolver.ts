@@ -130,13 +130,23 @@ export function resolveBrowserIsolation(
  *   - whether the background-timer-throttle pin is omitted.
  * Under the default `balanced` profile every instance resolves to empty deltas → one stable key → they
  * all share, exactly as before. Context-level differences are intentionally excluded (they are isolated
- * per BrowserContext). Delimiters are control chars that never appear in Chromium flags, so the encoding
- * is collision-safe without a hash dependency.
+ * per BrowserContext) — this is why `ignoreHttpsErrors` normally does NOT appear here: it is applied as
+ * a per-context Playwright option, so bypassing and validating contexts can safely coexist on one shared
+ * browser. The ONE exception is the opt-in `--ignore-certificate-errors` launch fallback, which is
+ * browser-LEVEL and must therefore partition the pool (see `security.certificateFallbackArg`); it is
+ * folded into the `thr=` component so the key stays byte-identical whenever the fallback is off.
+ * Delimiters are control chars that never appear in Chromium flags, so the encoding is collision-safe
+ * without a hash dependency.
  */
-export function sharedCompatibilityKey(config: InstanceConfig, overrides?: LaunchArgOverrides): string {
+export function sharedCompatibilityKey(
+  config: InstanceConfig,
+  overrides?: LaunchArgOverrides,
+  security?: { certificateFallbackArg?: boolean }
+): string {
   const mode = config.headless ? "headless" : "headed";
   const add = [...(overrides?.add ?? [])].sort().join("");
   const ignore = [...(overrides?.ignoreDefaultArgs ?? [])].sort().join("");
-  const throttle = overrides?.omitBackgroundTimerThrottlePin ? "1" : "0";
+  const throttlePin = overrides?.omitBackgroundTimerThrottlePin ? "1" : "0";
+  const throttle = security?.certificateFallbackArg ? `${throttlePin}+cert` : throttlePin;
   return [`${config.browser}:${mode}`, `add=${add}`, `ign=${ignore}`, `thr=${throttle}`].join("");
 }

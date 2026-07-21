@@ -14,6 +14,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import { assertTrustedSender } from "../ipc/senderGuard";
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import type { Permission } from "@src/security/authz/Permissions";
+import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 
 /** `webContents.id` → the sessionRef that authenticated from that window. */
 const boundSessions = new Map<number, string>();
@@ -55,13 +56,15 @@ export function boundSessionRef(event: IpcMainInvokeEvent): string | undefined {
  * resolve the window's bound session (fail closed when none → NOT_AUTHORIZED), then `requirePermission`
  * — which re-validates the session + user status against the store on every call — and, for a sensitive
  * action, `requireFreshReauth`. Throws `SecurityError` on any failure so the caller lets the renderer
- * `invoke` reject. A dead (expired/revoked) session also clears its stale binding.
+ * `invoke` reject. A dead (expired/revoked) session also clears its stale binding. Returns the resolved
+ * {@link AuthorizedActor} (already computed by `requirePermission`) so callers that need the acting
+ * user — e.g. to attach an actor to an audit-log entry — get it without a second session lookup.
  */
 export async function assertSenderPermission(
   event: IpcMainInvokeEvent,
   permission: Permission,
   options: { sensitive?: boolean } = {}
-): Promise<void> {
+): Promise<AuthorizedActor> {
   assertTrustedSender(event);
   const sessionRef = boundSessions.get(event.sender.id);
   if (!sessionRef) throw new SecurityError(AuthReason.NOT_AUTHORIZED);
@@ -71,8 +74,9 @@ export async function assertSenderPermission(
   const { getSecurityKernel } = await import("./securityKernel");
   const kernel = await getSecurityKernel();
   try {
-    await kernel.authz.requirePermission(sessionRef, permission);
+    const actor = await kernel.authz.requirePermission(sessionRef, permission);
     if (options.sensitive) kernel.authz.requireFreshReauth(sessionRef);
+    return actor;
   } catch (error) {
     if (error instanceof SecurityError && error.reason === AuthReason.SESSION_EXPIRED) {
       unbindByWebContentsId(event.sender.id);

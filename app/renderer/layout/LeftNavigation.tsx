@@ -2,6 +2,7 @@ import { ChevronDown, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings 
 import { useId, useMemo, useState } from "react";
 import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
+import { useBranding } from "../state/branding";
 import { usePermissions } from "../security/usePermissions";
 import { RoutePermissions } from "../security/routePermissions";
 import { Permission } from "@src/security/authz/Permissions";
@@ -78,6 +79,7 @@ interface LeftNavigationProps {
 
 export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onToggle }: LeftNavigationProps) {
   const { resolvedTheme, setAppearance } = useTheme();
+  const branding = useBranding();
   const { can } = usePermissions();
   const isDark = resolvedTheme === "dark";
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(routeGroups.map((group) => [group.label, true])));
@@ -184,12 +186,21 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
           ) : null}
         </button>
         {!collapsed ? (
-          <div className="nav-workspace" aria-hidden="true">
-            <span className="nav-workspace-mark"><Workflow size={15} /></span>
-            <span className="nav-workspace-name">
-              <span>SpecterStudio</span>
-              <small>Offline workspace</small>
-            </span>
+          <div className={branding.active && branding.dataUrl ? "nav-workspace has-custom-logo" : "nav-workspace"} aria-hidden="true">
+            {branding.active && branding.dataUrl ? (
+              // A custom logo replaces the ENTIRE workspace block (icon + name + subtitle). Presence check
+              // on already-validated context state (never <img onError>), so a corrupt/mid-swap asset
+              // degrades to active:false and the default block returns — never a broken image.
+              <img src={branding.dataUrl} alt="" className="nav-workspace-logo-full" />
+            ) : (
+              <>
+                <span className="nav-workspace-mark"><Workflow size={15} /></span>
+                <span className="nav-workspace-name">
+                  <span>SpecterStudio</span>
+                  <small>Offline workspace</small>
+                </span>
+              </>
+            )}
           </div>
         ) : null}
       </div>

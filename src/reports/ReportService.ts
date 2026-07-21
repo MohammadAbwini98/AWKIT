@@ -43,6 +43,7 @@ export class ReportService {
       startedAt: string;
       endedAt: string;
       runtimeInputs: Record<string, unknown>;
+      security?: ConcurrentRunReport["security"];
     }
   ): ConcurrentRunReport {
     const failed = instances.some((instance) => instance.status === "failed");
@@ -66,7 +67,8 @@ export class ReportService {
         0
       ),
       instances,
-      runtimeInputs: this.masker.maskRecord(options.runtimeInputs)
+      runtimeInputs: this.masker.maskRecord(options.runtimeInputs),
+      security: options.security
     };
   }
 

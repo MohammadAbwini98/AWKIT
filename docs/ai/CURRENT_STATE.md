@@ -1,5 +1,188 @@
 # CURRENT_STATE
 
+## Configurable HTTPS certificate-error bypass (Settings → Recorder Security) (2026-07-21)
+
+New opt-in setting **"Ignore invalid HTTPS certificates"** letting Recorder AND workflow execution continue
+past `net::ERR_CERT_AUTHORITY_INVALID` / `ERR_CERT_DATE_INVALID` / `ERR_CERT_COMMON_NAME_INVALID` in
+authorized internal/test environments. **Default OFF. Not yet committed** (working tree,
+`chore/brand-logo-5b`).
+- **Single source of truth = `src/security/browser/CertificateTrust.ts`** (pure): precedence resolver,
+  `buildBrowserContextOptions()` (the ONE place mapping our `ignoreHttpsErrors` → Playwright's
+  `ignoreHTTPSErrors`), the conditional launch-arg helper, the `net::ERR_CERT_*|ERR_SSL_*` classifier, and
+  the log payload. Canonical property name `ignoreHttpsErrors` — no aliases anywhere.
+- **Precedence:** run (`RunWorkflowRequest.ignoreHttpsErrors`) → workflow (`WorkflowProfile.security`,
+  optional, no UI) → app (`UiSettings.recorder.security.ignoreHttpsErrors`) → `false`. Resolved ONCE per run
+  in `execution.ipc.resolveInstanceTemplate` and stamped onto `InstanceConfig`, so retries, mid-run browser
+  restarts/Reuse-Session swaps, and parallel isolated contexts all inherit it. **A non-boolean persisted
+  value is treated as absent → falls through to `false`** (fail-safe, never fail-open).
+- **Coverage is complete because there are only two context factories.** `BrowserContextFactory` applies it
+  to all three runtime paths (`launchPersistentContext`, pooled `newContext`, dedicated `newContext`);
+  `RecorderService` holds it on the instance so both the initial `newContext()` and the post-handoff
+  `launchPersistentContext()` resume use it. `SessionCaptureService` (user's REAL Chrome) is deliberately
+  untouched. Verified: no `connectOverCDP`/attach path exists.
+- **Context-level ONLY — no `--ignore-certificate-errors` in any active path.** An opt-in escape hatch
+  (`AWKIT_CERT_FALLBACK_LAUNCH_ARG=true`) exists; when active it folds into `sharedCompatibilityKey` (via the
+  `thr=` component, so the default key is byte-identical to before) so a bypassing browser can never be
+  reused by a validating instance. Never applied to non-Chromium.
+- **Never automates Chromium's interstitial** ("Advanced"/"Proceed"/hidden phrase) — the option is set
+  before any page exists.
+- **Security posture:** patches touching `recorder.security` require `SETTINGS_EDIT` (siblings
+  `captureWaitTime`/`captureSmartWaits` stay open); enabling needs a confirmation dialog; **Settings Import
+  force-resets it to `false`** (that path has no confirmation); `resetUiSettings` returns it to `false`; the
+  value is read in main from the persisted store and is NOT a renderer-supplied `recorder.start` option.
+- **Observability:** one warning per created context (`security.certificateTrust` in the run log, ids +
+  source only — never URLs/cookies/headers); execution reports carry
+  `security:{ignoreHttpsErrors, ignoreHttpsErrorsSource}`; the Recorder shows a non-blocking banner below the
+  toolbar while a bypassing session runs.
+- **Errors when OFF:** `StepExecutor.navigate()` and Recorder start rewrite ONLY certificate failures with
+  guidance naming the exact Settings path; unrelated navigation errors are untouched and the bypass is never
+  auto-enabled.
+- **Verified:** `verify:https-certificates` **55/55** (unit + LIVE Chromium vs local self-signed / expired /
+  wrong-host HTTPS servers through the real factory + RecorderService; certs generated in memory by
+  `scripts/lib/selfSignedCertificate.mts` — no new dependency, nothing written to disk) and
+  `verify:https-certificates-gui` **31/31** (REAL Electron: default off, dialog, cancel, enable, restart
+  persistence, legacy settings file, import guard). Regression-clean: build, `verify:runner` 82/82,
+  `browser-isolation` 27/27, `shared-browser-pool` 19/19, `security` 39/39, `concurrency` 78/78, `locks`
+  15/15, `settings-persistence` 3/3, `ipc-contract` 4/4. Docs: `docs/HTTPS_CERTIFICATE_TRUST.md`.
+- **Packaged:** `npm run package:portable:lite` produced `dist/SpecterStudio 0.1.0.exe` (310.2 MB,
+  sha256 `7aaed6fc…7ff140`, 2026-07-21) through the full pipeline — build → dependency manifest → **strict**
+  offline validation → electron-builder. All five feature strings (`ignoreHTTPSErrors`,
+  `Ignore invalid HTTPS certificates`, `Recorder Security`, `certificate could not be trusted`,
+  `ignoreHttpsErrors`) confirmed present inside the shipped `app.asar`. `verify:packaged-runtime` **25/25**
+  against the REAL packaged EXE (appMode=packaged, durable store + sql.js WASM from inside app.asar,
+  `%LOCALAPPDATA%` runtime root, external SQLite read, no zombie processes).
+  Use `-Compression normal`: the default `maximum` OOMs on this 16 GB host (KNOWN_ISSUES).
+- **Not run:** the clean/offline **VM** walkthrough (`docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md`) and
+  `verify:packaged-walkthrough` — both remain pre-existing human/external gates, unchanged by this task.
+
+## Super User custom workspace logo (Settings → Appearance → Workspace Logo) (2026-07-21)
+
+Added a production Super-User-only branding setting: replace the **entire** bottom sidebar **workspace
+block** (`.nav-workspace` — icon + "SpecterStudio" + "Offline workspace") with a custom logo, or remove it
+to restore the built-in block. The top `.brand-tile` app icon (tied to the OS/taskbar identity) is
+deliberately untouched. **Not yet committed** (working tree, `chore/brand-logo-5b`; bd `awkit-yqc`).
+- **Storage = a managed folder, NOT `ui-settings.json`.** New `src/branding/BrandingLogoStore.ts`
+  (framework-agnostic, mirrors `OracleDriverBundleStore`'s stage-then-atomic-publish) owns
+  `%LOCALAPPDATA%/SpecterStudio/branding/active/{logo.png,manifest.json}` as the SOLE source of truth
+  (added `"branding"` to `runtimeFolderNames`). `get()` never throws — any missing/corrupt/tampered/
+  out-of-range state → `{active:false}` so the sidebar always falls back to the default icon. Manifest
+  stores `{mimeType,width,height,sizeBytes,sha256,updatedAt,updatedByUserId}` — never a source path.
+  Atomic replace moves the old asset aside and restores it if the swap fails (failed replace preserves
+  the previous logo).
+- **Image pipeline = renderer decode + main re-verify, no new dependency.** `app/renderer/lib/brandingImage.ts`
+  validates + normalizes any PNG/JPG/JPEG/WEBP/**SVG** upload to capped-2048 PNG via an `<img>` element +
+  canvas (preserves aspect/transparency; animated frames collapse to one). **SVG is accepted safely by
+  RASTERIZING it** — an `<img>`/canvas decode runs in the browser's secure static image mode (no script
+  execution, no external resource loads); the source SVG is discarded after read-back, never stored, never
+  DOM-injected, and a tainted-canvas `toBlob` throw is treated as a rejection. Bytes go to main as a
+  structured-clone `Uint8Array`; main independently re-checks PNG signature + size + dimensions and
+  re-decodes via Electron `nativeImage` (`.isEmpty()` gate) before writing. `BrandingValidation.ts` holds
+  the shared pure rules (5 MB, 32×32–2048×2048, PNG signature, IHDR dimension read).
+- **Authorization = sender-bound, Super-User-only.** New `Permission.SETTINGS_BRANDING_MANAGE`
+  (`settings.appearance.branding.manage`), withheld from Administrator (SU-only, like `USER_MANAGE`/
+  `license.*`) and in `SENSITIVE_PERMISSIONS`. `app/main/ipc/branding.ipc.ts` gates the two mutating
+  channels with `assertSenderPermission` (widened to return the `AuthorizedActor` for audit) and audits
+  `BRANDING_LOGO_UPDATED`/`_RESET`/`_UPDATE_REJECTED`; `branding:getState` is an open read (every role
+  renders the sidebar). Renderer card is hidden for non-SU (`Settings.tsx` gates on
+  `can(SETTINGS_BRANDING_MANAGE)`) — a hint only; main is the real boundary.
+- **Runtime:** `app/renderer/state/branding.tsx` context (fetched once in `App.tsx`, refreshed after
+  Apply/Remove) drives `LeftNavigation.tsx` — when active, a full-width `<img className="nav-workspace-logo-full">`
+  **replaces the whole block** (icon + name + subtitle); otherwise the default badge + name render (presence
+  check, never `<img onError>`). Apply updates all open windows immediately with no page/canvas reload;
+  `getState` returns a self-contained `data:image/png;base64` URL (cache-busted by content).
+  `BrandingSettings.tsx` mirrors `AccentColorSettings` (draft + WYSIWYG full-block preview + Apply) plus real
+  Cancel/Remove. Token-only CSS (`.nav-workspace-logo-full`, `.branding-*`).
+- **Verification (all green):** `npm run build` clean; new `verify:branding` **47/47** (pure: signature/
+  dimension/size validation, accepted-input formats incl. SVG, store round-trip + corrupt/missing/tamper
+  fallback, atomic-replace-preserves-old, injected-decode gate, permission wiring); new `verify:branding-gui`
+  **30/30** real-Electron (default icon → SU card + preview + Apply + immediate sidebar update → **SVG
+  rasterized to PNG + applied** → Administrator sees logo but no card + direct-IPC upload/remove DENIED
+  `NOT_AUTHORIZED` → Replace cache-invalidation → Remove restores default → restart persistence →
+  corrupt-asset fallback, no broken image, no crash, 0 console errors). Regression:
+  `verify:ipc-contract` 4/4 (3 new channels matched), `verify:authz` 40/40, `verify:session-context` 11/11,
+  `verify:licensing` 56/56, `verify:settings-persistence` 3/3. Screenshots `reports/branding/`.
+- **Packaged build (2026-07-21) — the portable EXE gate is now PARTLY CLOSED.** `package:portable:lite`
+  (`-Compression normal`) produced `dist\SpecterStudio 0.1.0.exe` **310 MB, no OOM**, strict offline
+  validation passed. **`verify:packaged-runtime` 25/25** (appMode=packaged, sql.js WASM loaded from inside
+  `app.asar`, runtime root at writable `%LOCALAPPDATA%`, real SQLite written + externally readable,
+  artifacts root writable, clean process teardown). Branding was separately confirmed **inside the packaged
+  EXE**: the `branding.*` preload bridge is present, `getState` returns the inert default on a fresh
+  profile, the `branding/` runtime folder is auto-created under `%LOCALAPPDATA%`, and an unauthenticated
+  `uploadLogo` is **DENIED (`NOT_AUTHORIZED`)** — the authorization boundary holds in the packaged build.
+  Fixing `verify:packaged-runtime`'s splash bug (see KNOWN_ISSUES) was required to get this signal.
+- **Limitations / still NOT run:** the clean-machine offline VM walkthrough (fresh Windows, no dev tooling),
+  the fuller `verify:packaged-walkthrough`, a `maximum`-compression release-parity build, and **code
+  signing** (the EXE is unsigned → SmartScreen will warn). The branding *GUI* flows were exercised against
+  the dev build, not driven through the packaged EXE.
+
+## Accent color — secondary custom gradient (solid | gradient + Specter Blue preset) (2026-07-20, later)
+
+Extended the accent feature (below) so the user can choose a **solid** accent OR a **two-color gradient**
+accent, with a built-in **Specter Blue** preset. **Not yet committed** (working tree, `chore/brand-logo-5b`).
+- **Settings model** (`app/main/uiSettings.ts`): `accent` is now
+  `{ mode:"solid"|"gradient", primaryColor:string|null, secondaryColor:string|null, preset:"default-purple"|"specter-blue"|"custom", gradientAngle:number }`.
+  `normalizeAccentSettings` (in `src/theme/accentColor.ts`) **migrates** the old `{ color }` shape
+  (→ `mode:"solid", primaryColor:color`), sanitizes each field, clamps angle to [0,360), and falls back to
+  the default-purple solid state on any corrupt/missing value. Validated + in export/import; reset → default.
+- **Core** (`src/theme/accentColor.ts`): `buildAccentGradient(primary,secondary,theme,angle)` derives a
+  multi-stop **text-safe** `--awkit-accent-gradient` (bright stop auto-clamped so the label foreground —
+  chosen from the primary — stays legible) + a decorative **vivid** `--awkit-accent-gradient-vivid`
+  (deep→primary→cyan→secondary→deep), plus `-soft`/`-glow`/`-on-gradient`/`-deep`/`-bright`(+rgb).
+  `deriveAccentTokensFor(accent,theme)` always emits the solid tokens (fine controls stay solid) and adds
+  gradient tokens in gradient mode. `gradientReadability` warns on near-identical pairs.
+- **Application:** `applyAccent` (in `state/accentTheme.ts`) sets the inline vars AND
+  `documentElement.dataset.accentMode`; CSS gates gradient backgrounds behind `:root[data-accent-mode="gradient"]`
+  on a **curated set** — `.toolbar-button.primary` (Save/Done/login/dialog), `.nav-item.active`, selected
+  canvas nodes (CSS-only gradient glow → **no graph rerender / no state reset**), plus the scoped Settings
+  preview. Solid mode is byte-for-byte unchanged. `index.html` bootstrap + `SecurityGate` restore mode
+  before React (no flash). `ThemeContext` now carries `accent`/`setAccent`.
+- **Specter Blue preset:** `primary #1D4ED8` (royal), `secondary #38BDF8` (cyan-sky), gradient, angle 135.
+  **Derived from the brand description, NOT sampled** — the shipped `specter-logo.svg` is the purple "5b"
+  mark (no blue asset exists); logo left untouched. Documented in DECISIONS.md.
+- **Settings UI** (`pages/AccentColorSettings.tsx`): Solid|Gradient segmented control, Default Purple /
+  Specter Blue / Custom presets, primary + (gradient-only) secondary pickers with validated hex + swap,
+  low-contrast warning, scoped live preview (button/nav/tab/focus/node/port/toggle/badge/**gradient strip**),
+  Apply/Reset + dirty chip.
+- **Verification (all green):** `npm run build` clean; `verify:accent-theme` **71/71** (gradient derivation,
+  text-safe vs vivid, on-gradient contrast, migration, presets, angle clamp, solid-mode-unchanged);
+  `verify:accent-gui` **33/33** real-Electron E2E (solid regression + gradient mode + Specter Blue preset +
+  fine-controls-stay-solid + Flow Designer/login + reload no-flash + reset; on-disk shape asserted).
+  `validate:offline` unaffected. Same external gates (packaged EXE, cold-process restart) as the solid feature.
+
+## User-selectable application accent color (Appearance → Accent Color) (2026-07-20)
+
+Added a production accent-theme setting: the user can replace the default Hologram purple with any
+`#RRGGBB` and it recolors the whole app, persists, and restores on startup. **Not yet committed**
+(working tree, on branch `chore/brand-logo-5b`).
+- **Canonical default purple = `#7C3AED`** (light `--awkit-accent`) / `#8b5cf6` (dark), discovered from
+  `app/renderer/styles/global.css`. The accent was already fully centralized behind CSS custom
+  properties, so this is a **runtime token-override**, not a hunt-and-replace.
+- **Pure core (shared, no DOM/deps):** `src/theme/accentColor.ts` — `DEFAULT_ACCENT_COLOR`,
+  `normalizeAccentColor`/`isValidAccentColor` (hex-only, `#RGB`/`#RRGGBB` → uppercase `#RRGGBB`, else
+  null), color math (luminance/contrast/lighten/darken/mix), `deriveAccentTokens(base, "light"|"dark")`
+  and `pickAccentForeground` (WCAG-max white/near-black). Overrides 12 tokens: `--awkit-accent`,
+  `-hover`, `-contrast`, `-soft`, `-muted`, `--awkit-lavender-soft`, `--awkit-edge`, `--awkit-edge-strong`,
+  `--awkit-accent-rgb`, plus the primary-accent canvas connectors `--awkit-connector-default`/`-loop`/
+  `-selected`. Semantic tokens (success/warning/danger/info, `--awkit-connector-failure`/`-parallel`,
+  avatar palette) are never touched.
+- **Renderer:** `app/renderer/state/accentTheme.ts` (apply/clear inline vars + localStorage cache),
+  `ThemeContext` (`accentColor`/`setAccentColor`), `App.tsx` (load from store, apply on accent/theme
+  change), `index.html` inline bootstrap (no-flash), `SecurityGate.tsx` (login screen honors accent),
+  Settings card `app/renderer/pages/AccentColorSettings.tsx` (picker + validated hex + swatch + scoped
+  live preview + Apply/Reset + dirty chip).
+- **Persistence:** new `accent: { color: string|null }` in `app/main/uiSettings.ts` → `ui-settings.json`
+  under the runtime data root; `null` = default (Reset removes the override). Hydrate/mergePatch sanitize
+  (invalid → null); `validateSettings` rejects bad hex; auto-included in export/import. No new IPC channel
+  (`settings.update` deep-partial; `accent` is per-user UI state, not gated by `SETTINGS_EDIT`).
+- **Verification (all green):** `npm run build` clean; new `verify:accent-theme` **42/42** (validation,
+  derivation, contrast/AA, visibility rescue, fallback); new `verify:accent-gui` **22/22** real-Electron
+  E2E (default purple → apply custom → primary button + canvas connector recolor, status colors intact →
+  Flow Designer + login use it → dark theme re-derives → reload/no-flash restore → Reset to exact default
+  + persisted null; on-disk `ui-settings.json` asserted). `validate:offline` unaffected (no new deps).
+- **Limitations:** packaged-EXE build + clean-machine walkthrough remain external gates (electron-builder
+  OOM per prior memory); a genuine second-process restart isn't scripted (single-instance lock) — proven
+  instead via renderer reload + on-disk persistence.
+
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
 Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,

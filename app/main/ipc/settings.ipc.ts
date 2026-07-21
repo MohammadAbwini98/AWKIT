@@ -30,6 +30,10 @@ import { Permission } from "@src/security/authz/Permissions";
  */
 const SUBSTANTIVE_SETTINGS_KEYS = ["paths", "runtime", "execution", "designerDefaults"] as const;
 function patchTouchesSubstantiveSettings(patch: DeepPartial<UiSettings>): boolean {
+  // `recorder.security` is privileged (it can disable HTTPS certificate validation for automation
+  // browsers) even though its siblings `recorder.captureWaitTime` / `captureSmartWaits` are plain UI
+  // state the Recorder page writes implicitly for any signed-in role. Gate the security group only.
+  if (patch.recorder?.security !== undefined) return true;
   return SUBSTANTIVE_SETTINGS_KEYS.some((key) => patch[key] !== undefined);
 }
 

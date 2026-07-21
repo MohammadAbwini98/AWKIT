@@ -28,6 +28,8 @@ temp/
 .vite/
 electron-builder/
 *.asar
+# Throwaway builder config written by package-portable.ps1 (-Compression); removed after each pack
+electron-builder.portable.tmp.json
 # Generated timestamped electron-vite configs (source of truth is electron.vite.config.ts)
 electron.vite.config.*.mjs
 

@@ -7,6 +7,8 @@ import { getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../ap
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { getSessionService } from "./session.ipc";
+import { getUiSettings } from "../uiSettings";
+import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -29,10 +31,14 @@ export function registerRecorderIpc(): void {
       executablePath = bundled.executablePath;
       console.log(`[offline] Recorder using bundled Chromium: ${executablePath}`);
     }
+    // Certificate trust is read from Settings at launch time (never from the renderer), so a Recorder
+    // session always reflects the persisted, permission-gated value — including after a relaunch.
+    const { recorder } = await getUiSettings();
     await recorderService.startRecording(url, {
       executablePath,
       captureWaitTime: options?.captureWaitTime ?? false,
-      captureSmartWaits: options?.captureSmartWaits ?? true
+      captureSmartWaits: options?.captureSmartWaits ?? true,
+      ignoreHttpsErrors: resolveIgnoreHttpsErrors({ app: recorder.security })
     });
     return recorderService.getStatus();
   });

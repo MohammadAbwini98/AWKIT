@@ -20,6 +20,7 @@ import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
+import type { BrandingStateView } from "./ipc/branding.ipc";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
@@ -62,6 +63,14 @@ import type {
   WorkflowRanking,
   WorkflowRankingMetric
 } from "@src/reports/ObservabilityContracts";
+
+/** Recorder status surfaced to the renderer (drives the record controls + the security indicator). */
+type RecorderStatus = {
+  isRecording: boolean;
+  actionCount: number;
+  /** True when the LIVE session's browser contexts were created with certificate validation off. */
+  ignoreHttpsErrors: boolean;
+};
 
 const api = {
   // Custom application-frame window controls. Deliberately minimal: the renderer can only drive
@@ -184,6 +193,17 @@ const api = {
         reports: number;
       }>
   },
+  // Custom workspace logo (Settings → Appearance → Branding). `getState` is an open read (every role
+  // renders the sidebar); the mutating calls are Super-User-only, enforced in the main process. The
+  // upload payload is normalized PNG bytes (structured-clone `Uint8Array`, no base64 on the wire);
+  // `getState` returns the active logo as a self-contained `data:` URL for direct `<img src>` use.
+  branding: {
+    getState: () => ipcRenderer.invoke("branding:getState") as Promise<BrandingStateView>,
+    uploadLogo: (bytes: Uint8Array) =>
+      ipcRenderer.invoke("branding:uploadLogo", bytes) as Promise<{ ok: boolean; reason?: string; state?: BrandingStateView }>,
+    removeLogo: () =>
+      ipcRenderer.invoke("branding:removeLogo") as Promise<{ ok: boolean; reason?: string; state?: BrandingStateView }>
+  },
   flows: {
     list: () => ipcRenderer.invoke("flows:list") as Promise<FlowProfile[]>,
     get: (id: string) => ipcRenderer.invoke("flows:get", id) as Promise<FlowProfile | null>,
@@ -299,12 +319,14 @@ const api = {
     observabilitySummary: () => ipcRenderer.invoke("telemetry:observabilitySummary") as Promise<RuntimeObservabilitySummary>
   },
   recorder: {
+    // `ignoreHttpsErrors` is intentionally NOT a renderer-supplied option — the main process reads it
+    // from the permission-gated Settings store at launch, so it cannot be forced from the renderer.
     start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
-      ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number }>,
+      ipcRenderer.invoke("recorder:start", url, options) as Promise<RecorderStatus>,
     stop: () => ipcRenderer.invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => ipcRenderer.invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => ipcRenderer.invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
-    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number }>,
+    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<RecorderStatus>,
     getUrls: () => ipcRenderer.invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => ipcRenderer.invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,

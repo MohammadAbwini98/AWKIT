@@ -17,6 +17,7 @@ import { registerSecretsIpc } from "./secrets.ipc";
 import { registerOracleIpc } from "./oracle.ipc";
 import { registerSecurityIpc } from "./security.ipc";
 import { registerLicensingIpc } from "./licensing.ipc";
+import { registerBrandingIpc } from "./branding.ipc";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { isTrustedSender } from "./senderGuard";
 
@@ -61,4 +62,5 @@ export function registerIpcHandlers(): void {
   registerOracleIpc();
   registerSecurityIpc();
   registerLicensingIpc();
+  registerBrandingIpc();
 }
