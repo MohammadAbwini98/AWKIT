@@ -176,6 +176,12 @@ npx tsx scripts/verify-packaged-validation.mts # Tranche 2 hardening gate — ru
                                              # grant persistence/invalidation/expiry across restarts, the full
                                              # migration ceremony incl. undo, library states, offline posture,
                                              # clean-shutdown integrity, scan timing + renderer responsiveness (87)
+npx tsx scripts/measure-inventory-scale.mts  # MEASUREMENT (non-blocking) — run AFTER `npm run package:portable`.
+                                             # Seeds SCALE_FLOWS (default 1000) into a fresh profile, launches the
+                                             # packaged app, and measures the first inventory scan under
+                                             # concurrent run requests: scan duration, renderer round-trip,
+                                             # peak RSS, grant-store behavior, single-flight safety. Timing/memory
+                                             # are recorded, never thresholded; only safety properties gate (9).
 npx tsx scripts/verify-legacy-compat.mts     # Stage 2c: Legacy Compatibility grants (SHA-256 digest format,
                                              # collision resistance, canonicalization determinism, legacy-record
                                              # retirement, concurrency/fail-safety), plus expiry,

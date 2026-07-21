@@ -37,8 +37,35 @@ sufficient evidence for a production-ready claim.
   **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56** · `verify:workflow-builder`
   **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16** · `verify:authz`
   **40/0** · `verify:ipc-contract` **4/4** · `validate:offline --Strict` pass · build clean.
-- **Not run:** clean offline VM walkthrough (the outstanding gate), NSIS installer packaging,
-  sustained soak.
+- **Not run:** clean offline VM walkthrough (the outstanding gate), sustained soak.
+
+### Hardening checkpoint 2 (2026-07-22) — status correction, script type gate, scale probe, installer
+
+- **Status string corrected** to `INTEGRATION-CANDIDATE — clean offline VM and installer validation
+  pending` (the two items the previous string named are complete and accepted).
+- **`dependency-manifest.json` disposition:** it is generated packaging output (every package/prep
+  script rewrites `buildMode`/`builtAt`), so the working-tree change from the package build was
+  **restored** to the committed `development-offline-prep` baseline, not committed.
+- **Script type gate** (`tsconfig.scripts.json`, `npm run typecheck:scripts`, `verify:all-typecheck`):
+  the `scripts/` tree was outside `tsc`, so a deleted import only failed at `tsx` runtime. The new
+  gate found and fixed **36 real errors** across scripts nobody had type-checked — including a genuine
+  interface-conformance bug where `NullRuntimeStore` declared zero-arg versions of eight methods its
+  own interface defines with parameters. All touched verifiers re-run green; changes are
+  signature/CFA-only.
+- **Scale probe** (`measure-inventory-scale.mts`, 1,000 flows, packaged): first scan **4.24 s**,
+  renderer round-trip median **4 ms** / worst **177 ms** (a mild main-thread stall while 250 grant
+  files write serially — measured, non-blocking), peak process-tree RSS **231 MB**, 250 grants issued
+  (each its own file, all sha256-bound), 1 scan record. 8 concurrent run requests during scan init all
+  waited and resolved to a real verdict (single-flight); a re-scan extended no deadline. **9/9 safety
+  assertions pass; timing/memory are measurements, not thresholds.**
+- **NSIS installer** built fresh: `dist/SpecterStudio Setup 0.1.0.exe`, 2026-07-22T01:40:27+03:00,
+  356.6 MiB, sha256 `74950020…e2a5a`, sha512 matches `latest.yml`, per-user (no elevation). **Both the
+  portable EXE and the installer are `NotSigned`** (Authenticode-verified — not claimed signed).
+- **Environment gate NOT run:** re-confirmed no clean-machine capability here (no Windows Sandbox;
+  feature-enable needs elevation the non-admin agent account lacks). The clean-VM walkthrough,
+  installer install/upgrade/uninstall lifecycle, and true clean-machine test remain the outstanding
+  human gate — `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3 + the new **§3b** (Tranche 2 validation
+  subsystem checklist). Tranche 2 is therefore **not** marked COMPLETE.
 
 ## Randomized Test Lab — Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem (2026-07-22, epic `awkit-wza`)
 

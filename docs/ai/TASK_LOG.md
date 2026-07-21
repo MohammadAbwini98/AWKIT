@@ -5093,3 +5093,42 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Result:** hardening checkpoint. Status remains
   `INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending` per instruction;
   both named items are now done, and the remaining gate is the clean offline VM walkthrough.
+
+## 2026-07-22 — Claude — Tranche 2 hardening checkpoint 2: status/manifest cleanup, script type gate, scale probe, installer
+
+- **Task:** correct the status string; resolve the dependency-manifest working-tree change; close the
+  `scripts/` type-check gap; add a 1,000-flow scale probe; build+validate the NSIS installer; run the
+  final clean-machine environment gate before Phases 4–8.
+- **Status:** corrected to `INTEGRATION-CANDIDATE — clean offline VM and installer validation pending`
+  across CURRENT_STATE, the design doc and the Tranche 2 report. Committed separately (`336a3a2`).
+- **Manifest:** `resources/dependency-manifest.json` is generated packaging output (buildMode/builtAt
+  rewritten by every package/prep script) — restored to the committed `development-offline-prep`
+  baseline, not committed. Working tree clean.
+- **Script type gate (`cb13f8b`):** NEW `tsconfig.scripts.json` + `npm run typecheck:scripts` +
+  `verify:all-typecheck`; found 36 real errors in never-type-checked scripts, all fixed narrowly
+  (signature/CFA-only). One real src/ bug: `NullRuntimeStore` (RuntimeStore.ts) declared zero-arg
+  methods its interface defines with params — aligned. NEW `build-oracle-bridge.d.mts` types the JS
+  helper. Every touched verifier re-run green (runner 82/0, auth 49/0, popup 12/0, telemetry 61/0,
+  operation-limiters 10/0, secrets 16/0, validation 125/0, runtime-status 15/0).
+- **Scale probe (`measure-inventory-scale.mts`, 1000 flows, packaged, 9/0):** scan 4.24s, renderer
+  round-trip median 4ms / worst 177ms (mild stall during 250 serial grant writes — measured, not
+  thresholded), peak tree RSS 231MB, 250 grants (sha256-bound), 1 scan record; concurrent run
+  requests during init all waited safely (single-flight); re-scan extended no deadline.
+- **Artifacts (both NotSigned per Authenticode):** portable `dist/SpecterStudio 0.1.0.exe`
+  325,296,994 B sha256 129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb; NSIS
+  `dist/SpecterStudio Setup 0.1.0.exe` 373,904,285 B sha256
+  74950020d105af9b5f188d09a467d1ad297fbfc064b12cabe9931f1c4e6e2a5a, sha512 matches latest.yml,
+  per-user/no-elevation.
+- **Environment gate NOT run:** re-confirmed no clean-machine capability (WindowsSandbox.exe absent;
+  Sandbox feature-enable needs elevation the non-admin agent account lacks; no provisioned guest VM).
+  The clean-VM walkthrough + installer install/upgrade/uninstall lifecycle + standard-user/offline
+  test remain the human gate. Added a Tranche 2 validation-subsystem checklist as
+  `PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3b. The packaged validation I ran DID execute under a standard
+  (non-admin) account.
+- **Not run:** clean-machine walkthrough, installer install/upgrade/uninstall lifecycle, max-compressed
+  distributables, signing, sustained soak.
+- **Beads:** `awkit-xy3` already closed (checkpoint 1). No new bead — this is the same hardening scope.
+- **Result:** Tranche 2 is **NOT** marked COMPLETE and Product is **NOT** advanced — both are
+  conditioned on the environment gate passing on a genuine clean machine, which this agent environment
+  cannot provide. Everything runnable here is green; the remaining gate is the documented human
+  walkthrough.
