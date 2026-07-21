@@ -12,8 +12,12 @@ vacuous** and **§7 Defects found**.
 | 0.2–0.6 verifier fix + mock fixtures | not started (all touch tracked files) | — |
 | 1 generation core | **done** | `verify-random-generator.mts` — 49 passed, 0 failed |
 | 2 validation oracle | **done** | `verify-random-oracle.mts` — 19 passed, **1 failed** (a real product defect) |
-| 3 persistence round-trip | **done (baseline discovery)** | `verify-random-roundtrip.mts` — 8 passed, **15 failed, as intended** |
+| 3 persistence round-trip | **done; all defects since FIXED (Tranche 1)** | `verify-random-roundtrip.mts` — **26 passed, 0 failed** (was 8/15; now a regression guard) |
 | 4–8 | not started | — |
+
+> **Tranche 1 update (2026-07-21):** all 11 observed + 2 predicted round-trip defects (RT-01…RT-15) were
+> fixed in `flowProfileMapping.ts` and their catalog entries deleted. The round trip is lossless and the
+> verifier is green; §"Phase 3" below records the original discovery-run findings for history.
 
 Everything built so far is **additive**: new files under `src/testing/`, `scripts/`,
 `app/renderer/components/workflow/` and `docs/testing/`. Zero tracked files are modified, so the

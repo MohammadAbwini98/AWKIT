@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## Randomized Test Lab — Tranche 1: all round-trip data-loss defects FIXED (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The Phase-3 designer round-trip is now **lossless** — the
+baseline discovery verifier that was intentionally red (8 passed / 15 failed) is **green (26/0)**. All
+**11 observed** round-trip defects and **2 predicted** ones were fixed in the designer mapping and their
+catalog entries deleted, so any recurrence now reports as an *unexpected new failure* (a regression).
+
+- **Owner of every fix:** `app/renderer/components/workflow/flowProfileMapping.ts` (the single designer↔
+  profile mapping), plus pass-through fields on `flowDesignerTypes.ts` and metadata/edge-id threading in
+  `app/renderer/pages/FlowChartDesigner.tsx`.
+- **The pattern:** the designer *preserves* fields it cannot author instead of re-deriving them — the same
+  approach as the earlier RT-14/RT-02 fix (`valueSourceOriginal`). New pass-throughs: `safety` (RT-04),
+  popup metadata `pageAlias`/`opensPopup`/`popupExpectation` (RT-03), full `outputs` map (RT-12),
+  `loop`/`message` (RT-15). Persistence-not-validation locator gate (RT-01). Persisted `edge.id` threaded
+  through `createEdge` (RT-05) and authored-only edge labels (RT-08). Flow `description`/`version`/
+  `createdAt`/`updatedAt` threaded via a new `toFlowProfile` `meta` arg (RT-06/RT-07). `maxLoopCount`
+  persisted on any connector (RT-11). `toNodeConfig` emits only a node type's own fields, gated by the
+  registry `sections` (RT-09). Absent optional fields re-omitted on a no-op save but **never** when the
+  user edits them (RT-10, edit-safe). Inactive dynamic `dataSourceId`/`objectId` retained (RT-13).
+- **Generator** now emits the RT-13/RT-15 shapes (mixed dynamic discriminators; `message`/`loop`), so both
+  formerly-*predicted* defects are exercised and confirmed lossless.
+- **Verification:** `verify-random-roundtrip` **26/0** (was 8/15; +8 new field-edit regression checks) ·
+  `verify-random-generator` **49/0** · `verify-random-oracle` **19/1** (the 1 is the intentional
+  validator-gap finding, `awkit-7fm`, Tranche 2) · `verify-durable-store` **11/11** · `verify:flow-designer`
+  **24/24 real Electron** · `verify:runner` **82/0** · `npm run build` clean · `check-memory` pass.
+- **Beads closed:** `awkit-abi` (RT-01), `awkit-4t9` (RT-03), `awkit-3lq` (RT-04), `awkit-07c` (RT-05),
+  `awkit-3qs` (RT-06), `awkit-ani` (RT-07), `awkit-7df` (RT-08), `awkit-ao6` (RT-09), `awkit-who` (RT-10),
+  `awkit-o4q` (RT-11), `awkit-x8w` (RT-12). RT-13/RT-15 were catalog-only predictions (no bead).
+- **Next (Tranche 2 — architectural checkpoint):** unified validation engine + draft/runnable model
+  (`awkit-7fm`, `awkit-acw`). Then Phases 4 (artifacts/CLI), 5 (live), 6/8.
+
 ## Randomized Automation Test Lab — Phases 1-3 + Phase 0 prerequisites (2026-07-21, epic `awkit-wza`)
 
 **Branch `feature/randomized-test-lab`** (off `main`, 6 commits, **local — not pushed, no PR**). Additive

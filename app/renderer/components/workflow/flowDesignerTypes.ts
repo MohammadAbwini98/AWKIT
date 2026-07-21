@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -40,6 +40,31 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
    * for those is to preserve them untouched, so they are carried here and written back verbatim.
    */
   valueSourceOriginal?: ValueSource;
+  // ── Recorder-owned pass-through (preserved verbatim; the designer has no UI to author these) ──
+  /** Explicit side-effect safety policy (`FlowStep.safety`); authoritative for retry decisions. */
+  safety?: StepSafetyPolicy;
+  /** Which browser page/window this step targets (`FlowStep.pageAlias`); recorder-set for popups. */
+  pageAlias?: PageAlias;
+  /** True when this step opens a popup/window (`FlowStep.opensPopup`); arms popup capture at run time. */
+  opensPopup?: boolean;
+  /** Popup the step opens (`FlowStep.popupExpectation`); required downstream by switchToPopup/closePopup. */
+  popupExpectation?: PopupExpectation;
+  /**
+   * The step's full `outputs` map, preserved verbatim. The panel edits a single {@link outputKey},
+   * but a step may declare several typed outputs; carrying the map here keeps the rest untouched
+   * instead of collapsing them to `{ [key]: { type: "text" } }`.
+   */
+  outputsOriginal?: Record<string, unknown>;
+  /** Loop binding for `loop`-carrying steps (`FlowStep.loop`); not designer-editable, pass-through. */
+  loop?: FlowStep["loop"];
+  /** Free-text step message (`FlowStep.message`); not designer-editable, pass-through. */
+  message?: string;
+  /**
+   * Optional step fields that were **absent** on the loaded profile, so `toFlowStep` can omit them
+   * again rather than writing back a default the user never set (keeps a no-op open+save byte-stable).
+   * Undefined for nodes created in the designer, which emit their defaults as before.
+   */
+  absentOnLoad?: readonly string[];
   // Dynamic JSON binding:
   dataSourceScope: DataSourceScope;
   dataSourceId: string;

@@ -7,12 +7,14 @@
  *   profile → JSON → profile                       (JsonProfileStore serialization)
  *   profile → designer document → profile          (Flow Designer mapping)
  *
- * ## THIS VERIFIER IS EXPECTED TO FAIL
+ * ## THIS VERIFIER IS NOW A REGRESSION GUARD (was a discovery run)
  *
  * The audit (`docs/testing/RANDOMIZED_TESTING_ARCHITECTURE.md` §3) catalogued real data loss in the
- * designer mapping. This is a **baseline discovery run**: the failures are the product's, not the
- * test's. The assertions are deliberately not tuned, skipped or weakened to produce a green run,
- * and no lost field is excluded from the equality check.
+ * designer mapping. That was a **baseline discovery run** and it was expected to fail. All thirteen
+ * catalogued defects (RT-01…RT-15) have since been fixed in `flowProfileMapping.ts` and the corpus
+ * now round-trips **losslessly**, so this verifier is expected to be **green** and any new difference
+ * is an unexpected regression. The assertions were never tuned, skipped or weakened to get there, and
+ * no lost field is excluded from the equality check.
  *
  * What it produces on every run, deterministically:
  *   - a defect report (JSON + Markdown) under `reports/random-tests/`,
@@ -30,7 +32,16 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FlowProfile, FlowStep, StepType, ValueSource } from "@src/profiles/FlowProfile";
-import { createValueSource, fromFlowStep, toDesignerDocument, toFlowProfile } from "@renderer/components/workflow/flowProfileMapping";
+import {
+  createEdge,
+  createValueSource,
+  fromFlowStep,
+  toDesignerDocument,
+  toFlowProfile,
+  toFlowStep,
+  type FlowDesignerEdge,
+  type FlowDesignerNode
+} from "@renderer/components/workflow/flowProfileMapping";
 import { resolveConstraints } from "@src/testing/random/GenerationConstraints";
 import { generateFlow } from "@src/testing/random/RandomFlowGenerator";
 import { SeededRandom } from "@src/testing/random/SeededRandom";
@@ -156,7 +167,14 @@ for (const pattern of ALL_FLOW_PATTERNS) {
 /** The full save→load→save cycle through the real designer mapping. */
 function designerRoundTrip(profile: FlowProfile): FlowProfile {
   const document = toDesignerDocument(profile);
-  return toFlowProfile(document.nodes, document.edges, profile.id, profile.name);
+  // The designer threads the loaded flow-level metadata through its own state (FlowChartDesigner
+  // loadProfile → toFlowProfile), so model that here; without it RT-06/RT-07 could not be exercised.
+  return toFlowProfile(document.nodes, document.edges, profile.id, profile.name, {
+    description: profile.description,
+    version: profile.version,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -178,7 +196,7 @@ console.log("\nJSON serialization round trip (JsonProfileStore)");
 /* ------------------------------------------------------------------ *
  * 4. Designer round trip — the discovery run
  * ------------------------------------------------------------------ */
-console.log("\nDesigner mapping round trip (baseline discovery — expected to fail)");
+console.log("\nDesigner mapping round trip (regression guard — must stay lossless)");
 
 const allDifferences: FieldDifference[] = [];
 const perCase = new Map<string, { original: FlowProfile; reloaded: FlowProfile; differences: FieldDifference[] }>();
@@ -392,6 +410,61 @@ console.log("\nValue-source handling");
   // A step with no source at all must not acquire one.
   const none = createValueSource(fromFlowStep({ id: "vs-2", type: "click", name: "c", locator: { strategy: "id", value: "resetButton" } }));
   check("a step with no value source does not gain one", none === undefined, JSON.stringify(none));
+}
+
+/* ------------------------------------------------------------------ *
+ * 6c. Field edit paths (regression cover for the RT-01/03/04/05/08/10/12 fixes)
+ * ------------------------------------------------------------------ *
+ * The corpus above only exercises load→save with no edits. These check the paths a *user* takes —
+ * editing a previously-absent field, or relying on a recorder-owned field surviving — which the
+ * corpus cannot reach. Kept small and explicit so a regression names the exact behavior lost.
+ */
+console.log("\nField preservation and edit paths");
+{
+  const nodeFrom = (step: FlowStep): FlowDesignerNode => ({ id: step.id, type: "actionNode", position: { x: 0, y: 0 }, data: fromFlowStep(step) });
+  const roundTripStep = (step: FlowStep, edges: FlowDesignerEdge[] = []): FlowStep => toFlowStep(nodeFrom(step), edges);
+
+  // RT-01: a locator on a `wait` step (which the catalog does not mark requiresLocator) is preserved.
+  const waitBack = roundTripStep({ id: "w1", type: "wait", name: "w", locator: { strategy: "id", value: "spinner" }, config: { waitType: "selector" } });
+  check("RT-01: a wait step keeps its locator through a save", waitBack.locator?.value === "spinner", JSON.stringify(waitBack.locator));
+
+  // RT-03: recorder popup metadata survives a designer re-save.
+  const popupBack = roundTripStep({ id: "p1", type: "click", name: "opener", locator: { strategy: "id", value: "open" }, pageAlias: "main", opensPopup: true, popupExpectation: { popupAlias: "popup-1" } });
+  check("RT-03: opensPopup + popupExpectation survive a save", popupBack.opensPopup === true && popupBack.popupExpectation?.popupAlias === "popup-1", JSON.stringify(popupBack.popupExpectation));
+
+  // RT-04: an explicit non-retryable safety policy is not downgraded to a heuristic on save.
+  const safetyBack = roundTripStep({ id: "s1", type: "click", name: "danger", locator: { strategy: "id", value: "delete" }, safety: { sideEffectLevel: "dangerousMutation", retryable: false } });
+  check("RT-04: a non-retryable safety policy survives a save", safetyBack.safety?.sideEffectLevel === "dangerousMutation" && safetyBack.safety?.retryable === false, JSON.stringify(safetyBack.safety));
+
+  // RT-12: a multi-key typed outputs map survives with its declared types, not collapsed to one text key.
+  const outputsBack = roundTripStep({ id: "o1", type: "readText", name: "read", locator: { strategy: "id", value: "total" }, outputs: { total: { type: "number" }, label: { type: "text" } } });
+  check("RT-12: a multi-key outputs map survives with its types", JSON.stringify(outputsBack.outputs) === JSON.stringify({ total: { type: "number" }, label: { type: "text" } }), JSON.stringify(outputsBack.outputs));
+
+  // RT-10: an absent optional field stays absent on a no-op save…
+  const noTimeout = roundTripStep({ id: "t1", type: "click", name: "c", locator: { strategy: "id", value: "go" } });
+  check("RT-10: an absent timeoutMs stays absent on a no-op save", noTimeout.timeoutMs === undefined, JSON.stringify(noTimeout.timeoutMs));
+
+  // …but an edit to that same field is always persisted (the edit-safety guard).
+  const editedNode = nodeFrom({ id: "t2", type: "click", name: "c", locator: { strategy: "id", value: "go" } });
+  const editedBack = toFlowStep({ ...editedNode, data: { ...editedNode.data, timeoutMs: 45000 } }, []);
+  check("RT-10: an edited timeoutMs is persisted even though it was absent on load", editedBack.timeoutMs === 45000, JSON.stringify(editedBack.timeoutMs));
+
+  // RT-08: an unlabelled connector persists no fabricated label equal to its type.
+  const unlabelled = toFlowProfile([], [createEdge("a", "b", "success")], "f", "F").edges[0];
+  check("RT-08: an unlabelled connector persists no fabricated label", unlabelled?.label === undefined, JSON.stringify(unlabelled?.label));
+
+  // RT-05: two connectors sharing a source+target keep their distinct persisted ids on load.
+  const twoEdges = toDesignerDocument({
+    id: "f",
+    name: "F",
+    version: 1,
+    nodes: [],
+    edges: [
+      { id: "edge-keep-1", source: "a", target: "b", type: "conditional" },
+      { id: "edge-keep-2", source: "a", target: "b", type: "conditional" }
+    ]
+  }).edges;
+  check("RT-05: two edges sharing a source+target keep distinct persisted ids", twoEdges[0]?.id === "edge-keep-1" && twoEdges[1]?.id === "edge-keep-2", twoEdges.map((edge) => edge.id).join(","));
 }
 
 /* ------------------------------------------------------------------ *

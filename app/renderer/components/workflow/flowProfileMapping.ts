@@ -35,6 +35,7 @@ import {
   type FlowDesignerNodeData
 } from "./flowDesignerTypes";
 import { getFlowNodeCatalogItem } from "./flowNodeCatalog";
+import { hasSection, type PropertySection } from "./flowNodeRegistry";
 
 export type FlowDesignerNode = CanvasNode<FlowDesignerNodeData>;
 export type FlowDesignerEdge = CanvasEdge<FlowConnectionData>;
@@ -47,25 +48,52 @@ export function createEdge(
   expression?: string,
   style?: EdgeVisualStyle,
   maxLoopCount?: number,
-  extra?: Partial<FlowConnectionData>
+  extra?: Partial<FlowConnectionData>,
+  id?: string
 ): FlowDesignerEdge {
-  const resolvedLabel = label ?? linkType;
   return {
-    id: `edge-${source}-${target}`,
+    // RT-05: preserve the persisted edge id on load; synthesize one only for user-created connectors.
+    // The synthetic `edge-<source>-<target>` form collides when two edges share a source and target
+    // (legal conditional/parallel fan-out), which is exactly why the persisted id must be threaded.
+    id: id ?? `edge-${source}-${target}`,
     source,
     target,
     ...buildConnectorVisual(linkType, style),
-    data: { linkType, label: resolvedLabel, expression: expression ?? "", style, maxLoopCount, ...extra },
-    label: resolvedLabel
+    // RT-08: `data.label` is the *authored* label (undefined when none) and is what `toFlowProfile`
+    // persists; the render label below falls back to the connector type for display only, so an
+    // unlabelled connector is not saved as though the user had typed its type as a label.
+    data: { linkType, label, expression: expression ?? "", style, maxLoopCount, ...extra },
+    label: label ?? linkType
   };
 }
 
-export function toFlowProfile(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[], id: string, name: string): FlowProfile {
+/**
+ * Flow-level metadata the designer must carry through a load→save cycle. The canvas document only
+ * holds nodes + edges, so `description`/`version`/timestamps have to be threaded separately from the
+ * loaded profile; without them `toFlowProfile` used to hardcode a description and `version: 1` and
+ * drop the timestamps (RT-06/RT-07). A brand-new designer flow passes no meta and keeps the defaults.
+ */
+export interface FlowProfileMeta {
+  description?: string;
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function toFlowProfile(
+  nodes: FlowDesignerNode[],
+  edges: FlowDesignerEdge[],
+  id: string,
+  name: string,
+  meta?: FlowProfileMeta
+): FlowProfile {
   return {
     id,
     name,
-    description: "Editable reusable flow",
-    version: 1,
+    // RT-06: preserve the loaded description/version instead of hardcoding literals. `meta.description`
+    // is used verbatim (even when undefined) so a description-less flow round-trips unchanged.
+    description: meta ? meta.description : "Editable reusable flow",
+    version: meta?.version ?? 1,
     nodes: nodes.map((node) => toFlowStep(node, edges)),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -79,25 +107,46 @@ export function toFlowProfile(nodes: FlowDesignerNode[], edges: FlowDesignerEdge
       label: edge.data?.label,
       condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
       style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined,
-      maxLoopCount: edge.data?.linkType === "loopBack" ? edge.data?.maxLoopCount ?? 2 : undefined
-    }))
+      // RT-11: persist maxLoopCount whenever it is set, on any connector; let the runtime apply its
+      // own default when it is absent instead of fabricating a 2 on save.
+      maxLoopCount: edge.data?.maxLoopCount
+    })),
+    // RT-07: preserve createdAt; updatedAt is carried here and bumped at actual save time by the store.
+    createdAt: meta?.createdAt,
+    updatedAt: meta?.updatedAt
   };
 }
+
+/** Optional `FlowStep` fields the designer defaults on load; tracked so a no-op save re-omits them. */
+export const OPTIONAL_STEP_FIELDS = ["description", "timeoutMs", "retry", "onFailure", "size", "next"] as const;
 
 export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): FlowStep {
   const data = node.data;
   const catalogItem = getFlowNodeCatalogItem(data.stepType);
   const next = edges.find((edge) => edge.source === node.id)?.target;
   const valueSource = createValueSource(data);
+  // RT-10: a field that was absent on the loaded profile is omitted again rather than written back as
+  // the default the runner would have applied anyway, so a no-op open+save stays byte-stable. Nodes
+  // created in the designer carry no `absentOnLoad` and emit their defaults exactly as before.
+  const wasAbsent = (field: (typeof OPTIONAL_STEP_FIELDS)[number]): boolean => data.absentOnLoad?.includes(field) ?? false;
+  // ...but never drop a value the user actually changed: only re-omit when the field is still exactly
+  // the default `fromFlowStep` applied on load (`atDefault`), so an edit to a previously-absent field
+  // is always persisted.
+  const omit = (field: (typeof OPTIONAL_STEP_FIELDS)[number], atDefault: boolean): boolean => wasAbsent(field) && atDefault;
 
   return {
     id: node.id,
     type: data.stepType,
     name: data.name,
-    description: data.description,
+    description: omit("description", data.description === catalogItem.description) ? undefined : data.description,
     position: node.position,
-    next,
-    locator: catalogItem.requiresLocator
+    // `next` mirrors the outgoing edge (routing lives in `edges`), so it is re-omitted whenever it was
+    // absent on load rather than compared to a default — the edge still carries the route either way.
+    next: wasAbsent("next") ? undefined : next,
+    // RT-01: persist a locator whenever the step actually carries one. `requiresLocator` is a
+    // *validation* rule ("the user must supply one"), not a *persistence* rule — conflating them
+    // silently dropped Recorder-captured locators on `wait`/`screenshot`, which the runner still uses.
+    locator: data.locatorValue
       ? {
         strategy: data.locatorStrategy,
         value: data.locatorValue,
@@ -113,63 +162,85 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     valueSource,
     // `|| undefined` so a goto with no literal (its value comes from a source) does not persist `url: ""`.
     url: data.stepType === "goto" ? data.value || undefined : undefined,
-    timeoutMs: data.timeoutMs,
+    timeoutMs: omit("timeoutMs", data.timeoutMs === 10000) ? undefined : data.timeoutMs,
     beforeWaits: data.beforeWaits?.length ? data.beforeWaits : undefined,
     afterWaits: data.afterWaits?.length ? data.afterWaits : undefined,
-    retry: {
-      count: data.retryCount,
-      delayMs: data.retryDelayMs
-    },
-    onFailure: {
-      action: data.failureAction,
-      screenshot: data.screenshotOnFailure
-    },
-    outputs: data.outputKey ? { [data.outputKey]: { type: "text" } } : undefined,
+    retry: omit("retry", data.retryCount === 0 && data.retryDelayMs === 1000) ? undefined : { count: data.retryCount, delayMs: data.retryDelayMs },
+    onFailure: omit("onFailure", data.failureAction === "stop" && data.screenshotOnFailure) ? undefined : { action: data.failureAction, screenshot: data.screenshotOnFailure },
+    // RT-12: preserve the full outputs map; the panel edits a single key but a step may declare
+    // several typed outputs, and rebuilding `{ [key]: { type: "text" } }` dropped all but the first.
+    outputs: data.outputsOriginal ?? (data.outputKey ? { [data.outputKey]: { type: "text" } } : undefined),
     selectionMode: data.stepType === "select" ? data.selectionMode : undefined,
     flowId: data.stepType === "runFlow" ? data.targetFlowId || undefined : undefined,
-    size: { width: Math.round(data.width), height: Math.round(data.height) },
-    config: toNodeConfig(data)
+    size: omit("size", Math.round(data.width) === DEFAULT_NODE_WIDTH && Math.round(data.height) === DEFAULT_NODE_HEIGHT)
+      ? undefined
+      : { width: Math.round(data.width), height: Math.round(data.height) },
+    config: toNodeConfig(data),
+    // Recorder-owned fields the designer cannot author: preserved verbatim so a recorded flow is not
+    // degraded by a designer re-save. RT-03 (popup metadata), RT-04 (safety), RT-15 (loop/message).
+    safety: data.safety,
+    pageAlias: data.pageAlias,
+    opensPopup: data.opensPopup,
+    popupExpectation: data.popupExpectation,
+    loop: data.loop,
+    message: data.message
   };
 }
 
-export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig {
-  return {
-    clearBeforeFill: data.clearBeforeFill,
-    selectMultiple: data.selectMultiple,
-    waitType: data.waitType,
-    assertionType: data.assertionType,
-    comparisonOperator: data.comparisonOperator,
-    expectedValue: data.expectedValue || undefined,
-    screenshotName: data.screenshotName || undefined,
-    fullPage: data.fullPage,
-    scrollTarget: data.scrollTarget,
-    scrollDirection: data.scrollDirection,
-    scrollAmount: data.scrollAmount,
-    loopType: data.loopType,
-    iterationCount: data.iterationCount,
-    loopActionType: data.loopActionType,
-    loopStopOnFailure: data.loopStopOnFailure,
-    maxIterations: data.maxIterations,
-    targetFlowId: data.targetFlowId || undefined,
-    stopParentOnChildFailure: data.stopParentOnChildFailure,
-    routeMode: data.stepType === "routeChange" ? data.routeMode : undefined,
-    urlMatch: data.stepType === "routeChange" ? data.urlMatch : undefined,
-    routeWaitUntil: data.stepType === "routeChange" ? data.routeWaitUntil : undefined,
-    sessionName: data.stepType === "saveSession" ? data.sessionName || undefined : undefined,
-    sessionFolder: data.stepType === "saveSession" ? data.sessionFolder || undefined : undefined,
-    overwriteSession: data.stepType === "saveSession" ? data.overwriteSession : undefined,
-    captureScope: data.stepType === "saveSession" ? data.captureScope : undefined,
-    maskSession: data.stepType === "saveSession" ? data.maskSession : undefined,
-    loginProvider: data.stepType === "protectedLoginHandoff" ? data.loginProvider : undefined,
-    handoffMode: data.stepType === "protectedLoginHandoff" ? data.handoffMode : undefined,
-    handoffInstructions: data.stepType === "protectedLoginHandoff" ? data.handoffInstructions || undefined : undefined,
-    allowRetry: data.stepType === "protectedLoginHandoff" ? data.allowRetry : undefined,
-    handoffTimeoutMs: data.stepType === "protectedLoginHandoff" ? data.handoffTimeoutMs : undefined,
-    detectBeforeHandoff: data.stepType === "protectedLoginHandoff" ? data.detectBeforeHandoff : undefined,
-    reuseSessionMode: data.stepType === "reuseSession" ? data.reuseSessionMode : undefined,
-    reuseSessionId: data.stepType === "reuseSession" && data.reuseSessionMode === "selected" ? data.reuseSessionId || undefined : undefined,
-    oracle: data.stepType === "oracle" ? data.oracle : undefined
+/**
+ * Build the `NodeConfig` for a step, emitting **only the fields the node type actually uses** and
+ * omitting the object entirely when the type has none (RT-09).
+ *
+ * `toNodeConfig` used to emit ~16 always-populated fields on every node, so a `goto` carried loop
+ * and scroll settings and a config-less `click` acquired a full defaulted object — which inflated
+ * saved JSON and made a no-op open+save non-idempotent. Field ownership is derived from the node
+ * registry's property `sections` (the same source the Node Properties panel gates on), so this
+ * cannot drift as node types are added. The already type-scoped groups (routeChange/session/…) keep
+ * their exact-type guards, which are equivalent since each of those sections belongs to one type.
+ */
+export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig | undefined {
+  const type = data.stepType;
+  const inSection = (section: PropertySection): boolean => hasSection(type, section);
+  const config: NodeConfig = {
+    clearBeforeFill: type === "fill" ? data.clearBeforeFill : undefined,
+    selectMultiple: inSection("select") ? data.selectMultiple : undefined,
+    waitType: inSection("wait") ? data.waitType : undefined,
+    assertionType: inSection("assertion") ? data.assertionType : undefined,
+    // A "visible" assertion has no comparison operator; only value-comparing assertions do.
+    comparisonOperator: inSection("assertion") && data.assertionType !== "visible" ? data.comparisonOperator : undefined,
+    expectedValue: inSection("assertion") ? data.expectedValue || undefined : undefined,
+    screenshotName: inSection("screenshot") ? data.screenshotName || undefined : undefined,
+    fullPage: inSection("screenshot") ? data.fullPage : undefined,
+    scrollTarget: inSection("scroll") ? data.scrollTarget : undefined,
+    scrollDirection: inSection("scroll") ? data.scrollDirection : undefined,
+    scrollAmount: inSection("scroll") ? data.scrollAmount : undefined,
+    loopType: inSection("loop") ? data.loopType : undefined,
+    iterationCount: inSection("loop") ? data.iterationCount : undefined,
+    loopActionType: inSection("loop") ? data.loopActionType : undefined,
+    loopStopOnFailure: inSection("loop") ? data.loopStopOnFailure : undefined,
+    maxIterations: inSection("loop") ? data.maxIterations : undefined,
+    targetFlowId: inSection("runFlow") ? data.targetFlowId || undefined : undefined,
+    stopParentOnChildFailure: inSection("runFlow") ? data.stopParentOnChildFailure : undefined,
+    routeMode: type === "routeChange" ? data.routeMode : undefined,
+    urlMatch: type === "routeChange" ? data.urlMatch : undefined,
+    routeWaitUntil: type === "routeChange" ? data.routeWaitUntil : undefined,
+    sessionName: type === "saveSession" ? data.sessionName || undefined : undefined,
+    sessionFolder: type === "saveSession" ? data.sessionFolder || undefined : undefined,
+    overwriteSession: type === "saveSession" ? data.overwriteSession : undefined,
+    captureScope: type === "saveSession" ? data.captureScope : undefined,
+    maskSession: type === "saveSession" ? data.maskSession : undefined,
+    loginProvider: type === "protectedLoginHandoff" ? data.loginProvider : undefined,
+    handoffMode: type === "protectedLoginHandoff" ? data.handoffMode : undefined,
+    handoffInstructions: type === "protectedLoginHandoff" ? data.handoffInstructions || undefined : undefined,
+    allowRetry: type === "protectedLoginHandoff" ? data.allowRetry : undefined,
+    handoffTimeoutMs: type === "protectedLoginHandoff" ? data.handoffTimeoutMs : undefined,
+    detectBeforeHandoff: type === "protectedLoginHandoff" ? data.detectBeforeHandoff : undefined,
+    reuseSessionMode: type === "reuseSession" ? data.reuseSessionMode : undefined,
+    reuseSessionId: type === "reuseSession" && data.reuseSessionMode === "selected" ? data.reuseSessionId || undefined : undefined,
+    oracle: type === "oracle" ? data.oracle : undefined
   };
+  const defined = Object.entries(config).filter(([, value]) => value !== undefined);
+  return defined.length ? (Object.fromEntries(defined) as NodeConfig) : undefined;
 }
 
 /** The two source kinds the properties panel can actually author. */
@@ -194,9 +265,12 @@ export function createValueSource(data: FlowDesignerNodeData): ValueSource | und
     return {
       type: "dynamic",
       dataSourceScope: data.dataSourceScope,
-      dataSourceId: data.dataSourceScope === "specific" ? data.dataSourceId || undefined : undefined,
+      // RT-13: retain the id/objectId even when the sibling discriminator does not currently select
+      // it. The resolver keys off `dataSourceScope`/`idMode`, so a carried value is inert at run time
+      // but survives a user narrowing the binding back to workflow scope and switching it out again.
+      dataSourceId: data.dataSourceId || undefined,
       idMode: data.idMode,
-      objectId: data.idMode === "explicit" ? data.objectId || undefined : undefined,
+      objectId: data.objectId || undefined,
       keyName: data.keyName || undefined
     };
   }
@@ -230,6 +304,16 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     valueSourceType: valueSource?.type ?? "static",
     // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).
     valueSourceOriginal: valueSource,
+    // Recorder-owned fields the designer cannot author, kept for a lossless round-trip.
+    safety: step.safety,
+    pageAlias: step.pageAlias,
+    opensPopup: step.opensPopup,
+    popupExpectation: step.popupExpectation,
+    outputsOriginal: step.outputs,
+    loop: step.loop,
+    message: step.message,
+    // RT-10: record which optional fields were absent so `toFlowStep` can omit them again.
+    absentOnLoad: OPTIONAL_STEP_FIELDS.filter((field) => step[field] === undefined),
     // The LITERAL only. A typed source's own fields are no longer folded in here — that is what let
     // `step.url` overwrite an unrelated source field and corrupt it.
     value: step.value ?? (valueSource?.type === "static" ? valueSource.value : undefined) ?? step.url ?? "",
@@ -305,12 +389,22 @@ export function toDesignerDocument(profile: FlowProfile): {
       data: fromFlowStep(step)
     })),
     edges: profile.edges.map<FlowDesignerEdge>((edge) =>
-      createEdge(edge.source, edge.target, edge.type, edge.label, edge.condition?.expression, edge.style, edge.maxLoopCount, {
-        kind: edge.kind,
-        conditional: edge.conditional,
-        parallel: edge.parallel,
-        loop: edge.loop
-      })
+      createEdge(
+        edge.source,
+        edge.target,
+        edge.type,
+        edge.label,
+        edge.condition?.expression,
+        edge.style,
+        edge.maxLoopCount,
+        {
+          kind: edge.kind,
+          conditional: edge.conditional,
+          parallel: edge.parallel,
+          loop: edge.loop
+        },
+        edge.id
+      )
     )
   };
 }

@@ -30,7 +30,8 @@ import {
   fromFlowStep,
   toFlowProfile,
   type FlowDesignerEdge,
-  type FlowDesignerNode
+  type FlowDesignerNode,
+  type FlowProfileMeta
 } from "../components/workflow/flowProfileMapping";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
@@ -117,6 +118,9 @@ function FlowChartDesignerContent() {
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
   const [flowId, setFlowId] = useState("login-flow");
   const [flowName, setFlowName] = useState("Login Flow");
+  // Flow-level metadata carried across a load→save so the designer preserves the loaded description,
+  // version and timestamps instead of hardcoding them (RT-06/RT-07). A new flow keeps the defaults.
+  const [flowMeta, setFlowMeta] = useState<FlowProfileMeta>({ description: "Editable reusable flow", version: 1 });
   const [saveState, setSaveState] = useState("Loading…");
   const [dataSources, setDataSources] = useState<{ id: string; name: string }[]>([]);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
@@ -167,7 +171,7 @@ function FlowChartDesignerContent() {
     }
   }, [drawerOpen, selectedEdgeId, selectedNodeId]);
   const validationMessages = useMemo(() => validateFlow(nodes, edges), [nodes, edges]);
-  const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName), [edges, flowId, flowName, nodes]);
+  const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName, flowMeta), [edges, flowId, flowMeta, flowName, nodes]);
   // Points 2–4: connector-structure issues block Save until fixed (subset of validationMessages).
   const connectorIssues = useMemo(
     () => connectorStructureIssues(edges, (id) => nodes.find((node) => node.id === id)?.data.name ?? id),
@@ -440,7 +444,7 @@ function FlowChartDesignerContent() {
     const now = new Date().toISOString();
     try {
       const existing = await window.playwrightFlowStudio.flows.get(flowProfile.id);
-      const toSave = { ...flowProfile, createdAt: existing?.createdAt ?? now, updatedAt: now };
+      const toSave = { ...flowProfile, createdAt: existing?.createdAt ?? flowProfile.createdAt ?? now, updatedAt: now };
       if (existing) {
         await window.playwrightFlowStudio.flows.update(flowProfile.id, toSave);
       } else {
@@ -468,12 +472,22 @@ function FlowChartDesignerContent() {
         })
       );
       const nextEdges = profile.edges.map<FlowDesignerEdge>((edge) =>
-        createEdge(edge.source, edge.target, edge.type, edge.label, edge.condition?.expression, edge.style, edge.maxLoopCount, {
-          kind: edge.kind,
-          conditional: edge.conditional,
-          parallel: edge.parallel,
-          loop: edge.loop
-        })
+        createEdge(
+          edge.source,
+          edge.target,
+          edge.type,
+          edge.label,
+          edge.condition?.expression,
+          edge.style,
+          edge.maxLoopCount,
+          {
+            kind: edge.kind,
+            conditional: edge.conditional,
+            parallel: edge.parallel,
+            loop: edge.loop
+          },
+          edge.id
+        )
       );
 
       // Point 1c: flows saved without node positions collapse onto one coordinate. Auto-arrange
@@ -489,6 +503,7 @@ function FlowChartDesignerContent() {
       setSelectedEdgeId(null);
       setFlowId(profile.id);
       setFlowName(profile.name);
+      setFlowMeta({ description: profile.description, version: profile.version, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
       setSaveState("Loaded profile");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);

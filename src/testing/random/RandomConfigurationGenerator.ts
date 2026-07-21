@@ -163,9 +163,12 @@ function valueSourceFor(type: StepType, value: string, ctx: ConfigurationContext
     case "dynamic":
       return {
         type: "dynamic",
-        dataSourceScope: "specific",
+        // Mix the discriminators so the "inactive field is still carried" case (RT-13) is exercised,
+        // not only the specific/explicit combination in which both ids are active. `dataSourceId`
+        // survives even under workflow scope, and `objectId` survives under instanceOrder id mode.
+        dataSourceScope: rng.pick(["specific", "workflow"] as const),
         dataSourceId: "lab-data-source-01",
-        idMode: "explicit",
+        idMode: rng.pick(["explicit", "instanceOrder"] as const),
         objectId: "lab-object-01",
         keyName: rng.pick(SAFE_TEXT_VALUES)
       };
@@ -355,6 +358,11 @@ export function buildStepPayload(type: StepType, ctx: ConfigurationContext): Ste
         [`${rng.pick(SAFE_OUTPUT_KEYS)}Count`]: { type: "number" }
       };
     }
+
+    // Recorder-authored free-text note, plus an explicit loop binding on loop steps. `toFlowStep`
+    // mapped neither field (RT-15); emit them on a sample so the loss is exercised, not just predicted.
+    if (rng.bool(0.3)) payload.message = rng.pick(SAFE_TEXT_VALUES);
+    if (type === "loop") payload.loop = { maxIterations: rng.int(1, constraints.maxLoopIterations) };
   }
 
   return payload;

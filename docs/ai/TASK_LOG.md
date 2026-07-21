@@ -4906,3 +4906,31 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Result:** `docs/ai/HANDOFF.md` is current and agent-agnostic. No secrets, tokens or credentials were
   written to any Markdown file.
 
+## 2026-07-21 — Claude — Test Lab Tranche 1: fix all round-trip data-loss defects (RT-01…RT-15)
+
+- **Task:** make the Flow Designer persistence round-trip lossless — fix the 11 observed + 2 predicted
+  round-trip defects catalogued by Phase 3, without weakening any assertion. First tranche of the approved
+  plan (`.claude/plans/write-a-plan-to-refactored-wirth.md`), checkpoint-based rollout.
+- **Approach:** the designer *preserves* fields it cannot author rather than re-deriving them (extends the
+  RT-14 `valueSourceOriginal` pattern). All fixes land in the single mapping
+  `app/renderer/components/workflow/flowProfileMapping.ts`.
+- **Files:** `flowProfileMapping.ts` (all mappings: locator gate RT-01, popup/safety/loop/message
+  pass-through RT-03/04/15, edge id+label RT-05/08, flow `meta` arg RT-06/07, `maxLoopCount` RT-11,
+  section-gated `toNodeConfig` RT-09, edit-safe absent-field omission RT-10, full outputs map RT-12,
+  retained dynamic ids RT-13); `flowDesignerTypes.ts` (pass-through fields + `absentOnLoad`);
+  `FlowChartDesigner.tsx` (thread `flowMeta` + persisted `edge.id`, `createdAt` fallback on save);
+  `RandomConfigurationGenerator.ts` (exercise RT-13 discriminator mix + RT-15 `message`/`loop`);
+  `RoundTripDefectCatalog.ts` (emptied — all 13 entries deleted per its own rule; now a regression guard);
+  `scripts/verify-random-roundtrip.mts` (stale "expected to fail" comments updated; +8 field-edit
+  regression checks).
+- **Tests run:** `verify-random-roundtrip` **26 passed / 0 failed** (was 8/15) · `verify-random-generator`
+  **49/0** · `verify-random-oracle` **19/1** (intentional gap `awkit-7fm`) · `verify-durable-store`
+  **11/11** · `verify:flow-designer` **24/24 real Electron** · `verify:runner` **82/0** · `npm run build`
+  clean · `check-memory` pass.
+- **Not run:** `validate:offline` (no packaging/offline behavior changed).
+- **Beads:** closed `awkit-abi/4t9/3lq/07c/3qs/ani/7df/ao6/who/o4q/x8w` (11 observed defects).
+- **Result:** the Phase-3 round trip is lossless; the intentionally-red baseline verifier is green and now
+  serves as a regression guard. No assertion was tuned, skipped or weakened; no lost field was excluded.
+  RT-10 was made edit-safe (a user edit to a previously-absent field is always persisted). Tranche 1
+  checkpoint — paused for review before Tranche 2 (unified validation, an architectural checkpoint).
+
