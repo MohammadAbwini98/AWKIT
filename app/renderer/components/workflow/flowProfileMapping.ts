@@ -8,19 +8,12 @@
  *
  * They live in their own module (rather than inside `pages/FlowChartDesigner.tsx`) so they can be
  * exercised headlessly — a 1300-line page component cannot be imported by a `tsx` verifier.
- * `scripts/verify-random-roundtrip.mts` drives them directly.
+ * `scripts/verify-random-roundtrip.mts` drives them directly, and `FlowChartDesigner.tsx` is now
+ * the only other consumer.
  *
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- * INTERIM STATE — READ BEFORE EDITING
- *
- * `FlowChartDesigner.tsx` still declares its own private copies of these functions; deleting them
- * and importing from here is task **0.1** in `docs/testing/RANDOMIZED_TESTING_IMPLEMENTATION_PLAN.md`,
- * held back only because that file is a tracked file in an in-flight checkpoint.
- *
- * Until that edit lands, the two copies MUST stay identical. `verify-random-roundtrip.mts` enforces
- * this: it extracts both versions from source and fails if they diverge. Edit both, or land 0.1
- * first. The guard retires itself automatically once the designer imports from this module.
- * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * **This is the single source of the mapping.** It was extracted verbatim from the designer page,
+ * so a change here changes what gets persisted — see the catalogued round-trip defects in
+ * `src/testing/roundtrip/RoundTripDefectCatalog.ts` before editing.
  */
 import type {
   EdgeVisualStyle,
