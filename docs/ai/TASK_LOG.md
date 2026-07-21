@@ -4865,3 +4865,28 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   `awkit-wza`; the 13 round-trip defects are blocked on Phase 0 in Beads because the fix lands in
   the newly extracted mapping module. Two verifiers are intentionally red and must stay that way
   until their product defects are fixed.
+
+## 2026-07-21 — Claude — Fix RT-14 value/valueSource flattening (`awkit-1w5`, also closes `awkit-ihx`)
+
+- **Task:** the most severe round-trip defect — `fromFlowStep` collapsed `FlowStep.value` and
+  `FlowStep.valueSource` into one designer string, and `createValueSource` rebuilt a typed source
+  from it. `step.url` headed the recovery chain, so a `goto`'s source was overwritten by its URL.
+- **Key insight:** the properties panel only authors `static` and `dynamic` (FlowNodePropertiesPanel
+  line 80 collapses every other kind to "static"). The other seven kinds come from the Recorder,
+  imports, or hand-edited profiles — so the designer must *preserve* them, not re-derive them.
+- **Files:** `app/renderer/components/workflow/flowDesignerTypes.ts` (new `valueSourceOriginal`),
+  `flowProfileMapping.ts` (`createValueSource` passes non-authorable kinds through; `fromFlowStep`
+  keeps `value` as the literal only; `toFlowStep` no longer persists `url: ""`),
+  `FlowNodePropertiesPanel.tsx` (read-only hint naming a preserved source),
+  `src/testing/roundtrip/RoundTripDefectCatalog.ts` (RT-02 and RT-14 entries deleted),
+  `scripts/verify-random-roundtrip.mts` (8 new edit-path assertions),
+  `src/testing/random/RandomConfigurationGenerator.ts` (no plaintext `url` beside a secret source).
+- **Tests run:** `npm run build` passed; `verify:flow-designer` 24/24 in real Electron;
+  `verify-random-roundtrip` 8+15 → **17 passed / 12 failed** (still red by design, 0 unexpected new
+  failures, defect shapes 46 → 35, "secret references survive the round trip" now passes);
+  `verify-random-generator` 49/49; `verify-random-oracle` 19+1; `verify-durable-store` 11/11;
+  `verify:mock-site` 65/65.
+- **Not run:** `verify:runner`, `validate:offline` — no runner or packaging behavior changed.
+- **Result:** RT-14 and RT-02 fixed and their catalog entries deleted, so a recurrence now reports
+  as a regression rather than a known baseline. 11 round-trip defects remain.
+

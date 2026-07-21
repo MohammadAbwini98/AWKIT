@@ -82,22 +82,6 @@ export const KNOWN_ROUNDTRIP_DEFECTS: readonly RoundTripDefect[] = [
       "Persist `locator` whenever `data.locatorValue` is non-empty, not only when `catalogItem.requiresLocator` is true. The catalog flag is a *validation* rule (\"the user must supply one\"), not a *persistence* rule, and toFlowStep is the only place the two are conflated."
   },
   {
-    id: "RT-02",
-    title: "Secret-backed value sources cannot be represented — the reference is destroyed on save",
-    boundary: "designerMapping",
-    status: "observed",
-    shapes: ["nodes[].valueSource", "nodes[].valueSource.type", "nodes[].valueSource.secretName"],
-    kinds: ["lost", "changed"],
-    severity: "securityAffecting",
-    owner:
-      "app/renderer/components/workflow/flowProfileMapping.ts — `createValueSource` has no `secret` branch and returns undefined on an empty `data.value`; `fromFlowStep`'s value fallback chain omits `secretName`",
-    affectedNodeTypes: "Any type with `requiresValue` — notably `fill`, `goto`, `assertText`, `select`.",
-    impact:
-      "Security and execution. A `secret` source names a credential in the encrypted local store; the value is resolved only at run time and deliberately never serialized. Because `fromFlowStep` cannot recover a display value from `secretName`, `createValueSource` sees an empty `data.value` and drops the whole source. The step silently degrades to having no value — a flow that authenticated before the edit no longer does. Note the failure is a *loss*, not a leak: no plaintext is written at any point.",
-    recommendedFix:
-      "Round-trip the reference, not the value: add `secretName` to `fromFlowStep`'s recovery chain (into a dedicated field, not `value`), and give `createValueSource` a `secret` branch that emits `{ type: \"secret\", secretName }` and is exempt from the `if (!data.value) return undefined` guard."
-  },
-  {
     id: "RT-03",
     title: "Recorder popup/window metadata discarded on designer re-save",
     boundary: "designerMapping",
@@ -241,34 +225,6 @@ export const KNOWN_ROUNDTRIP_DEFECTS: readonly RoundTripDefect[] = [
       "Editing fidelity, trending on execution. The designer models outputs as a single string field, so a step declaring several outputs loses all but the first, and each surviving output's declared type is replaced by `\"text\"`. Downstream steps binding to a dropped output key resolve to nothing.",
     recommendedFix:
       "Preserve the full outputs map through the designer node data. If the UI is only ever going to edit one key, still round-trip the rest untouched rather than reconstructing the map from a single field."
-  },
-  {
-    id: "RT-14",
-    title: "`value` and `valueSource` are flattened through one designer string, corrupting typed sources",
-    boundary: "designerMapping",
-    status: "observed",
-    shapes: [
-      "nodes[].value",
-      "nodes[].valueSource.value",
-      "nodes[].valueSource.envKey",
-      "nodes[].valueSource.key",
-      "nodes[].valueSource.outputKey",
-      "nodes[].valueSource.path",
-      "nodes[].valueSource.generator"
-    ],
-    kinds: ["lost", "changed", "fabricated"],
-    severity: "executionAffecting",
-    owner:
-      "app/renderer/components/workflow/flowProfileMapping.ts — `fromFlowStep` collapses the source into `data.value` via `step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? valueSource?.path ?? valueSource?.outputKey ?? \"\"`, and `createValueSource` rebuilds a typed source from that single string",
-    affectedNodeTypes:
-      "Every type with `requiresValue`. Confirmed in the corpus on `goto`, `fill`, `select`, `radio`, `scroll`, `wait`, `condition`, `assertText`.",
-    impact:
-      "Execution, and it is the most damaging finding in this run. A typed value source and the step's literal value share one string field, so the round trip mixes them up:\n" +
-      "  • `goto` is worst — `step.url` is *first* in the recovery chain, so it shadows the source entirely. A `goto` with `{type:\"env\", envKey:\"AWKIT_LAB_ENV_ALPHA\"}` comes back as `{type:\"env\", envKey:\"http://127.0.0.1:4321/form.html\"}`: the environment variable name is overwritten with a URL. The same path turns `{type:\"generated\", generator:\"randomEmail\"}` into `{type:\"generated\", generator:\"http://…\"}` — a value outside the `generator` union, i.e. a structurally invalid document.\n" +
-      "  • For every other type, `FlowStep.value` is overwritten with the *source's key* (a step with `value: \"400\"` and an `env` source comes back with `value: \"AWKIT_LAB_ENV_ALPHA\"`), so the literal fallback the runner would use is destroyed.\n" +
-      "  • Sources whose discriminating field is not in the chain (`secret`, `dynamic`) collapse to an empty string and are dropped entirely — this is the mechanism behind RT-02.",
-    recommendedFix:
-      "Stop flattening. Model the value source structurally in `FlowDesignerNodeData` (keep `value` for the literal and hold the source's own fields separately) so `createValueSource` reconstructs from typed state rather than re-parsing one string. As an immediate containment step, remove `step.url` from the head of the recovery chain — it is the only entry that can silently overwrite an unrelated source field."
   },
   {
     id: "RT-15",

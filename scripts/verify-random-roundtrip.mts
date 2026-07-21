@@ -29,8 +29,8 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
-import { toDesignerDocument, toFlowProfile } from "@renderer/components/workflow/flowProfileMapping";
+import type { FlowProfile, FlowStep, StepType, ValueSource } from "@src/profiles/FlowProfile";
+import { createValueSource, fromFlowStep, toDesignerDocument, toFlowProfile } from "@renderer/components/workflow/flowProfileMapping";
 import { resolveConstraints } from "@src/testing/random/GenerationConstraints";
 import { generateFlow } from "@src/testing/random/RandomFlowGenerator";
 import { SeededRandom } from "@src/testing/random/SeededRandom";
@@ -339,6 +339,60 @@ console.log(
     .map((defect) => defect.id)
     .join(", ")})`
 );
+
+/* ------------------------------------------------------------------ *
+ * 6b. Value-source edit paths (regression cover for the RT-14/RT-02 fix)
+ * ------------------------------------------------------------------ */
+console.log("\nValue-source handling");
+{
+  const step = (valueSource: ValueSource, extra: Partial<FlowStep> = {}): FlowStep => ({
+    id: "vs-1",
+    type: "fill",
+    name: "vs",
+    locator: { strategy: "id", value: "firstName" },
+    valueSource,
+    ...extra
+  });
+
+  // Preserved untouched: the panel cannot author these, so a save must not rebuild them.
+  const envBack = createValueSource(fromFlowStep(step({ type: "env", envKey: "AWKIT_LAB_ENV_ALPHA" }, { value: "literal-fallback" })));
+  check("env source keeps its envKey", envBack?.type === "env" && envBack.envKey === "AWKIT_LAB_ENV_ALPHA", JSON.stringify(envBack));
+
+  const secretBack = createValueSource(fromFlowStep(step({ type: "secret", secretName: "awkit-lab-secret-ref-0001" })));
+  check(
+    "secret source survives with no literal attached",
+    secretBack?.type === "secret" && secretBack.secretName === "awkit-lab-secret-ref-0001" && secretBack.value === undefined,
+    JSON.stringify(secretBack)
+  );
+
+  const generatedBack = createValueSource(fromFlowStep(step({ type: "generated", generator: "randomEmail" })));
+  check("generated source keeps a generator inside its union", generatedBack?.type === "generated" && generatedBack.generator === "randomEmail");
+
+  // The `goto` case that used to corrupt everything: url must not leak into the source.
+  const gotoBack = createValueSource(
+    fromFlowStep(step({ type: "env", envKey: "AWKIT_LAB_ENV_BRAVO" }, { type: "goto", url: "http://127.0.0.1:4321/form.html" }))
+  );
+  check("a goto url no longer overwrites its value source", gotoBack?.type === "env" && gotoBack.envKey === "AWKIT_LAB_ENV_BRAVO", JSON.stringify(gotoBack));
+
+  // Authorable kinds still behave, including switching an unauthorable one to static.
+  const staticBack = createValueSource(fromFlowStep(step({ type: "static", value: "lab-alpha" }, { value: "lab-alpha" })));
+  check("static source round-trips its value", staticBack?.type === "static" && staticBack.value === "lab-alpha");
+
+  const switched = { ...fromFlowStep(step({ type: "env", envKey: "AWKIT_LAB_ENV_ALPHA" })), valueSourceType: "static" as const, value: "typed-by-user" };
+  const switchedBack = createValueSource(switched);
+  check(
+    "switching an env source to Static produces a static source from the typed value",
+    switchedBack?.type === "static" && switchedBack.value === "typed-by-user",
+    JSON.stringify(switchedBack)
+  );
+
+  const toDynamic = { ...fromFlowStep(step({ type: "env", envKey: "AWKIT_LAB_ENV_ALPHA" })), valueSourceType: "dynamic" as const };
+  check("switching to Dynamic produces a dynamic source", createValueSource(toDynamic)?.type === "dynamic");
+
+  // A step with no source at all must not acquire one.
+  const none = createValueSource(fromFlowStep({ id: "vs-2", type: "click", name: "c", locator: { strategy: "id", value: "resetButton" } }));
+  check("a step with no value source does not gain one", none === undefined, JSON.stringify(none));
+}
 
 /* ------------------------------------------------------------------ *
  * 7. Secret safety

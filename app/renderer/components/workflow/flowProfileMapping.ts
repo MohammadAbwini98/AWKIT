@@ -21,7 +21,8 @@ import type {
   FlowProfile,
   FlowStep,
   NodeConfig,
-  ValueSource
+  ValueSource,
+  ValueSourceType
 } from "@src/profiles/FlowProfile";
 import type { CanvasEdge, CanvasNode } from "../canvas/types";
 import { buildConnectorVisual, hasCustomStyle } from "../shared/connectorStyle";
@@ -110,7 +111,8 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
       : undefined,
     value: data.value || undefined,
     valueSource,
-    url: data.stepType === "goto" ? data.value : undefined,
+    // `|| undefined` so a goto with no literal (its value comes from a source) does not persist `url: ""`.
+    url: data.stepType === "goto" ? data.value || undefined : undefined,
     timeoutMs: data.timeoutMs,
     beforeWaits: data.beforeWaits?.length ? data.beforeWaits : undefined,
     afterWaits: data.afterWaits?.length ? data.afterWaits : undefined,
@@ -170,6 +172,23 @@ export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig {
   };
 }
 
+/** The two source kinds the properties panel can actually author. */
+function isDesignerAuthorable(type: ValueSourceType): boolean {
+  return type === "static" || type === "dynamic";
+}
+
+/**
+ * Rebuild the step's value source from designer state.
+ *
+ * Only `static` and `dynamic` are reconstructed, because those are the only two the properties
+ * panel can author. Every other kind is **passed through verbatim** from `valueSourceOriginal`.
+ *
+ * This used to rebuild all nine kinds from the single `data.value` string, which silently corrupted
+ * them: an `env` source came back with a URL as its `envKey`, a `generated` source came back with a
+ * `generator` outside its own union, and `secret`/`dynamic` were dropped entirely because their
+ * discriminating field never made it into that string. Preserving the source is both correct and
+ * simpler — the designer has no UI to edit these, so it has no business re-deriving them.
+ */
 export function createValueSource(data: FlowDesignerNodeData): ValueSource | undefined {
   if (data.valueSourceType === "dynamic") {
     return {
@@ -182,16 +201,15 @@ export function createValueSource(data: FlowDesignerNodeData): ValueSource | und
     };
   }
 
+  // A non-authorable source survives untouched, as long as the user has not switched the type away
+  // from it. Note there is deliberately no `data.value` guard here: a `secret` source carries only
+  // an opaque reference and never a literal, so gating on a literal is what destroyed it before.
+  if (!isDesignerAuthorable(data.valueSourceType)) {
+    const original = data.valueSourceOriginal;
+    return original && original.type === data.valueSourceType ? original : undefined;
+  }
+
   if (!data.value) return undefined;
-
-  if (data.valueSourceType === "env") return { type: "env", envKey: data.value };
-  if (data.valueSourceType === "runtimeInput") return { type: "runtimeInput", key: data.value };
-  if (data.valueSourceType === "json") return { type: "json", path: data.value };
-  if (data.valueSourceType === "flowOutput") return { type: "flowOutput", outputKey: data.value };
-  if (data.valueSourceType === "generated") return { type: "generated", generator: data.value as ValueSource["generator"] };
-  if (data.valueSourceType === "currentRow") return { type: "currentRow", path: data.value };
-  if (data.valueSourceType === "instanceVariable") return { type: "instanceVariable", key: data.value };
-
   return { type: "static", value: data.value };
 }
 
@@ -210,7 +228,11 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
     valueSourceType: valueSource?.type ?? "static",
-    value: step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? valueSource?.path ?? valueSource?.outputKey ?? "",
+    // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).
+    valueSourceOriginal: valueSource,
+    // The LITERAL only. A typed source's own fields are no longer folded in here — that is what let
+    // `step.url` overwrite an unrelated source field and corrupt it.
+    value: step.value ?? (valueSource?.type === "static" ? valueSource.value : undefined) ?? step.url ?? "",
     dataSourceScope: valueSource?.dataSourceScope ?? "workflow",
     dataSourceId: valueSource?.dataSourceId ?? "",
     idMode: valueSource?.idMode ?? "instanceOrder",

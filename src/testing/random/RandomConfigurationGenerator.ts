@@ -310,7 +310,8 @@ export function buildStepPayload(type: StepType, ctx: ConfigurationContext): Ste
     // A secret-backed step carries the reference only — never a literal alongside it.
     if (source?.type !== "secret") payload.value = value;
     if (source) payload.valueSource = source;
-    if (type === "goto") payload.url = value;
+    // A goto whose URL resolves from a secret must not also carry the URL in plaintext.
+    if (type === "goto" && source?.type !== "secret") payload.url = value;
     if (type === "runFlow") payload.flowId = value;
   }
 

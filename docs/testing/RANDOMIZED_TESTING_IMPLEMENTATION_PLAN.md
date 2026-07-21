@@ -227,14 +227,24 @@ excluded) and `src/testing/roundtrip/RoundTripDefectCatalog.ts` (13 `observed` +
 entries, each with the owning boundary, severity, affected node types, runtime impact verified
 against `StepExecutor`, and a recommended fix).
 
-**The most serious finding was not on the predicted list.** `RT-14`: `fromFlowStep` collapses
-`FlowStep.value` and `FlowStep.valueSource` into a single designer string via
-`step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? …`, and
-`createValueSource` rebuilds a typed source from it. On a `goto`, `step.url` is first in that chain
-and shadows the source entirely — `{type:"env", envKey:"AWKIT_LAB_ENV_ALPHA"}` comes back as
+**The most serious finding was not on the predicted list — and is now FIXED.** `RT-14`:
+`fromFlowStep` collapsed `FlowStep.value` and `FlowStep.valueSource` into a single designer string
+via `step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? …`, and
+`createValueSource` rebuilt a typed source from it. On a `goto`, `step.url` was first in that chain
+and shadowed the source entirely — `{type:"env", envKey:"AWKIT_LAB_ENV_ALPHA"}` came back as
 `{type:"env", envKey:"http://127.0.0.1:4321/form.html"}`, and `{type:"generated",
-generator:"randomEmail"}` comes back with a `generator` value outside its own union. It is also the
-mechanism behind the secret-source loss (RT-02).
+generator:"randomEmail"}` came back with a `generator` outside its own union.
+
+**Fix (`awkit-1w5`, also closing `awkit-ihx`/RT-02):** the properties panel can only author two of
+the nine source kinds — `static` and `dynamic` — so every other kind comes from the Recorder, an
+import, or a hand-edited profile, and the designer's job is to *preserve* it, not re-derive it.
+`FlowDesignerNodeData.valueSourceOriginal` now carries the loaded source verbatim,
+`createValueSource` reconstructs only the two authorable kinds and passes the rest through, and
+`data.value` holds the literal only. That also fixed the secret-source loss, which was the same
+mechanism: `createValueSource` bailed on an empty `data.value`, and a secret carries a reference
+rather than a literal. Defect shapes dropped **46 → 35** and the round-trip verifier went from
+**8 passed / 15 failed** to **17 passed / 12 failed**, with zero unexpected new failures throughout.
+Both catalog entries were deleted, so any recurrence now reports as a regression.
 
 Reports (gitignored, under `reports/random-tests/`): `roundtrip-defects.json`, `roundtrip-defects.md`.
 

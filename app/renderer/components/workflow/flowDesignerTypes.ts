@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -22,7 +22,24 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   /** Container/frame scoping applied to the primary and every alternative (from Recorder). */
   locatorContext?: LocatorContext;
   valueSourceType: ValueSourceType;
+  /**
+   * The step's literal value (`FlowStep.value`), and for `goto` also its URL.
+   *
+   * This is the *literal only*. It used to double as the parameter of whatever value source the
+   * step carried — the env var name, the output key, the generator id — which meant a save
+   * reconstructed the typed source from this one string and corrupted it. The source now travels
+   * separately in {@link FlowDesignerNodeData.valueSourceOriginal}.
+   */
   value: string;
+  /**
+   * The step's value source exactly as it was loaded.
+   *
+   * The properties panel can only author two kinds, `static` and `dynamic`; every other kind
+   * (`env`, `runtimeInput`, `json`, `flowOutput`, `generated`, `currentRow`, `instanceVariable`,
+   * `secret`) is produced by the Recorder, an import, or a hand-edited profile. The designer's job
+   * for those is to preserve them untouched, so they are carried here and written back verbatim.
+   */
+  valueSourceOriginal?: ValueSource;
   // Dynamic JSON binding:
   dataSourceScope: DataSourceScope;
   dataSourceId: string;
@@ -143,6 +160,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorContext: undefined,
   valueSourceType: "static",
   value: stepType === "goto" ? "${BASE_URL}/login" : "",
+  valueSourceOriginal: undefined,
   dataSourceScope: "workflow",
   dataSourceId: "",
   idMode: "instanceOrder",
