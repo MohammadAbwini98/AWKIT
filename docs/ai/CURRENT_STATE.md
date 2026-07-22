@@ -7,8 +7,25 @@ bounded timeouts) **implemented**; runtime **API/UI completion policies + loader
 checks (awkit-62o) implemented and verified**. On branch
 **`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Remaining:
 follow-ups **awkit-54t** (Flow Designer Async Completion editor + Recorder review UI) and **awkit-4km**
-(202 job-polling, WebSocket/SSE, CDP). **Product promotion remains unapproved** until the manual
-**Electron GUI** and **packaged/offline** gates pass (still outstanding).
+(202 job-polling, WebSocket/SSE, CDP).
+
+**Manual gates run 2026-07-22:**
+- **Offline validation — PASS** (`validate:offline` strict, exit 0; bundle manifest/Chromium/Playwright/sql.js/samples intact).
+- **Packaged build/boot — PASS with an env caveat.** `package:portable` built the full app tree
+  (`dist/win-unpacked/SpecterStudio.exe` 180 MB + bundled Chromium + `app.asar` + `offline-runtime.json`)
+  after passing build + dependency-manifest + **strict offline validation**; the packaged binary
+  **boots cleanly** in packaged/offline mode (offline gate active). Only the final distributable
+  archive (7-Zip `-mx=9`) **OOMed** — the documented low-memory-machine limit, NOT a code defect;
+  a distributable installer needs a higher-RAM build host.
+- **Electron GUI — boots clean; authenticated walkthrough still user-driven.** Both the dev (`npx
+  electron .`) and packaged binaries render with no crash; compiled bundles contain every Phase A/B/62o
+  string (`Ignore and continue recording`, `recorder:ignoreProtectedDetection`, `recommendedAction`,
+  `asyncAwareness`, `completionMode`, loader `did not reach`, `quietPeriod`). The interactive
+  click-through (Recorder/Settings/handoff) sits behind the fail-closed login gate (SecurityGate, no
+  dev bypass) and requires the credential holder — the agent must not authenticate.
+
+**Product promotion remains unapproved** until the authenticated GUI walkthrough is signed off by the
+user and a distributable installer is produced on a capable build host.
 
 ## awkit-62o — loader lifecycle + completion policies + consistency DONE, verified (2026-07-22)
 
