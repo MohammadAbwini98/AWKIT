@@ -225,7 +225,45 @@ export type WaitCondition =
   | (WaitConditionBase & { type: "listHasItems"; listLocator: StepLocator; itemLocator?: StepLocator; minItems: number })
   | (WaitConditionBase & { type: "urlChanged"; fromUrl?: string; urlContains?: string })
   | (WaitConditionBase & { type: "domStable"; stableForMs?: number })
-  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number });
+  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number })
+  /**
+   * OR-group (grouped completion composition — awkit-y24). Passes as soon as ANY child condition
+   * passes; fails only when every child fails. It is one condition in its parent's `afterWaits`, so
+   * `allRequired` can hold a *required* OR-group — this is how `A AND (B OR C)` is expressed, e.g.
+   * `response` (API success) AND `anyOf: [tableHasRows, emptyStateVisible]`. Because a required group
+   * still gates the step, a successful API status alone never overrides a missing required UI outcome.
+   *
+   * v1 scope: children are UI-outcome / non-armed waits resolved after the action (the concrete gap is
+   * `tableHasRows OR emptyStateVisible`). A `response` child with `armBeforeAction` is NOT pre-armed
+   * inside a group — arm such responses at the top level instead. Nesting is permitted by the type and
+   * resolved recursively by the runner.
+   */
+  | (WaitConditionBase & { type: "anyOf"; conditions: WaitCondition[] })
+  /**
+   * Asynchronous job polling (awkit-4km, C1). For the `202 Accepted → poll a status endpoint until
+   * it reaches a terminal state` pattern. The runner OBSERVES the page's own repeated status
+   * responses to `urlContains` (it issues no requests itself) and completes when a response is
+   * terminal — either its status falls in `terminalStatusRange` (and is not `pollingStatus`), or a
+   * JSON `responseField` (dot-path) equals one of `terminalValues`. A response with `pollingStatus`
+   * (default 202) means "still processing → keep polling". Bounded by `maxAttempts` and `timeoutMs`.
+   * WebSocket/SSE lifecycle and CDP diagnostics are intentionally out of scope here (later phases).
+   */
+  | (WaitConditionBase & {
+      type: "apiPolling";
+      /** URL substring the status/poll responses must contain. */
+      urlContains: string;
+      method?: WaitHttpMethod;
+      /** Status that means "still processing, keep polling". Default 202. */
+      pollingStatus?: number;
+      /** Status range considered a terminal success. Default [200, 299]. */
+      terminalStatusRange?: [number, number];
+      /** Dot-path into the JSON body whose value signals terminal state (e.g. `status`). */
+      responseField?: string;
+      /** Values of `responseField` that mean the job finished (e.g. `["succeeded", "failed"]`). */
+      terminalValues?: string[];
+      /** Max number of poll responses to observe before failing. Default 30. */
+      maxAttempts?: number;
+    });
 
 /**
  * Alias identifying which browser page/window a step acts on.

@@ -522,6 +522,24 @@ export class StepExecutor {
         case "fixedDelay":
           await this.activePage.waitForTimeout(Math.max(0, wait.delayMs));
           return;
+        case "apiPolling":
+          // 202 → poll to terminal (awkit-4km C1). Observes the page's own status responses.
+          await this.resolveApiPolling(wait, timeout);
+          return;
+        case "anyOf": {
+          // OR-group (awkit-y24): pass as soon as ANY child passes; fail only when every child fails.
+          // Children reuse this same resolver, so any non-armed wait type nests. As one required
+          // condition in `allRequired`, the group lets `A AND (B OR C)` gate a step correctly.
+          // Cancellation is owned by the `withCancellation` wrapper in `resolveDeferredWait`; the outer
+          // catch below turns an all-branches-failed AggregateError into a formatted diagnostic.
+          const children = wait.conditions ?? [];
+          if (children.length === 0) return; // an empty group is vacuously satisfied
+          await Promise.any(children.map((child) => this.executeWaitCondition(step, child, phase))).catch(() => {
+            const branches = children.map((child) => StepExecutor.describeWaitCondition(child)).join(" OR ");
+            throw new Error(`none of the OR-group branches were satisfied: ${branches}`);
+          });
+          return;
+        }
         default: {
           const unknown = wait as { type?: string };
           throw new Error(`Unsupported wait condition type: ${String(unknown.type)}`);
@@ -566,6 +584,61 @@ export class StepExecutor {
       throw new ResponseStatusError(
         `API returned HTTP ${status} for ${method} ${path} (expected ${lo}–${hi}). The response arrived — this is a status error, not a timeout.`
       );
+    }
+  }
+
+  /**
+   * Poll-to-terminal for the 202-Accepted pattern (awkit-4km C1). Observes the page's repeated status
+   * responses to `urlContains` and completes when one is terminal: its status is in
+   * `terminalStatusRange` (and not `pollingStatus`), or a JSON `responseField` equals a `terminalValue`.
+   * A `pollingStatus` response means "still processing → keep observing". Bounded by `maxAttempts` and
+   * the overall `timeout`. Issues no requests itself; a status outside every expected shape fails fast.
+   */
+  private async resolveApiPolling(wait: Extract<WaitCondition, { type: "apiPolling" }>, timeout: number): Promise<void> {
+    const method = wait.method;
+    const urlContains = wait.urlContains ?? "";
+    const maxAttempts = Math.max(1, wait.maxAttempts ?? 30);
+    const pollingStatus = wait.pollingStatus ?? 202;
+    const [lo, hi] = wait.terminalStatusRange ?? [200, 299];
+    const byField = !!(wait.responseField && wait.terminalValues?.length);
+    const start = Date.now();
+    let lastStatus = 0;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const remaining = timeout - (Date.now() - start);
+      if (remaining <= 0) break;
+      let response: import("playwright").Response;
+      try {
+        response = await this.activePage.waitForResponse((r) => {
+          if (method && r.request().method().toUpperCase() !== method) return false;
+          return urlContains ? r.url().includes(urlContains) : true;
+        }, { timeout: remaining });
+      } catch {
+        break; // no further matching status response arrived within the remaining budget
+      }
+      lastStatus = response.status();
+      if (lastStatus === pollingStatus) continue; // still processing
+      if (byField) {
+        const value = await this.readResponseField(response, wait.responseField as string);
+        if (value !== undefined && (wait.terminalValues as string[]).includes(String(value))) return;
+        continue; // matched the endpoint but not a terminal value yet
+      }
+      if (lastStatus >= lo && lastStatus <= hi) return; // terminal success by status
+      throw new Error(
+        `API polling for ${method ?? "ANY"} ~"${urlContains}" returned HTTP ${lastStatus} (expected ${lo}-${hi} terminal, or ${pollingStatus} while processing).`
+      );
+    }
+    throw new Error(
+      `API polling did not reach a terminal state (last status ${lastStatus || "none"}) after ${maxAttempts} attempts / ${timeout}ms.`
+    );
+  }
+
+  /** Read a dot-path value from a response's JSON body; undefined if the body isn't JSON or the path is absent. */
+  private async readResponseField(response: import("playwright").Response, path: string): Promise<unknown> {
+    try {
+      const body = await response.json();
+      return path.split(".").reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[key] : undefined), body);
+    } catch {
+      return undefined;
     }
   }
 
@@ -1088,6 +1161,10 @@ export class StepExecutor {
         return `DOM stable for ${wait.stableForMs ?? 500}ms`;
       case "fixedDelay":
         return `fixed delay ${wait.delayMs}ms`;
+      case "anyOf":
+        return `any of [${(wait.conditions ?? []).map((c) => StepExecutor.describeWaitCondition(c)).join(" | ")}]`;
+      case "apiPolling":
+        return `poll ${wait.method ?? "ANY"} ~"${wait.urlContains}" until terminal${wait.responseField ? ` (${wait.responseField} in ${(wait.terminalValues ?? []).join("/")})` : ` (${(wait.terminalStatusRange ?? [200, 299]).join("-")})`}, ≤${wait.maxAttempts ?? 30} polls`;
       default:
         return "unknown";
     }
@@ -1116,6 +1193,10 @@ export class StepExecutor {
         return "The page kept mutating (polling/animations); lower stableForMs or use a specific content wait instead.";
       case "fixedDelay":
         return "Fixed delays are a fallback; prefer a condition-based wait when a reliable signal exists.";
+      case "anyOf":
+        return "None of the OR-group branches were satisfied; confirm at least one alternative outcome actually occurs, or adjust the branches.";
+      case "apiPolling":
+        return "The job never reached a terminal state; confirm the page polls the status endpoint and that terminalStatusRange/responseField match the real 'done' signal; raise maxAttempts or timeoutMs.";
       default:
         return "Review the wait condition.";
     }

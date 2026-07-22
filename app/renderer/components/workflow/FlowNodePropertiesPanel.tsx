@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PanelRightClose, PanelRightOpen, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { CanvasNode as Node } from "../canvas";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
@@ -19,10 +19,18 @@ const COMPLETION_MODES: { id: AsyncCompletionMode; label: string }[] = [
 ];
 
 /** New-condition scaffolds for the Async Completion editor. */
-const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui", () => WaitCondition> = {
+const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui" | "table" | "group" | "poll", () => WaitCondition> = {
   api: () => ({ type: "response", method: "GET", urlContains: "", statusRange: [200, 299], armBeforeAction: true }),
   loader: () => ({ type: "loaderHidden", locator: { strategy: "css", value: "" }, appearanceGraceMs: 1500, mustAppear: false, completion: "hidden" }),
-  ui: () => ({ type: "textVisible", text: "" })
+  ui: () => ({ type: "textVisible", text: "" }),
+  table: () => ({ type: "tableHasRows", tableLocator: { strategy: "css", value: "" }, minRows: 1 }),
+  // OR-group (awkit-y24), scaffolded with the empty-result contract's two branches: rows OR empty-state.
+  group: () => ({ type: "anyOf", conditions: [
+    { type: "tableHasRows", tableLocator: { strategy: "css", value: "" }, minRows: 1 },
+    { type: "textVisible", text: "" }
+  ] }),
+  // 202 → poll-to-terminal (awkit-4km C1).
+  poll: () => ({ type: "apiPolling", urlContains: "", pollingStatus: 202, maxAttempts: 30 })
 };
 
 interface DataSourceOption {
@@ -105,13 +113,16 @@ export function FlowNodePropertiesPanel({
     if (!data) return;
     set({ [phase]: data[phase].filter((_, i) => i !== index) } as Partial<FlowDesignerNodeData>);
   };
-  const addWait = (phase: "beforeWaits" | "afterWaits", kind: "api" | "loader" | "ui") => {
+  const addWait = (phase: "beforeWaits" | "afterWaits", kind: keyof typeof WAIT_SCAFFOLDS) => {
     if (!data) return;
     set({ [phase]: [...(data[phase] ?? []), WAIT_SCAFFOLDS[kind]()] } as Partial<FlowDesignerNodeData>);
   };
 
   // Type-specific field editors so users can add and fully configure a condition (not just remove it).
-  const renderWaitEditor = (phase: "beforeWaits" | "afterWaits", index: number, wait: WaitCondition) => {
+  // Takes a generic `update` callback (not phase/index) so the SAME editor renders both a top-level
+  // wait and a nested OR-group branch (recursion, no parallel editor). Return type is annotated because
+  // the `anyOf` case calls `renderWaitEditor` on its children.
+  const renderWaitEditor = (wait: WaitCondition, update: (patch: Partial<WaitCondition>) => void): ReactNode => {
     switch (wait.type) {
       case "response":
         return (
@@ -120,7 +131,7 @@ export function FlowNodePropertiesPanel({
               Method
               <select
                 value={wait.method ?? "ANY"}
-                onChange={(e) => updateWait(phase, index, { method: e.target.value === "ANY" ? undefined : (e.target.value as WaitHttpMethod) })}
+                onChange={(e) => update({ method: e.target.value === "ANY" ? undefined : (e.target.value as WaitHttpMethod) })}
               >
                 {["ANY", "GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -129,7 +140,7 @@ export function FlowNodePropertiesPanel({
             </label>
             <label>
               URL contains
-              <input value={wait.urlContains ?? ""} placeholder="/api/orders" onChange={(e) => updateWait(phase, index, { urlContains: e.target.value })} />
+              <input value={wait.urlContains ?? ""} placeholder="/api/orders" onChange={(e) => update({ urlContains: e.target.value })} />
             </label>
             <div className="async-status-row">
               <label>
@@ -137,7 +148,7 @@ export function FlowNodePropertiesPanel({
                 <input
                   type="number"
                   value={wait.statusRange?.[0] ?? 200}
-                  onChange={(e) => updateWait(phase, index, { statusRange: [Number(e.target.value), wait.statusRange?.[1] ?? 299] as [number, number] })}
+                  onChange={(e) => update({ statusRange: [Number(e.target.value), wait.statusRange?.[1] ?? 299] as [number, number] })}
                 />
               </label>
               <label>
@@ -145,12 +156,12 @@ export function FlowNodePropertiesPanel({
                 <input
                   type="number"
                   value={wait.statusRange?.[1] ?? 299}
-                  onChange={(e) => updateWait(phase, index, { statusRange: [wait.statusRange?.[0] ?? 200, Number(e.target.value)] as [number, number] })}
+                  onChange={(e) => update({ statusRange: [wait.statusRange?.[0] ?? 200, Number(e.target.value)] as [number, number] })}
                 />
               </label>
             </div>
             <label className="inline-check">
-              <input type="checkbox" checked={wait.armBeforeAction ?? false} onChange={(e) => updateWait(phase, index, { armBeforeAction: e.target.checked })} />
+              <input type="checkbox" checked={wait.armBeforeAction ?? false} onChange={(e) => update({ armBeforeAction: e.target.checked })} />
               Arm before action (catch fast responses)
             </label>
           </>
@@ -163,7 +174,7 @@ export function FlowNodePropertiesPanel({
               <input
                 value={wait.locator?.value ?? ""}
                 placeholder=".spinner"
-                onChange={(e) => updateWait(phase, index, { locator: { strategy: wait.locator?.strategy ?? "css", value: e.target.value } })}
+                onChange={(e) => update({ locator: { strategy: wait.locator?.strategy ?? "css", value: e.target.value } })}
               />
             </label>
             <div className="async-status-row">
@@ -173,12 +184,12 @@ export function FlowNodePropertiesPanel({
                   type="number"
                   value={wait.appearanceGraceMs ?? ""}
                   placeholder="1500"
-                  onChange={(e) => updateWait(phase, index, { appearanceGraceMs: e.target.value ? Number(e.target.value) : undefined })}
+                  onChange={(e) => update({ appearanceGraceMs: e.target.value ? Number(e.target.value) : undefined })}
                 />
               </label>
               <label>
                 Completion
-                <select value={wait.completion ?? "hidden"} onChange={(e) => updateWait(phase, index, { completion: e.target.value as LoaderCompletion })}>
+                <select value={wait.completion ?? "hidden"} onChange={(e) => update({ completion: e.target.value as LoaderCompletion })}>
                   <option value="hidden">Hidden</option>
                   <option value="detached">Detached</option>
                   <option value="ariaBusyFalse">aria-busy = false</option>
@@ -186,7 +197,7 @@ export function FlowNodePropertiesPanel({
               </label>
             </div>
             <label className="inline-check">
-              <input type="checkbox" checked={wait.mustAppear ?? false} onChange={(e) => updateWait(phase, index, { mustAppear: e.target.checked })} />
+              <input type="checkbox" checked={wait.mustAppear ?? false} onChange={(e) => update({ mustAppear: e.target.checked })} />
               Must appear (fail if the loader never shows)
             </label>
           </>
@@ -196,10 +207,10 @@ export function FlowNodePropertiesPanel({
           <>
             <label>
               Text
-              <input value={wait.text ?? ""} placeholder="Saved successfully" onChange={(e) => updateWait(phase, index, { text: e.target.value })} />
+              <input value={wait.text ?? ""} placeholder="Saved successfully" onChange={(e) => update({ text: e.target.value })} />
             </label>
             <label className="inline-check">
-              <input type="checkbox" checked={wait.exact ?? false} onChange={(e) => updateWait(phase, index, { exact: e.target.checked })} />
+              <input type="checkbox" checked={wait.exact ?? false} onChange={(e) => update({ exact: e.target.checked })} />
               Match exactly
             </label>
           </>
@@ -212,12 +223,12 @@ export function FlowNodePropertiesPanel({
               <input
                 value={wait.tableLocator?.value ?? ""}
                 placeholder="#results"
-                onChange={(e) => updateWait(phase, index, { tableLocator: { strategy: wait.tableLocator?.strategy ?? "css", value: e.target.value } })}
+                onChange={(e) => update({ tableLocator: { strategy: wait.tableLocator?.strategy ?? "css", value: e.target.value } })}
               />
             </label>
             <label>
               Min rows
-              <input type="number" min={0} value={wait.minRows ?? 1} onChange={(e) => updateWait(phase, index, { minRows: Number(e.target.value) })} />
+              <input type="number" min={0} value={wait.minRows ?? 1} onChange={(e) => update({ minRows: Number(e.target.value) })} />
             </label>
           </div>
         );
@@ -229,15 +240,93 @@ export function FlowNodePropertiesPanel({
               <input
                 value={wait.listLocator?.value ?? ""}
                 placeholder=".cards"
-                onChange={(e) => updateWait(phase, index, { listLocator: { strategy: wait.listLocator?.strategy ?? "css", value: e.target.value } })}
+                onChange={(e) => update({ listLocator: { strategy: wait.listLocator?.strategy ?? "css", value: e.target.value } })}
               />
             </label>
             <label>
               Min items
-              <input type="number" min={0} value={wait.minItems ?? 1} onChange={(e) => updateWait(phase, index, { minItems: Number(e.target.value) })} />
+              <input type="number" min={0} value={wait.minItems ?? 1} onChange={(e) => update({ minItems: Number(e.target.value) })} />
             </label>
           </div>
         );
+      case "apiPolling":
+        return (
+          <>
+            <label>
+              Poll URL contains
+              <input value={wait.urlContains ?? ""} placeholder="/api/jobs/" onChange={(e) => update({ urlContains: e.target.value })} />
+            </label>
+            <div className="async-status-row">
+              <label>
+                Still-processing status
+                <input type="number" value={wait.pollingStatus ?? 202} onChange={(e) => update({ pollingStatus: Number(e.target.value) })} />
+              </label>
+              <label>
+                Max polls
+                <input type="number" min={1} value={wait.maxAttempts ?? 30} onChange={(e) => update({ maxAttempts: Number(e.target.value) })} />
+              </label>
+            </div>
+            <label>
+              Terminal field (optional)
+              <input value={wait.responseField ?? ""} placeholder="status" onChange={(e) => update({ responseField: e.target.value || undefined })} />
+            </label>
+            <label>
+              Terminal values (comma-separated)
+              <input
+                value={(wait.terminalValues ?? []).join(", ")}
+                placeholder="succeeded, failed"
+                onChange={(e) => update({ terminalValues: e.target.value.split(",").map((v) => v.trim()).filter(Boolean) })}
+              />
+            </label>
+          </>
+        );
+      case "anyOf": {
+        // OR-group branch editor (awkit-y24): passes when ANY branch matches. Keep the step on
+        // "All required" so an armed API response AND this group both gate completion.
+        const branches = wait.conditions ?? [];
+        const setBranches = (next: WaitCondition[]) => update({ conditions: next } as Partial<WaitCondition>);
+        const addBranch = (kind: keyof typeof WAIT_SCAFFOLDS) => setBranches([...branches, WAIT_SCAFFOLDS[kind]()]);
+        return (
+          <div className="anyof-group">
+            <small className="form-message">Passes when ANY branch matches (OR). Combine with “All required” so the API and this group both gate the step.</small>
+            <div className="async-add-row">
+              <button className="toolbar-button" type="button" onClick={() => addBranch("ui")} title="Add a text/UI outcome branch">
+                <Plus size={13} /> UI text
+              </button>
+              <button className="toolbar-button" type="button" onClick={() => addBranch("table")} title="Add a table-rows branch">
+                <Plus size={13} /> Table rows
+              </button>
+              <button className="toolbar-button" type="button" onClick={() => addBranch("api")} title="Add an API branch">
+                <Plus size={13} /> API
+              </button>
+              <button className="toolbar-button" type="button" onClick={() => addBranch("loader")} title="Add a loader branch">
+                <Plus size={13} /> Loader
+              </button>
+            </div>
+            {branches.length ? (
+              branches.map((child, i) => {
+                const childReview = reviewWait(child);
+                const childBadge = classLabel(childReview.classification);
+                return (
+                  <div className="anyof-branch" key={`branch-${i}-${child.type}`}>
+                    <div className="smart-wait-card-head">
+                      <strong>{smartWaitTitle(child)}</strong>
+                      <span className={`async-badge async-badge-${childReview.classification}`} title={childBadge.hint}>{childBadge.label}</span>
+                      <button type="button" className="icon-button" title="Remove branch" onClick={() => setBranches(branches.filter((_, j) => j !== i))}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <span>{smartWaitDetail(child)}</span>
+                    {renderWaitEditor(child, (patch) => setBranches(branches.map((b, j) => (j === i ? ({ ...b, ...patch } as WaitCondition) : b))))}
+                  </div>
+                );
+              })
+            ) : (
+              <small className="async-warning">⚠ Add at least one branch (two make a real OR).</small>
+            )}
+          </div>
+        );
+      }
       default:
         return null;
     }
@@ -256,6 +345,12 @@ export function FlowNodePropertiesPanel({
           </button>
           <button className="toolbar-button" type="button" onClick={() => addWait(phase, "ui")} title="Add a UI outcome condition">
             <Plus size={13} /> UI outcome
+          </button>
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "group")} title="Add an OR-group of alternative outcomes (e.g. rows OR empty-state)">
+            <Plus size={13} /> OR group
+          </button>
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "poll")} title="Add a 202 → poll-to-terminal condition">
+            <Plus size={13} /> Poll
           </button>
         </div>
       </div>
@@ -277,7 +372,7 @@ export function FlowNodePropertiesPanel({
               {review.warnings.map((w, i) => (
                 <small key={i} className="async-warning">⚠ {w}</small>
               ))}
-              {renderWaitEditor(phase, index, wait)}
+              {renderWaitEditor(wait, (patch) => updateWait(phase, index, patch))}
               <div className="async-status-row">
                 <label className="inline-check">
                   <input type="checkbox" checked={!wait.optional} onChange={(e) => updateWait(phase, index, { optional: !e.target.checked })} />
@@ -1030,6 +1125,10 @@ function smartWaitTitle(wait: WaitCondition): string {
       return "DOM stable";
     case "fixedDelay":
       return "Fixed delay";
+    case "anyOf":
+      return "Any of (OR)";
+    case "apiPolling":
+      return "Poll to terminal";
   }
 }
 
@@ -1056,5 +1155,11 @@ function smartWaitDetail(wait: WaitCondition): string {
       return `${wait.stableForMs ?? 500}ms`;
     case "fixedDelay":
       return `${wait.delayMs}ms`;
+    case "anyOf": {
+      const branches = wait.conditions ?? [];
+      return branches.length ? branches.map((c) => smartWaitTitle(c)).join(" OR ") : "no branches";
+    }
+    case "apiPolling":
+      return `~${wait.urlContains || "(any)"} until ${wait.responseField ? `${wait.responseField} ∈ {${(wait.terminalValues ?? []).join(", ")}}` : (wait.terminalStatusRange ?? [200, 299]).join("-")}`;
   }
 }

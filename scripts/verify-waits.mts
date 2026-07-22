@@ -455,6 +455,105 @@ async function main() {
     await page.unroute("**/api/search");
   }
 
+  // ── Grouped completion: A AND (B OR C) (awkit-y24) ──────────────────────────
+  // The empty-result contract: API success AND (tableHasRows OR emptyStateVisible), under
+  // allRequired. The required anyOf group is one afterWait; the API resolving first must NOT satisfy
+  // the step while both UI branches are missing.
+  console.log("Grouped completion (awkit-y24) — API success AND (rows OR empty-state):");
+  const groupWaits = (branchTimeout: number): FlowStep["afterWaits"] => [
+    { type: "response", method: "GET", urlContains: "/api/results", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 3000 },
+    {
+      type: "anyOf",
+      timeoutMs: branchTimeout,
+      conditions: [
+        { type: "tableHasRows", tableLocator: { strategy: "id", value: "t" }, minRows: 1, timeoutMs: branchTimeout },
+        { type: "elementVisible", locator: { strategy: "css", value: "[data-testid=empty-state]" }, timeoutMs: branchTimeout }
+      ]
+    }
+  ];
+  // 27b. API ok AND the table gains rows → the rows branch satisfies the group.
+  {
+    await page.route("**/api/results", (route) => setTimeout(() => route.fulfill({ status: 200, contentType: "application/json", body: "[{}]" }), 100));
+    const html = `<table id="t"></table><button id="b" onclick="fetch('http://awtkit.test/api/results',{mode:'no-cors'}).then(function(){document.getElementById('t').insertRow().insertCell().textContent='row';})">Go</button>`;
+    const { status } = await run(html, {
+      id: "G1", type: "click", name: "Results", locator: { strategy: "id", value: "b" },
+      completionMode: "allRequired", afterWaits: groupWaits(2500)
+    });
+    check("group: API ok AND rows present → passes", status === "passed", status);
+    await page.unroute("**/api/results");
+  }
+  // 27c. API ok AND the empty-state appears (no rows) → the OTHER branch satisfies the group.
+  {
+    await page.route("**/api/results", (route) => setTimeout(() => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }), 100));
+    const html = `<table id="t"></table><button id="b" onclick="fetch('http://awtkit.test/api/results',{mode:'no-cors'}).then(function(){var d=document.createElement('div');d.setAttribute('data-testid','empty-state');d.textContent='No results';document.body.appendChild(d);})">Go</button>`;
+    const { status } = await run(html, {
+      id: "G2", type: "click", name: "Results", locator: { strategy: "id", value: "b" },
+      completionMode: "allRequired", afterWaits: groupWaits(2500)
+    });
+    check("group: API ok AND empty-state present → passes (OR branch)", status === "passed", status);
+    await page.unroute("**/api/results");
+  }
+  // 27d. API ok but NEITHER rows nor empty-state → the required group fails, so the STEP fails.
+  //      This is the core contract: a successful API status alone must not override a missing UI outcome.
+  {
+    await page.route("**/api/results", (route) => setTimeout(() => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }), 100));
+    const html = `<table id="t"></table><button id="b" onclick="fetch('http://awtkit.test/api/results',{mode:'no-cors'})">Go</button>`;
+    const { status, error } = await run(html, {
+      id: "G3", type: "click", name: "Results", locator: { strategy: "id", value: "b" },
+      completionMode: "allRequired", afterWaits: groupWaits(700)
+    });
+    check("group: API ok but NEITHER branch → fails (API alone cannot pass)", status === "failed", status);
+    check("group failure names the OR-group branches", /OR-group branches were satisfied/.test(error ?? ""), error);
+    await page.unroute("**/api/results");
+  }
+
+  // ── 202 → poll-to-terminal (awkit-4km C1) ───────────────────────────────────
+  // The runner observes the page's own repeated status responses and completes only when one is
+  // terminal — never treating an in-progress 202 as done.
+  console.log("API polling (awkit-4km C1) — 202 → terminal:");
+  // P1. Status-based: two 202 "processing" polls, then a terminal 200 → passes.
+  {
+    let calls = 0;
+    await page.route("**/api/job", (route) => {
+      calls += 1;
+      route.fulfill({ status: calls <= 2 ? 202 : 200, contentType: "application/json", body: JSON.stringify({ status: calls <= 2 ? "processing" : "succeeded" }) });
+    });
+    const html = `<button id="b" onclick="setInterval(function(){fetch('http://awtkit.test/api/job',{mode:'no-cors'});},150)">Go</button>`;
+    const { status } = await run(html, {
+      id: "P1", type: "click", name: "Job", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "apiPolling", urlContains: "/api/job", pollingStatus: 202, terminalStatusRange: [200, 299], maxAttempts: 10, timeoutMs: 5000 }]
+    });
+    check("apiPolling: polls past 202 and completes on terminal 200", status === "passed", status);
+    await page.unroute("**/api/job");
+  }
+  // P2. Field-based: status is always HTTP 200; the JSON `status` field flips to "succeeded" → passes.
+  {
+    let calls = 0;
+    await page.route("**/api/job2", (route) => {
+      calls += 1;
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: calls >= 3 ? "succeeded" : "processing" }) });
+    });
+    const html = `<button id="b" onclick="setInterval(function(){fetch('http://awtkit.test/api/job2',{mode:'no-cors'});},150)">Go</button>`;
+    const { status } = await run(html, {
+      id: "P2", type: "click", name: "Job2", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "apiPolling", urlContains: "/api/job2", responseField: "status", terminalValues: ["succeeded", "failed"], maxAttempts: 10, timeoutMs: 5000 }]
+    });
+    check("apiPolling: field-based terminal (status=succeeded) completes", status === "passed", status);
+    await page.unroute("**/api/job2");
+  }
+  // P3. Never terminal (always 202) → fails after maxAttempts, with a clear diagnostic.
+  {
+    await page.route("**/api/job3", (route) => route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify({ status: "processing" }) }));
+    const html = `<button id="b" onclick="setInterval(function(){fetch('http://awtkit.test/api/job3',{mode:'no-cors'});},120)">Go</button>`;
+    const { status, error } = await run(html, {
+      id: "P3", type: "click", name: "Job3", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "apiPolling", urlContains: "/api/job3", pollingStatus: 202, maxAttempts: 3, timeoutMs: 3000 }]
+    });
+    check("apiPolling: never terminal → fails after maxAttempts", status === "failed", status);
+    check("apiPolling failure names the terminal-state miss", /did not reach a terminal state/.test(error ?? ""), error);
+    await page.unroute("**/api/job3");
+  }
+
   // ── Cancellation interrupts every wait phase immediately (awkit-62o) ─────────
   console.log("Cancellation interrupts waits:");
   // 28a. Cancel during a UI-outcome wait.

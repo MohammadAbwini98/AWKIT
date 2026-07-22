@@ -20,6 +20,9 @@ let counter = 1000;
  */
 const ALLOWED_STATUS_CODES = new Set([200, 201, 202, 204, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504]);
 
+/** Per-id poll counters for `/api/job` (202 → poll-to-terminal, awkit-4km C1). */
+const jobPolls = new Map();
+
 /** Fixed rows for the populated branch of `/api/results` (stable values for assertions). */
 const RESULT_ROWS = [
   { id: "INV-1001", customer: "Acme Ltd", amount: "120.00", status: "Paid" },
@@ -171,6 +174,25 @@ const server = createServer(async (req, res) => {
     if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
     const rows = mode === "empty" ? [] : RESULT_ROWS;
     return sendJson(res, { ok: true, mode, count: rows.length, rows });
+  }
+
+  // 202 → poll-to-terminal job (awkit-4km C1). Deterministic + repeatable: the first `after` polls
+  // for an id return HTTP 202 `{status:"processing"}`; the next returns HTTP 200 `{status:"succeeded"}`
+  // and resets the counter. Lets the runner prove it keeps polling past 202 and completes on the
+  // terminal status/field (never treating an in-progress 202 as done).
+  if (req.method === "GET" && path === "/api/job") {
+    const id = (url.searchParams.get("id") ?? "default").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) || "default";
+    const requestedAfter = Number(url.searchParams.get("after") ?? 2);
+    const after = Math.max(0, Math.min(Number.isFinite(requestedAfter) ? requestedAfter : 2, 20));
+    const n = (jobPolls.get(id) ?? 0) + 1;
+    if (n <= after) {
+      jobPolls.set(id, n);
+      res.writeHead(202, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ status: "processing", poll: n }));
+      return;
+    }
+    jobPolls.delete(id); // reset so the scenario is repeatable
+    return sendJson(res, { status: "succeeded", poll: n, result: "done" });
   }
 
   if (req.method === "POST" && path === "/login") {

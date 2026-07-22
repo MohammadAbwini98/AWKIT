@@ -178,6 +178,18 @@ try {
   const fullJson = await (await page.request.get(`${BASE}/api/results?mode=populated&ms=0`)).json();
   check("/api/results populated mode returns three stable rows", fullJson.count === 3 && fullJson.rows[0].id === "INV-1001");
 
+  // 202 → poll-to-terminal job (awkit-4km C1): first two polls are 202 "processing", third is a
+  // terminal 200 "succeeded", then the counter resets so the scenario is repeatable.
+  const jobId = `verify-${Date.now()}`;
+  const poll1 = await page.request.get(`${BASE}/api/job?id=${jobId}&after=2`);
+  const poll2 = await page.request.get(`${BASE}/api/job?id=${jobId}&after=2`);
+  const poll3 = await page.request.get(`${BASE}/api/job?id=${jobId}&after=2`);
+  check("/api/job returns 202 while processing", poll1.status() === 202 && poll2.status() === 202, `p1=${poll1.status()} p2=${poll2.status()}`);
+  const terminal = await poll3.json();
+  check("/api/job reaches terminal 200 succeeded", poll3.status() === 200 && terminal.status === "succeeded", `p3=${poll3.status()} status=${terminal.status}`);
+  const pollReset = await page.request.get(`${BASE}/api/job?id=${jobId}&after=2`);
+  check("/api/job counter resets after terminal (repeatable)", pollReset.status() === 202, `reset=${pollReset.status()}`);
+
   await page.close();
 } catch (error) {
   failed += 1;

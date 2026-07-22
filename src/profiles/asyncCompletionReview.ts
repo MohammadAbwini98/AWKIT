@@ -114,6 +114,25 @@ export function reviewWait(wait: WaitCondition): WaitReview {
       break;
     case "domStable":
       break;
+    case "apiPolling":
+      if (!wait.urlContains) worsen("unsafe", "Polling condition has no URL pattern — it can match unrelated responses.");
+      if (wait.responseField && !(wait.terminalValues && wait.terminalValues.length)) {
+        worsen("needsReview", "A response field is set but no terminal values — the poll cannot recognize completion.");
+      }
+      break;
+    case "anyOf": {
+      // OR-group (awkit-y24): the group is as trustworthy as its WORST branch. A group of alternatives
+      // (e.g. "table has rows" OR "empty-state visible") is NOT a contradiction — that is its purpose.
+      const children = wait.conditions ?? [];
+      if (children.length === 0) worsen("incomplete", "OR-group has no conditions.");
+      else if (children.length === 1) worsen("needsReview", "OR-group has a single branch — the group adds nothing.");
+      for (const child of children) {
+        const childReview = reviewWait(child);
+        classification = maxClass(classification, childReview.classification);
+        warnings.push(...childReview.warnings);
+      }
+      break;
+    }
   }
 
   if (wait.optional && SEVERITY[classification] >= SEVERITY.unsafe) {
