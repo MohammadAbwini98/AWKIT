@@ -37,7 +37,8 @@ export function registerRecorderIpc(): void {
       executablePath,
       captureWaitTime: options?.captureWaitTime ?? false,
       captureSmartWaits: options?.captureSmartWaits ?? true,
-      ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false
+      ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false,
+      asyncAwareness: settings.recorder.asyncAwareness
     });
     return recorderService.getStatus();
   });

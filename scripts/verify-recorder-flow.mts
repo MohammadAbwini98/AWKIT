@@ -48,6 +48,30 @@ check("recorded tab switch becomes a Route Change", routeStep?.type === "routeCh
 const clickStep = flow.nodes.find((n) => n.id === "step-3");
 check("locator (with exact) is preserved on the click step", clickStep?.locator?.value === "button" && clickStep?.locator?.exact === true);
 
+// ── Async activity waits (response + adaptive timeout) survive save round-trip ───
+const asyncActions: RecordedAction[] = [
+  {
+    id: "b1",
+    type: "click",
+    name: "Submit order",
+    locator: { strategy: "role", value: "button", name: "Submit" },
+    afterWaits: [
+      { type: "response", method: "POST", urlContains: "/api/orders", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 29000, reason: "POST /api/orders completed in 8000ms after the action" },
+      { type: "loaderHidden", locator: { strategy: "css", value: ".order-spinner" }, timeoutMs: 29000 }
+    ]
+  }
+];
+const asyncFlow = buildRecordedFlow("Async", asyncActions);
+const asyncStep = asyncFlow.nodes.find((n) => n.id === "step-1");
+check("async afterWaits are preserved on the step", (asyncStep?.afterWaits?.length ?? 0) === 2);
+const respWait = asyncStep?.afterWaits?.find((w) => w.type === "response") as { statusRange?: [number, number]; armBeforeAction?: boolean; timeoutMs?: number } | undefined;
+check("response wait keeps statusRange + armBeforeAction + adaptive timeoutMs", respWait?.statusRange?.[1] === 299 && respWait?.armBeforeAction === true && respWait?.timeoutMs === 29000);
+// Full JSON serialize/deserialize (what saving a flow does) must not drop any async field.
+const roundTripped = JSON.parse(JSON.stringify(asyncFlow));
+const rtStep = roundTripped.nodes.find((n: { id: string }) => n.id === "step-1");
+const rtResp = rtStep?.afterWaits?.find((w: { type: string }) => w.type === "response");
+check("async waits survive JSON save round-trip (no silent drop)", rtStep?.afterWaits?.length === 2 && rtResp?.timeoutMs === 29000 && rtResp?.statusRange?.[0] === 200);
+
 // ── Duplicate Start/End from the recording are dropped ───────────────────────
 const withDupes = buildRecordedFlow("Dupes", [
   { id: "s", type: "start", name: "Start" },

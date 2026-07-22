@@ -27,6 +27,19 @@ import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
 
+/**
+ * A `response` wait matched its endpoint but the response status fell outside the expected range.
+ * This is distinct from a timeout (the response DID arrive) — so an immediate HTTP 500 is reported
+ * as an HTTP-500 failure instead of a misleading "timed out waiting for response". Its message is
+ * already user-facing and must NOT be re-wrapped by the timeout-oriented wait-failure formatter.
+ */
+class ResponseStatusError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ResponseStatusError";
+  }
+}
+
 /** Runs a saved flow by id as a child of the current flow (used by Run Another Flow). */
 export type ChildFlowRunner = (flowId: string) => Promise<FlowExecutionResult>;
 
@@ -355,7 +368,7 @@ export class StepExecutor {
 
     // Response waits that the action itself triggers must be listening BEFORE the action runs,
     // or a fast response can complete before we start waiting. Arm them now, await them after.
-    const armed: Array<{ wait: Extract<WaitCondition, { type: "response" }>; promise: Promise<unknown>; timeout: number }> = [];
+    const armed: Array<{ wait: Extract<WaitCondition, { type: "response" }>; promise: Promise<import("playwright").Response>; timeout: number }> = [];
     const deferred: WaitCondition[] = [];
     for (const wait of step.afterWaits ?? []) {
       if (wait.type === "response" && wait.armBeforeAction) {
@@ -372,8 +385,15 @@ export class StepExecutor {
 
     for (const entry of armed) {
       try {
-        await entry.promise;
+        const response = await entry.promise;
+        // The endpoint matched — validate its status separately so a 500 is an HTTP-500 failure.
+        this.validateResponseStatus(entry.wait, response);
       } catch (error) {
+        // A status error means the response DID arrive with an unexpected status — surface it as-is,
+        // never as a timeout, and never skip it as a "stale" wait.
+        if (error instanceof ResponseStatusError) {
+          throw new Error(this.formatResponseStatusFailure(step, entry.wait, error));
+        }
         if (await this.canSkipStaleRecordedNavigationResponseWait(step, entry.wait, error)) {
           this.log(
             "info",
@@ -437,9 +457,11 @@ export class StepExecutor {
           await target.waitFor({ state: "visible", timeout });
           return;
         }
-        case "response":
-          await this.buildResponseWait(wait, timeout);
+        case "response": {
+          const response = await this.buildResponseWait(wait, timeout);
+          this.validateResponseStatus(wait, response);
           return;
+        }
         case "tableHasRows": {
           const table = this.waitLocator(wait.tableLocator);
           const rows = wait.rowLocator ? this.waitLocator(wait.rowLocator) : table.locator("tbody tr, [role=row]");
@@ -484,21 +506,55 @@ export class StepExecutor {
         }
       }
     } catch (error) {
+      if (error instanceof ResponseStatusError) {
+        throw new Error(this.formatResponseStatusFailure(step, wait as Extract<WaitCondition, { type: "response" }>, error));
+      }
       throw new Error(this.formatWaitFailure(step, wait, timeout, error, phase));
     }
   }
 
-  /** Build (register) a `waitForResponse` matcher; the returned promise resolves on match. */
-  private buildResponseWait(wait: Extract<WaitCondition, { type: "response" }>, timeout: number): Promise<unknown> {
-    const [lo, hi] = wait.statusRange ?? [200, 399];
+  /**
+   * Build (register) a `waitForResponse` matcher. It matches on the ENDPOINT only (method +
+   * urlContains) — never on status. Matching on status here would make an immediate HTTP 500 fail to
+   * match and time out (the document's "bad behavior"). Status is validated separately by
+   * {@link validateResponseStatus} so an unexpected status is reported as a status error, not a
+   * timeout. The returned promise resolves to the matched Playwright `Response`.
+   */
+  private buildResponseWait(wait: Extract<WaitCondition, { type: "response" }>, timeout: number): Promise<import("playwright").Response> {
     const method = wait.method;
     const urlContains = wait.urlContains ?? "";
     return this.activePage.waitForResponse((response) => {
       if (method && response.request().method().toUpperCase() !== method) return false;
       if (urlContains && !response.url().includes(urlContains)) return false;
-      const status = response.status();
-      return status >= lo && status <= hi;
+      return true;
     }, { timeout });
+  }
+
+  /**
+   * Validate a matched response's status against the wait's expected range. Throws a
+   * {@link ResponseStatusError} with a clear, status-specific message when it falls outside — so the
+   * runner distinguishes "the API returned HTTP 500" from "the response never arrived (timeout)".
+   */
+  private validateResponseStatus(wait: Extract<WaitCondition, { type: "response" }>, response: import("playwright").Response): void {
+    const [lo, hi] = wait.statusRange ?? [200, 399];
+    const status = response.status();
+    if (status < lo || status > hi) {
+      const method = response.request().method().toUpperCase();
+      const path = StepExecutor.safeUrlPath(response.url());
+      throw new ResponseStatusError(
+        `API returned HTTP ${status} for ${method} ${path} (expected ${lo}–${hi}). The response arrived — this is a status error, not a timeout.`
+      );
+    }
+  }
+
+  /** Origin + path of a URL (query/hash stripped) for safe, secret-free diagnostics. */
+  private static safeUrlPath(raw: string): string {
+    try {
+      const parsed = new URL(raw);
+      return `${parsed.origin}${parsed.pathname}`;
+    } catch {
+      return raw.split("?")[0] || "unknown";
+    }
   }
 
   /**
@@ -600,6 +656,25 @@ export class StepExecutor {
     if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
     lines.push(`Suggestion: ${StepExecutor.waitSuggestion(wait)}`);
     lines.push(`Detail: ${detail}`);
+    return lines.join("\n");
+  }
+
+  /**
+   * Diagnostic for a `response` wait whose endpoint matched but returned an unexpected status. Framed
+   * as a status failure (NOT a timeout) so reports say exactly what happened, per the async-awareness
+   * requirement that "an immediate HTTP 500 must not be reported as a generic timeout".
+   */
+  private formatResponseStatusFailure(step: FlowStep, wait: Extract<WaitCondition, { type: "response" }>, error: ResponseStatusError): string {
+    const [lo, hi] = wait.statusRange ?? [200, 399];
+    const lines = [
+      `Unexpected API status on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Wait type: response`,
+      `Condition: ${StepExecutor.describeWaitCondition(wait)}`,
+      `Expected status: ${lo}–${hi}`,
+      `Current URL: ${this.safeCurrentUrl()}`
+    ];
+    if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
+    lines.push(`Detail: ${error.message}`);
     return lines.join("\n");
   }
 

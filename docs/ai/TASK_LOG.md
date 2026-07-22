@@ -4,6 +4,42 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — Async Activity Awareness: status-vs-timeout + adaptive timeouts (Phase B of 2)
+
+- **Task:** Phase B of the same prompt — extend the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits`
+  model (the canonical async model) rather than fork a parallel `AsyncActivityGroup`, keeping the
+  fragile flow round-trip intact. Same branch. Not pushed.
+- **Response status vs. timeout (the #1 named runtime bug):** `StepExecutor.buildResponseWait` matched
+  on status INSIDE the `waitForResponse` predicate, so an immediate HTTP 500 never matched and became
+  a misleading timeout. Refactored: match endpoint (method + urlContains) only, then
+  `validateResponseStatus` throws a `ResponseStatusError` with a clear "API returned HTTP 500 for POST
+  /path (expected 200–299)…" message routed through a new `formatResponseStatusFailure` (never the
+  timeout formatter). Applied to both the armed-before-action path and the deferred path.
+- **Adaptive dynamic bounded timeouts:** `smartWaitObservation.buildSmartWaits` now derives
+  `timeoutMs = clamp(observed×multiplier + safetyMargin, min, max)` (defaults 3× / +5000 / [10000,
+  300000]) for `response` + `loaderHidden` waits, exposed via new `SmartWaitBuildOptions`
+  (`adaptiveTimeouts`, `minimumTimeoutMs`, `maximumTimeoutMs`, `timeoutMultiplier`,
+  `timeoutSafetyMarginMs`) + exported `adaptiveTimeoutMs()`. Reason strings state the observed ms.
+- **Settings:** `recorder.asyncAwareness {enabled, adaptiveTimeouts, minimumTimeoutMs,
+  maximumTimeoutMs}` in `uiSettings.ts` — **deep-merged** in `hydrate`/`mergePatch` (nested block must
+  not drop siblings), validated/clamped in `validateSettings` (no unlimited timeout). Threaded through
+  `recorder:start` → `RecorderService.startRecording` → `attachSmartWaits`.
+- **Round-trip:** async waits (incl. adaptive `timeoutMs`) copied whole-array by `buildRecordedFlow`
+  and `flowProfileMapping`; new `verify:recorder-flow` assertions prove they survive JSON save.
+- **Files:** `StepExecutor.ts`, `smartWaitObservation.ts`, `app/main/uiSettings.ts`,
+  `app/main/ipc/recorder.ipc.ts`, `RecorderService.ts`, `scripts/verify-waits.mts`,
+  `scripts/verify-recorder-locator.mts`, `scripts/verify-recorder-flow.mts`.
+- **Verification (all green):** `verify:waits` 26/0 (incl. HTTP-500-is-not-a-timeout) ·
+  `verify:recorder` 78/0 (incl. 6 adaptive-timeout units) · `verify:recorder-flow` 16/16 (round-trip) ·
+  `verify:runner` 82/0 · `verify:settings-persistence` 3/3 · `verify:protected-login` 26/0 ·
+  `verify:protected-login-recorder` 45/45 · `npm run build` clean.
+- **Deferred (filed as follow-ups):** loader appearance-grace/mustAppear runtime lifecycle;
+  quietPeriod/networkThenUi/allRequired/anyRequired completion policies + UI-outcome consistency
+  failures; 202 job-status polling + response-field predicate; WebSocket/SSE + CDP diagnostics; Flow
+  Designer "Async Completion" editor UI; Recorder review-before-save UI; context-level authoritative
+  network source. Core correctness (status, adaptive bounded timeouts, arm-before-action, cancellation)
+  and the canonical model + round-trip are in place.
+
 ## 2026-07-22 — Claude (Opus 4.8) — Recorder protected-login controls + SSO false-positive fix (Phase A of 2)
 
 - **Task:** implement `AWKIT_RECORDER_PROTECTED_LOGIN_AND_ASYNC_ACTIVITY` prompt, phased & regression-safe.

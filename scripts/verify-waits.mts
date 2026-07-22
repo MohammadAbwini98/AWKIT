@@ -253,6 +253,39 @@ async function main() {
     check("diagnostic includes a suggestion", /Suggestion:/.test(error ?? ""), error);
   }
 
+  // 14. An immediate HTTP 500 is reported by status, NOT as a generic timeout (async-awareness).
+  {
+    await page.route("**/api/orders", (route) => route.fulfill({ status: 500, contentType: "text/plain", body: "err" }));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/orders',{method:'POST',mode:'no-cors'})">Order</button>`;
+    const { status, error } = await run(html, {
+      id: "s12",
+      type: "click",
+      name: "Submit order",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "response", method: "POST", urlContains: "/api/orders", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 5000 }]
+    });
+    check("HTTP 500 fails the step", status === "failed", status);
+    check("HTTP 500 reported by status (contains 'HTTP 500')", /HTTP 500/.test(error ?? ""), error);
+    check("HTTP 500 NOT reported as a timeout", !/timed out|Timeout:/i.test(error ?? ""), error);
+    check("HTTP 500 names it a status error", /status error/i.test(error ?? "") || /Unexpected API status/i.test(error ?? ""), error);
+    await page.unroute("**/api/orders");
+  }
+
+  // 15. A matched endpoint with an acceptable status still passes (regression for the refactor).
+  {
+    await page.route("**/api/ok", (route) => setTimeout(() => route.fulfill({ status: 201, contentType: "text/plain", body: "created" }), 100));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/ok',{method:'POST',mode:'no-cors'})">Create</button>`;
+    const { status } = await run(html, {
+      id: "s13",
+      type: "click",
+      name: "Create",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "response", method: "POST", urlContains: "/api/ok", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 5000 }]
+    });
+    check("HTTP 201 within expected range still passes", status === "passed", status);
+    await page.unroute("**/api/ok");
+  }
+
   await browser.close();
 
   console.log(`\n${passed} passed, ${failed} failed`);

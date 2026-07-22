@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Async Activity Awareness — Phase B core DONE, verified (2026-07-22)
+
+Same branch, extends the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits` model (no parallel
+`AsyncActivityGroup` fork), round-trip preserved.
+- **Response status vs. timeout:** `StepExecutor.buildResponseWait` now matches endpoint only;
+  `validateResponseStatus` reports an unexpected status as an HTTP-status failure (`ResponseStatusError`
+  → `formatResponseStatusFailure`), never a timeout. An immediate HTTP 500 is reported as HTTP 500.
+- **Adaptive bounded timeouts:** `buildSmartWaits` derives `clamp(observed×3+5000, 10000, 300000)` for
+  `response`/`loaderHidden` waits (exported `adaptiveTimeoutMs`, tunable via `SmartWaitBuildOptions`).
+- **Settings:** `recorder.asyncAwareness {enabled, adaptiveTimeouts, minimumTimeoutMs, maximumTimeoutMs}`
+  — deep-merged in hydrate/mergePatch, validated (no unlimited timeout), threaded through `recorder:start`.
+- **Verified:** `verify:waits` 26/0, `verify:recorder` 78/0, `verify:recorder-flow` 16/16,
+  `verify:runner` 82/0, `verify:settings-persistence` 3/3, build clean.
+- **Deferred follow-ups (not implemented):** loader appearance-grace/mustAppear runtime lifecycle;
+  quietPeriod/networkThenUi/allRequired/anyRequired completion policies + UI-outcome consistency;
+  202 job-polling + response-field predicate; WebSocket/SSE + CDP; Flow Designer "Async Completion"
+  editor; Recorder review-before-save UI; context-level authoritative network source.
+
 ## Recorder protected-login controls + SSO false-positive fix — Phase A DONE, verified (2026-07-22)
 
 On branch **`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Phase A

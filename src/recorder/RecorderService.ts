@@ -70,6 +70,13 @@ export interface StartRecordingOptions {
    * manually; AWKIT simply keeps observing normal actions. Default false.
    */
   ignoreProtectedLoginDetection?: boolean;
+  /** Async Activity Awareness tuning (adaptive Smart-Wait timeouts). */
+  asyncAwareness?: {
+    enabled?: boolean;
+    adaptiveTimeouts?: boolean;
+    minimumTimeoutMs?: number;
+    maximumTimeoutMs?: number;
+  };
 }
 
 export class RecorderService {
@@ -87,6 +94,13 @@ export class RecorderService {
   private captureWaitTime = false;
   /** Whether the active session observes condition-based Smart Waits between actions (Phase 2). */
   private captureSmartWaits = true;
+  /** Async Activity Awareness tuning for adaptive Smart-Wait timeouts (applied in {@link attachSmartWaits}). */
+  private asyncAwareness: { enabled: boolean; adaptiveTimeouts: boolean; minimumTimeoutMs: number; maximumTimeoutMs: number } = {
+    enabled: true,
+    adaptiveTimeouts: true,
+    minimumTimeoutMs: 10_000,
+    maximumTimeoutMs: 300_000
+  };
   /** Raw page-side observation signals buffered during the session (bounded). */
   private signals: RecordedSignal[] = [];
   /** Timestamp (ms) of the last distinct recorded action, used to measure user think-time. */
@@ -405,6 +419,12 @@ export class RecorderService {
     this.lastClickAt = 0;
     this.captureWaitTime = options.captureWaitTime ?? false;
     this.captureSmartWaits = options.captureSmartWaits ?? true;
+    this.asyncAwareness = {
+      enabled: options.asyncAwareness?.enabled ?? true,
+      adaptiveTimeouts: options.asyncAwareness?.adaptiveTimeouts ?? true,
+      minimumTimeoutMs: options.asyncAwareness?.minimumTimeoutMs ?? 10_000,
+      maximumTimeoutMs: options.asyncAwareness?.maximumTimeoutMs ?? 300_000
+    };
     this.signals = [];
     this.lastActionAt = 0;
     // Protected-login handoff bookkeeping: remember the safe resume URL + offline browser path.
@@ -952,7 +972,10 @@ export class RecorderService {
     const prev = this.actions[this.actions.length - 1];
     if (!prev || prev.type === "wait" || prev.type === "routeChange") return;
     const waits = buildSmartWaits(this.signals, this.lastActionAt, now, {
-      allowFixedDelayFallback: !this.captureWaitTime
+      allowFixedDelayFallback: !this.captureWaitTime,
+      adaptiveTimeouts: this.asyncAwareness.enabled && this.asyncAwareness.adaptiveTimeouts,
+      minimumTimeoutMs: this.asyncAwareness.minimumTimeoutMs,
+      maximumTimeoutMs: this.asyncAwareness.maximumTimeoutMs
     });
     if (waits.length) prev.afterWaits = waits;
   }
