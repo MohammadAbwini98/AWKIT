@@ -1785,6 +1785,101 @@ textarea {
   font-size: var(--text-xs);
 }
 
+/* ── Async Completion editor (awkit-54t) ─────────────────────────────────── */
+.async-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.async-add-row .toolbar-button {
+  min-height: 24px;
+  padding: 0 7px;
+  gap: 3px;
+}
+
+.async-status-row {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.async-status-row > label {
+  flex: 1 1 90px;
+}
+
+.async-badge {
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.68rem;
+  font-weight: 600;
+  margin-left: auto;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.async-badge-reliable {
+  background: var(--awkit-success-soft);
+  color: var(--awkit-success);
+}
+
+.async-badge-needsReview {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.async-badge-incomplete {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.async-badge-unsafe {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.smart-wait-card small.async-warning {
+  color: var(--awkit-warning);
+}
+
+/* Recorder review-before-save modal (awkit-54t) */
+.recorder-review-dialog {
+  max-width: 560px;
+}
+
+.recorder-review-list {
+  display: grid;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.recorder-review-item {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.recorder-review-item-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.recorder-review-item > span {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.recorder-review-item small.async-warning {
+  color: var(--awkit-warning);
+  font-size: var(--text-xs);
+}
+
 .form-designer {
   display: grid;
   grid-template-columns: 220px minmax(420px, 560px);

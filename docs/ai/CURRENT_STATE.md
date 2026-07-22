@@ -6,8 +6,8 @@ Protected-login controls **implemented**; async-awareness core (HTTP status vs. 
 bounded timeouts) **implemented**; runtime **API/UI completion policies + loader lifecycle + consistency
 checks (awkit-62o) implemented and verified**. On branch
 **`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Remaining:
-follow-ups **awkit-54t** (Flow Designer Async Completion editor + Recorder review UI) and **awkit-4km**
-(202 job-polling, WebSocket/SSE, CDP).
+**awkit-54t (Flow Designer Async Completion editor + Recorder review UI) implemented**; remaining
+follow-up **awkit-4km** (202 job-polling, WebSocket/SSE, CDP).
 
 **Manual gates run 2026-07-22:**
 - **Offline validation — PASS** (`validate:offline` strict, exit 0; bundle manifest/Chromium/Playwright/sql.js/samples intact).
@@ -26,6 +26,20 @@ follow-ups **awkit-54t** (Flow Designer Async Completion editor + Recorder revie
 
 **Product promotion remains unapproved** until the authenticated GUI walkthrough is signed off by the
 user and a distributable installer is produced on a capable build host.
+
+## awkit-54t — Async Completion editor + Recorder review-before-save DONE, verified (2026-07-22)
+
+UI over the awkit-62o model. New pure module `src/profiles/asyncCompletionReview.ts` classifies waits +
+policy as Reliable / Needs review / Incomplete / Unsafe (+ contradiction warnings), shared by both:
+- **Flow Designer** (`FlowNodePropertiesPanel`): "Smart Waits" → **Async Completion** editor —
+  completion-policy select, **+ API / + Loader / + UI outcome** add buttons, per-condition
+  required/optional + timeout + classification badge + type-specific field editors.
+- **Recorder** (`Recorder.tsx`): Save opens a **review-before-save modal** (per-action classification +
+  warnings + summary) when async activity was captured; else saves directly.
+- **Verified:** `verify:async-review` 21/0 + full regression green (waits 48, recorder-flow 19, runner
+  82, recorder 78, protected-login 26/45, settings 3, ipc 4, mock-site 39), build clean.
+- **Limitations:** "test locators against the live recorded page" affordance not implemented; GUI
+  click-through behind the auth gate (user-driven).
 
 ## awkit-62o — loader lifecycle + completion policies + consistency DONE, verified (2026-07-22)
 

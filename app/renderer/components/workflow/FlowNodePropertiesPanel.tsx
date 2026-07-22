@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PanelRightClose, PanelRightOpen, SlidersHorizontal, Trash2 } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { CanvasNode as Node } from "../canvas";
 import type { FlowDesignerNodeData } from "./flowDesignerTypes";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH } from "./flowDesignerTypes";
@@ -7,7 +7,23 @@ import { getNodeDefinition } from "./flowNodeRegistry";
 import { SearchableSelect } from "../shared/SearchableSelect";
 import { OracleNodeSection } from "./OracleNodeSection";
 import { defaultOracleNodeConfig } from "./flowDesignerTypes";
-import type { OracleNodeConfig, WaitCondition } from "@src/profiles/FlowProfile";
+import type { AsyncCompletionMode, LoaderCompletion, OracleNodeConfig, WaitCondition, WaitHttpMethod } from "@src/profiles/FlowProfile";
+import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
+
+/** Completion-policy options for the Async Completion editor. */
+const COMPLETION_MODES: { id: AsyncCompletionMode; label: string }[] = [
+  { id: "allRequired", label: "All required (default)" },
+  { id: "networkThenUi", label: "Network then UI" },
+  { id: "anyRequired", label: "Any required" },
+  { id: "quietPeriod", label: "Quiet period" }
+];
+
+/** New-condition scaffolds for the Async Completion editor. */
+const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui", () => WaitCondition> = {
+  api: () => ({ type: "response", method: "GET", urlContains: "", statusRange: [200, 299], armBeforeAction: true }),
+  loader: () => ({ type: "loaderHidden", locator: { strategy: "css", value: "" }, appearanceGraceMs: 1500, mustAppear: false, completion: "hidden" }),
+  ui: () => ({ type: "textVisible", text: "" })
+};
 
 interface DataSourceOption {
   id: string;
@@ -89,42 +105,200 @@ export function FlowNodePropertiesPanel({
     if (!data) return;
     set({ [phase]: data[phase].filter((_, i) => i !== index) } as Partial<FlowDesignerNodeData>);
   };
-  const clearWaits = (phase: "beforeWaits" | "afterWaits") => set({ [phase]: [] } as Partial<FlowDesignerNodeData>);
+  const addWait = (phase: "beforeWaits" | "afterWaits", kind: "api" | "loader" | "ui") => {
+    if (!data) return;
+    set({ [phase]: [...(data[phase] ?? []), WAIT_SCAFFOLDS[kind]()] } as Partial<FlowDesignerNodeData>);
+  };
+
+  // Type-specific field editors so users can add and fully configure a condition (not just remove it).
+  const renderWaitEditor = (phase: "beforeWaits" | "afterWaits", index: number, wait: WaitCondition) => {
+    switch (wait.type) {
+      case "response":
+        return (
+          <>
+            <label>
+              Method
+              <select
+                value={wait.method ?? "ANY"}
+                onChange={(e) => updateWait(phase, index, { method: e.target.value === "ANY" ? undefined : (e.target.value as WaitHttpMethod) })}
+              >
+                {["ANY", "GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              URL contains
+              <input value={wait.urlContains ?? ""} placeholder="/api/orders" onChange={(e) => updateWait(phase, index, { urlContains: e.target.value })} />
+            </label>
+            <div className="async-status-row">
+              <label>
+                Status ≥
+                <input
+                  type="number"
+                  value={wait.statusRange?.[0] ?? 200}
+                  onChange={(e) => updateWait(phase, index, { statusRange: [Number(e.target.value), wait.statusRange?.[1] ?? 299] as [number, number] })}
+                />
+              </label>
+              <label>
+                ≤
+                <input
+                  type="number"
+                  value={wait.statusRange?.[1] ?? 299}
+                  onChange={(e) => updateWait(phase, index, { statusRange: [wait.statusRange?.[0] ?? 200, Number(e.target.value)] as [number, number] })}
+                />
+              </label>
+            </div>
+            <label className="inline-check">
+              <input type="checkbox" checked={wait.armBeforeAction ?? false} onChange={(e) => updateWait(phase, index, { armBeforeAction: e.target.checked })} />
+              Arm before action (catch fast responses)
+            </label>
+          </>
+        );
+      case "loaderHidden":
+        return (
+          <>
+            <label>
+              Loader locator (CSS)
+              <input
+                value={wait.locator?.value ?? ""}
+                placeholder=".spinner"
+                onChange={(e) => updateWait(phase, index, { locator: { strategy: wait.locator?.strategy ?? "css", value: e.target.value } })}
+              />
+            </label>
+            <div className="async-status-row">
+              <label>
+                Appearance grace (ms)
+                <input
+                  type="number"
+                  value={wait.appearanceGraceMs ?? ""}
+                  placeholder="1500"
+                  onChange={(e) => updateWait(phase, index, { appearanceGraceMs: e.target.value ? Number(e.target.value) : undefined })}
+                />
+              </label>
+              <label>
+                Completion
+                <select value={wait.completion ?? "hidden"} onChange={(e) => updateWait(phase, index, { completion: e.target.value as LoaderCompletion })}>
+                  <option value="hidden">Hidden</option>
+                  <option value="detached">Detached</option>
+                  <option value="ariaBusyFalse">aria-busy = false</option>
+                </select>
+              </label>
+            </div>
+            <label className="inline-check">
+              <input type="checkbox" checked={wait.mustAppear ?? false} onChange={(e) => updateWait(phase, index, { mustAppear: e.target.checked })} />
+              Must appear (fail if the loader never shows)
+            </label>
+          </>
+        );
+      case "textVisible":
+        return (
+          <>
+            <label>
+              Text
+              <input value={wait.text ?? ""} placeholder="Saved successfully" onChange={(e) => updateWait(phase, index, { text: e.target.value })} />
+            </label>
+            <label className="inline-check">
+              <input type="checkbox" checked={wait.exact ?? false} onChange={(e) => updateWait(phase, index, { exact: e.target.checked })} />
+              Match exactly
+            </label>
+          </>
+        );
+      case "tableHasRows":
+        return (
+          <div className="async-status-row">
+            <label>
+              Table locator
+              <input
+                value={wait.tableLocator?.value ?? ""}
+                placeholder="#results"
+                onChange={(e) => updateWait(phase, index, { tableLocator: { strategy: wait.tableLocator?.strategy ?? "css", value: e.target.value } })}
+              />
+            </label>
+            <label>
+              Min rows
+              <input type="number" min={0} value={wait.minRows ?? 1} onChange={(e) => updateWait(phase, index, { minRows: Number(e.target.value) })} />
+            </label>
+          </div>
+        );
+      case "listHasItems":
+        return (
+          <div className="async-status-row">
+            <label>
+              List locator
+              <input
+                value={wait.listLocator?.value ?? ""}
+                placeholder=".cards"
+                onChange={(e) => updateWait(phase, index, { listLocator: { strategy: wait.listLocator?.strategy ?? "css", value: e.target.value } })}
+              />
+            </label>
+            <label>
+              Min items
+              <input type="number" min={0} value={wait.minItems ?? 1} onChange={(e) => updateWait(phase, index, { minItems: Number(e.target.value) })} />
+            </label>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderWaitList = (label: string, phase: "beforeWaits" | "afterWaits", waits: WaitCondition[]) => (
     <div className="smart-wait-list">
       <div className="smart-wait-list-heading">
         <strong>{label}</strong>
-        {waits.length ? (
-          <button className="toolbar-button" type="button" onClick={() => clearWaits(phase)}>
-            Clear
+        <div className="async-add-row">
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "api")} title="Add an API/response condition">
+            <Plus size={13} /> API
           </button>
-        ) : null}
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "loader")} title="Add a loader/spinner condition">
+            <Plus size={13} /> Loader
+          </button>
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "ui")} title="Add a UI outcome condition">
+            <Plus size={13} /> UI outcome
+          </button>
+        </div>
       </div>
       {waits.length ? (
-        waits.map((wait, index) => (
-          <div className="smart-wait-card" key={`${phase}-${index}-${wait.type}`}>
-            <div className="smart-wait-card-head">
-              <strong>{smartWaitTitle(wait)}</strong>
-              <button type="button" className="icon-button" title="Remove wait" onClick={() => removeWait(phase, index)}>
-                <Trash2 size={14} />
-              </button>
+        waits.map((wait, index) => {
+          const review = reviewWait(wait);
+          const badge = classLabel(review.classification);
+          return (
+            <div className="smart-wait-card" key={`${phase}-${index}-${wait.type}`}>
+              <div className="smart-wait-card-head">
+                <strong>{smartWaitTitle(wait)}</strong>
+                <span className={`async-badge async-badge-${review.classification}`} title={badge.hint}>{badge.label}</span>
+                <button type="button" className="icon-button" title="Remove condition" onClick={() => removeWait(phase, index)}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              <span>{smartWaitDetail(wait)}</span>
+              {wait.reason ? <small>Evidence: {wait.reason}</small> : null}
+              {review.warnings.map((w, i) => (
+                <small key={i} className="async-warning">⚠ {w}</small>
+              ))}
+              {renderWaitEditor(phase, index, wait)}
+              <div className="async-status-row">
+                <label className="inline-check">
+                  <input type="checkbox" checked={!wait.optional} onChange={(e) => updateWait(phase, index, { optional: !e.target.checked })} />
+                  Required
+                </label>
+                <label>
+                  Timeout (ms)
+                  <input
+                    type="number"
+                    min={0}
+                    value={wait.timeoutMs ?? ""}
+                    placeholder="30000"
+                    onChange={(e) => updateWait(phase, index, { timeoutMs: e.target.value ? Number(e.target.value) : undefined })}
+                  />
+                </label>
+              </div>
             </div>
-            <span>{smartWaitDetail(wait)}</span>
-            {wait.reason ? <small>{wait.reason}</small> : null}
-            <label>
-              Timeout (ms)
-              <input
-                type="number"
-                min={0}
-                value={wait.timeoutMs ?? ""}
-                placeholder="30000"
-                onChange={(e) => updateWait(phase, index, { timeoutMs: e.target.value ? Number(e.target.value) : undefined })}
-              />
-            </label>
-          </div>
-        ))
+          );
+        })
       ) : (
-        <span className="form-message">No waits in this phase.</span>
+        <span className="form-message">No conditions — add one above.</span>
       )}
     </div>
   );
@@ -255,10 +429,25 @@ export function FlowNodePropertiesPanel({
             </details>
           ) : null}
 
-          {smartWaitCount > 0 ? (
-            <details className="property-group" open>
-              <summary>Smart Waits</summary>
+          {has("locator") || stepType === "goto" || stepType === "routeChange" ? (
+            <details className="property-group" open={smartWaitCount > 0}>
+              <summary>Async Completion</summary>
               <section className="property-section">
+                <label>
+                  Completion policy
+                  <select
+                    value={data.completionMode ?? "allRequired"}
+                    onChange={(e) => set({ completionMode: e.target.value === "allRequired" ? undefined : (e.target.value as AsyncCompletionMode) })}
+                  >
+                    {COMPLETION_MODES.map((m) => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <p className="form-message">
+                  How the after-action conditions combine. Add API, loader, and UI-outcome conditions below;
+                  each can be required or optional. Recorded conditions carry their observed evidence.
+                </p>
                 {renderWaitList("Before action", "beforeWaits", data.beforeWaits ?? [])}
                 {renderWaitList("After action", "afterWaits", data.afterWaits ?? [])}
               </section>

@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — awkit-54t: Async Completion editor + Recorder review-before-save
+
+- **Task:** the UI layer over the awkit-62o async model (bead awkit-54t). Same branch; earlier commits
+  (checkpoint + 62o) untouched.
+- **Shared pure module** `src/profiles/asyncCompletionReview.ts` — statically classifies a step/action's
+  waits + policy as **Reliable / Needs review / Incomplete / Unsafe** with contradiction warnings
+  (response with no endpoint pattern; status range inverted / 200-only; empty/non-unique locator;
+  fixedDelay-only or all-optional = no completion signal; networkThenUi without an API; anyRequired
+  with <2 required; required table-rows vs empty-state outcome). `reviewWait`/`reviewStepAsync`/
+  `summarizeReviews`/`classLabel`. Used by BOTH the designer and the recorder.
+- **Flow Designer** (`FlowNodePropertiesPanel.tsx`): the old timeout-only "Smart Waits" section is now
+  a full **Async Completion** editor — completion-policy `<select>` (allRequired/networkThenUi/
+  anyRequired/quietPeriod → `FlowStep.completionMode`); **+ API / + Loader / + UI outcome** add buttons
+  (add missing waits, not just remove); per-condition required/optional toggle, timeout, a
+  classification badge + warnings, and type-specific field editors (response method/URL/status/arm;
+  loader locator/grace/completion/mustAppear; text; table/list min counts). Shown for action nodes even
+  when empty.
+- **Recorder** (`Recorder.tsx`): Save now opens a **review-before-save modal** (reused `.modal-*`
+  system) when the recording captured async activity — per-action classification + warnings + summary
+  counts; "Keep editing" / "Save to Flow Library". No async activity → saves directly.
+- **Files:** `src/profiles/asyncCompletionReview.ts` (new), `scripts/verify-async-review.mts` (new) +
+  `verify:async-review` script, `FlowNodePropertiesPanel.tsx`, `Recorder.tsx`, `global.css`.
+- **Verification (all green):** `verify:async-review` **21/0**; regression `verify:waits` 48/0,
+  `verify:recorder-flow` 19/19, `verify:runner` 82/0, `verify:recorder` 78/0, `verify:protected-login`
+  26/0, `verify:protected-login-recorder` 45/45, `verify:settings-persistence` 3/3, `verify:ipc-contract`
+  4/4, `verify:mock-site` 39/39, `npm run build` clean. Built renderer bundle contains the new UI.
+- **Not run / limitations:** the "Test locators against the active recorded page" affordance from the
+  prompt is not implemented (needs a live recorded page — deferred). GUI click-through of the editor/
+  modal is behind the Electron auth gate (same manual gate as before); the interactive walkthrough is
+  user-driven.
+
 ## 2026-07-22 — Claude (Opus 4.8) — awkit-62o: loader lifecycle + completion policies + consistency
 
 - **Task:** the runtime completion-policy + loader-lifecycle follow-up (bead awkit-62o), extending the
