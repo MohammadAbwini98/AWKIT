@@ -4,6 +4,112 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-23 (later) — Claude (Opus 4.8) — FR-2.6 branch-pair deletion semantics + SRS reconcile
+
+- **Task:** implement the FR-2.6 owner decision from the prior session's canvas sweep — restore the
+  lone-branch-connector behavior that both editors had lost — on `feature/canvas-ux-foundation`.
+- **Runtime correction (load-bearing):** the prior handoff/SRS said a lone branch connector
+  "truncates the flow at run time." Traced the code — it does **not**. `flowStepMapping.toFlowStep`
+  sets `FlowStep.next` to the first outgoing edge regardless of kind, and `FlowExecutor.resolveNext`
+  falls back `success → always → step.next`. So a lone **conditional** routes to its target with the
+  **condition ignored**; a lone **parallel** fans out and then runs the same target **again** via the
+  fallback (twice). The fix targets those real behaviors.
+- **Hybrid decision (owner-approved):** (a) interactive deletion auto-reverts the lone survivor to a
+  normal connector; (b) existing/imported lone branches are **not** rewritten on load — they are
+  reported as Save-blocking issues; (c) a lone branch **with a standard fallback** is a valid if/else
+  and is exempt.
+- **New shared module** `app/renderer/components/shared/branchPairs.ts` (React-free, verifier-loadable):
+  `revertLoneBranchConnectors`, `incompleteBranchPairs` + message, `flowEdgeToNormal` /
+  `scenarioEdgeToNormal`, `flowEdgeKind` / `scenarioEdgeKind`. Both editors' `reconcile*Branches`
+  (were no-op pass-throughs) now delegate to it; both `connectorStructureIssues` validators gained
+  the incomplete-pair check. Removed dead `reconcileBranchConnectors` from `connectorStyle.ts`
+  (zero call sites; revert semantics moved to `branchPairs.ts`).
+- **New verifier** `scripts/verify-branch-pairs.mts` (`npm run verify:branch-pairs`, **31/31**):
+  both editors, both kinds — deletion reverts survivor; unrelated/normal connectors untouched;
+  load never mutates; lone-with-no-fallback reported while valid if/else exempt; conversion clears
+  branch-only config; runtime-safety proofs (no silent truncation, no single-branch fan-out);
+  determinism + idempotence.
+- **SRS reconcile (docs-only, separate commit):** `docs/SRS_CANVAS_UX.md` (2026-07-10) was
+  materially stale — rewrote it against current code: React Flow → in-house engine; FR-2.6 marked
+  implemented+verified; corrected dot tokens (`#c4c9d2`/`#2c3140`/`#cac5d3`, `gap={22} size={2}`),
+  component renames (`SmoothEdge`/`LoopEdge`/`Background`/`graphLayout`), removed port-slotting
+  assumptions, corrected the reduced-motion finding (six blocks, `!important` vs shorthand hazard),
+  replaced drifted `global.css` line numbers with token/selector references. `[NEEDS REFERENCE]`
+  visual markers preserved.
+- **Files changed:** `app/renderer/components/shared/branchPairs.ts` (new),
+  `app/renderer/components/shared/connectorStyle.ts`, `app/renderer/pages/FlowChartDesigner.tsx`,
+  `app/renderer/pages/ScenarioBuilder.tsx`, `scripts/verify-branch-pairs.mts` (new),
+  `package.json` (+1 alias), `docs/SRS_CANVAS_UX.md`, `docs/ai/{TASK_LOG,CURRENT_STATE}.md`.
+- **Commits (on `feature/canvas-ux-foundation`, not pushed):** `62aca6d` fix(canvas), `92b40b5`
+  test(canvas), + docs commits for the SRS reconcile and this log entry. `.beads/issues.jsonl` left
+  uncommitted (carries the prior session's cross-branch beads — splice hazard).
+- **Tests:** `npm run build` clean; `verify:branch-pairs` 31/31; `verify:flow-step-mapping` 94/94;
+  `verify:canvas-layout` 35/35; `verify:flow-designer` 24/24 + `verify:workflow-builder` 20/20 (real
+  Electron, no console errors). **Not run:** runner/recorder/mock-site/packaging verifiers (none of
+  those surfaces touched).
+- **Result:** FR-2.6 closed and verified in both editors; SRS reconciled. No production behavior
+  changed outside the branch-pair rule. Clean-machine gate (backend) unchanged and still blocking.
+
+---
+
+## 2026-07-23 — Coding agent — Browser-automation SRS, artifact regeneration, canvas current-state sweep
+
+- **Task:** review an external browser-automation improvement summary (25 recommendations) against the
+  codebase and produce an SRS; then regenerate the 0.1.0 release artifacts from `61f6099`; then
+  re-validate the Canvas UX SRS against current code. No backend implementation (blocked by the
+  clean-machine gate).
+- **SRS** (`docs/browser-automation-srs` @ `32ed8c4`): new
+  `docs/SRS_BROWSER_AUTOMATION_OBSERVABILITY.md` (SRS-BAO-001, 1185 lines). Classified the 25
+  recommendations as **9 absent / 11 partial / 3 implemented / 1 rejected**, with per-requirement change
+  dependencies, a §7 contract map naming the guarding verifier for each, 14 security gates, and 8
+  tranches. Key grounded findings: **zero CDP usage anywhere** in `src/`/`app/` (FR-A1 would be the
+  first attach path); `urlPolicy.ts` is a *scheme* allowlist that deliberately permits private networks;
+  `StepExecutionStatus` has the widest blast radius of any proposed change. Cookie-entropy scanning
+  **rejected** — `SessionCaptureService` never materializes cookie values, so extraction would create
+  the exposure a scanner then manages.
+- **Beads filed (6):** `awkit-ebh`/`awkit-oyc`/`awkit-5yx`/`awkit-oei` (defects found during the SRS
+  review) and `awkit-epz`/`awkit-c0c` (packaging provenance), on two separate branches.
+- **Artifact regeneration** from a detached worktree at `61f6099` + the preserved offline payload
+  (Chromium 149.0.7827.55; `prepare-offline-deps.ps1` deliberately NOT run):
+  **NSIS SUCCEEDED** — 373,894,726 B, SHA-256 `4df7fa64…1f1ec333`, NotSigned, Chromium verified inside
+  the installer. **Portable FAILED** — 7-Zip `-mx=9` OOM on 1,177 MiB with commit charge at 31.1/31.8 GB;
+  `win-unpacked` completed but is not a substitute. Evidence archived outside the repo; worktree removed.
+- **Discovered:** the build is **not hermetic from Git** — `vendor/` + `resources/browsers/` +
+  `resources/oracle-jdbc/` are gitignored yet copied wholesale as `extraResources`, so a clean checkout
+  produces a **hollow artifact** that installs and launches but cannot drive a browser (`awkit-epz`).
+  Also: installer SHA-256 equality is unachievable because `dependency-manifest.json` is regenerated
+  with a fresh `builtAt` and packaged (`awkit-c0c`).
+- **Corrections made to earlier claims in this session** (recorded so they are not re-derived):
+  the mislabeled `execution-failed-cleanup` reason is **log text only** — `onRuntimeClosing`'s sole
+  consumer discards it and pool analytics come from a different enum; the Flow Designer auto-layout
+  "defect" was **already fixed**; the connector-parity "divergence" is actually **parity**, with both
+  editors equally missing the invariant.
+- **New verifier** `scripts/verify-canvas-layout.mts` (`verify:canvas-layout`, **35/35**) on
+  `feature/canvas-ux-foundation` @ `63eef5c`. Imports the real `graphLayout.ts` and asserts **geometry**
+  (bounding-box overlap on real 320×96 dimensions, clearance floors, layer order, cycle termination,
+  determinism, idempotence) rather than structure. Three behaviors PINNED rather than silently changed:
+  `force:true` re-positions hand-placed nodes; the stack detector buckets on an 8px **grid** so a
+  boundary-straddling near-stack escapes; `graphLayout`'s `defaultWidth` (220) is narrower than the
+  designer's real 320.
+- **Canvas UX SRS sweep (read-only):** `docs/SRS_CANVAS_UX.md` (2026-07-10) is materially stale — the
+  Workflow Builder edge "+" and the auto-layout are already implemented, components were renamed, and
+  every cited `global.css` line number is wrong. **Confirmed defect:** FR-2.6 fails in **both** editors —
+  `reconcileBranchConnectors` is dead code and both editors' replacements are no-op pass-throughs, so a
+  lone conditional/parallel connector saves silently and truncates the flow at run time. No verifier
+  covers branch reconciliation. Four `prefers-reduced-motion` blocks interact through `!important` vs
+  shorthand, so consolidation would change behavior.
+- **Files changed:** `docs/SRS_BROWSER_AUTOMATION_OBSERVABILITY.md` (new),
+  `scripts/verify-canvas-layout.mts` (new), `package.json` (+1 alias), `.beads/issues.jsonl`,
+  `docs/ai/{HANDOFF,TASK_LOG,CURRENT_STATE}.md`. **No production source modified.**
+- **Tests:** `npm run build` clean; `verify:canvas-layout` 35/35; `npm ci` exit 0 on the rebuild
+  worktree; NSIS packaging exit 0; portable packaging exit 1 (OOM — host limit, not a code defect).
+  **Not run:** `verify:runner`, `verify:recorder`, GUI/mock-site/packaging verifiers (no runner,
+  recorder, renderer, or packaging source touched).
+- **Result:** SRS + sweep complete; artifacts half-regenerated. Clean-machine gate still **Not
+  Executed** and still blocks backend implementation. Nothing pushed; no PRs.
+
+---
+
 ## 2026-07-22 — Claude (Opus 4.8) — Serialization Round-Trip Hardening (extraction + executable verifier)
 
 - **Task:** close the most dangerous verification gap — the designer's model↔node-data converters had

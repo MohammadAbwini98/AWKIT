@@ -1,5 +1,61 @@
 # CURRENT_STATE
 
+## Status summary (2026-07-23) — supersedes the 2026-07-22 block below
+
+**Branch-state correction.** The 2026-07-22 summary below says the recorder/async work is "not pushed".
+That is **stale**: `feature/recorder-protected-login-and-async-awareness` @ `61f6099` was pushed and
+**merged to `main` via PR #25** (merge commit `5cef580`, a real merge — the 17 phase SHAs stay valid).
+The branch is now **FROZEN** pending the clean-machine gate. Local `main` is stale at `382847c`; compare
+scope against `origin/main`.
+
+**Blocking gate — unchanged and still `Not Executed`:** `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`. Merging
+was integration, not promotion. **Product promotion remains UNAPPROVED.** No backend implementation may
+start before it clears.
+
+**Artifact status (2026-07-22 regeneration from `61f6099`):** NSIS installer **rebuilt and verified**
+(SHA-256 `4df7fa6402c9c551ca1c6e6310a8e21c8c61a0097884b316eeca1ba41f1ec333`, Chromium 149.0.7827.55
+confirmed inside the artifact). **Portable NOT produced** — 7-Zip `-mx=9` OOM on this 15.9 GB host.
+Both artifacts are needed before runbook §2 can be re-pinned. Evidence archived outside the repo.
+
+**New risk — packaging is not reproducible from source control (`awkit-epz`, P1).** `vendor/`,
+`resources/browsers/`, and `resources/oracle-jdbc/` are gitignored but copied wholesale by
+`electron-builder.json` as `extraResources`. A clean checkout therefore builds a **hollow artifact**
+that installs and launches but has no bundled Chromium and cannot automate anything — a silent failure.
+The ~832 MB payload must be transferred out-of-band; `scripts/prepare-offline-deps.ps1` must not be run
+(unpinned `npx playwright install chromium`). Related: `dependency-manifest.json` is regenerated with a
+fresh `builtAt` and packaged, so **installer hash equality is unachievable** even from identical inputs
+(`awkit-c0c`, P2) — compare decompressed payload CRCs instead.
+
+**New command:** `npm run verify:canvas-layout` (`scripts/verify-canvas-layout.mts`, **35/35**) —
+geometry assertions over `app/renderer/components/shared/graphLayout.ts` (bounding-box overlap on real
+node dimensions, clearance floors, cycle termination, determinism, idempotence). No production code
+changed; the load-time auto-layout it covers was already implemented.
+
+**New specification:** `docs/SRS_BROWSER_AUTOMATION_OBSERVABILITY.md` (SRS-BAO-001) — 25 external
+recommendations reviewed against code (9 absent / 11 partial / 3 implemented / 1 rejected), with change
+dependencies, security gates, and a tranche plan. **Specification only; implementation blocked by the
+gate above.** Notable grounded fact: AWKIT has **zero CDP usage anywhere** today, and
+`SessionCaptureService`'s "no CDP connection" invariant constrains any future observation client.
+
+**Known-stale document:** `docs/SRS_CANVAS_UX.md` (2026-07-10) — **reconciled 2026-07-23** against
+current code (React Flow → in-house engine; corrected tokens/component names; drifted `global.css`
+line numbers replaced with token/selector references). `[NEEDS REFERENCE]` visual markers preserved.
+
+**FR-2.6 branch-pair fix — DONE & VERIFIED (2026-07-23, `feature/canvas-ux-foundation`, not pushed).**
+The former defect (both editors' `reconcile*Branches` were no-op pass-throughs; `reconcileBranchConnectors`
+was dead code) is fixed. New shared `app/renderer/components/shared/branchPairs.ts` restores the
+lone-branch-connector semantics as a **hybrid** rule: interactive deletion auto-reverts the survivor to
+a normal connector; existing/imported lone branches are **Save-blocking** (not rewritten on load); a lone
+branch **with a standard fallback** (valid if/else) is exempt. Correction to the earlier claim: a lone
+branch does **not** truncate the flow — at run time a lone conditional routes with the condition ignored
+and a lone parallel runs its target twice; the revert prevents both. Dead `reconcileBranchConnectors`
+removed. Verifier `scripts/verify-branch-pairs.mts` (`npm run verify:branch-pairs`, **31/31**); build
+clean; `verify:flow-step-mapping` 94/94, `verify:canvas-layout` 35/35, GUI `verify:flow-designer` 24/24 +
+`verify:workflow-builder` 20/20. Commits `62aca6d` (fix) + `92b40b5` (test) + docs. `.beads/issues.jsonl`
+left uncommitted (prior session's cross-branch beads — splice hazard).
+
+---
+
 ## Status summary (2026-07-22)
 
 Protected-login controls **implemented**; async-awareness core (HTTP status vs. timeout + adaptive
