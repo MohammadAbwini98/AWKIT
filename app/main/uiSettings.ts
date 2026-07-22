@@ -45,6 +45,29 @@ export interface UiSettings {
     captureWaitTime: boolean;
     /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
     captureSmartWaits: boolean;
+    /**
+     * When true, the Recorder does not automatically pause on a detected protected login / SSO page /
+     * protected popup. This ONLY changes AWKIT's pause/observation behavior — it never bypasses
+     * authentication, CAPTCHA, MFA, SSO, or browser security. The user still completes any real login
+     * manually. Default false. Use only for authorized apps where detection is a false positive.
+     */
+    ignoreProtectedLoginDetection: boolean;
+    /**
+     * Async Activity Awareness tuning. Controls how the Recorder proposes condition-based waits
+     * (Smart Waits) for the asynchronous work an action triggers. Additive + backward-compatible.
+     */
+    asyncAwareness: {
+      /** Master switch for async-awareness enhancements (adaptive timeouts today). */
+      enabled: boolean;
+      /** Derive a bounded per-wait timeout from the observed duration instead of the flat runner default. */
+      adaptiveTimeouts: boolean;
+      /** Lower bound (ms) for an adaptive timeout. */
+      minimumTimeoutMs: number;
+      /** Hard upper bound (ms) for an adaptive timeout — never exceeded. */
+      maximumTimeoutMs: number;
+      /** Grace (ms) for a recorded loader to (re)appear on replay before it is treated as absent. */
+      loaderAppearanceGraceMs: number;
+    };
   };
   /** Last run settings (what the user last launched). */
   instanceRunSettings: {
@@ -152,7 +175,15 @@ const defaultSettings: UiSettings = {
   selectedBuilderWorkflowId: "",
   recorder: {
     captureWaitTime: false,
-    captureSmartWaits: true
+    captureSmartWaits: true,
+    ignoreProtectedLoginDetection: false,
+    asyncAwareness: {
+      enabled: true,
+      adaptiveTimeouts: true,
+      minimumTimeoutMs: 10_000,
+      maximumTimeoutMs: 300_000,
+      loaderAppearanceGraceMs: 1_500
+    }
   },
   workflowBuilder: {
     selectedConnectorCollapsed: false,
@@ -245,7 +276,12 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
   const merged: UiSettings = {
     ...defaultSettings,
     ...parsed,
-    recorder: { ...defaultSettings.recorder, ...parsed.recorder },
+    recorder: {
+      ...defaultSettings.recorder,
+      ...parsed.recorder,
+      // Deep-merge the nested async block so a partial saved value never drops sibling fields.
+      asyncAwareness: { ...defaultSettings.recorder.asyncAwareness, ...parsed.recorder?.asyncAwareness }
+    },
     workflowBuilder: { ...defaultSettings.workflowBuilder, ...parsed.workflowBuilder },
     instanceRunSettings: { ...defaultSettings.instanceRunSettings, ...parsed.instanceRunSettings },
     app: { ...defaultSettings.app, ...parsed.app },
@@ -268,7 +304,11 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
   return {
     ...current,
     ...patch,
-    recorder: { ...current.recorder, ...patch.recorder },
+    recorder: {
+      ...current.recorder,
+      ...patch.recorder,
+      asyncAwareness: { ...current.recorder.asyncAwareness, ...patch.recorder?.asyncAwareness }
+    },
     workflowBuilder: { ...current.workflowBuilder, ...patch.workflowBuilder },
     instanceRunSettings: { ...current.instanceRunSettings, ...patch.instanceRunSettings },
     app: { ...current.app, ...patch.app },
@@ -424,6 +464,20 @@ export function validateSettings(settings: UiSettings): string[] {
   }
   if (r.administratorMaximumConcurrency !== null && (!Number.isInteger(r.administratorMaximumConcurrency) || r.administratorMaximumConcurrency < 1)) {
     errors.push("Administrator maximum concurrency must be a positive integer or unset.");
+  }
+
+  const aa = settings.recorder.asyncAwareness;
+  if (!Number.isInteger(aa.minimumTimeoutMs) || aa.minimumTimeoutMs < 1000 || aa.minimumTimeoutMs > 600_000) {
+    errors.push("Recorder async minimum timeout must be an integer between 1000 and 600000 ms.");
+  }
+  if (!Number.isInteger(aa.maximumTimeoutMs) || aa.maximumTimeoutMs < 1000 || aa.maximumTimeoutMs > 600_000) {
+    errors.push("Recorder async maximum timeout must be an integer between 1000 and 600000 ms (no unlimited timeout).");
+  }
+  if (aa.minimumTimeoutMs > aa.maximumTimeoutMs) {
+    errors.push("Recorder async minimum timeout cannot exceed the maximum timeout.");
+  }
+  if (!Number.isInteger(aa.loaderAppearanceGraceMs) || aa.loaderAppearanceGraceMs < 0 || aa.loaderAppearanceGraceMs > 60_000) {
+    errors.push("Recorder loader appearance grace must be an integer between 0 and 60000 ms.");
   }
 
   for (const [key, value] of Object.entries(settings.paths)) {

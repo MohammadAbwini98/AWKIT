@@ -21,7 +21,13 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorAlternatives?: LocatorCandidate[];
   /** Container/frame scoping applied to the primary and every alternative (from Recorder). */
   locatorContext?: LocatorContext;
-  valueSourceType: ValueSourceType;
+  /**
+   * Which value source drives this node. `"none"` is a designer-only sentinel meaning "a bare
+   * `value` with no explicit source" (e.g. a condition expression); it round-trips as `value` alone
+   * without fabricating a static `valueSource`. It never appears in a persisted {@link ValueSource}.
+   * See bead awkit-cxa.
+   */
+  valueSourceType: ValueSourceType | "none";
   value: string;
   // Dynamic JSON binding:
   dataSourceScope: DataSourceScope;
@@ -32,6 +38,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   timeoutMs: number;
   beforeWaits: WaitCondition[];
   afterWaits: WaitCondition[];
+  /** Async completion policy for `afterWaits` (undefined = allRequired). Carried through round-trip. */
+  completionMode?: FlowStep["completionMode"];
   retryCount: number;
   retryDelayMs: number;
   failureAction: NonNullable<FlowStep["onFailure"]>["action"];

@@ -47,6 +47,10 @@ function clampWaits(waits: WaitCondition[] | undefined, stepId: string, kind: st
       const d = clamp(wait.delayMs, 0, FLOW_BOUNDS.maxDelayMs);
       if (d !== undefined) wait.delayMs = d;
     }
+    if (wait.type === "anyOf") {
+      // Bound + clamp the nested OR-group children too (they bypass the top-level count/timeout pass).
+      wait.conditions = clampWaits(wait.conditions, stepId, `${kind} group`, warnings) ?? wait.conditions;
+    }
   }
   return list;
 }

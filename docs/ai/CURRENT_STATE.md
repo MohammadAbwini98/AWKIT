@@ -1,5 +1,156 @@
 # CURRENT_STATE
 
+## Status summary (2026-07-22)
+
+Protected-login controls **implemented**; async-awareness core (HTTP status vs. timeout + adaptive
+bounded timeouts) **implemented**; runtime **API/UI completion policies + loader lifecycle + consistency
+checks (awkit-62o) implemented and verified**. On branch
+**`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Remaining:
+**awkit-54t (Flow Designer Async Completion editor + Recorder review UI) implemented**; remaining
+follow-up **awkit-4km** (202 job-polling, WebSocket/SSE, CDP).
+
+**Mock Site fixtures for the GUI gate (2026-07-22):** new `/async-results` scenario + `/api/status`
+(allow-listed codes, no 3xx) and `/api/results?mode=populated|empty`. These unblock two GUI-gate checks
+that previously had **no fixture**: HTTP-error-vs-timeout reporting, and the empty-result contract
+(HTTP 200 with zero rows → table hidden, `empty-state` visible). `verify:mock-site` **55/55**.
+
+**Grouped completion `A AND (B OR C)` — bead `awkit-y24` (P2) IMPLEMENTED (2026-07-22, uncommitted):**
+A new `anyOf` OR-group `WaitCondition` (extends the union — not a fork) passes as soon as any child
+passes and fails only when all fail. As one *required* condition under `allRequired`, it expresses
+`API success AND (tableHasRows OR emptyStateVisible)`, so a 200 API alone no longer satisfies a step
+whose UI outcome is missing. Runner resolves it via `Promise.any` in `executeWaitCondition` (works under
+every completion policy); `FlowValidation.clampWaits` recurses into children; `reviewWait` rolls up the
+worst branch (so the intended rows-OR-empty config is not mislabeled a contradiction). Designer editor:
+`renderWaitEditor` refactored to `(wait, update)` so it renders nested branches recursively, plus a
+"+ OR group" button and token-only `.anyof-group`/`.anyof-branch` styles. `verify:waits` **52/0** (incl.
+"API ok but neither branch → fails"), round-trip covered by `verify:flow-step-mapping`. Unblocks GUI
+check 11 configuration 3 (the `/async-results` fixture already exposes `#resultsTable` + `empty-state`);
+the manual GUI walkthrough remains.
+
+**Async job polling — bead `awkit-4km` C1 IMPLEMENTED (2026-07-22, uncommitted):** a new `apiPolling`
+`WaitCondition` for the `202 Accepted → poll a status endpoint to terminal` pattern. `resolveApiPolling`
+observes the page's own repeated status responses (issues none itself) and completes on a terminal status
+range or a JSON `responseField`/`terminalValues`, bounded by `maxAttempts`. Designer editor + "Poll"
+scaffold; mock-site `/api/job` (deterministic 202×N → terminal, repeatable). `verify:waits` **56/0**,
+`verify:mock-site` **58/58**. WebSocket/SSE + CDP diagnostics remain deferred on awkit-4km.
+
+**Serialization round-trip hardening (2026-07-22):** `toFlowStep`/`fromFlowStep` (+ their `toNodeConfig`
+/`createValueSource` helpers) moved verbatim out of `pages/FlowChartDesigner.tsx` into
+`components/workflow/flowStepMapping.ts` so a verifier can execute the REAL production converters.
+Extraction proven behavior-preserving by diff (183 lines, byte-identical). New
+`verify:flow-step-mapping` **94/94** covers all `WaitCondition` variants (incl. `anyOf` + `apiPolling`),
+both wait phases, condition ordering, required/optional flags, completion policies, empty-result/falsy
+preservation, legacy steps, defaults, clone/edit, 3 serialization cycles for gradual drift, and (report
+§8) all 10 `valueSource` variants, compound locator `alternatives`/`context`, edge→`next`, and
+representative `step.config` breadth.
+
+**Data-loss defect — bead `awkit-cxa` (P1) FIXED (2026-07-22, uncommitted):** `fromFlowStep` now reads
+`step.value` and marks the node with a designer-only `valueSourceType: "none"` sentinel;
+`createValueSource` returns `undefined` for it, so `toFlowStep` re-emits `value` alone **without**
+fabricating a static `valueSource`. Bare condition expressions (e.g. shipped
+`mock-conditional-flow.json`) now survive a designer open+save. The two "KNOWN DEFECT" verifier checks
+were inverted to assert lossless preservation, plus string/numeric/boolean/json/empty coverage. The §8
+work surfaced two more drops of the same class — `generated` (`generator`) and `secret` (`secretName`)
+value sources — **also fixed** the same lossless way (value chain + a `secret` branch).
+
+**Manual gates run 2026-07-22:**
+- **Offline validation — PASS** (`validate-offline-bundle.ps1 -Strict`, exit 0, "Strict mode: passed").
+  Note the `validate:offline` npm alias does **not** pass `-Strict`; run the script directly for the gate.
+- **Packaged build/boot — PASS (rebuilt against the final commit).** `package:portable` built the full
+  app tree (`dist/win-unpacked/SpecterStudio.exe` 180 MB + bundled Chromium + `app.asar` +
+  `offline-runtime.json`); the packaged binary **boots cleanly** in packaged/offline mode and **writes
+  nothing into `resources/`** (content hash byte-identical across a boot). The distributable archive
+  (7-Zip `-mx=9`) **succeeded** — `dist/SpecterStudio 0.1.0.exe`, 325 MB.
+  **CORRECTION (supersedes the earlier entry):** the `-mx=9` step was previously recorded as a fixed
+  low-RAM limit. It peaks ~3.4 GB in `7za.exe` and **completed on retry** — intermittent memory
+  pressure, not a hard ceiling.
+  **CORRECTION:** the original packaged build (15:16) **predated the awkit-54t commit (15:49)** and
+  contained none of its UI. Packaged evidence must always be re-taken after the last feature commit.
+- **Electron GUI walkthrough — 11/12 PASS, 1 BLOCKED (user-run, 2026-07-22).** Checks 1–10 and 12 pass.
+  **Check 11 configuration 3 is BLOCKED** by `awkit-y24` (`API success AND (tableHasRows OR
+  emptyStateVisible)` is not expressible) — BLOCKED, not FAILED. Visual confirmation that the packaged
+  renderer paints was not captured by the agent (screen access declined); process-level boot verified.
+
+**Product promotion remains unapproved** until `awkit-y24` unblocks GUI check 11.3 and a distributable
+installer is produced on a build host that clears `-mx=9` reliably.
+
+## awkit-54t — Async Completion editor + Recorder review-before-save DONE, verified (2026-07-22)
+
+UI over the awkit-62o model. New pure module `src/profiles/asyncCompletionReview.ts` classifies waits +
+policy as Reliable / Needs review / Incomplete / Unsafe (+ contradiction warnings), shared by both:
+- **Flow Designer** (`FlowNodePropertiesPanel`): "Smart Waits" → **Async Completion** editor —
+  completion-policy select, **+ API / + Loader / + UI outcome** add buttons, per-condition
+  required/optional + timeout + classification badge + type-specific field editors.
+- **Recorder** (`Recorder.tsx`): Save opens a **review-before-save modal** (per-action classification +
+  warnings + summary) when async activity was captured; else saves directly.
+- **Verified:** `verify:async-review` 21/0 + full regression green (waits 48, recorder-flow 19, runner
+  82, recorder 78, protected-login 26/45, settings 3, ipc 4, mock-site 39), build clean.
+- **Limitations:** "test locators against the live recorded page" affordance not implemented; GUI
+  click-through behind the auth gate (user-driven).
+
+## awkit-62o — loader lifecycle + completion policies + consistency DONE, verified (2026-07-22)
+
+Extends the canonical `WaitCondition`/`beforeWaits`/`afterWaits` model (no parallel field); round-trip
+preserved (designer allowlist extended for `completionMode`; wait fields ride in the arrays).
+- **Loader lifecycle (StepExecutor):** appearance armed before the action → up to `appearanceGraceMs`
+  for it to appear (late spinner never skipped) → `completion` signal (hidden/detached/aria-busy=false).
+  Optional-never-appears passes; required-never-appears / never-disappears give precise diagnostics.
+- **Completion policies:** `FlowStep.completionMode` = allRequired (default = legacy) | anyRequired |
+  networkThenUi | quietPeriod. Consistency failures (API-ok-UI-missing, API-failed-UI-changed,
+  loader-still-blocking); valid empty results pass (no forced table rows); optional waits best-effort.
+- **Cancellation:** `withCancellation` races every wait against the token (+ cooperative quiet loop);
+  Stop interrupts API/loader/quiet/UI waits in <2s. **Progress:** `waiting` events name the
+  endpoint/loader/UI condition, resolved timeout, required/optional.
+- **Settings:** `recorder.asyncAwareness.loaderAppearanceGraceMs` (default 1500, validated); recorder
+  stamps the lifecycle (grace 1500, mustAppear false) on recorded loaders.
+- **Verified:** `verify:waits` 48/0, `verify:recorder-flow` 19/19, `verify:recorder` 78/0,
+  `verify:runner` 82/0, `verify:cancellation` 12/0, `verify:protected-login(-recorder)` 26/0 · 45/45,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `verify:mock-site` 39/39,
+  `verify:security` 39/0, `verify:popup` 12/0, `verify:safety-policy` 17/0, build clean.
+- **Limitations:** quietPeriod window is a runtime constant (750ms); request-start observer is
+  active-page-scoped; no Async Completion editor UI (awkit-54t).
+
+## Async Activity Awareness — Phase B core DONE, verified (2026-07-22)
+
+Same branch, extends the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits` model (no parallel
+`AsyncActivityGroup` fork), round-trip preserved.
+- **Response status vs. timeout:** `StepExecutor.buildResponseWait` now matches endpoint only;
+  `validateResponseStatus` reports an unexpected status as an HTTP-status failure (`ResponseStatusError`
+  → `formatResponseStatusFailure`), never a timeout. An immediate HTTP 500 is reported as HTTP 500.
+- **Adaptive bounded timeouts:** `buildSmartWaits` derives `clamp(observed×3+5000, 10000, 300000)` for
+  `response`/`loaderHidden` waits (exported `adaptiveTimeoutMs`, tunable via `SmartWaitBuildOptions`).
+- **Settings:** `recorder.asyncAwareness {enabled, adaptiveTimeouts, minimumTimeoutMs, maximumTimeoutMs}`
+  — deep-merged in hydrate/mergePatch, validated (no unlimited timeout), threaded through `recorder:start`.
+- **Verified:** `verify:waits` 26/0, `verify:recorder` 78/0, `verify:recorder-flow` 16/16,
+  `verify:runner` 82/0, `verify:settings-persistence` 3/3, build clean.
+- **Deferred follow-ups (not implemented):** loader appearance-grace/mustAppear runtime lifecycle;
+  quietPeriod/networkThenUi/allRequired/anyRequired completion policies + UI-outcome consistency;
+  202 job-polling + response-field predicate; WebSocket/SSE + CDP; Flow Designer "Async Completion"
+  editor; Recorder review-before-save UI; context-level authoritative network source.
+
+## Recorder protected-login controls + SSO false-positive fix — Phase A DONE, verified (2026-07-22)
+
+On branch **`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Phase A
+of the two-part `AWKIT_RECORDER_PROTECTED_LOGIN_AND_ASYNC_ACTIVITY` prompt; Phase B (unified async
+activity engine) is next.
+- **Detector confidence:** `ProtectedLoginDetector.detectFromSignals`/`detectFromRecorderSignals` now
+  return `confidence` (`low|medium|high`) + `recommendedAction` (`continue|warn|pause`). Text-only
+  `sso` ("single sign-on"/"identity provider") with no provider host and no DOM affordance → low/
+  continue (the false positive). Providers, CAPTCHA, MFA, passkey, security-check, and a detected
+  password field stay `pause`. Recorder + the two runner auto-pause sites gate on `recommendedAction`.
+- **Ignore controls:** `recorder.ignoreProtectedLoginDetection` setting (default false); session-level
+  "Ignore and continue recording" (`RecorderService.ignoreCurrentProtectedDetection` + IPC
+  `recorder:ignoreProtectedDetection`) resumes the SAME page (browser now stays open during the
+  "detected" phase; capture bindings early-return while paused so nothing protected is recorded);
+  per-session loop-guard keys prevent re-pausing the same ignored detection.
+- **UI:** Settings → Recorder card (toggle + confirmation dialog, immediate persist); Recorder handoff
+  card gained "Ignore and continue recording" (first action) + a non-blocking session notice.
+- **Mock site:** `/mock/sso-text-app` false-positive fixture.
+- **Verified:** `verify:protected-login` 26/0, `verify:protected-login-recorder` 45/45, `verify:runner`
+  82/0, `verify:mock-site` 39/39, `verify:waits` 21/0, `verify:recorder` 72/0,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `npm run build` clean. **Not run:**
+  Electron GUI walkthrough of the handoff card (manual gate).
+
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
 Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,

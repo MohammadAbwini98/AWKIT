@@ -64,6 +64,20 @@ export interface StartRecordingOptions {
    * actions and attach condition-based Smart Waits (`afterWaits`) to the preceding action.
    */
   captureSmartWaits?: boolean;
+  /**
+   * When true, the Recorder does not auto-pause on a detected protected login / SSO / protected
+   * popup (global Settings override). Never bypasses authentication — the user still logs in
+   * manually; AWKIT simply keeps observing normal actions. Default false.
+   */
+  ignoreProtectedLoginDetection?: boolean;
+  /** Async Activity Awareness tuning (adaptive Smart-Wait timeouts). */
+  asyncAwareness?: {
+    enabled?: boolean;
+    adaptiveTimeouts?: boolean;
+    minimumTimeoutMs?: number;
+    maximumTimeoutMs?: number;
+    loaderAppearanceGraceMs?: number;
+  };
 }
 
 export class RecorderService {
@@ -81,6 +95,14 @@ export class RecorderService {
   private captureWaitTime = false;
   /** Whether the active session observes condition-based Smart Waits between actions (Phase 2). */
   private captureSmartWaits = true;
+  /** Async Activity Awareness tuning for adaptive Smart-Wait timeouts (applied in {@link attachSmartWaits}). */
+  private asyncAwareness: { enabled: boolean; adaptiveTimeouts: boolean; minimumTimeoutMs: number; maximumTimeoutMs: number; loaderAppearanceGraceMs: number } = {
+    enabled: true,
+    adaptiveTimeouts: true,
+    minimumTimeoutMs: 10_000,
+    maximumTimeoutMs: 300_000,
+    loaderAppearanceGraceMs: 1_500
+  };
   /** Raw page-side observation signals buffered during the session (bounded). */
   private signals: RecordedSignal[] = [];
   /** Timestamp (ms) of the last distinct recorded action, used to measure user think-time. */
@@ -114,6 +136,14 @@ export class RecorderService {
   private resumeExecutablePath: string | undefined;
   /** Guards against re-entrant detection while a handoff is being started. */
   private detecting = false;
+  // ── Protected-detection ignore controls (false-positive handling) ────────────
+  /** Global Settings override for this session: never auto-pause on protected detection. */
+  private ignoreProtectedDetectionGlobal = false;
+  /** Session override set by "Ignore and continue recording" (cleared on each new session). */
+  private ignoreProtectedDetectionSession = false;
+  /** Detection keys (origin:reason) already ignored this session — loop guard so the same ignored
+   *  detection never re-pauses or re-fires the notice. Bounded to one recorder session. */
+  private ignoredDetectionKeys = new Set<string>();
 
   /** Prepend https:// when the user enters a bare host (Playwright requires a full URL). */
   private static normalizeUrl(raw: string): string {
@@ -391,6 +421,13 @@ export class RecorderService {
     this.lastClickAt = 0;
     this.captureWaitTime = options.captureWaitTime ?? false;
     this.captureSmartWaits = options.captureSmartWaits ?? true;
+    this.asyncAwareness = {
+      enabled: options.asyncAwareness?.enabled ?? true,
+      adaptiveTimeouts: options.asyncAwareness?.adaptiveTimeouts ?? true,
+      minimumTimeoutMs: options.asyncAwareness?.minimumTimeoutMs ?? 10_000,
+      maximumTimeoutMs: options.asyncAwareness?.maximumTimeoutMs ?? 300_000,
+      loaderAppearanceGraceMs: options.asyncAwareness?.loaderAppearanceGraceMs ?? 1_500
+    };
     this.signals = [];
     this.lastActionAt = 0;
     // Protected-login handoff bookkeeping: remember the safe resume URL + offline browser path.
@@ -398,6 +435,11 @@ export class RecorderService {
     this.resumeExecutablePath = options.executablePath;
     this.handoff = null;
     this.detecting = false;
+    // Protected-detection ignore controls: apply the global Settings value for this session and
+    // reset the session override + loop-guard keys (a new recording never inherits a prior override).
+    this.ignoreProtectedDetectionGlobal = options.ignoreProtectedLoginDetection ?? false;
+    this.ignoreProtectedDetectionSession = false;
+    this.ignoredDetectionKeys = new Set<string>();
     // A new recording replaces any leftover draft; block a pending restore from clobbering it.
     this.draftLoad = Promise.resolve();
     this.scheduleDraftPersist();
@@ -524,6 +566,10 @@ export class RecorderService {
     });
 
     await context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
+      // Never capture while paused (e.g. a protected-detection handoff is showing). Defense-in-depth:
+      // the automation browser may stay open during the "detected" phase, so the guard — not just a
+      // closed browser — is what guarantees nothing on a protected page is ever recorded.
+      if (!this.isRecording) return;
       const sourcePage = source.page;
       const now = Date.now();
       // Determine the page alias from the popup registry (main page = 'main').
@@ -581,7 +627,7 @@ export class RecorderService {
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
     // metadata is stored (method + URL path, selectors, short text) — never headers/bodies/secrets.
     await context.exposeBinding("__awtkit_recordSignal", (_source, s: RecordedSignal) => {
-      if (!this.captureSmartWaits) return;
+      if (!this.isRecording || !this.captureSmartWaits) return;
       this.signals.push(s);
       const cap = 2000;
       if (this.signals.length > cap) this.signals.splice(0, this.signals.length - cap);
@@ -619,13 +665,34 @@ export class RecorderService {
     page.on("domcontentloaded", run);
   }
 
+  /** Stable, secret-free key for a detection so the same ignored one never re-pauses this session. */
+  private detectionKeyFor(url: string, reason: string): string {
+    return `${normalizeOrigin(RecorderService.maskUrl(url)) ?? ""}:${reason}`;
+  }
+
   private async detectAndMaybeHandoff(page: Page, alias: string): Promise<void> {
     if (!this.isRecording || this.handoff?.active || this.detecting) return;
     this.detecting = true;
     try {
       const detection = await detectRecorderProtectedLogin(page);
       if (!detection.detected) return;
-      await this.beginHandoff(page, alias, detection.url, detection.reason, detection.signals);
+      // Low-confidence signals (e.g. a page that merely contains "single sign-on" text) are false
+      // positives — keep recording, never pause. Only `pause` recommendations reach the handoff.
+      if (detection.recommendedAction !== "pause") return;
+
+      const key = this.detectionKeyFor(detection.url, detection.reason);
+      // Ignore controls (precedence: session override → global Settings → already-ignored key).
+      if (
+        this.ignoreProtectedDetectionSession ||
+        this.ignoreProtectedDetectionGlobal ||
+        this.ignoredDetectionKeys.has(key)
+      ) {
+        // Record the key so we don't reconsider it, and continue recording without pausing.
+        this.ignoredDetectionKeys.add(key);
+        return;
+      }
+
+      await this.beginHandoff(page, alias, detection.url, detection.reason, detection.signals, detection.confidence, key);
     } catch {
       /* page not ready / navigated away — ignore, we'll re-check on the next load */
     } finally {
@@ -643,12 +710,18 @@ export class RecorderService {
     alias: string,
     detectedRawUrl: string,
     reason: string,
-    signals: string[]
+    signals: string[],
+    confidence?: "low" | "medium" | "high",
+    detectionKey?: string
   ): Promise<void> {
     if (this.handoff?.active) return;
-    // Stop capturing user actions immediately (also silences popup close handlers).
+    // Pause: stop capturing user actions immediately (bindings/popup handlers early-return while
+    // `isRecording` is false). The automation browser is left OPEN — not automated, just paused — so
+    // "Ignore and continue recording" can resume on the exact same page/context if this was a false
+    // positive. It is closed only when the user chooses manual handoff ("Continue using normal
+    // browser") or cancels. Nothing on the protected page is ever recorded (guards above).
     this.isRecording = false;
-    // Preserve the current recorder draft before we tear anything down.
+    // Preserve the current recorder draft before showing the handoff.
     if (this.draftTimer) {
       clearTimeout(this.draftTimer);
       this.draftTimer = null;
@@ -664,6 +737,8 @@ export class RecorderService {
       detectedUrl,
       origin,
       reason,
+      confidence,
+      detectionKey: detectionKey ?? this.detectionKeyFor(detectedRawUrl || detectedUrl, reason),
       signals,
       timestamp: new Date().toISOString(),
       draftId: this.urlSessionId || undefined,
@@ -671,14 +746,35 @@ export class RecorderService {
       message:
         "Protected login or protected popup detected. AWKIT paused the recorder because this page " +
         "appears to require a secure manual action (login, MFA, OTP, CAPTCHA, digital signature, or " +
-        "external approval). For your safety, AWKIT will not automate this step. Click " +
-        '"Continue using normal browser" to finish it manually in Chrome, then "Capture Session & Resume".'
+        "external approval). For your safety, AWKIT will not automate this step. Choose " +
+        '"Ignore and continue recording" if this is a false positive, or "Continue using normal ' +
+        'browser" to finish a real login manually in Chrome, then "Capture Session & Resume".'
     };
+  }
 
-    // Close the Playwright-controlled browser — we never automate the protected page.
-    await this.closeBrowser();
-    this.lastActionPage = null;
-    this.popupPages.clear();
+  /**
+   * Session-level "Ignore and continue recording": treat the active protected detection as a false
+   * positive and resume the SAME recorder session on the same page/context. Never reloads the page,
+   * never creates a new context, never discards recorded actions, and never enables the global
+   * Settings option. Authentication/security steps are still the user's responsibility.
+   */
+  public ignoreCurrentProtectedDetection(): { isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean } {
+    if (!this.handoff || this.handoff.phase !== "detected") {
+      throw new Error("No protected-login detection is waiting to be ignored.");
+    }
+    if (!this.context || !this.page) {
+      throw new Error("The recording page is no longer available to resume.");
+    }
+    // Remember this detection so it never re-pauses, and suppress further protected pauses this
+    // session (a session-level override, per the configuration precedence).
+    if (this.handoff.detectionKey) this.ignoredDetectionKeys.add(this.handoff.detectionKey);
+    this.ignoreProtectedDetectionSession = true;
+    // Dismiss the handoff and resume capture on the live page (bindings are still attached).
+    this.handoff = null;
+    this.isRecording = true;
+    this.lastActionAt = Date.now();
+    this.scheduleDraftPersist();
+    return this.getStatus();
   }
 
   /**
@@ -693,6 +789,12 @@ export class RecorderService {
     if (!this.sessionService) {
       throw new Error("Session capture is unavailable (no browser service configured).");
     }
+    // Now that the user has chosen manual handoff, close the paused automation browser — we never
+    // automate the protected page, and its profile must be free before the real Chrome opens.
+    this.isRecording = false;
+    await this.closeBrowser();
+    this.lastActionPage = null;
+    this.popupPages.clear();
     try {
       const name = `RecorderLogin-${new Date().toISOString().slice(0, 10)}`;
       const status = await this.sessionService.startCapture(name, this.handoff.detectedUrl, "manualChromeHandoff");
@@ -850,6 +952,8 @@ export class RecorderService {
     this.handoff = null;
     this.lastActionPage = null;
     this.popupPages.clear();
+    this.ignoreProtectedDetectionSession = false;
+    this.ignoredDetectionKeys = new Set<string>();
   }
 
   private static delay(ms: number): Promise<void> {
@@ -871,7 +975,11 @@ export class RecorderService {
     const prev = this.actions[this.actions.length - 1];
     if (!prev || prev.type === "wait" || prev.type === "routeChange") return;
     const waits = buildSmartWaits(this.signals, this.lastActionAt, now, {
-      allowFixedDelayFallback: !this.captureWaitTime
+      allowFixedDelayFallback: !this.captureWaitTime,
+      adaptiveTimeouts: this.asyncAwareness.enabled && this.asyncAwareness.adaptiveTimeouts,
+      minimumTimeoutMs: this.asyncAwareness.minimumTimeoutMs,
+      maximumTimeoutMs: this.asyncAwareness.maximumTimeoutMs,
+      loaderAppearanceGraceMs: this.asyncAwareness.enabled ? this.asyncAwareness.loaderAppearanceGraceMs : 0
     });
     if (waits.length) prev.afterWaits = waits;
   }
@@ -896,7 +1004,9 @@ export class RecorderService {
   public getStatus() {
     return {
       isRecording: this.isRecording,
-      actionCount: this.actions.length
+      actionCount: this.actions.length,
+      /** True when protected-login detection is being ignored (global setting or session override). */
+      protectedDetectionIgnored: this.ignoreProtectedDetectionGlobal || this.ignoreProtectedDetectionSession
     };
   }
 
@@ -931,6 +1041,8 @@ export class RecorderService {
     this.handoff = null;
     await this.discardDraft();
     await this.closeBrowser();
+    this.ignoreProtectedDetectionSession = false;
+    this.ignoredDetectionKeys = new Set<string>();
   }
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw } from "lucide-react";
+import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw, ClipboardCheck } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
 import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "@src/recorder/RecorderTypes";
+import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
@@ -14,12 +15,15 @@ export function Recorder() {
   const [flowName, setFlowName] = useState("New Recorded Flow");
   const [statusMsg, setStatusMsg] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
 
   const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [sessionNameInput, setSessionNameInput] = useState("");
+  /** True while protected-login detection is being ignored (global setting or session override). */
+  const [protectedDetectionIgnored, setProtectedDetectionIgnored] = useState(false);
 
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
   const [urlSearch, setUrlSearch] = useState("");
@@ -54,7 +58,10 @@ export function Recorder() {
         .then(setHandoff)
         .catch(() => undefined);
       window.playwrightFlowStudio.recorder.getStatus()
-        .then((status) => setIsRecording(status.isRecording))
+        .then((status) => {
+          setIsRecording(status.isRecording);
+          setProtectedDetectionIgnored(status.protectedDetectionIgnored ?? false);
+        })
         .catch(() => undefined);
     };
     poll();
@@ -165,6 +172,23 @@ export function Recorder() {
     }
   };
 
+  const handleIgnoreProtected = async () => {
+    setHandoffBusy(true);
+    try {
+      const status = await window.playwrightFlowStudio.recorder.ignoreProtectedDetection();
+      setHandoff(null);
+      setIsRecording(status.isRecording);
+      setProtectedDetectionIgnored(status.protectedDetectionIgnored ?? true);
+      setStatusMsg("Protected detection ignored for this session. Complete any real login manually.");
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    } catch (err: any) {
+      setStatusMsg(`Could not resume recording: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
+    }
+  };
+
   const handleContinueBrowser = async () => {
     setHandoffBusy(true);
     try {
@@ -211,8 +235,29 @@ export function Recorder() {
     }
   };
 
-  const handleSave = async () => {
+  // Async-activity review of the recorded actions, computed before saving (awkit-54t). Each action's
+  // observed waits are classified Reliable / Needs review / Incomplete / Unsafe so the user can vet
+  // them (and their contradictions) before the flow is persisted.
+  const asyncReviews = useMemo(
+    () => actions.map((a) => reviewStepAsync(a)).filter((r): r is NonNullable<typeof r> => r !== null),
+    [actions]
+  );
+  const reviewSummary = useMemo(() => summarizeReviews(asyncReviews), [asyncReviews]);
+
+  // Save flow: if the recording captured async activity, show the review summary first; otherwise
+  // persist directly. Confirming in the modal calls doSave.
+  const requestSave = () => {
+    if (isSaving || saveDisabled) return;
+    if (asyncReviews.length > 0) {
+      setReviewOpen(true);
+      return;
+    }
+    void doSave();
+  };
+
+  const doSave = async () => {
     if (isSaving) return;
+    setReviewOpen(false);
     setIsSaving(true);
     setSaveResult(null);
     setStatusMsg("Saving flow...");
@@ -350,6 +395,16 @@ export function Recorder() {
         </div>
       </section>
 
+      {protectedDetectionIgnored && isRecording && !showHandoffPanel ? (
+        <div className="recorder-ignore-notice" role="status" data-testid="protected-ignore-notice">
+          <ShieldAlert size={15} />
+          <span>
+            Protected login detection is ignored for this Recorder session. Authentication and security
+            steps (login, MFA, CAPTCHA) must still be completed manually.
+          </span>
+        </div>
+      ) : null}
+
       {showHandoffPanel && handoff ? (
         <section
           className={`recorder-handoff-panel${handoff.phase === "error" ? " is-error" : ""}`}
@@ -390,10 +445,24 @@ export function Recorder() {
           ) : null}
 
           <div className="recorder-handoff-actions">
-            {handoff.phase === "detected" || handoff.phase === "error" ? (
+            {handoff.phase === "detected" ? (
               <button
                 type="button"
                 className="toolbar-button primary"
+                data-testid="handoff-ignore-continue"
+                disabled={handoffBusy}
+                onClick={() => void handleIgnoreProtected()}
+                title="Treat this as a false positive and keep recording on the same page. Does not bypass authentication."
+              >
+                <PlayCircle size={16} />
+                Ignore and continue recording
+              </button>
+            ) : null}
+
+            {handoff.phase === "detected" || handoff.phase === "error" ? (
+              <button
+                type="button"
+                className="toolbar-button"
                 data-testid="handoff-continue-browser"
                 disabled={handoffBusy}
                 onClick={() => void handleContinueBrowser()}
@@ -523,7 +592,7 @@ export function Recorder() {
               type="button"
               className="toolbar-button recorder-button-success recorder-save-button"
               disabled={saveDisabled}
-              onClick={handleSave}
+              onClick={requestSave}
             >
               <Save size={16} />
               {isSaving ? "Saving..." : "Save to Flow Library"}
@@ -643,6 +712,67 @@ export function Recorder() {
           </>
         )}
       </section>
+      {reviewOpen ? (
+        <div className="modal-overlay" role="presentation" onClick={() => setReviewOpen(false)}>
+          <div
+            className="modal-dialog recorder-review-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Async activity review"
+            data-testid="recorder-review-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <span className={`modal-icon ${reviewSummary.worst === "unsafe" || reviewSummary.worst === "incomplete" ? "warn" : "create"}`}>
+                <ClipboardCheck size={18} />
+              </span>
+              <h2>Review async activity before saving</h2>
+            </div>
+            <p className="modal-body">
+              {reviewSummary.total} recorded action{reviewSummary.total === 1 ? "" : "s"} captured asynchronous activity.
+              {" "}Reliable {reviewSummary.counts.reliable} · Needs review {reviewSummary.counts.needsReview} · Incomplete{" "}
+              {reviewSummary.counts.incomplete} · Unsafe {reviewSummary.counts.unsafe}. Unsafe or incomplete conditions are
+              flagged below — you can still save, but they will not behave as reliable waits.
+            </p>
+            <div className="recorder-review-list">
+              {asyncReviews.map((r) => {
+                const badge = classLabel(r.classification);
+                const waitWarnings = r.waits.flatMap((w) => w.warnings);
+                return (
+                  <div className="recorder-review-item" key={r.id}>
+                    <div className="recorder-review-item-head">
+                      <strong>{r.name}</strong>
+                      <span className={`async-badge async-badge-${r.classification}`} title={badge.hint}>{badge.label}</span>
+                    </div>
+                    <span>
+                      Policy: {r.completionMode} · {r.waits.length} condition{r.waits.length === 1 ? "" : "s"}
+                    </span>
+                    {[...r.warnings, ...waitWarnings].slice(0, 4).map((w, i) => (
+                      <small key={i} className="async-warning">⚠ {w}</small>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="toolbar-button" onClick={() => setReviewOpen(false)}>
+                Keep editing
+              </button>
+              <button
+                type="button"
+                className="toolbar-button recorder-button-success"
+                data-testid="review-confirm-save"
+                onClick={() => void doSave()}
+                disabled={isSaving}
+              >
+                <Save size={16} />
+                {isSaving ? "Saving..." : "Save to Flow Library"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );

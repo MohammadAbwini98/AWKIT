@@ -162,7 +162,27 @@ export interface WaitConditionBase {
   timeoutMs?: number;
   /** Human-readable note (why the recorder captured this wait) — shown in diagnostics. */
   reason?: string;
+  /**
+   * When true, this condition is best-effort: if it is not satisfied it is logged but does NOT fail
+   * the step (or, under `anyRequired`, does not count toward success). Absent/false = required
+   * (the historical behavior). Enables optional loaders, optional background responses, etc.
+   */
+  optional?: boolean;
 }
+
+/** How a loader's disappearance/settling is detected in the loader lifecycle's completion phase. */
+export type LoaderCompletion = "hidden" | "detached" | "ariaBusyFalse";
+
+/**
+ * Deterministic completion policy for a step's `afterWaits` (async awareness):
+ * - `allRequired`  — every required wait must pass (default; the historical behavior).
+ * - `anyRequired`  — succeed as soon as any required wait passes (multiple valid success signals).
+ * - `networkThenUi`— required responses first, then loaders, then required UI outcomes, in phases,
+ *                    with API↔UI consistency checks between them.
+ * - `quietPeriod`  — complete once no new relevant request starts for a quiet window and no blocking
+ *                    loader remains (ignores long-lived streams/WebSockets that start no new requests).
+ */
+export type AsyncCompletionMode = "allRequired" | "anyRequired" | "networkThenUi" | "quietPeriod";
 
 /**
  * A condition-based wait (Smart Wait Engine). Executed by the runner before/after a step's
@@ -171,7 +191,23 @@ export interface WaitConditionBase {
  * observation while the legacy fixed-time `wait` step remains backward compatible.
  */
 export type WaitCondition =
-  | (WaitConditionBase & { type: "loaderHidden"; locator: StepLocator })
+  | (WaitConditionBase & {
+      type: "loaderHidden";
+      locator: StepLocator;
+      /**
+       * Two-phase loader lifecycle (async awareness). When any of these are set the runner:
+       *   1. arms observation before the action, then waits up to `appearanceGraceMs` for the loader
+       *      to APPEAR (so a spinner that shows up late is never skipped);
+       *   2. if it appeared, waits for the `completion` signal; if it never appeared, `mustAppear`
+       *      decides between a clean pass (optional appearance) and a precise failure.
+       * Absent = the legacy behavior (wait for the locator to be hidden).
+       */
+      appearanceGraceMs?: number;
+      /** Require the loader to actually appear; if it never does within the grace, fail clearly. */
+      mustAppear?: boolean;
+      /** Which settle signal ends the completion phase. Default `hidden`. */
+      completion?: LoaderCompletion;
+    })
   | (WaitConditionBase & { type: "elementVisible"; locator: StepLocator })
   | (WaitConditionBase & { type: "elementHidden"; locator: StepLocator })
   | (WaitConditionBase & { type: "elementEnabled"; locator: StepLocator })
@@ -189,7 +225,45 @@ export type WaitCondition =
   | (WaitConditionBase & { type: "listHasItems"; listLocator: StepLocator; itemLocator?: StepLocator; minItems: number })
   | (WaitConditionBase & { type: "urlChanged"; fromUrl?: string; urlContains?: string })
   | (WaitConditionBase & { type: "domStable"; stableForMs?: number })
-  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number });
+  | (WaitConditionBase & { type: "fixedDelay"; delayMs: number })
+  /**
+   * OR-group (grouped completion composition — awkit-y24). Passes as soon as ANY child condition
+   * passes; fails only when every child fails. It is one condition in its parent's `afterWaits`, so
+   * `allRequired` can hold a *required* OR-group — this is how `A AND (B OR C)` is expressed, e.g.
+   * `response` (API success) AND `anyOf: [tableHasRows, emptyStateVisible]`. Because a required group
+   * still gates the step, a successful API status alone never overrides a missing required UI outcome.
+   *
+   * v1 scope: children are UI-outcome / non-armed waits resolved after the action (the concrete gap is
+   * `tableHasRows OR emptyStateVisible`). A `response` child with `armBeforeAction` is NOT pre-armed
+   * inside a group — arm such responses at the top level instead. Nesting is permitted by the type and
+   * resolved recursively by the runner.
+   */
+  | (WaitConditionBase & { type: "anyOf"; conditions: WaitCondition[] })
+  /**
+   * Asynchronous job polling (awkit-4km, C1). For the `202 Accepted → poll a status endpoint until
+   * it reaches a terminal state` pattern. The runner OBSERVES the page's own repeated status
+   * responses to `urlContains` (it issues no requests itself) and completes when a response is
+   * terminal — either its status falls in `terminalStatusRange` (and is not `pollingStatus`), or a
+   * JSON `responseField` (dot-path) equals one of `terminalValues`. A response with `pollingStatus`
+   * (default 202) means "still processing → keep polling". Bounded by `maxAttempts` and `timeoutMs`.
+   * WebSocket/SSE lifecycle and CDP diagnostics are intentionally out of scope here (later phases).
+   */
+  | (WaitConditionBase & {
+      type: "apiPolling";
+      /** URL substring the status/poll responses must contain. */
+      urlContains: string;
+      method?: WaitHttpMethod;
+      /** Status that means "still processing, keep polling". Default 202. */
+      pollingStatus?: number;
+      /** Status range considered a terminal success. Default [200, 299]. */
+      terminalStatusRange?: [number, number];
+      /** Dot-path into the JSON body whose value signals terminal state (e.g. `status`). */
+      responseField?: string;
+      /** Values of `responseField` that mean the job finished (e.g. `["succeeded", "failed"]`). */
+      terminalValues?: string[];
+      /** Max number of poll responses to observe before failing. Default 30. */
+      maxAttempts?: number;
+    });
 
 /**
  * Alias identifying which browser page/window a step acts on.
@@ -249,6 +323,11 @@ export interface FlowStep {
    * fast response triggered by the action is never missed.
    */
   afterWaits?: WaitCondition[];
+  /**
+   * How this step's `afterWaits` are combined into a single completion decision. Absent =
+   * `allRequired` (the historical behavior: every required wait must pass). See {@link AsyncCompletionMode}.
+   */
+  completionMode?: AsyncCompletionMode;
   value?: string;
   valueSource?: ValueSource;
   selectionMode?: "value" | "label" | "index";

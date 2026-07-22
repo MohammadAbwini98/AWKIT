@@ -42,6 +42,21 @@ export interface SmartWaitBuildOptions {
   /** A request path repeated at least this many times in the window is treated as background
    * polling and ignored. */
   pollingThreshold?: number;
+  // ── Adaptive dynamic timeout (async awareness) ──────────────────────────────
+  /** Derive a realistic per-wait `timeoutMs` from the observed duration instead of the flat 30s
+   *  runner default. When false, waits omit `timeoutMs` and the runner default applies. */
+  adaptiveTimeouts?: boolean;
+  /** Lower bound (ms) for an adaptive timeout. */
+  minimumTimeoutMs?: number;
+  /** Hard upper bound (ms) for an adaptive timeout — never exceeded. */
+  maximumTimeoutMs?: number;
+  /** Multiplier applied to the observed duration when computing an adaptive timeout. */
+  timeoutMultiplier?: number;
+  /** Flat safety margin (ms) added on top of `observed × multiplier`. */
+  timeoutSafetyMarginMs?: number;
+  /** Grace (ms) stamped on recorded loaders so a late-appearing spinner is not skipped on replay
+   *  (two-phase loader lifecycle). 0 disables the lifecycle (legacy loaderHidden). */
+  loaderAppearanceGraceMs?: number;
 }
 
 const DEFAULTS: Required<SmartWaitBuildOptions> = {
@@ -49,8 +64,24 @@ const DEFAULTS: Required<SmartWaitBuildOptions> = {
   maxWaits: 3,
   allowFixedDelayFallback: true,
   maxFixedDelayMs: 60_000,
-  pollingThreshold: 3
+  pollingThreshold: 3,
+  adaptiveTimeouts: true,
+  minimumTimeoutMs: 10_000,
+  maximumTimeoutMs: 300_000,
+  timeoutMultiplier: 3,
+  timeoutSafetyMarginMs: 5_000,
+  loaderAppearanceGraceMs: 1_500
 };
+
+/**
+ * Turn an observed duration into a realistic, bounded wait timeout:
+ * `clamp(observed × multiplier + safetyMargin, minimum, maximum)`. Always clamped to `maximum` so a
+ * slow-but-finite observation can never bake an unbounded timeout into a saved flow.
+ */
+export function adaptiveTimeoutMs(observedMs: number, opts: Required<SmartWaitBuildOptions>): number {
+  const calc = Math.round(Math.max(0, observedMs) * opts.timeoutMultiplier + opts.timeoutSafetyMarginMs);
+  return Math.min(Math.max(calc, opts.minimumTimeoutMs), opts.maximumTimeoutMs);
+}
 
 /** Priority order (most reliable first) used to rank and cap the waits kept per window. */
 const PRIORITY: WaitCondition["type"][] = [
@@ -144,21 +175,38 @@ export function buildSmartWaits(
       b.endedAt - b.startedAt - (a.endedAt - a.startedAt)
   );
   for (const req of responseReqs.slice(0, 2)) {
-    waits.push({
+    const wait: WaitCondition = {
       type: "response",
       method: normMethod(req.method),
       urlContains: req.path,
       statusRange: [200, 399],
       armBeforeAction: true,
-      reason: `${req.method} ${req.path} completed after the action`
-    });
+      reason: `${req.method} ${req.path} completed in ${Math.max(0, req.endedAt - req.startedAt)}ms after the action`
+    };
+    if (opts.adaptiveTimeouts) wait.timeoutMs = adaptiveTimeoutMs(req.endedAt - req.startedAt, opts);
+    waits.push(wait);
   }
 
   // 2. Loader appeared then disappeared (only loaders that appeared after the previous action).
   const loader = inWindow.find(
     (s): s is Extract<RecordedSignal, { kind: "loaderHidden" }> => s.kind === "loaderHidden" && s.shownAt > fromTs
   );
-  if (loader) waits.push({ type: "loaderHidden", locator: cssLocator(loader.selector), reason: "Loader appeared then disappeared" });
+  if (loader) {
+    const wait: Extract<WaitCondition, { type: "loaderHidden" }> = {
+      type: "loaderHidden",
+      locator: cssLocator(loader.selector),
+      reason: "Loader appeared then disappeared"
+    };
+    if (opts.adaptiveTimeouts) wait.timeoutMs = adaptiveTimeoutMs(loader.hiddenAt - loader.shownAt, opts);
+    // Two-phase loader lifecycle: give a late spinner a grace window to reappear on replay, but never
+    // require it (optional appearance) so a faster backend can't fail the step.
+    if (opts.loaderAppearanceGraceMs > 0) {
+      wait.appearanceGraceMs = opts.loaderAppearanceGraceMs;
+      wait.mustAppear = false;
+      wait.completion = "hidden";
+    }
+    waits.push(wait);
+  }
 
   // 3. Table/list data appeared (the container that gained the most rows/items).
   const rows = inWindow

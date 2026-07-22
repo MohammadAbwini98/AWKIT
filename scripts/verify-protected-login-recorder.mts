@@ -33,21 +33,35 @@ console.log("Pure recorder detection:");
 const password = detectFromRecorderSignals("http://localhost/app/login", "Sign in", "Please sign in", { passwordField: true });
 check("password login detected (login-form)", password.detected && password.reason === "login-form", `${password.detected}/${password.reason}`);
 check("password detection lists the password-field signal", password.signals.includes("password field"));
+check("password field is medium confidence → pause", password.confidence === "medium" && password.recommendedAction === "pause", `${password.confidence}/${password.recommendedAction}`);
 
 const otp = detectFromRecorderSignals("http://localhost/verify", "Verify", "Enter your code", { oneTimeCodeField: true });
 check("OTP field detected (mfa)", otp.detected && otp.reason === "mfa", `${otp.detected}/${otp.reason}`);
+check("OTP field is high confidence → pause", otp.confidence === "high" && otp.recommendedAction === "pause");
 
 const captcha = detectFromRecorderSignals("http://localhost/challenge", "Challenge", "", { captchaIframe: true });
 check("CAPTCHA iframe detected (captcha)", captcha.detected && captcha.reason === "captcha", `${captcha.detected}/${captcha.reason}`);
+check("CAPTCHA iframe is high confidence → pause", captcha.confidence === "high" && captcha.recommendedAction === "pause");
 
 const passkey = detectFromRecorderSignals("http://localhost/auth", "Use your passkey", "Use your security key or passkey to continue", {});
 check("passkey / security-key text detected (passkey)", passkey.detected && passkey.reason === "passkey", `${passkey.detected}/${passkey.reason}`);
+check("passkey is high confidence → pause", passkey.confidence === "high" && passkey.recommendedAction === "pause");
 
 const mfaText = detectFromRecorderSignals("http://localhost/2fa", "Two-step verification", "Enter a verification code", {});
 check("MFA text detected (mfa)", mfaText.detected && mfaText.reason === "mfa", `${mfaText.detected}/${mfaText.reason}`);
 
+// FALSE-POSITIVE FIX: a page that merely contains "single sign-on" text (no password field, no known
+// provider host, no DOM affordance) must NOT pause the recorder.
+const ssoText = detectFromRecorderSignals("https://internal.corp.example/portal", "Company Portal", "Access your apps with single sign-on.", {});
+check("text-only SSO detected but LOW confidence", ssoText.detected && ssoText.reason === "sso" && ssoText.confidence === "low", `${ssoText.detected}/${ssoText.reason}/${ssoText.confidence}`);
+check("text-only SSO recommends CONTINUE (recorder keeps recording)", ssoText.recommendedAction === "continue", ssoText.recommendedAction);
+// A password field alongside SSO text is a real login → still pauses.
+const ssoWithPassword = detectFromRecorderSignals("https://internal.corp.example/login", "Sign in", "Sign in with single sign-on.", { passwordField: true });
+check("SSO text + password field still pauses (login-form)", ssoWithPassword.recommendedAction === "pause" && ssoWithPassword.reason === "login-form", `${ssoWithPassword.recommendedAction}/${ssoWithPassword.reason}`);
+
 const normal = detectFromRecorderSignals("http://localhost/form", "Mock Site — Form", "First name Last name Email Submit", {});
 check("normal simple page NOT detected (no false positive)", normal.detected === false, `${normal.detected}/${normal.reason}`);
+check("normal page recommends continue", normal.recommendedAction === "continue");
 
 check(
   "detection output stores no secrets (no cookie/token/password fields)",
@@ -175,6 +189,19 @@ try {
   await page.getByTestId("simulate-login").click();
   check("session-reuse shows authenticated marker after login", (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "true");
   check("session-reuse reveals a dashboard marker", await page.getByTestId("dashboard").isVisible());
+
+  console.log("Mock SSO-text false-positive scenario:");
+  await page.goto(`${BASE}/mock/sso-text-app`);
+  await page.getByRole("heading", { name: "Company Portal" }).waitFor();
+  const ssoAppDetect = await detectRecorderProtectedLogin(page);
+  check(
+    "recorder does NOT pause on an SSO-text-only app page",
+    ssoAppDetect.recommendedAction === "continue",
+    `${ssoAppDetect.detected}/${ssoAppDetect.reason}/${ssoAppDetect.confidence}/${ssoAppDetect.recommendedAction}`
+  );
+  check("SSO-text page has no password field (not a real login)", await page.locator('input[type="password"]').count() === 0);
+  await page.getByTestId("open-reports").click();
+  check("normal interaction still works on the SSO-text page", await page.getByTestId("reports-panel").isVisible());
 
   await context.close();
 } catch (error) {

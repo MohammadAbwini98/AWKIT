@@ -25,10 +25,29 @@ export type ProtectedLoginReason =
   | "external-approval"
   | "unknown";
 
+/**
+ * How strongly the signals point at a genuine protected surface.
+ * - `low`   — a single weak/text-only signal (e.g. the page merely contains "single sign-on").
+ * - `medium`— a concrete but non-blocking login affordance (e.g. a password field).
+ * - `high`  — a known provider host, CAPTCHA/MFA/passkey, or a browser-security block.
+ */
+export type ProtectedLoginConfidence = "low" | "medium" | "high";
+
+/**
+ * Recommended handling for a detection. Only `pause` triggers the manual-handoff flow; `continue`
+ * lets the recorder/runner keep going (used for low-confidence false positives such as SSO body
+ * text). This never bypasses authentication — the user still completes any real login manually.
+ */
+export type ProtectedLoginRecommendedAction = "continue" | "warn" | "pause";
+
 export interface ProtectedLoginDetection {
   detected: boolean;
   provider: ProtectedLoginProvider;
   reason: ProtectedLoginReason;
+  /** Confidence that this is a genuine protected surface (drives `recommendedAction`). */
+  confidence: ProtectedLoginConfidence;
+  /** What the caller should do. `pause` = manual handoff; `continue`/`warn` = keep recording. */
+  recommendedAction: ProtectedLoginRecommendedAction;
   url: string;
   title?: string;
   matchedPattern?: string;
@@ -103,6 +122,45 @@ function buildMessage(provider: ProtectedLoginProvider, reason: ProtectedLoginRe
 }
 
 /**
+ * Reasons that, on their own, are strong evidence of a genuine protected surface the recorder/runner
+ * must not automate (CAPTCHA, MFA, passkey, a browser-security block, or a known IdP). These always
+ * resolve to `high` confidence → `pause`.
+ */
+const HIGH_CONFIDENCE_REASONS = new Set<ProtectedLoginReason>([
+  "known-provider",
+  "blocked-automation-browser",
+  "mfa",
+  "captcha",
+  "security-check",
+  "passkey",
+  "digital-signature",
+  "external-approval"
+]);
+
+/**
+ * Classify a detection into a confidence level + recommended action.
+ *
+ * SAFETY / FALSE-POSITIVE FIX: a *text-only* `sso` signal ("single sign-on" / "identity provider")
+ * with no known provider host and no concrete DOM affordance is a weak signal — a normal internal
+ * app can contain that phrase. It resolves to `low` → `continue` so the recorder no longer pauses on
+ * it. Everything currently treated as protected (providers, CAPTCHA, MFA, passkey, a detected login
+ * form, …) stays `pause`, so no real protection is weakened.
+ */
+function classifyProtection(
+  reason: ProtectedLoginReason,
+  provider: ProtectedLoginProvider
+): { confidence: ProtectedLoginConfidence; recommendedAction: ProtectedLoginRecommendedAction } {
+  // A known identity-provider host is always a genuine protected page.
+  if (provider !== "unknown") return { confidence: "high", recommendedAction: "pause" };
+  if (HIGH_CONFIDENCE_REASONS.has(reason)) return { confidence: "high", recommendedAction: "pause" };
+  // A concrete password field is a real (if non-blocking) login surface — AWKIT hands these off so
+  // the user signs in manually in their real browser. Medium confidence, but still pauses.
+  if (reason === "login-form") return { confidence: "medium", recommendedAction: "pause" };
+  // Text-only SSO / anything else weak → low confidence, keep recording (the false-positive case).
+  return { confidence: "low", recommendedAction: "continue" };
+}
+
+/**
  * Pure detection from page signals (URL + title + optional body text). Exposed for unit
  * verification without a live browser.
  */
@@ -119,20 +177,24 @@ export function detectFromSignals(url: string, title = "", bodyText = ""): Prote
 
   if (provider !== "unknown") {
     const reason = patternMatch?.reason ?? "known-provider";
-    return { detected: true, provider, reason, url, title, matchedPattern: patternMatch?.pattern, message: buildMessage(provider, reason) };
+    const { confidence, recommendedAction } = classifyProtection(reason, provider);
+    return { detected: true, provider, reason, confidence, recommendedAction, url, title, matchedPattern: patternMatch?.pattern, message: buildMessage(provider, reason) };
   }
   if (patternMatch) {
+    const { confidence, recommendedAction } = classifyProtection(patternMatch.reason, "unknown");
     return {
       detected: true,
       provider: "unknown",
       reason: patternMatch.reason,
+      confidence,
+      recommendedAction,
       url,
       title,
       matchedPattern: patternMatch.pattern,
       message: buildMessage("unknown", patternMatch.reason)
     };
   }
-  return { detected: false, provider: "unknown", reason: "unknown", url, title, message: "" };
+  return { detected: false, provider: "unknown", reason: "unknown", confidence: "low", recommendedAction: "continue", url, title, message: "" };
 }
 
 /** Whether the title alone is suspicious enough to warrant a (costlier) body-text scan. */
@@ -248,10 +310,13 @@ export function detectFromRecorderSignals(
     const signals = [...domHit.signals];
     if (textDetection.matchedPattern) signals.push(`text: ${textDetection.matchedPattern}`);
     if (provider !== "unknown") signals.push(`provider: ${provider}`);
+    const { confidence, recommendedAction } = classifyProtection(reason, provider);
     return {
       detected: true,
       provider,
       reason,
+      confidence,
+      recommendedAction,
       url,
       title,
       matchedPattern: textDetection.matchedPattern,

@@ -4,6 +4,222 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — Serialization Round-Trip Hardening (extraction + executable verifier)
+
+- **Task:** close the most dangerous verification gap — the designer's model↔node-data converters had
+  **no executable round-trip coverage** because they were module-private in a `.tsx` renderer page.
+  Behavior-preserving only: no schema changes, renames, migrations, UI changes, or runtime changes.
+- **Extraction:** `toFlowStep`, `toNodeConfig`, `createValueSource`, `fromFlowStep` moved verbatim from
+  `app/renderer/pages/FlowChartDesigner.tsx` → new `app/renderer/components/workflow/flowStepMapping.ts`
+  (also exports the `FlowDesignerNode`/`FlowDesignerEdge` aliases). Every import in the new module is a
+  plain non-React module or `import type` (erased), so it carries **no React runtime** and `tsx` can load
+  it. Both designer call sites unchanged in behavior; 5 now-dead imports removed from the page.
+- **Proof of fidelity:** `diff` of the original block (backup lines 1125–1307) against the extracted
+  functions with the `export ` prefix normalized → **183 lines each side, byte-identical**. No
+  stop-and-report condition triggered by the extraction itself.
+- **New verifier** `scripts/verify-flow-step-mapping.mts` (`verify:flow-step-mapping`) imports the REAL
+  production functions — no copied logic. **59/59.** Covers all **12** `WaitCondition` variants,
+  before/afterWaits, condition ORDER, response detail (method/URL/statusRange/arming/adaptive timeout
+  not recalculated), loader lifecycle, required/optional true/false/absent, all 4 completion policies +
+  absent-stays-absent, UI-outcome scaffold with empty text, `minRows:0`/`minItems:0`, legacy steps
+  gaining nothing, defaults for missing optionals, clone + edit, and 3 cycles for gradual drift.
+- **DEFECT FOUND — bead `awkit-cxa` (P1), pre-existing:** `fromFlowStep` never reads `step.value`, so a
+  step with only `value` (no `valueSource`, not `goto`) is silently emptied by one designer open+save.
+  Confirmed against real shipped data (`mock-conditional-flow.json`'s `condition` expression is
+  destroyed). Scan of `resources/**`: 69 steps, 1 affected today. **Not** caused by the extraction
+  (byte-identical). Current behavior **pinned** by two checks; the fix is a runtime behavior change and
+  was excluded from this phase by scope.
+- **Files:** `flowStepMapping.ts` (new), `FlowChartDesigner.tsx` (−183 lines, +import, −5 dead imports),
+  `scripts/verify-flow-step-mapping.mts` (new), `package.json`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Verification:** flow-step-mapping **59/0**, waits 48/0, async-review 21/0, recorder-flow 19/19,
+  recorder 78/0, runner 82/0, protected-login 26/0, protected-login-recorder 45/45, mock-site 55/55,
+  ipc-contract 4/4, `tsc --noEmit` clean, `npm run build` clean.
+- **NOT RUN — `verify:settings-persistence` (BLOCKED, environmental).** It launches Electron, and
+  `app.requestSingleInstanceLock()` (app/main/main.ts:17) makes a second instance quit immediately. An
+  AWKIT dev instance has been running since 19:20 (the user's GUI walkthrough). Unrelated to this
+  change; it passed 3/3 earlier in the same session. Re-run once no AWKIT Electron instance is open.
+- **Also recorded:** GUI gate result 11/12 PASS + 11.3 BLOCKED by `awkit-y24`; and two corrections to
+  the earlier packaged-gate claims (the `-mx=9` OOM is intermittent, not a fixed limit — it succeeded on
+  retry; and the first packaged build predated awkit-54t).
+
+---
+
+## 2026-07-22 — Claude (Opus 4.8) — Mock Site: async results + empty state + HTTP status fixtures
+
+- **Task:** unblock two Electron GUI gate checks that had **no fixture at all**, and file the design gap
+  found while pre-flighting that gate. Fixtures only — no runner, recorder, or serialization logic changed.
+- **Why:** a pre-flight of the 12-check GUI gate found (a) `mock-site/server.mjs` had no way to return a
+  non-2xx status, so "HTTP 500 is reported as a status error, not a timeout" was unrunnable, and (b) no
+  page anywhere had a table/list or empty-state panel (`grep -ci "table|tbody|empty" smart-waits.html` → 0),
+  so the empty-result contract was unrunnable.
+- **New scenario** `/async-results` (`mock-site/public/async-results.html`): loader + exactly one outcome
+  per action — three fixed invoice rows (`results-table`, rows in `tbody`), a **valid empty result**
+  (HTTP 200 + zero rows → table hidden, `empty-state` visible), or a selectable HTTP error
+  (`error-banner`). Controls `load-populated`, `load-empty`, `load-error`, `error-code`,
+  `results-delay-ms`, `reset-async-results`; event log; bounded delays only.
+- **New endpoints:** `/api/status?code=&ms=` returns an **allow-listed** status (200/201/202/204/400/401/
+  403/404/409/422/429/500/502/503/504; anything else → 500). **3xx is deliberately excluded** so the
+  endpoint can never act as an open redirect. `/api/results?mode=populated|empty&ms=` returns three fixed
+  rows or a 200 with zero rows — both successes, differing only in UI outcome.
+- **Files:** `mock-site/public/async-results.html` (new), `mock-site/server.mjs` (+2 endpoints, +1 route,
+  +2 constants), `mock-site/public/index.html`, `mock-site/README.md`, `scripts/verify-mock-site.mjs`.
+- **Verification:** `verify:mock-site` **55/55** (was 39/39; +16 new checks incl. an explicit assertion
+  that the empty branch renders **zero** rows so `tableHasRows` genuinely fails there, and that
+  `?code=302` is refused). Regression `verify:waits` 48/0, `verify:runner` 82/0, `verify:recorder` 78/0,
+  `npm run build` clean.
+- **Bead filed — `awkit-y24` (P2):** grouped completion composition. `FlowStep.completionMode` is one
+  per-step scalar over all `afterWaits`, giving only flat AND / flat OR, so `API success AND (tableHasRows
+  OR emptyStateVisible)` is **not expressible**: `resolveAnyRequired` runs `Promise.any` across every
+  required condition including the armed API response, so the API resolving first satisfies the step and
+  neither UI outcome is ever required. Not a regression — missing expressiveness. Blocks GUI check 11
+  configuration 3.
+- **Not run / limitations:** the fixtures are not yet exercised end-to-end by a runner verifier (the
+  HTTP-500 path is already covered inside `verify:waits`); the GUI gate itself still requires the
+  credential holder. Promotion remains **UNAPPROVED**.
+
+---
+
+## 2026-07-22 — Claude (Opus 4.8) — awkit-54t: Async Completion editor + Recorder review-before-save
+
+- **Task:** the UI layer over the awkit-62o async model (bead awkit-54t). Same branch; earlier commits
+  (checkpoint + 62o) untouched.
+- **Shared pure module** `src/profiles/asyncCompletionReview.ts` — statically classifies a step/action's
+  waits + policy as **Reliable / Needs review / Incomplete / Unsafe** with contradiction warnings
+  (response with no endpoint pattern; status range inverted / 200-only; empty/non-unique locator;
+  fixedDelay-only or all-optional = no completion signal; networkThenUi without an API; anyRequired
+  with <2 required; required table-rows vs empty-state outcome). `reviewWait`/`reviewStepAsync`/
+  `summarizeReviews`/`classLabel`. Used by BOTH the designer and the recorder.
+- **Flow Designer** (`FlowNodePropertiesPanel.tsx`): the old timeout-only "Smart Waits" section is now
+  a full **Async Completion** editor — completion-policy `<select>` (allRequired/networkThenUi/
+  anyRequired/quietPeriod → `FlowStep.completionMode`); **+ API / + Loader / + UI outcome** add buttons
+  (add missing waits, not just remove); per-condition required/optional toggle, timeout, a
+  classification badge + warnings, and type-specific field editors (response method/URL/status/arm;
+  loader locator/grace/completion/mustAppear; text; table/list min counts). Shown for action nodes even
+  when empty.
+- **Recorder** (`Recorder.tsx`): Save now opens a **review-before-save modal** (reused `.modal-*`
+  system) when the recording captured async activity — per-action classification + warnings + summary
+  counts; "Keep editing" / "Save to Flow Library". No async activity → saves directly.
+- **Files:** `src/profiles/asyncCompletionReview.ts` (new), `scripts/verify-async-review.mts` (new) +
+  `verify:async-review` script, `FlowNodePropertiesPanel.tsx`, `Recorder.tsx`, `global.css`.
+- **Verification (all green):** `verify:async-review` **21/0**; regression `verify:waits` 48/0,
+  `verify:recorder-flow` 19/19, `verify:runner` 82/0, `verify:recorder` 78/0, `verify:protected-login`
+  26/0, `verify:protected-login-recorder` 45/45, `verify:settings-persistence` 3/3, `verify:ipc-contract`
+  4/4, `verify:mock-site` 39/39, `npm run build` clean. Built renderer bundle contains the new UI.
+- **Not run / limitations:** the "Test locators against the active recorded page" affordance from the
+  prompt is not implemented (needs a live recorded page — deferred). GUI click-through of the editor/
+  modal is behind the Electron auth gate (same manual gate as before); the interactive walkthrough is
+  user-driven.
+
+## 2026-07-22 — Claude (Opus 4.8) — awkit-62o: loader lifecycle + completion policies + consistency
+
+- **Task:** the runtime completion-policy + loader-lifecycle follow-up (bead awkit-62o), extending the
+  canonical `WaitCondition`/`beforeWaits`/`afterWaits` model — NOT a parallel field. Same branch;
+  prior commits (`eabd555`, `34c9e47`, beads chore) treated as an accepted checkpoint (not amended).
+- **Model (FlowProfile.ts):** `WaitConditionBase.optional?`; `loaderHidden` gains
+  `appearanceGraceMs?/mustAppear?/completion?` (+ `LoaderCompletion`); `FlowStep.completionMode?`
+  (+ `AsyncCompletionMode` = allRequired|anyRequired|networkThenUi|quietPeriod). All additive.
+- **Two-phase loader lifecycle (StepExecutor):** appearance watch armed BEFORE the action (a late
+  spinner is never skipped); after the action, wait up to `appearanceGraceMs` for it to appear, then
+  for the `completion` signal (hidden/detached/aria-busy=false). Optional-never-appears passes;
+  required-never-appears + never-disappears produce precise diagnostics (`formatLoaderLifecycleFailure`).
+- **Completion policies (`resolveAfterWaits` dispatcher):** allRequired (default, = legacy),
+  anyRequired (`Promise.any`), networkThenUi (network→loaders→UI phases), quietPeriod (request-start
+  observer + no-blocking-loader). Consistency failures: API-ok-but-UI-missing, API-failed-but-UI-changed,
+  loader-still-blocking (`formatConsistencyFailure`); valid empty-result states pass (engine never
+  forces table rows). Optional conditions are best-effort everywhere.
+- **Cancellation:** new `withCancellation` races every wait against the token; the quiet loop also
+  polls `throwIfCancelled` — Stop interrupts API/loader/quiet/UI waits in <2s (verified).
+- **Progress:** `emitWaiting` emits `waiting` events naming the endpoint/loader/UI condition, resolved
+  timeout, and required/optional status.
+- **Round-trip:** `completionMode` carried through the designer allowlist (`fromFlowStep`/`toFlowStep`
+  + `FlowDesignerNodeData`); extended wait fields ride in the whole-array `afterWaits`. Recorder emits
+  the lifecycle on recorded loaders (grace 1500, mustAppear false) via new `loaderAppearanceGraceMs`
+  option + `asyncAwareness.loaderAppearanceGraceMs` setting (validated).
+- **Files:** `FlowProfile.ts`, `StepExecutor.ts`, `smartWaitObservation.ts`, `RecorderService.ts`,
+  `app/main/uiSettings.ts`, `flowDesignerTypes.ts`, `FlowChartDesigner.tsx`, `scripts/verify-waits.mts`,
+  `scripts/verify-recorder-flow.mts`.
+- **Verification (all green):** `verify:waits` **48/0** (loader lifecycle ×7, policies+consistency ×8,
+  cancellation ×4), `verify:recorder-flow` 19/19, `verify:recorder` 78/0, `verify:runner` 82/0,
+  `verify:cancellation` 12/0, `verify:protected-login` 26/0, `verify:protected-login-recorder` 45/45,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `verify:mock-site` 39/39,
+  `verify:security` 39/0, `verify:popup` 12/0, `verify:safety-policy` 17/0, `npm run build` clean.
+- **Limitations:** quietPeriod window is a runtime constant (750ms), not per-step; the request-start
+  observer is active-page-scoped (popup/iframe network not folded in); no Async Completion editor UI
+  yet (awkit-54t) — recorded/imported `completionMode` round-trips but is not user-editable.
+- **Manual gates still outstanding:** Electron GUI walkthrough + packaged/offline validation.
+
+## 2026-07-22 — Claude (Opus 4.8) — Async Activity Awareness: status-vs-timeout + adaptive timeouts (Phase B of 2)
+
+- **Task:** Phase B of the same prompt — extend the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits`
+  model (the canonical async model) rather than fork a parallel `AsyncActivityGroup`, keeping the
+  fragile flow round-trip intact. Same branch. Not pushed.
+- **Response status vs. timeout (the #1 named runtime bug):** `StepExecutor.buildResponseWait` matched
+  on status INSIDE the `waitForResponse` predicate, so an immediate HTTP 500 never matched and became
+  a misleading timeout. Refactored: match endpoint (method + urlContains) only, then
+  `validateResponseStatus` throws a `ResponseStatusError` with a clear "API returned HTTP 500 for POST
+  /path (expected 200–299)…" message routed through a new `formatResponseStatusFailure` (never the
+  timeout formatter). Applied to both the armed-before-action path and the deferred path.
+- **Adaptive dynamic bounded timeouts:** `smartWaitObservation.buildSmartWaits` now derives
+  `timeoutMs = clamp(observed×multiplier + safetyMargin, min, max)` (defaults 3× / +5000 / [10000,
+  300000]) for `response` + `loaderHidden` waits, exposed via new `SmartWaitBuildOptions`
+  (`adaptiveTimeouts`, `minimumTimeoutMs`, `maximumTimeoutMs`, `timeoutMultiplier`,
+  `timeoutSafetyMarginMs`) + exported `adaptiveTimeoutMs()`. Reason strings state the observed ms.
+- **Settings:** `recorder.asyncAwareness {enabled, adaptiveTimeouts, minimumTimeoutMs,
+  maximumTimeoutMs}` in `uiSettings.ts` — **deep-merged** in `hydrate`/`mergePatch` (nested block must
+  not drop siblings), validated/clamped in `validateSettings` (no unlimited timeout). Threaded through
+  `recorder:start` → `RecorderService.startRecording` → `attachSmartWaits`.
+- **Round-trip:** async waits (incl. adaptive `timeoutMs`) copied whole-array by `buildRecordedFlow`
+  and `flowProfileMapping`; new `verify:recorder-flow` assertions prove they survive JSON save.
+- **Files:** `StepExecutor.ts`, `smartWaitObservation.ts`, `app/main/uiSettings.ts`,
+  `app/main/ipc/recorder.ipc.ts`, `RecorderService.ts`, `scripts/verify-waits.mts`,
+  `scripts/verify-recorder-locator.mts`, `scripts/verify-recorder-flow.mts`.
+- **Verification (all green):** `verify:waits` 26/0 (incl. HTTP-500-is-not-a-timeout) ·
+  `verify:recorder` 78/0 (incl. 6 adaptive-timeout units) · `verify:recorder-flow` 16/16 (round-trip) ·
+  `verify:runner` 82/0 · `verify:settings-persistence` 3/3 · `verify:protected-login` 26/0 ·
+  `verify:protected-login-recorder` 45/45 · `npm run build` clean.
+- **Deferred (filed as follow-ups):** loader appearance-grace/mustAppear runtime lifecycle;
+  quietPeriod/networkThenUi/allRequired/anyRequired completion policies + UI-outcome consistency
+  failures; 202 job-status polling + response-field predicate; WebSocket/SSE + CDP diagnostics; Flow
+  Designer "Async Completion" editor UI; Recorder review-before-save UI; context-level authoritative
+  network source. Core correctness (status, adaptive bounded timeouts, arm-before-action, cancellation)
+  and the canonical model + round-trip are in place.
+
+## 2026-07-22 — Claude (Opus 4.8) — Recorder protected-login controls + SSO false-positive fix (Phase A of 2)
+
+- **Task:** implement `AWKIT_RECORDER_PROTECTED_LOGIN_AND_ASYNC_ACTIVITY` prompt, phased & regression-safe.
+  Phase A = protected-login controls; Phase B (async activity engine) to follow. Branch
+  `feature/recorder-protected-login-and-async-awareness` (off main). Not pushed.
+- **Root cause:** `src/security/ProtectedLoginDetector.ts` treated plain text "single sign-on" /
+  "identity provider" as `reason: sso` with **no confidence level**, and the recorder auto-paused +
+  closed the browser on any `detected`. Normal internal HTTPS apps containing that phrase paused.
+- **Detector:** added `confidence` (`low|medium|high`) + `recommendedAction` (`continue|warn|pause`).
+  Only text-only `sso` (no provider host, no DOM affordance) → low/continue; providers, CAPTCHA, MFA,
+  passkey, security-check, and a detected password field all stay `pause`. Pure `classifyProtection`.
+- **RecorderService:** pause now gated on `recommendedAction === "pause"` + ignore controls
+  (session override, global setting, per-session loop-guard keys). `beginHandoff` now keeps the
+  automation browser OPEN during the "detected" phase (closed only on manual handoff) so
+  "Ignore and continue recording" (`ignoreCurrentProtectedDetection`) resumes the same page; added
+  `if(!isRecording)return` guards to the `__awtkit_recordAction`/`__awtkit_recordSignal` bindings so
+  nothing on a protected page is ever recorded while paused.
+- **Runner:** the two auto-pause entry points in `StepExecutor.ts` (post-nav + popup) also gate on
+  `recommendedAction === "pause"`; manual-handoff retry loop + explicit ManualHandoff node unchanged.
+- **Settings:** `recorder.ignoreProtectedLoginDetection` (default false) in `app/main/uiSettings.ts`;
+  read server-side in `recorder:start`. New IPC `recorder:ignoreProtectedDetection` + preload method.
+  Settings page card with confirmation dialog (immediate persist); Recorder page "Ignore and continue
+  recording" button + non-blocking session notice.
+- **Mock site:** new `/mock/sso-text-app` false-positive fixture. **Files:**
+  `ProtectedLoginDetector.ts`, `RecorderTypes.ts`, `RecorderService.ts`, `StepExecutor.ts`,
+  `app/main/uiSettings.ts`, `app/main/ipc/recorder.ipc.ts`, `app/main/preload.ts`,
+  `app/renderer/pages/{Recorder,Settings}.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-protected-login{,-recorder}.mts`, `mock-site/public/secure-login/sso-text-app.html`,
+  `mock-site/README.md`.
+- **Verification (all green):** `verify:protected-login` 26/0 · `verify:protected-login-recorder` 45/45
+  · `verify:runner` 82/0 · `verify:mock-site` 39/39 · `verify:waits` 21/0 · `verify:recorder` 72/0 ·
+  `verify:settings-persistence` 3/3 · `verify:ipc-contract` 4/4 · `npm run build` clean.
+- **Not run:** clean-machine / packaged-EXE GUI walkthrough (Recorder handoff card is Electron-only —
+  manual gate). Phase B (async engine) pending.
+
 ## 2026-07-19 — Claude — Fix all E2E-assessment defects (DEF-003/004/005 + OBS-001/002)
 
 - **Task:** implement the plan to fix the open E2E-QA findings on `main` @ `0a4500f` — sender-bound
@@ -4844,3 +5060,33 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
   by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
   (this audit) closed with the report as its resolution.
+
+### 2026-07-22 — Claude Code — Session-outcomes close-out (awkit-cxa P1, awkit-y24 P2, awkit-4km C1, §8 hardening)
+
+- **Task:** work the approved close-out plan for `SESSION_OUTCOMES_REPORT.md` (tracker:
+  `SESSION_OUTCOMES_CLOSEOUT.md`), on `feature/recorder-protected-login-and-async-awareness`.
+- **awkit-cxa (P1) FIXED:** designer round-trip preserves a bare `FlowStep.value` losslessly via a
+  designer-only `valueSourceType: "none"` sentinel (`flowStepMapping.ts`, `flowDesignerTypes.ts`); the two
+  pinned "KNOWN DEFECT" checks were inverted. Files: `flowStepMapping.ts`, `flowDesignerTypes.ts`,
+  `FlowNodePropertiesPanel.tsx`, `verify-flow-step-mapping.mts`.
+- **awkit-y24 (P2) IMPLEMENTED:** new `anyOf` OR-group `WaitCondition` (extends the union). Runner
+  `executeWaitCondition` resolves via `Promise.any`; `clampWaits` recursion; `reviewWait` rollup; designer
+  editor refactored to `(wait, update)` + "+ OR group" button + token CSS. Files: `FlowProfile.ts`,
+  `StepExecutor.ts`, `FlowValidation.ts`, `asyncCompletionReview.ts`, `FlowNodePropertiesPanel.tsx`,
+  `global.css`, `verify-waits.mts`, `verify-flow-step-mapping.mts`.
+- **awkit-4km C1 IMPLEMENTED:** new `apiPolling` `WaitCondition` (202 → poll-to-terminal). Runner
+  `resolveApiPolling` observes the page's poll responses; designer editor + "Poll" scaffold; mock-site
+  `/api/job`. WS/SSE + CDP stay deferred. Files: `FlowProfile.ts`, `StepExecutor.ts`,
+  `asyncCompletionReview.ts`, `FlowNodePropertiesPanel.tsx`, `mock-site/server.mjs`, `verify-waits.mts`,
+  `verify-flow-step-mapping.mts`, `verify-mock-site.mjs`.
+- **§8 coverage hardening:** added round-trip coverage for all 10 `valueSource` variants, compound locator
+  `alternatives`/`context`, edge→`next`, config breadth, pinned multi-key-outputs limitation. This
+  surfaced + **fixed** two more awkit-cxa-class drops (`generated`, `secret`).
+- **Verification (all green):** `verify:flow-step-mapping` 94/0, `verify:waits` 56/0, `verify:async-review`
+  21/0, `verify:recorder` 78/0, `verify:recorder-flow` 19/19, `verify:runner` 82/0, `verify:protected-login`
+  26/0, `verify:protected-login-recorder` 45/45, `verify:mock-site` 58/58, `verify:ipc-contract` 4/4, `tsc`
+  0, `npm run build` 0, `check-memory` pass.
+- **Not run / gates:** `verify:settings-persistence` (blocked — a dev Electron instance holds the
+  single-instance lock; not force-killed); packaged installer + `validate:offline` -Strict (packaging host
+  gate); packaged-renderer visual paint + GUI check 11.3 walkthrough (need screen access). No commit/push
+  (conservative profile — awaiting approval).

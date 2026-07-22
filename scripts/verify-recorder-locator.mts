@@ -500,6 +500,46 @@ async function main() {
       const w = buildSmartWaits([], T0, T1, { allowFixedDelayFallback: false });
       check("no signal + fallback off (captureWaitTime) → no smart wait", w.length === 0, JSON.stringify(w));
     }
+
+    // ── Adaptive dynamic timeout (async awareness) ─────────────────────────────
+    const WIDE = 40_000; // wide window so long synthetic observations stay in-window
+    // 11. A response wait derives timeoutMs = observed × 3 + 5000, clamped to [10000, 300000].
+    {
+      // observed 8000ms → 8000*3 + 5000 = 29000 (within bounds)
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/orders", status: 201, startedAt: 1100, endedAt: 9100 }], T0, WIDE);
+      const r = w.find((x) => x.type === "response") as { timeoutMs?: number } | undefined;
+      check("adaptive: response timeout = observed×3+5000", r?.timeoutMs === 29000, JSON.stringify(w));
+    }
+    // 12. A very long observation is clamped to the maximum (never unbounded).
+    {
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/slow", status: 200, startedAt: 1100, endedAt: 1100 + 200_000 }], T0, 400_000);
+      const r = w.find((x) => x.type === "response") as { timeoutMs?: number } | undefined;
+      check("adaptive: long response clamped to maximum 300000", r?.timeoutMs === 300_000, JSON.stringify(w));
+    }
+    // 13. A short observation is clamped up to the minimum.
+    {
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/fast", status: 200, startedAt: 1100, endedAt: 1200 }], T0, WIDE);
+      const r = w.find((x) => x.type === "response") as { timeoutMs?: number } | undefined;
+      check("adaptive: short response clamped up to minimum 10000", r?.timeoutMs === 10_000, JSON.stringify(w));
+    }
+    // 14. adaptiveTimeouts:false → no timeoutMs is baked in (runner default applies).
+    {
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/orders", status: 201, startedAt: 1100, endedAt: 9100 }], T0, WIDE, { adaptiveTimeouts: false });
+      const r = w.find((x) => x.type === "response") as { timeoutMs?: number } | undefined;
+      check("adaptive off → response has no timeoutMs", !!r && r.timeoutMs === undefined, JSON.stringify(w));
+    }
+    // 15. Custom bounds are honored (min raised to 20000).
+    {
+      const w = buildSmartWaits([{ kind: "request", method: "POST", path: "/api/orders", status: 201, startedAt: 1100, endedAt: 2100 }], T0, WIDE, { minimumTimeoutMs: 20_000 });
+      const r = w.find((x) => x.type === "response") as { timeoutMs?: number } | undefined;
+      check("adaptive: custom minimum bound honored", r?.timeoutMs === 20_000, JSON.stringify(w));
+    }
+    // 16. A loader wait also gets an adaptive timeout from its visible duration.
+    {
+      const w = buildSmartWaits([{ kind: "loaderHidden", selector: ".spinner", shownAt: 1100, hiddenAt: 9100 }], T0, WIDE);
+      const l = w.find((x) => x.type === "loaderHidden") as { timeoutMs?: number } | undefined;
+      check("adaptive: loader timeout = observed×3+5000", l?.timeoutMs === 29000, JSON.stringify(w));
+    }
   }
 
   // D-integration: the injected page script actually emits safe signals.
