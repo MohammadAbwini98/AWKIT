@@ -120,6 +120,10 @@ export function createValueSource(data: FlowDesignerNodeData): ValueSource | und
     };
   }
 
+  // A bare value with no explicit source (awkit-cxa): re-serialize `value` alone. `toFlowStep` still
+  // emits `value: data.value`, so the value survives without a fabricated static `valueSource`.
+  if (data.valueSourceType === "none") return undefined;
+
   if (!data.value) return undefined;
 
   if (data.valueSourceType === "env") return { type: "env", envKey: data.value };
@@ -129,6 +133,9 @@ export function createValueSource(data: FlowDesignerNodeData): ValueSource | und
   if (data.valueSourceType === "generated") return { type: "generated", generator: data.value as ValueSource["generator"] };
   if (data.valueSourceType === "currentRow") return { type: "currentRow", path: data.value };
   if (data.valueSourceType === "instanceVariable") return { type: "instanceVariable", key: data.value };
+  // Named secret: only the NAME round-trips (the secret value is never stored in JSON). Without this
+  // branch the type would silently degrade to "static", leaking the name as a literal value.
+  if (data.valueSourceType === "secret") return { type: "secret", secretName: data.value };
 
   return { type: "static", value: data.value };
 }
@@ -147,8 +154,11 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     // Preserve Recorder runtime fallbacks/scoping through the designer round-trip (edit-safe).
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
-    valueSourceType: valueSource?.type ?? "static",
-    value: step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? valueSource?.path ?? valueSource?.outputKey ?? "",
+    // A step can carry a bare `value` (e.g. a condition expression) with no `valueSource`. Mark it
+    // "none" so the save path re-serializes the value WITHOUT fabricating a static `valueSource`, and
+    // read `step.value` last in the value chain so a bare value is never dropped on load (awkit-cxa).
+    valueSourceType: valueSource?.type ?? (!step.url && !!step.value ? "none" : "static"),
+    value: step.url ?? valueSource?.value ?? valueSource?.key ?? valueSource?.envKey ?? valueSource?.path ?? valueSource?.outputKey ?? valueSource?.generator ?? valueSource?.secretName ?? step.value ?? "",
     dataSourceScope: valueSource?.dataSourceScope ?? "workflow",
     dataSourceId: valueSource?.dataSourceId ?? "",
     idMode: valueSource?.idMode ?? "instanceOrder",
