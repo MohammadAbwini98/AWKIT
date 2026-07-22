@@ -4,6 +4,47 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — Serialization Round-Trip Hardening (extraction + executable verifier)
+
+- **Task:** close the most dangerous verification gap — the designer's model↔node-data converters had
+  **no executable round-trip coverage** because they were module-private in a `.tsx` renderer page.
+  Behavior-preserving only: no schema changes, renames, migrations, UI changes, or runtime changes.
+- **Extraction:** `toFlowStep`, `toNodeConfig`, `createValueSource`, `fromFlowStep` moved verbatim from
+  `app/renderer/pages/FlowChartDesigner.tsx` → new `app/renderer/components/workflow/flowStepMapping.ts`
+  (also exports the `FlowDesignerNode`/`FlowDesignerEdge` aliases). Every import in the new module is a
+  plain non-React module or `import type` (erased), so it carries **no React runtime** and `tsx` can load
+  it. Both designer call sites unchanged in behavior; 5 now-dead imports removed from the page.
+- **Proof of fidelity:** `diff` of the original block (backup lines 1125–1307) against the extracted
+  functions with the `export ` prefix normalized → **183 lines each side, byte-identical**. No
+  stop-and-report condition triggered by the extraction itself.
+- **New verifier** `scripts/verify-flow-step-mapping.mts` (`verify:flow-step-mapping`) imports the REAL
+  production functions — no copied logic. **59/59.** Covers all **12** `WaitCondition` variants,
+  before/afterWaits, condition ORDER, response detail (method/URL/statusRange/arming/adaptive timeout
+  not recalculated), loader lifecycle, required/optional true/false/absent, all 4 completion policies +
+  absent-stays-absent, UI-outcome scaffold with empty text, `minRows:0`/`minItems:0`, legacy steps
+  gaining nothing, defaults for missing optionals, clone + edit, and 3 cycles for gradual drift.
+- **DEFECT FOUND — bead `awkit-cxa` (P1), pre-existing:** `fromFlowStep` never reads `step.value`, so a
+  step with only `value` (no `valueSource`, not `goto`) is silently emptied by one designer open+save.
+  Confirmed against real shipped data (`mock-conditional-flow.json`'s `condition` expression is
+  destroyed). Scan of `resources/**`: 69 steps, 1 affected today. **Not** caused by the extraction
+  (byte-identical). Current behavior **pinned** by two checks; the fix is a runtime behavior change and
+  was excluded from this phase by scope.
+- **Files:** `flowStepMapping.ts` (new), `FlowChartDesigner.tsx` (−183 lines, +import, −5 dead imports),
+  `scripts/verify-flow-step-mapping.mts` (new), `package.json`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Verification:** flow-step-mapping **59/0**, waits 48/0, async-review 21/0, recorder-flow 19/19,
+  recorder 78/0, runner 82/0, protected-login 26/0, protected-login-recorder 45/45, mock-site 55/55,
+  ipc-contract 4/4, `tsc --noEmit` clean, `npm run build` clean.
+- **NOT RUN — `verify:settings-persistence` (BLOCKED, environmental).** It launches Electron, and
+  `app.requestSingleInstanceLock()` (app/main/main.ts:17) makes a second instance quit immediately. An
+  AWKIT dev instance has been running since 19:20 (the user's GUI walkthrough). Unrelated to this
+  change; it passed 3/3 earlier in the same session. Re-run once no AWKIT Electron instance is open.
+- **Also recorded:** GUI gate result 11/12 PASS + 11.3 BLOCKED by `awkit-y24`; and two corrections to
+  the earlier packaged-gate claims (the `-mx=9` OOM is intermittent, not a fixed limit — it succeeded on
+  retry; and the first packaged build predated awkit-54t).
+
+---
+
 ## 2026-07-22 — Claude (Opus 4.8) — Mock Site: async results + empty state + HTTP status fixtures
 
 - **Task:** unblock two Electron GUI gate checks that had **no fixture at all**, and file the design gap

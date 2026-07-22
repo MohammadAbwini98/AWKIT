@@ -20,23 +20,42 @@ all `afterWaits`, so only flat AND (`allRequired`) or flat OR (`anyRequired`) is
 races every required condition including the armed API response, so the API resolving first satisfies the
 step and neither UI outcome is ever required. Not a regression; blocks GUI check 11 configuration 3.
 
-**Manual gates run 2026-07-22:**
-- **Offline validation — PASS** (`validate:offline` strict, exit 0; bundle manifest/Chromium/Playwright/sql.js/samples intact).
-- **Packaged build/boot — PASS with an env caveat.** `package:portable` built the full app tree
-  (`dist/win-unpacked/SpecterStudio.exe` 180 MB + bundled Chromium + `app.asar` + `offline-runtime.json`)
-  after passing build + dependency-manifest + **strict offline validation**; the packaged binary
-  **boots cleanly** in packaged/offline mode (offline gate active). Only the final distributable
-  archive (7-Zip `-mx=9`) **OOMed** — the documented low-memory-machine limit, NOT a code defect;
-  a distributable installer needs a higher-RAM build host.
-- **Electron GUI — boots clean; authenticated walkthrough still user-driven.** Both the dev (`npx
-  electron .`) and packaged binaries render with no crash; compiled bundles contain every Phase A/B/62o
-  string (`Ignore and continue recording`, `recorder:ignoreProtectedDetection`, `recommendedAction`,
-  `asyncAwareness`, `completionMode`, loader `did not reach`, `quietPeriod`). The interactive
-  click-through (Recorder/Settings/handoff) sits behind the fail-closed login gate (SecurityGate, no
-  dev bypass) and requires the credential holder — the agent must not authenticate.
+**Serialization round-trip hardening (2026-07-22):** `toFlowStep`/`fromFlowStep` (+ their `toNodeConfig`
+/`createValueSource` helpers) moved verbatim out of `pages/FlowChartDesigner.tsx` into
+`components/workflow/flowStepMapping.ts` so a verifier can execute the REAL production converters.
+Extraction proven behavior-preserving by diff (183 lines, byte-identical). New
+`verify:flow-step-mapping` **59/59** covers all 12 `WaitCondition` variants, both wait phases, condition
+ordering, required/optional flags, completion policies, empty-result/falsy preservation, legacy steps,
+defaults, clone/edit, and 3 serialization cycles for gradual drift.
 
-**Product promotion remains unapproved** until the authenticated GUI walkthrough is signed off by the
-user and a distributable installer is produced on a capable build host.
+**Known data-loss defect — bead `awkit-cxa` (P1):** `fromFlowStep` derives the node value from
+`step.url ?? valueSource?.…` and **never reads `step.value`**, so a step carrying only `value` (no
+`valueSource`, not a `goto`) loses it on one designer open+save. Reachable on shipped data —
+`resources/test-fixtures/mock-site/flows/mock-conditional-flow.json` stores its `condition` expression
+exactly that way and it is destroyed by a round trip. Found by the new verifier; **pre-existing**, not
+introduced by the extraction. Current behavior is **pinned** by two checks so the suite stays honest;
+fixing it is a runtime behavior change and was deliberately out of scope.
+
+**Manual gates run 2026-07-22:**
+- **Offline validation — PASS** (`validate-offline-bundle.ps1 -Strict`, exit 0, "Strict mode: passed").
+  Note the `validate:offline` npm alias does **not** pass `-Strict`; run the script directly for the gate.
+- **Packaged build/boot — PASS (rebuilt against the final commit).** `package:portable` built the full
+  app tree (`dist/win-unpacked/SpecterStudio.exe` 180 MB + bundled Chromium + `app.asar` +
+  `offline-runtime.json`); the packaged binary **boots cleanly** in packaged/offline mode and **writes
+  nothing into `resources/`** (content hash byte-identical across a boot). The distributable archive
+  (7-Zip `-mx=9`) **succeeded** — `dist/SpecterStudio 0.1.0.exe`, 325 MB.
+  **CORRECTION (supersedes the earlier entry):** the `-mx=9` step was previously recorded as a fixed
+  low-RAM limit. It peaks ~3.4 GB in `7za.exe` and **completed on retry** — intermittent memory
+  pressure, not a hard ceiling.
+  **CORRECTION:** the original packaged build (15:16) **predated the awkit-54t commit (15:49)** and
+  contained none of its UI. Packaged evidence must always be re-taken after the last feature commit.
+- **Electron GUI walkthrough — 11/12 PASS, 1 BLOCKED (user-run, 2026-07-22).** Checks 1–10 and 12 pass.
+  **Check 11 configuration 3 is BLOCKED** by `awkit-y24` (`API success AND (tableHasRows OR
+  emptyStateVisible)` is not expressible) — BLOCKED, not FAILED. Visual confirmation that the packaged
+  renderer paints was not captured by the agent (screen access declined); process-level boot verified.
+
+**Product promotion remains unapproved** until `awkit-y24` unblocks GUI check 11.3 and a distributable
+installer is produced on a build host that clears `-mx=9` reliably.
 
 ## awkit-54t — Async Completion editor + Recorder review-before-save DONE, verified (2026-07-22)
 

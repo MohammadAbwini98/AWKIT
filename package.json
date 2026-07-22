@@ -59,6 +59,7 @@
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",
+    "verify:flow-step-mapping": "tsx scripts/verify-flow-step-mapping.mts",
     "verify:concurrency": "tsx scripts/verify-concurrency.mts",
     "verify:machine-capabilities": "tsx scripts/verify-machine-capabilities.mts",
     "verify:capacity-planner": "tsx scripts/verify-capacity-planner.mts",
