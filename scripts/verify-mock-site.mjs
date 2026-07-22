@@ -46,6 +46,7 @@ try {
   check("home lists Smart Wait lab", await page.getByTestId("scenario-smart-waits").isVisible());
   check("home lists Recorder lab", await page.getByTestId("scenario-recorder").isVisible());
   check("home lists Designer lab", await page.getByTestId("scenario-designer").isVisible());
+  check("home lists Async Results lab", await page.getByTestId("scenario-async-results").isVisible());
 
   console.log("Smart Wait scenarios:");
   await page.goto(`${BASE}/smart-waits`);
@@ -133,6 +134,49 @@ try {
   check("workflow instances modal closes", !(await page.getByTestId("mock-workflow-instances-modal").isVisible()));
   check("stable saved flow names exist", await page.getByTestId("saved-flow-smart-waits").isVisible());
   check("smart wait JSON example exists", /beforeWaits/.test((await page.getByTestId("smart-wait-json-example").textContent()) ?? ""));
+
+  console.log("Async results / empty state scenarios:");
+  await page.goto(`${BASE}/async-results`);
+  await page.getByRole("heading", { name: "Async Results and Empty State Lab" }).waitFor();
+  // Speed the fixtures up so the verifier stays fast but still exercises the loader.
+  await page.getByTestId("results-delay-ms").fill("100");
+
+  // Populated branch: loader appears, then rows render and the empty state stays hidden.
+  await page.getByTestId("load-populated").click();
+  await page.getByTestId("results-table").waitFor({ state: "visible" });
+  check("populated result renders three rows", (await page.locator("[data-testid='results-table'] tbody tr").count()) === 3);
+  check("populated result hides the empty state", await page.getByTestId("empty-state").isHidden());
+  check("populated result hides the loader when settled", await page.getByTestId("results-loading").isHidden());
+
+  // Valid-empty branch: HTTP 200 with zero rows -> table hidden, empty state visible.
+  await page.getByTestId("load-empty").click();
+  await page.getByTestId("empty-state").waitFor({ state: "visible" });
+  check("empty result hides the results table", await page.getByTestId("results-table").isHidden());
+  check("empty result renders zero rows (tableHasRows must fail here)", (await page.locator("[data-testid='results-table'] tbody tr").count()) === 0);
+  check("empty result reports a valid empty state", /valid empty state/i.test((await page.getByTestId("results-status").textContent()) ?? ""));
+
+  // Error branch: the endpoint answers with a real status, so this is never a timeout.
+  await page.getByTestId("load-error").click();
+  await page.getByTestId("error-banner").waitFor({ state: "visible" });
+  check("error branch surfaces the HTTP status", /HTTP 500/.test((await page.getByTestId("error-banner").textContent()) ?? ""));
+  check("error branch shows neither rows nor empty state", (await page.locator("[data-testid='results-table'] tbody tr").count()) === 0 && (await page.getByTestId("empty-state").isHidden()));
+
+  await page.getByTestId("reset-async-results").click();
+  check("reset clears every outcome surface", await page.getByTestId("error-banner").isHidden() && await page.getByTestId("empty-state").isHidden() && await page.getByTestId("results-table").isHidden());
+
+  console.log("Async status/result endpoints:");
+  const err500 = await page.request.get(`${BASE}/api/status?code=500`);
+  check("/api/status returns the requested error status", err500.status() === 500, `status=${err500.status()}`);
+  const ok202 = await page.request.get(`${BASE}/api/status?code=202`);
+  check("/api/status supports 202 Accepted", ok202.status() === 202, `status=${ok202.status()}`);
+  const bogus = await page.request.get(`${BASE}/api/status?code=799`);
+  check("/api/status falls back to 500 for a non-allow-listed code", bogus.status() === 500, `status=${bogus.status()}`);
+  const redirect = await page.request.get(`${BASE}/api/status?code=302`, { maxRedirects: 0 });
+  check("/api/status refuses 3xx (no open redirect)", redirect.status() === 500, `status=${redirect.status()}`);
+  const emptyJson = await (await page.request.get(`${BASE}/api/results?mode=empty&ms=0`)).json();
+  check("/api/results empty mode is a 200 with zero rows", emptyJson.ok === true && emptyJson.count === 0 && emptyJson.rows.length === 0);
+  const fullJson = await (await page.request.get(`${BASE}/api/results?mode=populated&ms=0`)).json();
+  check("/api/results populated mode returns three stable rows", fullJson.count === 3 && fullJson.rows[0].id === "INV-1001");
 
   await page.close();
 } catch (error) {

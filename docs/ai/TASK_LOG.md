@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — Mock Site: async results + empty state + HTTP status fixtures
+
+- **Task:** unblock two Electron GUI gate checks that had **no fixture at all**, and file the design gap
+  found while pre-flighting that gate. Fixtures only — no runner, recorder, or serialization logic changed.
+- **Why:** a pre-flight of the 12-check GUI gate found (a) `mock-site/server.mjs` had no way to return a
+  non-2xx status, so "HTTP 500 is reported as a status error, not a timeout" was unrunnable, and (b) no
+  page anywhere had a table/list or empty-state panel (`grep -ci "table|tbody|empty" smart-waits.html` → 0),
+  so the empty-result contract was unrunnable.
+- **New scenario** `/async-results` (`mock-site/public/async-results.html`): loader + exactly one outcome
+  per action — three fixed invoice rows (`results-table`, rows in `tbody`), a **valid empty result**
+  (HTTP 200 + zero rows → table hidden, `empty-state` visible), or a selectable HTTP error
+  (`error-banner`). Controls `load-populated`, `load-empty`, `load-error`, `error-code`,
+  `results-delay-ms`, `reset-async-results`; event log; bounded delays only.
+- **New endpoints:** `/api/status?code=&ms=` returns an **allow-listed** status (200/201/202/204/400/401/
+  403/404/409/422/429/500/502/503/504; anything else → 500). **3xx is deliberately excluded** so the
+  endpoint can never act as an open redirect. `/api/results?mode=populated|empty&ms=` returns three fixed
+  rows or a 200 with zero rows — both successes, differing only in UI outcome.
+- **Files:** `mock-site/public/async-results.html` (new), `mock-site/server.mjs` (+2 endpoints, +1 route,
+  +2 constants), `mock-site/public/index.html`, `mock-site/README.md`, `scripts/verify-mock-site.mjs`.
+- **Verification:** `verify:mock-site` **55/55** (was 39/39; +16 new checks incl. an explicit assertion
+  that the empty branch renders **zero** rows so `tableHasRows` genuinely fails there, and that
+  `?code=302` is refused). Regression `verify:waits` 48/0, `verify:runner` 82/0, `verify:recorder` 78/0,
+  `npm run build` clean.
+- **Bead filed — `awkit-y24` (P2):** grouped completion composition. `FlowStep.completionMode` is one
+  per-step scalar over all `afterWaits`, giving only flat AND / flat OR, so `API success AND (tableHasRows
+  OR emptyStateVisible)` is **not expressible**: `resolveAnyRequired` runs `Promise.any` across every
+  required condition including the armed API response, so the API resolving first satisfies the step and
+  neither UI outcome is ever required. Not a regression — missing expressiveness. Blocks GUI check 11
+  configuration 3.
+- **Not run / limitations:** the fixtures are not yet exercised end-to-end by a runner verifier (the
+  HTTP-500 path is already covered inside `verify:waits`); the GUI gate itself still requires the
+  credential holder. Promotion remains **UNAPPROVED**.
+
+---
+
 ## 2026-07-22 — Claude (Opus 4.8) — awkit-54t: Async Completion editor + Recorder review-before-save
 
 - **Task:** the UI layer over the awkit-62o async model (bead awkit-54t). Same branch; earlier commits

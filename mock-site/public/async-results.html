@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Async Results and Empty State Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Async Results and Empty State Lab</h1>
+      <p class="hint">
+        Expected behavior: every action calls a local endpoint after a deterministic delay and settles into
+        exactly one outcome - populated rows, a valid empty state, or an HTTP error. Related AWKIT features:
+        async completion policies, response status handling, and empty-result contracts.
+      </p>
+
+      <section class="control-row" aria-label="Scenario controls">
+        <label for="resultsDelayMs">Delay milliseconds</label>
+        <input id="resultsDelayMs" data-testid="results-delay-ms" type="number" min="0" max="3000" value="300" />
+        <label for="errorCode">Error status</label>
+        <select id="errorCode" data-testid="error-code">
+          <option value="500">500</option>
+          <option value="502">502</option>
+          <option value="503">503</option>
+          <option value="429">429</option>
+          <option value="404">404</option>
+        </select>
+        <button id="resetLab" data-testid="reset-async-results" type="button">Reset lab</button>
+      </section>
+
+      <section class="scenario-grid" aria-label="Async result scenarios">
+        <article data-testid="scenario-populated">
+          <h2>Populated result</h2>
+          <p>Expected: loader appears, then the results table shows three rows.</p>
+          <button id="loadPopulated" data-testid="load-populated" type="button">Load results</button>
+        </article>
+
+        <article data-testid="scenario-empty">
+          <h2>Valid empty result</h2>
+          <p>Expected: HTTP 200 with zero rows. The table is hidden and the empty-state panel appears.</p>
+          <button id="loadEmpty" data-testid="load-empty" type="button">Load empty results</button>
+        </article>
+
+        <article data-testid="scenario-error">
+          <h2>Server error</h2>
+          <p>Expected: the endpoint answers immediately with the selected error status. This is a status
+             failure, not a timeout.</p>
+          <button id="loadError" data-testid="load-error" type="button">Trigger server error</button>
+        </article>
+      </section>
+
+      <section aria-label="Result surface">
+        <div id="resultsLoading" data-testid="results-loading" role="status" hidden>Loading results...</div>
+        <p id="resultsStatus" data-testid="results-status">No request yet</p>
+
+        <table id="resultsTable" data-testid="results-table" hidden>
+          <caption>Invoices</caption>
+          <thead>
+            <tr><th scope="col">Invoice</th><th scope="col">Customer</th><th scope="col">Amount</th><th scope="col">Status</th></tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+
+        <p id="emptyState" data-testid="empty-state" hidden>No invoices match the current filter.</p>
+        <p id="errorBanner" data-testid="error-banner" role="alert" hidden>Request failed</p>
+      </section>
+
+      <section aria-label="Event log">
+        <h2>Event log</h2>
+        <ul id="eventLog" data-testid="async-results-log"></ul>
+      </section>
+    </main>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+      var delay = function () { return Math.max(0, Math.min(Number($("resultsDelayMs").value) || 0, 3000)); };
+      var log = function (message) {
+        var item = document.createElement("li");
+        item.textContent = message;
+        $("eventLog").appendChild(item);
+      };
+
+      // Exactly one outcome surface is ever visible, so a completion contract can rely on it.
+      var clearOutcomes = function () {
+        $("resultsTable").hidden = true;
+        $("resultsBody").innerHTML = "";
+        $("emptyState").hidden = true;
+        $("errorBanner").hidden = true;
+      };
+
+      var reset = function () {
+        clearOutcomes();
+        $("resultsLoading").hidden = true;
+        $("resultsStatus").textContent = "No request yet";
+        $("eventLog").innerHTML = "";
+      };
+
+      var renderRows = function (rows) {
+        var body = $("resultsBody");
+        body.innerHTML = "";
+        rows.forEach(function (row) {
+          var tr = document.createElement("tr");
+          [row.id, row.customer, row.amount, row.status].forEach(function (value) {
+            var td = document.createElement("td");
+            td.textContent = value;
+            tr.appendChild(td);
+          });
+          body.appendChild(tr);
+        });
+        $("resultsTable").hidden = rows.length === 0;
+      };
+
+      var loadResults = function (mode) {
+        clearOutcomes();
+        $("resultsLoading").hidden = false;
+        $("resultsStatus").textContent = "Waiting for results";
+        log("request started (" + mode + ")");
+        fetch("/api/results?mode=" + encodeURIComponent(mode) + "&ms=" + encodeURIComponent(delay()))
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            $("resultsLoading").hidden = true;
+            renderRows(data.rows);
+            if (data.count === 0) {
+              $("emptyState").hidden = false;
+              $("resultsStatus").textContent = "Loaded 0 results (valid empty state)";
+              log("empty state shown");
+            } else {
+              $("resultsStatus").textContent = "Loaded " + data.count + " results";
+              log("rows rendered: " + data.count);
+            }
+          });
+      };
+
+      $("resetLab").addEventListener("click", reset);
+      $("loadPopulated").addEventListener("click", function () { loadResults("populated"); });
+      $("loadEmpty").addEventListener("click", function () { loadResults("empty"); });
+      $("loadError").addEventListener("click", function () {
+        clearOutcomes();
+        $("resultsLoading").hidden = false;
+        $("resultsStatus").textContent = "Waiting for results";
+        var code = $("errorCode").value;
+        log("request started (error " + code + ")");
+        fetch("/api/status?code=" + encodeURIComponent(code) + "&ms=" + encodeURIComponent(delay()))
+          .then(function (res) {
+            $("resultsLoading").hidden = true;
+            $("errorBanner").hidden = false;
+            $("errorBanner").textContent = "Request failed with HTTP " + res.status;
+            $("resultsStatus").textContent = "Request failed (HTTP " + res.status + ")";
+            log("error banner shown: HTTP " + res.status);
+          });
+      });
+      reset();
+    </script>
+  </body>
+</html>

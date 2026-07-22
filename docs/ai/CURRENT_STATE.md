@@ -9,6 +9,17 @@ checks (awkit-62o) implemented and verified**. On branch
 **awkit-54t (Flow Designer Async Completion editor + Recorder review UI) implemented**; remaining
 follow-up **awkit-4km** (202 job-polling, WebSocket/SSE, CDP).
 
+**Mock Site fixtures for the GUI gate (2026-07-22):** new `/async-results` scenario + `/api/status`
+(allow-listed codes, no 3xx) and `/api/results?mode=populated|empty`. These unblock two GUI-gate checks
+that previously had **no fixture**: HTTP-error-vs-timeout reporting, and the empty-result contract
+(HTTP 200 with zero rows → table hidden, `empty-state` visible). `verify:mock-site` **55/55**.
+
+**Known design gap — bead `awkit-y24` (P2):** `FlowStep.completionMode` is a single per-step scalar over
+all `afterWaits`, so only flat AND (`allRequired`) or flat OR (`anyRequired`) is expressible.
+`API success AND (tableHasRows OR emptyStateVisible)` **cannot be configured** — `resolveAnyRequired`
+races every required condition including the armed API response, so the API resolving first satisfies the
+step and neither UI outcome is ever required. Not a regression; blocks GUI check 11 configuration 3.
+
 **Manual gates run 2026-07-22:**
 - **Offline validation — PASS** (`validate:offline` strict, exit 0; bundle manifest/Chromium/Playwright/sql.js/samples intact).
 - **Packaged build/boot — PASS with an env caveat.** `package:portable` built the full app tree
