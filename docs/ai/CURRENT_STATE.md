@@ -14,27 +14,44 @@ follow-up **awkit-4km** (202 job-polling, WebSocket/SSE, CDP).
 that previously had **no fixture**: HTTP-error-vs-timeout reporting, and the empty-result contract
 (HTTP 200 with zero rows → table hidden, `empty-state` visible). `verify:mock-site` **55/55**.
 
-**Known design gap — bead `awkit-y24` (P2):** `FlowStep.completionMode` is a single per-step scalar over
-all `afterWaits`, so only flat AND (`allRequired`) or flat OR (`anyRequired`) is expressible.
-`API success AND (tableHasRows OR emptyStateVisible)` **cannot be configured** — `resolveAnyRequired`
-races every required condition including the armed API response, so the API resolving first satisfies the
-step and neither UI outcome is ever required. Not a regression; blocks GUI check 11 configuration 3.
+**Grouped completion `A AND (B OR C)` — bead `awkit-y24` (P2) IMPLEMENTED (2026-07-22, uncommitted):**
+A new `anyOf` OR-group `WaitCondition` (extends the union — not a fork) passes as soon as any child
+passes and fails only when all fail. As one *required* condition under `allRequired`, it expresses
+`API success AND (tableHasRows OR emptyStateVisible)`, so a 200 API alone no longer satisfies a step
+whose UI outcome is missing. Runner resolves it via `Promise.any` in `executeWaitCondition` (works under
+every completion policy); `FlowValidation.clampWaits` recurses into children; `reviewWait` rolls up the
+worst branch (so the intended rows-OR-empty config is not mislabeled a contradiction). Designer editor:
+`renderWaitEditor` refactored to `(wait, update)` so it renders nested branches recursively, plus a
+"+ OR group" button and token-only `.anyof-group`/`.anyof-branch` styles. `verify:waits` **52/0** (incl.
+"API ok but neither branch → fails"), round-trip covered by `verify:flow-step-mapping`. Unblocks GUI
+check 11 configuration 3 (the `/async-results` fixture already exposes `#resultsTable` + `empty-state`);
+the manual GUI walkthrough remains.
+
+**Async job polling — bead `awkit-4km` C1 IMPLEMENTED (2026-07-22, uncommitted):** a new `apiPolling`
+`WaitCondition` for the `202 Accepted → poll a status endpoint to terminal` pattern. `resolveApiPolling`
+observes the page's own repeated status responses (issues none itself) and completes on a terminal status
+range or a JSON `responseField`/`terminalValues`, bounded by `maxAttempts`. Designer editor + "Poll"
+scaffold; mock-site `/api/job` (deterministic 202×N → terminal, repeatable). `verify:waits` **56/0**,
+`verify:mock-site` **58/58**. WebSocket/SSE + CDP diagnostics remain deferred on awkit-4km.
 
 **Serialization round-trip hardening (2026-07-22):** `toFlowStep`/`fromFlowStep` (+ their `toNodeConfig`
 /`createValueSource` helpers) moved verbatim out of `pages/FlowChartDesigner.tsx` into
 `components/workflow/flowStepMapping.ts` so a verifier can execute the REAL production converters.
 Extraction proven behavior-preserving by diff (183 lines, byte-identical). New
-`verify:flow-step-mapping` **59/59** covers all 12 `WaitCondition` variants, both wait phases, condition
-ordering, required/optional flags, completion policies, empty-result/falsy preservation, legacy steps,
-defaults, clone/edit, and 3 serialization cycles for gradual drift.
+`verify:flow-step-mapping` **94/94** covers all `WaitCondition` variants (incl. `anyOf` + `apiPolling`),
+both wait phases, condition ordering, required/optional flags, completion policies, empty-result/falsy
+preservation, legacy steps, defaults, clone/edit, 3 serialization cycles for gradual drift, and (report
+§8) all 10 `valueSource` variants, compound locator `alternatives`/`context`, edge→`next`, and
+representative `step.config` breadth.
 
-**Known data-loss defect — bead `awkit-cxa` (P1):** `fromFlowStep` derives the node value from
-`step.url ?? valueSource?.…` and **never reads `step.value`**, so a step carrying only `value` (no
-`valueSource`, not a `goto`) loses it on one designer open+save. Reachable on shipped data —
-`resources/test-fixtures/mock-site/flows/mock-conditional-flow.json` stores its `condition` expression
-exactly that way and it is destroyed by a round trip. Found by the new verifier; **pre-existing**, not
-introduced by the extraction. Current behavior is **pinned** by two checks so the suite stays honest;
-fixing it is a runtime behavior change and was deliberately out of scope.
+**Data-loss defect — bead `awkit-cxa` (P1) FIXED (2026-07-22, uncommitted):** `fromFlowStep` now reads
+`step.value` and marks the node with a designer-only `valueSourceType: "none"` sentinel;
+`createValueSource` returns `undefined` for it, so `toFlowStep` re-emits `value` alone **without**
+fabricating a static `valueSource`. Bare condition expressions (e.g. shipped
+`mock-conditional-flow.json`) now survive a designer open+save. The two "KNOWN DEFECT" verifier checks
+were inverted to assert lossless preservation, plus string/numeric/boolean/json/empty coverage. The §8
+work surfaced two more drops of the same class — `generated` (`generator`) and `secret` (`secretName`)
+value sources — **also fixed** the same lossless way (value chain + a `secret` branch).
 
 **Manual gates run 2026-07-22:**
 - **Offline validation — PASS** (`validate-offline-bundle.ps1 -Strict`, exit 0, "Strict mode: passed").

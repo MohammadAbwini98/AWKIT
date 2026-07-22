@@ -5060,3 +5060,33 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   code-signed packaged EXE, Oracle live perf/soak under the new architecture) remain un-run and unchanged
   by this audit. Filed no new beads (used existing `awkit-gmn`/`awkit-ekd.6`/`awkit-ekd.7`); `awkit-7s5`
   (this audit) closed with the report as its resolution.
+
+### 2026-07-22 — Claude Code — Session-outcomes close-out (awkit-cxa P1, awkit-y24 P2, awkit-4km C1, §8 hardening)
+
+- **Task:** work the approved close-out plan for `SESSION_OUTCOMES_REPORT.md` (tracker:
+  `SESSION_OUTCOMES_CLOSEOUT.md`), on `feature/recorder-protected-login-and-async-awareness`.
+- **awkit-cxa (P1) FIXED:** designer round-trip preserves a bare `FlowStep.value` losslessly via a
+  designer-only `valueSourceType: "none"` sentinel (`flowStepMapping.ts`, `flowDesignerTypes.ts`); the two
+  pinned "KNOWN DEFECT" checks were inverted. Files: `flowStepMapping.ts`, `flowDesignerTypes.ts`,
+  `FlowNodePropertiesPanel.tsx`, `verify-flow-step-mapping.mts`.
+- **awkit-y24 (P2) IMPLEMENTED:** new `anyOf` OR-group `WaitCondition` (extends the union). Runner
+  `executeWaitCondition` resolves via `Promise.any`; `clampWaits` recursion; `reviewWait` rollup; designer
+  editor refactored to `(wait, update)` + "+ OR group" button + token CSS. Files: `FlowProfile.ts`,
+  `StepExecutor.ts`, `FlowValidation.ts`, `asyncCompletionReview.ts`, `FlowNodePropertiesPanel.tsx`,
+  `global.css`, `verify-waits.mts`, `verify-flow-step-mapping.mts`.
+- **awkit-4km C1 IMPLEMENTED:** new `apiPolling` `WaitCondition` (202 → poll-to-terminal). Runner
+  `resolveApiPolling` observes the page's poll responses; designer editor + "Poll" scaffold; mock-site
+  `/api/job`. WS/SSE + CDP stay deferred. Files: `FlowProfile.ts`, `StepExecutor.ts`,
+  `asyncCompletionReview.ts`, `FlowNodePropertiesPanel.tsx`, `mock-site/server.mjs`, `verify-waits.mts`,
+  `verify-flow-step-mapping.mts`, `verify-mock-site.mjs`.
+- **§8 coverage hardening:** added round-trip coverage for all 10 `valueSource` variants, compound locator
+  `alternatives`/`context`, edge→`next`, config breadth, pinned multi-key-outputs limitation. This
+  surfaced + **fixed** two more awkit-cxa-class drops (`generated`, `secret`).
+- **Verification (all green):** `verify:flow-step-mapping` 94/0, `verify:waits` 56/0, `verify:async-review`
+  21/0, `verify:recorder` 78/0, `verify:recorder-flow` 19/19, `verify:runner` 82/0, `verify:protected-login`
+  26/0, `verify:protected-login-recorder` 45/45, `verify:mock-site` 58/58, `verify:ipc-contract` 4/4, `tsc`
+  0, `npm run build` 0, `check-memory` pass.
+- **Not run / gates:** `verify:settings-persistence` (blocked — a dev Electron instance holds the
+  single-instance lock; not force-killed); packaged installer + `validate:offline` -Strict (packaging host
+  gate); packaged-renderer visual paint + GUI check 11.3 walkthrough (need screen access). No commit/push
+  (conservative profile — awaiting approval).
