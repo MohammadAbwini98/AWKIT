@@ -33,6 +33,13 @@ import {
   type FlowDesignerEdge as FlowDesignerEdgeAlias,
   type FlowDesignerNode as FlowDesignerNodeAlias
 } from "../components/workflow/flowStepMapping";
+import {
+  flowEdgeKind,
+  flowEdgeToNormal,
+  incompleteBranchPairMessage,
+  incompleteBranchPairs,
+  revertLoneBranchConnectors
+} from "../components/shared/branchPairs";
 import { DesignerCanvasLayout } from "../layout/DesignerCanvasLayout";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
@@ -41,7 +48,6 @@ import { usePageChrome } from "../state/pageChrome";
 import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
 import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
-import { connectorKind } from "@src/profiles/FlowProfile";
 
 const nodeTypes = {
   actionNode: ActionFlowNode
@@ -100,19 +106,15 @@ function createEdge(
   };
 }
 
-/** Structured kind of a Flow Designer edge (data.kind, or derived from its legacy linkType). */
-function flowEdgeKind(edge: FlowDesignerEdge): string {
-  return edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" });
-}
-
 /**
- * Branch-connector reconciliation was tied to the old two-port node model (slotting a node's
- * conditional/parallel pair to distinct ports). The custom engine routes every connector
- * bottom→top, so there are no ports to slot and this is now a pass-through kept only so call
- * sites read unchanged. Connector *kind* + config still live on `edge.data` and drive validation.
+ * Branch-pair invariant (FR-2.6): when a node named in `revertSources` is left holding exactly one
+ * conditional/parallel connector — its pair partner, or the node that partner pointed at, was just
+ * deleted — the survivor collapses back to a normal connector. The port-slotting this function
+ * also used to do died with the two-port node model; the semantics live in
+ * `components/shared/branchPairs.ts` so both editors and a verifier share one implementation.
  */
-function reconcileFlowBranches(edges: FlowDesignerEdge[], _revertSources?: Set<string>): FlowDesignerEdge[] {
-  return edges;
+function reconcileFlowBranches(edges: FlowDesignerEdge[], revertSources?: Set<string>): FlowDesignerEdge[] {
+  return revertLoneBranchConnectors(edges, { kindOf: flowEdgeKind, toNormal: flowEdgeToNormal, revertSources });
 }
 
 /** Node size is measured from the rendered card by the engine, so this is now an identity pass. */
@@ -203,7 +205,7 @@ function FlowChartDesignerContent() {
   const loopControlledSources = useMemo(() => {
     const set = new Set<string>();
     edges.forEach((edge) => {
-      if (edge.source === edge.target && (edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" })) === "loop") {
+      if (edge.source === edge.target && flowEdgeKind(edge) === "loop") {
         set.add(edge.source);
       }
     });
@@ -1056,15 +1058,16 @@ function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): str
 }
 
 /**
- * Connector-structure rules (Points 2–4) that block Save until fixed: at most one
+ * Connector-structure rules (Points 2–5) that block Save until fixed: at most one
  * standard (non-conditional/non-parallel) outgoing connector per node, loop connectors
- * must return to the same node, and additional connectors from a loop-controlled node
- * must be Conditional. Exposed separately from `validateFlow` so `saveFlow` can gate on
+ * must return to the same node, additional connectors from a loop-controlled node
+ * must be Conditional, and a branch connector may not be left alone without a fallback
+ * (FR-2.6). Exposed separately from `validateFlow` so `saveFlow` can gate on
  * just these structural issues without also blocking on cosmetic/locator warnings.
  */
 function connectorStructureIssues(edges: FlowDesignerEdge[], nodeName: (id: string) => string): string[] {
   const messages: string[] = [];
-  const kindOf = (edge: FlowDesignerEdge) => edge.data?.kind ?? connectorKind({ type: edge.data?.linkType ?? "success" });
+  const kindOf = flowEdgeKind;
 
   // Point 4: loop connectors must connect a node to itself only. The legacy `loopBack`
   // edge type (Enhanced Connectors, Phase 1) is an intentional cross-node back-edge and
@@ -1099,6 +1102,12 @@ function connectorStructureIssues(edges: FlowDesignerEdge[], nodeName: (id: stri
     if (kindOf(edge) !== "conditional") {
       messages.push(`Node "${nodeName(edge.source)}" has a loop connector. Additional outgoing connectors from a loop node must be Conditional.`);
     }
+  });
+
+  // Point 5 (FR-2.6): a lone conditional/parallel connector with nothing to fall back to. Loading
+  // such a profile never rewrites it — it is reported here so the user chooses the repair.
+  incompleteBranchPairs(edges, kindOf).forEach(({ source, kind }) => {
+    messages.push(incompleteBranchPairMessage(nodeName(source), kind));
   });
 
   return messages;
