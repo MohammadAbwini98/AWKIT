@@ -1,6 +1,158 @@
 # Agent Handoff
 
-Last updated: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
+Last updated: **2026-07-23 (later — FR-2.6 branch-pair fix implemented + Canvas UX SRS reconciled)**
+
+> **Read this block first. Four local branches exist, none pushed. One acceptance gate blocks all
+> backend implementation. Nothing is paused mid-edit.**
+>
+> **Update (2026-07-23, later session):** the confirmed FR-2.6 defect below (both editors' branch
+> reconcilers were no-op pass-throughs) is now **FIXED and VERIFIED** on `feature/canvas-ux-foundation`
+> — new shared `app/renderer/components/shared/branchPairs.ts` + `verify:branch-pairs` (31/31), and
+> `docs/SRS_CANVAS_UX.md` has been **reconciled** against the in-house engine. Commits `62aca6d`
+> (fix), `92b40b5` (test), `209de4a` (SRS), `25b2334` (state/log) — none pushed. The owner decision
+> the "Open decision" note below asked for was taken (hybrid rule; see FR-2.6 in the SRS and the
+> top TASK_LOG entry). **`.beads/issues.jsonl` remains uncommitted** (prior session's cross-branch
+> beads — the splice hazard). The frontend "Recommended next step" below is therefore **done**;
+> what remains is the backend/clean-machine track.
+
+## Branch map (all local, nothing pushed, no PRs)
+
+| Branch | Tip | Contents |
+|---|---|---|
+| `feature/recorder-protected-login-and-async-awareness` | `61f6099` | **FROZEN** — merged to `main` via PR #25 (`5cef580`). Do not modify until the clean-machine gate clears. |
+| `docs/browser-automation-srs` | `32ed8c4` | `docs/SRS_BROWSER_AUTOMATION_OBSERVABILITY.md` + 4 defect beads + a bead cross-ref fix |
+| `docs/offline-packaging-beads` | `3fa2876` | 2 packaging-provenance beads |
+| `feature/canvas-ux-foundation` | `25b2334` | `verify:canvas-layout` **+ FR-2.6 branch-pair fix** (`branchPairs.ts`, `verify:branch-pairs` 31/31) + reconciled `docs/SRS_CANVAS_UX.md`. Tip was `63eef5c`. |
+
+**Local `main` is stale at `382847c`.** `origin/main` is `5cef580`. Always compare scope against
+`origin/main`, never local `main`, or diffs falsely show ~17 extra commits.
+
+## THE BLOCKING GATE — clean-machine acceptance
+
+`CLEAN_MACHINE_VALIDATION_RUNBOOK.md` is **Not Executed**. Until it passes: no backend SRS
+implementation, no changes to the frozen branch. Required sequence:
+
+1. Rebuild **both** portable + NSIS artifacts from `61f6099` on a **higher-memory host**.
+2. Transfer + verify the preserved offline payload (below).
+3. Re-pin runbook §2 with new hashes **and** provenance fields.
+4. Execute the clean offline Windows validation.
+5. Promote or reject `61f6099`.
+6. Reconcile `CURRENT_STATE.md` / `TASK_LOG.md` for `f600959` / `61f6099` / PR #25 (still owed).
+7. Only then start backend Tranche 0.
+
+### Artifact regeneration result (2026-07-22)
+
+Rebuilt from a detached worktree at `61f6099` + the preserved payload:
+
+- **NSIS: SUCCEEDED.** `SpecterStudio Setup 0.1.0.exe`, 373,894,726 bytes, SHA-256
+  `4df7fa6402c9c551ca1c6e6310a8e21c8c61a0097884b316eeca1ba41f1ec333`, NotSigned. Chromium
+  **149.0.7827.55** verified *inside* the installer via `7za l`.
+- **Portable: FAILED.** 7-Zip `-mx=9` OOM ("Can't allocate required memory!") compressing 1,177 MiB;
+  host commit charge was saturated at 31.1/31.8 GB. `dist/win-unpacked` (1.2 GB) completed but is
+  **not** a substitute. **Do not retry on the 15.9 GB dev host.**
+- Evidence archived at `C:\Users\moham\awkit-build-evidence\61f6099\` (357 MB): installer (hash
+  re-verified after copy), `provenance.md`, `payload-verification.txt`, `SHA256SUMS.txt`, all build
+  logs. The disposable worktree was removed.
+
+**⚠ The build is NOT hermetic from Git.** `vendor/` is fully gitignored (0 files tracked);
+`resources/browsers/` and `resources/oracle-jdbc/` too. `electron-builder.json` copies both trees
+wholesale as `extraResources`, so a clean checkout builds a **hollow artifact with no bundled
+Chromium** that still installs and launches. The ~832 MB payload must be transferred out-of-band.
+Do **not** run `scripts/prepare-offline-deps.ps1` — it issues an unpinned `npx playwright install
+chromium` and would swap an uncontrolled input. Tracked as **`awkit-epz` (P1)**.
+
+**Reproducibility expectation:** `package-per-user-installer.ps1` regenerates
+`resources/dependency-manifest.json` (fresh `builtAt`) on every run and packages it, so **installer
+SHA-256 equality is not achievable** even from identical inputs. Compare **decompressed payload**
+paths/sizes/per-entry CRCs instead, excluding that manifest and its `vendor/` copy. Final hashes are
+still recorded for pinning — they identify the accepted build, not reproducible compilation.
+
+## Beads filed this session (6)
+
+| Bead | P | Summary |
+|---|---|---|
+| `awkit-ebh` | P1 | Popup registered under two aliases; counter key is positional |
+| `awkit-oyc` | P1 | Failure evidence captured after the retry loop, not at the failing attempt |
+| `awkit-5yx` | P1 | `resolveArtifactSettings().screenshotOnFailure` computed but never read |
+| `awkit-oei` | P2 | Success path logs cleanup as `execution-failed-cleanup` (**log text only** — verified NOT to reach pool analytics) |
+| `awkit-epz` | P1 | Offline packaging inputs untracked/unverified; clean checkout → hollow artifact |
+| `awkit-c0c` | P2 | `dependency-manifest` `builtAt` conflates manifest generation with payload provenance |
+
+## Frontend (independent of the gate)
+
+`feature/canvas-ux-foundation` @ `63eef5c` adds `scripts/verify-canvas-layout.mts`
+(`npm run verify:canvas-layout`, **35/35**). **No production code changed** — the auto-layout defect it
+was scoped to fix was already fixed on `main`; the gap was that no verifier referenced
+`app/renderer/components/shared/graphLayout.ts`.
+
+**`docs/SRS_CANVAS_UX.md` (2026-07-10) is materially STALE — do not implement from it directly.** A
+read-only sweep found:
+
+- **Already implemented:** Workflow Builder edge "+" (`ScenarioBuilder.tsx:576-586`); FR-1.4 button
+  semantics (`SmoothEdge.tsx:54-65`); load-time auto-layout + manual Auto-arrange; dotted background
+  consistency (all three canvases pass `gap={22} size={2}`).
+- **Renamed/moved:** `TemplateSmoothEdge` → `components/canvas/edges/SmoothEdge.tsx`; branch helpers →
+  `components/shared/connectorStyle.ts`.
+- **Every cited `global.css` line number is wrong** (764 / 2886 / 7678); the file is now 10,162 lines.
+  FR-4.2's token values are stale (light is `#c4c9d2`, dark `#2c3140`).
+- **Confirmed defect — FR-2.6 fails in BOTH editors.** `reconcileBranchConnectors`
+  (`connectorStyle.ts:198`) is **dead code** (zero call sites). `reconcileFlowBranches`
+  (`FlowChartDesigner.tsx:114`) and `reconcileScenarioBranches` (`ScenarioBuilder.tsx:1660`) are
+  identical no-op pass-throughs that ignore `_revertSources`. The editors are at *parity*, both having
+  lost the lone-branch revert. `ScenarioBuilder.tsx:1658`'s comment still claims the revert happens.
+  Neither `connectorStructureIssues` nor its scenario twin flags a lone branch member, so it **saves
+  silently**; at run time `FlowExecutor.ts:528-544` falls through to a "stop safely" default, i.e. the
+  flow **silently truncates**. A lone *parallel* instead fans out one branch through join/fail
+  machinery (`FlowExecutor.ts:157-161`). **No verifier covers branch reconciliation.**
+- **Consolidation hazard:** four `prefers-reduced-motion` blocks (`:7438`, `:7791`, `:8984`, `:9676`).
+  The global one uses `!important` on `transition-property`; two others use the non-important
+  `transition: none` shorthand, which still suppresses via `transition-duration: 0s`. Merging them
+  naively **would change behavior** — analyze, do not merge blindly.
+- **Not verified:** focus states, keyboard navigation, icon labels across the canvases.
+
+**Open decision — RESOLVED (2026-07-23, later).** The owner chose a **hybrid**: interactive
+deletion auto-reverts the lone survivor to a normal connector (editor never leaves a graph it can
+deterministically repair), while **existing/imported** lone branches are **Save-blocking** rather
+than silently rewritten on load, and a lone branch **with a standard fallback** (valid if/else) is
+exempt. Implemented in `components/shared/branchPairs.ts`; both editors' `reconcile*Branches` and
+`connectorStructureIssues` now use it; dead `reconcileBranchConnectors` removed. Also corrected: a
+lone branch does **not** truncate at run time — a lone conditional routes with its condition
+ignored, a lone parallel runs its target twice. Verified `verify:branch-pairs` 31/31 + both GUI
+verifiers green.
+
+## Verification run this session
+
+`npm run build` clean (tsc + all bundles). `npx tsx scripts/verify-canvas-layout.mts` **35/35**.
+`npm ci` on the rebuild worktree exit 0. Packaging: NSIS exit 0, portable exit 1 (OOM, above).
+**Not run:** `verify:runner`, `verify:recorder`, GUI/mock-site/packaging verifiers — no runner,
+recorder, renderer, or packaging *source* was modified. `npm test` / `npm run lint` still do not exist.
+
+## Do not touch without confirmation
+
+- The frozen branch `feature/recorder-protected-login-and-async-awareness` @ `61f6099`.
+- `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` §2 hashes — re-pinning is its own authorized docs-only change.
+- `docs/SRS_BROWSER_AUTOMATION_OBSERVABILITY.md` FR-H4: the protected-login profile stays **opaque**.
+  Cookie extraction / entropy scanning was investigated and **rejected** — adding extraction would
+  create the exposure a scanner then manages.
+- `bd dolt push` — deliberately unsynced; `.beads/issues.jsonl` is the repo state.
+
+**Beads gotcha:** `bd create` / `bd update` **auto-write a full export over `.beads/issues.jsonl`**.
+On a branch carrying a curated subset this silently drags in unrelated beads. Procedure: run the `bd`
+writes → `git restore .beads/issues.jsonl` → `bd export -o <TEMP>` → diff **by id** → splice only the
+intended ids (preserving CRLF) → verify N replacements / 0 additions before staging.
+
+## Recommended next step
+
+**Backend (the remaining track):** rebuild both artifacts on the higher-memory host (§ above), then
+work the gate sequence. **Frontend:** the SRS reconcile and the FR-2.6 fix (both were the recommended
+next steps) are **done** on `feature/canvas-ux-foundation` — see the update note at the top of this
+file. Remaining frontend follow-ups are optional: the node-attached "+" (FR-1.3, unbuilt), loop
+routing-priority authoring surfacing (FR-2.9), and pruning the vestigial port helpers in
+`connectorStyle.ts` (`portHandlesForKind`/`computePortFlags`/`portFlags`).
+
+---
+
+Previously: **2026-07-19 (E2E-defects fix session)** — **All open E2E-assessment product findings FIXED**,
 merged to **clean `main` @ `79e9999`** via **PR #22** (bd **`awkit-64x`** + **`awkit-b92`**, both CLOSED).
 Working tree **clean**, **no open PRs**, **no uncommitted work** — start the next task from `main`, normal Git
 flow (push/PR only when the user asks). Read this block + the top of `docs/ai/CURRENT_STATE.md` and
