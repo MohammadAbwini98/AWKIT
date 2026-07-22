@@ -7,6 +7,7 @@ import { getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../ap
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { getSessionService } from "./session.ipc";
+import { getUiSettings } from "../uiSettings";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -29,10 +30,14 @@ export function registerRecorderIpc(): void {
       executablePath = bundled.executablePath;
       console.log(`[offline] Recorder using bundled Chromium: ${executablePath}`);
     }
+    // The protected-login ignore flag is read from persisted Settings (single source of truth) so it
+    // is always current regardless of when the Recorder page loaded it.
+    const settings = await getUiSettings();
     await recorderService.startRecording(url, {
       executablePath,
       captureWaitTime: options?.captureWaitTime ?? false,
-      captureSmartWaits: options?.captureSmartWaits ?? true
+      captureSmartWaits: options?.captureSmartWaits ?? true,
+      ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false
     });
     return recorderService.getStatus();
   });
@@ -80,6 +85,12 @@ export function registerRecorderIpc(): void {
   ipcMain.handle("recorder:cancelHandoff", async () => {
     await recorderService.cancelSecureHandoff();
     return { success: true };
+  });
+
+  // Session-level "Ignore and continue recording": treat the active protected detection as a false
+  // positive and resume the same recorder session (never bypasses authentication).
+  ipcMain.handle("recorder:ignoreProtectedDetection", async () => {
+    return recorderService.ignoreCurrentProtectedDetection();
   });
 
   ipcMain.handle("recorder:saveFlow", async (_, name: string, actions: RecordedAction[]) => {

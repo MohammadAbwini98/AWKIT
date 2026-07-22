@@ -45,6 +45,13 @@ export interface UiSettings {
     captureWaitTime: boolean;
     /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
     captureSmartWaits: boolean;
+    /**
+     * When true, the Recorder does not automatically pause on a detected protected login / SSO page /
+     * protected popup. This ONLY changes AWKIT's pause/observation behavior — it never bypasses
+     * authentication, CAPTCHA, MFA, SSO, or browser security. The user still completes any real login
+     * manually. Default false. Use only for authorized apps where detection is a false positive.
+     */
+    ignoreProtectedLoginDetection: boolean;
   };
   /** Last run settings (what the user last launched). */
   instanceRunSettings: {
@@ -152,7 +159,8 @@ const defaultSettings: UiSettings = {
   selectedBuilderWorkflowId: "",
   recorder: {
     captureWaitTime: false,
-    captureSmartWaits: true
+    captureSmartWaits: true,
+    ignoreProtectedLoginDetection: false
   },
   workflowBuilder: {
     selectedConnectorCollapsed: false,

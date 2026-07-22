@@ -1,5 +1,28 @@
 # CURRENT_STATE
 
+## Recorder protected-login controls + SSO false-positive fix — Phase A DONE, verified (2026-07-22)
+
+On branch **`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Phase A
+of the two-part `AWKIT_RECORDER_PROTECTED_LOGIN_AND_ASYNC_ACTIVITY` prompt; Phase B (unified async
+activity engine) is next.
+- **Detector confidence:** `ProtectedLoginDetector.detectFromSignals`/`detectFromRecorderSignals` now
+  return `confidence` (`low|medium|high`) + `recommendedAction` (`continue|warn|pause`). Text-only
+  `sso` ("single sign-on"/"identity provider") with no provider host and no DOM affordance → low/
+  continue (the false positive). Providers, CAPTCHA, MFA, passkey, security-check, and a detected
+  password field stay `pause`. Recorder + the two runner auto-pause sites gate on `recommendedAction`.
+- **Ignore controls:** `recorder.ignoreProtectedLoginDetection` setting (default false); session-level
+  "Ignore and continue recording" (`RecorderService.ignoreCurrentProtectedDetection` + IPC
+  `recorder:ignoreProtectedDetection`) resumes the SAME page (browser now stays open during the
+  "detected" phase; capture bindings early-return while paused so nothing protected is recorded);
+  per-session loop-guard keys prevent re-pausing the same ignored detection.
+- **UI:** Settings → Recorder card (toggle + confirmation dialog, immediate persist); Recorder handoff
+  card gained "Ignore and continue recording" (first action) + a non-blocking session notice.
+- **Mock site:** `/mock/sso-text-app` false-positive fixture.
+- **Verified:** `verify:protected-login` 26/0, `verify:protected-login-recorder` 45/45, `verify:runner`
+  82/0, `verify:mock-site` 39/39, `verify:waits` 21/0, `verify:recorder` 72/0,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `npm run build` clean. **Not run:**
+  Electron GUI walkthrough of the handoff card (manual gate).
+
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 
 Implemented the plan to close the open E2E-QA findings (bd **`awkit-64x`** + **`awkit-b92`**,

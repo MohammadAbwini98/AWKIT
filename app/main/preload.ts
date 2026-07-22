@@ -300,11 +300,11 @@ const api = {
   },
   recorder: {
     start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
-      ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number }>,
+      ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>,
     stop: () => ipcRenderer.invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => ipcRenderer.invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => ipcRenderer.invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
-    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number }>,
+    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>,
     getUrls: () => ipcRenderer.invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => ipcRenderer.invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,
@@ -315,7 +315,10 @@ const api = {
       ipcRenderer.invoke("recorder:continueWithNormalBrowser") as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
     captureSessionAndResume: (sessionName?: string) =>
       ipcRenderer.invoke("recorder:captureSessionAndResume", sessionName) as Promise<import("@src/recorder/RecorderTypes").RecorderHandoffInfo>,
-    cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>
+    cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>,
+    // Session-level "Ignore and continue recording" for a false-positive protected detection.
+    ignoreProtectedDetection: () =>
+      ipcRenderer.invoke("recorder:ignoreProtectedDetection") as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>
   },
   secrets: {
     // Manage operator secrets by NAME only. `set` sends a plaintext value to be encrypted in the

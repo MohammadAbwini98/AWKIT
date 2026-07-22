@@ -30,6 +30,7 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 | `/mock/protected-popup-captcha` | Recorder CAPTCHA-popup detection | Opens a popup with a reCAPTCHA-like `iframe[src*=recaptcha]` placeholder and `[aria-label*=captcha]`. Recorder must detect and pause. No CAPTCHA solving is implemented. |
 | `/mock/protected-popup-otp` | Recorder OTP-popup detection | Opens a popup with an `input[autocomplete="one-time-code"]` and `Complete Manual Verification`. Recorder must detect and pause; completing it shows a verified marker. |
 | `/mock/session-reuse` | Reuse Session node | NOT a protected login (Recorder must not pause). Toggles logged-out/logged-in states with a visible authenticated marker (`data-testid` `auth-status`, `dashboard`) for testing `Reuse Session`. |
+| `/mock/sso-text-app` | Protected-login false-positive (confidence detector) | A normal authenticated app page that merely contains the text "single sign-on" / "identity provider" — no password field, MFA, or CAPTCHA. The Recorder must **not** pause (low-confidence → continue). `data-testid` `open-reports`, `reports-panel`. |
 | `/api/delay?ms=300` | Runner/Smart Wait response waits | Returns local JSON after a bounded deterministic delay. |
 
 ## Using it with Recorder

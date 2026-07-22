@@ -199,7 +199,9 @@ export class StepExecutor {
       // Auto protected-login detection after navigation-type steps (never bypasses — only pauses).
       if (result.status === "passed" && PROTECTED_LOGIN_AUTODETECT_STEPS.has(step.type)) {
         const detection = await detectProtectedLogin(this.activePage).catch(() => null);
-        if (detection && detection.detected) {
+        // Only auto-pause on a genuine protected surface. Low-confidence signals (e.g. a page that
+        // merely contains "single sign-on" text) recommend `continue` and must not pause the run.
+        if (detection && detection.detected && detection.recommendedAction === "pause") {
           const info: HandoffInfo = {
             kind: "protectedLogin",
             message: detection.message,
@@ -760,9 +762,10 @@ export class StepExecutor {
             this.locatorFactory.setPage(this.activePage);
           });
         }
-        // Run protected-login detection on the popup page.
+        // Run protected-login detection on the popup page. Only a genuine (pause-recommended)
+        // protected surface pauses — low-confidence text signals let the run continue.
         const detection = await detectProtectedLogin(popupPage).catch(() => null);
-        if (detection?.detected) {
+        if (detection?.detected && detection.recommendedAction === "pause") {
           const info: HandoffInfo = {
             kind: "protectedLogin",
             message: detection.message,

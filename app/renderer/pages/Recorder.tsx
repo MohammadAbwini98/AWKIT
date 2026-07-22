@@ -20,6 +20,8 @@ export function Recorder() {
   const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
   const [sessionNameInput, setSessionNameInput] = useState("");
+  /** True while protected-login detection is being ignored (global setting or session override). */
+  const [protectedDetectionIgnored, setProtectedDetectionIgnored] = useState(false);
 
   const [urls, setUrls] = useState<RecordedUrl[]>([]);
   const [urlSearch, setUrlSearch] = useState("");
@@ -54,7 +56,10 @@ export function Recorder() {
         .then(setHandoff)
         .catch(() => undefined);
       window.playwrightFlowStudio.recorder.getStatus()
-        .then((status) => setIsRecording(status.isRecording))
+        .then((status) => {
+          setIsRecording(status.isRecording);
+          setProtectedDetectionIgnored(status.protectedDetectionIgnored ?? false);
+        })
         .catch(() => undefined);
     };
     poll();
@@ -162,6 +167,23 @@ export function Recorder() {
       setStatusMsg("Recording cancelled.");
     } catch (err: any) {
       setStatusMsg(`Error: ${err.message}`);
+    }
+  };
+
+  const handleIgnoreProtected = async () => {
+    setHandoffBusy(true);
+    try {
+      const status = await window.playwrightFlowStudio.recorder.ignoreProtectedDetection();
+      setHandoff(null);
+      setIsRecording(status.isRecording);
+      setProtectedDetectionIgnored(status.protectedDetectionIgnored ?? true);
+      setStatusMsg("Protected detection ignored for this session. Complete any real login manually.");
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    } catch (err: any) {
+      setStatusMsg(`Could not resume recording: ${err?.message ?? err}`);
+      window.playwrightFlowStudio.recorder.getHandoff().then(setHandoff).catch(() => undefined);
+    } finally {
+      setHandoffBusy(false);
     }
   };
 
@@ -350,6 +372,16 @@ export function Recorder() {
         </div>
       </section>
 
+      {protectedDetectionIgnored && isRecording && !showHandoffPanel ? (
+        <div className="recorder-ignore-notice" role="status" data-testid="protected-ignore-notice">
+          <ShieldAlert size={15} />
+          <span>
+            Protected login detection is ignored for this Recorder session. Authentication and security
+            steps (login, MFA, CAPTCHA) must still be completed manually.
+          </span>
+        </div>
+      ) : null}
+
       {showHandoffPanel && handoff ? (
         <section
           className={`recorder-handoff-panel${handoff.phase === "error" ? " is-error" : ""}`}
@@ -390,10 +422,24 @@ export function Recorder() {
           ) : null}
 
           <div className="recorder-handoff-actions">
-            {handoff.phase === "detected" || handoff.phase === "error" ? (
+            {handoff.phase === "detected" ? (
               <button
                 type="button"
                 className="toolbar-button primary"
+                data-testid="handoff-ignore-continue"
+                disabled={handoffBusy}
+                onClick={() => void handleIgnoreProtected()}
+                title="Treat this as a false positive and keep recording on the same page. Does not bypass authentication."
+              >
+                <PlayCircle size={16} />
+                Ignore and continue recording
+              </button>
+            ) : null}
+
+            {handoff.phase === "detected" || handoff.phase === "error" ? (
+              <button
+                type="button"
+                className="toolbar-button"
                 data-testid="handoff-continue-browser"
                 disabled={handoffBusy}
                 onClick={() => void handleContinueBrowser()}

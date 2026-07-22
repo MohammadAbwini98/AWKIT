@@ -97,6 +97,13 @@ export interface RecorderHandoffInfo {
   origin: string;
   /** Detection reason (login-form / mfa / captcha / passkey / sso / …). */
   reason: string;
+  /** Confidence that this is a genuine protected surface (low/medium/high). */
+  confidence?: "low" | "medium" | "high";
+  /**
+   * Stable per-session key for this detection (origin + reason). Used to suppress re-pausing on the
+   * same ignored detection after "Ignore and continue recording". Never contains secrets.
+   */
+  detectionKey?: string;
   /** Secret-free descriptions of what matched (e.g. "password field", "captcha iframe"). */
   signals: string[];
   /** ISO timestamp of detection. */

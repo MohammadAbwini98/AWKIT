@@ -225,6 +225,40 @@ export function SettingsPage() {
     []
   );
 
+  // Recorder → "Ignore protected login detection". Persisted immediately (it is not part of the
+  // batched Save button). Enabling requires an explicit confirmation; cancelling restores the toggle
+  // and persists nothing. This never bypasses authentication — it only changes the pause behavior.
+  const setIgnoreProtectedLogin = useCallback(
+    async (next: boolean) => {
+      if (next) {
+        const confirmed = window.confirm(
+          "Ignore protected login detection?\n\n" +
+            "AWKIT will no longer automatically pause the Recorder when it detects a protected login " +
+            "page, single sign-on page, or protected popup.\n\n" +
+            "This option does not bypass authentication or security controls. You remain responsible " +
+            "for completing any login, MFA, CAPTCHA, or security confirmation manually.\n\n" +
+            "Enable this only for authorized applications where the detection is producing a false positive."
+        );
+        if (!confirmed) return; // keep disabled, restore the toggle, persist nothing
+      }
+      setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, ignoreProtectedLoginDetection: next } } : prev));
+      setBanner(null);
+      try {
+        await api.update({ recorder: { ignoreProtectedLoginDetection: next } });
+        setBanner({
+          type: "success",
+          text: next
+            ? "Protected login detection will be ignored in new Recorder sessions."
+            : "Protected login detection re-enabled."
+        });
+      } catch {
+        setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, ignoreProtectedLoginDetection: !next } } : prev));
+        setBanner({ type: "error", text: "Failed to update the recorder setting." });
+      }
+    },
+    [api]
+  );
+
   const save = useCallback(async () => {
     if (!settings) return;
     const validation = validateClient(settings);
@@ -381,6 +415,30 @@ export function SettingsPage() {
             </label>
             <p className="form-message">Applied immediately and remembered. System follows the Windows theme.</p>
           </div>
+        </section>
+
+        {/* Recorder — Protected Login Detection */}
+        <section className="work-panel settings-card">
+          <div className="settings-card-head">
+            <ShieldCheck size={16} />
+            <h2>Recorder</h2>
+          </div>
+          <div className="settings-grid">
+            <label className="inline-check">
+              <input
+                type="checkbox"
+                data-testid="ignore-protected-login-toggle"
+                checked={settings.recorder.ignoreProtectedLoginDetection}
+                onChange={(ev) => void setIgnoreProtectedLogin(ev.target.checked)}
+              />
+              Ignore protected login and protected popup detection
+            </label>
+          </div>
+          <p className="form-message">
+            Prevents the Recorder from automatically pausing when a protected login, single sign-on
+            page, or protected popup is detected. This does not bypass authentication, CAPTCHA, MFA,
+            SSO, or browser security. Use it only when AWKIT incorrectly classifies an authorized page.
+          </p>
         </section>
 
         {/* Paths & Directories */}

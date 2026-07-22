@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — Recorder protected-login controls + SSO false-positive fix (Phase A of 2)
+
+- **Task:** implement `AWKIT_RECORDER_PROTECTED_LOGIN_AND_ASYNC_ACTIVITY` prompt, phased & regression-safe.
+  Phase A = protected-login controls; Phase B (async activity engine) to follow. Branch
+  `feature/recorder-protected-login-and-async-awareness` (off main). Not pushed.
+- **Root cause:** `src/security/ProtectedLoginDetector.ts` treated plain text "single sign-on" /
+  "identity provider" as `reason: sso` with **no confidence level**, and the recorder auto-paused +
+  closed the browser on any `detected`. Normal internal HTTPS apps containing that phrase paused.
+- **Detector:** added `confidence` (`low|medium|high`) + `recommendedAction` (`continue|warn|pause`).
+  Only text-only `sso` (no provider host, no DOM affordance) → low/continue; providers, CAPTCHA, MFA,
+  passkey, security-check, and a detected password field all stay `pause`. Pure `classifyProtection`.
+- **RecorderService:** pause now gated on `recommendedAction === "pause"` + ignore controls
+  (session override, global setting, per-session loop-guard keys). `beginHandoff` now keeps the
+  automation browser OPEN during the "detected" phase (closed only on manual handoff) so
+  "Ignore and continue recording" (`ignoreCurrentProtectedDetection`) resumes the same page; added
+  `if(!isRecording)return` guards to the `__awtkit_recordAction`/`__awtkit_recordSignal` bindings so
+  nothing on a protected page is ever recorded while paused.
+- **Runner:** the two auto-pause entry points in `StepExecutor.ts` (post-nav + popup) also gate on
+  `recommendedAction === "pause"`; manual-handoff retry loop + explicit ManualHandoff node unchanged.
+- **Settings:** `recorder.ignoreProtectedLoginDetection` (default false) in `app/main/uiSettings.ts`;
+  read server-side in `recorder:start`. New IPC `recorder:ignoreProtectedDetection` + preload method.
+  Settings page card with confirmation dialog (immediate persist); Recorder page "Ignore and continue
+  recording" button + non-blocking session notice.
+- **Mock site:** new `/mock/sso-text-app` false-positive fixture. **Files:**
+  `ProtectedLoginDetector.ts`, `RecorderTypes.ts`, `RecorderService.ts`, `StepExecutor.ts`,
+  `app/main/uiSettings.ts`, `app/main/ipc/recorder.ipc.ts`, `app/main/preload.ts`,
+  `app/renderer/pages/{Recorder,Settings}.tsx`, `app/renderer/styles/global.css`,
+  `scripts/verify-protected-login{,-recorder}.mts`, `mock-site/public/secure-login/sso-text-app.html`,
+  `mock-site/README.md`.
+- **Verification (all green):** `verify:protected-login` 26/0 · `verify:protected-login-recorder` 45/45
+  · `verify:runner` 82/0 · `verify:mock-site` 39/39 · `verify:waits` 21/0 · `verify:recorder` 72/0 ·
+  `verify:settings-persistence` 3/3 · `verify:ipc-contract` 4/4 · `npm run build` clean.
+- **Not run:** clean-machine / packaged-EXE GUI walkthrough (Recorder handoff card is Electron-only —
+  manual gate). Phase B (async engine) pending.
+
 ## 2026-07-19 — Claude — Fix all E2E-assessment defects (DEF-003/004/005 + OBS-001/002)
 
 - **Task:** implement the plan to fix the open E2E-QA findings on `main` @ `0a4500f` — sender-bound

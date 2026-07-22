@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSO Text App — AWTKIT Feature Test Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card" data-testid="sso-text-app-page">
+      <h1>Company Portal</h1>
+      <p>
+        This is a normal, already-authenticated internal application page. It merely mentions
+        <strong>single sign-on</strong> in its help text. The Recorder must keep recording here
+        (low-confidence text signal → continue), not hand off.
+      </p>
+
+      <p>
+        Access your apps with single sign-on. Contact your identity provider if you cannot see a tile.
+      </p>
+
+      <section>
+        <h2>Your apps</h2>
+        <button id="openReports" type="button" data-testid="open-reports" onclick="reveal()">
+          Open Reports
+        </button>
+        <p id="reports" data-testid="reports-panel" role="status" hidden>Reports opened.</p>
+      </section>
+
+      <p><a href="/">Back to Feature Test Lab</a></p>
+    </main>
+
+    <script>
+      function reveal() {
+        var panel = document.getElementById("reports");
+        panel.hidden = false;
+      }
+    </script>
+  </body>
+</html>

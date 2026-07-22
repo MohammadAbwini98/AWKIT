@@ -6664,6 +6664,20 @@ table {
   gap: 12px;
 }
 
+/* Compact non-blocking notice shown while protected-login detection is ignored. Never covers the
+   Recorder controls; uses the warning-band tokens like the rest of the recorder surface. */
+.recorder-ignore-notice {
+  align-items: center;
+  background: var(--awkit-warning-soft);
+  border: 1px solid var(--awkit-warning-muted);
+  border-radius: var(--awkit-radius-panel);
+  color: var(--awkit-warning);
+  display: flex;
+  font-size: 0.85rem;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
 .recorder-handoff-panel.is-error {
   background: var(--awkit-danger-soft);
   border-color: var(--awkit-danger-muted);
