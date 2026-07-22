@@ -54,6 +54,9 @@ export interface SmartWaitBuildOptions {
   timeoutMultiplier?: number;
   /** Flat safety margin (ms) added on top of `observed × multiplier`. */
   timeoutSafetyMarginMs?: number;
+  /** Grace (ms) stamped on recorded loaders so a late-appearing spinner is not skipped on replay
+   *  (two-phase loader lifecycle). 0 disables the lifecycle (legacy loaderHidden). */
+  loaderAppearanceGraceMs?: number;
 }
 
 const DEFAULTS: Required<SmartWaitBuildOptions> = {
@@ -66,7 +69,8 @@ const DEFAULTS: Required<SmartWaitBuildOptions> = {
   minimumTimeoutMs: 10_000,
   maximumTimeoutMs: 300_000,
   timeoutMultiplier: 3,
-  timeoutSafetyMarginMs: 5_000
+  timeoutSafetyMarginMs: 5_000,
+  loaderAppearanceGraceMs: 1_500
 };
 
 /**
@@ -188,8 +192,19 @@ export function buildSmartWaits(
     (s): s is Extract<RecordedSignal, { kind: "loaderHidden" }> => s.kind === "loaderHidden" && s.shownAt > fromTs
   );
   if (loader) {
-    const wait: WaitCondition = { type: "loaderHidden", locator: cssLocator(loader.selector), reason: "Loader appeared then disappeared" };
+    const wait: Extract<WaitCondition, { type: "loaderHidden" }> = {
+      type: "loaderHidden",
+      locator: cssLocator(loader.selector),
+      reason: "Loader appeared then disappeared"
+    };
     if (opts.adaptiveTimeouts) wait.timeoutMs = adaptiveTimeoutMs(loader.hiddenAt - loader.shownAt, opts);
+    // Two-phase loader lifecycle: give a late spinner a grace window to reappear on replay, but never
+    // require it (optional appearance) so a faster backend can't fail the step.
+    if (opts.loaderAppearanceGraceMs > 0) {
+      wait.appearanceGraceMs = opts.loaderAppearanceGraceMs;
+      wait.mustAppear = false;
+      wait.completion = "hidden";
+    }
     waits.push(wait);
   }
 

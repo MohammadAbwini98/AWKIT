@@ -1153,6 +1153,7 @@ function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): FlowStep
     timeoutMs: data.timeoutMs,
     beforeWaits: data.beforeWaits?.length ? data.beforeWaits : undefined,
     afterWaits: data.afterWaits?.length ? data.afterWaits : undefined,
+    completionMode: data.completionMode,
     retry: {
       count: data.retryCount,
       delayMs: data.retryDelayMs
@@ -1258,6 +1259,7 @@ function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     timeoutMs: step.timeoutMs ?? 10000,
     beforeWaits: step.beforeWaits ?? [],
     afterWaits: step.afterWaits ?? [],
+    completionMode: step.completionMode,
     retryCount: step.retry?.count ?? 0,
     retryDelayMs: step.retry?.delayMs ?? 1000,
     failureAction: step.onFailure?.action ?? "stop",

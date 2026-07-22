@@ -72,6 +72,31 @@ const rtStep = roundTripped.nodes.find((n: { id: string }) => n.id === "step-1")
 const rtResp = rtStep?.afterWaits?.find((w: { type: string }) => w.type === "response");
 check("async waits survive JSON save round-trip (no silent drop)", rtStep?.afterWaits?.length === 2 && rtResp?.timeoutMs === 29000 && rtResp?.statusRange?.[0] === 200);
 
+// ── Loader lifecycle + completionMode + optional survive round-trip (awkit-62o) ──
+const lifecycleActions: RecordedAction[] = [
+  {
+    id: "c1",
+    type: "click",
+    name: "Search",
+    locator: { strategy: "role", value: "button", name: "Search" },
+    afterWaits: [
+      { type: "loaderHidden", locator: { strategy: "css", value: ".spinner" }, appearanceGraceMs: 1500, mustAppear: false, completion: "hidden", timeoutMs: 29000 },
+      { type: "response", method: "GET", urlContains: "/api/search", statusRange: [200, 299], armBeforeAction: true, optional: true, timeoutMs: 20000 }
+    ]
+  }
+];
+const lifecycleFlow = buildRecordedFlow("Lifecycle", lifecycleActions);
+const lcStep = lifecycleFlow.nodes.find((n) => n.id === "step-1");
+// A completion policy is a step-level property (set in the designer); prove it round-trips on FlowStep.
+if (lcStep) lcStep.completionMode = "networkThenUi";
+const lcRT = JSON.parse(JSON.stringify(lifecycleFlow));
+const lcRtStep = lcRT.nodes.find((n: { id: string }) => n.id === "step-1");
+const lcLoader = lcRtStep?.afterWaits?.find((w: { type: string }) => w.type === "loaderHidden");
+const lcResp = lcRtStep?.afterWaits?.find((w: { type: string }) => w.type === "response");
+check("loader lifecycle fields survive round-trip", lcLoader?.appearanceGraceMs === 1500 && lcLoader?.mustAppear === false && lcLoader?.completion === "hidden");
+check("optional flag survives round-trip", lcResp?.optional === true);
+check("completionMode survives round-trip", lcRtStep?.completionMode === "networkThenUi");
+
 // ── Duplicate Start/End from the recording are dropped ───────────────────────
 const withDupes = buildRecordedFlow("Dupes", [
   { id: "s", type: "start", name: "Start" },

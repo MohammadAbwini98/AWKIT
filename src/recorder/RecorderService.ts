@@ -76,6 +76,7 @@ export interface StartRecordingOptions {
     adaptiveTimeouts?: boolean;
     minimumTimeoutMs?: number;
     maximumTimeoutMs?: number;
+    loaderAppearanceGraceMs?: number;
   };
 }
 
@@ -95,11 +96,12 @@ export class RecorderService {
   /** Whether the active session observes condition-based Smart Waits between actions (Phase 2). */
   private captureSmartWaits = true;
   /** Async Activity Awareness tuning for adaptive Smart-Wait timeouts (applied in {@link attachSmartWaits}). */
-  private asyncAwareness: { enabled: boolean; adaptiveTimeouts: boolean; minimumTimeoutMs: number; maximumTimeoutMs: number } = {
+  private asyncAwareness: { enabled: boolean; adaptiveTimeouts: boolean; minimumTimeoutMs: number; maximumTimeoutMs: number; loaderAppearanceGraceMs: number } = {
     enabled: true,
     adaptiveTimeouts: true,
     minimumTimeoutMs: 10_000,
-    maximumTimeoutMs: 300_000
+    maximumTimeoutMs: 300_000,
+    loaderAppearanceGraceMs: 1_500
   };
   /** Raw page-side observation signals buffered during the session (bounded). */
   private signals: RecordedSignal[] = [];
@@ -423,7 +425,8 @@ export class RecorderService {
       enabled: options.asyncAwareness?.enabled ?? true,
       adaptiveTimeouts: options.asyncAwareness?.adaptiveTimeouts ?? true,
       minimumTimeoutMs: options.asyncAwareness?.minimumTimeoutMs ?? 10_000,
-      maximumTimeoutMs: options.asyncAwareness?.maximumTimeoutMs ?? 300_000
+      maximumTimeoutMs: options.asyncAwareness?.maximumTimeoutMs ?? 300_000,
+      loaderAppearanceGraceMs: options.asyncAwareness?.loaderAppearanceGraceMs ?? 1_500
     };
     this.signals = [];
     this.lastActionAt = 0;
@@ -975,7 +978,8 @@ export class RecorderService {
       allowFixedDelayFallback: !this.captureWaitTime,
       adaptiveTimeouts: this.asyncAwareness.enabled && this.asyncAwareness.adaptiveTimeouts,
       minimumTimeoutMs: this.asyncAwareness.minimumTimeoutMs,
-      maximumTimeoutMs: this.asyncAwareness.maximumTimeoutMs
+      maximumTimeoutMs: this.asyncAwareness.maximumTimeoutMs,
+      loaderAppearanceGraceMs: this.asyncAwareness.enabled ? this.asyncAwareness.loaderAppearanceGraceMs : 0
     });
     if (waits.length) prev.afterWaits = waits;
   }

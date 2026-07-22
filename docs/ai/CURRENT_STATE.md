@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## Status summary (2026-07-22)
+
+Protected-login controls **implemented**; async-awareness core (HTTP status vs. timeout + adaptive
+bounded timeouts) **implemented**; runtime **API/UI completion policies + loader lifecycle + consistency
+checks (awkit-62o) implemented and verified**. On branch
+**`feature/recorder-protected-login-and-async-awareness`** (off main, **not pushed**). Remaining:
+follow-ups **awkit-54t** (Flow Designer Async Completion editor + Recorder review UI) and **awkit-4km**
+(202 job-polling, WebSocket/SSE, CDP). **Product promotion remains unapproved** until the manual
+**Electron GUI** and **packaged/offline** gates pass (still outstanding).
+
+## awkit-62o — loader lifecycle + completion policies + consistency DONE, verified (2026-07-22)
+
+Extends the canonical `WaitCondition`/`beforeWaits`/`afterWaits` model (no parallel field); round-trip
+preserved (designer allowlist extended for `completionMode`; wait fields ride in the arrays).
+- **Loader lifecycle (StepExecutor):** appearance armed before the action → up to `appearanceGraceMs`
+  for it to appear (late spinner never skipped) → `completion` signal (hidden/detached/aria-busy=false).
+  Optional-never-appears passes; required-never-appears / never-disappears give precise diagnostics.
+- **Completion policies:** `FlowStep.completionMode` = allRequired (default = legacy) | anyRequired |
+  networkThenUi | quietPeriod. Consistency failures (API-ok-UI-missing, API-failed-UI-changed,
+  loader-still-blocking); valid empty results pass (no forced table rows); optional waits best-effort.
+- **Cancellation:** `withCancellation` races every wait against the token (+ cooperative quiet loop);
+  Stop interrupts API/loader/quiet/UI waits in <2s. **Progress:** `waiting` events name the
+  endpoint/loader/UI condition, resolved timeout, required/optional.
+- **Settings:** `recorder.asyncAwareness.loaderAppearanceGraceMs` (default 1500, validated); recorder
+  stamps the lifecycle (grace 1500, mustAppear false) on recorded loaders.
+- **Verified:** `verify:waits` 48/0, `verify:recorder-flow` 19/19, `verify:recorder` 78/0,
+  `verify:runner` 82/0, `verify:cancellation` 12/0, `verify:protected-login(-recorder)` 26/0 · 45/45,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `verify:mock-site` 39/39,
+  `verify:security` 39/0, `verify:popup` 12/0, `verify:safety-policy` 17/0, build clean.
+- **Limitations:** quietPeriod window is a runtime constant (750ms); request-start observer is
+  active-page-scoped; no Async Completion editor UI (awkit-54t).
+
 ## Async Activity Awareness — Phase B core DONE, verified (2026-07-22)
 
 Same branch, extends the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits` model (no parallel

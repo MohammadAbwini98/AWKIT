@@ -15,6 +15,7 @@ import type { Page } from "playwright";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
+import { CancellationTokenSource } from "@src/runner/concurrency/CancellationToken";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 
@@ -65,6 +66,24 @@ async function main() {
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
     const start = Date.now();
     const result = await exec.execute(step);
+    return { status: result.status, error: result.error, ms: Date.now() - start };
+  }
+
+  // Runs a step with a cancellation token that fires mid-wait, so we can prove Stop interrupts
+  // immediately (the step ends far before the wait's own timeout).
+  async function runCancellable(html: string, step: FlowStep, cancelAfterMs: number): Promise<{ status: string; error?: string; ms: number }> {
+    await page.goto("about:blank");
+    await page.setContent(html, { waitUntil: "load" });
+    const source = new CancellationTokenSource();
+    const exec = new StepExecutor(
+      page, new LocatorFactory(page), new ValueResolver(ctx), ctx,
+      undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, source.token
+    );
+    const start = Date.now();
+    const pending = exec.execute(step);
+    const timer = setTimeout(() => void source.cancel("stopped by test"), cancelAfterMs);
+    const result = await pending;
+    clearTimeout(timer);
     return { status: result.status, error: result.error, ms: Date.now() - start };
   }
 
@@ -284,6 +303,197 @@ async function main() {
     });
     check("HTTP 201 within expected range still passes", status === "passed", status);
     await page.unroute("**/api/ok");
+  }
+
+  // ── Loader lifecycle (awkit-62o) ───────────────────────────────────────────
+  console.log("Loader lifecycle:");
+  // 16. Loader already visible → appearance seen immediately, then completes on hide.
+  {
+    const html = `<div id="sp" class="spinner">loading…</div>
+      <button id="b" onclick="setTimeout(function(){document.getElementById('sp').style.display='none';},150)">Go</button>`;
+    const { status } = await run(html, {
+      id: "L1", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1000, mustAppear: true, completion: "hidden", timeoutMs: 3000 }]
+    });
+    check("loader already visible → lifecycle passes", status === "passed", status);
+  }
+  // 17. Loader appears ~500ms after the action (must not be skipped).
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">loading…</div>
+      <button id="b" onclick="var s=document.getElementById('sp');setTimeout(function(){s.style.display='';},500);setTimeout(function(){s.style.display='none';},900)">Go</button>`;
+    const { status } = await run(html, {
+      id: "L2", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1500, mustAppear: true, timeoutMs: 3000 }]
+    });
+    check("loader appearing after 500ms is caught then completes", status === "passed", status);
+  }
+  // 18. Loader appears and disappears quickly, optional → safely classified (passes either way).
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">x</div>
+      <button id="b" onclick="var s=document.getElementById('sp');s.style.display='';setTimeout(function(){s.style.display='none';},50)">Go</button>`;
+    const { status } = await run(html, {
+      id: "L3", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1000, mustAppear: false, timeoutMs: 3000 }]
+    });
+    check("very fast loader flash (optional) is safely classified as complete", status === "passed", status);
+  }
+  // 19. Optional loader never appears → does not block.
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">x</div><button id="b">Go</button>`;
+    const { status, ms } = await run(html, {
+      id: "L4", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 300, mustAppear: false, timeoutMs: 5000 }]
+    });
+    check("optional loader never appears → passes (does not block)", status === "passed", status);
+    check("optional missing loader returns after ~grace, not the full timeout", ms < 2000, `${ms}ms`);
+  }
+  // 20. Required loader never appears → precise diagnostic.
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">x</div><button id="b">Go</button>`;
+    const { status, error } = await run(html, {
+      id: "L5", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 300, mustAppear: true, timeoutMs: 5000 }]
+    });
+    check("required loader never appears → fails", status === "failed", status);
+    check("required-missing-loader diagnostic is precise", /never appeared/.test(error ?? "") && /Loader lifecycle/.test(error ?? ""), error);
+  }
+  // 21. Loader appears but never disappears → clear failure.
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">x</div>
+      <button id="b" onclick="document.getElementById('sp').style.display=''">Go</button>`;
+    const { status, error } = await run(html, {
+      id: "L6", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1000, mustAppear: true, completion: "hidden", timeoutMs: 400 }]
+    });
+    check("loader that never disappears → fails", status === "failed", status);
+    check("never-disappears diagnostic names the completion signal", /did not reach 'hidden'/.test(error ?? ""), error);
+  }
+  // 22. aria-busy transitions from true to false → completes.
+  {
+    const html = `<div id="sp" class="spinner" aria-busy="true" style="display:none">x</div>
+      <button id="b" onclick="var s=document.getElementById('sp');s.style.display='';setTimeout(function(){s.setAttribute('aria-busy','false');},200)">Go</button>`;
+    const { status } = await run(html, {
+      id: "L7", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1000, mustAppear: true, completion: "ariaBusyFalse", timeoutMs: 3000 }]
+    });
+    check("aria-busy true→false completes the loader", status === "passed", status);
+  }
+
+  // ── Completion policies + API/UI consistency (awkit-62o) ────────────────────
+  console.log("Completion policies + consistency:");
+  // 23. networkThenUi: API succeeds but the required UI outcome never appears → consistency failure.
+  {
+    await page.route("**/api/save", (route) => setTimeout(() => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }), 100));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/save',{method:'POST',mode:'no-cors'})">Save</button>`;
+    const { status, error } = await run(html, {
+      id: "C1", type: "click", name: "Save", locator: { strategy: "id", value: "b" },
+      completionMode: "networkThenUi",
+      afterWaits: [
+        { type: "response", method: "POST", urlContains: "/api/save", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 3000 },
+        { type: "textVisible", text: "Saved successfully", timeoutMs: 600 }
+      ]
+    });
+    check("networkThenUi: API ok but missing UI outcome → fails", status === "failed", status);
+    check("consistency msg: API completed but UI outcome did not appear", /required UI outcome did not appear/.test(error ?? ""), error);
+    await page.unroute("**/api/save");
+  }
+  // 24. networkThenUi: required API fails (500) but the UI mutated → inconsistency reported.
+  {
+    await page.route("**/api/orders", (route) => setTimeout(() => route.fulfill({ status: 500, contentType: "text/plain", body: "err" }), 100));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/orders',{method:'POST',mode:'no-cors'});var d=document.createElement('div');d.textContent='Changed';document.body.appendChild(d)">Order</button>`;
+    const { status, error } = await run(html, {
+      id: "C2", type: "click", name: "Order", locator: { strategy: "id", value: "b" },
+      completionMode: "networkThenUi",
+      afterWaits: [
+        { type: "response", method: "POST", urlContains: "/api/orders", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 3000 },
+        { type: "textVisible", text: "Changed", timeoutMs: 3000 }
+      ]
+    });
+    check("networkThenUi: required API fails but UI changed → fails", status === "failed", status);
+    check("consistency msg: API failed but UI changed", /required API request failed, but the UI changed/.test(error ?? ""), error);
+    await page.unroute("**/api/orders");
+  }
+  // 25. allRequired: two required conditions pass, one optional fails → step still passes.
+  {
+    const html = `<button id="b" onclick="setTimeout(function(){var d=document.createElement('div');d.textContent='Done';document.body.appendChild(d);},100)">Go</button>`;
+    const { status } = await run(html, {
+      id: "C3", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [
+        { type: "textVisible", text: "Done", timeoutMs: 2000 },
+        { type: "elementVisible", locator: { strategy: "id", value: "b" }, timeoutMs: 2000 },
+        { type: "textVisible", text: "NeverShows", optional: true, timeoutMs: 300 }
+      ]
+    });
+    check("allRequired: optional failure does not fail the step", status === "passed", status);
+  }
+  // 26. quietPeriod: one request then silence (next poll is far away) → completes during the gap.
+  {
+    await page.route("**/api/**", (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/first',{mode:'no-cors'});setInterval(function(){fetch('http://awtkit.test/api/poll',{mode:'no-cors'});},2500)">Go</button>`;
+    const { status, ms } = await run(html, {
+      id: "C4", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      completionMode: "quietPeriod",
+      afterWaits: []
+    });
+    check("quietPeriod: completes once the network is quiet", status === "passed", status);
+    check("quietPeriod: waits the quiet window but not the next poll", ms >= 600 && ms < 2400, `${ms}ms`);
+    await page.unroute("**/api/**");
+  }
+  // 27. Valid empty result: an empty-state UI outcome passes (not treated as missing table rows).
+  {
+    await page.route("**/api/search", (route) => setTimeout(() => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }), 100));
+    const html = `<button id="b" onclick="fetch('http://awtkit.test/api/search',{mode:'no-cors'}).then(function(){var d=document.createElement('div');d.textContent='No results';document.body.appendChild(d);})">Search</button>`;
+    const { status } = await run(html, {
+      id: "C5", type: "click", name: "Search", locator: { strategy: "id", value: "b" },
+      completionMode: "networkThenUi",
+      afterWaits: [
+        { type: "response", method: "GET", urlContains: "/api/search", statusRange: [200, 299], armBeforeAction: true, timeoutMs: 3000 },
+        { type: "textVisible", text: "No results", timeoutMs: 3000 }
+      ]
+    });
+    check("valid empty result: empty-state outcome passes (no forced rows)", status === "passed", status);
+    await page.unroute("**/api/search");
+  }
+
+  // ── Cancellation interrupts every wait phase immediately (awkit-62o) ─────────
+  console.log("Cancellation interrupts waits:");
+  // 28a. Cancel during a UI-outcome wait.
+  {
+    const { status, ms } = await runCancellable(`<button id="b">Go</button>`, {
+      id: "X1", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "elementVisible", locator: { strategy: "css", value: ".never" }, timeoutMs: 8000 }]
+    }, 150);
+    check("cancel during UI wait ends fast", status === "failed" && ms < 2000, `${status}/${ms}ms`);
+  }
+  // 28b. Cancel during an armed API wait.
+  {
+    const { status, ms } = await runCancellable(`<button id="b" onclick="void 0">Go</button>`, {
+      id: "X2", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "response", method: "POST", urlContains: "/api/never", armBeforeAction: true, timeoutMs: 8000 }]
+    }, 150);
+    check("cancel during API wait ends fast", status === "failed" && ms < 2000, `${status}/${ms}ms`);
+  }
+  // 28c. Cancel during a loader completion wait.
+  {
+    const html = `<div id="sp" class="spinner" style="display:none">x</div>
+      <button id="b" onclick="document.getElementById('sp').style.display=''">Go</button>`;
+    const { status, ms } = await runCancellable(html, {
+      id: "X3", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      afterWaits: [{ type: "loaderHidden", locator: { strategy: "css", value: "#sp" }, appearanceGraceMs: 1000, mustAppear: true, timeoutMs: 8000 }]
+    }, 250);
+    check("cancel during loader wait ends fast", status === "failed" && ms < 2000, `${status}/${ms}ms`);
+  }
+  // 28d. Cancel during a quiet-period wait (continuous polling → never quiet on its own).
+  {
+    const html = `<button id="b" onclick="setInterval(function(){fetch('http://awtkit.test/api/poll',{mode:'no-cors'});},50)">Go</button>`;
+    await page.route("**/api/**", (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "ok" }));
+    const { status, ms } = await runCancellable(html, {
+      id: "X4", type: "click", name: "Go", locator: { strategy: "id", value: "b" },
+      completionMode: "quietPeriod",
+      afterWaits: []
+    }, 250);
+    check("cancel during quiet-period wait ends fast", status === "failed" && ms < 2000, `${status}/${ms}ms`);
+    await page.unroute("**/api/**");
   }
 
   await browser.close();

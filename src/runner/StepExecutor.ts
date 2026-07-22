@@ -1,7 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { Locator, Page } from "playwright";
-import type { FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
+import type { AsyncCompletionMode, FlowStep, NodeConfig, StepLocator, WaitCondition } from "@src/profiles/FlowProfile";
 import { detectProtectedLogin } from "@src/security/ProtectedLoginDetector";
 import type { HandoffInfo, ProtectedLoginHandoffAction } from "@src/security/ProtectedLoginHandoff";
 import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
@@ -16,7 +16,7 @@ import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
 import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatch";
 import type { TraceService } from "./artifacts/TraceService";
-import type { CancellationToken } from "./concurrency/CancellationToken";
+import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
@@ -38,6 +38,27 @@ class ResponseStatusError extends Error {
     super(message);
     this.name = "ResponseStatusError";
   }
+}
+
+/** A response wait armed before the action; its promise resolves to the matched response. */
+interface ArmedResponse {
+  wait: Extract<WaitCondition, { type: "response" }>;
+  promise: Promise<import("playwright").Response>;
+  timeout: number;
+}
+
+/** A loader-lifecycle wait whose appearance watch was armed before the action. */
+interface ArmedLoader {
+  wait: Extract<WaitCondition, { type: "loaderHidden" }>;
+  /** Resolves once the loader appears within the grace window, or (never rejecting) after it. */
+  appearance: Promise<{ appeared: boolean }>;
+  grace: number;
+}
+
+/** Tracks the timestamp of the most recent request start (for `quietPeriod` completion). */
+interface NetworkQuietObserver {
+  lastRequestAt: () => number;
+  dispose: () => void;
 }
 
 /** Runs a saved flow by id as a child of the current flow (used by Run Another Flow). */
@@ -352,6 +373,18 @@ export class StepExecutor {
 
   /** Default max wait (ms) for a {@link WaitCondition} that omits `timeoutMs`. */
   private static readonly DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+  /** Default grace (ms) to wait for a lifecycle loader to APPEAR before deciding it never did. */
+  private static readonly DEFAULT_APPEARANCE_GRACE_MS = 1_500;
+  /** Quiet window (ms) with no new request start that ends a `quietPeriod` completion. */
+  private static readonly QUIET_PERIOD_MS = 750;
+
+  /** A `loaderHidden` wait that opts into the two-phase appearance→completion lifecycle. */
+  private static isLoaderLifecycle(wait: WaitCondition): wait is Extract<WaitCondition, { type: "loaderHidden" }> {
+    return (
+      wait.type === "loaderHidden" &&
+      (wait.appearanceGraceMs !== undefined || wait.mustAppear !== undefined || wait.completion !== undefined)
+    );
+  }
 
   private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
     const originalActivePage = this.activePage;
@@ -366,47 +399,36 @@ export class StepExecutor {
         await this.executeWaitCondition(step, wait, "before action");
       }
 
-    // Response waits that the action itself triggers must be listening BEFORE the action runs,
-    // or a fast response can complete before we start waiting. Arm them now, await them after.
-    const armed: Array<{ wait: Extract<WaitCondition, { type: "response" }>; promise: Promise<import("playwright").Response>; timeout: number }> = [];
-    const deferred: WaitCondition[] = [];
-    for (const wait of step.afterWaits ?? []) {
-      if (wait.type === "response" && wait.armBeforeAction) {
-        const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
-        const promise = this.buildResponseWait(wait, timeout);
-        promise.catch(() => undefined); // prevent an unhandled rejection if the action itself throws
-        armed.push({ wait, promise, timeout });
-      } else {
-        deferred.push(wait);
+      // Partition the afterWaits and ARM observers that must be listening BEFORE the action, so a
+      // fast response or a late-appearing loader is never missed. Everything else is deferred until
+      // after the action. The completion policy (`completionMode`) decides how they combine.
+      const afterWaits = step.afterWaits ?? [];
+      const mode: AsyncCompletionMode = step.completionMode ?? "allRequired";
+      const armedResponses: ArmedResponse[] = [];
+      const armedLoaders: ArmedLoader[] = [];
+      const deferred: WaitCondition[] = [];
+      const quiet = mode === "quietPeriod" ? this.armNetworkQuietObserver() : undefined;
+      for (const wait of afterWaits) {
+        if (wait.type === "response" && wait.armBeforeAction) {
+          const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+          const promise = this.buildResponseWait(wait, timeout);
+          promise.catch(() => undefined); // prevent an unhandled rejection if the action itself throws
+          armedResponses.push({ wait, promise, timeout });
+        } else if (wait.type === "loaderHidden" && StepExecutor.isLoaderLifecycle(wait)) {
+          // Two-phase loader lifecycle: arm the appearance watch before the action.
+          const grace = wait.appearanceGraceMs ?? StepExecutor.DEFAULT_APPEARANCE_GRACE_MS;
+          armedLoaders.push({ wait, appearance: this.armLoaderAppearance(wait, grace), grace });
+        } else {
+          deferred.push(wait);
+        }
       }
-    }
 
-    const result = await this.executeStep(step, outputs);
+      const result = await this.executeStep(step, outputs);
 
-    for (const entry of armed) {
       try {
-        const response = await entry.promise;
-        // The endpoint matched — validate its status separately so a 500 is an HTTP-500 failure.
-        this.validateResponseStatus(entry.wait, response);
-      } catch (error) {
-        // A status error means the response DID arrive with an unexpected status — surface it as-is,
-        // never as a timeout, and never skip it as a "stale" wait.
-        if (error instanceof ResponseStatusError) {
-          throw new Error(this.formatResponseStatusFailure(step, entry.wait, error));
-        }
-        if (await this.canSkipStaleRecordedNavigationResponseWait(step, entry.wait, error)) {
-          this.log(
-            "info",
-            step,
-            `Skipping stale recorded navigation response wait after successful goto: ${StepExecutor.describeWaitCondition(entry.wait)}`
-          );
-          continue;
-        }
-        throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error, "after action (armed before action)"));
-      }
-    }
-      for (const wait of deferred) {
-        await this.executeWaitCondition(step, wait, "after action");
+        await this.resolveAfterWaits(step, mode, armedResponses, armedLoaders, deferred, quiet);
+      } finally {
+        quiet?.dispose();
       }
 
       return result;
@@ -555,6 +577,355 @@ export class StepExecutor {
     } catch {
       return raw.split("?")[0] || "unknown";
     }
+  }
+
+  // ── Async completion policies + loader lifecycle (awkit-62o) ─────────────────────────────────
+  //
+  // The pre-armed responses/loaders + deferred waits are combined into one completion decision per
+  // `step.completionMode`. Every await is cancellation-aware so Stop interrupts immediately.
+
+  /** Race a promise against cancellation so Stop interrupts a wait without waiting out its timeout. */
+  private withCancellation<T>(promise: Promise<T>): Promise<T> {
+    const token = this.cancellation;
+    if (!token) return promise;
+    if (token.cancelled) return Promise.reject(new CancelledError(token.reason));
+    let unsubscribe: () => void = () => undefined;
+    const cancelled = new Promise<never>((_, reject) => {
+      unsubscribe = token.onCancel(() => reject(new CancelledError(token.reason)));
+    });
+    return Promise.race([promise, cancelled]).finally(() => unsubscribe());
+  }
+
+  /** Arm (before the action) a watch for a loader to become visible within its grace window. */
+  private armLoaderAppearance(wait: Extract<WaitCondition, { type: "loaderHidden" }>, grace: number): Promise<{ appeared: boolean }> {
+    const locator = this.waitLocator(wait.locator).first();
+    return locator
+      .waitFor({ state: "visible", timeout: grace })
+      .then(() => ({ appeared: true }))
+      .catch(() => ({ appeared: false }));
+  }
+
+  /** Dispatch the step's after-waits through its completion policy. */
+  private async resolveAfterWaits(
+    step: FlowStep,
+    mode: AsyncCompletionMode,
+    armedResponses: ArmedResponse[],
+    armedLoaders: ArmedLoader[],
+    deferred: WaitCondition[],
+    quiet?: NetworkQuietObserver
+  ): Promise<void> {
+    switch (mode) {
+      case "anyRequired":
+        return this.resolveAnyRequired(step, armedResponses, armedLoaders, deferred);
+      case "networkThenUi":
+        return this.resolveNetworkThenUi(step, armedResponses, armedLoaders, deferred);
+      case "quietPeriod":
+        return this.resolveQuietPeriod(step, armedResponses, armedLoaders, deferred, quiet);
+      case "allRequired":
+      default:
+        return this.resolveAllRequired(step, armedResponses, armedLoaders, deferred);
+    }
+  }
+
+  /** Every required condition must pass; optional ones are best-effort. (Legacy behavior.) */
+  private async resolveAllRequired(step: FlowStep, armedResponses: ArmedResponse[], armedLoaders: ArmedLoader[], deferred: WaitCondition[]): Promise<void> {
+    for (const entry of armedResponses) {
+      await this.runRequiredOrOptional(step, entry.wait, "network", () => this.resolveArmedResponse(step, entry));
+    }
+    for (const entry of armedLoaders) {
+      await this.runRequiredOrOptional(step, entry.wait, "loader", () => this.resolveLoaderLifecycle(step, entry));
+    }
+    for (const wait of deferred) {
+      await this.runRequiredOrOptional(step, wait, "after action", () => this.resolveDeferredWait(step, wait));
+    }
+  }
+
+  /** Succeed as soon as ANY required condition passes; fail only if every required one fails. */
+  private async resolveAnyRequired(step: FlowStep, armedResponses: ArmedResponse[], armedLoaders: ArmedLoader[], deferred: WaitCondition[]): Promise<void> {
+    const tasks: Array<() => Promise<void>> = [];
+    for (const entry of armedResponses) if (!entry.wait.optional) tasks.push(() => this.resolveArmedResponse(step, entry));
+    for (const entry of armedLoaders) if (!entry.wait.optional) tasks.push(() => this.resolveLoaderLifecycle(step, entry));
+    for (const wait of deferred) if (!wait.optional) tasks.push(() => this.resolveDeferredWait(step, wait));
+    // Optional conditions never gate success; run them best-effort so their progress still shows.
+    for (const entry of armedResponses) if (entry.wait.optional) void this.runRequiredOrOptional(step, entry.wait, "network", () => this.resolveArmedResponse(step, entry));
+    if (tasks.length === 0) return;
+    try {
+      await Promise.any(tasks.map((task) => task()));
+    } catch (error) {
+      const errors = error instanceof AggregateError ? error.errors : [error];
+      const cancelled = errors.find((e) => e instanceof CancelledError);
+      if (cancelled) throw cancelled;
+      throw new Error(this.formatAnyRequiredFailure(step, errors));
+    }
+  }
+
+  /** Required responses → required loaders → required UI outcomes, with API↔UI consistency checks. */
+  private async resolveNetworkThenUi(step: FlowStep, armedResponses: ArmedResponse[], armedLoaders: ArmedLoader[], deferred: WaitCondition[]): Promise<void> {
+    // Phase 1 — network.
+    for (const entry of armedResponses) {
+      if (entry.wait.optional) {
+        await this.runRequiredOrOptional(step, entry.wait, "network", () => this.resolveArmedResponse(step, entry));
+        continue;
+      }
+      try {
+        await this.resolveArmedResponse(step, entry);
+      } catch (error) {
+        if (error instanceof CancelledError) throw error;
+        const detail = error instanceof Error ? error.message : String(error);
+        if (await this.anyUiOutcomeSatisfied(deferred)) {
+          throw new Error(this.formatConsistencyFailure(step, "requiredApiFailedUiChanged", detail));
+        }
+        throw error; // already a precise status/timeout failure
+      }
+    }
+    // Phase 2 — blocking loaders must complete.
+    for (const entry of armedLoaders) {
+      if (entry.wait.optional) {
+        await this.runRequiredOrOptional(step, entry.wait, "loader", () => this.resolveLoaderLifecycle(step, entry));
+        continue;
+      }
+      try {
+        await this.resolveLoaderLifecycle(step, entry);
+      } catch (error) {
+        if (error instanceof CancelledError) throw error;
+        throw new Error(this.formatConsistencyFailure(step, "loaderStillBlocking", error instanceof Error ? error.message : String(error)));
+      }
+    }
+    // Phase 3 — required UI outcomes (consistency: API ok but UI missing).
+    for (const wait of deferred) {
+      if (wait.optional) {
+        await this.runRequiredOrOptional(step, wait, "ui outcome", () => this.resolveDeferredWait(step, wait));
+        continue;
+      }
+      try {
+        await this.resolveDeferredWait(step, wait);
+      } catch (error) {
+        if (error instanceof CancelledError) throw error;
+        throw new Error(this.formatConsistencyFailure(step, "apiOkUiMissing", error instanceof Error ? error.message : String(error)));
+      }
+    }
+  }
+
+  /** Complete once the network is quiet for a window and no blocking loader remains. */
+  private async resolveQuietPeriod(step: FlowStep, armedResponses: ArmedResponse[], armedLoaders: ArmedLoader[], deferred: WaitCondition[], quiet?: NetworkQuietObserver): Promise<void> {
+    for (const entry of armedResponses) {
+      if (entry.wait.optional) {
+        await this.runRequiredOrOptional(step, entry.wait, "network", () => this.resolveArmedResponse(step, entry));
+        continue;
+      }
+      await this.resolveArmedResponse(step, entry);
+    }
+    const timeout = this.maxAfterWaitTimeout([...armedResponses.map((r) => r.wait), ...armedLoaders.map((l) => l.wait), ...deferred]);
+    await this.waitForNetworkQuiet(step, quiet, StepExecutor.QUIET_PERIOD_MS, timeout, [...armedLoaders.map((l) => l.wait), ...deferred]);
+    for (const wait of deferred) {
+      await this.runRequiredOrOptional(step, wait, "ui outcome", () => this.resolveDeferredWait(step, wait));
+    }
+  }
+
+  /** Await an armed response and validate its status; preserves the stale-nav skip + status-vs-timeout split. */
+  private async resolveArmedResponse(step: FlowStep, entry: ArmedResponse): Promise<void> {
+    this.emitWaiting(step, entry.wait, entry.timeout, "network");
+    try {
+      const response = await this.withCancellation(entry.promise);
+      this.validateResponseStatus(entry.wait, response);
+    } catch (error) {
+      if (error instanceof CancelledError) throw error;
+      if (error instanceof ResponseStatusError) {
+        throw new Error(this.formatResponseStatusFailure(step, entry.wait, error));
+      }
+      if (await this.canSkipStaleRecordedNavigationResponseWait(step, entry.wait, error)) {
+        this.log("info", step, `Skipping stale recorded navigation response wait after successful goto: ${StepExecutor.describeWaitCondition(entry.wait)}`);
+        return;
+      }
+      throw new Error(this.formatWaitFailure(step, entry.wait, entry.timeout, error, "after action (armed before action)"));
+    }
+  }
+
+  /** Two-phase loader lifecycle: appearance (armed before the action) → completion signal. */
+  private async resolveLoaderLifecycle(step: FlowStep, entry: ArmedLoader): Promise<void> {
+    const { wait, grace } = entry;
+    const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
+    this.emitWaiting(step, wait, grace, "loader appearance");
+    const { appeared } = await this.withCancellation(entry.appearance);
+    if (!appeared) {
+      if (wait.mustAppear) {
+        throw new Error(this.formatLoaderLifecycleFailure(step, wait, `the required loader never appeared within ${grace}ms after the action`));
+      }
+      this.log("info", step, `Optional loader never appeared within ${grace}ms (nothing to wait for): ${StepExecutor.describeWaitCondition(wait)}`);
+      return;
+    }
+    this.emitWaiting(step, wait, timeout, "loader completion");
+    try {
+      await this.withCancellation(this.waitLoaderCompletion(wait, timeout));
+    } catch (error) {
+      if (error instanceof CancelledError) throw error;
+      throw new Error(this.formatLoaderLifecycleFailure(step, wait, `the loader appeared but did not reach '${wait.completion ?? "hidden"}' within ${timeout}ms`));
+    }
+  }
+
+  /** Wait for a visible loader's configured completion signal (hidden / detached / aria-busy=false). */
+  private async waitLoaderCompletion(wait: Extract<WaitCondition, { type: "loaderHidden" }>, timeout: number): Promise<void> {
+    const completion = wait.completion ?? "hidden";
+    const locator = this.waitLocator(wait.locator).first();
+    if (completion === "detached") {
+      await locator.waitFor({ state: "detached", timeout });
+      return;
+    }
+    if (completion === "ariaBusyFalse") {
+      await this.waitForPredicate(
+        async () => {
+          const busy = await locator.getAttribute("aria-busy").catch(() => "false");
+          return busy === null || busy === "false";
+        },
+        timeout,
+        async () => `aria-busy=${await locator.getAttribute("aria-busy").catch(() => "n/a")}`
+      );
+      return;
+    }
+    await locator.waitFor({ state: "hidden", timeout });
+  }
+
+  /** Run one deferred (post-action) wait, cancellation-aware. */
+  private async resolveDeferredWait(step: FlowStep, wait: WaitCondition): Promise<void> {
+    this.emitWaiting(step, wait, wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS, "after action");
+    await this.withCancellation(this.executeWaitCondition(step, wait, "after action"));
+  }
+
+  /** Wrap a required/optional condition: optional failures are logged and swallowed; cancellation always propagates. */
+  private async runRequiredOrOptional(step: FlowStep, wait: WaitCondition, phase: string, fn: () => Promise<void>): Promise<void> {
+    try {
+      await fn();
+    } catch (error) {
+      if (error instanceof CancelledError) throw error;
+      if (wait.optional) {
+        this.log("info", step, `Optional ${phase} condition not satisfied (ignored): ${StepExecutor.describeWaitCondition(wait)}`);
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /** Attach a request-start observer to the active page (for `quietPeriod`). */
+  private armNetworkQuietObserver(): NetworkQuietObserver {
+    let last = Date.now();
+    const page = this.activePage;
+    const onRequest = () => {
+      last = Date.now();
+    };
+    page.on("request", onRequest);
+    return {
+      lastRequestAt: () => last,
+      dispose: () => {
+        try {
+          page.off("request", onRequest);
+        } catch {
+          /* page may be closed */
+        }
+      }
+    };
+  }
+
+  /** Wait until no new request has started for `quietMs` and no blocking loader is visible. */
+  private async waitForNetworkQuiet(step: FlowStep, quiet: NetworkQuietObserver | undefined, quietMs: number, timeout: number, loaderWaits: WaitCondition[]): Promise<void> {
+    const start = Date.now();
+    this.emitProgress(step, "waiting", { message: `Waiting for network to settle (quiet ${quietMs}ms · timeout ${Math.round(timeout / 1000)}s)` });
+    for (;;) {
+      this.cancellation?.throwIfCancelled();
+      const sinceLast = Date.now() - (quiet?.lastRequestAt() ?? start);
+      const blocking = await this.anyBlockingLoaderVisible(loaderWaits);
+      if (sinceLast >= quietMs && !blocking) return;
+      if (Date.now() - start > timeout) {
+        throw new Error(this.formatQuietPeriodFailure(step, quietMs, timeout, sinceLast, blocking));
+      }
+      await this.withCancellation(this.activePage.waitForTimeout(100));
+    }
+  }
+
+  /** True if any loader locator among the given waits is currently visible. */
+  private async anyBlockingLoaderVisible(waits: WaitCondition[]): Promise<boolean> {
+    for (const wait of waits) {
+      if (wait.type === "loaderHidden") {
+        const visible = await this.waitLocator(wait.locator).first().isVisible().catch(() => false);
+        if (visible) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Best-effort snapshot: is any UI-outcome wait already satisfied right now? (Consistency messaging.) */
+  private async anyUiOutcomeSatisfied(waits: WaitCondition[]): Promise<boolean> {
+    for (const wait of waits) {
+      try {
+        if (wait.type === "textVisible") {
+          if (await this.activePage.getByText(wait.text, wait.exact ? { exact: true } : undefined).first().isVisible().catch(() => false)) return true;
+        } else if (wait.type === "elementVisible" || wait.type === "toastVisible") {
+          const target = wait.type === "toastVisible" && !wait.locator ? this.activePage.getByRole("alert").first() : this.waitLocator((wait as { locator: StepLocator }).locator).first();
+          if (await target.isVisible().catch(() => false)) return true;
+        } else if (wait.type === "urlChanged" && wait.urlContains) {
+          if (this.activePage.url().includes(wait.urlContains)) return true;
+        }
+      } catch {
+        /* best-effort only */
+      }
+    }
+    return false;
+  }
+
+  /** Largest timeout among a set of waits, falling back to the default. */
+  private maxAfterWaitTimeout(waits: WaitCondition[]): number {
+    return waits.reduce((max, wait) => Math.max(max, wait.timeoutMs ?? 0), StepExecutor.DEFAULT_WAIT_TIMEOUT_MS);
+  }
+
+  /** Progress event describing exactly what is being awaited (endpoint/loader/ui, timeout, required/optional). */
+  private emitWaiting(step: FlowStep, wait: WaitCondition, timeout: number, phase: string): void {
+    const req = wait.optional ? "optional" : "required";
+    this.emitProgress(step, "waiting", {
+      message: `Waiting (${phase}) for ${req} ${StepExecutor.describeWaitCondition(wait)} · timeout ${Math.round(timeout / 1000)}s`
+    });
+  }
+
+  private formatLoaderLifecycleFailure(step: FlowStep, wait: Extract<WaitCondition, { type: "loaderHidden" }>, detail: string): string {
+    const lines = [
+      `Loader lifecycle failed on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Loader: ${StepExecutor.describeWaitCondition(wait)}`,
+      `Completion: ${wait.completion ?? "hidden"}`,
+      `Current URL: ${this.safeCurrentUrl()}`
+    ];
+    if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
+    lines.push(`Detail: ${detail}`);
+    return lines.join("\n");
+  }
+
+  private formatConsistencyFailure(step: FlowStep, kind: "requiredApiFailedUiChanged" | "loaderStillBlocking" | "apiOkUiMissing", detail: string): string {
+    const reasons: Record<typeof kind, string> = {
+      requiredApiFailedUiChanged: "A required API request failed, but the UI changed anyway — inconsistent completion.",
+      loaderStillBlocking: "The API completed, but a required loader is still blocking after it.",
+      apiOkUiMissing: "The API completed successfully, but the required UI outcome did not appear."
+    };
+    return [
+      `Async completion inconsistency on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Reason: ${reasons[kind]}`,
+      `Current URL: ${this.safeCurrentUrl()}`,
+      `Detail: ${detail}`
+    ].join("\n");
+  }
+
+  private formatAnyRequiredFailure(step: FlowStep, errors: unknown[]): string {
+    const details = errors.map((e) => (e instanceof Error ? e.message.split("\n")[0] : String(e)));
+    return [
+      `None of the alternative completion conditions were met on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Current URL: ${this.safeCurrentUrl()}`,
+      `Tried: ${details.join(" | ")}`
+    ].join("\n");
+  }
+
+  private formatQuietPeriodFailure(step: FlowStep, quietMs: number, timeout: number, sinceLast: number, blocking: boolean): string {
+    return [
+      `Quiet-period completion timed out on step "${step.name}"${step.id ? ` (id ${step.id})` : ""}.`,
+      `Needed: no new request for ${quietMs}ms and no blocking loader, within ${timeout}ms.`,
+      `Last observed: ${sinceLast}ms since the last request${blocking ? ", a loader is still visible" : ""}.`,
+      `Current URL: ${this.safeCurrentUrl()}`
+    ].join("\n");
   }
 
   /**

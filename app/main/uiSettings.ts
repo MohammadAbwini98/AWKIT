@@ -65,6 +65,8 @@ export interface UiSettings {
       minimumTimeoutMs: number;
       /** Hard upper bound (ms) for an adaptive timeout — never exceeded. */
       maximumTimeoutMs: number;
+      /** Grace (ms) for a recorded loader to (re)appear on replay before it is treated as absent. */
+      loaderAppearanceGraceMs: number;
     };
   };
   /** Last run settings (what the user last launched). */
@@ -179,7 +181,8 @@ const defaultSettings: UiSettings = {
       enabled: true,
       adaptiveTimeouts: true,
       minimumTimeoutMs: 10_000,
-      maximumTimeoutMs: 300_000
+      maximumTimeoutMs: 300_000,
+      loaderAppearanceGraceMs: 1_500
     }
   },
   workflowBuilder: {
@@ -472,6 +475,9 @@ export function validateSettings(settings: UiSettings): string[] {
   }
   if (aa.minimumTimeoutMs > aa.maximumTimeoutMs) {
     errors.push("Recorder async minimum timeout cannot exceed the maximum timeout.");
+  }
+  if (!Number.isInteger(aa.loaderAppearanceGraceMs) || aa.loaderAppearanceGraceMs < 0 || aa.loaderAppearanceGraceMs > 60_000) {
+    errors.push("Recorder loader appearance grace must be an integer between 0 and 60000 ms.");
   }
 
   for (const [key, value] of Object.entries(settings.paths)) {

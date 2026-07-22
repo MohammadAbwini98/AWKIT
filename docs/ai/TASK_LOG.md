@@ -4,6 +4,44 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-22 — Claude (Opus 4.8) — awkit-62o: loader lifecycle + completion policies + consistency
+
+- **Task:** the runtime completion-policy + loader-lifecycle follow-up (bead awkit-62o), extending the
+  canonical `WaitCondition`/`beforeWaits`/`afterWaits` model — NOT a parallel field. Same branch;
+  prior commits (`eabd555`, `34c9e47`, beads chore) treated as an accepted checkpoint (not amended).
+- **Model (FlowProfile.ts):** `WaitConditionBase.optional?`; `loaderHidden` gains
+  `appearanceGraceMs?/mustAppear?/completion?` (+ `LoaderCompletion`); `FlowStep.completionMode?`
+  (+ `AsyncCompletionMode` = allRequired|anyRequired|networkThenUi|quietPeriod). All additive.
+- **Two-phase loader lifecycle (StepExecutor):** appearance watch armed BEFORE the action (a late
+  spinner is never skipped); after the action, wait up to `appearanceGraceMs` for it to appear, then
+  for the `completion` signal (hidden/detached/aria-busy=false). Optional-never-appears passes;
+  required-never-appears + never-disappears produce precise diagnostics (`formatLoaderLifecycleFailure`).
+- **Completion policies (`resolveAfterWaits` dispatcher):** allRequired (default, = legacy),
+  anyRequired (`Promise.any`), networkThenUi (network→loaders→UI phases), quietPeriod (request-start
+  observer + no-blocking-loader). Consistency failures: API-ok-but-UI-missing, API-failed-but-UI-changed,
+  loader-still-blocking (`formatConsistencyFailure`); valid empty-result states pass (engine never
+  forces table rows). Optional conditions are best-effort everywhere.
+- **Cancellation:** new `withCancellation` races every wait against the token; the quiet loop also
+  polls `throwIfCancelled` — Stop interrupts API/loader/quiet/UI waits in <2s (verified).
+- **Progress:** `emitWaiting` emits `waiting` events naming the endpoint/loader/UI condition, resolved
+  timeout, and required/optional status.
+- **Round-trip:** `completionMode` carried through the designer allowlist (`fromFlowStep`/`toFlowStep`
+  + `FlowDesignerNodeData`); extended wait fields ride in the whole-array `afterWaits`. Recorder emits
+  the lifecycle on recorded loaders (grace 1500, mustAppear false) via new `loaderAppearanceGraceMs`
+  option + `asyncAwareness.loaderAppearanceGraceMs` setting (validated).
+- **Files:** `FlowProfile.ts`, `StepExecutor.ts`, `smartWaitObservation.ts`, `RecorderService.ts`,
+  `app/main/uiSettings.ts`, `flowDesignerTypes.ts`, `FlowChartDesigner.tsx`, `scripts/verify-waits.mts`,
+  `scripts/verify-recorder-flow.mts`.
+- **Verification (all green):** `verify:waits` **48/0** (loader lifecycle ×7, policies+consistency ×8,
+  cancellation ×4), `verify:recorder-flow` 19/19, `verify:recorder` 78/0, `verify:runner` 82/0,
+  `verify:cancellation` 12/0, `verify:protected-login` 26/0, `verify:protected-login-recorder` 45/45,
+  `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `verify:mock-site` 39/39,
+  `verify:security` 39/0, `verify:popup` 12/0, `verify:safety-policy` 17/0, `npm run build` clean.
+- **Limitations:** quietPeriod window is a runtime constant (750ms), not per-step; the request-start
+  observer is active-page-scoped (popup/iframe network not folded in); no Async Completion editor UI
+  yet (awkit-54t) — recorded/imported `completionMode` round-trips but is not user-editable.
+- **Manual gates still outstanding:** Electron GUI walkthrough + packaged/offline validation.
+
 ## 2026-07-22 — Claude (Opus 4.8) — Async Activity Awareness: status-vs-timeout + adaptive timeouts (Phase B of 2)
 
 - **Task:** Phase B of the same prompt — extend the EXISTING `WaitCondition`/`beforeWaits`/`afterWaits`

@@ -162,7 +162,27 @@ export interface WaitConditionBase {
   timeoutMs?: number;
   /** Human-readable note (why the recorder captured this wait) — shown in diagnostics. */
   reason?: string;
+  /**
+   * When true, this condition is best-effort: if it is not satisfied it is logged but does NOT fail
+   * the step (or, under `anyRequired`, does not count toward success). Absent/false = required
+   * (the historical behavior). Enables optional loaders, optional background responses, etc.
+   */
+  optional?: boolean;
 }
+
+/** How a loader's disappearance/settling is detected in the loader lifecycle's completion phase. */
+export type LoaderCompletion = "hidden" | "detached" | "ariaBusyFalse";
+
+/**
+ * Deterministic completion policy for a step's `afterWaits` (async awareness):
+ * - `allRequired`  — every required wait must pass (default; the historical behavior).
+ * - `anyRequired`  — succeed as soon as any required wait passes (multiple valid success signals).
+ * - `networkThenUi`— required responses first, then loaders, then required UI outcomes, in phases,
+ *                    with API↔UI consistency checks between them.
+ * - `quietPeriod`  — complete once no new relevant request starts for a quiet window and no blocking
+ *                    loader remains (ignores long-lived streams/WebSockets that start no new requests).
+ */
+export type AsyncCompletionMode = "allRequired" | "anyRequired" | "networkThenUi" | "quietPeriod";
 
 /**
  * A condition-based wait (Smart Wait Engine). Executed by the runner before/after a step's
@@ -171,7 +191,23 @@ export interface WaitConditionBase {
  * observation while the legacy fixed-time `wait` step remains backward compatible.
  */
 export type WaitCondition =
-  | (WaitConditionBase & { type: "loaderHidden"; locator: StepLocator })
+  | (WaitConditionBase & {
+      type: "loaderHidden";
+      locator: StepLocator;
+      /**
+       * Two-phase loader lifecycle (async awareness). When any of these are set the runner:
+       *   1. arms observation before the action, then waits up to `appearanceGraceMs` for the loader
+       *      to APPEAR (so a spinner that shows up late is never skipped);
+       *   2. if it appeared, waits for the `completion` signal; if it never appeared, `mustAppear`
+       *      decides between a clean pass (optional appearance) and a precise failure.
+       * Absent = the legacy behavior (wait for the locator to be hidden).
+       */
+      appearanceGraceMs?: number;
+      /** Require the loader to actually appear; if it never does within the grace, fail clearly. */
+      mustAppear?: boolean;
+      /** Which settle signal ends the completion phase. Default `hidden`. */
+      completion?: LoaderCompletion;
+    })
   | (WaitConditionBase & { type: "elementVisible"; locator: StepLocator })
   | (WaitConditionBase & { type: "elementHidden"; locator: StepLocator })
   | (WaitConditionBase & { type: "elementEnabled"; locator: StepLocator })
@@ -249,6 +285,11 @@ export interface FlowStep {
    * fast response triggered by the action is never missed.
    */
   afterWaits?: WaitCondition[];
+  /**
+   * How this step's `afterWaits` are combined into a single completion decision. Absent =
+   * `allRequired` (the historical behavior: every required wait must pass). See {@link AsyncCompletionMode}.
+   */
+  completionMode?: AsyncCompletionMode;
   value?: string;
   valueSource?: ValueSource;
   selectionMode?: "value" | "label" | "index";

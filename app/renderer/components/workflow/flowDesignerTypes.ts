@@ -32,6 +32,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   timeoutMs: number;
   beforeWaits: WaitCondition[];
   afterWaits: WaitCondition[];
+  /** Async completion policy for `afterWaits` (undefined = allRequired). Carried through round-trip. */
+  completionMode?: FlowStep["completionMode"];
   retryCount: number;
   retryDelayMs: number;
   failureAction: NonNullable<FlowStep["onFailure"]>["action"];
