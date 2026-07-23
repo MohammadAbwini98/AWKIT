@@ -3,6 +3,12 @@ import { dirname, join } from "node:path";
 import { getRuntimePaths } from "./appPaths";
 import { createSerialQueue } from "./writeQueue";
 import {
+  DEFAULT_ACCENT_SETTINGS,
+  normalizeAccentColor,
+  normalizeAccentSettings,
+  type AccentSettings
+} from "@src/theme/accentColor";
+import {
   DEFAULT_RECORDER_SECURITY_SETTINGS,
   normalizeRecorderSecuritySettings,
   type RecorderSecuritySettings
@@ -30,6 +36,12 @@ export interface UiSettings {
   lastRouteId: string;
   /** Theme appearance; defaults to "light" for backward compatibility. */
   appearance: AppearanceMode;
+  /**
+   * Application accent (brand) color customization. Solid or two-color gradient; `primaryColor === null`
+   * (solid) means the built-in default purple. All other shades/gradient stops are derived at runtime;
+   * status colors are never affected. Legacy `{ color }` values migrate to `{ mode:"solid", primaryColor }`.
+   */
+  accent: AccentSettings;
   flowDesignerPaletteWidth: number;
   flowDesignerPropertiesCollapsed: boolean;
   /** Persisted key: ui.flowDesigner.nodePaletteCollapsed */
@@ -178,6 +190,7 @@ const defaultSettings: UiSettings = {
   sidebarCollapsed: false,
   lastRouteId: "dashboard",
   appearance: "light",
+  accent: { ...DEFAULT_ACCENT_SETTINGS },
   flowDesignerPaletteWidth: 224,
   flowDesignerPropertiesCollapsed: false,
   flowDesignerPaletteCollapsed: false,
@@ -284,11 +297,22 @@ function resolvePathDefaults(settings: UiSettings): UiSettings {
   return settings;
 }
 
+/**
+ * Normalize an accent group (or accent patch merged over the current value) into a valid `AccentSettings`.
+ * Delegates to the pure `normalizeAccentSettings`, which also migrates the legacy `{ color }` shape and
+ * falls back to the default-purple solid state on any malformed/missing value — so a corrupted persisted
+ * value or a bad patch can never poison the store.
+ */
+function sanitizeAccent(value: unknown): AccentSettings {
+  return normalizeAccentSettings(value);
+}
+
 /** Merge a parsed/partial object over defaults so new fields always exist. */
 function hydrate(parsed: Partial<UiSettings>): UiSettings {
   const merged: UiSettings = {
     ...defaultSettings,
     ...parsed,
+    accent: sanitizeAccent(parsed.accent),
     recorder: {
       ...defaultSettings.recorder,
       ...parsed.recorder,
@@ -321,6 +345,7 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
   return {
     ...current,
     ...patch,
+    accent: patch.accent === undefined ? current.accent : sanitizeAccent({ ...current.accent, ...patch.accent }),
     recorder: {
       ...current.recorder,
       ...patch.recorder,
@@ -508,6 +533,23 @@ export function validateSettings(settings: UiSettings): string[] {
     if (!value || !String(value).trim()) errors.push(`Path "${key}" must not be empty.`);
   }
 
+  const acc = settings.accent;
+  if (acc.mode !== "solid" && acc.mode !== "gradient") errors.push("Accent mode must be solid or gradient.");
+  if (acc.primaryColor !== null && normalizeAccentColor(acc.primaryColor) === null) {
+    errors.push("Accent primary color must be a valid #RRGGBB hex value or unset.");
+  }
+  if (acc.secondaryColor !== null && normalizeAccentColor(acc.secondaryColor) === null) {
+    errors.push("Accent secondary color must be a valid #RRGGBB hex value or unset.");
+  }
+  if (acc.mode === "gradient" && (!acc.primaryColor || !acc.secondaryColor)) {
+    errors.push("Gradient accent requires both a primary and a secondary color.");
+  }
+  if (!["default-purple", "specter-blue", "custom"].includes(acc.preset)) {
+    errors.push("Accent preset must be default-purple, specter-blue, or custom.");
+  }
+  if (!(Number.isFinite(acc.gradientAngle) && acc.gradientAngle >= 0 && acc.gradientAngle < 360)) {
+    errors.push("Accent gradient angle must be between 0 and 360.");
+  }
   if (typeof settings.recorder.security?.ignoreHttpsErrors !== "boolean") {
     errors.push("Recorder security setting \"Ignore invalid HTTPS certificates\" must be true or false.");
   }

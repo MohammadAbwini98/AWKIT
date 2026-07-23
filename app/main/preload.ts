@@ -21,6 +21,7 @@ import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+import type { BrandingStateView } from "./ipc/branding.ipc";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
@@ -193,6 +194,17 @@ const api = {
         dataSources: number;
         reports: number;
       }>
+  },
+  // Custom workspace logo (Settings → Appearance → Branding). `getState` is an open read (every role
+  // renders the sidebar); the mutating calls are Super-User-only, enforced in the main process. The
+  // upload payload is normalized PNG bytes (structured-clone `Uint8Array`, no base64 on the wire);
+  // `getState` returns the active logo as a self-contained `data:` URL for direct `<img src>` use.
+  branding: {
+    getState: () => ipcRenderer.invoke("branding:getState") as Promise<BrandingStateView>,
+    uploadLogo: (bytes: Uint8Array) =>
+      ipcRenderer.invoke("branding:uploadLogo", bytes) as Promise<{ ok: boolean; reason?: string; state?: BrandingStateView }>,
+    removeLogo: () =>
+      ipcRenderer.invoke("branding:removeLogo") as Promise<{ ok: boolean; reason?: string; state?: BrandingStateView }>
   },
   flows: {
     list: () => ipcRenderer.invoke("flows:list") as Promise<FlowProfile[]>,

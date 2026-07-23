@@ -6,6 +6,9 @@ import { routes, type RouteId } from "./routes";
 import { PageChromeContext, type PageChrome } from "./state/pageChrome";
 import { NavigationContext } from "./state/navigation";
 import { ThemeContext, resolveAppearance, type AppearanceMode } from "./state/theme";
+import { applyAccent, readCachedAccent, writeAccentCache } from "./state/accentTheme";
+import { normalizeAccentSettings, type AccentSettings } from "@src/theme/accentColor";
+import { BrandingContext, DEFAULT_BRANDING_STATE, type BrandingState } from "./state/branding";
 import { usePermissions } from "./security/usePermissions";
 import { RoutePermissions } from "./security/routePermissions";
 import { NotAuthorized } from "./security/NotAuthorized";
@@ -21,6 +24,8 @@ export function App() {
     return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
   });
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  const [accent, setAccentState] = useState<AccentSettings>(() => readCachedAccent());
+  const [branding, setBrandingState] = useState<BrandingState>(DEFAULT_BRANDING_STATE);
   const [chrome, setChromeState] = useState<PageChrome>(emptyChrome);
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [savingBeforeLeave, setSavingBeforeLeave] = useState(false);
@@ -38,6 +43,10 @@ export function App() {
           setAppearanceState(settings.appearance);
           window.localStorage.setItem("awkit-appearance", settings.appearance);
         }
+        // Authoritative accent from the settings store; keep the bootstrap cache in sync.
+        const savedAccent = normalizeAccentSettings(settings.accent);
+        setAccentState(savedAccent);
+        writeAccentCache(savedAccent);
       })
       .catch(() => undefined);
   }, []);
@@ -56,16 +65,45 @@ export function App() {
     return () => media.removeEventListener("change", apply);
   }, [appearance]);
 
+  // Apply the accent (or clear it) whenever the accent or the resolved theme changes, so a light↔dark
+  // switch re-derives the shade/gradient set. Inline vars on <html> beat the stylesheet defaults.
+  useEffect(() => {
+    applyAccent(document.documentElement, accent, resolvedTheme);
+  }, [accent, resolvedTheme]);
+
   const setAppearance = useCallback((mode: AppearanceMode) => {
     setAppearanceState(mode);
     window.localStorage.setItem("awkit-appearance", mode);
     window.playwrightFlowStudio.settings.update({ appearance: mode }).catch(() => undefined);
   }, []);
 
+  // Persist + apply an accent app-wide. The default settings restore the default purple (override removed).
+  const setAccent = useCallback((next: AccentSettings) => {
+    const normalized = normalizeAccentSettings(next);
+    setAccentState(normalized);
+    writeAccentCache(normalized);
+    window.playwrightFlowStudio.settings.update({ accent: normalized }).catch(() => undefined);
+  }, []);
+
   const themeApi = useMemo(
-    () => ({ appearance, resolvedTheme, setAppearance }),
-    [appearance, resolvedTheme, setAppearance]
+    () => ({ appearance, resolvedTheme, setAppearance, accent, setAccent }),
+    [appearance, resolvedTheme, setAppearance, accent, setAccent]
   );
+
+  // Custom workspace logo: fetch once on mount, and expose a refresh the Branding settings card calls
+  // after Apply/Remove so all open renderer surfaces (the sidebar) update immediately. A failure or an
+  // absent logo resolves to the inert default so the sidebar keeps its built-in icon.
+  const refreshBranding = useCallback(async () => {
+    try {
+      setBrandingState(await window.playwrightFlowStudio.branding.getState());
+    } catch {
+      setBrandingState(DEFAULT_BRANDING_STATE);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshBranding();
+  }, [refreshBranding]);
+  const brandingApi = useMemo(() => ({ ...branding, refresh: refreshBranding }), [branding, refreshBranding]);
 
   const chromeApi = useMemo(
     () => ({
@@ -176,6 +214,7 @@ export function App() {
     <PageChromeContext.Provider value={chromeApi}>
       <NavigationContext.Provider value={navigationApi}>
       <ThemeContext.Provider value={themeApi}>
+        <BrandingContext.Provider value={brandingApi}>
         <AppShell
           activeRoute={activeRoute}
           activeRouteId={activeRouteId}
@@ -200,6 +239,7 @@ export function App() {
             onCancel={() => void settleLeave("cancel")}
           />
         ) : null}
+        </BrandingContext.Provider>
       </ThemeContext.Provider>
       </NavigationContext.Provider>
     </PageChromeContext.Provider>
