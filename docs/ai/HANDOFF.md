@@ -7,6 +7,29 @@ Last updated: **2026-07-23 (latest — three-branch feature recovery: accent / H
 > branches off `main` @ `32e378e`**, each verified, pushed, and opened as its own PR. Nothing is paused
 > mid-edit; every recovery worktree is clean. The original mixed branch is untouched.
 
+## Next Agent — current PR landscape & next steps
+
+Six PRs are in flight. `main` remains at `32e378e` until they merge. No backend implementation may start
+before the clean-machine gate clears (see the "THE BLOCKING GATE" section below).
+
+- **PR #27** (`fix/backend-observability-tranche-0`) — **frozen at `85df851`**. Do not amend, add commits,
+  or push to it.
+- **PR #28** (`feature/custom-accent-gradient`) — **ready for review**: custom accent gradient.
+- **PR #29** (`feature/https-certificate-trust`) — **draft**, pending a focused HTTPS security review.
+- **PR #30** (`feature/custom-brand-logo`) — **ready for review**: custom brand logo.
+- **PR #31** (`docs/feature-recovery-state-sync`) — the recovery-state documentation (this branch).
+- **Release gates NOT EXECUTED / NOT PASSED:** portable rebuild, artifact verification, clean-machine
+  validation, and release promotion all remain outstanding.
+- **`.beads/issues.jsonl` is frozen** — must not be committed or synchronized. **Do not run
+  `bd dolt push`.**
+
+**Recommended review order:** #28, #29, #30, then #31 (after confirming its references remain accurate).
+
+**After PR #31 merges:** verify its content is present on `main`, then remove the docs-sync worktree,
+prune worktrees, and delete the merged `docs/feature-recovery-state-sync` branch.
+
+---
+
 ## Three-branch recovery — branch / PR map (all off `main` @ `32e378e`, pushed)
 
 | Branch | Tip | PR | State | Verification |
