@@ -1,8 +1,63 @@
 # Agent Handoff
 
-Last updated: **2026-07-23 (later — FR-2.6 branch-pair fix implemented + Canvas UX SRS reconciled)**
+Last updated: **2026-07-23 (latest — three-branch feature recovery: accent / HTTPS / custom brand logo → 3 PRs)**
 
-> **Read this block first. Four local branches exist, none pushed. One acceptance gate blocks all
+> **Read this block first.** The previous agent decomposed the mixed commit `a1adcc2` ("branding, accent
+> theme, and HTTPS certificate trust", on `chore/brand-logo-5b`) into **three independent feature
+> branches off `main` @ `32e378e`**, each verified, pushed, and opened as its own PR. Nothing is paused
+> mid-edit; every recovery worktree is clean. The original mixed branch is untouched.
+
+## Three-branch recovery — branch / PR map (all off `main` @ `32e378e`, pushed)
+
+| Branch | Tip | PR | State | Verification |
+|---|---|---|---|---|
+| `feature/custom-accent-gradient` | `cf5b50f` | #28 | **ready for review** | build ✓ · `verify:accent-theme` 71/71 · `verify:accent-gui` 33/33 |
+| `feature/https-certificate-trust` | `ba2e887` | #29 | **draft (security review)** | build ✓ · `verify:https-certificates` 49/49 · `verify:https-certificates-gui` 31/31 · regression `verify:runner` 82 + `verify:recorder` 78 |
+| `feature/custom-brand-logo` | `11b2afa` | #30 | **ready for review** | build ✓ · `verify:custom-brand-logo` 31/31 · `verify:branding` 47/47 · `verify:branding-gui` 30/30 |
+
+Each branch = one feature commit + one focused docs commit. They are **independent, not stacked**; each
+was confirmed cleanly based on `origin/main` (`32e378e`) before its PR. The three worktrees live under
+`%LOCALAPPDATA%\Temp\awkit-worktrees\{accent,https,branding}` (each `node_modules` is a junction to the
+main repo's — deps unchanged).
+
+### Key recovery decisions
+- **HTTPS: the browser-wide bypass was removed.** The blanket `--ignore-certificate-errors` launch arg
+  and its `AWKIT_CERT_FALLBACK_LAUNCH_ARG` env hatch from the original draft are **dropped**. Trust is
+  now **context-level only** (`ignoreHTTPSErrors` on both context factories). `sharedCompatibilityKey`
+  no longer carries a cert dimension. A regression guard in `verify:https-certificates` fails if a quoted
+  `"--ignore-certificate-errors"` is reintroduced anywhere under `src/`/`app/`.
+- **Branding: shipped assets preserved.** The source branch's `specter-logo.svg` replacement and its
+  `package-portable.ps1` compression change were **excluded** (shipped logo, icons, splash, packaged
+  resources untouched). The login-screen display was **added** during recovery (the original draft wired
+  only the sidebar); login + sidebar now resolve the same logo via one `branding.getState()` read.
+- **Accent: one intentional omission** — the `SecurityGate.tsx` live-OS-theme-switch refinement is
+  deferred as optional polish (the `index.html` pre-mount bootstrap already applies the accent on login;
+  GUI verifier passes without it). Recorded in PR #28 and `docs/ACCENT_COLOR.md`.
+
+### Remaining work
+- **PR #29 (HTTPS) is in draft for a focused security review** — the PR body lists six invariants to
+  confirm (context-scoped only · default `false` / import can't enable · recorder persistent-context
+  resume uses the resolved setting · no `--ignore-certificate-errors` launch arg · shared contexts don't
+  leak cert policy · logs expose no sensitive cert/session data). Mark ready when satisfied.
+- **PRs #28 and #30 are ready for review** — review + merge per normal flow.
+- **`docs/ai/` reconciliation** (FEATURES / DECISIONS / COMMANDS entries for the three features) was left
+  for merge time; each branch carries only its own self-contained feature doc (`docs/ACCENT_COLOR.md`,
+  `docs/HTTPS_CERTIFICATE_TRUST.md`, `docs/BRANDING_CUSTOM_LOGO.md`) to avoid cross-PR conflicts.
+
+### Do-not-touch (recovery)
+- The archived source branches `chore/brand-logo-5b` + `backup/chore-brand-logo-5b` (both at `a1adcc2`) —
+  leave intact; do not delete.
+- `.beads` / `bd dolt push` / release promotion — untouched by all three branches; the only working-tree
+  `.beads/issues.jsonl` change is the **pre-existing** backend-tranche export (see below), not from this work.
+
+---
+
+> ⚠️ **Below is PRIOR CONTEXT (history), unchanged by the recovery above.** The current checkout of this
+> repo is `fix/backend-observability-tranche-0` (backend Tranche 0). The blocks below cover the FR-2.6
+> branch-pair fix and the backend Tranche 0 / clean-machine acceptance gate — those threads are still
+> open and still gated. `.beads/issues.jsonl` remains uncommitted here (the frozen cross-branch export).
+
+> **Four local branches exist, none pushed. One acceptance gate blocks all
 > backend implementation. Nothing is paused mid-edit.**
 >
 > **Update (2026-07-23, later session):** the confirmed FR-2.6 defect below (both editors' branch

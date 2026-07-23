@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Three-branch feature recovery (2026-07-23, latest) — accent / HTTPS / custom brand logo
+
+The mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust") was decomposed into
+**three independent feature branches off `main` @ `32e378e`**, each verified and opened as its own PR
+(not stacked). All pushed; the original mixed branch `chore/brand-logo-5b` (+ backup) is left intact.
+
+- **`feature/custom-accent-gradient` (PR #28, ready)** — user-selectable accent (solid/gradient +
+  Specter Blue). New commands: `verify:accent-theme` (71/71), `verify:accent-gui` (33/33). Doc:
+  `docs/ACCENT_COLOR.md`.
+- **`feature/https-certificate-trust` (PR #29, draft — security review)** — opt-in, default-OFF
+  "Ignore invalid HTTPS certificates", **context-level only** (the browser-wide
+  `--ignore-certificate-errors` launch arg + env hatch were dropped; a regression guard prevents its
+  return). New commands: `verify:https-certificates` (49/49), `verify:https-certificates-gui` (31/31).
+  Doc: `docs/HTTPS_CERTIFICATE_TRUST.md`.
+- **`feature/custom-brand-logo` (PR #30, ready)** — Super-User custom workspace logo (login + sidebar),
+  signature-validated, app-managed atomic store, permission-gated. New commands:
+  `verify:custom-brand-logo` (31/31), `verify:branding` (47/47), `verify:branding-gui` (30/30). Doc:
+  `docs/BRANDING_CUSTOM_LOGO.md`.
+
+These features live on their branches only — **`main` behavior is unchanged** until the PRs merge. See
+`docs/ai/HANDOFF.md` (top block) for the full map, decisions, and remaining review work.
+
+---
+
 ## Status summary (2026-07-23) — supersedes the 2026-07-22 block below
 
 **Branch-state correction.** The 2026-07-22 summary below says the recorder/async work is "not pushed".

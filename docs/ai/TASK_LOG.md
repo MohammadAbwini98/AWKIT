@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-23 (latest) — Three-branch feature recovery (accent / HTTPS / custom brand logo)
+
+- **Task:** decompose the mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust",
+  on `chore/brand-logo-5b`) into **three independent feature branches off `main` @ `32e378e`**, verify
+  each, and open three separate PRs. Not stacked; original mixed branch left intact.
+- **`feature/custom-accent-gradient` @ `cf5b50f` (PR #28, ready):** finished the accent port (added the
+  missing `<AccentColorSettings/>` mount + the two verifiers + package.json aliases). Accent-only.
+  `verify:accent-theme` 71/71, `verify:accent-gui` 33/33, build clean. New `docs/ACCENT_COLOR.md`.
+  Deferred (optional polish): the `SecurityGate.tsx` live-OS-theme-switch accent hunk.
+- **`feature/https-certificate-trust` @ `ba2e887` (PR #29, DRAFT — security review):** recovered
+  context-level `ignoreHTTPSErrors` on both context factories; **removed** the browser-wide
+  `--ignore-certificate-errors` launch arg + `AWKIT_CERT_FALLBACK_LAUNCH_ARG` env hatch, and reverted
+  `sharedCompatibilityKey`'s cert pool-key dimension. Added a source-scan **regression guard** (fails if
+  a quoted `"--ignore-certificate-errors"` reappears; pinned `-spki-list` excluded). 3-way merged
+  StepExecutor/RecorderService/recorder.ipc/Recorder.tsx to preserve protected-login.
+  `verify:https-certificates` 49/49, `verify:https-certificates-gui` 31/31, regression `verify:runner`
+  82 + `verify:recorder` 78, build clean. `docs/HTTPS_CERTIFICATE_TRUST.md` gained a security-review
+  checklist.
+- **`feature/custom-brand-logo` @ `11b2afa` (PR #30, ready):** recovered the Super-User custom logo
+  (`src/branding/*` already met the security bar — PNG-signature validation, SVG→PNG rasterization,
+  app-managed atomic store, bytes-not-paths IPC, permission/audit, data-URL-only, safe fallback).
+  **Excluded** the source branch's `specter-logo.svg` replacement + `package-portable.ps1` change (shipped
+  assets preserved). **Added** login-screen display (parity with the sidebar via one `getState()` read).
+  New `verify:custom-brand-logo` 31/31 (maps 1:1 to the 15 acceptance cases) + `verify:branding` 47/47 +
+  `verify:branding-gui` 30/30 (retargeted one accent-dependent check to the ungated "Application" card),
+  build clean. New `docs/BRANDING_CUSTOM_LOGO.md`.
+- **Git:** each branch = 1 feature commit + 1 focused docs commit; confirmed cleanly based on
+  `origin/main` before its PR. Pushed; PRs #28/#30 ready, #29 draft. `.beads`, `bd dolt push`, release
+  promotion, and the archived source branches (`chore/brand-logo-5b` + `backup/…`) left untouched.
+- **Docs sync:** these canonical `docs/ai/` updates recording the recovery are committed on a docs-only
+  branch `docs/feature-recovery-state-sync` off `main` (kept separate from the feature PRs #28–#30 and
+  from `fix/backend-observability-tranche-0` / PR #27). `.beads/issues.jsonl` left untouched.
+
+---
+
 ## 2026-07-23 (later) — Claude (Opus 4.8) — FR-2.6 branch-pair deletion semantics + SRS reconcile
 
 - **Task:** implement the FR-2.6 owner decision from the prior session's canvas sweep — restore the
