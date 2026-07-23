@@ -167,3 +167,39 @@ integration against local HTTPS servers with generated self-signed / expired / w
 certificates, exercising the real `BrowserContextFactory` (dedicated, persistent, shared-pool) and
 `RecorderService` code paths. No external website is contacted; the test certificate and key are
 generated in memory per run (`scripts/lib/selfSignedCertificate.mts`) and never written to disk.
+
+## Security review checklist
+
+This feature is a deliberate, opt-in relaxation of certificate validation, so it warrants close review.
+Each invariant below is enforced in code and covered by `verify:https-certificates` /
+`verify:https-certificates-gui`:
+
+1. **`ignoreHTTPSErrors` is context-scoped only.** It is applied exclusively as a Playwright
+   per-`BrowserContext` option in `BrowserContextFactory.buildContextOptions` and `RecorderService`
+   (both `newContext` and `launchPersistentContext`). No browser-process-wide mechanism is used.
+2. **Default remains `false`.** `DEFAULT_IGNORE_HTTPS_ERRORS = false`; every resolution path
+   (`resolveIgnoreHttpsErrors`, `normalizeRecorderSecuritySettings`) falls back to `false`, including a
+   missing/corrupt persisted value, and **import can never enable it** (`replaceUiSettings` force-resets
+   `recorder.security`). The mutating setting is gated by `SETTINGS_EDIT`.
+3. **Recorder persistent-context resume uses the resolved setting.** The decision is held on the
+   `RecorderService` instance and re-applied on the post-handoff `launchPersistentContext` resume path
+   (Auto Secure Login / Reuse Session), not just the initial launch.
+4. **No `--ignore-certificate-errors` launch argument exists.** The blanket switch and its former
+   `AWKIT_CERT_FALLBACK_LAUNCH_ARG` env hatch are removed. A regression guard scans `src/` and `app/`
+   and **fails the verifier** if a quoted `"--ignore-certificate-errors"` literal is reintroduced (the
+   pinned `--ignore-certificate-errors-spki-list` used only by the verifier's own in-memory test client
+   is excluded).
+5. **Shared browser contexts do not leak certificate policy.** Because trust is context-level, it is
+   deliberately **not** part of `sharedCompatibilityKey` — a bypassing context and a validating context
+   each carry their own `ignoreHTTPSErrors` and can safely coexist on one pooled Chromium process
+   without either inheriting the other's policy.
+6. **Logs do not expose sensitive certificate or session data.** The one structured warning per created
+   context (`CERTIFICATE_BYPASS_LOG_MESSAGE`) and the `net::ERR_*` classifier carry only non-sensitive
+   identifiers (surface, precedence source, ids) — never URLs, cookies, headers, credentials, or
+   certificate material.
+
+## Recovery note
+
+This branch was split cleanly out of a mixed source branch. During recovery the browser-level
+`--ignore-certificate-errors` fallback that existed in the original draft was removed entirely, leaving
+the context-level mechanism as the single path (see items 4–5 above).
