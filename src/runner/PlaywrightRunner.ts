@@ -32,6 +32,7 @@ interface BrowserHolder {
 type BrowserCloseReason =
   | "reuse-session-swap-old-runtime"
   | "instance-stop"
+  | "execution-completed-cleanup"
   | "execution-failed-cleanup"
   | "user-request"
   | "app-shutdown"
@@ -82,6 +83,13 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * i.e. today's behaviour.
    */
   traceMode?: TraceMode;
+  /**
+   * Browser Resource Optimization: the resolved artifact profile's failure-screenshot default
+   * (`ArtifactSettings.screenshotOnFailure`). Governs steps with no explicit `onFailure.screenshot`
+   * override (awkit-5yx). Omitted (direct PlaywrightRunner / verify-script users) → capture, i.e.
+   * today's behaviour.
+   */
+  screenshotOnFailure?: boolean;
   /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
   oracleNodeRunner?: OracleNodeRunner;
 }
@@ -205,6 +213,12 @@ export class PlaywrightRunner {
 
     const flowResults: FlowExecutionResult[] = [];
 
+    // Reason handed to closeRuntime in `finally`. Stays failure-cleanup unless the run reaches the
+    // clean "passed" terminal below (awkit-oei). This corrects the structured LOG TEXT ONLY — the
+    // reason is discarded by onRuntimeClosing's sole consumer and never feeds pool close-reason
+    // analytics (a different enum), so close-reason distributions are unaffected.
+    let closeReason: BrowserCloseReason = "execution-failed-cleanup";
+
     try {
       const executionPlan = this.scenarioOrchestrator.createExecutionPlan(profile);
       if (executionPlan.validationIssues.some((issue) => issue.severity === "error")) {
@@ -274,12 +288,13 @@ export class PlaywrightRunner {
         currentFlowId = this.chooseNextFlow(links, accumulatedOutputs, context) ?? orderFallback;
       }
 
+      closeReason = "execution-completed-cleanup";
       return this.finish(profile.id, context, startedAt, flowResults, logger, "passed");
     } catch (error) {
       return this.finish(profile.id, context, startedAt, flowResults, logger, "failed", error instanceof Error ? error.message : String(error));
     } finally {
       unsubscribeCancel?.();
-      await this.closeRuntime(holder.runtime, holder.generation, "execution-failed-cleanup", logger, context).catch(() => undefined);
+      await this.closeRuntime(holder.runtime, holder.generation, closeReason, logger, context).catch(() => undefined);
     }
   }
 
@@ -517,7 +532,7 @@ export class PlaywrightRunner {
     // Save/restore around nested child flows so the parent's executor is active again afterwards.
     const previousExecutor = holder.activeExecutor;
     holder.activeExecutor = stepExecutor;
-    const flowExecutor = new FlowExecutor(stepExecutor, logger, this.options.progress, branchFactory);
+    const flowExecutor = new FlowExecutor(stepExecutor, logger, this.options.progress, branchFactory, this.options.screenshotOnFailure);
     try {
       return await flowExecutor.executeFlow(flow, context);
     } finally {
