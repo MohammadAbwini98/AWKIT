@@ -168,9 +168,18 @@ async function main() {
 
   console.log("\n[14] Old profiles without branding fields remain compatible");
   // Branding lives on disk (BrandingLogoStore), deliberately NOT in ui-settings.json, so a settings
-  // file written before this feature needs no branding key and no migration.
-  const settingsDiff = gitDiff("app/main/uiSettings.ts");
-  check("branding does not add any field to UiSettings (settings file untouched by this feature)", settingsDiff === "");
+  // file written before this feature needs no branding key and no migration. Prove this SEMANTICALLY —
+  // the branding feature introduces no branding-specific field into the UiSettings schema/persistence —
+  // instead of requiring app/main/uiSettings.ts to be byte-identical to `main`: other legitimate
+  // features (e.g. accent, recorder security) may modify that same file, and this check must survive
+  // integration alongside them while still failing if branding ever leaks a field into settings.
+  const uiSettingsSrc = src("app/main/uiSettings.ts");
+  const brandingSettingsRefs = uiSettingsSrc.match(/\bbranding\b|customLogo|workspaceLogo|logoPath|BrandingLogoStore|BrandingManifest|BrandingSettings/gi) ?? [];
+  check(
+    "branding adds no branding-specific field to UiSettings (ui-settings persistence untouched by this feature)",
+    brandingSettingsRefs.length === 0,
+    brandingSettingsRefs.length ? brandingSettingsRefs.join(", ") : "no branding key in the settings schema"
+  );
   check("a fresh store with no prior state works (no branding fields required)", new BrandingLogoStore({ folder: join(tmp, "s14"), decodeAndVerify: decodeOk }).get().active === false);
 
   console.log("\n[15] .beads remains unchanged");
