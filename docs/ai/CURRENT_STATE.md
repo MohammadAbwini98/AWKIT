@@ -31,7 +31,59 @@ stayed green.
 **Release status — development integration, NOT product promotion.** `validate:offline` was inconclusive
 in the isolated worktrees (bundled-browser payload absent); the portable rebuild, artifact verification,
 and clean-machine validation remain **NOT executed** (release debt). `.beads/issues.jsonl` stays frozen —
-no `bd dolt push`. `fix/backend-observability-tranche-0` (PR #27) is untouched by this recovery.
+no `bd dolt push`. `fix/backend-observability-tranche-0` (PR #27) was untouched by the recovery itself; it was
+subsequently **rebased onto the post-recovery `main`** — see the next section.
+
+---
+
+## Backend Tranche 0 (2026-07-23; rebased onto `main` @ `9960633` on 2026-07-24) — Reporting truthfulness
+
+**Owner-approved development waiver, NOT passed validation.** On 2026-07-23 the owner explicitly
+waived the portable rebuild, artifact verification, and clean-machine validation prerequisites **for
+continued backend development** — they were **not executed and are not passed**; `61f6099` promotion
+is **not completed**; the validation work remains **release debt**. The waiver authorized Backend
+Tranche 0 only. See the waiver banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`.
+
+Delivered on `fix/backend-observability-tranche-0` (**PR #27 — DRAFT**), **rebased onto `main` @ `9960633`**
+(originally branched from `32e378e`; now pushed). Verified compatible with the merged accent / HTTPS /
+branding recovery (PRs #28–#31 are merged): the combined tree builds clean and every recovery verifier
+stays green. Release promotion is still **not completed** (see the release-status note above):
+
+- **awkit-5yx — `screenshotOnFailure` precedence wired.** `FlowExecutor`'s failure-screenshot gate
+  was hardcoded `?? true`, ignoring the resolved artifact profile. Now: explicit per-step override →
+  artifact-profile default (threaded `browserConfig.artifact.screenshotOnFailure` →
+  `PlaywrightRunnerOptions.screenshotOnFailure` → new `FlowExecutor` ctor arg, default `true`) → safe
+  system default. **Behaviour-preserving today** (all four profiles still return `true`). Regression
+  test `verify:failure-screenshot-precedence` (6/6). **Note:** the bead's AC-3 (making `production`
+  actually *suppress* failure screenshots) is a config-VALUE change that contradicts the
+  `ArtifactProfile.ts` "failure screenshots only (leanest)" design — NOT done here; it needs an owner
+  decision and is out of the "precedence" scope.
+- **awkit-oei — success cleanup no longer mislabeled.** `PlaywrightRunner.executeScenario`'s `finally`
+  hardcoded `execution-failed-cleanup` on every exit. Added `execution-completed-cleanup` to the
+  `BrowserCloseReason` union; a passed terminal now logs it, failure keeps the old reason. **Log text
+  only** — the reason is discarded by `onRuntimeClosing`'s sole consumer and never feeds pool
+  close-reason analytics (a different enum). Verified live in `verify:runner` (now 84/84, +2).
+- **FR-I1 — verifier classification.** New `scripts/lib/verifier-classification.ts` classifies all
+  **106** `verify:`/`validate:` scripts into the 7-class taxonomy; `verify:verifier-classification`
+  reconciles it against `package.json` (fails on an unclassified/stale entry) and reports **per-class
+  counts** (43 unit · 35 real-browser · 21 integration · 4 static-source · 3 packaged · 0
+  doc-consistency · 0 clean-machine) — replacing the single undifferentiated total (the Tranche 0
+  exit criterion). The **seven** recovery verifiers `main` gained (PRs #28–#31) are classified by their
+  actual execution behavior: `accent-theme`=unit; `accent-gui`, `https-certificates`,
+  `https-certificates-gui`, `branding-gui`=real-browser (Electron GUI, or live Chromium cert servers);
+  `branding`, `custom-brand-logo`=integration (real `BrandingLogoStore` atomic writes on a temp dir, no
+  browser). **Remaining FR-I1 depth (follow-up, not in this tranche):** the I1.4 audit proving each
+  verifier can fail for its stated reason, and I1.2 per-file header back-fill.
+- **Excluded (still in force):** CDP observation, failure-evidence restructuring (`awkit-oyc`),
+  `INCONCLUSIVE`/`StepExecutionStatus`, locator recovery (`awkit-v4r`). **No Tranche 1 work.** The
+  `production` artifact-profile `screenshotOnFailure` value is unchanged (AC-3 deferred).
+
+Verification (rebased tree @ `main` `9960633`): `npm run build` clean; `verify:failure-screenshot-precedence`
+6/6; `verify:runner` 84/84; `verify:verifier-classification` reconciled (**106 classified**);
+`verify:branch-pairs` 31/31. Recovery compatibility: `verify:accent-theme` 71/71 · `verify:accent-gui` 33/33
+· `verify:https-certificates` 49/49 · `verify:https-certificates-gui` 31/31 · `verify:branding` 47/47 ·
+`verify:branding-gui` 30/30 · `verify:custom-brand-logo` 31/31 · `verify:settings-persistence` 3/3 ·
+`verify:ipc-contract` 4/4. `.beads/issues.jsonl` excluded/frozen; no `bd dolt push`.
 
 ---
 

@@ -1,5 +1,24 @@
 # Clean-Machine Validation Runbook — SpecterStudio (AWKIT) 0.1.0
 
+> ## ⚠ Owner-approved development waiver — 2026-07-23
+>
+> On 2026-07-23, the project owner explicitly waived the portable rebuild, artifact-verification, and
+> clean-machine validation prerequisites **for continued backend development**. These activities were
+> **not executed** and are **not considered passed**. The waiver authorizes **Backend Tranche 0**
+> implementation but does **not** provide release, packaging, offline-operation, or clean-machine
+> acceptance evidence. The original validation work remains open as **release debt**.
+>
+> | Gate | Status |
+> |---|---|
+> | Portable rebuild | **NOT EXECUTED — OWNER-APPROVED WAIVER** |
+> | Portable/NSIS artifact verification | **NOT EXECUTED — OWNER-APPROVED WAIVER** |
+> | Clean-machine validation | **NOT EXECUTED — OWNER-APPROVED WAIVER** |
+> | Evidence-based promotion of `61f6099` | **NOT COMPLETED — OWNER-APPROVED DEVELOPMENT WAIVER** |
+> | Backend Tranche 0 | **EXPLICITLY AUTHORIZED** |
+>
+> This waiver does not alter any check below: every item remains `☐ Not Executed` and no pass is
+> claimed. Release/promotion still requires the full runbook to be executed on a qualifying machine.
+
 **Purpose.** Execute the outstanding **clean offline Windows environment** acceptance gate for the
 Flow Validation Engine (Tranche 2). This runbook is written for a human tester or an agent with
 access to a qualifying Windows VM or physical test machine. The developer machine **cannot** satisfy

@@ -69,6 +69,55 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-23 (later; rebased onto `main` @ `9960633` 2026-07-24) — Claude (Opus 4.8) — Backend Tranche 0 (Reporting truthfulness)
+
+- **Authorization:** owner-approved DEVELOPMENT WAIVER of the portable-rebuild / artifact-verification /
+  clean-machine gates (recorded atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`). Gates **not executed, not
+  passed**; `61f6099` promotion **not completed** (release debt). Waiver authorized **Tranche 0 only**.
+- **Branch:** `fix/backend-observability-tranche-0` (**PR #27, draft**). Originally branched from `main`
+  @ `32e378e`; **rebased onto `main` @ `9960633`** (post-recovery) on 2026-07-24 and pushed
+  (`--force-with-lease`). Four-commit history preserved; verified compatible with the merged accent/HTTPS/
+  branding recovery. `.beads/issues.jsonl` carried unchanged (still the frozen cross-branch export — not
+  committed, excluded from the PR).
+- **awkit-5yx (screenshotOnFailure precedence):** wired the resolved artifact-profile default through
+  `browserConfig.artifact.screenshotOnFailure` → `PlaywrightRunnerOptions.screenshotOnFailure` → a new
+  `FlowExecutor` ctor arg (default `true`), replacing the hardcoded `?? true` at the failure-screenshot
+  gate. Precedence: explicit per-step override → profile default → safe system default.
+  Behaviour-preserving today (all profiles return `true`). **AC-3 NOT done** (flipping `production` to
+  actually suppress contradicts the `ArtifactProfile.ts` design; needs an owner call — out of
+  "precedence" scope). Regression: `scripts/verify-failure-screenshot-precedence.mts` (unit, 6/6) —
+  drives the real `executeWithRetry` with a stub StepExecutor; the `(default false, no override)` case
+  captures 0 and would capture 1 under the old `?? true`.
+- **awkit-oei (success close reason):** added `execution-completed-cleanup` to `BrowserCloseReason`;
+  `executeScenario`'s `finally` now closes with a reason that tracks the terminal (`closeReason` set to
+  completed only on the passed return; failure/other keep `execution-failed-cleanup`). **Log text only**
+  — verified the reason never reaches pool analytics. Regression: extended `verify-runner.mts` with two
+  live assertions on `result.logs` (passed → completed-cleanup; failed-terminal → failed-cleanup);
+  `verify:runner` now **84/84** (+2).
+- **FR-I1 (verifier classification):** `scripts/lib/verifier-classification.ts` (registry, 7-class
+  taxonomy, all **106** `verify:`/`validate:` scripts) + `scripts/verify-verifier-classification.mts`
+  (reconciles against `package.json`, fails on unclassified/stale/non-taxonomy, prints **per-class
+  counts** — the Tranche 0 exit criterion). Counts: 43 unit · 35 real-browser · 21 integration · 4
+  static-source · 3 packaged · 0 doc-consistency · 0 clean-machine. The seven verifiers `main` gained in
+  the recovery are classified by execution behavior: `accent-theme`=unit; `accent-gui`/`https-certificates`/
+  `https-certificates-gui`/`branding-gui`=real-browser; `branding`/`custom-brand-logo`=integration.
+  **Remaining FR-I1 depth NOT done:** I1.4 "can it actually fail?" audit + I1.2 per-file headers.
+- **Files:** `src/runner/{FlowExecutor,PlaywrightRunner,ExecutionEngine}.ts`;
+  `scripts/verify-failure-screenshot-precedence.mts` (new), `scripts/verify-runner.mts` (extended),
+  `scripts/lib/verifier-classification.ts` (new), `scripts/verify-verifier-classification.mts` (new),
+  `package.json` (+2 aliases); `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`, `docs/ai/{CURRENT_STATE,TASK_LOG}.md`.
+- **Tests (rebased tree):** `npm run build` clean; `verify:failure-screenshot-precedence` 6/6;
+  `verify:runner` 84/84; `verify:verifier-classification` reconciled (**106**); `verify:branch-pairs`
+  31/31. Recovery compatibility: `verify:accent-theme` 71/71 · `verify:accent-gui` 33/33 ·
+  `verify:https-certificates` 49/49 · `verify:https-certificates-gui` 31/31 · `verify:branding` 47/47 ·
+  `verify:branding-gui` 30/30 · `verify:custom-brand-logo` 31/31 · `verify:settings-persistence` 3/3 ·
+  `verify:ipc-contract` 4/4. **Not run:** Oracle/packaged/stress suites (untouched surfaces). Beads left
+  OPEN (`.beads` frozen — no `bd close`, no `bd dolt push`).
+- **Excluded (still in force):** CDP observation, failure-evidence restructuring (`awkit-oyc`),
+  `INCONCLUSIVE`/`StepExecutionStatus`, locator recovery (`awkit-v4r`). **No Tranche 1 work.**
+
+---
+
 ## 2026-07-23 (later) — Claude (Opus 4.8) — FR-2.6 branch-pair deletion semantics + SRS reconcile
 
 - **Task:** implement the FR-2.6 owner decision from the prior session's canvas sweep — restore the
