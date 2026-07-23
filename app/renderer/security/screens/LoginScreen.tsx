@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Workflow, Loader2, Building2 } from "lucide-react";
 import type { LoginOption, ProviderId } from "@src/security/auth/AuthTypes";
 import { PasswordField } from "../components/PasswordField";
@@ -30,6 +30,23 @@ export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
   const [error, setError] = useState<string | null>(null);
   // Fall back to the built-in glyph if the packaged logo asset ever fails to load (offline-safe, no broken image).
   const [logoFailed, setLogoFailed] = useState(false);
+  // The active custom workspace logo (a self-contained data: URL), resolved from the SAME open
+  // `branding.getState()` read the sidebar uses — so the login screen and the app chrome always show
+  // the same logo. Absent/false/error → keep the built-in default (a plain presence check, never an
+  // <img onError>, so a mid-swap or corrupt asset never yields a broken image on the login screen).
+  const [customLogo, setCustomLogo] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    window.playwrightFlowStudio.branding
+      ?.getState()
+      .then((state) => {
+        if (!cancelled && state?.active && state.dataUrl) setCustomLogo(state.dataUrl);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !submitting;
 
@@ -55,7 +72,10 @@ export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
   return (
     <form className="awkit-login-form" onSubmit={handleSubmit} aria-labelledby="awkit-login-title">
       <header className="awkit-login-brand">
-        {logoFailed ? (
+        {customLogo ? (
+          // Custom workspace logo overrides the default mark — aspect-preserved, overflow-bounded by CSS.
+          <img className="awkit-login-logo-custom" src={customLogo} alt="" aria-hidden="true" draggable={false} />
+        ) : logoFailed ? (
           <span className="awkit-login-mark" aria-hidden="true">
             <Workflow size={22} strokeWidth={2.4} />
           </span>

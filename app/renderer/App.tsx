@@ -6,6 +6,7 @@ import { routes, type RouteId } from "./routes";
 import { PageChromeContext, type PageChrome } from "./state/pageChrome";
 import { NavigationContext } from "./state/navigation";
 import { ThemeContext, resolveAppearance, type AppearanceMode } from "./state/theme";
+import { BrandingContext, DEFAULT_BRANDING_STATE, type BrandingState } from "./state/branding";
 import { usePermissions } from "./security/usePermissions";
 import { RoutePermissions } from "./security/routePermissions";
 import { NotAuthorized } from "./security/NotAuthorized";
@@ -21,6 +22,7 @@ export function App() {
     return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
   });
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  const [branding, setBrandingState] = useState<BrandingState>(DEFAULT_BRANDING_STATE);
   const [chrome, setChromeState] = useState<PageChrome>(emptyChrome);
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [savingBeforeLeave, setSavingBeforeLeave] = useState(false);
@@ -66,6 +68,21 @@ export function App() {
     () => ({ appearance, resolvedTheme, setAppearance }),
     [appearance, resolvedTheme, setAppearance]
   );
+
+  // Custom workspace logo: fetch once on mount, and expose a refresh the Branding settings card calls
+  // after Apply/Remove so all open renderer surfaces (the sidebar) update immediately. A failure or an
+  // absent logo resolves to the inert default so the sidebar keeps its built-in icon.
+  const refreshBranding = useCallback(async () => {
+    try {
+      setBrandingState(await window.playwrightFlowStudio.branding.getState());
+    } catch {
+      setBrandingState(DEFAULT_BRANDING_STATE);
+    }
+  }, []);
+  useEffect(() => {
+    void refreshBranding();
+  }, [refreshBranding]);
+  const brandingApi = useMemo(() => ({ ...branding, refresh: refreshBranding }), [branding, refreshBranding]);
 
   const chromeApi = useMemo(
     () => ({
@@ -176,6 +193,7 @@ export function App() {
     <PageChromeContext.Provider value={chromeApi}>
       <NavigationContext.Provider value={navigationApi}>
       <ThemeContext.Provider value={themeApi}>
+        <BrandingContext.Provider value={brandingApi}>
         <AppShell
           activeRoute={activeRoute}
           activeRouteId={activeRouteId}
@@ -200,6 +218,7 @@ export function App() {
             onCancel={() => void settleLeave("cancel")}
           />
         ) : null}
+        </BrandingContext.Provider>
       </ThemeContext.Provider>
       </NavigationContext.Provider>
     </PageChromeContext.Provider>
