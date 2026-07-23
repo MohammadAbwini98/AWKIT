@@ -23,6 +23,9 @@ import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
 import { AccentColorSettings } from "./AccentColorSettings";
 import { DEFAULT_ACCENT_SETTINGS } from "@src/theme/accentColor";
+import { BrandingSettings } from "./BrandingSettings";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
 import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
 
@@ -103,6 +106,7 @@ function validateClient(settings: UiSettings): string[] {
 
 export function SettingsPage() {
   const { appearance, setAppearance, setAccent } = useTheme();
+  const { can } = usePermissions();
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pathStatus, setPathStatus] = useState<PathStatus>({});
@@ -422,6 +426,10 @@ export function SettingsPage() {
 
         {/* Appearance — Accent Color (user-selectable brand accent) */}
         <AccentColorSettings />
+
+        {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
+            The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}
+        {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
 
         {/* Recorder — Protected Login Detection */}
         <section className="work-panel settings-card">

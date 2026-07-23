@@ -10465,3 +10465,194 @@ button.recorded-url-use:disabled {
   box-shadow: 0 0 0 2px var(--awkit-accent-bright, var(--awkit-accent)),
     0 0 18px 2px rgba(var(--awkit-accent-deep-rgb, var(--awkit-accent-rgb)), 0.4);
 }
+
+/* A custom logo replaces the ENTIRE workspace block: full-width, aspect-preserved, transparency-safe. */
+.nav-workspace.has-custom-logo {
+  gap: 0;
+  justify-content: center;
+  padding: var(--space-2) var(--space-2) var(--space-1);
+}
+
+.nav-workspace-logo-full {
+  display: block;
+  height: 44px;
+  object-fit: contain;
+  object-position: center;
+  width: 100%;
+}
+
+.nav-workspace-name {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.nav-workspace-name > span:first-child {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-workspace-name small {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-2xs);
+}
+
+/* ── Settings → Appearance → Workspace Logo (branding) ──────────────────────── */
+.branding-setting-grid {
+  align-items: start;
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, 1fr);
+}
+
+.branding-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.branding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.branding-preview {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.branding-preview-caption {
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.branding-preview-row {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.branding-preview-badge {
+  align-items: center;
+  background: var(--awkit-surface-inset);
+  border-radius: var(--radius-sm);
+  color: var(--awkit-text-secondary);
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 44px;
+  justify-content: center;
+  overflow: hidden;
+  width: 44px;
+}
+
+/* Preview of a custom logo replacing the whole workspace block (mirrors the sidebar). */
+.branding-preview-block {
+  background: var(--awkit-surface);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.branding-preview-logo-full {
+  display: block;
+  height: 44px;
+  object-fit: contain;
+  object-position: center;
+  width: 100%;
+}
+
+.branding-preview-name {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.branding-preview-name > span:first-child {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.branding-preview-name small {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-2xs);
+}
+
+@media (max-width: 900px) {
+  .branding-setting-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.theme-switch {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border-strong);
+  border-radius: 999px;
+  display: inline-flex;
+  height: 18px;
+  margin-left: auto;
+  padding: 2px;
+  transition: background var(--awkit-dur-med) var(--awkit-ease-out);
+  width: 32px;
+}
+
+.theme-switch-thumb {
+  background: var(--awkit-surface);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(var(--awkit-shadow-rgb), 0.25);
+  height: 12px;
+  transition: transform var(--awkit-dur-med) var(--awkit-ease-out);
+  width: 12px;
+}
+
+.theme-switch.on {
+  background: var(--awkit-accent);
+  border-color: var(--awkit-accent);
+}
+
+.theme-switch.on .theme-switch-thumb {
+  transform: translateX(14px);
+}
+
+/* Settings > Application > Appearance (live theme control) */
+.settings-appearance-row {
+  border-top: 1px solid var(--awkit-border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.settings-appearance-row label {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.settings-appearance-row select {
+  min-width: 160px;
+}
+
+.settings-appearance-row .form-message {
+  margin: 8px 0 0;
+}
+
+
+/* Custom workspace logo on the login/first-run screen (mirrors the sidebar override). Aspect-preserved
+   and overflow-bounded so any uploaded shape fits the brand header in both light and dark themes. */
+.awkit-login-logo-custom {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 200px;
+  max-height: 72px;
+  object-fit: contain;
+  margin: 0 auto;
+}
