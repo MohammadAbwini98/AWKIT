@@ -21,6 +21,8 @@ import type { SecretSummary } from "../../main/secretStore";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
+import { AccentColorSettings } from "./AccentColorSettings";
+import { DEFAULT_ACCENT_SETTINGS } from "@src/theme/accentColor";
 import { BrandingSettings } from "./BrandingSettings";
 import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
@@ -103,7 +105,7 @@ function validateClient(settings: UiSettings): string[] {
 }
 
 export function SettingsPage() {
-  const { appearance, setAppearance } = useTheme();
+  const { appearance, setAppearance, setAccent } = useTheme();
   const { can } = usePermissions();
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -292,9 +294,10 @@ export function SettingsPage() {
     if (!window.confirm("Reset ALL settings to defaults? This does not delete flows, workflows, or reports.")) return;
     await api.reset();
     setAppearance("light"); // keep the live theme in sync with the reset appearance default
+    setAccent(DEFAULT_ACCENT_SETTINGS); // restore the default purple accent live
     setBanner({ type: "success", text: "Settings reset to defaults." });
     await reload();
-  }, [api, reload, setAppearance]);
+  }, [api, reload, setAppearance, setAccent]);
 
   const clearUi = useCallback(async () => {
     await api.clearUiState();
@@ -420,6 +423,9 @@ export function SettingsPage() {
             <p className="form-message">Applied immediately and remembered. System follows the Windows theme.</p>
           </div>
         </section>
+
+        {/* Appearance — Accent Color (user-selectable brand accent) */}
+        <AccentColorSettings />
 
         {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
             The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}

@@ -9,6 +9,19 @@
         const saved = localStorage.getItem("awkit-appearance");
         const dark = saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme = dark ? "dark" : "light";
+        // Apply the saved custom accent (if any) before React mounts so there is no default-purple
+        // flash. The cache holds the fully-derived light+dark token maps; absent means "default".
+        try {
+          const cache = JSON.parse(localStorage.getItem("awkit-accent-tokens") || "null");
+          if (cache) {
+            const root = document.documentElement;
+            const tokens = cache[dark ? "dark" : "light"];
+            if (tokens) for (const name in tokens) root.style.setProperty(name, tokens[name]);
+            root.dataset.accentMode = cache.mode === "gradient" ? "gradient" : "solid";
+          }
+        } catch (e) {
+          /* malformed cache — ignore; the stylesheet default purple stands */
+        }
       })();
     </script>
   </head>
