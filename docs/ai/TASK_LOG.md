@@ -4,6 +4,71 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-23 (latest) — Three-branch recovery: pre-merge review + merge to `main`
+
+- **Task:** full pre-merge review + combined integration validation of the three recovered feature PRs
+  (#28 accent, #29 HTTPS, #30 branding) and the recovery-docs PR (#31), then merge the features to `main`.
+- **Reviews:** PR #28 clean; **PR #29 mandatory security review passed 11/11** (context-scoped only ·
+  default `false` · import can't enable · permission-gated mutation · recorder initial + persistent-context
+  resume same resolved policy · retries/branches/replacement/shared contexts per-context · no process-wide
+  `--ignore-certificate-errors` / Electron cert override · not in the shared-browser pool key · validating
+  + bypassing contexts coexist · logs carry no URL/cookie/cert/session data · CAPTCHA/MFA/protected-login/
+  handoff unchanged); PR #30 clean; PR #31 factually accurate.
+- **Combined integration:** merged accent + https + branding into a throwaway validation branch — only
+  **additive** conflicts in `Settings.tsx` / `package.json` / `uiSettings.ts` / `global.css` / `App.tsx`
+  (`preload.ts` auto-merged), all resolved preserving every feature (no broad `--ours`/`--theirs`).
+  Combined tree built clean; every feature verifier stayed green; a real-Electron coexistence check
+  confirmed all three Settings cards on one page, saving one feature doesn't reset another, login applies
+  both accent + logo, and defaults restore.
+- **PR #30 verifier fix (`f01e4ec`, test-only):** `verify:custom-brand-logo` check #14 changed from
+  "`app/main/uiSettings.ts` byte-identical to `main`" to a semantic "branding adds no branding-specific
+  UiSettings field" source scan, so it stays 31/31 in a combined tree where accent / recorder-security
+  legitimately modify that file. No production branding code changed.
+- **Merge sequence (development integration, NOT product promotion):** #28 → `3e79b70`; #30 (updated onto
+  `main`, additive conflicts resolved, verifiers re-run 31/31 · 47/47 · 30/30) → `2033424`; #29 (updated
+  onto `main`, full HTTPS suite re-run — certs 49/49 · gui 31/31 · runner 82 · recorder 78 · settings 3/3
+  · ipc 4/4) → `0777682`. **Final `main`: `0777682`.**
+- **Boundaries kept:** `.beads/issues.jsonl` untouched (still the frozen pre-existing backend export); no
+  `bd` / `bd dolt push`; PR #27 (`85df851`) untouched; archived source branches intact; release promotion
+  (portable rebuild / artifact verification / clean-machine / `validate:offline`) still NOT executed.
+
+---
+
+## 2026-07-23 (earlier) — Three-branch feature recovery (accent / HTTPS / custom brand logo)
+
+- **Task:** decompose the mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust",
+  on `chore/brand-logo-5b`) into **three independent feature branches off `main` @ `32e378e`**, verify
+  each, and open three separate PRs. Not stacked; original mixed branch left intact.
+- **`feature/custom-accent-gradient` @ `cf5b50f` (PR #28, ready):** finished the accent port (added the
+  missing `<AccentColorSettings/>` mount + the two verifiers + package.json aliases). Accent-only.
+  `verify:accent-theme` 71/71, `verify:accent-gui` 33/33, build clean. New `docs/ACCENT_COLOR.md`.
+  Deferred (optional polish): the `SecurityGate.tsx` live-OS-theme-switch accent hunk.
+- **`feature/https-certificate-trust` @ `ba2e887` (PR #29, DRAFT — security review):** recovered
+  context-level `ignoreHTTPSErrors` on both context factories; **removed** the browser-wide
+  `--ignore-certificate-errors` launch arg + `AWKIT_CERT_FALLBACK_LAUNCH_ARG` env hatch, and reverted
+  `sharedCompatibilityKey`'s cert pool-key dimension. Added a source-scan **regression guard** (fails if
+  a quoted `"--ignore-certificate-errors"` reappears; pinned `-spki-list` excluded). 3-way merged
+  StepExecutor/RecorderService/recorder.ipc/Recorder.tsx to preserve protected-login.
+  `verify:https-certificates` 49/49, `verify:https-certificates-gui` 31/31, regression `verify:runner`
+  82 + `verify:recorder` 78, build clean. `docs/HTTPS_CERTIFICATE_TRUST.md` gained a security-review
+  checklist.
+- **`feature/custom-brand-logo` @ `11b2afa` (PR #30, ready):** recovered the Super-User custom logo
+  (`src/branding/*` already met the security bar — PNG-signature validation, SVG→PNG rasterization,
+  app-managed atomic store, bytes-not-paths IPC, permission/audit, data-URL-only, safe fallback).
+  **Excluded** the source branch's `specter-logo.svg` replacement + `package-portable.ps1` change (shipped
+  assets preserved). **Added** login-screen display (parity with the sidebar via one `getState()` read).
+  New `verify:custom-brand-logo` 31/31 (maps 1:1 to the 15 acceptance cases) + `verify:branding` 47/47 +
+  `verify:branding-gui` 30/30 (retargeted one accent-dependent check to the ungated "Application" card),
+  build clean. New `docs/BRANDING_CUSTOM_LOGO.md`.
+- **Git:** each branch = 1 feature commit + 1 focused docs commit; confirmed cleanly based on
+  `origin/main` before its PR. Pushed; PRs #28/#30 ready, #29 draft. `.beads`, `bd dolt push`, release
+  promotion, and the archived source branches (`chore/brand-logo-5b` + `backup/…`) left untouched.
+- **Docs sync:** these canonical `docs/ai/` updates recording the recovery are committed on a docs-only
+  branch `docs/feature-recovery-state-sync` off `main` (kept separate from the feature PRs #28–#30 and
+  from `fix/backend-observability-tranche-0` / PR #27). `.beads/issues.jsonl` left untouched.
+
+---
+
 ## 2026-07-23 (later) — Claude (Opus 4.8) — FR-2.6 branch-pair deletion semantics + SRS reconcile
 
 - **Task:** implement the FR-2.6 owner decision from the prior session's canvas sweep — restore the
