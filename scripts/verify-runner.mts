@@ -1228,6 +1228,40 @@ async function main() {
       `status=${failureResult.status} ran=${failureRan.join(",")}`
     );
 
+    // ── awkit-oei: terminal browser cleanup logs the reason that matches the run outcome ─────────
+    // Regression guard: the finally block hardcoded "execution-failed-cleanup" on EVERY exit path,
+    // so a passing run's log falsely read as a failure cleanup. A passed terminal must now log
+    // execution-completed-cleanup, and a genuinely-failed terminal must keep execution-failed-cleanup.
+    const closingLines = (logs: { message: string }[]) => logs.filter((l) => l.message.includes("closing runtime")).map((l) => l.message);
+    const hasClose = (logs: { message: string }[], reason: string) => logs.some((l) => l.message.includes(`closing runtime (${reason}).`));
+    check(
+      "awkit-oei: passed scenario logs closing runtime (execution-completed-cleanup), not failed",
+      successResult.status === "passed" &&
+        hasClose(successResult.logs, "execution-completed-cleanup") &&
+        !hasClose(successResult.logs, "execution-failed-cleanup"),
+      closingLines(successResult.logs).join(" | ")
+    );
+
+    // A required flow that fails with NO failure link → failed terminal (stopOnRequiredFlowFailure).
+    const failTerminalScenario: ScenarioProfile = {
+      id: "sc-fail-terminal",
+      name: "Failed terminal (no recovery)",
+      executionMode: "conditional",
+      maxParallelFlows: 1,
+      flows: [{ order: 1, flowId: "flowAbad", required: true }],
+      links: [],
+      failurePolicy
+    };
+    const failTerminalRunner = new PlaywrightRunner({ flows: [flowAbad], productionOffline: false, resourcesRoot });
+    const failTerminalResult = await failTerminalRunner.executeScenario(failTerminalScenario, await makeContext("flowAbad"), instanceConfig);
+    check(
+      "awkit-oei: failed scenario keeps closing runtime (execution-failed-cleanup), not completed",
+      failTerminalResult.status === "failed" &&
+        hasClose(failTerminalResult.logs, "execution-failed-cleanup") &&
+        !hasClose(failTerminalResult.logs, "execution-completed-cleanup"),
+      `status=${failTerminalResult.status} | ${closingLines(failTerminalResult.logs).join(" | ")}`
+    );
+
     // ── Run Another Flow recursion guard ─────────────────────────────────────
     const connectorOrchestrator = new ScenarioOrchestrator();
     const invalidMultipleStandard: ScenarioProfile = {
