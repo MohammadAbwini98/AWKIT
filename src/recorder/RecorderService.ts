@@ -10,6 +10,12 @@ import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
 import type { SessionCaptureService } from "../session/SessionCaptureService";
 import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
+import {
+  buildBrowserContextOptions,
+  describeCertificateError,
+  isCertificateError,
+  CERTIFICATE_BYPASS_LOG_MESSAGE
+} from "../security/browser/CertificateTrust";
 
 /** On-disk shape of the recorder draft (an unsaved recording session's actions). */
 interface RecorderDraft {
@@ -78,6 +84,12 @@ export interface StartRecordingOptions {
     maximumTimeoutMs?: number;
     loaderAppearanceGraceMs?: number;
   };
+  /**
+   * Certificate trust for this Recorder session, resolved from Settings by the caller
+   * (`recorder.ipc`). When true the Recorder browser continues on untrusted/expired/self-signed/
+   * mismatched HTTPS certificates. Omitted = validate (secure default).
+   */
+  ignoreHttpsErrors?: boolean;
 }
 
 export class RecorderService {
@@ -103,6 +115,13 @@ export class RecorderService {
     maximumTimeoutMs: 300_000,
     loaderAppearanceGraceMs: 1_500
   };
+  /**
+   * Certificate trust for the active session. Held on the instance (not just the start options) so
+   * EVERY recorder browser path inherits it — initial launch, the post-handoff persistent-context
+   * resume (Auto Secure Login / Reuse Session), and any relaunch. Reset to the secure default at the
+   * start of each recording so a previous session can never leak its bypass into the next one.
+   */
+  private ignoreHttpsErrors = false;
   /** Raw page-side observation signals buffered during the session (bounded). */
   private signals: RecordedSignal[] = [];
   /** Timestamp (ms) of the last distinct recorded action, used to measure user think-time. */
@@ -428,6 +447,9 @@ export class RecorderService {
       maximumTimeoutMs: options.asyncAwareness?.maximumTimeoutMs ?? 300_000,
       loaderAppearanceGraceMs: options.asyncAwareness?.loaderAppearanceGraceMs ?? 1_500
     };
+    // Reset to the secure default first, then apply this session's resolved value, so a prior
+    // session's bypass can never leak into the next recording.
+    this.ignoreHttpsErrors = options.ignoreHttpsErrors ?? false;
     this.signals = [];
     this.lastActionAt = 0;
     // Protected-login handoff bookkeeping: remember the safe resume URL + offline browser path.
@@ -454,7 +476,12 @@ export class RecorderService {
       executablePath: options.executablePath,
       args: buildChromiumHardeningArgs()
     });
-    this.context = await this.browser.newContext();
+    // Certificate trust is applied at CONTEXT creation, BEFORE any page exists or navigates below —
+    // never by automating Chromium's interstitial ("Advanced" / "Proceed" / the hidden bypass phrase).
+    this.context = await this.browser.newContext(
+      buildBrowserContextOptions({}, { ignoreHttpsErrors: this.ignoreHttpsErrors })
+    );
+    this.logCertificateTrustBypass();
     this.page = await this.context.newPage();
 
     // Capture URLs visited during recording (initial page + any tab the site opens).
@@ -481,6 +508,12 @@ export class RecorderService {
     } catch (error) {
       // Roll back so the recorder isn't stuck "Recording is already in progress".
       await this.cleanup();
+      // A certificate-trust rejection gets actionable guidance pointing at the Settings toggle. Every
+      // other failure (DNS, refused, timeout) is rethrown untouched — and the bypass is NEVER enabled
+      // automatically in response to this error.
+      if (!this.ignoreHttpsErrors && isCertificateError(error)) {
+        throw new Error(describeCertificateError(error, this.ignoreHttpsErrors));
+      }
       throw error;
     }
   }
@@ -900,12 +933,21 @@ export class RecorderService {
    * URL, and resume recording. The user should not need to log in again.
    */
   private async resumeAfterHandoff(profile: SessionProfile, resumeUrl: string): Promise<void> {
-    const context = await chromium.launchPersistentContext(profile.profileDir, {
-      headless: false,
-      executablePath: this.resumeExecutablePath,
-      viewport: null,
-      args: buildChromiumHardeningArgs()
-    });
+    // Same certificate-trust decision as the initial launch (held on the instance), applied before the
+    // resume navigation below. Preserves the captured profile dir, viewport, and hardening args.
+    const context = await chromium.launchPersistentContext(
+      profile.profileDir,
+      buildBrowserContextOptions(
+        {
+          headless: false,
+          executablePath: this.resumeExecutablePath,
+          viewport: null,
+          args: buildChromiumHardeningArgs()
+        },
+        { ignoreHttpsErrors: this.ignoreHttpsErrors }
+      )
+    );
+    this.logCertificateTrustBypass();
     this.browser = null;
     this.context = context;
     this.page = context.pages()[0] ?? (await context.newPage());
@@ -1006,8 +1048,22 @@ export class RecorderService {
       isRecording: this.isRecording,
       actionCount: this.actions.length,
       /** True when protected-login detection is being ignored (global setting or session override). */
-      protectedDetectionIgnored: this.ignoreProtectedDetectionGlobal || this.ignoreProtectedDetectionSession
+      protectedDetectionIgnored: this.ignoreProtectedDetectionGlobal || this.ignoreProtectedDetectionSession,
+      // Drives the Recorder's non-blocking "certificate validation is disabled" indicator.
+      ignoreHttpsErrors: this.ignoreHttpsErrors
     };
+  }
+
+  /**
+   * Warn once per created Recorder browser context that certificate validation is off. Carries no URL,
+   * cookie, header, or credential — the Recorder target URL is deliberately not included.
+   */
+  private logCertificateTrustBypass(): void {
+    if (!this.ignoreHttpsErrors) return;
+    console.warn(`[security] ${CERTIFICATE_BYPASS_LOG_MESSAGE}`, {
+      ignoreHttpsErrors: true,
+      surface: "recorder"
+    });
   }
 
   public async stopRecording(): Promise<RecordedAction[]> {

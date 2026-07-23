@@ -63,6 +63,16 @@ import type {
   WorkflowRankingMetric
 } from "@src/reports/ObservabilityContracts";
 
+/** Recorder status surfaced to the renderer (drives the record controls + the security indicators). */
+type RecorderStatus = {
+  isRecording: boolean;
+  actionCount: number;
+  /** True when protected-login detection is being ignored (global setting or session override). */
+  protectedDetectionIgnored: boolean;
+  /** True when the LIVE session's browser contexts were created with certificate validation off. */
+  ignoreHttpsErrors: boolean;
+};
+
 const api = {
   // Custom application-frame window controls. Deliberately minimal: the renderer can only drive
   // these passive window operations and observe the maximized state — no BrowserWindow, no ipcRenderer.
@@ -299,12 +309,14 @@ const api = {
     observabilitySummary: () => ipcRenderer.invoke("telemetry:observabilitySummary") as Promise<RuntimeObservabilitySummary>
   },
   recorder: {
+    // `ignoreHttpsErrors` is intentionally NOT a renderer-supplied option — the main process reads it
+    // from the permission-gated Settings store at launch, so it cannot be forced from the renderer.
     start: (url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) =>
-      ipcRenderer.invoke("recorder:start", url, options) as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>,
+      ipcRenderer.invoke("recorder:start", url, options) as Promise<RecorderStatus>,
     stop: () => ipcRenderer.invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => ipcRenderer.invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => ipcRenderer.invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
-    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>,
+    getStatus: () => ipcRenderer.invoke("recorder:getStatus") as Promise<RecorderStatus>,
     getUrls: () => ipcRenderer.invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => ipcRenderer.invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveFlow: (name: string, actions: import("@src/recorder/RecorderTypes").RecordedAction[]) => ipcRenderer.invoke("recorder:saveFlow", name, actions) as Promise<FlowProfile>,
@@ -318,7 +330,7 @@ const api = {
     cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>,
     // Session-level "Ignore and continue recording" for a false-positive protected detection.
     ignoreProtectedDetection: () =>
-      ipcRenderer.invoke("recorder:ignoreProtectedDetection") as Promise<{ isRecording: boolean; actionCount: number; protectedDetectionIgnored: boolean }>
+      ipcRenderer.invoke("recorder:ignoreProtectedDetection") as Promise<RecorderStatus>
   },
   secrets: {
     // Manage operator secrets by NAME only. `set` sends a plaintext value to be encrypted in the

@@ -14,6 +14,8 @@
     "mock-site": "node mock-site/server.mjs",
     "dev:mock-site": "node mock-site/server.mjs",
     "verify:runner": "tsx scripts/verify-runner.mts",
+    "verify:https-certificates": "tsx scripts/verify-https-certificates.mts",
+    "verify:https-certificates-gui": "node scripts/verify-https-certificates-gui.mjs",
     "build:oracle-bridge": "node scripts/build-oracle-bridge.mjs",
     "prepare:oracle-runtime": "node scripts/prepare-oracle-runtime.mjs",
     "oracle:docker:pull": "node scripts/oracle/docker/oracle-docker.mjs pull",

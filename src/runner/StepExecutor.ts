@@ -11,6 +11,7 @@ import type { LiveStepStatus, RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
 import { ValueResolver } from "./ValueResolver";
 import { assertNavigableUrl } from "./urlPolicy";
+import { describeCertificateError, isCertificateError } from "@src/security/browser/CertificateTrust";
 import { isPathInside } from "@src/utils/pathSafety";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
@@ -123,6 +124,25 @@ export class StepExecutor {
   /** Run an expensive Playwright op under its operation limiter (A6), or directly when none is wired. */
   private limitOp<T>(kind: OperationKind, fn: () => Promise<T>): Promise<T> {
     return this.operationLimiters ? this.operationLimiters.run(kind, fn) : fn();
+  }
+
+  /**
+   * Navigate under the navigation limiter, converting a certificate-trust rejection into an actionable
+   * message that names the Settings toggle. Only `net::ERR_CERT_*` / `ERR_SSL_*` failures are rewritten
+   * (and only when the bypass is OFF) — every other navigation error propagates untouched, and the
+   * bypass is never enabled automatically. The URL is deliberately not interpolated into the message:
+   * it can carry tokens in query parameters.
+   */
+  private async navigate(page: Page, url: string, options: { timeout: number }): Promise<void> {
+    try {
+      await this.limitOp("navigation", () => page.goto(url, options));
+    } catch (error) {
+      const ignoreHttpsErrors = this.context.ignoreHttpsErrors ?? false;
+      if (!ignoreHttpsErrors && isCertificateError(error)) {
+        throw new Error(describeCertificateError(error, ignoreHttpsErrors));
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1219,7 +1239,7 @@ export class StepExecutor {
         const url = await this.resolveStepValue(step, step.url);
         if (!url) throw new Error(`Step ${step.id} is missing a URL.`);
         assertNavigableUrl(url);
-        await this.limitOp("navigation", () => this.activePage.goto(url, { timeout: step.timeoutMs ?? 30_000 }));
+        await this.navigate(this.activePage, url, { timeout: step.timeoutMs ?? 30_000 });
         return { status: "passed" };
       }
 
@@ -1558,7 +1578,7 @@ export class StepExecutor {
       case "navigateCurrentPage": {
         if (!urlValue) throw new Error(`Route Change step ${step.id} requires a URL value.`);
         assertNavigableUrl(urlValue);
-        await this.limitOp("navigation", () => this.activePage.goto(urlValue, { timeout }));
+        await this.navigate(this.activePage, urlValue, { timeout });
         target = this.activePage;
         break;
       }

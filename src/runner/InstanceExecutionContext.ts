@@ -53,6 +53,12 @@ export interface InstanceExecutionContext {
    * main process at run start for the secret names a flow references; never persisted or logged.
    */
   secrets?: Record<string, string>;
+  /**
+   * Effective certificate-trust decision for this instance (mirrors `InstanceConfig.ignoreHttpsErrors`).
+   * Read by the step executor so a failed navigation can tell the user whether the Settings toggle is
+   * the missing piece. Absent = validation on.
+   */
+  ignoreHttpsErrors?: boolean;
   paths: {
     downloads: string;
     screenshots: string;

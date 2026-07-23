@@ -10,6 +10,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
@@ -21,6 +22,9 @@ import type { SecretSummary } from "../../main/secretStore";
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import { useTheme, type AppearanceMode } from "../state/theme";
+import { usePermissions } from "../security/usePermissions";
+import { Permission } from "@src/security/authz/Permissions";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
 
@@ -101,11 +105,14 @@ function validateClient(settings: UiSettings): string[] {
 
 export function SettingsPage() {
   const { appearance, setAppearance } = useTheme();
+  const { can } = usePermissions();
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pathStatus, setPathStatus] = useState<PathStatus>({});
   const [errors, setErrors] = useState<string[]>([]);
   const [banner, setBanner] = useState<Banner>(null);
+  /** Gate for the "Ignore invalid HTTPS certificates" confirmation (shown only when ENABLING). */
+  const [confirmIgnoreHttps, setConfirmIgnoreHttps] = useState(false);
   const [saving, setSaving] = useState(false);
   const [defaultPaths, setDefaultPaths] = useState<Record<string, string>>({});
   const [capacity, setCapacity] = useState<CapacityPreview | null>(null);
@@ -254,6 +261,33 @@ export function SettingsPage() {
       } catch {
         setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, ignoreProtectedLoginDetection: !next } } : prev));
         setBanner({ type: "error", text: "Failed to update the recorder setting." });
+      }
+    },
+    [api]
+  );
+
+  /**
+   * Persist the certificate-trust toggle immediately (it is a security control, not a draft field that
+   * waits for "Save Changes"). Enabling always routes through the confirmation dialog first; disabling
+   * — the secure direction — applies straight away. On failure the local state is reverted so the
+   * checkbox can never show a value the main process did not accept.
+   */
+  const applyIgnoreHttpsErrors = useCallback(
+    async (next: boolean) => {
+      setConfirmIgnoreHttps(false);
+      setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, security: { ignoreHttpsErrors: next } } } : prev));
+      setBanner(null);
+      try {
+        await api.update({ recorder: { security: { ignoreHttpsErrors: next } } });
+        setBanner({
+          type: "success",
+          text: next
+            ? "HTTPS certificate validation is now DISABLED for Recorder and workflow execution."
+            : "HTTPS certificate validation restored."
+        });
+      } catch {
+        setSettings((prev) => (prev ? { ...prev, recorder: { ...prev.recorder, security: { ignoreHttpsErrors: !next } } } : prev));
+        setBanner({ type: "error", text: "Failed to update the certificate validation setting." });
       }
     },
     [api]
@@ -440,6 +474,48 @@ export function SettingsPage() {
             SSO, or browser security. Use it only when AWKIT incorrectly classifies an authorized page.
           </p>
         </section>
+
+        {/* Recorder → Security. Privileged: the main process requires SETTINGS_EDIT for this group. */}
+        {can(Permission.SETTINGS_EDIT) ? (
+          <section className="work-panel settings-card">
+            <div className="settings-card-head">
+              <ShieldAlert size={16} />
+              <h2>Recorder Security</h2>
+            </div>
+            <p className="form-message">
+              Applies to Recorder sessions and to workflow execution. Saved immediately — it does not wait for
+              “Save Changes”.
+            </p>
+            <div className="settings-grid">
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  data-testid="ignore-https-errors-toggle"
+                  checked={settings.recorder.security.ignoreHttpsErrors}
+                  onChange={(ev) => {
+                    // Enabling requires explicit confirmation; disabling applies immediately.
+                    if (ev.target.checked) setConfirmIgnoreHttps(true);
+                    else void applyIgnoreHttpsErrors(false);
+                  }}
+                />
+                Ignore invalid HTTPS certificates
+              </label>
+            </div>
+            <p className="form-message">
+              Allows Recorder and workflow execution to continue when a website uses an untrusted, expired,
+              self-signed, or incorrectly configured HTTPS certificate. Disabled by default. Only enable it for
+              authorized internal, development, or testing environments — for production, install your
+              organization’s trusted root certificate authority instead.
+            </p>
+            {settings.recorder.security.ignoreHttpsErrors ? (
+              <div className="settings-banner error" role="status">
+                <AlertTriangle size={15} />
+                Certificate validation is disabled. Recorder and workflow runs will accept untrusted HTTPS
+                certificates.
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {/* Paths & Directories */}
         <section className="work-panel settings-card">
@@ -826,6 +902,24 @@ export function SettingsPage() {
           </p>
         </section>
       </div>
+
+      {/* Cancelling leaves the setting untouched — the checkbox reflects `settings`, which is only
+          written after a successful save, so it stays disabled on cancel. */}
+      {confirmIgnoreHttps ? (
+        <ConfirmDialog
+          danger
+          cancelLabel="Cancel"
+          confirmLabel="Enable"
+          title="Disable HTTPS certificate validation?"
+          message={
+            "Ignoring HTTPS certificate errors disables certificate trust validation for automated browser sessions.\n\n" +
+            "Only enable this option for authorized internal, development, or testing environments. Do not use it for unknown or public websites.\n\n" +
+            "Continue?"
+          }
+          onCancel={() => setConfirmIgnoreHttps(false)}
+          onConfirm={() => void applyIgnoreHttpsErrors(true)}
+        />
+      ) : null}
     </section>
   );
 }

@@ -2,6 +2,11 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getRuntimePaths } from "./appPaths";
 import { createSerialQueue } from "./writeQueue";
+import {
+  DEFAULT_RECORDER_SECURITY_SETTINGS,
+  normalizeRecorderSecuritySettings,
+  type RecorderSecuritySettings
+} from "@src/security/browser/CertificateTrust";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -45,6 +50,13 @@ export interface UiSettings {
     captureWaitTime: boolean;
     /** Observe page/network signals and attach condition-based Smart Waits to recorded actions. */
     captureSmartWaits: boolean;
+    /**
+     * Recorder + execution security. Separate group because these are privileged toggles: unlike the
+     * capture switches (written implicitly from the Recorder page by any role), a patch touching this
+     * group requires SETTINGS_EDIT (see settings.ipc). Absent in settings files written before the
+     * feature existed — `hydrate` fills the secure defaults.
+     */
+    security: RecorderSecuritySettings;
     /**
      * When true, the Recorder does not automatically pause on a detected protected login / SSO page /
      * protected popup. This ONLY changes AWKIT's pause/observation behavior — it never bypasses
@@ -176,6 +188,7 @@ const defaultSettings: UiSettings = {
   recorder: {
     captureWaitTime: false,
     captureSmartWaits: true,
+    security: { ...DEFAULT_RECORDER_SECURITY_SETTINGS },
     ignoreProtectedLoginDetection: false,
     asyncAwareness: {
       enabled: true,
@@ -279,6 +292,10 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     recorder: {
       ...defaultSettings.recorder,
       ...parsed.recorder,
+      // `security` is nested one level deeper than the other recorder keys, so it needs its own
+      // normalization: a settings file predating this feature has no `security` key at all, and a
+      // hand-edited/corrupt one must fall back to validation-ON rather than inheriting a junk value.
+      security: normalizeRecorderSecuritySettings(parsed.recorder?.security),
       // Deep-merge the nested async block so a partial saved value never drops sibling fields.
       asyncAwareness: { ...defaultSettings.recorder.asyncAwareness, ...parsed.recorder?.asyncAwareness }
     },
@@ -307,6 +324,9 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
     recorder: {
       ...current.recorder,
       ...patch.recorder,
+      // Deep-merge + re-normalize `security` so a partial patch (`{ recorder: { security: { … } } }`)
+      // can't drop sibling security keys or write a non-boolean into the store.
+      security: normalizeRecorderSecuritySettings({ ...current.recorder.security, ...patch.recorder?.security }),
       asyncAwareness: { ...current.recorder.asyncAwareness, ...patch.recorder?.asyncAwareness }
     },
     workflowBuilder: { ...current.workflowBuilder, ...patch.workflowBuilder },
@@ -407,6 +427,10 @@ export async function replaceUiSettings(incoming: unknown): Promise<UiSettings> 
   }
   return enqueueSettingsWrite(async () => {
     const next = hydrate(incoming as Partial<UiSettings>);
+    // Importing a settings file must NEVER enable the certificate bypass: that path has no
+    // confirmation dialog, and the file may have come from another machine or environment. Disabling
+    // certificate validation stays an explicit, confirmed action in Settings → Recorder Security.
+    next.recorder.security = { ...DEFAULT_RECORDER_SECURITY_SETTINGS };
     const errors = validateSettings(next);
     if (errors.length) throw new Error(`Settings failed validation: ${errors.join(" ")}`);
     await writeSettings(next);
@@ -482,6 +506,10 @@ export function validateSettings(settings: UiSettings): string[] {
 
   for (const [key, value] of Object.entries(settings.paths)) {
     if (!value || !String(value).trim()) errors.push(`Path "${key}" must not be empty.`);
+  }
+
+  if (typeof settings.recorder.security?.ignoreHttpsErrors !== "boolean") {
+    errors.push("Recorder security setting \"Ignore invalid HTTPS certificates\" must be true or false.");
   }
   return errors;
 }

@@ -115,7 +115,11 @@ export class InstanceManager {
       screenshotsPath: paths.screenshots,
       logsPath: paths.logs,
       timeoutMs: profile.instanceTemplate.timeoutMs ?? 30000,
-      viewport: profile.instanceTemplate.viewport ?? { width: 1440, height: 900 }
+      viewport: profile.instanceTemplate.viewport ?? { width: 1440, height: 900 },
+      // Certificate trust, already resolved by the execution IPC. `?? false` keeps the secure default
+      // for any run profile built without it (older callers, verifiers, tests).
+      ignoreHttpsErrors: profile.instanceTemplate.ignoreHttpsErrors ?? false,
+      ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default"
     };
   }
 
