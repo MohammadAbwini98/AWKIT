@@ -8,6 +8,7 @@ import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { getSessionService } from "./session.ipc";
 import { getUiSettings } from "../uiSettings";
+import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -31,14 +32,17 @@ export function registerRecorderIpc(): void {
       console.log(`[offline] Recorder using bundled Chromium: ${executablePath}`);
     }
     // The protected-login ignore flag is read from persisted Settings (single source of truth) so it
-    // is always current regardless of when the Recorder page loaded it.
+    // is always current regardless of when the Recorder page loaded it. Certificate trust is likewise
+    // read from Settings at launch time (never from the renderer), so a Recorder session always reflects
+    // the persisted, permission-gated value — including after a relaunch.
     const settings = await getUiSettings();
     await recorderService.startRecording(url, {
       executablePath,
       captureWaitTime: options?.captureWaitTime ?? false,
       captureSmartWaits: options?.captureSmartWaits ?? true,
       ignoreProtectedLoginDetection: settings.recorder.ignoreProtectedLoginDetection ?? false,
-      asyncAwareness: settings.recorder.asyncAwareness
+      asyncAwareness: settings.recorder.asyncAwareness,
+      ignoreHttpsErrors: resolveIgnoreHttpsErrors({ app: settings.recorder.security })
     });
     return recorderService.getStatus();
   });

@@ -11,6 +11,8 @@ export function Recorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [captureWaitTime, setCaptureWaitTime] = useState(false);
   const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
+  /** True while the live Recorder session is running with HTTPS certificate validation disabled. */
+  const [ignoreHttpsErrors, setIgnoreHttpsErrors] = useState(false);
   const [actions, setActions] = useState<RecordedAction[]>([]);
   const [flowName, setFlowName] = useState("New Recorded Flow");
   const [statusMsg, setStatusMsg] = useState("");
@@ -61,6 +63,9 @@ export function Recorder() {
         .then((status) => {
           setIsRecording(status.isRecording);
           setProtectedDetectionIgnored(status.protectedDetectionIgnored ?? false);
+          // Reflects the LIVE session's effective value (read from Settings at launch), not the
+          // current Settings value — a mid-session Settings change must not change the indicator.
+          setIgnoreHttpsErrors(status.ignoreHttpsErrors ?? false);
         })
         .catch(() => undefined);
     };
@@ -403,6 +408,18 @@ export function Recorder() {
             steps (login, MFA, CAPTCHA) must still be completed manually.
           </span>
         </div>
+      ) : null}
+
+      {/* Non-blocking security indicator: rendered BELOW the toolbar so it never covers the
+          Start/Stop/Cancel controls. Shown only while a session is actually running with the bypass. */}
+      {isRecording && ignoreHttpsErrors ? (
+        <section className="recorder-security-notice" role="status">
+          <ShieldAlert size={16} />
+          <span>
+            Certificate validation is disabled for this Recorder session. Change it in Settings → Recorder
+            Security.
+          </span>
+        </section>
       ) : null}
 
       {showHandoffPanel && handoff ? (

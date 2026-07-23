@@ -17,6 +17,12 @@ import {
   resolveContextOptions,
   type ResourceRoutingConfig
 } from "./ResourceRoutingPolicy";
+import {
+  buildBrowserContextOptions,
+  CERTIFICATE_BYPASS_LOG_MESSAGE,
+  DEFAULT_IGNORE_HTTPS_ERRORS,
+  type CertificateTrustLogFields
+} from "@src/security/browser/CertificateTrust";
 
 export interface BrowserContextFactoryOptions {
   productionOffline: boolean;
@@ -41,6 +47,19 @@ export interface BrowserContextFactoryOptions {
    * throttling. When omitted, launch args are exactly today's hardened defaults.
    */
   launchArgOverrides?: LaunchArgOverrides;
+  /**
+   * Certificate trust: when true, every context this factory creates is built with Playwright's
+   * `ignoreHTTPSErrors`, so navigation continues on untrusted/expired/self-signed/mismatched HTTPS
+   * certificates. Resolved upstream (run → workflow → app setting → false); omitted = validation ON.
+   */
+  ignoreHttpsErrors?: boolean;
+  /** Diagnostics only: which precedence tier supplied `ignoreHttpsErrors`. */
+  ignoreHttpsErrorsSource?: CertificateTrustLogFields["source"];
+  /**
+   * Sink for the once-per-context "certificate validation disabled" warning. Lets the engine route it
+   * into the run log alongside the other run events. Defaults to `console.warn`.
+   */
+  onCertificateTrustBypass?: (fields: CertificateTrustLogFields, message: string) => void;
 }
 
 export interface BrowserRuntime {
@@ -103,15 +122,44 @@ export class BrowserContextFactory {
     serviceWorkers?: "allow" | "block";
     reducedMotion?: "reduce" | "no-preference";
     deviceScaleFactor?: number;
+    ignoreHTTPSErrors: boolean;
   } {
     const routing = resolveContextOptions(this.resourceRouting);
-    return {
-      acceptDownloads: routing.acceptDownloads,
-      viewport: config.viewport,
-      serviceWorkers: routing.serviceWorkers,
-      reducedMotion: routing.reducedMotion,
-      deviceScaleFactor: routing.deviceScaleFactor
+    // Certificate trust is folded in through the shared builder so `newContext` and
+    // `launchPersistentContext` can never drift apart (both accept `ignoreHTTPSErrors`).
+    return buildBrowserContextOptions(
+      {
+        acceptDownloads: routing.acceptDownloads,
+        viewport: config.viewport,
+        serviceWorkers: routing.serviceWorkers,
+        reducedMotion: routing.reducedMotion,
+        deviceScaleFactor: routing.deviceScaleFactor
+      },
+      { ignoreHttpsErrors: this.ignoreHttpsErrors }
+    );
+  }
+
+  /** Effective certificate-trust decision for every context this factory creates. */
+  private get ignoreHttpsErrors(): boolean {
+    return this.options.ignoreHttpsErrors ?? DEFAULT_IGNORE_HTTPS_ERRORS;
+  }
+
+  /**
+   * Emit the security warning ONCE per created browser context (not per navigation/step). Carries only
+   * ids + the precedence source — never URLs, cookies, headers, or credentials.
+   */
+  private logCertificateTrustBypass(context: InstanceExecutionContext): void {
+    if (!this.ignoreHttpsErrors) return;
+    const fields: CertificateTrustLogFields = {
+      ignoreHttpsErrors: true,
+      surface: "runtime",
+      source: this.options.ignoreHttpsErrorsSource ?? "default",
+      workflowId: context.scenarioId,
+      runId: context.executionId,
+      instanceId: context.instanceId
     };
+    if (this.options.onCertificateTrustBypass) this.options.onCertificateTrustBypass(fields, CERTIFICATE_BYPASS_LOG_MESSAGE);
+    else console.warn(`[security] ${CERTIFICATE_BYPASS_LOG_MESSAGE}`, fields);
   }
 
   /** Install the Phase A9 request routing on a freshly created context (no-op under Normal). */
@@ -153,6 +201,7 @@ export class BrowserContextFactory {
           })
         );
         await this.applyResourceRouting(persistentContext);
+        this.logCertificateTrustBypass(context);
       } catch (error) {
         profileLease.release();
         throw error;
@@ -179,6 +228,9 @@ export class BrowserContextFactory {
         // Only browsers with an identical browser-LEVEL launch config may share a Chromium process. The
         // key folds in the resolved launch-arg deltas so a low-resource/custom-profile instance can never
         // reuse a browser launched with different flags (context-level options stay isolated per context).
+        // Certificate trust is applied as a per-context `ignoreHTTPSErrors` option ONLY (no browser-level
+        // `--ignore-certificate-errors` switch exists), so a bypassing and a validating context can safely
+        // coexist on one shared browser and it is deliberately NOT part of the pool key.
         launchKey: sharedCompatibilityKey(config, this.options.launchArgOverrides),
         launch: () => this.limit("browserLaunch", () => browserType.launch(launchOptions)),
         newContext: (browser) =>
@@ -188,6 +240,7 @@ export class BrowserContextFactory {
       };
       const lease = await sharedPool.acquireContext(launcher);
       await this.applyResourceRouting(lease.context);
+      this.logCertificateTrustBypass(context);
       return {
         browser: lease.browser,
         context: lease.context,
@@ -202,6 +255,7 @@ export class BrowserContextFactory {
       browser.newContext({ ...this.buildContextOptions(config), storageState: config.storageState })
     );
     await this.applyResourceRouting(isolatedContext);
+    this.logCertificateTrustBypass(context);
 
     return {
       browser,
@@ -233,6 +287,11 @@ export class BrowserContextFactory {
       // Optimization profile may append switches (gpu/webgl/cache) and, for the low-resource profile,
       // re-enable background throttling (omit the throttle pin here + drop Playwright's copy via
       // ignoreDefaultArgs below). When no overrides are supplied this is exactly today's arg set.
+      // Certificate trust is applied EXCLUSIVELY at the CONTEXT level (see buildContextOptions), since
+      // every runtime browser here is driven through a Playwright context (both `newContext` and
+      // `launchPersistentContext` accept `ignoreHTTPSErrors`). No browser-level
+      // `--ignore-certificate-errors` switch is ever added — the bypass stays scoped to the specific
+      // context that opted in and never partitions the shared-browser pool.
       args: [
         ...buildChromiumHardeningArgs(process.env, {
           omitBackgroundTimerThrottlePin: overrides?.omitBackgroundTimerThrottlePin

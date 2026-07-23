@@ -1018,7 +1018,13 @@ export class ExecutionEngine {
           maxConcurrentInstances: profile.maxConcurrentInstances,
           startedAt: this.runStartTimes.get(executionId) ?? new Date().toISOString(),
           endedAt: new Date().toISOString(),
-          runtimeInputs
+          runtimeInputs,
+          // Security posture: recorded from the run profile (resolved once for the whole run) so a run
+          // that passed with certificate validation disabled is distinguishable in the report.
+          security: {
+            ignoreHttpsErrors: profile.instanceTemplate.ignoreHttpsErrors ?? false,
+            ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default"
+          }
         });
         
         await reportService.writeReport(finalReport);
@@ -1328,6 +1334,20 @@ export class ExecutionEngine {
       resourceRouting: browserConfig.resourceRouting,
       launchArgOverrides: browserConfig.launchArgOverrides,
       traceMode: browserConfig.traceMode,
+      // Certificate trust: already resolved (run → workflow → app setting → false) when the instance
+      // template was built, so every context created for this instance — including retries, mid-run
+      // browser restarts and parallel isolated contexts — uses the same effective value.
+      ignoreHttpsErrors: instance.config.ignoreHttpsErrors,
+      ignoreHttpsErrorsSource: instance.config.ignoreHttpsErrorsSource,
+      onCertificateTrustBypass: (fields, message) =>
+        runLogger.log({
+          runId: instance.executionId,
+          workflowId: instance.scenarioId,
+          workerId: instance.instanceId,
+          event: "security.certificateTrust",
+          message,
+          data: { ...fields }
+        }),
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),
@@ -1357,6 +1377,8 @@ export class ExecutionEngine {
           dataSources,
           flowOutputs: {},
           secrets: this.resolveSecretsForFlows(flows),
+          // Mirrors instance.config so a navigation failure can produce the actionable certificate message.
+          ignoreHttpsErrors: instance.config.ignoreHttpsErrors,
           // Saved browser sessions live in a stable runtime folder, not per-execution.
           // The global runtime root (captured profiles, durable store) is upload-blocked (F-01).
           paths: { ...instance.paths, sessions: join(dirs.root, "sessions"), protectedUploadRoots: [getRuntimeDataRoot()] }

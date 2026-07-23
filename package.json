@@ -16,6 +16,8 @@
     "verify:runner": "tsx scripts/verify-runner.mts",
     "verify:accent-theme": "tsx scripts/verify-accent-theme.mts",
     "verify:accent-gui": "node scripts/verify-accent-gui.mjs",
+    "verify:https-certificates": "tsx scripts/verify-https-certificates.mts",
+    "verify:https-certificates-gui": "node scripts/verify-https-certificates-gui.mjs",
     "verify:branding": "tsx scripts/verify-branding.mts",
     "verify:branding-gui": "node scripts/verify-branding-gui.mjs",
     "verify:custom-brand-logo": "tsx scripts/verify-custom-brand-logo.mts",

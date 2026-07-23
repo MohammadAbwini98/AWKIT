@@ -1,5 +1,6 @@
 import type { ScenarioLink, ScenarioProfile } from "./ScenarioProfile";
 import type { EdgeVisualStyle, ValueSource } from "./FlowProfile";
+import type { WorkflowSecuritySettings } from "@src/security/browser/CertificateTrust";
 
 export interface WorkflowNodeInputBinding {
   type: ValueSource["type"];
@@ -87,6 +88,13 @@ export interface WorkflowProfile {
     maxConcurrentInstances: number;
     stopOnRequiredFlowFailure: boolean;
   };
+  /**
+   * Optional per-workflow security overrides. Omitted (the default for every existing workflow file)
+   * inherits the application settings; an explicit `false` forces certificate validation even when the
+   * global setting is on. No UI writes this today — it is the middle tier of the documented precedence
+   * chain and is honoured by the execution IPC.
+   */
+  security?: WorkflowSecuritySettings;
   createdAt?: string;
   updatedAt?: string;
 }

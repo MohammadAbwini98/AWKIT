@@ -28,6 +28,17 @@ export interface ConcurrentRunReport {
   instances: InstanceReport[];
   runtimeInputs: Record<string, unknown>;
   offlineRuntimeStatus?: OfflineRuntimeStatus;
+  /**
+   * Security posture this run executed under. Recorded so a report reader can tell whether HTTPS
+   * certificate validation was in force — a passing run against an untrusted certificate must not look
+   * identical to one against a trusted certificate. Contains no URLs, credentials, or host data.
+   */
+  security?: {
+    /** True when the run's browser contexts were created with `ignoreHTTPSErrors`. */
+    ignoreHttpsErrors: boolean;
+    /** Which precedence tier supplied the value (run / workflow / app / default). */
+    ignoreHttpsErrorsSource?: "run" | "workflow" | "app" | "default";
+  };
 }
 
 export function collectEvidence(result: ScenarioExecutionResult): Pick<InstanceReport, "screenshots" | "downloadedFiles"> {
