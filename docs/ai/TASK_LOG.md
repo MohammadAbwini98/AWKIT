@@ -4,7 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-23 (latest) — Three-branch feature recovery (accent / HTTPS / custom brand logo)
+## 2026-07-23 (latest) — Three-branch recovery: pre-merge review + merge to `main`
+
+- **Task:** full pre-merge review + combined integration validation of the three recovered feature PRs
+  (#28 accent, #29 HTTPS, #30 branding) and the recovery-docs PR (#31), then merge the features to `main`.
+- **Reviews:** PR #28 clean; **PR #29 mandatory security review passed 11/11** (context-scoped only ·
+  default `false` · import can't enable · permission-gated mutation · recorder initial + persistent-context
+  resume same resolved policy · retries/branches/replacement/shared contexts per-context · no process-wide
+  `--ignore-certificate-errors` / Electron cert override · not in the shared-browser pool key · validating
+  + bypassing contexts coexist · logs carry no URL/cookie/cert/session data · CAPTCHA/MFA/protected-login/
+  handoff unchanged); PR #30 clean; PR #31 factually accurate.
+- **Combined integration:** merged accent + https + branding into a throwaway validation branch — only
+  **additive** conflicts in `Settings.tsx` / `package.json` / `uiSettings.ts` / `global.css` / `App.tsx`
+  (`preload.ts` auto-merged), all resolved preserving every feature (no broad `--ours`/`--theirs`).
+  Combined tree built clean; every feature verifier stayed green; a real-Electron coexistence check
+  confirmed all three Settings cards on one page, saving one feature doesn't reset another, login applies
+  both accent + logo, and defaults restore.
+- **PR #30 verifier fix (`f01e4ec`, test-only):** `verify:custom-brand-logo` check #14 changed from
+  "`app/main/uiSettings.ts` byte-identical to `main`" to a semantic "branding adds no branding-specific
+  UiSettings field" source scan, so it stays 31/31 in a combined tree where accent / recorder-security
+  legitimately modify that file. No production branding code changed.
+- **Merge sequence (development integration, NOT product promotion):** #28 → `3e79b70`; #30 (updated onto
+  `main`, additive conflicts resolved, verifiers re-run 31/31 · 47/47 · 30/30) → `2033424`; #29 (updated
+  onto `main`, full HTTPS suite re-run — certs 49/49 · gui 31/31 · runner 82 · recorder 78 · settings 3/3
+  · ipc 4/4) → `0777682`. **Final `main`: `0777682`.**
+- **Boundaries kept:** `.beads/issues.jsonl` untouched (still the frozen pre-existing backend export); no
+  `bd` / `bd dolt push`; PR #27 (`85df851`) untouched; archived source branches intact; release promotion
+  (portable rebuild / artifact verification / clean-machine / `validate:offline`) still NOT executed.
+
+---
+
+## 2026-07-23 (earlier) — Three-branch feature recovery (accent / HTTPS / custom brand logo)
 
 - **Task:** decompose the mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust",
   on `chore/brand-logo-5b`) into **three independent feature branches off `main` @ `32e378e`**, verify

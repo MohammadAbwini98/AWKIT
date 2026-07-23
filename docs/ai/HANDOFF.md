@@ -1,47 +1,49 @@
 # Agent Handoff
 
-Last updated: **2026-07-23 (latest — three-branch feature recovery: accent / HTTPS / custom brand logo → 3 PRs)**
+Last updated: **2026-07-23 (latest — three-branch feature recovery MERGED to `main` @ `0777682`; accent / HTTPS / custom brand logo)**
 
 > **Read this block first.** The previous agent decomposed the mixed commit `a1adcc2` ("branding, accent
 > theme, and HTTPS certificate trust", on `chore/brand-logo-5b`) into **three independent feature
-> branches off `main` @ `32e378e`**, each verified, pushed, and opened as its own PR. Nothing is paused
-> mid-edit; every recovery worktree is clean. The original mixed branch is untouched.
+> branches off `main` @ `32e378e`**, each verified and opened as its own PR — then, after a full pre-merge
+> review + combined integration validation, **merged all three to `main`** (order #28 → #30 → #29).
+> Nothing is paused mid-edit. The original mixed branch is untouched.
 
-## Next Agent — current PR landscape & next steps
+## Current PR landscape (post-recovery-merge)
 
-Six PRs are in flight. `main` remains at `32e378e` until they merge. No backend implementation may start
-before the clean-machine gate clears (see the "THE BLOCKING GATE" section below).
+**`main` is now `0777682`** and carries all three recovered features. PR #27 remains frozen; the
+clean-machine gate still blocks backend *promotion* (the recovery merges are development integration only).
 
-- **PR #27** (`fix/backend-observability-tranche-0`) — **frozen at `85df851`**. Do not amend, add commits,
-  or push to it.
-- **PR #28** (`feature/custom-accent-gradient`) — **ready for review**: custom accent gradient.
-- **PR #29** (`feature/https-certificate-trust`) — **draft**, pending a focused HTTPS security review.
-- **PR #30** (`feature/custom-brand-logo`) — **ready for review**: custom brand logo.
-- **PR #31** (`docs/feature-recovery-state-sync`) — the recovery-state documentation (this branch).
-- **Release gates NOT EXECUTED / NOT PASSED:** portable rebuild, artifact verification, clean-machine
-  validation, and release promotion all remain outstanding.
+- **PR #27** (`fix/backend-observability-tranche-0`) — **frozen at `85df851`**. Untouched by the recovery.
+  Do not amend, add commits, or push to it.
+- **PR #28** (`feature/custom-accent-gradient`) — **MERGED** (merge commit `3e79b70`): custom accent gradient.
+- **PR #30** (`feature/custom-brand-logo`) — **MERGED** (merge commit `2033424`): custom brand logo (+ a
+  test-only verifier fix `f01e4ec`).
+- **PR #29** (`feature/https-certificate-trust`) — **MERGED** (merge commit `0777682`): scoped HTTPS
+  certificate exceptions. Its **mandatory security review passed 11/11**.
+- **PR #31** (`docs/feature-recovery-state-sync`) — this recovery-state documentation (merges last).
+- **Release gates NOT EXECUTED / NOT PASSED:** `validate:offline` (browser payload absent in worktrees),
+  portable rebuild, artifact verification, clean-machine validation, and release promotion all remain
+  outstanding. Merging the features was **development integration, not product promotion.**
 - **`.beads/issues.jsonl` is frozen** — must not be committed or synchronized. **Do not run
   `bd dolt push`.**
 
-**Recommended review order:** #28, #29, #30, then #31 (after confirming its references remain accurate).
-
-**After PR #31 merges:** verify its content is present on `main`, then remove the docs-sync worktree,
-prune worktrees, and delete the merged `docs/feature-recovery-state-sync` branch.
+**After PR #31 merges:** verify its content is present on `main`, then remove the temporary recovery/
+integration worktrees and delete the merged feature + docs-sync branches.
 
 ---
 
-## Three-branch recovery — branch / PR map (all off `main` @ `32e378e`, pushed)
+## Three-branch recovery — branch / PR map (all merged to `main`, final `main` @ `0777682`)
 
-| Branch | Tip | PR | State | Verification |
+| Branch | Merge commit | PR | State | Verification (re-run after updating onto `main`) |
 |---|---|---|---|---|
-| `feature/custom-accent-gradient` | `cf5b50f` | #28 | **ready for review** | build ✓ · `verify:accent-theme` 71/71 · `verify:accent-gui` 33/33 |
-| `feature/https-certificate-trust` | `ba2e887` | #29 | **draft (security review)** | build ✓ · `verify:https-certificates` 49/49 · `verify:https-certificates-gui` 31/31 · regression `verify:runner` 82 + `verify:recorder` 78 |
-| `feature/custom-brand-logo` | `11b2afa` | #30 | **ready for review** | build ✓ · `verify:custom-brand-logo` 31/31 · `verify:branding` 47/47 · `verify:branding-gui` 30/30 |
+| `feature/custom-accent-gradient` | `3e79b70` | #28 | **MERGED** | build ✓ · `verify:accent-theme` 71/71 · `verify:accent-gui` 33/33 |
+| `feature/custom-brand-logo` | `2033424` | #30 | **MERGED** | build ✓ · `verify:custom-brand-logo` 31/31 · `verify:branding` 47/47 · `verify:branding-gui` 30/30 |
+| `feature/https-certificate-trust` | `0777682` | #29 | **MERGED** (security review 11/11) | build ✓ · `verify:https-certificates` 49/49 · `verify:https-certificates-gui` 31/31 · `verify:runner` 82 · `verify:recorder` 78 · `verify:settings-persistence` 3/3 · `verify:ipc-contract` 4/4 |
 
-Each branch = one feature commit + one focused docs commit. They are **independent, not stacked**; each
-was confirmed cleanly based on `origin/main` (`32e378e`) before its PR. The three worktrees live under
-`%LOCALAPPDATA%\Temp\awkit-worktrees\{accent,https,branding}` (each `node_modules` is a junction to the
-main repo's — deps unchanged).
+Merge order was **#28 → #30 → #29**. After each merge the next branch was updated onto the advancing
+`main` and its **additive** conflicts (`Settings.tsx` / `package.json` / `uiSettings.ts` / `global.css` /
+`App.tsx` / `preload.ts`) resolved by preserving **all** feature additions (no broad `--ours`/`--theirs`);
+each branch's focused verifiers were re-run green before its merge.
 
 ### Key recovery decisions
 - **HTTPS: the browser-wide bypass was removed.** The blanket `--ignore-certificate-errors` launch arg
@@ -58,14 +60,16 @@ main repo's — deps unchanged).
   GUI verifier passes without it). Recorded in PR #28 and `docs/ACCENT_COLOR.md`.
 
 ### Remaining work
-- **PR #29 (HTTPS) is in draft for a focused security review** — the PR body lists six invariants to
-  confirm (context-scoped only · default `false` / import can't enable · recorder persistent-context
-  resume uses the resolved setting · no `--ignore-certificate-errors` launch arg · shared contexts don't
-  leak cert policy · logs expose no sensitive cert/session data). Mark ready when satisfied.
-- **PRs #28 and #30 are ready for review** — review + merge per normal flow.
-- **`docs/ai/` reconciliation** (FEATURES / DECISIONS / COMMANDS entries for the three features) was left
-  for merge time; each branch carries only its own self-contained feature doc (`docs/ACCENT_COLOR.md`,
-  `docs/HTTPS_CERTIFICATE_TRUST.md`, `docs/BRANDING_CUSTOM_LOGO.md`) to avoid cross-PR conflicts.
+- **PR #29 (HTTPS) security review is complete — passed 11/11** (context-scoped only · default `false` /
+  import can't enable · permission-gated mutation · recorder initial + persistent-context resume use the
+  resolved setting · retries/branches/replacement/shared contexts per-context · no `--ignore-certificate-errors`
+  launch arg / Electron override · not in the shared-browser pool key · validating + bypassing coexist ·
+  logs expose no URL/cookie/cert/session data · CAPTCHA/MFA/protected-login/handoff unchanged). Merged.
+- **`docs/ai/` reconciliation** (FEATURES / DECISIONS / COMMANDS entries for the three features) remains a
+  follow-up now that all three are on `main`; each feature ships its own self-contained doc
+  (`docs/ACCENT_COLOR.md`, `docs/HTTPS_CERTIFICATE_TRUST.md`, `docs/BRANDING_CUSTOM_LOGO.md`).
+- **Release promotion still owed** (unchanged): portable rebuild, artifact verification, and clean-machine
+  offline validation are NOT executed. The feature merges do not clear the standing clean-machine gate.
 
 ### Do-not-touch (recovery)
 - The archived source branches `chore/brand-logo-5b` + `backup/chore-brand-logo-5b` (both at `a1adcc2`) —

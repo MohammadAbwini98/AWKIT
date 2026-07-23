@@ -1,26 +1,37 @@
 # CURRENT_STATE
 
-## Three-branch feature recovery (2026-07-23, latest) — accent / HTTPS / custom brand logo
+## Three-branch feature recovery (2026-07-23, latest) — accent / HTTPS / custom brand logo — MERGED to `main`
 
 The mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust") was decomposed into
 **three independent feature branches off `main` @ `32e378e`**, each verified and opened as its own PR
-(not stacked). All pushed; the original mixed branch `chore/brand-logo-5b` (+ backup) is left intact.
+(not stacked), then — after a full pre-merge review + combined integration validation — **all three
+merged to `main`**. The original mixed branch `chore/brand-logo-5b` (+ backup + archive) is left intact.
 
-- **`feature/custom-accent-gradient` (PR #28, ready)** — user-selectable accent (solid/gradient +
-  Specter Blue). New commands: `verify:accent-theme` (71/71), `verify:accent-gui` (33/33). Doc:
-  `docs/ACCENT_COLOR.md`.
-- **`feature/https-certificate-trust` (PR #29, draft — security review)** — opt-in, default-OFF
+- **`feature/custom-accent-gradient` (PR #28) — MERGED** (merge commit `3e79b70`) — user-selectable accent
+  (solid/gradient + Specter Blue). Commands: `verify:accent-theme` (71/71), `verify:accent-gui` (33/33).
+  Doc: `docs/ACCENT_COLOR.md`.
+- **`feature/custom-brand-logo` (PR #30) — MERGED** (merge commit `2033424`) — Super-User custom workspace
+  logo (login + sidebar), signature-validated, app-managed atomic store, permission-gated. Commands:
+  `verify:custom-brand-logo` (31/31), `verify:branding` (47/47), `verify:branding-gui` (30/30). Doc:
+  `docs/BRANDING_CUSTOM_LOGO.md`. Also carries a test-only fix (`f01e4ec`) making
+  `verify:custom-brand-logo` check #14 integration-safe — a semantic "branding adds no field to
+  UiSettings" assertion instead of "`uiSettings.ts` byte-identical to `main`".
+- **`feature/https-certificate-trust` (PR #29) — MERGED** (merge commit `0777682`) — opt-in, default-OFF
   "Ignore invalid HTTPS certificates", **context-level only** (the browser-wide
   `--ignore-certificate-errors` launch arg + env hatch were dropped; a regression guard prevents its
-  return). New commands: `verify:https-certificates` (49/49), `verify:https-certificates-gui` (31/31).
-  Doc: `docs/HTTPS_CERTIFICATE_TRUST.md`.
-- **`feature/custom-brand-logo` (PR #30, ready)** — Super-User custom workspace logo (login + sidebar),
-  signature-validated, app-managed atomic store, permission-gated. New commands:
-  `verify:custom-brand-logo` (31/31), `verify:branding` (47/47), `verify:branding-gui` (30/30). Doc:
-  `docs/BRANDING_CUSTOM_LOGO.md`.
+  return). **Its mandatory security review passed 11/11.** Commands: `verify:https-certificates` (49/49),
+  `verify:https-certificates-gui` (31/31). Doc: `docs/HTTPS_CERTIFICATE_TRUST.md`.
 
-These features live on their branches only — **`main` behavior is unchanged** until the PRs merge. See
-`docs/ai/HANDOFF.md` (top block) for the full map, decisions, and remaining review work.
+**Final `main` after the recovery merges: `0777682`** (merge order #28 → #30 → #29). Each feature branch was
+updated onto the advancing `main` and its additive conflicts (`Settings.tsx` / `package.json` /
+`uiSettings.ts` / `global.css` / `App.tsx` / `preload.ts`) resolved by preserving **all** feature
+additions — no broad `--ours`/`--theirs`; the combined tree built clean and every feature's verifiers
+stayed green.
+
+**Release status — development integration, NOT product promotion.** `validate:offline` was inconclusive
+in the isolated worktrees (bundled-browser payload absent); the portable rebuild, artifact verification,
+and clean-machine validation remain **NOT executed** (release debt). `.beads/issues.jsonl` stays frozen —
+no `bd dolt push`. `fix/backend-observability-tranche-0` (PR #27) is untouched by this recovery.
 
 ---
 
