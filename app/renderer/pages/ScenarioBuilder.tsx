@@ -43,6 +43,13 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { PromptDialog } from "../components/shared/PromptDialog";
 import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/CanvasItemPicker";
 import { buildConnectorVisual, hasCustomStyle } from "../components/shared/connectorStyle";
+import {
+  incompleteBranchPairMessage,
+  incompleteBranchPairs,
+  revertLoneBranchConnectors,
+  scenarioEdgeKind,
+  scenarioEdgeToNormal
+} from "../components/shared/branchPairs";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
 import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
@@ -58,7 +65,7 @@ import {
 } from "../components/scenario/scenarioDesignerTypes";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
-import { connectorKind, type ConnectorKind, type EdgeVisualStyle, type FlowProfile } from "@src/profiles/FlowProfile";
+import type { EdgeVisualStyle, FlowProfile } from "@src/profiles/FlowProfile";
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
@@ -74,11 +81,6 @@ const edgeTypes = {
   smooth: SmoothEdge,
   loop: LoopEdge
 } satisfies EdgeTypes;
-
-/** Derive the structured connector kind from a workflow link's legacy `type` (no separate `kind` field yet). */
-function scenarioEdgeKind(type: ScenarioLink["type"] | undefined): ConnectorKind {
-  return connectorKind({ type: type ?? "success" });
-}
 
 /** Fallback library used when no saved flows are found. */
 const fallbackFlowLibrary = [
@@ -1652,16 +1654,18 @@ function createScenarioEdge(
 }
 
 /**
- * Enforce the branch-connector invariants on the Workflow Builder edges: slot each node's
- * conditional/parallel pair to distinct right-side ports, and (for `revertSources`) collapse a
- * lone surviving branch connector back to a normal (`success`) connector. See
- * `reconcileBranchConnectors`.
+ * Branch-pair invariant (FR-2.6), identical to the Flow Designer's `reconcileFlowBranches`: when a
+ * node named in `revertSources` is left holding exactly one conditional/parallel connector — the
+ * flow it paired with was just removed — the survivor collapses back to a normal connector. The
+ * port-slotting this function also used to do died with the two-port node model; the semantics live
+ * in `components/shared/branchPairs.ts` so both editors and a verifier share one implementation.
  */
-function reconcileScenarioBranches(edges: ScenarioEdge[], _revertSources?: Set<string>): ScenarioEdge[] {
-  // Branch-port slotting/revert was tied to the old two-port node model. The custom engine routes
-  // every connector bottom→top (no ports), so this is a pass-through; connector kind + config still
-  // live on edge.data and drive validation. Kept so call sites read unchanged.
-  return edges;
+function reconcileScenarioBranches(edges: ScenarioEdge[], revertSources?: Set<string>): ScenarioEdge[] {
+  return revertLoneBranchConnectors(edges, {
+    kindOf: (edge) => scenarioEdgeKind(edge.data?.linkType),
+    toNormal: scenarioEdgeToNormal,
+    revertSources
+  });
 }
 
 /**
@@ -1672,7 +1676,7 @@ function reconcileScenarioBranches(edges: ScenarioEdge[], _revertSources?: Set<s
  */
 function scenarioConnectorStructureIssues(edges: ScenarioEdge[], nodeName: (id: string) => string): string[] {
   const messages: string[] = [];
-  const kindOf = (edge: ScenarioEdge) => scenarioEdgeKind(edge.data?.linkType);
+  const kindOf = (edge: ScenarioEdge): string => scenarioEdgeKind(edge.data?.linkType);
 
   // The legacy `loopBack` link type is an intentional cross-node back-edge and is exempt —
   // only the new structured `loop` type is self-only.
@@ -1703,6 +1707,11 @@ function scenarioConnectorStructureIssues(edges: ScenarioEdge[], nodeName: (id: 
     if (kindOf(edge) !== "conditional") {
       messages.push(`Node "${nodeName(edge.source)}" has a loop connector. Additional outgoing connectors from a loop node must be Conditional.`);
     }
+  });
+
+  // FR-2.6: a lone conditional/parallel connector with no fallback (mirrors the Flow Designer).
+  incompleteBranchPairs(edges, kindOf).forEach(({ source, kind }) => {
+    messages.push(incompleteBranchPairMessage(nodeName(source), kind));
   });
 
   return messages;

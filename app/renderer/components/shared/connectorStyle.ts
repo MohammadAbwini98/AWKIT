@@ -117,8 +117,7 @@ export function slotFromHandle(handleId?: string | null): number {
 /**
  * Stable source/target handle ids for a connector kind. `loop` connectors are self-loops and
  * get their own dedicated top handle pair (`LOOP_HANDLES`). Branch connectors default to slot
- * 0 (`<kind>-out-0`); `reconcileBranchConnectors` then re-slots a node's pair to 0/1 so each
- * connector aligns to its own port.
+ * 0 (`<kind>-out-0`). (Vestigial from the removed two-port node model; see the note above.)
  */
 export function portHandlesForKind(kind: string | undefined): { sourceHandle: string; targetHandle: string } {
   if (kind === "loop") return { ...LOOP_HANDLES };
@@ -178,56 +177,14 @@ export function computePortFlags(edges: { source: string; target: string; kind: 
   return map;
 }
 
-/** Minimal edge shape the branch reconciler needs (both canvases' edges satisfy it). */
-export interface BranchReconcileEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string | null;
-}
-
 /**
- * Enforce the branch-connector invariants on a set of edges (shared by both canvases):
- *  - a node's conditional/parallel connectors are assigned distinct source-handle slots
- *    (`<kind>-out-0`, `<kind>-out-1`) so each connector aligns to its own right-side port;
- *  - when `revertSources` names a node that now has exactly ONE conditional/parallel connector
- *    (e.g. after its pair partner was deleted), that lone connector is reverted to a normal
- *    connector so the node collapses back to a single centered port.
- * The caller supplies `kindOf`/`slotAssign`/`toNormal` to read and rewrite its own edge shape.
+ * NOTE: the branch-pair invariant (revert a lone conditional/parallel connector back to normal)
+ * now lives in `components/shared/branchPairs.ts` — `revertLoneBranchConnectors` — which both
+ * editors and `scripts/verify-branch-pairs.mts` share. The old `reconcileBranchConnectors` here
+ * also did right-side port slotting, which died with the two-port node model, so it was removed.
+ * The remaining port helpers below (`portHandlesForKind`, `computePortFlags`, `portPositions`, …)
+ * are likewise vestigial from that model and are tracked for a separate prune.
  */
-export function reconcileBranchConnectors<E extends BranchReconcileEdge>(
-  edges: E[],
-  ops: {
-    kindOf: (edge: E) => string;
-    slotAssign: (edge: E, kind: "conditional" | "parallel", slot: number) => E;
-    toNormal: (edge: E) => E;
-    revertSources?: Set<string>;
-  }
-): E[] {
-  const bySource = new Map<string, E[]>();
-  edges.forEach((edge) => {
-    if (edge.source === edge.target) return; // self-loops are not branch connectors
-    const list = bySource.get(edge.source) ?? [];
-    list.push(edge);
-    bySource.set(edge.source, list);
-  });
-
-  const replaced = new Map<string, E>();
-  bySource.forEach((list, source) => {
-    (["conditional", "parallel"] as const).forEach((kind) => {
-      const kindEdges = list
-        .filter((edge) => ops.kindOf(edge) === kind)
-        .sort((a, b) => slotFromHandle(a.sourceHandle) - slotFromHandle(b.sourceHandle) || a.id.localeCompare(b.id));
-      if (kindEdges.length === 1 && ops.revertSources?.has(source)) {
-        replaced.set(kindEdges[0].id, ops.toNormal(kindEdges[0]));
-      } else {
-        kindEdges.slice(0, MAX_BRANCH_CONNECTORS).forEach((edge, index) => replaced.set(edge.id, ops.slotAssign(edge, kind, index)));
-      }
-    });
-  });
-
-  return edges.map((edge) => replaced.get(edge.id) ?? edge);
-}
 
 /**
  * Evenly spaced vertical offsets (as a `top` percentage) for `count` stacked ports on one

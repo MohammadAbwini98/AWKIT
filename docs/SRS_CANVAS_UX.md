@@ -5,17 +5,26 @@
 | | |
 |---|---|
 | **Document ID** | SRS-CANVAS-UX-001 |
-| **Product** | WebFlow Studio (AWKIT) — offline Electron + React + `@xyflow/react` desktop app |
+| **Product** | WebFlow Studio (AWKIT) — offline Electron + React desktop app, **in-house canvas engine** (`app/renderer/components/canvas/`; React Flow / `@xyflow/react` was removed) |
 | **Author** | Front-End / UX |
-| **Date** | 2026-07-10 |
-| **Status** | Draft for review |
-| **Related surfaces** | Flow Designer (`app/renderer/pages/FlowChartDesigner.tsx`), Workflow Builder (`app/renderer/pages/ScenarioBuilder.tsx`), Workflow Overview (`app/renderer/pages/WorkflowDesigner.tsx`), shared connectors (`app/renderer/components/shared/`), tokens/motion (`app/renderer/styles/global.css`) |
+| **Date** | 2026-07-10 · **reconciled 2026-07-23** |
+| **Status** | Draft for review — **partially implemented; reconciled against current code** |
+| **Related surfaces** | Flow Designer (`app/renderer/pages/FlowChartDesigner.tsx`), Workflow Builder (`app/renderer/pages/ScenarioBuilder.tsx`), Workflow Overview (`app/renderer/pages/WorkflowDesigner.tsx`), shared connectors (`app/renderer/components/shared/`), canvas engine (`app/renderer/components/canvas/`), tokens/motion (`app/renderer/styles/global.css`) |
+
+> **⚠ Reconciled 2026-07-23.** This SRS was written 2026-07-10 against a React-Flow-based canvas
+> that no longer exists. It has been reconciled against the current in-house engine: component
+> names, tokens, and the implementation status of each requirement are updated below. Where the
+> original cited `global.css` line numbers, those are replaced with stable token/selector
+> references — `global.css` is a large, frequently-edited file and absolute line numbers drift.
+> **FR-2.6 (branch-pair deletion) is now implemented and verified** (`components/shared/branchPairs.ts`,
+> `npm run verify:branch-pairs`). Remaining gaps and the still-unresolved visual references are
+> called out per requirement.
 
 > **⚠ Design references not yet attached.** The originating request refers repeatedly to
 > "the attached images" for the desired plus-button, conditional connector, and loop
 > appearance. No images were supplied with this ticket. Every acceptance criterion that
 > depends on visual conformance is marked **[NEEDS REFERENCE]** and must be re-verified
-> against the images before sign-off.
+> against the images before sign-off. This reconciliation does **not** resolve those.
 
 ---
 
@@ -56,11 +65,11 @@ node layout, canvas backdrop, and UI animation.
 | **Flow Designer** | `FlowChartDesigner.tsx` — edits a single reusable flow (action-level nodes). |
 | **Workflow Builder** | `ScenarioBuilder.tsx` — composes saved flows into a workflow (flow-ref nodes). |
 | **Workflow Overview** | `WorkflowDesigner.tsx` — **read-only** graph; no editing affordances. |
-| **Node** | A React Flow node (`actionNode` / `scenarioFlow`). |
-| **Connector / Edge** | A React Flow edge linking two nodes. |
-| **Branch connector** | A conditional or parallel connector; nodes in this mode expose a locked **pair** of same-kind source ports (`MAX_BRANCH_CONNECTORS = 2`). |
-| **Loop connector** | A structured `loop`-kind self-edge (source === target) rendered via `SelfLoopEdge`. |
-| **Port / Handle** | A React Flow connection handle on a node (`normal-out`, `conditional-out-0`, `loop-in`, …). |
+| **Node** | A canvas-engine node (`actionNode` / `scenarioFlow`), rendered by the in-house engine (`components/canvas/`). |
+| **Connector / Edge** | A canvas-engine edge linking two nodes; every connector routes bottom→top (source-bottom → target-top). |
+| **Branch connector** | A conditional or parallel connector. A node's same-kind branch connectors form a **pair** (max 2); this is now a purely *semantic* cap enforced by validation — the old two-port node model is gone, so there are no per-kind ports. |
+| **Loop connector** | A structured `loop`-kind self-edge (source === target) rendered via `components/canvas/edges/LoopEdge.tsx`. |
+| **~~Port / Handle~~** | **Obsolete.** The React-Flow handle model (`normal-out`, `conditional-out-0`, `loop-in`, …) was removed with React Flow. Handle helpers still linger in `connectorStyle.ts` (`portHandlesForKind`, `computePortFlags`, `portFlags`) as vestigial dead code tracked for a separate prune; they do not affect routing. |
 
 ### 1.4 References
 
@@ -72,19 +81,20 @@ node layout, canvas backdrop, and UI animation.
 
 ## 2. Overall Description
 
-### 2.1 Current-state findings (grounded in code)
+### 2.1 Current-state findings (grounded in code — reconciled 2026-07-23)
 
-A code inspection shows several items reported as "not implemented" are in fact **partially
-implemented**. Requirements below are written to close the *actual* gaps, not to rebuild
-working code.
+Since this table was first written, most of the "partial" items have been **completed**, and the
+canvas was **re-platformed off React Flow onto an in-house engine**. The table is updated to the
+*actual* current state; component/function names and the remaining real gaps reflect the code as
+of 2026-07-23.
 
-| # | Ticket claim | Actual current state | Real gap |
+| # | Ticket claim | Actual current state (2026-07-23) | Real gap |
 |---|---|---|---|
-| 1a | Plus sign not implemented | Inline **edge** "+" exists (`TemplateSmoothEdge` + `insertNodeOnEdge`) but is wired **only in Flow Designer** via `edgesForCanvas`. Workflow Builder renders raw `edges` with no `showAddButton`/`onInsertNode`. No node-attached "add next node" button exists on either canvas. | (i) Add the "+" to Workflow Builder edges; (ii) add a node-port "+" affordance to append a node from a node's output; (iii) conform visuals to reference. |
-| 1b | Connector rules corrupted (conditional/parallel/loop) | Extensive rules already exist: branch pairs (`reconcileBranchConnectors`), loop-is-self-only, "one standard outgoing connector" gate, conditional-priority ambiguity check, save-blocking `connectorStructureIssues`. | Loop **routing priority** ("loop always wins; continue when satisfied") is not specified/enforced at authoring time; conditional/parallel/loop **visual language** does not yet match the reference; rules diverge subtly between the two canvases. |
-| 1c | Saved nodes stacked on each other | `FlowChartDesigner.loadProfile` falls back to a constant `{ x: 280, y: 120 }` for every node lacking a saved `position`, so position-less nodes overlap exactly. No auto-layout exists. Workflow Builder spaces by index (`140 + i*320`) but only on a single row. | Deterministic **auto-layout** on load when positions are missing or overlapping, plus a manual "Tidy / Auto-arrange" action. |
-| 1d | Dotted canvas not implemented | Implemented: `<Background variant={Dots}>` on all three canvases + `--awkit-canvas-dot` token + `radial-gradient` (`global.css:764`, `:2886`). | Likely a **contrast/visibility** defect (dot color too close to canvas bg) rather than a missing feature — verify and tune, do not re-add. |
-| 2 | Animations for panels/nodes/sidebar/pages/buttons | Motion tokens exist (`--awkit-dur-*`, `--awkit-motion-*`, `--awkit-ease-out`); keyframes exist (`awkit-page-enter`, `awkit-panel-in`, `awkit-drawer-in`, `awkit-fade-in`, `awkit-pop-in`, `awkit-edge-flow`, toast-in); a `prefers-reduced-motion` reset exists (`global.css:7678`). | Coverage is **inconsistent** — nodes/edges mount without transition, page switches and sidebar collapse are not uniformly animated, button press has no active-state feedback. Requirement is systematic, token-driven application. |
+| 1a | Plus sign not implemented | **Largely done.** Inline **edge** "+" exists in **both** editors — Flow Designer (`FlowChartDesigner.insertNodeOnEdge`) and Workflow Builder (`ScenarioBuilder.insertFlowOnEdge`, edge "+" wired ~`ScenarioBuilder.tsx:576`). Rendered by the engine's `components/canvas/edges/SmoothEdge.tsx` (real `<button>` with `aria-label`, `nodrag nopan`, propagation stopped — FR-1.4). | (ii) an optional node-attached "add next node" affordance (FR-1.3) is still not built; (iii) visuals not conformed to reference **[NEEDS REFERENCE]**. |
+| 1b | Connector rules corrupted (conditional/parallel/loop) | **Mostly done.** Branch/loop rules exist and are Save-blocking (`connectorStructureIssues` / `scenarioConnectorStructureIssues`): loop-is-self-only, "one standard outgoing connector" gate, conditional-priority ambiguity check, loop-forces-conditional-exit. **FR-2.6 lone-branch revert is now implemented** in `components/shared/branchPairs.ts` (was a no-op pass-through). | Loop **routing priority** is not surfaced at authoring time; conditional/parallel/loop **visual language** not conformed **[NEEDS REFERENCE]**. Editor parity for the branch-pair rule is now real (single shared module). |
+| 1c | Saved nodes stacked on each other | **Done.** Deterministic layered auto-layout runs on load and via a manual **Auto-arrange** action (`components/shared/graphLayout.ts` — `positionsNeedLayout` / `layeredLayout` / `withAutoLayout`); it applies only when positions are missing or overlapping and never clobbers saved positions. Covered by `npm run verify:canvas-layout` (35/35). | None functional; visual polish only. |
+| 1d | Dotted canvas not implemented | **Done.** The in-house `components/canvas/Background.tsx` renders a dotted backdrop on all three canvases via `--awkit-canvas-dot` + `radial-gradient` (`global.css` `.awkit-flow-background`; `radial-gradient(var(--awkit-canvas-dot) 1.5px, …)`). Current dot tokens: **light `#c4c9d2`, dark `#2c3140`, alt `#cac5d3`**. All three canvases pass **`gap={22} size={2}`**. | Verify on-device contrast (FR-4.2) and tune the token if invisible; do not re-add the feature. |
+| 2 | Animations for panels/nodes/sidebar/pages/buttons | Motion tokens + keyframes exist (`--awkit-dur-*`, `--awkit-motion-*`, `--awkit-ease-out`; `awkit-page-enter`, `awkit-panel-in`, `awkit-drawer-in`, `awkit-fade-in`, `awkit-pop-in`, `awkit-edge-flow`, toast-in). Reduced-motion is handled by **multiple** `@media (prefers-reduced-motion: reduce)` blocks (six as of 2026-07-23, incl. admin-specific ones) — **not** a single reset. | Coverage is still **inconsistent** (see FR-5). The multiple reduced-motion blocks are a **consolidation hazard**: the global one uses `!important` on `transition-property` while others use the `transition: none` shorthand — merging them naively changes behavior. |
 
 ### 2.2 Constraints
 
@@ -125,12 +135,14 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
 - **FR-1.2 (P1)** Clicking the edge "+" MUST insert a node at the connector midpoint, split the
   edge into `source → new` and `new → target`, and preserve the source edge's kind/routing so
   branch invariants (§3.2) remain intact — as `insertNodeOnEdge` already does in Flow Designer.
-- **FR-1.3 (P2)** Each editable node MUST expose a **node-attached "+"** on its primary output
-  port that appends a new node and connects it with a default (normal) connector, matching the
-  reference images' "add next step" pattern. **[NEEDS REFERENCE]**
-  - **FR-1.3.1** On a node in conditional/parallel mode, the node "+" MUST create the next branch
-    connector of the same kind, subject to the `MAX_BRANCH_CONNECTORS = 2` cap; when the pair is
-    full the affordance MUST be disabled with an accessible explanation.
+- **FR-1.3 (P2) — NOT IMPLEMENTED.** Each editable node MAY expose a **node-attached "+"** that
+  appends a new node and connects it with a default (normal) connector, matching the reference
+  images' "add next step" pattern. (There are no output "ports" in the in-house engine; this would
+  attach to the node card, not a handle.) **[NEEDS REFERENCE]**
+  - **FR-1.3.1** On a node with an existing conditional/parallel connector, the node "+" MUST
+    create the next branch connector of the same kind, subject to the **pair cap of 2** (semantic,
+    not port-based); when the pair is full the affordance MUST be disabled with an accessible
+    explanation.
   - **FR-1.3.2** On a node that owns a self-loop, the node "+" MUST create a **Conditional**
     outgoing connector (consistent with the existing `loopControlledSources` rule).
 - **FR-1.4 (P1)** All "+" controls MUST be real `<button>` elements with `aria-label`
@@ -147,8 +159,11 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
 - **FR-2.1 (P1)** A conditional connector MUST carry a `conditional` config (`sourceField`,
   `operator`, `expectedValue`, `priority`) and MUST render with a distinct visual state matching
   the reference (label pill, color/line treatment). **[NEEDS REFERENCE]**
-- **FR-2.2 (P1)** A node MAY have at most two conditional branch connectors (the locked pair);
-  additional conditional drags beyond the cap MUST be rejected (already enforced by `onConnect`).
+- **FR-2.2 (P1)** A node MAY have at most two conditional branch connectors (the semantic pair
+  cap). The connector-creation affordances (Logic picker, edge/append "+") MUST NOT produce a
+  third same-kind branch connector on a node. (There is no drag-to-connect / `onConnect` in the
+  in-house engine — connections are made through those affordances, so the cap is enforced there
+  and by save-blocking validation, not by a React-Flow handle rejecting a drag.)
 - **FR-2.3 (P1)** Multiple conditional connectors from the same source with the **same
   `priority`** MUST surface the existing ambiguity warning and MUST be resolvable in the
   connector properties panel by editing priority.
@@ -161,9 +176,26 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
 - **FR-2.5 (P1)** A parallel connector MUST carry a `parallel` config (`joinMode`, `failMode`),
   form a locked pair (max 2), and render with its own visual state distinct from conditional.
   **[NEEDS REFERENCE]**
-- **FR-2.6 (P1)** Deleting one half of a conditional/parallel pair MUST revert the survivor to a
-  normal connector (single centered port) — as `reconcileBranchConnectors` `revertSources`
-  already does; this MUST hold identically in both editors.
+- **FR-2.6 (P1) — ✅ IMPLEMENTED & VERIFIED (2026-07-23).** Deleting one half of a
+  conditional/parallel pair reverts the survivor to a normal (`success`) connector, identically in
+  both editors. Implemented in `components/shared/branchPairs.ts` (`revertLoneBranchConnectors`),
+  wired via `reconcileFlowBranches` (Flow Designer) and `reconcileScenarioBranches` (Workflow
+  Builder) on every edge/node deletion. The conversion also clears branch-only config so nothing
+  stale is carried over. **Hybrid rule** (owner decision, 2026-07-23):
+  - **Interactive deletion** auto-reverts the lone survivor (the editor never leaves a graph it can
+    deterministically repair).
+  - **Existing / imported** lone branches are **not** rewritten on load; instead they are reported
+    as Save-blocking issues (`incompleteBranchPairs` → `connectorStructureIssues` and its scenario
+    twin) so opening a profile never mutates it.
+  - A lone branch that still has a **standard fallback** connector is a valid if/else and is
+    deliberately **exempt** from the Save block.
+
+  Rationale: a lone branch does not truncate the flow (an earlier claim) — at run time
+  `FlowExecutor` routes a lone conditional to its target with the *condition ignored*, and runs a
+  lone parallel's target *twice* via the `success`/`always` fallback. The revert prevents both.
+  Note the "single centered port" phrasing in the original requirement is obsolete — there are no
+  ports; "normal connector" is the whole meaning now. Covered by `npm run verify:branch-pairs`
+  (31/31).
 
 **Loop (and loop priority)**
 
@@ -215,14 +247,16 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
 
 ### 3.4 Dotted canvas backdrop — *ticket 1d*
 
-- **FR-4.1 (P1)** Both editors MUST display a visible dotted backdrop. The existing
-  `BackgroundVariant.Dots` + `--awkit-canvas-dot` implementation MUST be retained, not replaced.
+- **FR-4.1 (P1)** Both editors MUST display a visible dotted backdrop. The existing in-house
+  `components/canvas/Background.tsx` + `--awkit-canvas-dot` `radial-gradient` implementation MUST
+  be retained, not replaced. (The React-Flow `BackgroundVariant.Dots` referenced in the original
+  is gone with React Flow.)
 - **FR-4.2 (P1)** The dot color MUST have sufficient contrast against `--awkit-canvas-bg` in
   **both** light and dark themes to be perceivable but non-distracting (target: subtle, ~AA-ish
-  non-text contrast). Current tokens (`#d8d4e0` light, `rgba(255,255,255,0.09)` dark,
-  `#cac5d3` alt) MUST be verified on-device and tuned if the dots are invisible.
+  non-text contrast). Current tokens (**`#c4c9d2` light, `#2c3140` dark, `#cac5d3` alt**; dot
+  radius 1.5px) MUST be verified on-device and tuned if the dots are invisible.
 - **FR-4.3 (P2)** Dot gap/size MUST remain consistent across all three canvases (currently
-  `gap={24} size={1}`); any change MUST be applied uniformly.
+  **`gap={22} size={2}`** on all three); any change MUST be applied uniformly.
 
 ### 3.5 Motion & micro-interactions — *ticket 2*
 
@@ -243,8 +277,12 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
   `:active` (press), disabled, and loading states with token-driven transitions. Icon-only
   controls MUST have `aria-label`s.
 - **FR-5.8 (P1)** All motion MUST be disabled/neutralized under
-  `@media (prefers-reduced-motion: reduce)` (the existing global reset MUST cover any new
-  animations; new keyframed elements MUST not bypass it).
+  `@media (prefers-reduced-motion: reduce)`. Note the codebase currently has **multiple**
+  reduced-motion blocks (six as of 2026-07-23), not one reset, and they are **not equivalent** —
+  the global block uses `!important` on `transition-property` while others use the `transition:
+  none` shorthand (which suppresses via `transition-duration: 0s`). Any new keyframed element MUST
+  be covered, and any consolidation of these blocks MUST preserve the `!important` behavior — do
+  not merge them naively.
 - **FR-5.9 (P2)** Toasts, dropdowns, and modals MUST use consistent enter/exit motion
   (fade + small translate/scale), reusing existing keyframes.
 
@@ -308,13 +346,13 @@ Priority key: **P1** = must fix (defect / blocking), **P2** = should, **P3** = n
 
 ## 7. Traceability
 
-| Ticket item | Requirements | Primary files |
+| Ticket item | Requirements | Primary files (2026-07-23) |
 |---|---|---|
-| 1a Plus sign | FR-1.1 – FR-1.6 | `ScenarioBuilder.tsx`, `FlowChartDesigner.tsx`, `components/shared/TemplateSmoothEdge.tsx` |
-| 1b Connector rules | FR-2.1 – FR-2.13 | `components/shared/connectorStyle.ts`, `SelfLoopEdge.tsx`, `components/workflow/ConnectionPropertiesPanel.tsx`, both page files |
-| 1c Stacked nodes | FR-3.1 – FR-3.6 | `FlowChartDesigner.tsx` (`loadProfile`), `ScenarioBuilder.tsx`, new shared layout util |
-| 1d Dotted canvas | FR-4.1 – FR-4.3 | `styles/global.css` (`--awkit-canvas-dot`, `.react-flow__background`), all three page files |
-| 2 Animations | FR-5.1 – FR-5.9, NFR-1/2 | `styles/global.css` (motion tokens + keyframes), node/edge/panel components, routing shell |
+| 1a Plus sign | FR-1.1 – FR-1.6 | `ScenarioBuilder.tsx`, `FlowChartDesigner.tsx`, `components/canvas/edges/SmoothEdge.tsx` (edge "+") |
+| 1b Connector rules | FR-2.1 – FR-2.13 | `components/shared/connectorStyle.ts`, `components/shared/branchPairs.ts` (**FR-2.6**), `components/canvas/edges/LoopEdge.tsx`, `components/workflow/ConnectionPropertiesPanel.tsx`, both page files; verifier `scripts/verify-branch-pairs.mts` |
+| 1c Stacked nodes | FR-3.1 – FR-3.6 | `components/shared/graphLayout.ts`, `FlowChartDesigner.tsx` (`loadProfile`), `ScenarioBuilder.tsx`; verifier `scripts/verify-canvas-layout.mts` |
+| 1d Dotted canvas | FR-4.1 – FR-4.3 | `components/canvas/Background.tsx`, `styles/global.css` (`--awkit-canvas-dot`, `.awkit-flow-background`), all three page files |
+| 2 Animations | FR-5.1 – FR-5.9, NFR-1/2 | `styles/global.css` (motion tokens + keyframes; multiple `prefers-reduced-motion` blocks), node/edge/panel components, routing shell |
 
 ---
 
