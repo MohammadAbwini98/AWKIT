@@ -195,9 +195,14 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
 - For UI changes: run `npm run dev` and exercise the affected screen.
 - For offline/packaging: the **clean-machine GUI walkthrough** in
   `docs/OFFLINE_STANDALONE_PACKAGING.md` and the Phase 5 checklist in
-  `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3 (offline Windows VM) — the production-ready gate.
-  The automated dev-machine half is `npm run verify:packaged-walkthrough` (fresh-profile packaged
-  run); the true clean/offline VM walkthrough remains a human step and has NOT been performed.
+  `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3 (offline Windows VM). As of the **2026-07-24 owner
+  policy** this walkthrough is **optional and non-blocking** for release promotion (see the
+  authoritative banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`); its execution status stays truthful
+  (currently **NOT EXECUTED**) and a **FAIL, if ever executed, remains blocking**. The automated
+  dev-machine half is `npm run verify:packaged-walkthrough` (fresh-profile packaged run); the true
+  clean/offline VM walkthrough remains a human step and has NOT been performed. This policy does not
+  waive the checksum, offline-bundle, packaged-startup, artifact-integrity, dependency-manifest, or
+  security gates.
 
 ### Visual QA — Hologram UI (Phase 14)
 

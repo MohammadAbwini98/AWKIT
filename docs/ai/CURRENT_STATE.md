@@ -1,6 +1,51 @@
 # CURRENT_STATE
 
-## PR #24 reconstructed — Oracle data-source RBAC + live reauth verification (2026-07-24, latest)
+## Track 4 — clean-machine validation is optional and non-blocking (2026-07-24, latest)
+
+**Owner policy (Track 4).** Clean-machine validation **execution is optional and non-blocking** for
+release promotion, by explicit owner decision on **2026-07-24**. Execution status stays truthful: it
+is still **NOT EXECUTED** and **nothing is recorded as passed**. A failed clean-machine run — if ever
+executed — **remains blocking**. This did **not** weaken any other release gate.
+
+The gate was **documentation-enforced, not code-enforced** (verified in Phase 1: CI runs only
+typecheck + build; no release/promotion resolver exists in `src/`; the `clean-machine-acceptance`
+verifier class has no npm script and blocks nothing). The canonical policy now lives in one source —
+`scripts/lib/clean-machine-validation-policy.ts` — enforced by `npm run verify:clean-machine-policy`
+(verifier class **documentation-consistency**):
+
+```text
+Clean-machine validation is optional and non-blocking by owner policy.
+Its execution status remains truthful:
+- not executed remains NOT EXECUTED;
+- successful execution may be recorded as PASSED;
+- failed execution remains FAILED and blocking;
+- an explicit owner waiver is recorded as OWNER WAIVED / NON-BLOCKING.
+
+This policy does not waive checksum, offline-bundle, packaged-startup,
+artifact-integrity, dependency-manifest, or security validation.
+```
+
+**Release-gate matrix (current):**
+
+| Gate | Blocks promotion | Current status |
+|---|---|---|
+| Clean-machine validation | No — optional / waivable | **OWNER WAIVED — NON-BLOCKING** · execution **NOT EXECUTED** |
+| Checksum / artifact-integrity | **Yes** | Unchanged — mandatory |
+| Offline-bundle | **Yes** | Unchanged — mandatory |
+| Packaged startup | **Yes** | Unchanged — mandatory |
+| Dependency-manifest | **Yes** | Unchanged — mandatory |
+| Security | **Yes** | Unchanged — mandatory |
+
+**Changed (verifier total 107 → 108; documentation-consistency 0 → 1):**
+`scripts/lib/clean-machine-validation-policy.ts` (canonical policy + blocking matrix + fail-safe on an
+unknown/malformed state), `scripts/verify-clean-machine-policy.mts` (`verify:clean-machine-policy`, 10
+proofs), registered in `verifier-classification.ts` + `package.json`. Docs: this section, the
+authoritative banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`, `HANDOFF.md`, `TASK_LOG.md`. **No
+`.beads` change; no `bd` run.** Historical NOT EXECUTED evidence left intact.
+
+---
+
+## PR #24 reconstructed — Oracle data-source RBAC + live reauth verification (2026-07-24)
 
 Reconstructed off current `main` (`b416f8c`, which now includes the merged **PR #27** backend Tranche 0 and
 **PR #33** beads reconciliation — tracked `.beads/issues.jsonl` = 93 records, `awkit-5yx`/`awkit-oei` closed).
