@@ -35,7 +35,14 @@ export class FlowExecutor {
     private readonly stepExecutor: StepExecutor,
     private readonly logger?: RunnerLogger,
     private readonly progress?: RunnerProgressReporter,
-    private readonly branchExecutorFactory?: ParallelBranchFactory
+    private readonly branchExecutorFactory?: ParallelBranchFactory,
+    /**
+     * Artifact-profile default (`resolveArtifactSettings().screenshotOnFailure`) for capturing a
+     * failure screenshot on a step with NO explicit `onFailure.screenshot` override — the middle
+     * tier of the awkit-5yx precedence contract. Defaults to `true` so direct FlowExecutor users
+     * (verify scripts) and the historical always-capture path are unchanged.
+     */
+    private readonly screenshotOnFailureDefault: boolean = true
   ) {}
 
   /**
@@ -441,9 +448,11 @@ export class FlowExecutor {
       if (decision.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
 
-    // Failure screenshots default ON (best-effort): capture unless the step explicitly opted
-    // out, and never let a screenshot problem (e.g. dead page) mask the original step error.
-    if ((step.onFailure?.screenshot ?? true) && lastResult && !lastResult.screenshotPath) {
+    // Failure-screenshot precedence (awkit-5yx): an explicit per-step override
+    // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
+    // the constructor default (true) is the safe system fallback. Best-effort — never let a
+    // screenshot problem (e.g. dead page) mask the original step error.
+    if ((step.onFailure?.screenshot ?? this.screenshotOnFailureDefault) && lastResult && !lastResult.screenshotPath) {
       lastResult.screenshotPath = await this.stepExecutor.captureFailureScreenshot(step).catch(() => undefined);
     }
 

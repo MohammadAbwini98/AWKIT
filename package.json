@@ -52,6 +52,8 @@
     "verify:canvas-perf": "node scripts/verify-canvas-perf.mjs",
     "verify:canvas-layout": "tsx scripts/verify-canvas-layout.mts",
     "verify:branch-pairs": "tsx scripts/verify-branch-pairs.mts",
+    "verify:failure-screenshot-precedence": "tsx scripts/verify-failure-screenshot-precedence.mts",
+    "verify:verifier-classification": "tsx scripts/verify-verifier-classification.mts",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
     "verify:licensing": "tsx scripts/verify-licensing.mts",
     "verify:write-queue": "tsx scripts/verify-write-queue.mts",

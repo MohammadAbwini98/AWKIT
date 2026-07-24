@@ -1348,6 +1348,7 @@ export class ExecutionEngine {
           message,
           data: { ...fields }
         }),
+      screenshotOnFailure: browserConfig.artifact.screenshotOnFailure,
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),
