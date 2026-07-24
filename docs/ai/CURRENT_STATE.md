@@ -1,6 +1,64 @@
 # CURRENT_STATE
 
-## Backend SRS Tranche 1 — FR-B2 immediate failure evidence (2026-07-24, latest) — PR open, NOT merged
+## Backend SRS Tranche 2A — FR-C1 deterministic page identity (2026-07-24, latest) — draft PR, NOT merged
+
+Implemented **SRS-BAO-001 FR-C1 (Deterministic page identity)** — defect **`awkit-ebh`**. Branch
+`feature/backend-srs-tranche-2a-popup-identity` off `main` **`5dbe25f`** (which already contains the
+merged FR-B2 / PR #35 work described in the section below). **Draft PR, not merged.**
+
+- **The defect (live, reproduced).** Two independent call sites registered the same popup:
+  `PlaywrightRunner`'s context-level `"page"` handler under a positional `popup-${counter}` key, and
+  `StepExecutor`'s click / `switchToPopup` paths under the recorded alias. One `Page` was therefore
+  reachable under two aliases, and identity followed **arrival order**. Measured directly against the
+  new fixture: with the old code `popup-1` resolves to the *alpha* popup when opened alpha-first and
+  to the *beta* popup when opened beta-first — a flow replaying in the other order silently acts on
+  the wrong window.
+- **The fix — ownership inversion, not deletion.** New `src/runner/runtime/PopupIdentityRegistry.ts`
+  owns both directions (`alias → Page` **and** `Page → alias`). The context `"page"` event is the
+  **single observation point**; step paths no longer register anything — they **claim** the `Page`
+  object they awaited, which atomically promotes it from its synthetic alias to the recorded one and
+  drops the synthetic key in the same operation (C1.2). Neither call site was naively removed: each
+  covered a case the other did not.
+- **Deterministic synthetic identity (C1.3).** Unrecorded (script/timer/redirect) popups get
+  `popup-<safe-opener>-<sha256(opener + origin + normalized path) first 8 hex>`. Query strings and
+  fragments are **never read**, so a `?token=…` / `#…` is structurally unable to reach an alias or a
+  diagnostic. Deliberately excluded: the **active step id** and **`window.name`** — both are
+  timing-dependent, so folding them in would reintroduce the run-to-run instability C1.5 forbids
+  (rationale recorded in the scope doc).
+- **Invariants enforced** (`main` reserved; one live `Page` ⇢ one alias; one alias ⇢ one live `Page`;
+  atomic rebind; close clears **both** mappings; a closed page neither retains nor blocks its alias;
+  a reopened popup may reclaim it; duplicate/ambiguous claims fail loudly). Two live popups sharing
+  one identity are marked **ambiguous** — resolving fails with an explicit diagnostic instead of
+  guessing.
+- **Also fixed: runner-owned branch pages.** Isolated parallel-branch pages share the context and
+  raise the same `"page"` event, so they were consuming popup aliases — a recorded `popup-1` could
+  resolve to a branch page. They are now marked internal.
+- **Prerequisite fixed — `awkit-4t9`.** `flowStepMapping.ts` carried **no** `pageAlias` /
+  `opensPopup` / `popupExpectation`, so opening and re-saving a recorded multi-window flow in the
+  Flow Designer **silently discarded its popup metadata** — stripping the very alias C1.2 depends on.
+  Both directions now map the three fields explicitly (absent stays absent, never invented). The bead
+  is marked `closed` citing `ab9f5f6`, which is **not an ancestor of `main`** (it lives only on the
+  unmerged `feature/randomized-test-lab`). **`.beads` was not modified** — reconciling the tracker is
+  left to the owner.
+- **Mock site (added before the fix, per SRS rule C-9):** `/popup/reversed-order.html` (+ alpha/beta
+  popups) and `/popup/script-timer.html` (+ timer popup) — the latter carrying a deliberately
+  secret-shaped `?token=…&session=…#…` and an ambiguous-pair control. Popup lab index 7 → 9 scenarios.
+- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:popup-identity` 25/25
+  (new)** · `verify:popup` 12/12 · **`verify:popup-mock-site` 8 → 11/11** ·
+  **`verify:flow-step-mapping` 94 → 101/101** · `verify:runner` 84/84 · **FR-B2 masking intact:**
+  `verify:failure-evidence` 34/34, `verify:failure-evidence-live` 17/17,
+  `verify:failure-screenshot-precedence` 6/6 · protected gates unchanged (`verify:security` 39 ·
+  `verify:ipc-contract` 4 · `verify:auth` 49 · `verify:authz` 40) · `verify:clean-machine-policy`
+  28/28 · verifier taxonomy **reconciled 111** (110 → 111; real-browser 37 → 38).
+- **Not implemented here:** **FR-C2 frame identity** (Tranche 2B — C2.1 needs a real identity schema
+  and fallback resolver, not tests around the existing selector path), FR-C1.8 timeline `pageId`
+  (needs FR-A2/Tranche 5), FR-C3, cross-origin frame identity, CDP. **No schema migration.** **No
+  `.beads` change; no `bd` run; no release promotion.** Scope + traceability:
+  `docs/ai/backend-srs-tranche-2a-scope.md`.
+
+---
+
+## Backend SRS Tranche 1 — FR-B2 immediate failure evidence (2026-07-24) — merged into `main` at `5dbe25f`
 
 Implemented **SRS-BAO-001 FR-B2 (Immediate failure evidence capture)** — the highest-value item in
 WS-B and a confirmed **ordering defect**. Branch `feature/backend-srs-tranche-1` off `main` `88c76ed`;

@@ -150,6 +150,11 @@ npm run verify:watchdog        # stale/orphan detection, manual-handoff safety, 
 npm run verify:artifacts       # JSONL logs, failure traces + screenshots, state files (live Chromium)
 npm run verify:failure-evidence # FR-B2: per-attempt failure evidence ordering/accumulation (unit)
 npm run verify:failure-evidence-live # FR-B2: real evidence files written/named/confined/masked (live Chromium)
+npm run verify:popup           # popup STEP behavior: click/switchToPopup/closePopup/back-compat
+npm run verify:popup-identity  # FR-C1 identity INVARIANTS: reversed order, script/timer popup,
+                               # ambiguity, close/reopen, legacy popup-N (live Chromium)
+npm run verify:popup-mock-site # popup Feature Test Lab scenarios load with stable selectors
+npm run verify:flow-step-mapping # designer round trip: no field silently dropped on re-save
 npm run verify:runtime-status  # dispatch claims, lock/capacity snapshots, status API shape
 npm run verify:durable-store   # SQLite runtime store: migrations, persistence across restart
 npm run verify:durable-locks   # cross-process durable locks (spawns a real second process)

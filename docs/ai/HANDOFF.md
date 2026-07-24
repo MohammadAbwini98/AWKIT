@@ -1,6 +1,40 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — Backend SRS Tranche 1: FR-B2 immediate failure evidence. PR open, NOT merged. Prior: Track 4 clean-machine policy.)**
+Last updated: **2026-07-24 (latest — Backend SRS Tranche 2A: FR-C1 deterministic page identity. Draft PR, NOT merged. Prior: Tranche 1 FR-B2, since merged at `5dbe25f`.)**
+
+> **Backend SRS Tranche 2A (2026-07-24) — FR-C1 deterministic page identity. DRAFT PR, NOT merged.**
+> Branch `feature/backend-srs-tranche-2a-popup-identity` off `main` **`5dbe25f`**. Fixes defect
+> **`awkit-ebh`**: `PlaywrightRunner`'s context `"page"` handler (positional `popup-${counter}`) and
+> `StepExecutor`'s click/`switchToPopup` paths (recorded alias) both registered the same popup, so one
+> `Page` was reachable under two aliases and identity followed **arrival order**. Reproduced against
+> the new fixture: on old code `popup-1` is *alpha* when opened alpha-first and *beta* when opened
+> beta-first. **Fix = ownership inversion** (neither call site naively deleted — each covered a case
+> the other did not): new `src/runner/runtime/PopupIdentityRegistry.ts` owns `alias → Page` **and**
+> `Page → alias`; the context event is the single observation point; step paths **claim** the awaited
+> `Page`, atomically promoting it off its synthetic alias (C1.2). Synthetic identity =
+> `popup-<safe-opener>-<sha256(opener+origin+path) first 8 hex>`; **query strings and fragments are
+> never read**, and active-step-id / `window.name` are deliberately excluded as timing-dependent
+> (would break C1.5 — rationale in the scope doc). Ambiguous popups (same opener+origin+path) fail
+> with an explicit diagnostic instead of guessing. **Also fixed:** parallel-branch pages were
+> consuming popup aliases. **Prerequisite fixed — `awkit-4t9`:** `flowStepMapping.ts` carried none of
+> `pageAlias`/`opensPopup`/`popupExpectation`, so re-saving a recorded multi-window flow in the
+> designer silently discarded its popup metadata; both directions now map them explicitly (absent
+> stays absent). **That bead's `closed` status is wrong against `main`** — its cited fix `ab9f5f6` is
+> only on the unmerged `feature/randomized-test-lab`; **`.beads` was NOT modified**, so tracker
+> reconciliation is still owed. Mock site gained `/popup/reversed-order.html` and
+> `/popup/script-timer.html` (added **before** the fix, per SRS rule C-9). **Verification:** build +
+> typecheck clean · **`verify:popup-identity` 25/25 (new)** · `verify:popup` 12/12 ·
+> `verify:popup-mock-site` 8 → **11/11** · `verify:flow-step-mapping` 94 → **101/101** ·
+> `verify:runner` 84/84 · FR-B2 masking intact (`verify:failure-evidence` 34/34, `-live` 17/17,
+> precedence 6/6) · protected gates unchanged (security 39 · ipc-contract 4 · auth 49 · authz 40) ·
+> clean-machine-policy 28/28 · taxonomy **reconciled 111** (110 → 111, real-browser 37 → 38).
+> **Not implemented: FR-C2 frame identity (Tranche 2B)** — C2.1 needs a real optional identity schema
+> + fallback resolver, not tests around the existing selector path. Also excluded: C1.8 (needs
+> FR-A2/Tranche 5), FR-C3, cross-origin frames, CDP. **No schema migration; no `.beads` change; no
+> `bd` run; no release promotion.** Scope + traceability:
+> `docs/ai/backend-srs-tranche-2a-scope.md`. **Do not merge without owner review.**
+
+Last updated: **2026-07-24 (Backend SRS Tranche 1: FR-B2 immediate failure evidence — since MERGED via PR #35 at `5dbe25f`. Prior: Track 4 clean-machine policy.)**
 
 > **Backend SRS Tranche 1 (2026-07-24) — FR-B2 immediate failure evidence. PR OPEN as draft, NOT
 > merged.** Branch `feature/backend-srs-tranche-1` off `main` `88c76ed`. Implements SRS-BAO-001 FR-B2

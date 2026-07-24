@@ -4,6 +4,53 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — Backend SRS Tranche 2A: FR-C1 deterministic page identity (draft PR, not merged)
+
+- **Task:** implement Backend SRS Tranche 2A (FR-C1 popup/page identity) off `main` `5dbe25f`, with
+  the `awkit-4t9` designer round-trip as a named prerequisite. FR-C2 explicitly out of scope (owner
+  split it into Tranche 2B: C2.1 needs a real frame-identity design, not selector-only regression
+  coverage).
+- **Defect (`awkit-ebh`, reproduced live):** `PlaywrightRunner.ts:486-494` (context `"page"` handler,
+  positional `popup-${counter}`) and `StepExecutor.ts:1435`/`:1460` (recorded alias) both registered
+  the same popup → one `Page` under two aliases, identity by **arrival order**. Negative control
+  against the new fixture: old code maps `popup-1` → *alpha* when alpha opens first and → *beta* when
+  beta opens first.
+- **Fix:** new `src/runner/runtime/PopupIdentityRegistry.ts` — single owner of `alias → Page` **and**
+  `Page → alias`. Context `"page"` event = sole observation point; step paths **claim** the awaited
+  `Page` (atomic promotion off the synthetic alias) instead of registering a second entry. Synthetic
+  identity `popup-<safe-opener>-<sha256(opener+origin+normalized path) first 8 hex>` — no query
+  string, no fragment; active-step-id and `window.name` deliberately excluded as timing-dependent.
+  Ambiguous identity → explicit diagnostic, never a guess. Branch pages marked internal so they no
+  longer consume popup aliases. `resolveStepPage` is now async (bounded settle for late-committing
+  popups); its user-facing message is unchanged.
+- **Prerequisite (`awkit-4t9`):** `flowStepMapping.ts` now maps `pageAlias` / `opensPopup` /
+  `popupExpectation` in both directions (absent stays absent). Bead is marked closed citing `ab9f5f6`,
+  which is **not** an ancestor of `main`; `.beads` left untouched.
+- **Mock site (before the fix, SRS C-9):** `popup/reversed-order.html` + alpha/beta popups;
+  `popup/script-timer.html` + timer popup (secret-shaped `?token=…&session=…#…`, ambiguous-pair
+  control). Index 7 → 9 scenarios; README updated.
+- **Files:** `src/runner/runtime/PopupIdentityRegistry.ts` (new), `src/runner/StepExecutor.ts`,
+  `src/runner/PlaywrightRunner.ts`, `app/renderer/components/workflow/flowStepMapping.ts`,
+  `app/renderer/components/workflow/flowDesignerTypes.ts`; tests
+  `scripts/verify-popup-identity.mts` (new), `scripts/verify-popup.mts`,
+  `scripts/verify-popup-mock-site.mts`, `scripts/verify-flow-step-mapping.mts`; registered in
+  `package.json` + `scripts/lib/verifier-classification.ts`; 5 new mock-site pages; docs
+  `docs/ai/backend-srs-tranche-2a-scope.md` (new), `CURRENT_STATE.md`, `HANDOFF.md`, `TESTING.md`,
+  `mock-site/README.md`.
+- **Tests run (isolated `npm ci`, Node 18.16.0 / npm 9.5.1):** `npm run build` + `typecheck` clean ·
+  `verify:popup-identity` **25/25 (new)** · `verify:popup` 12/12 · `verify:popup-mock-site` 8 →
+  **11/11** · `verify:flow-step-mapping` 94 → **101/101** · `verify:runner` 84/84 ·
+  `verify:failure-evidence` 34/34 · `verify:failure-evidence-live` 17/17 ·
+  `verify:failure-screenshot-precedence` 6/6 · `verify:ipc-contract` 4/4 · `verify:security` 39/39 ·
+  `verify:auth` 49/49 · `verify:authz` 40/40 · `verify:clean-machine-policy` 28/28 ·
+  `verify:verifier-classification` **reconciled 111** (110 → 111; real-browser 37 → 38).
+- **Not run:** packaged-EXE / offline-bundle / clean-machine gates (no packaging or offline change in
+  this tranche; clean-machine remains owner-waived non-blocking and NOT EXECUTED).
+- **Result:** all executed checks green. Draft PR opened, **not merged**. No `.beads` change, no `bd`
+  command, no release promotion, `main` untouched directly.
+
+---
+
 ## 2026-07-24 — Backend SRS Tranche 1: FR-B2 immediate failure evidence (PR open, not merged)
 
 - **Task:** resume backend SRS implementation; select and implement the next smallest coherent tranche.
