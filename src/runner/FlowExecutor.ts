@@ -439,7 +439,14 @@ export class FlowExecutor {
 
     for (let attempt = 0; ; attempt += 1) {
       const result = await this.stepExecutor.execute(step);
-      if (result.status !== "failed") return result;
+      if (result.status !== "failed") {
+        // A later attempt passed (or the first attempt did). Carry forward the evidence accumulated
+        // from any earlier FAILED attempts so a pass-after-failure result still exposes what went
+        // wrong (B2.2). No evidence is captured for the passing attempt, and its `screenshotPath` is
+        // left exactly as the attempt produced it (unset by default on success).
+        if (evidence.length > 0) result.evidence = evidence;
+        return result;
+      }
       lastResult = result;
 
       // FR-B2 — capture failure evidence at the moment of THIS failing attempt, before the retry

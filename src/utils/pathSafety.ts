@@ -1,5 +1,47 @@
 import { resolve } from "node:path";
 
+/** Windows device names that are illegal as a bare file/dir name (case-insensitive, any extension). */
+const WINDOWS_RESERVED_NAMES = new Set<string>([
+  "con", "prn", "aux", "nul",
+  ...Array.from({ length: 9 }, (_, i) => `com${i + 1}`),
+  ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`)
+]);
+
+/** Short, stable, filesystem-safe hash used only to disambiguate truncated components (FNV-1a → base36). */
+function shortHash(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Reduce an arbitrary identifier (executionId, flowId, step id, page alias, …) to a single SAFE path
+ * component — never a path, never a traversal, never a Windows-reserved or empty name.
+ *
+ * Guarantees: no `/` or `\`; `..` runs neutralized; Windows-invalid + control chars replaced; leading/
+ * trailing dots and spaces stripped; reserved device names prefixed; bounded length (with a short hash
+ * appended on truncation so distinct long inputs don't collide); never empty (falls back to
+ * `fallback`); readable content preserved where possible. Pure and unit-testable.
+ */
+export function safePathComponent(raw: string | null | undefined, fallback: string): string {
+  const fb = fallback && fallback.length > 0 ? fallback : "x";
+  let s = typeof raw === "string" ? raw : "";
+  s = s.replace(/[\\/]+/g, "_"); // strip both separators
+  s = s.replace(/\.{2,}/g, "_"); // neutralize `..` (and longer dot runs) so no traversal survives
+  // eslint-disable-next-line no-control-regex
+  s = s.replace(/[<>:"|?*\x00-\x1f]+/g, "_"); // Windows-invalid + control characters
+  s = s.replace(/\s+/g, "_"); // collapse whitespace
+  s = s.replace(/^[.\s_]+/, "").replace(/[.\s_]+$/, ""); // trim leading/trailing dots/spaces/underscores
+  const bare = (s.split(".")[0] ?? "").toLowerCase();
+  if (WINDOWS_RESERVED_NAMES.has(bare)) s = `_${s}`;
+  const MAX = 80;
+  if (s.length > MAX) s = `${s.slice(0, MAX - 9)}_${shortHash(s)}`;
+  return s.length > 0 ? s : fb;
+}
+
 /**
  * True when `target` resolves to `root` itself or a path inside it.
  *

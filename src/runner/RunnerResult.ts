@@ -21,8 +21,13 @@ export interface StepEvidenceRef {
   path?: string;
   /** Zero-based failing-attempt index this evidence belongs to. */
   attempt: number;
-  /** Page identity the evidence was taken from (`main` or a popup alias). */
+  /** Page identity the evidence was ACTUALLY taken from (`main` or a popup alias) — never a lie. */
   pageId: string;
+  /**
+   * The page alias the step asked for, present only when it differs from `pageId` (e.g. a popup that
+   * was unavailable, so the active page was captured instead). Absent when they match.
+   */
+  requestedPageId?: string;
   /** ISO timestamp of capture. */
   capturedAt: string;
   /** Secondary diagnostic when a capture could not be taken; never masks the primary error. */

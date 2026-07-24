@@ -13,7 +13,7 @@ import { SecretMasker } from "@src/reports/SecretMasker";
 import { ValueResolver } from "./ValueResolver";
 import { assertNavigableUrl } from "./urlPolicy";
 import { describeCertificateError, isCertificateError } from "@src/security/browser/CertificateTrust";
-import { isPathInside } from "@src/utils/pathSafety";
+import { isPathInside, safePathComponent } from "@src/utils/pathSafety";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { SessionProfile } from "@src/session/SessionProfile";
 import { findBestSessionForUrl, normalizeOrigin } from "@src/session/sessionMatch";
@@ -1247,23 +1247,63 @@ export class StepExecutor {
    * taken never masks or replaces the step's real automation error (B2.5). Bodies are secret-masked
    * before they touch disk (FR-H1). This method never throws.
    */
+  /** The alias the active page is registered under (its ACTUAL identity), defaulting to `main`. */
+  private aliasForActivePage(): string {
+    for (const [alias, registered] of this.pageRegistry) {
+      if (registered === this.activePage) return alias;
+    }
+    return "main";
+  }
+
   async captureFailureEvidence(step: FlowStep, opts: { attempt: number }): Promise<StepEvidenceRef[]> {
     const attempt = opts.attempt;
-    const pageId = step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main";
     const capturedAt = new Date().toISOString();
     const stamp = capturedAt.replace(/[:.]/g, "-");
-    const flowId = this.context.flowId ?? "flow";
-    const dir = join(this.context.paths.screenshots, this.context.executionId, this.context.instanceId, flowId, "evidence");
-    const base = `${step.id}-a${attempt}-${pageId}-${stamp}`;
     const refs: StepEvidenceRef[] = [];
+    const noteFor = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+    // Page identity (B2.3, accuracy): the alias the step ASKED for vs the page we actually captured.
+    // If the requested popup is unavailable we fall back to the active page, but we label the evidence
+    // with the active page's REAL identity and keep the resolver failure as a secondary diagnostic —
+    // never claiming evidence came from a popup when it came from main.
+    const requestedPageId = step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main";
     let page: Page;
+    let capturedPageId: string;
+    let resolveDiagnostic: string | undefined;
     try {
       page = this.resolveStepPage(step);
-    } catch {
+      capturedPageId = requestedPageId;
+    } catch (error) {
       page = this.activePage;
+      capturedPageId = this.aliasForActivePage();
+      resolveDiagnostic = `requested page "${requestedPageId}" unavailable (${noteFor(error)}); captured active page "${capturedPageId}" instead`;
     }
 
+    const record = (kind: StepEvidenceRef["kind"], path?: string, note?: string): void => {
+      const ref: StepEvidenceRef = { kind, path, attempt, pageId: capturedPageId, capturedAt, note };
+      if (requestedPageId !== capturedPageId) ref.requestedPageId = requestedPageId;
+      refs.push(ref);
+    };
+
+    if (resolveDiagnostic) record("meta", undefined, resolveDiagnostic);
+
+    // Every path component is reduced to a single SAFE segment (no separators, no `..`, no reserved
+    // names) so a hostile flowId / step id / alias can never escape the evidence root or name a device.
+    const evidenceRoot = this.context.paths.screenshots;
+    const safeExec = safePathComponent(this.context.executionId, "exec");
+    const safeInst = safePathComponent(this.context.instanceId, "inst");
+    const safeFlow = safePathComponent(this.context.flowId ?? "flow", "flow");
+    const safeStep = safePathComponent(step.id, "step");
+    const safePage = safePathComponent(capturedPageId, "main");
+    const dir = join(evidenceRoot, safeExec, safeInst, safeFlow, "evidence");
+    const base = `${safeStep}-a${attempt}-${safePage}-${stamp}`;
+
+    // Defence in depth: even after sanitizing, confirm the directory resolves inside the evidence root
+    // before writing anything. If it somehow escapes, skip all captures with a secondary diagnostic.
+    if (!isPathInside(evidenceRoot, dir)) {
+      record("meta", undefined, `evidence directory escaped the evidence root; captures skipped`);
+      return refs;
+    }
     await mkdir(dir, { recursive: true }).catch(() => undefined);
 
     // Bound each individual capture so a hung page cannot block the failure path indefinitely (B2.6).
@@ -1276,14 +1316,17 @@ export class StepExecutor {
       });
       return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
     };
-    const record = (kind: StepEvidenceRef["kind"], path?: string, note?: string): void => {
-      refs.push({ kind, path, attempt, pageId, capturedAt, note });
+    // Resolve + confine each artifact path before it is written (redundant with the sanitized base,
+    // but a hard guarantee the file lands under the evidence root).
+    const confinedPath = (name: string): string | undefined => {
+      const path = join(dir, name);
+      return isPathInside(dir, path) ? path : undefined;
     };
-    const noteFor = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
     // Screenshot — staggered across instances by the screenshot operation limiter (A6).
     try {
-      const path = join(dir, `${base}.png`);
+      const path = confinedPath(`${base}.png`);
+      if (!path) throw new Error("screenshot path escaped the evidence root");
       await bounded(this.limitOp("screenshot", () => page.screenshot({ path, fullPage: true })));
       record("screenshot", path);
     } catch (error) {
@@ -1292,8 +1335,9 @@ export class StepExecutor {
 
     // DOM HTML snapshot (secret-masked).
     try {
+      const path = confinedPath(`${base}.html`);
+      if (!path) throw new Error("dom path escaped the evidence root");
       const html = await bounded(page.content());
-      const path = join(dir, `${base}.html`);
       await writeFile(path, this.evidenceMasker.maskText(html), "utf8");
       record("dom", path);
     } catch (error) {
@@ -1303,11 +1347,12 @@ export class StepExecutor {
     // Accessibility (aria) snapshot (secret-masked). Accessed defensively so a Playwright API change
     // degrades to a secondary diagnostic rather than a build/runtime break.
     try {
+      const path = confinedPath(`${base}.a11y.yaml`);
+      if (!path) throw new Error("a11y path escaped the evidence root");
       const bodyLocator = page.locator("body");
       const ariaSnapshot = (bodyLocator as unknown as { ariaSnapshot?: () => Promise<string> }).ariaSnapshot;
       if (typeof ariaSnapshot !== "function") throw new Error("ariaSnapshot unavailable in this Playwright build");
       const snapshot = await bounded(ariaSnapshot.call(bodyLocator));
-      const path = join(dir, `${base}.a11y.yaml`);
       await writeFile(path, this.evidenceMasker.maskText(snapshot ?? ""), "utf8");
       record("a11y", path);
     } catch (error) {
@@ -1316,6 +1361,8 @@ export class StepExecutor {
 
     // Page meta (URL + title), secret-masked — URLs can carry tokens in query parameters.
     try {
+      const path = confinedPath(`${base}.meta.json`);
+      if (!path) throw new Error("meta path escaped the evidence root");
       const url = (() => {
         try {
           return page.url();
@@ -1324,8 +1371,7 @@ export class StepExecutor {
         }
       })();
       const title = await bounded(page.title()).catch(() => undefined);
-      const path = join(dir, `${base}.meta.json`);
-      const meta = { stepId: step.id, attempt, pageId, capturedAt, url, title };
+      const meta = { stepId: step.id, attempt, requestedPageId, capturedPageId, capturedAt, url, title };
       await writeFile(path, this.evidenceMasker.maskText(JSON.stringify(meta, null, 2)), "utf8");
       record("meta", path);
     } catch (error) {
