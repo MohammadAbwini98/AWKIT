@@ -4,6 +4,60 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — Backend SRS Tranche 1: FR-B2 immediate failure evidence (PR open, not merged)
+
+- **Task:** resume backend SRS implementation; select and implement the next smallest coherent tranche.
+- **Selected:** SRS-BAO-001 **FR-B2 (Immediate failure evidence capture)** — WS-B's highest-value item
+  and a confirmed ordering defect. Deferred FR-B1 (run-root migration + §10.3 retention open question)
+  and FR-A4 AC-3 (unresolved decision). Full SRS is on the planning branch `docs/browser-automation-srs`
+  (`37dc67c`), unchanged; status recorded on `main` via `docs/ai/backend-srs-tranche-1-scope.md`.
+- **Defect:** `FlowExecutor.executeWithRetry` captured the failure screenshot **after** the retry loop
+  (only `lastResult`), so intermediate attempts got no evidence and a navigating retry erased the
+  broken state first.
+- **Fix:** capture moved into the loop, per failing attempt, before the retry decision/navigation
+  (B2.1). New `StepExecutor.captureFailureEvidence(step,{attempt})` → screenshot + DOM + a11y + meta,
+  secret-masked (FR-H1), individually bounded 5 s (B2.6), accumulated per attempt / never overwritten
+  (B2.2), encoded filenames (B2.3). Original error stays primary; capture failure = secondary
+  diagnostic, never throws (B2.4/B2.5). `screenshotPath` kept populated (reports back-compat). Added
+  `StepEvidenceRef` + `evidence?: StepEvidenceRef[]`. **No schema migration.**
+- **Deferred (documented):** console-tail + in-flight network state → FR-A2 (Tranche 5); FR-B1
+  run-root + `manifest.json` + durable `evidence[]` surfacing → own tranche.
+- **Files:** `src/runner/RunnerResult.ts`, `src/runner/StepExecutor.ts`, `src/runner/FlowExecutor.ts`;
+  `scripts/verify-failure-evidence.mts` (new), `scripts/verify-failure-screenshot-precedence.mts`
+  (adapted), `scripts/lib/verifier-classification.ts`, `package.json`, `docs/ai/backend-srs-tranche-1-scope.md`
+  + CURRENT_STATE/HANDOFF/TESTING.
+- **Tests:** build + typecheck clean; `verify:failure-evidence` 15/15 (new, unit);
+  `verify:failure-screenshot-precedence` 6/6; `verify:runner` 84/84 (real Chromium);
+  `verify:artifacts` 13/13; `verify:verifier-classification` reconciled **109** (unit 43 → 44);
+  protected gates green (`security` 39 · `ipc-contract` 4 · `auth` 49 · `authz` 40 ·
+  `clean-machine-policy` 28).
+- **Boundaries:** no `.beads` change, no `bd`/`bd dolt push`, no release promotion, no schema migration,
+  no protected gate weakened; `main` not modified directly; PR opened as **draft, not merged**.
+- **PR #35 review fixes (round 2, same day):** (1) evidence now preserved onto a passing retry
+  (`executeWithRetry` returned before attaching earlier failed-attempt evidence); (2) all evidence path
+  components sanitized via new shared `safePathComponent` (`src/utils/pathSafety.ts`) + `isPathInside`
+  confinement of each artifact path; (3) truthful page identity — a failed `resolveStepPage` labels
+  evidence with the actual captured page + secondary diagnostic + new optional
+  `StepEvidenceRef.requestedPageId`; (4) new real file-output verifier `verify:failure-evidence-live`
+  (real Chromium + local HTTP server). Counts: `verify:failure-evidence` 15 → **29**;
+  `verify:failure-evidence-live` **14/14**; verifier total 109 → **110** (unit 44, real-browser 37);
+  `verify:runner` 84 · `verify:artifacts` 13 · protected gates unchanged. Still draft, not merged.
+- **PR #35 review fixes (round 3, final correction pass, same day):** (1) every `StepEvidenceRef.note`
+  is now masked — `StepExecutor`'s `record()` previously stored the resolver-failure diagnostic
+  (embeds `step.pageAlias`) and each per-artifact capture-failure note (embeds the error message)
+  unmasked; both now pass through `evidenceMasker.maskText(...)`. (2) The `FlowExecutor`
+  belt-and-suspenders fallback note (when `captureFailureEvidence` itself throws) is masked too via a
+  new `FlowExecutor.evidenceMasker`. (3) `safePathComponent`'s `fallback` argument is sanitized through
+  the same pipeline as `raw` instead of being returned verbatim — only the hard literal `"x"` is ever
+  unsanitized. (4) New regression tests: FlowExecutor-fallback note masks `password=`/`token=` from an
+  injected error; four `safePathComponent` hostile-fallback cases; a live hostile/secret-shaped
+  `pageAlias` proving the resolver-failure note is masked. Counts: `verify:failure-evidence` 29 → **34**;
+  `verify:failure-evidence-live` 14 → **17**; verifier taxonomy total unchanged at **110** (no new
+  script); `verify:runner` 84 · `verify:artifacts` 13 · protected gates unchanged. Still draft, not
+  merged — awaiting owner re-review.
+
+---
+
 ## 2026-07-24 — Track 4: clean-machine validation policy made optional and non-blocking
 
 - **Task:** remove only the clean-machine validation gate's ability to block release promotion, while
