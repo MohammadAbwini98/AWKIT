@@ -45,6 +45,14 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         context: data.locatorContext
       }
       : undefined,
+    // Recorder popup/window metadata (awkit-4t9). Mapped EXPLICITLY, not spread, so the schema stays
+    // controlled — but mapped in BOTH directions, because omitting it here silently discarded a
+    // recorded multi-window flow's popup identity the first time a user opened and saved it, which
+    // would strip the recorded alias FR-C1.2 depends on. Absent stays absent: a step that never had
+    // popup metadata must not gain invented fields.
+    pageAlias: data.pageAlias,
+    opensPopup: data.opensPopup,
+    popupExpectation: data.popupExpectation,
     value: data.value || undefined,
     valueSource,
     url: data.stepType === "goto" ? data.value : undefined,
@@ -154,6 +162,11 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     // Preserve Recorder runtime fallbacks/scoping through the designer round-trip (edit-safe).
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
+    // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't
+    // re-derive" (the rule established by awkit-cxa) — so an unrelated node edit cannot clear it.
+    pageAlias: step.pageAlias,
+    opensPopup: step.opensPopup,
+    popupExpectation: step.popupExpectation,
     // A step can carry a bare `value` (e.g. a condition expression) with no `valueSource`. Mark it
     // "none" so the save path re-serializes the value WITHOUT fabricating a static `valueSource`, and
     // read `step.value` last in the value chain so a bare value is never dropped on load (awkit-cxa).

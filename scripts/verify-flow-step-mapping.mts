@@ -383,6 +383,47 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
   check("locator.context (container + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
 }
 
+console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");
+{
+  // Before this tranche, `toFlowStep`/`fromFlowStep` carried NONE of these fields, so opening and
+  // re-saving a recorded multi-window flow silently discarded its popup identity — which would strip
+  // the recorded alias FR-C1.2 depends on. What regression makes this fail? Dropping any of the three
+  // fields from either direction of the mapping.
+  const popupExpectation = {
+    popupAlias: "popup-1" as const,
+    timeoutMs: 12_000,
+    urlContains: "/terms",
+    titleContains: "Terms",
+    waitUntil: "domcontentloaded" as const,
+    closeBehavior: "returnToMain" as const
+  };
+  const opener = cycle(baseStep({ type: "click", name: "Open terms", opensPopup: true, popupExpectation }));
+  check("opensPopup preserved", opener.opensPopup === true, json(opener.opensPopup));
+  check("popupExpectation preserved in full", json(opener.popupExpectation) === json(popupExpectation), json(opener.popupExpectation));
+
+  const onPopup = cycle(baseStep({ type: "check", name: "Agree", pageAlias: "popup-1" }));
+  check("pageAlias preserved", onPopup.pageAlias === "popup-1", String(onPopup.pageAlias));
+
+  // A synthetic (non-positional) alias must survive too — it is the shape FR-C1.3 assigns.
+  const synthetic = cycle(baseStep({ type: "click", name: "On synthetic", pageAlias: "popup-main-3f2a91cd" }));
+  check("synthetic FR-C1.3 alias preserved", synthetic.pageAlias === "popup-main-3f2a91cd", String(synthetic.pageAlias));
+
+  // Repeated edits must not erode the metadata (the failure mode awkit-cxa established the rule for).
+  const repeated = cycleN(baseStep({ type: "click", name: "Open terms", opensPopup: true, popupExpectation, pageAlias: "main" }), 3);
+  check("popup metadata survives 3 edit cycles", repeated.opensPopup === true && json(repeated.popupExpectation) === json(popupExpectation) && repeated.pageAlias === "main", json({ opensPopup: repeated.opensPopup, popupExpectation: repeated.popupExpectation, pageAlias: repeated.pageAlias }));
+
+  // An unrelated node edit must not clear popup metadata.
+  const edited = nodeFor(baseStep({ type: "click", name: "Open terms", opensPopup: true, popupExpectation }));
+  edited.data.name = "Renamed opener";
+  edited.data.timeoutMs = 4_321;
+  const afterEdit = toFlowStep(edited, []);
+  check("unrelated node edit does not clear popup metadata", afterEdit.opensPopup === true && json(afterEdit.popupExpectation) === json(popupExpectation), json(afterEdit.popupExpectation));
+
+  // Absent stays absent: a plain step must not gain invented popup fields.
+  const plain = cycle(baseStep({ type: "click", name: "Plain click" }));
+  check("missing popup metadata stays absent (not invented)", plain.pageAlias === undefined && plain.opensPopup === undefined && plain.popupExpectation === undefined, json({ pageAlias: plain.pageAlias, opensPopup: plain.opensPopup, popupExpectation: plain.popupExpectation }));
+}
+
 console.log("\nEdge → next wiring (§8):");
 {
   const node = nodeFor(baseStep({ type: "click", name: "A" }));
