@@ -1,6 +1,29 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — Backend SRS Tranche 2A: FR-C1 deterministic page identity. Draft PR, NOT merged. Prior: Tranche 1 FR-B2, since merged at `5dbe25f`.)**
+Last updated: **2026-07-24 (latest — Backend SRS Tranche 2A: FR-C1 deterministic page identity, PR #36 review round 1 fixes applied. Draft PR, NOT merged. Prior: Tranche 1 FR-B2, since merged at `5dbe25f`.)**
+
+> **PR #36 review round 1 (2026-07-24) — four blockers fixed, still DRAFT.** All four were
+> reproduced in code before fixing; none was a false positive. (1) **Internal-page pending-identity
+> race** — `markInternal` did not cancel the finalization scheduled while the branch page was
+> `about:blank`, so a later navigation could still alias it; the old test missed it by navigating
+> *before* observing. Both defenses added, and the **mechanism** is asserted via
+> `pendingIdentityCount()` because `reconcile`'s eligibility filter hides a missing cancellation from
+> an outcome-only check. (2) **More than one identity owner** — `runFlowWithChildren` is recursive
+> and installed a `"page"` observer per invocation while each `StepExecutor` built its own registry,
+> so a child-flow popup was observed twice; the registry + single observer now live on the
+> `BrowserHolder`, one per BrowserContext/runtime generation, injected into parent, child, and branch
+> executors, with `resetForNewContext` on restart. (3) **Latched ambiguity** — independent counters
+> never reconciled when a contesting popup closed/was claimed/became internal; replaced with an
+> **identity-bucket model** reconciled on every membership change. (4) **Sensitive material in
+> aliases** — the readable `safePathComponent(openerAlias)` prefix is gone (filesystem-safe ≠
+> secret-safe; `token-SECRET` with a hyphen slips through `maskText`), the alias is now
+> `popup-<hash>` only, the opener is excluded from identity entirely, and every identity diagnostic
+> is `SecretMasker`-masked. Plus a fifth issue the new tests caught: `observe()` was not idempotent
+> and leaked a duplicate listener pair + timer per re-observation. **`verify:popup-identity` 25 →
+> 43/43**; every other count held (popup 12 · popup-mock-site 11 · flow-step-mapping 101 · runner 84
+> · recorder 78 · failure-evidence 34 · -live 17 · precedence 6 · security 39 · ipc-contract 4 · auth
+> 49 · authz 40 · clean-machine-policy 28 · taxonomy 111). No `.beads` change; no `bd` run; no
+> force-push; FR-C2 still not started.
 
 > **Backend SRS Tranche 2A (2026-07-24) — FR-C1 deterministic page identity. DRAFT PR, NOT merged.**
 > Branch `feature/backend-srs-tranche-2a-popup-identity` off `main` **`5dbe25f`**. Fixes defect

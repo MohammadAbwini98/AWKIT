@@ -20,11 +20,15 @@ merged FR-B2 / PR #35 work described in the section below). **Draft PR, not merg
   drops the synthetic key in the same operation (C1.2). Neither call site was naively removed: each
   covered a case the other did not.
 - **Deterministic synthetic identity (C1.3).** Unrecorded (script/timer/redirect) popups get
-  `popup-<safe-opener>-<sha256(opener + origin + normalized path) first 8 hex>`. Query strings and
-  fragments are **never read**, so a `?token=…` / `#…` is structurally unable to reach an alias or a
-  diagnostic. Deliberately excluded: the **active step id** and **`window.name`** — both are
-  timing-dependent, so folding them in would reintroduce the run-to-run instability C1.5 forbids
-  (rationale recorded in the scope doc).
+  `popup-<sha256(origin + normalized path) first 12 hex>` — a fixed neutral prefix plus a hash that
+  **never echoes its inputs**. Query strings and fragments are **never read**, so a `?token=…` /
+  `#…` is structurally unable to reach an alias or a diagnostic. Deliberately excluded as
+  timing-dependent: the **active step id**, **`window.name`**, and the **opener alias** — folding any
+  in would reintroduce the run-to-run instability C1.5 forbids (rationale in the scope doc).
+- **Ownership is browser-context-wide.** Exactly one registry and one `"page"` observer per
+  BrowserContext / runtime generation, owned by the runner's `BrowserHolder` and injected into the
+  parent flow, every nested child flow, and every parallel-branch executor. `runFlowWithChildren` is
+  recursive, so a registry per `StepExecutor` gave one popup two identity owners.
 - **Invariants enforced** (`main` reserved; one live `Page` ⇢ one alias; one alias ⇢ one live `Page`;
   atomic rebind; close clears **both** mappings; a closed page neither retains nor blocks its alias;
   a reopened popup may reclaim it; duplicate/ambiguous claims fail loudly). Two live popups sharing
@@ -43,13 +47,26 @@ merged FR-B2 / PR #35 work described in the section below). **Draft PR, not merg
 - **Mock site (added before the fix, per SRS rule C-9):** `/popup/reversed-order.html` (+ alpha/beta
   popups) and `/popup/script-timer.html` (+ timer popup) — the latter carrying a deliberately
   secret-shaped `?token=…&session=…#…` and an ambiguous-pair control. Popup lab index 7 → 9 scenarios.
-- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:popup-identity` 25/25
-  (new)** · `verify:popup` 12/12 · **`verify:popup-mock-site` 8 → 11/11** ·
+- **PR #36 review round 1 (four blockers, all fixed).** (1) **Internal-page race** — `markInternal`
+  now cancels the identity finalization scheduled while the page was `about:blank`, and the callback
+  re-checks internal status; tested in exact production order, asserting the *mechanism* because
+  `reconcile`'s eligibility filter would otherwise hide a missing cancellation. (2) **Two identity
+  owners** — registry + observer moved to the `BrowserHolder`, one per context/generation, injected
+  into parent/child/branch executors; restart rebinds via `resetForNewContext`; a source guard
+  asserts exactly one observer installation. (3) **Latched ambiguity** — counters replaced by an
+  **identity-bucket model** reconciled on every membership change (close, release, claim, mark
+  internal), so a survivor takes the alias automatically. (4) **Sensitive material in aliases** —
+  the readable opener prefix removed (`safePathComponent` is filesystem-safe, not secret-safe), and
+  every identity diagnostic now runs through `SecretMasker`. A fifth issue the new tests caught:
+  `observe()` was not idempotent and leaked a duplicate listener pair per re-observation.
+- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:popup-identity` 43/43
+  (new; 25 → 43 after review fixes)** · `verify:popup` 12/12 · **`verify:popup-mock-site` 8 → 11/11** ·
   **`verify:flow-step-mapping` 94 → 101/101** · `verify:runner` 84/84 · **FR-B2 masking intact:**
   `verify:failure-evidence` 34/34, `verify:failure-evidence-live` 17/17,
   `verify:failure-screenshot-precedence` 6/6 · protected gates unchanged (`verify:security` 39 ·
-  `verify:ipc-contract` 4 · `verify:auth` 49 · `verify:authz` 40) · `verify:clean-machine-policy`
-  28/28 · verifier taxonomy **reconciled 111** (110 → 111; real-browser 37 → 38).
+  `verify:ipc-contract` 4 · `verify:auth` 49 · `verify:authz` 40) · `verify:recorder` 78/78 ·
+  `verify:clean-machine-policy` 28/28 · verifier taxonomy **reconciled 111** (110 → 111;
+  real-browser 37 → 38).
 - **Not implemented here:** **FR-C2 frame identity** (Tranche 2B — C2.1 needs a real identity schema
   and fallback resolver, not tests around the existing selector path), FR-C1.8 timeline `pageId`
   (needs FR-A2/Tranche 5), FR-C3, cross-origin frame identity, CDP. **No schema migration.** **No

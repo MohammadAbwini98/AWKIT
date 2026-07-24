@@ -4,6 +4,57 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — Backend SRS Tranche 2A: PR #36 review round 1 fixes (still draft, not merged)
+
+- **Task:** fix the four correctness/security blockers from the owner's PR #36 code review. Each was
+  reproduced against the branch code first; none was a false positive.
+- **(1) Internal-page pending-identity race.** `markInternal` did not cancel the identity
+  finalization scheduled while a branch page was `about:blank`, and the finalization callback never
+  re-checked internal status — so the branch's later navigation could assign it a popup alias. Both
+  defenses added. The previous test missed the race by navigating *before* observing/marking (the
+  reverse of production order). The new test uses the exact production ordering **and** asserts the
+  mechanism (`pendingIdentityCount()` drops at `markInternal`), because `reconcile`'s eligibility
+  filter masks a missing cancellation from an outcome-only assertion — verified by a negative
+  control that disables the defense.
+- **(2) More than one identity owner.** `runFlowWithChildren` is recursive and installed a context
+  `"page"` observer per invocation, while every `StepExecutor` built its own registry — so a popup
+  opened during `Run Another Flow` was observed by both parent and child registries, and branch
+  executors had a registry with no observer. Registry + single observer moved to `BrowserHolder`
+  (one per BrowserContext/runtime generation), injected into parent, child, and branch executors;
+  `resetForNewContext` + rebind on browser restart; observer detached at end of run. Added
+  `StepExecutor.rootPage` so per-executor `switchToMainPage` / close-restore semantics survive the
+  now-shared registry (a branch must return to ITS page, not the run's primary page).
+- **(3) Ambiguity latched permanently.** Independent counters never reconciled when a contesting
+  popup closed, was released, was claimed under a recorded alias, or became internal. Replaced with
+  an **identity-bucket model**: a bucket grants its alias only while exactly one eligible page
+  occupies it, and every membership change re-reconciles it.
+- **(4) Sensitive material in aliases + unmasked diagnostics.** The alias embedded
+  `safePathComponent(openerAlias, …)` — filesystem-safe, not secret-safe (`token-SECRET` with a
+  hyphen passes straight through `maskText`). Alias is now `popup-<sha256(origin+path)[0..12]>`, a
+  fixed neutral prefix that never echoes inputs; the opener is dropped from identity entirely (it
+  was also timing-dependent via "currently active executor"). All identity diagnostics — reserved,
+  duplicate-claim, ambiguity, and the missing-popup resolver message — run through `SecretMasker`,
+  with the resolver message's stable SHAPE preserved per the SRS.
+- **(5) Found by the new tests, not the review:** `observe()` was not idempotent — re-observing a
+  pending page scheduled a second finalization, leaking a duplicate listener pair and timer.
+- **Files:** `src/runner/runtime/PopupIdentityRegistry.ts` (rewritten around buckets + masking),
+  `src/runner/PlaywrightRunner.ts` (holder-owned registry + single observer + rebind),
+  `src/runner/StepExecutor.ts` (injected registry, `rootPage`, masked resolver),
+  `scripts/verify-popup-identity.mts` (25 → 43 checks), `docs/ai/backend-srs-tranche-2a-scope.md`,
+  `CURRENT_STATE.md`, `HANDOFF.md`, this log.
+- **Tests run:** build + typecheck clean · **`verify:popup-identity` 43/43** · `verify:popup` 12/12 ·
+  `verify:popup-mock-site` 11/11 · `verify:flow-step-mapping` 101/101 · `verify:runner` 84/84 ·
+  `verify:recorder` 78/78 · `verify:failure-evidence` 34/34 · `verify:failure-evidence-live` 17/17 ·
+  `verify:failure-screenshot-precedence` 6/6 · `verify:ipc-contract` 4/4 · `verify:security` 39/39 ·
+  `verify:auth` 49/49 · `verify:authz` 40/40 · `verify:clean-machine-policy` 28/28 ·
+  `verify:verifier-classification` **reconciled 111** (unchanged — checks added to an existing
+  script, no new verifier).
+- **Result:** all executed checks green. PR #36 remains **draft and unmerged**; additive commits
+  only, no amend/rebase/force-push. No `.beads` change, no `bd` command, no release promotion,
+  FR-C2 still not started.
+
+---
+
 ## 2026-07-24 — Backend SRS Tranche 2A: FR-C1 deterministic page identity (draft PR, not merged)
 
 - **Task:** implement Backend SRS Tranche 2A (FR-C1 popup/page identity) off `main` `5dbe25f`, with
