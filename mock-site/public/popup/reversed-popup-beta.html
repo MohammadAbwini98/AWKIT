@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Beta popup — reversed-order scenario</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1 data-testid="beta-heading">Beta popup</h1>
+      <p>
+        Stable identity marker for the reversed-order scenario. This page is always reachable at
+        <code>/popup/reversed-popup-beta.html</code>, whether it opened first or second.
+      </p>
+      <p data-testid="beta-marker">beta</p>
+      <button id="beta-action-button" data-testid="beta-action-button">Beta action</button>
+      <div id="beta-status" data-testid="beta-status" style="margin-top:16px; font-weight:bold;"></div>
+      <script>
+        document.getElementById("beta-action-button").addEventListener("click", function () {
+          document.getElementById("beta-status").textContent = "beta action done";
+          try {
+            if (window.opener) window.opener.postMessage({ type: "popup-action", which: "beta" }, "*");
+          } catch (e) { /* opener gone */ }
+        });
+      </script>
+    </main>
+  </body>
+</html>
