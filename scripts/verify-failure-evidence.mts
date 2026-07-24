@@ -22,6 +22,7 @@ import { FlowExecutor } from "@src/runner/FlowExecutor";
 import type { StepExecutor } from "@src/runner/StepExecutor";
 import type { StepEvidenceRef, StepExecutionResult } from "@src/runner/RunnerResult";
 import type { FlowStep } from "@src/profiles/FlowProfile";
+import { safePathComponent } from "@src/utils/pathSafety";
 
 let passed = 0;
 let failed = 0;
@@ -54,6 +55,8 @@ async function runFailing(opts: {
   override?: boolean;
   retryCount?: number;
   capture?: "ok" | "throws";
+  /** Attempt index at which `execute` starts returning `passed` (retry-then-success). */
+  passAtAttempt?: number;
 }): Promise<RunOutcome> {
   const capture = opts.capture ?? "ok";
   let executeCalls = 0;
@@ -61,8 +64,13 @@ async function runFailing(opts: {
 
   const stub = {
     async execute(step: FlowStep): Promise<StepExecutionResult> {
+      const idx = executeCalls;
       executeCalls += 1;
       const now = new Date().toISOString();
+      if (opts.passAtAttempt !== undefined && idx >= opts.passAtAttempt) {
+        // A passing attempt: NO screenshotPath, NO evidence produced here.
+        return { stepId: step.id, status: "passed", startedAt: now, endedAt: now, durationMs: 0, outputs: {} };
+      }
       return { stepId: step.id, status: "failed", startedAt: now, endedAt: now, durationMs: 0, outputs: {}, error: ORIGINAL_ERROR };
     },
     async captureFailureEvidence(_step: FlowStep, o: { attempt: number }): Promise<StepEvidenceRef[]> {
@@ -127,6 +135,28 @@ async function main(): Promise<void> {
   const secondary = capThrows.result.evidence ?? [];
   check("a failed capture is recorded as a secondary-diagnostic note, not a screenshot (B2.5)", secondary.length === 1 && secondary[0].kind === "meta" && /evidence capture failed/i.test(secondary[0].note ?? ""));
   check("a failed capture leaves screenshotPath unset (no false evidence)", capThrows.result.screenshotPath === undefined);
+
+  // Retry-then-success — evidence from earlier FAILED attempts must survive onto the PASSING result.
+  const recover = await runFailing({ profileDefault: true, retryCount: 2, passAtAttempt: 1 });
+  check("retry-then-success: attempt 0 fails, attempt 1 passes (2 execute calls)", recover.executeCalls === 2, `executeCalls=${recover.executeCalls}`);
+  check("retry-then-success: final status is passed", recover.result.status === "passed", `status=${recover.result.status}`);
+  check("retry-then-success: capture ran ONLY for the failed attempt 0 (not the passing attempt)", JSON.stringify(recover.evidenceAttempts) === "[0]", `calls=${JSON.stringify(recover.evidenceAttempts)}`);
+  const recovEvi = recover.result.evidence ?? [];
+  check("retry-then-success: the passing result still carries exactly attempt 0's evidence", recovEvi.length === 1 && recovEvi[0].attempt === 0, `evidence=${JSON.stringify(recovEvi.map((e) => e.attempt))}`);
+  check("retry-then-success: passing result has NO screenshotPath (success contract)", recover.result.screenshotPath === undefined, `screenshotPath=${recover.result.screenshotPath}`);
+
+  // Path-component safety — the shared helper used for every evidence path segment (defect #2).
+  console.log("\nsafePathComponent — filesystem-safe evidence path segments:");
+  const noSep = (s: string): boolean => !s.includes("/") && !s.includes("\\");
+  check("traversal is neutralized (no `..`, no separators, non-empty)", (() => { const r = safePathComponent("../../etc/passwd", "x"); return noSep(r) && !r.includes("..") && r.length > 0; })());
+  check("both separators are stripped", noSep(safePathComponent("a/b\\c/../d", "x")));
+  check("Windows-invalid characters are replaced", (() => { const r = safePathComponent('a<b>:"|?*c', "x"); return !/[<>:"|?*]/.test(r); })());
+  check("control characters are replaced", !/[\x00-\x1f]/.test(safePathComponent("a b", "x"))); // eslint-disable-line no-control-regex
+  check("Windows reserved names are neutralized (CON)", safePathComponent("CON", "x") !== "CON" && safePathComponent("con", "x").startsWith("_"));
+  check("reserved name with extension is neutralized (nul.png)", safePathComponent("nul.png", "x").startsWith("_"));
+  check("empty / nullish falls back, never empty", safePathComponent("", "fallback") === "fallback" && safePathComponent(undefined, "fb") === "fb" && safePathComponent(null, "fb") === "fb");
+  check("a long alias is bounded, non-empty, separator-free", (() => { const r = safePathComponent("popup-" + "z".repeat(300), "x"); return r.length <= 80 && r.length > 0 && noSep(r); })());
+  check("distinct long aliases do not collide after truncation", safePathComponent("a".repeat(200), "x") !== safePathComponent("a".repeat(199) + "b", "x"));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
