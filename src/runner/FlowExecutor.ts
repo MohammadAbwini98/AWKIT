@@ -7,7 +7,7 @@ import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorCon
 import { loadConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
 import { RetryPolicy } from "./runtime/RetryPolicy";
 import type { RunnerProgressReporter } from "./RunnerProgress";
-import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
+import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionResult } from "./RunnerResult";
 import { StepExecutor } from "./StepExecutor";
 
 /** Hard cap on loop-connector iterations regardless of configured maxIterations. */
@@ -417,6 +417,13 @@ export class FlowExecutor {
     const retryCount = step.retry?.count ?? 0;
     let lastResult: StepExecutionResult | undefined;
 
+    // Failure-evidence precedence (awkit-5yx): an explicit per-step override
+    // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
+    // the constructor default (true) is the safe system fallback. Resolved once for the whole step.
+    const captureOnFailure = step.onFailure?.screenshot ?? this.screenshotOnFailureDefault;
+    // FR-B2: evidence from every failing attempt, accumulated in order (never overwritten, B2.2).
+    const evidence: StepEvidenceRef[] = [];
+
     const logRetry = (level: "info" | "warn", message: string): void => {
       this.logger?.log({
         timestamp: new Date().toISOString(),
@@ -435,6 +442,31 @@ export class FlowExecutor {
       if (result.status !== "failed") return result;
       lastResult = result;
 
+      // FR-B2 — capture failure evidence at the moment of THIS failing attempt, before the retry
+      // decision runs and before any retry navigates away and destroys the broken page (B2.1). This
+      // is the ordering fix: capture used to happen once, after the loop, so intermediate attempts
+      // got no evidence and a navigating retry erased the failure state first. `captureFailureEvidence`
+      // never throws; the `.catch` is a belt-and-suspenders secondary diagnostic that still never
+      // masks the step's real error (B2.5).
+      if (captureOnFailure) {
+        const refs = await this.stepExecutor.captureFailureEvidence(step, { attempt }).catch(
+          (error): StepEvidenceRef[] => [
+            {
+              kind: "meta",
+              attempt,
+              pageId: step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main",
+              capturedAt: new Date().toISOString(),
+              note: `evidence capture failed: ${error instanceof Error ? error.message : String(error)}`
+            }
+          ]
+        );
+        evidence.push(...refs);
+        // Keep `screenshotPath` populated with this attempt's screenshot — the reports UI and
+        // downstream history reads still consume the single last-capture field.
+        const shot = [...refs].reverse().find((ref) => ref.kind === "screenshot" && ref.path);
+        if (shot?.path && !lastResult.screenshotPath) lastResult.screenshotPath = shot.path;
+      }
+
       const decision = this.retryPolicy.decide({ step, error: result.error, attempt });
       if (!decision.retry) {
         // Only log a "retry blocked" line when a retry was actually configured but denied.
@@ -448,13 +480,9 @@ export class FlowExecutor {
       if (decision.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
 
-    // Failure-screenshot precedence (awkit-5yx): an explicit per-step override
-    // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
-    // the constructor default (true) is the safe system fallback. Best-effort — never let a
-    // screenshot problem (e.g. dead page) mask the original step error.
-    if ((step.onFailure?.screenshot ?? this.screenshotOnFailureDefault) && lastResult && !lastResult.screenshotPath) {
-      lastResult.screenshotPath = await this.stepExecutor.captureFailureScreenshot(step).catch(() => undefined);
-    }
+    // Attach the accumulated per-attempt evidence to the returned (last) attempt. The original
+    // automation error on `lastResult` is untouched and remains the primary cause (B2.4/B2.5).
+    if (evidence.length > 0 && lastResult) lastResult.evidence = evidence;
 
     return lastResult!;
   }

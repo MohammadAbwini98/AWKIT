@@ -8,7 +8,8 @@ import { materializeDataSourceRows, type InstanceExecutionContext } from "./Inst
 import { LocatorFactory } from "./LocatorFactory";
 import { ManualHandoffController, type ManualHandoffResumeAction } from "./ManualHandoffController";
 import type { LiveStepStatus, RunnerProgressReporter } from "./RunnerProgress";
-import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
+import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionResult } from "./RunnerResult";
+import { SecretMasker } from "@src/reports/SecretMasker";
 import { ValueResolver } from "./ValueResolver";
 import { assertNavigableUrl } from "./urlPolicy";
 import { describeCertificateError, isCertificateError } from "@src/security/browser/CertificateTrust";
@@ -93,6 +94,8 @@ export class StepExecutor {
   private activePage: Page;
   /** Page registry: alias → Page. `'main'` is always present; popups are added by registerPopupPage. */
   private pageRegistry: Map<string, Page>;
+  /** Masks secrets out of captured failure evidence (DOM/a11y/meta) before it is written (FR-B2/FR-H1). */
+  private readonly evidenceMasker = new SecretMasker();
 
   constructor(
     page: Page,
@@ -1224,6 +1227,112 @@ export class StepExecutor {
 
   async captureFailureScreenshot(step: FlowStep): Promise<string> {
     return this.takeScreenshot(step, "failure");
+  }
+
+  /**
+   * FR-B2 — capture point-in-time failure evidence for a single failing attempt.
+   *
+   * Called by `FlowExecutor.executeWithRetry` immediately after each failing attempt, before the
+   * retry decision runs and before any retry navigates away — so the broken page state is still
+   * intact (B2.1). Filenames encode `stepId`, `attempt`, `pageId`, and a timestamp so attempt *n*'s
+   * evidence is never overwritten by *n+1* and each set is addressable (B2.2, B2.3).
+   *
+   * The evidence set is the point-in-time page state that a `Page` can yield synchronously:
+   * screenshot + DOM HTML + accessibility (aria) snapshot + page meta (URL/title). Console tail and
+   * in-flight network state are event-stream evidence owned by the FR-A2 execution timeline
+   * (WS-A, Tranche 5) and are intentionally not captured here.
+   *
+   * Every capture is individually guarded and time-bounded (B2.6): a dead or hung page yields a
+   * `note` ref (a **secondary diagnostic**) instead of throwing, so a photograph that cannot be
+   * taken never masks or replaces the step's real automation error (B2.5). Bodies are secret-masked
+   * before they touch disk (FR-H1). This method never throws.
+   */
+  async captureFailureEvidence(step: FlowStep, opts: { attempt: number }): Promise<StepEvidenceRef[]> {
+    const attempt = opts.attempt;
+    const pageId = step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main";
+    const capturedAt = new Date().toISOString();
+    const stamp = capturedAt.replace(/[:.]/g, "-");
+    const flowId = this.context.flowId ?? "flow";
+    const dir = join(this.context.paths.screenshots, this.context.executionId, this.context.instanceId, flowId, "evidence");
+    const base = `${step.id}-a${attempt}-${pageId}-${stamp}`;
+    const refs: StepEvidenceRef[] = [];
+
+    let page: Page;
+    try {
+      page = this.resolveStepPage(step);
+    } catch {
+      page = this.activePage;
+    }
+
+    await mkdir(dir, { recursive: true }).catch(() => undefined);
+
+    // Bound each individual capture so a hung page cannot block the failure path indefinitely (B2.6).
+    // The timer is always cleared once the race settles so it never fires late as an unhandled rejection.
+    const CAPTURE_BUDGET_MS = 5_000;
+    const bounded = <T>(work: Promise<T>): Promise<T> => {
+      let timer: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("evidence capture timed out")), CAPTURE_BUDGET_MS);
+      });
+      return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+    };
+    const record = (kind: StepEvidenceRef["kind"], path?: string, note?: string): void => {
+      refs.push({ kind, path, attempt, pageId, capturedAt, note });
+    };
+    const noteFor = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+    // Screenshot — staggered across instances by the screenshot operation limiter (A6).
+    try {
+      const path = join(dir, `${base}.png`);
+      await bounded(this.limitOp("screenshot", () => page.screenshot({ path, fullPage: true })));
+      record("screenshot", path);
+    } catch (error) {
+      record("screenshot", undefined, `screenshot capture failed: ${noteFor(error)}`);
+    }
+
+    // DOM HTML snapshot (secret-masked).
+    try {
+      const html = await bounded(page.content());
+      const path = join(dir, `${base}.html`);
+      await writeFile(path, this.evidenceMasker.maskText(html), "utf8");
+      record("dom", path);
+    } catch (error) {
+      record("dom", undefined, `dom capture failed: ${noteFor(error)}`);
+    }
+
+    // Accessibility (aria) snapshot (secret-masked). Accessed defensively so a Playwright API change
+    // degrades to a secondary diagnostic rather than a build/runtime break.
+    try {
+      const bodyLocator = page.locator("body");
+      const ariaSnapshot = (bodyLocator as unknown as { ariaSnapshot?: () => Promise<string> }).ariaSnapshot;
+      if (typeof ariaSnapshot !== "function") throw new Error("ariaSnapshot unavailable in this Playwright build");
+      const snapshot = await bounded(ariaSnapshot.call(bodyLocator));
+      const path = join(dir, `${base}.a11y.yaml`);
+      await writeFile(path, this.evidenceMasker.maskText(snapshot ?? ""), "utf8");
+      record("a11y", path);
+    } catch (error) {
+      record("a11y", undefined, `a11y capture failed: ${noteFor(error)}`);
+    }
+
+    // Page meta (URL + title), secret-masked — URLs can carry tokens in query parameters.
+    try {
+      const url = (() => {
+        try {
+          return page.url();
+        } catch {
+          return undefined;
+        }
+      })();
+      const title = await bounded(page.title()).catch(() => undefined);
+      const path = join(dir, `${base}.meta.json`);
+      const meta = { stepId: step.id, attempt, pageId, capturedAt, url, title };
+      await writeFile(path, this.evidenceMasker.maskText(JSON.stringify(meta, null, 2)), "utf8");
+      record("meta", path);
+    } catch (error) {
+      record("meta", undefined, `meta capture failed: ${noteFor(error)}`);
+    }
+
+    return refs;
   }
 
   private async executeStep(
