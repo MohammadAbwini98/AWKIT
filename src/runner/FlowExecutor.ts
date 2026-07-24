@@ -9,6 +9,7 @@ import { RetryPolicy } from "./runtime/RetryPolicy";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionResult } from "./RunnerResult";
 import { StepExecutor } from "./StepExecutor";
+import { SecretMasker } from "@src/reports/SecretMasker";
 
 /** Hard cap on loop-connector iterations regardless of configured maxIterations. */
 const LOOP_CONNECTOR_HARD_CAP = 1000;
@@ -30,6 +31,10 @@ export class FlowExecutor {
   private readonly retryPolicy = new RetryPolicy();
   /** Host concurrency limits (env-overridable) — bounds isolated parallel branches per flow. */
   private readonly concurrencyLimits = loadConcurrencyLimits();
+  /** Masks the belt-and-suspenders fallback diagnostic below (FR-H1) — this repeats the step's real
+   *  masker for the one path where `StepExecutor.captureFailureEvidence` itself throws unexpectedly,
+   *  so even that defensive note can never carry an unmasked secret/token. */
+  private readonly evidenceMasker = new SecretMasker();
 
   constructor(
     private readonly stepExecutor: StepExecutor,
@@ -463,7 +468,9 @@ export class FlowExecutor {
               attempt,
               pageId: step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main",
               capturedAt: new Date().toISOString(),
-              note: `evidence capture failed: ${error instanceof Error ? error.message : String(error)}`
+              // Masked (FR-H1): the underlying error can echo a page URL/token, or a hostile
+              // pageAlias, so this belt-and-suspenders note is never stored unmasked either.
+              note: this.evidenceMasker.maskText(`evidence capture failed: ${error instanceof Error ? error.message : String(error)}`)
             }
           ]
         );

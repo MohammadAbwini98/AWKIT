@@ -1279,8 +1279,13 @@ export class StepExecutor {
       resolveDiagnostic = `requested page "${requestedPageId}" unavailable (${noteFor(error)}); captured active page "${capturedPageId}" instead`;
     }
 
+    // A note is diagnostic TEXT, not a rendered page body — but it can still echo attacker/flow-
+    // controlled input (a hostile pageAlias) or a Playwright error message (which can embed a page URL
+    // carrying a query-string token). Mask it exactly like every other evidence body (FR-H1) so a
+    // diagnostic can never become a secret-leak channel.
     const record = (kind: StepEvidenceRef["kind"], path?: string, note?: string): void => {
-      const ref: StepEvidenceRef = { kind, path, attempt, pageId: capturedPageId, capturedAt, note };
+      const maskedNote = note !== undefined ? this.evidenceMasker.maskText(note) : undefined;
+      const ref: StepEvidenceRef = { kind, path, attempt, pageId: capturedPageId, capturedAt, note: maskedNote };
       if (requestedPageId !== capturedPageId) ref.requestedPageId = requestedPageId;
       refs.push(ref);
     };
