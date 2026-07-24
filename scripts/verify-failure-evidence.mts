@@ -57,6 +57,8 @@ async function runFailing(opts: {
   capture?: "ok" | "throws";
   /** Attempt index at which `execute` starts returning `passed` (retry-then-success). */
   passAtAttempt?: number;
+  /** Overrides the message of the Error thrown by the stub's captureFailureEvidence (capture: "throws"). */
+  captureThrowMessage?: string;
 }): Promise<RunOutcome> {
   const capture = opts.capture ?? "ok";
   let executeCalls = 0;
@@ -75,7 +77,7 @@ async function runFailing(opts: {
     },
     async captureFailureEvidence(_step: FlowStep, o: { attempt: number }): Promise<StepEvidenceRef[]> {
       evidenceAttempts.push(o.attempt);
-      if (capture === "throws") throw new Error("dead page: cannot photograph");
+      if (capture === "throws") throw new Error(opts.captureThrowMessage ?? "dead page: cannot photograph");
       const now = new Date().toISOString();
       return [{ kind: "screenshot", path: `/artifacts/s1-a${o.attempt}.png`, attempt: o.attempt, pageId: "main", capturedAt: now }];
     }
@@ -136,6 +138,24 @@ async function main(): Promise<void> {
   check("a failed capture is recorded as a secondary-diagnostic note, not a screenshot (B2.5)", secondary.length === 1 && secondary[0].kind === "meta" && /evidence capture failed/i.test(secondary[0].note ?? ""));
   check("a failed capture leaves screenshotPath unset (no false evidence)", capThrows.result.screenshotPath === undefined);
 
+  // Diagnostic-leak — the FlowExecutor belt-and-suspenders fallback (captureFailureEvidence itself
+  // throwing, not just an individual capture) must mask its note exactly like every other evidence
+  // body; the underlying error text can echo a page URL or a hostile pageAlias carrying a token.
+  const HOSTILE_PASSWORD = "hunter2-super-secret-value";
+  const HOSTILE_TOKEN = "LEAKED_TOKEN_ABC123";
+  const capThrowsSecret = await runFailing({
+    profileDefault: true,
+    retryCount: 0,
+    capture: "throws",
+    captureThrowMessage: `dead page at https://example.test/reset?password=${HOSTILE_PASSWORD}&token=${HOSTILE_TOKEN}`
+  });
+  const leakNote = (capThrowsSecret.result.evidence ?? [])[0]?.note ?? "";
+  check(
+    "the FlowExecutor fallback diagnostic masks password=/token= patterns from the underlying error (never leaks them raw)",
+    leakNote.length > 0 && !leakNote.includes(HOSTILE_PASSWORD) && !leakNote.includes(HOSTILE_TOKEN) && /password=\[masked\]/.test(leakNote) && /token=\[masked\]/.test(leakNote),
+    `note=${leakNote}`
+  );
+
   // Retry-then-success — evidence from earlier FAILED attempts must survive onto the PASSING result.
   const recover = await runFailing({ profileDefault: true, retryCount: 2, passAtAttempt: 1 });
   check("retry-then-success: attempt 0 fails, attempt 1 passes (2 execute calls)", recover.executeCalls === 2, `executeCalls=${recover.executeCalls}`);
@@ -157,6 +177,14 @@ async function main(): Promise<void> {
   check("empty / nullish falls back, never empty", safePathComponent("", "fallback") === "fallback" && safePathComponent(undefined, "fb") === "fb" && safePathComponent(null, "fb") === "fb");
   check("a long alias is bounded, non-empty, separator-free", (() => { const r = safePathComponent("popup-" + "z".repeat(300), "x"); return r.length <= 80 && r.length > 0 && noSep(r); })());
   check("distinct long aliases do not collide after truncation", safePathComponent("a".repeat(200), "x") !== safePathComponent("a".repeat(199) + "b", "x"));
+
+  // Hostile fallbacks — the `fallback` argument is defense-in-depth, not a trusted literal, and must
+  // be sanitized exactly like `raw` when `raw` reduces to nothing.
+  const isValidComponent = (s: string): boolean => s.length > 0 && noSep(s) && !s.includes("..") && !/[<>:"|?*\x00-\x1f]/.test(s); // eslint-disable-line no-control-regex
+  check("a traversal fallback is itself sanitized when raw is empty", isValidComponent(safePathComponent("", "../../evil")), `got=${safePathComponent("", "../../evil")}`);
+  check("a fallback with invalid chars + separators is itself sanitized", isValidComponent(safePathComponent(undefined, 'a/b\\c<>:"|?*evil')), `got=${safePathComponent(undefined, 'a/b\\c<>:"|?*evil')}`);
+  check("a fallback that fully neutralizes to nothing still resolves to the hard \"x\" default, never empty", safePathComponent(null, "../..") === "x", `got=${safePathComponent(null, "../..")}`);
+  check("a reserved-name fallback is neutralized too", safePathComponent("", "CON") !== "CON" && isValidComponent(safePathComponent("", "CON")));
 
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

@@ -152,6 +152,29 @@ async function main(): Promise<void> {
     check("capturing against a closed page does not throw (B2.6)", threw === false);
     const liveDependent = refs4.filter((r) => r.kind === "screenshot" || r.kind === "dom" || r.kind === "a11y");
     check("a dead-page capture records secondary-diagnostic notes (no file) for every page-dependent capture (B2.5)", liveDependent.length === 3 && liveDependent.every((r) => r.path === undefined && (r.note?.length ?? 0) > 0));
+
+    // ── 5. Diagnostic-leak: a resolver-failure note must mask a secret embedded in the requested alias ──
+    // A hostile/careless pageAlias (attacker- or flow-author-controlled) can itself contain a
+    // secret-shaped substring; the resolver-failure diagnostic embeds that alias verbatim in its
+    // message, so the note MUST come out masked, never raw, exactly like every other evidence body.
+    const root5 = await mkdtemp(join(tmpdir(), "awkit-evi-"));
+    tmpRoots.push(root5);
+    const exec5 = executorFor(page, contextFor(root5, { executionId: "exec-5", instanceId: "inst-5", flowId: "flow-5" }));
+    const hostileAlias = `popup?token=${URL_TOKEN}&password=${URL_PASSWORD}`;
+    const step5 = { id: "step-5", type: "click", name: "x", pageAlias: hostileAlias } as unknown as FlowStep;
+    const refs5 = await exec5.captureFailureEvidence(step5, { attempt: 0 });
+    const diag5 = refs5.find((r) => r.note && /unavailable/i.test(r.note));
+    check("a resolver-failure note is produced when the requested popup alias is unavailable", diag5 !== undefined);
+    check(
+      "the resolver-failure note masks a secret-shaped requested alias — never leaks it raw",
+      diag5 !== undefined && !diag5.note!.includes(URL_TOKEN) && !diag5.note!.includes(URL_PASSWORD) && /token=\[masked\]/.test(diag5.note!) && /password=\[masked\]/.test(diag5.note!),
+      `note=${diag5?.note}`
+    );
+
+    // Every file-producing capture in this same run must ALSO be masked/confined as usual — the
+    // hostile alias must not leak into evidence bodies either, and page identity stays truthful.
+    const files5 = refs5.filter((r) => r.path);
+    check("evidence from a hostile requested alias is still labelled with the ACTUAL page (main)", files5.length > 0 && files5.every((r) => r.pageId === "main" && r.requestedPageId === hostileAlias));
   } finally {
     if (browser) await browser.close().catch(() => undefined);
     await new Promise<void>((resolve) => server.close(() => resolve()));
