@@ -1,6 +1,31 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
+Last updated: **2026-07-24 (latest — Backend SRS Tranche 1: FR-B2 immediate failure evidence. PR open, NOT merged. Prior: Track 4 clean-machine policy.)**
+
+> **Backend SRS Tranche 1 (2026-07-24) — FR-B2 immediate failure evidence. PR OPEN as draft, NOT
+> merged.** Branch `feature/backend-srs-tranche-1` off `main` `88c76ed`. Implements SRS-BAO-001 FR-B2
+> (the WS-B ordering defect): failure evidence now captured **per failing attempt inside the retry
+> loop, before any retry/navigation** (was: once, after the loop) — screenshot + DOM + a11y + meta,
+> secret-masked, bounded, accumulated per attempt; original error stays primary; capture failure is a
+> secondary diagnostic. New `StepExecutor.captureFailureEvidence` + `StepEvidenceRef`/`evidence[]` on
+> `StepExecutionResult`. **No schema migration.** **PR #35 review fixes (round 2):** evidence now
+> preserved onto a passing retry; all path components sanitized via new `safePathComponent`
+> (`pathSafety.ts`) + `isPathInside` confinement; truthful requested-vs-captured page identity
+> (`StepEvidenceRef.requestedPageId`); new real file-output verifier. **Round 3 (final correction
+> pass):** every `StepEvidenceRef.note` is now masked (the resolver-failure diagnostic and each
+> per-artifact capture-failure note could echo a hostile `pageAlias` or an error message carrying a URL
+> token); `FlowExecutor`'s belt-and-suspenders fallback note is masked too (new `FlowExecutor.evidenceMasker`);
+> `safePathComponent`'s `fallback` argument is now sanitized through the same pipeline as `raw` instead
+> of being trusted verbatim. Verifiers `verify:failure-evidence` (unit, 29 → **34/34**) +
+> `verify:failure-evidence-live` (real-browser, 14 → **17/17**); verifier taxonomy total unchanged at
+> **110** (checks added to existing scripts, no new script). **Deferred (documented):** console-tail +
+> in-flight network state → FR-A2 (Tranche 5); FR-B1 run-root + `manifest.json` + durable `evidence[]`
+> surfacing → own tranche. **No `.beads` change; no `bd` run; no release promotion.** Full authoritative
+> SRS lives on the planning branch `docs/browser-automation-srs` (`37dc67c`) — unchanged. Scope + matrix:
+> `docs/ai/backend-srs-tranche-1-scope.md`. **PR #35 remains draft — do not merge without owner
+> re-review.**
+
+Last updated: **2026-07-24 (Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
 
 > **Track 4 (2026-07-24) — clean-machine validation is optional and non-blocking by owner policy.**
 > Owner decision: clean-machine validation **execution is waived as a mandatory release-promotion

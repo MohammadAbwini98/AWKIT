@@ -7,8 +7,9 @@ import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorCon
 import { loadConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
 import { RetryPolicy } from "./runtime/RetryPolicy";
 import type { RunnerProgressReporter } from "./RunnerProgress";
-import type { FlowExecutionResult, RunnerLogger, StepExecutionResult } from "./RunnerResult";
+import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionResult } from "./RunnerResult";
 import { StepExecutor } from "./StepExecutor";
+import { SecretMasker } from "@src/reports/SecretMasker";
 
 /** Hard cap on loop-connector iterations regardless of configured maxIterations. */
 const LOOP_CONNECTOR_HARD_CAP = 1000;
@@ -30,6 +31,10 @@ export class FlowExecutor {
   private readonly retryPolicy = new RetryPolicy();
   /** Host concurrency limits (env-overridable) — bounds isolated parallel branches per flow. */
   private readonly concurrencyLimits = loadConcurrencyLimits();
+  /** Masks the belt-and-suspenders fallback diagnostic below (FR-H1) — this repeats the step's real
+   *  masker for the one path where `StepExecutor.captureFailureEvidence` itself throws unexpectedly,
+   *  so even that defensive note can never carry an unmasked secret/token. */
+  private readonly evidenceMasker = new SecretMasker();
 
   constructor(
     private readonly stepExecutor: StepExecutor,
@@ -417,6 +422,13 @@ export class FlowExecutor {
     const retryCount = step.retry?.count ?? 0;
     let lastResult: StepExecutionResult | undefined;
 
+    // Failure-evidence precedence (awkit-5yx): an explicit per-step override
+    // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
+    // the constructor default (true) is the safe system fallback. Resolved once for the whole step.
+    const captureOnFailure = step.onFailure?.screenshot ?? this.screenshotOnFailureDefault;
+    // FR-B2: evidence from every failing attempt, accumulated in order (never overwritten, B2.2).
+    const evidence: StepEvidenceRef[] = [];
+
     const logRetry = (level: "info" | "warn", message: string): void => {
       this.logger?.log({
         timestamp: new Date().toISOString(),
@@ -432,8 +444,42 @@ export class FlowExecutor {
 
     for (let attempt = 0; ; attempt += 1) {
       const result = await this.stepExecutor.execute(step);
-      if (result.status !== "failed") return result;
+      if (result.status !== "failed") {
+        // A later attempt passed (or the first attempt did). Carry forward the evidence accumulated
+        // from any earlier FAILED attempts so a pass-after-failure result still exposes what went
+        // wrong (B2.2). No evidence is captured for the passing attempt, and its `screenshotPath` is
+        // left exactly as the attempt produced it (unset by default on success).
+        if (evidence.length > 0) result.evidence = evidence;
+        return result;
+      }
       lastResult = result;
+
+      // FR-B2 — capture failure evidence at the moment of THIS failing attempt, before the retry
+      // decision runs and before any retry navigates away and destroys the broken page (B2.1). This
+      // is the ordering fix: capture used to happen once, after the loop, so intermediate attempts
+      // got no evidence and a navigating retry erased the failure state first. `captureFailureEvidence`
+      // never throws; the `.catch` is a belt-and-suspenders secondary diagnostic that still never
+      // masks the step's real error (B2.5).
+      if (captureOnFailure) {
+        const refs = await this.stepExecutor.captureFailureEvidence(step, { attempt }).catch(
+          (error): StepEvidenceRef[] => [
+            {
+              kind: "meta",
+              attempt,
+              pageId: step.pageAlias && step.pageAlias.length > 0 ? step.pageAlias : "main",
+              capturedAt: new Date().toISOString(),
+              // Masked (FR-H1): the underlying error can echo a page URL/token, or a hostile
+              // pageAlias, so this belt-and-suspenders note is never stored unmasked either.
+              note: this.evidenceMasker.maskText(`evidence capture failed: ${error instanceof Error ? error.message : String(error)}`)
+            }
+          ]
+        );
+        evidence.push(...refs);
+        // Keep `screenshotPath` populated with this attempt's screenshot — the reports UI and
+        // downstream history reads still consume the single last-capture field.
+        const shot = [...refs].reverse().find((ref) => ref.kind === "screenshot" && ref.path);
+        if (shot?.path && !lastResult.screenshotPath) lastResult.screenshotPath = shot.path;
+      }
 
       const decision = this.retryPolicy.decide({ step, error: result.error, attempt });
       if (!decision.retry) {
@@ -448,13 +494,9 @@ export class FlowExecutor {
       if (decision.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, decision.delayMs));
     }
 
-    // Failure-screenshot precedence (awkit-5yx): an explicit per-step override
-    // (`step.onFailure.screenshot`) wins; otherwise the resolved artifact-profile default governs;
-    // the constructor default (true) is the safe system fallback. Best-effort — never let a
-    // screenshot problem (e.g. dead page) mask the original step error.
-    if ((step.onFailure?.screenshot ?? this.screenshotOnFailureDefault) && lastResult && !lastResult.screenshotPath) {
-      lastResult.screenshotPath = await this.stepExecutor.captureFailureScreenshot(step).catch(() => undefined);
-    }
+    // Attach the accumulated per-attempt evidence to the returned (last) attempt. The original
+    // automation error on `lastResult` is untouched and remains the primary cause (B2.4/B2.5).
+    if (evidence.length > 0 && lastResult) lastResult.evidence = evidence;
 
     return lastResult!;
   }
