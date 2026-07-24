@@ -9,7 +9,8 @@
  *
  * Class basis (what the script actually EXERCISES — the honest signal, taken from each verifier's
  * own header, not its name):
- *   - documentation-consistency : asserts docs/spec text agrees with code/config. (none today.)
+ *   - documentation-consistency : asserts docs/spec text agrees with code/config (e.g. the
+ *                                 clean-machine validation policy docs vs the canonical policy source).
  *   - static-source-validation  : parses SOURCE / packaging inputs; the feature is never executed.
  *   - unit                      : runs a unit of production logic in-process with fakes; no
  *                                 persistence, no subprocess, no browser.
@@ -154,6 +155,9 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:session-context": { class: "unit", why: "Browser-free sender-bound session-registry checks." },
   "verify:stress:concurrency": { class: "unit", why: "Concurrency stress over pure logic with fake runtimes." },
   "verify:stress:cancellation": { class: "unit", why: "Cancellation stress over pure logic with fake runtimes." },
+
+  // ── Documentation consistency (asserts docs/spec text agrees with code/config) ────────────────
+  "verify:clean-machine-policy": { class: "documentation-consistency", why: "Asserts the clean-machine validation policy docs agree with the canonical policy source (blocking matrix + wording), protected gates stay mandatory, and historical NOT EXECUTED evidence is unchanged." },
 
   // ── Static source validation (parses source / packaging inputs; feature not executed) ────────
   "verify:verifier-classification": { class: "static-source-validation", why: "Reconciles this registry against package.json and reports per-class verifier counts (FR-I1)." },
