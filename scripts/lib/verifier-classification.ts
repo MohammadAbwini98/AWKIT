@@ -79,6 +79,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:e2e-rbac": { class: "real-browser", why: "Per-role authorization in the REAL Electron app." },
   "verify:e2e-licensing": { class: "real-browser", why: "Licensing page + run-enforcement gate in the REAL Electron app." },
   "verify:e2e-sweep": { class: "real-browser", why: "Full route sweep of the REAL Electron app." },
+  "verify:e2e-reauth": { class: "real-browser", why: "Live ReauthDialog re-auth flow in the REAL Electron app." },
   "verify:oracle-drivers-gui": { class: "real-browser", why: "Real-Electron walkthrough of Settings › Database Drivers." },
   "verify:durable-accuracy": { class: "real-browser", why: "Launches the real ExecutionEngine benchmarks (real Chromium) for durable-store accuracy." },
   "verify:accent-gui": { class: "real-browser", why: "Real-Electron walkthrough of Appearance › Accent Color (solid/gradient/preset/reset + login pre-mount bootstrap)." },

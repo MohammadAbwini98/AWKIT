@@ -154,6 +154,9 @@ npm run verify:e2e-licensing# Licensing page + activation-request privacy + forg
                             # SPECTER_LICENSE_ENFORCE run-gate ON/OFF (22; seeds its own fixtures)
 npm run verify:e2e-sweep    # all 30 nav routes render console-clean + screenshots, theme toggle,
                             # resize, keyboard/:focus-visible (13)
+npm run verify:e2e-reauth   # live ReauthDialog flow in the REAL Electron app (real-browser class): sensitive
+                            # create after a lapsed reauth window → cancel drops it; wrong pw applies nothing
+                            # + writes no success audit; correct pw applies it EXACTLY once, no replay (19)
 npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import test-only mock flows/workflows/data source into runtime userData (for manual GUI testing)
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory

@@ -20,5 +20,11 @@ Per role (Administrator → Operator → Viewer), after sign-in:
 | 7 | Viewer only: direct IPC `settings.update` minor patch | Denied; settings unchanged (read back) |
 | 8 | Viewer only: direct IPC `executions.runWorkflow` on a seeded workflow | Denied; no instance appears |
 | 9 | SuperUser control pass | Same calls succeed (or fail only for domain reasons, e.g. license NOT_FOUND status is returned, not FORBIDDEN) |
-| 10 | Sensitive-op reauth UI | With a stale reauth window, a sensitive admin action pops ReauthDialog; wrong password keeps it; correct password applies the action |
+| 10 | Sensitive-op reauth UI (automated: `verify:e2e-reauth`, awkit-2d8) | With a stale reauth window, a sensitive admin action pops ReauthDialog and holds the action; **cancel** drops it (applies nothing); a **wrong** password keeps the dialog open with an error and writes no `USER_CREATE` success audit; the **correct** password applies the held action **exactly once** (no replay). No credential reaches console/audit. |
 | 11 | Console watch per role session | 0 renderer console errors |
+
+> **Oracle data-source mutators (awkit-b3w):** `oracle:dataSources:save`/`delete`/`refreshSnapshot` require
+> `DATASOURCE_MANAGE`, asserted **before** any resource lookup/existence check/secret access — matching the
+> JSON `dataSources:*` surface and the `DataSourceManager` UI gate. A Viewer's direct preload call to
+> `oracle.refreshSnapshot`/`deleteDataSource` is `NOT_AUTHORIZED`; `verify:e2e-rbac` asserts both (**49 → 51**).
+> Step 10's live ReauthDialog flow is automated by `npm run verify:e2e-reauth` (real-Electron, **19/19**).
