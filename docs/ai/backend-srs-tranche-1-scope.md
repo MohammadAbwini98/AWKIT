@@ -74,11 +74,34 @@ capture individually guarded and time-bounded.
 ## Expected verifiers
 
 - `verify:failure-evidence` (**new, unit**) — drives the real `FlowExecutor.executeWithRetry` with a
-  stub `StepExecutor`; proves B2.1/B2.2/B2.4/B2.5/precedence/`screenshotPath` back-compat deterministically.
+  stub `StepExecutor`; proves B2.1/B2.2/B2.4/B2.5, precedence, `screenshotPath` back-compat, the
+  retry-then-success evidence-preservation contract, and `safePathComponent` sanitization.
+- `verify:failure-evidence-live` (**new, real-browser**) — real Chromium + local HTTP server: proves
+  the evidence **files** are written, safely named, path-confined, and secret-masked; the requested-vs-
+  captured page identity; and dead-page secondary diagnostics.
 - `verify:failure-screenshot-precedence` (**updated**) — adapted to the evidence path; awkit-5yx
   precedence coverage preserved.
 - `verify:runner` (**regression, real Chromium**) — exercises the live capture path on failing steps.
-- Registered in `scripts/lib/verifier-classification.ts` (verifier total 108 → **109**).
+- Registered in `scripts/lib/verifier-classification.ts` (verifier total 108 → **110**; unit 43 → 44,
+  real-browser 36 → 37).
+
+## Review fixes (2026-07-24, round 2 — PR #35 review)
+
+1. **Evidence preserved across a successful retry.** `executeWithRetry` returned a passing retry
+   *before* attaching the evidence accumulated from earlier failed attempts. Fixed: the passing result
+   now carries all prior failed-attempt evidence (order/indexes intact, nothing overwritten), no
+   capture runs for the passing attempt, and `screenshotPath` stays unset on the successful result.
+2. **All evidence path components sanitized.** New shared `safePathComponent(raw, fallback)` in
+   `src/utils/pathSafety.ts` (strips `/`/`\`, neutralizes `..`, replaces Windows-invalid/control chars,
+   guards reserved device names, bounds length with a disambiguating hash, never empty) applied to
+   `executionId`/`instanceId`/`flowId`/`step.id`/page id. Each artifact path is then resolved and
+   `isPathInside(evidenceRoot, …)`-confined before writing; an escape records a secondary diagnostic
+   and skips the write.
+3. **Truthful page identity.** When `resolveStepPage` fails, evidence is labelled with the **actual**
+   captured page (via `aliasForActivePage()`), the resolver failure is kept as a secondary diagnostic,
+   and the requested alias is retained in a new optional `StepEvidenceRef.requestedPageId` (back-compat)
+   — never claiming a popup when it was main. Filenames encode the captured page id.
+4. **Real file-output verifier added** (`verify:failure-evidence-live`, above).
 
 ## Exclusions
 

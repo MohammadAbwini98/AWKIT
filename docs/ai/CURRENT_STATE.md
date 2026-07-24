@@ -24,20 +24,30 @@ WS-B and a confirmed **ordering defect**. Branch `feature/backend-srs-tranche-1`
   **FR-B1 addressable run-root + `manifest.json`** and durable-store surfacing of `evidence[]` (a
   SQLite migration) → their own tranche (FR-B1's run-root migration is broad and its retention policy
   is SRS §10.3 open). **No schema migration in this tranche.**
-- **Files:** `src/runner/RunnerResult.ts`, `src/runner/StepExecutor.ts`, `src/runner/FlowExecutor.ts`;
-  tests `scripts/verify-failure-evidence.mts` (new) + `scripts/verify-failure-screenshot-precedence.mts`
-  (adapted to the evidence path; awkit-5yx precedence preserved); registered in
-  `scripts/lib/verifier-classification.ts` + `package.json`. Scope: `docs/ai/backend-srs-tranche-1-scope.md`.
-- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:failure-evidence` 15/15**
-  (new, unit) · `verify:failure-screenshot-precedence` 6/6 · **`verify:runner` 84/84** (real Chromium,
-  live capture path) · `verify:artifacts` 13/13 · `verify:verifier-classification` **reconciled 109**
-  (unit 43 → 44) · protected gates unchanged (`verify:security` 39 · `verify:ipc-contract` 4 ·
-  `verify:auth` 49 · `verify:authz` 40) · `verify:clean-machine-policy` 28/28.
+- **PR #35 review fixes (round 2):** (1) **evidence preserved across a successful retry** —
+  `executeWithRetry` used to return a passing retry before attaching earlier failed-attempt evidence;
+  the passing result now carries all prior evidence (indexes intact, none overwritten), no capture for
+  the passing attempt, `screenshotPath` unset on success. (2) **All path components sanitized** — new
+  shared `safePathComponent` (`src/utils/pathSafety.ts`) applied to execution/instance/flow/step/page
+  ids, then each artifact path is `isPathInside`-confined before writing. (3) **Truthful page identity**
+  — a failed `resolveStepPage` labels evidence with the **actual** captured page (never the requested
+  popup) + a secondary diagnostic + new optional `StepEvidenceRef.requestedPageId`. (4) **New real
+  file-output verifier** `verify:failure-evidence-live`.
+- **Files:** `src/runner/RunnerResult.ts`, `src/runner/StepExecutor.ts`, `src/runner/FlowExecutor.ts`,
+  `src/utils/pathSafety.ts`; tests `scripts/verify-failure-evidence.mts` (new) +
+  `scripts/verify-failure-evidence-live.mts` (new, real-browser) +
+  `scripts/verify-failure-screenshot-precedence.mts` (adapted; awkit-5yx precedence preserved);
+  registered in `scripts/lib/verifier-classification.ts` + `package.json`. Scope:
+  `docs/ai/backend-srs-tranche-1-scope.md`.
+- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:failure-evidence` 29/29**
+  (unit) · **`verify:failure-evidence-live` 14/14** (new, real Chromium — files written, safely named,
+  path-confined, secret-masked; page identity; dead-page diagnostics) · `verify:failure-screenshot-precedence`
+  6/6 · **`verify:runner` 84/84** · `verify:artifacts` 13/13 · `verify:verifier-classification`
+  **reconciled 110** (unit 43 → 44, real-browser 36 → 37) · protected gates unchanged
+  (`verify:security` 39 · `verify:ipc-contract` 4 · `verify:auth` 49 · `verify:authz` 40) ·
+  `verify:clean-machine-policy` 28/28.
 - **No `.beads` change; no `bd` run; no release promotion.** Clean-machine policy remains
-  owner-waived / non-blocking; protected release gates remain mandatory. Recommended follow-up: a
-  dedicated real-browser verifier asserting the evidence **files** are written with encoded names +
-  masking (the unit verifier proves the ordering/accumulation contract; `verify:runner` exercises the
-  live path).
+  owner-waived / non-blocking; protected release gates remain mandatory.
 
 ---
 

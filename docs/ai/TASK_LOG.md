@@ -33,6 +33,15 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   `clean-machine-policy` 28).
 - **Boundaries:** no `.beads` change, no `bd`/`bd dolt push`, no release promotion, no schema migration,
   no protected gate weakened; `main` not modified directly; PR opened as **draft, not merged**.
+- **PR #35 review fixes (round 2, same day):** (1) evidence now preserved onto a passing retry
+  (`executeWithRetry` returned before attaching earlier failed-attempt evidence); (2) all evidence path
+  components sanitized via new shared `safePathComponent` (`src/utils/pathSafety.ts`) + `isPathInside`
+  confinement of each artifact path; (3) truthful page identity — a failed `resolveStepPage` labels
+  evidence with the actual captured page + secondary diagnostic + new optional
+  `StepEvidenceRef.requestedPageId`; (4) new real file-output verifier `verify:failure-evidence-live`
+  (real Chromium + local HTTP server). Counts: `verify:failure-evidence` 15 → **29**;
+  `verify:failure-evidence-live` **14/14**; verifier total 109 → **110** (unit 44, real-browser 37);
+  `verify:runner` 84 · `verify:artifacts` 13 · protected gates unchanged. Still draft, not merged.
 
 ---
 

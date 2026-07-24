@@ -8,8 +8,12 @@ Last updated: **2026-07-24 (latest — Backend SRS Tranche 1: FR-B2 immediate fa
 > loop, before any retry/navigation** (was: once, after the loop) — screenshot + DOM + a11y + meta,
 > secret-masked, bounded, accumulated per attempt; original error stays primary; capture failure is a
 > secondary diagnostic. New `StepExecutor.captureFailureEvidence` + `StepEvidenceRef`/`evidence[]` on
-> `StepExecutionResult`. **No schema migration.** New `verify:failure-evidence` (unit, 15/15); verifier
-> total 108 → **109**. **Deferred (documented):** console-tail + in-flight network state → FR-A2
+> `StepExecutionResult`. **No schema migration.** **PR #35 review fixes (round 2):** evidence now
+> preserved onto a passing retry; all path components sanitized via new `safePathComponent`
+> (`pathSafety.ts`) + `isPathInside` confinement; truthful requested-vs-captured page identity
+> (`StepEvidenceRef.requestedPageId`); new real file-output verifier. New verifiers
+> `verify:failure-evidence` (unit, 29/29) + `verify:failure-evidence-live` (real-browser, 14/14);
+> verifier total 108 → **110**. **Deferred (documented):** console-tail + in-flight network state → FR-A2
 > (Tranche 5); FR-B1 run-root + `manifest.json` + durable `evidence[]` surfacing → own tranche. **No
 > `.beads` change; no `bd` run; no release promotion.** Full authoritative SRS lives on the planning
 > branch `docs/browser-automation-srs` (`37dc67c`) — unchanged. Scope + matrix:
