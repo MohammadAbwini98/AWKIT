@@ -11,13 +11,19 @@ Last updated: **2026-07-24 (latest — Backend SRS Tranche 1: FR-B2 immediate fa
 > `StepExecutionResult`. **No schema migration.** **PR #35 review fixes (round 2):** evidence now
 > preserved onto a passing retry; all path components sanitized via new `safePathComponent`
 > (`pathSafety.ts`) + `isPathInside` confinement; truthful requested-vs-captured page identity
-> (`StepEvidenceRef.requestedPageId`); new real file-output verifier. New verifiers
-> `verify:failure-evidence` (unit, 29/29) + `verify:failure-evidence-live` (real-browser, 14/14);
-> verifier total 108 → **110**. **Deferred (documented):** console-tail + in-flight network state → FR-A2
-> (Tranche 5); FR-B1 run-root + `manifest.json` + durable `evidence[]` surfacing → own tranche. **No
-> `.beads` change; no `bd` run; no release promotion.** Full authoritative SRS lives on the planning
-> branch `docs/browser-automation-srs` (`37dc67c`) — unchanged. Scope + matrix:
-> `docs/ai/backend-srs-tranche-1-scope.md`. **Do not merge the PR without review.**
+> (`StepEvidenceRef.requestedPageId`); new real file-output verifier. **Round 3 (final correction
+> pass):** every `StepEvidenceRef.note` is now masked (the resolver-failure diagnostic and each
+> per-artifact capture-failure note could echo a hostile `pageAlias` or an error message carrying a URL
+> token); `FlowExecutor`'s belt-and-suspenders fallback note is masked too (new `FlowExecutor.evidenceMasker`);
+> `safePathComponent`'s `fallback` argument is now sanitized through the same pipeline as `raw` instead
+> of being trusted verbatim. Verifiers `verify:failure-evidence` (unit, 29 → **34/34**) +
+> `verify:failure-evidence-live` (real-browser, 14 → **17/17**); verifier taxonomy total unchanged at
+> **110** (checks added to existing scripts, no new script). **Deferred (documented):** console-tail +
+> in-flight network state → FR-A2 (Tranche 5); FR-B1 run-root + `manifest.json` + durable `evidence[]`
+> surfacing → own tranche. **No `.beads` change; no `bd` run; no release promotion.** Full authoritative
+> SRS lives on the planning branch `docs/browser-automation-srs` (`37dc67c`) — unchanged. Scope + matrix:
+> `docs/ai/backend-srs-tranche-1-scope.md`. **PR #35 remains draft — do not merge without owner
+> re-review.**
 
 Last updated: **2026-07-24 (Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
 

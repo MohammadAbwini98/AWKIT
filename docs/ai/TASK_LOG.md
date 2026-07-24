@@ -42,6 +42,19 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   (real Chromium + local HTTP server). Counts: `verify:failure-evidence` 15 → **29**;
   `verify:failure-evidence-live` **14/14**; verifier total 109 → **110** (unit 44, real-browser 37);
   `verify:runner` 84 · `verify:artifacts` 13 · protected gates unchanged. Still draft, not merged.
+- **PR #35 review fixes (round 3, final correction pass, same day):** (1) every `StepEvidenceRef.note`
+  is now masked — `StepExecutor`'s `record()` previously stored the resolver-failure diagnostic
+  (embeds `step.pageAlias`) and each per-artifact capture-failure note (embeds the error message)
+  unmasked; both now pass through `evidenceMasker.maskText(...)`. (2) The `FlowExecutor`
+  belt-and-suspenders fallback note (when `captureFailureEvidence` itself throws) is masked too via a
+  new `FlowExecutor.evidenceMasker`. (3) `safePathComponent`'s `fallback` argument is sanitized through
+  the same pipeline as `raw` instead of being returned verbatim — only the hard literal `"x"` is ever
+  unsanitized. (4) New regression tests: FlowExecutor-fallback note masks `password=`/`token=` from an
+  injected error; four `safePathComponent` hostile-fallback cases; a live hostile/secret-shaped
+  `pageAlias` proving the resolver-failure note is masked. Counts: `verify:failure-evidence` 29 → **34**;
+  `verify:failure-evidence-live` 14 → **17**; verifier taxonomy total unchanged at **110** (no new
+  script); `verify:runner` 84 · `verify:artifacts` 13 · protected gates unchanged. Still draft, not
+  merged — awaiting owner re-review.
 
 ---
 

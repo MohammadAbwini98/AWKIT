@@ -83,7 +83,8 @@ capture individually guarded and time-bounded.
   precedence coverage preserved.
 - `verify:runner` (**regression, real Chromium**) — exercises the live capture path on failing steps.
 - Registered in `scripts/lib/verifier-classification.ts` (verifier total 108 → **110**; unit 43 → 44,
-  real-browser 36 → 37).
+  real-browser 36 → 37). Round 3 below adds checks to these same two scripts — the verifier total is
+  unchanged (no new script), only their internal check counts grow.
 
 ## Review fixes (2026-07-24, round 2 — PR #35 review)
 
@@ -102,6 +103,35 @@ capture individually guarded and time-bounded.
    and the requested alias is retained in a new optional `StepEvidenceRef.requestedPageId` (back-compat)
    — never claiming a popup when it was main. Filenames encode the captured page id.
 4. **Real file-output verifier added** (`verify:failure-evidence-live`, above).
+
+## Review fixes (2026-07-24, round 3 — final correction pass)
+
+Round 2 introduced two remaining unmasked-text paths and one under-hardened fallback, all closed here:
+
+1. **Every `StepEvidenceRef.note` is now masked.** `StepExecutor.captureFailureEvidence`'s internal
+   `record()` helper previously stored `note` verbatim — the resolver-failure diagnostic embeds
+   `step.pageAlias` (flow-author-controlled) directly, and each per-artifact failure note embeds the
+   underlying error's `.message`, either of which can carry a page URL's query-string token or a
+   copy-pasted secret. `record()` now runs every `note` through the same `evidenceMasker.maskText(...)`
+   used for the DOM/a11y/meta bodies before storing it on the ref.
+2. **The `FlowExecutor` defensive fallback diagnostic is masked too.** `executeWithRetry`'s
+   belt-and-suspenders `.catch` (for the case where `captureFailureEvidence` itself throws, not just an
+   individual capture inside it) built its `note` from the raw error message. `FlowExecutor` gained its
+   own `evidenceMasker` (`SecretMasker`) and now masks this note identically.
+3. **`safePathComponent`'s `fallback` argument is sanitized, not trusted.** The fallback was previously
+   returned verbatim when `raw` reduced to nothing, so a hostile/derived fallback string could itself
+   become a traversal or invalid path segment. `fallback` now runs through the exact same sanitize
+   pipeline as `raw`; only the hard-coded literal `"x"` is ever returned unsanitized, and only when both
+   `raw` and `fallback` reduce to nothing.
+4. **New tests** in `verify:failure-evidence` (unit): the `FlowExecutor` fallback note masks
+   `password=`/`token=` patterns from an injected error message; four `safePathComponent` hostile-fallback
+   cases (traversal, invalid-chars+separators, fully-neutralizing → hard `"x"`, reserved name). New
+   tests in `verify:failure-evidence-live` (real-browser): a hostile/secret-shaped `pageAlias` produces a
+   resolver-failure note that is masked (never leaks the embedded token/password raw), while the evidence
+   files from that same run stay correctly labelled with the actual captured page.
+5. **No behavior change to file paths, filenames, or page-identity semantics** — only diagnostic-text
+   masking and fallback sanitization. `verify:failure-evidence` 29 → **34**; `verify:failure-evidence-live`
+   14 → **17**. Verifier taxonomy total unchanged at **110** (no new script).
 
 ## Exclusions
 

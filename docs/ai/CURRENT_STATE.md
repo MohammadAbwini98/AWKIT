@@ -33,21 +33,31 @@ WS-B and a confirmed **ordering defect**. Branch `feature/backend-srs-tranche-1`
   — a failed `resolveStepPage` labels evidence with the **actual** captured page (never the requested
   popup) + a secondary diagnostic + new optional `StepEvidenceRef.requestedPageId`. (4) **New real
   file-output verifier** `verify:failure-evidence-live`.
+- **PR #35 review fixes (round 3, final correction pass):** (1) **every `StepEvidenceRef.note` is now
+  masked** — `record()`'s notes (the resolver-failure diagnostic, which embeds `step.pageAlias`, and
+  each per-artifact capture-failure note, which embeds the underlying error message) previously stored
+  raw text that could carry a URL token or a copy-pasted secret; both now run through
+  `evidenceMasker.maskText(...)` before being stored. (2) **the `FlowExecutor` defensive fallback
+  diagnostic is masked too** — the belt-and-suspenders `.catch` for `captureFailureEvidence` itself
+  throwing now masks its note via `FlowExecutor`'s own new `evidenceMasker`. (3) **`safePathComponent`'s
+  `fallback` is sanitized, not trusted** — it now runs through the identical sanitize pipeline as `raw`;
+  only the hard literal `"x"` is ever unsanitized, and only when both reduce to nothing.
 - **Files:** `src/runner/RunnerResult.ts`, `src/runner/StepExecutor.ts`, `src/runner/FlowExecutor.ts`,
-  `src/utils/pathSafety.ts`; tests `scripts/verify-failure-evidence.mts` (new) +
-  `scripts/verify-failure-evidence-live.mts` (new, real-browser) +
+  `src/utils/pathSafety.ts`; tests `scripts/verify-failure-evidence.mts` +
+  `scripts/verify-failure-evidence-live.mts` (real-browser) +
   `scripts/verify-failure-screenshot-precedence.mts` (adapted; awkit-5yx precedence preserved);
   registered in `scripts/lib/verifier-classification.ts` + `package.json`. Scope:
   `docs/ai/backend-srs-tranche-1-scope.md`.
-- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:failure-evidence` 29/29**
-  (unit) · **`verify:failure-evidence-live` 14/14** (new, real Chromium — files written, safely named,
-  path-confined, secret-masked; page identity; dead-page diagnostics) · `verify:failure-screenshot-precedence`
-  6/6 · **`verify:runner` 84/84** · `verify:artifacts` 13/13 · `verify:verifier-classification`
-  **reconciled 110** (unit 43 → 44, real-browser 36 → 37) · protected gates unchanged
-  (`verify:security` 39 · `verify:ipc-contract` 4 · `verify:auth` 49 · `verify:authz` 40) ·
-  `verify:clean-machine-policy` 28/28.
+- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:failure-evidence` 34/34**
+  (unit; up from 29 — adds the diagnostic-leak + hostile-fallback regression cases) ·
+  **`verify:failure-evidence-live` 17/17** (up from 14 — adds the resolver-failure note-masking case) ·
+  `verify:failure-screenshot-precedence` 6/6 · **`verify:runner` 84/84** · `verify:artifacts` 13/13 ·
+  `verify:verifier-classification` **reconciled 110** (unit 44, real-browser 37 — unchanged total, no
+  new script) · protected gates unchanged (`verify:security` 39 · `verify:ipc-contract` 4 ·
+  `verify:auth` 49 · `verify:authz` 40) · `verify:clean-machine-policy` 28/28.
 - **No `.beads` change; no `bd` run; no release promotion.** Clean-machine policy remains
-  owner-waived / non-blocking; protected release gates remain mandatory.
+  owner-waived / non-blocking; protected release gates remain mandatory. **PR #35 remains draft**,
+  awaiting owner re-review.
 
 ---
 
