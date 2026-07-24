@@ -2,60 +2,179 @@
 
 Last updated: **2026-07-24 (latest — Backend SRS Tranche 2A: FR-C1 deterministic page identity, PR #36 review round 1 fixes applied. Draft PR, NOT merged. Prior: Tranche 1 FR-B2, since merged at `5dbe25f`.)**
 
-> **PR #36 review round 1 (2026-07-24) — four blockers fixed, still DRAFT.** All four were
-> reproduced in code before fixing; none was a false positive. (1) **Internal-page pending-identity
-> race** — `markInternal` did not cancel the finalization scheduled while the branch page was
-> `about:blank`, so a later navigation could still alias it; the old test missed it by navigating
-> *before* observing. Both defenses added, and the **mechanism** is asserted via
-> `pendingIdentityCount()` because `reconcile`'s eligibility filter hides a missing cancellation from
-> an outcome-only check. (2) **More than one identity owner** — `runFlowWithChildren` is recursive
-> and installed a `"page"` observer per invocation while each `StepExecutor` built its own registry,
-> so a child-flow popup was observed twice; the registry + single observer now live on the
-> `BrowserHolder`, one per BrowserContext/runtime generation, injected into parent, child, and branch
-> executors, with `resetForNewContext` on restart. (3) **Latched ambiguity** — independent counters
-> never reconciled when a contesting popup closed/was claimed/became internal; replaced with an
-> **identity-bucket model** reconciled on every membership change. (4) **Sensitive material in
-> aliases** — the readable `safePathComponent(openerAlias)` prefix is gone (filesystem-safe ≠
-> secret-safe; `token-SECRET` with a hyphen slips through `maskText`), the alias is now
-> `popup-<hash>` only, the opener is excluded from identity entirely, and every identity diagnostic
-> is `SecretMasker`-masked. Plus a fifth issue the new tests caught: `observe()` was not idempotent
-> and leaked a duplicate listener pair + timer per re-observation. **`verify:popup-identity` 25 →
-> 43/43**; every other count held (popup 12 · popup-mock-site 11 · flow-step-mapping 101 · runner 84
-> · recorder 78 · failure-evidence 34 · -live 17 · precedence 6 · security 39 · ipc-contract 4 · auth
-> 49 · authz 40 · clean-machine-policy 28 · taxonomy 111). No `.beads` change; no `bd` run; no
-> force-push; FR-C2 still not started.
+## ACTIVE HANDOFF — Backend SRS Tranche 2A (FR-C1 popup/page identity)
 
-> **Backend SRS Tranche 2A (2026-07-24) — FR-C1 deterministic page identity. DRAFT PR, NOT merged.**
-> Branch `feature/backend-srs-tranche-2a-popup-identity` off `main` **`5dbe25f`**. Fixes defect
-> **`awkit-ebh`**: `PlaywrightRunner`'s context `"page"` handler (positional `popup-${counter}`) and
-> `StepExecutor`'s click/`switchToPopup` paths (recorded alias) both registered the same popup, so one
-> `Page` was reachable under two aliases and identity followed **arrival order**. Reproduced against
-> the new fixture: on old code `popup-1` is *alpha* when opened alpha-first and *beta* when opened
-> beta-first. **Fix = ownership inversion** (neither call site naively deleted — each covered a case
-> the other did not): new `src/runner/runtime/PopupIdentityRegistry.ts` owns `alias → Page` **and**
-> `Page → alias`; the context event is the single observation point; step paths **claim** the awaited
-> `Page`, atomically promoting it off its synthetic alias (C1.2). Synthetic identity =
-> `popup-<safe-opener>-<sha256(opener+origin+path) first 8 hex>`; **query strings and fragments are
-> never read**, and active-step-id / `window.name` are deliberately excluded as timing-dependent
-> (would break C1.5 — rationale in the scope doc). Ambiguous popups (same opener+origin+path) fail
-> with an explicit diagnostic instead of guessing. **Also fixed:** parallel-branch pages were
-> consuming popup aliases. **Prerequisite fixed — `awkit-4t9`:** `flowStepMapping.ts` carried none of
-> `pageAlias`/`opensPopup`/`popupExpectation`, so re-saving a recorded multi-window flow in the
-> designer silently discarded its popup metadata; both directions now map them explicitly (absent
-> stays absent). **That bead's `closed` status is wrong against `main`** — its cited fix `ab9f5f6` is
-> only on the unmerged `feature/randomized-test-lab`; **`.beads` was NOT modified**, so tracker
-> reconciliation is still owed. Mock site gained `/popup/reversed-order.html` and
-> `/popup/script-timer.html` (added **before** the fix, per SRS rule C-9). **Verification:** build +
-> typecheck clean · **`verify:popup-identity` 25/25 (new)** · `verify:popup` 12/12 ·
-> `verify:popup-mock-site` 8 → **11/11** · `verify:flow-step-mapping` 94 → **101/101** ·
-> `verify:runner` 84/84 · FR-B2 masking intact (`verify:failure-evidence` 34/34, `-live` 17/17,
-> precedence 6/6) · protected gates unchanged (security 39 · ipc-contract 4 · auth 49 · authz 40) ·
-> clean-machine-policy 28/28 · taxonomy **reconciled 111** (110 → 111, real-browser 37 → 38).
-> **Not implemented: FR-C2 frame identity (Tranche 2B)** — C2.1 needs a real optional identity schema
-> + fallback resolver, not tests around the existing selector path. Also excluded: C1.8 (needs
-> FR-A2/Tranche 5), FR-C3, cross-origin frames, CDP. **No schema migration; no `.beads` change; no
-> `bd` run; no release promotion.** Scope + traceability:
-> `docs/ai/backend-srs-tranche-2a-scope.md`. **Do not merge without owner review.**
+> This is the authoritative handoff. The `## Current Handoff` block further down this file is a
+> historical entry from an earlier task and is retained unchanged for reference only.
+
+### From Agent / Tool
+
+AI coding agent session implementing Backend SRS Tranche 2A, including PR #36 review round 1.
+
+### To Agent / Tool
+
+Next AI coding agent or human developer. No tool-specific setup is required beyond the repository's
+standard workflow in `AGENTS.md`.
+
+### Timestamp
+
+2026-07-24.
+
+### Branch / Commit
+
+`feature/backend-srs-tranche-2a-popup-identity` @ `94eb9e0` (base `main` `5dbe25f`).
+
+### Active Task
+
+Implement **SRS-BAO-001 FR-C1 (Deterministic page identity)** — defect **`awkit-ebh`** — plus the
+named prerequisite **`awkit-4t9`** (recorder popup metadata lost on designer re-save).
+**FR-C2 frame identity is explicitly Tranche 2B and must not be started here.**
+
+### Current State Summary
+
+| | |
+|---|---|
+| Branch | `feature/backend-srs-tranche-2a-popup-identity` |
+| Base | `main` = `5dbe25f` (unchanged; never modified directly) |
+| Head | `94eb9e0` — remote and local identical |
+| Working tree | clean (both the primary worktree on `main` and the feature worktree) |
+| Worktree | `%LOCALAPPDATA%\Temp\awkit-worktrees\backend-srs-tranche-2a` (isolated, independent `npm ci`) |
+| PR | **#36 — OPEN, DRAFT, NOT MERGED**, mergeable `CLEAN`, CI "Typecheck & Build" **pass** |
+| Commits | 8 (4 original + 4 additive review fixes); no amend, rebase, squash, or force-push |
+| `.beads` | untouched — 0 `.beads/*` paths in the branch diff |
+
+Commits, oldest first: `4b7f414` fixtures → `a948cde` runner fix → `62ef5cd` designer fix →
+`c28af52` docs → `56e3fb9` shared registry → `a9dedd8` lifecycle/ambiguity/masking →
+`b6cd333` tests → `94eb9e0` docs.
+
+### Completed Work
+
+1. **Single identity owner.** `src/runner/runtime/PopupIdentityRegistry.ts` owns both
+   `alias → Page` and `Page → alias`. The context-level `"page"` event is the only observation
+   point; step paths **claim** the `Page` they awaited instead of performing a second registration.
+2. **Ownership is browser-context-wide.** Exactly one registry and one `"page"` observer per
+   BrowserContext / runtime generation, owned by the runner's `BrowserHolder` and injected into the
+   parent flow, every nested child flow, and every parallel-branch executor. `runFlowWithChildren`
+   is **recursive**, so a registry/observer per invocation gave one popup two identity owners.
+3. **Deterministic synthetic identity:** `popup-<sha256(origin + normalized path) first 12 hex>` —
+   a fixed neutral prefix plus a hash that **never echoes its inputs**. Query strings and fragments
+   are never read. Active step id, `window.name`, and opener alias are excluded as timing-dependent.
+4. **Ambiguity is reconciled, not latched.** Identity buckets grant a public alias only while
+   exactly one *eligible* page occupies them, re-reconciled on every membership change.
+5. **Runner-owned pages excluded.** Parallel-branch pages are marked internal; marking also cancels
+   any identity finalization scheduled while the page was `about:blank`.
+6. **Secret safety.** No caller-controlled text reaches an alias; all identity diagnostics are
+   `SecretMasker`-masked (the missing-popup resolver message keeps its SRS-mandated stable shape).
+7. **`awkit-4t9` prerequisite fixed.** `flowStepMapping.ts` now maps `pageAlias`, `opensPopup`, and
+   `popupExpectation` in both directions (absent stays absent).
+8. **Mock-site fixtures added before the runtime fix**, per SRS rule C-9.
+
+### Files Changed (23 vs `origin/main`)
+
+- **Runtime:** `src/runner/runtime/PopupIdentityRegistry.ts` (new), `src/runner/StepExecutor.ts`,
+  `src/runner/PlaywrightRunner.ts`
+- **Designer:** `app/renderer/components/workflow/flowStepMapping.ts`,
+  `app/renderer/components/workflow/flowDesignerTypes.ts`
+- **Tests:** `scripts/verify-popup-identity.mts` (new), `scripts/verify-popup.mts`,
+  `scripts/verify-popup-mock-site.mts`, `scripts/verify-flow-step-mapping.mts`
+- **Registration:** `package.json`, `scripts/lib/verifier-classification.ts`
+- **Mock site:** 5 new pages under `mock-site/public/popup/`, plus `index.html` and
+  `mock-site/README.md`
+- **Docs:** `docs/ai/backend-srs-tranche-2a-scope.md` (new), `CURRENT_STATE.md`, `HANDOFF.md`,
+  `TASK_LOG.md`, `TESTING.md`
+
+### Commands / Tests Run (isolated worktree; Node 18.16.0 / npm 9.5.1)
+
+| Command | Result |
+|---|---|
+| `npm run build` | pass |
+| `npm run typecheck` | pass |
+| `npm run verify:popup-identity` | **43/43** (new verifier; 25 → 43 after review fixes) |
+| `npm run verify:popup` | 12/12 |
+| `npm run verify:popup-mock-site` | 11/11 (was 8) |
+| `npm run verify:flow-step-mapping` | 101/101 (was 94) |
+| `npm run verify:runner` | 84/84 |
+| `npm run verify:recorder` | 78/78 |
+| `npm run verify:failure-evidence` | 34/34 |
+| `npm run verify:failure-evidence-live` | 17/17 |
+| `npm run verify:failure-screenshot-precedence` | 6/6 |
+| `npm run verify:ipc-contract` | 4/4 |
+| `npm run verify:security` | 39/39 |
+| `npm run verify:auth` | 49/49 |
+| `npm run verify:authz` | 40/40 |
+| `npm run verify:clean-machine-policy` | 28/28 |
+| `npm run verify:verifier-classification` | reconciled **111** (110 → 111; real-browser 37 → 38) |
+
+**Not run, and why:** packaged-EXE, offline-bundle, and clean-machine gates — this tranche changes
+no packaging or offline surface. Clean-machine validation remains owner-waived / non-blocking and
+**NOT EXECUTED**; nothing here is recorded as passed that was not actually executed.
+
+### Remaining Work
+
+1. **Owner re-review of PR #36** (round 2). It must stay draft until that completes.
+2. **Reconcile `awkit-4t9` in Beads** — it is marked `closed` citing `ab9f5f6`, which is **not an
+   ancestor of `main`** (it exists only on the unmerged `feature/randomized-test-lab`). The code gap
+   is fixed on this branch, but the tracker record is still wrong. Deliberately left alone here.
+3. **Tranche 2B — FR-C2 frame identity.** Needs an optional identity schema plus a fallback resolver
+   that genuinely survives a non-functional selector change. Not started, not authorized.
+4. Later tranches: FR-C1.8 (needs FR-A2 / Tranche 5), FR-C3, cross-origin frame identity (needs CDP).
+
+### Known Risks / Blockers
+
+- **Multi-window flows are high regression risk** by the SRS's own assessment. The invariants are
+  asserted mechanically in `verify:popup-identity`; run it after any change to popup routing.
+- **A passing test here does not prove much on its own.** Two concrete traps were hit and are now
+  guarded: (a) comparing only *sorted alias keys* across reversed popup order passes vacuously — the
+  discriminating assertion is "each alias maps to the same page in both orders"; (b) an outcome-only
+  check for the internal-page race passes even with both defenses disabled, because `reconcile`'s
+  eligibility filter independently blocks the alias — assert the mechanism via
+  `pendingIdentityCount()`. Use a negative control before trusting a new assertion here.
+- **FR-B2 evidence masking depends on registry shape.** `resolveStepPage`'s throw and
+  `captureFailureEvidence`'s resolver diagnostic must stay masked; `verify:failure-evidence` and
+  `verify:failure-evidence-live` are the guards.
+- **`SecretMasker.maskText` is not a general sanitizer.** It normalizes `token`/`password` query-style
+  assignments, `Bearer …` headers, and registered literal values only — `token-SECRET` (hyphen) passes straight through.
+  Never rely on it alone to make caller-controlled text safe; prefer structural exclusion.
+
+### Do Not Touch Without Confirmation
+
+- `.beads/*` — no edits, and do not run `bd` or `bd dolt push` in this track.
+- The 8 existing commits — no amend, rebase, squash, reset, or force-push.
+- Preserved references: `backup/pr24-pre-reconstruction` (`ec19bda`), `backup/chore-brand-logo-5b`,
+  `chore/brand-logo-5b`, `archive/chore-brand-logo-5b-pre-recovery`, and the planning branch
+  `docs/browser-automation-srs` (authoritative SRS-BAO-001; **not** on `main`).
+- PR #35 safety-net files under `%LOCALAPPDATA%\Temp\awkit-scratch\pr35-review-fixes\`.
+- `main` — never commit to it directly; it is PR-only.
+- Release promotion, packaging, and artifact work are out of scope for this track.
+
+### Recommended Next Step
+
+Wait for the PR #36 round-2 review. If changes are requested, continue in the existing worktree with
+**additive** commits and a normal (non-force) push, keeping the PR draft. Do not merge, and do not
+begin FR-C2 until it is explicitly authorized.
+
+### Required First Actions For Next Agent
+
+1. Read `AGENTS.md` and the required-reading order it lists (at minimum `docs/ai/CURRENT_STATE.md`,
+   `RULES.md`, `ARCHITECTURE.md`, `COMMANDS.md`), then `docs/ai/backend-srs-tranche-2a-scope.md`.
+2. Confirm the state above before changing anything:
+   ```bash
+   git fetch origin --prune && git status --short --branch && git rev-parse HEAD && git rev-parse origin/main
+   ```
+   Stop and report if `origin/main` has moved off `5dbe25f`, if the branch head is not `94eb9e0`, or
+   if either worktree is dirty.
+3. Re-establish the isolated worktree if it is gone (`%LOCALAPPDATA%\Temp\awkit-worktrees\backend-srs-tranche-2a`),
+   with its own `npm ci` — do not share `node_modules` through a junction.
+4. Before trusting any change to popup routing, run `npm run build`, `npm run verify:popup-identity`,
+   `npm run verify:popup`, and `npm run verify:runner`.
+5. **Known pre-existing gate failure, not caused by this branch:**
+   `node scripts/ai-memory/check-memory.mjs` exits 1 with
+   *"Possible Password assignment detected in memory file: docs/ai/TASK_LOG.md"*. It fails identically
+   on clean `main`. The trigger is a **false positive** — a historical Tranche 1 log entry that
+   documents masking behavior with a literal password-assignment example, matching the scanner's
+   `/password\s*[:=]\s*.{6,}/i` rule. No credential is present. It was left in place because rewriting
+   a merged historical log entry needs owner confirmation; the fix is either a one-word cosmetic edit
+   to that line or a scanner refinement that ignores fenced/inline code spans. Owner decision.
 
 Last updated: **2026-07-24 (Backend SRS Tranche 1: FR-B2 immediate failure evidence — since MERGED via PR #35 at `5dbe25f`. Prior: Track 4 clean-machine policy.)**
 

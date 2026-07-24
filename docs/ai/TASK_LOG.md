@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — Handoff preparation for Backend SRS Tranche 2A (docs only)
+
+- **Task:** prepare the repository for the next agent/developer; no code change.
+- **Done:** rewrote the top of `docs/ai/HANDOFF.md` as a single authoritative **ACTIVE HANDOFF**
+  section using the repository's canonical subsection names (From/To, Timestamp, Branch / Commit,
+  Active Task, Current State Summary, Completed Work, Files Changed, Commands / Tests Run, Remaining
+  Work, Known Risks / Blockers, Do Not Touch Without Confirmation, Recommended Next Step, Required
+  First Actions For Next Agent). Removed two now-superseded blockquotes from this session — one of
+  them still documented the **old** alias format (`popup-<safe-opener>-<hash>`), which would have
+  misled the next agent since review round 1 replaced it with `popup-<hash>`. Older historical
+  entries, including the earlier `## Current Handoff` block, are untouched and now explicitly labeled
+  as historical.
+- **Checks:** `node scripts/ai-memory/check-memory.mjs` → **exit 1**, one failure:
+  *"Possible Password assignment detected in memory file: docs/ai/TASK_LOG.md"*. **Pre-existing and
+  not caused by this branch** — verified by running the same script on the clean primary worktree at
+  `main`, which fails identically. It is a false positive: a historical Tranche 1 entry (this file)
+  documents masking using a literal password-assignment example that matches the scanner's
+  `/password\s*[:=]\s*.{6,}/i` rule. No credential is present. Left unfixed because it would mean
+  editing a merged historical entry — flagged for owner decision. Own new wording was reworded so it
+  cannot trip the same rule after a reflow.
+- **Not changed:** `CURRENT_STATE.md` (no behavior, status, command, architecture, or risk change
+  since the review-fix entry), and all source/test files.
+- **Result:** `docs/ai/HANDOFF.md` is ready for the next agent. PR #36 remains draft and unmerged at
+  `94eb9e0`; no `.beads` change, no `bd` run.
+
+---
+
 ## 2026-07-24 — Backend SRS Tranche 2A: PR #36 review round 1 fixes (still draft, not merged)
 
 - **Task:** fix the four correctness/security blockers from the owner's PR #36 code review. Each was
