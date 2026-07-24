@@ -170,17 +170,26 @@ try {
             api.executions.runWorkflow({ workflowId: "e2e-nonexistent-workflow", dryRun: false })
           );
 
+          // (d) Oracle data-source mutators require DATASOURCE_MANAGE (awkit-b3w) → rejected for a Viewer,
+          // matching the JSON data-source surface + the DataSourceManager UI gate (deny precedes existence).
+          const oracleRefreshRejected = await rejected(api.oracle.refreshSnapshot("e2e-nonexistent-oracle-ds"));
+          const oracleDeleteRejected = await rejected(api.oracle.deleteDataSource("e2e-nonexistent-oracle-ds"));
+
           return {
             uiPrefApplied: afterUi.lastRouteId === "dashboard",
             substantiveRejected,
             substantiveNotApplied: (afterSubstantive.paths?.logsPath ?? "") === origLogs,
-            runRejected
+            runRejected,
+            oracleRefreshRejected,
+            oracleDeleteRejected
           };
         });
         check("Viewer: UI-state settings.update stays open (lastRouteId patch applies)", gaps.uiPrefApplied === true);
         check("Viewer: substantive settings.update (paths) is DENIED (sender-bound authz)", gaps.substantiveRejected === true);
         check("Viewer: denied substantive settings.update did not apply", gaps.substantiveNotApplied === true);
         check("Viewer: execution:runWorkflow (real run, dryRun:false) is DENIED", gaps.runRejected === true);
+        check("Viewer: oracle.refreshSnapshot is DENIED (DATASOURCE_MANAGE, awkit-b3w)", gaps.oracleRefreshRejected === true);
+        check("Viewer: oracle.deleteDataSource is DENIED (DATASOURCE_MANAGE, awkit-b3w)", gaps.oracleDeleteRejected === true);
       }
 
       if (r.role === "Operator") {
@@ -243,11 +252,11 @@ try {
   }
   check("SU control: zero renderer console errors", consoleWatch.errors.length === 0, consoleWatch.summary());
 
-  note("OBS-002 reauth override landed: AWKIT_REAUTH_WINDOW_MS now shrinks the sensitive-op reauth window");
-  note("for tests (mirrors AWKIT_SESSION_IDLE_MS). The REAUTH_REQUIRED → retry-after-reauth contract is");
-  note("covered deterministically by verify:authz (40/40); the live ReauthDialog GUI flow (spec step 10)");
-  note("is documented in specs/e2e/E2E-RBAC.md as a targeted follow-up so this single-launch run stays");
-  note("free of wall-clock timing.");
+  note("OBS-002 reauth override landed: AWKIT_REAUTH_WINDOW_MS shrinks the sensitive-op reauth window for");
+  note("tests (mirrors AWKIT_SESSION_IDLE_MS). The REAUTH_REQUIRED → retry-after-reauth contract is covered");
+  note("deterministically by verify:authz (40/40); the live ReauthDialog GUI flow (spec step 10, awkit-2d8)");
+  note("now runs as its own launch — npm run verify:e2e-reauth — kept separate so a globally-short reauth");
+  note("window never destabilizes this multi-user seeding run.");
 } finally {
   await app.close().catch(() => undefined);
   cleanup();
