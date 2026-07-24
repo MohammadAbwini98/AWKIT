@@ -73,6 +73,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:protected-login-recorder": { class: "real-browser", why: "Pure detection PLUS a live recorder/Chromium + mock-site part." },
   "verify:instance-monitor-gui": { class: "real-browser", why: "Real-Electron walkthrough of Instance Monitor summaries + bulk stop." },
   "verify:popup": { class: "real-browser", why: "Headless real Playwright/Chromium context (no Electron)." },
+  "verify:popup-identity": { class: "real-browser", why: "Drives real popups (reversed order, script/timer, ambiguous) to assert the FR-C1 identity invariants." },
   "verify:popup-mock-site": { class: "real-browser", why: "Popup handling against real Chromium + the mock site." },
   "verify:chromium-hardening": { class: "real-browser", why: "Arg-contract unit part PLUS a live Chromium no-egress check." },
   "verify:admin-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Super User Administration area." },

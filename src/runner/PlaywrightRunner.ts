@@ -477,19 +477,17 @@ export class PlaywrightRunner {
       this.options.oracleNodeRunner
     );
 
-    // ── Popup registry wiring ───────────────────────────────────────────────
-    // Any popup/new-window opened by the browser during this flow run is automatically
-    // registered in the StepExecutor's PageRegistry under an alias that matches the
-    // alias the recorder assigned (popup-1, popup-2, …). The alias is derived from the
-    // `popupExpectation.popupAlias` on the last executed `click` step (if any), falling
-    // back to a sequential counter so every popup gets a stable key regardless.
-    let runnerPopupCounter = 0;
+    // ── Popup identity wiring (FR-C1.1) ─────────────────────────────────────
+    // This handler is the SINGLE observation point for pages created during the run. It no longer
+    // assigns identity itself: it hands each new Page to the StepExecutor's PopupIdentityRegistry,
+    // which derives one deterministic alias from the page's own identity (opener + origin + path).
+    //
+    // The previous positional `popup-${counter}` assignment was defect `awkit-ebh`: it raced the
+    // click path's own registration, so one popup could be reachable under two aliases, and identity
+    // depended on arrival order. A step that expects a popup now CLAIMS the Page it awaited instead
+    // of registering it a second time.
     const pageHandler = (newPage: import("playwright").Page): void => {
-      // Try to find the most recently registered click step that opened a popup.
-      // For simplicity we increment a counter and rely on the flow's recorded aliases.
-      runnerPopupCounter += 1;
-      const alias = `popup-${runnerPopupCounter}`;
-      stepExecutor.registerPopupPage(alias, newPage);
+      stepExecutor.observePopupPage(newPage);
     };
     holder.runtime.context.on("page", pageHandler);
 
@@ -497,6 +495,9 @@ export class PlaywrightRunner {
     // StepExecutor, and the page is closed when the branch finishes.
     const branchFactory = async () => {
       const branchPage = await holder.runtime.context.newPage();
+      // A branch page shares the context, so the handler above observes it exactly like a popup.
+      // Mark it as runner-owned so it never consumes a popup alias in the parent's registry.
+      stepExecutor.markInternalPage(branchPage);
       const branchExecutor = new StepExecutor(
         branchPage,
         new LocatorFactory(branchPage),
