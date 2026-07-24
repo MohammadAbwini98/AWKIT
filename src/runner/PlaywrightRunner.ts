@@ -16,6 +16,7 @@ import type { OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { CancelledError, type CancellationToken } from "./concurrency/CancellationToken";
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import { ValueResolver } from "./ValueResolver";
+import { PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { Browser, BrowserContext, Page } from "playwright";
 
@@ -27,6 +28,14 @@ interface BrowserHolder {
   swapInProgress: boolean;
   /** The StepExecutor currently driving the active flow (re-pointed after a restart). */
   activeExecutor?: StepExecutor;
+  /**
+   * The ONE popup identity owner for the current BrowserContext/runtime generation (FR-C1.1).
+   * Shared by the parent flow, every nested child flow, and every parallel-branch executor — a
+   * registry per StepExecutor let one popup be observed by two registries at once.
+   */
+  popupIdentity: PopupIdentityRegistry;
+  /** Detaches this generation's single context-level `"page"` observer. */
+  detachPageObserver: () => void;
 }
 
 type BrowserCloseReason =
@@ -128,7 +137,16 @@ export class PlaywrightRunner {
     const runtime = await this.browserContextFactory.create(instanceConfig, context);
     // Mutable holder so Auto Secure Login can close/relaunch the automation browser mid-run
     // and re-point the live StepExecutor + subsequent flows at the new page.
-    const holder: BrowserHolder = { runtime, page: await this.resolveLivePage(runtime.context), generation: browserGeneration, swapInProgress: false };
+    const rootPage = await this.resolveLivePage(runtime.context);
+    const holder: BrowserHolder = {
+      runtime,
+      page: rootPage,
+      generation: browserGeneration,
+      swapInProgress: false,
+      popupIdentity: new PopupIdentityRegistry(rootPage),
+      detachPageObserver: () => undefined
+    };
+    this.bindPopupIdentityObserver(holder);
     this.patchRuntimeCloseWithStack(holder.runtime, holder.page, holder.generation);
     this.attachLifecycleHandlers(holder, {
       runtime: holder.runtime,
@@ -193,6 +211,11 @@ export class PlaywrightRunner {
         holder.runtime = candidate.runtime;
         holder.page = candidate.page;
         holder.generation = newGeneration;
+        // Rebind popup identity onto the new context BEFORE re-pointing the executor: every page
+        // from the previous generation is gone, so its mappings and listeners must be released and
+        // a single fresh observer installed for the new context (FR-C1.1).
+        holder.popupIdentity.resetForNewContext(candidate.page);
+        this.bindPopupIdentityObserver(holder);
         holder.activeExecutor?.setActivePage(candidate.page);
         this.options.onBrowserRuntime?.({ runtime: candidate.runtime, generation: newGeneration });
         await this.traceService?.attach(candidate.runtime.context);
@@ -294,6 +317,8 @@ export class PlaywrightRunner {
       return this.finish(profile.id, context, startedAt, flowResults, logger, "failed", error instanceof Error ? error.message : String(error));
     } finally {
       unsubscribeCancel?.();
+      // Release the generation's single popup observer before the context goes away.
+      holder.detachPageObserver();
       await this.closeRuntime(holder.runtime, holder.generation, closeReason, logger, context).catch(() => undefined);
     }
   }
@@ -349,6 +374,27 @@ export class PlaywrightRunner {
   private async resolveLivePage(context: BrowserContext): Promise<Page> {
     const existing = context.pages().find((page) => !page.isClosed());
     return existing ?? context.newPage();
+  }
+
+  /**
+   * Install THE single context-level `"page"` observer for the holder's current runtime generation
+   * (FR-C1.1). Any observer from a previous generation is detached first, so a restart never leaves
+   * a dead context's listener attached and never yields two observers for one Page.
+   *
+   * This is the only place popups enter the registry. Step paths claim the Page they awaited; they
+   * never register one themselves.
+   */
+  private bindPopupIdentityObserver(holder: BrowserHolder): void {
+    holder.detachPageObserver();
+    const context = holder.runtime.context;
+    const observer = (newPage: Page): void => {
+      holder.popupIdentity.observe(newPage);
+    };
+    context.on("page", observer);
+    holder.detachPageObserver = () => {
+      context.off("page", observer);
+      holder.detachPageObserver = () => undefined;
+    };
   }
 
   private attachLifecycleHandlers(
@@ -474,30 +520,26 @@ export class PlaywrightRunner {
       this.options.cancellation,
       this.options.originClaims,
       this.options.operationLimiters,
-      this.options.oracleNodeRunner
+      this.options.oracleNodeRunner,
+      holder.popupIdentity
     );
 
     // ── Popup identity wiring (FR-C1.1) ─────────────────────────────────────
-    // This handler is the SINGLE observation point for pages created during the run. It no longer
-    // assigns identity itself: it hands each new Page to the StepExecutor's PopupIdentityRegistry,
-    // which derives one deterministic alias from the page's own identity (opener + origin + path).
-    //
-    // The previous positional `popup-${counter}` assignment was defect `awkit-ebh`: it raced the
-    // click path's own registration, so one popup could be reachable under two aliases, and identity
-    // depended on arrival order. A step that expects a popup now CLAIMS the Page it awaited instead
-    // of registering it a second time.
-    const pageHandler = (newPage: import("playwright").Page): void => {
-      stepExecutor.observePopupPage(newPage);
-    };
-    holder.runtime.context.on("page", pageHandler);
+    // NOTE: no `"page"` observer is installed here. `runFlowWithChildren` is RECURSIVE (every
+    // `Run Another Flow` re-enters it), so installing one per invocation meant a popup opened during
+    // a child flow was observed by both the parent's and the child's registry — two identity owners
+    // for one Page. The single observer now lives on the browser holder, one per BrowserContext /
+    // runtime generation, and every executor below shares `holder.popupIdentity`.
 
     // Isolated-page parallel branches: each gets a fresh page in the shared context + its own
     // StepExecutor, and the page is closed when the branch finishes.
     const branchFactory = async () => {
       const branchPage = await holder.runtime.context.newPage();
-      // A branch page shares the context, so the handler above observes it exactly like a popup.
-      // Mark it as runner-owned so it never consumes a popup alias in the parent's registry.
-      stepExecutor.markInternalPage(branchPage);
+      // A branch page shares the context, so the holder's observer sees it exactly like a popup.
+      // Mark it as runner-owned so it never consumes a popup alias. This also cancels any pending
+      // identity finalization scheduled when the page was observed as uncommitted `about:blank`,
+      // which is the real production ordering (observe → newPage resolves → mark → navigate).
+      holder.popupIdentity.markInternal(branchPage);
       const branchExecutor = new StepExecutor(
         branchPage,
         new LocatorFactory(branchPage),
@@ -524,7 +566,8 @@ export class PlaywrightRunner {
         this.options.cancellation,
         this.options.originClaims,
         this.options.operationLimiters,
-        this.options.oracleNodeRunner
+        this.options.oracleNodeRunner,
+        holder.popupIdentity
       );
       return { execute: (step: FlowStep) => branchExecutor.execute(step), close: () => branchPage.close() };
     };
@@ -538,7 +581,9 @@ export class PlaywrightRunner {
       return await flowExecutor.executeFlow(flow, context);
     } finally {
       holder.activeExecutor = previousExecutor ?? stepExecutor;
-      holder.runtime.context.off("page", pageHandler);
+      // The `"page"` observer is owned by the holder for the whole runtime generation, so it is
+      // deliberately NOT detached here — a nested child flow returning must not stop the parent
+      // flow's popups from being observed.
     }
   }
 

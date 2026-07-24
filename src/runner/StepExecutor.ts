@@ -94,8 +94,19 @@ export class StepExecutor {
   /** Currently-active page (the page actions run on when no alias overrides). */
   private activePage: Page;
   /**
+   * This executor's OWN root page — what `switchToMainPage` and popup-close restoration return to.
+   * Distinct from the registry's context-wide `main`: a parallel-branch executor's root is its own
+   * branch page, not the run's primary page, and the two must not be conflated now that the
+   * registry is shared across the browser context.
+   */
+  private rootPage: Page;
+  /**
    * The single owner of page identity (FR-C1). Replaces the former plain `alias → Page` map, which
    * had no reverse index and was written from two independent call sites (defect `awkit-ebh`).
+   *
+   * Injected and shared per BrowserContext/runtime generation (PR #36 review fix). It is only
+   * constructed here as a fallback for standalone use (verifiers), never in the runner — a registry
+   * per `StepExecutor` let one popup be observed by both a parent and a child flow's registry.
    */
   private readonly popupIdentity: PopupIdentityRegistry;
   /** Masks secrets out of captured failure evidence (DOM/a11y/meta) before it is written (FR-B2/FR-H1). */
@@ -122,10 +133,17 @@ export class StepExecutor {
     /** Phase A6: staggers simultaneous navigations / downloads / screenshots across instances. */
     private readonly operationLimiters?: OperationLimiters,
     /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
-    private readonly oracleNodeRunner?: OracleNodeRunner
+    private readonly oracleNodeRunner?: OracleNodeRunner,
+    /**
+     * The browser-context-wide popup identity registry (FR-C1.1). The runner passes the SAME
+     * instance to the parent flow, every nested child flow, and every parallel-branch executor, so
+     * exactly one owner assigns identity per BrowserContext. Omitted only in standalone tests.
+     */
+    popupIdentity?: PopupIdentityRegistry
   ) {
     this.activePage = page;
-    this.popupIdentity = new PopupIdentityRegistry(page);
+    this.rootPage = page;
+    this.popupIdentity = popupIdentity ?? new PopupIdentityRegistry(page);
   }
 
   /** Run an expensive Playwright op under its operation limiter (A6), or directly when none is wired. */
@@ -159,6 +177,7 @@ export class StepExecutor {
    */
   setActivePage(page: Page): void {
     this.activePage = page;
+    this.rootPage = page;
     this.popupIdentity.setMainPage(page);
     this.locatorFactory.setPage(page);
   }
@@ -170,7 +189,7 @@ export class StepExecutor {
    * object, which removes the synthetic key atomically. Nothing else registers pages.
    */
   observePopupPage(page: Page): void {
-    this.popupIdentity.observe(page, { openerAlias: this.aliasForActivePage() });
+    this.popupIdentity.observe(page);
   }
 
   /**
@@ -210,9 +229,14 @@ export class StepExecutor {
       page = this.popupIdentity.tryResolve(alias);
     }
     if (!page) {
+      // The alias is caller-controlled flow content and can echo a token or a registered secret, so
+      // the diagnostic is masked (FR-H1). The message SHAPE is deliberately unchanged — the SRS
+      // calls it user-facing and requires it to stay stable.
       throw new Error(
-        `Popup page "${alias}" is not available. Open pages: [${this.popupIdentity.aliases().join(", ")}]. ` +
-        `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+        this.evidenceMasker.maskText(
+          `Popup page "${alias}" is not available. Open pages: [${this.popupIdentity.aliases().join(", ")}]. ` +
+          `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+        )
       );
     }
     return page;
@@ -1281,6 +1305,16 @@ export class StepExecutor {
     return this.popupIdentity.aliasFor(this.activePage) ?? MAIN_PAGE_ALIAS;
   }
 
+  /**
+   * This executor's own root page, falling back to the active page when the root has been closed.
+   * Used when a popup closes or a `closePopup` step returns focus — a parallel-branch executor must
+   * fall back to ITS branch page, not the run's primary page, now that the identity registry is
+   * shared across the whole browser context.
+   */
+  private rootPageIfLive(): Page {
+    return this.rootPage.isClosed() ? this.activePage : this.rootPage;
+  }
+
   async captureFailureEvidence(step: FlowStep, opts: { attempt: number }): Promise<StepEvidenceRef[]> {
     const attempt = opts.attempt;
     const capturedAt = new Date().toISOString();
@@ -1466,7 +1500,7 @@ export class StepExecutor {
           // Auto-return to main when popup closes (unless configured otherwise).
           if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
             popupPage.once("close", () => {
-              this.activePage = this.popupIdentity.tryResolve(MAIN_PAGE_ALIAS) ?? this.activePage;
+              this.activePage = this.rootPageIfLive();
               this.locatorFactory.setPage(this.activePage);
             });
           }
@@ -1497,7 +1531,7 @@ export class StepExecutor {
         // Auto-return to main when popup closes.
         if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
           popupPage.once("close", () => {
-            this.activePage = this.popupIdentity.tryResolve(MAIN_PAGE_ALIAS) ?? this.activePage;
+            this.activePage = this.rootPageIfLive();
             this.locatorFactory.setPage(this.activePage);
           });
         }
@@ -1539,7 +1573,7 @@ export class StepExecutor {
         }
         this.popupIdentity.release(alias);
         // Return focus to the main page.
-        const mainPage = this.popupIdentity.tryResolve(MAIN_PAGE_ALIAS) ?? this.activePage;
+        const mainPage = this.rootPageIfLive();
         this.activePage = mainPage;
         this.locatorFactory.setPage(mainPage);
         await mainPage.bringToFront().catch(() => undefined);
@@ -1547,7 +1581,7 @@ export class StepExecutor {
       }
 
       case "switchToMainPage": {
-        const mainPage = this.popupIdentity.tryResolve(MAIN_PAGE_ALIAS);
+        const mainPage = this.rootPage.isClosed() ? undefined : this.rootPage;
         if (!mainPage) throw new Error("switchToMainPage: main page is not registered in the page registry.");
         this.activePage = mainPage;
         this.locatorFactory.setPage(mainPage);
