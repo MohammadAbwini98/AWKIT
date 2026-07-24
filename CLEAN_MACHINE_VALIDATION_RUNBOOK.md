@@ -1,5 +1,47 @@
 # Clean-Machine Validation Runbook — SpecterStudio (AWKIT) 0.1.0
 
+## ✅ Owner policy — clean-machine validation is OPTIONAL and NON-BLOCKING (2026-07-24, authoritative)
+
+**Track 4 owner decision.** Clean-machine validation **execution is waived as a mandatory prerequisite
+for release promotion**; it is **optional and non-blocking**. This section is **authoritative** and
+**supersedes** any earlier framing in this runbook that release/promotion *requires* the full runbook
+to be executed on a qualifying machine. It does **not** mark any check below as passed, and it does
+**not** waive the protected release gates.
+
+Canonical policy — the single source of truth is
+[`scripts/lib/clean-machine-validation-policy.ts`](scripts/lib/clean-machine-validation-policy.ts),
+enforced by `npm run verify:clean-machine-policy`:
+
+```text
+Clean-machine validation is optional and non-blocking by owner policy.
+Its execution status remains truthful:
+- not executed remains NOT EXECUTED;
+- successful execution may be recorded as PASSED;
+- failed execution remains FAILED and blocking;
+- an explicit owner waiver is recorded as OWNER WAIVED / NON-BLOCKING.
+
+This policy does not waive checksum, offline-bundle, packaged-startup,
+artifact-integrity, dependency-manifest, or security validation.
+```
+
+Blocking matrix (clean-machine disposition → does it block release promotion?):
+
+| Clean-machine disposition | Blocks release promotion |
+|---|---:|
+| PASSED | No |
+| FAILED | **Yes** |
+| NOT EXECUTED — NON-BLOCKING | No |
+| OWNER WAIVED — NON-BLOCKING | No |
+
+**Current disposition: OWNER WAIVED — NON-BLOCKING** (execution status: **NOT EXECUTED**). Nothing
+below is recorded as passed. The runbook remains **fully usable** as the optional validation
+procedure; **if it is ever executed, a FAIL remains blocking** (see §9). The policy waives *execution*
+as a mandatory prerequisite — it does **not** turn a failed run into a non-blocking result, and it
+does **not** waive checksum, offline-bundle, packaged-startup, artifact-integrity,
+dependency-manifest, or security validation.
+
+---
+
 > ## ⚠ Owner-approved development waiver — 2026-07-23
 >
 > On 2026-07-23, the project owner explicitly waived the portable rebuild, artifact-verification, and
@@ -27,7 +69,9 @@ these constraints, so every result below is currently **Not Executed**.
 **Authoritative status before this runbook is executed:**
 - `Tranche 2: IMPLEMENTED AND VERIFIED ON THE DEVELOPER MACHINE — CLEAN-MACHINE ACCEPTANCE PENDING`
 - `Product promotion: NOT YET APPROVED`
-- `Remaining acceptance gate: clean offline Windows environment validation`
+- `Remaining acceptance gate: clean offline Windows environment validation` — **no longer blocking**
+  as of the 2026-07-24 owner policy above (**OWNER WAIVED — NON-BLOCKING**); execution status is still
+  **NOT EXECUTED**. It stays available here as an optional procedure; a FAIL, if ever executed, blocks.
 
 > **This runbook makes no pass claims.** Every check is a `☐ Not Executed` item until a tester runs
 > it on a qualifying machine and records the outcome in the §12 result template. Do **not** edit this

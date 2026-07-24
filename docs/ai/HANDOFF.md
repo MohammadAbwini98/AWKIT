@@ -1,6 +1,19 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — PR #24 reconstructed off current `main` @ `b416f8c`: Oracle data-source RBAC + hardened live-reauth verifier. PR #27 backend Tranche 0 and PR #33 beads reconciliation are now MERGED.)**
+Last updated: **2026-07-24 (latest — Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
+
+> **Track 4 (2026-07-24) — clean-machine validation is optional and non-blocking by owner policy.**
+> Owner decision: clean-machine validation **execution is waived as a mandatory release-promotion
+> prerequisite** — it is **optional and non-blocking**. Execution status stays truthful (still **NOT
+> EXECUTED**; nothing recorded as passed); a **failed** run, if ever executed, **remains blocking**.
+> The gate was documentation-enforced (no code/CI resolver). Canonical source:
+> `scripts/lib/clean-machine-validation-policy.ts`, enforced by `npm run verify:clean-machine-policy`
+> (class documentation-consistency; verifier total 107 → 108). **Protected gates unchanged and still
+> mandatory:** checksum, offline-bundle, packaged-startup, artifact-integrity, dependency-manifest,
+> security. **No `.beads` change; no `bd` run.** Historical NOT EXECUTED evidence left intact. See the
+> authoritative banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` and the top of `CURRENT_STATE.md`.
+
+Last updated: **2026-07-24 (PR #24 reconstructed off current `main` @ `b416f8c`: Oracle data-source RBAC + hardened live-reauth verifier. PR #27 backend Tranche 0 and PR #33 beads reconciliation are now MERGED.)**
 
 > **Read this block first — canonical current state (2026-07-24, PR #24 reconstruction).** Authoritative
 > repo/PR state; supersedes the dated blocks below. Since the prior block was written, **PR #27** (backend

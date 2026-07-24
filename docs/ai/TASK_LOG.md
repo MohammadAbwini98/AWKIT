@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — Track 4: clean-machine validation policy made optional and non-blocking
+
+- **Task:** remove only the clean-machine validation gate's ability to block release promotion, while
+  keeping execution status truthful (PASSED / FAILED / NOT_EXECUTED / OWNER_WAIVED) and without weakening
+  any other release gate or rewriting historical evidence.
+- **Phase 1 finding:** the gate was **documentation-enforced, not code-enforced**. No release/promotion
+  resolver exists in `src/` (all `promote*` symbols are workflow-instance/branch-pair logic); CI runs only
+  typecheck + build; the `clean-machine-acceptance` verifier class has no npm script. So the fix is a single
+  canonical policy source + a documentation-consistency verifier, not the removal of a runtime gate.
+- **Branch / worktree:** `policy/clean-machine-validation-non-blocking`, isolated worktree off `origin/main`
+  (`dde6703`) with an independent `npm ci` (no shared `node_modules` junction).
+- **Added:** `scripts/lib/clean-machine-validation-policy.ts` — canonical policy: 4-status model +
+  separated execution/policy/blocking, `resolveCleanMachineGate` blocking matrix (failed → BLOCKING;
+  passed/not-executed/owner-waived → non-blocking), fail-safe throw on unknown/malformed state, canonical
+  wording constant, protected-gate list, dated owner decision, truthful report renderer.
+- **Added:** `scripts/verify-clean-machine-policy.mts` (`verify:clean-machine-policy`) — 10 proofs
+  (matrix, fail-safe, never-rendered-as-passed, docs carry the policy, protected gates mandatory, historical
+  evidence unchanged, no false PASSED claim, runbook still present). Registered in
+  `scripts/lib/verifier-classification.ts` as **documentation-consistency** + `package.json`.
+- **Docs:** authoritative policy banner atop `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` (supersedes the
+  “requires execution” framing; runbook stays usable; a FAIL still blocks), new top section in
+  `CURRENT_STATE.md`, `HANDOFF.md` note, this entry. Historical NOT EXECUTED rows/banners left intact.
+- **Tests:** `npm run build`, `verify:clean-machine-policy`, `verify:verifier-classification` (total
+  107 → 108, documentation-consistency 0 → 1), plus protected-gate spot checks (`verify:security`,
+  `verify:ipc-contract`, `verify:oracle-offline-bundle`). Results recorded in the PR.
+- **Boundaries honored:** no `.beads` change, no `bd`/`bd dolt push`, no historical rewrite, no protected
+  gate weakened, `backup/pr24-pre-reconstruction` and archived `a1adcc2` refs untouched.
+
+---
+
 ## 2026-07-24 — PR #24 reconstructed: Oracle data-source RBAC + hardened live-reauth verifier
 
 - **Task:** reconstruct the stale PR #24 (disposition NEEDS FIX) off current `main` (`b416f8c`), bringing
