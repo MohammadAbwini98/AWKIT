@@ -4,10 +4,11 @@
  * Verifier class: **Unit test** (no browser, no I/O; drives the real production method with a stub).
  *
  * What realistic regression would make this test fail?
- *   Reverting `FlowExecutor.executeWithRetry`'s failure-screenshot gate to the hardcoded `?? true`
- *   (the awkit-5yx defect), so the resolved artifact-profile default is ignored again. This test
- *   drives the REAL `FlowExecutor.executeWithRetry` with a stub `StepExecutor` and asserts the
- *   three-tier precedence:
+ *   Reverting `FlowExecutor.executeWithRetry`'s failure-evidence gate to the hardcoded `?? true`
+ *   (the awkit-5yx defect), so the resolved artifact-profile default is ignored again. Since FR-B2
+ *   the gate governs the per-attempt evidence capture (`captureFailureEvidence`); this test drives
+ *   the REAL `FlowExecutor.executeWithRetry` with a stub `StepExecutor` and asserts the three-tier
+ *   precedence:
  *
  *     explicit per-step override (step.onFailure.screenshot)
  *       → artifact-profile default (FlowExecutor's screenshotOnFailureDefault ctor arg)
@@ -21,7 +22,7 @@
  */
 import { FlowExecutor } from "@src/runner/FlowExecutor";
 import type { StepExecutor } from "@src/runner/StepExecutor";
-import type { StepExecutionResult } from "@src/runner/RunnerResult";
+import type { StepEvidenceRef, StepExecutionResult } from "@src/runner/RunnerResult";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 
 let passed = 0;
@@ -53,9 +54,10 @@ async function captureCountFor(profileDefault: boolean, override: boolean | unde
     async execute(step: FlowStep): Promise<StepExecutionResult> {
       return failingResult(step.id);
     },
-    async captureFailureScreenshot(_step: FlowStep): Promise<string> {
+    // FR-B2: the gate now governs the per-attempt evidence capture. One capture = one screenshot ref.
+    async captureFailureEvidence(_step: FlowStep, opts: { attempt: number }): Promise<StepEvidenceRef[]> {
       captured += 1;
-      return "/artifacts/failure.png";
+      return [{ kind: "screenshot", path: "/artifacts/failure.png", attempt: opts.attempt, pageId: "main", capturedAt: new Date().toISOString() }];
     }
   } as unknown as StepExecutor;
 

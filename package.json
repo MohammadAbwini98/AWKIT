@@ -53,6 +53,7 @@
     "verify:canvas-layout": "tsx scripts/verify-canvas-layout.mts",
     "verify:branch-pairs": "tsx scripts/verify-branch-pairs.mts",
     "verify:failure-screenshot-precedence": "tsx scripts/verify-failure-screenshot-precedence.mts",
+    "verify:failure-evidence": "tsx scripts/verify-failure-evidence.mts",
     "verify:verifier-classification": "tsx scripts/verify-verifier-classification.mts",
     "verify:clean-machine-policy": "tsx scripts/verify-clean-machine-policy.mts",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",

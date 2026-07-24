@@ -116,6 +116,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:branch-pairs": { class: "unit", why: "Pure branch-pair reconciliation over the real shared module." },
   "verify:accent-theme": { class: "unit", why: "Pure accent-color model: hex normalize/migrate, light/dark token derivation, WCAG foreground pick, gradient stops. No fs/browser." },
   "verify:failure-screenshot-precedence": { class: "unit", why: "Pure precedence check over the real FlowExecutor gate (stub StepExecutor)." },
+  "verify:failure-evidence": { class: "unit", why: "Per-attempt failure-evidence ordering/accumulation (FR-B2) over the real FlowExecutor.executeWithRetry with a stub StepExecutor; no browser." },
   "verify:avatar": { class: "unit", why: "Pure initials/palette derivation." },
   "verify:licensing": { class: "unit", why: "Pure licensing domain + RBAC (no packaged app)." },
   "verify:write-queue": { class: "unit", why: "Deterministic serial write-queue logic." },
