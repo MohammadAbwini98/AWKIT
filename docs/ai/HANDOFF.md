@@ -1,8 +1,94 @@
 # Agent Handoff
 
-Last updated: **2026-07-23 (latest — three-branch feature recovery MERGED to `main` @ `0777682`; accent / HTTPS / custom brand logo)**
+Last updated: **2026-07-24 (latest — PR #27 backend Tranche 0 rebased onto `main` @ `9960633`, new remote tip `455dc04`; still OPEN + DRAFT)**
 
-> **Read this block first.** The previous agent decomposed the mixed commit `a1adcc2` ("branding, accent
+> **Read this block first — canonical current state (2026-07-24).** This is the authoritative
+> repository / PR / branch state and supersedes every dated block below for that purpose. It records the
+> **PR #27 rebase only** — no code, feature, or release state changed. The three-branch recovery block that
+> follows is retained as prior context.
+
+### Canonical repository state
+
+- **`main` is at `9960633`.**
+- The recovered **accent**, **HTTPS certificate-trust**, **custom-logo**, and **recovery-documentation**
+  work is all **merged**.
+- The three-feature recovery is **complete**.
+
+### PR #27 — `fix/backend-observability-tranche-0` (backend Tranche 0)
+
+- PR #27 is **still OPEN and DRAFT**.
+- Its remote branch was **rebased from `85df851` onto `main` `9960633`**; new remote tip **`455dc04`**.
+- It contains **exactly four rebased commits**.
+- It is **MERGEABLE — no remaining conflicts**.
+- **Implementation review passed:**
+  - `screenshotOnFailure` precedence is correct,
+  - execution-completed-cleanup is correct,
+  - the verifier taxonomy is functioning as intended.
+- **The classification registry now classifies 106 verifiers:**
+  - 43 unit
+  - 35 real-browser
+  - 21 integration
+  - 4 static-source-validation
+  - 3 packaged-application
+  - 0 documentation-consistency
+  - 0 clean-machine-acceptance
+- **Required verification passed:** build · failure-screenshot-precedence 6/6 · runner 84/84 ·
+  verifier-classification reconciled 106 · branch-pairs 31/31 · accent-theme 71/71 · accent-gui 33/33 ·
+  https-certificates 49/49 · https-certificates-gui 31/31 · custom-brand-logo 31/31 · branding 47/47 ·
+  branding-gui 30/30 · settings-persistence 3/3 · ipc-contract 4/4.
+- PR #27 **has NOT been merged** and **must remain DRAFT until separately authorized.**
+- **Tranche 1 has NOT started.**
+- The production **screenshot-profile value remains unchanged.**
+
+### ⚠️ Frozen backend worktree warning
+
+- The existing backend worktree remains **locally at `85df851`**.
+- Its branch was **force-updated remotely to `455dc04`** — the local worktree is intentionally **behind** the
+  remote branch.
+- It carries the **frozen `.beads/issues.jsonl` modification**.
+- **Do NOT run `git pull`, `git reset`, rebase, checkout, restore, stash, or branch reconciliation there.**
+- **Do NOT attempt to align that worktree with the remote branch** until Beads reconciliation is separately
+  authorized.
+- Any future PR #27 review or modification **must use a new isolated worktree from
+  `origin/fix/backend-observability-tranche-0`** — never the frozen local worktree.
+
+### Beads
+
+- `.beads/issues.jsonl` remains **frozen**.
+- **Do NOT commit, restore, splice, export, or synchronize it.**
+- **Do NOT run any `bd` command.** **Do NOT run `bd dolt push`.**
+- `awkit-5yx` and `awkit-oei` remain **open by design**.
+
+### Other tracks
+
+- **PR #24 remains separate and untouched.**
+- **No Tranche 1 work is authorized.**
+- Archived recovery references remain **retained at `a1adcc2`**:
+  - `chore/brand-logo-5b`
+  - `backup/chore-brand-logo-5b`
+  - `archive/chore-brand-logo-5b-pre-recovery`
+- **Do NOT delete those references before a validated packaged release.**
+
+### Release status
+
+**Development integration does NOT equal product promotion.** Still **NOT EXECUTED / NOT PASSED:**
+
+- portable rebuild,
+- portable / NSIS artifact verification,
+- clean-machine offline validation,
+- release promotion.
+
+### Worktree safety note (Windows junction hazard)
+
+- **Never** remove a worktree containing a `node_modules` junction using `git worktree remove --force`.
+- Unlink shared junctions first, or use an independent `npm ci`.
+- A prior forced removal **deleted the shared `node_modules` target**; it was **restored**.
+- The current `main` `node_modules` is **intact**.
+
+---
+
+> **Prior context — three-branch feature recovery (still accurate as history).** The previous agent
+> decomposed the mixed commit `a1adcc2` ("branding, accent
 > theme, and HTTPS certificate trust", on `chore/brand-logo-5b`) into **three independent feature
 > branches off `main` @ `32e378e`**, each verified and opened as its own PR — then, after a full pre-merge
 > review + combined integration validation, **merged all three to `main`** (order #28 → #30 → #29).
