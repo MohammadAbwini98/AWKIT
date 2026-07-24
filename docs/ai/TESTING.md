@@ -148,6 +148,7 @@ npm run verify:locks           # profile-lock lifecycle incl. failed-launch rele
 npm run verify:browser-pool    # slot caps, release paths, crash tracking (fake runtimes)
 npm run verify:watchdog        # stale/orphan detection, manual-handoff safety, snapshot
 npm run verify:artifacts       # JSONL logs, failure traces + screenshots, state files (live Chromium)
+npm run verify:failure-evidence # FR-B2: per-attempt failure evidence ordering/accumulation (unit)
 npm run verify:runtime-status  # dispatch claims, lock/capacity snapshots, status API shape
 npm run verify:durable-store   # SQLite runtime store: migrations, persistence across restart
 npm run verify:durable-locks   # cross-process durable locks (spawns a real second process)

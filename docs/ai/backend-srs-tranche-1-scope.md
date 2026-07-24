@@ -1,0 +1,87 @@
+# Backend SRS — Tranche 1 scope (FR-B2, Immediate failure evidence)
+
+**Date:** 2026-07-24 · **Branch:** `feature/backend-srs-tranche-1` · **Base:** `origin/main` `88c76ed`
+
+**Authoritative SRS:** `SRS-BAO-001` — *Browser-Automation Observability, Evidence, and Safety
+Boundary*. The full document lives on the planning branch `docs/browser-automation-srs`
+(`37dc67c`); it is referenced as authoritative by `scripts/lib/verifier-classification.ts` on `main`
+(FR-I1 = Tranche 0). This tranche does **not** modify that planning branch; it records
+implementation status here on `main` and reproduces the requirement's acceptance criteria below.
+
+## Requirement traceability matrix (verified against current code, not trackers)
+
+| SRS Rec | FR | Title | Tranche | Verified current state (code) | Decision |
+|---|---|---|---|---|---|
+| 15 | **FR-B2** | Immediate failure evidence | 1 | **Partial — ordering defect.** `FlowExecutor.executeWithRetry` (`src/runner/FlowExecutor.ts:455-457`) captures the failure screenshot **after** the retry loop, only for `lastResult`, only when `!lastResult.screenshotPath`. Intermediate failing attempts get no evidence; a retry that navigates destroys the broken state first. Only a single screenshot is captured (no DOM/a11y). | **SELECTED** |
+| 3 | FR-B1 | Addressable run-session artifact | 1 | Partial. Artifacts are written under `screenshots/<executionId>/<instanceId>/<flowId>/…` via `ScreenshotService`/`TraceService`; there is no `runId`-rooted self-describing `manifest.json` layout. | **DEFERRED** — requires the `InstanceRuntimePaths` run-root migration that "breaks all four consumers at once" (SRS FR-B1 change-deps) and B1.5 retention/purge is an unresolved open question (SRS §10.3). Broad structural change + undecided policy → out of a minimal Tranche 1. |
+| 20 | FR-A4 | Detail-tiered observability | 5 | Partial. `screenshotOnFailure` precedence wired in Tranche 0 (awkit-5yx); AC-3 (`production` actually suppresses failure screenshots) contradicts `ArtifactProfile.ts` and needs an owner decision. | Out of scope (Tranche 5; unresolved decision). |
+| 8 | FR-C1/C2 | Stable page/frame identity | 2 | Partial (**defect** awkit-ebh). | Out of scope (Tranche 2). |
+| — | FR-A2 | Unified execution timeline (console/network events) | 5 | Absent. Needs the CDP/observation substrate (FR-A1), blocked on SRS §10 open question A-1. | Owns "console tail" + "in-flight network state" — see deferral note below. |
+
+## Selected scope — FR-B2 (Immediate failure evidence capture)
+
+**Requirement.** Capture failure evidence **at the moment of each failing attempt**, before any
+retry, recovery, or navigation destroys the broken state; per-attempt; never masking the original
+automation error.
+
+**Acceptance criteria (from SRS-BAO-001 §3.2):**
+
+- **B2.1** Evidence is captured inside the failing attempt's scope, not after the retry loop.
+- **B2.2** Each retry attempt produces its own evidence set; attempt *n* is never overwritten by *n+1*.
+- **B2.3** Evidence filenames encode run identifier, `flowId`, `stepId`, `pageId`, `attemptId`, timestamp.
+- **B2.4** Each failed attempt preserves all of: original exception (primary, never replaced);
+  attempt-specific evidence; trace chunk (existing `TraceService.endStep`); retry decision.
+- **B2.5** Evidence-capture failure is appended as a **secondary diagnostic** and never replaces,
+  masks, or reorders the original automation error.
+- **B2.6** Capture is bounded — a hung page must not block the failure path indefinitely.
+
+**Implemented evidence set (point-in-time page state):** screenshot + DOM HTML snapshot +
+accessibility (aria) snapshot + page meta (URL/title). All secret-masked via `SecretMasker`; each
+capture individually guarded and time-bounded.
+
+**Explicitly deferred (documented, not silent):**
+- **Console tail** and **in-flight network state** → **FR-A2 (WS-A unified execution timeline,
+  Tranche 5).** These are event-stream evidence that require the observation substrate FR-A1/A2
+  introduces (blocked on SRS §10 open question A-1). Point-in-time page state is captured now;
+  event streams belong to the timeline work.
+- **FR-B1 run-root + `manifest.json`** and durable-store surfacing of the per-attempt `evidence[]`
+  (a SQLite schema migration) → their own tranche. This tranche writes evidence files to disk with
+  encoded names and returns `evidence[]` on the in-memory result + a masked structured log line; it
+  adds **no** schema migration.
+
+## Affected modules
+
+- `src/runner/RunnerResult.ts` — add `StepEvidenceRef` + `evidence?: StepEvidenceRef[]` to `StepExecutionResult`.
+- `src/runner/StepExecutor.ts` — add `captureFailureEvidence(step, { attempt })` (screenshot + DOM +
+  a11y + meta, bounded, masked, encoded names); keep `captureFailureScreenshot` (used by two verifiers).
+- `src/runner/FlowExecutor.ts` — move capture into `executeWithRetry`'s loop, per failing attempt,
+  before the retry decision; accumulate `evidence[]`; keep `screenshotPath` = last capture; remove the
+  after-loop block. Precedence gate (`step.onFailure?.screenshot ?? screenshotOnFailureDefault`) preserved.
+
+## Security impact
+
+- Every evidence body (DOM/a11y/meta) passes `SecretMasker` before it is written. No new IPC channel,
+  no new permission surface, no new environment variable. Protected-login/handoff behaviour unchanged.
+- Original automation error is always the primary cause (B2.5); a capture failure cannot leak or
+  mask it.
+
+## Persistence / migration impact
+
+- **None.** No SQLite schema change. `screenshotPath` continues to flow to `NodeAttempt`/durable store
+  unchanged. Evidence files land under the existing `%LOCALAPPDATA%`-rooted screenshots path
+  (`…/<flowId>/evidence/`); durable-store surfacing of `evidence[]` is a documented follow-up.
+
+## Expected verifiers
+
+- `verify:failure-evidence` (**new, unit**) — drives the real `FlowExecutor.executeWithRetry` with a
+  stub `StepExecutor`; proves B2.1/B2.2/B2.4/B2.5/precedence/`screenshotPath` back-compat deterministically.
+- `verify:failure-screenshot-precedence` (**updated**) — adapted to the evidence path; awkit-5yx
+  precedence coverage preserved.
+- `verify:runner` (**regression, real Chromium**) — exercises the live capture path on failing steps.
+- Registered in `scripts/lib/verifier-classification.ts` (verifier total 108 → **109**).
+
+## Exclusions
+
+No UI redesign, no packaging work, no Oracle changes, no broad refactor, no Tranche 0 rework, no
+`.beads` mutation, no release-artifact rebuild, no release promotion. Clean-machine policy remains
+owner-waived / non-blocking; protected release gates remain mandatory.

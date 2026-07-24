@@ -1,6 +1,47 @@
 # CURRENT_STATE
 
-## Track 4 — clean-machine validation is optional and non-blocking (2026-07-24, latest)
+## Backend SRS Tranche 1 — FR-B2 immediate failure evidence (2026-07-24, latest) — PR open, NOT merged
+
+Implemented **SRS-BAO-001 FR-B2 (Immediate failure evidence capture)** — the highest-value item in
+WS-B and a confirmed **ordering defect**. Branch `feature/backend-srs-tranche-1` off `main` `88c76ed`;
+**PR open as draft, not merged.**
+
+- **The defect:** `FlowExecutor.executeWithRetry` captured the failure screenshot **after** the retry
+  loop, only for `lastResult` — so intermediate failing attempts got no evidence and a retry that
+  navigated destroyed the broken state before capture, and only a single screenshot (no DOM/a11y) was
+  taken.
+- **The fix:** capture moved **into the retry loop**, per failing attempt, **before** the retry
+  decision and any navigation (B2.1). New `StepExecutor.captureFailureEvidence(step, { attempt })`
+  captures **screenshot + DOM HTML + accessibility (aria) snapshot + page meta (URL/title)**, each
+  **secret-masked** (FR-H1), each **individually bounded** (5 s) so a hung page can't block the
+  failure path (B2.6). Evidence is **accumulated per attempt, never overwritten** (B2.2), filenames
+  encode `stepId`/`attempt`/`pageId`/timestamp (B2.3). The **original automation error stays the
+  primary cause**; a capture that fails is appended as a **secondary-diagnostic note**, never masking
+  the error and never throwing (B2.4/B2.5). `screenshotPath` stays populated with the last capture
+  (reports back-compat). New `StepEvidenceRef` + `evidence?: StepEvidenceRef[]` on `StepExecutionResult`.
+- **Deferred (documented, not silent):** **console tail + in-flight network state** → **FR-A2 (WS-A
+  execution timeline, Tranche 5)** — event-stream evidence needing the observation substrate.
+  **FR-B1 addressable run-root + `manifest.json`** and durable-store surfacing of `evidence[]` (a
+  SQLite migration) → their own tranche (FR-B1's run-root migration is broad and its retention policy
+  is SRS §10.3 open). **No schema migration in this tranche.**
+- **Files:** `src/runner/RunnerResult.ts`, `src/runner/StepExecutor.ts`, `src/runner/FlowExecutor.ts`;
+  tests `scripts/verify-failure-evidence.mts` (new) + `scripts/verify-failure-screenshot-precedence.mts`
+  (adapted to the evidence path; awkit-5yx precedence preserved); registered in
+  `scripts/lib/verifier-classification.ts` + `package.json`. Scope: `docs/ai/backend-srs-tranche-1-scope.md`.
+- **Verification (isolated `npm ci`):** build + typecheck clean · **`verify:failure-evidence` 15/15**
+  (new, unit) · `verify:failure-screenshot-precedence` 6/6 · **`verify:runner` 84/84** (real Chromium,
+  live capture path) · `verify:artifacts` 13/13 · `verify:verifier-classification` **reconciled 109**
+  (unit 43 → 44) · protected gates unchanged (`verify:security` 39 · `verify:ipc-contract` 4 ·
+  `verify:auth` 49 · `verify:authz` 40) · `verify:clean-machine-policy` 28/28.
+- **No `.beads` change; no `bd` run; no release promotion.** Clean-machine policy remains
+  owner-waived / non-blocking; protected release gates remain mandatory. Recommended follow-up: a
+  dedicated real-browser verifier asserting the evidence **files** are written with encoded names +
+  masking (the unit verifier proves the ordering/accumulation contract; `verify:runner` exercises the
+  live path).
+
+---
+
+## Track 4 — clean-machine validation is optional and non-blocking (2026-07-24)
 
 **Owner policy (Track 4).** Clean-machine validation **execution is optional and non-blocking** for
 release promotion, by explicit owner decision on **2026-07-24**. Execution status stays truthful: it

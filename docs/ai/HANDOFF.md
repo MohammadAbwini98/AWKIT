@@ -1,6 +1,21 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
+Last updated: **2026-07-24 (latest — Backend SRS Tranche 1: FR-B2 immediate failure evidence. PR open, NOT merged. Prior: Track 4 clean-machine policy.)**
+
+> **Backend SRS Tranche 1 (2026-07-24) — FR-B2 immediate failure evidence. PR OPEN as draft, NOT
+> merged.** Branch `feature/backend-srs-tranche-1` off `main` `88c76ed`. Implements SRS-BAO-001 FR-B2
+> (the WS-B ordering defect): failure evidence now captured **per failing attempt inside the retry
+> loop, before any retry/navigation** (was: once, after the loop) — screenshot + DOM + a11y + meta,
+> secret-masked, bounded, accumulated per attempt; original error stays primary; capture failure is a
+> secondary diagnostic. New `StepExecutor.captureFailureEvidence` + `StepEvidenceRef`/`evidence[]` on
+> `StepExecutionResult`. **No schema migration.** New `verify:failure-evidence` (unit, 15/15); verifier
+> total 108 → **109**. **Deferred (documented):** console-tail + in-flight network state → FR-A2
+> (Tranche 5); FR-B1 run-root + `manifest.json` + durable `evidence[]` surfacing → own tranche. **No
+> `.beads` change; no `bd` run; no release promotion.** Full authoritative SRS lives on the planning
+> branch `docs/browser-automation-srs` (`37dc67c`) — unchanged. Scope + matrix:
+> `docs/ai/backend-srs-tranche-1-scope.md`. **Do not merge the PR without review.**
+
+Last updated: **2026-07-24 (Track 4: clean-machine validation policy is now optional and non-blocking. Prior top block: PR #24 reconstruction.)**
 
 > **Track 4 (2026-07-24) — clean-machine validation is optional and non-blocking by owner policy.**
 > Owner decision: clean-machine validation **execution is waived as a mandatory release-promotion
