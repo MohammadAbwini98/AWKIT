@@ -58,6 +58,14 @@ remain structural and legacy workflows remain compatible.
   seeded-samples check now asserts empty states after the bd `awkit-64x` fix). Coverage matrix +
   reports: `docs/testing/E2E_{COVERAGE_MATRIX,EXECUTION_REPORT,DEFECTS}.md`; evidence:
   `test-artifacts/2026-07-19-e2e-qa/`.
+- **`verify:e2e-reauth` (2026-07-24, bd `awkit-2d8`)** — a dedicated real-Electron launch (own isolated
+  profile, short `AWKIT_REAUTH_WINDOW_MS`) driving the **live ReauthDialog**: a sensitive Super-User create
+  after the window lapses pops the dialog and holds the action; **cancel** drops the held create; a **wrong
+  password** keeps the dialog open with an error, applies nothing, and writes **no** `USER_CREATE` success
+  audit; the **correct password** applies the held create **exactly once** (no duplicate/replay). Exactly-once /
+  no-replay / no-wrong-password-success are proven by baseline-delta `USER_CREATE(success)` audit counts +
+  the admin user list (not UI text), and it asserts no password reaches console or audit. Class **real-browser**
+  (**19/19**). Kept separate from `verify:e2e-rbac` so a globally-short window never destabilises seeding.
 - `scripts/verify-session-context.mts` (`npm run verify:session-context`) — domain-level checks for the
   main-owned sender→session registry backing bd `awkit-b92`: bind/unbind lifecycle, window-destroyed
   auto-unbind, and `assertSenderPermission` failing closed (`NOT_AUTHORIZED`) for unbound windows. **11/11**.

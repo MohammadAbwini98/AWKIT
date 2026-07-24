@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-24 — PR #24 reconstructed: Oracle data-source RBAC + hardened live-reauth verifier
+
+- **Task:** reconstruct the stale PR #24 (disposition NEEDS FIX) off current `main` (`b416f8c`), bringing
+  `main` into alignment with the already-closed beads `awkit-b3w` + `awkit-2d8`, with **no** `.beads`/`bd`
+  mutation.
+- **Branch:** `reconstruct/pr24-oracle-authz-reauth` (off `main`); old tip `ec19bda` preserved as
+  `backup/pr24-pre-reconstruction` (local + remote). Not a conventional rebase — the old branch carried stale
+  `.beads`/docs churn and predated the verifier taxonomy.
+- **Code:** `oracle:dataSources:save`/`delete`/`refreshSnapshot` now `assertSenderPermission(event,
+  Permission.DATASOURCE_MANAGE)` before service lookup/existence/secrets (trusted-sender preserved inside);
+  other Oracle channels unchanged. `verify:e2e-rbac` +2 Viewer Oracle-denial checks (49 → 51). New hardened
+  `verify:e2e-reauth` (real-Electron, **19/19**: cancel, exactly-once, no-wrong-password-success-audit,
+  no-replay, no-credential-leak) + alias + **`real-browser`** taxonomy entry (registry **107** / real-browser 36).
+- **Docs:** COMMANDS / TESTING / E2E_DEFECTS / spec-step-10 + this state/handoff/log refreshed; **no** stale
+  `.beads` or old AI-state content ported.
+- **Files:** `app/main/ipc/oracle.ipc.ts`, `scripts/verify-e2e-rbac-gui.mjs`, `scripts/verify-e2e-reauth-gui.mjs`
+  (new), `scripts/lib/verifier-classification.ts`, `package.json`, `docs/ai/{COMMANDS,TESTING,CURRENT_STATE,
+  HANDOFF,TASK_LOG}.md`, `docs/testing/E2E_DEFECTS.md`, `specs/e2e/E2E-RBAC.md`. **No `.beads` files.**
+- **Tests:** build ✓; e2e-rbac 51/51; e2e-reauth 19/19; ipc-contract 4/4; security 39/39; auth 49/49; auth-gui
+  18/18; authz 40/40; verifier-classification 107. `verify:oracle-drivers-gui` 25/30 — five Oracle
+  bridge/Java/ojdbc checks environmental/inconclusive (bridge runtime unavailable in this build), non-blocking;
+  no global waiver.
+- **Boundaries:** no `bd`, no `bd dolt push`, no `.beads` change; `main` not edited directly; archived `a1adcc2`
+  refs untouched.
+
+---
+
 ## 2026-07-23 (latest) — Three-branch recovery: pre-merge review + merge to `main`
 
 - **Task:** full pre-merge review + combined integration validation of the three recovered feature PRs

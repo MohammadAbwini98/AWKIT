@@ -92,5 +92,16 @@ end). Evidence lives under `test-artifacts/2026-07-19-e2e-qa/`.
   `app/renderer/layout/StatusBar.tsx`.
 - **OBS-002 — ReauthDialog reauth-window override — FIXED (2026-07-19):** added `AWKIT_REAUTH_WINDOW_MS`
   (dev/test only, mirrors `AWKIT_SESSION_IDLE_MS`) — `SecurityKernelOptions.reauthWindowMs` threaded
-  into `AuthorizationService`. The reauth contract stays covered by `verify:authz` (40/40); automating
-  the live GUI dialog is tracked as bd `awkit-2d8`.
+  into `AuthorizationService`. The reauth contract stays covered by `verify:authz` (40/40).
+- **awkit-2d8 — live ReauthDialog GUI automation — DONE (2026-07-24):** `verify:e2e-reauth` (**19/19**,
+  real-Electron) drives the live dialog: **cancel** drops the held create; a **wrong** password keeps the
+  dialog open with an error, applies nothing, and writes **no** `USER_CREATE` success audit; the **correct**
+  password applies the held create **exactly once** (no replay). No password reaches console or audit.
+- **awkit-b3w — Oracle data-source IPC authorization — DONE (2026-07-24):** `oracle:dataSources:save`/
+  `delete`/`refreshSnapshot` now call `assertSenderPermission(event, Permission.DATASOURCE_MANAGE)` **before**
+  any service lookup, existence check, or secret access — matching the JSON `dataSources:*` surface and the
+  `DataSourceManager` UI gate. A Viewer's direct preload call is `NOT_AUTHORIZED`, proven by two new
+  `verify:e2e-rbac` checks (**49 → 51**).
+- **Beads note:** `awkit-b3w` and `awkit-2d8` were **closed in the tracked Beads export before their code
+  reached `main`**; this work brings `main` into alignment with those already-closed records. **No Beads
+  mutation is part of this change.**

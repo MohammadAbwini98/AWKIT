@@ -1,6 +1,37 @@
 # Agent Handoff
 
-Last updated: **2026-07-24 (latest — PR #27 backend Tranche 0 rebased onto `main` @ `9960633`, new remote tip `455dc04`; still OPEN + DRAFT)**
+Last updated: **2026-07-24 (latest — PR #24 reconstructed off current `main` @ `b416f8c`: Oracle data-source RBAC + hardened live-reauth verifier. PR #27 backend Tranche 0 and PR #33 beads reconciliation are now MERGED.)**
+
+> **Read this block first — canonical current state (2026-07-24, PR #24 reconstruction).** Authoritative
+> repo/PR state; supersedes the dated blocks below. Since the prior block was written, **PR #27** (backend
+> Tranche 0) and **PR #33** (beads reconciliation) have **merged** — `main` is at **`b416f8c`**, and its
+> tracked `.beads/issues.jsonl` holds **93 records** with `awkit-5yx`/`awkit-oei` closed.
+
+### PR #24 — Oracle IPC authorization + live reauth verification (reconstructed)
+
+- **Reconstructed off current `main` (`b416f8c`)** on `reconstruct/pr24-oracle-authz-reauth`. The stale old
+  branch tip `ec19bda` is preserved as **`backup/pr24-pre-reconstruction`** (local + remote). The old branch is
+  **not** conventionally rebased — it carried stale `.beads`/docs churn and predated the verifier taxonomy.
+- **Oracle data-source mutators require `DATASOURCE_MANAGE`.** `oracle:dataSources:save`/`delete`/
+  `refreshSnapshot` call `assertSenderPermission(event, Permission.DATASOURCE_MANAGE)` **before** any service
+  lookup, existence check, secret access, or Oracle work (the trusted-sender guarantee is preserved *inside*
+  `assertSenderPermission`). Oracle driver / Java-runtime / bridge / packaged-mode / Settings channels are
+  **unchanged**. A Viewer's direct preload call is `NOT_AUTHORIZED` (`verify:e2e-rbac` 49 → 51).
+- **`verify:e2e-reauth` is a real-Electron verifier** (taxonomy class `real-browser`; registry now **107**
+  total / **36** real-browser). It drives the live ReauthDialog: **cancel** drops the held create; a **wrong**
+  password applies nothing and writes **no** `USER_CREATE` success audit; the **correct** password applies it
+  **exactly once** (no replay); no credential reaches console/audit. **19/19**.
+- **Beads:** `awkit-b3w` and `awkit-2d8` were **closed in the tracked export before their code reached `main`**;
+  this PR brings `main` into alignment with those already-closed records. **No `.beads` change is part of this
+  PR**, and no `bd` command / `bd dolt push` was run.
+- **Verification (isolated `npm ci` off `b416f8c`):** build ✓ · `e2e-rbac` **51/51** · `e2e-reauth` **19/19** ·
+  `ipc-contract` **4/4** · `security` **39/39** · `auth` **49/49** · `auth-gui` **18/18** · `authz` **40/40** ·
+  `verifier-classification` **107** (real-browser 36). `verify:oracle-drivers-gui` **25/30** — the five Oracle
+  **bridge/Java/ojdbc** checks remain **environmental/inconclusive** (the Oracle bridge runtime is not built in
+  this worktree; `build:oracle-bridge` + a configured Java runtime + ojdbc bundle are required) and do **not**
+  gate this PR; **no global waiver** was created.
+
+---
 
 > **Read this block first — canonical current state (2026-07-24).** This is the authoritative
 > repository / PR / branch state and supersedes every dated block below for that purpose. It records the

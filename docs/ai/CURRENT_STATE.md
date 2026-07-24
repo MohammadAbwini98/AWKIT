@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## PR #24 reconstructed — Oracle data-source RBAC + live reauth verification (2026-07-24, latest)
+
+Reconstructed off current `main` (`b416f8c`, which now includes the merged **PR #27** backend Tranche 0 and
+**PR #33** beads reconciliation — tracked `.beads/issues.jsonl` = 93 records, `awkit-5yx`/`awkit-oei` closed).
+Old branch tip `ec19bda` preserved as `backup/pr24-pre-reconstruction`.
+
+- **Oracle data-source IPC authorization (awkit-b3w).** `app/main/ipc/oracle.ipc.ts`
+  `oracle:dataSources:save`/`delete`/`refreshSnapshot` require `assertSenderPermission(event,
+  Permission.DATASOURCE_MANAGE)`, asserted **before** any service lookup, existence check, or secret access
+  (matching the JSON `dataSources:*` surface; the trusted-sender check is preserved inside
+  `assertSenderPermission`). Oracle driver / Java / bridge / packaged-mode / Settings channels are unchanged.
+  Viewer direct-preload denial is proven by `verify:e2e-rbac` (**49 → 51**).
+- **Live ReauthDialog verifier (awkit-2d8).** New `scripts/verify-e2e-reauth-gui.mjs` + `verify:e2e-reauth`
+  alias (real-Electron), classified **`real-browser`** in the verifier registry (**107** total / **36**
+  real-browser). Proves: cancel drops the held create; a wrong password applies nothing and writes **no**
+  `USER_CREATE` success audit; the correct password applies it **exactly once** (no replay); no credential
+  reaches console/audit. **19/19**.
+- **Beads:** `awkit-b3w`/`awkit-2d8` were closed in the tracked export **before** their code reached `main`;
+  this work aligns `main` with those already-closed records. **No `.beads` change; no `bd` run; no
+  `bd dolt push`.**
+- **Verification (isolated `npm ci`):** build ✓ · `e2e-rbac` 51/51 · `e2e-reauth` 19/19 · `ipc-contract` 4/4 ·
+  `security` 39/39 · `auth` 49/49 · `auth-gui` 18/18 · `authz` 40/40 · `verifier-classification` 107.
+  `verify:oracle-drivers-gui` **25/30** — the five Oracle **bridge/Java/ojdbc** checks remain
+  **environmental/inconclusive** unless the bridge runtime + Java + ojdbc assets are actually available
+  (non-blocking for this PR; no global waiver).
+
+---
+
 ## Three-branch feature recovery (2026-07-23, latest) — accent / HTTPS / custom brand logo — MERGED to `main`
 
 The mixed commit `a1adcc2` ("branding, accent theme, and HTTPS certificate trust") was decomposed into
