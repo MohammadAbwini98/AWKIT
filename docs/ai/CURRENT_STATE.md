@@ -105,14 +105,46 @@ memory, embeddings and RAG remain explicitly out of scope.
   only deletes are pending, enqueue is REFUSED rather than dropping one. **No blind replay** - only
   classified-retryable failures are retried, boundedly; anything else marks the index rebuild-required.
 
-**Verifiers:** `verify:semantic-policy` 80/0, `verify:semantic-store` 93/0 (both implementations),
-`verify:semantic-queue` 46/0. All three negative-controlled. Taxonomy 111 -> **126**.
+**Verifiers:** `verify:semantic-policy` 135/0, `verify:semantic-store` 102/0 (both implementations),
+`verify:semantic-queue` 70/0, `verify:source-hygiene` 7/0. All negative-controlled. Taxonomy 111 -> **127**.
 
-**Not covered by these:** native crash isolation, real FTS ranking quality and on-disk durability -
-the Zvec adapter is exercised through a transport fake here; the real host remains
-`verify:zvec-packaged-live`.
+### Review-round corrections applied (2026-07-25)
 
-**Next:** rebuild orchestration + parity tests, then the product-surface phases.
+Two defects found in review were privacy-affecting and are fixed:
+
+1. **Projection bypass.** `buildValidatedDocument` accepted a free-form `body`, which projection
+   never saw — so privacy fell back entirely on redaction patterns. The pipeline is now staged and
+   branded (`raw source -> ProjectedSemanticCandidate -> ValidatedSemanticDocument`); only the
+   per-kind projectors in `SemanticProjection` can construct a candidate, and they derive title,
+   content, tags and every filter dimension from allowlisted fields alone.
+2. **`deleteEntity` reordered behind a later upsert.** `drain()` globally regrouped batches by
+   operation type, so `upsert X` then `deleteEntity X` executed as `deleteEntity` then `upsert` —
+   resurrecting the document. Fixed with two independent defences: sequence-ordered adjacent-run
+   batching, and `deleteEntity` cancelling pending upserts for its entity.
+
+Also corrected: **document identity** (current-state kinds are now stable across revisions so a
+re-index REPLACES; historical kinds keep per-occurrence identity — `SEMANTIC_KIND_IDENTITY`), ids
+carry a canonical-identity hash against normalization/truncation collisions and are computed by the
+factory; **truthful upsert counts** (`countsKnown`); **runtime field validation** (id/kind
+agreement, sourceHash format, timestamps, outcome enum, hostname shape, reference consistency,
+embeddings rejected unless explicitly enabled); **drain is single-flight**; queue options validated.
+
+### Known gap — Zvec entity operations are UNSUPPORTED, by design
+
+The utility host protocol has **no scan or cursor operation**: `query` is top-K capped at 100 and
+the raw host returns hit counts plus ten ids, not documents. `ZvecSemanticStore` therefore declares
+`capabilities.entityOperations = false` and **throws `UNSUPPORTED_OPERATION`** for `deleteByEntity`,
+`stats` and `clear`, rather than silently truncating — a partial delete reporting success leaves
+content indexed that the caller believes is gone. Search likewise over-fetches the global top 100
+before applying AWKIT filters, so a filtered match ranked outside it is not returned and
+`totalMatched` is not the true filtered total. Tracked as a P1 bead; needs typed host operations.
+
+**Not covered by any current verifier:** native crash isolation, real FTS ranking quality and
+on-disk durability — the Zvec adapter is exercised through a transport fake. A real-host contract
+run is tracked as its own P1 bead.
+
+**Next:** host scan/count operations, then rebuild orchestration, then real-host parity. Phase 1B
+remains IN PROGRESS.
 
 ## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 

@@ -4,6 +4,58 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Phase 1B review corrections (Claude)
+
+**Task:** apply the owner's review findings. Two were privacy-affecting.
+
+**Commits:** `f36b90e` (queue ordering), `50f4f14` (projection bypass + identity + source hygiene),
+`6f39c4c` (truthful counts + runtime validation).
+
+**1. Projection bypass (critical).** `buildValidatedDocument` took a free-form `body` that
+projection never saw, so a caller could pass `JSON.stringify(entireWorkflowIncludingSecrets)` and
+privacy rested entirely on redaction patterns. Pipeline is now staged and branded; only per-kind
+projectors can construct a `ProjectedSemanticCandidate`, and they derive everything from allowlisted
+fields. The type errors this produced in the verifier were the proof: `id` and `body` are no longer
+expressible.
+
+**2. `deleteEntity` reordering (critical).** `drain()` regrouped each batch by operation type, so
+`upsert X` then `deleteEntity X` ran as `deleteEntity` then `upsert` and resurrected the document.
+Fixed with sequence-ordered adjacent-run batching AND an entity-supersede sweep. **Testing note
+worth keeping:** the end state alone cannot discriminate the ordering fix — the sweep removes the
+conflicting upsert before drain, so restoring global regrouping still passed every end-state check.
+Execution order is now asserted directly against a recording store. Negative-controlled both ways.
+
+**3. Identity.** Workflow/flow/documentation ids embedded a revision, so two revisions were two
+documents and re-indexing ACCUMULATED. Kinds now declare current-state vs historical identity; ids
+carry a canonical-identity hash (guarding against `idComponent` truncation collisions) and are
+computed by the factory rather than supplied by callers. The contract suite had encoded the old
+policy — that assertion was itself the bug.
+
+**4. Found while fixing: Zvec entity operations were silently wrong.** `deleteByEntity` ran a
+top-K full-text query for the entity id, which need not appear in indexed content at all — so it
+could match nothing and report a successful no-op. The raw host also caps `query` at 100 and returns
+counts plus ten ids, not documents. Stores now declare capabilities; the adapter declares
+`entityOperations:false` and throws `UNSUPPORTED_OPERATION`, and the contract asserts the refusal.
+This is a documented gap, not a fix.
+
+**5. Source hygiene.** New `verify:source-hygiene` scans all 551 TS sources for literal control
+characters. Found the U+0000 in `semanticSourceHash`, one I had just introduced in the id hash
+separator, and pre-existing U+0001/U+0002 in `sharedCompatibilityKey`. All now escapes;
+`verify:browser-isolation` 27/27 and `verify:shared-browser-pool` 19/19 confirm no behaviour change.
+The guard's first draft spelled its own pattern with literal control chars and a cleanup pass ate
+them, leaving a guard that matched a plain hyphen — rewritten with escapes.
+
+**Tests:** build PASS; `typecheck:scripts` PASS; semantic-policy 135/0; semantic-store 102/0;
+semantic-queue 70/0; source-hygiene 7/0; browser-isolation 27/27; shared-browser-pool 19/19;
+failure-evidence 34/0; taxonomy 127; memory gate PASS.
+**Not run:** packaged/live Zvec verifiers, `verify:runner`, mock-site verifiers.
+
+**Deliberately NOT done, tracked as P1 beads:** host scan/count/cursor to remove the 100-document
+ceiling; rebuild orchestration; `verify:semantic-zvec-native-contract` against the real host.
+**Phase 1B remains IN PROGRESS.**
+
+---
+
 ## 2026-07-25 - Zvec Phase 1B: sanitisation pipeline, stores, mutation queue (Claude)
 
 **Task:** implement Phase 1B items 1-10 on `main`, in the mandated order.
