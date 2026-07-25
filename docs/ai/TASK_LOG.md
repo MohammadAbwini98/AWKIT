@@ -4,6 +4,46 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Zvec Phase 1A hardening + handoff (AI coding agent)
+
+**Task:** Three review rounds of hardening on the Phase 1A foundation, then prepare the handoff.
+
+**Commits:** `585c68e` (activation failure window + 5 findings), `0483f5c` (real multi-process
+concurrency test, structured metadata repair, rebuild-stage classification), `4ddc773` (active
+pointer authoritative during reconciliation).
+
+**Most significant fix:** startup reconciliation derived the active generation from `metadata.json`.
+Because the tolerant reader returns `activeGeneration: null, cleanShutdown: false` on ANY failure, an
+unreadable metadata file made every generation look non-active and the unclean-shutdown rule deleted
+them all - including the one the authoritative pointer named. `reconcileGenerations` now takes
+`authoritativeActiveGeneration` as a REQUIRED parameter, and a valid pointer protects its generation
+unconditionally. Confirmed by negative control: the old logic fails the new regression with the
+active generation marked "discarded / orphaned by an unclean shutdown".
+
+**Also fixed:** `repairMetadataFromPointer` used the tolerant reader, making `READ_FAILED`
+unreachable (added `readMetadataStrict`); rebuild reported `POPULATE_FAILED` for nearly every
+pre-commit failure (explicit stage tracking); the allocator could reissue a missing active
+generation's name; the concurrency verifier used a fixed 4s delay (now a READY/GO barrier).
+
+**Tests:** `npm run build` PASS; boundary 22/0; host-lifecycle 52/0; generation-recovery 34/0;
+generation-lifecycle 102/0; generation-concurrency 12/0; packaged-live 35/0; coexistence 16/0;
+`check-memory.mjs` PASS. **Not run:** `verify:runner`, `verify:popup-identity`, mock-site verifiers.
+
+**Both new verifiers were negative-tested:** reverting the fix makes the concurrency test report 13
+duplicate allocations, and makes the reconciliation regression delete the active generation. Neither
+test is vacuous.
+
+**Fixed a pre-existing memory-gate failure:** `check-memory.mjs` had been failing since `383326c`
+because a TASK_LOG sentence quoted a credential-assignment example verbatim while describing masking,
+which the secret scanner cannot distinguish from a real leak. Reworded the prose rather than
+weakening the scanner. (Worth knowing: prose *about* secret handling trips this gate easily - describe
+the pattern, do not quote it.)
+
+**Known issue recorded:** `npm run typecheck:scripts` is red from the randomized-test-lab merge
+(`verify-branch-pairs.mts` edge fixtures), so `verify:all-typecheck` is not a trustworthy gate.
+
+---
+
 ## 2026-07-25 - Zvec Phase 1A: native-host foundation (Claude)
 
 **Task:** Implement the Phase 1A production foundation on `main`, closing Phase 0D conditions 1-5.
@@ -244,7 +284,7 @@ integration.
   belt-and-suspenders fallback note (when `captureFailureEvidence` itself throws) is masked too via a
   new `FlowExecutor.evidenceMasker`. (3) `safePathComponent`'s `fallback` argument is sanitized through
   the same pipeline as `raw` instead of being returned verbatim — only the hard literal `"x"` is ever
-  unsanitized. (4) New regression tests: FlowExecutor-fallback note masks `password=`/`token=` from an
+  unsanitized. (4) New regression tests: FlowExecutor-fallback note masks password/token assignments from an
   injected error; four `safePathComponent` hostile-fallback cases; a live hostile/secret-shaped
   `pageAlias` proving the resolver-failure note is masked. Counts: `verify:failure-evidence` 29 → **34**;
   `verify:failure-evidence-live` 14 → **17**; verifier taxonomy total unchanged at **110** (no new

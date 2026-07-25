@@ -38,8 +38,17 @@ Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResou
   its own bounded budget before the existing settings/Oracle/security stage).
 - `native-hosts/zvec/zvec-host.cjs`: the `__testAbort` crash-injection handler is **REMOVED**.
 
-**Verifiers:** `verify:zvec-host-source-boundary` 17/0, `verify:zvec-host-lifecycle` 52/0,
-`verify:zvec-generation-recovery` 31/0.
+**Verifiers:** boundary 22/0, host-lifecycle 52/0, generation-recovery 34/0, generation-lifecycle
+102/0, generation-concurrency 12/0, packaged-live 35/0 (packaged AND NSIS-installed trees),
+coexistence 16/0.
+
+**Invariants now enforced and guarded by tests:**
+- The **active-generation pointer is authoritative everywhere**. Reconciliation receives it as a
+  required parameter and never derives active identity from `metadata.json`; a valid pointer protects
+  its generation unconditionally, whatever state metadata is in.
+- A rebuild never mutates the active generation; the pointer write is the commit point, and no later
+  failure may delete an activated generation.
+- Zvec is unreachable from the main process (not even resolvable) and ships only as `extraResources`.
 
 **Phase 1A completion added:** `SemanticGenerationManager` (create/validate/activate/rollback with
 an atomic pointer swap; a rebuild never mutates the active generation),

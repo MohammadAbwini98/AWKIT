@@ -1,31 +1,132 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-25): single-branch workflow + Zvec Phase 1A next
+## ACTIVE (2026-07-25): Zvec Phase 1A complete - begin Phase 1B semantic store
 
-**Workflow changed.** `main` is the only branch; commit continuously and truthfully; never freeze.
-Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` before any Git operation.
+### From Agent / Tool
+Previous session (AI coding agent), working on `main` under the single-branch policy.
 
-**State:** all branches/worktrees consolidated into `main` (tips tagged `archive/*-20260725`).
-39 commits are **local only** - `git push origin main` is rejected by branch protection
-(`GH013: Changes must be made through a pull request`). Do not create branches to work around this;
-report it and keep committing locally.
+### To Agent / Tool
+Any AI coding agent or human developer.
 
-**Do not delete remote branches** until `origin/main` contains the integration - a remote branch may
-be the only remote copy of that work.
+### Timestamp
+2026-07-25
 
-**Next implementation step - Zvec Phase 1A on `main`,** in this order:
-1. Production restart policy + circuit breaker for the utility host.
-2. Promote the `mainProcessCannotResolveZvec` check into a standalone boundary verifier (it caught a
-   real defect: Zvec was resolvable from the main process via the repo's `node_modules` when running
-   from `dist/win-unpacked`).
-3. Generation reconciliation / quarantine after unclean shutdown.
-4. Remove the `app/main/main.ts` spike hook and the `__testAbort` handler.
-5. `ZvecUtilityHostManager` + typed protocol, staged shutdown, degraded state.
+### Branch / Commit
+`main` @ `4ddc773`, in sync with `origin/main`. Working tree clean. `main` is the ONLY branch,
+locally and remotely (plus Beads' `__dolt_remote_info__` ref). No extra worktrees.
 
-**Do not** add semantic IPC, preload API, renderer UI, indexing, failure/locator memory, or
-embeddings in Phase 1A.
+### Active Task
+**Zvec semantic subsystem, Phase 1B: vendor-neutral semantic storage layer.** Phase 1A (native-host
+foundation) is complete and pushed.
 
-The Tranche 2A note below is superseded: that branch is merged into `main` and deleted.
+### Completed Work
+Phase 1A, plus three rounds of review hardening:
+
+- Raw unbundled utility host (`native-hosts/zvec/zvec-host.cjs`) shipped via `extraResources`,
+  never inside `app.asar`.
+- `ZvecUtilityHostManager` - lazy start, correlated requests with deadlines, compatibility gate,
+  staged shutdown, masked diagnostics.
+- `ZvecHostRestartPolicy` - pure, clock-injected restart + circuit breaker.
+- Generation lifecycle: create / validate / activate / rollback, atomic pointer swap, reconciliation,
+  quarantine, retention.
+- `SemanticHealth` - seven degraded reasons plus `availableOnDemand`; `indexPath` is privileged and
+  omitted unless explicitly requested.
+- Phase 0 spike hook removed from `app/main/main.ts`; `__testAbort` removed from the shipped host.
+- Live coverage restored WITHOUT a production hook: `verify:zvec-packaged-live` esbuilds a harness
+  into a temporary Electron app directory and drives the real manager.
+- All branches/worktrees consolidated into `main`; former tips preserved as pushed
+  `archive/*-20260725` tags.
+
+Defects found and fixed (each by running the real thing, not by unit tests alone):
+1. Semantic data used roaming `%APPDATA%` instead of `%LOCALAPPDATA%`.
+2. The host hard-coded its approved root, ignoring AWKIT's configurable runtime path.
+3. Zvec was duplicated into `app.asar.unpacked` and stayed resolvable from the main process.
+4. A failed metadata write deleted the generation the authoritative pointer named.
+5. Reconciliation derived active identity from metadata, so an unreadable `metadata.json` deleted the
+   active generation.
+6. The allocator could reissue a missing active generation's name.
+
+### Files Changed
+- `native-hosts/zvec/zvec-host.cjs`
+- `app/main/semantic/{ZvecUtilityHostManager,semanticService}.ts`
+- `app/main/main.ts` (spike hook removed; staged shutdown; startup reconciliation)
+- `src/semantic/{SemanticGenerationLayout,SemanticGenerationManager,SemanticGenerationReconciler,ZvecHostRestartPolicy}.ts`
+- `src/semantic/contracts/{ZvecHostProtocol,SemanticHealth}.ts`
+- `scripts/verify-zvec-*.mts`, `scripts/prepare-zvec-native-host.mjs`, `scripts/zvec-harness/**`
+- `electron-builder.json`, `scripts/{generate-dependency-manifest,validate-offline-bundle}.ps1`
+
+### Commands / Tests Run
+| Command | Result |
+|---|---|
+| `npm run build` | PASS |
+| `verify:zvec-host-source-boundary` | 22 passed, 0 failed |
+| `verify:zvec-host-lifecycle` | 52 passed, 0 failed |
+| `verify:zvec-generation-recovery` | 34 passed, 0 failed |
+| `verify:zvec-generation-lifecycle` | 102 passed, 0 failed |
+| `verify:zvec-generation-concurrency` | 12 passed, 0 failed |
+| `verify:zvec-packaged-live` | 35 passed, 0 failed (packaged AND installed trees) |
+| `verify:zvec-coexistence` | 16 passed, 0 failed |
+| `package:portable`, `package:nsis`, strict `validate:offline` | PASS |
+| `node scripts/ai-memory/check-memory.mjs` | PASS |
+| `npm run typecheck:scripts` | **FAILS - pre-existing**, see Known Risks |
+| `verify:runner`, `verify:popup-identity`, mock-site verifiers | NOT RUN this session |
+
+### Current State Summary
+Zvec loads only in an Electron utility process, from a packaged tree verified byte-for-byte against
+its own shipped manifest. The active-generation pointer is authoritative everywhere. The subsystem is
+reachable from NO product surface yet - that is intentional.
+
+### Remaining Work
+Phase 1B, in this order (order matters: nothing may enter a queue before sanitisation exists):
+1. `SemanticDocument`, document kinds, typed metadata, typed search query/result, deterministic ID rules
+2. Projection allowlist
+3. `SemanticRedactor`
+4. `SemanticPolicyValidator` + branded `ValidatedSemanticDocument`
+5. `SemanticStore` interface
+6. `InMemorySemanticStore` with real semantics (upsert-is-replace, token matching, injected failures)
+7. Shared contract suite run against BOTH implementations
+8. `ZvecSemanticStore` over `ZvecUtilityHostManager`
+9. Serialized mutation/rebuild queue (coalescing, delete-supersedes-upsert, bounded, no blind replay)
+10. Rebuild orchestration and parity tests
+
+### Known Risks / Blockers
+- **`npm run typecheck:scripts` is RED (pre-existing).** `scripts/verify-branch-pairs.mts` builds edge
+  fixtures as `{ id }` while `FlowDesignerEdge` now requires `source`/`target`. From the
+  randomized-test-lab consolidation, not the semantic work. It means `verify:all-typecheck` cannot be
+  trusted as a gate, and it DOES catch real errors - fix it early.
+- Three validation verifiers have no npm alias: `verify-validation.mts`,
+  `verify-random-roundtrip.mts`, `verify-packaged-validation.mts`.
+- CPU utilisation for the host is unmeasured (the Phase 0D sampler was invalid and withheld).
+- Authenticode signing / SmartScreen reputation unaddressed; only unsigned local builds observed.
+- `@zvec/zvec` must be installed (`npm install`) or `prepare:zvec-host` fails by design.
+
+### Do Not Touch Without Confirmation
+- `native-hosts/zvec/zvec-host.cjs` must stay raw CommonJS, unbundled, `utilityProcess`-only, and
+  must never regain a crash-injection path. `verify:zvec-host-source-boundary` guards this.
+- `electron-builder.json`: `!node_modules/@zvec/**` and the `extraResources` entry. Removing either
+  re-creates the Phase 0B hard-crash path.
+- The active-generation pointer is authoritative. Reconciliation must never derive active identity
+  from `metadata.json`, and must never delete/rewrite the pointer.
+- `window.playwrightFlowStudio` preload root name.
+- `archive/*-20260725` tags - the only record of the eight deleted branch tips.
+
+### Recommended Next Step
+Start Phase 1B item 1 (`SemanticDocument` + typed query contracts), then the projection allowlist,
+redactor and policy validator BEFORE any store or queue code. Brand `ValidatedSemanticDocument` so
+only the policy pipeline can mint one - that makes "only redacted, validated documents reach the
+store or queue" a compile-time guarantee.
+
+### Required First Actions For Next Agent
+1. Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` - one branch (`main`), continuous truthful commits, no
+   new branches or worktrees, never freeze because a check fails.
+2. `git status --short --branch`; confirm `main` is clean and in sync.
+3. `npm install` (needed for `@zvec/zvec`), then `npm run build`.
+4. Run the Zvec verifiers listed above to confirm a green baseline before changing anything.
+5. Read `docs/AWKIT_ZVEC_TARGET_ARCHITECTURE_PLAN.md` sections 6-9 and 24 for the Phase 1B contracts.
+
+### Explicitly Out Of Scope Until Later Phases
+Renderer/preload semantic APIs, product semantic IPC, automatic workflow/flow indexing, global search
+UI, failure memory, locator memory, embeddings, RAG/AI features.
 
 ---
 
