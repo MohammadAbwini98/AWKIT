@@ -130,6 +130,13 @@ export interface ZvecDocumentsResponse {
   exact?: boolean;
   /** `query`: whether the requested top-K was filled, i.e. more matches may exist. */
   truncated?: boolean;
+  /**
+   * `query`: matches BEFORE top-K truncation, so a caller can say "showing 20 of 137". Computed by
+   * the host with a count-only pass; never inferred from the length of a truncated page.
+   */
+  totalMatched?: number;
+  /** `query`: false when the count-only pass hit the host's scan bound, so the total is a floor. */
+  totalExact?: boolean;
 }
 
 export interface ZvecCountResponse {

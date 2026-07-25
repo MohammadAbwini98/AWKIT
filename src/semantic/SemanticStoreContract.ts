@@ -306,6 +306,34 @@ export async function runSemanticStoreContract(
     await store.close();
   }
 
+  // ── totalMatched past the internal fetch window ──────────────────────────────────────────────
+  //
+  // The `topK: 1` assertion above CANNOT catch the failure this guards. That fixture holds three
+  // documents, so a store reporting "every candidate I fetched" and a store reporting "every
+  // document that matched" produce the same number — the check passes with the defect present
+  // (confirmed by negative control). The defect only appears once matches exceed the window the
+  // adapter fetches, at which point a truncated page length silently becomes the reported total and
+  // "showing 20 of 137" reads as "20 of 100".
+  {
+    const store = await fresh();
+    const MANY = 130;
+    const docs = [];
+    for (let i = 0; i < MANY; i += 1) {
+      docs.push(contractDocument({ entityId: `bulk-${i}`, title: `Bulk ${i}`, body: "sharedbulkterm appears in every one" }));
+    }
+    await store.upsert(docs);
+
+    const page = await store.search({ text: "sharedbulkterm", topK: 20 });
+    check(`[window] a query matching ${MANY} documents returns only the requested topK`, page.hits.length === 20, String(page.hits.length));
+    check(
+      `[window] totalMatched is the true total (${MANY}), not the page or the fetch ceiling`,
+      page.totalMatched === MANY,
+      String(page.totalMatched)
+    );
+    check("[window] an exact total is not reported as degraded", page.degraded === false);
+    await store.close();
+  }
+
   // ── search never leaks unredacted content ────────────────────────────────────────────────────
   {
     const store = await fresh();

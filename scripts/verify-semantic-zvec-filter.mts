@@ -268,6 +268,31 @@ try {
     needleFiltered.map((r: { id: string }) => r.id).join(",")
   );
 
+  // -- the two-pass exact total the host uses for `totalMatched` --
+  // `outputFields: []` is what keeps the counting pass from materialising document bodies. Its
+  // behaviour on a QUERY is not documented (only on fetch), so it is measured here rather than
+  // assumed — if it silently returned zero rows, every total would read as 0.
+  const page = collection.querySync({ fieldName: "content", fts: { queryString: "alpha" }, topk: 10, includeVector: false });
+  const countingPass = collection.querySync({
+    fieldName: "content",
+    fts: { queryString: "alpha" },
+    topk: 100_000,
+    outputFields: [],
+    includeVector: false
+  });
+  check("a truncated page returns exactly topK rows", page.length === 10, String(page.length));
+  check(
+    "the count-only pass returns EVERY match, not the page (this is totalMatched)",
+    countingPass.length === docs.length,
+    `${countingPass.length} vs ${docs.length}`
+  );
+  check("outputFields: [] still returns ids", typeof countingPass[0]?.id === "string");
+  check(
+    "outputFields: [] omits scalar fields, so counting transfers no document bodies",
+    Object.keys(countingPass[0]?.fields ?? {}).length === 0,
+    JSON.stringify(countingPass[0]?.fields)
+  );
+
   // -- operators behave as rendered --
   check("eq matches exactly the intended rows", runFilter(entityFilter("entity-big")).length === 130);
   check(

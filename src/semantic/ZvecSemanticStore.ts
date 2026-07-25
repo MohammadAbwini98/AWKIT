@@ -429,7 +429,7 @@ export class ZvecSemanticStore implements SemanticStore {
     text: string,
     topK: number,
     filter: ZvecSafeFilter | undefined
-  ): Promise<ValidatedSemanticDocument[]> {
+  ): Promise<{ documents: ValidatedSemanticDocument[]; totalMatched: number; totalExact: boolean }> {
     try {
       const value = await this.options.transport.call<ZvecDocumentsResponse>(
         {
@@ -441,7 +441,14 @@ export class ZvecSemanticStore implements SemanticStore {
       );
       const rows = value?.docs ?? [];
       // Rows failing re-validation are dropped, not surfaced (see `fromZvecDocument`).
-      return rows.map(fromZvecDocument).filter((d): d is ValidatedSemanticDocument => d !== null);
+      const documents = rows.map(fromZvecDocument).filter((d): d is ValidatedSemanticDocument => d !== null);
+      return {
+        documents,
+        // Falls back to the page length only when the host did not report a total — a host that DID
+        // report one is always preferred, because the page length is a truncated number.
+        totalMatched: typeof value?.totalMatched === "number" ? value.totalMatched : documents.length,
+        totalExact: value?.totalExact !== false
+      };
     } catch (error) {
       this.fail(error, "QUERY_FAILED");
     }
@@ -456,7 +463,11 @@ export class ZvecSemanticStore implements SemanticStore {
     // The filter is pushed INTO the query so the vendor applies it before ranking. The in-memory
     // store filters in memory over its whole collection, which is the same semantics — that
     // equivalence is what makes running one contract suite against both meaningful.
-    const filtered = await this.queryDocuments(
+    const {
+      documents: filtered,
+      totalMatched,
+      totalExact
+    } = await this.queryDocuments(
       collectionId,
       request.text,
       SEMANTIC_MAX_TOP_K,
@@ -487,6 +498,17 @@ export class ZvecSemanticStore implements SemanticStore {
 
     hits.sort((a, b) => b.score - a.score || b.updatedAt.localeCompare(a.updatedAt) || a.documentId.localeCompare(b.documentId));
 
-    return { hits: hits.slice(0, topK), totalMatched: hits.length, mode, degraded };
+    // `totalMatched` is the host's pre-truncation count, not `hits.length` — the latter is the size
+    // of an already-truncated page, so reporting it turned "showing 20 of 137" into "20 of 20".
+    // It is lower-bounded by the rows actually returned, since re-validation can only drop rows.
+    //
+    // An inexact total (the host's scan bound reached) is surfaced as `degraded`. That is the only
+    // signal this contract carries, and flagging it is preferable to presenting a floor as a total.
+    return {
+      hits: hits.slice(0, topK),
+      totalMatched: Math.max(totalMatched, hits.length),
+      mode,
+      degraded: degraded || !totalExact
+    };
   }
 }

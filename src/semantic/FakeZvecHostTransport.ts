@@ -182,7 +182,14 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
                 .map((r) => r.doc);
 
         const topK = req.query?.topK ?? matched.length;
-        return { docs: matched.slice(0, topK), truncated: matched.length > topK } as T;
+        // The host reports the PRE-truncation total (via a count-only second pass); model that here,
+        // otherwise the adapter's totalMatched handling is never exercised.
+        return {
+          docs: matched.slice(0, topK),
+          truncated: matched.length > topK,
+          totalMatched: matched.length,
+          totalExact: true
+        } as T;
       }
 
       case "stats": {

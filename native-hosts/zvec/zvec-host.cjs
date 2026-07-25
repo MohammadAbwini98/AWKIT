@@ -425,7 +425,21 @@ const handlers = {
     if (q.vector) request.vector = Float32Array.from(q.vector);
     if (q.filter) request.filter = buildFilterExpression(q.filter);
     const docs = await collection.query(request);
-    return { docs: docs.map(toWireDocument), truncated: docs.length >= topK };
+
+    // `totalMatched` is contractually the count BEFORE top-K truncation ("showing 20 of 137"), so it
+    // cannot be the length of a truncated page. When the page is not full it IS the total; only when
+    // the window filled up is a second, count-only pass needed — `outputFields: []` asks the vendor
+    // for no scalar fields, so the extra pass materialises ids rather than document bodies.
+    let totalMatched = docs.length;
+    let totalExact = true;
+    if (docs.length >= topK) {
+      const counting = { ...request, topk: HOST_MAX_SCAN, outputFields: [] };
+      const all = await collection.query(counting);
+      totalMatched = all.length;
+      totalExact = all.length < HOST_MAX_SCAN;
+    }
+
+    return { docs: docs.map(toWireDocument), truncated: docs.length >= topK, totalMatched, totalExact };
   },
 
   stats(req) {
