@@ -55,6 +55,18 @@ function tokens(text: string): string[] {
 }
 
 /**
+ * The measured Zvec primary-key rule: `A-Za-z0-9` plus `- _ . @ # + =`, non-empty, and short enough
+ * that a 200-character key is refused. Anything else fails the write, exactly as the binding does.
+ */
+const ZVEC_DOCUMENT_KEY = /^[A-Za-z0-9._@#+=-]{1,180}$/;
+
+function assertValidDocumentKey(id: unknown): void {
+  if (typeof id !== "string" || !ZVEC_DOCUMENT_KEY.test(id)) {
+    throw new Error("SEMANTIC_WRITE_REJECTED: document key contains invalid characters");
+  }
+}
+
+/**
  * Evaluate a typed filter against a stored row.
  *
  * `buildZvecFilterExpression` is called first purely for its VALIDATION — it throws on an unknown
@@ -104,6 +116,12 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
         if (this.failures.onUpsert) throw new Error("host upsert failed");
         const col = this.collection(req.collectionId);
         for (const doc of req.docs ?? []) {
+          // The real binding REJECTS a primary key containing `:` `/` `\` `~` `|` `,` `;`, a space or
+          // any non-ASCII, and bounds its length. A JavaScript Map accepts any string, and that
+          // difference hid the single worst defect in this subsystem: AWKIT's `kind:component:hash`
+          // ids are colon-delimited, so no document could ever be written to a real index while every
+          // test passed. Enforced here so the fake can never be more permissive than the backend.
+          assertValidDocumentKey(doc.id);
           // The real binding rejects an explicit null on a nullable field with
           // "Expected scalar field[x] to be a string", failing the whole batch.
           for (const [key, value] of Object.entries(doc.fields ?? {})) {
@@ -158,6 +176,13 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
       case "query": {
         if (this.failures.onQuery) throw new Error("host query failed");
         const col = this.collection(req.collectionId);
+        // The engine REJECTS an empty full-text clause rather than treating it as match-everything, so
+        // a filter-only search must arrive with no `fts` at all. Modelled here because the permissive
+        // version of this fake let `fts: {}` pass and every filter-only search in the contract suite
+        // would have failed against the real host.
+        if (req.query?.fts && !req.query.fts.queryString) {
+          throw new Error("SEMANTIC_QUERY_REJECTED: an empty full-text clause is not a match-all");
+        }
         const q = req.query?.fts?.queryString ?? "";
         const terms = tokens(q);
 

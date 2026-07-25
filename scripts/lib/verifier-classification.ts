@@ -185,6 +185,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Shared SemanticStore contract suite run against BOTH implementations (in-memory, and the Zvec adapter over a transport fake), plus injected-failure and ranking checks. No native host — that is verify:zvec-packaged-live."
   },
+  "verify:semantic-zvec-native-contract": {
+    class: "packaged-application",
+    why: "Runs the shared SemanticStore contract through the REAL production path — ZvecSemanticStore over ZvecUtilityHostManager, a live Electron utilityProcess, the raw staged/packaged host and the real Zvec binding. Classified packaged-application because it launches Electron against a staged host tree; it is the only semantic verifier that exercises the host's own filter builder, exact-total pass and post-delete re-scan rather than scanning their source text."
+  },
   "verify:semantic-zvec-filter": {
     class: "unit",
     why: "Typed filter builder plus its host-side duplicate, then the SAME expressions executed against the real @zvec/zvec binding on a throwaway on-disk collection. Classified unit because it spawns nothing and drives no browser or Electron process — the native library is loaded in-process, and the verifier fails rather than skipping when the binding is absent."

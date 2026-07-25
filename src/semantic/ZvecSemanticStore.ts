@@ -20,6 +20,7 @@ import {
   SEMANTIC_DOCUMENT_KINDS,
   SEMANTIC_MAX_TOP_K,
   isSemanticDocumentKind,
+  semanticSourceHash,
   type SemanticDocumentKind,
   type SemanticOutcome,
   type SemanticSearchHit,
@@ -109,6 +110,31 @@ export const SEMANTIC_SCHEMA: ZvecSafeSchema = {
 const TAG_SEPARATOR = "\u001F";
 
 /**
+ * Zvec's PRIMARY KEY charset, measured against the real binding.
+ *
+ * Accepted: `A-Za-z0-9` and `- _ . @ # + =`. Rejected outright with
+ * "contains invalid characters": `:` `/` `\` `~` `|` `,` `;`, space, and any non-ASCII. There is also
+ * a length bound (64 chars fine, 200 rejected).
+ *
+ * AWKIT document ids are `kind:component:hash` — COLON-delimited by deliberate design — so **not one
+ * document could ever have been written to a real index**. Every test passed because the transport
+ * fake used a JavaScript `Map`, which accepts any string as a key. This is the sharpest example of why
+ * a fake must model the real backend's constraints and not merely its shapes.
+ *
+ * The fix keeps the domain contract untouched: the AWKIT id remains the identity everywhere above this
+ * adapter and is stored verbatim in the `id` FIELD (a field VALUE may contain colons — only the key is
+ * restricted). The backend key is derived from it, so upsert-is-replace still holds by determinism.
+ */
+export function toZvecDocumentKey(documentId: string): string {
+  return semanticSourceHash([documentId]);
+}
+
+/** Whether a string is usable as a Zvec primary key. Used to assert the derivation, not to clean input. */
+export function isZvecDocumentKey(value: string): boolean {
+  return /^[0-9a-f]{64}$/.test(value);
+}
+
+/**
  * An absent optional is OMITTED, never written as null.
  *
  * Measured against the real binding: a `nullable: true` string field rejects an explicit null with
@@ -145,7 +171,8 @@ export function toZvecDocument(doc: ValidatedSemanticDocument): ZvecSafeDocument
     if (value !== undefined) fields[key] = value;
   }
 
-  return { id: doc.id, fields };
+  // The primary key is DERIVED; the AWKIT id travels in the `id` field, where colons are legal.
+  return { id: toZvecDocumentKey(doc.id), fields };
 }
 
 function str(value: unknown): string | undefined {
@@ -168,7 +195,9 @@ export function fromZvecDocument(raw: ZvecSafeDocument): ValidatedSemanticDocume
 
   const tagsRaw = str(f.tags);
   const result = validateSemanticDocument({
-    id: str(f.id) ?? raw.id,
+    // The AWKIT id comes from the FIELD, never from `raw.id` — that is the derived backend key and
+    // would fail validation as an id. A row missing the field is rejected rather than reconstructed.
+    id: str(f.id) ?? "",
     kind: kind as SemanticDocumentKind,
     entityId: str(f.entityId) ?? "",
     // Not recomputed here: the validator recomputes and compares it, so a row whose stored key
@@ -273,7 +302,7 @@ export class ZvecSemanticStore implements SemanticStore {
     let countsKnown = true;
     try {
       const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
-        { type: "fetch", collectionId, ids: documents.map((d) => d.id) },
+        { type: "fetch", collectionId, ids: documents.map((d) => toZvecDocumentKey(d.id)) },
         ZVEC_TIMEOUTS.read
       );
       const rows = fetched?.docs ?? [];
@@ -304,25 +333,30 @@ export class ZvecSemanticStore implements SemanticStore {
 
     // Deleting an absent id is not an error, but the CONTRACT requires a truthful removed-count, so
     // presence is resolved first rather than assuming every requested id existed.
-    let present: string[] = [];
+    // Addressed by derived key, but the COUNT reported is of AWKIT ids that were actually present —
+    // `row.id` is the backend key here, so the presence check reads the stored `id` field instead.
+    let presentKeys: string[] = [];
     try {
       const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
-        { type: "fetch", collectionId, ids: [...ids] },
+        { type: "fetch", collectionId, ids: ids.map(toZvecDocumentKey) },
         ZVEC_TIMEOUTS.read
       );
       const rows = fetched?.docs ?? [];
-      present = rows.map((r) => r.id);
+      const requested = new Set(ids);
+      presentKeys = rows
+        .filter((r) => requested.has(String(r.fields?.id ?? "")))
+        .map((r) => toZvecDocumentKey(String(r.fields.id)));
     } catch (error) {
       this.fail(error, "READ_FAILED");
     }
 
-    if (present.length === 0) return 0;
+    if (presentKeys.length === 0) return 0;
     try {
-      await this.options.transport.call({ type: "delete", collectionId, ids: present }, ZVEC_TIMEOUTS.write);
+      await this.options.transport.call({ type: "delete", collectionId, ids: presentKeys }, ZVEC_TIMEOUTS.write);
     } catch (error) {
       this.fail(error, "WRITE_FAILED");
     }
-    return present.length;
+    return presentKeys.length;
   }
 
   /**
@@ -355,11 +389,12 @@ export class ZvecSemanticStore implements SemanticStore {
     const collectionId = this.assertOpen();
     try {
       const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
-        { type: "fetch", collectionId, ids: [id] },
+        { type: "fetch", collectionId, ids: [toZvecDocumentKey(id)] },
         ZVEC_TIMEOUTS.read
       );
       const rows = fetched?.docs ?? [];
-      const row = rows.find((r) => r.id === id);
+      // Matched on the stored `id` FIELD, not `row.id` — the latter is the derived backend key.
+      const row = rows.find((r) => String(r.fields?.id ?? "") === id);
       return row ? fromZvecDocument(row) : null;
     } catch (error) {
       this.fail(error, "READ_FAILED");
@@ -460,13 +495,19 @@ export class ZvecSemanticStore implements SemanticStore {
       }
     }
 
+    // An EMPTY text is a filter-only search, and it must not carry a full-text clause: the engine
+    // rejects `fts: {}` outright (`QUERY_FAILED`), where the transport fake happily treated it as
+    // "match everything". Filter-only browsing is a first-class operation — the contract suite uses it
+    // for every kind/workflow/outcome filter — so it becomes a scalar query, with an explicit
+    // match-all clause when no dimension was named. The vendor documents this shape as
+    // "scalar-only filtering: provide only `filter`".
+    const query = text
+      ? { fieldName: "content", fts: { queryString: text }, topK, filter }
+      : { topK, filter: filter ?? matchAllFilter() };
+
     try {
       const value = await this.options.transport.call<ZvecDocumentsResponse>(
-        {
-          type: "query",
-          collectionId,
-          query: { fieldName: "content", fts: text ? { queryString: text } : {}, topK, filter }
-        },
+        { type: "query", collectionId, query },
         ZVEC_TIMEOUTS.read
       );
       const rows = value?.docs ?? [];

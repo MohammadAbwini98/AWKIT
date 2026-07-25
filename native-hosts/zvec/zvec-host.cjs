@@ -332,7 +332,17 @@ const handlers = {
       ? zvec.ZVecOpen(resolved)
       : zvec.ZVecCreateAndOpen(resolved, buildSchema(req.schema));
     collections.set(req.generation, { collection, path: resolved });
-    return { generation: req.generation, created: !exists, docCount: collection.stats.docCount };
+    // `collectionId` is the field every other request carries and the adapter reads. This used to
+    // return only `generation`, so the adapter saw `collectionId: undefined` and reported
+    // BACKEND_UNAVAILABLE for a collection that had in fact opened successfully — invisible until the
+    // store was driven through the real host, because the transport fake returned `collectionId`.
+    // `generation` is kept alongside it; the two are deliberately the same value.
+    return {
+      collectionId: req.generation,
+      generation: req.generation,
+      created: !exists,
+      docCount: collection.stats.docCount
+    };
   },
 
   upsert(req) {
