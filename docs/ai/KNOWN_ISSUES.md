@@ -3,6 +3,30 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Fragile area: `@zvec/zvec` collection paths, and fakes that are more permissive than the backend
+
+**Measured vendor constraint (do not re-derive from types):**
+
+- `ZVecCreateAndOpen(path)` requires the path to be **ABSENT**. It throws `path validate failed` for
+  *any* existing directory, empty or not.
+- `ZVecOpen(path)` requires a real collection directory.
+- A document **primary key** accepts only `A-Za-z0-9 - _ . @ # + =` plus a length bound.
+
+Consequence already hit once: `createGeneration` allocates a generation with `mkdir` **without**
+`recursive` — that mkdir *is* its atomic claim on the name — so every real candidate reaches the host
+as an existing EMPTY directory, which can be neither created into nor opened. The rebuild path failed
+at populate every time. The host now handles three cases and removes an empty directory with
+`rmdirSync` (never `rm -r`, so it can only discard a directory holding nothing).
+
+**The recurring root cause is bigger than any one of these.** A fake that is more permissive than the
+real backend relocates risk rather than reducing it. Defects that survived a fully green suite for
+exactly that reason, so far: an explicit `null` the binding rejects; `fetch` returning bare id
+strings; a schema using `type` where the host reads `dataType`; `open` returning `{generation}` and
+not `{collectionId}`; a primary key containing `:`; `fts: {}` rejected rather than match-all; and an
+existing empty directory. When adding to `FakeZvecHostTransport`, model the binding's **rejections**,
+not just its shapes — and when a reply shape changes, grep every reader of the removed field, because
+a check reading a now-undefined field fails **open**.
+
 ## RESOLVED 2026-07-25: packaged live-CRUD coverage for Zvec
 
 Restored by `verify:zvec-packaged-live`, which esbuilds a harness into a TEMPORARY Electron app

@@ -50,19 +50,29 @@ Step "installedPerUser" ($installDir -like "$env:LOCALAPPDATA*") $installDir
 Step "installedHostPresent" (Test-Path $installedHost) $installedHost
 Step "installedBindingOutsideAsar" (Test-Path (Join-Path $installDir "resources\native-hosts\zvec\node_modules\@zvec\bindings-win32-x64\zvec_node_binding.node")) "binding present in the installed tree"
 
-# ── live suite against the INSTALLED host ──
-if (Test-Path $installedHost) {
-  $env:AWKIT_ZVEC_LIVE_HOST_PATH = $installedHost
-  $out = & npx tsx scripts/verify-zvec-packaged-live.mts 2>&1 | Out-String
-  $code = $LASTEXITCODE
-  Remove-Item Env:AWKIT_ZVEC_LIVE_HOST_PATH -EA SilentlyContinue
-  Write-Host $out
-  $m = [regex]::Match($out, '(\d+)\s+passed,\s+(\d+)\s+failed')
-  $p = if ($m.Success) { [int]$m.Groups[1].Value } else { 0 }
-  $f = if ($m.Success) { [int]$m.Groups[2].Value } else { -1 }
-  Step "installedLiveSuite" ($code -eq 0 -and $f -eq 0) "$p passed, $f failed"
-} else {
-  Step "installedLiveSuite" $false "installed host missing; suite not run"
+# ── live suites against the INSTALLED host ──
+# Two suites, because they prove different things. The manager suite covers host lifecycle, degraded
+# assets and the circuit breaker; the rebuild suite covers the generation runtime — real candidate
+# build, activation, retarget, restart and rollback. The installed tree is a DIFFERENT layout from
+# dist/win-unpacked, so neither result carries over from the packaged run.
+$suites = @(
+  @{ name = "installedLiveSuite"; script = "scripts/verify-zvec-packaged-live.mts" },
+  @{ name = "installedRebuildSuite"; script = "scripts/verify-semantic-rebuild-live.mts" }
+)
+foreach ($suite in $suites) {
+  if (Test-Path $installedHost) {
+    $env:AWKIT_ZVEC_LIVE_HOST_PATH = $installedHost
+    $out = & npx tsx $suite.script 2>&1 | Out-String
+    $code = $LASTEXITCODE
+    Remove-Item Env:AWKIT_ZVEC_LIVE_HOST_PATH -EA SilentlyContinue
+    Write-Host $out
+    $m = [regex]::Match($out, '(\d+)\s+passed,\s+(\d+)\s+failed')
+    $p = if ($m.Success) { [int]$m.Groups[1].Value } else { 0 }
+    $f = if ($m.Success) { [int]$m.Groups[2].Value } else { -1 }
+    Step $suite.name ($code -eq 0 -and $f -eq 0) "$p passed, $f failed"
+  } else {
+    Step $suite.name $false "installed host missing; suite not run"
+  }
 }
 
 # ── uninstall ──

@@ -269,11 +269,61 @@ reading a now-undefined field usually fails OPEN.**
 iteration bound does not bound time, and a wedged rebuild would have held shutdown open indefinitely.
 It takes a deadline (default 30s) and returns `false` when the deadline wins.
 
+---
+
+## Zvec Phase 1B - the orchestrator is bound to the real generation runtime (2026-07-25, current)
+
+`src/semantic/SemanticIndexRuntime.ts` is the production layer between the orchestrator and the real
+generation lifecycle: it owns the ACTIVE store, the mutation queue, and the transition between
+generations. `verify:semantic-rebuild-live` drives orchestrator → generation filesystem →
+`ZvecSemanticStore` → `ZvecUtilityHostManager` → `utilityProcess` → raw host → real Zvec.
+
+### Two defects a lifecycle stub could not express
+
+Both made the production rebuild path unusable, and neither was reachable from the contract suite:
+
+1. **The rebuild path could never have run.** `createGeneration` allocates by `mkdir` WITHOUT
+   `recursive` — that mkdir *is* its atomic claim against two rebuilds picking the same name — so
+   every real candidate reaches the host as an existing EMPTY directory. **Measured** vendor
+   behaviour: `ZVecCreateAndOpen` throws `path validate failed` for *any* existing directory, and
+   `ZVecOpen` needs a real collection. An empty directory could therefore be neither created into nor
+   opened, and populate failed every time. The host now distinguishes three cases and removes an empty
+   directory with `rmdirSync` — never `rm -r`, so it can only ever discard a directory holding nothing.
+   The contract suite missed it because it invents generation names whose directories do not exist, so
+   it only ever took the create path.
+2. **A rebuild overlapping a delete could never activate.** Post-replay validation sampled the
+   snapshot and asserted each sampled document was present, but a post-watermark delete of a
+   snapshotted document is a *correct* outcome — read as corruption
+   (`SEMANTIC_REBUILD_SAMPLE_MISSING`) and the rebuild refused. Deleting during a rebuild is exactly
+   what the delta journal exists to support. Replay now reports the ids/entities it touched and
+   validation excludes them: **the snapshot is authoritative only for documents the delta did not
+   change.** The same applies to upserts, whose content is legitimately newer than the snapshot's
+   `sourceHash`.
+
+### Post-activation policy (the pointer swap is irreversible)
+
+When activation commits but the new generation will not open, the runtime **never** reverts the
+pointer and **never** resumes writing to the previous generation — that would fork the index into two
+histories, one unreachable after the next restart. Writes stop, the pending queue is preserved, a
+bounded reopen is attempted, and health reports `ACTIVE_GENERATION_OPEN_FAILED`. The enforcement is
+structural, not a flag anyone must remember to check: the queue is retargeted onto a store that
+**refuses every operation**, so a stray `drain()` cannot reach the superseded generation.
+
+### Bounded shutdown is wired into the real Electron path
+
+`disposeSemanticSubsystem` drains the queue and any in-flight rebuild before the host is stopped, and
+`main.ts` races that stage against its own 3s ceiling. A shutdown that hits its deadline deliberately
+does **not** call `markIndexClosed`, so the session stays marked unclean and startup reconciliation
+finishes the job — marking it clean because the process is exiting anyway is how an interrupted write
+becomes invisible.
+
 **NOT run:** `validate:offline`, `verify:runner`, mock-site verifiers, signing/SmartScreen, and the
 clean-machine walkthrough (optional/non-blocking by owner policy).
 
-**Next:** wire the orchestrator to a real generation root — it is currently verified against
-in-memory stores and a generation-lifecycle stub only. Phase 1B remains IN PROGRESS.
+**Next:** the semantic subsystem is still reachable from **no product surface** — nothing registers a
+runtime via `setSemanticIndexRuntime`, so shutdown currently has nothing to drain. That is the
+authorized semantic service, RBAC, preload/API boundary, projections, Settings controls and search UI.
+Phase 1B infrastructure is complete.
 
 ## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 

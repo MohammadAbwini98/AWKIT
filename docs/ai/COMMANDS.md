@@ -91,6 +91,35 @@ npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-pr
                             # Optimization resolver (pure): balanced == today invariant, capability relaxations,
                             # low-resource has background throttling OFF (+ Custom-throttling mechanism still works),
                             # mode parsing, routing mapping. (51 checks)
+# ── Semantic index / Zvec native host ──────────────────────────────────────────────────────────
+# Reachable from NO product surface yet. `prepare:zvec-host` MUST run before any live verifier:
+# they refuse a host tree that is not byte-identical to native-hosts/zvec/zvec-host.cjs, because a
+# stale tree reports a confident PASS for code that was never built.
+npm run prepare:zvec-host   # stage the raw host + binding into build/native-hosts/zvec
+npm run verify:semantic-policy   # projection/redaction/validator privacy pipeline (pure)
+npm run verify:semantic-store    # shared SemanticStore contract vs BOTH implementations (transport fake)
+npm run verify:semantic-queue    # coalescing, ordering, overflow, no blind replay (pure)
+npm run verify:semantic-rebuild  # rebuild watermark + ordered delta replay vs in-memory stores and a
+                            # generation-lifecycle stub (pure)
+npm run verify:semantic-zvec-filter # typed filter builder + the SAME expressions against the REAL binding
+npm run verify:semantic-zvec-native-contract # shared contract through the REAL path: store → host manager
+                            # → utilityProcess → raw host → Zvec
+npm run verify:semantic-rebuild-live # the REBUILD lifecycle through the real generation runtime: real
+                            # candidate build, activation, retarget, restart, rollback, host crash
+                            # mid-write and mid-populate, post-activation open failure
+npm run verify:zvec-host-source-boundary # the host stays raw CJS, utilityProcess-only, no crash hook
+npm run verify:zvec-host-lifecycle       # fork/handshake/deadlines/restart policy/circuit breaker
+npm run verify:zvec-generation-lifecycle # create/validate/activate/rollback + atomic pointer swap
+npm run verify:zvec-generation-recovery  # startup reconciliation, retention, quarantine
+npm run verify:zvec-generation-concurrency # concurrent allocation is collision-safe
+npm run verify:zvec-packaged-assets      # packaged asset checksums (17/17)
+npm run verify:zvec-packaged-live        # live manager against the PACKAGED host (also the NSIS tree)
+npm run verify:zvec-coexistence          # Playwright workflow pass count is unchanged under Zvec load
+# Point any live verifier at another layout (the NSIS matrix uses this):
+#   $env:AWKIT_ZVEC_LIVE_HOST_PATH = "<...>/resources/native-hosts/zvec/zvec-host.cjs"
+# Installed (NSIS) layout end-to-end — installs per-user unelevated, runs, uninstalls, verifies clean:
+#   powershell -ExecutionPolicy Bypass -File scripts/zvec-harness/run-installed-live.ps1
+
 # Browser Resource Optimization benchmarks (headed Windows; write reports/browser-performance/*.json):
 npm run benchmark:browser-resource # simple Balanced-vs-Low-Resource per-instance run (blank/nav/idle/form)
 npm run benchmark:workloads   # Balanced vs Low-Resource across 8 representative workloads (RAM/CPU/net/duration, N reps)

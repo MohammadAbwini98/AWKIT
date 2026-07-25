@@ -484,6 +484,54 @@ unaffected — they read stored rows and never launch the bridge.
 spawned, Java re-validates authoritatively so a racing/compromised caller cannot bypass it. Both are
 defense in depth; the primary boundary is a least-privilege Oracle account.
 
+## Semantic index (separate process boundary)
+
+```text
+native-hosts/zvec/      Raw, unbundled CommonJS host. The ONLY component that requires @zvec/zvec.
+  zvec-host.cjs           Shipped via extraResources (resources/native-hosts/zvec/), NEVER inside
+                          app.asar, loaded ONLY in an Electron utilityProcess. Owns an independent
+                          copy of the filter builder and the path-confinement check.
+src/semantic/           Framework-agnostic core (no Electron, no Zvec import).
+  SemanticProjection / SemanticRedactor / SemanticPolicyValidator
+                          Privacy pipeline. Projection runs BEFORE redaction and is the primary
+                          control: it is a structural exclusion, redaction is only a filter.
+  SemanticStore.ts        The interface everything above the adapter talks to.
+  ZvecSemanticStore.ts    The ONLY file that knows Zvec wire shapes. Transport is INJECTED.
+  InMemorySemanticStore.ts  Real semantics; degraded-mode fallback and rebuild parity oracle.
+  SemanticGenerationLayout / SemanticGenerationManager / SemanticGenerationReconciler
+                          On-disk generations, the authoritative active pointer, startup recovery.
+  SemanticMutationQueue.ts  Coalescing, ordering, bounded overflow, rebuild watermark + delta journal.
+  SemanticRebuildOrchestrator.ts  Watermark → populate → validate → replay delta → activate.
+  SemanticIndexRuntime.ts   PRODUCTION BINDING: owns the active store, the queue, and the
+                          transition between generations. Also framework-agnostic.
+app/main/semantic/
+  ZvecUtilityHostManager.ts  utilityProcess lifetime, correlated requests + deadlines, restart policy.
+  semanticService.ts      Main-process owner: startup reconciliation, health, bounded shutdown.
+```
+
+**Transport:** the main process forks the host as an Electron `utilityProcess` and speaks correlated
+JSON requests with per-operation deadlines. Zvec is **not resolvable from the main process at all** —
+bundling it is what caused a hard crash in Phase 0B, and `verify:zvec-host-source-boundary` guards it.
+
+**The active-generation pointer is authoritative, everywhere.** Metadata is derived and never decides
+active identity. `resolveActiveIdentity` is the single mapping from "how the pointer read went" to
+"what a caller may assume", and it returns an explicit `unknown` — collapsing a damaged pointer to
+"no active generation" once authorised deleting a live index.
+
+**The pointer swap is the single commit point, and it is irreversible.** A failure after it never
+reverts the pointer and never resumes writing to the previous generation; that would fork the index
+into two histories, one unreachable after the next restart. Writes stop, the queue and journal are
+preserved, and the state is reported as `ACTIVE_GENERATION_OPEN_FAILED`. Enforcement is structural —
+the queue is retargeted onto a store that refuses every operation.
+
+**A filter string never crosses `SemanticStore`.** Callers send typed clauses; the host builds the
+expression from a field allowlist, duplicated deliberately so an IPC gap cannot widen a delete. An
+empty clause list is refused, so "delete where nothing" can never mean "delete everything". Identity
+is filtered through a derived fixed-alphabet `entityKey`, never a raw user string.
+
+**Reachable from no product surface yet** (by design): no semantic IPC, preload API, renderer surface
+or automatic indexing. Nothing registers a runtime via `setSemanticIndexRuntime`.
+
 ## Architectural constraints (Confirmed)
 
 - Offline-first: production must not download browsers or require internet/global toolchains;

@@ -162,19 +162,24 @@ before this one.**
 
 ### Recommended next step
 
-**Wire the orchestrator to a real generation root** — bind `rebuildGeneration` to
-`rebuildIntoNewGeneration`, `openCandidate` to a real candidate store, and `retarget` to the live
-store/queue, then re-run `verify:semantic-rebuild` plus the generation verifiers. This is the last
-structural gap in Phase 1B: the orchestrator is verified only against in-memory stores and a
-lifecycle stub, so its interaction with real generation allocation, on-disk validation and the
-pointer swap is still unproven.
+**The orchestrator is now bound to the real generation runtime** (`src/semantic/SemanticIndexRuntime.ts`,
+commit `27d93d1`), verified by `verify:semantic-rebuild-live` — orchestrator → generation filesystem →
+`ZvecSemanticStore` → `ZvecUtilityHostManager` → `utilityProcess` → raw host → real Zvec, **23/0 with
+62 lifecycle assertions**. Bounded shutdown is wired into `disposeSemanticSubsystem` and raced against
+a 3s ceiling in `main.ts`.
 
-`whenIdle()` also has no production caller yet — shutdown should await it (it now returns `false` on
-deadline, which the caller must log rather than ignore).
+Two defects only reachable there were fixed: **the rebuild path could never have run** (the host
+treated an existing empty directory as an openable collection, and `createGeneration` always
+pre-creates one), and **a rebuild overlapping a delete could never activate** (post-replay validation
+read a correct deletion as corruption). See `CURRENT_STATE.md` for both.
 
-bd `awkit-9yv` (packaged/NSIS layouts) is satisfied — see the packaged results above.
+**Phase 1B infrastructure is complete.** The next work is product functionality, in this order:
 
-Do not stack product UI work on the rebuild path until the orchestrator is wired.
+    authorized semantic main-process service → RBAC permissions → preload/API boundary
+    → automatic approved projections → Settings health/rebuild controls → search UI
+
+Nothing registers a runtime via `setSemanticIndexRuntime` yet, so shutdown currently has nothing to
+drain — that registration belongs to the semantic service when it gains a projection source.
 
 ---
 

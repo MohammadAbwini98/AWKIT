@@ -200,7 +200,28 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
   Feature Test Lab scenarios.
 - After offline/packaging changes, run `npm run validate:offline` (the package scripts run it in
   `-Strict` mode).
+- After changing the semantic subsystem or the Zvec host, run `npm run prepare:zvec-host` FIRST, then
+  `verify:semantic-zvec-native-contract` and `verify:semantic-rebuild-live`. Both refuse a host tree
+  that is not byte-identical to `native-hosts/zvec/zvec-host.cjs` — a stale tree reports a confident
+  PASS for code that was never built. Rebuild the portable/NSIS packages before claiming those layouts.
 - Always run `npm run build` before declaring done.
+
+### An unexecuted verifier is not evidence
+
+Do not cite a verifier's checks in a summary, commit message, or doc until you have run it. This is
+not a style rule; it has produced real defects in this repository:
+
+- a negative control whose flag was declared inside a factory the code calls twice, so it reset and
+  the control passed while exercising nothing;
+- a suite-size floor set above the suite's real size, which failed a run that had completed;
+- fault injection matching request types the caller never sends (`insert`/`stats` instead of
+  `upsert`/`count`), so two "failure" scenarios silently exercised a SUCCESSFUL path;
+- a check reading `r.hits` after the reply shape changed to `{ docs, totalMatched }` — `hits === 0`
+  is false when `hits` is `undefined`, so it passed vacuously for an entire protocol version.
+
+Two rules follow. **When a reply or response shape changes, grep every reader of the removed field**;
+such a check fails OPEN. And **confirm each negative control actually fails when the behaviour it
+guards is removed** — that is the only thing separating a control from decoration.
 
 ## Manual verification checklist
 - For UI changes: run `npm run dev` and exercise the affected screen.

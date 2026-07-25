@@ -4,6 +4,39 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-25 — A failed retarget after activation degrades; it never reverts the pointer
+
+- **Decision:** once `activateGeneration` writes the active pointer, that generation is
+  authoritative. If the newly-active generation then fails to open, or the live store cannot be
+  retargeted onto it, the system enters a stable degraded state (`ACTIVE_GENERATION_OPEN_FAILED`):
+  writes stop, the pending queue and delta journal are preserved, a bounded reopen is attempted, and
+  a restart recovers from the pointer. It does **not** revert the pointer, delete the activated
+  generation, or resume writing to the previous one.
+- **Why:** the alternatives both corrupt. Reverting the pointer strands every document the rebuild
+  just wrote. Continuing to write to the superseded generation forks the index into two divergent
+  histories, and the next restart opens the pointer's generation — so the fork is silently discarded,
+  which is data loss that looks like a working application.
+- **Enforcement is structural, not procedural:** the mutation queue is retargeted onto a store that
+  refuses every operation. Correctness does not depend on future callers remembering to check a flag
+  before draining.
+- **Consequence:** reads may continue from the still-open previous store only if explicitly marked
+  stale; it must never receive a post-activation mutation. A shutdown that hits its deadline
+  deliberately skips `markIndexClosed`, leaving the session unclean so startup reconciles it.
+
+### 2026-07-25 — Rebuild validation trusts the snapshot only where the delta did not touch
+
+- **Decision:** post-replay candidate validation excludes every document id and entity the delta
+  replay touched. The snapshot is authoritative only for documents the delta did not change.
+- **Why:** validation sampled the snapshot and asserted each sampled document was present in the
+  candidate. A post-watermark DELETE of a snapshotted document is a *correct* outcome, so it was read
+  as corruption and the rebuild was refused — meaning any rebuild that merely overlapped a delete
+  could never activate, which is precisely the case the delta journal exists to support. Upserts are
+  the same problem one step subtler: the replayed content is legitimately newer than the snapshot, so
+  comparing `sourceHash` against the snapshot's version reports a mismatch that is really an update.
+- **Trade-off:** the post-replay pass asserts less than the pre-replay pass, which still validates the
+  snapshot exactly. That is the correct division: the first pass proves the candidate matches its
+  source, the second proves the replay did not corrupt it.
+
 ### 2026-07-25 - Single-branch continuous implementation
 
 - **Decision:** AWKIT development continues on `main`. Agents must not create a branch per task,
