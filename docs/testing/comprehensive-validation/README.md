@@ -6,8 +6,8 @@ This package records the 2026-07-25/26 comprehensive validation campaign.
 - `TEST_CASES.md` — preconditions, steps, expected results, and observed status
 - `RECORDER_REPORTS_SETTINGS_TEST_CASES.md` — focused Recorder, System Reports, and Settings
   coverage, including explicit component-vs-end-to-end status
-- `RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md` — execution-ready prompt for fixing the confirmed
-  connector defect, completing the three focused surfaces, and closing their release gates
+- `FULL_VALIDATION_REMEDIATION_PROMPT.md` — unified execution-ready prompt covering the comprehensive
+  E2E campaign, Oracle workflow validation, and Recorder/Reports/Settings release gates
 - `TRACEABILITY_MATRIX.csv` — every declared step, edge, connector, and value-source type
 - `FIXTURES.md` — created flow, workflow, and data fixtures
 - `EXECUTION_RESULTS.md` — suite ledger and screenshot/log/report paths

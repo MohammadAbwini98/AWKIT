@@ -1,13 +1,14 @@
 # CURRENT_STATE
 
-## Recorder, Reports, and Settings remediation prompt (2026-07-26, current)
+## Unified validation remediation prompt (2026-07-26, current)
 
-`docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md` is the
-execution-ready implementation brief for the next engineering pass. It carries forward the 29
-Recorder, 16 System Reports, and 21 Settings outcomes; separates `NOT RUN` coverage gaps from
-confirmed defects; prioritizes `AWKIT-E2E-001`; requires REC-018's full record→save→reopen→production
-replay; and defines fixtures, code surfaces, security rules, evidence, commands, quality gates, and
-completion criteria.
+`docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is the execution-ready
+implementation brief for all three validation campaigns: comprehensive E2E, Oracle JDBC/row-driven
+workflow, and Recorder/Reports/Settings. It carries forward the 8/1 comprehensive ledger, 7/0/1
+Oracle workflow ledger, and all 66 focused page cases; separates failures from blocked/not-run
+gates; prioritizes `AWKIT-E2E-001`; reconciles generic-live versus exact-workflow Oracle status and
+the user-selected-driver packaging model; and requires REC-018 plus populated Reports and complete
+Settings journeys.
 
 ## Recorder, System Reports, and Settings focused test cases (2026-07-26, current)
 
