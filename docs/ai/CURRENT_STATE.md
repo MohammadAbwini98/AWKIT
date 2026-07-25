@@ -76,8 +76,43 @@ NSIS matrix 10/10.
 utilisation still unmeasured (the Phase 0D sampler was invalid); Authenticode signing and
 SmartScreen reputation unaddressed.
 
-**Next: Phase 1B** - `SemanticStore` interface, in-memory fake, serialized mutation queue,
-redaction, policy validation, rebuildable generation switching.
+## Zvec Phase 1B - sanitisation pipeline, stores and mutation queue (2026-07-25, current)
+
+Items 1-10 of the Phase 1B plan are implemented on `main`. Still reachable from **no product
+surface** - renderer/preload APIs, semantic IPC, automatic indexing, UI, failure memory, locator
+memory, embeddings and RAG remain explicitly out of scope.
+
+**The pipeline (order is mandated - nothing may enter a queue before sanitisation exists):**
+`SemanticProjection` (allowlist) -> `SemanticRedactor` -> `SemanticPolicyValidator` -> branded
+`ValidatedSemanticDocument` -> `SemanticStore` -> `SemanticMutationQueue`.
+
+- **Projection is the primary privacy control**, and it runs FIRST. Redaction is a filter (it leaks
+  whatever it fails to recognise); projection is a structural exclusion (an unlisted field is never
+  read). Captured input values, storage state, cookies, raw errors and full URLs are structurally
+  excluded; bounded derived forms are allowlisted instead (`errorCategory` not the error text,
+  `hostname` not the URL, `locatorStrategy` not the matched element text).
+- **`ValidatedSemanticDocument` is branded on a module-private symbol**, so only the policy pipeline
+  can mint one and the stores/queue accept nothing else - a type-checked guarantee, probe-verified.
+  Honest limit: a double assertion can defeat any TS brand; `Object.freeze` covers runtime tampering.
+- **The validator independently re-scans already-redacted content.** Not redundancy - the redactor is
+  the component most likely to have a pattern gap, and this stage refuses rather than cleans.
+- **Two store implementations run the SAME contract suite** (`SemanticStoreContract`, kept in `src/`
+  for exactly that reason): `InMemorySemanticStore` (real semantics, also the degraded-mode fallback
+  and rebuild parity oracle) and `ZvecSemanticStore` (the only file that knows Zvec wire shapes;
+  transport injected, so it stays framework-agnostic). Running both caught a real divergence in `reasons`.
+- **The queue** is serialized, coalescing, bounded, and biased against dropping deletes: a dropped
+  upsert is recoverable staleness, a dropped delete leaves content indexed that should be gone. When
+  only deletes are pending, enqueue is REFUSED rather than dropping one. **No blind replay** - only
+  classified-retryable failures are retried, boundedly; anything else marks the index rebuild-required.
+
+**Verifiers:** `verify:semantic-policy` 80/0, `verify:semantic-store` 93/0 (both implementations),
+`verify:semantic-queue` 46/0. All three negative-controlled. Taxonomy 111 -> **126**.
+
+**Not covered by these:** native crash isolation, real FTS ranking quality and on-disk durability -
+the Zvec adapter is exercised through a transport fake here; the real host remains
+`verify:zvec-packaged-live`.
+
+**Next:** rebuild orchestration + parity tests, then the product-surface phases.
 
 ## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 

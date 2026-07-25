@@ -4,6 +4,56 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Zvec Phase 1B: sanitisation pipeline, stores, mutation queue (Claude)
+
+**Task:** implement Phase 1B items 1-10 on `main`, in the mandated order.
+
+**Commits:** `097817b` (contracts + projection + redactor + policy validator), `e93b0bb` (store
+interface + in-memory implementation + shared contract suite), `f59d17f` (Zvec adapter + transport
+fake), this commit (serialized mutation/rebuild queue).
+
+**Design points worth keeping:**
+- **Projection before redaction, deliberately.** Redaction is a filter and leaks what it does not
+  recognise; projection is a structural exclusion. Adding a field to the allowlist is a privacy
+  decision, not a formatting one.
+- **The brand is the enforcement.** `ValidatedSemanticDocument` uses a module-private `unique
+  symbol`, so the stores and queue cannot accept anything the policy pipeline did not mint. Verified
+  with a throwaway compile probe. A double assertion can still defeat it - stated in the file rather
+  than overclaimed.
+- **One contract suite, two implementations.** Keeping it in `src/` (not in the verifier script) is
+  what let the Zvec adapter run the identical assertions. It immediately caught the adapter emitting
+  a flat `"Full-text match"` while the in-memory store explained title vs content matches, i.e.
+  `reasons` meant different things per backend. Fixed by extracting one shared explanation
+  vocabulary; ranking WEIGHTS stay per-store, since each backend ranks differently.
+- **Documents read back OUT of the index are re-validated, not cast.** The index is a file on disk;
+  it is untrusted in both directions. A row failing policy is dropped rather than surfaced.
+- **Queue asymmetry:** a dropped upsert is recoverable staleness (detectable via `sourceHash`); a
+  dropped delete leaves content indexed that should be gone. So overflow drops the oldest UPSERT and
+  never a delete, and refuses the enqueue when only deletes remain.
+
+**All three verifiers negative-controlled** (each failed against a deliberately broken
+implementation before being trusted): upsert-is-replace (append instead of replace -> "holds ONE
+document, not two - 2"); delete-protection (drop oldest regardless of op -> 2 failures);
+no-blind-replay (treat every failure as retryable -> "attempted exactly once - calls=4"). Also
+fixed a self-inflicted vacuous assertion (`!queue.needsRebuild === false`, whose label claimed to
+test delete survival but tested nothing) by pre-seeding a real delete target.
+
+**Also fixed, pre-existing:** `verify:verifier-classification` was FAILING on `main` - Phase 1A
+added twelve `verify:zvec-*` scripts plus `verify:all-typecheck` without registering them, so the
+reported taxonomy total was stale at 111 and excluded the entire semantic subsystem. Now 126.
+
+**Tests:** `npm run build` PASS; `typecheck:scripts` PASS; `verify:all-typecheck` PASS;
+semantic-policy 80/0; semantic-store 93/0 (both implementations); semantic-queue 46/0;
+zvec-generation-recovery 134/0; generation-lifecycle 102/0; generation-concurrency 12/0;
+host-lifecycle 52/0; host-source-boundary 22/0; verifier-classification 126; memory gate PASS.
+**Not run:** `verify:zvec-packaged-live` / `coexistence` (need `package:portable`), `verify:runner`,
+mock-site verifiers - no runner, recorder, renderer or packaging source changed.
+
+**Explicitly still out of scope:** renderer/preload semantic APIs, semantic IPC, automatic indexing,
+UI, failure memory, locator memory, embeddings, RAG. Rebuild orchestration + parity tests remain.
+
+---
+
 ## 2026-07-25 - Pointer-state hardening + restored type gates (Claude)
 
 **Task:** close the remaining Phase 1A integrity gap before Phase 1B contracts build on it, and make

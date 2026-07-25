@@ -174,7 +174,8 @@
     "verify:zvec-coexistence": "tsx scripts/verify-zvec-coexistence.mts",
     "verify:zvec-generation-concurrency": "tsx scripts/verify-zvec-generation-concurrency.mts",
     "verify:semantic-policy": "tsx scripts/verify-semantic-policy.mts",
-    "verify:semantic-store": "tsx scripts/verify-semantic-store.mts"
+    "verify:semantic-store": "tsx scripts/verify-semantic-store.mts",
+    "verify:semantic-queue": "tsx scripts/verify-semantic-queue.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

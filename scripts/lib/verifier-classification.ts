@@ -183,7 +183,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:semantic-store": {
     class: "unit",
-    why: "Shared SemanticStore contract suite plus injected-failure and ranking checks, in-process against the in-memory implementation."
+    why: "Shared SemanticStore contract suite run against BOTH implementations (in-memory, and the Zvec adapter over a transport fake), plus injected-failure and ranking checks. No native host — that is verify:zvec-packaged-live."
+  },
+  "verify:semantic-queue": {
+    class: "unit",
+    why: "Mutation-queue coalescing, delete-supersedes-upsert, bounded overflow and no-blind-replay, in-process against the in-memory store."
   },
   "verify:zvec-host-lifecycle": {
     class: "unit",
