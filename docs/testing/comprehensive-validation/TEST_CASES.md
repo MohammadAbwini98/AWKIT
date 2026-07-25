@@ -2,6 +2,11 @@
 
 Status reflects the 2026-07-25/26 execution. Exact command and artifact locations are in `EXECUTION_RESULTS.md`.
 
+Recorder, System Reports, and Settings were subsequently expanded into detailed feature-level cases
+in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. That addendum is authoritative for those three surfaces
+and deliberately distinguishes component-contract passes from full Electron user journeys that remain
+`NOT RUN` or manual-handoff `BLOCKED`.
+
 ## CMP-INV-001 — Persisted schema inventory
 
 **Preconditions:** Comprehensive fixture directory is readable.

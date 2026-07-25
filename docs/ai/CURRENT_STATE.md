@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Recorder, System Reports, and Settings focused test cases (2026-07-26, current)
+
+`docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md` now defines 29
+Recorder cases, 16 System Reports cases, and 21 Settings cases with concrete preconditions, steps,
+expected results, safety controls, and `PASS`/`BLOCKED`/`NOT RUN` status.
+
+- Recorder component suites are green: capture/locators/Smart Waits 78/78, flow conversion 19/19,
+  draft/URL persistence 17/17, async review 21/21, protected detection 45/45, HTTPS 49/49, popup
+  identity 43/43, and designer/profile round-trip 26/26.
+- Reports are green for empty-state GUI 31/31, telemetry 61/61, and observability 65/65. Populated GUI
+  truth, drill-down, stored-report export/path security, authorization, and accessibility remain
+  `NOT RUN`.
+- Settings are green for persistence 3/3, capacity GUI 12/12, HTTPS GUI 31/31, accent 33/33,
+  branding 30/30, secrets backend 16/16, and Database Drivers GUI 30/30. Paths, general validation,
+  Secrets GUI, import/export, reset/data preservation, authorization, and accessibility remain open.
+- The decisive Recorder gap is REC-018: no current verifier proves the complete Electron journey
+  Recorder page → launched browser → actions → Stop → Save → reopen → production replay.
+
 ## Oracle mock-UI fixture (2026-07-26, current)
 
 `SPECTER_MOCKUI.MOCK_FORM_CASES` is a new 8-row fixture whose columns map 1:1 onto the Feature Test Lab

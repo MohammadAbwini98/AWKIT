@@ -1,5 +1,18 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): Recorder / Reports / Settings test-design gap closed
+
+The comprehensive package now includes
+`docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md`: 66 focused cases
+with exact preconditions, steps, expected outcomes, safety boundaries, evidence mapping, and honest
+execution status.
+
+Recorder's underlying engines are heavily covered and green, but do not call the whole feature
+certified: REC-018 (Recorder page → browser → record → Stop → Save → reopen → production replay)
+remains `NOT RUN`. Reports still need populated GUI/drill-down/export authorization checks, and
+Settings still needs paths/general validation/Secrets GUI/import-reset-data-safety/accessibility.
+Manual protected-login completion stays `BLOCKED`; no CAPTCHA/MFA/security control was bypassed.
+
 ## ACTIVE (2026-07-26, latest): Oracle Data Source → row-driven browser workflow complete
 
 The missing Oracle mock-UI workflow is now persisted and executed. The same credential-free fixture

@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-26 (latest) - Recorder, Reports, and Settings focused cases (Codex)
+
+**Task:** add missing comprehensive cases for Recorder, System Reports, and Settings, emphasizing the
+Recorder's complete user and security lifecycle.
+
+**Delivered:** `RECORDER_REPORTS_SETTINGS_TEST_CASES.md` with 29 Recorder, 16 System Reports, and 21
+Settings cases; updated the main plan, case index, traceability matrix, execution ledger, readiness
+decision, current state, and handoff.
+
+**Fresh passes:** Recorder 78/78, flow 19/19, draft 17/17, async review 21/21, protected detection
+45/45, HTTPS runtime 49/49, popup identity 43/43, random round-trip 26/26; Reports GUI 31/31,
+telemetry 61/61, observability 65/65; Settings persistence 3/3 (isolated root), capacity GUI 12/12,
+HTTPS GUI 31/31, secrets 16/16, accent 33/33, branding 30/30, Database Drivers GUI 30/30.
+
+**Open:** REC-018 full Recorder page record→save→reopen→production replay; populated Reports GUI
+truth/drill-down/export/path authorization; Settings paths/general validation/Secrets GUI/import/
+reset-data-preservation/RBAC/accessibility. Manual protected login remains `BLOCKED`.
+
+---
+
 ## 2026-07-26 (latest) - Oracle row-driven form workflow and ExecutionEngine validation (Codex)
 
 **Task:** finish the step left open by the mock-UI Oracle fixture: author persisted Data Source/flow/

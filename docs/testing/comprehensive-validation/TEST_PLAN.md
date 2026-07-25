@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-Validate AWKIT as an installed automation product, not only as a collection of isolated functions. The campaign covers persisted flows and workflows, browser execution, all declared step and connector schemas, value propagation, parallelism, loops, retries, waits, artifacts, sessions, error handling, observability, recovery, authorization, Oracle integration boundaries, and packaged/offline readiness.
+Validate AWKIT as an installed automation product, not only as a collection of isolated functions. The campaign covers persisted flows and workflows, browser execution, all declared step and connector schemas, value propagation, parallelism, loops, retries, waits, artifacts, sessions, error handling, observability, recovery, authorization, Oracle integration boundaries, packaged/offline readiness, and feature-level Recorder, System Reports, and Settings behavior.
 
 ## 2. Test basis
 
@@ -13,6 +13,7 @@ Validate AWKIT as an installed automation product, not only as a collection of i
 - Final main-campaign evidence: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z`
 - Oracle row-driven campaign: `npm run verify:oracle-mock-ui-workflow`
 - Oracle row-driven evidence: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z`
+- Focused feature cases: `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md`
 - Test date: 2026-07-25/26, Asia/Amman
 - Security rule: no CAPTCHA, MFA, OTP, protected-login, bot-detection, or security-control bypass
 
@@ -52,6 +53,18 @@ Validate AWKIT as an installed automation product, not only as a collection of i
   nullable values, decimal/date conversion, stale-state clearing, native validation, and the
   production `ExecutionEngine` data-driven scheduler
 
+### Recorder, System Reports, and Settings
+
+- Recorder page state, browser lifecycle, DOM-action capture, locator safety, sensitive-value
+  redaction, wait observation, async review, draft/URL persistence, flow save, replay, popup identity,
+  protected-login handoff, recovery, authorization, accessibility, and rapid-command behavior
+- Reports Overview, Workflow/Instance/Failure/Runtime/Chrome/Server views, stored Execution Reports,
+  real-history correctness, comparison/filtering, drill-down, export/path security, retention,
+  observability, authorization, accessibility, loading/empty/error states
+- Settings appearance/branding, Recorder security, paths, designer/execution/runtime defaults,
+  secrets, Java/JDBC, storage counts, UI-state clearing, import/export, reset, offline validation,
+  authorization, accessibility, persistence and concurrent writes
+
 ## 4. Out of scope or externally blocked
 
 - Real CAPTCHA, MFA, OTP, SSO, protected-login completion, or anti-bot challenge automation
@@ -85,8 +98,10 @@ Secrets used by the campaign are synthetic. Evidence must not contain real crede
 4. Run persisted multi-flow workflows through the production runner.
 5. Force safe failures and verify retry, routing, evidence, and recovery.
 6. Exercise concurrency, cancellation, durable state, telemetry, reports, security, and packaged runtime with their specialized verifiers.
-7. Record every result as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`.
-8. Preserve exact artifact paths and reproduction data.
+7. Execute focused Recorder, Reports, and Settings verifiers, but do not convert a component-level
+   pass into a full Electron-journey pass.
+8. Record every result as `PASS`, `FAIL`, `BLOCKED`, or `NOT RUN`.
+9. Preserve exact artifact paths and reproduction data.
 
 ## 7. Entry criteria
 

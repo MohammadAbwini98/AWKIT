@@ -57,3 +57,38 @@ Oracle,Live database query,verify:oracle-live,External environment,BLOCKED,URL/u
 Oracle,Persisted row-driven UI workflow,verify:oracle-mock-ui-workflow,Real Java bridge + live Chromium + production ExecutionEngine,PASS,7 executed cases passed; live-19c variant separately blocked
 Offline,Clean Windows VM certification,Human release gate,External environment,NOT RUN,Local packaged run is not substituted
 Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project
+Recorder,Page idle/start/stop/cancel lifecycle,REC-001 through REC-004,Electron GUI + RecorderService,NOT RUN,No full Recorder-page verifier
+Recorder,Core action capture,REC-005,Real Chromium,PASS,verify:recorder 78/78
+Recorder,Live compaction and end-to-end redaction,REC-006 through REC-007,RecorderService + artifacts,NOT RUN,Component capture/redaction assertions passed
+Recorder,Semantic locator safety,REC-008 through REC-009,Real Chromium + runner,PASS,verify:recorder 78/78
+Recorder,Fixed wait complete boundaries,REC-010,RecorderService,NOT RUN,Meaningful/sub-threshold/off checks passed
+Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 78/78; async review 21/21
+Recorder,Draft corrupt/missing recovery,REC-014,Filesystem,NOT RUN,Valid restore/discard passed
+Recorder,Flow conversion,REC-015,Profile mapping,PASS,recorder-flow 19/19; round-trip 26/26
+Recorder,Save to library and production replay,REC-016 through REC-018,Electron GUI + profile store + ExecutionEngine,NOT RUN,Principal Recorder release-gate gap
+Recorder,Saved URL history UI,REC-019,Electron GUI,NOT RUN,Storage/dedupe contract passed only
+Recorder,Protected-login detection,REC-020,Detector + mock site,PASS,protected-login-recorder 45/45
+Recorder,Session ignore and handoff recovery,REC-021 + REC-023,Electron GUI + RecorderService,NOT RUN,
+Recorder,Authorized manual handoff,REC-022,Real Chrome/manual,BLOCKED,Requires authorized human and test identity
+Recorder,Crash/race recovery and authorization,REC-024 through REC-025 + REC-028,Electron + IPC + browser process,NOT RUN,
+Recorder,HTTPS trust and popup identity,REC-026 through REC-027,Real Chromium + settings GUI,PASS,certificate 49/49 + GUI 31/31; popup identity 43/43
+Recorder,Accessibility/responsive/reduced motion,REC-029,Electron GUI/manual,NOT RUN,
+System Reports,Route rendering,SYS-REP-001,Real Electron,PASS,verify:reports 31/31
+System Reports,Complete range/refresh race matrix,SYS-REP-002,Real Electron,NOT RUN,7d and refresh stability passed
+System Reports,Populated overview/workflow/instance truth,SYS-REP-003 through SYS-REP-007,Electron + telemetry + SQLite,NOT RUN,Backend aggregates passed but populated GUI was not executed
+System Reports,Stored report export and folder open,SYS-REP-008,Electron + filesystem,NOT RUN,
+System Reports,Failure/runtime historical analytics,SYS-REP-009 through SYS-REP-010,Electron + observability,NOT RUN,Backend telemetry 61/61 and observability 65/65 passed
+System Reports,Chrome and server live surfaces,SYS-REP-011 through SYS-REP-012,Real Electron,NOT RUN,Idle polling/render passed; pressure and fault injection not run
+System Reports,Telemetry/observability persistence contracts,SYS-REP-013 through SYS-REP-014,SQLite integration,PASS,61/61 + 65/65
+System Reports,Authorization/path security/accessibility,SYS-REP-015 through SYS-REP-016,Electron + IPC/manual,NOT RUN,
+Settings,Access and settings-edit authorization,SET-001,Electron + IPC,NOT RUN,
+Settings,Appearance and branding,SET-002 through SET-003,Real Electron,PASS,accent 33/33; branding 30/30
+Settings,Recorder defaults and protected detection,SET-004 through SET-005,Electron + RecorderService,NOT RUN,
+Settings,HTTPS certificate security,SET-006,Real Electron + Chromium,PASS,GUI 31/31; runtime 49/49
+Settings,Paths and validation boundaries,SET-007 through SET-009,Electron + main-process validation,NOT RUN,
+Settings,Runtime capacity and persistence concurrency,SET-010 through SET-011,Real Electron,PASS,capacity GUI 12/12; persistence 3/3
+Settings,Secret store,SET-012,Encrypted store,PASS,16/16
+Settings,Secrets card user journey,SET-013,Real Electron,NOT RUN,Backend store passed only
+Settings,Java and Oracle JDBC drivers,SET-014,Real Electron + Java bridge,PASS,30/30
+Settings,Storage/UI-state/import/reset/offline actions,SET-015 through SET-020,Electron + filesystem,NOT RUN,Only certificate import hardening passed
+Settings,Accessibility/responsive/reduced motion,SET-021,Electron GUI/manual,NOT RUN,Driver card alone passed reduced-motion/overflow

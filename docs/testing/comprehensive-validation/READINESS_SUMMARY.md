@@ -22,6 +22,11 @@ The product is otherwise in strong condition across the tested Chromium automati
 - Persisted Oracle row-driven form workflow without a database: real Java bridge protocol, one
   single-flight query, all 8 DOM mappings, two-instance concurrency, success/blocked terminals,
   production `ExecutionEngine`, screenshots, JSONL logs, and run report
+- Recorder component engines: semantic locator/smart-wait capture, redaction, draft/URL persistence,
+  async review, flow conversion, protected-login detection, popup identity and HTTPS trust
+- Reports empty-state GUI plus telemetry/observability persistence and aggregation
+- Settings capacity/persistence, certificate security, appearance/branding, encrypted secret store,
+  and Java/JDBC driver cards
 
 ## What must be fixed or completed
 
@@ -31,6 +36,10 @@ The product is otherwise in strong condition across the tested Chromium automati
 4. Resolve or explicitly waive the zero-megabyte packaged Oracle driver bundle warning.
 5. Complete the clean/offline Windows VM release walkthrough.
 6. Perform authorized manual CAPTCHA/MFA/SSO handoffs where those real provider paths are release requirements.
+7. Execute REC-018: Recorder page → launched browser → recorded actions → Stop → Save to Flow Library
+   → reopen → production replay, including evidence and restart persistence.
+8. Execute populated System Reports truth/drill-down/export cases and remaining Settings paths,
+   validation, Secrets GUI, import/export, reset/data-preservation, authorization and accessibility cases.
 
 Firefox/WebKit remain outside the present Chromium-first certification unless product scope changes.
 
@@ -41,6 +50,10 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
 - **Offline Oracle release claim:** do not approve until live Oracle and packaged-driver gates pass.
 - **Database-free Oracle-to-UI workflow:** ready; current ledger is 7 PASS / 0 FAIL with the live-DB
   variant separately blocked.
+- **Recorder feature release claim:** do not approve from component totals alone; REC-018 remains
+  `NOT RUN`.
+- **System Reports and Settings full-page certification:** not complete; focused case document records
+  the exact remaining GUI, authorization and accessibility gates.
 
 ## Retest minimum
 

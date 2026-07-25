@@ -4,6 +4,8 @@ This package records the 2026-07-25/26 comprehensive validation campaign.
 
 - `TEST_PLAN.md` — scope, environments, strategy, criteria, risks, and status rules
 - `TEST_CASES.md` — preconditions, steps, expected results, and observed status
+- `RECORDER_REPORTS_SETTINGS_TEST_CASES.md` — focused Recorder, System Reports, and Settings
+  coverage, including explicit component-vs-end-to-end status
 - `TRACEABILITY_MATRIX.csv` — every declared step, edge, connector, and value-source type
 - `FIXTURES.md` — created flow, workflow, and data fixtures
 - `EXECUTION_RESULTS.md` — suite ledger and screenshot/log/report paths
