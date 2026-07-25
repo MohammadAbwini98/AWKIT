@@ -36,6 +36,12 @@ export type SemanticMutation =
   | { op: "delete"; id: string }
   | { op: "deleteEntity"; entityId: string };
 
+/** A queued mutation plus its arrival order. */
+interface SequencedMutation {
+  mutation: SemanticMutation;
+  seq: number;
+}
+
 /** Coalescing key. Upsert and delete of the same document id share a key so one can supersede the other. */
 function mutationKey(mutation: SemanticMutation): string {
   switch (mutation.op) {
@@ -49,7 +55,14 @@ function mutationKey(mutation: SemanticMutation): string {
 }
 
 export type EnqueueOutcome =
-  | { accepted: true; coalesced: boolean; supersededUpsert: boolean }
+  | {
+      accepted: true;
+      coalesced: boolean;
+      /** A pending upsert for the same document id was cancelled by this delete. */
+      supersededUpsert: boolean;
+      /** How many pending upserts this `deleteEntity` cancelled. */
+      supersededByEntity: number;
+    }
   | { accepted: false; reason: "QUEUE_FULL_OF_DELETES" };
 
 export interface DrainResult {
@@ -71,6 +84,31 @@ export interface SemanticMutationQueueOptions {
   maxRetries?: number;
 }
 
+type MutationRun =
+  | { op: "upsert"; items: Extract<SemanticMutation, { op: "upsert" }>[] }
+  | { op: "delete"; items: Extract<SemanticMutation, { op: "delete" }>[] }
+  | { op: "deleteEntity"; items: Extract<SemanticMutation, { op: "deleteEntity" }>[] };
+
+/**
+ * Split an ordered mutation list into consecutive same-operation runs.
+ *
+ * Only ADJACENT mutations are grouped, so batching can never move an operation past one that was
+ * enqueued before it. `[upsert, upsert, deleteEntity, upsert]` yields three runs, preserving the
+ * fact that the trailing upsert is a deliberate re-index after the entity deletion.
+ */
+function adjacentRuns(mutations: readonly SemanticMutation[]): MutationRun[] {
+  const runs: MutationRun[] = [];
+  for (const mutation of mutations) {
+    const last = runs[runs.length - 1];
+    if (last && last.op === mutation.op) {
+      (last.items as SemanticMutation[]).push(mutation);
+    } else {
+      runs.push({ op: mutation.op, items: [mutation] } as MutationRun);
+    }
+  }
+  return runs;
+}
+
 /** Failures worth retrying. Everything else is treated as terminal — see "no blind replay". */
 const RETRYABLE_CODES = new Set(["WRITE_FAILED", "READ_FAILED", "QUERY_FAILED"]);
 
@@ -78,10 +116,23 @@ function isRetryable(error: unknown): boolean {
   return error instanceof SemanticStoreError && RETRYABLE_CODES.has(error.code);
 }
 
+function requireInteger(value: number | undefined, fallback: number, min: number, label: string): number {
+  const resolved = value ?? fallback;
+  if (!Number.isInteger(resolved) || resolved < min) {
+    // Thrown, not clamped: a `batchSize` of 0 previously left `pending.size > 0` forever while every
+    // selected batch was empty — an infinite loop presenting as a hang. Silently repairing a
+    // nonsensical option would hide the caller's bug.
+    throw new RangeError(`${label} must be an integer >= ${min}, got ${String(value)}`);
+  }
+  return resolved;
+}
+
 export class SemanticMutationQueue {
-  /** Insertion-ordered by key; re-enqueueing a key REPLACES in place and keeps original position. */
-  private pending = new Map<string, SemanticMutation>();
-  private draining = false;
+  /** Keyed for coalescing; `seq` carries the TEMPORAL order that batching must respect. */
+  private pending = new Map<string, SequencedMutation>();
+  private nextSeq = 0;
+  /** The in-flight drain, so concurrent callers await the real work instead of a false completion. */
+  private activeDrain: Promise<DrainResult> | null = null;
   private rebuildRequired = false;
   private droppedUpserts = 0;
 
@@ -90,9 +141,9 @@ export class SemanticMutationQueue {
   private readonly maxRetries: number;
 
   constructor(private readonly options: SemanticMutationQueueOptions) {
-    this.maxPending = options.maxPending ?? 1000;
-    this.batchSize = options.batchSize ?? 100;
-    this.maxRetries = options.maxRetries ?? 2;
+    this.maxPending = requireInteger(options.maxPending, 1000, 1, "maxPending");
+    this.batchSize = requireInteger(options.batchSize, 100, 1, "batchSize");
+    this.maxRetries = requireInteger(options.maxRetries, 2, 0, "maxRetries");
   }
 
   get size(): number {
@@ -114,11 +165,30 @@ export class SemanticMutationQueue {
 
     // Delete supersedes a pending upsert for the same id. The reverse is allowed: an upsert after a
     // delete is a genuine re-index, not a mistake.
-    const supersededUpsert = existing?.op === "upsert" && mutation.op === "delete";
+    const supersededUpsert = existing?.mutation.op === "upsert" && mutation.op === "delete";
+
+    // `deleteEntity` must cancel every pending upsert for that entity, not merely run before them.
+    // These mutations live under DIFFERENT coalescing keys (`doc:` vs `entity:`), so key-based
+    // coalescing alone cannot see the relationship — and draining all deletes before all upserts
+    // reordered "upsert then deleteEntity" into "deleteEntity then upsert", resurrecting the very
+    // document the caller had just asked to remove.
+    let supersededByEntity = 0;
+    if (mutation.op === "deleteEntity") {
+      for (const [pendingKey, entry] of [...this.pending]) {
+        if (entry.mutation.op === "upsert" && entry.mutation.document.entityId === mutation.entityId) {
+          this.pending.delete(pendingKey);
+          supersededByEntity += 1;
+        }
+      }
+    }
 
     if (existing) {
-      this.pending.set(key, mutation); // replace in place, preserving queue position
-      return { accepted: true, coalesced: true, supersededUpsert };
+      // Re-keyed at the END, not replaced in place: coalescing must carry the temporal position of
+      // the LATEST operation, otherwise a late delete inherits an early upsert's slot and can be
+      // executed before mutations that were actually enqueued before it.
+      this.pending.delete(key);
+      this.pending.set(key, { mutation, seq: this.nextSeq++ });
+      return { accepted: true, coalesced: true, supersededUpsert, supersededByEntity };
     }
 
     if (this.pending.size >= this.maxPending) {
@@ -136,15 +206,18 @@ export class SemanticMutationQueue {
       this.rebuildRequired = true;
     }
 
-    this.pending.set(key, mutation);
-    return { accepted: true, coalesced: false, supersededUpsert: false };
+    this.pending.set(key, { mutation, seq: this.nextSeq++ });
+    return { accepted: true, coalesced: false, supersededUpsert: false, supersededByEntity };
   }
 
   private oldestUpsertKey(): string | null {
-    for (const [key, mutation] of this.pending) {
-      if (mutation.op === "upsert") return key;
+    let oldest: { key: string; seq: number } | null = null;
+    for (const [key, entry] of this.pending) {
+      if (entry.mutation.op === "upsert" && (oldest === null || entry.seq < oldest.seq)) {
+        oldest = { key, seq: entry.seq };
+      }
     }
-    return null;
+    return oldest?.key ?? null;
   }
 
   /**
@@ -154,46 +227,51 @@ export class SemanticMutationQueue {
    * up anything enqueued meanwhile, and allowing a second concurrent drain would defeat the
    * serialization this class exists to provide.
    */
-  async drain(): Promise<DrainResult> {
+  // Deliberately NOT `async`: an async method wraps its return value in a NEW promise, so
+  // `drain() === drain()` would be false and each caller would hold a distinct wrapper. Returning
+  // the stored promise directly is what makes single-flight observable.
+  drain(): Promise<DrainResult> {
+    // A concurrent caller awaits the REAL work. Returning an empty-looking result told a shutdown
+    // caller the queue was drained while writes were still in flight — an invitation to close the
+    // store mid-write.
+    if (this.activeDrain) return this.activeDrain;
+    this.activeDrain = this.runDrain().finally(() => {
+      this.activeDrain = null;
+    });
+    return this.activeDrain;
+  }
+
+  private async runDrain(): Promise<DrainResult> {
     const result: DrainResult = { upserted: 0, deleted: 0, failed: 0, abandoned: 0, rebuildRequired: this.rebuildRequired };
-    if (this.draining) return result;
-    this.draining = true;
 
-    try {
-      while (this.pending.size > 0) {
-        // Snapshot and clear before awaiting, so mutations enqueued DURING the write are not lost
-        // and are not silently folded into the in-flight batch.
-        const batch = [...this.pending.values()].slice(0, this.batchSize);
-        for (const mutation of batch) this.pending.delete(mutationKey(mutation));
+    while (this.pending.size > 0) {
+      // Take the OLDEST mutations by sequence, then execute them in that order. Snapshotting before
+      // awaiting keeps mutations enqueued during the write out of the in-flight batch.
+      const batch = [...this.pending.values()].sort((a, b) => a.seq - b.seq).slice(0, this.batchSize);
+      for (const entry of batch) this.pending.delete(mutationKey(entry.mutation));
 
-        const upserts = batch.filter((m): m is Extract<SemanticMutation, { op: "upsert" }> => m.op === "upsert");
-        const deletes = batch.filter((m): m is Extract<SemanticMutation, { op: "delete" }> => m.op === "delete");
-        const entityDeletes = batch.filter(
-          (m): m is Extract<SemanticMutation, { op: "deleteEntity" }> => m.op === "deleteEntity"
-        );
-
-        // Deletes first: if the batch fails partway, having removed content is the safer half-state
-        // than having written content that a pending delete was about to remove.
-        for (const del of entityDeletes) {
-          const outcome = await this.attempt(() => this.options.store.deleteByEntity(del.entityId));
-          if (outcome.ok) result.deleted += outcome.value;
-          else this.recordFailure(result, outcome.abandoned);
-        }
-
-        if (deletes.length > 0) {
-          const outcome = await this.attempt(() => this.options.store.delete(deletes.map((d) => d.id)));
-          if (outcome.ok) result.deleted += outcome.value;
-          else this.recordFailure(result, outcome.abandoned);
-        }
-
-        if (upserts.length > 0) {
-          const outcome = await this.attempt(() => this.options.store.upsert(upserts.map((u) => u.document)));
+      // Group only ADJACENT same-op mutations. Globally regrouping the batch by operation type is
+      // what reordered "upsert X" then "deleteEntity X" into "deleteEntity X" then "upsert X".
+      // Batching is a throughput optimisation and must never change observable order.
+      for (const run of adjacentRuns(batch.map((e) => e.mutation))) {
+        if (run.op === "upsert") {
+          const outcome = await this.attempt(() => this.options.store.upsert(run.items.map((u) => u.document)));
           if (outcome.ok) result.upserted += outcome.value.inserted + outcome.value.replaced;
           else this.recordFailure(result, outcome.abandoned);
+        } else if (run.op === "delete") {
+          const outcome = await this.attempt(() => this.options.store.delete(run.items.map((d) => d.id)));
+          if (outcome.ok) result.deleted += outcome.value;
+          else this.recordFailure(result, outcome.abandoned);
+        } else {
+          // Entity deletions run one at a time: each targets a different entity, so there is nothing
+          // to batch, and a shared failure would obscure which entity was not removed.
+          for (const del of run.items) {
+            const outcome = await this.attempt(() => this.options.store.deleteByEntity(del.entityId));
+            if (outcome.ok) result.deleted += outcome.value;
+            else this.recordFailure(result, outcome.abandoned);
+          }
         }
       }
-    } finally {
-      this.draining = false;
     }
 
     result.rebuildRequired = this.rebuildRequired;

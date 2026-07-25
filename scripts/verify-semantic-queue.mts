@@ -81,6 +81,117 @@ console.log("\nDelete supersedes upsert (and not the reverse):\n");
   check("the re-indexed document IS present", (await store2.get(d.id)) !== null);
 }
 
+console.log("\nEntity deletion ordering (the resurrection defect):\n");
+{
+  // upsert X -> deleteEntity X -> drain  =>  X ABSENT.
+  // Before the fix, drain executed every deleteEntity before every upsert, so the LATER entity
+  // deletion ran first and the upsert re-created the document the caller had just removed.
+  const store = await openStore();
+  const queue = new SemanticMutationQueue({ store });
+  const d = doc("wf-ent");
+
+  queue.enqueue({ op: "upsert", document: d });
+  const del = queue.enqueue({ op: "deleteEntity", entityId: "wf-ent" });
+  check("deleteEntity reports superseding the pending upsert", del.accepted && del.supersededByEntity === 1, JSON.stringify(del));
+  check("the superseded upsert is removed from the queue", queue.size === 1, String(queue.size));
+
+  await queue.drain();
+  check("upsert -> deleteEntity -> drain leaves the document ABSENT", (await store.get(d.id)) === null);
+  check("nothing survived the entity deletion", (await store.stats()).documents === 0, String((await store.stats()).documents));
+}
+
+{
+  // deleteEntity X -> upsert X -> drain  =>  X PRESENT (a legitimate re-index).
+  const store = await openStore();
+  const queue = new SemanticMutationQueue({ store });
+  const d = doc("wf-ent");
+
+  queue.enqueue({ op: "deleteEntity", entityId: "wf-ent" });
+  const up = queue.enqueue({ op: "upsert", document: d });
+  check("an upsert AFTER deleteEntity is not superseded", up.accepted && up.supersededByEntity === 0);
+  check("both mutations remain queued", queue.size === 2, String(queue.size));
+
+  await queue.drain();
+  check("deleteEntity -> upsert -> drain leaves the document PRESENT", (await store.get(d.id)) !== null);
+}
+
+{
+  // deleteEntity must only cancel upserts for ITS entity.
+  const store = await openStore();
+  const queue = new SemanticMutationQueue({ store });
+  const mine = doc("wf-mine");
+  const other = doc("wf-other");
+  queue.enqueue({ op: "upsert", document: mine });
+  queue.enqueue({ op: "upsert", document: other });
+  const del = queue.enqueue({ op: "deleteEntity", entityId: "wf-mine" });
+  check("deleteEntity cancels only its own entity's upserts", del.accepted && del.supersededByEntity === 1);
+
+  await queue.drain();
+  check("the targeted entity is absent", (await store.get(mine.id)) === null);
+  check("an unrelated entity's upsert still landed", (await store.get(other.id)) !== null);
+}
+
+{
+  // Coalescing must adopt the LATEST temporal position, or a late delete can execute before
+  // mutations that were genuinely enqueued before it.
+  const store = await openStore();
+  const queue = new SemanticMutationQueue({ store, batchSize: 10 });
+  const a = doc("wf-a");
+  const b = doc("wf-b");
+
+  queue.enqueue({ op: "upsert", document: a }); // seq 0
+  queue.enqueue({ op: "upsert", document: b }); // seq 1
+  queue.enqueue({ op: "delete", id: a.id }); // coalesces onto a's key, must move to the END
+
+  await queue.drain();
+  check("a coalesced delete still removes its document", (await store.get(a.id)) === null);
+  check("the unrelated upsert is unaffected", (await store.get(b.id)) !== null);
+}
+
+{
+  // Execution ORDER is asserted directly, because the end state alone cannot discriminate it: the
+  // entity-supersede sweep removes the conflicting upsert before the drain, so a store that
+  // globally regrouped operations by type would still reach the right end state in that case.
+  // Ordering and superseding are INDEPENDENT defences and each needs its own assertion.
+  const calls: string[] = [];
+  const inner = await openStore();
+  const recording: SemanticStore = {
+    ...inner,
+    name: "recording",
+    upsert: async (docs: Parameters<SemanticStore["upsert"]>[0]) => {
+      calls.push(`upsert(${docs.length})`);
+      return inner.upsert(docs);
+    },
+    delete: async (ids: readonly string[]) => {
+      calls.push(`delete(${ids.length})`);
+      return inner.delete(ids);
+    },
+    deleteByEntity: async (entityId: string) => {
+      calls.push(`deleteByEntity(${entityId})`);
+      return inner.deleteByEntity(entityId);
+    }
+  } as unknown as SemanticStore;
+
+  const queue = new SemanticMutationQueue({ store: recording, batchSize: 10 });
+  const a = doc("ent-a");
+  const b = doc("ent-b");
+
+  // Interleaved on purpose: two upserts, then an unrelated entity deletion, then another upsert.
+  queue.enqueue({ op: "upsert", document: a });
+  queue.enqueue({ op: "upsert", document: b });
+  queue.enqueue({ op: "deleteEntity", entityId: "ent-unrelated" });
+  queue.enqueue({ op: "upsert", document: doc("ent-c") });
+  await queue.drain();
+
+  check(
+    "adjacent same-op mutations are batched but never reordered across ops",
+    JSON.stringify(calls) === JSON.stringify(["upsert(2)", "deleteByEntity(ent-unrelated)", "upsert(1)"]),
+    JSON.stringify(calls)
+  );
+  check("the trailing upsert is NOT hoisted into the earlier batch", calls[0] === "upsert(2)", JSON.stringify(calls));
+  check("the entity deletion is not moved to the front", calls[1] === "deleteByEntity(ent-unrelated)", JSON.stringify(calls));
+}
+
 console.log("\nBounded queue biases against dropping deletes:\n");
 {
   const store = await openStore();
@@ -198,11 +309,12 @@ console.log("\nSerialization and batching:\n");
   const queue = new SemanticMutationQueue({ store, batchSize: 2 });
   for (let i = 0; i < 5; i += 1) queue.enqueue({ op: "upsert", document: doc(`wf-${i}`) });
 
-  // Concurrent drains must not both run.
+  // Concurrent drains share one execution, so BOTH observe the same completed result — and the
+  // store is written exactly once. (Summing the two results would double-count by design now that
+  // drain is single-flight; the store's own document count is the non-ambiguous assertion.)
   const [a, b] = await Promise.all([queue.drain(), queue.drain()]);
-  const total = a.upserted + b.upserted;
-  check("five documents are written exactly once across concurrent drains", total === 5, `total=${total}`);
-  check("the store holds five documents", (await store.stats()).documents === 5);
+  check("both concurrent callers observe the same result", a.upserted === 5 && b.upserted === 5, JSON.stringify([a.upserted, b.upserted]));
+  check("five documents are written exactly once", (await store.stats()).documents === 5, String((await store.stats()).documents));
   check("the queue is drained", queue.size === 0);
 }
 
@@ -218,6 +330,57 @@ console.log("\nSerialization and batching:\n");
   await queue.drain(); // whatever the first drain did not pick up
 
   check("a mutation enqueued during a drain is not lost", (await inner.stats()).documents === 2, String((await inner.stats()).documents));
+}
+
+console.log("\nDrain is single-flight; options are validated:\n");
+{
+  // A concurrent drain must await the REAL work, not receive an empty-looking "done".
+  const inner = await openStore();
+  // Definite assignment: TS cannot see that the executor runs synchronously, and narrows a
+  // `| null` declaration to `never` at the call site below.
+  let resolveWrite!: () => void;
+  const gate = new Promise<void>((r) => {
+    resolveWrite = r;
+  });
+  const store: SemanticStore = {
+    ...inner,
+    name: "slow",
+    upsert: async (docs: Parameters<SemanticStore["upsert"]>[0]) => {
+      await gate;
+      return inner.upsert(docs);
+    }
+  } as unknown as SemanticStore;
+
+  const queue = new SemanticMutationQueue({ store });
+  queue.enqueue({ op: "upsert", document: doc("wf-slow") });
+
+  const first = queue.drain();
+  const second = queue.drain();
+  check("a concurrent drain returns the SAME in-flight promise", first === second);
+
+  resolveWrite();
+  const [r1, r2] = await Promise.all([first, second]);
+  check("the concurrent caller sees the real result, not an empty one", r1.upserted === 1 && r2.upserted === 1, JSON.stringify([r1, r2]));
+  check("the document was actually written", (await inner.stats()).documents === 1);
+}
+
+{
+  const store = await openStore();
+  const rejects = (options: Record<string, number>): boolean => {
+    try {
+      new SemanticMutationQueue({ store, ...options });
+      return false;
+    } catch (error) {
+      return error instanceof RangeError;
+    }
+  };
+  // batchSize 0 previously left pending.size > 0 forever while every batch came back empty.
+  check("batchSize=0 is rejected rather than hanging the drain", rejects({ batchSize: 0 }));
+  check("maxPending=0 is rejected", rejects({ maxPending: 0 }));
+  check("a negative maxRetries is rejected", rejects({ maxRetries: -1 }));
+  check("a non-integer batchSize is rejected", rejects({ batchSize: 1.5 }));
+  check("a non-finite maxPending is rejected", rejects({ maxPending: Number.POSITIVE_INFINITY }));
+  check("maxRetries=0 is allowed (no retries)", !rejects({ maxRetries: 0 }));
 }
 
 console.log("\nRebuild handoff:\n");
