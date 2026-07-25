@@ -33,11 +33,21 @@ export type SemanticDegradedReason =
   /** The index needs a rebuild before it can serve queries. */
   | "REBUILD_REQUIRED";
 
-export type SemanticCapability = "available" | "unavailable";
+/**
+ * Three states, not two.
+ *
+ * A lazily-started host that simply has not been needed yet is NOT unavailable — reporting it as
+ * such would make product UI show a warning for the entirely normal case of "nobody has searched
+ * yet". `availableOnDemand` means the host will start on first use.
+ */
+export type SemanticCapability = "available" | "availableOnDemand" | "unavailable";
 
 export interface SemanticHealth {
   capability: SemanticCapability;
-  /** Null exactly when `capability === "available"`. */
+  /**
+   * Null when capability is "available". For "availableOnDemand" it carries NOT_STARTED as
+   * information, not as a fault. Non-null and actionable only for "unavailable".
+   */
   degradedReason: SemanticDegradedReason | null;
   /** Human-facing, path-free sentence safe to show in any surface. */
   summary: string;
@@ -107,6 +117,11 @@ export function buildSemanticHealth(input: SemanticHealthInput): SemanticHealth 
   const degraded = (reason: SemanticDegradedReason): SemanticHealth =>
     withPath({ ...base, capability: "unavailable", degradedReason: reason, summary: SUMMARIES[reason] });
 
+  // Idle-but-ready. Distinguished from "unavailable" so no surface warns about a host that has
+  // simply not been needed yet.
+  const onDemand = (): SemanticHealth =>
+    withPath({ ...base, capability: "availableOnDemand", degradedReason: "NOT_STARTED", summary: SUMMARIES.NOT_STARTED });
+
   if (!input.included) return degraded("NOT_INCLUDED");
   if (!input.enabledBySetting) return degraded("DISABLED_BY_SETTING");
   if (input.circuitOpen) return degraded("CIRCUIT_OPEN");
@@ -124,7 +139,7 @@ export function buildSemanticHealth(input: SemanticHealthInput): SemanticHealth 
     case "stopped":
     case "starting":
     case "stopping":
-      return degraded("NOT_STARTED");
+      return onDemand();
     default:
       return degraded("HOST_UNAVAILABLE");
   }

@@ -57,9 +57,17 @@ export interface ZvecHostStatus {
 export interface ZvecUtilityHostManagerOptions {
   /** Absolute path to the packaged raw host (`resources/native-hosts/zvec/zvec-host.cjs`). */
   hostPath: string;
-  /** Runtime root that bounds every collection path; forwarded for diagnostics only. */
+  /**
+   * Runtime root that bounds every collection path. This is an ENFORCED SECURITY BOUNDARY, not a
+   * diagnostic: it is passed to the host at fork time, the host fixes its approved root from it once
+   * at process start, and every request path is then confined beneath it.
+   */
   runtimeRoot: string;
-  /** Extra env for the forked child. Used by tests to enable the gated abort hook. */
+  /**
+   * Extra environment for the forked child. NOTE: this must never be used to enable a test-only
+   * crash path — the Phase 0D `__testAbort` handler was removed from the shipped host and must not
+   * be reintroduced. Fault injection belongs in the harness, not in host code.
+   */
   env?: NodeJS.ProcessEnv;
   logger?: (level: "info" | "warn" | "error", message: string) => void;
   /** Injected for testing so the verifier can drive the policy without spawning Electron. */
@@ -120,6 +128,19 @@ export class ZvecUtilityHostManager {
     this.opts.logger?.(level, message);
   }
 
+  /**
+   * Record native/OS detail for diagnosis WITHOUT letting it escape as an Error message.
+   *
+   * Vendor and fork errors embed absolute filesystem paths (confirmed in Phase 0), so the raw text is
+   * privileged. Callers receive a stable reason code; only this masked sink sees the detail, and the
+   * runtime root is stripped so a log line cannot leak the user's profile layout.
+   */
+  private logDiagnostic(error: unknown): void {
+    const raw = String((error as Error)?.message ?? error);
+    const masked = raw.split(this.opts.runtimeRoot).join("<runtime-root>");
+    this.log("error", `zvec host diagnostic (masked): ${masked}`);
+  }
+
   status(): ZvecHostStatus {
     return {
       state: this.state,
@@ -173,7 +194,11 @@ export class ZvecUtilityHostManager {
       } catch (error) {
         this.state = "degraded";
         this.lastReason = "SEMANTIC_HOST_UNAVAILABLE";
-        reject(new ZvecHostCallError("SEMANTIC_HOST_UNAVAILABLE", String((error as Error)?.message ?? error)));
+        // The detail goes to the masked privileged log only. A fork failure message embeds the host's
+        // absolute path, and Phase 0 confirmed vendor errors do the same, so the value that escapes
+        // carries a stable reason code and nothing else.
+        this.logDiagnostic(error);
+        reject(new ZvecHostCallError("SEMANTIC_HOST_UNAVAILABLE"));
         return;
       }
 
@@ -302,11 +327,6 @@ export class ZvecUtilityHostManager {
     const host = await this.ensureStarted();
     const id = `z${++this.sequence}`;
 
-    // Remember which generation is open so an unexpected exit can name it for quarantine: a crash
-    // while a specific generation is loaded is the signature of corrupt data, not a flaky process.
-    if (request.type === "open") this.openGeneration = request.generation;
-    else if (request.type === "close") this.openGeneration = undefined;
-
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
@@ -314,7 +334,15 @@ export class ZvecUtilityHostManager {
       }, timeoutMs);
 
       this.pending.set(id, {
-        resolve: resolve as (value: unknown) => void,
+        // Generation tracking follows the HOST's answer, never the request. Setting it optimistically
+        // would attribute a later crash to a generation that never opened, and clearing it before a
+        // close succeeded would lose the identity of a generation that is still loaded — either way
+        // the quarantine decision would be made on false information.
+        resolve: ((value: unknown) => {
+          if (request.type === "open") this.openGeneration = request.generation;
+          else if (request.type === "close") this.openGeneration = undefined;
+          resolve(value as T);
+        }) as (value: unknown) => void,
         reject,
         type: request.type,
         timer
@@ -325,7 +353,8 @@ export class ZvecUtilityHostManager {
       } catch (error) {
         this.pending.delete(id);
         clearTimeout(timer);
-        reject(new ZvecHostCallError("SEMANTIC_HOST_UNAVAILABLE", String((error as Error)?.message ?? error)));
+        this.logDiagnostic(error);
+        reject(new ZvecHostCallError("SEMANTIC_HOST_UNAVAILABLE"));
       }
     });
   }

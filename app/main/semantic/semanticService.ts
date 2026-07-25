@@ -24,6 +24,7 @@ import {
   reconcileGenerations,
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
+import { repairMetadataFromPointer } from "@src/semantic/SemanticGenerationManager";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
@@ -63,6 +64,10 @@ export function resolveHostPath(): string | null {
 export function initializeSemanticSubsystem(): ReconciliationReport | null {
   try {
     if (!resolveHostPath()) return null; // feature not included in this build
+    // The active pointer is authoritative and metadata is derived. If a previous activation wrote
+    // the pointer but failed the metadata write, this brings them back into agreement before
+    // anything reads metadata.
+    repairMetadataFromPointer(runtimeRoot());
     lastReconciliation = reconcileGenerations({ runtimeRoot: runtimeRoot() });
     markIndexOpen(runtimeRoot());
     return lastReconciliation;

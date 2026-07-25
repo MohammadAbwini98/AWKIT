@@ -19,6 +19,7 @@ import {
   listGenerations,
   readActivePointer,
   rebuildIntoNewGeneration,
+  repairMetadataFromPointer,
   rollbackGeneration,
   SemanticGenerationError
 } from "@src/semantic/SemanticGenerationManager";
@@ -84,7 +85,7 @@ console.log("\nActivate:");
 {
   const root = tempRoot();
   const gen = createGeneration(root);
-  const pointer = activateGeneration(root, gen.name, OK);
+  const { pointer } = activateGeneration(root, gen.name, OK);
   check("pointer names the activated generation", pointer.activeGeneration === gen.name);
   check("the first activation has no predecessor", pointer.previousGeneration === null);
   check("pointer is persisted", readActivePointer(root)?.activeGeneration === gen.name);
@@ -92,7 +93,7 @@ console.log("\nActivate:");
   check("metadata stamps lastSuccessfulRebuildAt", Boolean(readMetadata(root).lastSuccessfulRebuildAt));
 
   const second = createGeneration(root);
-  const moved = activateGeneration(root, second.name, OK);
+  const { pointer: moved } = activateGeneration(root, second.name, OK);
   check("activating again retains the predecessor for rollback", moved.previousGeneration === gen.name);
   check("the new generation is active", readActivePointer(root)?.activeGeneration === second.name);
 }
@@ -114,7 +115,7 @@ console.log("\nActivate:");
   const root = tempRoot();
   const gen = createGeneration(root);
   activateGeneration(root, gen.name, OK);
-  const again = activateGeneration(root, gen.name, OK);
+  const { pointer: again } = activateGeneration(root, gen.name, OK);
   check("re-activating the same generation keeps previous=null", again.previousGeneration === null, String(again.previousGeneration));
 }
 
@@ -127,12 +128,12 @@ console.log("\nRollback:");
   const second = createGeneration(root);
   activateGeneration(root, second.name, OK);
 
-  const rolled = rollbackGeneration(root);
+  const { pointer: rolled } = rollbackGeneration(root);
   check("rollback restores the predecessor", rolled.activeGeneration === first.name);
   check("rollback keeps the abandoned generation as the forward target", rolled.previousGeneration === second.name);
   check("metadata follows the rollback", readMetadata(root).activeGeneration === first.name);
 
-  const forward = rollbackGeneration(root);
+  const { pointer: forward } = rollbackGeneration(root);
   check("rolling back again returns to the newer generation", forward.activeGeneration === second.name);
 }
 {
@@ -283,6 +284,90 @@ console.log("\nHealth and degraded state:");
       return h.previousShutdownClean === false && h.reclaimedBytesOnStartup === 110_800_000;
     })()
   );
+}
+
+// ── the activation failure window (Phase 1A review finding #1) ──
+console.log("\nActivation failure window (metadata write fails AFTER the pointer swap):");
+{
+  const root = tempRoot();
+  const original = createGeneration(root);
+  activateGeneration(root, original.name, OK);
+
+  const layout = semanticIndexLayout(root);
+  // Make the metadata write fail while leaving the pointer write working: a DIRECTORY at
+  // metadata.json's path makes writeFileSync throw EISDIR, and the temp+rename write cannot recover.
+  fs.rmSync(layout.metadataFile, { force: true });
+  fs.mkdirSync(layout.metadataFile, { recursive: true });
+
+  const outcome = await rebuildIntoNewGeneration({
+    runtimeRoot: root,
+    populate: async (_n, p) => { fs.writeFileSync(path.join(p, "collection.bin"), Buffer.alloc(1024)); },
+    validate: async () => OK
+  });
+
+  check("activation still counts as activated when only metadata failed", outcome.activated, JSON.stringify(outcome));
+  check("status is ACTIVATED_METADATA_REPAIR_REQUIRED", outcome.status === "ACTIVATED_METADATA_REPAIR_REQUIRED", outcome.status);
+  // The bug this guards: the rebuild catch used to delete the generation the pointer now named.
+  check(
+    "the ACTIVATED generation is NOT deleted by the error path",
+    fs.existsSync(path.join(layout.generations, outcome.generation)),
+    outcome.generation
+  );
+  check("the pointer names the new generation", readActivePointer(root)?.activeGeneration === outcome.generation);
+  check("the pointer does NOT reference a deleted directory", (() => {
+    const p2 = readActivePointer(root);
+    return Boolean(p2 && fs.existsSync(path.join(layout.generations, p2.activeGeneration)));
+  })());
+
+  // Repair path: with metadata writable again, startup brings it back into line with the pointer.
+  fs.rmSync(layout.metadataFile, { recursive: true, force: true });
+  const repaired = repairMetadataFromPointer(root);
+  check("repairMetadataFromPointer reports a repair", repaired);
+  check("metadata now agrees with the pointer", readMetadata(root).activeGeneration === outcome.generation);
+}
+{
+  // Repair is a no-op when they already agree, so startup does not rewrite metadata every launch.
+  const root = tempRoot();
+  const gen = createGeneration(root);
+  activateGeneration(root, gen.name, OK);
+  check("repair is a no-op when metadata already agrees", repairMetadataFromPointer(root) === false);
+}
+
+// ── concurrent allocation (Phase 1A review finding #2) ──
+console.log("\nConcurrent generation allocation:");
+{
+  const root = tempRoot();
+  // Allocate repeatedly with no coordination; every name must be unique. mkdir-without-recursive is
+  // the atomic claim, so a loser retries rather than silently adopting the winner's directory.
+  const names = Array.from({ length: 25 }, () => createGeneration(root).name);
+  check("every allocated generation name is unique", new Set(names).size === names.length, names.join(","));
+  check("all allocated directories exist", names.every((n) => fs.existsSync(path.join(semanticIndexLayout(root).generations, n))));
+}
+{
+  const root = tempRoot();
+  const layout = semanticIndexLayout(root);
+  // Pre-claim the name the allocator would pick, simulating a competing creator winning the race.
+  fs.mkdirSync(path.join(layout.generations, generationName(1)), { recursive: true });
+  const next = createGeneration(root);
+  check("allocation skips a name claimed by a competitor", next.name === generationName(2), next.name);
+}
+
+// ── the idle state is not a warning (Phase 1A review finding #6) ──
+console.log("\nIdle capability:");
+{
+  const idle = buildSemanticHealth({
+    included: true, enabledBySetting: true, hostState: "stopped", circuitOpen: false,
+    unexpectedExits: 0, lastReasonCode: null, activeGeneration: null,
+    previousShutdownClean: true, reclaimedBytesOnStartup: 0
+  });
+  check("an unstarted host is availableOnDemand, not unavailable", idle.capability === "availableOnDemand", idle.capability);
+  check("it still explains itself as NOT_STARTED", idle.degradedReason === "NOT_STARTED");
+  const broken = buildSemanticHealth({
+    included: true, enabledBySetting: true, hostState: "wat", circuitOpen: false,
+    unexpectedExits: 0, lastReasonCode: null, activeGeneration: null,
+    previousShutdownClean: true, reclaimedBytesOnStartup: 0
+  });
+  check("a genuinely broken host is still unavailable", broken.capability === "unavailable");
 }
 
 for (const dir of cleanup) {
