@@ -129,6 +129,7 @@
     "verify:instance-monitor": "tsx scripts/verify-instance-monitor.mts",
     "verify:instance-monitor-gui": "node scripts/verify-instance-monitor-gui.mjs",
     "verify:popup": "tsx scripts/verify-popup.mts",
+    "verify:popup-identity": "tsx scripts/verify-popup-identity.mts",
     "verify:popup-mock-site": "tsx scripts/verify-popup-mock-site.mts",
     "verify:packaged-runtime": "tsx scripts/verify-packaged-runtime.mts",
     "verify:packaged-walkthrough": "tsx scripts/verify-packaged-walkthrough.mts",

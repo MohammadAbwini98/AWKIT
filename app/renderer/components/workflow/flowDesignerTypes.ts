@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepType, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -21,6 +21,12 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorAlternatives?: LocatorCandidate[];
   /** Container/frame scoping applied to the primary and every alternative (from Recorder). */
   locatorContext?: LocatorContext;
+  /** Which browser page/window this step targets, when the Recorder captured a popup context (awkit-4t9). */
+  pageAlias?: PageAlias;
+  /** True when this step is expected to open a new window/tab (awkit-4t9). */
+  opensPopup?: boolean;
+  /** How the runner locates and validates the popup this step opens (awkit-4t9). */
+  popupExpectation?: PopupExpectation;
   /**
    * Which value source drives this node. `"none"` is a designer-only sentinel meaning "a bare
    * `value` with no explicit source" (e.g. a condition expression); it round-trips as `value` alone
@@ -149,6 +155,9 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorQuality: undefined,
   locatorAlternatives: undefined,
   locatorContext: undefined,
+  pageAlias: undefined,
+  opensPopup: undefined,
+  popupExpectation: undefined,
   valueSourceType: "static",
   value: stepType === "goto" ? "${BASE_URL}/login" : "",
   dataSourceScope: "workflow",

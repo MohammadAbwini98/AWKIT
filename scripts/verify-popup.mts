@@ -150,9 +150,21 @@ async function main(): Promise<void> {
       assert(mainPage.url().includes("popup-lab"), "URL should be popup-lab");
     });
 
-    await test("registerPopupPage adds alias to registry", async () => {
+    await test("observePopupPage assigns exactly one alias (no dual registration)", async () => {
       const fakePage = await ctx1.newPage();
-      executor1.registerPopupPage("popup-1", fakePage);
+      // Identity is derived from the page's own URL, so give it one — a real popup always has a URL.
+      // (An uncommitted `about:blank` page deliberately gets NO alias until its URL commits, rather
+      // than a guessed one; `verify:popup-identity` covers that deferral path.)
+      await fakePage.goto(`${BASE}/popup-terms`);
+      // The single observation owner assigns identity. This verifier no longer replicates the old
+      // dual-registration pattern (context handler + step path both writing) — that WAS the defect.
+      executor1.observePopupPage(fakePage);
+      const registry = executor1.pageIdentity;
+      const alias = registry.aliasFor(fakePage);
+      assert(alias !== undefined, "observePopupPage should assign an alias");
+      assert(alias !== "main", "a popup must never take the reserved 'main' alias");
+      const owned = registry.aliases().filter((a) => registry.tryResolve(a) === fakePage);
+      assert(owned.length === 1, `one Page must hold exactly one alias, got ${owned.length}: [${owned.join(", ")}]`);
       // If registration succeeded, a switchToMainPage step should work
       const switchBack = makeStep({ type: "switchToMainPage" });
       const result = await executor1.execute(switchBack);
@@ -182,11 +194,10 @@ async function main(): Promise<void> {
       makeContext()
     );
 
-    // Wire up context-level page handler (mirrors PlaywrightRunner behaviour)
-    let rpc = 0;
+    // Wire up the context-level page handler exactly as PlaywrightRunner does: it OBSERVES, it does
+    // not assign a positional alias. The click path claims the same Page under its recorded alias.
     ctx2.on("page", (newPage) => {
-      rpc++;
-      executor2.registerPopupPage(`popup-${rpc}`, newPage);
+      executor2.observePopupPage(newPage);
     });
 
     await test("Click with opensPopup arms popup wait and registers page", async () => {
@@ -233,10 +244,8 @@ async function main(): Promise<void> {
       new ValueResolver(makeContext()),
       makeContext()
     );
-    let rpc3 = 0;
     ctx3.on("page", (np) => {
-      rpc3++;
-      executor3.registerPopupPage(`popup-${rpc3}`, np);
+      executor3.observePopupPage(np);
     });
 
     await test("closePopup waits for page close and returns to main", async () => {
@@ -249,7 +258,9 @@ async function main(): Promise<void> {
       // Click accept which calls window.close()
       const popupPage = ctx3.pages().find(p => p !== page3);
       if (popupPage) {
-        await executor3.registerPopupPage("popup-close-test", popupPage);
+        // Claim the observed Page under an explicit alias (the recorded-alias path), rather than
+        // performing a second independent registration.
+        executor3.pageIdentity.claim(popupPage, "popup-close-test");
         // Click the accept button to trigger window.close()
         await popupPage.click("[data-testid=accept-button]");
         // Now run closePopup step

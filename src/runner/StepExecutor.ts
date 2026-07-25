@@ -22,6 +22,7 @@ import { CancelledError, type CancellationToken } from "./concurrency/Cancellati
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
+import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
@@ -92,8 +93,22 @@ export function sanitizeDownloadFileName(name: string): string {
 export class StepExecutor {
   /** Currently-active page (the page actions run on when no alias overrides). */
   private activePage: Page;
-  /** Page registry: alias → Page. `'main'` is always present; popups are added by registerPopupPage. */
-  private pageRegistry: Map<string, Page>;
+  /**
+   * This executor's OWN root page — what `switchToMainPage` and popup-close restoration return to.
+   * Distinct from the registry's context-wide `main`: a parallel-branch executor's root is its own
+   * branch page, not the run's primary page, and the two must not be conflated now that the
+   * registry is shared across the browser context.
+   */
+  private rootPage: Page;
+  /**
+   * The single owner of page identity (FR-C1). Replaces the former plain `alias → Page` map, which
+   * had no reverse index and was written from two independent call sites (defect `awkit-ebh`).
+   *
+   * Injected and shared per BrowserContext/runtime generation (PR #36 review fix). It is only
+   * constructed here as a fallback for standalone use (verifiers), never in the runner — a registry
+   * per `StepExecutor` let one popup be observed by both a parent and a child flow's registry.
+   */
+  private readonly popupIdentity: PopupIdentityRegistry;
   /** Masks secrets out of captured failure evidence (DOM/a11y/meta) before it is written (FR-B2/FR-H1). */
   private readonly evidenceMasker = new SecretMasker();
 
@@ -118,10 +133,17 @@ export class StepExecutor {
     /** Phase A6: staggers simultaneous navigations / downloads / screenshots across instances. */
     private readonly operationLimiters?: OperationLimiters,
     /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
-    private readonly oracleNodeRunner?: OracleNodeRunner
+    private readonly oracleNodeRunner?: OracleNodeRunner,
+    /**
+     * The browser-context-wide popup identity registry (FR-C1.1). The runner passes the SAME
+     * instance to the parent flow, every nested child flow, and every parallel-branch executor, so
+     * exactly one owner assigns identity per BrowserContext. Omitted only in standalone tests.
+     */
+    popupIdentity?: PopupIdentityRegistry
   ) {
     this.activePage = page;
-    this.pageRegistry = new Map([["main", page]]);
+    this.rootPage = page;
+    this.popupIdentity = popupIdentity ?? new PopupIdentityRegistry(page);
   }
 
   /** Run an expensive Playwright op under its operation limiter (A6), or directly when none is wired. */
@@ -155,39 +177,66 @@ export class StepExecutor {
    */
   setActivePage(page: Page): void {
     this.activePage = page;
-    this.pageRegistry.set("main", page);
+    this.rootPage = page;
+    this.popupIdentity.setMainPage(page);
     this.locatorFactory.setPage(page);
   }
 
   /**
-   * Register a newly-opened popup page under its alias so subsequent steps can target it.
-   * Called by PlaywrightRunner's context-level 'page' event handler.
+   * Observe a newly-created page from PlaywrightRunner's context-level `'page'` handler — the single
+   * observation point for popup identity (FR-C1.1). The page receives one deterministic synthetic
+   * alias; a step that expects it promotes it to the recorded alias by claiming the same `Page`
+   * object, which removes the synthetic key atomically. Nothing else registers pages.
    */
-  registerPopupPage(alias: string, page: Page): void {
-    this.pageRegistry.set(alias, page);
-    // Remove from registry when the popup closes so stale aliases don't linger.
-    page.on("close", () => {
-      this.pageRegistry.delete(alias);
-    });
+  observePopupPage(page: Page): void {
+    this.popupIdentity.observe(page);
   }
 
-  /** Unregister a popup (called from PlaywrightRunner if needed, or from the close handler). */
+  /**
+   * Mark a page the runner created for itself (an isolated parallel-branch page). It shares the
+   * browser context, so it raises the same `'page'` event a popup does — without this it would
+   * consume a popup alias and a recorded `popup-1` could resolve to a branch page.
+   */
+  markInternalPage(page: Page): void {
+    this.popupIdentity.markInternal(page);
+  }
+
+  /** Unregister a popup alias (an explicit `closePopup` step). Both mappings are dropped. */
   unregisterPopupPage(alias: string): void {
-    this.pageRegistry.delete(alias);
+    this.popupIdentity.release(alias);
+  }
+
+  /** The identity registry, exposed so verifiers can assert the FR-C1 invariants directly. */
+  get pageIdentity(): PopupIdentityRegistry {
+    return this.popupIdentity;
   }
 
   /**
    * Resolve the Playwright Page for a given step.
    * Returns the popup page when `step.pageAlias` is set, falls back to `activePage`.
+   *
+   * Async because a popup whose URL had not committed when it was observed finalizes its identity
+   * shortly after; on a miss we let that settle (bounded) before declaring the alias unavailable, so
+   * a late-committing popup is never mistaken for one that never opened. The thrown message is
+   * user-facing and deliberately unchanged (SRS FR-C1 change dependencies).
    */
-  private resolveStepPage(step: FlowStep): Page {
+  private async resolveStepPage(step: FlowStep): Promise<Page> {
     const alias = step.pageAlias;
-    if (!alias || alias === "main") return this.activePage;
-    const page = this.pageRegistry.get(alias);
+    if (!alias || alias === MAIN_PAGE_ALIAS) return this.activePage;
+    let page = this.popupIdentity.tryResolve(alias);
     if (!page) {
+      await this.popupIdentity.settle();
+      page = this.popupIdentity.tryResolve(alias);
+    }
+    if (!page) {
+      // The alias is caller-controlled flow content and can echo a token or a registered secret, so
+      // the diagnostic is masked (FR-H1). The message SHAPE is deliberately unchanged — the SRS
+      // calls it user-facing and requires it to stay stable.
       throw new Error(
-        `Popup page "${alias}" is not available. Open pages: [${[...this.pageRegistry.keys()].join(", ")}]. ` +
-        `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+        this.evidenceMasker.maskText(
+          `Popup page "${alias}" is not available. Open pages: [${this.popupIdentity.aliases().join(", ")}]. ` +
+          `Ensure a switchToPopup step or an opener click with opensPopup runs before this step.`
+        )
       );
     }
     return page;
@@ -411,7 +460,7 @@ export class StepExecutor {
 
   private async runStepWithWaits(step: FlowStep, outputs: Record<string, unknown>) {
     const originalActivePage = this.activePage;
-    const stepPage = this.resolveStepPage(step);
+    const stepPage = await this.resolveStepPage(step);
 
     // Temporarily bind execution to the target page for this step
     this.activePage = stepPage;
@@ -1247,12 +1296,23 @@ export class StepExecutor {
    * taken never masks or replaces the step's real automation error (B2.5). Bodies are secret-masked
    * before they touch disk (FR-H1). This method never throws.
    */
-  /** The alias the active page is registered under (its ACTUAL identity), defaulting to `main`. */
+  /**
+   * The alias the active page is registered under (its ACTUAL identity), defaulting to `main`.
+   * Backed by the registry's reverse index, so it cannot report an identity the registry disagrees
+   * with — the failure mode a linear scan over a forward-only map allowed.
+   */
   private aliasForActivePage(): string {
-    for (const [alias, registered] of this.pageRegistry) {
-      if (registered === this.activePage) return alias;
-    }
-    return "main";
+    return this.popupIdentity.aliasFor(this.activePage) ?? MAIN_PAGE_ALIAS;
+  }
+
+  /**
+   * This executor's own root page, falling back to the active page when the root has been closed.
+   * Used when a popup closes or a `closePopup` step returns focus — a parallel-branch executor must
+   * fall back to ITS branch page, not the run's primary page, now that the identity registry is
+   * shared across the whole browser context.
+   */
+  private rootPageIfLive(): Page {
+    return this.rootPage.isClosed() ? this.activePage : this.rootPage;
   }
 
   async captureFailureEvidence(step: FlowStep, opts: { attempt: number }): Promise<StepEvidenceRef[]> {
@@ -1271,7 +1331,7 @@ export class StepExecutor {
     let capturedPageId: string;
     let resolveDiagnostic: string | undefined;
     try {
-      page = this.resolveStepPage(step);
+      page = await this.resolveStepPage(step);
       capturedPageId = requestedPageId;
     } catch (error) {
       page = this.activePage;
@@ -1409,6 +1469,8 @@ export class StepExecutor {
           const expectation = step.popupExpectation;
           const alias = expectation.popupAlias;
           const timeout = expectation.timeoutMs ?? 15_000;
+          // Surface a conflicting live claim BEFORE the click, not after the popup has been acted on.
+          this.popupIdentity.declareExpected(alias);
           const popupPromise = this.activePage.context().waitForEvent("page", { timeout });
           // Keep the armed listener from becoming an UNHANDLED rejection if the click (or a mid-flight
           // cancellation closing the context/page) fails before we await it below. The awaited value/throw
@@ -1431,12 +1493,14 @@ export class StepExecutor {
               this.log("info", step, `Popup title "${title}" does not contain expected "${expectation.titleContains}" — continuing anyway.`);
             }
           }
-          // Register popup in the registry.
-          this.registerPopupPage(alias, popupPage);
+          // The context-level handler already observed this exact Page object under a synthetic
+          // alias. Claiming promotes it to the RECORDED alias and drops the synthetic key in one
+          // operation, so the registry never holds the same Page twice (C1.2).
+          this.popupIdentity.claim(popupPage, alias);
           // Auto-return to main when popup closes (unless configured otherwise).
           if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
-            popupPage.on("close", () => {
-              this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+            popupPage.once("close", () => {
+              this.activePage = this.rootPageIfLive();
               this.locatorFactory.setPage(this.activePage);
             });
           }
@@ -1454,18 +1518,20 @@ export class StepExecutor {
         const alias = expectation.popupAlias;
         const timeout = expectation.timeoutMs ?? 15_000;
         // Check if the popup is already open (it may have opened before this step ran).
-        const existing = this.pageRegistry.get(alias);
+        const existing = this.popupIdentity.tryResolve(alias);
         const popupPage = existing ?? await this.activePage.context().waitForEvent("page", { timeout });
         await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
-        if (!existing) this.registerPopupPage(alias, popupPage);
+        // Claim (not register): the observation owner already holds this Page under a synthetic
+        // alias, and claiming rebinds it to the recorded one atomically.
+        if (!existing) this.popupIdentity.claim(popupPage, alias);
         // Switch the active context to the popup.
         this.activePage = popupPage;
         this.locatorFactory.setPage(popupPage);
         await popupPage.bringToFront().catch(() => undefined);
         // Auto-return to main when popup closes.
         if ((expectation.closeBehavior ?? "returnToMain") === "returnToMain") {
-          popupPage.on("close", () => {
-            this.activePage = this.pageRegistry.get("main") ?? this.activePage;
+          popupPage.once("close", () => {
+            this.activePage = this.rootPageIfLive();
             this.locatorFactory.setPage(this.activePage);
           });
         }
@@ -1490,7 +1556,7 @@ export class StepExecutor {
       case "closePopup": {
         const alias = step.config?.popupAlias ?? step.pageAlias;
         if (!alias) throw new Error(`closePopup step ${step.id} requires a popupAlias in config or pageAlias.`);
-        const popupPage = this.pageRegistry.get(alias);
+        const popupPage = this.popupIdentity.tryResolve(alias);
         if (!popupPage) {
           this.log("info", step, `closePopup: popup "${alias}" is already closed or was never opened — skipping.`);
           return { status: "passed" };
@@ -1505,9 +1571,9 @@ export class StepExecutor {
           // Timeout: the popup didn't close on its own — close it programmatically.
           await popupPage.close().catch(() => undefined);
         }
-        this.pageRegistry.delete(alias);
+        this.popupIdentity.release(alias);
         // Return focus to the main page.
-        const mainPage = this.pageRegistry.get("main") ?? this.activePage;
+        const mainPage = this.rootPageIfLive();
         this.activePage = mainPage;
         this.locatorFactory.setPage(mainPage);
         await mainPage.bringToFront().catch(() => undefined);
@@ -1515,7 +1581,7 @@ export class StepExecutor {
       }
 
       case "switchToMainPage": {
-        const mainPage = this.pageRegistry.get("main");
+        const mainPage = this.rootPage.isClosed() ? undefined : this.rootPage;
         if (!mainPage) throw new Error("switchToMainPage: main page is not registered in the page registry.");
         this.activePage = mainPage;
         this.locatorFactory.setPage(mainPage);

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario I — Script/timer popup identity</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario I — Script/timer popup identity</h1>
+      <p>
+        Purpose: a popup opened by a page timer with <strong>no</strong> corresponding click or
+        <code>switchToPopup</code> step (SRS-BAO-001 FR-C1.3). It must still receive one deterministic
+        synthetic alias that is stable across runs and derived from identity, not arrival order.
+      </p>
+
+      <p>
+        The timer popup URL deliberately carries a <em>secret-shaped</em> query string and a fragment
+        (<code>?token=…&amp;session=…#section-2</code>). Neither may ever appear in a popup alias or in
+        any diagnostic — only origin and pathname are identity-bearing.
+      </p>
+
+      <button id="arm-timer-button" data-testid="arm-timer-button">Arm timer popup (opens in 400 ms)</button>
+      <br /><br />
+      <button id="open-ambiguous-button" data-testid="open-ambiguous-button">
+        Open two identical popups (ambiguous identity)
+      </button>
+      <br /><br />
+      <button id="close-all-button" data-testid="close-all-button">Close all popups</button>
+
+      <div id="status" data-testid="timer-status" style="margin-top:20px; font-weight:bold;">Timer not armed</div>
+
+      <script>
+        // Bounded, deterministic delay — no external services, no unbounded waits.
+        var TIMER_MS = 400;
+        // A secret-shaped query string + fragment. Identity derivation must read ONLY origin+pathname,
+        // so these values are structurally unable to reach an alias or a diagnostic.
+        var TIMER_URL = "/popup/script-timer-popup.html?token=NOT_A_REAL_TOKEN_abc123&session=sess-987#section-2";
+        var AMBIGUOUS_URL = "/popup/script-timer-popup.html";
+        var opened = [];
+
+        document.getElementById("arm-timer-button").addEventListener("click", function () {
+          document.getElementById("status").textContent = "Timer armed";
+          setTimeout(function () {
+            opened.push(window.open(TIMER_URL, "timerPopup", "width=420,height=320"));
+            document.getElementById("status").textContent = "Timer popup opened";
+          }, TIMER_MS);
+        });
+
+        // Two popups at the SAME origin+pathname from the SAME opener are genuinely
+        // indistinguishable from stable identity material — the registry must report an explicit
+        // ambiguity rather than silently assigning order-based aliases.
+        document.getElementById("open-ambiguous-button").addEventListener("click", function () {
+          opened.push(window.open(AMBIGUOUS_URL, "_blank", "width=420,height=320"));
+          opened.push(window.open(AMBIGUOUS_URL, "_blank", "width=420,height=320"));
+          document.getElementById("status").textContent = "Two identical popups opened";
+        });
+
+        document.getElementById("close-all-button").addEventListener("click", function () {
+          opened.forEach(function (w) {
+            try { if (w && !w.closed) w.close(); } catch (e) { /* already gone */ }
+          });
+          opened = [];
+          document.getElementById("status").textContent = "Timer not armed";
+        });
+      </script>
+    </main>
+  </body>
+</html>

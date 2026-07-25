@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Timer popup — script/timer identity scenario</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1 data-testid="timer-popup-heading">Timer popup</h1>
+      <p>
+        Opened by a page timer with no click step. Always reachable at
+        <code>/popup/script-timer-popup.html</code>; any query string or fragment is decoration, never
+        identity.
+      </p>
+      <p data-testid="timer-popup-marker">script-timer</p>
+      <button id="timer-action-button" data-testid="timer-action-button">Timer popup action</button>
+      <div id="timer-popup-status" data-testid="timer-popup-status" style="margin-top:16px; font-weight:bold;"></div>
+      <script>
+        document.getElementById("timer-action-button").addEventListener("click", function () {
+          document.getElementById("timer-popup-status").textContent = "timer action done";
+          try {
+            if (window.opener) window.opener.postMessage({ type: "popup-action", which: "script-timer" }, "*");
+          } catch (e) { /* opener gone */ }
+        });
+      </script>
+    </main>
+  </body>
+</html>

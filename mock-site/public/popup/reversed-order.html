@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario H — Reversed popup order</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario H — Reversed popup order</h1>
+      <p>
+        Purpose: proves popup identity comes from the popup itself, not from arrival order
+        (SRS-BAO-001 FR-C1.5). Two distinguishable popups — <strong>alpha</strong> and
+        <strong>beta</strong> — can be opened in either order. Their logical identities must not
+        change when the order does.
+      </p>
+
+      <p>
+        Each popup lives at its own stable path, so origin + pathname alone distinguishes them.
+        A positional <code>popup-N</code> counter would swap the two aliases between the runs below;
+        an identity-derived alias must not.
+      </p>
+
+      <button id="open-alpha-first-button" data-testid="open-alpha-first-button">Open Alpha then Beta</button>
+      <br /><br />
+      <button id="open-beta-first-button" data-testid="open-beta-first-button">Open Beta then Alpha</button>
+      <br /><br />
+      <button id="open-alpha-button" data-testid="open-alpha-button">Open Alpha only</button>
+      <br /><br />
+      <button id="open-beta-button" data-testid="open-beta-button">Open Beta only</button>
+      <br /><br />
+      <button id="close-all-button" data-testid="close-all-button">Close all popups</button>
+
+      <div id="status" data-testid="order-status" style="margin-top:20px; font-weight:bold;">No popups opened</div>
+
+      <script>
+        // Bounded, deterministic gap between the two opens so the observed ORDER is reliable
+        // while the popups themselves stay identical between runs.
+        var GAP_MS = 250;
+        var opened = [];
+
+        function openAlpha() {
+          opened.push(window.open("/popup/reversed-popup-alpha.html", "_blank", "width=420,height=320"));
+          render("alpha");
+        }
+        function openBeta() {
+          opened.push(window.open("/popup/reversed-popup-beta.html", "_blank", "width=420,height=320"));
+          render("beta");
+        }
+        var sequence = [];
+        function render(which) {
+          sequence.push(which);
+          document.getElementById("status").textContent = "Opened order: " + sequence.join(" then ");
+        }
+
+        document.getElementById("open-alpha-button").addEventListener("click", openAlpha);
+        document.getElementById("open-beta-button").addEventListener("click", openBeta);
+
+        document.getElementById("open-alpha-first-button").addEventListener("click", function () {
+          openAlpha();
+          setTimeout(openBeta, GAP_MS);
+        });
+        document.getElementById("open-beta-first-button").addEventListener("click", function () {
+          openBeta();
+          setTimeout(openAlpha, GAP_MS);
+        });
+
+        document.getElementById("close-all-button").addEventListener("click", function () {
+          opened.forEach(function (w) {
+            try { if (w && !w.closed) w.close(); } catch (e) { /* already gone */ }
+          });
+          opened = [];
+          sequence = [];
+          document.getElementById("status").textContent = "No popups opened";
+        });
+      </script>
+    </main>
+  </body>
+</html>

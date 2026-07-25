@@ -244,6 +244,69 @@ async function main() {
       await resetPopups();
     });
 
+    // 11. Reversed-order identity scenario (FR-C1.5 fixture)
+    await test("11. Reversed-order scenario opens both popups in either order", async () => {
+      await page.goto(`${BASE}/mock/popup/reversed-order`);
+      assert(await page.getByTestId("open-alpha-first-button").isVisible(), "alpha-first button missing");
+      assert(await page.getByTestId("open-beta-first-button").isVisible(), "beta-first button missing");
+
+      // Alpha first, then beta — the scenario's own scripted order.
+      await page.getByTestId("open-alpha-first-button").click();
+      await page.waitForTimeout(1000); // bounded: both opens plus the 250 ms scripted gap
+      assert(popups.length === 2, `expected 2 popups, got ${popups.length}`);
+      for (const popup of popups) await popup.waitForLoadState("domcontentloaded");
+      const paths = popups.map((p) => new URL(p.url()).pathname).sort();
+      assert(
+        paths[0].includes("reversed-popup-alpha") && paths[1].includes("reversed-popup-beta"),
+        `expected alpha + beta popups, got ${paths.join(", ")}`
+      );
+      await resetPopups();
+
+      // Beta first — the SAME two pages, opened in the opposite order.
+      await page.getByTestId("open-beta-first-button").click();
+      await page.waitForTimeout(1000);
+      assert(popups.length === 2, `expected 2 popups in reversed order, got ${popups.length}`);
+      for (const popup of popups) await popup.waitForLoadState("domcontentloaded");
+      const reversedPaths = popups.map((p) => new URL(p.url()).pathname).sort();
+      assert(
+        reversedPaths.join(",") === paths.join(","),
+        `reversed order must open the same two pages: ${reversedPaths.join(", ")}`
+      );
+      await resetPopups();
+    });
+
+    // 12. Script/timer identity scenario (FR-C1.3 fixture)
+    await test("12. Script/timer scenario opens a popup with no click on the popup itself", async () => {
+      await page.goto(`${BASE}/mock/popup/script-timer`);
+      const arm = page.getByTestId("arm-timer-button");
+      assert(await arm.isVisible(), "arm-timer-button missing");
+
+      await arm.click();
+      await page.waitForTimeout(900); // bounded: the scenario's 400 ms timer plus load
+      assert(popups.length === 1, `expected 1 timer popup, got ${popups.length}`);
+      await popups[0].waitForLoadState("domcontentloaded");
+      assert(
+        new URL(popups[0].url()).pathname.includes("script-timer-popup"),
+        `unexpected timer popup URL path: ${new URL(popups[0].url()).pathname}`
+      );
+      // The URL deliberately carries secret-shaped material the runner must never treat as identity.
+      assert(popups[0].url().includes("token="), "fixture should carry a secret-shaped query string");
+      assert(await popups[0].getByTestId("timer-action-button").isVisible(), "timer popup action button missing");
+      await resetPopups();
+    });
+
+    // 13. Ambiguous-identity control on the same scenario page
+    await test("13. Script/timer scenario can open two identical popups", async () => {
+      await page.goto(`${BASE}/mock/popup/script-timer`);
+      await page.getByTestId("open-ambiguous-button").click();
+      await page.waitForTimeout(800);
+      assert(popups.length === 2, `expected 2 identical popups, got ${popups.length}`);
+      for (const popup of popups) await popup.waitForLoadState("domcontentloaded");
+      const [first, second] = popups.map((p) => new URL(p.url()).pathname);
+      assert(first === second, `ambiguity fixture must open the same path twice: ${first} vs ${second}`);
+      await resetPopups();
+    });
+
     await context.close();
   } finally {
     await browser.close();
