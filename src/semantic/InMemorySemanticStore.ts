@@ -102,7 +102,8 @@ export class InMemorySemanticStore implements SemanticStore {
       else inserted += 1;
     }
 
-    return { inserted, replaced };
+    // Always exact: the map is the authority and needs no pre-read.
+    return { inserted, replaced, countsKnown: true };
   }
 
   async delete(ids: readonly string[]): Promise<number> {

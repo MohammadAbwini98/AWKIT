@@ -50,6 +50,9 @@ export function isSemanticDocumentKind(value: unknown): value is SemanticDocumen
 
 export type SemanticOutcome = "success" | "failure" | "cancelled" | "unknown";
 
+/** Runtime membership list — documents are re-validated after being read back off disk. */
+export const SEMANTIC_OUTCOMES: readonly SemanticOutcome[] = ["success", "failure", "cancelled", "unknown"];
+
 /**
  * A projected, redacted, indexable view of an AWKIT entity.
  *

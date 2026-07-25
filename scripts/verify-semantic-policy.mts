@@ -200,7 +200,8 @@ console.log("\nPolicy validator (independent re-scan):\n");
 
 function candidate(overrides: Partial<SemanticDocument> = {}): SemanticDocument {
   return {
-    id: "workflow:wf-1:r1",
+    // A real factory-shaped id: kind-prefixed and ending in the canonical-identity hash.
+    id: semanticIds.workflow("wf-1"),
     kind: "workflow",
     entityId: "wf-1",
     revision: "r1",
@@ -253,13 +254,57 @@ function candidate(overrides: Partial<SemanticDocument> = {}): SemanticDocument 
     })()
   );
 
+  // ── embeddings are out of scope for Phase 1B ──
   check(
-    "an embedding dimension mismatch is rejected",
-    !validateSemanticDocument(candidate({ embedding: new Float32Array(3) }), { expectedEmbeddingDimension: 8 }).ok
+    "an embedding is REJECTED unless explicitly enabled",
+    !validateSemanticDocument(candidate({ embedding: new Float32Array(8) })).ok
   );
   check(
-    "a matching embedding dimension is accepted",
-    validateSemanticDocument(candidate({ embedding: new Float32Array(8) }), { expectedEmbeddingDimension: 8 }).ok
+    "embeddingProviderId alone is rejected",
+    !validateSemanticDocument(candidate({ embeddingProviderId: "local-v1" })).ok
+  );
+  check(
+    "an embedding dimension mismatch is rejected when embeddings ARE enabled",
+    !validateSemanticDocument(candidate({ embedding: new Float32Array(3), embeddingProviderId: "p", embeddingVersion: "1" }), {
+      expectedEmbeddingDimension: 8,
+      allowEmbeddings: true
+    }).ok
+  );
+  check(
+    "a matching embedding dimension is accepted when enabled",
+    validateSemanticDocument(candidate({ embedding: new Float32Array(8), embeddingProviderId: "p", embeddingVersion: "1" }), {
+      expectedEmbeddingDimension: 8,
+      allowEmbeddings: true
+    }).ok
+  );
+  check(
+    "an embedding without provider/version is rejected even when enabled",
+    !validateSemanticDocument(candidate({ embedding: new Float32Array(8) }), { allowEmbeddings: true }).ok
+  );
+
+  // ── field-level runtime validation ──
+  check("a malformed sourceHash is rejected", !validateSemanticDocument(candidate({ sourceHash: "nothex" })).ok);
+  check("a non-ISO timestamp is rejected", !validateSemanticDocument(candidate({ updatedAt: "whenever" })).ok);
+  check("an unknown outcome is rejected", !validateSemanticDocument(candidate({ outcome: "maybe" as never })).ok);
+  check("a valid outcome is accepted", validateSemanticDocument(candidate({ outcome: "failure" })).ok);
+  check("a URL as hostname is rejected", !validateSemanticDocument(candidate({ hostname: "https://x.com/a?token=1" })).ok);
+  check("a bare hostname is accepted", validateSemanticDocument(candidate({ hostname: "app.example.com" })).ok);
+  check("a hostname with a port is accepted", validateSemanticDocument(candidate({ hostname: "localhost:4321" })).ok);
+  check(
+    "an id belonging to a different kind is rejected",
+    !validateSemanticDocument(candidate({ id: semanticIds.runSummary("run-1") })).ok
+  );
+  check(
+    "an id without the canonical-identity hash is rejected",
+    !validateSemanticDocument(candidate({ id: "workflow:wf-1:r1" })).ok
+  );
+  check(
+    "a nodeId without a flowId is rejected as inconsistent",
+    !validateSemanticDocument(candidate({ nodeId: "n-1" })).ok
+  );
+  check(
+    "a nodeId WITH a flowId is accepted",
+    validateSemanticDocument(candidate({ nodeId: "n-1", flowId: "fl-1" })).ok
   );
 
   // Immutability of the branded result.

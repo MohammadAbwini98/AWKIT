@@ -48,10 +48,21 @@ export class SemanticStoreError extends Error {
 }
 
 export interface SemanticUpsertResult {
-  /** Documents newly added. */
+  /** Documents newly added. Meaningful only when `countsKnown` is true. */
   inserted: number;
   /** Documents that replaced an existing id (upsert IS replace — never a second copy). */
   replaced: number;
+  /**
+   * Whether `inserted`/`replaced` are exact.
+   *
+   * The write itself always either succeeded or threw — this flag is about the ATTRIBUTION, not the
+   * data. A backend that must pre-read to tell an insert from a replacement can lose that read while
+   * the write still lands. Reporting `inserted: n, replaced: 0` in that case would be a precise-
+   * looking number that is known to be a guess, so the split is explicitly marked unknown instead.
+   *
+   * `inserted + replaced` still equals the number of documents written, whatever this says.
+   */
+  countsKnown: boolean;
 }
 
 export interface SemanticStoreStats {

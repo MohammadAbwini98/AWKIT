@@ -31,6 +31,7 @@ import {
   isSemanticDocumentKind,
   semanticIds,
   semanticSourceHash,
+  SEMANTIC_OUTCOMES,
   SEMANTIC_SCHEMA_VERSION,
   type SemanticDocument,
   type SemanticDocumentKind
@@ -63,6 +64,12 @@ export type SemanticRejectionReason =
   | "UNREDACTED_SECRET"
   | "MISSING_SOURCE_REFERENCE"
   | "INVALID_ID"
+  | "INVALID_SOURCE_HASH"
+  | "INVALID_TIMESTAMP"
+  | "INVALID_OUTCOME"
+  | "INVALID_HOSTNAME"
+  | "INCONSISTENT_REFERENCES"
+  | "EMBEDDING_NOT_ENABLED"
   | "SCHEMA_VERSION_MISMATCH"
   | "EMBEDDING_DIMENSION_MISMATCH"
   | "PROJECTION_REJECTED";
@@ -98,6 +105,11 @@ export interface SemanticPolicyOptions {
   expectedEmbeddingDimension?: number;
   /** Kinds this build accepts. Defaults to every kind. */
   supportedKinds?: readonly SemanticDocumentKind[];
+  /**
+   * Opt in to embedding fields. Default FALSE for Phase 1B, which is full-text only: an unversioned
+   * vector in the index is something no later phase can interpret, compare, or migrate.
+   */
+  allowEmbeddings?: boolean;
 }
 
 /**
@@ -123,11 +135,58 @@ export function validateSemanticDocument(
 
   // Identity + source references. Without these a hit cannot be traced back to anything, which
   // makes the document unusable AND unremovable by entity.
-  if (!candidate.id || !candidate.id.includes(":")) reject("INVALID_ID", "id must be a delimited deterministic id");
+  //
+  // These are RUNTIME checks, not type checks, on purpose: documents are read back off disk and
+  // re-validated, so by that point TypeScript guarantees nothing about their shape.
   if (!candidate.entityId) reject("MISSING_SOURCE_REFERENCE", "entityId");
   if (!candidate.revision) reject("MISSING_SOURCE_REFERENCE", "revision");
-  if (!candidate.sourceHash) reject("MISSING_SOURCE_REFERENCE", "sourceHash");
   if (!candidate.updatedAt) reject("MISSING_SOURCE_REFERENCE", "updatedAt");
+
+  // The id must match the kind AND the logical entity it claims. Checking only that it contained a
+  // ":" accepted an id belonging to a different document entirely.
+  if (!candidate.id || !candidate.id.startsWith(`${candidate.kind}:`)) {
+    reject("INVALID_ID", `id must start with "${candidate.kind}:"`);
+  } else if (!/:[0-9a-f]{16}$/.test(candidate.id)) {
+    reject("INVALID_ID", "id must end in a 16-hex canonical-identity hash");
+  }
+
+  // sourceHash is a full SHA-256 hex digest; anything else means it was not produced by the pipeline.
+  if (!candidate.sourceHash) reject("MISSING_SOURCE_REFERENCE", "sourceHash");
+  else if (!/^[0-9a-f]{64}$/.test(candidate.sourceHash)) reject("INVALID_SOURCE_HASH", "sourceHash must be a sha256 hex digest");
+
+  for (const [field, value] of [
+    ["createdAt", candidate.createdAt],
+    ["updatedAt", candidate.updatedAt]
+  ] as const) {
+    if (value && Number.isNaN(Date.parse(value))) reject("INVALID_TIMESTAMP", field);
+  }
+
+  if (candidate.outcome !== undefined && !SEMANTIC_OUTCOMES.includes(candidate.outcome)) {
+    reject("INVALID_OUTCOME", `outcome=${String(candidate.outcome).slice(0, 20)}`);
+  }
+
+  // A hostname is a host, never a URL or a path — accepting a URL here would reintroduce the
+  // query-string leak that the projection allowlist excludes hostnames precisely to avoid.
+  if (candidate.hostname !== undefined && !/^[a-z0-9.-]+(?::\d{1,5})?$/i.test(candidate.hostname)) {
+    reject("INVALID_HOSTNAME", "hostname must be a bare host, optionally with a port");
+  }
+
+  // Reference consistency: a nodeId without the flow it belongs to cannot be resolved back to
+  // anything, and a flow-scoped document claiming no flow is incoherent.
+  if (candidate.nodeId !== undefined && candidate.flowId === undefined && candidate.kind !== "run-failure") {
+    reject("INCONSISTENT_REFERENCES", "nodeId present without flowId");
+  }
+
+  // Embeddings are out of scope for Phase 1B. Accepting them silently would let unversioned vectors
+  // into the index that nothing can interpret or migrate later.
+  if (!options.allowEmbeddings) {
+    if (candidate.embedding !== undefined) reject("EMBEDDING_NOT_ENABLED", "embedding");
+    if (candidate.embeddingProviderId !== undefined) reject("EMBEDDING_NOT_ENABLED", "embeddingProviderId");
+    if (candidate.embeddingVersion !== undefined) reject("EMBEDDING_NOT_ENABLED", "embeddingVersion");
+  } else if (candidate.embedding !== undefined && (!candidate.embeddingProviderId || !candidate.embeddingVersion)) {
+    // A vector whose provider/version is unknown cannot be compared against anything or rebuilt.
+    reject("EMBEDDING_NOT_ENABLED", "embedding requires embeddingProviderId and embeddingVersion");
+  }
 
   if (candidate.schemaVersion !== SEMANTIC_SCHEMA_VERSION) {
     reject("SCHEMA_VERSION_MISMATCH", `expected ${SEMANTIC_SCHEMA_VERSION}, got ${candidate.schemaVersion}`);

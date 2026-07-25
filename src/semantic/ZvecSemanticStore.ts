@@ -221,11 +221,12 @@ export class ZvecSemanticStore implements SemanticStore {
 
   async upsert(documents: readonly ValidatedSemanticDocument[]): Promise<SemanticUpsertResult> {
     const collectionId = this.assertOpen();
-    if (documents.length === 0) return { inserted: 0, replaced: 0 };
+    if (documents.length === 0) return { inserted: 0, replaced: 0, countsKnown: true };
 
     // Existence is resolved BEFORE writing so inserted/replaced are truthful. Zvec's upsert does not
     // report which rows already existed, and guessing would make the counts fiction.
     let existing = 0;
+    let countsKnown = true;
     try {
       const fetched = await this.options.transport.call<{ docs?: ZvecSafeDocument[] } | ZvecSafeDocument[]>(
         { type: "fetch", collectionId, ids: documents.map((d) => d.id) },
@@ -234,7 +235,11 @@ export class ZvecSemanticStore implements SemanticStore {
       const rows = Array.isArray(fetched) ? fetched : (fetched?.docs ?? []);
       existing = rows.length;
     } catch {
-      existing = 0; // a failed pre-read must not block the write; counts degrade, data does not
+      // The write still proceeds — a failed pre-read is not a reason to lose data. But the
+      // insert/replace SPLIT is now unknown, and silently reporting `existing = 0` claimed every
+      // document was new even when all were replacements. Say so instead of inventing a number.
+      existing = 0;
+      countsKnown = false;
     }
 
     try {
@@ -246,7 +251,7 @@ export class ZvecSemanticStore implements SemanticStore {
       this.fail(error, "WRITE_FAILED");
     }
 
-    return { inserted: documents.length - existing, replaced: existing };
+    return { inserted: documents.length - existing, replaced: existing, countsKnown };
   }
 
   async delete(ids: readonly string[]): Promise<number> {
