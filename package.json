@@ -170,7 +170,8 @@
     "verify:zvec-main-host": "electron scripts/zvec-spike/mainHostEntry.mjs",
     "verify:zvec-utility-host": "electron scripts/zvec-spike/utilityHostEntry.mjs",
     "benchmark:zvec-placement": "node scripts/zvec-spike/benchmark-zvec-placement.mjs",
-    "verify:zvec-host-lifecycle": "tsx scripts/verify-zvec-host-lifecycle.mts"
+    "verify:zvec-host-lifecycle": "tsx scripts/verify-zvec-host-lifecycle.mts",
+    "verify:zvec-generation-recovery": "tsx scripts/verify-zvec-generation-recovery.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
