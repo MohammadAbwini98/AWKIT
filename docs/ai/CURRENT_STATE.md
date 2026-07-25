@@ -2,6 +2,10 @@
 
 ## Workflow: single branch, continuous implementation (2026-07-25, current)
 
+**Push is UNBLOCKED and `origin/main` is current** at `3128fdf`. Consolidation is complete: `main`
+is the only branch locally and remotely (plus Beads' `__dolt_remote_info__` ref), no extra
+worktrees, and all eight former branch tips are preserved as pushed `archive/*-20260725` tags.
+
 `main` is the ONLY development branch. No feature/fix/chore/docs/test/spike/backup branches, no task
 worktrees, no freeze-before-commit. See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
@@ -13,7 +17,7 @@ request`. All work since `5dbe25f` (39 commits) exists **locally only**. Remote 
 deliberately NOT deleted until `origin/main` contains the integration, because a remote feature
 branch may currently be the only remote copy of that work.
 
-## Zvec semantic subsystem - Phase 1A in progress (2026-07-25, current)
+## Zvec semantic subsystem - Phase 1A COMPLETE (2026-07-25, current)
 
 Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResources`
 (`resources/native-hosts/zvec/`), never inside `app.asar`. Phase 0-0D evidence is in
@@ -37,9 +41,22 @@ Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResou
 **Verifiers:** `verify:zvec-host-source-boundary` 17/0, `verify:zvec-host-lifecycle` 52/0,
 `verify:zvec-generation-recovery` 31/0.
 
-**Still open:** the host is not yet reachable from any product surface (by design); packaged
-live-CRUD regression coverage was lost when the spike hook was removed and needs a new
-manager-based harness; CPU utilisation still unmeasured; signing/SmartScreen still unaddressed.
+**Phase 1A completion added:** `SemanticGenerationManager` (create/validate/activate/rollback with
+an atomic pointer swap; a rebuild never mutates the active generation),
+`contracts/SemanticHealth.ts` (seven distinct degraded reasons, `indexPath` privileged and omitted
+by default), `verify:zvec-packaged-live` (manager-driven, real Electron, no production hook),
+`verify:zvec-coexistence`, and installed-NSIS-layout verification.
+
+**Verifier totals:** boundary 22/0, host-lifecycle 52/0, generation-recovery 31/0,
+generation-lifecycle 56/0, packaged-live 35/0 (packaged AND installed), coexistence 16/0, installed
+NSIS matrix 10/10.
+
+**Still open:** the host is not reachable from any product surface (by design - Phase 1B+); CPU
+utilisation still unmeasured (the Phase 0D sampler was invalid); Authenticode signing and
+SmartScreen reputation unaddressed.
+
+**Next: Phase 1B** - `SemanticStore` interface, in-memory fake, serialized mutation queue,
+redaction, policy validation, rebuildable generation switching.
 
 ## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 

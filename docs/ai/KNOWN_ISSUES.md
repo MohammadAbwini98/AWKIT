@@ -3,7 +3,14 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
-## Packaged live-CRUD coverage for Zvec was removed with the spike hook (2026-07-25)
+## RESOLVED 2026-07-25: packaged live-CRUD coverage for Zvec
+
+Restored by `verify:zvec-packaged-live`, which esbuilds a harness into a TEMPORARY Electron app
+directory and drives the real `ZvecUtilityHostManager` against the packaged host - no production
+startup hook. 35/0 against both the packaged tree and the NSIS-installed tree. Historical note
+below.
+
+### (historical) Coverage removed with the spike hook
 
 Phase 1A removed the `AWKIT_ZVEC_SPIKE_HOST` hook from `app/main/main.ts` and the `__testAbort`
 handler from the shipped host, which is correct - neither may ship. But the Phase 0D harnesses that
@@ -18,13 +25,16 @@ still verified structurally (`verify:zvec-packaged-assets`), but the live path i
 Replacement needs a harness built on `ZvecUtilityHostManager` rather than a hook that bypasses
 startup. The deleted harnesses remain recoverable at tag `archive/spike-zvec-phase-0-20260725`.
 
-## Push to `origin/main` is blocked by branch protection (2026-07-25)
+## RESOLVED 2026-07-25: direct push to `origin/main`
 
-`git push origin main` fails with `GH013: Repository rule violations found for refs/heads/main —
-Changes must be made through a pull request`. Per the single-branch policy, agents must report this
-error and continue committing locally; they must NOT create replacement branches. Consequence: all
-work after `5dbe25f` currently exists **locally only**, and remote branches must NOT be deleted until
-`origin/main` contains the integration. Only the owner can adjust the protection rule.
+`git push origin main` was rejected with `GH013: Changes must be made through a pull request`. The
+owner adjusted the ruleset bypass; the push then succeeded (`5dbe25f..3128fdf`) and `origin/main`
+now equals local `main`. Branch consolidation completed afterwards, in the required order: push
+main -> verify origin/main -> push archive tags -> compare each remote branch -> delete.
+
+**Lesson worth keeping:** archive tags are worthless for preservation until they are PUSHED. They
+existed only locally at first, so deleting remote branches at that point would have recreated the
+same off-machine-copy risk the push had just cleared.
 
 ## Validation verifiers are not registered in package.json (2026-07-25)
 
