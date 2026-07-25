@@ -35,7 +35,18 @@ export type SemanticStoreErrorCode =
    * delete that silently removes only the first page is worse than one that refuses, because the
    * caller believes content is gone when it is still indexed.
    */
-  | "UNSUPPORTED_OPERATION";
+  | "UNSUPPORTED_OPERATION"
+  /**
+   * A filter value cannot be represented in the backend's query grammar.
+   *
+   * Distinct from "no results", and that distinction is the whole point: a backend that answered an
+   * unrepresentable filter with an empty result set would tell the caller the content is absent when
+   * it was never actually searched for. Identity filters avoid this entirely by matching on a derived
+   * fixed-alphabet key, so this code is reachable only for free-text filter dimensions.
+   */
+  | "FILTER_VALUE_UNSAFE"
+  /** The filter is structurally invalid — unknown field, empty clause list, wrong value type. */
+  | "FILTER_INVALID";
 
 export class SemanticStoreError extends Error {
   constructor(

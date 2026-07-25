@@ -30,11 +30,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
+import { semanticEntityKey } from "@src/semantic/contracts/SemanticDocument";
 import {
   ZVEC_FILTERABLE_FIELDS,
   ZvecFilterError,
   buildZvecFilterExpression,
   entityFilter,
+  entityKeyFilter,
   isFilterSafeString,
   matchAllFilter,
   type ZvecSafeFilter
@@ -76,16 +78,48 @@ function refuses(label: string, build: () => unknown, expectedCode?: string): vo
 
 console.log("Filter builder — structure:\n");
 
-check("equality renders a single '=' (the grammar rejects '==')", expression(entityFilter("e1")) === 'entityId = "e1"', expression(entityFilter("e1")));
+check(
+  "equality renders a single '=' (the grammar rejects '==')",
+  expression({ all: [{ field: "kind", op: "eq", value: "flow" }] }) === 'kind = "flow"'
+);
 check("IN renders parentheses, not brackets", expression({ all: [{ field: "kind", op: "in", values: ["workflow", "flow"] }] }) === 'kind IN ("workflow", "flow")');
 check("isNull renders IS NULL", expression({ all: [{ field: "nodeType", op: "isNull" }] }) === "nodeType IS NULL");
 check("neq renders '!='", expression({ all: [{ field: "kind", op: "neq", value: "flow" }] }) === 'kind != "flow"');
 check("numbers render unquoted", expression(matchAllFilter()) === "schemaVersion >= 0");
 check(
   "multiple clauses are parenthesised and ANDed",
-  expression({ all: [{ field: "kind", op: "eq", value: "flow" }, { field: "entityId", op: "eq", value: "e1" }] }) ===
-    '(kind = "flow") AND (entityId = "e1")'
+  expression({ all: [{ field: "kind", op: "eq", value: "flow" }, { field: "workflowId", op: "eq", value: "w1" }] }) ===
+    '(kind = "flow") AND (workflowId = "w1")'
 );
+
+// Identity is filtered by DERIVED key, never by the raw id — an `IN` across one key per kind.
+// The probe id uses characters OUTSIDE the hex alphabet on purpose: asserting that a 64-hex digest
+// does not "contain e1" is vacuous, because it very often does by chance.
+const RAW_PROBE_ID = "raw-SOURCE-Identity";
+check(
+  "entityFilter matches on the derived entityKey, not on raw entityId",
+  expression(entityFilter(RAW_PROBE_ID)).startsWith("entityKey IN (") &&
+    !expression(entityFilter(RAW_PROBE_ID)).includes("SOURCE"),
+  expression(entityFilter(RAW_PROBE_ID)).slice(0, 60)
+);
+check(
+  "the rendered identity filter is nothing but hex literals",
+  expression(entityFilter(RAW_PROBE_ID))
+    .replace("entityKey IN (", "")
+    .replace(")", "")
+    .split(", ")
+    .every((literal) => /^"[0-9a-f]{64}"$/.test(literal))
+);
+check(
+  "raw entityId is NOT an allowlisted filter field",
+  !(ZVEC_FILTERABLE_FIELDS as readonly string[]).includes("entityId")
+);
+check(
+  "raw revision and nodeId are NOT allowlisted either",
+  !(ZVEC_FILTERABLE_FIELDS as readonly string[]).includes("revision") &&
+    !(ZVEC_FILTERABLE_FIELDS as readonly string[]).includes("nodeId")
+);
+refuses("entityKeyFilter refuses a value that is not a hex digest", () => entityKeyFilter("not-a-key"), "FILTER_VALUE_UNSAFE");
 
 refuses("an EMPTY clause list is refused, never treated as match-everything", () => expression({ all: [] }), "FILTER_EMPTY");
 refuses("a field outside the allowlist is refused", () => expression({ all: [{ field: "content" as never, op: "eq", value: "x" }] }), "FILTER_UNKNOWN_FIELD");
@@ -105,8 +139,20 @@ check("a NUL makes a value unsafe", !isFilterSafeString("has\u0000nul"));
 check("a DEL makes a value unsafe", !isFilterSafeString("has\u007Fdel"));
 check("a newline makes a value unsafe", !isFilterSafeString("has\nnewline"));
 check("the unit separator that delimits tags makes a value unsafe", !isFilterSafeString("a\u001Fb"));
-refuses("an unsafe value is refused rather than escaped", () => expression(entityFilter("bad\\value")), "FILTER_VALUE_UNSAFE");
-check("a quote is escaped, not rejected", expression(entityFilter('a"b')) === 'entityId = "a\\"b"', expression(entityFilter('a"b')));
+refuses(
+  "an unsafe value on a free-text dimension is refused rather than escaped",
+  () => expression({ all: [{ field: "workflowId", op: "eq", value: "bad\\value" }] }),
+  "FILTER_VALUE_UNSAFE"
+);
+check(
+  "a quote is escaped, not rejected",
+  expression({ all: [{ field: "workflowId", op: "eq", value: 'a"b' }] }) === 'workflowId = "a\\"b"'
+);
+// The reason identity does not rely on any of the above: a derived key cannot be unsafe.
+check(
+  "an entity identity that WOULD be refused as a raw value still yields a usable filter",
+  expression(entityFilter("C:\\Users\\name\\item")).startsWith("entityKey IN (")
+);
 
 // ── 2. The host's independent duplicate must not drift ────────────────────────────────────────────
 
@@ -171,6 +217,11 @@ const zvec: any = require_(join(zvecDir, "src", "index.js"));
 const workDir = mkdtempSync(join(tmpdir(), "awkit-zvec-filter-"));
 const collectionPath = join(workDir, "collection");
 
+// Declared outside the try so cleanup can close it. An unclosed collection holds a RocksDB LOCK, and
+// the resulting EBUSY in `finally` MASKED the real error on a first run — cleanup must never be able
+// to hide the failure it is cleaning up after.
+let collection: any = null;
+
 try {
   // Mirror the shipped schema translation so what is exercised here is what the host would create.
   const fields = SEMANTIC_SCHEMA.fields.map((f) => {
@@ -182,14 +233,16 @@ try {
   });
   check("the shipped schema translates to real dataTypes", fields.every((f) => typeof f.dataType === "number"));
 
-  const collection = zvec.ZVecCreateAndOpen(
+  collection = zvec.ZVecCreateAndOpen(
     collectionPath,
     new zvec.ZVecCollectionSchema({ name: "awkit-filter-probe", fields })
   );
 
-  const base = (id: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
-    id,
-    fields: {
+  // `entityKey` is non-nullable, so it must be present on every row — a missing required field is
+  // rejected by the binding exactly like an explicit null. Derived here rather than hard-coded so the
+  // fixture agrees with the real derivation.
+  const base = (id: string, over: Record<string, unknown> = {}): Record<string, unknown> => {
+    const fields: Record<string, unknown> = {
       id,
       kind: "run-failure",
       entityId: "entity-plain",
@@ -202,8 +255,12 @@ try {
       createdAt: "2026-07-25T00:00:00.000Z",
       updatedAt: "2026-07-25T00:00:00.000Z",
       ...over
+    };
+    if (fields.entityKey === undefined) {
+      fields.entityKey = semanticEntityKey(fields.kind as never, String(fields.entityId));
     }
-  });
+    return { id, fields };
+  };
 
   // 1500 documents: past the removed 100 cap AND past the vendor's 1024-per-batch write limit.
   const TOTAL = 1500;
@@ -303,7 +360,8 @@ try {
     "AND narrows",
     runFilter({
       all: [
-        { field: "entityId", op: "eq", value: "entity-big" },
+        // The kind-scoped derived key, not the raw id — `entityId` is no longer filterable at all.
+        { field: "entityKey", op: "eq", value: semanticEntityKey("workflow", "entity-big") },
         { field: "kind", op: "eq", value: "workflow" }
       ]
     }).length === 65
@@ -341,13 +399,81 @@ try {
   check("an invalid filter expression returns ok:false instead of throwing", badStatus.ok === false);
   check("...confirming an unchecked status would read as a successful delete", collection.stats.docCount === docs.length - bigBefore);
 
+  // -- hostile identities are deletable THROUGH THEIR DERIVED KEY --
+  //
+  // Executed against the real grammar, because this is the whole justification for `entityKey`. Each
+  // identity below is one a real user can create; filtering by the raw value either throws a lexer
+  // error or silently matches nothing, and both leave the content permanently indexed.
+  const hostileIdentities: ReadonlyArray<[string, string]> = [
+    ["windows path", "C:\\Users\\name\\item"],
+    ["single quote", "single'quote"],
+    ["double quote", 'double"quote'],
+    ["trailing backslash", "trailing\\"],
+    ["non-Latin script", "Unicode-اسم"],
+    ["newline", "has\nnewline"],
+    ["nul", "has\u0000nul"],
+    ["filter payload", '" OR schemaVersion >= 0 OR entityId = "']
+  ];
+
+  for (const [label, entityId] of hostileIdentities) {
+    const key = semanticEntityKey("run-failure", entityId);
+    const docId = `hostile-${key.slice(0, 12)}`;
+    collection.upsertSync([base(docId, { entityId, entityKey: key })]);
+
+    let matched = -1;
+    let threw = "";
+    try {
+      matched = runFilter(entityKeyFilter(key)).length;
+    } catch (error) {
+      threw = error instanceof Error ? error.message.slice(0, 60) : String(error);
+    }
+    check(`[hostile] a ${label} identity is findable by derived key`, matched === 1, threw || `matched=${matched}`);
+
+    const st = collection.deleteByFilterSync(expression(entityKeyFilter(key)));
+    check(
+      `[hostile] a ${label} identity is DELETABLE by derived key`,
+      st.ok === true && runFilter(entityKeyFilter(key)).length === 0
+    );
+  }
+
+  // The raw value, by contrast, cannot even be rendered — which is why the key exists.
+  refuses(
+    "[hostile] the raw windows-path identity is refused by the builder (never zero-matched)",
+    () => expression({ all: [{ field: "id", op: "eq", value: "C:\\Users\\name\\item" }] }),
+    "FILTER_VALUE_UNSAFE"
+  );
+  check(
+    "[hostile] every derived key is fixed-alphabet hex, whatever the source identity",
+    hostileIdentities.every(([, entityId]) => /^[0-9a-f]{64}$/.test(semanticEntityKey("run-failure", entityId)))
+  );
+  check(
+    "[hostile] NFC and NFD spellings of one identity derive the SAME key",
+    semanticEntityKey("workflow", "café-x") === semanticEntityKey("workflow", "cafe\u0301-x")
+  );
+  check(
+    "[hostile] different identities derive DIFFERENT keys",
+    semanticEntityKey("workflow", "a") !== semanticEntityKey("workflow", "b") &&
+      semanticEntityKey("workflow", "a") !== semanticEntityKey("flow", "a")
+  );
+
   // -- clear-everything --
   const clearStatus = collection.deleteByFilterSync(expression(matchAllFilter()));
   check("matchAll deletes every remaining document", clearStatus.ok === true && collection.stats.docCount === 0, String(collection.stats.docCount));
 
-  collection.closeSync();
 } finally {
-  rmSync(workDir, { recursive: true, force: true });
+  // Close before removing: an open collection holds a RocksDB LOCK, and the EBUSY that follows would
+  // replace the real failure with a cleanup error. Both steps are individually swallowed so temp-dir
+  // housekeeping can never decide whether this verifier passed.
+  try {
+    collection?.closeSync();
+  } catch {
+    /* a collection that cannot close must not mask the result */
+  }
+  try {
+    rmSync(workDir, { recursive: true, force: true });
+  } catch {
+    /* a leftover temp directory is not a verification failure */
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

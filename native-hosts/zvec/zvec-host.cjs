@@ -88,19 +88,23 @@ class HostError extends Error {
  * a backslash can neither be doubled (silently matches nothing) nor left alone (a trailing backslash
  * escapes its own closing quote). Such a value is rejected. Quotes are safe, escaped as `\"`.
  */
+/**
+ * Raw `entityId`, `revision` and `nodeId` are deliberately ABSENT: they are unconstrained source text,
+ * and entity-wide DELETION is built on identity. Refusing an unsafe value there is fail-closed but
+ * leaves that entity permanently unremovable, so identity is filtered through the derived
+ * fixed-alphabet `entityKey` (`sha256`, `[0-9a-f]{64}`) instead. Do not add them back.
+ */
 const FILTERABLE_FIELDS = new Set([
   "id",
   "kind",
-  "entityId",
-  "revision",
+  "entityKey",
   "sourceHash",
   "schemaVersion",
+  "outcome",
+  "hostname",
   "workflowId",
   "flowId",
-  "nodeId",
   "nodeType",
-  "hostname",
-  "outcome",
   "errorCategory"
 ]);
 

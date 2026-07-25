@@ -29,6 +29,8 @@
 
 import {
   isSemanticDocumentKind,
+  isSemanticEntityKey,
+  semanticEntityKey,
   semanticIds,
   semanticSourceHash,
   SEMANTIC_OUTCOMES,
@@ -64,6 +66,8 @@ export type SemanticRejectionReason =
   | "UNREDACTED_SECRET"
   | "MISSING_SOURCE_REFERENCE"
   | "INVALID_ID"
+  /** The derived entity key is malformed, or belongs to a different kind + entityId than the row. */
+  | "INVALID_ENTITY_KEY"
   | "INVALID_SOURCE_HASH"
   | "INVALID_TIMESTAMP"
   | "INVALID_OUTCOME"
@@ -141,6 +145,22 @@ export function validateSemanticDocument(
   if (!candidate.entityId) reject("MISSING_SOURCE_REFERENCE", "entityId");
   if (!candidate.revision) reject("MISSING_SOURCE_REFERENCE", "revision");
   if (!candidate.updatedAt) reject("MISSING_SOURCE_REFERENCE", "updatedAt");
+
+  // `entityKey` is what entity-wide filters and deletes match on, so a row is not allowed to carry a
+  // key that disagrees with its own identity. Recomputed and compared rather than merely format-
+  // checked: a well-formed key belonging to a DIFFERENT entity would otherwise let a delete for one
+  // entity remove another's documents, or leave these behind while reporting success.
+  if (!candidate.entityKey) {
+    reject("MISSING_SOURCE_REFERENCE", "entityKey");
+  } else if (!isSemanticEntityKey(candidate.entityKey)) {
+    reject("INVALID_ENTITY_KEY", "entityKey must be a sha256 hex digest");
+  } else if (
+    isSemanticDocumentKind(candidate.kind) &&
+    candidate.entityId &&
+    candidate.entityKey !== semanticEntityKey(candidate.kind, candidate.entityId)
+  ) {
+    reject("INVALID_ENTITY_KEY", "entityKey does not match kind + entityId");
+  }
 
   // The id must match the kind AND the logical entity it claims. Checking only that it contained a
   // ":" accepted an id belonging to a different document entirely.
@@ -302,6 +322,7 @@ export function buildValidatedDocument(
     id: computeDocumentId(candidate),
     kind: candidate.kind,
     entityId: candidate.entityId,
+    entityKey: semanticEntityKey(candidate.kind, candidate.entityId),
     revision: candidate.revision,
     sourceHash: semanticSourceHash([candidate.kind, candidate.entityId, candidate.revision, content]),
     schemaVersion: SEMANTIC_SCHEMA_VERSION,

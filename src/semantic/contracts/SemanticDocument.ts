@@ -64,8 +64,32 @@ export interface SemanticDocument {
   id: string;
   kind: SemanticDocumentKind;
 
-  /** The AWKIT entity this projects (workflow id, run id, relative doc path, …). */
+  /**
+   * The AWKIT entity this projects (workflow id, run id, relative doc path, …).
+   *
+   * Kept for source traceability, and deliberately unconstrained — an entity id is whatever AWKIT
+   * calls the thing. It is therefore NEVER interpolated into a backend filter expression; use
+   * `entityKey` for that (see below).
+   */
   entityId: string;
+  /**
+   * `entityKey` is the FILTERABLE form of the entity identity: `sha256(kind \u0000 NFC(entityId))`,
+   * so its alphabet is always `[0-9a-f]{64}`.
+   *
+   * It exists because a filter value must be safely representable in the backend's grammar, and a raw
+   * `entityId` is not. Refusing unsafe values (a backslash, a quote, a control character) is
+   * fail-closed but leaves a legitimate entity **impossible to delete from the index** — a Windows
+   * path, an apostrophe in a name, or a non-ASCII identifier would be indexed and then unremovable.
+   * A derived fixed-alphabet key removes the entire class of problem instead of narrowing it.
+   *
+   * NFC-normalized on purpose: two spellings of the same identifier that differ only by Unicode
+   * composition form are the same entity, and a delete that missed the other form would be the same
+   * silent-under-delete failure in a new disguise.
+   *
+   * Factory-computed and re-verified on read, exactly like `id` — a row whose `entityKey` does not
+   * agree with its own `kind` + `entityId` is rejected rather than trusted.
+   */
+  entityKey: string;
   /** The SOURCE revision, never the index revision (§7.1). */
   revision: string;
   /** Detects stale projections: same source content ⇒ same hash. */
@@ -191,6 +215,33 @@ export const semanticIds = {
 } as const;
 
 /** Content digest for staleness detection. Distinct from the id: the id is stable across edits. */
+/**
+ * The filterable form of an entity identity: 64 lowercase hex characters, always.
+ *
+ * Derived rather than validated so that NO entity identity is unrepresentable in a backend filter.
+ * The raw `entityId` may contain a backslash, a quote, a newline or non-ASCII text; this cannot.
+ *
+ * NFC normalization is part of the contract: the same identifier written in decomposed form must
+ * produce the same key, or `deleteByEntity` would miss it and report success.
+ *
+ * `kind` participates so a key is scoped to one document kind. `deleteByEntity` therefore matches
+ * across all kinds by testing the key of each, which keeps the raw id out of the expression while
+ * still deleting every document projected from that entity.
+ */
+export function semanticEntityKey(kind: SemanticDocumentKind, entityId: string): string {
+  return semanticSourceHash([kind, entityId.normalize("NFC")]);
+}
+
+/** Every key one entity identity can occupy, one per kind. Used by entity-wide deletion. */
+export function semanticEntityKeysForAllKinds(entityId: string): string[] {
+  return SEMANTIC_DOCUMENT_KINDS.map((kind) => semanticEntityKey(kind, entityId));
+}
+
+/** A derived key is the only shape a filter may carry for an identity. */
+export function isSemanticEntityKey(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
 export function semanticSourceHash(parts: readonly string[]): string {
   return createHash("sha256").update(parts.join("\u0000"), "utf8").digest("hex");
 }

@@ -16,6 +16,7 @@ import {
   SEMANTIC_SCHEMA_VERSION,
   semanticDocumentId,
   semanticHash,
+  semanticEntityKey,
   semanticIds,
   semanticSourceHash,
   type SemanticDocument
@@ -199,11 +200,16 @@ console.log("\nRedaction — shapes SecretMasker does NOT handle:\n");
 console.log("\nPolicy validator (independent re-scan):\n");
 
 function candidate(overrides: Partial<SemanticDocument> = {}): SemanticDocument {
+  // `entityKey` is derived from kind + entityId, so an override of EITHER must re-derive it, or the
+  // validator's agreement check fires and the fixture fails for a reason the test never intended.
+  const kind = overrides.kind ?? "workflow";
+  const entityId = overrides.entityId ?? "wf-1";
   return {
     // A real factory-shaped id: kind-prefixed and ending in the canonical-identity hash.
     id: semanticIds.workflow("wf-1"),
     kind: "workflow",
     entityId: "wf-1",
+    entityKey: semanticEntityKey(kind, entityId),
     revision: "r1",
     sourceHash: semanticSourceHash(["x"]),
     schemaVersion: SEMANTIC_SCHEMA_VERSION,
@@ -222,6 +228,50 @@ function candidate(overrides: Partial<SemanticDocument> = {}): SemanticDocument 
   const missing = validateSemanticDocument(candidate({ entityId: "", revision: "" }));
   check("missing source references are rejected", !missing.ok);
   check("ALL failures are collected, not just the first", !missing.ok && missing.rejections.length >= 2, String(!missing.ok && missing.rejections.length));
+
+  // `entityKey` is what entity-wide deletion matches on, so it is recomputed and COMPARED, not just
+  // format-checked. A well-formed key belonging to another entity is the dangerous case: it would let
+  // a delete for one entity remove a different entity's documents, or silently spare these.
+  const rejectionReasons = (result: ReturnType<typeof validateSemanticDocument>): string =>
+    result.ok ? "accepted" : result.rejections.map((r) => r.reason).join(",");
+
+  check(
+    "a missing entityKey is rejected",
+    rejectionReasons(validateSemanticDocument(candidate({ entityKey: undefined as never }))).includes("MISSING_SOURCE_REFERENCE")
+  );
+  check(
+    "a malformed entityKey is rejected",
+    rejectionReasons(validateSemanticDocument(candidate({ entityKey: "not-hex" }))).includes("INVALID_ENTITY_KEY")
+  );
+  check(
+    "an entityKey belonging to a DIFFERENT entity is rejected",
+    rejectionReasons(validateSemanticDocument(candidate({ entityKey: semanticEntityKey("workflow", "someone-else") }))).includes(
+      "INVALID_ENTITY_KEY"
+    )
+  );
+  check(
+    "an entityKey belonging to a different KIND is rejected",
+    rejectionReasons(validateSemanticDocument(candidate({ entityKey: semanticEntityKey("flow", "wf-1") }))).includes(
+      "INVALID_ENTITY_KEY"
+    )
+  );
+  check(
+    "a derived entityKey is always fixed-alphabet hex, whatever the source identity",
+    [
+      "C:\\Users\\name\\item",
+      "single'quote",
+      'double"quote',
+      "trailing\\",
+      "Unicode-اسم"
+    ].every((id) => /^[0-9a-f]{64}$/.test(semanticEntityKey("workflow", id)))
+  );
+  check(
+    "the factory computes an entityKey that agrees with the document it built",
+    (() => {
+      const built = projectAndValidate("workflow", { workflowId: "wf-key", name: "K", description: "d", revision: "r1" });
+      return built.ok && built.document.entityKey === semanticEntityKey("workflow", "wf-key");
+    })()
+  );
 
   check("an oversized document is rejected", !validateSemanticDocument(candidate({ content: "x".repeat(SEMANTIC_MAX_CONTENT_LENGTH + 1) })).ok);
   check("a bad schema version is rejected", !validateSemanticDocument(candidate({ schemaVersion: 999 })).ok);

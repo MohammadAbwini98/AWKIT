@@ -306,6 +306,73 @@ export async function runSemanticStoreContract(
     await store.close();
   }
 
+  // ── hostile entity identities must still be deletable ────────────────────────────────────────
+  //
+  // This is the check that justifies the derived `entityKey`. Filtering by raw `entityId` forced a
+  // choice between corrupting the value and refusing it; refusal is fail-closed but leaves a
+  // legitimate entity permanently stuck in the index. Every identity below is one a real AWKIT user
+  // can produce — a Windows path, a name with an apostrophe, a non-Latin script — and every one must
+  // be removable. A store that reports 0 removed here is failing, not being careful.
+  if (supportsEntityOps) {
+    const hostile: ReadonlyArray<[string, string]> = [
+      ["windows path", "C:\\Users\\name\\item"],
+      ["single quote", "single'quote"],
+      ["double quote", 'double"quote'],
+      ["trailing backslash", "trailing\\"],
+      ["non-Latin script", "Unicode-اسم"],
+      ["newline", "has\nnewline"],
+      ["unit separator", "has\u001Fseparator"],
+      ["nul", "has\u0000nul"],
+      ["filter-ish payload", '" OR schemaVersion >= 0 OR entityId = "'],
+      ["decomposed unicode", "cafe\u0301-entity"]
+    ];
+
+    for (const [label, entityId] of hostile) {
+      const store = await fresh();
+      await store.upsert([
+        contractDocument({ entityId, title: `Hostile ${label}`, body: "removable content" }),
+        contractDocument({ entityId: "bystander", title: "Bystander", body: "must survive" })
+      ]);
+
+      // A REFUSAL is recorded as a failure of this check, not allowed to abort the suite. That is the
+      // failure mode being guarded: filtering by raw `entityId` makes these identities throw
+      // (unrepresentable value) or match nothing, and either way the entity is stuck in the index.
+      let removed = -1;
+      let refusal = "";
+      try {
+        removed = await store.deleteByEntity(entityId);
+      } catch (error) {
+        refusal = error instanceof SemanticStoreError ? error.code : "unexpected-error-type";
+      }
+      check(
+        `[hostile] an entityId with a ${label} is deletable`,
+        removed === 1,
+        refusal ? `refused with ${refusal}` : `removed=${removed}`
+      );
+      check(
+        `[hostile] deleting a ${label} identity leaves other entities alone`,
+        (await store.stats()).documents === 1,
+        String((await store.stats()).documents)
+      );
+      await store.close();
+    }
+
+    // NFC/NFD: the same identifier in two composition forms is ONE entity, so a delete issued with
+    // either spelling must remove it. Without normalization in the key derivation this passes for the
+    // form that was written and silently reports success for the other.
+    const store = await fresh();
+    const composed = "caf\u00E9-entity";
+    const decomposed = "cafe\u0301-entity";
+    await store.upsert([contractDocument({ entityId: composed, title: "Composed", body: "content" })]);
+    const removedViaOtherForm = await store.deleteByEntity(decomposed);
+    check(
+      "[hostile] a Unicode-decomposed spelling deletes the composed entity (NFC-normalized key)",
+      removedViaOtherForm === 1,
+      `removed=${removedViaOtherForm}`
+    );
+    await store.close();
+  }
+
   // ── totalMatched past the internal fetch window ──────────────────────────────────────────────
   //
   // The `topK: 1` assertion above CANNOT catch the failure this guards. That fixture holds three

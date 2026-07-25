@@ -33,26 +33,48 @@
  * is how content stays indexed after the caller was told it was gone.
  */
 
+import {
+  isSemanticEntityKey,
+  semanticEntityKey,
+  semanticEntityKeysForAllKinds,
+  type SemanticDocumentKind
+} from "./SemanticDocument";
+
 /**
  * Fields a filter may name. An allowlist, not a free string: a typo'd or attacker-chosen field name
  * cannot reach the expression, and the set is checked against `SEMANTIC_SCHEMA` by
  * `verify:semantic-zvec-filter` so a schema change cannot silently orphan a filter dimension.
  */
 export const ZVEC_FILTERABLE_FIELDS = [
+  // Constrained by construction: `id` is `kind:component:16hex` where the component alphabet is
+  // `[a-z0-9._-]`; `entityKey` and `sourceHash` are hex digests; `schemaVersion` is numeric; `kind`
+  // and `outcome` are closed enums; `hostname` is validated as a bare host.
   "id",
   "kind",
-  "entityId",
-  "revision",
+  "entityKey",
   "sourceHash",
   "schemaVersion",
+  "outcome",
+  "hostname",
+  // Caller-influenced text. Safe to filter on because an unrepresentable value is REFUSED with a
+  // stable error on the read path — never answered with a successful zero-match. They are not used
+  // for deletion, which is the case where refusal would strand content in the index.
   "workflowId",
   "flowId",
-  "nodeId",
   "nodeType",
-  "hostname",
-  "outcome",
   "errorCategory"
 ] as const;
+
+/**
+ * Raw `entityId` and `revision` are deliberately ABSENT from the allowlist above.
+ *
+ * They are unconstrained source text — a Windows path, a name with an apostrophe, a non-ASCII
+ * identifier — and entity-wide DELETION is built on them. Refusing an unsafe value is fail-closed but
+ * leaves that entity permanently unremovable from the index, so identity is filtered through the
+ * derived fixed-alphabet `entityKey` instead. Adding `entityId` back here would reintroduce exactly
+ * that gap; use `entityKeyFilter` / `entityFilter`.
+ */
+export const ZVEC_NON_FILTERABLE_IDENTITY_FIELDS = ["entityId", "revision", "nodeId"] as const;
 
 export type ZvecFilterField = (typeof ZVEC_FILTERABLE_FIELDS)[number];
 
@@ -178,7 +200,25 @@ export function matchAllFilter(): ZvecSafeFilter {
   return { all: [{ field: "schemaVersion", op: "gte", value: 0 }] };
 }
 
-/** Every document projected from one source entity, whatever its revision. */
+/**
+ * Every document projected from one source entity, whatever its revision or kind.
+ *
+ * Matches on the DERIVED key, one per kind, so the raw entity id is never interpolated into the
+ * grammar. An `IN` over eight 64-hex values is the price of never having an undeletable entity.
+ */
 export function entityFilter(entityId: string): ZvecSafeFilter {
-  return { all: [{ field: "entityId", op: "eq", value: entityId }] };
+  return { all: [{ field: "entityKey", op: "in", values: semanticEntityKeysForAllKinds(entityId) }] };
+}
+
+/** One entity within one kind, when the caller already knows the kind. */
+export function entityKindFilter(kind: SemanticDocumentKind, entityId: string): ZvecSafeFilter {
+  return { all: [{ field: "entityKey", op: "eq", value: semanticEntityKey(kind, entityId) }] };
+}
+
+/** Filter by an already-derived key, e.g. one read off a stored document. */
+export function entityKeyFilter(entityKey: string): ZvecSafeFilter {
+  if (!isSemanticEntityKey(entityKey)) {
+    throw new ZvecFilterError("FILTER_VALUE_UNSAFE", "entityKey must be a sha256 hex digest");
+  }
+  return { all: [{ field: "entityKey", op: "eq", value: entityKey }] };
 }

@@ -21,6 +21,7 @@
 import {
   SEMANTIC_DEFAULT_TOP_K,
   SEMANTIC_MAX_TOP_K,
+  semanticEntityKeysForAllKinds,
   type SemanticSearchHit,
   type SemanticSearchRequest,
   type SemanticSearchResult
@@ -119,9 +120,16 @@ export class InMemorySemanticStore implements SemanticStore {
   async deleteByEntity(entityId: string): Promise<number> {
     this.assertOpen();
     if (this.options.failures?.onDelete) throw new SemanticStoreError("WRITE_FAILED");
+    // Matched on the DERIVED key, not on raw `entityId` equality, so both implementations agree by
+    // construction. The Zvec adapter must use the key (a raw id cannot be safely interpolated into a
+    // filter grammar); if this compared raw strings instead, the two stores would diverge on any
+    // identity differing only by Unicode composition form — one deleting it, the other reporting
+    // success having deleted nothing. The shared contract suite is only meaningful when the identity
+    // rule is identical.
+    const keys = new Set(semanticEntityKeysForAllKinds(entityId));
     let removed = 0;
     for (const [id, doc] of [...this.documents.entries()]) {
-      if (doc.entityId === entityId) {
+      if (keys.has(doc.entityKey)) {
         this.documents.delete(id);
         removed += 1;
       }

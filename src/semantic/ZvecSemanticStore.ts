@@ -27,8 +27,10 @@ import {
   type SemanticSearchResult
 } from "./contracts/SemanticDocument";
 import {
+  buildZvecFilterExpression,
   entityFilter,
   matchAllFilter,
+  ZvecFilterError,
   type ZvecFilterClause,
   type ZvecFilterField,
   type ZvecSafeFilter
@@ -76,7 +78,10 @@ export const SEMANTIC_SCHEMA: ZvecSafeSchema = {
   fields: [
     { name: "id", dataType: "STRING", invert: true },
     { name: "kind", dataType: "STRING", invert: true },
-    { name: "entityId", dataType: "STRING", invert: true },
+    // `entityId` is stored for traceability but is NOT indexed for filtering — identity filters go
+    // through the derived fixed-alphabet `entityKey`, so raw source text never enters the grammar.
+    { name: "entityId", dataType: "STRING" },
+    { name: "entityKey", dataType: "STRING", invert: true },
     { name: "revision", dataType: "STRING" },
     { name: "sourceHash", dataType: "STRING" },
     { name: "schemaVersion", dataType: "INT64" },
@@ -116,6 +121,7 @@ export function toZvecDocument(doc: ValidatedSemanticDocument): ZvecSafeDocument
     id: doc.id,
     kind: doc.kind,
     entityId: doc.entityId,
+    entityKey: doc.entityKey,
     revision: doc.revision,
     sourceHash: doc.sourceHash,
     schemaVersion: doc.schemaVersion,
@@ -165,6 +171,9 @@ export function fromZvecDocument(raw: ZvecSafeDocument): ValidatedSemanticDocume
     id: str(f.id) ?? raw.id,
     kind: kind as SemanticDocumentKind,
     entityId: str(f.entityId) ?? "",
+    // Not recomputed here: the validator recomputes and compares it, so a row whose stored key
+    // disagrees with its own identity is REJECTED rather than silently corrected on read.
+    entityKey: str(f.entityKey) ?? "",
     revision: str(f.revision) ?? "",
     sourceHash: str(f.sourceHash) ?? "",
     schemaVersion: typeof f.schemaVersion === "number" ? f.schemaVersion : -1,
@@ -319,10 +328,14 @@ export class ZvecSemanticStore implements SemanticStore {
   /**
    * Delete every document projected from one entity.
    *
-   * The previous implementation ran a top-K FULL-TEXT query for the entity id and deleted whatever
+   * The original implementation ran a top-K FULL-TEXT query for the entity id and deleted whatever
    * came back — wrong twice over: an entity id need not appear in indexed content at all (matching
-   * nothing, reporting a successful no-op), and any match was capped at 100. This now sends a typed
-   * `entityId` equality filter, which the host renders, executes, and verifies by re-scanning.
+   * nothing, reporting a successful no-op), and any match was capped at 100.
+   *
+   * It now matches on the DERIVED `entityKey`, one per kind. The raw entity id never reaches the
+   * grammar, so an id holding a backslash, a quote or non-ASCII text is as deletable as any other —
+   * refusing those would have been fail-closed but would have stranded real content in the index
+   * permanently. The host renders, executes and then re-scans to prove the removal.
    */
   async deleteByEntity(entityId: string): Promise<number> {
     const collectionId = this.assertOpen();
@@ -430,6 +443,23 @@ export class ZvecSemanticStore implements SemanticStore {
     topK: number,
     filter: ZvecSafeFilter | undefined
   ): Promise<{ documents: ValidatedSemanticDocument[]; totalMatched: number; totalExact: boolean }> {
+    // Rendered locally BEFORE the round trip, purely to surface a precise error. The host renders it
+    // again — that copy is the authority — but a value the grammar cannot represent must not come back
+    // as a generic query failure, and must never come back as a successful zero-match: "no results"
+    // and "your filter was unrepresentable" are different answers, and conflating them is how a
+    // caller concludes an entity is absent when it was never searched for.
+    if (filter) {
+      try {
+        buildZvecFilterExpression(filter);
+      } catch (error) {
+        throw new SemanticStoreError(
+          error instanceof ZvecFilterError && error.code === "FILTER_VALUE_UNSAFE"
+            ? "FILTER_VALUE_UNSAFE"
+            : "FILTER_INVALID"
+        );
+      }
+    }
+
     try {
       const value = await this.options.transport.call<ZvecDocumentsResponse>(
         {
