@@ -46,6 +46,17 @@ function check(label: string, condition: unknown, detail?: string): void {
  * repository copy — but say which was used, because only the packaged one proves the shipped layout.
  */
 function resolveHostTree(): { hostPath: string; source: string } | null {
+  // Explicit override so the NSIS matrix can point this at the INSTALLED tree, which is a different
+  // layout from dist/win-unpacked and therefore worth verifying separately.
+  const override = process.env.AWKIT_ZVEC_LIVE_HOST_PATH;
+  if (override) {
+    if (!fs.existsSync(override)) {
+      console.error(`AWKIT_ZVEC_LIVE_HOST_PATH does not exist: ${override}`);
+      process.exit(1);
+    }
+    return { hostPath: override, source: `override (${override})` };
+  }
+
   const candidates = [
     { hostPath: path.join(ROOT, "dist", "win-unpacked", "resources", "native-hosts", "zvec", "zvec-host.cjs"), source: "packaged (dist/win-unpacked)" },
     { hostPath: path.join(ROOT, "build", "native-hosts", "zvec", "zvec-host.cjs"), source: "staged (build/native-hosts)" }

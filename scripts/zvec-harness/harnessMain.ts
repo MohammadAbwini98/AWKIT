@@ -200,6 +200,58 @@ async function run(): Promise<void> {
     return;
   }
 
+  if (mode === "batch") {
+    // Phase 0D coexistence scenario 4 was INCONCLUSIVE: a large batch load ran (330 MB utility RSS)
+    // but its counters never published, because the close after a huge insert exceeded the harness's
+    // wait window. This mode re-runs exactly that case with a close budget sized for the workload,
+    // and reports the counters that were missing.
+    const batches = Number(process.env.AWKIT_HARNESS_BATCHES ?? 20);
+    const perBatch = Number(process.env.AWKIT_HARNESS_BATCH_SIZE ?? 500);
+    const counters = { batches: 0, docsWritten: 0, errors: 0 };
+
+    await step("handshake", async () => {
+      const hello = await manager.handshake();
+      return { zvec: hello.versions.zvec };
+    });
+
+    await step("openGeneration", async () => {
+      fs.mkdirSync(layout.generations, { recursive: true });
+      return manager.call({ type: "open", generation, path: generationPath, schema: SCHEMA }, ZVEC_HOST_TIMEOUTS.openCollectionMs);
+    });
+
+    await step("largeBatchInsert", async () => {
+      const started = Date.now();
+      for (let b = 0; b < batches; b += 1) {
+        try {
+          await manager.call(
+            { type: "insert", collectionId: generation, docs: docs(perBatch, `batch${b}`) },
+            ZVEC_HOST_TIMEOUTS.writeBatchMs
+          );
+          counters.batches += 1;
+          counters.docsWritten += perBatch;
+        } catch (error) {
+          counters.errors += 1;
+          logLines.push(`batch ${b} failed: ${String((error as Error).message)}`);
+        }
+      }
+      return { ...counters, elapsedMs: Date.now() - started, docsPerSecond: Math.round((counters.docsWritten / (Date.now() - started)) * 1000) };
+    });
+
+    await step("statsAfterLargeBatch", async () => manager.call({ type: "stats", collectionId: generation }, ZVEC_HOST_TIMEOUTS.queryMs));
+
+    // The specific step that timed out in Phase 0D. Given its own generous budget and MEASURED, so
+    // the result is a number rather than another inconclusive row.
+    const closeStart = Date.now();
+    await step("closeAfterLargeBatch", async () => {
+      await manager.call({ type: "close", collectionId: generation }, 120_000);
+      return { closeMs: Date.now() - closeStart };
+    });
+
+    await step("disposeAfterLargeBatch", async () => manager.dispose());
+    finish({ counters, statusAfter: manager.status() });
+    return;
+  }
+
   // ── default: full live CRUD through the manager ──
   await step("handshake", async () => {
     const hello = await manager.handshake();
