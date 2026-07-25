@@ -31,6 +31,48 @@ function Get-DependencyVersion {
   return "not-used"
 }
 
+# === Optional semantic native host (Zvec) ===
+# The staged tree under build/native-hosts/zvec is produced by scripts/prepare-zvec-native-host.mjs
+# and shipped via electron-builder extraResources (never bundled — a bundled caller hard-crashes).
+# When the tree is absent the feature is simply not included in this build; when it is present its
+# own manifest is folded in verbatim so release validation can checksum every native asset.
+$zvecHostDir = Join-Path $root "build\native-hosts\zvec"
+$zvecHostManifestPath = Join-Path $zvecHostDir "zvec-native-host-manifest.json"
+$zvecHostManifest = $null
+if (Test-Path $zvecHostManifestPath) {
+  $zvecHostManifest = Get-Content -Raw $zvecHostManifestPath | ConvertFrom-Json
+}
+
+if ($null -ne $zvecHostManifest) {
+  $semanticNative = [ordered]@{
+    enabled = $true
+    # A broken optional semantic bundle must never block AWKIT startup; it disables semantic
+    # features and reports a degraded status instead (plan §9).
+    requiredForAppStartup = $false
+    hostProtocolVersion = $zvecHostManifest.hostProtocolVersion
+    hostEntry = "native-hosts/zvec/$($zvecHostManifest.hostEntry)"
+    zvecVersion = $zvecHostManifest.zvecVersion
+    bindingVersion = $zvecHostManifest.bindingVersion
+    platform = $zvecHostManifest.platform
+    arch = $zvecHostManifest.arch
+    stagedRoot = "native-hosts/zvec"
+    totalBytes = $zvecHostManifest.totalBytes
+    assets = @($zvecHostManifest.assets | ForEach-Object {
+      [ordered]@{
+        relativePath = "native-hosts/zvec/$($_.relativePath)"
+        size = $_.size
+        sha256 = $_.sha256
+      }
+    })
+  }
+} else {
+  $semanticNative = [ordered]@{
+    enabled = $false
+    requiredForAppStartup = $false
+    assets = @()
+  }
+}
+
 $browserExists = Test-Path $browserPath
 $nodeModulesIncluded = Test-Path $nodeModules
 $nativeModulesPath = Join-Path $root "vendor\native-modules"
@@ -149,7 +191,9 @@ $manifest = [ordered]@{
     framerMotion = Get-DependencyVersion "framer-motion"
     sqlJs = Get-DependencyVersion "sql.js"
     sqlite = "sql.js $(Get-DependencyVersion 'sql.js') (WASM, no native driver)"
+    zvec = Get-DependencyVersion "@zvec/zvec"
   }
+  semanticNative = $semanticNative
 }
 
 New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null

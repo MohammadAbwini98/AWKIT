@@ -9,11 +9,15 @@
     "out/**",
     "package.json",
     "node_modules/sql.js/dist/sql-wasm.js",
-    "node_modules/sql.js/dist/sql-wasm.wasm"
+    "node_modules/sql.js/dist/sql-wasm.wasm",
+    "scripts/zvec-spike/**",
+    "!node_modules/@zvec/**",
+    "!node_modules/bindings/**"
   ],
   "asarUnpack": [
     "node_modules/playwright/**",
-    "node_modules/playwright-core/**"
+    "node_modules/playwright-core/**",
+    "scripts/zvec-spike/**"
   ],
   "extraResources": [
     {
@@ -37,6 +41,13 @@
     {
       "from": "vendor",
       "to": "vendor",
+      "filter": [
+        "**/*"
+      ]
+    },
+    {
+      "from": "build/native-hosts/zvec",
+      "to": "native-hosts/zvec",
       "filter": [
         "**/*"
       ]

@@ -66,7 +66,7 @@ function Require-Boolean {
   }
 }
 
-foreach ($section in @("application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies")) {
+foreach ($section in @("application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies", "semanticNative")) {
   Require-Section $section
 }
 
@@ -237,6 +237,75 @@ if (Test-Path $oracleDir) {
   Write-Host "Oracle bundle size: $oracleSizeMb MB"
 } else {
   $warnings.Add("Oracle JDBC bridge not bundled (optional feature). Run 'npm run prepare:oracle-runtime' to stage Specter's bridge jar. Java + Oracle drivers are always user-selected in Settings.")
+}
+
+# === Optional semantic native host (Zvec) ===
+# Release validation must fail when a build CLAIMS the semantic native host is included but its
+# assets are missing or checksum-mismatched. The feature itself stays optional: when it is not
+# included at all, that is a warning, not a failure, and AWKIT startup is unaffected (plan §9).
+if (Test-Property $manifestJson "semanticNative") {
+  $semantic = $manifestJson.semanticNative
+
+  if ($semantic.enabled -eq $true) {
+    Write-Host "Validating semantic native host (Zvec)..."
+
+    if ($semantic.requiredForAppStartup -ne $false) {
+      $failures.Add("Semantic native host must declare requiredForAppStartup=false (it is an optional subsystem).")
+    }
+    if ($semantic.platform -ne "win32" -or $semantic.arch -ne "x64") {
+      $failures.Add("Semantic native host must target win32/x64 (got $($semantic.platform)/$($semantic.arch)).")
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$semantic.zvecVersion) -or [string]::IsNullOrWhiteSpace([string]$semantic.bindingVersion)) {
+      $failures.Add("Semantic native host must record both zvecVersion and bindingVersion.")
+    }
+    if ($semantic.zvecVersion -ne $semantic.bindingVersion) {
+      $failures.Add("Semantic native host zvecVersion ($($semantic.zvecVersion)) and bindingVersion ($($semantic.bindingVersion)) must match.")
+    }
+
+    $assetPaths = @($semantic.assets | ForEach-Object { $_.relativePath })
+
+    # The .node needs real filesystem loading and the jieba dictionaries must resolve adjacent to
+    # it, so all of these are mandatory whenever the feature is declared included.
+    $mandatory = @(
+      "native-hosts/zvec/zvec-host.cjs",
+      "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/zvec_node_binding.node",
+      "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/jieba_dict/jieba.dict.utf8",
+      "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/jieba_dict/hmm_model.utf8"
+    )
+    foreach ($required in $mandatory) {
+      if ($assetPaths -notcontains $required) {
+        $failures.Add("Semantic native host manifest does not list a mandatory asset: $required")
+      }
+    }
+
+    $stagedManifest = Join-Path $root "build\native-hosts\zvec\zvec-native-host-manifest.json"
+    if (-not (Test-Path $stagedManifest)) {
+      $failures.Add("Semantic native host is declared included but its staged manifest is missing: build/native-hosts/zvec/zvec-native-host-manifest.json (run 'npm run prepare:zvec-host').")
+    }
+
+    $checked = 0
+    foreach ($asset in $semantic.assets) {
+      $abs = Join-Path $root ("build\" + ($asset.relativePath -replace '/', '\'))
+      if (-not (Test-Path $abs)) {
+        $failures.Add("Semantic native host asset is missing from the staged tree: $($asset.relativePath)")
+        continue
+      }
+      $actualSize = (Get-Item $abs).Length
+      if ($actualSize -ne $asset.size) {
+        $failures.Add("Semantic native host asset size mismatch for $($asset.relativePath): manifest $($asset.size), on disk $actualSize.")
+        continue
+      }
+      $actualHash = (Get-FileHash -Algorithm SHA256 $abs).Hash.ToLower()
+      if ($actualHash -ne ([string]$asset.sha256).ToLower()) {
+        $failures.Add("Semantic native host asset checksum mismatch for $($asset.relativePath) (corrupted or tampered).")
+        continue
+      }
+      $checked++
+    }
+    Write-Host "Semantic native host: $checked/$(@($semantic.assets).Count) assets checksum-verified (zvec $($semantic.zvecVersion))."
+  } else {
+    $warnings.Add("Semantic native host (Zvec) is not included in this build. Run 'npm run prepare:zvec-host' to stage it; semantic search is an optional feature and AWKIT starts normally without it.")
+  }
 }
 
 foreach ($warning in $warnings) {

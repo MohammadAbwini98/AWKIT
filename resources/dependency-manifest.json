@@ -7,8 +7,8 @@
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.0",
-                        "buildMode":  "development-offline-prep",
-                        "builtAt":  "2026-07-10T20:24:22.7657179Z"
+                        "buildMode":  "production-offline",
+                        "builtAt":  "2026-07-25T00:42:54.5583539Z"
                     },
     "offline":  {
                     "internetRequired":  false,
@@ -76,9 +76,109 @@
                          "electron":  "^33.2.1",
                          "playwright":  "^1.49.1",
                          "react":  "^18.3.1",
-                         "reactFlow":  "12.3.6",
+                         "reactFlow":  "not-used",
                          "framerMotion":  "11.18.2",
                          "sqlJs":  "1.13.0",
-                         "sqlite":  "sql.js 1.13.0 (WASM, no native driver)"
-                     }
+                         "sqlite":  "sql.js 1.13.0 (WASM, no native driver)",
+                         "zvec":  "0.6.0"
+                     },
+    "semanticNative":  {
+                           "enabled":  true,
+                           "requiredForAppStartup":  false,
+                           "hostProtocolVersion":  1,
+                           "hostEntry":  "native-hosts/zvec/zvec-host.cjs",
+                           "zvecVersion":  "0.6.0",
+                           "bindingVersion":  "0.6.0",
+                           "platform":  "win32",
+                           "arch":  "x64",
+                           "stagedRoot":  "native-hosts/zvec",
+                           "totalBytes":  39401154,
+                           "assets":  [
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/LICENSE",
+                                              "size":  11556,
+                                              "sha256":  "5ad8c213095c573921d7388edf93f6a9f54490b8ebf3b165ae8ef1947cf70846"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/README.md",
+                                              "size":  214,
+                                              "sha256":  "f7ce95af0f66dfa02934a6f0e1b8750bf5cb206c4aebe0fd74128f5718f0592d"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/jieba_dict/hmm_model.utf8",
+                                              "size":  519773,
+                                              "sha256":  "c2781984c4c6be66862ff1bc9aace264256bcd174cd900d7f3725debe6c71255"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/jieba_dict/jieba.dict.utf8",
+                                              "size":  5420189,
+                                              "sha256":  "2eed8a617b330a0d1117f78312f122d37373cd9db29b5515ca5098fcfa608de7"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/package.json",
+                                              "size":  310,
+                                              "sha256":  "e0111ce790e6b18cb2dcc8ff755b637dec2387809da86fc1ccbe63e80f6d48d4"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/zvec_node_binding.node",
+                                              "size":  33368576,
+                                              "sha256":  "74de0fb5ffa91bcf53c9852c78a85aabae00e597e7490f8057f2e8860a56bcab"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/LICENSE",
+                                              "size":  11356,
+                                              "sha256":  "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/package.json",
+                                              "size":  2175,
+                                              "sha256":  "1f305348adea69d8f44c9cff25e636683acae6ec292db2f458e2695017f0a127"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/src/index.d.mts",
+                                              "size":  2226,
+                                              "sha256":  "98d65a03b54a3ee8b7723facdd690c9b304731ed7de2c437e7639b135dbe61f9"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/src/index.d.ts",
+                                              "size":  38931,
+                                              "sha256":  "5bf39125f75057ef133de33e1babc9a885c30728146763fa88fb22f5960b175c"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/src/index.js",
+                                              "size":  2281,
+                                              "sha256":  "9dbe92d0ed8eec02d3fd7132c932c5dd7dce58b3690ffb07b482a59757105fa0"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/@zvec/zvec/src/index.mjs",
+                                              "size":  1031,
+                                              "sha256":  "42e421e4cc1f0c1716ed1f42a2bf96b52398658b2f1452fe3348dfb8ee8bc185"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/bindings/LICENSE.md",
+                                              "size":  1108,
+                                              "sha256":  "85fde19744c84cfacb04aed732c0392ba221231b26090d3271d2ed865bfc0792"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/bindings/README.md",
+                                              "size":  3476,
+                                              "sha256":  "a5552f138725ba2768610c9362f5c7387c8ac80c61fc68477a4f97b7412bba86"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/bindings/bindings.js",
+                                              "size":  5986,
+                                              "sha256":  "8e32a0d37f20bd6f7d5bdbf99d041aa27be47cbbe5172ac13ebf7380a10b3bf6"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/node_modules/bindings/package.json",
+                                              "size":  660,
+                                              "sha256":  "a87721fe406e1f1798fef44d697b46ea1efe346fda118010334713346ee4207c"
+                                          },
+                                          {
+                                              "relativePath":  "native-hosts/zvec/zvec-host.cjs",
+                                              "size":  11306,
+                                              "sha256":  "3408f2eb7974c24acf1ef338f667d3b5ffd0ef672a90022b012f8fbc66caeb1e"
+                                          }
+                                      ]
+                       }
 }

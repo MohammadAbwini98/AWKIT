@@ -157,7 +157,15 @@
     "verify:e2e-rbac": "node scripts/verify-e2e-rbac-gui.mjs",
     "verify:e2e-licensing": "node scripts/verify-e2e-licensing-gui.mjs",
     "verify:e2e-sweep": "node scripts/verify-e2e-route-sweep.mjs",
-    "verify:e2e-reauth": "node scripts/verify-e2e-reauth-gui.mjs"
+    "verify:e2e-reauth": "node scripts/verify-e2e-reauth-gui.mjs",
+    "prepare:zvec-host": "node scripts/prepare-zvec-native-host.mjs",
+    "verify:zvec-packaged-assets": "node scripts/verify-zvec-packaged-assets.mjs",
+    "verify:zvec-packaged-negative-cases": "node scripts/verify-zvec-packaged-negative-cases.mjs",
+    "verify:zvec-native": "node scripts/zvec-spike/verify-zvec-native.mjs",
+    "verify:zvec-negative-cases": "node scripts/zvec-spike/verify-zvec-negative-cases.mjs",
+    "verify:zvec-main-host": "electron scripts/zvec-spike/mainHostEntry.mjs",
+    "verify:zvec-utility-host": "electron scripts/zvec-spike/utilityHostEntry.mjs",
+    "benchmark:zvec-placement": "node scripts/zvec-spike/benchmark-zvec-placement.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -166,7 +174,8 @@
     "playwright": "^1.49.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sql.js": "1.13.0"
+    "sql.js": "1.13.0",
+    "@zvec/zvec": "0.6.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",

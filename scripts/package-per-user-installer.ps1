@@ -1,6 +1,10 @@
 $ErrorActionPreference = "Stop"
 
 npm run build
+# Stage the raw, unbundled Zvec utility host BEFORE the manifest is generated, so its checksums
+# describe the exact tree electron-builder will ship via extraResources.
+node (Join-Path $PSScriptRoot "prepare-zvec-native-host.mjs")
+if ($LASTEXITCODE -ne 0) { throw "prepare-zvec-native-host failed with exit code $LASTEXITCODE" }
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate-dependency-manifest.ps1") -BuildMode "production-offline"
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "validate-offline-bundle.ps1") -Strict
 npx electron-builder --win nsis --config electron-builder.json
