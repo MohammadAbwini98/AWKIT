@@ -16,6 +16,8 @@ import fs from "node:fs";
 
 import { getRuntimeDataRoot } from "../appPaths";
 
+import { buildSemanticHealth, type SemanticHealth } from "@src/semantic/contracts/SemanticHealth";
+import { semanticIndexLayout } from "@src/semantic/SemanticGenerationLayout";
 import {
   markIndexClosed,
   markIndexOpen,
@@ -79,12 +81,29 @@ export function getSemanticHostManager(): ZvecUtilityHostManager | null {
   return manager;
 }
 
-export function semanticStatus(): Record<string, unknown> {
-  return {
+/**
+ * Health view for status surfaces.
+ *
+ * `includePaths` defaults to FALSE: the index path is a filesystem location and only an
+ * administrator surface may see it (plan §21.1). Callers must opt in explicitly.
+ */
+export function semanticHealth(options: { includePaths?: boolean; enabledBySetting?: boolean } = {}): SemanticHealth {
+  const host = manager?.status() ?? null;
+  return buildSemanticHealth({
     included: Boolean(resolveHostPath()),
-    host: manager?.status() ?? null,
-    lastReconciliation
-  };
+    // Phase 1A has no semantic settings surface yet; treated as enabled so the reported reason
+    // reflects the real host state rather than a setting that does not exist.
+    enabledBySetting: options.enabledBySetting ?? true,
+    hostState: host?.state ?? "stopped",
+    circuitOpen: host?.circuitOpen ?? false,
+    unexpectedExits: host?.unexpectedExits ?? 0,
+    lastReasonCode: host?.lastReason ?? null,
+    activeGeneration: lastReconciliation?.activeGeneration ?? null,
+    previousShutdownClean: lastReconciliation ? !lastReconciliation.uncleanShutdown : true,
+    reclaimedBytesOnStartup: lastReconciliation?.reclaimedBytes ?? 0,
+    indexPath: semanticIndexLayout(runtimeRoot()).root,
+    includePaths: options.includePaths ?? false
+  });
 }
 
 /**

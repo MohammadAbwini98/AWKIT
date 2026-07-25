@@ -169,7 +169,8 @@
     "verify:zvec-negative-cases": "node scripts/zvec-spike/verify-zvec-negative-cases.mjs",
     "verify:zvec-host-lifecycle": "tsx scripts/verify-zvec-host-lifecycle.mts",
     "verify:zvec-generation-recovery": "tsx scripts/verify-zvec-generation-recovery.mts",
-    "verify:zvec-packaged-live": "tsx scripts/verify-zvec-packaged-live.mts"
+    "verify:zvec-packaged-live": "tsx scripts/verify-zvec-packaged-live.mts",
+    "verify:zvec-generation-lifecycle": "tsx scripts/verify-zvec-generation-lifecycle.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
