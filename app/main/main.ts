@@ -10,6 +10,59 @@ import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck"
 
 let mainWindow: BrowserWindow | null = null;
 
+// ─── PHASE 0B SPIKE-ONLY HOOK (scripts/zvec-spike/mainProcessSpikeHook.mjs) ──────────────────
+// Never active unless AWKIT_ZVEC_SPIKE_HOST is explicitly set on the command line/env for a spike
+// launch. Normal AWKIT startup below is completely skipped in that case; every other launch is
+// completely unaffected by this block. Temporary — must be removed before this branch could ever
+// be considered for Phase 1 or merged into main.
+// Phase 0D: AWKIT_ZVEC_SPIKE_WITH_APP=1 runs the spike host *alongside* a normal AWKIT startup
+// instead of replacing it, so crash-isolation and degraded-mode tests can prove the full
+// application stays alive and usable — not merely that the utility host exited safely.
+if (process.env.AWKIT_ZVEC_SPIKE_HOST && process.env.AWKIT_ZVEC_SPIKE_WITH_APP !== "1") {
+  // Defensive, console-independent crash logging: a packaged GUI app has no attached console, so
+  // console.log/uncaught exceptions are otherwise invisible. Every step here writes directly to a
+  // fixed file so a failure at any point is still observable.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fsSpike = require("node:fs") as typeof import("node:fs");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const pathSpike = require("node:path") as typeof import("node:path");
+  const crashLogDir = pathSpike.join(process.env.LOCALAPPDATA ?? ".", "SpecterStudio", "zvec-phase-0", "reports");
+  const crashLogFile = pathSpike.join(crashLogDir, `app-mode-crash-${Date.now()}.log`);
+  const logSpike = (line: string): void => {
+    try {
+      fsSpike.mkdirSync(crashLogDir, { recursive: true });
+      fsSpike.appendFileSync(crashLogFile, `${new Date().toISOString()} ${line}\n`);
+    } catch {
+      /* nothing more we can do without a console */
+    }
+  };
+  logSpike(`module-loaded mode=${process.env.AWKIT_ZVEC_SPIKE_HOST}`);
+  process.on("uncaughtException", (err) => logSpike(`uncaughtException: ${err?.stack ?? err}`));
+  process.on("unhandledRejection", (err) => logSpike(`unhandledRejection: ${(err as Error)?.stack ?? err}`));
+  void app
+    .whenReady()
+    .then(async () => {
+      logSpike("app-ready");
+      // Import the RAW, unbundled spike file from disk (app.asar.unpacked in a packaged build,
+      // the repo path in dev) rather than letting the bundler inline it. This keeps app-mode
+      // running byte-identical code to the ELECTRON_RUN_AS_NODE runs, so a difference in outcome
+      // is attributable to process mode rather than to bundling.
+      const spikeDir = app.isPackaged
+        ? pathSpike.join(process.resourcesPath, "app.asar.unpacked", "scripts", "zvec-spike")
+        : pathSpike.join(__dirname, "..", "..", "scripts", "zvec-spike");
+      const hookUrl = `file:///${pathSpike.join(spikeDir, "mainProcessSpikeHook.mjs").replace(/\\/g, "/")}`;
+      logSpike(`importing-hook ${hookUrl}`);
+      const { runZvecSpikeHost } = await import(/* @vite-ignore */ hookUrl);
+      logSpike("hook-imported");
+      await runZvecSpikeHost(process.env.AWKIT_ZVEC_SPIKE_HOST as string);
+      logSpike("hook-completed");
+    })
+    .catch((err) => {
+      logSpike(`spike-hook-failed: ${err?.stack ?? err}`);
+      app.exit(1);
+    });
+} else {
+
 // Cross-process guard (awkit-ekd.6): only one SpecterStudio instance may run per user-data profile.
 // SecurityStore / uiSettings / the runtime SQLite stores have no cross-process writer lock, so two
 // processes sharing a profile could lose writes to security.sqlite. Acquiring the single-instance lock
@@ -122,6 +175,23 @@ if (!gotSingleInstanceLock) {
   app.whenReady().then(() => {
     void bootstrap();
 
+    // Phase 0D spike-only: run the host check after the window has had time to come up, and do NOT
+    // exit afterwards — the harness inspects the still-running app. Inert without both env vars.
+    if (process.env.AWKIT_ZVEC_SPIKE_HOST && process.env.AWKIT_ZVEC_SPIKE_WITH_APP === "1") {
+      const spikeDelayMs = Number(process.env.AWKIT_ZVEC_SPIKE_DELAY_MS ?? 15_000);
+      setTimeout(() => {
+        const spikeDir = app.isPackaged
+          ? require("node:path").join(process.resourcesPath, "app.asar.unpacked", "scripts", "zvec-spike")
+          : require("node:path").join(__dirname, "..", "..", "scripts", "zvec-spike");
+        const hookUrl = `file:///${require("node:path").join(spikeDir, "mainProcessSpikeHook.mjs").replace(/\\/g, "/")}`;
+        void import(/* @vite-ignore */ hookUrl)
+          .then(({ runZvecSpikeHost }) =>
+            runZvecSpikeHost(process.env.AWKIT_ZVEC_SPIKE_HOST as string, { keepAlive: true })
+          )
+          .catch(() => undefined);
+      }, spikeDelayMs);
+    }
+
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0 && mainWindow !== null) {
         mainWindow = createMainWindow();
@@ -150,3 +220,4 @@ if (!gotSingleInstanceLock) {
     });
   });
 }
+} // end PHASE 0B SPIKE-ONLY HOOK else-branch
