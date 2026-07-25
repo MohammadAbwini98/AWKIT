@@ -11,7 +11,15 @@
  * it without an Electron runtime.
  */
 
-export const ZVEC_HOST_PROTOCOL_VERSION = 1;
+import type { ZvecSafeFilter } from "./ZvecFilter";
+
+/**
+ * v2 replaced the id-only `fetch`/`query` summaries with real documents and added the typed-filter
+ * operations (`scan`, `count`, `deleteByFilter`). The shape change is NOT backward compatible — a v2
+ * adapter reading a v1 host would misparse every row — so the `hello` gate must reject the pairing
+ * rather than let it degrade.
+ */
+export const ZVEC_HOST_PROTOCOL_VERSION = 2;
 
 /**
  * Stable, path-free reason codes. Phase 0 confirmed empirically that vendor errors embed absolute
@@ -27,6 +35,14 @@ export type ZvecHostReason =
   | "SEMANTIC_WRITE_REJECTED"
   | "SEMANTIC_UPDATE_REJECTED"
   | "SEMANTIC_DELETE_REJECTED"
+  /** A delete left rows still matching its own filter — reported instead of claiming success. */
+  | "SEMANTIC_DELETE_INCOMPLETE"
+  /** A scan or count reached the host's row bound, so the result would be an undercount. */
+  | "SEMANTIC_SCAN_BOUND_EXCEEDED"
+  | "SEMANTIC_FILTER_INVALID"
+  | "SEMANTIC_FILTER_FIELD_REJECTED"
+  /** The value cannot be represented in the filter grammar without corruption (see `ZvecFilter`). */
+  | "SEMANTIC_FILTER_VALUE_UNSAFE"
   | "SEMANTIC_UNKNOWN_REQUEST"
   | "SEMANTIC_PROTOCOL_VIOLATION"
   | "SEMANTIC_HOST_INTERNAL_ERROR"
@@ -49,6 +65,12 @@ export interface ZvecSafeSchemaField {
   nullable?: boolean;
   /** Presence enables a full-text index on this field. */
   fts?: { tokenizer: "standard" | "jieba" };
+  /**
+   * Enables a scalar inverted index, making filters on this field an indexed lookup rather than a
+   * brute-force scan. Performance only — filters are correct without it, so a generation created
+   * before a field gained this flag still opens and filters correctly.
+   */
+  invert?: boolean;
 }
 
 export interface ZvecSafeSchemaVector {
@@ -69,28 +91,56 @@ export interface ZvecSafeDocument {
 }
 
 /**
- * Structured query. The renderer never supplies a raw vendor filter expression — the service builds
- * this object, and the host translates it.
+ * Structured query. The renderer never supplies a raw vendor filter expression — callers describe
+ * what to match with a typed `ZvecSafeFilter`, and the HOST assembles the expression.
+ *
+ * `filter` is applied by the vendor as a PRE-filter, before ranking. That is a correctness property:
+ * filtering after a truncated top-K silently drops matches ranked outside the unfiltered head.
  */
 export interface ZvecSafeQuery {
-  fieldName: string;
+  fieldName?: string;
   fts?: { queryString?: string; matchString?: string };
   vector?: number[];
   topK?: number;
+  filter?: ZvecSafeFilter;
 }
 
 export type ZvecHostRequest =
-  | { version: 1; id: string; type: "hello"; expected?: ZvecHostCompatibility }
-  | { version: 1; id: string; type: "open"; generation: string; path: string; schema: ZvecSafeSchema }
-  | { version: 1; id: string; type: "insert"; collectionId: string; docs: ZvecSafeDocument[] }
-  | { version: 1; id: string; type: "upsert"; collectionId: string; docs: ZvecSafeDocument[] }
-  | { version: 1; id: string; type: "update"; collectionId: string; docId: string; fields: Record<string, unknown> }
-  | { version: 1; id: string; type: "delete"; collectionId: string; ids: string[] }
-  | { version: 1; id: string; type: "fetch"; collectionId: string; ids: string[] }
-  | { version: 1; id: string; type: "query"; collectionId: string; query: ZvecSafeQuery }
-  | { version: 1; id: string; type: "stats"; collectionId: string }
-  | { version: 1; id: string; type: "close"; collectionId: string }
-  | { version: 1; id: string; type: "shutdown" };
+  | { version: 2; id: string; type: "hello"; expected?: ZvecHostCompatibility }
+  | { version: 2; id: string; type: "open"; generation: string; path: string; schema: ZvecSafeSchema }
+  | { version: 2; id: string; type: "insert"; collectionId: string; docs: ZvecSafeDocument[] }
+  | { version: 2; id: string; type: "upsert"; collectionId: string; docs: ZvecSafeDocument[] }
+  | { version: 2; id: string; type: "update"; collectionId: string; docId: string; fields: Record<string, unknown> }
+  | { version: 2; id: string; type: "delete"; collectionId: string; ids: string[] }
+  | { version: 2; id: string; type: "deleteByFilter"; collectionId: string; filter: ZvecSafeFilter }
+  | { version: 2; id: string; type: "fetch"; collectionId: string; ids: string[] }
+  | { version: 2; id: string; type: "scan"; collectionId: string; filter: ZvecSafeFilter }
+  | { version: 2; id: string; type: "count"; collectionId: string; filter?: ZvecSafeFilter }
+  | { version: 2; id: string; type: "query"; collectionId: string; query: ZvecSafeQuery }
+  | { version: 2; id: string; type: "stats"; collectionId: string }
+  | { version: 2; id: string; type: "close"; collectionId: string }
+  | { version: 2; id: string; type: "shutdown" };
+
+// ─────────────────────────────── typed response values ───────────────────────────────
+
+/** `fetch` / `scan` / `query` all return real documents in v2 — v1 returned ids only. */
+export interface ZvecDocumentsResponse {
+  docs: ZvecSafeDocument[];
+  /** `scan`: false when the host's row bound was reached, so the set is incomplete. */
+  exact?: boolean;
+  /** `query`: whether the requested top-K was filled, i.e. more matches may exist. */
+  truncated?: boolean;
+}
+
+export interface ZvecCountResponse {
+  count: number;
+  /** False when the host's scan bound was reached. A caller must refuse rather than misreport. */
+  exact: boolean;
+}
+
+export interface ZvecDeleteResponse {
+  deleted: number;
+}
 
 export type ZvecHostRequestType = ZvecHostRequest["type"];
 
@@ -117,13 +167,13 @@ export interface ZvecHostCompatibility {
 // ─────────────────────────────── responses ───────────────────────────────
 
 export type ZvecHostResponse =
-  | { version: 1; id: string; ok: true; value?: unknown }
-  | { version: 1; id: string; ok: false; reason: ZvecHostReasonCode; retryable: boolean };
+  | { version: 2; id: string; ok: true; value?: unknown }
+  | { version: 2; id: string; ok: false; reason: ZvecHostReasonCode; retryable: boolean };
 
 /** Unsolicited host → manager messages. `ready` is emitted once, immediately after startup. */
 export type ZvecHostEvent =
-  | { version: 1; type: "ready"; pid: number }
-  | { version: 1; type: "fatal"; reason: ZvecHostReasonCode };
+  | { version: 2; type: "ready"; pid: number }
+  | { version: 2; type: "fatal"; reason: ZvecHostReasonCode };
 
 export interface ZvecHostHello {
   protocolVersion: number;
@@ -189,6 +239,8 @@ export function isRetryableAfterHostExit(type: ZvecHostRequestType): boolean {
     case "open":
     case "query":
     case "fetch":
+    case "scan":
+    case "count":
     case "stats":
     case "close":
     case "shutdown":
@@ -197,6 +249,9 @@ export function isRetryableAfterHostExit(type: ZvecHostRequestType): boolean {
     case "upsert":
     case "update":
     case "delete":
+    // A filtered delete is a mutation whose partial application cannot be detected from outside, so
+    // it is never replayed automatically — reconciliation owns that decision.
+    case "deleteByFilter":
       return false;
     default:
       return false;

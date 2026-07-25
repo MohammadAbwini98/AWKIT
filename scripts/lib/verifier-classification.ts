@@ -185,6 +185,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Shared SemanticStore contract suite run against BOTH implementations (in-memory, and the Zvec adapter over a transport fake), plus injected-failure and ranking checks. No native host — that is verify:zvec-packaged-live."
   },
+  "verify:semantic-zvec-filter": {
+    class: "unit",
+    why: "Typed filter builder plus its host-side duplicate, then the SAME expressions executed against the real @zvec/zvec binding on a throwaway on-disk collection. Classified unit because it spawns nothing and drives no browser or Electron process — the native library is loaded in-process, and the verifier fails rather than skipping when the binding is absent."
+  },
   "verify:semantic-queue": {
     class: "unit",
     why: "Mutation-queue coalescing, ordering, delete-supersedes-upsert, bounded overflow and no-blind-replay, in-process against the in-memory store."

@@ -20,7 +20,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 
-const PROTOCOL_VERSION = 1;
+// v2 changed `fetch` and `query` from id-only summaries to real documents and added the typed-filter
+// operations. The change is deliberately NOT backward compatible: an adapter reading v2 shapes from
+// a v1 host would silently misparse every row, so the `hello` compatibility gate must reject the
+// pairing outright rather than let it degrade.
+const PROTOCOL_VERSION = 2;
 
 // Zvec is required from this host's OWN packaged module root (native-hosts/zvec/node_modules),
 // staged adjacent to this file. Resolution never reaches into app.asar.
@@ -66,6 +70,109 @@ class HostError extends Error {
   }
 }
 
+/**
+ * ── Typed filters ────────────────────────────────────────────────────────────────────────────────
+ *
+ * Zvec's `filter` is a SQL-like expression STRING with no parameter binding. A raw expression must
+ * therefore never cross this boundary: callers send the typed clause list defined in
+ * `src/semantic/ZvecFilter.ts`, and the expression is assembled HERE, from an allowlist.
+ *
+ * This is duplicated from that module on purpose, exactly as `assertConfinedPath` duplicates
+ * `isConfinedGenerationPath`. A host that accepted a caller-built expression would turn any future
+ * IPC validation gap into a filter-injection path — able to widen a delete to the whole collection.
+ * The two copies are kept honest by `verify:semantic-zvec-filter`, which parses this file and
+ * asserts the field allowlist and value rule match the TypeScript source.
+ *
+ * The value rule is a REFUSAL, not an escaper, and it was measured rather than assumed. The grammar
+ * reads `\"` as an escaped quote but a backslash before anything else as literal, so a value holding
+ * a backslash can neither be doubled (silently matches nothing) nor left alone (a trailing backslash
+ * escapes its own closing quote). Such a value is rejected. Quotes are safe, escaped as `\"`.
+ */
+const FILTERABLE_FIELDS = new Set([
+  "id",
+  "kind",
+  "entityId",
+  "revision",
+  "sourceHash",
+  "schemaVersion",
+  "workflowId",
+  "flowId",
+  "nodeId",
+  "nodeType",
+  "hostname",
+  "outcome",
+  "errorCategory"
+]);
+
+function isFilterSafeString(value) {
+  if (value.includes("\\")) return false;
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return false;
+  }
+  return true;
+}
+
+function renderFilterScalar(value) {
+  if (typeof value === "string") {
+    if (!isFilterSafeString(value)) throw new HostError("SEMANTIC_FILTER_VALUE_UNSAFE");
+    return `"${value.replace(/"/g, '\\"')}"`;
+  }
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  throw new HostError("SEMANTIC_FILTER_INVALID");
+}
+
+function renderFilterClause(clause) {
+  if (!clause || typeof clause !== "object") throw new HostError("SEMANTIC_FILTER_INVALID");
+  if (!FILTERABLE_FIELDS.has(clause.field)) throw new HostError("SEMANTIC_FILTER_FIELD_REJECTED");
+  switch (clause.op) {
+    // A single `=`; `==` is a syntax error in this grammar.
+    case "eq":
+      return `${clause.field} = ${renderFilterScalar(clause.value)}`;
+    case "neq":
+      return `${clause.field} != ${renderFilterScalar(clause.value)}`;
+    case "gte":
+      return `${clause.field} >= ${renderFilterScalar(clause.value)}`;
+    // An omitted optional reads as NULL: the binding rejects an explicit null on a nullable field,
+    // so absence is written by omission.
+    case "isNull":
+      return `${clause.field} IS NULL`;
+    case "in": {
+      if (!Array.isArray(clause.values) || clause.values.length === 0) {
+        throw new HostError("SEMANTIC_FILTER_INVALID");
+      }
+      // Parentheses, not brackets: `IN [...]` is a syntax error.
+      return `${clause.field} IN (${clause.values.map(renderFilterScalar).join(", ")})`;
+    }
+    default:
+      throw new HostError("SEMANTIC_FILTER_INVALID");
+  }
+}
+
+/**
+ * Build an expression from a typed filter. An empty clause list is REFUSED rather than treated as
+ * match-everything: "delete where nothing" silently meaning "delete everything" is the worst
+ * available default, and a caller wanting the whole collection must say so with an explicit clause.
+ */
+function buildFilterExpression(filter) {
+  if (!filter || !Array.isArray(filter.all) || filter.all.length === 0) {
+    throw new HostError("SEMANTIC_FILTER_INVALID");
+  }
+  const rendered = filter.all.map(renderFilterClause);
+  return rendered.length === 1 ? rendered[0] : rendered.map((r) => `(${r})`).join(" AND ");
+}
+
+/**
+ * Upper bound on rows materialised by one scan or count.
+ *
+ * The vendor imposes no top-K cap (measured: `topk: 1500` returned 1500 rows of 1500). The previous
+ * `Math.min(topK, 100)` here was AWKIT's own, and it was the entire reason entity-wide operations
+ * were declared unsupported. A bound is still required so a pathological collection cannot exhaust
+ * host memory — but hitting it is reported as `exact: false` rather than silently truncated, because
+ * an undercount that looks precise is worse than an admitted unknown.
+ */
+const HOST_MAX_SCAN = 100_000;
+
 function sha256File(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
@@ -99,6 +206,12 @@ function buildSchema(safeSchema) {
         indexType: zvec.ZVecIndexType.FTS,
         tokenizerName: f.fts.tokenizer === "jieba" ? "jieba" : "standard"
       };
+    } else if (f.invert === true) {
+      // An INVERT index makes a scalar filter an indexed lookup instead of a brute-force scan.
+      // Filters work without it (measured), so this is a performance property, not a correctness one
+      // — which matters because generations created before this flag existed still open and filter
+      // correctly, just more slowly.
+      field.indexParams = { indexType: zvec.ZVecIndexType.INVERT };
     }
     return field;
   });
@@ -123,16 +236,62 @@ function buildSchema(safeSchema) {
  */
 const MAX_WRITE_BATCH = 1024;
 
+/**
+ * Absent optional fields must be OMITTED, never sent as null.
+ *
+ * Measured against the real binding: a `nullable: true` STRING field rejects an explicit JS null with
+ * "Expected scalar field[x] to be a string", failing the whole batch. Omission is the accepted way to
+ * express absence, and it reads back as NULL for `IS NULL` filters. Normalising here rather than
+ * trusting callers means one adapter writing `?? null` cannot poison every write — and a null on a
+ * NON-nullable field still fails, correctly, as a missing required field.
+ */
+function normalizeDocumentFields(doc) {
+  const fields = doc.fields || {};
+  const out = {};
+  for (const key of Object.keys(fields)) {
+    const value = fields[key];
+    if (value === null || value === undefined) continue;
+    out[key] = value;
+  }
+  const normalized = { id: doc.id, fields: out };
+  if (doc.vectors) normalized.vectors = doc.vectors;
+  return normalized;
+}
+
 function chunkedWrite(collection, method, docs) {
   let written = 0;
-  for (let offset = 0; offset < docs.length; offset += MAX_WRITE_BATCH) {
-    const chunk = docs.slice(offset, offset + MAX_WRITE_BATCH);
+  const normalized = docs.map(normalizeDocumentFields);
+  for (let offset = 0; offset < normalized.length; offset += MAX_WRITE_BATCH) {
+    const chunk = normalized.slice(offset, offset + MAX_WRITE_BATCH);
     const statuses = collection[method](chunk);
     const failed = statuses.filter((s) => !s.ok);
     if (failed.length > 0) throw new HostError("SEMANTIC_WRITE_REJECTED");
     written += chunk.length;
   }
   return written;
+}
+
+/** Shape a vendor row as a wire document. Vectors are never returned — nothing reads them yet. */
+function toWireDocument(row) {
+  return { id: row.id, fields: row.fields || {} };
+}
+
+/**
+ * Materialise every row matching a filter, up to `HOST_MAX_SCAN`.
+ *
+ * `exact` is false when the bound was reached, so a caller can refuse rather than act on a count it
+ * cannot trust. Callers that only need the number pass `fieldsNeeded: false`, which asks the vendor
+ * for no scalar fields at all.
+ */
+function scanByFilter(collection, filter, fieldsNeeded) {
+  const request = {
+    filter: buildFilterExpression(filter),
+    topk: HOST_MAX_SCAN,
+    includeVector: false
+  };
+  if (!fieldsNeeded) request.outputFields = [];
+  const rows = collection.querySync(request);
+  return { rows, exact: rows.length < HOST_MAX_SCAN };
 }
 
 const handlers = {
@@ -182,9 +341,15 @@ const handlers = {
     return { written: chunkedWrite(collection, "insertSync", req.docs || []) };
   },
 
+  /**
+   * v1 returned `Object.keys(...)` — bare id strings — while the adapter read `row.id` off each
+   * entry, so every fetch silently yielded undefined ids. Returning real documents is the fix, and
+   * it is what makes `get`, the delete presence check, and the upsert insert/replace split work.
+   */
   fetch(req) {
     const { collection } = requireCollection(req.collectionId);
-    return { docs: Object.keys(collection.fetchSync(req.ids || [])) };
+    const map = collection.fetchSync({ ids: req.ids || [], includeVector: false });
+    return { docs: Object.keys(map).map((id) => toWireDocument(map[id])) };
   },
 
   // updateSync is a true partial patch; upsertSync is insert-or-REPLACE and requires every
@@ -204,14 +369,63 @@ const handlers = {
     return { deleted: statuses.length };
   },
 
+  /**
+   * Delete every document matching a typed filter, and PROVE it.
+   *
+   * `deleteByFilterSync` reports `{ok:true}` whether it removed 500 rows or none, so the count is
+   * established by scanning first and the removal is confirmed by re-scanning after. That end-to-end
+   * check is what makes the reported number trustworthy regardless of how the expression was built:
+   * a residual match means the delete under-removed, which is reported as a failure rather than as a
+   * successful partial.
+   */
+  deleteByFilter(req) {
+    const { collection } = requireCollection(req.collectionId);
+    const before = scanByFilter(collection, req.filter, false);
+    if (!before.exact) throw new HostError("SEMANTIC_SCAN_BOUND_EXCEEDED");
+    if (before.rows.length === 0) return { deleted: 0 };
+
+    const status = collection.deleteByFilterSync(buildFilterExpression(req.filter));
+    // The vendor returns a status object here instead of throwing, so an unchecked call would treat
+    // an invalid-filter rejection as a successful delete.
+    if (!status || !status.ok) throw new HostError("SEMANTIC_DELETE_REJECTED");
+
+    const after = scanByFilter(collection, req.filter, false);
+    if (!after.exact || after.rows.length > 0) throw new HostError("SEMANTIC_DELETE_INCOMPLETE");
+    return { deleted: before.rows.length };
+  },
+
+  /** Exact count, optionally filtered. `exact:false` means the scan bound was hit — never a guess. */
+  count(req) {
+    const { collection } = requireCollection(req.collectionId);
+    if (!req.filter) return { count: collection.stats.docCount, exact: true };
+    const { rows, exact } = scanByFilter(collection, req.filter, false);
+    return { count: rows.length, exact };
+  },
+
+  /** Enumerate documents matching a typed filter. The scan primitive entity operations are built on. */
+  scan(req) {
+    const { collection } = requireCollection(req.collectionId);
+    const { rows, exact } = scanByFilter(collection, req.filter, true);
+    return { docs: rows.map(toWireDocument), exact };
+  },
+
+  /**
+   * v1 capped top-K at 100 and returned only hit counts plus ten ids. Both were AWKIT's own choices:
+   * the vendor honours a large top-K, applies `filter` as a PRE-filter before ranking, and returns
+   * full rows. Pushing the filter into the query is a correctness fix, not an optimisation — filtering
+   * after a truncated top-K silently drops matches that rank outside the unfiltered head.
+   */
   async query(req) {
     const { collection } = requireCollection(req.collectionId);
     const q = req.query || {};
-    const request = { fieldName: q.fieldName, topk: Math.min(Number(q.topK) || 20, 100) };
+    const topK = Math.min(Math.max(1, Number(q.topK) || 20), HOST_MAX_SCAN);
+    const request = { topk: topK, includeVector: false };
+    if (q.fieldName) request.fieldName = q.fieldName;
     if (q.fts) request.fts = q.fts;
     if (q.vector) request.vector = Float32Array.from(q.vector);
+    if (q.filter) request.filter = buildFilterExpression(q.filter);
     const docs = await collection.query(request);
-    return { hits: docs.length, ids: docs.slice(0, 10).map((d) => d.id) };
+    return { docs: docs.map(toWireDocument), truncated: docs.length >= topK };
   },
 
   stats(req) {

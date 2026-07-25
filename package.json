@@ -175,6 +175,7 @@
     "verify:zvec-generation-concurrency": "tsx scripts/verify-zvec-generation-concurrency.mts",
     "verify:semantic-policy": "tsx scripts/verify-semantic-policy.mts",
     "verify:semantic-store": "tsx scripts/verify-semantic-store.mts",
+    "verify:semantic-zvec-filter": "tsx scripts/verify-semantic-zvec-filter.mts",
     "verify:semantic-queue": "tsx scripts/verify-semantic-queue.mts",
     "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts"
   },

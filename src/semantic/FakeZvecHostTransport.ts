@@ -3,17 +3,30 @@
  *
  * This exists so `ZvecSemanticStore` can be driven through the SHARED contract suite without a
  * native host or a packaged build. It is a transport fake, not a store fake — the adapter's own
- * logic (field projection, existence pre-reads, filter application, re-validation on read) runs
+ * logic (field projection, existence pre-reads, filter translation, re-validation on read) runs
  * unmodified, which is the part that can actually be wrong.
  *
- * What it deliberately does NOT prove: native crash behaviour, real FTS ranking quality, on-disk
- * durability, or process isolation. Those need the real host and are covered by
- * `verify:zvec-packaged-live`. Treating a green run here as evidence of native correctness would be
- * exactly the "passes its own tests" trap the shared suite exists to prevent.
+ * ## It models the real host's QUIRKS on purpose
+ *
+ * An earlier version of this fake encoded the protocol as *intended* rather than as implemented, and
+ * the host was written to something else. Three defects survived a green suite as a direct result:
+ * `fetch` returned bare id strings while the adapter read `.id` off each row; a `nullable` string
+ * field was written as an explicit `null`, which the real binding rejects outright; and the schema
+ * used `type` where the host reads `dataType`. A fake that is more permissive than the real thing
+ * does not reduce risk, it relocates it — so the measured rejections are reproduced here:
+ *
+ *  - an explicit `null` in a document field is REJECTED (write fails, as the binding does);
+ *  - a filter naming a field outside the allowlist, or a value the grammar cannot represent, is
+ *    REJECTED with the same reason codes;
+ *  - an empty filter clause list is REJECTED rather than meaning "everything".
+ *
+ * What it still deliberately does NOT prove: native crash behaviour, real FTS ranking quality,
+ * on-disk durability, or process isolation. Those need the real host, tracked as `awkit-9yv`.
  *
  * Framework-agnostic: no Electron, no filesystem.
  */
 
+import { buildZvecFilterExpression, type ZvecSafeFilter } from "./contracts/ZvecFilter";
 import type { ZvecSafeDocument } from "./contracts/ZvecHostProtocol";
 import type { ZvecHostTransport } from "./ZvecSemanticStore";
 
@@ -23,6 +36,8 @@ export interface FakeZvecFailureInjection {
   onDelete?: boolean;
   onQuery?: boolean;
   onFetch?: boolean;
+  onCount?: boolean;
+  onDeleteByFilter?: boolean;
 }
 
 interface FakeRequest {
@@ -30,12 +45,42 @@ interface FakeRequest {
   collectionId?: string;
   ids?: string[];
   docs?: ZvecSafeDocument[];
-  query?: { fts?: { queryString?: string }; topK?: number };
+  filter?: ZvecSafeFilter;
+  query?: { fts?: { queryString?: string }; topK?: number; filter?: ZvecSafeFilter };
 }
 
 /** Same tokenizer rule as the in-memory store, so FTS behaviour is comparable across implementations. */
 function tokens(text: string): string[] {
   return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length >= 2);
+}
+
+/**
+ * Evaluate a typed filter against a stored row.
+ *
+ * `buildZvecFilterExpression` is called first purely for its VALIDATION — it throws on an unknown
+ * field, an unsafe value or an empty clause list exactly as the host does, so a caller that would
+ * be refused by the real host is refused here too. The matching itself is then done structurally.
+ */
+function matchesFilter(doc: ZvecSafeDocument, filter: ZvecSafeFilter): boolean {
+  buildZvecFilterExpression(filter);
+  return filter.all.every((clause) => {
+    const value = doc.fields[clause.field];
+    switch (clause.op) {
+      case "eq":
+        return value === clause.value;
+      case "neq":
+        return value !== clause.value;
+      case "gte":
+        return typeof value === "number" && value >= clause.value;
+      // An omitted optional reads as NULL, mirroring the binding: absence is written by omission.
+      case "isNull":
+        return value === undefined || value === null;
+      case "in":
+        return clause.values.some((v) => v === value);
+      default:
+        return false;
+    }
+  });
 }
 
 export class FakeZvecHostTransport implements ZvecHostTransport {
@@ -58,15 +103,49 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
       case "upsert": {
         if (this.failures.onUpsert) throw new Error("host upsert failed");
         const col = this.collection(req.collectionId);
-        for (const doc of req.docs ?? []) col.set(doc.id, doc);
-        return { ok: true } as T;
+        for (const doc of req.docs ?? []) {
+          // The real binding rejects an explicit null on a nullable field with
+          // "Expected scalar field[x] to be a string", failing the whole batch.
+          for (const [key, value] of Object.entries(doc.fields ?? {})) {
+            if (value === null) throw new Error(`SEMANTIC_WRITE_REJECTED: null field ${key}`);
+          }
+          col.set(doc.id, doc);
+        }
+        return { written: (req.docs ?? []).length } as T;
       }
 
       case "delete": {
         if (this.failures.onDelete) throw new Error("host delete failed");
         const col = this.collection(req.collectionId);
         for (const id of req.ids ?? []) col.delete(id);
-        return { ok: true } as T;
+        return { deleted: (req.ids ?? []).length } as T;
+      }
+
+      case "deleteByFilter": {
+        if (this.failures.onDeleteByFilter) throw new Error("host deleteByFilter failed");
+        const col = this.collection(req.collectionId);
+        const filter = req.filter as ZvecSafeFilter;
+        const doomed = [...col.values()].filter((d) => matchesFilter(d, filter));
+        for (const doc of doomed) col.delete(doc.id);
+        // The host re-scans to prove the delete landed; model the same post-condition.
+        const residual = [...col.values()].filter((d) => matchesFilter(d, filter));
+        if (residual.length > 0) throw new Error("SEMANTIC_DELETE_INCOMPLETE");
+        return { deleted: doomed.length } as T;
+      }
+
+      case "count": {
+        if (this.failures.onCount) throw new Error("host count failed");
+        const col = this.collection(req.collectionId);
+        const count = req.filter
+          ? [...col.values()].filter((d) => matchesFilter(d, req.filter as ZvecSafeFilter)).length
+          : col.size;
+        return { count, exact: true } as T;
+      }
+
+      case "scan": {
+        const col = this.collection(req.collectionId);
+        const docs = [...col.values()].filter((d) => matchesFilter(d, req.filter as ZvecSafeFilter));
+        return { docs, exact: true } as T;
       }
 
       case "fetch": {
@@ -81,10 +160,12 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
         const col = this.collection(req.collectionId);
         const q = req.query?.fts?.queryString ?? "";
         const terms = tokens(q);
-        const all = [...col.values()];
 
-        // An empty query returns everything (the adapter relies on this for stats/clear); a
-        // non-empty one matches any term against title+content+tags, ranked by hit count.
+        // The filter is a PRE-filter in the real engine — applied before ranking and before top-K
+        // truncation. Applying it in that order here is what makes the fake's search semantics match.
+        const filter = req.query?.filter;
+        const all = [...col.values()].filter((d) => (filter ? matchesFilter(d, filter) : true));
+
         const matched =
           terms.length === 0
             ? all
@@ -100,7 +181,13 @@ export class FakeZvecHostTransport implements ZvecHostTransport {
                 .sort((a, b) => b.score - a.score || String(a.doc.id).localeCompare(String(b.doc.id)))
                 .map((r) => r.doc);
 
-        return { docs: matched.slice(0, req.query?.topK ?? matched.length) } as T;
+        const topK = req.query?.topK ?? matched.length;
+        return { docs: matched.slice(0, topK), truncated: matched.length > topK } as T;
+      }
+
+      case "stats": {
+        const col = this.collection(req.collectionId);
+        return { docCount: col.size } as T;
       }
 
       case "close":

@@ -214,7 +214,10 @@ const manifest = {
   schema: { name: "awkit-zvec-native-host-manifest", version: 1 },
   enabled: true,
   requiredForAppStartup: false,
-  hostProtocolVersion: 1,
+  // Must track PROTOCOL_VERSION in native-hosts/zvec/zvec-host.cjs. v2 added the typed-filter
+  // operations and changed fetch/query to return documents; the manifest records it so a staged tree
+  // can be matched against the app that expects it.
+  hostProtocolVersion: 2,
   hostEntry: "zvec-host.cjs",
   zvecVersion: zvecPkg.version,
   bindingVersion: bindingPkg.version,

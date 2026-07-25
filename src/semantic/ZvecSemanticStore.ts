@@ -17,6 +17,7 @@
 
 import {
   SEMANTIC_DEFAULT_TOP_K,
+  SEMANTIC_DOCUMENT_KINDS,
   SEMANTIC_MAX_TOP_K,
   isSemanticDocumentKind,
   type SemanticDocumentKind,
@@ -25,7 +26,20 @@ import {
   type SemanticSearchRequest,
   type SemanticSearchResult
 } from "./contracts/SemanticDocument";
-import type { ZvecSafeDocument, ZvecSafeSchema } from "./contracts/ZvecHostProtocol";
+import {
+  entityFilter,
+  matchAllFilter,
+  type ZvecFilterClause,
+  type ZvecFilterField,
+  type ZvecSafeFilter
+} from "./contracts/ZvecFilter";
+import type {
+  ZvecCountResponse,
+  ZvecDeleteResponse,
+  ZvecDocumentsResponse,
+  ZvecSafeDocument,
+  ZvecSafeSchema
+} from "./contracts/ZvecHostProtocol";
 import { validateSemanticDocument, type ValidatedSemanticDocument } from "./SemanticPolicyValidator";
 import { deriveMatchReasons, tokenize } from "./SemanticRanking";
 import {
@@ -46,29 +60,40 @@ export const SEMANTIC_COLLECTION_NAME = "awkit-memory-v1";
 /** Bounded deadlines — a hung host must never block a caller indefinitely. */
 export const ZVEC_TIMEOUTS = { open: 15_000, write: 20_000, read: 10_000, close: 5_000 } as const;
 
+/**
+ * The collection schema.
+ *
+ * Previously written with `type: "string"` and force-cast with `as unknown as ZvecSafeSchema`, which
+ * hid the fact that the host reads `dataType` — every field would have been created with
+ * `dataType: undefined`. The cast is gone so the type checker enforces the wire shape.
+ *
+ * `nullable` matters for correctness: an OPTIONAL field must be declared nullable and written by
+ * OMISSION (the binding rejects an explicit null), and only a nullable field answers `IS NULL`.
+ * `invert` is a performance flag on the dimensions that are actually filtered.
+ */
 export const SEMANTIC_SCHEMA: ZvecSafeSchema = {
   name: SEMANTIC_COLLECTION_NAME,
   fields: [
-    { name: "id", type: "string" },
-    { name: "kind", type: "string" },
-    { name: "entityId", type: "string" },
-    { name: "revision", type: "string" },
-    { name: "sourceHash", type: "string" },
-    { name: "schemaVersion", type: "number" },
-    { name: "title", type: "string" },
-    { name: "content", type: "string" },
-    { name: "tags", type: "string" },
-    { name: "workflowId", type: "string" },
-    { name: "flowId", type: "string" },
-    { name: "nodeId", type: "string" },
-    { name: "nodeType", type: "string" },
-    { name: "hostname", type: "string" },
-    { name: "outcome", type: "string" },
-    { name: "errorCategory", type: "string" },
-    { name: "createdAt", type: "string" },
-    { name: "updatedAt", type: "string" }
+    { name: "id", dataType: "STRING", invert: true },
+    { name: "kind", dataType: "STRING", invert: true },
+    { name: "entityId", dataType: "STRING", invert: true },
+    { name: "revision", dataType: "STRING" },
+    { name: "sourceHash", dataType: "STRING" },
+    { name: "schemaVersion", dataType: "INT64" },
+    { name: "title", dataType: "STRING" },
+    { name: "content", dataType: "STRING", fts: { tokenizer: "standard" } },
+    { name: "tags", dataType: "STRING", nullable: true },
+    { name: "workflowId", dataType: "STRING", nullable: true, invert: true },
+    { name: "flowId", dataType: "STRING", nullable: true, invert: true },
+    { name: "nodeId", dataType: "STRING", nullable: true },
+    { name: "nodeType", dataType: "STRING", nullable: true, invert: true },
+    { name: "hostname", dataType: "STRING", nullable: true, invert: true },
+    { name: "outcome", dataType: "STRING", nullable: true, invert: true },
+    { name: "errorCategory", dataType: "STRING", nullable: true, invert: true },
+    { name: "createdAt", dataType: "STRING" },
+    { name: "updatedAt", dataType: "STRING" }
   ]
-} as unknown as ZvecSafeSchema;
+};
 
 /**
  * Joined with a character that cannot appear in a redacted tag, so the split is unambiguous.
@@ -78,30 +103,43 @@ export const SEMANTIC_SCHEMA: ZvecSafeSchema = {
  */
 const TAG_SEPARATOR = "\u001F";
 
+/**
+ * An absent optional is OMITTED, never written as null.
+ *
+ * Measured against the real binding: a `nullable: true` string field rejects an explicit null with
+ * "Expected scalar field[x] to be a string", which fails the entire write batch. The previous
+ * `?? null` form meant any document with an absent optional — the common case — would have been
+ * rejected outright by the real host. Omission reads back as NULL for `IS NULL` filters.
+ */
 export function toZvecDocument(doc: ValidatedSemanticDocument): ZvecSafeDocument {
-  return {
+  const fields: Record<string, string | number | boolean> = {
     id: doc.id,
-    fields: {
-      id: doc.id,
-      kind: doc.kind,
-      entityId: doc.entityId,
-      revision: doc.revision,
-      sourceHash: doc.sourceHash,
-      schemaVersion: doc.schemaVersion,
-      title: doc.title,
-      content: doc.content,
-      tags: doc.tags.join(TAG_SEPARATOR),
-      workflowId: doc.workflowId ?? null,
-      flowId: doc.flowId ?? null,
-      nodeId: doc.nodeId ?? null,
-      nodeType: doc.nodeType ?? null,
-      hostname: doc.hostname ?? null,
-      outcome: doc.outcome ?? null,
-      errorCategory: doc.errorCategory ?? null,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt
-    }
+    kind: doc.kind,
+    entityId: doc.entityId,
+    revision: doc.revision,
+    sourceHash: doc.sourceHash,
+    schemaVersion: doc.schemaVersion,
+    title: doc.title,
+    content: doc.content,
+    tags: doc.tags.join(TAG_SEPARATOR),
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt
   };
+
+  const optional: Record<string, string | undefined> = {
+    workflowId: doc.workflowId,
+    flowId: doc.flowId,
+    nodeId: doc.nodeId,
+    nodeType: doc.nodeType,
+    hostname: doc.hostname,
+    outcome: doc.outcome,
+    errorCategory: doc.errorCategory
+  };
+  for (const [key, value] of Object.entries(optional)) {
+    if (value !== undefined) fields[key] = value;
+  }
+
+  return { id: doc.id, fields };
 }
 
 function str(value: unknown): string | undefined {
@@ -158,17 +196,14 @@ export class ZvecSemanticStore implements SemanticStore {
   readonly name = "zvec";
 
   /**
-   * Entity-wide operations are NOT supported yet.
+   * Entity-wide operations are supported as of host protocol v2.
    *
-   * The utility host exposes no scan or cursor operation — its `query` is top-K capped at 100 and
-   * returns hit counts plus a handful of ids, not the full document set. Anything built on it
-   * (`deleteByEntity`, `stats`, `clear`, an exact `totalMatched`) therefore sees only the first page.
-   *
-   * Refusing is the safe half of that trade: a partial delete that reports success leaves content
-   * indexed which the caller believes is gone, and an undercounted `stats` silently misreports the
-   * index. Flip this to true once the host protocol gains scan + count.
+   * They were previously refused because the host's `query` capped top-K at 100 and returned ids
+   * rather than documents — but that cap was AWKIT's own, not a vendor limit. v2 adds typed
+   * `scan`/`count`/`deleteByFilter`, so these operations are now exact rather than first-page
+   * approximations. The host still refuses to report a count it had to truncate.
    */
-  readonly capabilities = { entityOperations: false } as const;
+  readonly capabilities = { entityOperations: true } as const;
 
   private collectionId: string | null = null;
   private closed = false;
@@ -228,11 +263,11 @@ export class ZvecSemanticStore implements SemanticStore {
     let existing = 0;
     let countsKnown = true;
     try {
-      const fetched = await this.options.transport.call<{ docs?: ZvecSafeDocument[] } | ZvecSafeDocument[]>(
+      const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
         { type: "fetch", collectionId, ids: documents.map((d) => d.id) },
         ZVEC_TIMEOUTS.read
       );
-      const rows = Array.isArray(fetched) ? fetched : (fetched?.docs ?? []);
+      const rows = fetched?.docs ?? [];
       existing = rows.length;
     } catch {
       // The write still proceeds — a failed pre-read is not a reason to lose data. But the
@@ -262,11 +297,11 @@ export class ZvecSemanticStore implements SemanticStore {
     // presence is resolved first rather than assuming every requested id existed.
     let present: string[] = [];
     try {
-      const fetched = await this.options.transport.call<{ docs?: ZvecSafeDocument[] } | ZvecSafeDocument[]>(
+      const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
         { type: "fetch", collectionId, ids: [...ids] },
         ZVEC_TIMEOUTS.read
       );
-      const rows = Array.isArray(fetched) ? fetched : (fetched?.docs ?? []);
+      const rows = fetched?.docs ?? [];
       present = rows.map((r) => r.id);
     } catch (error) {
       this.fail(error, "READ_FAILED");
@@ -281,23 +316,36 @@ export class ZvecSemanticStore implements SemanticStore {
     return present.length;
   }
 
-  async deleteByEntity(_entityId: string): Promise<number> {
-    this.assertOpen();
-    // Previously this ran a top-K full-text query for the entity id and deleted whatever came back.
-    // Two independent problems: the entity id need not appear in indexed CONTENT at all (so the
-    // query could match nothing and report a successful no-op), and even when it did the result was
-    // capped at 100. Both produce "deleted successfully" while documents remain indexed.
-    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
+  /**
+   * Delete every document projected from one entity.
+   *
+   * The previous implementation ran a top-K FULL-TEXT query for the entity id and deleted whatever
+   * came back — wrong twice over: an entity id need not appear in indexed content at all (matching
+   * nothing, reporting a successful no-op), and any match was capped at 100. This now sends a typed
+   * `entityId` equality filter, which the host renders, executes, and verifies by re-scanning.
+   */
+  async deleteByEntity(entityId: string): Promise<number> {
+    const collectionId = this.assertOpen();
+    try {
+      const value = await this.options.transport.call<ZvecDeleteResponse>(
+        { type: "deleteByFilter", collectionId, filter: entityFilter(entityId) },
+        ZVEC_TIMEOUTS.write
+      );
+      return typeof value?.deleted === "number" ? value.deleted : 0;
+    } catch (error) {
+      // An entity id the filter grammar cannot represent is refused rather than partially applied.
+      this.fail(error, "WRITE_FAILED");
+    }
   }
 
   async get(id: string): Promise<ValidatedSemanticDocument | null> {
     const collectionId = this.assertOpen();
     try {
-      const fetched = await this.options.transport.call<{ docs?: ZvecSafeDocument[] } | ZvecSafeDocument[]>(
+      const fetched = await this.options.transport.call<ZvecDocumentsResponse>(
         { type: "fetch", collectionId, ids: [id] },
         ZVEC_TIMEOUTS.read
       );
-      const rows = Array.isArray(fetched) ? fetched : (fetched?.docs ?? []);
+      const rows = fetched?.docs ?? [];
       const row = rows.find((r) => r.id === id);
       return row ? fromZvecDocument(row) : null;
     } catch (error) {
@@ -305,31 +353,93 @@ export class ZvecSemanticStore implements SemanticStore {
     }
   }
 
+  private async count(filter?: ZvecSafeFilter): Promise<number> {
+    const collectionId = this.assertOpen();
+    const value = await this.options.transport.call<ZvecCountResponse>(
+      filter ? { type: "count", collectionId, filter } : { type: "count", collectionId },
+      ZVEC_TIMEOUTS.read
+    );
+    // An inexact count is refused, not rounded off. Rebuild parity compares against these numbers,
+    // so a silently truncated total would make the comparison meaningless rather than merely coarse.
+    if (!value || typeof value.count !== "number") throw new SemanticStoreError("READ_FAILED");
+    if (value.exact !== true) throw new SemanticStoreError("UNSUPPORTED_OPERATION");
+    return value.count;
+  }
+
   async stats(): Promise<SemanticStoreStats> {
     this.assertOpen();
-    // An undercounted index is worse than no count: it silently misreports how much is stored, and
-    // rebuild parity checks would compare against a number that is wrong by construction.
-    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
+    try {
+      const documents = await this.count();
+      const byKind: Record<string, number> = {};
+      // Per-kind counts are separate filtered counts rather than one full scan: each is an indexed
+      // lookup, and none of them has to transfer document bodies across the port.
+      for (const kind of SEMANTIC_DOCUMENT_KINDS) {
+        const n = await this.count({ all: [{ field: "kind", op: "eq", value: kind }] });
+        if (n > 0) byKind[kind] = n;
+      }
+      return { documents, byKind };
+    } catch (error) {
+      this.fail(error, "READ_FAILED");
+    }
   }
 
   async clear(): Promise<void> {
-    this.assertOpen();
-    // Clearing only the first 100 documents while reporting success would leave the index populated
-    // after a user explicitly asked for it to be deleted (plan §9.4 Settings action).
-    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
+    const collectionId = this.assertOpen();
+    try {
+      // `matchAllFilter` is an explicit `schemaVersion >= 0` clause, not an empty filter: the host
+      // refuses an empty clause list precisely so "delete where nothing" can never mean "delete
+      // everything" by accident. Here everything IS the intent, so it is stated.
+      await this.options.transport.call<ZvecDeleteResponse>(
+        { type: "deleteByFilter", collectionId, filter: matchAllFilter() },
+        ZVEC_TIMEOUTS.write
+      );
+    } catch (error) {
+      this.fail(error, "WRITE_FAILED");
+    }
   }
 
-  private async queryDocuments(collectionId: string, text: string, topK: number): Promise<ValidatedSemanticDocument[]> {
+  /**
+   * Translate the request's named dimensions into a typed filter.
+   *
+   * Returned as clauses rather than applied in memory afterwards, because the vendor applies `filter`
+   * BEFORE ranking. Post-filtering a truncated top-K is what silently dropped a filtered match that
+   * ranked outside the unfiltered head.
+   */
+  private static requestFilter(request: SemanticSearchRequest): ZvecSafeFilter | undefined {
+    const all: ZvecFilterClause[] = [];
+    if (request.kinds && request.kinds.length > 0) {
+      all.push({ field: "kind", op: "in", values: [...request.kinds] });
+    }
+    const eq: ReadonlyArray<[ZvecFilterField, string | undefined]> = [
+      ["workflowId", request.workflowId],
+      ["flowId", request.flowId],
+      ["nodeType", request.nodeType],
+      ["hostname", request.hostname],
+      ["outcome", request.outcome],
+      ["errorCategory", request.errorCategory]
+    ];
+    for (const [field, value] of eq) {
+      if (value !== undefined) all.push({ field, op: "eq", value });
+    }
+    return all.length > 0 ? { all } : undefined;
+  }
+
+  private async queryDocuments(
+    collectionId: string,
+    text: string,
+    topK: number,
+    filter: ZvecSafeFilter | undefined
+  ): Promise<ValidatedSemanticDocument[]> {
     try {
-      const value = await this.options.transport.call<{ docs?: ZvecSafeDocument[] } | ZvecSafeDocument[]>(
+      const value = await this.options.transport.call<ZvecDocumentsResponse>(
         {
           type: "query",
           collectionId,
-          query: { fieldName: "content", fts: text ? { queryString: text } : {}, topK }
+          query: { fieldName: "content", fts: text ? { queryString: text } : {}, topK, filter }
         },
         ZVEC_TIMEOUTS.read
       );
-      const rows = Array.isArray(value) ? value : (value?.docs ?? []);
+      const rows = value?.docs ?? [];
       // Rows failing re-validation are dropped, not surfaced (see `fromZvecDocument`).
       return rows.map(fromZvecDocument).filter((d): d is ValidatedSemanticDocument => d !== null);
     } catch (error) {
@@ -343,21 +453,15 @@ export class ZvecSemanticStore implements SemanticStore {
     const degraded = mode !== "fullText";
     const topK = Math.min(Math.max(1, request.topK ?? SEMANTIC_DEFAULT_TOP_K), SEMANTIC_MAX_TOP_K);
 
-    // Over-fetch, then apply the named filters here. Zvec's FTS ranks on text; the structured
-    // dimensions are AWKIT's contract, and applying them after ranking keeps filter semantics
-    // identical to the in-memory implementation — which is what makes the shared suite meaningful.
-    const candidates = await this.queryDocuments(collectionId, request.text, SEMANTIC_MAX_TOP_K);
-
-    const filtered = candidates.filter((doc) => {
-      if (request.kinds && request.kinds.length > 0 && !request.kinds.includes(doc.kind)) return false;
-      if (request.workflowId !== undefined && doc.workflowId !== request.workflowId) return false;
-      if (request.flowId !== undefined && doc.flowId !== request.flowId) return false;
-      if (request.nodeType !== undefined && doc.nodeType !== request.nodeType) return false;
-      if (request.hostname !== undefined && doc.hostname !== request.hostname) return false;
-      if (request.outcome !== undefined && doc.outcome !== request.outcome) return false;
-      if (request.errorCategory !== undefined && doc.errorCategory !== request.errorCategory) return false;
-      return true;
-    });
+    // The filter is pushed INTO the query so the vendor applies it before ranking. The in-memory
+    // store filters in memory over its whole collection, which is the same semantics — that
+    // equivalence is what makes running one contract suite against both meaningful.
+    const filtered = await this.queryDocuments(
+      collectionId,
+      request.text,
+      SEMANTIC_MAX_TOP_K,
+      ZvecSemanticStore.requestFilter(request)
+    );
 
     // Reasons come from the SHARED vocabulary, not from a locally-invented string. The contract
     // suite asserts on it, and an adapter emitting its own wording made "reasons" mean something
