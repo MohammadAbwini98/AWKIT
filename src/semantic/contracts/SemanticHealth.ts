@@ -31,7 +31,13 @@ export type SemanticDegradedReason =
   /** Started but a previous operation failed; it will retry on the next call. */
   | "DEGRADED_AFTER_FAILURE"
   /** The index needs a rebuild before it can serve queries. */
-  | "REBUILD_REQUIRED";
+  | "REBUILD_REQUIRED"
+  /**
+   * The active pointer governs, so the index is usable, but derived metadata could not be brought
+   * into agreement with it. Surfaced rather than hidden: silently serving from a knowingly stale
+   * metadata document is how a subtle inconsistency becomes invisible.
+   */
+  | "METADATA_REPAIR_FAILED";
 
 /**
  * Three states, not two.
@@ -78,6 +84,8 @@ export interface SemanticHealthInput {
   previousShutdownClean: boolean;
   reclaimedBytesOnStartup: number;
   rebuildRequired?: boolean;
+  /** A startup metadata repair failed; the pointer still governs. */
+  metadataRepairFailed?: boolean;
   /** Absolute index path. Included in the output ONLY when `includePaths` is true. */
   indexPath?: string;
   /** Caller is authorised to see filesystem locations (administrator surfaces only). */
@@ -91,7 +99,8 @@ const SUMMARIES: Record<SemanticDegradedReason, string> = {
   HOST_UNAVAILABLE: "Semantic search is unavailable because its local engine could not be loaded.",
   CIRCUIT_OPEN: "Semantic search is paused after repeated engine failures. Run a health check or rebuild to re-enable it.",
   DEGRADED_AFTER_FAILURE: "Semantic search had a recent failure and will retry on the next request.",
-  REBUILD_REQUIRED: "Semantic search needs its index rebuilt before it can answer queries."
+  REBUILD_REQUIRED: "Semantic search needs its index rebuilt before it can answer queries.",
+  METADATA_REPAIR_FAILED: "Semantic search is running, but its index bookkeeping could not be updated. A rebuild will restore it."
 };
 
 /**
@@ -126,6 +135,9 @@ export function buildSemanticHealth(input: SemanticHealthInput): SemanticHealth 
   if (!input.enabledBySetting) return degraded("DISABLED_BY_SETTING");
   if (input.circuitOpen) return degraded("CIRCUIT_OPEN");
   if (input.rebuildRequired) return degraded("REBUILD_REQUIRED");
+  // Reported after the hard blockers but before host state: the host may be perfectly healthy while
+  // its bookkeeping is stale, and that is still worth telling someone about.
+  if (input.metadataRepairFailed) return degraded("METADATA_REPAIR_FAILED");
 
   switch (input.hostState) {
     case "ready":

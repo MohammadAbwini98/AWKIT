@@ -171,7 +171,8 @@
     "verify:zvec-generation-recovery": "tsx scripts/verify-zvec-generation-recovery.mts",
     "verify:zvec-packaged-live": "tsx scripts/verify-zvec-packaged-live.mts",
     "verify:zvec-generation-lifecycle": "tsx scripts/verify-zvec-generation-lifecycle.mts",
-    "verify:zvec-coexistence": "tsx scripts/verify-zvec-coexistence.mts"
+    "verify:zvec-coexistence": "tsx scripts/verify-zvec-coexistence.mts",
+    "verify:zvec-generation-concurrency": "tsx scripts/verify-zvec-generation-concurrency.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

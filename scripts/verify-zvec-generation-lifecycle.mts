@@ -322,7 +322,8 @@ console.log("\nActivation failure window (metadata write fails AFTER the pointer
   // Repair path: with metadata writable again, startup brings it back into line with the pointer.
   fs.rmSync(layout.metadataFile, { recursive: true, force: true });
   const repaired = repairMetadataFromPointer(root);
-  check("repairMetadataFromPointer reports a repair", repaired);
+  check("repairMetadataFromPointer reports status=repaired", repaired.status === "repaired", JSON.stringify(repaired));
+  check("the repair names the generation it restored", repaired.status === "repaired" && repaired.activeGeneration === outcome.generation);
   check("metadata now agrees with the pointer", readMetadata(root).activeGeneration === outcome.generation);
 }
 {
@@ -330,7 +331,7 @@ console.log("\nActivation failure window (metadata write fails AFTER the pointer
   const root = tempRoot();
   const gen = createGeneration(root);
   activateGeneration(root, gen.name, OK);
-  check("repair is a no-op when metadata already agrees", repairMetadataFromPointer(root) === false);
+  check("repair reports notNeeded when metadata already agrees", repairMetadataFromPointer(root).status === "notNeeded");
 }
 
 // ── concurrent allocation (Phase 1A review finding #2) ──
@@ -340,7 +341,7 @@ console.log("\nConcurrent generation allocation:");
   // Allocate repeatedly with no coordination; every name must be unique. mkdir-without-recursive is
   // the atomic claim, so a loser retries rather than silently adopting the winner's directory.
   const names = Array.from({ length: 25 }, () => createGeneration(root).name);
-  check("every allocated generation name is unique", new Set(names).size === names.length, names.join(","));
+  check("sequential allocations are unique", new Set(names).size === names.length, names.join(","));
   check("all allocated directories exist", names.every((n) => fs.existsSync(path.join(semanticIndexLayout(root).generations, n))));
 }
 {
@@ -368,6 +369,70 @@ console.log("\nIdle capability:");
     previousShutdownClean: true, reclaimedBytesOnStartup: 0
   });
   check("a genuinely broken host is still unavailable", broken.capability === "unavailable");
+}
+
+// ── truthful rebuild-stage classification (Phase 1B review finding #3) ──
+console.log("\nRebuild stage classification:");
+{
+  const root = tempRoot();
+  const outcome = await rebuildIntoNewGeneration({
+    runtimeRoot: root,
+    populate: async () => { throw new Error("host exited mid-populate"); },
+    validate: async () => OK
+  });
+  check("a thrown populate reports POPULATE_FAILED", outcome.status === "POPULATE_FAILED", outcome.status);
+}
+{
+  const root = tempRoot();
+  // A validator that THROWS is a different failure from one that returns ok:false, and must not be
+  // misreported as a populate failure.
+  const outcome = await rebuildIntoNewGeneration({
+    runtimeRoot: root,
+    populate: async () => undefined,
+    validate: async () => { throw new Error("sample query blew up"); }
+  });
+  check("a thrown validator reports VALIDATION_FAILED", outcome.status === "VALIDATION_FAILED", outcome.status);
+}
+{
+  const root = tempRoot();
+  const outcome = await rebuildIntoNewGeneration({
+    runtimeRoot: root,
+    populate: async () => undefined,
+    validate: async () => ({ ok: false, reason: "empty index" })
+  });
+  check("a rejecting validator also reports VALIDATION_FAILED", outcome.status === "VALIDATION_FAILED", outcome.status);
+}
+{
+  const root = tempRoot();
+  const layout = semanticIndexLayout(root);
+  // Make the POINTER write fail (pre-commit), so activation fails without switching anything.
+  fs.rmSync(layout.activeGenerationFile, { force: true });
+  fs.mkdirSync(layout.activeGenerationFile, { recursive: true });
+  const outcome = await rebuildIntoNewGeneration({
+    runtimeRoot: root,
+    populate: async () => undefined,
+    validate: async () => OK
+  });
+  check("a failed pointer write reports ACTIVATION_FAILED", outcome.status === "ACTIVATION_FAILED", outcome.status);
+  check("nothing was activated", !outcome.activated);
+  check("the candidate generation was discarded", !fs.existsSync(path.join(layout.generations, outcome.generation)));
+}
+
+console.log("\nMetadata-repair failure reaches health:");
+{
+  const base = {
+    included: true, enabledBySetting: true, hostState: "ready", circuitOpen: false,
+    unexpectedExits: 0, lastReasonCode: null, activeGeneration: generationName(1),
+    previousShutdownClean: true, reclaimedBytesOnStartup: 0
+  } as const;
+  const h = buildSemanticHealth({ ...base, metadataRepairFailed: true });
+  check("a failed repair is surfaced, not hidden", h.degradedReason === "METADATA_REPAIR_FAILED", String(h.degradedReason));
+  check("its summary is path-free", !/[A-Za-z]:\|\//.test(h.summary), h.summary);
+  check("a healthy host with no repair failure stays available", buildSemanticHealth({ ...base }).capability === "available");
+  check(
+    "a hard blocker still outranks a repair failure",
+    buildSemanticHealth({ ...base, metadataRepairFailed: true, circuitOpen: true }).degradedReason === "CIRCUIT_OPEN"
+  );
 }
 
 for (const dir of cleanup) {

@@ -24,11 +24,12 @@ import {
   reconcileGenerations,
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
-import { repairMetadataFromPointer } from "@src/semantic/SemanticGenerationManager";
+import { repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
 let lastReconciliation: ReconciliationReport | null = null;
+let lastMetadataRepair: MetadataRepairResult | null = null;
 
 /**
  * Runtime root that owns all mutable semantic data. Never inside resources/ or app.asar.
@@ -67,7 +68,7 @@ export function initializeSemanticSubsystem(): ReconciliationReport | null {
     // The active pointer is authoritative and metadata is derived. If a previous activation wrote
     // the pointer but failed the metadata write, this brings them back into agreement before
     // anything reads metadata.
-    repairMetadataFromPointer(runtimeRoot());
+    lastMetadataRepair = repairMetadataFromPointer(runtimeRoot());
     lastReconciliation = reconcileGenerations({ runtimeRoot: runtimeRoot() });
     markIndexOpen(runtimeRoot());
     return lastReconciliation;
@@ -106,6 +107,7 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
     activeGeneration: lastReconciliation?.activeGeneration ?? null,
     previousShutdownClean: lastReconciliation ? !lastReconciliation.uncleanShutdown : true,
     reclaimedBytesOnStartup: lastReconciliation?.reclaimedBytes ?? 0,
+    metadataRepairFailed: lastMetadataRepair?.status === "failed",
     indexPath: semanticIndexLayout(runtimeRoot()).root,
     includePaths: options.includePaths ?? false
   });

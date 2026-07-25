@@ -166,21 +166,43 @@ export function activateGeneration(runtimeRoot: string, name: string, validation
 }
 
 /**
+ * Outcome of a metadata repair.
+ *
+ * Deliberately not a boolean: "nothing needed repairing" and "the repair itself failed" are
+ * completely different situations, and collapsing them into `false` meant a persistent write failure
+ * looked identical to a healthy startup. A failure must reach the health surface.
+ */
+export type MetadataRepairResult =
+  | { status: "notNeeded" }
+  | { status: "repaired"; activeGeneration: string }
+  | { status: "failed"; reason: "READ_FAILED" | "WRITE_FAILED" };
+
+/**
  * Bring metadata back into agreement with the authoritative pointer.
  *
  * Called on startup: if a metadata write failed during activation, or metadata was hand-edited, the
- * pointer wins. Returns true when a repair was performed.
+ * pointer wins. Never throws — AWKIT startup must not depend on this succeeding.
  */
-export function repairMetadataFromPointer(runtimeRoot: string): boolean {
+export function repairMetadataFromPointer(runtimeRoot: string): MetadataRepairResult {
   const pointer = readActivePointer(runtimeRoot);
-  if (!pointer) return false;
+  if (!pointer) return { status: "notNeeded" };
+
+  let metadata: SemanticIndexMetadata;
   try {
-    const metadata = readMetadata(runtimeRoot);
-    if (metadata.activeGeneration === pointer.activeGeneration) return false;
-    writeMetadata(runtimeRoot, { ...metadata, activeGeneration: pointer.activeGeneration });
-    return true;
+    metadata = readMetadata(runtimeRoot);
   } catch {
-    return false;
+    return { status: "failed", reason: "READ_FAILED" };
+  }
+
+  if (metadata.activeGeneration === pointer.activeGeneration) return { status: "notNeeded" };
+
+  try {
+    writeMetadata(runtimeRoot, { ...metadata, activeGeneration: pointer.activeGeneration });
+    return { status: "repaired", activeGeneration: pointer.activeGeneration };
+  } catch {
+    // The pointer still governs, so the index is usable, but metadata is now knowingly stale:
+    // surface it as degraded rather than pretending the startup was clean.
+    return { status: "failed", reason: "WRITE_FAILED" };
   }
 }
 
@@ -228,9 +250,24 @@ export type RebuildStatus =
   | "ACTIVATED"
   /** Pointer switched, but the derived metadata write failed. Startup repairs it. */
   | "ACTIVATED_METADATA_REPAIR_REQUIRED"
-  | "VALIDATION_FAILED"
+  | "ALLOCATION_FAILED"
   | "POPULATE_FAILED"
+  | "VALIDATION_FAILED"
   | "ACTIVATION_FAILED";
+
+/**
+ * Which stage a rebuild reached. Tracked explicitly because the failure status must name the stage
+ * that actually failed: an earlier revision reported POPULATE_FAILED for a thrown validator or a
+ * failed pointer write, which is misleading for both recovery decisions and support diagnostics.
+ */
+type RebuildStage = "allocate" | "populate" | "validate" | "activate";
+
+const STAGE_FAILURE: Record<RebuildStage, RebuildStatus> = {
+  allocate: "ALLOCATION_FAILED",
+  populate: "POPULATE_FAILED",
+  validate: "VALIDATION_FAILED",
+  activate: "ACTIVATION_FAILED"
+};
 
 export interface RebuildOutcome {
   generation: string;
@@ -254,7 +291,20 @@ export async function rebuildIntoNewGeneration(options: {
   validate: (generation: string, generationPath: string) => Promise<GenerationValidation>;
 }): Promise<RebuildOutcome> {
   const { runtimeRoot, populate, validate } = options;
-  const created = createGeneration(runtimeRoot);
+
+  let stage: RebuildStage = "allocate";
+  let created: { name: string; path: string };
+  try {
+    created = createGeneration(runtimeRoot);
+  } catch (error) {
+    return {
+      generation: "(unallocated)",
+      status: "ALLOCATION_FAILED",
+      activated: false,
+      reason: error instanceof SemanticGenerationError ? error.reason : "SEMANTIC_GENERATION_ALLOCATION_FAILED",
+      pointer: readActivePointer(runtimeRoot)
+    };
+  }
 
   // Once the pointer names this generation, deleting it would leave the authoritative pointer aimed
   // at a missing directory. This flag is the guard: after activation, the cleanup path is disabled
@@ -271,7 +321,10 @@ export async function rebuildIntoNewGeneration(options: {
   };
 
   try {
+    stage = "populate";
     await populate(created.name, created.path);
+
+    stage = "validate";
     const validation = await validate(created.name, created.path);
 
     if (!validation.ok) {
@@ -285,6 +338,7 @@ export async function rebuildIntoNewGeneration(options: {
       };
     }
 
+    stage = "activate";
     const activation = activateGeneration(runtimeRoot, created.name, validation);
     activated = true; // set immediately: the pointer has switched, so cleanup is now forbidden
     return {
@@ -294,14 +348,14 @@ export async function rebuildIntoNewGeneration(options: {
       pointer: activation.pointer
     };
   } catch (error) {
-    // Reached only when populate, validate, or the pre-commit part of activation failed. The
-    // previously active index is untouched by construction.
+    // The previously active index is untouched by construction. `stage` names the step that actually
+    // threw, so a thrown validator is not reported as a populate failure.
     discard();
     return {
       generation: created.name,
-      status: activated ? "ACTIVATED_METADATA_REPAIR_REQUIRED" : "POPULATE_FAILED",
-      activated,
-      reason: error instanceof SemanticGenerationError ? error.reason : "SEMANTIC_GENERATION_REBUILD_FAILED",
+      status: STAGE_FAILURE[stage],
+      activated: false,
+      reason: error instanceof SemanticGenerationError ? error.reason : `SEMANTIC_GENERATION_${stage.toUpperCase()}_THREW`,
       pointer: readActivePointer(runtimeRoot)
     };
   }
