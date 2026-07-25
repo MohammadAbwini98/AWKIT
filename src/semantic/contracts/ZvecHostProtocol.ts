@@ -94,6 +94,19 @@ export type ZvecHostRequest =
 
 export type ZvecHostRequestType = ZvecHostRequest["type"];
 
+/**
+ * A request minus the fields the manager owns (`version`, `id`).
+ *
+ * Written as a distributive conditional so `Omit` is applied to each member of the union
+ * separately. A plain `Omit<ZvecHostRequest, "version" | "id">` collapses the union to its common
+ * keys and silently drops per-variant fields such as `expected` and `schema`.
+ */
+export type ZvecHostRequestPayload = ZvecHostRequest extends infer R
+  ? R extends ZvecHostRequest
+    ? Omit<R, "version" | "id">
+    : never
+  : never;
+
 /** What the manager asserts the host must be, checked during the `hello` handshake. */
 export interface ZvecHostCompatibility {
   protocolVersion: number;
