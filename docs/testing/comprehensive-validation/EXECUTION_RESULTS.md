@@ -13,6 +13,7 @@
 | Auth/security/RBAC/session/secrets/licensing | `PASS` | All specialized suites passed |
 | Flow Designer/Workflow Builder | `PASS` | Mapping, sentinels, and both GUI suites passed |
 | Oracle offline/integration boundary | `PASS` | Policy, profile, source, runtime, and lazy resolution passed |
+| Oracle row-driven browser workflow | `PASS` | 7 PASS / 0 FAIL; 8 rows through real bridge, Chromium, and production ExecutionEngine |
 | Oracle live | `BLOCKED` | No approved URL/user/password; local container absent |
 | Packaged runtime | `PASS` | 25/25 |
 | Packaged clean-profile walkthrough | `PASS` | 69/69 on a fresh temporary profile |
@@ -28,23 +29,23 @@ Command:
 
 Machine-readable result:
 
-`test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/campaign-results.json`
+`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
 
 Structured runner log:
 
-`test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runner-logs.json`
+`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runner-logs.json`
 
 | Case | Status | Duration | Outcome |
 | --- | --- | ---: | --- |
 | CMP-INV-001 | `PASS` | 2 ms | 30 steps, 9 edges, 4 connector kinds, 10 value sources inventoried |
-| CMP-FLOW-001 | `PASS` | 1,506 ms | Core live DOM actions and cross-flow values passed |
-| CMP-IO-001 | `PASS` | 796 ms | Upload, async waits, output, download passed |
-| CMP-CON-001 | `PASS` | 667 ms | Conditional, parallel, outcome, loop, loop-back passed |
-| CMP-CON-002 | `FAIL` | 188 ms | `manualApproval` edge skipped; End not executed |
-| CMP-ERR-001 | `PASS` | 1,256 ms | Retry, evidence, failure routing, recovery passed |
-| CMP-POP-001 | `PASS` | 2,709 ms | Popup lifecycle passed |
-| CMP-WF-001 | `PASS` | 5,120 ms | Four-flow persisted workflow passed |
-| CMP-MAN-001 | `PASS` | 1,143 ms | Safe handoffs and session save passed |
+| CMP-FLOW-001 | `PASS` | 1,366 ms | Core live DOM actions and cross-flow values passed |
+| CMP-IO-001 | `PASS` | 821 ms | Upload, async waits, output, download passed |
+| CMP-CON-001 | `PASS` | 654 ms | Conditional, parallel, outcome, loop, loop-back passed |
+| CMP-CON-002 | `FAIL` | 184 ms | `manualApproval` edge skipped; End not executed |
+| CMP-ERR-001 | `PASS` | 1,153 ms | Retry, evidence, failure routing, recovery passed |
+| CMP-POP-001 | `PASS` | 2,626 ms | Popup lifecycle passed |
+| CMP-WF-001 | `PASS` | 5,235 ms | Four-flow persisted workflow passed |
+| CMP-MAN-001 | `PASS` | 904 ms | Safe handoffs and session save passed |
 
 Totals: **8 PASS, 1 FAIL, 0 BLOCKED, 0 NOT RUN** inside the main campaign. External gates are recorded separately below.
 
@@ -54,7 +55,7 @@ Totals: **8 PASS, 1 FAIL, 0 BLOCKED, 0 NOT RUN** inside the main campaign. Exter
 | --- | ---: |
 | Script type-check | `PASS` |
 | Production build | `PASS` |
-| Verifier classification reconciliation | `PASS` — 132 classified: 1 documentation, 7 static, 50 unit, 26 integration, 40 real-browser, 8 packaged |
+| Verifier classification reconciliation | `PASS` — 134 classified: 1 documentation, 7 static, 50 unit, 27 integration, 41 real-browser, 8 packaged |
 | Runner | `PASS` — 84/84 |
 | Waits | `PASS` — 56/56 |
 | Popup | `PASS` — 12/12 |
@@ -91,21 +92,52 @@ Totals: **8 PASS, 1 FAIL, 0 BLOCKED, 0 NOT RUN** inside the main campaign. Exter
 | Oracle lazy resolution | `PASS` — 20/20 |
 | Packaged runtime | `PASS` — 25/25 |
 | Packaged clean-profile walkthrough | `PASS` — 69/69 |
+| Oracle mock-UI fixture | `PASS` — 36/36 |
+| Oracle row-driven workflow | `PASS` — 7/7 executed cases; 1 live-Oracle case `BLOCKED` |
 
 The production build emitted one non-fatal Vite dynamic/static import warning. No build failure resulted.
+
+## Oracle row-driven campaign
+
+Command: `npm run verify:oracle-mock-ui-workflow`
+
+Machine-readable result:
+`test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/execution-summary.json`
+
+| Case | Status | Outcome |
+| --- | --- | --- |
+| ORA-WF-001 | `PASS` | Persisted profiles and production pre-run gate: zero issues |
+| ORA-WF-002 | `PASS` | Real bridge, one query for three concurrent consumers, 8 rows |
+| ORA-WF-003 | `PASS` | All compatible controls matched for all 8 rows |
+| ORA-WF-004 | `PASS` | Stale checked interests explicitly cleared |
+| ORA-WF-005 | `PASS` | 8 isolated runner instances, maximum 2 active |
+| ORA-ENG-001 | `PASS` | Production ExecutionEngine: 8 completed, 8 logs, 16 screenshots |
+| ORA-WF-006 | `PASS` | Required terms blocked native submit and reached blocked End |
+| ORA-LIVE-001 | `BLOCKED` | Real 19c workflow not attempted without ephemeral credentials |
+
+Totals: **7 PASS, 0 FAIL, 1 BLOCKED, 0 NOT RUN**.
 
 ## Evidence index
 
 ### Main campaign
 
-- Result ledger: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/campaign-results.json`
-- Inventory: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/inventory.json`
-- Runner logs: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runner-logs.json`
-- Workflow result: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/workflow-result.json`
-- Core screenshot root: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runs/core-cross-flow/screenshots`
-- Retry/failure evidence root: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runs/recovery/screenshots`
-- Download: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runs/io-flow/downloads/awkit-report.csv`
-- Saved session root: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/runs/manual-session/sessions`
+- Result ledger: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
+- Inventory: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/inventory.json`
+- Runner logs: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runner-logs.json`
+- Workflow result: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/workflow-result.json`
+- Core screenshot root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/core-cross-flow/screenshots`
+- Retry/failure evidence root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/recovery/screenshots`
+- Download: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/io-flow/downloads/awkit-report.csv`
+- Saved session root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/manual-session/sessions`
+
+### Oracle row-driven evidence
+
+- Result ledger: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/execution-summary.json`
+- Pre-run gate: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/pre-run-validation.json`
+- Runner logs: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/runner-logs.json`
+- Bridge/service logs: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/oracle-bridge.log` and `oracle-service.log`
+- Production run report: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/execution-engine/reports/oracle-engine-2026-07-25T22-36-01-353Z/report.json`
+- Screenshot roots: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/runs/` and `execution-engine/screenshots/`
 
 ### UI/report screenshots
 

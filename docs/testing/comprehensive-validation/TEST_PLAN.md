@@ -10,7 +10,9 @@ Validate AWKIT as an installed automation product, not only as a collection of i
 - Primary browser: bundled Chromium, headless for repeatable automation and headed where the product UI is under test
 - Safe target: AWKIT's loopback mock site on `127.0.0.1:4321`
 - Main campaign: `npm run verify:comprehensive-e2e`
-- Final main-campaign evidence: `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z`
+- Final main-campaign evidence: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z`
+- Oracle row-driven campaign: `npm run verify:oracle-mock-ui-workflow`
+- Oracle row-driven evidence: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z`
 - Test date: 2026-07-25/26, Asia/Amman
 - Security rule: no CAPTCHA, MFA, OTP, protected-login, bot-detection, or security-control bypass
 
@@ -46,6 +48,9 @@ Validate AWKIT as an installed automation product, not only as a collection of i
 - Authentication, authorization, secrets, licensing, and session context
 - Packaged EXE, portable EXE, installer integrity, fresh-profile startup, bundled browser, and writable runtime paths
 - Oracle policy, profile, data-source, lazy-resolution, runtime, and live-environment boundary
+- Persisted Oracle Data Source → current row → connector routing → live form controls, including
+  nullable values, decimal/date conversion, stale-state clearing, native validation, and the
+  production `ExecutionEngine` data-driven scheduler
 
 ## 4. Out of scope or externally blocked
 
@@ -66,7 +71,8 @@ These items receive `BLOCKED` or `NOT RUN`, never an inferred pass.
 | Loopback mock site | Real Chromium DOM, network, popup, upload/download, and artifact behavior | Synthetic fixture records |
 | Electron development UI | Flow Designer, Workflow Builder, reports, runtime analytics, auth and RBAC | Fresh or temporary profiles |
 | Packaged `win-unpacked` and portable app | Installed-runtime, fresh-profile, process, recovery, installer, and network isolation | Temporary profile roots |
-| Oracle policy/runtime harness | SQL policy, descriptors, redaction, snapshot/lazy resolution | Synthetic profiles/snapshots |
+| Oracle policy/runtime harness | SQL policy, descriptors, redaction, snapshot/lazy resolution, real Java mock bridge | Synthetic profiles/snapshots |
+| Oracle row-driven browser lab | Persisted Oracle Data Source/flow/workflow, 8 rows, two-instance bound, live DOM assertions | Synthetic `SPECTER_MOCKUI` twin |
 | Live Oracle | Real database integration | Blocked until approved credentials exist |
 
 Secrets used by the campaign are synthetic. Evidence must not contain real credentials.

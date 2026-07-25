@@ -298,6 +298,12 @@ npm run verify:oracle-lazy-resolution    # 20 — lazy runtime execution, single
 npm run verify:oracle-offline-bundle     # 11 — packaged bundle audit (bridge-only; rejects JRE/driver/secrets)
 npm run verify:oracle-direct-jdbc        # 23 — direct-JDBC concurrency/cancellation/teardown (mock bridge)
 
+npm run verify:oracle-mock-ui            # 36 — mock-UI fixture: SQL↔mock parity, /form control + option fit,
+                                         #      read-only policy, maxRows truncation. NO database needed.
+npm run verify:oracle-mock-ui-workflow   # real Java mock bridge + persisted Oracle Data Source/flow/workflow
+                                         # + real Chromium + production ExecutionEngine (8 rows, max concurrency 2).
+                                         # Writes test-artifacts/oracle-mock-ui-workflow/<timestamp>/.
+                                         # Live Oracle is BLOCKED unless the operator supplies credentials.
 npm run verify:oracle-drivers-gui        # 30 — REAL Electron: Database Drivers settings render + real bridge
                                          #      launch + real ojdbc load + deletion guard (needs `npm run build`)
 npm run verify:oracle-live               # 7 — REAL Oracle — credential-gated; skips cleanly with no config and

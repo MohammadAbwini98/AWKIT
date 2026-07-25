@@ -4,7 +4,69 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-25 (latest) - the orchestrator bound to the real generation runtime (Claude)
+## 2026-07-26 (latest) - Oracle row-driven form workflow and ExecutionEngine validation (Codex)
+
+**Task:** finish the step left open by the mock-UI Oracle fixture: author persisted Data Source/flow/
+workflow profiles, execute them against the Feature Test Lab, collect evidence, and keep the real-DB
+variant credential-gated.
+
+**Delivered:** `mock-oracle-form-cases.json`, `mock-oracle-form-flow.json`,
+`mock-oracle-form-workflow.json`, and `verify-oracle-mock-ui-workflow.mts`. The verifier builds/spawns
+the real Java bridge in explicit development mock mode, drives `OracleQueryService` and
+`DataSourceResolver`, checks one single-flight query, verifies all 8 rows in real Chromium, exercises
+stale checkbox cleanup and native required-terms blocking, and repeats all rows through the production
+`ExecutionEngine` with a two-instance cap.
+
+**Product gaps found and fixed:** scheduled `currentDataRow` was not passed to runner `currentRow`;
+structured connectors could not resolve `currentRow.*`; Oracle DATE instants were incompatible with
+HTML date inputs. The mock form also claimed terms were required without the HTML `required` attribute.
+
+**Result:** Oracle campaign **7 PASS / 0 FAIL / 1 BLOCKED**. Production engine: 8 completed instances,
+maximum 2 active, run report + 8 JSONL logs + 16 screenshots. Live 19c was not executed without the
+operator's ephemeral credential. Evidence:
+`test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/`.
+
+**Regressions:** fixture 36/36, bridge 32/32, runner 84/84, concurrency 78/78, mock site 84/84,
+taxonomy 134/134, script type-check and build PASS. The broader comprehensive campaign remains
+8 PASS / 1 FAIL on the pre-existing `manualApproval` routing defect; evidence:
+`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/`.
+
+---
+
+## 2026-07-26 (latest) - mock-UI Oracle fixture: SPECTER_MOCKUI + database-free twin (Claude)
+
+**Task:** give Oracle a fixture that tests the *UI path*, not just type conversion — a schema whose
+columns drive the Feature Test Lab form at `/form`, plus a database-free twin so it runs offline.
+Bead `awkit-v8x`.
+
+**Gap it closes:** `SPECTER_FIXTURE.AWKIT_TYPES_TEST` proves the JDBC mapper handles Oracle types. It
+proves nothing about the Oracle Data Source node *driving a workflow*. `SPECTER_MOCKUI.MOCK_FORM_CASES`
+(8 rows) maps 1:1 onto `/form`, so `SELECT → fill form → assert /success` is now testable.
+
+**Two conversions the mock had to mirror rather than hardcode** (found by reading
+`OracleJdbcQueryExecutor.convert`, not assumed):
+1. `NUMBER(12,2)` returns `BigDecimal.toPlainString()` — a **String** like `"82500.50"`, not a JSON number.
+2. `DATE` returns `Timestamp.toInstant().toString()`, which reads the timestamp in the **JVM default
+   zone**. A hardcoded `"1992-04-17T00:00:00Z"` would disagree with a real DB on any non-UTC host, so
+   `MockFormCasesFixture` applies the same `Timestamp`→`Instant` conversion instead.
+
+**Files:** `scripts/oracle/local-19c-mock-ui-fixture.sql` (new), `MockFormCasesFixture.java` (new),
+`MockQueryExecutor.java` (fixture branch + `fixtureResult` honoring `maxRows`/cancellation),
+`scripts/verify-oracle-mock-ui.mts` (new), `package.json`, `mock-site/README.md`,
+`ORACLE_JDBC_VALIDATION_GATES.md`, `COMMANDS.md`, `CURRENT_STATE.md`.
+
+**Tests run:** `verify:oracle-mock-ui` **36/36** (builds and drives the real Java bridge),
+`verify:oracle-bridge` **32/32** (generic mock shape unchanged), `npm run build` clean.
+**Negative control:** flipping one fixture country to `ZZ` failed exactly 2 checks with precise
+diagnostics (option fit + parity) — the checks are not vacuous.
+
+**Not run:** the real-Oracle provisioning of `SPECTER_MOCKUI` (needs SYSDBA + an ephemeral
+`SPECTER_READER` password; procedure in `ORACLE_JDBC_VALIDATION_GATES.md`), and the end-to-end
+workflow itself (no flow authored yet — the fixture and both executors are the groundwork).
+
+---
+
+## 2026-07-25 - the orchestrator bound to the real generation runtime (Claude)
 
 **Task:** finish Phase 1B production integration — bind `SemanticRebuildOrchestrator` to the real
 generation lifecycle, define the post-activation failure policy, wire bounded shutdown, and verify

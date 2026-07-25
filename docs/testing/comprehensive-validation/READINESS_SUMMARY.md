@@ -19,12 +19,15 @@ The product is otherwise in strong condition across the tested Chromium automati
 - Flow Designer and Workflow Builder mapping and GUI coverage
 - Packaged application resources and local fresh-profile execution
 - Oracle read-only policy, profile, data-source, lazy-resolution, and runtime contracts without a live database
+- Persisted Oracle row-driven form workflow without a database: real Java bridge protocol, one
+  single-flight query, all 8 DOM mappings, two-instance concurrency, success/blocked terminals,
+  production `ExecutionEngine`, screenshots, JSONL logs, and run report
 
 ## What must be fixed or completed
 
 1. Fix `AWKIT-E2E-001` and add a regression proving End/downstream execution after explicit manual approval.
 2. Re-run `CMP-CON-002` and require the main campaign to reach 9/9 PASS.
-3. Supply an approved Oracle test environment and execute the live Oracle verifier.
+3. Supply an approved Oracle test environment and execute the same persisted form workflow in real mode.
 4. Resolve or explicitly waive the zero-megabyte packaged Oracle driver bundle warning.
 5. Complete the clean/offline Windows VM release walkthrough.
 6. Perform authorized manual CAPTCHA/MFA/SSO handoffs where those real provider paths are release requirements.
@@ -36,6 +39,8 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
 - **Core Chromium automation beta/internal use:** conditionally acceptable if flows using a flow-level `manualApproval` edge are prohibited or independently reviewed.
 - **General release advertising complete supported connector coverage:** do not approve until `AWKIT-E2E-001` is fixed and the main campaign is all green.
 - **Offline Oracle release claim:** do not approve until live Oracle and packaged-driver gates pass.
+- **Database-free Oracle-to-UI workflow:** ready; current ledger is 7 PASS / 0 FAIL with the live-DB
+  variant separately blocked.
 
 ## Retest minimum
 

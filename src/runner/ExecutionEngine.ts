@@ -1374,6 +1374,7 @@ export class ExecutionEngine {
           totalInstances: this.pool.list().length,
           runtimeInputs: instance.runtimeInputs,
           instanceInputs: instance.instanceInputs,
+          currentRow: instance.currentDataRow,
           workflowDataSource,
           dataSources,
           flowOutputs: {},

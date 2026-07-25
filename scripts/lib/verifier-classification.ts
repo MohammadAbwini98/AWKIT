@@ -53,6 +53,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   // ── Real browser (real Chromium or the built Electron app) ─────────────────────────────────
   "verify:runner": { class: "real-browser", why: "Drives the real PlaywrightRunner + Chromium against the spawned mock site." },
   "verify:comprehensive-e2e": { class: "real-browser", why: "Loads persisted comprehensive fixtures and drives their safe browser, workflow, popup, I/O, manual-handoff, retry, and recovery paths against the local mock site." },
+  "verify:oracle-mock-ui-workflow": { class: "real-browser", why: "Runs a persisted Oracle Data Source and row-driven workflow through the real Java mock bridge, OracleQueryService, PlaywrightRunner, and real Chromium against the local form." },
   "verify:mock-site": { class: "real-browser", why: "Starts the mock site and checks pages/selectors via a real browser context." },
   "verify:flow-designer": { class: "real-browser", why: "Launches the built Electron app and drives the Flow Designer canvas." },
   "verify:workflow-builder": { class: "real-browser", why: "Launches the built Electron app and drives the Workflow Builder canvas." },
@@ -111,6 +112,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-java-runtime": { class: "integration", why: "Real bridge launch using the user-selected Java (no DB)." },
   "verify:oracle-direct-jdbc": { class: "integration", why: "Drives the real Java mock bridge, one connection per query." },
   "verify:oracle-live": { class: "integration", why: "Credential-gated validation against a REAL Oracle database." },
+  "verify:oracle-mock-ui": { class: "integration", why: "Builds the real Java mock bridge and proves SQL-fixture parity, UI compatibility, limits, and read-only policy without a database." },
   "verify:branding": { class: "integration", why: "Real BrandingLogoStore atomic publish/rollback + sha256 re-verify + corrupt/missing fallback on a temp dir; no browser." },
   "verify:custom-brand-logo": { class: "integration", why: "Real BrandingLogoStore + BrandingValidation on a temp dir (signature/dimension/atomic/rollback/hash) mapped to the acceptance cases, plus structural source assertions; no browser." },
 

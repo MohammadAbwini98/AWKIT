@@ -1,0 +1,20 @@
+{
+  "id": "mock-oracle-form-cases",
+  "name": "Mock Oracle Form Cases",
+  "type": "oracle",
+  "description": "Read-only Oracle rows that drive the local Feature Test Lab customer form. Select an approved local read-only connection profile before a real-database run.",
+  "connectionProfileId": "mock-oracle-readonly",
+  "mode": "runtime",
+  "query": {
+    "sql": "SELECT case_id, case_label, first_name, last_name, email, age, salary, birth_date, country, account_type, skills, description, gender, interest_automation, interest_testing, accept_terms, expected_outcome FROM SPECTER_MOCKUI.MOCK_FORM_CASES ORDER BY case_id",
+    "binds": [],
+    "timeoutMs": 30000,
+    "maxRows": 8,
+    "fetchSize": 8
+  },
+  "runtimePolicy": {
+    "cacheScope": "workflow-run"
+  },
+  "createdAt": "2026-07-26T00:00:00.000Z",
+  "updatedAt": "2026-07-26T00:00:00.000Z"
+}

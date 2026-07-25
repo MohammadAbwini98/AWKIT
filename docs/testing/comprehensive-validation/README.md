@@ -12,4 +12,8 @@ This package records the 2026-07-25/26 comprehensive validation campaign.
 
 Primary machine-readable evidence:
 
-`test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/campaign-results.json`
+`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
+
+Oracle row-driven addendum:
+
+`test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/execution-summary.json`

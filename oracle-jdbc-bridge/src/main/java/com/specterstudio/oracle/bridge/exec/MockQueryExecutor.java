@@ -51,6 +51,13 @@ public final class MockQueryExecutor implements QueryExecutor {
         simulateIfRequested(params, token);
 
         long maxRows = asLong(params.get("maxRows"), 10_000L);
+
+        // Mock-UI fixture: a statement against MOCK_FORM_CASES gets the form-shaped dataset instead of
+        // the generic shape, so the same SQL and the same workflow run with or without a database.
+        if (MockFormCasesFixture.matches(asString(params.get("sql")))) {
+            return fixtureResult(MockFormCasesFixture.columns(), MockFormCasesFixture.rows(), maxRows, token, started);
+        }
+
         long requested = asLong(sim(params).get("rows"), 3L);
         long produce = Math.min(requested, Math.max(0, maxRows));
         boolean truncated = requested > maxRows;
@@ -90,6 +97,35 @@ public final class MockQueryExecutor implements QueryExecutor {
     @Override
     public void shutdown() {
         // Nothing to release.
+    }
+
+    /**
+     * Serve a fixed fixture, applying the same {@code maxRows} truncation and cancellation checks the
+     * generic path applies so limit/cancel behavior does not silently differ per dataset.
+     */
+    private static Map<String, Object> fixtureResult(List<Map<String, Object>> columns,
+                                                     List<Map<String, Object>> allRows,
+                                                     long maxRows,
+                                                     CancellationToken token,
+                                                     long started) {
+        long limit = Math.max(0, maxRows);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Map<String, Object> row : allRows) {
+            if (rows.size() >= limit) break;
+            if (token != null && token.isCancelled()) {
+                throw new BridgeException(Protocol.ERR_CANCELLED, "Query was cancelled.");
+            }
+            rows.add(row);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("rows", rows);
+        result.put("columns", columns);
+        result.put("rowCount", (long) rows.size());
+        result.put("truncated", allRows.size() > limit);
+        result.put("executionMs", (System.nanoTime() - started) / 1_000_000L);
+        result.put("source", "mock");
+        return result;
     }
 
     // ── Simulation helpers ────────────────────────────────────────────────────

@@ -235,6 +235,113 @@ Status reflects the 2026-07-25/26 execution. Exact command and artifact location
 
 **Result:** `PASS` for policy/profile/data-source/runtime/lazy suites (30/30, 22/22, 28/28, 36/36, 20/20). `BLOCKED` for live Oracle because the container is absent and URL/user/password are not configured.
 
+## ORA-WF-001 — Persisted Oracle form workflow and production pre-run gate
+
+**Preconditions:** The credential-free Data Source, flow, and workflow JSON fixtures exist.
+
+**Steps:**
+
+1. Load all three persisted profiles.
+2. Validate the flow set with the shared validator.
+3. Convert the workflow to a scenario.
+4. Run the same production pre-run gate used by the application.
+5. Inspect the persisted Data Source for secret-shaped fields.
+
+**Expected:** Zero flow/set/pre-run issues; runtime Oracle mode; no password or secret value persisted.
+
+**Result:** `PASS`.
+
+## ORA-WF-002 — Real bridge materialization and single-flight cache
+
+**Preconditions:** JDK 17 and the bridge source are available; no Oracle database is required.
+
+**Steps:**
+
+1. Build and spawn the real Java bridge with explicit development mock mode.
+2. Resolve the persisted Oracle Data Source through `OracleQueryService` and `DataSourceResolver`.
+3. Materialize it from three concurrent consumers.
+4. Inspect bridge handshake, query counter, service metrics, and rows.
+
+**Expected:** The bridge identifies itself as mock mode; exactly one real `executeQuery` RPC runs; all
+three consumers share the same 8-row result; no DB credential is read or written.
+
+**Result:** `PASS`.
+
+## ORA-WF-003 — All Oracle values reach compatible live form controls
+
+**Preconditions:** Feature Test Lab `/form` and real Chromium are available.
+
+**Steps:**
+
+1. Run an inspection form flow once for each of the 8 rows.
+2. Assert text, nullable text, integer, two-decimal salary, local calendar date, selects,
+   multi-select, textarea, radio, and checkboxes in the live DOM.
+3. Assert unmapped password/file controls remain empty.
+4. Capture a populated-form screenshot for every row.
+
+**Expected:** Every field equals its row value; NULL renders empty rather than `"null"`; a NULL date
+and gender select nothing; 0-valued controls are clear.
+
+**Result:** `PASS`.
+
+## ORA-WF-004 — Reused-page stale checkbox recovery
+
+**Preconditions:** The `interests-unchecked` row exists.
+
+**Steps:**
+
+1. Open `/form` and pre-check both interest boxes.
+2. Run the row mapping without re-navigation.
+3. Inspect executed connector branches and final DOM state.
+
+**Expected:** Both explicit uncheck branches execute and both controls finish clear.
+
+**Result:** `PASS`.
+
+## ORA-WF-005 — Isolated row-driven workflow concurrency
+
+**Preconditions:** Persisted workflow concurrency is 2.
+
+**Steps:**
+
+1. Run all 8 rows through separate `PlaywrightRunner` instances with a two-worker limit.
+2. Confirm seven success terminals and one expected-block terminal.
+3. Confirm two screenshots per row and per-row result JSON.
+4. Repeat through the production `ExecutionEngine` in `dataDrivenConcurrent` mode.
+5. Inspect queue/backpressure, run-level report, eight JSONL logs, and sixteen engine screenshots.
+
+**Expected:** Maximum active instances is exactly 2; all 8 engine instances complete; row-specific
+`currentRow` values and connectors work; 7 rows reach success and the negative row reaches blocked End.
+
+**Result:** `PASS`.
+
+## ORA-WF-006 — Native terms-required negative path
+
+**Preconditions:** The `terms-declined-negative` row has `ACCEPT_TERMS=0`.
+
+**Steps:**
+
+1. Fill the complete row and explicitly leave terms unchecked.
+2. Click Submit.
+3. Inspect URL, native `validity.valueMissing`, retained first name, connector route, and screenshot.
+
+**Expected:** Browser remains on `/form`; terms reports `valueMissing=true`; the success branch does
+not execute; the blocked assertions and blocked End execute.
+
+**Result:** `PASS`.
+
+## ORA-LIVE-001 — Same workflow against real Oracle 19c
+
+**Preconditions:** Authorized SYSDBA provisioning and a freshly minted ephemeral `SPECTER_READER`
+password supplied out of band.
+
+**Steps:** Provision `SPECTER_MOCKUI`, export approved `AWKIT_ORACLE_LIVE_*` values, run the live gate,
+then rotate and lock the account.
+
+**Expected:** The same persisted query and workflow produce the same 7 success/1 blocked matrix in real mode.
+
+**Result:** `BLOCKED` — credentials were not supplied; no attempt was made to recover or invent them.
+
 ## UI-001 — Flow Designer and Workflow Builder
 
 **Preconditions:** Electron development UI can launch.

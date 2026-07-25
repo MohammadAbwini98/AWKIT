@@ -11,6 +11,7 @@ import type { FlowExecutionResult, RunnerLogger, StepEvidenceRef, StepExecutionR
 import { StepExecutor } from "./StepExecutor";
 import { SecretMasker } from "@src/reports/SecretMasker";
 import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
+import { resolveJsonPath } from "@src/data/JsonPathResolver";
 
 /**
  * Hard cap on loop-connector iterations regardless of configured maxIterations.
@@ -643,6 +644,8 @@ export class FlowExecutor {
       if (path.startsWith("outputs.")) return scope[path.slice("outputs.".length)];
       if (path.startsWith("runtimeInputs.")) return context.runtimeInputs[path.slice("runtimeInputs.".length)];
       if (path.startsWith("instanceInputs.")) return context.instanceInputs[path.slice("instanceInputs.".length)];
+      if (path === "currentRow") return context.currentRow;
+      if (path.startsWith("currentRow.")) return resolveJsonPath(context.currentRow, `$.${path.slice("currentRow.".length)}`);
       return scope[path];
     };
   }

@@ -49,10 +49,11 @@ Value source,runtimeInput,CMP-FLOW-001,Live Chromium,PASS,
 Value source,env,CMP-FLOW-001,Live Chromium,PASS,Synthetic environment value
 Value source,flowOutput,CMP-FLOW-001 and CMP-WF-001,Live Chromium,PASS,
 Value source,generated,CMP-FLOW-001,Live Chromium,PASS,Pattern validated
-Value source,currentRow,CMP-FLOW-001,Live Chromium,PASS,
+Value source,currentRow,CMP-FLOW-001 + ORA-WF-003 + ORA-ENG-001,Real bridge + live Chromium + production ExecutionEngine,PASS,8 Oracle rows verified end to end
 Value source,instanceVariable,CMP-FLOW-001,Live Chromium,PASS,
 Value source,secret,CMP-FLOW-001 and secrets suite,Live Chromium,PASS,Synthetic secret only
 Security,CAPTCHA/MFA/OTP completion,Manual handoff policy,External/manual,BLOCKED,Must be completed by an authorized user
 Oracle,Live database query,verify:oracle-live,External environment,BLOCKED,URL/user/password not configured and local container absent
+Oracle,Persisted row-driven UI workflow,verify:oracle-mock-ui-workflow,Real Java bridge + live Chromium + production ExecutionEngine,PASS,7 executed cases passed; live-19c variant separately blocked
 Offline,Clean Windows VM certification,Human release gate,External environment,NOT RUN,Local packaged run is not substituted
 Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project

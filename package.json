@@ -37,6 +37,8 @@
     "verify:oracle-bridge-real-build": "tsx scripts/verify-oracle-bridge-real-build.mts",
     "verify:oracle-sql-policy": "tsx scripts/verify-oracle-sql-policy.mts",
     "verify:oracle-live": "tsx scripts/verify-oracle-live.mts",
+    "verify:oracle-mock-ui": "tsx scripts/verify-oracle-mock-ui.mts",
+    "verify:oracle-mock-ui-workflow": "node scripts/benchmark/run.mjs scripts/verify-oracle-mock-ui-workflow.mts",
     "verify:oracle-lazy-resolution": "tsx scripts/verify-oracle-lazy-resolution.mts",
     "verify:oracle-offline-bundle": "tsx scripts/verify-oracle-offline-bundle.mts",
     "verify:oracle-runtime-prep": "tsx scripts/verify-oracle-runtime-prep.mts",

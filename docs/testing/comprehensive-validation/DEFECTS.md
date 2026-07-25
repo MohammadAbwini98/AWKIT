@@ -9,7 +9,7 @@
 - **Status:** Open / reproducible
 - **Affected area:** `src/runner/FlowExecutor.ts`, `FlowExecutor.resolveNext`
 - **Detected by:** `CMP-CON-002`
-- **Evidence:** `test-artifacts/comprehensive-e2e/2026-07-25T21-27-41-429Z/campaign-results.json`
+- **Evidence:** `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
 
 **Preconditions**
 
@@ -46,6 +46,50 @@
 **Suggested fix**
 
 Treat an outgoing `manualApproval` edge as eligible only after a manual/protected handoff has actually resumed, then add a regression asserting the exact executed-node sequence and terminal End. Do not globally treat it as an ordinary success edge, because that could bypass the approval semantic.
+
+## Resolved Oracle workflow defects
+
+### AWKIT-ORA-E2E-001 — Scheduled data rows were absent from runner `currentRow`
+
+- **Severity:** S2 / Major
+- **Status:** Resolved
+- **Reproduction before fix:** Start a `dataDrivenConcurrent` run whose flow fills a required control
+  from a `currentRow` value. `InstanceManager` stored the row as `currentDataRow`, but
+  `ExecutionEngine.runInstanceInner` omitted it from `InstanceExecutionContext`; the fill resolved
+  empty and the row-specific workflow could not run correctly.
+- **Fix:** Carry `instance.currentDataRow` into `currentRow`.
+- **Evidence:** `ORA-ENG-001` — 8/8 production-engine instances completed with row-specific terminals.
+
+### AWKIT-ORA-E2E-002 — Structured connectors could not route on `currentRow.*`
+
+- **Severity:** S2 / Major
+- **Status:** Resolved
+- **Reproduction before fix:** Persist a structured conditional connector with
+  `sourceField=dataSourceValue` and `variableName=currentRow.GENDER`. `FlowExecutor.makeScope`
+  exposed outputs/runtimeInputs/instanceInputs only, so the condition never saw the row.
+- **Fix:** Resolve `currentRow` and nested `currentRow.*` through the safe JSON-path resolver.
+- **Evidence:** All 8 rows selected the correct gender/checkbox/outcome branches in `ORA-WF-003`,
+  `ORA-WF-005`, and `ORA-ENG-001`.
+
+### AWKIT-ORA-E2E-003 — Oracle DATE instants were incompatible with HTML date inputs
+
+- **Severity:** S3 / Moderate
+- **Status:** Resolved
+- **Reproduction before fix:** Fill `<input type=date>` with the ISO instant returned by the JDBC
+  bridge. HTML date controls accept `YYYY-MM-DD`, so the raw instant is rejected or leaves the value empty.
+- **Fix:** For date controls only, normalize a parseable instant to the local calendar
+  `YYYY-MM-DD`; keep ordinary text, already-normalized dates, invalid strings, and NULL behavior unchanged.
+- **Evidence:** All non-null dates and the NULL-date row matched the live DOM in `ORA-WF-003`;
+  `verify:runner` remains 84/84.
+
+### HARNESS-007 — Terms-declined fixture was not actually blocked
+
+- **Severity:** S2 / Major test-validity defect
+- **Status:** Resolved
+- **Reproduction before fix:** The mock form described terms as required but `#acceptTerms` lacked
+  the HTML `required` attribute, so the negative row could submit to `/success`.
+- **Fix:** Make the checkbox required and assert `validity.valueMissing=true`.
+- **Evidence:** `ORA-WF-006` and mock-site regression 84/84.
 
 ## Resolved validation-harness defects
 

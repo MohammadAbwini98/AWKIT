@@ -1,0 +1,446 @@
+{
+  "id": "mock-oracle-form-flow",
+  "name": "Mock — Oracle Row to Customer Form",
+  "description": "Maps one Oracle MOCK_FORM_CASES row into every compatible /form control, submits positive rows, and proves the terms-declined row is blocked by native validation.",
+  "version": 1,
+  "createdAt": "2026-07-26T00:00:00.000Z",
+  "updatedAt": "2026-07-26T00:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "open-form",
+      "type": "goto",
+      "name": "Open Customer Form",
+      "url": "http://127.0.0.1:4321/form",
+      "valueSource": { "type": "static", "value": "http://127.0.0.1:4321/form" }
+    },
+    {
+      "id": "wait-form",
+      "type": "wait",
+      "name": "Wait For Customer Form",
+      "locator": { "strategy": "id", "value": "firstName" },
+      "value": "form-ready",
+      "timeoutMs": 10000,
+      "config": { "waitType": "selector" }
+    },
+    {
+      "id": "fill-first-name",
+      "type": "fill",
+      "name": "First Name From Oracle",
+      "locator": { "strategy": "id", "value": "firstName" },
+      "valueSource": { "type": "currentRow", "path": "$.FIRST_NAME" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "fill-last-name",
+      "type": "fill",
+      "name": "Nullable Last Name From Oracle",
+      "locator": { "strategy": "id", "value": "lastName" },
+      "valueSource": { "type": "currentRow", "path": "$.LAST_NAME" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "fill-email",
+      "type": "fill",
+      "name": "Nullable Email From Oracle",
+      "locator": { "strategy": "id", "value": "email" },
+      "valueSource": { "type": "currentRow", "path": "$.EMAIL" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "fill-age",
+      "type": "fill",
+      "name": "Age Number From Oracle",
+      "locator": { "strategy": "id", "value": "age" },
+      "valueSource": { "type": "currentRow", "path": "$.AGE" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "fill-salary",
+      "type": "fill",
+      "name": "Decimal Salary String From Oracle",
+      "locator": { "strategy": "id", "value": "salary" },
+      "valueSource": { "type": "currentRow", "path": "$.SALARY" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "fill-birth-date",
+      "type": "fill",
+      "name": "Oracle Date Into Date Input",
+      "locator": { "strategy": "id", "value": "birthDate" },
+      "valueSource": { "type": "currentRow", "path": "$.BIRTH_DATE" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "select-country",
+      "type": "select",
+      "name": "Country From Oracle",
+      "locator": { "strategy": "id", "value": "country" },
+      "selectionMode": "value",
+      "valueSource": { "type": "currentRow", "path": "$.COUNTRY" }
+    },
+    {
+      "id": "select-account-type",
+      "type": "select",
+      "name": "Account Type From Oracle",
+      "locator": { "strategy": "id", "value": "accountType" },
+      "selectionMode": "value",
+      "valueSource": { "type": "currentRow", "path": "$.ACCOUNT_TYPE" }
+    },
+    {
+      "id": "select-skills",
+      "type": "select",
+      "name": "Skills Multi-Select From Oracle",
+      "locator": { "strategy": "id", "value": "skills" },
+      "selectionMode": "value",
+      "valueSource": { "type": "currentRow", "path": "$.SKILLS" },
+      "config": { "selectMultiple": true }
+    },
+    {
+      "id": "fill-description",
+      "type": "fill",
+      "name": "Description From Oracle",
+      "locator": { "strategy": "id", "value": "description" },
+      "valueSource": { "type": "currentRow", "path": "$.DESCRIPTION" },
+      "config": { "clearBeforeFill": true }
+    },
+    {
+      "id": "gender-router",
+      "type": "scroll",
+      "name": "Route Gender Value",
+      "value": "1",
+      "config": { "scrollTarget": "page", "scrollDirection": "down", "scrollAmount": 1 }
+    },
+    {
+      "id": "select-male",
+      "type": "radio",
+      "name": "Select Male",
+      "locator": { "strategy": "id", "value": "genderMale" },
+      "value": "MALE"
+    },
+    {
+      "id": "select-female",
+      "type": "radio",
+      "name": "Select Female",
+      "locator": { "strategy": "id", "value": "genderFemale" },
+      "value": "FEMALE"
+    },
+    {
+      "id": "after-gender",
+      "type": "scroll",
+      "name": "Continue After Gender",
+      "value": "1",
+      "config": { "scrollTarget": "page", "scrollDirection": "down", "scrollAmount": 1 }
+    },
+    {
+      "id": "automation-router",
+      "type": "scroll",
+      "name": "Route Automation Interest",
+      "value": "1",
+      "config": { "scrollTarget": "page", "scrollDirection": "down", "scrollAmount": 1 }
+    },
+    {
+      "id": "check-automation",
+      "type": "check",
+      "name": "Check Automation Interest",
+      "locator": { "strategy": "id", "value": "interestAutomation" }
+    },
+    {
+      "id": "uncheck-automation",
+      "type": "uncheck",
+      "name": "Uncheck Automation Interest",
+      "locator": { "strategy": "id", "value": "interestAutomation" }
+    },
+    {
+      "id": "testing-router",
+      "type": "scroll",
+      "name": "Route Testing Interest",
+      "value": "1",
+      "config": { "scrollTarget": "page", "scrollDirection": "down", "scrollAmount": 1 }
+    },
+    {
+      "id": "check-testing",
+      "type": "check",
+      "name": "Check Testing Interest",
+      "locator": { "strategy": "id", "value": "interestTesting" }
+    },
+    {
+      "id": "uncheck-testing",
+      "type": "uncheck",
+      "name": "Uncheck Testing Interest",
+      "locator": { "strategy": "id", "value": "interestTesting" }
+    },
+    {
+      "id": "terms-router",
+      "type": "scroll",
+      "name": "Route Terms Decision",
+      "value": "1",
+      "config": { "scrollTarget": "page", "scrollDirection": "down", "scrollAmount": 1 }
+    },
+    {
+      "id": "check-terms",
+      "type": "check",
+      "name": "Accept Required Terms",
+      "locator": { "strategy": "id", "value": "acceptTerms" }
+    },
+    {
+      "id": "uncheck-terms",
+      "type": "uncheck",
+      "name": "Decline Required Terms",
+      "locator": { "strategy": "id", "value": "acceptTerms" }
+    },
+    {
+      "id": "capture-filled-form",
+      "type": "screenshot",
+      "name": "Capture Oracle-Populated Form",
+      "config": { "screenshotName": "oracle-populated-form", "fullPage": true }
+    },
+    {
+      "id": "submit",
+      "type": "click",
+      "name": "Submit Customer Form",
+      "locator": { "strategy": "id", "value": "submitButton" },
+      "safety": {
+        "sideEffectLevel": "externalCommit",
+        "retryable": false
+      }
+    },
+    {
+      "id": "assert-success-url",
+      "type": "assertText",
+      "name": "Positive Row Reached Success",
+      "locator": { "strategy": "css", "value": "body" },
+      "value": "/success",
+      "config": { "assertionType": "url", "comparisonOperator": "contains", "expectedValue": "/success" }
+    },
+    {
+      "id": "assert-success-heading",
+      "type": "assertText",
+      "name": "Success Heading",
+      "locator": { "strategy": "id", "value": "successMessage" },
+      "value": "Submission successful",
+      "config": { "assertionType": "text", "comparisonOperator": "equals", "expectedValue": "Submission successful" }
+    },
+    {
+      "id": "assert-submitted-first-name",
+      "type": "assertText",
+      "name": "Submitted First Name Matches Oracle",
+      "locator": { "strategy": "id", "value": "submittedFirstName" },
+      "valueSource": { "type": "currentRow", "path": "$.FIRST_NAME" },
+      "config": { "assertionType": "text", "comparisonOperator": "equals" }
+    },
+    {
+      "id": "capture-success",
+      "type": "screenshot",
+      "name": "Capture Successful Submission",
+      "config": { "screenshotName": "oracle-success", "fullPage": true }
+    },
+    {
+      "id": "assert-blocked-url",
+      "type": "assertText",
+      "name": "Terms-Declined Row Stayed On Form",
+      "locator": { "strategy": "css", "value": "body" },
+      "value": "/form",
+      "config": { "assertionType": "url", "comparisonOperator": "contains", "expectedValue": "/form" }
+    },
+    {
+      "id": "assert-blocked-first-name",
+      "type": "assertText",
+      "name": "Blocked Form Retained Oracle First Name",
+      "locator": { "strategy": "id", "value": "firstName" },
+      "valueSource": { "type": "currentRow", "path": "$.FIRST_NAME" },
+      "config": { "assertionType": "value", "comparisonOperator": "equals" }
+    },
+    {
+      "id": "capture-blocked",
+      "type": "screenshot",
+      "name": "Capture Native Validation Block",
+      "config": { "screenshotName": "oracle-terms-blocked", "fullPage": true }
+    },
+    { "id": "end-success", "type": "end", "name": "End — Success" },
+    { "id": "end-blocked", "type": "end", "name": "End — Expected Block" }
+  ],
+  "edges": [
+    { "id": "oracle-form-e01", "source": "start", "target": "open-form", "type": "success" },
+    { "id": "oracle-form-e02", "source": "open-form", "target": "wait-form", "type": "success" },
+    { "id": "oracle-form-e03", "source": "wait-form", "target": "fill-first-name", "type": "success" },
+    { "id": "oracle-form-e04", "source": "fill-first-name", "target": "fill-last-name", "type": "success" },
+    { "id": "oracle-form-e05", "source": "fill-last-name", "target": "fill-email", "type": "success" },
+    { "id": "oracle-form-e06", "source": "fill-email", "target": "fill-age", "type": "success" },
+    { "id": "oracle-form-e07", "source": "fill-age", "target": "fill-salary", "type": "success" },
+    { "id": "oracle-form-e08", "source": "fill-salary", "target": "fill-birth-date", "type": "success" },
+    { "id": "oracle-form-e09", "source": "fill-birth-date", "target": "select-country", "type": "success" },
+    { "id": "oracle-form-e10", "source": "select-country", "target": "select-account-type", "type": "success" },
+    { "id": "oracle-form-e11", "source": "select-account-type", "target": "select-skills", "type": "success" },
+    { "id": "oracle-form-e12", "source": "select-skills", "target": "fill-description", "type": "success" },
+    { "id": "oracle-form-e13", "source": "fill-description", "target": "gender-router", "type": "success" },
+    {
+      "id": "oracle-form-gender-male",
+      "source": "gender-router",
+      "target": "select-male",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.GENDER",
+        "operator": "equals",
+        "expectedValue": "MALE",
+        "priority": 20,
+        "label": "Oracle gender is MALE"
+      }
+    },
+    {
+      "id": "oracle-form-gender-female",
+      "source": "gender-router",
+      "target": "select-female",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.GENDER",
+        "operator": "equals",
+        "expectedValue": "FEMALE",
+        "priority": 20,
+        "label": "Oracle gender is FEMALE"
+      }
+    },
+    { "id": "oracle-form-gender-null", "source": "gender-router", "target": "after-gender", "type": "always" },
+    { "id": "oracle-form-e14", "source": "select-male", "target": "after-gender", "type": "success" },
+    { "id": "oracle-form-e15", "source": "select-female", "target": "after-gender", "type": "success" },
+    { "id": "oracle-form-e16", "source": "after-gender", "target": "automation-router", "type": "success" },
+    {
+      "id": "oracle-form-automation-on",
+      "source": "automation-router",
+      "target": "check-automation",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.INTEREST_AUTOMATION",
+        "operator": "equals",
+        "expectedValue": "1",
+        "priority": 10,
+        "label": "Automation checked"
+      }
+    },
+    {
+      "id": "oracle-form-automation-off",
+      "source": "automation-router",
+      "target": "uncheck-automation",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.INTEREST_AUTOMATION",
+        "operator": "equals",
+        "expectedValue": "0",
+        "priority": 10,
+        "label": "Automation unchecked"
+      }
+    },
+    { "id": "oracle-form-e17", "source": "check-automation", "target": "testing-router", "type": "success" },
+    { "id": "oracle-form-e18", "source": "uncheck-automation", "target": "testing-router", "type": "success" },
+    {
+      "id": "oracle-form-testing-on",
+      "source": "testing-router",
+      "target": "check-testing",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.INTEREST_TESTING",
+        "operator": "equals",
+        "expectedValue": "1",
+        "priority": 10,
+        "label": "Testing checked"
+      }
+    },
+    {
+      "id": "oracle-form-testing-off",
+      "source": "testing-router",
+      "target": "uncheck-testing",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.INTEREST_TESTING",
+        "operator": "equals",
+        "expectedValue": "0",
+        "priority": 10,
+        "label": "Testing unchecked"
+      }
+    },
+    { "id": "oracle-form-e19", "source": "check-testing", "target": "terms-router", "type": "success" },
+    { "id": "oracle-form-e20", "source": "uncheck-testing", "target": "terms-router", "type": "success" },
+    {
+      "id": "oracle-form-terms-accepted",
+      "source": "terms-router",
+      "target": "check-terms",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.ACCEPT_TERMS",
+        "operator": "equals",
+        "expectedValue": "1",
+        "priority": 10,
+        "label": "Terms accepted"
+      }
+    },
+    {
+      "id": "oracle-form-terms-declined",
+      "source": "terms-router",
+      "target": "uncheck-terms",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.ACCEPT_TERMS",
+        "operator": "equals",
+        "expectedValue": "0",
+        "priority": 10,
+        "label": "Terms declined"
+      }
+    },
+    { "id": "oracle-form-e21", "source": "check-terms", "target": "capture-filled-form", "type": "success" },
+    { "id": "oracle-form-e22", "source": "uncheck-terms", "target": "capture-filled-form", "type": "success" },
+    { "id": "oracle-form-e23", "source": "capture-filled-form", "target": "submit", "type": "success" },
+    {
+      "id": "oracle-form-positive",
+      "source": "submit",
+      "target": "assert-success-url",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.EXPECTED_OUTCOME",
+        "operator": "equals",
+        "expectedValue": "SUCCESS",
+        "priority": 10,
+        "label": "Expected successful submission"
+      }
+    },
+    {
+      "id": "oracle-form-negative",
+      "source": "submit",
+      "target": "assert-blocked-url",
+      "type": "conditional",
+      "kind": "conditional",
+      "conditional": {
+        "sourceField": "dataSourceValue",
+        "variableName": "currentRow.EXPECTED_OUTCOME",
+        "operator": "equals",
+        "expectedValue": "BLOCKED",
+        "priority": 10,
+        "label": "Expected native validation block"
+      }
+    },
+    { "id": "oracle-form-e24", "source": "assert-success-url", "target": "assert-success-heading", "type": "success" },
+    { "id": "oracle-form-e25", "source": "assert-success-heading", "target": "assert-submitted-first-name", "type": "success" },
+    { "id": "oracle-form-e26", "source": "assert-submitted-first-name", "target": "capture-success", "type": "success" },
+    { "id": "oracle-form-e27", "source": "capture-success", "target": "end-success", "type": "success" },
+    { "id": "oracle-form-e28", "source": "assert-blocked-url", "target": "assert-blocked-first-name", "type": "success" },
+    { "id": "oracle-form-e29", "source": "assert-blocked-first-name", "target": "capture-blocked", "type": "success" },
+    { "id": "oracle-form-e30", "source": "capture-blocked", "target": "end-blocked", "type": "success" }
+  ]
+}

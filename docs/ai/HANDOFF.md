@@ -1,5 +1,32 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): Oracle Data Source → row-driven browser workflow complete
+
+The missing Oracle mock-UI workflow is now persisted and executed. The same credential-free fixture
+set can run through the explicit development mock bridge today and against real Oracle after an
+authorized operator provisions the schema and supplies a fresh ephemeral reader password.
+
+- Fixtures: `resources/test-fixtures/mock-site/data-sources/mock-oracle-form-cases.json`,
+  `flows/mock-oracle-form-flow.json`, `workflows/mock-oracle-form-workflow.json`.
+- Main evidence: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/execution-summary.json`.
+- Result: **7 PASS / 0 FAIL / 1 BLOCKED**. The blocked case is live Oracle only; it was not attempted
+  without credentials.
+- Production path: 8 data-driven `ExecutionEngine` instances, maximum 2 active, all completed;
+  run-level report + 8 JSONL logs + 16 engine screenshots.
+- Lower-level matrix: every mapped form value checked for all 8 rows, plus stale-checkbox reuse and
+  native required-terms blocking.
+- Fixes: scheduled rows now reach `currentRow`, structured connectors can read `currentRow.*`, Oracle
+  DATE instants fill HTML date controls as local calendar dates, and the lab terms checkbox is required.
+- Green regressions: Oracle fixture 36/36, bridge 32/32, runner 84/84, concurrency 78/78, mock site
+  84/84, verifier taxonomy 134/134, script type-check, production build.
+- Broader campaign remains **8 PASS / 1 FAIL** at
+  `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/`; the known unrelated
+  `manualApproval` connector defect remains open.
+
+Do not retrieve or persist an Oracle password. For the live rerun, the user/operator must provision
+`SPECTER_MOCKUI`, unlock/mint the reader credential out of band, export `AWKIT_ORACLE_LIVE_*`, run the
+live gate, then rotate and lock the account.
+
 ## ACTIVE (2026-07-25, latest): native-host contract + rebuild orchestration — verified and pushed
 
 The previous session ended with unverified work in the tree after a shell-tooling outage. That work

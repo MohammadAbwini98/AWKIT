@@ -1,0 +1,33 @@
+{
+  "id": "mock-oracle-form-workflow",
+  "name": "Mock — Oracle Data-Driven Customer Form",
+  "description": "Loads the read-only MOCK_FORM_CASES Oracle Data Source and runs one isolated customer-form instance per row.",
+  "version": 1,
+  "createdAt": "2026-07-26T00:00:00.000Z",
+  "updatedAt": "2026-07-26T00:00:00.000Z",
+  "nodes": [
+    {
+      "id": "oracle-form-node",
+      "type": "flowRef",
+      "flowId": "mock-oracle-form-flow",
+      "alias": "mock-oracle-form-flow",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": { "count": 0, "delayMs": 0 },
+      "failurePolicy": "stop",
+      "position": { "x": 180, "y": 180 }
+    }
+  ],
+  "edges": [],
+  "runtimeInputs": [],
+  "execution": {
+    "mode": "sequential",
+    "maxConcurrentInstances": 2,
+    "stopOnRequiredFlowFailure": true
+  },
+  "dataSource": {
+    "dataSourceId": "mock-oracle-form-cases",
+    "rootArrayPath": "$"
+  }
+}

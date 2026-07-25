@@ -64,6 +64,38 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 3. Use `/designer-lab` for manual panel/canvas/card scenarios and `/smart-waits` for wait-node or
    Smart Wait scenario data.
 
+## Oracle-driven form scenario (data-driven runs)
+
+`/form` doubles as the target for **Oracle Data Source** testing. `SPECTER_MOCKUI.MOCK_FORM_CASES`
+(`scripts/oracle/local-19c-mock-ui-fixture.sql`) holds 8 rows whose columns map 1:1 onto the controls on
+this page, so a workflow can run **SELECT → fill `/form` → assert `/success`** once per row.
+
+| Column | `/form` control | Why the row exists |
+| --- | --- | --- |
+| `FIRST_NAME` / `LAST_NAME` / `EMAIL` | `#firstName` / `#lastName` / `#email` | NULL optional text must leave the input **blank**, not type `"null"` |
+| `AGE` / `SALARY` | `#age` / `#salary` | `NUMBER(12,2)` arrives as a 2-decimal **string**, not a JSON number |
+| `BIRTH_DATE` | `#birthDate` | `DATE` arrives as an ISO instant; a NULL date must type nothing |
+| `COUNTRY` / `ACCOUNT_TYPE` | `#country` / `#accountType` | select values must be real options |
+| `SKILLS` | `#skills` (multi) | comma-separated list → one row selects exactly one option |
+| `GENDER` | `#genderMale` / `#genderFemale` | NULL gender must leave **neither** radio selected |
+| `INTEREST_*` / `ACCEPT_TERMS` | checkboxes | `0` must actively **uncheck** on a reused page |
+| `EXPECTED_OUTCOME` | — | `SUCCESS` for 7 rows; `BLOCKED` for the terms-declined negative case |
+
+The same dataset is served **without a database** by `MockFormCasesFixture` in the bridge's mock
+executor, so the identical SQL and workflow run offline (`AWKIT_ORACLE_BRIDGE_MOCK=1`). Packaged builds
+still refuse mock mode. Verify both edges — and that the fixture's values are still valid controls on
+this page — with:
+
+```bash
+npm run verify:oracle-mock-ui
+npm run verify:oracle-mock-ui-workflow
+```
+
+The first command proves SQL-fixture/bridge parity and control compatibility. The second loads the
+persisted Oracle Data Source, flow, and workflow, runs all 8 rows in real Chromium (including the
+production `ExecutionEngine` path), checks every mapped DOM value, captures screenshots/logs/reports,
+and proves the terms-declined row remains on `/form` because `#acceptTerms` is required.
+
 ## Extending the lab
 
 - Check existing scenarios before creating a new page.

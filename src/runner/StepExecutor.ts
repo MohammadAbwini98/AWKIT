@@ -1590,8 +1590,8 @@ export class StepExecutor {
       }
 
       case "fill": {
-        const value = await this.resolveStepValue(step);
         const locator = await this.locatorFactory.resolve(step);
+        const value = await this.normalizeFillValueForControl(locator, await this.resolveStepValue(step));
         if (step.config?.clearBeforeFill) await locator.clear({ timeout: step.timeoutMs ?? 10_000 });
         await locator.fill(value, { timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
@@ -2384,7 +2384,10 @@ export class StepExecutor {
         if (target) await target.click({ timeout });
         return;
       case "fill":
-        if (target) await target.fill(await this.resolveStepValue(step), { timeout });
+        if (target) {
+          const value = await this.normalizeFillValueForControl(target, await this.resolveStepValue(step));
+          await target.fill(value, { timeout });
+        }
         return;
       case "scroll":
         await this.activePage.mouse.wheel(0, step.config?.scrollAmount ?? 500);
@@ -2412,6 +2415,23 @@ export class StepExecutor {
       await this.limitOp("screenshot", () => this.activePage.screenshot({ path: screenshotPath, fullPage: options?.fullPage ?? true }));
     }
     return screenshotPath;
+  }
+
+  /**
+   * Oracle DATE values arrive from the JDBC bridge as ISO instants. HTML date inputs accept only
+   * `YYYY-MM-DD`, so recover the calendar date in this process's local zone (the same default zone
+   * inherited by the Java bridge). Ordinary text inputs and already-normalized date strings are
+   * left untouched; NULL values have already resolved to the empty string.
+   */
+  private async normalizeFillValueForControl(locator: Locator, value: string): Promise<string> {
+    if (!value || (await locator.getAttribute("type").catch(() => null))?.toLowerCase() !== "date") return value;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    const year = String(parsed.getFullYear()).padStart(4, "0");
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   /**

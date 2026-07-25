@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Oracle mock-UI fixture (2026-07-26, current)
+
+`SPECTER_MOCKUI.MOCK_FORM_CASES` is a new 8-row fixture whose columns map 1:1 onto the Feature Test Lab
+form at `/form`, so the Oracle Data Source node can be tested **driving a UI workflow**
+(`SELECT → fill form → assert /success`) rather than only for type conversion. Bead `awkit-v8x`.
+
+- **Real Oracle:** `scripts/oracle/local-19c-mock-ui-fixture.sql` — schema-only owner `SPECTER_MOCKUI`,
+  least-privilege `SELECT` to `SPECTER_READER`, private synonym, idempotent. **Not yet provisioned on the
+  local 19c** (needs SYSDBA + an ephemeral reader password).
+- **Database-free twin:** `MockFormCasesFixture` — the bridge's mock executor serves the same 8 rows for
+  any statement naming `MOCK_FORM_CASES`, so the identical SQL and workflow run with no DB and no driver.
+  It mirrors the real JDBC conversions (`NUMBER(12,2)` → 2-decimal **string**; `DATE` →
+  `Timestamp.toInstant()`, JVM-zone dependent) rather than hardcoding values. Packaged builds still refuse
+  mock mode — this changes nothing about the fail-closed rule.
+- **Persisted fixtures:** `mock-oracle-form-cases.json`, `mock-oracle-form-flow.json`, and
+  `mock-oracle-form-workflow.json`. The flow maps every compatible `/form` control, routes radio and
+  checkbox choices from `currentRow`, captures populated/success/blocked screenshots, disables automatic
+  retry on Submit, and gives the terms-declined row an explicit expected-block terminal.
+- **Runtime fixes found by the end-to-end run:** `ExecutionEngine` now carries `currentDataRow` into
+  `InstanceExecutionContext.currentRow`; structured flow connectors can resolve `currentRow.*`; Oracle
+  DATE ISO instants are normalized for `<input type=date>`; `/form` now enforces required terms.
+- **Verified:** `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED** (live Oracle only),
+  `verify:oracle-mock-ui` **36/36**, `verify:oracle-bridge` **32/32**, `verify:runner` **84/84**,
+  `verify:concurrency` **78/78**, `verify:mock-site` **84/84**, script type-check and production build.
+  Evidence: `test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/`.
+- **Open:** the same persisted workflow has not been run against real 19c; that requires SYSDBA
+  provisioning plus the authorized ephemeral `SPECTER_READER` credential lifecycle.
+
 ## Workflow: single branch, continuous implementation (2026-07-25, current)
 
 **Push is UNBLOCKED and `origin/main` is current** at `3128fdf`. Consolidation is complete: `main`
