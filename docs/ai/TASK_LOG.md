@@ -5546,3 +5546,311 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   single-instance lock; not force-killed); packaged installer + `validate:offline` -Strict (packaging host
   gate); packaged-renderer visual paint + GUI check 11.3 walkthrough (need screen access). No commit/push
   (conservative profile — awaiting approval).
+## 2026-07-21 — Claude — Randomized Automation Test Lab: Phases 1-3 + Phase 0 prerequisites (epic `awkit-wza`)
+
+- **Task:** build the generation/oracle/round-trip layers of the randomized test lab, then take
+  Phase 0 (`awkit-wza.1`).
+- **Files:** new `src/testing/{random,oracle,roundtrip,fixtures}/**`, `scripts/verify-random-{generator,oracle,roundtrip}.mts`,
+  `app/renderer/components/workflow/flowProfileMapping.ts`, `docs/testing/RANDOMIZED_TESTING_{ARCHITECTURE,IMPLEMENTATION_PLAN}.md`,
+  `mock-site/public/{runner-lab,iframe-lab,iframe-child,index}.html`, `mock-site/server.mjs`,
+  `mock-site/README.md`; modified `app/renderer/pages/FlowChartDesigner.tsx` (extraction),
+  `scripts/verify-durable-store.mts` (stale assertions), `scripts/verify-mock-site.mjs`.
+- **Tests run:** `npm run build` passed; `verify-random-generator` 49/49; `verify-random-oracle`
+  19 passed / 1 failed (real defect `awkit-acw`); `verify-random-roundtrip` 8 passed / 15 failed by
+  design; `verify:mock-site` 65/65; `verify-durable-store` 11/11 (was 10/1);
+  `check-memory.mjs` passed.
+- **Not run:** `verify:runner`, `validate:offline`, packaged-EXE and clean-machine gates — no runner
+  or packaging behavior changed. Phase 5 (live execution) is not built, so no generated flow has yet
+  been executed against a browser.
+- **Result:** Phases 1-3 complete and Phase 0 complete. 15 defect issues filed under epic
+  `awkit-wza`; the 13 round-trip defects are blocked on Phase 0 in Beads because the fix lands in
+  the newly extracted mapping module. Two verifiers are intentionally red and must stay that way
+  until their product defects are fixed.
+
+## 2026-07-21 — Claude — Fix RT-14 value/valueSource flattening (`awkit-1w5`, also closes `awkit-ihx`)
+
+- **Task:** the most severe round-trip defect — `fromFlowStep` collapsed `FlowStep.value` and
+  `FlowStep.valueSource` into one designer string, and `createValueSource` rebuilt a typed source
+  from it. `step.url` headed the recovery chain, so a `goto`'s source was overwritten by its URL.
+- **Key insight:** the properties panel only authors `static` and `dynamic` (FlowNodePropertiesPanel
+  line 80 collapses every other kind to "static"). The other seven kinds come from the Recorder,
+  imports, or hand-edited profiles — so the designer must *preserve* them, not re-derive them.
+- **Files:** `app/renderer/components/workflow/flowDesignerTypes.ts` (new `valueSourceOriginal`),
+  `flowProfileMapping.ts` (`createValueSource` passes non-authorable kinds through; `fromFlowStep`
+  keeps `value` as the literal only; `toFlowStep` no longer persists `url: ""`),
+  `FlowNodePropertiesPanel.tsx` (read-only hint naming a preserved source),
+  `src/testing/roundtrip/RoundTripDefectCatalog.ts` (RT-02 and RT-14 entries deleted),
+  `scripts/verify-random-roundtrip.mts` (8 new edit-path assertions),
+  `src/testing/random/RandomConfigurationGenerator.ts` (no plaintext `url` beside a secret source).
+- **Tests run:** `npm run build` passed; `verify:flow-designer` 24/24 in real Electron;
+  `verify-random-roundtrip` 8+15 → **17 passed / 12 failed** (still red by design, 0 unexpected new
+  failures, defect shapes 46 → 35, "secret references survive the round trip" now passes);
+  `verify-random-generator` 49/49; `verify-random-oracle` 19+1; `verify-durable-store` 11/11;
+  `verify:mock-site` 65/65.
+- **Not run:** `verify:runner`, `validate:offline` — no runner or packaging behavior changed.
+- **Result:** RT-14 and RT-02 fixed and their catalog entries deleted, so a recurrence now reports
+  as a regression rather than a known baseline. 11 round-trip defects remain.
+
+## 2026-07-21 — Claude — HANDOFF prepared (Randomized Automation Test Lab)
+
+- **Task:** prepare the repository for the next agent/human after the test-lab session.
+- **Files:** `docs/ai/HANDOFF.md` (new dated block at the top: branch table, active task, completed work,
+  the two intentionally-red verifiers, remaining work, risks, do-not-touch; the stale mid-file "clean main"
+  status marked SUPERSEDED), `docs/ai/CURRENT_STATE.md` (RT-14/RT-02 fix + branch reality),
+  `docs/ai/COMMANDS.md` (the three lab verifiers, with their expected-failure counts and the note that no
+  npm aliases exist yet), `docs/ai/TASK_LOG.md` (this entry).
+- **Repository state recorded:** working tree clean; `main` unchanged at `382847c`;
+  `chore/brand-logo-5b` @ `a1adcc2` (owner checkpoint) and `feature/randomized-test-lab` @ `562c29b`
+  (6 commits) both **local, unpushed, no PRs**.
+- **Checks run:** `git status --short --branch` (clean), `git diff --stat` (empty),
+  `node scripts/ai-memory/check-memory.mjs` (pass).
+- **Result:** `docs/ai/HANDOFF.md` is current and agent-agnostic. No secrets, tokens or credentials were
+  written to any Markdown file.
+
+## 2026-07-21 — Claude — Test Lab Tranche 1: fix all round-trip data-loss defects (RT-01…RT-15)
+
+- **Task:** make the Flow Designer persistence round-trip lossless — fix the 11 observed + 2 predicted
+  round-trip defects catalogued by Phase 3, without weakening any assertion. First tranche of the approved
+  plan (`.claude/plans/write-a-plan-to-refactored-wirth.md`), checkpoint-based rollout.
+- **Approach:** the designer *preserves* fields it cannot author rather than re-deriving them (extends the
+  RT-14 `valueSourceOriginal` pattern). All fixes land in the single mapping
+  `app/renderer/components/workflow/flowProfileMapping.ts`.
+- **Files:** `flowProfileMapping.ts` (all mappings: locator gate RT-01, popup/safety/loop/message
+  pass-through RT-03/04/15, edge id+label RT-05/08, flow `meta` arg RT-06/07, `maxLoopCount` RT-11,
+  section-gated `toNodeConfig` RT-09, edit-safe absent-field omission RT-10, full outputs map RT-12,
+  retained dynamic ids RT-13); `flowDesignerTypes.ts` (pass-through fields + `absentOnLoad`);
+  `FlowChartDesigner.tsx` (thread `flowMeta` + persisted `edge.id`, `createdAt` fallback on save);
+  `RandomConfigurationGenerator.ts` (exercise RT-13 discriminator mix + RT-15 `message`/`loop`);
+  `RoundTripDefectCatalog.ts` (emptied — all 13 entries deleted per its own rule; now a regression guard);
+  `scripts/verify-random-roundtrip.mts` (stale "expected to fail" comments updated; +8 field-edit
+  regression checks).
+- **Tests run:** `verify-random-roundtrip` **26 passed / 0 failed** (was 8/15) · `verify-random-generator`
+  **49/0** · `verify-random-oracle` **19/1** (intentional gap `awkit-7fm`) · `verify-durable-store`
+  **11/11** · `verify:flow-designer` **24/24 real Electron** · `verify:runner` **82/0** · `npm run build`
+  clean · `check-memory` pass.
+- **Not run:** `validate:offline` (no packaging/offline behavior changed).
+- **Beads:** closed `awkit-abi/4t9/3lq/07c/3qs/ani/7df/ao6/who/o4q/x8w` (11 observed defects).
+- **Result:** the Phase-3 round trip is lossless; the intentionally-red baseline verifier is green and now
+  serves as a regression guard. No assertion was tuned, skipped or weakened; no lost field was excluded.
+  RT-10 was made edit-safe (a user edit to a previously-absent field is always persisted). Tranche 1
+  checkpoint — paused for review before Tranche 2 (unified validation, an architectural checkpoint).
+
+
+## 2026-07-21 — Claude — Test Lab Tranche 2 Stage 2a: pure Flow Validation Engine
+
+- **Task:** build the shared `FlowValidator` (all 9 missing rules + reachability + active-path
+  classification), add `verify-validation.mts`, and rewire the Phase-2 oracle so every known validation
+  gap is detected. Explicitly behavior-neutral: nothing wired into save/run/import/designer/builder, no
+  flow file or schema changed, no Legacy Compatibility state, no auto-fix or migration.
+- **Approach:** one pure engine in `src/validation/` that *wraps* the existing
+  `validateConnectorStructure` (leaving the enforced runtime gate untouched) and adds the flow-level
+  rules. Reachability is a forward BFS from Start, lifted from `verify-random-generator.mts`; it drives
+  both `unreachableNode` and every issue's `onActivePath` flag. The engine is verdict-free — callers
+  decide blocking policy. Locator/value requirements moved into an exhaustive `Record<StepType, …>` so
+  the compiler, not a reviewer, catches drift.
+- **Files:** NEW `src/validation/FlowValidator.ts`, `src/validation/StepRequirements.ts`,
+  `scripts/verify-validation.mts`, `docs/plans/FLOW_VALIDATION_ENGINE_DESIGN.md`; MODIFIED (test lab only)
+  `src/testing/oracle/TestExecutionOracle.ts` (drives the engine, `productionEnforced` flag, 9 gaps →
+  detected, `PRODUCTION_UNENFORCED_RULES`), `src/testing/random/RandomMutator.ts` (one-line-class fix,
+  below), `scripts/verify-random-oracle.mts` (engine negative control, active-path section, Stage 2b
+  checklist in the report). **No production runtime file was touched.**
+- **Tests run:** `verify-validation` **99/0** (new) · `verify-random-oracle` **26/0** (was 19/1) ·
+  `verify-random-roundtrip` **26/0** · `verify-random-generator` **49/0** · `verify:runner` **82/0** ·
+  `verify:profile-store` **13/13** · `verify:ipc-contract` **4/4** · `verify:workflow-sentinels` **4/4** ·
+  `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging/offline change), `verify:flow-designer` GUI (no renderer
+  change), live GUI walkthrough.
+- **Defects found:** (1) the `missingRequiredValue` mutation was a **no-op on `runFlow`** — it cleared
+  `value`/`valueSource`/`url`, but the runner resolves `step.flowId ?? step.config?.targetFlowId`
+  (`StepExecutor.ts:955`), so the mutated flow stayed valid and the oracle scored "correctly undetected"
+  against a flow that was never broken. Fixed in the mutator so every `requiresValue` type gets a real
+  defect. (2) Loop-bound cap is inconsistent in the product: `FLOW_BOUNDS.maxLoopIterations` is 10_000
+  while the designer gate and `LOOP_CONNECTOR_HARD_CAP` are 1_000; the engine uses 1_000 and the
+  divergence is left for Stage 2b.
+- **Beads:** `awkit-lqe` (Stage 2a) closed. `awkit-7fm` and `awkit-acw` stay OPEN — detection is proven,
+  production enforcement is Stage 2b.
+- **Result:** Stage 2a checkpoint. Every controlled defect class is now detected by a validator, but 10 of
+  those rules are engine-only; the oracle asserts that exact set so it cannot be mistaken for product
+  coverage. Paused for review before Stage 2b (wiring — a real behavior change).
+
+## 2026-07-21 — Claude — Test Lab Tranche 2 Stage 2b: wire the validation engine into production
+
+- **Task:** make `FlowValidator` the single validation source for the run gate, designer, builder,
+  library and import, per the approved Stage 2b spec. Product decisions implemented: canonical loop cap
+  1,000 (`src/validation/FlowLimits.ts`; `FLOW_BOUNDS` aligned from 10,000; no silent validation clamp);
+  structured connector findings (`validateConnectorStructureDetailed`, string form wraps it); test-lab
+  `runFlow` generator derives `config.targetFlowId` from `flowId`.
+- **Runtime gate:** `PreRunValidator` rewritten as a thin adapter — flow rules delegated to
+  `validateFlowSet`, hardcoded locator list deleted (`awkit-acw`), issues carry
+  `blocking/code/flowId/nodeId/edgeId/onActivePath`, `isRunBlocked` is the one policy call.
+  Blocking = active-path errors + all connector-structure errors (runtime refuses those flow-wide —
+  documented deviation). Scoped to scenario flows + transitive runFlow closure, fixing a pre-existing
+  bug where any broken library flow blocked every run.
+- **Files:** NEW `src/validation/FlowLimits.ts`; MODIFIED `src/validation/FlowValidator.ts`,
+  `src/profiles/FlowProfile.ts` (detailed findings), `src/profiles/FlowValidation.ts`,
+  `src/runner/FlowExecutor.ts` (cap constant only), `src/reports/PreRunValidator.ts` (rewrite),
+  `app/main/ipc/execution.ipc.ts`, `app/main/ipc/flow.ipc.ts` (+import validation),
+  `app/main/preload.ts`, `app/renderer/pages/FlowChartDesigner.tsx` (draft save, chip+issue panel,
+  navigation, advisories), `ScenarioBuilder.tsx` (save-block removed, engine findings surfaced),
+  `FlowLibrary.tsx` (Checking→derived status), `InstanceMonitor.tsx` (structured failure message),
+  `Toast.tsx` (+info tone), `global.css`, test lab (`TestExecutionOracle.ts`,
+  `RandomConfigurationGenerator.ts`, `ConnectorCatalog.ts`), verifiers (`verify-validation.mts` +25,
+  `verify-random-oracle.mts`, `verify-random-generator.mts`, `verify-profile-store.mts` +3,
+  `verify-flow-designer-gui.mjs` +13, `verify-canvas-perf.mjs` harness repair).
+- **Tests run:** `verify-validation` **124/0** · `verify-random-oracle` **27/0** ·
+  `verify-random-generator` **49/0** · `verify-random-roundtrip` **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **37/37** (real Electron: draft save, graph unchanged, chip, issue navigation,
+  gate validationFailed with structured issues, scoped validation, library Checking→derived, no
+  persisted verdict) · `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** ·
+  `verify:profile-store` **16/16** · `verify:instance-monitor` **43/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging change), packaged-EXE walkthrough.
+- **Defects found:** (1) pre-existing: `validateWorkflow` validated the ENTIRE flow library, so any
+  broken draft blocked every run — fixed by scoping. (2) pre-existing: `verify-canvas-perf` drove
+  `firstWindow()` (now the splash, no preload) against the developer's real profile (now auth-gated) —
+  repaired onto the isolated harness. (3) test-lab: generator could emit `runFlow` steps whose `flowId`
+  and `config.targetFlowId` disagreed — fixed + invariant test.
+- **Beads:** closed `awkit-7fm`, `awkit-acw`, `awkit-nmg`.
+- **Result:** Stage 2b checkpoint. No Legacy Compatibility persistence, no auto-fix, no migration
+  subsystem (all Stage 2c). Paused for review before Stage 2c.
+
+## 2026-07-22 — Claude — Test Lab Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem
+
+- **Task:** complete the staged enforcement model — off-path errors block under the full gate unless an
+  explicit, time-limited, audited Legacy Compatibility grant tolerates them; add the suggested-fix
+  migration subsystem (preview, backup, confirm, report, undo) and the inventory scan.
+- **Approach:** two new PURE modules so the policy is testable and shareable —
+  `src/validation/LegacyCompatibility.ts` (content hash, grant standing, `effectiveVerdict`, inventory
+  classification, grant planning) and `src/validation/SafeFixApplier.ts` (the only code that mutates a
+  flow, restricted to an exhaustive switch of schema-migration fields). The main-process
+  `FlowValidationService` owns storage and ceremony and is deliberately **electron-free** so
+  `verify-legacy-compat.mts` drives the real service against temp folders.
+- **Files:** NEW `src/validation/LegacyCompatibility.ts`, `src/validation/SafeFixApplier.ts`,
+  `app/main/validation/flowValidationService.ts`, `app/main/validation/index.ts`,
+  `app/main/ipc/validation.ipc.ts`, `scripts/verify-legacy-compat.mts`; MODIFIED
+  `src/validation/FlowValidator.ts` (casing fixes for every enum family; fixed inverted field paths),
+  `src/reports/PreRunValidator.ts` (grant-aware blocking + never-silent compatibility warning),
+  `app/main/ipc/execution.ipc.ts` (ensureInventoryScan, grants, run auditing),
+  `app/main/ipc/index.ts`, `app/main/preload.ts`, `app/renderer/pages/FlowChartDesigner.tsx`
+  (validate-on-load banner, preview dialog, undo), `FlowLibrary.tsx` (IPC-sourced status + Legacy
+  pill), `global.css`, `scripts/verify-validation.mts` (3 assertions retargeted to the 2c policy),
+  `scripts/verify-flow-designer-gui.mjs` (+22 checks, 2 retargeted).
+- **Tests run:** `verify-legacy-compat` **90/0** (new) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · `verify-random-generator` **49/0** · `verify-random-roundtrip`
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56** · `verify:workflow-builder`
+  **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16** ·
+  `verify:instance-monitor` **43/0** · `verify:authz` **40/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not run:** `validate:offline` (no packaging change), packaged-EXE walkthrough.
+- **Defects found:** (1) migration ids and backup paths were `flowId.timestamp` — two migrations in the
+  same millisecond collided and the second would have OVERWRITTEN the first's backup (the one artifact
+  that must never be lost); ids are now uniquified. Found by the frozen test clock. (2) Stage 2a latent
+  bug: `safeFix.field` was inverted between conditional and loop-condition operators — descriptive-only
+  then, a silent no-op the moment an applier consumed it; both directions now pinned.
+- **Beads:** closed `awkit-9xb`. Epic `awkit-wza` Tranche 2 complete.
+- **Result:** Stage 2c checkpoint. Enforcement is complete and recoverable: nothing auto-fixes, nothing
+  is destroyed, every exemption is explicit, time-limited, content-bound and audited.
+
+## 2026-07-22 — Claude — Tranche 2 hardening: SHA-256 grant binding + packaged validation
+
+- **Task:** replace the FNV-1a content hash behind Legacy Compatibility grants with SHA-256 at a
+  trusted boundary; safely handle pre-hardening records; harden the inventory scan; then build a fresh
+  package and validate the whole subsystem packaged, on clean and upgrade profiles. Status stays
+  INTEGRATION-CANDIDATE.
+- **Hash:** canonicalization stays PURE (`canonicalFlowContent` — sorted keys, dropped `undefined`,
+  preserved array order, over `{version, nodes, edges}`); the digest is SHA-256 computed in
+  `app/main/validation/contentDigest.ts` (`node:crypto`) and injected, so `src/` still imports no Node
+  built-ins. Digests are tagged `sha256:` so stored records are self-identifying.
+  `PreRunValidator.legacyCompatibility.digestFor` is required for any grant to be honored — omitting
+  it fails closed.
+- **Old records:** a non-current digest yields standing `legacyDigest` (never honored, distinct from
+  `edited`), is revoked as `digestFormatRetired` for audit, and is **not replaced** — no deadline
+  extension, no auto-created grant, and a retired record cannot be revived by re-scanning.
+- **Scan hardening:** single-flight `runInventoryScan`; serialized grant writes; scan record written
+  last so a failure leaves no record, no grants, and retries; the run gate applies the strict gate if
+  the scan or grant store fails.
+- **Files:** NEW `app/main/validation/contentDigest.ts`, `scripts/verify-packaged-validation.mts`;
+  MODIFIED `src/validation/LegacyCompatibility.ts`, `src/reports/PreRunValidator.ts`,
+  `app/main/validation/flowValidationService.ts`, `app/main/ipc/validation.ipc.ts`,
+  `app/main/ipc/execution.ipc.ts`, `app/renderer/pages/FlowChartDesigner.tsx`,
+  `scripts/verify-legacy-compat.mts` (+48), `scripts/verify-validation.mts`,
+  `scripts/verify-packaged-runtime.mts` (splash-window fix), docs.
+- **Package:** `dist/SpecterStudio 0.1.0.exe`, built 2026-07-22T00:32:12+03:00, 325,296,994 bytes,
+  sha256 `129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb`.
+- **Tests run:** `verify-legacy-compat` **138/0** · `verify-packaged-validation` **87/0** (new) ·
+  `verify:packaged-runtime` **25/0** (was 12/10) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · generator **49/0** · roundtrip **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **56/56** · `verify:workflow-builder` **20/20** · `verify:canvas-perf`
+  **13/13** · `verify:profile-store` **16/16** · `verify:authz` **40/0** · `verify:ipc-contract`
+  **4/4** · `validate:offline -Strict` pass · `npm run build` clean.
+- **Not run:** clean offline VM walkthrough (the outstanding gate), NSIS installer, sustained soak.
+- **Defects found:** (1) pre-existing — `verify:packaged-runtime` used `firstWindow()`, which lands on
+  the splash window that has no preload API, so 10 packaged runtime assertions had been failing;
+  fixed by resolving the window that carries the preload bridge. (2) Two harness bugs in the new
+  packaged suite (asserting `legacyDigest` after retirement had already made it `revoked`; picking an
+  edited flow for the expiry test, where `edited` correctly outranks `expired`) — both fixed, and the
+  `legacyDigest` standing is now additionally asserted pre-scan.
+- **Beads:** closed `awkit-xy3`.
+- **Result:** hardening checkpoint. Status remains
+  `INTEGRATION-CANDIDATE — packaged validation and SHA-256 grant binding pending` per instruction;
+  both named items are now done, and the remaining gate is the clean offline VM walkthrough.
+
+## 2026-07-22 — Claude — Tranche 2 hardening checkpoint 2: status/manifest cleanup, script type gate, scale probe, installer
+
+- **Task:** correct the status string; resolve the dependency-manifest working-tree change; close the
+  `scripts/` type-check gap; add a 1,000-flow scale probe; build+validate the NSIS installer; run the
+  final clean-machine environment gate before Phases 4–8.
+- **Status:** corrected to `INTEGRATION-CANDIDATE — clean offline VM and installer validation pending`
+  across CURRENT_STATE, the design doc and the Tranche 2 report. Committed separately (`336a3a2`).
+- **Manifest:** `resources/dependency-manifest.json` is generated packaging output (buildMode/builtAt
+  rewritten by every package/prep script) — restored to the committed `development-offline-prep`
+  baseline, not committed. Working tree clean.
+- **Script type gate (`cb13f8b`):** NEW `tsconfig.scripts.json` + `npm run typecheck:scripts` +
+  `verify:all-typecheck`; found 36 real errors in never-type-checked scripts, all fixed narrowly
+  (signature/CFA-only). One real src/ bug: `NullRuntimeStore` (RuntimeStore.ts) declared zero-arg
+  methods its interface defines with params — aligned. NEW `build-oracle-bridge.d.mts` types the JS
+  helper. Every touched verifier re-run green (runner 82/0, auth 49/0, popup 12/0, telemetry 61/0,
+  operation-limiters 10/0, secrets 16/0, validation 125/0, runtime-status 15/0).
+- **Scale probe (`measure-inventory-scale.mts`, 1000 flows, packaged, 9/0):** scan 4.24s, renderer
+  round-trip median 4ms / worst 177ms (mild stall during 250 serial grant writes — measured, not
+  thresholded), peak tree RSS 231MB, 250 grants (sha256-bound), 1 scan record; concurrent run
+  requests during init all waited safely (single-flight); re-scan extended no deadline.
+- **Artifacts (both NotSigned per Authenticode):** portable `dist/SpecterStudio 0.1.0.exe`
+  325,296,994 B sha256 129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb; NSIS
+  `dist/SpecterStudio Setup 0.1.0.exe` 373,904,285 B sha256
+  74950020d105af9b5f188d09a467d1ad297fbfc064b12cabe9931f1c4e6e2a5a, sha512 matches latest.yml,
+  per-user/no-elevation.
+- **Environment gate NOT run:** re-confirmed no clean-machine capability (WindowsSandbox.exe absent;
+  Sandbox feature-enable needs elevation the non-admin agent account lacks; no provisioned guest VM).
+  The clean-VM walkthrough + installer install/upgrade/uninstall lifecycle + standard-user/offline
+  test remain the human gate. Added a Tranche 2 validation-subsystem checklist as
+  `PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3b. The packaged validation I ran DID execute under a standard
+  (non-admin) account.
+- **Not run:** clean-machine walkthrough, installer install/upgrade/uninstall lifecycle, max-compressed
+  distributables, signing, sustained soak.
+- **Beads:** `awkit-xy3` already closed (checkpoint 1). No new bead — this is the same hardening scope.
+- **Result:** Tranche 2 is **NOT** marked COMPLETE and Product is **NOT** advanced — both are
+  conditioned on the environment gate passing on a genuine clean machine, which this agent environment
+  cannot provide. Everything runnable here is green; the remaining gate is the documented human
+  walkthrough.
+
+## 2026-07-22 — Claude — Clean-machine validation runbook + status wording
+
+- **Task:** produce a standalone clean-machine validation runbook for a qualifying Windows
+  environment, and set the authoritative status wording. No product changes; preserve commits,
+  artifacts, checksums, logs and reports unchanged.
+- **Delivered:** `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` (repo root, standalone) — environment/standard-
+  user constraints, both artifact hashes + NotSigned status, offline setup, clean-profile and
+  upgrade-profile procedures, portable + NSIS install/upgrade/uninstall checks, the full
+  validation/grants/migration/backup/restart/undo scenario matrix, expected pass/fail (blockers vs
+  findings), evidence-to-collect, and a result template (tester, machine, Windows version, account
+  privilege, start/end, blockers, findings, final recommendation). Every clean-machine step is
+  labelled **Not Executed**; the runbook makes no pass claims.
+- **Status wording set** in CURRENT_STATE.md: `Tranche 2: IMPLEMENTED AND VERIFIED ON THE DEVELOPER
+  MACHINE — CLEAN-MACHINE ACCEPTANCE PENDING`; `Product promotion: NOT YET APPROVED`; remaining gate =
+  clean offline Windows environment validation. Prior evidence explicitly labelled developer-machine
+  only, not clean-machine.
+- **Not changed:** no product code; the four Tranche 2 commits and three hardening commits, the built
+  artifacts, their checksums, and the historical reports/logs are unchanged.
+- **Result:** checkpoint stopped as instructed. Promotion is gated on a successful runbook execution
+  in a qualifying environment. Nothing pushed; no PR.

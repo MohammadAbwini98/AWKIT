@@ -998,6 +998,9 @@ async function main() {
       plCaptureCalls.push(opts ?? {});
     };
     let protectedStart: { name: string; targetUrl: string; source: string } | undefined;
+    // Read through a helper: the assignment happens inside a mock service callback, which TS's
+    // control-flow analysis cannot see, so a direct read is wrongly narrowed to `undefined`.
+    const capturedStart = () => protectedStart;
     let protectedMarked = "";
     const protectedCaptureSvc = {
       list: async () => [],
@@ -1063,8 +1066,8 @@ async function main() {
       autoProtectedResult.status === "passed" &&
         autoProtectedResult.outcome === "sessionCaptured" &&
         autoProtectedResult.outputs.protectedLoginSessionCaptured === true &&
-        protectedStart?.source === "manualChromeHandoff" &&
-        protectedStart?.targetUrl === protectedDataUrl &&
+        capturedStart()?.source === "manualChromeHandoff" &&
+        capturedStart()?.targetUrl === protectedDataUrl &&
         plCaptureCalls.some((call) => call.closeOnly) &&
         plCaptureCalls.some((call) => call.newUserDataDir === "/tmp/protected-session") &&
         protectedMarked === "protected-session",

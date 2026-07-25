@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iframe Lab - frame-scoped locators</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Iframe Lab</h1>
+      <p>
+        A same-origin interactive iframe for exercising <code>LocatorFrameContext</code>. The
+        deliberate trap: the top document and the child both contain a control labelled
+        <em>Message</em> and a button, so a locator that ignores frame scoping resolves to the wrong
+        one instead of failing outright.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+
+      <!-- ── Decoys in the TOP document ────────────────────────────────────── -->
+      <section data-testid="outer-section">
+        <h2>Top document (decoy controls)</h2>
+        <p>
+          <label for="outerInput">Message</label>
+          <input id="outerInput" name="outerInput" type="text" placeholder="Type inside the frame" data-testid="outer-input" />
+        </p>
+        <button type="button" data-testid="outer-submit">Apply inside frame</button>
+        <p>Top-level status: <span data-testid="outer-status">idle - the top button does nothing useful</span></p>
+      </section>
+
+      <!-- ── The frame under test ──────────────────────────────────────────── -->
+      <section data-testid="frame-section">
+        <h2>Child frame</h2>
+        <iframe
+          id="labFrame"
+          data-testid="lab-frame"
+          title="Interactive child frame"
+          src="/iframe-child"
+          width="100%"
+          height="420"
+        ></iframe>
+      </section>
+
+      <!-- ── Parent-visible mirror of the child's state ────────────────────── -->
+      <section data-testid="mirror-section">
+        <h2>Parent mirror</h2>
+        <p>The child posts its state up, so a top-level assertion can confirm the frame interaction happened.</p>
+        <p>Mirrored message: <span data-testid="mirror-message"></span></p>
+        <p>Mirrored country: <span data-testid="mirror-country"></span></p>
+        <p data-testid="mirror-applied" hidden>Child frame reported an apply</p>
+      </section>
+    </main>
+
+    <script>
+      const set = (testId, value) => {
+        document.querySelector(`[data-testid="${testId}"]`).textContent = value;
+      };
+
+      // The decoy button is intentionally inert: clicking it proves a locator missed the frame.
+      document.querySelector('[data-testid="outer-submit"]').addEventListener("click", () => {
+        set("outer-status", "top-level button clicked - the frame was NOT used");
+      });
+
+      window.addEventListener("message", (event) => {
+        if (event.origin !== window.location.origin) return;
+        const data = event.data;
+        if (!data || data.source !== "iframe-child") return;
+        if (data.reset) {
+          set("mirror-message", "");
+          set("mirror-country", "");
+          document.querySelector('[data-testid="mirror-applied"]').hidden = true;
+          return;
+        }
+        set("mirror-message", data.message ?? "");
+        set("mirror-country", data.country ?? "");
+        document.querySelector('[data-testid="mirror-applied"]').hidden = false;
+      });
+    </script>
+  </body>
+</html>

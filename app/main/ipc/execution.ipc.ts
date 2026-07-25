@@ -4,7 +4,9 @@ import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import { workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
-import { PreRunValidator } from "@src/reports/PreRunValidator";
+import { PreRunValidator, isRunBlocked } from "@src/reports/PreRunValidator";
+import { getFlowValidationService } from "../validation";
+import type { CompatibilityGrant } from "@src/validation/LegacyCompatibility";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
 import { DataSourceResolver } from "@src/data/DataSourceResolver";
 import { isOracleDataSource, type DataSourceProfile, type JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
@@ -193,7 +195,26 @@ async function validateWorkflow(workflowId: string) {
   const workflow = await workflowStore.get(workflowId);
   const flows = await flowStore.list();
   const scenario = workflow ? workflowToScenarioProfile(workflow) : undefined;
-  const issues = new PreRunValidator().validate({ scenario, flows, runtimeInputs: {} });
+  // Stage 2c: hand the gate the Legacy Compatibility grants. `ensureInventoryScan` makes the first
+  // run after an enforcement change perform the inventory scan, so flows that already existed —
+  // unchanged — get their time-limited grant instead of breaking without warning. Grants only ever
+  // tolerate OFF-PATH errors; validation still runs fresh on every call.
+  const validationService = getFlowValidationService();
+  // Fail CLOSED: if the scan or the grant store is unavailable, run with NO grants — the strict
+  // gate — rather than assuming a flow was exempt. A storage failure must never widen tolerance.
+  let grants: ReadonlyMap<string, CompatibilityGrant> = new Map();
+  try {
+    await validationService.ensureInventoryScan();
+    grants = await validationService.grantsMap();
+  } catch (error) {
+    console.warn(`[validation] inventory/grant lookup failed; applying the strict gate: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  const issues = new PreRunValidator().validate({
+    scenario,
+    flows,
+    runtimeInputs: {},
+    legacyCompatibility: { grants, digestFor: validationService.contentDigest }
+  });
   const plan = scenario ? new ScenarioOrchestrator().createExecutionPlan(scenario) : null;
 
   return {
@@ -201,7 +222,11 @@ async function validateWorkflow(workflowId: string) {
     scenario,
     plan,
     issues,
-    valid: issues.every((issue) => issue.severity !== "error")
+    // Stage 2b: block on BLOCKING issues only — errors on the active execution path (plus
+    // connector-structure errors, which the runtime rejects flow-wide). Warnings and confirmed
+    // off-path errors (e.g. an unreachable orphan node) report but never block. The issues array
+    // carries structured locations (code/flowId/nodeId/edgeId/onActivePath) for the UI.
+    valid: !isRunBlocked(issues)
   };
 }
 
@@ -236,6 +261,15 @@ async function runWorkflow(request: RunWorkflowRequest) {
       license: { status: gate.status.status, reasonCode: gate.status.reasonCode, userAction: gate.status.userAction },
       error: gate.status.userAction
     };
+  }
+
+  // Audit (Stage 2c): a REAL run proceeding under Legacy Compatibility is recorded on the grant,
+  // so "how many runs did this exemption allow" is answerable. Dry runs above never reach here.
+  const compatibilityFlowIds = validation.issues
+    .filter((issue) => issue.key.startsWith("legacyCompatibility.") && issue.flowId)
+    .map((issue) => issue.flowId as string);
+  if (compatibilityFlowIds.length > 0) {
+    await getFlowValidationService().recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);
   }
 
   const flows = await createFlowProfileStore().list();

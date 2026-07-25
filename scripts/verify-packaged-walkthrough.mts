@@ -146,7 +146,7 @@ async function sampleSystem(): Promise<SystemSample | null> {
       "@{procs=$procs;conns=$conns} | ConvertTo-Json -Depth 4 -Compress"
   );
   if (!raw) return null;
-  const arr = <V>(value: V[] | V | null | undefined): V[] => (Array.isArray(value) ? value : value ? [value] : []);
+  const arr = <V,>(value: V[] | V | null | undefined): V[] => (Array.isArray(value) ? value : value ? [value] : []);
   return { procs: arr(raw.procs), conns: arr(raw.conns) };
 }
 

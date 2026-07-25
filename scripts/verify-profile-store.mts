@@ -100,6 +100,33 @@ async function main() {
     await rm(folder, { recursive: true, force: true });
   }
 
+  // 5. Draft model (Stage 2b): the store persists a validation-INVALID but parseable flow verbatim.
+  // Validation informs (engine/UI layers); persistence never gates on it and never mutates the
+  // document — a saved draft is byte-for-byte what the caller supplied.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awtkit-ps-5-"));
+    const store = new JsonProfileStore<Record<string, unknown> & { id: string }>({ folder });
+    // Missing Start/End, a broken connector endpoint, a negative timeout — invalid by every
+    // engine rule, but a perfectly parseable document.
+    const invalidFlow = {
+      id: "draft-invalid",
+      name: "Draft",
+      version: 1,
+      nodes: [{ id: "n1", type: "click", name: "Click", timeoutMs: -5 }],
+      edges: [{ id: "e1", source: "n1", target: "ghost", type: "success" }]
+    };
+    const imported = await store.import(structuredClone(invalidFlow));
+    check("an invalid-but-parseable flow imports as a draft (Stage 2b)", imported.id === "draft-invalid");
+    const readBack = await store.get("draft-invalid");
+    check(
+      "the stored draft is exactly what was supplied — nothing auto-fixed or removed",
+      JSON.stringify(readBack) === JSON.stringify(invalidFlow)
+    );
+    const updated = await store.update("draft-invalid", structuredClone(invalidFlow));
+    check("re-saving the invalid draft succeeds and stays unchanged", JSON.stringify(updated) === JSON.stringify(invalidFlow));
+    await rm(folder, { recursive: true, force: true });
+  }
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\nProfile store: ${passed}/${results.length} checks passed`);
   process.exit(passed === results.length ? 0 : 1);

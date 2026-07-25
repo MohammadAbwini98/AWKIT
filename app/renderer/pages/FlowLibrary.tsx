@@ -45,6 +45,14 @@ const flowFilterFields: FilterFieldDef[] = [
   { key: "connectorsMax", label: "Max connectors", type: "number" }
 ];
 
+/**
+ * Derived per-flow validation state for the library list. NEVER persisted (owner decision 1).
+ * Sourced from `validation:statusAll` in main, so the library, the designer banner and the run
+ * gate all apply the same Stage 2c policy — including Legacy Compatibility grants, which the
+ * renderer cannot see on its own.
+ */
+type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.statusAll>>[number];
+
 export function FlowLibrary() {
   const { navigateTo } = useNavigation();
   const { can } = usePermissions();
@@ -53,7 +61,30 @@ export function FlowLibrary() {
   const [flows, setFlows] = useState<FlowProfile[]>([]);
   const [status, setStatus] = useState("Loading saved flows");
   const [namingFlow, setNamingFlow] = useState(false);
+  // null = validation pending → the column shows "Checking…" instead of a cached/guessed verdict.
+  const [validationStatus, setValidationStatus] = useState<Map<string, FlowValidationStatus> | null>(null);
   const table = useTableState("flows");
+
+  // Runnable status is DERIVED, asynchronously, every time the list changes: reset to "Checking…"
+  // then ask main (which owns the Legacy Compatibility grants) for the current verdicts. The
+  // result is state only — nothing is written back into any flow profile.
+  useEffect(() => {
+    setValidationStatus(null);
+    if (flows.length === 0) return undefined;
+    let cancelled = false;
+    window.playwrightFlowStudio.validation
+      .statusAll()
+      .then((statuses) => {
+        if (cancelled) return;
+        setValidationStatus(new Map(statuses.map((status) => [status.flowId, status])));
+      })
+      .catch(() => {
+        if (!cancelled) setValidationStatus(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [flows]);
 
   // Open a flow in the Flow Designer (persist the selection so the designer loads it).
   const openFlow = async (flow: FlowProfile) => {
@@ -195,13 +226,14 @@ export function FlowLibrary() {
             <div className="wl-table-wrapper">
               <table className="wl-table">
                 <colgroup>
-                  <col style={{ width: "26%" }} />
-                  <col style={{ width: "20%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "7%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -211,6 +243,7 @@ export function FlowLibrary() {
                     <SortableHeaderCell label="Nodes" columnKey="nodes" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Connectors" columnKey="connectors" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} align="center" />
                     <SortableHeaderCell label="Status" columnKey="status" sortBy={table.state.sortBy} sortDirection={table.state.sortDirection} onSort={table.toggleSort} />
+                    <th>Validation</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -239,6 +272,43 @@ export function FlowLibrary() {
                         <span className={`state-pill ${flowAdapter.status(flow) === "active" ? "pill-active" : "pill-inactive"}`}>
                           {flowAdapter.status(flow)}
                         </span>
+                      </td>
+                      <td>
+                        {/* Derived, never persisted: "Checking…" until async validation lands. */}
+                        {(() => {
+                          const flowValidation = validationStatus?.get(flow.id);
+                          if (!flowValidation) {
+                            return <span className="state-pill pill-inactive" data-validation="checking">Checking…</span>;
+                          }
+                          if (flowValidation.blockingCount > 0) {
+                            return (
+                              <span className="state-pill pill-blocked" data-validation="not-runnable" title={`${flowValidation.blockingCount} error${flowValidation.blockingCount === 1 ? "" : "s"} block execution`}>
+                                Not runnable
+                              </span>
+                            );
+                          }
+                          // Persistent, never-silent Legacy Compatibility marker with its deadline.
+                          if (flowValidation.underCompatibility) {
+                            return (
+                              <span
+                                className="state-pill pill-legacy"
+                                data-validation="legacy-compatibility"
+                                title={`Runs under Legacy Compatibility until ${flowValidation.compatibilityExpiresAt?.slice(0, 10)} — ${flowValidation.toleratedCount} off-path error(s) tolerated. Fix or migrate before the deadline.`}
+                              >
+                                Legacy · until {flowValidation.compatibilityExpiresAt?.slice(0, 10)}
+                              </span>
+                            );
+                          }
+                          if (flowValidation.errorCount > 0 || flowValidation.warningCount > 0) {
+                            const count = flowValidation.errorCount + flowValidation.warningCount;
+                            return (
+                              <span className="state-pill pill-warning" data-validation="warnings" title={`${flowValidation.errorCount} error(s), ${flowValidation.warningCount} warning(s) — none block execution`}>
+                                {count} finding{count === 1 ? "" : "s"}
+                              </span>
+                            );
+                          }
+                          return <span className="state-pill pill-active" data-validation="runnable">Runnable</span>;
+                        })()}
                       </td>
                       <td>
                         <div className="table-actions" onClick={(event) => event.stopPropagation()}>

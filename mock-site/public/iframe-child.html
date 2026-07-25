@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Iframe child document</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h2 data-testid="child-heading">Inside the iframe</h2>
+      <p>
+        These controls exist only in the child document. A locator without frame scoping cannot
+        reach them, which is exactly what <code>LocatorFrameContext</code> is for.
+      </p>
+
+      <p>
+        <label for="childInput">Message</label>
+        <input id="childInput" name="childInput" type="text" placeholder="Type inside the frame" data-testid="child-input" />
+      </p>
+
+      <p>
+        <label for="childCountry">Country</label>
+        <select id="childCountry" name="childCountry" data-testid="child-select">
+          <option value="US">United States</option>
+          <option value="JO">Jordan</option>
+          <option value="DE">Germany</option>
+        </select>
+      </p>
+
+      <p>
+        <input id="childAgree" name="childAgree" type="checkbox" data-testid="child-checkbox" />
+        <label for="childAgree">I agree inside the frame</label>
+      </p>
+
+      <button type="button" data-testid="child-submit">Apply inside frame</button>
+      <button type="button" data-testid="child-reset">Reset frame</button>
+
+      <p>Frame status: <span data-testid="child-status">idle</span></p>
+      <p>Echoed message: <span data-testid="child-echo"></span></p>
+      <p data-testid="child-applied" hidden>Frame values applied</p>
+    </main>
+
+    <script>
+      const set = (testId, value) => {
+        document.querySelector(`[data-testid="${testId}"]`).textContent = value;
+      };
+
+      document.querySelector('[data-testid="child-submit"]').addEventListener("click", () => {
+        const message = document.querySelector('[data-testid="child-input"]').value;
+        const country = document.querySelector('[data-testid="child-select"]').value;
+        const agreed = document.querySelector('[data-testid="child-checkbox"]').checked;
+        set("child-status", `applied: ${country}${agreed ? " (agreed)" : ""}`);
+        set("child-echo", message);
+        document.querySelector('[data-testid="child-applied"]').hidden = false;
+        // Tell the parent, so the top document can assert without frame scoping too.
+        window.parent.postMessage({ source: "iframe-child", message, country, agreed }, window.location.origin);
+      });
+
+      document.querySelector('[data-testid="child-reset"]').addEventListener("click", () => {
+        document.querySelector('[data-testid="child-input"]').value = "";
+        document.querySelector('[data-testid="child-select"]').value = "US";
+        document.querySelector('[data-testid="child-checkbox"]').checked = false;
+        set("child-status", "idle");
+        set("child-echo", "");
+        document.querySelector('[data-testid="child-applied"]').hidden = true;
+        window.parent.postMessage({ source: "iframe-child", reset: true }, window.location.origin);
+      });
+    </script>
+  </body>
+</html>

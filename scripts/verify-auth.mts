@@ -64,6 +64,7 @@ async function addUser(
     passwordSecret: hashPassword(opts.password),
     passwordAlgo: "scrypt",
     mustChangePassword: opts.mustChange ?? false,
+    roles: [],
     failedLoginCount: 0,
     lockedUntil: null,
     lastLoginAt: null,

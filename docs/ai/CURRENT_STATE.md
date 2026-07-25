@@ -502,6 +502,280 @@ activity engine) is next.
   82/0, `verify:mock-site` 39/39, `verify:waits` 21/0, `verify:recorder` 72/0,
   `verify:settings-persistence` 3/3, `verify:ipc-contract` 4/4, `npm run build` clean. **Not run:**
   Electron GUI walkthrough of the handoff card (manual gate).
+## Flow Validation Engine (Tranche 2) — INTEGRATION-CANDIDATE, hardened (2026-07-22, epic `awkit-wza`)
+
+**Status (authoritative, 2026-07-22):**
+- `Tranche 2: IMPLEMENTED AND VERIFIED ON THE DEVELOPER MACHINE — CLEAN-MACHINE ACCEPTANCE PENDING`
+- `Product promotion: NOT YET APPROVED`
+- `Remaining acceptance gate: clean offline Windows environment validation`
+
+The two items the earlier status named — SHA-256 grant binding and packaged validation — are complete
+and accepted. All source, Electron-development, packaged-runtime, portable-build, SHA-256,
+authorization, migration, concurrency and 1,000-flow scale evidence is accepted **as
+developer-machine evidence only**; it is explicitly **not** clean-machine evidence and does not
+satisfy the remaining gate. Promotion to `Tranche 2: COMPLETE` / `Product: INTEGRATION-CANDIDATE` may
+occur **only** after [`CLEAN_MACHINE_VALIDATION_RUNBOOK.md`](../../CLEAN_MACHINE_VALIDATION_RUNBOOK.md)
+is executed successfully in a qualifying clean offline Windows environment. That runbook records every
+clean-machine step as **Not Executed**.
+
+- **SHA-256 grant binding.** Legacy Compatibility grants bind to
+  `sha256:<64 hex>` over the flow's canonical executable content. A grant changes execution
+  eligibility, so a non-cryptographic hash was not acceptable. Canonicalization stays **pure** in
+  `src/validation/LegacyCompatibility.ts` (`canonicalFlowContent`); the digest is computed at the
+  **trusted boundary** `app/main/validation/contentDigest.ts` (`node:crypto`) and injected — `src/`
+  still imports no Node built-ins. `PreRunValidator` takes `digestFor` and **fails closed** without it.
+- **Pre-hardening records are retired, never migrated.** A grant whose digest is not current-format
+  gets standing `legacyDigest`, is never honored, is revoked as `digestFormatRetired` for audit, and
+  is **not replaced** — so no deadline is extended and no grant appears merely because an old format
+  was encountered. A retired record cannot be revived by re-scanning.
+- **Scan hardening.** `runInventoryScan` is single-flight (10 concurrent callers → 1 scan, 1 grant
+  set); grant writes are serialized so audit counters cannot be lost (20 parallel audit writes → 20
+  recorded); the scan record is written **last**, so a storage failure leaves no scan record, issues
+  no grants, and retries next call. The run gate catches scan/store failures and applies the **strict**
+  gate rather than assuming exemption.
+- **Fresh package validated.** `dist/SpecterStudio 0.1.0.exe` rebuilt 2026-07-22T00:32:12+03:00,
+  310.2 MiB, sha256 `129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb`.
+  `verify:packaged-validation` **87/0** across a clean profile and an upgrade profile (60+4 flows,
+  FNV-era grant, old migration record, prior run history): all ten `validation:*` channels plus their
+  authorization matrix, grant creation/persistence-across-restart/invalidation/expiry, the full
+  migration ceremony including undo after restart and undo refusal after a later edit, draft save,
+  run blocking vs permitted legacy execution, every library state, offline posture, and clean-shutdown
+  on-disk integrity. First scan of 64 flows: **334 ms**, worst renderer round-trip during it **9 ms**.
+- **Verification:** `verify-legacy-compat` **138/0** · `verify-packaged-validation` **87/0** (new) ·
+  `verify:packaged-runtime` **25/0** (was 12/10 — pre-existing splash-window defect, fixed) ·
+  `verify-validation` **125/0** · `verify-random-oracle` **27/0** · generator **49/0** · roundtrip
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56** · `verify:workflow-builder`
+  **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16** · `verify:authz`
+  **40/0** · `verify:ipc-contract` **4/4** · `validate:offline --Strict` pass · build clean.
+- **Not run:** clean offline VM walkthrough (the outstanding gate), sustained soak.
+
+### Hardening checkpoint 2 (2026-07-22) — status correction, script type gate, scale probe, installer
+
+- **Status string corrected** to `INTEGRATION-CANDIDATE — clean offline VM and installer validation
+  pending` (the two items the previous string named are complete and accepted).
+- **`dependency-manifest.json` disposition:** it is generated packaging output (every package/prep
+  script rewrites `buildMode`/`builtAt`), so the working-tree change from the package build was
+  **restored** to the committed `development-offline-prep` baseline, not committed.
+- **Script type gate** (`tsconfig.scripts.json`, `npm run typecheck:scripts`, `verify:all-typecheck`):
+  the `scripts/` tree was outside `tsc`, so a deleted import only failed at `tsx` runtime. The new
+  gate found and fixed **36 real errors** across scripts nobody had type-checked — including a genuine
+  interface-conformance bug where `NullRuntimeStore` declared zero-arg versions of eight methods its
+  own interface defines with parameters. All touched verifiers re-run green; changes are
+  signature/CFA-only.
+- **Scale probe** (`measure-inventory-scale.mts`, 1,000 flows, packaged): first scan **4.24 s**,
+  renderer round-trip median **4 ms** / worst **177 ms** (a mild main-thread stall while 250 grant
+  files write serially — measured, non-blocking), peak process-tree RSS **231 MB**, 250 grants issued
+  (each its own file, all sha256-bound), 1 scan record. 8 concurrent run requests during scan init all
+  waited and resolved to a real verdict (single-flight); a re-scan extended no deadline. **9/9 safety
+  assertions pass; timing/memory are measurements, not thresholds.**
+- **NSIS installer** built fresh: `dist/SpecterStudio Setup 0.1.0.exe`, 2026-07-22T01:40:27+03:00,
+  356.6 MiB, sha256 `74950020…e2a5a`, sha512 matches `latest.yml`, per-user (no elevation). **Both the
+  portable EXE and the installer are `NotSigned`** (Authenticode-verified — not claimed signed).
+- **Environment gate NOT run:** re-confirmed no clean-machine capability here (no Windows Sandbox;
+  feature-enable needs elevation the non-admin agent account lacks). The clean-VM walkthrough,
+  installer install/upgrade/uninstall lifecycle, and true clean-machine test remain the outstanding
+  human gate — `docs/ai/PHASE5_OFFLINE_VM_WALKTHROUGH.md` §3 + the new **§3b** (Tranche 2 validation
+  subsystem checklist). Tranche 2 is therefore **not** marked COMPLETE.
+
+## Randomized Test Lab — Tranche 2 Stage 2c: Legacy Compatibility + migration subsystem (2026-07-22, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** Tranche 2 is complete. Enforcement is now the **full gate**:
+off-path errors block too, unless the flow holds an explicit, time-limited, audited **Legacy
+Compatibility grant**. Suggested fixes exist, are never automatic, and are fully reversible.
+
+- **Policy core** (`src/validation/LegacyCompatibility.ts`, pure): `effectiveVerdict` is the single
+  Stage 2c decision used by the run gate, designer, library and IPC. A grant tolerates **off-path
+  errors only** — it can never excuse an active-path or connector-structure error. Grants are bound to
+  a **content hash** over `{version, nodes, edges}`: renaming a flow or editing its description keeps
+  the grant; changing anything executable voids it instantly (`standing: "edited"`). Grants expire
+  (30-day window), can be revoked (`repaired` / `migrated`), and count runs for audit. `runnable`
+  remains derived — nothing is persisted onto a flow profile.
+- **Inventory scan** (`app/main/validation/flowValidationService.ts`): classifies every flow as
+  `valid` · `temporarily-compatible` · `immediately-blocked` · `possible-validator-defect`, and issues
+  grants only to the off-path-only group. Re-scanning never re-issues or extends a deadline.
+  `possible-validator-defect` = the validator rejects a flow whose exact content already completed a
+  successful run after its last edit (from durable run history) — flagged for human review, never
+  silently granted. `ensureInventoryScan` runs on the first gate call, so tightening validation cannot
+  silently break flows that ran yesterday.
+- **Suggested fixes** (`src/validation/SafeFixApplier.ts`, pure): schema migration only — enum-casing
+  normalization and duplicate *connector* id regeneration. Ceremony: **preview → explicit confirm →
+  untouched backup → apply → migration report → undo**. Undo restores byte-for-byte and refuses if the
+  flow was edited after the migration. Duplicate *node* ids, missing locators/values, orphans, missing
+  End nodes, broken endpoints, unknown operators, bad timeouts and over-cap loops all carry **no** fix.
+- **UI:** designer validate-on-load banner (Legacy / warnings / not-runnable, with *Review manually*
+  and *Fix N safe issues…*); a change-preview dialog listing every rewrite; an undo banner after a
+  migration; the Flow Library shows a distinct dashed **"Legacy · until YYYY-MM-DD"** pill. Opening a
+  legacy flow never modifies or saves it (GUI-verified).
+- **New IPC:** `validation:*` (statusAll, status, meta, grants, latestScan, runInventoryScan,
+  previewSafeFixes, applySafeFixes, undoMigration, migrations). Mutating channels require
+  `WORKFLOW_EDIT`. 198 handlers, contract green.
+- **Verification:** `verify-legacy-compat` **90/0** (new) · `verify-validation` **125/0** ·
+  `verify-random-oracle` **27/0** · `verify-random-generator` **49/0** · `verify-random-roundtrip`
+  **26/0** · `verify:runner` **82/0** · `verify:flow-designer` **56/56 real Electron** ·
+  `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** · `verify:profile-store` **16/16**
+  · `verify:instance-monitor` **43/0** · `verify:authz` **40/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Defect found & fixed:** migration ids/backup paths were `flowId.timestamp`, so two migrations in
+  the same millisecond collided and the second would have **overwritten the first's backup**. Ids are
+  now uniquified. Also corrected a Stage 2a latent bug: the `safeFix.field` path for conditional vs
+  loop-condition operators was inverted (harmless while metadata was descriptive-only; a silent no-op
+  once an applier consumed it) — both directions are now pinned by tests.
+
+## Randomized Test Lab — Tranche 2 Stage 2b: validation engine WIRED into production (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The shared `FlowValidator` engine now drives the run gate, the
+Flow Designer, the Workflow Builder, the Flow Library and `flows:import`. `awkit-7fm` (9 undetected
+defect classes) and `awkit-acw` (`radio` locator drift) are **closed** — `verify-random-oracle` asserts
+every rule is both detected and production-enforced (27/0).
+
+- **Run gate:** `PreRunValidator` is a thin adapter over `validateFlowSet` — no flow rules of its own;
+  the drifted hardcoded locator list is deleted. Every issue carries `blocking`, `code`, `flowId`,
+  `nodeId`/`edgeId`, `onActivePath`; `execution.ipc.ts` blocks iff `isRunBlocked(issues)`. Blocking =
+  active-path errors + ALL connector-structure errors (the runtime refuses those flow-wide). Warnings
+  and confirmed off-path errors (orphan nodes) report but never block. Unknown reachability (no single
+  Start) blocks conservatively. Validation is **scoped** to the scenario's flows + transitive `runFlow`
+  closure — previously the whole library was validated and an unrelated broken draft blocked every run
+  (pre-existing bug, fixed).
+- **Draft model:** designer and builder saves NEVER block on validation; an invalid flow saves as a
+  Draft exactly as built ("Saved as draft: N validation errors…" info toast). No `runnable` boolean is
+  persisted anywhere; runnability is derived fresh per surface.
+- **Designer:** the validation chip is derived (`Runnable` / `N findings` / `Draft — not runnable (N)`)
+  and opens a clickable issue list — each row navigates to the offending node/connector via the issue's
+  structured location. Engine rules replaced the old advisory `validateFlow`; renderer keeps only
+  advisories the engine lacks (locator uniqueness, conditional config completeness, dead-end non-End
+  node, ambiguous priorities). Revalidation is `useDeferredValue`-paced; `verify:canvas-perf` (13/13)
+  confirms no canvas re-render regressions.
+- **Library:** async derived status per flow — `Checking…` → `Runnable` / `Not runnable` / `N findings`
+  — computed off-tick, never written back to the profile.
+- **Import:** `flows:import` returns `{ profile, validation }`; parseable invalid flows import as
+  drafts; unparseable documents still fail as document errors (distinct from validation).
+- **Owner decisions:** canonical loop cap **1,000** lives in `src/validation/FlowLimits.ts`; FlowExecutor
+  `LOOP_CONNECTOR_HARD_CAP`, `FLOW_BOUNDS.maxLoopIterations` (was 10,000), the test-lab catalog and the
+  renderer read it. `validateConnectorStructureDetailed` (FlowProfile.ts) provides structured connector
+  findings; the legacy string form wraps it byte-identically. The test-lab generator derives
+  `config.targetFlowId` from the canonical `flowId` (they can no longer disagree).
+- **Verification:** `verify-validation` **124/0** · `verify-random-oracle` **27/0** ·
+  `verify-random-generator` **49/0** · `verify-random-roundtrip` **26/0** · `verify:runner` **82/0** ·
+  `verify:flow-designer` **37/37 real Electron** (draft save, chip, navigation, gate, library Checking
+  state) · `verify:workflow-builder` **20/20** · `verify:canvas-perf` **13/13** (harness repaired: it
+  predated the splash window + SecurityGate; now isolated + signed-in like every other GUI verifier) ·
+  `verify:profile-store` **16/16** · `verify:instance-monitor` **43/0** · `verify:ipc-contract` **4/4** ·
+  `verify:workflow-sentinels` **4/4** · `npm run build` clean.
+- **Not yet (Stage 2c):** Legacy Compatibility status (deadlines/audit/banner), suggested-fix
+  preview/backup/undo/migration reports, inventory scan. Nothing of it was implemented early.
+
+## Randomized Test Lab — Tranche 2 Stage 2a: pure Flow Validation Engine (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The shared validation engine exists and every one of the 9
+validation gaps Phase 2 found (`awkit-7fm`) is closed **at the engine level**. `verify-random-oracle` is
+green for the first time (**26/0**, was 19/1).
+
+**Stage 2a is additive and behavior-neutral: the engine is wired into NOTHING.** No save, run, import,
+designer, builder or persistence path calls it, no flow file or schema changed, no Legacy Compatibility
+state exists yet, and nothing is auto-fixed or migrated. Low-risk, not risk-free — `TestExecutionOracle`
+and `RandomMutator` are shared test-lab modules, so a regression there would surface in the Test Lab
+verifiers rather than in the product.
+
+- **New engine:** `src/validation/FlowValidator.ts` (pure, framework-agnostic) — 20 rules, forward-BFS
+  reachability from Start, and an `onActivePath` flag on every issue. Verdict-free: it reports, callers
+  decide. `src/validation/StepRequirements.ts` holds the locator/value requirements as an exhaustive
+  `Record<StepType, …>`, so `tsc --noEmit` fails if a step type is added without a decision — the drift
+  that produced `awkit-acw` cannot recur there.
+- **Contract:** stable rule code · severity · `onActivePath` · flow/node/connector location · human message ·
+  optional `safeFix` metadata that is **described and never applied**. Output ordering is deterministic
+  (rule declaration order, then node id, connector id, message) and independent of input order.
+- **Wrapped, not reimplemented:** `validateConnectorStructure` stays the untouched runtime gate; the engine
+  wraps it so one call returns everything.
+- **Still open (Stage 2b):** 10 rules are detected by the engine but enforced by **no production caller**,
+  and `PreRunValidator.ts:55` still hardcodes its drifted locator list (`radio` escapes). Both are asserted
+  exactly by the oracle and reported as the "Stage 2b wiring checklist" in
+  `reports/random-tests/validation-gaps.md`.
+- **Verification:** `verify-validation` **99/0** (new) · `verify-random-oracle` **26/0** (was 19/1) ·
+  `verify-random-roundtrip` **26/0** · `verify-random-generator` **49/0** · `verify:runner` **82/0** ·
+  `verify:profile-store` **13/13** · `verify:ipc-contract` **4/4** · `verify:workflow-sentinels` **4/4** ·
+  `npm run build` clean.
+- **Design:** `docs/plans/FLOW_VALIDATION_ENGINE_DESIGN.md` (Stage 2b = wire into run gate + designer;
+  Stage 2c = Legacy Compatibility + migration subsystem).
+
+## Randomized Test Lab — Tranche 1: all round-trip data-loss defects FIXED (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`.** The Phase-3 designer round-trip is now **lossless** — the
+baseline discovery verifier that was intentionally red (8 passed / 15 failed) is **green (26/0)**. All
+**11 observed** round-trip defects and **2 predicted** ones were fixed in the designer mapping and their
+catalog entries deleted, so any recurrence now reports as an *unexpected new failure* (a regression).
+
+- **Owner of every fix:** `app/renderer/components/workflow/flowProfileMapping.ts` (the single designer↔
+  profile mapping), plus pass-through fields on `flowDesignerTypes.ts` and metadata/edge-id threading in
+  `app/renderer/pages/FlowChartDesigner.tsx`.
+- **The pattern:** the designer *preserves* fields it cannot author instead of re-deriving them — the same
+  approach as the earlier RT-14/RT-02 fix (`valueSourceOriginal`). New pass-throughs: `safety` (RT-04),
+  popup metadata `pageAlias`/`opensPopup`/`popupExpectation` (RT-03), full `outputs` map (RT-12),
+  `loop`/`message` (RT-15). Persistence-not-validation locator gate (RT-01). Persisted `edge.id` threaded
+  through `createEdge` (RT-05) and authored-only edge labels (RT-08). Flow `description`/`version`/
+  `createdAt`/`updatedAt` threaded via a new `toFlowProfile` `meta` arg (RT-06/RT-07). `maxLoopCount`
+  persisted on any connector (RT-11). `toNodeConfig` emits only a node type's own fields, gated by the
+  registry `sections` (RT-09). Absent optional fields re-omitted on a no-op save but **never** when the
+  user edits them (RT-10, edit-safe). Inactive dynamic `dataSourceId`/`objectId` retained (RT-13).
+- **Generator** now emits the RT-13/RT-15 shapes (mixed dynamic discriminators; `message`/`loop`), so both
+  formerly-*predicted* defects are exercised and confirmed lossless.
+- **Verification:** `verify-random-roundtrip` **26/0** (was 8/15; +8 new field-edit regression checks) ·
+  `verify-random-generator` **49/0** · `verify-random-oracle` **19/1** (the 1 is the intentional
+  validator-gap finding, `awkit-7fm`, Tranche 2) · `verify-durable-store` **11/11** · `verify:flow-designer`
+  **24/24 real Electron** · `verify:runner` **82/0** · `npm run build` clean · `check-memory` pass.
+- **Beads closed:** `awkit-abi` (RT-01), `awkit-4t9` (RT-03), `awkit-3lq` (RT-04), `awkit-07c` (RT-05),
+  `awkit-3qs` (RT-06), `awkit-ani` (RT-07), `awkit-7df` (RT-08), `awkit-ao6` (RT-09), `awkit-who` (RT-10),
+  `awkit-o4q` (RT-11), `awkit-x8w` (RT-12). RT-13/RT-15 were catalog-only predictions (no bead).
+- **Next (Tranche 2 — architectural checkpoint):** unified validation engine + draft/runnable model
+  (`awkit-7fm`, `awkit-acw`). Then Phases 4 (artifacts/CLI), 5 (live), 6/8.
+
+## Randomized Automation Test Lab — Phases 1-3 + Phase 0 prerequisites (2026-07-21, epic `awkit-wza`)
+
+**Branch `feature/randomized-test-lab`** (off `main`, 6 commits, **local — not pushed, no PR**). Additive
+testing subsystem: deterministic generation, a validation oracle, and persistence round-trip discovery over
+the existing engine. Separately, the owner's long-uncommitted branding/accent/HTTPS work was preserved as a
+single commit on `chore/brand-logo-5b` (`a1adcc2`, 64 files, also unpushed and unreviewed here).
+
+- **Phase 1 — generation core** (`src/testing/random/**`, `src/testing/fixtures/SafeTestData.ts`).
+  Seeded PRNG with position-stable `derive()`; exhaustive `Record<Literal, ...>` catalogs so
+  `tsc --noEmit` fails when a node type or connector mode is added without teaching the generator;
+  a valid-by-construction pattern library (9 patterns) whose output satisfies the real
+  `validateConnectorStructure`. `npx tsx scripts/verify-random-generator.mts` — **49/49**.
+- **Phase 2 — validation oracle** (`src/testing/oracle/`, `RandomMutator.ts`). 13 controlled
+  mutations, exactly one defect per scenario, judged against the real validators.
+  `npx tsx scripts/verify-random-oracle.mts` — **19 passed, 1 failed**, the failure being a real
+  product defect (`awkit-acw`). Found that **9 of 13 defect classes are rejected by no validator**
+  (`awkit-7fm`) — several rules exist only in the renderer's *advisory* `validateFlow`, and there
+  is no flow-level reachability check at all.
+- **Phase 3 — persistence round-trip** (`src/testing/roundtrip/`). Field-level semantic diff plus a
+  defect catalog. `npx tsx scripts/verify-random-roundtrip.mts` — **8 passed, 15 failed BY DESIGN**.
+  JSON serialization is lossless; the designer mapping loses data in **13 catalogued ways** with
+  **0 unexpected failures**. **This verifier must stay failing** until the defects are fixed; do not
+  tune, skip or weaken its assertions. Worst finding (`awkit-1w5`, unpredicted): `fromFlowStep`
+  flattens `value` + `valueSource` into one string and `step.url` heads the recovery chain, so a
+  `goto`'s typed source is overwritten by its URL.
+- **Phase 0 — prerequisites.** `flowProfileMapping.ts` is now the single source of the designer
+  persistence mapping (`FlowChartDesigner.tsx` imports it; behavior-preserving). Two stale
+  `verify-durable-store.mts` assertions pinned at 2 migrations now derive from
+  `RUNTIME_STORE_MIGRATIONS` (4) — that verifier was silently red and is now **11/11**. Mock site
+  gained `/runner-lab` (downloads, HTTP failures + `Retry-After`, fail-twice-then-succeed, multipart
+  upload) and `/iframe-lab` + `/iframe-child` (same-origin interactive frame with deliberate
+  top-level decoys). `uploadFile`/`downloadFile` are no longer gated in the generator.
+  `npm run verify:mock-site` — **65/65**.
+
+- **First two defects FIXED** (`awkit-1w5`/RT-14 and `awkit-ihx`/RT-02, both closed). `fromFlowStep`
+  collapsed `FlowStep.value` and `FlowStep.valueSource` into one designer string with `step.url` at the head
+  of the recovery chain, so a `goto`'s typed source was overwritten by its URL and `secret`/`dynamic` sources
+  were dropped entirely. The properties panel only authors two of the nine kinds (`static`, `dynamic`), so
+  `FlowDesignerNodeData.valueSourceOriginal` now preserves the loaded source verbatim and `createValueSource`
+  reconstructs only those two, passing the rest through. Round-trip went **8 passed/15 failed →
+  17 passed/12 failed**, defect shapes **46 → 35**, with 0 unexpected new failures throughout. Both catalog
+  entries were deleted so any recurrence reports as a regression. `verify:flow-designer` 24/24 in real
+  Electron.
+
+**⚠️ Two verifiers are intentionally RED** (`verify-random-roundtrip` 17+12, `verify-random-oracle` 19+1) —
+each failure is a filed product defect. Fix the defect and delete its catalog entry; never weaken the
+assertion. Reports (gitignored) land in `reports/random-tests/`. Docs:
+`docs/testing/RANDOMIZED_TESTING_*.md`.
 
 ## E2E-assessment defects FIXED — sender-bound IPC authorization + first-run seed removal (2026-07-19, later session)
 

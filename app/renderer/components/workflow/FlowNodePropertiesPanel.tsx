@@ -581,10 +581,21 @@ export function FlowNodePropertiesPanel({
                   </select>
                 </label>
                 {kind === "static" ? (
-                  <label>
-                    Text Value
-                    <input value={data.value} onChange={(e) => set({ value: e.target.value })} />
-                  </label>
+                  <>
+                    <label>
+                      Text Value
+                      <input value={data.value} onChange={(e) => set({ value: e.target.value })} />
+                    </label>
+                    {data.valueSourceOriginal && data.valueSourceOriginal.type !== "static" ? (
+                      // This step carries a source the designer cannot author (recorder/import
+                      // origin). It is preserved untouched on save; the field above edits only the
+                      // literal fallback. Saying so beats silently showing an empty box.
+                      <span className="form-message">
+                        Resolved at run time from a <strong>{data.valueSourceOriginal.type}</strong> source, preserved as
+                        recorded. The value above is only the literal fallback.
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     <label>

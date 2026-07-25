@@ -97,10 +97,96 @@ function renderSuccess(submission) {
 </html>`;
 }
 
-function sendJson(res, body) {
-  res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(res, body, status = 200, headers = {}) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
   res.end(JSON.stringify(body));
 }
+
+/** Raw request body as a Buffer. Needed for multipart, which is not text-safe. */
+function readRawBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > 5_000_000) {
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+/**
+ * Minimal `multipart/form-data` parser — Node built-ins only, per the offline rule.
+ * Handles exactly what the upload fixture needs: simple fields plus one file part. Not a
+ * general-purpose parser (no nested multipart, no base64 transfer-encoding).
+ */
+function parseMultipart(buffer, contentType) {
+  const match = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType ?? "");
+  const boundary = match?.[1] ?? match?.[2];
+  if (!boundary) return { fields: {}, files: [] };
+
+  const delimiter = Buffer.from(`--${boundary}`);
+  const fields = {};
+  const files = [];
+
+  let start = buffer.indexOf(delimiter);
+  while (start !== -1) {
+    const partStart = start + delimiter.length;
+    // `--` immediately after the delimiter marks the closing boundary.
+    if (buffer.slice(partStart, partStart + 2).toString() === "--") break;
+
+    const next = buffer.indexOf(delimiter, partStart);
+    if (next === -1) break;
+
+    const part = buffer.slice(partStart, next);
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd !== -1) {
+      const headers = part.slice(0, headerEnd).toString("utf8");
+      // Strip the CRLF that precedes the next delimiter.
+      const content = part.slice(headerEnd + 4, part.length - 2);
+      const nameMatch = /name="([^"]*)"/i.exec(headers);
+      const fileMatch = /filename="([^"]*)"/i.exec(headers);
+      const name = nameMatch?.[1] ?? "";
+      if (fileMatch) {
+        files.push({ field: name, filename: fileMatch[1], size: content.length, text: content.toString("utf8") });
+      } else if (name) {
+        fields[name] = content.toString("utf8");
+      }
+    }
+    start = next;
+  }
+
+  return { fields, files };
+}
+
+/** Downloadable fixture bodies, keyed by the `type` query parameter. */
+const DOWNLOAD_FIXTURES = {
+  csv: {
+    filename: "awkit-report.csv",
+    contentType: "text/csv; charset=utf-8",
+    body: "id,name,status\n1,lab-alpha,passed\n2,lab-bravo,failed\n3,lab-charlie,passed\n"
+  },
+  txt: {
+    filename: "awkit-notes.txt",
+    contentType: "text/plain; charset=utf-8",
+    body: "AWKIT mock download fixture.\nDeterministic content for downloadFile verification.\n"
+  },
+  json: {
+    filename: "awkit-payload.json",
+    contentType: "application/json; charset=utf-8",
+    body: `${JSON.stringify({ ok: true, rows: [{ id: 1, name: "lab-alpha" }], source: "mock-site" }, null, 2)}\n`
+  }
+};
+
+/**
+ * Per-key call counters for `/api/flaky`, so a scenario can fail N times and then succeed.
+ * Deterministic and resettable — never random.
+ */
+const flakyCalls = new Map();
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
@@ -141,6 +227,76 @@ const server = createServer(async (req, res) => {
     res.writeHead(204);
     res.end();
     return;
+  }
+
+  if (req.method === "GET" && path === "/runner-lab") return serveStatic(res, "runner-lab.html");
+  if (req.method === "GET" && path === "/iframe-lab") return serveStatic(res, "iframe-lab.html");
+  if (req.method === "GET" && path === "/iframe-child") return serveStatic(res, "iframe-child.html");
+
+  // ── Download fixture (Content-Disposition) ─────────────────────────────────
+  // Gives `downloadFile` steps a real download event to capture. Deterministic bodies.
+  if (req.method === "GET" && path === "/api/download") {
+    const fixture = DOWNLOAD_FIXTURES[url.searchParams.get("type") ?? "csv"] ?? DOWNLOAD_FIXTURES.csv;
+    res.writeHead(200, {
+      "Content-Type": fixture.contentType,
+      "Content-Disposition": `attachment; filename="${fixture.filename}"`,
+      "Content-Length": Buffer.byteLength(fixture.body)
+    });
+    res.end(fixture.body);
+    return;
+  }
+
+  // ── Controlled HTTP failures ───────────────────────────────────────────────
+  // Fixed status on demand, with Retry-After where the status calls for it.
+  if (req.method === "GET" && path === "/api/http-status") {
+    const requested = Number(url.searchParams.get("code") ?? 500);
+    const code = [400, 401, 403, 404, 409, 422, 429, 500, 502, 503].includes(requested) ? requested : 500;
+    const retryAfter = url.searchParams.get("retryAfter");
+    const headers = {};
+    if (code === 429 || code === 503) headers["Retry-After"] = String(retryAfter ?? 1);
+    return sendJson(res, { ok: false, status: code, message: `Mock failure with status ${code}` }, code, headers);
+  }
+
+  // Fails a bounded number of times per key, then succeeds — the retry-policy fixture.
+  if (req.method === "GET" && path === "/api/flaky") {
+    const key = (url.searchParams.get("key") ?? "default").slice(0, 40);
+    const failures = Math.max(0, Math.min(Number(url.searchParams.get("failures") ?? 1) || 0, 5));
+    const seen = (flakyCalls.get(key) ?? 0) + 1;
+    flakyCalls.set(key, seen);
+    if (seen <= failures) {
+      return sendJson(
+        res,
+        { ok: false, attempt: seen, remainingFailures: failures - seen, message: `Attempt ${seen} fails by design` },
+        503,
+        { "Retry-After": "1" }
+      );
+    }
+    return sendJson(res, { ok: true, attempt: seen, message: `Attempt ${seen} succeeded after ${failures} failure(s)` });
+  }
+
+  if (req.method === "GET" && path === "/api/flaky/reset") {
+    const key = url.searchParams.get("key");
+    if (key) flakyCalls.delete(key.slice(0, 40));
+    else flakyCalls.clear();
+    return sendJson(res, { ok: true, reset: key ?? "all" });
+  }
+
+  // ── Multipart upload ───────────────────────────────────────────────────────
+  if (req.method === "POST" && path === "/api/upload") {
+    const raw = await readRawBody(req);
+    const { fields, files } = parseMultipart(raw, req.headers["content-type"]);
+    const file = files[0];
+    if (!file || !file.filename) {
+      return sendJson(res, { ok: false, message: "No file part was received" }, 400);
+    }
+    return sendJson(res, {
+      ok: true,
+      filename: file.filename,
+      size: file.size,
+      // Echoed so an assertion can prove the file content survived the round trip.
+      preview: file.text.slice(0, 120),
+      note: fields.note ?? ""
+    });
   }
 
   if (req.method === "GET" && path === "/api/delay") {

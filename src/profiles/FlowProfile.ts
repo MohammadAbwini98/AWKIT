@@ -600,22 +600,58 @@ export function connectorKind(edge: Pick<FlowEdge, "kind" | "type">): ConnectorK
   }
 }
 
+/** Stable machine code for a structural connector rule (Stage 2b). */
+export type ConnectorStructureCode =
+  /** A structured `loop` connector whose source and target differ. */
+  | "loopConnectorSpansNodes"
+  /** A node with more than one standard (non-conditional/non-parallel) outgoing connector. */
+  | "multipleStandardOutgoing"
+  /** A non-conditional additional outgoing connector on a self-looping node. */
+  | "loopSiblingNotConditional";
+
+/**
+ * One structural connector violation, with its location as data rather than only prose.
+ * `severity` is always `"error"` — the runner refuses to execute any flow carrying one.
+ */
+export interface ConnectorStructureFinding {
+  readonly code: ConnectorStructureCode;
+  readonly severity: "error";
+  /** The offending connector. Absent for `multipleStandardOutgoing`, which is a per-node rule. */
+  readonly edgeId?: string;
+  /** Source node of the offending connector, or the over-connected node itself. */
+  readonly sourceNodeId: string;
+  /** Target node of the offending connector, where the rule concerns a single connector. */
+  readonly targetNodeId?: string;
+  /** Human-readable message — byte-identical to the legacy `validateConnectorStructure` string. */
+  readonly message: string;
+}
+
 /**
  * Structural connector safeguards (Points 2–4), shared by the Flow Designer UI and the
  * runner so an invalid flow can't execute even if it somehow bypasses the UI validation:
  *  - a node may have at most one standard (non-conditional/non-parallel) outgoing edge;
  *  - a loop connector's source and target must be the same node;
  *  - a node with a self-loop connector may only route additional outgoing edges as Conditional.
+ *
+ * This is the single implementation. `validateConnectorStructure` below is a thin string wrapper
+ * kept for the runner and legacy callers — the two can never disagree.
  */
-export function validateConnectorStructure(edges: FlowEdge[]): string[] {
-  const messages: string[] = [];
+export function validateConnectorStructureDetailed(edges: FlowEdge[]): ConnectorStructureFinding[] {
+  const findings: ConnectorStructureFinding[] = [];
 
   // Only the new structured `loop` kind is self-only; the legacy `loopBack` edge type
   // (Enhanced Connectors, Phase 1) is an intentional cross-node back-edge and is exempt.
   edges.forEach((edge) => {
     const isStructuredLoop = edge.kind === "loop" || edge.type === "loop";
     if (isStructuredLoop && edge.source !== edge.target) {
-      messages.push(`Loop connector ${edge.id} is invalid because it does not return to the same node.`);
+      findings.push({
+        code: "loopConnectorSpansNodes",
+        severity: "error",
+        edgeId: edge.id,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target,
+        message: `Loop connector ${edge.id} is invalid because it does not return to the same node.`
+      });
     }
   });
 
@@ -628,7 +664,12 @@ export function validateConnectorStructure(edges: FlowEdge[]): string[] {
   outgoingBySource.forEach((sourceEdges, source) => {
     const standard = sourceEdges.filter((edge) => connectorKind(edge) !== "conditional" && connectorKind(edge) !== "parallel");
     if (standard.length > 1) {
-      messages.push(`Node ${source} has multiple standard outgoing connectors — routing would be ambiguous.`);
+      findings.push({
+        code: "multipleStandardOutgoing",
+        severity: "error",
+        sourceNodeId: source,
+        message: `Node ${source} has multiple standard outgoing connectors — routing would be ambiguous.`
+      });
     }
   });
 
@@ -636,11 +677,26 @@ export function validateConnectorStructure(edges: FlowEdge[]): string[] {
   edges.forEach((edge) => {
     if (!loopSources.has(edge.source) || edge.source === edge.target) return;
     if (connectorKind(edge) !== "conditional") {
-      messages.push(`Node ${edge.source} has a loop connector; additional outgoing connectors must be Conditional.`);
+      findings.push({
+        code: "loopSiblingNotConditional",
+        severity: "error",
+        edgeId: edge.id,
+        sourceNodeId: edge.source,
+        targetNodeId: edge.target,
+        message: `Node ${edge.source} has a loop connector; additional outgoing connectors must be Conditional.`
+      });
     }
   });
 
-  return messages;
+  return findings;
+}
+
+/**
+ * Legacy string view of {@link validateConnectorStructureDetailed}. Kept because the runner's
+ * runtime gate (`FlowExecutor`) and the designer surface these strings directly.
+ */
+export function validateConnectorStructure(edges: FlowEdge[]): string[] {
+  return validateConnectorStructureDetailed(edges).map((finding) => finding.message);
 }
 
 export interface FlowProfile {

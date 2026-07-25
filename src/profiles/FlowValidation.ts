@@ -10,16 +10,22 @@
  * throws on an unsupported step type, and `validateConnectorStructure` already blocks invalid graphs.
  */
 import type { FlowProfile, FlowStep, WaitCondition } from "./FlowProfile";
+import { FLOW_VALIDATION_LIMITS } from "../validation/FlowLimits";
 
 export const FLOW_BOUNDS = {
   /** Max per-step / per-wait timeout (10 min). */
-  maxTimeoutMs: 600_000,
+  maxTimeoutMs: FLOW_VALIDATION_LIMITS.maxTimeoutMs,
   /** Max fixed delay (10 min). */
   maxDelayMs: 600_000,
   /** Max automatic retries for a single step. */
   maxRetryCount: 20,
-  /** Max loop iterations (node loop config and loop connectors). */
-  maxLoopIterations: 10_000,
+  /**
+   * Max loop iterations (node loop config and loop connectors). Stage 2b: aligned with the single
+   * canonical cap (was 10,000 while every other site said 1,000). The run gate now REJECTS
+   * active-path bounds above the cap before execution; this clamp remains only as the F-03
+   * last-resort DoS backstop for flows that bypass every gate.
+   */
+  maxLoopIterations: FLOW_VALIDATION_LIMITS.maxLoopIterations,
   /** Max ranked locator alternatives kept per step. */
   maxAlternatives: 50,
   /** Max before/after waits kept per step. */

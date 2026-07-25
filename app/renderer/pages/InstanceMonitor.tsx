@@ -353,9 +353,9 @@ export function InstanceMonitor() {
           maxConcurrentInstances: params.concurrentInstances,
           isolationMode: params.isolationMode,
           stopOnError: params.stopOnError
-        })) as { status?: string; message?: string; error?: string };
+        })) as { status?: string; message?: string; error?: string; validation?: { issues?: { message: string; blocking?: boolean }[] } };
 
-        if (result.status === "validationFailed") setRunMessage(`${workflow.name}: validation failed. Resolve workflow issues before running.`);
+        if (result.status === "validationFailed") setRunMessage(`${workflow.name}: ${describeValidationFailure(result.validation)}`);
         else if (result.error) setRunMessage(`${workflow.name}: ${result.error}`);
         else setRunMessage(result.message ?? `${workflow.name} run ${result.status ?? "started"}.`);
       } catch (error) {
@@ -423,10 +423,10 @@ export function InstanceMonitor() {
         headless: browserWindowMode === "headless",
         totalInstances: runCount,
         maxConcurrentInstances: maxParallel
-      })) as { status?: string; message?: string; error?: string };
+      })) as { status?: string; message?: string; error?: string; validation?: { issues?: { message: string; blocking?: boolean }[] } };
 
       if (result.status === "validationFailed") {
-        setRunMessage("Validation failed. Resolve workflow issues before running.");
+        setRunMessage(describeValidationFailure(result.validation));
       } else if (result.error) {
         setRunMessage(result.error);
       } else {
@@ -1146,6 +1146,18 @@ function fileButtonTitle(status: InstanceStatus, path: string | undefined, label
   if (status === "completed") return "Files are available only for failed instances.";
   if (status === "failed") return path ? `${label}: ${path}` : "No failure files available.";
   return "Files are available after a failed run.";
+}
+
+/**
+ * Human summary of a run-gate rejection (Stage 2b): name the first blocking finding instead of a
+ * generic "resolve workflow issues" — the gate now returns structured issues with messages.
+ */
+function describeValidationFailure(validation?: { issues?: { message: string; blocking?: boolean }[] }): string {
+  const blocking = (validation?.issues ?? []).filter((issue) => issue.blocking);
+  if (blocking.length === 0) return "Validation failed. Resolve workflow issues before running.";
+  const first = blocking[0]?.message ?? "";
+  const rest = blocking.length > 1 ? ` (+${blocking.length - 1} more)` : "";
+  return `Validation failed: ${first}${rest}`;
 }
 
 function validateRunSettings(workflowId: string, runCount: number, maxParallel: number): string[] {

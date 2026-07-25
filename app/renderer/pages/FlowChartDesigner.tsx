@@ -14,10 +14,10 @@ import {
   type Viewport
 } from "../components/canvas";
 import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
-import { buildConnectorVisual, hasCustomStyle } from "../components/shared/connectorStyle";
+import { buildConnectorVisual } from "../components/shared/connectorStyle";
 import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
@@ -26,13 +26,17 @@ import { flowNodeCatalog, getFlowNodeCatalogItem } from "../components/workflow/
 import { getNodeDefinition } from "../components/workflow/flowNodeRegistry";
 import { DEFAULT_NODE_HEIGHT, DEFAULT_NODE_WIDTH, defaultNodeData, type FlowDesignerNodeData } from "../components/workflow/flowDesignerTypes";
 // Model <-> node-data conversion lives in its own module so a verifier can exercise the real
-// functions (scripts/verify-flow-step-mapping.mts). Behavior is identical to the previous inline pair.
+// functions. flowProfileMapping is the single mapping module: it is a superset of the older
+// flowStepMapping (same popup/locator preservation, plus createEdge, toFlowProfile, profile meta
+// and the RT-01..RT-15 round-trip fixes), so the designer imports everything from here.
 import {
+  createEdge,
   fromFlowStep,
-  toFlowStep,
-  type FlowDesignerEdge as FlowDesignerEdgeAlias,
-  type FlowDesignerNode as FlowDesignerNodeAlias
-} from "../components/workflow/flowStepMapping";
+  toFlowProfile,
+  type FlowDesignerEdge,
+  type FlowDesignerNode,
+  type FlowProfileMeta
+} from "../components/workflow/flowProfileMapping";
 import {
   flowEdgeKind,
   flowEdgeToNormal,
@@ -48,6 +52,18 @@ import { usePageChrome } from "../state/pageChrome";
 import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
 import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
+import { connectorKind } from "@src/profiles/FlowProfile";
+import {
+  executionBlockingErrorsOf,
+  validateFlowDefinition,
+  warningsOf,
+  type FlowValidationIssue,
+  type FlowValidationReport
+} from "@src/validation/FlowValidator";
+
+/** Derived validation status of the SAVED flow, from `validation:status` (Stage 2c). */
+type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.status>>;
+type SafeFixPreview = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.previewSafeFixes>>;
 
 const nodeTypes = {
   actionNode: ActionFlowNode
@@ -57,9 +73,6 @@ const edgeTypes = {
   smooth: SmoothEdge,
   loop: LoopEdge
 } satisfies EdgeTypes;
-
-type FlowDesignerNode = FlowDesignerNodeAlias;
-type FlowDesignerEdge = FlowDesignerEdgeAlias;
 
 const initialNodes: FlowDesignerNode[] = [
   {
@@ -85,26 +98,9 @@ type FlowPickerState =
   | { mode: "edge"; x: number; y: number; edgeId: string }
   | { mode: "append"; x: number; y: number; sourceId: string };
 
-function createEdge(
-  source: string,
-  target: string,
-  linkType: FlowEdgeType,
-  label?: string,
-  expression?: string,
-  style?: EdgeVisualStyle,
-  maxLoopCount?: number,
-  extra?: Partial<FlowConnectionData>
-): FlowDesignerEdge {
-  const resolvedLabel = label ?? linkType;
-  return {
-    id: `edge-${source}-${target}`,
-    source,
-    target,
-    ...buildConnectorVisual(linkType, style),
-    data: { linkType, label: resolvedLabel, expression: expression ?? "", style, maxLoopCount, ...extra },
-    label: resolvedLabel
-  };
-}
+// `createEdge` now comes from flowProfileMapping (it threads the persisted edge id, RT-05, and keeps
+// `data.label` authored-only, RT-08). `flowEdgeKind` comes from shared/branchPairs, the same
+// derivation the Scenario designer uses. Both local copies were removed during the branch merge.
 
 /**
  * Branch-pair invariant (FR-2.6): when a node named in `revertSources` is left holding exactly one
@@ -141,9 +137,24 @@ function FlowChartDesignerContent() {
   const [edges, setEdges] = useEdgesState<FlowConnectionData>(initialEdges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  /** Whether the validation-issues panel (opened from the chip) is showing. */
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  /**
+   * Stage 2c validate-on-load: the SAVED flow's status, fetched when a profile is opened. Opening
+   * a flow never modifies or saves it — this is a read. Dismissed by the user or superseded by the
+   * next load.
+   */
+  const [loadBanner, setLoadBanner] = useState<FlowValidationStatus | null>(null);
+  /** Change preview for "Fix all safe issues". Non-null = the confirmation dialog is showing. */
+  const [fixPreview, setFixPreview] = useState<SafeFixPreview | null>(null);
+  /** The most recent migration, so the user can undo it while the flow is still untouched. */
+  const [lastMigration, setLastMigration] = useState<{ flowId: string; migrationId: string; backupPath: string } | null>(null);
   const [savedFlows, setSavedFlows] = useState<FlowProfile[]>([]);
   const [flowId, setFlowId] = useState("login-flow");
   const [flowName, setFlowName] = useState("Login Flow");
+  // Flow-level metadata carried across a load→save so the designer preserves the loaded description,
+  // version and timestamps instead of hardcoding them (RT-06/RT-07). A new flow keeps the defaults.
+  const [flowMeta, setFlowMeta] = useState<FlowProfileMeta>({ description: "Editable reusable flow", version: 1 });
   const [saveState, setSaveState] = useState("Loading…");
   const [dataSources, setDataSources] = useState<{ id: string; name: string }[]>([]);
   const [propertiesCollapsed, setPropertiesCollapsed] = useState(false);
@@ -193,12 +204,30 @@ function FlowChartDesignerContent() {
       engine.panBy(panX, 0, { duration: 260 });
     }
   }, [drawerOpen, selectedEdgeId, selectedNodeId]);
-  const validationMessages = useMemo(() => validateFlow(nodes, edges), [nodes, edges]);
-  const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName), [edges, flowId, flowName, nodes]);
-  // Points 2–4: connector-structure issues block Save until fixed (subset of validationMessages).
-  const connectorIssues = useMemo(
-    () => connectorStructureIssues(edges, (id) => nodes.find((node) => node.id === id)?.data.name ?? id),
-    [edges, nodes]
+  const flowProfile = useMemo(() => toFlowProfile(nodes, edges, flowId, flowName, flowMeta), [edges, flowId, flowMeta, flowName, nodes]);
+
+  // ── Shared validation engine (Stage 2b) ────────────────────────────────────
+  // One source of truth: the same `validateFlowDefinition` the run gate uses, driven through the
+  // designer's own `toFlowProfile` mapping. Deferred so rapid property-panel keystrokes render the
+  // canvas first and the (already cheap, O(nodes+edges)) revalidation follows a beat behind —
+  // validation itself is never skipped.
+  const savedFlowIds = useMemo(() => new Set([...savedFlows.map((profile) => profile.id), flowId]), [savedFlows, flowId]);
+  const deferredProfile = useDeferredValue(flowProfile);
+  const validationReport: FlowValidationReport = useMemo(
+    () => validateFlowDefinition(deferredProfile, { referenceableFlowIds: savedFlowIds }),
+    [deferredProfile, savedFlowIds]
+  );
+  // Blocking = would the run gate reject this flow right now (active-path errors + connector
+  // structure). DERIVED state only — never persisted onto the profile.
+  const blockingIssues = useMemo(() => executionBlockingErrorsOf(validationReport), [validationReport]);
+  const warningIssues = useMemo(() => warningsOf(validationReport), [validationReport]);
+  // Renderer-only advisories the engine has no rule for yet (locator uniqueness, conditional
+  // config completeness, ambiguous priorities). Additive on top of the engine — never a second
+  // implementation of an engine rule.
+  const advisoryMessages = useMemo(() => rendererAdvisories(nodes, edges), [nodes, edges]);
+  const validationMessages = useMemo(
+    () => [...validationReport.issues.map((issue) => issue.message), ...advisoryMessages],
+    [validationReport, advisoryMessages]
   );
 
   // Point 3: a node with a self-loop connector forces any other outgoing connector to Conditional.
@@ -433,6 +462,21 @@ function FlowChartDesignerContent() {
     setSelectedEdgeId(null);
   }, []);
 
+  /**
+   * Structured-location navigation (Stage 2b): an issue anchors to a node or connector id, so one
+   * click selects the offending object (the existing selection effects then pan it into view and
+   * open its properties panel). Flow-level issues have no anchor and only close the panel.
+   */
+  const navigateToIssue = useCallback(
+    (issue: FlowValidationIssue) => {
+      if (issue.nodeId) selectNode(issue.nodeId);
+      else if (issue.edgeId) selectEdge(issue.edgeId);
+      setIssuesOpen(false);
+    },
+    [selectEdge, selectNode]
+  );
+
+
   const handlePaneClick = useCallback(() => {
     clearSelection();
     setPicker(null);
@@ -460,14 +504,14 @@ function FlowChartDesignerContent() {
   const canSaveFlow = can(Permission.WORKFLOW_EDIT);
 
   const saveFlow = useCallback(async () => {
-    if (connectorIssues.length) {
-      setToast({ tone: "error", message: `Cannot save: ${connectorIssues[0]}` });
-      return;
-    }
+    // Stage 2b: save NEVER blocks on validation. An invalid flow saves as a Draft, exactly as
+    // built — nothing is auto-fixed, removed or reconnected. Only a document-level failure (the
+    // IPC/store rejecting the write) fails a save, and that is reported as a save failure, not a
+    // validation failure. Runnability is derived from fresh validation, never persisted.
     const now = new Date().toISOString();
     try {
       const existing = await window.playwrightFlowStudio.flows.get(flowProfile.id);
-      const toSave = { ...flowProfile, createdAt: existing?.createdAt ?? now, updatedAt: now };
+      const toSave = { ...flowProfile, createdAt: existing?.createdAt ?? flowProfile.createdAt ?? now, updatedAt: now };
       if (existing) {
         await window.playwrightFlowStudio.flows.update(flowProfile.id, toSave);
       } else {
@@ -475,14 +519,25 @@ function FlowChartDesignerContent() {
       }
       const profiles = await window.playwrightFlowStudio.flows.list();
       setSavedFlows(profiles);
-      setSaveState("Saved profile");
       setSavedSnapshot(serializeFlowDoc(toSave)); // clear dirty: current document is now the saved baseline
-      setToast({ tone: "success", message: `Flow saved successfully: ${toSave.name}` });
+      // Validate what was ACTUALLY saved (not the live canvas) so the draft message is truthful.
+      const savedReport = validateFlowDefinition(toSave, { referenceableFlowIds: new Set(profiles.map((profile) => profile.id)) });
+      const savedBlocking = executionBlockingErrorsOf(savedReport);
+      if (savedBlocking.length > 0) {
+        setSaveState("Saved draft");
+        setToast({
+          tone: "info",
+          message: `Saved as draft: ${toSave.name}. ${savedBlocking.length} validation error${savedBlocking.length === 1 ? "" : "s"} must be fixed before it can run.`
+        });
+      } else {
+        setSaveState("Saved profile");
+        setToast({ tone: "success", message: `Flow saved successfully: ${toSave.name}` });
+      }
     } catch (error) {
       setSaveState("Save failed");
       setToast({ tone: "error", message: `Failed to save changes. ${error instanceof Error ? error.message : ""}`.trim() });
     }
-  }, [flowProfile, connectorIssues]);
+  }, [flowProfile]);
 
   const loadProfile = useCallback(
     (profile: FlowProfile) => {
@@ -495,12 +550,22 @@ function FlowChartDesignerContent() {
         })
       );
       const nextEdges = profile.edges.map<FlowDesignerEdge>((edge) =>
-        createEdge(edge.source, edge.target, edge.type, edge.label, edge.condition?.expression, edge.style, edge.maxLoopCount, {
-          kind: edge.kind,
-          conditional: edge.conditional,
-          parallel: edge.parallel,
-          loop: edge.loop
-        })
+        createEdge(
+          edge.source,
+          edge.target,
+          edge.type,
+          edge.label,
+          edge.condition?.expression,
+          edge.style,
+          edge.maxLoopCount,
+          {
+            kind: edge.kind,
+            conditional: edge.conditional,
+            parallel: edge.parallel,
+            loop: edge.loop
+          },
+          edge.id
+        )
       );
 
       // Point 1c: flows saved without node positions collapse onto one coordinate. Auto-arrange
@@ -516,12 +581,66 @@ function FlowChartDesignerContent() {
       setSelectedEdgeId(null);
       setFlowId(profile.id);
       setFlowName(profile.name);
+      setFlowMeta({ description: profile.description, version: profile.version, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
       setSaveState("Loaded profile");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);
+
+      // Stage 2c validate-on-load: report the SAVED flow's status (including any Legacy
+      // Compatibility standing). Read-only — the flow on disk is never touched by opening it.
+      setLoadBanner(null);
+      setLastMigration(null);
+      window.playwrightFlowStudio.validation
+        .status(profile.id)
+        .then((status) => {
+          if (status && (status.errorCount > 0 || status.warningCount > 0)) setLoadBanner(status);
+        })
+        .catch(() => undefined);
     },
     [setEdges, setNodes, armLayoutGlide]
   );
+
+  /* ── Stage 2c suggested fixes: preview → confirm → apply → undo ──────────── */
+
+  /** Step 1: ask main what the fixes WOULD change. Nothing is written. */
+  const openFixPreview = useCallback(async () => {
+    try {
+      const preview = await window.playwrightFlowStudio.validation.previewSafeFixes(flowId);
+      if (preview.fixes.length === 0) {
+        setToast({ tone: "info", message: "No safe fixes are available — these issues need a human decision." });
+        return;
+      }
+      setFixPreview(preview);
+    } catch (error) {
+      setToast({ tone: "error", message: `Could not prepare fixes. ${error instanceof Error ? error.message : ""}`.trim() });
+    }
+  }, [flowId]);
+
+  /** Step 2: explicit confirmation. Main writes an untouched backup before applying anything. */
+  const confirmApplyFixes = useCallback(async () => {
+    setFixPreview(null);
+    try {
+      const result = await window.playwrightFlowStudio.validation.applySafeFixes(flowId);
+      loadProfile(result.profile); // reload the migrated flow so the canvas shows what was saved
+      setLastMigration({ flowId, migrationId: result.record.id, backupPath: result.record.backupPath });
+      setToast({ tone: "success", message: `Applied ${result.record.fixes.length} safe fix(es). A backup was saved — you can undo this.` });
+    } catch (error) {
+      setToast({ tone: "error", message: `Could not apply fixes. ${error instanceof Error ? error.message : ""}`.trim() });
+    }
+  }, [flowId, loadProfile]);
+
+  /** Step 3: restore the untouched backup (allowed while the migrated flow is still unedited). */
+  const undoLastMigration = useCallback(async () => {
+    if (!lastMigration) return;
+    try {
+      const result = await window.playwrightFlowStudio.validation.undoMigration(lastMigration.flowId, lastMigration.migrationId);
+      loadProfile(result.profile);
+      setLastMigration(null);
+      setToast({ tone: "success", message: "Migration undone — the flow was restored from its backup." });
+    } catch (error) {
+      setToast({ tone: "error", message: error instanceof Error ? error.message : "Could not undo the migration." });
+    }
+  }, [lastMigration, loadProfile]);
 
   // Point 1c: manual "Auto-arrange" — re-run the layered layout (top-to-bottom) on the current
   // graph on demand, then frame it. Marks the document dirty; positions stay user-editable after.
@@ -894,6 +1013,57 @@ function FlowChartDesignerContent() {
       }
     >
       <div className="flow-designer-shell">
+        {/* Stage 2c validate-on-load banner. Opening a flow NEVER modifies or saves it — this
+            reports what was found and offers only deterministic, execution-preserving fixes. */}
+        {loadBanner ? (
+          <div className={`validation-load-banner ${loadBanner.underCompatibility ? "legacy" : loadBanner.runnable ? "warn" : "block"}`} data-testid="flow-validation-banner">
+            <span className="validation-load-banner-text">
+              {loadBanner.underCompatibility ? (
+                <>
+                  <strong>Legacy Compatibility</strong> — this flow still runs until{" "}
+                  <strong>{loadBanner.compatibilityExpiresAt?.slice(0, 10)}</strong> with {loadBanner.toleratedCount} off-path error(s) tolerated. Fix or migrate it before the deadline.
+                </>
+              ) : loadBanner.runnable ? (
+                <>
+                  This flow is runnable with <strong>{loadBanner.warningCount}</strong> warning(s).
+                </>
+              ) : (
+                <>
+                  <strong>Not runnable</strong> — {loadBanner.blockingCount} issue(s) block execution.
+                  {loadBanner.standing === "expired" ? " Its Legacy Compatibility period has ended." : null}
+                  {loadBanner.standing === "edited" ? " Its Legacy Compatibility ended when the flow was edited." : null}
+                  {loadBanner.standing === "legacyDigest"
+                    ? " Its Legacy Compatibility record was retired by a security upgrade to how grants are bound, and was not renewed automatically."
+                    : null}
+                </>
+              )}
+            </span>
+            <button className="toolbar-button" type="button" onClick={() => setIssuesOpen(true)}>
+              Review manually
+            </button>
+            {loadBanner.safeFixCount > 0 ? (
+              <button className="toolbar-button primary" type="button" onClick={() => void openFixPreview()} data-testid="flow-fix-safe-issues">
+                Fix {loadBanner.safeFixCount} safe issue{loadBanner.safeFixCount === 1 ? "" : "s"}…
+              </button>
+            ) : null}
+            <button className="toolbar-button" type="button" onClick={() => setLoadBanner(null)} aria-label="Dismiss validation banner">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {lastMigration ? (
+          <div className="validation-load-banner ok" data-testid="flow-migration-undo">
+            <span className="validation-load-banner-text">Safe fixes applied. The original was backed up before any change.</span>
+            <button className="toolbar-button" type="button" onClick={() => void undoLastMigration()}>
+              Undo migration
+            </button>
+            <button className="toolbar-button" type="button" onClick={() => setLastMigration(null)}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         <div className="flow-action-bar">
           <div className="flow-action-title">
             <strong>{flowName}</strong>
@@ -929,11 +1099,48 @@ function FlowChartDesignerContent() {
             <LayoutGrid size={15} />
             Auto-arrange
           </button>
-          <span className={validationMessages.length ? "validation-chip warn" : "validation-chip ok"}>
+          {/* Derived runnability (Stage 2b): blocking = the run gate would reject this flow now.
+              Never persisted. Clicking opens the issue list; each row navigates to its node/connector. */}
+          <button
+            type="button"
+            className={`validation-chip ${blockingIssues.length ? "block" : validationMessages.length ? "warn" : "ok"}`}
+            onClick={() => setIssuesOpen((open) => !open)}
+            title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationMessages.length ? "Click to review validation findings" : "No validation findings"}
+            data-testid="flow-validation-chip"
+          >
             <ShieldCheck size={14} />
-            {validationMessages.length ? `${validationMessages.length} issues` : "Valid"}
-          </span>
+            {blockingIssues.length
+              ? `Draft — not runnable (${blockingIssues.length})`
+              : validationMessages.length
+                ? `${validationMessages.length} finding${validationMessages.length === 1 ? "" : "s"}`
+                : "Runnable"}
+          </button>
         </div>
+
+        {issuesOpen && (validationReport.issues.length > 0 || advisoryMessages.length > 0) ? (
+          <div className="validation-issues-panel" data-testid="flow-validation-panel">
+            {validationReport.issues.map((issue) => (
+              <button
+                key={`${issue.code}-${issue.nodeId ?? issue.edgeId ?? "flow"}-${issue.message}`}
+                type="button"
+                className={`validation-issue-row ${issue.severity}`}
+                onClick={() => navigateToIssue(issue)}
+                title={issue.nodeId ? "Select the affected node" : issue.edgeId ? "Select the affected connector" : "Flow-level finding"}
+              >
+                <span className={`validation-issue-badge ${issue.severity}${issue.severity === "error" && !issue.onActivePath && issue.code !== "connectorStructure" ? " offpath" : ""}`}>
+                  {issue.severity === "warning" ? "warning" : issue.onActivePath || issue.code === "connectorStructure" ? "blocks run" : "off-path"}
+                </span>
+                <span>{issue.message}</span>
+              </button>
+            ))}
+            {advisoryMessages.map((message) => (
+              <div key={message} className="validation-issue-row advisory">
+                <span className="validation-issue-badge advisory">advisory</span>
+                <span>{message}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="flow-designer-body">
           <div ref={canvasRef} className="react-flow-shell">
@@ -970,6 +1177,37 @@ function FlowChartDesignerContent() {
           </div>
         </div>
       </div>
+      {/* Change preview + explicit confirmation — required before any fix is written (owner
+          decision 2). Every listed change is a schema migration that cannot alter execution. */}
+      {fixPreview ? (
+        <div className="modal-overlay" role="presentation">
+          <div className="modal-dialog validation-fix-dialog" role="dialog" aria-modal="true" aria-labelledby="fix-preview-title" data-testid="flow-fix-preview">
+            <h2 id="fix-preview-title">Apply {fixPreview.fixes.length} safe fix{fixPreview.fixes.length === 1 ? "" : "es"}?</h2>
+            <div className="modal-body">
+              <p>
+                These are schema-only corrections — they cannot change what the flow does. The original is backed up first and you can undo it.
+                Errors: <strong>{fixPreview.beforeErrorCount}</strong> → <strong>{fixPreview.afterErrorCount}</strong>.
+              </p>
+              <ul className="validation-fix-list">
+                {fixPreview.fixes.map((fix) => (
+                  <li key={`${fix.edgeId ?? "flow"}-${fix.field}-${fix.from}`}>
+                    <code>{fix.edgeId ? `${fix.edgeId}.` : ""}{fix.field}</code>: <code>{fix.from}</code> → <code>{fix.to}</code>
+                    <span className="validation-fix-why">{fix.description}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="modal-actions">
+              <button className="toolbar-button" type="button" onClick={() => setFixPreview(null)}>
+                Cancel
+              </button>
+              <button className="toolbar-button primary" type="button" onClick={() => void confirmApplyFixes()} data-testid="flow-fix-confirm">
+                Apply fixes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Toast toast={toast} onDismiss={() => setToast(null)} />
       {connectPrompt ? (
         <ConfirmDialog
@@ -989,36 +1227,35 @@ export function FlowChartDesigner() {
   return <FlowChartDesignerContent />;
 }
 
-function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
+/**
+ * Renderer-only validation advisories (Stage 2b).
+ *
+ * The graph/step rules that used to live here (start/end counts, connectivity, required locator/
+ * value, loop bounds, connector structure) are now owned by the shared engine —
+ * `validateFlowDefinition` in `src/validation/FlowValidator.ts` — driven through `toFlowProfile`,
+ * so the designer, run gate, library and import can never disagree. This function keeps ONLY the
+ * checks the engine has no rule for, using designer-local knowledge:
+ *  - locator uniqueness quality captured by the Recorder (`locatorQuality`);
+ *  - conditional-connector config completeness (expected value / variable path);
+ *  - static-list loop connectors with no values;
+ *  - ambiguous same-priority conditional connectors;
+ *  - a dead-end non-End node (reachable but with no outgoing connector) — candidate engine rule.
+ * These are advisories: they never block save and never block the run gate.
+ */
+function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): string[] {
   const messages: string[] = [];
-  const startCount = nodes.filter((node) => node.data.stepType === "start").length;
-  const endCount = nodes.filter((node) => node.data.stepType === "end").length;
-
-  if (startCount !== 1) messages.push("Flow requires exactly one Start node.");
-  if (endCount < 1) messages.push("Flow requires at least one End node.");
-
-  const incoming = new Set(edges.map((edge) => edge.target));
+  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
   const outgoing = new Set(edges.map((edge) => edge.source));
 
   nodes.forEach((node) => {
-    const catalogItem = getFlowNodeCatalogItem(node.data.stepType);
-    if (node.data.stepType !== "start" && !incoming.has(node.id)) messages.push(`${node.data.name} has no incoming connector.`);
     if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push(`${node.data.name} has no outgoing connector.`);
-    if (catalogItem.requiresLocator && !node.data.locatorValue.trim()) messages.push(`${node.data.name} requires a locator value.`);
     if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false) {
       messages.push(`${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.`);
     }
-    if (catalogItem.requiresValue && !node.data.value.trim()) messages.push(`${node.data.name} requires a value source or value.`);
   });
 
-  // ── Connector validation (Checkpoint B) ────────────────────────────────────
-  const nodeName = (id: string) => nodes.find((n) => n.id === id)?.data.name ?? id;
   edges.forEach((edge) => {
     const data = edge.data;
-    if (!edge.target) {
-      messages.push(`A connector from ${nodeName(edge.source)} has no target.`);
-      return;
-    }
     const edgeKind = data?.kind ?? (data?.linkType === "conditional" || data?.linkType === "outcome" ? "conditional" : data?.linkType === "parallel" ? "parallel" : data?.linkType === "loop" || data?.linkType === "loopBack" ? "loop" : "normal");
     if (edgeKind === "conditional" && data?.conditional) {
       const c = data.conditional;
@@ -1032,8 +1269,6 @@ function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): str
     }
     if (edgeKind === "loop" && data?.loop) {
       const l = data.loop;
-      if (!l.maxIterations || l.maxIterations < 1) messages.push(`Loop connector from ${nodeName(edge.source)} needs a max iterations ≥ 1.`);
-      if (l.maxIterations > 1000) messages.push(`Loop connector from ${nodeName(edge.source)} max iterations is too high (limit 1000).`);
       if (l.mode === "staticList" && !(l.staticValues && l.staticValues.length)) messages.push(`Loop connector from ${nodeName(edge.source)} (static list) needs at least one value.`);
     }
   });
@@ -1051,8 +1286,6 @@ function validateFlow(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]): str
     const dupes = priorities.filter((p, i) => priorities.indexOf(p) !== i);
     if (dupes.length) messages.push(`${nodeName(source)} has multiple conditional connectors with the same priority — routing may be ambiguous.`);
   });
-
-  messages.push(...connectorStructureIssues(edges, nodeName));
 
   return messages;
 }
@@ -1113,26 +1346,7 @@ function connectorStructureIssues(edges: FlowDesignerEdge[], nodeName: (id: stri
   return messages;
 }
 
-function toFlowProfile(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[], id: string, name: string): FlowProfile {
-  return {
-    id,
-    name,
-    description: "Editable reusable flow",
-    version: 1,
-    nodes: nodes.map((node) => toFlowStep(node, edges)),
-    edges: edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: edge.data?.linkType ?? "success",
-      kind: edge.data?.kind,
-      conditional: edge.data?.kind === "conditional" ? edge.data?.conditional : undefined,
-      parallel: edge.data?.kind === "parallel" ? edge.data?.parallel : undefined,
-      loop: edge.data?.kind === "loop" ? edge.data?.loop : undefined,
-      label: edge.data?.label,
-      condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
-      style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined,
-      maxLoopCount: edge.data?.linkType === "loopBack" ? edge.data?.maxLoopCount ?? 2 : undefined
-    }))
-  };
-}
+// The local `toFlowProfile` that used to live here was removed during the branch merge: it
+// hardcoded `description: "Editable reusable flow"` and `version: 1` and dropped the profile
+// timestamps, which is round-trip defects RT-06/RT-07. flowProfileMapping's `toFlowProfile` threads
+// the loaded FlowProfileMeta through instead, so a load->save cycle no longer rewrites metadata.

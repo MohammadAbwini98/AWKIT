@@ -121,7 +121,7 @@ async function main(): Promise<void> {
       password: "S3cr3t-Value!"
     });
     check("view reports hasPassword", view.hasPassword === true);
-    check("view carries NO secret name field", !("passwordSecretName" in (view as Record<string, unknown>)));
+    check("view carries NO secret name field", !("passwordSecretName" in (view as unknown as Record<string, unknown>)));
     check("password stored in vault under oracle.<id>.password", vault.raw.get("oracle.prod.password") === "S3cr3t-Value!");
     const stored = store.raw.get("prod")!;
     check("persisted profile stores only the secret NAME", stored.passwordSecretName === "oracle.prod.password");

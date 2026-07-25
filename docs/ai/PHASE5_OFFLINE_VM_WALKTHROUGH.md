@@ -14,8 +14,8 @@ no-egress hardening validated; strict-net walkthrough passes). Local-only, uncom
 | Packaged-process teardown targets the REAL Electron main (Phase 5.1D) | **DONE** — `scripts/helpers/packaged-process-tree.mts`; both packaged verifiers report a fully-terminated tree (no zombie app/Chromium) |
 | Portable EXE real launch on a fresh profile | **DONE on the dev machine** (see §2, Part K) |
 | Rebuild the shippable, max-compressed, hardened portable/NSIS EXEs | **PARTIAL** — 7-Zip `-mx=9` OOMs here (KNOWN_ISSUES), so the shippable max-compressed EXEs were NOT produced. `win-unpacked` (the validated payload) is hardened, and one-off `store`-compressed **hardened** portable (~1.23 GB) + NSIS (~376 MB) EXEs + a consistent `latest.yml` (installer sha512 re-verified) were produced for validation only. Max-compressed + signed distributables need a higher-memory machine. |
-| NSIS installer **install/uninstall + launch** | **NOT DONE** — installer integrity (sha512 vs `latest.yml`) verified only; the install/uninstall cycle needs a clean machine |
-| **Clean/offline Windows VM walkthrough (this checklist, §3)** | **NOT PERFORMED** — no VM/Windows Sandbox available in the agent environment (`WindowsSandbox.exe` absent; host is a MacBookPro15,1 running Windows 10 Enterprise 19045) |
+| NSIS installer **install/uninstall + launch** | **NOT DONE** — as of 2026-07-22 a fresh full NSIS installer builds (356.6 MiB, sha512 matches `latest.yml`), but the install/upgrade/uninstall cycle still needs a clean machine and was not run. |
+| **Clean/offline Windows VM walkthrough (this checklist, §3 + §3b)** | **NOT PERFORMED** — re-confirmed 2026-07-22: `WindowsSandbox.exe` absent, Windows Sandbox feature-enable requires elevation the agent's standard (non-admin) account does not have; no provisioned clean guest VM. Host is Windows 10 Enterprise 19045. |
 
 Per the Phase 5 guardrail, **offline-VM validation is NOT claimed**. The dev-machine walkthrough
 below is strong evidence (fresh `LOCALAPPDATA`, real packaged EXE, no dev paths, loopback-only
@@ -167,6 +167,42 @@ For one success, one failure, one cancellation, and one recovery case:
 - [ ] `instances\<executionId>\<instanceId>\traces\*.zip` opens in Playwright trace viewer
       (if available on another machine).
 - [ ] `state\flow-state.json` / `node-attempts.json` are valid JSON.
+
+## 3b. Flow Validation subsystem (Tranche 2) — clean-VM checklist
+
+Added 2026-07-22. The validation engine, Legacy Compatibility grants (SHA-256-bound) and the
+suggested-fix migration subsystem were validated **on the dev machine** (`verify-packaged-validation`
+87/0, `verify-packaged-runtime` 25/0, `measure-inventory-scale` 1,000 flows). The items below are the
+clean-VM confirmations that automated dev-machine runs cannot stand in for. Seed the upgrade profile
+by copying a realistic flow library into `%LOCALAPPDATA%\SpecterStudio\flows` before first launch.
+
+**Validation & drafts**
+- [ ] Create a flow, save it, reopen it, run it (valid → runs).
+- [ ] Build an invalid flow (a click with no locator); Save succeeds as a **Draft**; the chip reads
+      `Draft — not runnable`; nothing in the graph was auto-changed.
+- [ ] Running the invalid flow's workflow is **blocked** with a specific message (active-path error).
+- [ ] Import a flow JSON; a parseable-but-invalid flow imports as a Draft, not rejected.
+
+**Legacy Compatibility**
+- [ ] With an off-path-only flow (an orphan node) present at first launch, the inventory scan issues a
+      **Legacy Compatibility** grant; the Flow Library shows the dashed `Legacy · until <date>` pill.
+- [ ] The granted flow's workflow **runs**, and the run reports it ran under compatibility (not silent).
+- [ ] Restart the app: the grant **persists** and still shows its deadline.
+- [ ] Make an executable edit to the granted flow (add a node): the grant **voids immediately**
+      (`edited`); the flow now blocks. A description-only edit does **not** void it.
+- [ ] Confirm no `runnable`/`validated` verdict is written into any flow's JSON on disk.
+
+**Suggested-fix migration**
+- [ ] On a flow with a casing-only enum mistake, open the migration **preview** — it lists each change;
+      nothing is written yet.
+- [ ] Confirm: an **untouched backup** appears under `%LOCALAPPDATA%\SpecterStudio\validation\backups\`
+      **before** the flow changes; a migration report is recorded.
+- [ ] Restart, then **undo** the migration → the flow is restored byte-for-byte from the backup.
+- [ ] Edit the migrated flow, then attempt undo → it is **refused** (would destroy the later edit).
+
+**Upgrade specifics**
+- [ ] Upgrading over a build that stored a pre-hardening (FNV-era) grant: the old record is **retired**
+      (not honored, not silently re-granted), and its flow blocks until repaired.
 
 ## 4. Known limitations to carry into the decision
 

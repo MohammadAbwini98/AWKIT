@@ -47,7 +47,7 @@ check("ciphertext is stored", onDisk.includes("base64" ) === false && onDisk.inc
 
 const summaries = store.list();
 check("list returns the name", summaries.some((s) => s.name === "portal_password"));
-check("list carries no value field", summaries.every((s) => !("value" in (s as Record<string, unknown>)) && !("cipher" in (s as Record<string, unknown>))));
+check("list carries no value field", summaries.every((s) => !("value" in (s as unknown as unknown as unknown as Record<string, unknown>)) && !("cipher" in (s as unknown as Record<string, unknown>))));
 
 store.set("portal_password", "updated-Value-99");
 check("set overwrites value", store.get("portal_password") === "updated-Value-99");

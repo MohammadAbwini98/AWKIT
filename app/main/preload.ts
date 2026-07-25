@@ -4,6 +4,7 @@ import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { RunWorkflowRequest } from "./ipc/execution.ipc";
+import type { FlowValidationStatusDto as FlowValidationStatus } from "./ipc/validation.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
 import type { DeepPartial, UiSettings } from "./uiSettings";
 import type { SessionProfile, SessionCaptureStatus, DetectedBrowser } from "@src/session/SessionProfile";
@@ -214,7 +215,35 @@ const api = {
     delete: (id: string) => ipcRenderer.invoke("flows:delete", id) as Promise<void>,
     clone: (id: string, nextId?: string) => ipcRenderer.invoke("flows:clone", id, nextId) as Promise<FlowProfile>,
     export: (id: string) => ipcRenderer.invoke("flows:export", id) as Promise<FlowProfile>,
-    import: (profile: FlowProfile) => ipcRenderer.invoke("flows:import", profile) as Promise<FlowProfile>
+    // Stage 2b: import returns the stored profile plus a validation summary. A parseable invalid
+    // flow imports as a Draft; `validation.runnable` is derived and never persisted.
+    import: (profile: FlowProfile) =>
+      ipcRenderer.invoke("flows:import", profile) as Promise<{
+        profile: FlowProfile;
+        validation: { issues: unknown[]; errorCount: number; warningCount: number; blockingCount: number; runnable: boolean };
+      }>
+  },
+  /**
+   * Flow validation + Legacy Compatibility (Stage 2c). Every status here is DERIVED on demand;
+   * nothing is persisted onto a flow profile. `applySafeFixes`/`undoMigration` are the only
+   * mutating calls and both require the Edit Flows permission in main.
+   */
+  validation: {
+    statusAll: () => ipcRenderer.invoke("validation:statusAll") as Promise<FlowValidationStatus[]>,
+    status: (flowId: string) => ipcRenderer.invoke("validation:status", flowId) as Promise<FlowValidationStatus | null>,
+    meta: () => ipcRenderer.invoke("validation:meta") as Promise<{ validatorVersion: number; windowDays: number }>,
+    grants: () => ipcRenderer.invoke("validation:grants") as Promise<unknown[]>,
+    latestScan: () => ipcRenderer.invoke("validation:latestScan") as Promise<unknown | null>,
+    runInventoryScan: () => ipcRenderer.invoke("validation:runInventoryScan") as Promise<unknown>,
+    previewSafeFixes: (flowId: string) =>
+      ipcRenderer.invoke("validation:previewSafeFixes", flowId) as Promise<{
+        fixes: { code: string; field: string; from: string; to: string; description: string; edgeId?: string }[];
+        beforeErrorCount: number;
+        afterErrorCount: number;
+      }>,
+    applySafeFixes: (flowId: string) => ipcRenderer.invoke("validation:applySafeFixes", flowId) as Promise<{ record: { id: string; backupPath: string; fixes: unknown[] }; profile: FlowProfile }>,
+    undoMigration: (flowId: string, migrationId: string) => ipcRenderer.invoke("validation:undoMigration", flowId, migrationId) as Promise<{ profile: FlowProfile }>,
+    migrations: (flowId: string) => ipcRenderer.invoke("validation:migrations", flowId) as Promise<{ id: string; at: string; fixes: unknown[]; undoneAt?: string }[]>
   },
   workflows: {
     list: () => ipcRenderer.invoke("workflows:list") as Promise<WorkflowProfile[]>,

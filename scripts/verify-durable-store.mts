@@ -10,6 +10,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
+import { RUNTIME_STORE_MIGRATIONS } from "@src/runner/store/RuntimeStoreSchema";
 
 let passed = 0;
 let failed = 0;
@@ -31,13 +32,15 @@ async function main(): Promise<void> {
   console.log("\nPart A — init + migrations + real SQLite file");
   const store = await SqliteRuntimeStore.open(dbPath, () => undefined);
   const migrations = store.appliedMigrations();
+  // Compared against RUNTIME_STORE_MIGRATIONS rather than a hardcoded list: this assertion was
+  // previously pinned at 2 and went stale silently when v3 and v4 were added, leaving the verifier
+  // red. Deriving it means adding a migration can no longer break this check.
+  const expected = RUNTIME_STORE_MIGRATIONS.map((migration) => `${migration.version}:${migration.name}`);
+  const applied = migrations.map((migration) => `${migration.version}:${migration.name}`);
   check(
-    "migrations v1 + v2 applied on first open",
-    migrations.length === 2 &&
-      migrations[0].version === 1 &&
-      migrations[0].name === "initial-schema" &&
-      migrations[1].version === 2 &&
-      migrations[1].name === "reporting-extensions"
+    `all ${expected.length} migrations applied on first open (${expected.join(", ")})`,
+    applied.length === expected.length && applied.every((entry, index) => entry === expected[index]),
+    `applied: ${applied.join(", ") || "none"}`
   );
   const header = (await readFile(dbPath)).subarray(0, 15).toString();
   check("database file is a real SQLite file on disk", header === "SQLite format 3", header);
@@ -91,7 +94,11 @@ async function main(): Promise<void> {
   await store.close();
 
   const reopened = await SqliteRuntimeStore.open(dbPath, () => undefined);
-  check("migrations idempotent across reopen (still exactly v1 + v2)", reopened.appliedMigrations().length === 2);
+  check(
+    `migrations idempotent across reopen (still exactly ${expected.length}, none re-applied)`,
+    reopened.appliedMigrations().length === expected.length,
+    `found ${reopened.appliedMigrations().length}`
+  );
   const runs = reopened.listRuns();
   check("run state persisted across restart", runs.length === 1 && runs[0].instanceId === "i-1" && runs[0].status === "running");
   check("heartbeat folded into the run row", runs[0].lastHeartbeatAt === "2026-07-06T10:00:04.000Z");

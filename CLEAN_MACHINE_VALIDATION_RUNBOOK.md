@@ -72,6 +72,7 @@ these constraints, so every result below is currently **Not Executed**.
 - `Remaining acceptance gate: clean offline Windows environment validation` — **no longer blocking**
   as of the 2026-07-24 owner policy above (**OWNER WAIVED — NON-BLOCKING**); execution status is still
   **NOT EXECUTED**. It stays available here as an optional procedure; a FAIL, if ever executed, blocks.
+- `Remaining acceptance gate: clean offline Windows environment validation`
 
 > **This runbook makes no pass claims.** Every check is a `☐ Not Executed` item until a tester runs
 > it on a qualifying machine and records the outcome in the §12 result template. Do **not** edit this

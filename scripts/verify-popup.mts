@@ -18,7 +18,7 @@ import { ValueResolver } from "../src/runner/ValueResolver.js";
 import type { FlowStep, FlowProfile } from "../src/profiles/FlowProfile.js";
 
 // ── Minimal mock of context/services needed by StepExecutor ──────────────────
-function makeContext(executionId = "test-exec", instanceId = "test-inst"): Parameters<typeof StepExecutor>[3] {
+function makeContext(executionId = "test-exec", instanceId = "test-inst"): ConstructorParameters<typeof StepExecutor>[3] {
   return {
     executionId,
     instanceId,
@@ -31,7 +31,7 @@ function makeContext(executionId = "test-exec", instanceId = "test-inst"): Param
     },
     workflowDataSource: null,
     instanceVariables: {}
-  } as Parameters<typeof StepExecutor>[3];
+  } as unknown as ConstructorParameters<typeof StepExecutor>[3];
 }
 
 function makeStep(partial: Partial<FlowStep> & { type: FlowStep["type"] }): FlowStep {
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
       const step = makeStep({ type: "click", pageAlias: "popup-99", locator: { strategy: "role", value: "button", name: "Accept" } });
       const result = await executor1.execute(step);
       assert(result.status === "failed", "Should fail for unknown alias");
-      assert(result.error?.includes("popup-99"), `Error should mention alias, got: ${result.error}`);
+      assert(result.error?.includes("popup-99") === true, `Error should mention alias, got: ${result.error}`);
     });
 
     await ctx1.close();

@@ -20,8 +20,13 @@ npm run dev:mock-site    # same as mock-site
 
 ## Typecheck / build
 ```bash
-npm run typecheck        # tsc --noEmit
+npm run typecheck        # tsc --noEmit  (app + src, per tsconfig.json)
 npm run build            # tsc --noEmit && electron-vite build  (primary verification gate)
+npm run typecheck:scripts # tsc -p tsconfig.scripts.json — type-checks the .mts verifier/benchmark
+                         # scripts (which tsconfig.json excludes). Catches deleted imports, stale
+                         # APIs and incompatible types before `tsx` runtime. Bundler resolution to
+                         # match how tsx resolves them; emits nothing.
+npm run verify:all-typecheck # build + typecheck:scripts — the combined type gate.
 ```
 
 ## Test / verify
@@ -160,6 +165,51 @@ npm run verify:e2e-reauth   # live ReauthDialog flow in the REAL Electron app (r
 npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import test-only mock flows/workflows/data source into runtime userData (for manual GUI testing)
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory
+
+# Randomized Automation Test Lab (2026-07-21, epic awkit-wza — pure, no browser, no Electron).
+# NOTE: these have NO npm aliases yet — invoke them directly. Adding the `test:random:*` script
+# entries is plan task in docs/testing/RANDOMIZED_TESTING_IMPLEMENTATION_PLAN.md Phase 4.
+npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
+                                             # flows through the real validateConnectorStructure, reachability,
+                                             # coverage accounting, no-secret/no-external-URL safety (49)
+npx tsx scripts/verify-packaged-validation.mts # Tranche 2 hardening gate — run AFTER `npm run package:portable`.
+                                             # Drives the REAL packaged EXE on a clean profile AND an upgrade
+                                             # profile (FNV-era grant, old migration record, run history):
+                                             # all ten validation:* channels + their authorization matrix,
+                                             # grant persistence/invalidation/expiry across restarts, the full
+                                             # migration ceremony incl. undo, library states, offline posture,
+                                             # clean-shutdown integrity, scan timing + renderer responsiveness (87)
+npx tsx scripts/measure-inventory-scale.mts  # MEASUREMENT (non-blocking) — run AFTER `npm run package:portable`.
+                                             # Seeds SCALE_FLOWS (default 1000) into a fresh profile, launches the
+                                             # packaged app, and measures the first inventory scan under
+                                             # concurrent run requests: scan duration, renderer round-trip,
+                                             # peak RSS, grant-store behavior, single-flight safety. Timing/memory
+                                             # are recorded, never thresholded; only safety properties gate (9).
+npx tsx scripts/verify-legacy-compat.mts     # Stage 2c: Legacy Compatibility grants (SHA-256 digest format,
+                                             # collision resistance, canonicalization determinism, legacy-record
+                                             # retirement, concurrency/fail-safety), plus expiry,
+                                             # standing), the full-gate blocking policy, inventory scan +
+                                             # grant planning, and the suggested-fix ceremony (preview,
+                                             # backup, apply, migration report, undo) against the REAL
+                                             # service in temp folders (90)
+npx tsx scripts/verify-validation.mts        # Flow Validation Engine (src/validation/FlowValidator.ts):
+                                             # every rule with positive AND negative controls, reachability
+                                             # over all 9 generated patterns, active-path classification,
+                                             # deterministic ordering, legacy+modern flows, requirement-table
+                                             # parity, canonical 1000 loop-cap parity, and the Stage 2b run
+                                             # gate (PreRunValidator delegation, blocking policy, scoping,
+                                             # runFlow precedence) (124)
+npx tsx scripts/verify-random-oracle.mts     # 13 controlled mutations judged against the real validators.
+                                             # EXPECTED: 27/0 since Stage 2b — all rules detected AND
+                                             # production-enforced (run gate delegates to the engine;
+                                             # awkit-7fm + awkit-acw closed). KNOWN_VALIDATION_GAPS and
+                                             # PRODUCTION_UNENFORCED_RULES are empty regression guards.
+npx tsx scripts/verify-random-roundtrip.mts  # profile -> JSON -> profile and profile -> designer -> profile.
+                                             # EXPECTED: 17 passed / 12 FAILED BY DESIGN — a baseline
+                                             # discovery run over 11 catalogued product defects. Do NOT tune,
+                                             # skip or weaken its assertions to make it green; fix the defect
+                                             # and delete its catalog entry instead.
+# Both write deterministic reports to reports/random-tests/ (gitignored).
 ```
 - There is **no** `lint` script and **no** `test` npm script.
 - `@playwright/test` is installed and `tests/runner.mocksite.spec.ts` exists, but the Playwright

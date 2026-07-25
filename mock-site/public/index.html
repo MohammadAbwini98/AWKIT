@@ -67,6 +67,32 @@
           </dl>
         </article>
 
+        <article data-testid="scenario-runner-lab">
+          <h2><a href="/runner-lab">Runner Lab</a></h2>
+          <p>Attachment downloads, controlled HTTP failures with Retry-After, a fail-twice-then-succeed endpoint, and multipart upload.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Download links raise a real download event; failure buttons report the exact status; the flaky endpoint fails twice then succeeds; upload echoes name, size, and a content preview.</dd>
+            <dt>Related feature</dt>
+            <dd>downloadFile and uploadFile nodes, retry policy, error handling.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/runner-lab</code></dd>
+          </dl>
+        </article>
+
+        <article data-testid="scenario-iframe-lab">
+          <h2><a href="/iframe-lab">Iframe Lab</a></h2>
+          <p>Same-origin interactive iframe with deliberate decoy controls in the top document.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Only a frame-scoped locator reaches the child controls; an unscoped locator silently hits the inert top-level decoy instead of failing. The child mirrors its state to the parent for a top-level assertion.</dd>
+            <dt>Related feature</dt>
+            <dd>LocatorFrameContext, Recorder frame scoping.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/iframe-lab</code>, <code>/iframe-child</code></dd>
+          </dl>
+        </article>
+
         <article data-testid="scenario-core-form">
           <h2><a href="/login">Core Login and Form</a></h2>
           <p>Existing login, form, details, and success flow used by runner verification.</p>

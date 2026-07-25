@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, XCircle, X } from "lucide-react";
+import { CheckCircle2, Info, XCircle, X } from "lucide-react";
 
 export interface ToastState {
-  tone: "success" | "error";
+  /** `info` (Stage 2b): a neutral notice — e.g. "saved as draft with validation errors". */
+  tone: "success" | "error" | "info";
   message: string;
 }
 
@@ -73,7 +74,7 @@ export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
       role="status"
       aria-live="polite"
     >
-      {current.tone === "success" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+      {current.tone === "success" ? <CheckCircle2 size={16} /> : current.tone === "info" ? <Info size={16} /> : <XCircle size={16} />}
       <span>{current.message}</span>
       <button className="app-toast-close" onClick={onDismiss} title="Dismiss" type="button">
         <X size={14} />
