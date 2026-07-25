@@ -414,11 +414,50 @@ console.log("\nConcurrency and shutdown:\n");
   check("two concurrent drain callers receive the SAME promise", a === b);
   await a;
 
-  // Shutdown waits on one bounded promise covering the rebuild AND the drain.
+  // Shutdown waits on one promise covering the rebuild AND the drain.
   const running = orchestrator.rebuild();
   const idle = queue.whenIdle();
-  await Promise.all([running, idle]);
+  const [, wentIdle] = await Promise.all([running, idle]);
   check("whenIdle() awaits the in-flight rebuild", !orchestrator.isRunning);
+  check("whenIdle() reports that it reached quiescence", wentIdle === true);
+}
+
+{
+  // A wedged rebuild must not hold shutdown open forever. An ITERATION bound does not bound TIME —
+  // one hung await inside the loop waits indefinitely — so the deadline is wall-clock, and a caller
+  // that hits it is told so rather than left waiting.
+  const gens = new FakeGenerations();
+  await gens.openActive();
+  const queue = new SemanticMutationQueue({ store: gens.activeStore });
+
+  let release: (() => void) | undefined;
+  const wedged = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const orchestrator = new SemanticRebuildOrchestrator({
+    queue,
+    snapshot: async () => {
+      await wedged; // never settles until this test releases it
+      return [doc("wf-a")];
+    },
+    rebuildGeneration: gens.rebuildGeneration,
+    openCandidate: gens.openCandidate,
+    retarget: async () => undefined
+  });
+
+  const running = orchestrator.rebuild();
+  const startedAt = Date.now();
+  const wentIdle = await queue.whenIdle(120);
+  const waited = Date.now() - startedAt;
+
+  check("whenIdle() gives up on a wedged rebuild instead of hanging", wentIdle === false);
+  check("...and returns within the deadline", waited < 2000, `waited=${waited}ms`);
+  check("the rebuild is still recorded as running", orchestrator.isRunning);
+
+  // Released so the process can exit cleanly — a leaked pending rebuild would hang this verifier.
+  release?.();
+  await running;
+  check("the wedged rebuild completes once unblocked", !orchestrator.isRunning);
 }
 
 {

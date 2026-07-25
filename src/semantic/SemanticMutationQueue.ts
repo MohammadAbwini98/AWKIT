@@ -470,15 +470,38 @@ export class SemanticMutationQueue {
    * Shutdown needs a single thing to wait on. Waiting only on `drain()` would return immediately while
    * a rebuild was mid-populate, and closing the store underneath it is how a candidate generation ends
    * up half-written.
+   *
+   * **Returns `false` when the deadline wins**, so shutdown can log and proceed. Waiting forever is
+   * not the safe default it looks like: a wedged host would hold the application open with no way out
+   * but a kill, which is a worse outcome than closing over a rebuild that is already not progressing.
+   * The caller decides what to do; this only promises to answer.
    */
-  async whenIdle(): Promise<void> {
-    // Looped because finishing a rebuild can leave a drain outstanding and vice versa; bounded by the
-    // fact that neither restarts itself.
+  async whenIdle(deadlineMs = 30_000): Promise<boolean> {
+    const deadline = Date.now() + Math.max(0, deadlineMs);
+    // Looped because finishing a rebuild can leave a drain outstanding and vice versa; bounded both by
+    // the fact that neither restarts itself AND by wall-clock, since an iteration bound alone does not
+    // bound TIME — one hung await inside it waits forever.
     for (let i = 0; i < 8; i += 1) {
       const inFlight = [this.activeDrain, this.activeRebuild].filter(Boolean) as Promise<unknown>[];
-      if (inFlight.length === 0) return;
-      await Promise.allSettled(inFlight);
+      if (inFlight.length === 0) return true;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return false;
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const expired = await Promise.race([
+        Promise.allSettled(inFlight).then(() => false),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(true), remaining);
+        })
+      ]);
+      // Cleared on BOTH outcomes, which is what keeps the timer from outliving the race. It is
+      // deliberately NOT `unref`'d: while this race is pending the timer is the only thing guaranteeing
+      // it can ever settle, so unref'ing it lets a runtime with no other work exit mid-await instead of
+      // reporting the deadline. (Observed: Node exit code 13, "unfinished top-level await".)
+      clearTimeout(timer);
+      if (expired) return false;
     }
+    return this.activeDrain === null && this.activeRebuild === null;
   }
 
   /**
