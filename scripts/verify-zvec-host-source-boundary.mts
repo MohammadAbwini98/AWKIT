@@ -159,7 +159,29 @@ if (existsSync(builderPath)) {
   );
 }
 
-// ── 5. Zvec stays a pinned production dependency ──
+// ── 5. Semantic data must live under the canonical runtime root ──
+// Regression guard: semanticService originally used app.getPath("userData"), which on Windows is
+// the ROAMING profile. That silently pointed the semantic index at a different directory from every
+// other AWKIT store, so startup reconciliation ran against an empty tree and left real orphans in
+// place. Only observable by running the packaged app, so it is pinned here.
+console.log("\nRuntime data root:");
+const servicePath = join(ROOT, "app", "main", "semantic", "semanticService.ts");
+check("semanticService.ts exists", existsSync(servicePath));
+if (existsSync(servicePath)) {
+  const service = readFileSync(servicePath, "utf8");
+  const usesCanonical = service.includes("getRuntimeDataRoot()");
+  // Allow the identifier inside the explanatory comment, but not as a live call.
+  const callsUserData = /app\s*\.\s*getPath\(\s*["']userData["']\s*\)/.test(
+    service
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("*") && !line.trim().startsWith("//"))
+      .join("\n")
+  );
+  check("semantic data uses getRuntimeDataRoot() (%LOCALAPPDATA%/SpecterStudio)", usesCanonical);
+  check("semantic data does NOT use app.getPath('userData') (roaming profile)", !callsUserData);
+}
+
+// ── 6. Zvec stays a pinned production dependency ──
 console.log("\nDependency pinning:");
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
   dependencies?: Record<string, string>;

@@ -234,18 +234,12 @@ const handlers = {
   }
 };
 
-// ── TEST-ONLY crash injection ────────────────────────────────────────────────────────────────
-// Registered ONLY when the Phase 0D crash-isolation harness explicitly sets this environment
-// variable on the forked child. A production launch never sets it, so `__testAbort` is not a
-// known request type and is rejected as SEMANTIC_UNKNOWN_REQUEST like any other unknown message.
-// This block must be REMOVED before Phase 1A ships (see the cleanup classification).
-if (process.env.AWKIT_ZVEC_HOST_TEST_ABORT === "1") {
-  handlers.__testAbort = () => {
-    // Hard native-level abort: no JS error, no graceful exit — the worst case the host manager
-    // must survive. Exits with SIGABRT (134).
-    process.abort();
-  };
-}
+// The Phase 0D crash-injection handler (`__testAbort`, gated on AWKIT_ZVEC_HOST_TEST_ABORT) was
+// REMOVED here in Phase 1A. Crash containment is now covered without shipping an abort path:
+// ZvecHostRestartPolicy is exercised directly by scripts/verify-zvec-host-lifecycle.mts, and the
+// Phase 0D evidence that a native abort is contained (exit 134 detected in 84.62 ms, application
+// survived and still served IPC) is recorded in docs/ZVEC_PHASE_0_COMPATIBILITY_REPORT.md.
+// Any future crash test must inject the fault from the harness, never from shipped host code.
 
 function safeVersion(pkg) {
   try {

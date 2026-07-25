@@ -10,14 +10,12 @@
     "package.json",
     "node_modules/sql.js/dist/sql-wasm.js",
     "node_modules/sql.js/dist/sql-wasm.wasm",
-    "scripts/zvec-spike/**",
     "!node_modules/@zvec/**",
     "!node_modules/bindings/**"
   ],
   "asarUnpack": [
     "node_modules/playwright/**",
-    "node_modules/playwright-core/**",
-    "scripts/zvec-spike/**"
+    "node_modules/playwright-core/**"
   ],
   "extraResources": [
     {
@@ -58,11 +56,15 @@
     "target": [
       {
         "target": "portable",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       },
       {
         "target": "nsis",
-        "arch": ["x64"]
+        "arch": [
+          "x64"
+        ]
       }
     ]
   },

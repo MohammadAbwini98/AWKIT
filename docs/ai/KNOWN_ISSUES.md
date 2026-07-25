@@ -3,6 +3,21 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Packaged live-CRUD coverage for Zvec was removed with the spike hook (2026-07-25)
+
+Phase 1A removed the `AWKIT_ZVEC_SPIKE_HOST` hook from `app/main/main.ts` and the `__testAbort`
+handler from the shipped host, which is correct - neither may ship. But the Phase 0D harnesses that
+drove packaged CRUD, crash isolation, benchmarks and Playwright coexistence all ran *through* that
+hook, so they were deleted with it.
+
+Consequence: there is currently **no automated packaged-application test** that opens a real
+collection from the installed layout. The pure logic is covered
+(`verify:zvec-host-lifecycle` 52/0, `verify:zvec-generation-recovery` 31/0) and the packaged tree is
+still verified structurally (`verify:zvec-packaged-assets`), but the live path is not.
+
+Replacement needs a harness built on `ZvecUtilityHostManager` rather than a hook that bypasses
+startup. The deleted harnesses remain recoverable at tag `archive/spike-zvec-phase-0-20260725`.
+
 ## Push to `origin/main` is blocked by branch protection (2026-07-25)
 
 `git push origin main` fails with `GH013: Repository rule violations found for refs/heads/main —

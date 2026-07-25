@@ -13,7 +13,35 @@ request`. All work since `5dbe25f` (39 commits) exists **locally only**. Remote 
 deliberately NOT deleted until `origin/main` contains the integration, because a remote feature
 branch may currently be the only remote copy of that work.
 
-## Zvec semantic subsystem - Phase 0/0B/0C/0D complete, GO WITH CONDITIONS (2026-07-25)
+## Zvec semantic subsystem - Phase 1A in progress (2026-07-25, current)
+
+Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResources`
+(`resources/native-hosts/zvec/`), never inside `app.asar`. Phase 0-0D evidence is in
+`docs/ZVEC_PHASE_0_COMPATIBILITY_REPORT.md`.
+
+**Phase 1A landed so far:**
+- `src/semantic/contracts/ZvecHostProtocol.ts` - versioned protocol, stable path-free reason codes,
+  bounded timeouts, retry classification (mutations are NOT retryable after a host exit).
+- `src/semantic/SemanticGenerationLayout.ts` - on-disk layout + `isConfinedGenerationPath`,
+  independently duplicated in the host so an IPC gap cannot become filesystem access.
+- `src/semantic/ZvecHostRestartPolicy.ts` - pure, clock-injected restart + circuit breaker.
+- `src/semantic/SemanticGenerationReconciler.ts` - startup reconciliation, retention, quarantine.
+- `app/main/semantic/ZvecUtilityHostManager.ts` - utilityProcess lifetime, correlated requests,
+  deadlines, compatibility gate, staged shutdown.
+- `app/main/semantic/semanticService.ts` - reconcile on startup, dispose on quit. **No IPC, preload
+  API, renderer surface, indexing or embeddings** - those are later phases.
+- `main.ts`: the Phase 0 spike hook is **REMOVED**; shutdown is now staged (semantic host closes on
+  its own bounded budget before the existing settings/Oracle/security stage).
+- `native-hosts/zvec/zvec-host.cjs`: the `__testAbort` crash-injection handler is **REMOVED**.
+
+**Verifiers:** `verify:zvec-host-source-boundary` 17/0, `verify:zvec-host-lifecycle` 52/0,
+`verify:zvec-generation-recovery` 31/0.
+
+**Still open:** the host is not yet reachable from any product surface (by design); packaged
+live-CRUD regression coverage was lost when the spike hook was removed and needs a new
+manager-based harness; CPU utilisation still unmeasured; signing/SmartScreen still unaddressed.
+
+## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 
 Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResources`
 (`resources/native-hosts/zvec/`), never inside `app.asar`. Full evidence in
