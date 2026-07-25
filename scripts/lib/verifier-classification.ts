@@ -181,6 +181,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Projection allowlist, redactor and policy validator in-process; no fs, subprocess, or browser."
   },
+  "verify:semantic-store": {
+    class: "unit",
+    why: "Shared SemanticStore contract suite plus injected-failure and ranking checks, in-process against the in-memory implementation."
+  },
   "verify:zvec-host-lifecycle": {
     class: "unit",
     why: "Restart/circuit-breaker policy and path confinement with an injected clock — plain Node, no native binding or process."
