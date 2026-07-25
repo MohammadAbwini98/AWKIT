@@ -86,7 +86,21 @@ function revertScenario(edges: ScenarioDesignerEdge[], revertSources?: Set<strin
   return revertLoneBranchConnectors(edges, { kindOf: scenarioKindOf, toNormal: scenarioEdgeToNormal, revertSources });
 }
 
-const byId = (edges: { id: string }[], id: string) => edges.find((edge) => edge.id === id)!;
+/**
+ * Look up a fixture edge by id.
+ *
+ * Generic on purpose: a non-generic `(edges: { id: string }[])` signature widens the RETURN type to
+ * `{ id: string }`, so every `flowKindOf(byId(...))` call site lost the concrete edge type and failed
+ * to typecheck. The fixtures were always well-formed — the helper was erasing their type.
+ *
+ * Throws instead of `!`-asserting so a fixture typo surfaces as a named failure rather than a
+ * downstream `undefined` property read.
+ */
+function byId<T extends { id: string }>(edges: readonly T[], id: string): T {
+  const edge = edges.find((candidate) => candidate.id === id);
+  if (!edge) throw new Error(`Missing test edge: ${id}`);
+  return edge;
+}
 
 console.log("Branch-pair reconciliation (FR-2.6)\n");
 

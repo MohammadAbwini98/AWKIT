@@ -25,16 +25,68 @@ still verified structurally (`verify:zvec-packaged-assets`), but the live path i
 Replacement needs a harness built on `ZvecUtilityHostManager` rather than a hook that bypasses
 startup. The deleted harnesses remain recoverable at tag `archive/spike-zvec-phase-0-20260725`.
 
-## `npm run typecheck:scripts` fails on verify-branch-pairs.mts (2026-07-25)
+## RESOLVED 2026-07-25: `npm run typecheck:scripts` / `verify:all-typecheck` are GREEN
 
-Pre-existing, introduced by the `feature/randomized-test-lab` consolidation merge, not by the
-semantic work. `scripts/verify-branch-pairs.mts` constructs edge fixtures as `{ id: string }` while
-`FlowDesignerEdge` now requires `source`/`target`, so `tsc -p tsconfig.scripts.json` reports
-TS2345/TS2339 there.
+Both gates now pass with zero errors. **The previously recorded cause here was wrong**, and it is
+worth knowing why, because it sent an earlier reader looking in the wrong place: this file blamed the
+edge *fixtures* in `scripts/verify-branch-pairs.mts` for being `{ id: string }`. They were never
+malformed — `flowEdge()` / `scenarioEdge()` always emitted `source` and `target`. The type was
+erased downstream by the lookup helper:
 
-Consequence: `verify:all-typecheck` is red, which masks new script-level type errors. All
-`zvec`/`semantic` scripts typecheck clean today, but that is verified by filtering the output rather
-than by a green gate. Fix the fixtures so the gate is trustworthy again.
+```ts
+const byId = (edges: { id: string }[], id: string) => edges.find((e) => e.id === id)!;
+```
+
+A non-generic parameter widens the RETURN type to `{ id: string }`, so all 16 errors landed on the
+`flowKindOf(byId(...))` call sites rather than on the fixtures. Fixed by making `byId` generic
+(`<T extends { id: string }>(edges: readonly T[], id: string): T`) and throwing on a miss instead of
+`!`-asserting.
+
+**The gate was also red in two files this entry never mentioned** (5 further errors), so fixing
+`byId` alone would not have restored it:
+
+- `scripts/verify-popup-identity.mts` — used `Parameters<typeof StepExecutor>` on a **class**. A
+  class's call signature is not its constructor signature, so the type resolved to something that
+  silently accepted an incomplete context object. Switching to `ConstructorParameters<...>` restored
+  real checking and immediately exposed **seven missing required fields**
+  (`instanceOrderNumber`, `totalInstances`, `runtimeInputs`, `instanceInputs`, `flowOutputs`, plus
+  `paths.logs` / `paths.reports`) that the fixture had never supplied. Also cast `Page.listenerCount`,
+  which exists at runtime but is not declared in Playwright's types.
+- `scripts/verify-session-context.mts` — `assertDenied(fn: () => Promise<void>)` rejected every real
+  call site, since `assertSenderPermission` resolves an `AuthorizedActor`. Widened to `Promise<unknown>`.
+
+**Lesson:** a red aggregate gate hides more than the file named in the bug report. Re-derive the
+error list from `tsc` output before trusting a recorded cause, and never conclude from a filtered
+view of a failing gate.
+
+## Damaged active-generation pointer read as "absent" — FIXED 2026-07-25 (bd `awkit-9rd`)
+
+**This destroyed the entire semantic index, including the live generation.** `readActivePointer()`
+returned `null` for four different states — pointer absent, file unreadable, JSON malformed, and
+generation name invalid. `semanticService` passed that `null` through as
+`authoritativeActiveGeneration`, where reconciliation reads it as *"there is no active generation,
+so nothing is protected"*: the preserve-everything early return is skipped, the per-generation
+`name === active` guard can never match, and on an unclean shutdown (the default whenever metadata
+is also unreadable) every generation is `rm -rf`'d.
+
+It is the **same defect class as `4ddc773`** (which stopped active identity being derived from
+`metadata.json`), relocated one level up: making the pointer authoritative achieves nothing while
+"unreadable" and "absent" are the same value.
+
+**Fix:** `readActivePointerStrict` returns `ok | missing | invalid | unreadable` and validates all
+three fields (`activeGeneration`, `previousGeneration`, `activatedAt`). `ReconcileOptions` now takes
+a three-state `ActiveGenerationIdentity` (`known | none | unknown`) instead of `string | null`, so
+the illegal collapse is unrepresentable rather than merely discouraged. Under `unknown`,
+reconciliation discards, quarantines and trims **nothing**, reports `activeIdentityUnknown` +
+`recoveryRequired`, and health surfaces `ACTIVE_POINTER_READ_FAILED`. Startup stays non-blocking.
+
+**Negative-controlled:** reverting only the identity mapping to the old collapse makes the new suite
+report `survivors: none` with 3072 bytes reclaimed — the data loss reproduced. Guarded by
+`verify:zvec-generation-recovery` (34 → **134**).
+
+**Bias worth keeping:** validation failure resolves toward `invalid` (preserve everything, require
+recovery), never toward a usable-looking pointer. Over-preserving wastes disk; under-preserving
+destroys an index that only an explicit rebuild can restore.
 
 ## RESOLVED 2026-07-25: direct push to `origin/main`
 

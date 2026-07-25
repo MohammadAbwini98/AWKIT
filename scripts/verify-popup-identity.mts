@@ -57,20 +57,28 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function makeContext(): Parameters<typeof StepExecutor>[3] {
+function makeContext(): ConstructorParameters<typeof StepExecutor>[3] {
+  // Every required field is supplied rather than cast away: the previous `Parameters<typeof
+  // StepExecutor>` (a CLASS — its call signature is not its constructor signature) resolved to a
+  // type that accepted this object silently, hiding the five missing fields below.
   return {
     executionId: "identity-exec",
     instanceId: "identity-inst",
     scenarioId: "popup-identity",
     flowId: "popup-identity-flow",
+    instanceOrderNumber: 1,
+    totalInstances: 1,
+    runtimeInputs: {},
+    instanceInputs: {},
+    flowOutputs: {},
     paths: {
       screenshots: "/tmp/popup-identity/screenshots",
       downloads: "/tmp/popup-identity/downloads",
-      sessions: "/tmp/popup-identity/sessions"
-    },
-    workflowDataSource: null,
-    instanceVariables: {}
-  } as Parameters<typeof StepExecutor>[3];
+      sessions: "/tmp/popup-identity/sessions",
+      logs: "/tmp/popup-identity/logs",
+      reports: "/tmp/popup-identity/reports"
+    }
+  };
 }
 
 function makeStep(partial: Partial<FlowStep> & { type: FlowStep["type"] }): FlowStep {
@@ -728,7 +736,8 @@ async function main(): Promise<void> {
         assert(t.registry.pendingIdentityCount() === 0, `pending identity tasks leaked: ${t.registry.pendingIdentityCount()}`);
         const live = t.registry.aliases().filter((a) => a !== MAIN_PAGE_ALIAS);
         assert(live.length === 0, `aliases survived every page closing: [${live.join(", ")}]`);
-        const mainListeners = t.mainPage.listenerCount("close");
+        // Playwright's `Page` is an EventEmitter at runtime but does not declare `listenerCount`.
+        const mainListeners = (t.mainPage as unknown as { listenerCount(event: string): number }).listenerCount("close");
         assert(mainListeners <= 2, `close listeners accumulated on the main page: ${mainListeners}`);
       });
 

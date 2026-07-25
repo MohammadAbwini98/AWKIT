@@ -38,14 +38,26 @@ Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResou
   its own bounded budget before the existing settings/Oracle/security stage).
 - `native-hosts/zvec/zvec-host.cjs`: the `__testAbort` crash-injection handler is **REMOVED**.
 
-**Verifiers:** boundary 22/0, host-lifecycle 52/0, generation-recovery 34/0, generation-lifecycle
-102/0, generation-concurrency 12/0, packaged-live 35/0 (packaged AND NSIS-installed trees),
-coexistence 16/0.
+**Verifiers:** boundary 22/0, host-lifecycle 52/0, generation-recovery **134/0** (was 34; +100
+damaged-pointer regression checks), generation-lifecycle 102/0, generation-concurrency 12/0,
+packaged-live 35/0 (packaged AND NSIS-installed trees), coexistence 16/0.
+
+**`npm run typecheck:scripts` and `npm run verify:all-typecheck` are GREEN again** (2026-07-25).
+They had been red since the randomized-test-lab consolidation. The recorded cause was wrong — see
+`KNOWN_ISSUES.md`; the real causes were a type-erasing `byId` helper, `Parameters<>` used on a class
+instead of `ConstructorParameters<>`, and an over-narrow `assertDenied` signature.
 
 **Invariants now enforced and guarded by tests:**
 - The **active-generation pointer is authoritative everywhere**. Reconciliation receives it as a
   required parameter and never derives active identity from `metadata.json`; a valid pointer protects
   its generation unconditionally, whatever state metadata is in.
+- **A pointer that cannot be read is not a pointer that is absent** (2026-07-25, bd `awkit-9rd`).
+  `readActivePointerStrict` distinguishes `ok | missing | invalid | unreadable` and validates all
+  three pointer fields; `reconcileGenerations` takes a three-state `ActiveGenerationIdentity`
+  (`known | none | unknown`) rather than `string | null`. Under `unknown` nothing is discarded,
+  quarantined, or retention-trimmed, `recoveryRequired` is set, and health reports
+  `ACTIVE_POINTER_READ_FAILED`. Before this, a corrupt pointer read as "no active generation" and an
+  unclean shutdown then deleted **every** generation including the live one.
 - A rebuild never mutates the active generation; the pointer write is the commit point, and no later
   failure may delete an activated generation.
 - Zvec is unreachable from the main process (not even resolvable) and ships only as `extraResources`.

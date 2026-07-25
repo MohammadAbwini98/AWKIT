@@ -4,6 +4,58 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Pointer-state hardening + restored type gates (Claude)
+
+**Task:** close the remaining Phase 1A integrity gap before Phase 1B contracts build on it, and make
+`typecheck:scripts` trustworthy again. Both were owner-reported.
+
+**The defect (bd `awkit-9rd`, P1, data-destroying).** `readActivePointer()` returned `null` for
+pointer-absent, unreadable, malformed-JSON, and invalid-name alike. `semanticService` passed that
+`null` as `authoritativeActiveGeneration`, which reconciliation reads as "nothing is active, so
+nothing is protected" - skipping the preserve-everything early return and the per-generation guard.
+With metadata reporting an unclean shutdown (its default on any read failure) every generation was
+deleted, including the live one. Same defect class as `4ddc773`, relocated into the pointer's own
+reader: an authoritative pointer is worthless while "damaged" and "absent" share a value.
+
+**Fix.** `readActivePointerStrict` → `ok | missing | invalid | unreadable`, validating all three
+fields (`activeGeneration`, `previousGeneration`, `activatedAt`). `ReconcileOptions` now takes
+`ActiveGenerationIdentity` (`known | none | unknown`) instead of `string | null`, so the collapse is
+**unrepresentable** rather than discouraged; `resolveActiveIdentity()` is the single mapping and the
+only thing production calls. Under `unknown`: no discard, no quarantine (it renames, which breaks a
+live index just as surely), no retention trim; `activeIdentityUnknown` + `recoveryRequired` reported;
+health gains `ACTIVE_POINTER_READ_FAILED`, ranked above `REBUILD_REQUIRED`. `repairMetadataFromPointer`
+refuses a damaged pointer (`POINTER_UNREADABLE`) rather than reporting `notNeeded`, and
+`markIndexClosed(undefined)` preserves the recorded generation instead of asserting absence. Startup
+remains non-blocking.
+
+**Negative-controlled.** Reverting *only* the identity mapping to the old collapse makes the new
+suite report `survivors: none` / 3072 bytes reclaimed - the data loss reproduced. The tests are not
+vacuous.
+
+**Type gates restored - the recorded cause was wrong.** `KNOWN_ISSUES.md` blamed the edge fixtures in
+`verify-branch-pairs.mts`; they were always well-formed. The type was erased by a non-generic
+`byId(edges: { id: string }[])`, whose widened return broke all 16 call sites. Two files the entry
+never mentioned were also red: `verify-popup-identity.mts` used `Parameters<typeof StepExecutor>` on
+a **class** (a class's call signature is not its constructor signature), which silently accepted an
+incomplete context - switching to `ConstructorParameters<>` exposed 7 missing required fields; and
+`verify-session-context.mts` had an over-narrow `assertDenied` signature. Fixing `byId` alone would
+NOT have restored the gate.
+
+**Files:** `src/semantic/SemanticGenerationManager.ts`, `src/semantic/SemanticGenerationReconciler.ts`,
+`src/semantic/contracts/SemanticHealth.ts`, `app/main/semantic/semanticService.ts`,
+`scripts/verify-zvec-generation-recovery.mts`, `scripts/verify-zvec-generation-lifecycle.mts`,
+`scripts/verify-branch-pairs.mts`, `scripts/verify-popup-identity.mts`,
+`scripts/verify-session-context.mts`, `docs/ai/{CURRENT_STATE,KNOWN_ISSUES,TASK_LOG}.md`.
+
+**Tests:** `npm run build` PASS; **`typecheck:scripts` PASS (first green since the randomized-test-lab
+merge)**; `verify:all-typecheck` PASS; zvec-generation-recovery **134/0** (was 34);
+generation-lifecycle 102/0; generation-concurrency 12/0; host-lifecycle 52/0; host-source-boundary
+22/0; branch-pairs 31/0; session-context 11/11.
+**Not run:** `verify:zvec-packaged-live` / `coexistence` (need `package:portable`),
+`verify:popup-identity` (live Chromium; typing-only change), `verify:runner`, mock-site verifiers.
+
+---
+
 ## 2026-07-25 - Zvec Phase 1A hardening + handoff (AI coding agent)
 
 **Task:** Three review rounds of hardening on the Phase 1A foundation, then prepare the handoff.

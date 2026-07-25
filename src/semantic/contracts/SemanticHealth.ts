@@ -33,6 +33,13 @@ export type SemanticDegradedReason =
   /** The index needs a rebuild before it can serve queries. */
   | "REBUILD_REQUIRED"
   /**
+   * The active-generation pointer could not be read or was damaged, so which index generation is
+   * live is unknown. Reported ahead of the generic REBUILD_REQUIRED because it names the actual
+   * cause, and because it also explains why startup reclaimed nothing: every generation is being
+   * preserved until an explicit recovery resolves the ambiguity.
+   */
+  | "ACTIVE_POINTER_READ_FAILED"
+  /**
    * The active pointer governs, so the index is usable, but derived metadata could not be brought
    * into agreement with it. Surfaced rather than hidden: silently serving from a knowingly stale
    * metadata document is how a subtle inconsistency becomes invisible.
@@ -84,6 +91,11 @@ export interface SemanticHealthInput {
   previousShutdownClean: boolean;
   reclaimedBytesOnStartup: number;
   rebuildRequired?: boolean;
+  /**
+   * The active pointer could not be read at startup, so active identity is unknown and every
+   * generation was preserved. Requires an explicit recovery/rebuild.
+   */
+  activePointerReadFailed?: boolean;
   /** A startup metadata repair failed; the pointer still governs. */
   metadataRepairFailed?: boolean;
   /** Absolute index path. Included in the output ONLY when `includePaths` is true. */
@@ -100,6 +112,8 @@ const SUMMARIES: Record<SemanticDegradedReason, string> = {
   CIRCUIT_OPEN: "Semantic search is paused after repeated engine failures. Run a health check or rebuild to re-enable it.",
   DEGRADED_AFTER_FAILURE: "Semantic search had a recent failure and will retry on the next request.",
   REBUILD_REQUIRED: "Semantic search needs its index rebuilt before it can answer queries.",
+  ACTIVE_POINTER_READ_FAILED:
+    "Semantic search is paused because its index bookkeeping could not be read. Existing index data has been preserved; rebuild the index to restore search.",
   METADATA_REPAIR_FAILED: "Semantic search is running, but its index bookkeeping could not be updated. A rebuild will restore it."
 };
 
@@ -134,6 +148,9 @@ export function buildSemanticHealth(input: SemanticHealthInput): SemanticHealth 
   if (!input.included) return degraded("NOT_INCLUDED");
   if (!input.enabledBySetting) return degraded("DISABLED_BY_SETTING");
   if (input.circuitOpen) return degraded("CIRCUIT_OPEN");
+  // Before REBUILD_REQUIRED: both end in "rebuild the index", but an unreadable pointer is the more
+  // specific and more actionable statement, and it is the one that explains the preserved generations.
+  if (input.activePointerReadFailed) return degraded("ACTIVE_POINTER_READ_FAILED");
   if (input.rebuildRequired) return degraded("REBUILD_REQUIRED");
   // Reported after the hard blockers but before host state: the host may be perfectly healthy while
   // its bookkeeping is stale, and that is still worth telling someone about.

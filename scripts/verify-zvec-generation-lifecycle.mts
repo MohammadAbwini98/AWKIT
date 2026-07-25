@@ -18,8 +18,10 @@ import {
   createGeneration,
   listGenerations,
   readActivePointer,
+  readActivePointerStrict,
   rebuildIntoNewGeneration,
   repairMetadataFromPointer,
+  resolveActiveIdentity,
   rollbackGeneration,
   SemanticGenerationError
 } from "@src/semantic/SemanticGenerationManager";
@@ -445,12 +447,11 @@ console.log("\nPointer authority during reconciliation (destructive-path regress
   fs.rmSync(layout.metadataFile, { force: true });
   fs.mkdirSync(layout.metadataFile, { recursive: true });
 
-  // 5. Run the PRODUCTION startup sequence in order: repair, resolve pointer, reconcile.
+  // 5. Run the PRODUCTION startup sequence in order: repair, resolve identity, reconcile.
   const repair = repairMetadataFromPointer(root);
-  const pointer = readActivePointer(root);
   const report = reconcileGenerations({
     runtimeRoot: root,
-    authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+    activeIdentity: resolveActiveIdentity(root)
   });
 
   // 6. Assertions.
@@ -491,10 +492,9 @@ console.log("\nPointer authority during reconciliation (destructive-path regress
   fs.rmSync(keep.path, { recursive: true, force: true });
   const candidate = createGeneration(root);
 
-  const pointer = readActivePointer(root);
   const report = reconcileGenerations({
     runtimeRoot: root,
-    authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+    activeIdentity: resolveActiveIdentity(root)
   });
 
   check("a pointer naming a missing generation is reported", report.activeGenerationMissing);

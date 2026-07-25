@@ -21,7 +21,12 @@ import {
   semanticIndexLayout,
   type SemanticIndexMetadata
 } from "./SemanticGenerationLayout";
-import { readMetadata, readMetadataStrict, writeMetadata } from "./SemanticGenerationReconciler";
+import {
+  readMetadata,
+  readMetadataStrict,
+  writeMetadata,
+  type ActiveGenerationIdentity
+} from "./SemanticGenerationReconciler";
 
 /**
  * The active-generation pointer, kept separate from `metadata.json` so activation is one small
@@ -70,13 +75,116 @@ function writeJsonAtomic(file: string, value: unknown): void {
   fs.renameSync(temp, file);
 }
 
-export function readActivePointer(runtimeRoot: string): ActiveGenerationPointer | null {
+/**
+ * Distinguishable outcomes of reading the active pointer.
+ *
+ * Four states, not two. An earlier revision returned `null` for "no pointer yet", "the file could
+ * not be read", "the JSON is malformed", and "the name is not a generation" alike — and the
+ * reconciler reads `null` as "there is no active generation, so nothing is protected". A damaged
+ * pointer therefore presented as a first-run empty index, and the unclean-shutdown discard rule
+ * deleted every generation on disk, including the live one.
+ *
+ * That is the same defect class the authoritative-pointer fix closed for `metadata.json`, relocated
+ * one level up into the pointer's own reader: it is not enough for the pointer to be authoritative
+ * if "unreadable" is indistinguishable from "absent".
+ */
+export type ActivePointerRead =
+  | { status: "ok"; pointer: ActiveGenerationPointer }
+  /** No pointer file at all — the normal first-use state. */
+  | { status: "missing" }
+  /** Present but not a well-formed pointer document. Active identity is UNKNOWN. */
+  | { status: "invalid" }
+  /** Present but could not be read (permissions, I/O, lock). Active identity is UNKNOWN. */
+  | { status: "unreadable" };
+
+function isGenerationNameValue(value: unknown): value is string {
+  return typeof value === "string" && isGenerationName(value);
+}
+
+/** An ISO-8601 instant as written by `new Date().toISOString()`. */
+function isIsoTimestamp(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && !Number.isNaN(Date.parse(value));
+}
+
+/**
+ * Read the active pointer, distinguishing absence from damage.
+ *
+ * Every field is validated, not just `activeGeneration`: a document that is only partly well-formed
+ * is a damaged document, and silently accepting it would let a garbage `previousGeneration` become a
+ * rollback target or a garbage `activatedAt` corrupt retention ordering. Validation failure is
+ * deliberately biased toward `invalid` (preserve everything, require recovery) rather than toward a
+ * usable-looking pointer, because over-preserving wastes disk while under-preserving destroys the index.
+ */
+export function readActivePointerStrict(runtimeRoot: string): ActivePointerRead {
+  let raw: string;
   try {
-    const parsed = JSON.parse(fs.readFileSync(pointerPath(runtimeRoot), "utf8")) as ActiveGenerationPointer;
-    return isGenerationName(parsed.activeGeneration) ? parsed : null;
-  } catch {
-    return null;
+    raw = fs.readFileSync(pointerPath(runtimeRoot), "utf8");
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { status: "missing" } : { status: "unreadable" };
   }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: "invalid" };
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return { status: "invalid" };
+  const candidate = parsed as Record<string, unknown>;
+
+  if (!isGenerationNameValue(candidate.activeGeneration)) return { status: "invalid" };
+  // `null` is meaningful (no rollback target); anything else must be a real generation name. A
+  // MISSING property is damage rather than absence — every writer in this file emits all three fields.
+  if (candidate.previousGeneration !== null && !isGenerationNameValue(candidate.previousGeneration)) {
+    return { status: "invalid" };
+  }
+  if (!isIsoTimestamp(candidate.activatedAt)) return { status: "invalid" };
+
+  return {
+    status: "ok",
+    pointer: {
+      activeGeneration: candidate.activeGeneration,
+      previousGeneration: candidate.previousGeneration,
+      activatedAt: candidate.activatedAt
+    }
+  };
+}
+
+/**
+ * Tolerant read for callers that genuinely only need "the pointer, if it is usable".
+ *
+ * Defined in terms of the strict reader so both share one validation rule. Callers that make
+ * DESTRUCTIVE decisions must NOT use this — they cannot tell absence from damage through it, which
+ * is precisely the confusion that made reconciliation delete a live index. Use
+ * `resolveActiveIdentity` instead.
+ */
+export function readActivePointer(runtimeRoot: string): ActiveGenerationPointer | null {
+  const read = readActivePointerStrict(runtimeRoot);
+  return read.status === "ok" ? read.pointer : null;
+}
+
+/**
+ * The single mapping from "how the pointer read went" to "what reconciliation may assume".
+ *
+ * Exists as one exported function, and is the only way the service constructs an identity, so the
+ * damaged-reads-as-absent collapse cannot be reintroduced by a caller writing the mapping inline.
+ */
+export function activeIdentityFromPointerRead(read: ActivePointerRead): ActiveGenerationIdentity {
+  switch (read.status) {
+    case "ok":
+      return { status: "known", generation: read.pointer.activeGeneration };
+    case "missing":
+      return { status: "none" };
+    case "invalid":
+    case "unreadable":
+      return { status: "unknown" };
+  }
+}
+
+/** Read the pointer and map it to a reconciliation identity in one step. */
+export function resolveActiveIdentity(runtimeRoot: string): ActiveGenerationIdentity {
+  return activeIdentityFromPointerRead(readActivePointerStrict(runtimeRoot));
 }
 
 /** List generation directories present on disk, newest first. */
@@ -190,7 +298,7 @@ export function activateGeneration(runtimeRoot: string, name: string, validation
 export type MetadataRepairResult =
   | { status: "notNeeded" }
   | { status: "repaired"; activeGeneration: string }
-  | { status: "failed"; reason: "READ_FAILED" | "WRITE_FAILED" };
+  | { status: "failed"; reason: "READ_FAILED" | "WRITE_FAILED" | "POINTER_UNREADABLE" };
 
 /**
  * Bring metadata back into agreement with the authoritative pointer.
@@ -199,8 +307,15 @@ export type MetadataRepairResult =
  * pointer wins. Never throws — AWKIT startup must not depend on this succeeding.
  */
 export function repairMetadataFromPointer(runtimeRoot: string): MetadataRepairResult {
-  const pointer = readActivePointer(runtimeRoot);
-  if (!pointer) return { status: "notNeeded" };
+  const pointerRead = readActivePointerStrict(runtimeRoot);
+
+  // A damaged pointer is NOT "nothing to repair". Repairing metadata *from* it would propagate the
+  // damage into derived data, and reporting `notNeeded` would hide a state that requires recovery.
+  if (pointerRead.status === "invalid" || pointerRead.status === "unreadable") {
+    return { status: "failed", reason: "POINTER_UNREADABLE" };
+  }
+  if (pointerRead.status === "missing") return { status: "notNeeded" };
+  const pointer = pointerRead.pointer;
 
   // The STRICT reader is mandatory here. The tolerant `readMetadata()` never throws — it returns
   // defaults on any failure — so wrapping it in try/catch produced an unreachable READ_FAILED branch

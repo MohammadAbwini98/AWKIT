@@ -53,7 +53,9 @@ function mockEvent(id: number): { event: IpcMainInvokeEvent; destroy: () => void
   return { event, destroy: () => destroyed?.() };
 }
 
-async function assertDenied(name: string, fn: () => Promise<void>, reason: string): Promise<void> {
+// `Promise<unknown>`, not `Promise<void>`: assertSenderPermission resolves an AuthorizedActor on the
+// success path, and a void-returning signature rejected every real call site.
+async function assertDenied(name: string, fn: () => Promise<unknown>, reason: string): Promise<void> {
   try {
     await fn();
     check(`${name} (should have thrown)`, false);

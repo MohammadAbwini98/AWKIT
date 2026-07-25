@@ -24,7 +24,7 @@ import {
   reconcileGenerations,
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
-import { readActivePointer, repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
+import { resolveActiveIdentity, repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
@@ -73,10 +73,13 @@ export function initializeSemanticSubsystem(): ReconciliationReport | null {
     // Reconciliation must never derive active identity from metadata: metadata is read through a
     // tolerant reader that yields `activeGeneration: null` on any failure, which previously made an
     // unreadable metadata file delete the generation the pointer named.
-    const pointer = readActivePointer(runtimeRoot());
+    //
+    // `resolveActiveIdentity` (not a raw pointer read) is what keeps a DAMAGED pointer from reading
+    // as "no active generation": that collapse let an unreadable pointer authorise the same deletion
+    // from one level up. It returns an explicit `unknown`, under which reconciliation discards nothing.
     lastReconciliation = reconcileGenerations({
       runtimeRoot: runtimeRoot(),
-      authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+      activeIdentity: resolveActiveIdentity(runtimeRoot())
     });
     markIndexOpen(runtimeRoot());
     return lastReconciliation;
@@ -115,6 +118,7 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
     activeGeneration: lastReconciliation?.activeGeneration ?? null,
     previousShutdownClean: lastReconciliation ? !lastReconciliation.uncleanShutdown : true,
     reclaimedBytesOnStartup: lastReconciliation?.reclaimedBytes ?? 0,
+    activePointerReadFailed: lastReconciliation?.activeIdentityUnknown ?? false,
     metadataRepairFailed: lastMetadataRepair?.status === "failed",
     indexPath: semanticIndexLayout(runtimeRoot()).root,
     includePaths: options.includePaths ?? false
@@ -138,8 +142,12 @@ export async function disposeSemanticSubsystem(): Promise<{ graceful: boolean; e
   try {
     const result = active ? await active.dispose() : { graceful: true, elapsedMs: 0 };
     // Only an orderly close records cleanShutdown=true; a crash therefore leaves it false and the
-    // next startup reconciles.
-    markIndexClosed(runtimeRoot(), lastReconciliation?.activeGeneration ?? null);
+    // next startup reconciles. When startup could not determine active identity, pass `undefined` so
+    // the recorded generation is preserved rather than asserted to be absent.
+    markIndexClosed(
+      runtimeRoot(),
+      lastReconciliation?.activeIdentityUnknown ? undefined : (lastReconciliation?.activeGeneration ?? null)
+    );
     return result;
   } catch {
     return { graceful: false, elapsedMs: 0 };

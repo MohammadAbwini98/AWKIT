@@ -48,24 +48,49 @@ export interface ReconciliationReport {
   activeGeneration: string | null;
   /** The pointer named a generation that is not on disk. Nothing was discarded this run. */
   activeGenerationMissing: boolean;
+  /**
+   * The active pointer could not be read or was damaged, so which generation is live is UNKNOWN.
+   * Everything was preserved and no cleanup ran.
+   */
+  activeIdentityUnknown: boolean;
+  /** An explicit recovery or rebuild is required before the index can be trusted or cleaned up. */
+  recoveryRequired: boolean;
   outcomes: GenerationOutcome[];
   reclaimedBytes: number;
   dryRun: boolean;
 }
 
+/**
+ * What reconciliation is allowed to assume about the active generation.
+ *
+ * Three states, because two are not enough. "There is no active generation" (first use) and "the
+ * active generation cannot be determined" (damaged pointer) demand OPPOSITE behaviour — the first
+ * permits cleanup, the second forbids it — and a `string | null` parameter cannot express the
+ * difference. It previously collapsed them into `null`, which is how an unreadable pointer became
+ * an instruction to delete the live index.
+ */
+export type ActiveGenerationIdentity =
+  | { status: "known"; generation: string }
+  /** No active generation exists yet. Cleanup may proceed. */
+  | { status: "none" }
+  /** Identity is undeterminable. NOTHING may be discarded, quarantined, or retention-trimmed. */
+  | { status: "unknown" };
+
 export interface ReconcileOptions {
   runtimeRoot: string;
   /**
-   * The active generation, resolved from `active-generation.json` BEFORE calling this.
+   * The active identity, resolved from `active-generation.json` BEFORE calling this — use
+   * `resolveActiveIdentity()` so the pointer-read → identity mapping stays in one place.
    *
    * Required, not optional, and deliberately not derived here from `metadata.json`. Metadata is
    * derived data read through a tolerant reader that returns defaults on any failure — including
    * `activeGeneration: null` and `cleanShutdown: false`. Deriving active identity from it meant an
    * unreadable metadata file made every generation look non-active on an unclean startup, and the
    * discard rule then deleted the very generation the authoritative pointer named. Making this a
-   * required parameter forces every caller to resolve the pointer first.
+   * required, three-state parameter forces every caller to resolve the pointer first AND to say
+   * explicitly whether the answer is trustworthy.
    */
-  authoritativeActiveGeneration: string | null;
+  activeIdentity: ActiveGenerationIdentity;
   /** Generations known to have crashed the host; quarantined rather than deleted. */
   quarantined?: readonly string[];
   /** Plan only — do not modify disk. */
@@ -149,12 +174,18 @@ export function markIndexOpen(runtimeRoot: string): void {
   writeMetadata(runtimeRoot, { ...metadata, cleanShutdown: false });
 }
 
-/** Mark the index as cleanly closed. Called only from an orderly shutdown. */
-export function markIndexClosed(runtimeRoot: string, activeGeneration: string | null): void {
+/**
+ * Mark the index as cleanly closed. Called only from an orderly shutdown.
+ *
+ * Pass `undefined` for `activeGeneration` when active identity is UNKNOWN (a damaged pointer):
+ * overwriting the recorded value with `null` in that case would erase context a later recovery can
+ * use, and would assert "there is no active generation" on the strength of a read that failed.
+ */
+export function markIndexClosed(runtimeRoot: string, activeGeneration: string | null | undefined): void {
   const metadata = readMetadata(runtimeRoot);
   writeMetadata(runtimeRoot, {
     ...metadata,
-    activeGeneration,
+    activeGeneration: activeGeneration === undefined ? metadata.activeGeneration : activeGeneration,
     cleanShutdown: true,
     lastSuccessfulUpdateAt: new Date().toISOString()
   });
@@ -167,17 +198,22 @@ export function markIndexClosed(runtimeRoot: string, activeGeneration: string | 
  * here must not affect application startup.
  */
 export function reconcileGenerations(options: ReconcileOptions): ReconciliationReport {
-  const { runtimeRoot, authoritativeActiveGeneration, quarantined = [], dryRun = false } = options;
+  const { runtimeRoot, activeIdentity, quarantined = [], dryRun = false } = options;
   const layout = semanticIndexLayout(runtimeRoot);
   // Metadata contributes clean-shutdown status, timestamps and retention context ONLY. It never
   // decides which generation is active.
   const metadata = readMetadata(runtimeRoot);
   const quarantineSet = new Set(quarantined);
 
+  const authoritativeActiveGeneration = activeIdentity.status === "known" ? activeIdentity.generation : null;
+  const activeIdentityUnknown = activeIdentity.status === "unknown";
+
   const report: ReconciliationReport = {
     uncleanShutdown: !metadata.cleanShutdown,
     activeGeneration: authoritativeActiveGeneration,
     activeGenerationMissing: false,
+    activeIdentityUnknown,
+    recoveryRequired: activeIdentityUnknown,
     outcomes: [],
     reclaimedBytes: 0,
     dryRun
@@ -202,12 +238,33 @@ export function reconcileGenerations(options: ReconcileOptions): ReconciliationR
     }
   }
 
+  // ── active identity unknown ──
+  // The pointer exists but could not be read or is damaged, so ANY generation on disk might be the
+  // live one. Every destructive action is therefore off the table — including quarantine, which
+  // renames a directory and would break the index if it moved the active generation. Preserve
+  // everything, reclaim nothing, and require an explicit recovery or rebuild to resolve it.
+  //
+  // This check precedes the missing-active check deliberately: "the pointer names a generation that
+  // is absent" is a statement we can only make when the pointer was actually readable.
+  if (activeIdentityUnknown) {
+    for (const name of generations) {
+      report.outcomes.push({
+        name,
+        disposition: "retained",
+        reason: "preserved: the active pointer could not be read, so active identity is unknown and nothing is discarded",
+        bytes: directorySize(path.join(layout.generations, name))
+      });
+    }
+    return report;
+  }
+
   // A pointer naming a generation that is not on disk is a recovery situation, not a licence to
   // clean up. Silently discarding "orphans" here could destroy the candidates a rebuild would use,
   // and silently promoting a different generation would swap the index out from under the pointer.
   // Report it, change nothing, and let an explicit recovery operation resolve it.
   if (authoritativeActiveGeneration !== null && !generations.includes(authoritativeActiveGeneration)) {
     report.activeGenerationMissing = true;
+    report.recoveryRequired = true;
     for (const name of generations) {
       report.outcomes.push({
         name,
