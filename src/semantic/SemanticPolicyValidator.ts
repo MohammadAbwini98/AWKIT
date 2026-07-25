@@ -29,11 +29,17 @@
 
 import {
   isSemanticDocumentKind,
+  semanticIds,
+  semanticSourceHash,
   SEMANTIC_SCHEMA_VERSION,
   type SemanticDocument,
   type SemanticDocumentKind
 } from "./contracts/SemanticDocument";
-import { isForbiddenField, projectForKind } from "./SemanticProjection";
+import {
+  isForbiddenField,
+  SEMANTIC_PROJECTORS,
+  type ProjectedSemanticCandidate
+} from "./SemanticProjection";
 import { SemanticRedactor } from "./SemanticRedactor";
 
 /** Module-private brand. Deliberately NOT exported — that is what makes the factory the only source. */
@@ -176,80 +182,111 @@ export function validateSemanticDocument(
   return { ok: true, document: frozen as unknown as ValidatedSemanticDocument };
 }
 
-export interface BuildDocumentInput {
-  kind: SemanticDocumentKind;
-  id: string;
-  entityId: string;
-  revision: string;
-  sourceHash: string;
-  title: string;
-  /** Raw source fields; run through the projection allowlist, then redacted. */
-  source: Record<string, unknown>;
-  /** Free-text body before redaction. */
-  body: string;
-  tags?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-  workflowId?: string;
-  flowId?: string;
-  nodeId?: string;
-  nodeType?: string;
-  hostname?: string;
-  outcome?: SemanticDocument["outcome"];
-  errorCategory?: string;
+/**
+ * Compute the deterministic id for a candidate.
+ *
+ * The FACTORY owns id construction; callers never supply one. Accepting a caller-provided id and
+ * merely checking it contained a `:` let a caller pick its own identity, which silently defeats
+ * upsert-is-replace — two callers projecting the same entity under different ids produce two live
+ * documents for one thing.
+ */
+function computeDocumentId(candidate: ProjectedSemanticCandidate): string {
+  switch (candidate.kind) {
+    case "workflow":
+      return semanticIds.workflow(candidate.entityId);
+    case "flow":
+      return semanticIds.flow(candidate.entityId);
+    case "node-template":
+      return semanticIds.nodeTemplate(candidate.entityId);
+    case "documentation":
+      return semanticIds.documentation(candidate.entityId);
+    case "locator-success":
+      return semanticIds.locatorSuccess(candidate.flowId ?? "", candidate.nodeId ?? candidate.entityId);
+    case "locator-failure":
+      return semanticIds.locatorFailure(candidate.entityId, candidate.revision, candidate.nodeId ?? "");
+    case "run-failure":
+      return semanticIds.runFailure(candidate.entityId, candidate.revision, candidate.nodeId ?? "");
+    case "run-summary":
+      return semanticIds.runSummary(candidate.entityId);
+  }
 }
 
 /**
- * The complete pipeline: project → redact → validate → brand (§9.1).
+ * The complete pipeline: (already-projected candidate) → redact → validate → brand (§9.1).
  *
- * This is the intended entry point. `validateSemanticDocument` is exported separately only so a
- * caller that has already projected and redacted (the store contract suite, a rebuild replaying
- * stored projections) can re-validate without re-running the earlier stages.
+ * Takes a `ProjectedSemanticCandidate`, which only `SemanticProjection`'s per-kind projectors can
+ * construct. That is what closes the bypass: an earlier signature accepted a free-form `body` (plus
+ * title, tags and filter fields) alongside the projected source, so a caller could pass
+ * `JSON.stringify(entireWorkflowIncludingSecrets)` and projection never saw it — privacy then rested
+ * entirely on redaction patterns, the exact dependency projection exists to remove.
+ *
+ * `validateSemanticDocument` remains exported so a caller holding an already-redacted document (a
+ * rebuild replaying stored projections, or the Zvec adapter re-validating a row read back off disk)
+ * can re-check it without re-running the earlier stages.
  */
 export function buildValidatedDocument(
-  input: BuildDocumentInput,
+  candidate: ProjectedSemanticCandidate,
   redactor: SemanticRedactor = new SemanticRedactor(),
   options: SemanticPolicyOptions = {}
 ): SemanticValidationResult {
-  const projection = projectForKind(input.kind, input.source);
-  if (!projection.ok) {
+  const now = new Date().toISOString();
+
+  // Every indexable string is redacted, including the parts the projectors assembled: projection
+  // bounds WHICH fields are read, redaction cleans WHAT those fields contain. Both are required.
+  const content = candidate.contentParts
+    .map((part) => redactor.redactText(part))
+    .filter((part) => part.length > 0)
+    .join("\n")
+    .slice(0, SEMANTIC_MAX_CONTENT_LENGTH);
+
+  const document: SemanticDocument = {
+    id: computeDocumentId(candidate),
+    kind: candidate.kind,
+    entityId: candidate.entityId,
+    revision: candidate.revision,
+    sourceHash: semanticSourceHash([candidate.kind, candidate.entityId, candidate.revision, content]),
+    schemaVersion: SEMANTIC_SCHEMA_VERSION,
+    title: redactor.redactText(candidate.title).slice(0, SEMANTIC_MAX_TITLE_LENGTH),
+    content,
+    tags: candidate.tags.map((t) => redactor.redactText(t)).filter(Boolean).slice(0, SEMANTIC_MAX_TAGS),
+    createdAt: candidate.createdAt ?? now,
+    updatedAt: candidate.updatedAt ?? now,
+    workflowId: candidate.workflowId,
+    flowId: candidate.flowId,
+    nodeId: candidate.nodeId,
+    nodeType: candidate.nodeType,
+    hostname: candidate.hostname,
+    outcome: candidate.outcome,
+    errorCategory: candidate.errorCategory ? redactor.redactText(candidate.errorCategory) : undefined
+  };
+
+  return validateSemanticDocument(document, options);
+}
+
+/**
+ * Project a raw source object for `kind`, then run the full pipeline.
+ *
+ * The convenience entry point for callers that hold a raw entity. It cannot bypass projection,
+ * because the projector is the only thing that can produce the candidate this then consumes.
+ */
+export function projectAndValidate(
+  kind: SemanticDocumentKind,
+  source: Record<string, unknown>,
+  redactor: SemanticRedactor = new SemanticRedactor(),
+  options: SemanticPolicyOptions = {}
+): SemanticValidationResult {
+  const projected = SEMANTIC_PROJECTORS[kind]?.(source);
+  if (!projected) {
+    return { ok: false, rejections: [{ reason: "UNSUPPORTED_KIND", detail: `kind=${String(kind).slice(0, 40)}` }] };
+  }
+  if (!projected.ok) {
     return {
       ok: false,
-      rejections: projection.rejections.map((r) => ({
+      rejections: projected.rejections.map((r) => ({
         reason: "PROJECTION_REJECTED" as const,
         detail: `${r.reason}${r.field ? `: ${r.field}` : ""}`
       }))
     };
   }
-
-  const redactedProjection = redactor.redactRecord(projection.projected);
-  const now = new Date().toISOString();
-
-  // Content is the redacted body plus the redacted allowlisted fields — never the raw source.
-  const projectedText = Object.entries(redactedProjection)
-    .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
-    .join("\n");
-
-  const candidate: SemanticDocument = {
-    id: input.id,
-    kind: input.kind,
-    entityId: input.entityId,
-    revision: input.revision,
-    sourceHash: input.sourceHash,
-    schemaVersion: SEMANTIC_SCHEMA_VERSION,
-    title: redactor.redactText(input.title).slice(0, SEMANTIC_MAX_TITLE_LENGTH),
-    content: `${redactor.redactText(input.body)}\n${projectedText}`.trim().slice(0, SEMANTIC_MAX_CONTENT_LENGTH),
-    tags: (input.tags ?? []).map((t) => redactor.redactText(t)).filter(Boolean).slice(0, SEMANTIC_MAX_TAGS),
-    createdAt: input.createdAt ?? now,
-    updatedAt: input.updatedAt ?? now,
-    workflowId: input.workflowId,
-    flowId: input.flowId,
-    nodeId: input.nodeId,
-    nodeType: input.nodeType,
-    hostname: input.hostname,
-    outcome: input.outcome,
-    errorCategory: input.errorCategory ? redactor.redactText(input.errorCategory) : undefined
-  };
-
-  return validateSemanticDocument(candidate, options);
+  return buildValidatedDocument(projected.candidate, redactor, options);
 }

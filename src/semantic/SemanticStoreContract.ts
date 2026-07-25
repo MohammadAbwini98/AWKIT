@@ -13,13 +13,8 @@
  * Framework-agnostic: no Electron, no filesystem, no Zvec, no test framework.
  */
 
-import {
-  semanticIds,
-  semanticSourceHash,
-  type SemanticDocumentKind,
-  type SemanticOutcome
-} from "./contracts/SemanticDocument";
-import { buildValidatedDocument, type ValidatedSemanticDocument } from "./SemanticPolicyValidator";
+import type { SemanticDocumentKind, SemanticOutcome } from "./contracts/SemanticDocument";
+import { projectAndValidate, type ValidatedSemanticDocument } from "./SemanticPolicyValidator";
 import { SemanticStoreError, type SemanticStore } from "./SemanticStore";
 
 export interface ContractCheck {
@@ -30,12 +25,19 @@ export interface ContractCheck {
 
 export type SemanticStoreFactory = () => Promise<SemanticStore>;
 
-/** Build a valid document through the REAL pipeline — the suite never fabricates a branded doc. */
+/**
+ * Build a valid document through the REAL pipeline — the suite never fabricates a branded doc.
+ *
+ * Note `body` is gone: fixtures now supply raw SOURCE fields and the kind's projector decides what
+ * becomes indexable content. A fixture helper that could inject arbitrary body text would be able to
+ * do something production callers cannot, which would make the suite test a path that does not exist.
+ */
 export function contractDocument(options: {
   kind?: SemanticDocumentKind;
   entityId: string;
   revision?: string;
   title: string;
+  /** Goes into an allowlisted DESCRIPTIVE field, not into a free-form body. */
   body: string;
   workflowId?: string;
   flowId?: string;
@@ -48,37 +50,38 @@ export function contractDocument(options: {
 }): ValidatedSemanticDocument {
   const kind = options.kind ?? "workflow";
   const revision = options.revision ?? "r1";
-  const source: Record<string, unknown> = {};
-  // Only allowlisted fields for the kind; the pipeline drops anything else anyway.
+
+  const source: Record<string, unknown> = { updatedAt: options.updatedAt, tags: options.tags, revision };
   if (kind === "workflow") {
     source.workflowId = options.workflowId ?? options.entityId;
     source.name = options.title;
+    source.description = options.body;
+  } else if (kind === "flow") {
+    source.flowId = options.entityId;
+    source.workflowId = options.workflowId;
+    source.name = options.title;
+    source.description = options.body;
   } else if (kind === "run-failure") {
     source.runId = options.entityId;
-    source.errorCategory = options.errorCategory;
+    source.attemptId = revision;
+    source.errorCategory = options.errorCategory ?? "timeout";
+    source.errorSummary = options.body;
     source.nodeType = options.nodeType;
     source.hostname = options.hostname;
+    source.workflowId = options.workflowId;
+    source.outcome = options.outcome;
+  } else if (kind === "run-summary") {
+    source.runId = options.entityId;
+    source.workflowId = options.workflowId;
+    source.hostname = options.hostname;
+    source.outcome = options.outcome;
+  } else if (kind === "documentation") {
+    source.relativePath = options.entityId;
+    source.title = options.title;
+    source.body = options.body;
   }
 
-  const built = buildValidatedDocument({
-    kind,
-    id: kind === "workflow" ? semanticIds.workflow(options.entityId, revision) : semanticIds.runSummary(options.entityId),
-    entityId: options.entityId,
-    revision,
-    sourceHash: semanticSourceHash([options.entityId, revision, options.body]),
-    title: options.title,
-    body: options.body,
-    source,
-    tags: options.tags,
-    workflowId: options.workflowId,
-    flowId: options.flowId,
-    nodeType: options.nodeType,
-    hostname: options.hostname,
-    outcome: options.outcome,
-    errorCategory: options.errorCategory,
-    updatedAt: options.updatedAt
-  });
-
+  const built = projectAndValidate(kind, source);
   if (!built.ok) {
     throw new Error(`contract fixture failed policy validation: ${JSON.stringify(built.rejections)}`);
   }
@@ -100,11 +103,26 @@ export async function runSemanticStoreContract(
     checks.push({ label: `[${implementationName}] ${label}`, ok: Boolean(ok), detail });
   };
 
+  const probe = await factory();
+  const supportsEntityOps = probe.capabilities.entityOperations;
+
   const fresh = async (): Promise<SemanticStore> => {
     const store = await factory();
     await store.open();
-    await store.clear();
+    if (supportsEntityOps) await store.clear();
     return store;
+  };
+
+  /** Assert an unsupported operation REFUSES rather than returning a plausible partial result. */
+  const expectUnsupported = async (label: string, operation: () => Promise<unknown>): Promise<void> => {
+    let code = "";
+    try {
+      await operation();
+      code = "resolved";
+    } catch (error) {
+      code = error instanceof SemanticStoreError ? error.code : "wrong-error-type";
+    }
+    check(`${label} refuses with UNSUPPORTED_OPERATION rather than a partial result`, code === "UNSUPPORTED_OPERATION", code);
   };
 
   // ── lifecycle ────────────────────────────────────────────────────────────────────────────────
@@ -141,8 +159,15 @@ export async function runSemanticStoreContract(
     const r2 = await store.upsert([again]);
     check("re-upserting the same id counts as replaced", r2.replaced === 1 && r2.inserted === 0, JSON.stringify(r2));
 
-    const stats = await store.stats();
-    check("upsert is replace — the store holds ONE document, not two", stats.documents === 1, String(stats.documents));
+    if (supportsEntityOps) {
+      const stats = await store.stats();
+      check("upsert is replace — the store holds ONE document, not two", stats.documents === 1, String(stats.documents));
+    } else {
+      // Without a scan the count is unavailable, so replacement is proven through the id instead:
+      // one id maps to one document, and the second write reported `replaced`.
+      check("upsert is replace — the second write replaced rather than inserted", r2.replaced === 1 && r2.inserted === 0);
+      check("both writes targeted one id", first.id === again.id);
+    }
 
     // The deterministic id is what makes this work; prove the fixture actually reused it.
     check("the deterministic id is stable across identical projections", first.id === again.id);
@@ -165,17 +190,51 @@ export async function runSemanticStoreContract(
     await store.close();
   }
 
-  // ── deleteByEntity spans revisions ───────────────────────────────────────────────────────────
+  // ── current-state identity: a new revision REPLACES ──────────────────────────────────────────
   {
     const store = await fresh();
-    await store.upsert([
-      contractDocument({ entityId: "wf-3", revision: "r1", title: "A", body: "one" }),
-      contractDocument({ entityId: "wf-3", revision: "r2", title: "A", body: "two" }),
-      contractDocument({ entityId: "wf-4", revision: "r1", title: "B", body: "other" })
-    ]);
-    check("different revisions are distinct documents", (await store.stats()).documents === 3);
-    check("deleteByEntity removes every revision of one entity", (await store.deleteByEntity("wf-3")) === 2);
-    check("deleteByEntity leaves other entities alone", (await store.stats()).documents === 1);
+    const r1 = contractDocument({ entityId: "wf-3", revision: "r1", title: "A", body: "one" });
+    const r2 = contractDocument({ entityId: "wf-3", revision: "r2", title: "A", body: "two" });
+
+    check("two revisions of a current-state entity share one id", r1.id === r2.id, `${r1.id} vs ${r2.id}`);
+
+    await store.upsert([r1]);
+    const second = await store.upsert([r2]);
+    if (supportsEntityOps) {
+      check("re-indexing a new revision does NOT accumulate documents", (await store.stats()).documents === 1, String((await store.stats()).documents));
+    } else {
+      check("re-indexing a new revision REPLACES rather than inserting", second.replaced === 1 && second.inserted === 0, JSON.stringify(second));
+    }
+
+    const live = await store.get(r1.id);
+    check("the stored document is the NEWER revision", live?.revision === "r2", live?.revision);
+    check("the revision survives as a field", live?.revision !== undefined);
+    await store.close();
+  }
+
+  // ── historical identity: each occurrence is its own document ─────────────────────────────────
+  {
+    const store = await fresh();
+    const docs = [
+      contractDocument({ kind: "run-failure", entityId: "run-3", revision: "a1", title: "T", body: "first attempt" }),
+      contractDocument({ kind: "run-failure", entityId: "run-3", revision: "a2", title: "T", body: "second attempt" }),
+      contractDocument({ kind: "run-failure", entityId: "run-4", revision: "a1", title: "T", body: "other run" })
+    ];
+    check("two attempts of one run have distinct ids", docs[0].id !== docs[1].id);
+    await store.upsert(docs);
+
+    if (supportsEntityOps) {
+      check("historical occurrences are distinct documents", (await store.stats()).documents === 3, String((await store.stats()).documents));
+      check("deleteByEntity removes every occurrence of one entity", (await store.deleteByEntity("run-3")) === 2);
+      check("deleteByEntity leaves other entities alone", (await store.stats()).documents === 1);
+    } else {
+      // The backend cannot enumerate the collection, so these must REFUSE. Asserting the refusal is
+      // what stops a silently-truncated delete from passing as success.
+      await expectUnsupported("deleteByEntity", () => store.deleteByEntity("run-3"));
+      await expectUnsupported("stats", () => store.stats());
+      await expectUnsupported("clear", () => store.clear());
+      check("documents written before the unsupported call are still retrievable", (await store.get(docs[0].id)) !== null);
+    }
     await store.close();
   }
 
@@ -265,7 +324,7 @@ export async function runSemanticStoreContract(
   }
 
   // ── clear + stats ────────────────────────────────────────────────────────────────────────────
-  {
+  if (supportsEntityOps) {
     const store = await fresh();
     await store.upsert([
       contractDocument({ entityId: "wf-x", title: "X", body: "x" }),

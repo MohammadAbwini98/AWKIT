@@ -16,7 +16,7 @@
  * Framework-agnostic: no Electron, no filesystem.
  */
 
-import type { SemanticDocumentKind } from "./contracts/SemanticDocument";
+import type { SemanticDocumentKind, SemanticOutcome } from "./contracts/SemanticDocument";
 
 /**
  * Fields that must NEVER be projected, whatever kind is being built.
@@ -129,10 +129,47 @@ export const SEMANTIC_PROJECTION_ALLOWLIST: Record<SemanticDocumentKind, readonl
   documentation: ["relativePath", "title", "headings", "body", "tags", "updatedAt"]
 };
 
+// ── branded projection stage ─────────────────────────────────────────────────────────────────────
+
+/** Module-private brand. Never exported, so ONLY the projectors below can produce a candidate. */
+declare const projectedSemanticCandidate: unique symbol;
+
+/**
+ * Everything a document may contain, derived exclusively from allowlisted source fields.
+ *
+ * There is deliberately no free-form `body`: an unrestricted caller-supplied body was a hole
+ * straight through the allowlist, because projection never saw it and privacy fell back entirely on
+ * pattern-based redaction — the dependency this layer exists to remove. `contentParts` is assembled
+ * by the projectors from allowlisted values only.
+ */
+export interface ProjectedFields {
+  kind: SemanticDocumentKind;
+  entityId: string;
+  revision: string;
+  title: string;
+  /** Ordered `label: value` fragments, all derived from allowlisted fields. */
+  contentParts: string[];
+  tags: string[];
+  workflowId?: string;
+  flowId?: string;
+  nodeId?: string;
+  nodeType?: string;
+  hostname?: string;
+  outcome?: SemanticOutcome;
+  errorCategory?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type ProjectedSemanticCandidate = ProjectedFields & {
+  readonly [projectedSemanticCandidate]: true;
+};
+
 export type ProjectionRejectionReason =
   | "UNSUPPORTED_KIND"
   | "FIELD_NOT_ALLOWLISTED"
-  | "FIELD_FORBIDDEN";
+  | "FIELD_FORBIDDEN"
+  | "MISSING_REQUIRED_FIELD";
 
 export interface ProjectionRejection {
   reason: ProjectionRejectionReason;
@@ -172,3 +209,234 @@ export function projectForKind(kind: SemanticDocumentKind, source: Record<string
 
   return rejections.length > 0 ? { ok: false, rejections } : { ok: true, projected };
 }
+
+// ── kind-specific projectors ─────────────────────────────────────────────────────────────────────
+//
+// These are the ONLY constructors of `ProjectedSemanticCandidate`. Each derives its title, content,
+// tags and filter dimensions exclusively from allowlisted source properties, so a caller cannot
+// submit independently-constructed indexable text. Callers pass a raw source object; what survives
+// is decided here.
+
+export type CandidateResult =
+  | { ok: true; candidate: ProjectedSemanticCandidate }
+  | { ok: false; rejections: ProjectionRejection[] };
+
+function str(record: Record<string, unknown>, field: string): string | undefined {
+  const value = record[field];
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return undefined;
+}
+
+function list(record: Record<string, unknown>, field: string): string[] {
+  const value = record[field];
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string" && v.length > 0);
+  return [];
+}
+
+/** Assemble `label: value` fragments from allowlisted fields only, skipping absent ones. */
+function partsFrom(projected: Record<string, unknown>, fields: readonly string[]): string[] {
+  const parts: string[] = [];
+  for (const field of fields) {
+    const value = projected[field];
+    if (value === undefined || value === null) continue;
+    const rendered = Array.isArray(value) ? value.join(", ") : String(value);
+    if (rendered.trim().length === 0) continue;
+    parts.push(`${field}: ${rendered}`);
+  }
+  return parts;
+}
+
+function brand(fields: ProjectedFields): ProjectedSemanticCandidate {
+  return fields as ProjectedSemanticCandidate;
+}
+
+function missing(kind: SemanticDocumentKind, field: string): CandidateResult {
+  return { ok: false, rejections: [{ reason: "MISSING_REQUIRED_FIELD", field, kind }] };
+}
+
+/** Shared front half: run the allowlist, then hand the surviving fields to a kind-specific builder. */
+function project(
+  kind: SemanticDocumentKind,
+  source: Record<string, unknown>,
+  build: (projected: Record<string, unknown>) => CandidateResult
+): CandidateResult {
+  const result = projectForKind(kind, source);
+  if (!result.ok) return { ok: false, rejections: result.rejections };
+  return build(result.projected);
+}
+
+export function projectWorkflowDocument(source: Record<string, unknown>): CandidateResult {
+  return project("workflow", source, (p) => {
+    const workflowId = str(p, "workflowId");
+    if (!workflowId) return missing("workflow", "workflowId");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "workflow",
+        entityId: workflowId,
+        revision: str(p, "revision") ?? "0",
+        title: str(p, "name") ?? workflowId,
+        contentParts: partsFrom(p, ["name", "description", "flowNames", "nodeTypes"]),
+        tags: list(p, "tags"),
+        workflowId,
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+export function projectFlowDocument(source: Record<string, unknown>): CandidateResult {
+  return project("flow", source, (p) => {
+    const flowId = str(p, "flowId");
+    if (!flowId) return missing("flow", "flowId");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "flow",
+        entityId: flowId,
+        revision: str(p, "revision") ?? "0",
+        title: str(p, "name") ?? flowId,
+        contentParts: partsFrom(p, ["name", "description", "nodeTypes", "stepNames"]),
+        tags: list(p, "tags"),
+        flowId,
+        workflowId: str(p, "workflowId"),
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+export function projectNodeTemplateDocument(source: Record<string, unknown>): CandidateResult {
+  return project("node-template", source, (p) => {
+    const nodeType = str(p, "nodeType");
+    if (!nodeType) return missing("node-template", "nodeType");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "node-template",
+        entityId: nodeType,
+        revision: str(p, "templateVersion") ?? "0",
+        title: str(p, "displayName") ?? nodeType,
+        contentParts: partsFrom(p, ["displayName", "description", "category"]),
+        tags: list(p, "tags"),
+        nodeType
+      })
+    };
+  });
+}
+
+export function projectRunFailureDocument(source: Record<string, unknown>): CandidateResult {
+  return project("run-failure", source, (p) => {
+    const runId = str(p, "runId");
+    if (!runId) return missing("run-failure", "runId");
+    const outcome = str(p, "outcome");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "run-failure",
+        entityId: runId,
+        revision: str(p, "attemptId") ?? "0",
+        title: str(p, "errorCategory") ?? "Run failure",
+        // `errorSummary` is the bounded, redacted sentence the allowlist permits; the raw error
+        // string is not projectable at all.
+        contentParts: partsFrom(p, ["errorCategory", "errorSummary", "nodeType", "hostname"]),
+        tags: [],
+        workflowId: str(p, "workflowId"),
+        flowId: str(p, "flowId"),
+        nodeId: str(p, "nodeId"),
+        nodeType: str(p, "nodeType"),
+        hostname: str(p, "hostname"),
+        outcome: (outcome as SemanticOutcome | undefined) ?? "failure",
+        errorCategory: str(p, "errorCategory"),
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+export function projectRunSummaryDocument(source: Record<string, unknown>): CandidateResult {
+  return project("run-summary", source, (p) => {
+    const runId = str(p, "runId");
+    if (!runId) return missing("run-summary", "runId");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "run-summary",
+        entityId: runId,
+        revision: "0",
+        title: `Run ${runId}`,
+        contentParts: partsFrom(p, ["outcome", "stepCount", "failureCount", "durationMs", "hostname"]),
+        tags: [],
+        workflowId: str(p, "workflowId"),
+        hostname: str(p, "hostname"),
+        outcome: str(p, "outcome") as SemanticOutcome | undefined,
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+export function projectDocumentationDocument(source: Record<string, unknown>): CandidateResult {
+  return project("documentation", source, (p) => {
+    const relativePath = str(p, "relativePath");
+    if (!relativePath) return missing("documentation", "relativePath");
+    return {
+      ok: true,
+      candidate: brand({
+        kind: "documentation",
+        entityId: relativePath,
+        revision: "0",
+        title: str(p, "title") ?? relativePath,
+        contentParts: partsFrom(p, ["title", "headings", "body"]),
+        tags: list(p, "tags"),
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+function projectLocator(kind: "locator-success" | "locator-failure", source: Record<string, unknown>): CandidateResult {
+  return project(kind, source, (p) => {
+    const nodeId = str(p, "nodeId");
+    if (!nodeId) return missing(kind, "nodeId");
+    const runId = str(p, "runId");
+    const entityId = kind === "locator-failure" ? (runId ?? nodeId) : `${str(p, "flowId") ?? ""}:${nodeId}`;
+    return {
+      ok: true,
+      candidate: brand({
+        kind,
+        entityId,
+        revision: str(p, "attemptId") ?? "0",
+        title: `${str(p, "locatorStrategy") ?? "locator"} on ${str(p, "nodeType") ?? "node"}`,
+        // Strategy/role/context-kind only — never the matched element text, which routinely carries
+        // user data (an account number in a table row, a person name on a card).
+        contentParts: partsFrom(p, ["locatorStrategy", "locatorRole", "contextKind", "failureReason", "nodeType"]),
+        tags: [],
+        workflowId: str(p, "workflowId"),
+        flowId: str(p, "flowId"),
+        nodeId,
+        nodeType: str(p, "nodeType"),
+        hostname: str(p, "hostname"),
+        updatedAt: str(p, "updatedAt")
+      })
+    };
+  });
+}
+
+export const projectLocatorSuccessDocument = (source: Record<string, unknown>): CandidateResult =>
+  projectLocator("locator-success", source);
+export const projectLocatorFailureDocument = (source: Record<string, unknown>): CandidateResult =>
+  projectLocator("locator-failure", source);
+
+/** Dispatch by kind, for callers driven by data rather than a static call site. */
+export const SEMANTIC_PROJECTORS: Record<SemanticDocumentKind, (source: Record<string, unknown>) => CandidateResult> = {
+  workflow: projectWorkflowDocument,
+  flow: projectFlowDocument,
+  "node-template": projectNodeTemplateDocument,
+  "run-failure": projectRunFailureDocument,
+  "run-summary": projectRunSummaryDocument,
+  documentation: projectDocumentationDocument,
+  "locator-success": projectLocatorSuccessDocument,
+  "locator-failure": projectLocatorFailureDocument
+};

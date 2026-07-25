@@ -171,7 +171,7 @@ async function main(): Promise<void> {
   check("traversal is neutralized (no `..`, no separators, non-empty)", (() => { const r = safePathComponent("../../etc/passwd", "x"); return noSep(r) && !r.includes("..") && r.length > 0; })());
   check("both separators are stripped", noSep(safePathComponent("a/b\\c/../d", "x")));
   check("Windows-invalid characters are replaced", (() => { const r = safePathComponent('a<b>:"|?*c', "x"); return !/[<>:"|?*]/.test(r); })());
-  check("control characters are replaced", !/[\x00-\x1f]/.test(safePathComponent("a b", "x"))); // eslint-disable-line no-control-regex
+  check("control characters are replaced", !/[\x00-\x1f]/.test(safePathComponent("a\u0000\u0007b", "x"))); // eslint-disable-line no-control-regex
   check("Windows reserved names are neutralized (CON)", safePathComponent("CON", "x") !== "CON" && safePathComponent("con", "x").startsWith("_"));
   check("reserved name with extension is neutralized (nul.png)", safePathComponent("nul.png", "x").startsWith("_"));
   check("empty / nullish falls back, never empty", safePathComponent("", "fallback") === "fallback" && safePathComponent(undefined, "fb") === "fb" && safePathComponent(null, "fb") === "fb");

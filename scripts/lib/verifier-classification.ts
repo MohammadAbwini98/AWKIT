@@ -187,7 +187,11 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:semantic-queue": {
     class: "unit",
-    why: "Mutation-queue coalescing, delete-supersedes-upsert, bounded overflow and no-blind-replay, in-process against the in-memory store."
+    why: "Mutation-queue coalescing, ordering, delete-supersedes-upsert, bounded overflow and no-blind-replay, in-process against the in-memory store."
+  },
+  "verify:source-hygiene": {
+    class: "static-source-validation",
+    why: "Scans every TypeScript source for literal control characters (invisible delimiters); parses source only, executes nothing."
   },
   "verify:zvec-host-lifecycle": {
     class: "unit",

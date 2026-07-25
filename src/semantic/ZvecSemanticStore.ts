@@ -157,6 +157,19 @@ export interface ZvecSemanticStoreOptions {
 export class ZvecSemanticStore implements SemanticStore {
   readonly name = "zvec";
 
+  /**
+   * Entity-wide operations are NOT supported yet.
+   *
+   * The utility host exposes no scan or cursor operation — its `query` is top-K capped at 100 and
+   * returns hit counts plus a handful of ids, not the full document set. Anything built on it
+   * (`deleteByEntity`, `stats`, `clear`, an exact `totalMatched`) therefore sees only the first page.
+   *
+   * Refusing is the safe half of that trade: a partial delete that reports success leaves content
+   * indexed which the caller believes is gone, and an undercounted `stats` silently misreports the
+   * index. Flip this to true once the host protocol gains scan + count.
+   */
+  readonly capabilities = { entityOperations: false } as const;
+
   private collectionId: string | null = null;
   private closed = false;
 
@@ -263,11 +276,13 @@ export class ZvecSemanticStore implements SemanticStore {
     return present.length;
   }
 
-  async deleteByEntity(entityId: string): Promise<number> {
-    const collectionId = this.assertOpen();
-    const matches = await this.queryDocuments(collectionId, entityId, SEMANTIC_MAX_TOP_K);
-    const ids = matches.filter((d) => d.entityId === entityId).map((d) => d.id);
-    return ids.length > 0 ? this.delete(ids) : 0;
+  async deleteByEntity(_entityId: string): Promise<number> {
+    this.assertOpen();
+    // Previously this ran a top-K full-text query for the entity id and deleted whatever came back.
+    // Two independent problems: the entity id need not appear in indexed CONTENT at all (so the
+    // query could match nothing and report a successful no-op), and even when it did the result was
+    // capped at 100. Both produce "deleted successfully" while documents remain indexed.
+    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
   }
 
   async get(id: string): Promise<ValidatedSemanticDocument | null> {
@@ -286,17 +301,17 @@ export class ZvecSemanticStore implements SemanticStore {
   }
 
   async stats(): Promise<SemanticStoreStats> {
-    const collectionId = this.assertOpen();
-    const all = await this.queryDocuments(collectionId, "", SEMANTIC_MAX_TOP_K);
-    const byKind: Record<string, number> = {};
-    for (const doc of all) byKind[doc.kind] = (byKind[doc.kind] ?? 0) + 1;
-    return { documents: all.length, byKind };
+    this.assertOpen();
+    // An undercounted index is worse than no count: it silently misreports how much is stored, and
+    // rebuild parity checks would compare against a number that is wrong by construction.
+    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
   }
 
   async clear(): Promise<void> {
-    const collectionId = this.assertOpen();
-    const all = await this.queryDocuments(collectionId, "", SEMANTIC_MAX_TOP_K);
-    if (all.length > 0) await this.delete(all.map((d) => d.id));
+    this.assertOpen();
+    // Clearing only the first 100 documents while reporting success would leave the index populated
+    // after a user explicitly asked for it to be deleted (plan §9.4 Settings action).
+    throw new SemanticStoreError("UNSUPPORTED_OPERATION");
   }
 
   private async queryDocuments(collectionId: string, text: string, topK: number): Promise<ValidatedSemanticDocument[]> {

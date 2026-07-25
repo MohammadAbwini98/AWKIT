@@ -27,7 +27,15 @@ export type SemanticStoreErrorCode =
   | "READ_FAILED"
   | "QUERY_FAILED"
   | "CAPACITY_EXCEEDED"
-  | "BACKEND_UNAVAILABLE";
+  | "BACKEND_UNAVAILABLE"
+  /**
+   * The backend cannot perform this operation CORRECTLY yet.
+   *
+   * Deliberately distinct from a failure: it means "refusing rather than guessing". An entity-wide
+   * delete that silently removes only the first page is worse than one that refuses, because the
+   * caller believes content is gone when it is still indexed.
+   */
+  | "UNSUPPORTED_OPERATION";
 
 export class SemanticStoreError extends Error {
   constructor(
@@ -52,9 +60,29 @@ export interface SemanticStoreStats {
   byKind: Record<string, number>;
 }
 
+/**
+ * What an implementation can do correctly.
+ *
+ * Declared rather than assumed so the shared contract suite can assert the RIGHT behaviour for each
+ * backend: a store lacking `entityOperations` must throw `UNSUPPORTED_OPERATION`, not return a
+ * plausible-looking partial result. Without this the suite would either be weakened for everyone or
+ * would silently bless a partial delete.
+ */
+export interface SemanticStoreCapabilities {
+  /**
+   * Whole-collection scans: `deleteByEntity`, `stats`, `clear`, and exact `totalMatched`.
+   *
+   * Requires the backend to enumerate every document. The Zvec utility host has no scan/cursor
+   * operation today — its `query` is top-K capped — so the adapter declares this false until the
+   * host protocol gains one.
+   */
+  entityOperations: boolean;
+}
+
 export interface SemanticStore {
   /** Identifies the implementation in diagnostics ("in-memory", "zvec"). */
   readonly name: string;
+  readonly capabilities: SemanticStoreCapabilities;
 
   open(): Promise<void>;
   close(): Promise<void>;

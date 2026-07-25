@@ -135,8 +135,8 @@ export function resolveBrowserIsolation(
  */
 export function sharedCompatibilityKey(config: InstanceConfig, overrides?: LaunchArgOverrides): string {
   const mode = config.headless ? "headless" : "headed";
-  const add = [...(overrides?.add ?? [])].sort().join("");
-  const ignore = [...(overrides?.ignoreDefaultArgs ?? [])].sort().join("");
+  const add = [...(overrides?.add ?? [])].sort().join("\u0001");
+  const ignore = [...(overrides?.ignoreDefaultArgs ?? [])].sort().join("\u0001");
   const throttle = overrides?.omitBackgroundTimerThrottlePin ? "1" : "0";
-  return [`${config.browser}:${mode}`, `add=${add}`, `ign=${ignore}`, `thr=${throttle}`].join("");
+  return [`${config.browser}:${mode}`, `add=${add}`, `ign=${ignore}`, `thr=${throttle}`].join("\u0002");
 }

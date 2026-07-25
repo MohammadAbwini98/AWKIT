@@ -55,6 +55,8 @@ export { tokenize } from "./SemanticRanking";
 
 export class InMemorySemanticStore implements SemanticStore {
   readonly name = "in-memory";
+  /** Fully in-process, so a whole-collection scan is always available. */
+  readonly capabilities = { entityOperations: true } as const;
 
   private documents = new Map<string, ValidatedSemanticDocument>();
   private opened = false;

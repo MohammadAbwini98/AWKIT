@@ -12,6 +12,7 @@
 
 import {
   SEMANTIC_DOCUMENT_KINDS,
+  SEMANTIC_KIND_IDENTITY,
   SEMANTIC_SCHEMA_VERSION,
   semanticDocumentId,
   semanticHash,
@@ -22,11 +23,12 @@ import {
 import {
   isForbiddenField,
   projectForKind,
-  SEMANTIC_PROJECTION_ALLOWLIST
+  SEMANTIC_PROJECTION_ALLOWLIST,
+  SEMANTIC_PROJECTORS
 } from "@src/semantic/SemanticProjection";
 import { REDACTED, SemanticRedactor } from "@src/semantic/SemanticRedactor";
 import {
-  buildValidatedDocument,
+  projectAndValidate,
   validateSemanticDocument,
   SEMANTIC_MAX_CONTENT_LENGTH
 } from "@src/semantic/SemanticPolicyValidator";
@@ -49,28 +51,59 @@ const redactor = new SemanticRedactor();
 
 console.log("Deterministic identity:\n");
 {
-  check("the same inputs always produce the same id", semanticIds.workflow("wf-1", "r3") === semanticIds.workflow("wf-1", "r3"));
-  check("different revisions produce different ids", semanticIds.workflow("wf-1", "r3") !== semanticIds.workflow("wf-1", "r4"));
+  check("the same input always produces the same id", semanticIds.workflow("wf-1") === semanticIds.workflow("wf-1"));
+  check("different entities produce different ids", semanticIds.workflow("wf-1") !== semanticIds.workflow("wf-2"));
   check("ids are kind-prefixed", semanticIds.runSummary("run-9").startsWith("run-summary:"));
   check("id components are normalized", semanticDocumentId("workflow", "My Workflow!") === "workflow:my-workflow");
   check("an empty component becomes 'unknown', never an empty segment", semanticDocumentId("workflow", "  ") === "workflow:unknown");
 
   // Delimiter forging: two different component splits must not collide.
-  check(
-    "a colon in a component cannot forge a different id",
-    semanticDocumentId("workflow", "a:b", "c") !== semanticDocumentId("workflow", "a", "b:c") ||
-      semanticDocumentId("workflow", "a:b", "c") === "workflow:a-b:c"
-  );
   check("a component cannot inject a delimiter", !semanticDocumentId("workflow", "a:b").split(":").includes("b"));
 
+  // ── current-state vs historical identity ──
+  // A workflow id must NOT vary with revision, or re-indexing an edited workflow ADDS a row instead
+  // of replacing one and both stay searchable.
+  check("current-state kinds are stable across revisions", SEMANTIC_KIND_IDENTITY.workflow === "current-state");
+  check("flow is current-state", SEMANTIC_KIND_IDENTITY.flow === "current-state");
+  check("documentation is current-state", SEMANTIC_KIND_IDENTITY.documentation === "current-state");
+  check("run-failure is historical", SEMANTIC_KIND_IDENTITY["run-failure"] === "historical");
+  check("run-summary is historical", SEMANTIC_KIND_IDENTITY["run-summary"] === "historical");
+  check("locator-failure is historical", SEMANTIC_KIND_IDENTITY["locator-failure"] === "historical");
+  check("every kind declares an identity policy", SEMANTIC_DOCUMENT_KINDS.every((k) => Boolean(SEMANTIC_KIND_IDENTITY[k])));
+
+  // Historical kinds legitimately differ per occurrence.
+  check(
+    "historical ids differ per attempt",
+    semanticIds.runFailure("run-1", "a1", "n1") !== semanticIds.runFailure("run-1", "a2", "n1")
+  );
+  check(
+    "historical ids differ per run",
+    semanticIds.runFailure("run-1", "a1", "n1") !== semanticIds.runFailure("run-2", "a1", "n1")
+  );
+
+  // ── collision resistance ──
+  // `idComponent` lowercases, collapses punctuation and truncates at 120 chars, so distinct long or
+  // punctuation-heavy source ids could normalize to the same readable prefix. The trailing hash of
+  // the CANONICAL identity is what keeps them apart.
+  const longA = `wf-${"a".repeat(200)}-ONE`;
+  const longB = `wf-${"a".repeat(200)}-TWO`;
+  check("long ids sharing a truncated prefix still differ", semanticIds.workflow(longA) !== semanticIds.workflow(longB), `${semanticIds.workflow(longA)} vs ${semanticIds.workflow(longB)}`);
+  check(
+    "punctuation-only differences still produce distinct ids",
+    semanticIds.workflow("My Workflow") !== semanticIds.workflow("My_Workflow!")
+  );
+  check("ids carry a hash suffix", /:[0-9a-f]{16}$/.test(semanticIds.workflow("wf-1")), semanticIds.workflow("wf-1"));
+  check("the readable prefix is preserved for diagnosability", semanticIds.workflow("my-flow").startsWith("workflow:my-flow:"));
+
   // Unbounded/free-text inputs must be hashed, never echoed.
-  const locator = semanticIds.locatorSuccess("wf", "fl", "n1", "Account 4111111111111111 row");
-  check("locator context is hashed, not echoed", !locator.includes("4111111111111111"), locator);
-  const docId = semanticIds.documentation("docs/a.md", "secret body text");
-  check("documentation content is hashed, not echoed", !docId.includes("secret"), docId);
+  const locator = semanticIds.locatorSuccess("fl", "n1");
+  check("a locator id echoes no free text", !/account|row/i.test(locator), locator);
   check("semanticHash is stable", semanticHash("x") === semanticHash("x"));
   check("semanticHash separates different inputs", semanticHash("x") !== semanticHash("y"));
   check("sourceHash detects a content change", semanticSourceHash(["a"]) !== semanticSourceHash(["b"]));
+  check("sourceHash is stable for identical parts", semanticSourceHash(["a", "b"]) === semanticSourceHash(["a", "b"]));
+  // The separator must prevent ["ab"] and ["a","b"] colliding.
+  check("sourceHash parts cannot be re-split ambiguously", semanticSourceHash(["ab"]) !== semanticSourceHash(["a", "b"]));
 }
 
 console.log("\nProjection allowlist (structural exclusion):\n");
@@ -249,42 +282,49 @@ function candidate(overrides: Partial<SemanticDocument> = {}): SemanticDocument 
 
 console.log("\nFull pipeline (project → redact → validate → brand):\n");
 {
-  const built = buildValidatedDocument({
-    kind: "run-failure",
-    id: semanticIds.runFailure("run-1", "a1", "n1"),
-    entityId: "run-1",
-    revision: "1",
-    sourceHash: semanticSourceHash(["run-1"]),
-    title: "Timeout on submit",
-    body: "Step failed after visiting https://app.example.com/x?token=SECRETTOKEN with password=hunter2",
-    source: {
-      runId: "run-1",
-      nodeType: "click",
-      errorCategory: "timeout",
-      errorSummary: "Element not visible",
-      hostname: "app.example.com",
-      updatedAt: new Date().toISOString()
-    },
-    tags: ["timeout"]
+  const built = projectAndValidate("run-failure", {
+    runId: "run-1",
+    attemptId: "a1",
+    nodeId: "n1",
+    nodeType: "click",
+    errorCategory: "timeout",
+    errorSummary: "Element not visible",
+    hostname: "app.example.com",
+    updatedAt: new Date().toISOString()
   });
 
   check("the pipeline accepts a well-formed failure projection", built.ok, built.ok ? "" : JSON.stringify(built.rejections));
   if (built.ok) {
-    check("secrets in the body never reach content", !built.document.content.includes("SECRETTOKEN") && !built.document.content.includes("hunter2"));
     check("allowlisted context is preserved", built.document.content.includes("timeout"));
     check("the document is branded and frozen", Object.isFrozen(built.document));
+    check("the factory computed the id", built.document.id.startsWith("run-failure:"), built.document.id);
+    check("the factory computed the sourceHash", built.document.sourceHash.length === 64);
+  }
+
+  // ── the projection bypass ──
+  // A caller can no longer hand over free-form indexable text. Anything not on the kind's allowlist
+  // is dropped before redaction ever runs, so a pattern gap cannot leak it.
+  const smuggled = projectAndValidate("workflow", {
+    workflowId: "wf-smuggle",
+    name: "Innocent",
+    // Every one of these is either forbidden or simply not allowlisted for `workflow`.
+    body: "https://app.example.com/cb?token=SMUGGLEDTOKEN",
+    notes: "password=SMUGGLEDPASSWORD",
+    rawDefinition: JSON.stringify({ apiKey: "SMUGGLEDKEY" })
+  });
+  check("the pipeline still accepts the document", smuggled.ok, smuggled.ok ? "" : JSON.stringify(smuggled.rejections));
+  if (smuggled.ok) {
+    const serialized = JSON.stringify(smuggled.document);
+    check("a non-allowlisted 'body' never reaches the document", !serialized.includes("SMUGGLEDTOKEN"), serialized.slice(0, 200));
+    check("non-allowlisted notes never reach the document", !serialized.includes("SMUGGLEDPASSWORD"));
+    check("a non-allowlisted raw definition never reaches the document", !serialized.includes("SMUGGLEDKEY"));
+    check("the allowlisted name survives", smuggled.document.title === "Innocent");
   }
 
   // A forbidden source field must stop the whole pipeline.
-  const blocked = buildValidatedDocument({
-    kind: "run-failure",
-    id: semanticIds.runFailure("run-2", "a1", "n1"),
-    entityId: "run-2",
-    revision: "1",
-    sourceHash: semanticSourceHash(["run-2"]),
-    title: "x",
-    body: "y",
-    source: { runId: "run-2", capturedValue: "whatever-the-user-typed" }
+  const blocked = projectAndValidate("run-failure", {
+    runId: "run-2",
+    capturedValue: "whatever-the-user-typed"
   });
   check("a forbidden source field stops the pipeline", !blocked.ok);
   check(
@@ -292,18 +332,17 @@ console.log("\nFull pipeline (project → redact → validate → brand):\n");
     !blocked.ok && !JSON.stringify(blocked.rejections).includes("whatever-the-user-typed")
   );
 
-  // Determinism: the same input twice yields the same id and content.
+  // A missing required identity field is a rejection, not a document with an invented id.
+  const noId = projectAndValidate("workflow", { name: "No id here" });
+  check("a missing required identity field is rejected", !noId.ok);
+  check("the rejection names the missing field", !noId.ok && JSON.stringify(noId.rejections).includes("workflowId"));
+
+  // Determinism.
   const twice = () =>
-    buildValidatedDocument({
-      kind: "workflow",
-      id: semanticIds.workflow("wf-9", "r1"),
-      entityId: "wf-9",
-      revision: "r1",
-      sourceHash: semanticSourceHash(["wf-9", "r1"]),
-      title: "Stable",
-      body: "Stable body",
-      source: { workflowId: "wf-9", name: "Stable" },
-      createdAt: "2026-01-01T00:00:00.000Z",
+    projectAndValidate("workflow", {
+      workflowId: "wf-9",
+      name: "Stable",
+      description: "Stable description",
       updatedAt: "2026-01-01T00:00:00.000Z"
     });
   const a = twice();
@@ -312,6 +351,64 @@ console.log("\nFull pipeline (project → redact → validate → brand):\n");
     "the pipeline is deterministic for identical input",
     a.ok && b.ok && a.document.id === b.document.id && a.document.content === b.document.content
   );
+
+  // ── revision changes REPLACE, they do not accumulate ──
+  const r1 = projectAndValidate("workflow", { workflowId: "wf-rev", name: "V1", description: "first", revision: "1" });
+  const r2 = projectAndValidate("workflow", { workflowId: "wf-rev", name: "V2", description: "second", revision: "2" });
+  check("two revisions of one workflow share ONE document id", r1.ok && r2.ok && r1.document.id === r2.document.id, r1.ok && r2.ok ? `${r1.document.id} vs ${r2.document.id}` : "build failed");
+  check("the revision is retained as a FIELD", r2.ok && r2.document.revision === "2", r2.ok ? r2.document.revision : "");
+  check("content reflects the newer revision", r2.ok && r2.document.content.includes("second"));
+  check("sourceHash changes with content", r1.ok && r2.ok && r1.document.sourceHash !== r2.document.sourceHash);
+
+  // Historical kinds behave the opposite way, on purpose.
+  const f1 = projectAndValidate("run-failure", { runId: "run-h", attemptId: "a1", nodeId: "n1", errorCategory: "timeout" });
+  const f2 = projectAndValidate("run-failure", { runId: "run-h", attemptId: "a2", nodeId: "n1", errorCategory: "timeout" });
+  check("two attempts of one run are DISTINCT documents", f1.ok && f2.ok && f1.document.id !== f2.document.id);
+}
+
+console.log("\nProjectors derive everything from allowlisted fields:\n");
+{
+  for (const kind of SEMANTIC_DOCUMENT_KINDS) {
+    check(`${kind} has a projector`, typeof SEMANTIC_PROJECTORS[kind] === "function");
+  }
+
+  const flow = projectAndValidate("flow", {
+    flowId: "fl-1",
+    workflowId: "wf-1",
+    name: "Login flow",
+    description: "signs in",
+    nodeTypes: ["click", "fill"],
+    tags: ["auth"]
+  });
+  check("a flow projects its allowlisted fields", flow.ok && flow.document.content.includes("click"), flow.ok ? flow.document.content : "");
+  check("a flow carries its filter dimensions", flow.ok && flow.document.flowId === "fl-1" && flow.document.workflowId === "wf-1");
+
+  const locator = projectAndValidate("locator-success", {
+    flowId: "fl-1",
+    nodeId: "n-1",
+    nodeType: "click",
+    locatorStrategy: "role",
+    locatorRole: "button",
+    contextKind: "dialog",
+    hostname: "app.example.com",
+    // Not allowlisted: the matched element text, which routinely carries user data.
+    matchedText: "Account 4111111111111111"
+  });
+  check("a locator document is projected", locator.ok, locator.ok ? "" : JSON.stringify(locator.rejections));
+  check(
+    "matched element text never reaches a locator document",
+    locator.ok && !JSON.stringify(locator.document).includes("4111111111111111")
+  );
+  check("the locator strategy IS recorded", locator.ok && locator.document.content.includes("role"));
+
+  const doc = projectAndValidate("documentation", {
+    relativePath: "docs/a.md",
+    title: "Guide",
+    headings: ["Intro"],
+    body: "Some documentation prose."
+  });
+  check("documentation projects its allowlisted body", doc.ok && doc.document.content.includes("documentation prose"));
+  check("documentation identity is its path", doc.ok && doc.document.entityId === "docs/a.md");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
