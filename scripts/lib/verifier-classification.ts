@@ -171,5 +171,62 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   // ── Packaged application (drives the built artifact or the offline dependency bundle) ─────────
   "verify:packaged-runtime": { class: "packaged-application", why: "Smoke of the packaged app runtime." },
   "verify:packaged-walkthrough": { class: "packaged-application", why: "Packaged clean-profile release-candidate walkthrough." },
-  "validate:offline": { class: "packaged-application", why: "Validates the offline dependency bundle (sql-wasm, resources, manifest)." }
+  "validate:offline": { class: "packaged-application", why: "Validates the offline dependency bundle (sql-wasm, resources, manifest)." },
+
+  // ── Semantic subsystem (Zvec) ────────────────────────────────────────────────────────────────
+  // Added 2026-07-25. Phase 1A introduced these twelve scripts without registering them, so this
+  // reconciler had been FAILING on `main` — the taxonomy total was stale at 111 and excluded the
+  // entire semantic subsystem. Classified from each verifier's own header, not its name.
+  "verify:semantic-policy": {
+    class: "unit",
+    why: "Projection allowlist, redactor and policy validator in-process; no fs, subprocess, or browser."
+  },
+  "verify:zvec-host-lifecycle": {
+    class: "unit",
+    why: "Restart/circuit-breaker policy and path confinement with an injected clock — plain Node, no native binding or process."
+  },
+  "verify:zvec-generation-recovery": {
+    class: "integration",
+    why: "Real temp directory trees: atomic pointer/metadata writes, real discard/quarantine on disk."
+  },
+  "verify:zvec-generation-lifecycle": {
+    class: "integration",
+    why: "Real fs generation lifecycle incl. the atomic pointer swap and rebuild rollback."
+  },
+  "verify:zvec-generation-concurrency": {
+    class: "integration",
+    why: "Genuinely simultaneous allocators (real processes) proving check-then-create cannot double-allocate."
+  },
+  "verify:zvec-native": {
+    class: "integration",
+    why: "Drives the real @zvec/zvec native module in-process (spike coverage)."
+  },
+  "verify:zvec-negative-cases": {
+    class: "integration",
+    why: "Real native-module failure modes (spike coverage)."
+  },
+  "verify:zvec-host-source-boundary": {
+    class: "static-source-validation",
+    why: "Parses the host source + packaging config to prove it stays raw CJS, utilityProcess-only, and carries no crash-injection path."
+  },
+  "verify:all-typecheck": {
+    class: "static-source-validation",
+    why: "Combined type gate (build + typecheck:scripts); parses source, never executes the feature."
+  },
+  "verify:zvec-packaged-assets": {
+    class: "packaged-application",
+    why: "Verifies the packaged tree's Zvec assets against the shipped per-asset manifest."
+  },
+  "verify:zvec-packaged-negative-cases": {
+    class: "packaged-application",
+    why: "Packaged-tree negative cases (tampered/missing assets)."
+  },
+  "verify:zvec-packaged-live": {
+    class: "packaged-application",
+    why: "Launches a real Electron app directory against the packaged AND NSIS-installed host via the production manager."
+  },
+  "verify:zvec-coexistence": {
+    class: "real-browser",
+    why: "Runs a real Playwright workflow alongside a large Zvec indexing batch to quantify coexistence impact."
+  }
 };
