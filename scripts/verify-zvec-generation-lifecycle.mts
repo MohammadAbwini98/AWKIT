@@ -23,7 +23,13 @@ import {
   rollbackGeneration,
   SemanticGenerationError
 } from "@src/semantic/SemanticGenerationManager";
-import { readMetadata } from "@src/semantic/SemanticGenerationReconciler";
+import {
+  readMetadata,
+  readMetadataStrict,
+  reconcileGenerations,
+  writeMetadata
+} from "@src/semantic/SemanticGenerationReconciler";
+import { defaultSemanticIndexMetadata } from "@src/semantic/SemanticGenerationLayout";
 import { buildSemanticHealth } from "@src/semantic/contracts/SemanticHealth";
 
 let passed = 0;
@@ -416,6 +422,100 @@ console.log("\nRebuild stage classification:");
   check("a failed pointer write reports ACTIVATION_FAILED", outcome.status === "ACTIVATION_FAILED", outcome.status);
   check("nothing was activated", !outcome.activated);
   check("the candidate generation was discarded", !fs.existsSync(path.join(layout.generations, outcome.generation)));
+}
+
+// ── THE decisive regression: metadata failure must not destroy the active generation ──
+console.log("\nPointer authority during reconciliation (destructive-path regression):");
+{
+  const root = tempRoot();
+  const layout = semanticIndexLayout(root);
+
+  // 1-2. Create and activate a generation with real content, and confirm the pointer names it.
+  const active = createGeneration(root);
+  fs.writeFileSync(path.join(active.path, "collection.bin"), Buffer.alloc(64 * 1024));
+  activateGeneration(root, active.name, OK);
+  check("the pointer names the activated generation", readActivePointer(root)?.activeGeneration === active.name);
+
+  // A second generation exists too, so we can also confirm normal cleanup still happens.
+  const orphan = createGeneration(root);
+  fs.writeFileSync(path.join(orphan.path, "collection.bin"), Buffer.alloc(8 * 1024));
+
+  // 3-4. Make metadata.json unreadable AND unwritable (a directory in its place), which is exactly
+  // the state that made the tolerant reader report activeGeneration=null and cleanShutdown=false.
+  fs.rmSync(layout.metadataFile, { force: true });
+  fs.mkdirSync(layout.metadataFile, { recursive: true });
+
+  // 5. Run the PRODUCTION startup sequence in order: repair, resolve pointer, reconcile.
+  const repair = repairMetadataFromPointer(root);
+  const pointer = readActivePointer(root);
+  const report = reconcileGenerations({
+    runtimeRoot: root,
+    authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+  });
+
+  // 6. Assertions.
+  check("repair reports failure", repair.status === "failed", JSON.stringify(repair));
+  check("repair failure is READ_FAILED (strict reader makes this reachable)", repair.status === "failed" && repair.reason === "READ_FAILED", JSON.stringify(repair));
+  check("THE ACTIVE GENERATION STILL EXISTS", fs.existsSync(active.path), active.name);
+  check(
+    "reconciliation marks it active, not orphaned",
+    report.outcomes.find((o) => o.name === active.name)?.disposition === "active",
+    JSON.stringify(report.outcomes.find((o) => o.name === active.name))
+  );
+  check("zero bytes were reclaimed from the active generation", !report.outcomes.some((o) => o.name === active.name && o.disposition === "discarded"));
+  check("the pointer still resolves to an existing directory", (() => {
+    const p2 = readActivePointer(root);
+    return Boolean(p2 && fs.existsSync(path.join(layout.generations, p2.activeGeneration)));
+  })());
+  check("the pointer file itself was not deleted by reconciliation", fs.existsSync(layout.activeGenerationFile));
+  check("reconciliation still detected the unclean shutdown", report.uncleanShutdown);
+  check("the genuine orphan was still reclaimed", !fs.existsSync(orphan.path), orphan.name);
+
+  // Health must tell the truth about the failed repair.
+  const health = buildSemanticHealth({
+    included: true, enabledBySetting: true, hostState: "ready", circuitOpen: false,
+    unexpectedExits: 0, lastReasonCode: null, activeGeneration: report.activeGeneration,
+    previousShutdownClean: !report.uncleanShutdown, reclaimedBytesOnStartup: report.reclaimedBytes,
+    metadataRepairFailed: repair.status === "failed"
+  });
+  check("health reports the metadata-repair failure", health.degradedReason === "METADATA_REPAIR_FAILED", String(health.degradedReason));
+}
+{
+  // A pointer naming a MISSING generation must not license a cleanup sweep.
+  const root = tempRoot();
+  const layout = semanticIndexLayout(root);
+  const keep = createGeneration(root);
+  fs.writeFileSync(path.join(keep.path, "collection.bin"), Buffer.alloc(4096));
+  activateGeneration(root, keep.name, OK);
+  // Remove the active directory behind the pointer's back.
+  fs.rmSync(keep.path, { recursive: true, force: true });
+  const candidate = createGeneration(root);
+
+  const pointer = readActivePointer(root);
+  const report = reconcileGenerations({
+    runtimeRoot: root,
+    authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+  });
+
+  check("a pointer naming a missing generation is reported", report.activeGenerationMissing);
+  check("no generation is discarded in that state", report.reclaimedBytes === 0, String(report.reclaimedBytes));
+  check("surviving candidates are preserved for rebuild", fs.existsSync(candidate.path));
+  check("no other generation is silently promoted to active", report.activeGeneration === keep.name, String(report.activeGeneration));
+  check("the pointer is not rewritten or cleared", readActivePointer(root)?.activeGeneration === keep.name);
+}
+
+console.log("\nStrict metadata reader:");
+{
+  const root = tempRoot();
+  check("a missing metadata file reads as 'missing'", readMetadataStrict(root).status === "missing");
+  writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(1) });
+  check("a valid metadata file reads as 'ok'", readMetadataStrict(root).status === "ok");
+  fs.writeFileSync(semanticIndexLayout(root).metadataFile, "{ not json");
+  check("a corrupt metadata file reads as 'invalid'", readMetadataStrict(root).status === "invalid");
+  fs.rmSync(semanticIndexLayout(root).metadataFile, { force: true });
+  fs.mkdirSync(semanticIndexLayout(root).metadataFile, { recursive: true });
+  check("an unreadable metadata path reads as 'unreadable'", readMetadataStrict(root).status === "unreadable");
+  check("the tolerant reader still never throws on the same input", (() => { try { readMetadata(root); return true; } catch { return false; } })());
 }
 
 console.log("\nMetadata-repair failure reaches health:");

@@ -64,7 +64,7 @@ console.log("Unclean shutdown:");
 {
   const root = tempRoot([generationName(1), generationName(2), generationName(3)]);
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(3), cleanShutdown: false });
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(3) });
   const layout = semanticIndexLayout(root);
 
   check("unclean shutdown is detected", report.uncleanShutdown);
@@ -81,13 +81,13 @@ console.log("Unclean shutdown:");
 // ── missing metadata is treated as unclean, never assumed safe ──
 {
   const root = tempRoot([generationName(1)]);
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: null });
   check("absent metadata is treated as an unclean shutdown", report.uncleanShutdown);
 }
 {
   const root = tempRoot([generationName(1)]);
   fs.writeFileSync(semanticIndexLayout(root).metadataFile, "{ this is not json");
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: null });
   check("corrupt metadata is treated as an unclean shutdown", report.uncleanShutdown);
 }
 
@@ -96,7 +96,7 @@ console.log("\nClean shutdown:");
 {
   const root = tempRoot([generationName(1), generationName(2), generationName(3), generationName(4)]);
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(4), cleanShutdown: true });
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(4) });
   const layout = semanticIndexLayout(root);
 
   check("clean shutdown is detected", !report.uncleanShutdown);
@@ -114,7 +114,7 @@ console.log("\nQuarantine:");
 {
   const root = tempRoot([generationName(1), generationName(2)]);
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(2), cleanShutdown: false });
-  const report = reconcileGenerations({ runtimeRoot: root, quarantined: [generationName(1)] });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(2), quarantined: [generationName(1)] });
   const layout = semanticIndexLayout(root);
 
   check("the crashing generation is quarantined, not discarded", report.outcomes.find((o) => o.name === generationName(1))?.disposition === "quarantined");
@@ -129,7 +129,7 @@ console.log("\nDry run:");
 {
   const root = tempRoot([generationName(1), generationName(2)]);
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(2), cleanShutdown: false });
-  const report = reconcileGenerations({ runtimeRoot: root, dryRun: true });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(2), dryRun: true });
   const layout = semanticIndexLayout(root);
 
   check("dry run reports the plan", report.outcomes.length >= 2);
@@ -149,7 +149,7 @@ console.log("\nSafety:");
   fs.mkdirSync(strayDir, { recursive: true });
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: null, cleanShutdown: false });
 
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: null });
   check("a stray file is left untouched", fs.existsSync(stray));
   check("a non-generation directory is left untouched", fs.existsSync(strayDir));
   check("both are reported as ignored", report.outcomes.filter((o) => o.disposition === "ignored").length === 2);
@@ -158,7 +158,7 @@ console.log("\nSafety:");
   // Reconciling an index that does not exist yet must be a no-op, not a crash.
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-semantic-empty-"));
   cleanup.push(root);
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: null });
   check("a missing semantic-index directory reconciles as a no-op", report.outcomes.length === 0);
 }
 
@@ -176,16 +176,19 @@ console.log("\nShutdown marker:");
 
   // The real sequence: open, crash (no close), reconcile.
   markIndexOpen(root);
-  const report = reconcileGenerations({ runtimeRoot: root });
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(1) });
   check("open-then-crash is detected as unclean on the next start", report.uncleanShutdown);
 }
 
-// ── a stale active pointer is cleared ──
+// ── a pointer naming a missing generation is REPORTED, never silently repaired ──
 {
   const root = tempRoot([generationName(1)]);
   writeMetadata(root, { ...defaultSemanticIndexMetadata(), activeGeneration: generationName(9), cleanShutdown: true });
-  reconcileGenerations({ runtimeRoot: root });
-  check("an active pointer naming a missing generation is cleared", readMetadata(root).activeGeneration === null);
+  const report = reconcileGenerations({ runtimeRoot: root, authoritativeActiveGeneration: generationName(9) });
+  check("the missing active generation is reported", report.activeGenerationMissing);
+  check("nothing is discarded while the active generation is missing", report.reclaimedBytes === 0);
+  check("surviving generations are preserved for rebuild", fs.existsSync(path.join(semanticIndexLayout(root).generations, generationName(1))));
+  check("no other generation is silently promoted", report.activeGeneration === generationName(9));
 }
 
 for (const dir of cleanup) {

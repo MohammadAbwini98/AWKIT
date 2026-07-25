@@ -14,13 +14,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  defaultSemanticIndexMetadata,
   generationName,
   generationSequence,
   isGenerationName,
   semanticIndexLayout,
   type SemanticIndexMetadata
 } from "./SemanticGenerationLayout";
-import { readMetadata, writeMetadata } from "./SemanticGenerationReconciler";
+import { readMetadata, readMetadataStrict, writeMetadata } from "./SemanticGenerationReconciler";
 
 /**
  * The active-generation pointer, kept separate from `metadata.json` so activation is one small
@@ -108,10 +109,24 @@ export function createGeneration(runtimeRoot: string): { name: string; path: str
   // would let two concurrent rebuilds pick the same sequence and one silently adopt the other's
   // directory. Phase 1B additionally serializes rebuilds through the mutation queue; this loop is
   // the second line of defence, not a substitute for it.
+  // `highest` is recomputed every iteration, so a lost race simply re-reads the new highest and
+  // tries the next number. Adding the attempt counter to the sequence also worked, but skipped
+  // sequence numbers after a collision for no benefit.
   for (let attempt = 0; attempt < 1000; attempt += 1) {
     const existing = listGenerations(runtimeRoot);
-    const highest = existing.length > 0 ? (generationSequence(existing[0]) ?? 0) : 0;
-    const name = generationName(highest + 1 + attempt);
+    const highestOnDisk = existing.length > 0 ? (generationSequence(existing[0]) ?? 0) : 0;
+
+    // Names referenced by the pointer are claimed even when their directory is gone. Without this,
+    // deleting the active generation lets the allocator reissue its exact name, and the pointer then
+    // silently resolves to a brand-new empty directory — identity confusion rather than a clean
+    // "active generation missing" state.
+    const pointer = readActivePointer(runtimeRoot);
+    const claimed = [pointer?.activeGeneration, pointer?.previousGeneration]
+      .map((n) => (n ? (generationSequence(n) ?? 0) : 0))
+      .reduce((a, b) => Math.max(a, b), 0);
+
+    const highest = Math.max(highestOnDisk, claimed);
+    const name = generationName(highest + 1);
     const dir = path.join(layout.generations, name);
     try {
       fs.mkdirSync(dir);
@@ -187,12 +202,14 @@ export function repairMetadataFromPointer(runtimeRoot: string): MetadataRepairRe
   const pointer = readActivePointer(runtimeRoot);
   if (!pointer) return { status: "notNeeded" };
 
-  let metadata: SemanticIndexMetadata;
-  try {
-    metadata = readMetadata(runtimeRoot);
-  } catch {
+  // The STRICT reader is mandatory here. The tolerant `readMetadata()` never throws — it returns
+  // defaults on any failure — so wrapping it in try/catch produced an unreachable READ_FAILED branch
+  // and, worse, silently treated an unreadable file as "activeGeneration: null".
+  const read = readMetadataStrict(runtimeRoot);
+  if (read.status === "unreadable" || read.status === "invalid") {
     return { status: "failed", reason: "READ_FAILED" };
   }
+  const metadata: SemanticIndexMetadata = read.status === "ok" ? read.metadata : defaultSemanticIndexMetadata();
 
   if (metadata.activeGeneration === pointer.activeGeneration) return { status: "notNeeded" };
 

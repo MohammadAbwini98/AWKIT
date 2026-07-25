@@ -46,6 +46,8 @@ export interface GenerationOutcome {
 export interface ReconciliationReport {
   uncleanShutdown: boolean;
   activeGeneration: string | null;
+  /** The pointer named a generation that is not on disk. Nothing was discarded this run. */
+  activeGenerationMissing: boolean;
   outcomes: GenerationOutcome[];
   reclaimedBytes: number;
   dryRun: boolean;
@@ -53,6 +55,17 @@ export interface ReconciliationReport {
 
 export interface ReconcileOptions {
   runtimeRoot: string;
+  /**
+   * The active generation, resolved from `active-generation.json` BEFORE calling this.
+   *
+   * Required, not optional, and deliberately not derived here from `metadata.json`. Metadata is
+   * derived data read through a tolerant reader that returns defaults on any failure — including
+   * `activeGeneration: null` and `cleanShutdown: false`. Deriving active identity from it meant an
+   * unreadable metadata file made every generation look non-active on an unclean startup, and the
+   * discard rule then deleted the very generation the authoritative pointer named. Making this a
+   * required parameter forces every caller to resolve the pointer first.
+   */
+  authoritativeActiveGeneration: string | null;
   /** Generations known to have crashed the host; quarantined rather than deleted. */
   quarantined?: readonly string[];
   /** Plan only — do not modify disk. */
@@ -77,6 +90,35 @@ function directorySize(dir: string): number {
     }
   }
   return total;
+}
+
+/**
+ * Distinguishable outcomes of reading metadata.
+ *
+ * The tolerant `readMetadata()` below deliberately never throws, which makes it unsuitable for any
+ * caller that must react to failure: a callsite wrapping it in try/catch has dead error handling.
+ * Anything that needs to tell "absent" from "corrupt" from "unreadable" must use this instead.
+ */
+export type StrictMetadataRead =
+  | { status: "ok"; metadata: SemanticIndexMetadata }
+  | { status: "missing" }
+  | { status: "invalid" }
+  | { status: "unreadable" };
+
+export function readMetadataStrict(runtimeRoot: string): StrictMetadataRead {
+  const layout = semanticIndexLayout(runtimeRoot);
+  let raw: string;
+  try {
+    raw = fs.readFileSync(layout.metadataFile, "utf8");
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT" ? { status: "missing" } : { status: "unreadable" };
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<SemanticIndexMetadata>;
+    return { status: "ok", metadata: { ...defaultSemanticIndexMetadata(), ...parsed } };
+  } catch {
+    return { status: "invalid" };
+  }
 }
 
 /** Read index metadata, tolerating absence or corruption — neither is fatal for an optional store. */
@@ -125,14 +167,17 @@ export function markIndexClosed(runtimeRoot: string, activeGeneration: string | 
  * here must not affect application startup.
  */
 export function reconcileGenerations(options: ReconcileOptions): ReconciliationReport {
-  const { runtimeRoot, quarantined = [], dryRun = false } = options;
+  const { runtimeRoot, authoritativeActiveGeneration, quarantined = [], dryRun = false } = options;
   const layout = semanticIndexLayout(runtimeRoot);
+  // Metadata contributes clean-shutdown status, timestamps and retention context ONLY. It never
+  // decides which generation is active.
   const metadata = readMetadata(runtimeRoot);
   const quarantineSet = new Set(quarantined);
 
   const report: ReconciliationReport = {
     uncleanShutdown: !metadata.cleanShutdown,
-    activeGeneration: metadata.activeGeneration,
+    activeGeneration: authoritativeActiveGeneration,
+    activeGenerationMissing: false,
     outcomes: [],
     reclaimedBytes: 0,
     dryRun
@@ -157,14 +202,35 @@ export function reconcileGenerations(options: ReconcileOptions): ReconciliationR
     }
   }
 
+  // A pointer naming a generation that is not on disk is a recovery situation, not a licence to
+  // clean up. Silently discarding "orphans" here could destroy the candidates a rebuild would use,
+  // and silently promoting a different generation would swap the index out from under the pointer.
+  // Report it, change nothing, and let an explicit recovery operation resolve it.
+  if (authoritativeActiveGeneration !== null && !generations.includes(authoritativeActiveGeneration)) {
+    report.activeGenerationMissing = true;
+    for (const name of generations) {
+      report.outcomes.push({
+        name,
+        disposition: "retained",
+        reason: "preserved: the active pointer names a missing generation, so nothing is discarded this startup",
+        bytes: directorySize(path.join(layout.generations, name))
+      });
+    }
+    return report;
+  }
+
   let retainedSoFar = 0;
 
   for (const name of generations) {
     const dir = path.join(layout.generations, name);
     const bytes = directorySize(dir);
 
-    if (name === metadata.activeGeneration) {
-      report.outcomes.push({ name, disposition: "active", reason: "active generation", bytes });
+    // ── the absolute rule ──
+    // A valid pointer naming an existing generation protects it unconditionally: it is never
+    // deleted, quarantined, renamed, or treated as an orphan, whatever state metadata is in. This
+    // check comes before the quarantine check for exactly that reason.
+    if (name === authoritativeActiveGeneration) {
+      report.outcomes.push({ name, disposition: "active", reason: "named by the authoritative active pointer", bytes });
       continue;
     }
 
@@ -207,16 +273,13 @@ export function reconcileGenerations(options: ReconcileOptions): ReconciliationR
     }
   }
 
-  // The stale active-generation pointer is cleared when it no longer names a real directory, so the
-  // next open starts from a known state instead of chasing a missing path.
-  if (metadata.activeGeneration && !generations.includes(metadata.activeGeneration) && !dryRun) {
-    try {
-      writeMetadata(runtimeRoot, { ...metadata, activeGeneration: null, cleanShutdown: metadata.cleanShutdown });
-      fs.rmSync(path.join(layout.root, ACTIVE_GENERATION_FILE), { force: true });
-    } catch {
-      /* best effort */
-    }
-  }
+  // Reconciliation deliberately does NOT touch the active pointer.
+  //
+  // An earlier revision cleared `active-generation.json` here whenever `metadata.activeGeneration`
+  // named a missing directory — deciding from derived data, and destroying the authoritative record
+  // in the process. Metadata is realigned by `repairMetadataFromPointer()` at startup, and a pointer
+  // naming a missing generation is reported via `activeGenerationMissing` for an explicit,
+  // separately tested recovery operation to resolve.
 
   return report;
 }

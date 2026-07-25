@@ -42,11 +42,11 @@ interface WorkerResult {
   errors: string[];
 }
 
-function runWorker(runtimeRoot: string, count: number, barrier: string): Promise<WorkerResult | null> {
+function runWorker(runtimeRoot: string, count: number, barrier: string, readyDir: string): Promise<WorkerResult | null> {
   return new Promise((resolve) => {
     const child = spawn(
       "npx",
-      ["tsx", path.join("scripts", "zvec-harness", "allocGenerationWorker.mts"), runtimeRoot, String(count), barrier],
+      ["tsx", path.join("scripts", "zvec-harness", "allocGenerationWorker.mts"), runtimeRoot, String(count), barrier, readyDir],
       { cwd: ROOT, shell: true }
     );
     let stdout = "";
@@ -73,14 +73,24 @@ const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "awkit-genconc-"));
 const layout = semanticIndexLayout(runtimeRoot);
 fs.mkdirSync(layout.generations, { recursive: true });
 const barrier = path.join(runtimeRoot, "GO");
+const readyDir = path.join(runtimeRoot, "ready");
 
 console.log(`Concurrent generation allocation (${WORKERS} separate processes x ${PER_WORKER} allocations):\n`);
 
 try {
-  // Start every worker first; each spins until the barrier appears, so they all begin together.
-  const pending = Array.from({ length: WORKERS }, () => runWorker(runtimeRoot, PER_WORKER, barrier));
-  // Give the processes time to boot and reach their spin loop before releasing them.
-  await new Promise((r) => setTimeout(r, 4_000));
+  // Two-stage barrier: every worker announces READY, and only once all of them have is GO written.
+  // A fixed sleep could release the barrier before a slow worker reached its spin loop, which would
+  // silently degrade this into a partially-sequential test that still looked like it passed.
+  const pending = Array.from({ length: WORKERS }, () => runWorker(runtimeRoot, PER_WORKER, barrier, readyDir));
+
+  const readyDeadline = Date.now() + 120_000;
+  let readyCount = 0;
+  while (Date.now() < readyDeadline) {
+    readyCount = fs.existsSync(readyDir) ? fs.readdirSync(readyDir).filter((n) => n.startsWith("ready-")).length : 0;
+    if (readyCount >= WORKERS) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  check(`all ${WORKERS} workers announced READY before release`, readyCount >= WORKERS, `${readyCount} ready`);
   fs.writeFileSync(barrier, "go");
 
   const results = await Promise.all(pending);

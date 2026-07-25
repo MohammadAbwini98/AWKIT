@@ -25,6 +25,17 @@ still verified structurally (`verify:zvec-packaged-assets`), but the live path i
 Replacement needs a harness built on `ZvecUtilityHostManager` rather than a hook that bypasses
 startup. The deleted harnesses remain recoverable at tag `archive/spike-zvec-phase-0-20260725`.
 
+## `npm run typecheck:scripts` fails on verify-branch-pairs.mts (2026-07-25)
+
+Pre-existing, introduced by the `feature/randomized-test-lab` consolidation merge, not by the
+semantic work. `scripts/verify-branch-pairs.mts` constructs edge fixtures as `{ id: string }` while
+`FlowDesignerEdge` now requires `source`/`target`, so `tsc -p tsconfig.scripts.json` reports
+TS2345/TS2339 there.
+
+Consequence: `verify:all-typecheck` is red, which masks new script-level type errors. All
+`zvec`/`semantic` scripts typecheck clean today, but that is verified by filtering the output rather
+than by a green gate. Fix the fixtures so the gate is trustworthy again.
+
 ## RESOLVED 2026-07-25: direct push to `origin/main`
 
 `git push origin main` was rejected with `GH013: Changes must be made through a pull request`. The

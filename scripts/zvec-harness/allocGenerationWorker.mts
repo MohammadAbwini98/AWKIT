@@ -12,15 +12,22 @@
  */
 
 import fs from "node:fs";
+import path from "node:path";
 
 import { createGeneration } from "@src/semantic/SemanticGenerationManager";
 
-const [runtimeRoot, countArg, barrierFile] = process.argv.slice(2);
+const [runtimeRoot, countArg, barrierFile, readyDir] = process.argv.slice(2);
 const count = Number(countArg);
+
+// Two-stage barrier. Announcing readiness first is what makes the race provable: the parent waits
+// for every ready file before releasing GO, so a slow machine cannot let the barrier drop before
+// some worker has actually reached its spin loop. A fixed sleep could only ever assume that.
+fs.mkdirSync(readyDir, { recursive: true });
+fs.writeFileSync(path.join(readyDir, `ready-${process.pid}`), "");
 
 // Busy-wait on the barrier. A tight loop is intentional: a timer would let the OS stagger the
 // workers, which is exactly what must NOT happen here.
-const deadline = Date.now() + 30_000;
+const deadline = Date.now() + 60_000;
 while (!fs.existsSync(barrierFile) && Date.now() < deadline) {
   /* spin */
 }

@@ -24,7 +24,7 @@ import {
   reconcileGenerations,
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
-import { repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
+import { readActivePointer, repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
@@ -69,7 +69,15 @@ export function initializeSemanticSubsystem(): ReconciliationReport | null {
     // the pointer but failed the metadata write, this brings them back into agreement before
     // anything reads metadata.
     lastMetadataRepair = repairMetadataFromPointer(runtimeRoot());
-    lastReconciliation = reconcileGenerations({ runtimeRoot: runtimeRoot() });
+    // The pointer is authoritative and is resolved HERE, then handed to reconciliation explicitly.
+    // Reconciliation must never derive active identity from metadata: metadata is read through a
+    // tolerant reader that yields `activeGeneration: null` on any failure, which previously made an
+    // unreadable metadata file delete the generation the pointer named.
+    const pointer = readActivePointer(runtimeRoot());
+    lastReconciliation = reconcileGenerations({
+      runtimeRoot: runtimeRoot(),
+      authoritativeActiveGeneration: pointer?.activeGeneration ?? null
+    });
     markIndexOpen(runtimeRoot());
     return lastReconciliation;
   } catch {
