@@ -1,5 +1,9 @@
 # COMMANDS
 
+> **Workflow (2026-07-25):** AWKIT develops on `main` only. A failing verifier does not block a
+> commit — commit the reproducible state and keep fixing.
+> Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+
 All commands verified against `package.json` scripts and repo scripts (2026-06-26).
 Platform: **Windows** (packaging/offline scripts are PowerShell). Node 18 in the current dev env.
 

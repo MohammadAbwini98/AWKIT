@@ -43,10 +43,24 @@ Claude Code-specific behavior.
   append to `docs/ai/TASK_LOG.md`; update other `docs/ai/` files only if they changed.
 - End with a concise summary: implementation, files changed, tests run / not run, remaining risks.
 
+## Owner workflow directive - one branch, continuous implementation
+
+AWKIT uses `main` as its single continuing development branch.
+
+- Do not create feature/fix/chore/docs/test/spike/archive/backup branches or normal task worktrees.
+- Do not freeze implementation or prohibit commits because work is incomplete, tests fail,
+  validation is pending, or an environment is unavailable.
+- Commit coherent progress directly to `main` with truthful scoped messages.
+- Failed or unexecuted checks must be reported accurately, but they do not prevent development
+  commits. Release gates govern release claims, not whether implementation may continue.
+- Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` before any Git operation.
+
 ## Git Full Cycle Skill
 
-When doing any Git operation, branch work, commit, push, pull, PR creation, stacked PR, or
-protected-main workflow, first read:
+**`docs/ai/BRANCH_AND_COMMIT_POLICY.md` is the authority; the skills implement it.**
+
+When doing any Git operation, branch work, commit, push, pull, PR creation, or branch
+consolidation, first read:
 
 - `.claude/skills/git-full-cycle/SKILL.md` for Claude
 - `.codex/skills/git-full-cycle/SKILL.md` for Codex

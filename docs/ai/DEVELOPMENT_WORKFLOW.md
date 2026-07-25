@@ -1,5 +1,10 @@
 # DEVELOPMENT_WORKFLOW
 
+> **Workflow (2026-07-25):** AWKIT develops on `main` only — no feature/spike/backup branches, no
+> task worktrees, and no freeze before committing. Failing or incomplete states are committed with
+> truthful messages; release gates govern release claims, not whether work may continue.
+> Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`. Any branch-per-task guidance below is superseded.
+
 How AI agents should work in this repository.
 
 ## 1. Start — load context

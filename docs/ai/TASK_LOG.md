@@ -4,6 +4,39 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Single-branch consolidation + Zvec Phase 0 integration (Claude)
+
+**Task:** Apply the owner's one-branch continuous-implementation directive; consolidate every branch
+and worktree into `main`; preserve all Zvec Phase 0/0B/0C/0D work.
+
+**Commits on `main`:** 5 scoped Zvec commits (raw native host, packaging boundary, packaged
+verifiers, spike harnesses, evidence docs) + 4 integration merges.
+
+**Branches consolidated:** `spike/zvec-phase-0` (ff), `feature/backend-srs-tranche-2a-popup-identity`
+(merge, was draft PR #36), `feature/randomized-test-lab` (merge, 13 conflicts resolved),
+`docs/browser-automation-srs` (merge), `docs/offline-packaging-beads` (merge),
+`backup/chore-brand-logo-5b`, `chore/brand-logo-5b`, `backup/pr24-pre-reconstruction` (superseded;
+content verified already on `main`). All tips tagged `archive/<name>-20260725`. Both worktrees removed.
+`main` is now the only local branch with no extra worktrees.
+
+**Notable conflict:** `FlowChartDesigner.tsx` - two independent refactors collided. Resolved toward
+`flowProfileMapping.ts` as the single mapping module after verifying field-by-field that it preserves
+the same popup/locator metadata as `flowStepMapping.ts`, and removed the stale local `toFlowProfile`
+(the pre-fix version causing RT-06/RT-07).
+
+**Tests run:** `npm run build` PASS; `verify:flow-step-mapping` 101/0;
+`scripts/verify-validation.mts` 125/0; `scripts/verify-random-roundtrip.mts` 26/0.
+**Not run:** `verify:runner`, `verify:popup-identity`, mock-site verifiers, `validate:offline`.
+
+**Blocked:** `git push origin main` rejected - `GH013: Changes must be made through a pull request`.
+All 39 commits are local only. Remote branches intentionally NOT deleted until `origin/main` has the
+integration.
+
+**Known gap (pre-existing, not caused by the merge):** `verify-validation.mts`,
+`verify-random-roundtrip.mts`, `verify-packaged-validation.mts` are not registered in `package.json`.
+
+---
+
 ## 2026-07-24 — Handoff preparation for Backend SRS Tranche 2A (docs only)
 
 - **Task:** prepare the repository for the next agent/developer; no code change.

@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-25): single-branch workflow + Zvec Phase 1A next
+
+**Workflow changed.** `main` is the only branch; commit continuously and truthfully; never freeze.
+Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` before any Git operation.
+
+**State:** all branches/worktrees consolidated into `main` (tips tagged `archive/*-20260725`).
+39 commits are **local only** - `git push origin main` is rejected by branch protection
+(`GH013: Changes must be made through a pull request`). Do not create branches to work around this;
+report it and keep committing locally.
+
+**Do not delete remote branches** until `origin/main` contains the integration - a remote branch may
+be the only remote copy of that work.
+
+**Next implementation step - Zvec Phase 1A on `main`,** in this order:
+1. Production restart policy + circuit breaker for the utility host.
+2. Promote the `mainProcessCannotResolveZvec` check into a standalone boundary verifier (it caught a
+   real defect: Zvec was resolvable from the main process via the repo's `node_modules` when running
+   from `dist/win-unpacked`).
+3. Generation reconciliation / quarantine after unclean shutdown.
+4. Remove the `app/main/main.ts` spike hook and the `__testAbort` handler.
+5. `ZvecUtilityHostManager` + typed protocol, staged shutdown, degraded state.
+
+**Do not** add semantic IPC, preload API, renderer UI, indexing, failure/locator memory, or
+embeddings in Phase 1A.
+
+The Tranche 2A note below is superseded: that branch is merged into `main` and deleted.
+
+---
+
 Last updated: **2026-07-24 (latest — Backend SRS Tranche 2A: FR-C1 deterministic page identity, PR #36 review round 1 fixes applied. Draft PR, NOT merged. Prior: Tranche 1 FR-B2, since merged at `5dbe25f`.)**
 
 ## ACTIVE HANDOFF — Backend SRS Tranche 2A (FR-C1 popup/page identity)

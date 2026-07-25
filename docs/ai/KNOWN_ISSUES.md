@@ -1,5 +1,23 @@
 # KNOWN_ISSUES
 
+> **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
+> issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+
+## Push to `origin/main` is blocked by branch protection (2026-07-25)
+
+`git push origin main` fails with `GH013: Repository rule violations found for refs/heads/main —
+Changes must be made through a pull request`. Per the single-branch policy, agents must report this
+error and continue committing locally; they must NOT create replacement branches. Consequence: all
+work after `5dbe25f` currently exists **locally only**, and remote branches must NOT be deleted until
+`origin/main` contains the integration. Only the owner can adjust the protection rule.
+
+## Validation verifiers are not registered in package.json (2026-07-25)
+
+`scripts/verify-validation.mts`, `scripts/verify-random-roundtrip.mts` and
+`scripts/verify-packaged-validation.mts` exist and pass (125/0 and 26/0 respectively) but have no
+`npm run` alias, so they are easy to miss. Pre-existing on `feature/randomized-test-lab`; not caused
+by the consolidation merge.
+
 Evidence-based. Update when a task reveals a repeated bug, fragile area, or risky assumption.
 
 ## Confirmed (observed during development)

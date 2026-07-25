@@ -4,6 +4,26 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-25 - Single-branch continuous implementation
+
+- **Decision:** AWKIT development continues on `main`. Agents must not create a branch per task,
+  phase, feature, fix, test, or documentation change. Existing branches and worktrees are
+  consolidated into `main` and removed after unique work is preserved.
+- **Commit policy:** Incomplete, failing, or environmentally blocked states may be committed and
+  pushed when clearly labeled and documented. Verification and release gates remain truthful and may
+  block release promotion, but they do not freeze implementation or Git commits.
+- **Reason:** Multiple branches/worktrees and repeated freeze/approval checkpoints fragmented the
+  implementation, left valuable work uncommitted, complicated state tracking, and delayed integration.
+- **Safety:** Never discard user work, commit secrets, or hide failures. Use scoped commits, tags for
+  historical branch tips where useful, and factual status documentation.
+- **Known constraint:** `origin/main` is protected (`GH013: Changes must be made through a pull
+  request`), so direct pushes are rejected. Per policy, work is committed locally on `main` and the
+  error reported; no replacement branches are created. Remote branches are NOT deleted until
+  `origin/main` contains the integration.
+- **Canonical detail:** `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+
+---
+
 ### 2026-07-17 — Oracle ships behind a private Java bridge, read-only, and fails closed in production
 - **Decision:** Oracle Database support runs **only** through a bundled private Java bridge — a
   zero-dependency, pure-JDK child process speaking framed JSON-RPC over **stdio (no network port)** — with

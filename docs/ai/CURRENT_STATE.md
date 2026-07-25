@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Workflow: single branch, continuous implementation (2026-07-25, current)
+
+`main` is the ONLY development branch. No feature/fix/chore/docs/test/spike/backup branches, no task
+worktrees, no freeze-before-commit. See `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+
+**Consolidation done 2026-07-25:** every branch and worktree was integrated into `main` and removed;
+all tips preserved as `archive/<name>-20260725` tags. `main` is the only local branch.
+
+**Push is BLOCKED:** `origin/main` is protected - `GH013: Changes must be made through a pull
+request`. All work since `5dbe25f` (39 commits) exists **locally only**. Remote branches are
+deliberately NOT deleted until `origin/main` contains the integration, because a remote feature
+branch may currently be the only remote copy of that work.
+
+## Zvec semantic subsystem - Phase 0/0B/0C/0D complete, GO WITH CONDITIONS (2026-07-25)
+
+Zvec ships as a raw, unbundled Electron **utility-process** host via `extraResources`
+(`resources/native-hosts/zvec/`), never inside `app.asar`. Full evidence in
+`docs/ZVEC_PHASE_0_COMPATIBILITY_REPORT.md`.
+
+**Proven:** packaged + installed CRUD via `utilityProcess.fork`; per-asset SHA-256 verification of
+the final package; path confinement; restart persistence across app launches; native abort contained
+(exit 134 detected in 84.62 ms, app survived and still served IPC); per-user NSIS
+install/launch/relaunch/uninstall without elevation; FTS p50 4.42 ms (n=1000); main-process RSS
+growth +1.77 MB; real Playwright workflow 84/0 across five coexistence scenarios.
+
+**NOT proven / open:** production restart policy + circuit breaker (deferred to Phase 1A);
+generation reconciliation after unclean shutdown (5 orphaned generations / 110.8 MB observed); CPU
+utilisation (sampler invalid, withheld); coexistence scenario 4 counters (inconclusive); degraded-mode
+items D4-D6 (vacuous until a real semantic capability exists); signed-binary SmartScreen reputation.
+
+**Phase 1A has NOT started.** The spike hook in `app/main/main.ts` and the `__testAbort` handler in
+`native-hosts/zvec/zvec-host.cjs` are still present and MUST be removed before release.
+
 ## Backend SRS Tranche 2A — FR-C1 deterministic page identity (2026-07-24, latest) — draft PR, NOT merged
 
 Implemented **SRS-BAO-001 FR-C1 (Deterministic page identity)** — defect **`awkit-ebh`**. Branch

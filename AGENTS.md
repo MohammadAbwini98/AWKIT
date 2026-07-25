@@ -3,6 +3,21 @@
 Shared instruction file for AI coding agents (Claude Code, OpenAI Codex, Gemini).
 Keep this file concise. Detailed, evolving context lives under `docs/ai/`.
 
+## Owner workflow directive — one branch, continuous implementation
+
+AWKIT uses `main` as its single continuing development branch.
+
+- Do not create feature/fix/chore/docs/test/spike/archive/backup branches or normal task worktrees.
+- Do not freeze implementation or prohibit commits because work is incomplete, tests fail,
+  validation is pending, or an environment is unavailable.
+- Commit coherent progress directly to `main`; use truthful `wip:`, `test:`, `fix:`, `build:`,
+  `docs:`, or other scoped messages.
+- Failed or unexecuted checks must be reported accurately, but they do not prevent development
+  commits. Release gates govern release claims, not whether implementation may continue.
+- Preserve user work; never discard or overwrite changes. Resolve existing branches/worktrees into
+  `main`, then remove them after unique work is preserved.
+- Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` before any Git operation.
+
 ## What this project is
 
 **SpecterStudio** is an offline-capable **Windows desktop app** (Electron + React + TypeScript)
@@ -98,8 +113,11 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 
 ## Git Full Cycle Skill
 
-When doing any Git operation, branch work, commit, push, pull, PR creation, stacked PR, or
-protected-main workflow, first read:
+**Read `docs/ai/BRANCH_AND_COMMIT_POLICY.md` first — it is the authority.** The skills below
+implement it (one branch, frequent truthful commits, no new branches or worktrees).
+
+When doing any Git operation, branch work, commit, push, pull, PR creation, or consolidation,
+first read:
 
 - `.claude/skills/git-full-cycle/SKILL.md` for Claude
 - `.codex/skills/git-full-cycle/SKILL.md` for Codex

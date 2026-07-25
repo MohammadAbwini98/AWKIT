@@ -1,5 +1,9 @@
 # TESTING
 
+> **Workflow (2026-07-25):** A failing or unexecuted verifier never freezes implementation and never
+> blocks a commit — but it must be reported truthfully and never described as passed. Release gates
+> govern release claims only. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
+
 ## Confirmed
 
 Workflow.rar contextual-editor coverage extends the real-Electron designer verifiers with checks for
