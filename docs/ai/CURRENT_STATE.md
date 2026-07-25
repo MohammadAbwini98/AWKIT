@@ -1,5 +1,14 @@
 # CURRENT_STATE
 
+## Recorder, Reports, and Settings remediation prompt (2026-07-26, current)
+
+`docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md` is the
+execution-ready implementation brief for the next engineering pass. It carries forward the 29
+Recorder, 16 System Reports, and 21 Settings outcomes; separates `NOT RUN` coverage gaps from
+confirmed defects; prioritizes `AWKIT-E2E-001`; requires REC-018's full record→save→reopen→production
+replay; and defines fixtures, code surfaces, security rules, evidence, commands, quality gates, and
+completion criteria.
+
 ## Recorder, System Reports, and Settings focused test cases (2026-07-26, current)
 
 `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md` now defines 29

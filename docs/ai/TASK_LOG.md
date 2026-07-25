@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-26 (latest) - Recorder, Reports, and Settings remediation prompt (Codex)
+
+**Task:** write a complete coding-agent prompt that carries forward all three focused test outcomes,
+observations, defects, and open release gates.
+
+**Delivered:** `RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md`, covering the 66-case baseline,
+confirmed `AWKIT-E2E-001`, exact code surfaces, deterministic fixtures, phased implementation,
+security/manual-handoff boundaries, required regression commands, evidence, acceptance criteria, and
+final reporting contract.
+
+**Status rule:** the prompt treats `NOT RUN` as missing validation, not a product defect; production
+changes require a reproduced failure. REC-022 remains manual/blocked unless approved human input is
+provided.
+
+---
+
 ## 2026-07-26 (latest) - Recorder, Reports, and Settings focused cases (Codex)
 
 **Task:** add missing comprehensive cases for Recorder, System Reports, and Settings, emphasizing the

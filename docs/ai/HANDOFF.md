@@ -1,5 +1,14 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): three-surface remediation prompt ready
+
+Use `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md` for the
+next implementation pass. It is self-contained and orders the work as: reproduce/fix
+`AWKIT-E2E-001`, create isolated deterministic fixtures, complete the Recorder release journey,
+exercise populated Reports, complete Settings safety/RBAC/accessibility, then run cross-feature and
+packaged regression. It explicitly forbids treating `NOT RUN` as a defect without reproduction and
+keeps protected authentication as manual handoff.
+
 ## ACTIVE (2026-07-26, latest): Recorder / Reports / Settings test-design gap closed
 
 The comprehensive package now includes
