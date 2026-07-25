@@ -30,18 +30,24 @@ npm run dev                # open SpecterStudio; the Mock — flows/workflows/da
 
 ## Contents
 
-**Flows** (`flows/`): login, fill-form, screenshot, scroll, upload, wait, loop (fixed count),
-conditional branch, run-another-flow, assertion-failure + failure-edge recovery, and
-route-change (opens `/details` in a new tab, switches the active page, fills + asserts).
+**Flows** (`flows/`): login, fill-form, screenshot, scroll, upload/download, wait, loop,
+conditional branch, structured conditional/parallel/loop connectors, legacy outcome/loop-back
+connectors, run-another-flow, assertion-failure + failure-edge recovery, popup lifecycle,
+manual/session contracts, a read-only Oracle contract, and route-change.
 
 **Workflows** (`workflows/`): simple (login → form → screenshot), failure-handling
 (failing assertion → failure connector → recovery), data-driven (bound to Mock Users), and
-route-change (login → route-change flow).
+route-change (login → route-change flow). `mock-comprehensive-workflow.json` chains the
+comprehensive core, cross-flow output consumer, local upload/download, and popup fixtures.
 
 **Data source** (`data-sources/mock-users.json`): array of user records matching the mock
 form fields (`username`, `password`, `firstName`, `lastName`, `email`, `country`, `accountType`).
+`mock-runtime-values.json` provides deterministic JSON-source values for the comprehensive run.
 
 ## Notes
 - The upload flow points `#attachment` at `package.json` as a placeholder — edit to a real file.
-- The mock site has no download endpoint, so no download fixture is included.
+- The comprehensive I/O flow uses `/runner-lab`, uploads `package.json`, and downloads the
+  deterministic `/api/download?type=csv` payload.
 - Selectors use stable ids/roles from the mock site (`/login`, `/form`, `/success`).
+- `npm run verify:comprehensive-e2e` runs the persisted safe-local campaign and writes a
+  machine-readable evidence ledger under `test-artifacts/comprehensive-e2e/`.

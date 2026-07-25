@@ -1,0 +1,126 @@
+{
+  "id": "mock-comprehensive-io-flow",
+  "name": "Mock — Upload Download and Retry Lab",
+  "description": "Uploads a local test file, validates the multipart response, downloads a deterministic CSV, and saves both output paths.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "open-runner-lab",
+      "type": "goto",
+      "name": "Open Runner Lab",
+      "url": "http://localhost:4321/runner-lab"
+    },
+    {
+      "id": "upload-file",
+      "type": "uploadFile",
+      "name": "Choose Local Fixture",
+      "locator": {
+        "strategy": "id",
+        "value": "uploadFile"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "package.json"
+      },
+      "outputs": {
+        "uploadedFileName": true
+      }
+    },
+    {
+      "id": "upload-note",
+      "type": "fill",
+      "name": "Fill Upload Note",
+      "locator": {
+        "strategy": "id",
+        "value": "uploadNote"
+      },
+      "valueSource": {
+        "type": "static",
+        "value": "comprehensive-e2e"
+      }
+    },
+    {
+      "id": "submit-upload",
+      "type": "click",
+      "name": "Submit Upload",
+      "locator": {
+        "strategy": "css",
+        "value": "[data-testid='upload-submit']"
+      },
+      "afterWaits": [
+        {
+          "type": "response",
+          "method": "POST",
+          "urlContains": "/api/upload",
+          "statusRange": [200, 299],
+          "armBeforeAction": true,
+          "timeoutMs": 5000,
+          "reason": "The upload API must accept the multipart body."
+        },
+        {
+          "type": "elementVisible",
+          "locator": {
+            "strategy": "css",
+            "value": "[data-testid='upload-result']"
+          },
+          "timeoutMs": 5000,
+          "reason": "The UI must render the upload result."
+        }
+      ],
+      "completionMode": "networkThenUi"
+    },
+    {
+      "id": "assert-upload",
+      "type": "assertText",
+      "name": "Assert Uploaded Filename",
+      "locator": {
+        "strategy": "css",
+        "value": "[data-testid='upload-filename']"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "package.json"
+      }
+    },
+    {
+      "id": "read-upload-result",
+      "type": "readText",
+      "name": "Capture Upload Result",
+      "locator": {
+        "strategy": "css",
+        "value": "[data-testid='upload-result']"
+      },
+      "outputs": {
+        "uploadResult": true
+      }
+    },
+    {
+      "id": "download-csv",
+      "type": "downloadFile",
+      "name": "Download CSV",
+      "locator": {
+        "strategy": "css",
+        "value": "[data-testid='download-csv']"
+      },
+      "timeoutMs": 10000,
+      "outputs": {
+        "downloadedCsv": true
+      }
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "io-e1", "source": "start", "target": "open-runner-lab", "type": "success" },
+    { "id": "io-e2", "source": "open-runner-lab", "target": "upload-file", "type": "success" },
+    { "id": "io-e3", "source": "upload-file", "target": "upload-note", "type": "success" },
+    { "id": "io-e4", "source": "upload-note", "target": "submit-upload", "type": "success" },
+    { "id": "io-e5", "source": "submit-upload", "target": "assert-upload", "type": "success" },
+    { "id": "io-e6", "source": "assert-upload", "target": "read-upload-result", "type": "success" },
+    { "id": "io-e7", "source": "read-upload-result", "target": "download-csv", "type": "success" },
+    { "id": "io-e8", "source": "download-csv", "target": "end", "type": "success" }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "id": "mock-comprehensive-data-consumer-flow",
+  "name": "Mock — Cross-Flow Data Consumer",
+  "description": "Consumes the heading output produced by Mock — Comprehensive Core Nodes and proves workflow-level flow-output propagation.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "fill-from-output",
+      "type": "fill",
+      "name": "Fill From Prior Flow",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "flowOutput",
+        "flowId": "mock-comprehensive-core-flow",
+        "outputKey": "headingText"
+      }
+    },
+    {
+      "id": "assert-output",
+      "type": "assertText",
+      "name": "Assert Prior Flow Output",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "config": {
+        "assertionType": "value",
+        "comparisonOperator": "equals",
+        "expectedValue": "Customer Form"
+      }
+    },
+    {
+      "id": "read-consumed-heading",
+      "type": "readText",
+      "name": "Publish Consumed Heading",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "outputs": {
+        "consumedHeading": true
+      }
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "consumer-e1", "source": "start", "target": "fill-from-output", "type": "success" },
+    { "id": "consumer-e2", "source": "fill-from-output", "target": "assert-output", "type": "success" },
+    { "id": "consumer-e3", "source": "assert-output", "target": "read-consumed-heading", "type": "success" },
+    { "id": "consumer-e4", "source": "read-consumed-heading", "target": "end", "type": "success" }
+  ]
+}

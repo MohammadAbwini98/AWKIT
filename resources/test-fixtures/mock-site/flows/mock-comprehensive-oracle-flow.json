@@ -1,0 +1,42 @@
+{
+  "id": "mock-comprehensive-oracle-flow",
+  "name": "Mock — Oracle Read-Only Contract",
+  "description": "Credential-free Oracle-node fixture. Select the approved local read-only profile before execution; the validation campaign never writes to Oracle.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "oracle-read-only",
+      "type": "oracle",
+      "name": "Read DUAL",
+      "config": {
+        "oracle": {
+          "connectionSource": "profile",
+          "connectionProfileId": "mock-oracle-readonly",
+          "sql": "SELECT 1 AS VALUE FROM DUAL",
+          "binds": [],
+          "timeoutMs": 10000,
+          "maxRows": 1,
+          "fetchSize": 1,
+          "returnType": "number",
+          "selectedColumn": "VALUE",
+          "selectedRowIndex": 0,
+          "emptyBehavior": "error",
+          "multiRowBehavior": "first",
+          "outputVariable": "oracleValue"
+        }
+      },
+      "outputs": {
+        "oracleValue": true,
+        "oracleRowCount": true
+      }
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "oracle-e1", "source": "start", "target": "oracle-read-only", "type": "success" },
+    { "id": "oracle-e2", "source": "oracle-read-only", "target": "end", "type": "success" }
+  ]
+}

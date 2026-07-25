@@ -1,0 +1,91 @@
+{
+  "id": "mock-comprehensive-manual-session-flow",
+  "name": "Mock — Manual and Session Contracts",
+  "description": "Manual-handoff and session-node fixture. Manual and protected handoffs are safe to run locally; Auto Secure Login and Reuse Session require an approved captured test session.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "open-session-lab",
+      "type": "goto",
+      "name": "Open Session Lab",
+      "url": "http://localhost:4321/mock/session-reuse"
+    },
+    {
+      "id": "manual-handoff",
+      "type": "manualHandoff",
+      "name": "Manual Confirmation",
+      "message": "Confirm the local test marker, then continue."
+    },
+    {
+      "id": "protected-handoff",
+      "type": "protectedLoginHandoff",
+      "name": "Protected Login Manual Handoff",
+      "message": "Manual handoff only. Do not automate MFA, OTP, or CAPTCHA.",
+      "config": {
+        "loginProvider": "other",
+        "handoffMode": "pauseAndAsk",
+        "handoffInstructions": "Use the approved manual browser handoff.",
+        "allowRetry": true,
+        "handoffTimeoutMs": 0,
+        "detectBeforeHandoff": false
+      }
+    },
+    {
+      "id": "save-session",
+      "type": "saveSession",
+      "name": "Save Local Session State",
+      "config": {
+        "sessionName": "mock-comprehensive-local",
+        "overwriteSession": true,
+        "captureScope": "context",
+        "maskSession": true
+      },
+      "outputs": {
+        "savedSessionPath": true
+      }
+    },
+    {
+      "id": "auto-secure-login",
+      "type": "autoSecureLogin",
+      "name": "Auto Secure Login Contract",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/mock/session-reuse"
+      }
+    },
+    {
+      "id": "reuse-session",
+      "type": "reuseSession",
+      "name": "Reuse Session Contract",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/mock/session-reuse"
+      },
+      "config": {
+        "reuseSessionMode": "autoDetect"
+      }
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "session-e1", "source": "start", "target": "open-session-lab", "type": "success" },
+    { "id": "session-e2", "source": "open-session-lab", "target": "manual-handoff", "type": "success" },
+    {
+      "id": "session-e3",
+      "source": "manual-handoff",
+      "target": "protected-handoff",
+      "type": "outcome",
+      "condition": {
+        "expression": "${stepResult.manualContinued} === true"
+      }
+    },
+    { "id": "session-e4", "source": "manual-handoff", "target": "protected-handoff", "type": "always" },
+    { "id": "session-e5", "source": "protected-handoff", "target": "save-session", "type": "success" },
+    { "id": "session-e6", "source": "save-session", "target": "auto-secure-login", "type": "success" },
+    { "id": "session-e7", "source": "auto-secure-login", "target": "reuse-session", "type": "success" },
+    { "id": "session-e8", "source": "reuse-session", "target": "end", "type": "success" }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "id": "mock-comprehensive-popup-flow",
+  "name": "Mock — Popup Lifecycle",
+  "description": "Exercises opener-bound popups, script/timer popups, popup aliases, switching, main-page restoration, and close behavior.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    { "id": "start", "type": "start", "name": "Start" },
+    {
+      "id": "open-target-blank",
+      "type": "goto",
+      "name": "Open Target Blank Scenario",
+      "url": "http://localhost:4321/popup/target-blank.html"
+    },
+    {
+      "id": "open-terms",
+      "type": "click",
+      "name": "Open Terms Popup",
+      "locator": {
+        "strategy": "id",
+        "value": "open-terms-link"
+      },
+      "opensPopup": true,
+      "popupExpectation": {
+        "popupAlias": "terms-popup",
+        "timeoutMs": 5000,
+        "urlContains": "/popup/terms-popup.html",
+        "titleContains": "Terms Popup",
+        "waitUntil": "domcontentloaded",
+        "closeBehavior": "returnToMain"
+      }
+    },
+    {
+      "id": "agree-terms",
+      "type": "check",
+      "name": "Agree In Popup",
+      "pageAlias": "terms-popup",
+      "locator": {
+        "strategy": "id",
+        "value": "agree-checkbox"
+      }
+    },
+    {
+      "id": "accept-terms",
+      "type": "click",
+      "name": "Accept And Close Popup",
+      "pageAlias": "terms-popup",
+      "locator": {
+        "strategy": "id",
+        "value": "accept-button"
+      }
+    },
+    {
+      "id": "main-after-terms",
+      "type": "switchToMainPage",
+      "name": "Return To Main"
+    },
+    {
+      "id": "assert-terms",
+      "type": "assertText",
+      "name": "Assert Main Page Restored",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "contains",
+        "expectedValue": "Target blank popup"
+      }
+    },
+    {
+      "id": "open-timer-scenario",
+      "type": "goto",
+      "name": "Open Timer Scenario",
+      "url": "http://localhost:4321/popup/script-timer.html"
+    },
+    {
+      "id": "arm-timer",
+      "type": "click",
+      "name": "Arm Timer Popup",
+      "locator": {
+        "strategy": "id",
+        "value": "arm-timer-button"
+      }
+    },
+    {
+      "id": "switch-timer-popup",
+      "type": "switchToPopup",
+      "name": "Switch To Timer Popup",
+      "popupExpectation": {
+        "popupAlias": "timer-popup",
+        "timeoutMs": 5000,
+        "urlContains": "/popup/script-timer-popup.html",
+        "titleContains": "Timer popup",
+        "waitUntil": "domcontentloaded",
+        "closeBehavior": "continueOnPopup"
+      }
+    },
+    {
+      "id": "timer-popup-action",
+      "type": "click",
+      "name": "Act In Timer Popup",
+      "locator": {
+        "strategy": "id",
+        "value": "timer-action-button"
+      }
+    },
+    {
+      "id": "assert-timer-popup",
+      "type": "assertText",
+      "name": "Assert Timer Popup",
+      "locator": {
+        "strategy": "id",
+        "value": "timer-popup-status"
+      },
+      "config": {
+        "assertionType": "text",
+        "comparisonOperator": "equals",
+        "expectedValue": "timer action done"
+      }
+    },
+    {
+      "id": "main-after-timer",
+      "type": "switchToMainPage",
+      "name": "Return To Timer Main"
+    },
+    {
+      "id": "close-timer-popup",
+      "type": "closePopup",
+      "name": "Close Timer Popup",
+      "timeoutMs": 300,
+      "config": {
+        "popupAlias": "timer-popup"
+      }
+    },
+    { "id": "end", "type": "end", "name": "End" }
+  ],
+  "edges": [
+    { "id": "popup-e01", "source": "start", "target": "open-target-blank", "type": "success" },
+    { "id": "popup-e02", "source": "open-target-blank", "target": "open-terms", "type": "success" },
+    { "id": "popup-e03", "source": "open-terms", "target": "agree-terms", "type": "success" },
+    { "id": "popup-e04", "source": "agree-terms", "target": "accept-terms", "type": "success" },
+    { "id": "popup-e05", "source": "accept-terms", "target": "main-after-terms", "type": "success" },
+    { "id": "popup-e06", "source": "main-after-terms", "target": "assert-terms", "type": "success" },
+    { "id": "popup-e07", "source": "assert-terms", "target": "open-timer-scenario", "type": "success" },
+    { "id": "popup-e08", "source": "open-timer-scenario", "target": "arm-timer", "type": "success" },
+    { "id": "popup-e09", "source": "arm-timer", "target": "switch-timer-popup", "type": "success" },
+    { "id": "popup-e10", "source": "switch-timer-popup", "target": "timer-popup-action", "type": "success" },
+    { "id": "popup-e11", "source": "timer-popup-action", "target": "assert-timer-popup", "type": "success" },
+    { "id": "popup-e12", "source": "assert-timer-popup", "target": "main-after-timer", "type": "success" },
+    { "id": "popup-e13", "source": "main-after-timer", "target": "close-timer-popup", "type": "success" },
+    { "id": "popup-e14", "source": "close-timer-popup", "target": "end", "type": "success" }
+  ]
+}

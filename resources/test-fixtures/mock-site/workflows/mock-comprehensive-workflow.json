@@ -1,0 +1,114 @@
+{
+  "id": "mock-comprehensive-workflow",
+  "name": "Mock — Comprehensive Validation Workflow",
+  "description": "Runs core nodes, proves cross-flow output propagation, then exercises real local upload/download and popup lifecycle flows.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    {
+      "id": "core-node",
+      "type": "flowRef",
+      "flowId": "mock-comprehensive-core-flow",
+      "alias": "mock-comprehensive-core-flow",
+      "order": 1,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 0
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 120,
+        "y": 180
+      }
+    },
+    {
+      "id": "consumer-node",
+      "type": "flowRef",
+      "flowId": "mock-comprehensive-data-consumer-flow",
+      "alias": "mock-comprehensive-data-consumer-flow",
+      "order": 2,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 0
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 440,
+        "y": 180
+      }
+    },
+    {
+      "id": "io-node",
+      "type": "flowRef",
+      "flowId": "mock-comprehensive-io-flow",
+      "alias": "mock-comprehensive-io-flow",
+      "order": 3,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 1,
+        "delayMs": 100
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 760,
+        "y": 180
+      }
+    },
+    {
+      "id": "popup-node",
+      "type": "flowRef",
+      "flowId": "mock-comprehensive-popup-flow",
+      "alias": "mock-comprehensive-popup-flow",
+      "order": 4,
+      "required": true,
+      "inputBindings": {},
+      "retryPolicy": {
+        "count": 0,
+        "delayMs": 0
+      },
+      "failurePolicy": "stop",
+      "position": {
+        "x": 1080,
+        "y": 180
+      }
+    }
+  ],
+  "edges": [
+    { "id": "workflow-e1", "source": "core-node", "target": "consumer-node", "type": "success" },
+    {
+      "id": "workflow-e2",
+      "source": "consumer-node",
+      "target": "io-node",
+      "type": "conditional",
+      "condition": {
+        "expression": "${outputs.mock-comprehensive-data-consumer-flow.consumedHeading} === 'Customer Form'"
+      }
+    },
+    { "id": "workflow-e3", "source": "consumer-node", "target": "io-node", "type": "always" },
+    { "id": "workflow-e4", "source": "io-node", "target": "popup-node", "type": "success" }
+  ],
+  "runtimeInputs": [
+    {
+      "key": "firstName",
+      "label": "First Name",
+      "type": "text",
+      "required": true,
+      "defaultValue": "Runtime Alice"
+    }
+  ],
+  "execution": {
+    "mode": "conditional",
+    "maxConcurrentInstances": 2,
+    "stopOnRequiredFlowFailure": true
+  },
+  "dataSource": {
+    "dataSourceId": "mock-users",
+    "rootArrayPath": "$"
+  }
+}

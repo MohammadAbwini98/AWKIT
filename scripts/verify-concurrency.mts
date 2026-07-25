@@ -373,7 +373,7 @@ async function partI(): Promise<void> {
         if (actCalls <= failuresBeforePass) return { ...base, status: "failed" as const, error };
         return { ...base, status: "passed" as const };
       },
-      captureFailureScreenshot: async () => undefined
+      captureFailureEvidence: async () => []
     } as unknown as StepExecutor;
     const result = await new FlowExecutor(stub).executeFlow(flow, context);
     return { actCalls, result };

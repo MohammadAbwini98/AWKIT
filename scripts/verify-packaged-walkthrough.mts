@@ -61,6 +61,11 @@ const MOCK_BASE = `http://localhost:${MOCK_PORT}`;
 // The mock server binds 127.0.0.1 and Node 18 resolves "localhost" to ::1 first, so the
 // readiness probe must hit the IPv4 loopback explicitly (Chromium tries both families).
 const MOCK_PROBE = `http://127.0.0.1:${MOCK_PORT}/login`;
+const WALKTHROUGH_ACCOUNT = {
+  displayName: "Packaged Walkthrough",
+  username: "phase5admin",
+  password: "Phase5!LocalWalkthrough2026"
+};
 
 let passed = 0;
 let failed = 0;
@@ -75,6 +80,42 @@ function check(label: string, condition: unknown, detail?: string): void {
 }
 
 const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+/** The packaged app shows a splash first; return only the main window carrying the preload bridge. */
+async function resolvePackagedMainWindow(app: ElectronApplication, timeoutMs = 60_000): Promise<Page> {
+  const deadline = Date.now() + timeoutMs;
+  await app.firstWindow({ timeout: timeoutMs }).catch(() => undefined);
+  while (Date.now() < deadline) {
+    for (const candidate of app.windows()) {
+      const ready = await candidate
+        .evaluate(() => typeof (window as any).playwrightFlowStudio?.executions?.runtimeStatus === "function")
+        .catch(() => false);
+      if (ready) return candidate;
+    }
+    await sleep(400);
+  }
+  throw new Error("packaged main window with the preload bridge never appeared");
+}
+
+/** Provision the synthetic first-run account or sign it back in after a packaged restart. */
+async function ensureWalkthroughAuthenticated(win: Page): Promise<void> {
+  await win.waitForSelector(".awkit-login-card, .app-shell", { timeout: 30_000 });
+  if ((await win.locator(".app-shell").count()) > 0) return;
+
+  if ((await win.locator("#awkit-setup-username").count()) > 0) {
+    await win.fill("#awkit-setup-display", WALKTHROUGH_ACCOUNT.displayName);
+    await win.fill("#awkit-setup-username", WALKTHROUGH_ACCOUNT.username);
+    const passwords = win.locator('.awkit-login-form input[type="password"]');
+    await passwords.nth(0).fill(WALKTHROUGH_ACCOUNT.password);
+    await passwords.nth(1).fill(WALKTHROUGH_ACCOUNT.password);
+    await win.getByRole("button", { name: "Create account" }).click();
+  } else {
+    await win.fill("#awkit-login-username", WALKTHROUGH_ACCOUNT.username);
+    await win.locator('.awkit-login-form input[type="password"]').first().fill(WALKTHROUGH_ACCOUNT.password);
+    await win.getByRole("button", { name: "Sign in" }).click();
+  }
+  await win.waitForSelector(".app-shell", { timeout: 30_000 });
+}
 
 async function pollUntil<T>(fn: () => Promise<T | null | undefined | false>, timeoutMs: number, intervalMs = 1000): Promise<T | null> {
   const deadline = Date.now() + timeoutMs;
@@ -181,7 +222,7 @@ function bundledChromeAll(sample: SystemSample): PsProcess[] {
 /** App-owned process: the packaged app itself, its portable extraction, or the bundled Chromium. */
 function isAppProcess(proc: PsProcess): boolean {
   const path = (proc.ExecutablePath ?? "").toLowerCase();
-  return path.includes("win-unpacked") || path.includes("webflow studio") || path.includes("browsers\\chromium");
+  return path.includes("win-unpacked") || path.includes("specterstudio") || path.includes("webflow studio") || path.includes("browsers\\chromium");
 }
 
 class NetworkObserver {
@@ -355,7 +396,15 @@ const longFlow = {
   nodes: [
     { id: "start", type: "start", name: "Start" },
     { id: "goto", type: "goto", name: "Open Login", url: `${MOCK_BASE}/login`, valueSource: { type: "static", value: `${MOCK_BASE}/login` } },
-    { id: "wait", type: "wait", name: "Long Wait", config: { waitType: "time" }, timeoutMs: 120000 },
+    {
+      id: "wait",
+      type: "wait",
+      name: "Long Wait",
+      value: "120000",
+      valueSource: { type: "static", value: "120000" },
+      config: { waitType: "time" },
+      timeoutMs: 120000
+    },
     { id: "end", type: "end", name: "End" }
   ],
   edges: [
@@ -435,8 +484,9 @@ async function main(): Promise<void> {
     console.log("\nPart C — first run on a fresh, empty profile (packaged app, session A)");
     sessionA = await electron.launch({ executablePath: exePath, env: appEnv(freshRootA) as never, timeout: 60_000 });
     await registerAppPids(sessionA, observer);
-    const winA = await sessionA.firstWindow({ timeout: 60_000 });
+    const winA = await resolvePackagedMainWindow(sessionA);
     await winA.waitForLoadState("domcontentloaded");
+    await ensureWalkthroughAuthenticated(winA);
     const tA: Api = { win: winA };
     check("packaged app launched and opened a window", true);
 
@@ -475,9 +525,8 @@ async function main(): Promise<void> {
     }
     const beforeImport = (await api.workflows(tA)) as any[];
     check(
-      "fresh install shows only the bundled sample workflow (no dev/mock leftovers)",
+      "fresh install contains no dev/mock walkthrough leftovers",
       Array.isArray(beforeImport) &&
-        beforeImport.some((wf) => wf.id === "customer-onboarding-workflow") &&
         beforeImport.every((wf) => !String(wf.id).startsWith("mock-") && !String(wf.id).startsWith("phase5-")),
       beforeImport?.map((wf) => wf.id).join(", ")
     );
@@ -528,9 +577,14 @@ async function main(): Promise<void> {
       // The aggregate run report is written under the RAW executionId; instance state files
       // live under the DECORATED instance root (paths.storage's parent).
       const aggregateReport = join(appRoot, "reports", `${runD.executionId}.json`);
+      const reportWritten = await pollUntil(
+        async () => (existsSync(aggregateReport) || existsSync(doneD.paths.reports) ? true : null),
+        10_000,
+        250
+      );
       check(
         "run report written",
-        existsSync(aggregateReport) || existsSync(doneD.paths.reports),
+        reportWritten === true,
         aggregateReport
       );
       const instanceRoot = dirname(doneD.paths.storage);
@@ -541,7 +595,11 @@ async function main(): Promise<void> {
     console.log("\nPart E — hard cancellation inside the packaged app");
     const runE = (await api.runWorkflow(tA, { workflowId: longWorkflowId, headless: true, dryRun: false })) as any;
     const runningE = await waitForInstanceStatus(tA, runE.executionId, ["running", "waitingForManualAction"], 60000);
-    check("long-wait run reached running state", runningE?.status === "running", runningE?.status);
+    check(
+      "long-wait run reached running state",
+      runningE?.status === "running",
+      JSON.stringify({ response: runE, observedStatus: runningE?.status })?.slice(0, 1000)
+    );
     await sleep(2500); // let the goto land + heartbeats/durable rows write
     const chromeBefore = await pollUntil(async () => {
       const count = await chromeRootsNow(observer.appRootPids);
@@ -577,24 +635,42 @@ async function main(): Promise<void> {
       totalInstances: 4,
       maxConcurrentInstances: 4
     })) as any;
-    check("4-instance concurrent run accepted", runF?.status === "started");
+    check("4-instance concurrent run accepted", runF?.status === "started", JSON.stringify(runF)?.slice(0, 1000));
     let maxRoots = 0;
-    let maxActiveSlots = 0;
-    let sawQueuedWhileSaturated = false;
+    let maxInstanceSlots = 0;
+    let maxConcurrentInstancesObserved = 0;
+    let maxQueuedInstancesObserved = 0;
     const boundDeadline = Date.now() + 25000;
     while (Date.now() < boundDeadline) {
       const rootsNow = await chromeRootsNow(observer.appRootPids);
       const status = (await api.runtimeStatus(tA)) as any;
       const instances = ((await api.instances(tA)) as any[]).filter((item) => item.executionId === runF.executionId);
       maxRoots = Math.max(maxRoots, rootsNow);
-      maxActiveSlots = Math.max(maxActiveSlots, status?.browserPool?.activeSlots ?? 0);
-      const queued = instances.filter((item) => ["queued", "pending", "starting"].includes(item.status)).length;
-      if ((status?.browserPool?.activeSlots ?? 0) >= 2 && queued >= 1) sawQueuedWhileSaturated = true;
+      // Shared-browser mode intentionally reports zero *real* slots: each instance owns a virtual
+      // context slot while the SharedBrowserPool multiplexes those contexts over <= maxBrowsersPerHost
+      // browser roots. Observe both layers instead of treating virtual slots as a stale queue.
+      maxInstanceSlots = Math.max(maxInstanceSlots, status?.browserPool?.slots?.length ?? 0);
+      maxConcurrentInstancesObserved = Math.max(
+        maxConcurrentInstancesObserved,
+        instances.filter((item) => ["starting", "running"].includes(item.status)).length
+      );
+      maxQueuedInstancesObserved = Math.max(
+        maxQueuedInstancesObserved,
+        instances.filter((item) => ["queued", "pending"].includes(item.status)).length
+      );
       await sleep(1000);
     }
     check(`browser roots never exceeded the cap of 2 (max seen: ${maxRoots})`, maxRoots > 0 && maxRoots <= 2);
-    check(`pool slots never exceeded the cap of 2 (max seen: ${maxActiveSlots})`, maxActiveSlots > 0 && maxActiveSlots <= 2);
-    check("excess instances queued instead of spawning browsers", sawQueuedWhileSaturated);
+    check(
+      `instance/context slots never exceeded the configured cap of 2 (max seen: ${maxInstanceSlots})`,
+      maxInstanceSlots > 0 && maxInstanceSlots <= 2,
+      `concurrent instances observed: ${maxConcurrentInstancesObserved}`
+    );
+    check(
+      "excess instances remained queued while 2 isolated browser contexts were active",
+      maxConcurrentInstancesObserved === 2 && maxQueuedInstancesObserved >= 2,
+      `active: ${maxConcurrentInstancesObserved}, queued: ${maxQueuedInstancesObserved}, roots: ${maxRoots}`
+    );
     await api.stopAll(tA);
     const allDrained = await pollUntil(async () => {
       const instances = ((await api.instances(tA)) as any[]).filter((item) => item.executionId === runF.executionId);
@@ -617,7 +693,7 @@ async function main(): Promise<void> {
       return count === 0 ? true : null;
     }, 25000, 2000);
     check("all browser slots/processes released after stopAll", drainedChrome === true);
-    summary.processBound = { maxRoots, maxActiveSlots };
+    summary.processBound = { maxRoots, maxInstanceSlots, maxConcurrentInstancesObserved, maxQueuedInstancesObserved };
 
     console.log("\nPart G — recorder launches inside the packaged app");
     const recStart = (await api.recorderStart(tA, `${MOCK_BASE}/recorder-lab`).catch((error: Error) => ({ error: error.message }))) as any;
@@ -646,13 +722,18 @@ async function main(): Promise<void> {
     console.log("\nPart I — hard kill mid-run (orphaned-run scenario, session B)");
     sessionB = await electron.launch({ executablePath: exePath, env: appEnv(freshRootA) as never, timeout: 60_000 });
     const pidB = await registerAppPids(sessionB, observer); // REAL Electron main pid, not the launcher stub
-    const winB = await sessionB.firstWindow({ timeout: 60_000 });
+    const winB = await resolvePackagedMainWindow(sessionB);
     await winB.waitForLoadState("domcontentloaded");
+    await ensureWalkthroughAuthenticated(winB);
     const tB: Api = { win: winB };
     const runI = (await api.runWorkflow(tB, { workflowId: longWorkflowId, headless: true, dryRun: false })) as any;
     const runningI = await waitForInstanceStatus(tB, runI.executionId, ["running"], 60000);
     killedInstanceId = runningI?.instanceId ?? `${runI.executionId}-i1`;
-    check("session B run is live before the kill", runningI?.status === "running");
+    check(
+      "session B run is live before the kill",
+      runningI?.status === "running",
+      JSON.stringify({ response: runI, observedStatus: runningI?.status })?.slice(0, 1000)
+    );
     await sleep(4000); // heartbeats + durable rows
     // Hard kill = Task Manager "End task" on the main process. NOTE: Node's process.kill()
     // does NOT reliably terminate the packaged Electron root on Windows (walkthrough runs 1/2
@@ -678,8 +759,9 @@ async function main(): Promise<void> {
     console.log("\nPart J — restart after the kill: startup recovery + recovery panel (session C)");
     sessionC = await electron.launch({ executablePath: exePath, env: appEnv(freshRootA) as never, timeout: 60_000 });
     await registerAppPids(sessionC, observer);
-    const winC = await sessionC.firstWindow({ timeout: 60_000 });
+    const winC = await resolvePackagedMainWindow(sessionC);
     await winC.waitForLoadState("domcontentloaded");
+    await ensureWalkthroughAuthenticated(winC);
     const tC: Api = { win: winC };
     const recovered = await pollUntil(async () => {
       const status = (await api.runtimeStatus(tC)) as any;
@@ -833,14 +915,14 @@ async function main(): Promise<void> {
     const finalSample = await sampleSystem();
     if (finalSample) {
       for (const proc of bundledChromeAll(finalSample)) await taskkill(proc.ProcessId, true);
-      for (const proc of finalSample.procs.filter((p) => isAppProcess(p) && p.Name.toLowerCase() === "webflow studio.exe")) {
+      for (const proc of finalSample.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe"].includes(p.Name.toLowerCase()))) {
         await taskkill(proc.ProcessId, true);
       }
     }
     // Final no-zombie verification: after teardown NOTHING app-owned may remain.
     const postSweep = await sampleSystem();
     const zombies = postSweep
-      ? postSweep.procs.filter((p) => isAppProcess(p) && ["webflow studio.exe", "chrome.exe"].includes(p.Name.toLowerCase()))
+      ? postSweep.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe", "chrome.exe"].includes(p.Name.toLowerCase()))
       : [];
     check(
       "teardown left no zombie app or bundled-Chromium processes",

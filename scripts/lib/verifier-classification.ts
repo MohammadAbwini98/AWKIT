@@ -52,6 +52,7 @@ export interface VerifierClassification {
 export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   // ── Real browser (real Chromium or the built Electron app) ─────────────────────────────────
   "verify:runner": { class: "real-browser", why: "Drives the real PlaywrightRunner + Chromium against the spawned mock site." },
+  "verify:comprehensive-e2e": { class: "real-browser", why: "Loads persisted comprehensive fixtures and drives their safe browser, workflow, popup, I/O, manual-handoff, retry, and recovery paths against the local mock site." },
   "verify:mock-site": { class: "real-browser", why: "Starts the mock site and checks pages/selectors via a real browser context." },
   "verify:flow-designer": { class: "real-browser", why: "Launches the built Electron app and drives the Flow Designer canvas." },
   "verify:workflow-builder": { class: "real-browser", why: "Launches the built Electron app and drives the Workflow Builder canvas." },

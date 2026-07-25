@@ -1,0 +1,337 @@
+{
+  "id": "mock-comprehensive-core-flow",
+  "name": "Mock — Comprehensive Core Nodes",
+  "description": "Exercises persisted core form nodes plus runtime, row, dynamic, JSON, environment, generated, instance-variable, and secret value sources.",
+  "version": 1,
+  "createdAt": "2026-07-25T21:00:00.000Z",
+  "updatedAt": "2026-07-25T21:00:00.000Z",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "name": "Start"
+    },
+    {
+      "id": "open-form",
+      "type": "goto",
+      "name": "Open Form",
+      "url": "http://localhost:4321/form",
+      "valueSource": {
+        "type": "static",
+        "value": "http://localhost:4321/form"
+      }
+    },
+    {
+      "id": "wait-form",
+      "type": "wait",
+      "name": "Wait For Form",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "timeoutMs": 5000,
+      "config": {
+        "waitType": "selector"
+      }
+    },
+    {
+      "id": "fill-first-name",
+      "type": "fill",
+      "name": "Runtime Input",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "firstName"
+      },
+      "config": {
+        "clearBeforeFill": true
+      }
+    },
+    {
+      "id": "fill-last-name",
+      "type": "fill",
+      "name": "Current Row",
+      "locator": {
+        "strategy": "id",
+        "value": "lastName"
+      },
+      "valueSource": {
+        "type": "currentRow",
+        "path": "$.lastName"
+      }
+    },
+    {
+      "id": "fill-email",
+      "type": "fill",
+      "name": "Generated Email",
+      "locator": {
+        "strategy": "id",
+        "value": "email"
+      },
+      "valueSource": {
+        "type": "generated",
+        "generator": "randomEmail"
+      }
+    },
+    {
+      "id": "fill-password",
+      "type": "fill",
+      "name": "Named Secret",
+      "locator": {
+        "strategy": "id",
+        "value": "password"
+      },
+      "valueSource": {
+        "type": "secret",
+        "secretName": "mock-e2e-form-value"
+      }
+    },
+    {
+      "id": "fill-age",
+      "type": "fill",
+      "name": "JSON Value",
+      "locator": {
+        "strategy": "id",
+        "value": "age"
+      },
+      "valueSource": {
+        "type": "json",
+        "file": "resources/test-fixtures/mock-site/data-sources/mock-runtime-values.json",
+        "path": "$.age"
+      }
+    },
+    {
+      "id": "fill-salary",
+      "type": "fill",
+      "name": "Instance Variable",
+      "locator": {
+        "strategy": "id",
+        "value": "salary"
+      },
+      "valueSource": {
+        "type": "instanceVariable",
+        "key": "salary"
+      }
+    },
+    {
+      "id": "fill-description",
+      "type": "fill",
+      "name": "Environment Value",
+      "locator": {
+        "strategy": "id",
+        "value": "description"
+      },
+      "valueSource": {
+        "type": "env",
+        "envKey": "AWKIT_E2E_DESCRIPTION"
+      }
+    },
+    {
+      "id": "select-country",
+      "type": "select",
+      "name": "Specific Data Source",
+      "locator": {
+        "strategy": "id",
+        "value": "country"
+      },
+      "selectionMode": "value",
+      "valueSource": {
+        "type": "dynamic",
+        "dataSourceScope": "specific",
+        "dataSourceId": "mock-users",
+        "idMode": "explicit",
+        "objectId": "2",
+        "keyName": "country"
+      }
+    },
+    {
+      "id": "select-account-type",
+      "type": "select",
+      "name": "Workflow Data Source",
+      "locator": {
+        "strategy": "id",
+        "value": "accountType"
+      },
+      "selectionMode": "value",
+      "valueSource": {
+        "type": "dynamic",
+        "dataSourceScope": "workflow",
+        "idMode": "instanceOrder",
+        "keyName": "accountType"
+      }
+    },
+    {
+      "id": "select-skills",
+      "type": "select",
+      "name": "Select Multiple",
+      "locator": {
+        "strategy": "id",
+        "value": "skills"
+      },
+      "selectionMode": "value",
+      "valueSource": {
+        "type": "static",
+        "value": "playwright,typescript"
+      },
+      "config": {
+        "selectMultiple": true
+      }
+    },
+    {
+      "id": "select-radio",
+      "type": "radio",
+      "name": "Select Radio",
+      "locator": {
+        "strategy": "id",
+        "value": "genderMale"
+      }
+    },
+    {
+      "id": "check-interest",
+      "type": "check",
+      "name": "Check Interest",
+      "locator": {
+        "strategy": "id",
+        "value": "interestAutomation"
+      }
+    },
+    {
+      "id": "uncheck-interest",
+      "type": "uncheck",
+      "name": "Uncheck Interest",
+      "locator": {
+        "strategy": "id",
+        "value": "interestAutomation"
+      }
+    },
+    {
+      "id": "check-terms",
+      "type": "check",
+      "name": "Accept Terms",
+      "locator": {
+        "strategy": "id",
+        "value": "acceptTerms"
+      }
+    },
+    {
+      "id": "assert-visible",
+      "type": "assertVisible",
+      "name": "Submit Is Visible",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      }
+    },
+    {
+      "id": "assert-first-name",
+      "type": "assertText",
+      "name": "Runtime Input Reached DOM",
+      "locator": {
+        "strategy": "id",
+        "value": "firstName"
+      },
+      "valueSource": {
+        "type": "runtimeInput",
+        "key": "firstName"
+      },
+      "config": {
+        "assertionType": "value",
+        "comparisonOperator": "equals"
+      }
+    },
+    {
+      "id": "assert-email",
+      "type": "assertText",
+      "name": "Generated Email Shape",
+      "locator": {
+        "strategy": "id",
+        "value": "email"
+      },
+      "config": {
+        "assertionType": "value",
+        "comparisonOperator": "contains",
+        "expectedValue": "@example.com"
+      }
+    },
+    {
+      "id": "read-heading",
+      "type": "readText",
+      "name": "Read Form Heading",
+      "locator": {
+        "strategy": "css",
+        "value": "h1"
+      },
+      "outputs": {
+        "headingText": true
+      }
+    },
+    {
+      "id": "scroll-page",
+      "type": "scroll",
+      "name": "Scroll Page",
+      "config": {
+        "scrollTarget": "page",
+        "scrollDirection": "down",
+        "scrollAmount": 300
+      }
+    },
+    {
+      "id": "scroll-submit",
+      "type": "scroll",
+      "name": "Scroll To Element",
+      "locator": {
+        "strategy": "id",
+        "value": "submitButton"
+      },
+      "config": {
+        "scrollTarget": "element"
+      }
+    },
+    {
+      "id": "screenshot-form",
+      "type": "screenshot",
+      "name": "Capture Full Form",
+      "config": {
+        "screenshotName": "comprehensive-form",
+        "fullPage": true
+      },
+      "outputs": {
+        "formScreenshot": true
+      }
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "name": "End"
+    }
+  ],
+  "edges": [
+    { "id": "core-e01", "source": "start", "target": "open-form", "type": "success" },
+    { "id": "core-e02", "source": "open-form", "target": "wait-form", "type": "success" },
+    { "id": "core-e03", "source": "wait-form", "target": "fill-first-name", "type": "success" },
+    { "id": "core-e04", "source": "fill-first-name", "target": "fill-last-name", "type": "success" },
+    { "id": "core-e05", "source": "fill-last-name", "target": "fill-email", "type": "success" },
+    { "id": "core-e06", "source": "fill-email", "target": "fill-password", "type": "success" },
+    { "id": "core-e07", "source": "fill-password", "target": "fill-age", "type": "success" },
+    { "id": "core-e08", "source": "fill-age", "target": "fill-salary", "type": "success" },
+    { "id": "core-e09", "source": "fill-salary", "target": "fill-description", "type": "success" },
+    { "id": "core-e10", "source": "fill-description", "target": "select-country", "type": "success" },
+    { "id": "core-e11", "source": "select-country", "target": "select-account-type", "type": "success" },
+    { "id": "core-e12", "source": "select-account-type", "target": "select-skills", "type": "success" },
+    { "id": "core-e13", "source": "select-skills", "target": "select-radio", "type": "success" },
+    { "id": "core-e14", "source": "select-radio", "target": "check-interest", "type": "success" },
+    { "id": "core-e15", "source": "check-interest", "target": "uncheck-interest", "type": "success" },
+    { "id": "core-e16", "source": "uncheck-interest", "target": "check-terms", "type": "success" },
+    { "id": "core-e17", "source": "check-terms", "target": "assert-visible", "type": "success" },
+    { "id": "core-e18", "source": "assert-visible", "target": "assert-first-name", "type": "success" },
+    { "id": "core-e19", "source": "assert-first-name", "target": "assert-email", "type": "success" },
+    { "id": "core-e20", "source": "assert-email", "target": "read-heading", "type": "success" },
+    { "id": "core-e21", "source": "read-heading", "target": "scroll-page", "type": "success" },
+    { "id": "core-e22", "source": "scroll-page", "target": "scroll-submit", "type": "success" },
+    { "id": "core-e23", "source": "scroll-submit", "target": "screenshot-form", "type": "success" },
+    { "id": "core-e24", "source": "screenshot-form", "target": "end", "type": "success" }
+  ]
+}

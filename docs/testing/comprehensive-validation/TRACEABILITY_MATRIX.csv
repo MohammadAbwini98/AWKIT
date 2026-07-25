@@ -1,0 +1,58 @@
+Requirement,Model item,Primary evidence,Execution level,Status,Notes
+Step,start,verify:runner and comprehensive fixtures,Engine + live Chromium,PASS,Entry node observed
+Step,goto,CMP-FLOW-001 and packaged walkthrough,Live Chromium,PASS,Loopback navigation
+Step,click,CMP-FLOW-001 and popup suites,Live Chromium,PASS,Normal and popup targets
+Step,fill,CMP-FLOW-001,Live Chromium,PASS,Multiple value sources
+Step,select,CMP-FLOW-001,Live Chromium,PASS,Multi-select
+Step,check,CMP-FLOW-001,Live Chromium,PASS,Checkbox selected
+Step,uncheck,CMP-FLOW-001,Live Chromium,PASS,Checkbox cleared
+Step,radio,CMP-FLOW-001,Live Chromium,PASS,Radio selection
+Step,scroll,CMP-FLOW-001,Live Chromium,PASS,Page scrolling
+Step,wait,CMP-IO-001 plus verify:waits,Engine + live Chromium,PASS,Time and async wait families
+Step,uploadFile,CMP-IO-001,Live Chromium,PASS,Multipart upload
+Step,downloadFile,CMP-IO-001,Live Chromium,PASS,Filename confinement and content
+Step,readText,CMP-FLOW-001 and workflow,Live Chromium,PASS,Output mapped
+Step,assertText,CMP-FLOW-001 and CMP-ERR-001,Live Chromium,PASS,Success and failure paths
+Step,assertVisible,CMP-FLOW-001,Live Chromium,PASS,DOM visibility
+Step,screenshot,CMP-FLOW-001 and artifact suites,Live Chromium,PASS,Explicit and automatic evidence
+Step,manualHandoff,CMP-MAN-001,Live Chromium with local controller,PASS,No protected action
+Step,condition,CMP-FLOW-001 and CMP-CON-001,Live Chromium,PASS,Node and connector condition routing
+Step,loop,CMP-CON-001 and verify:runner,Engine + live Chromium,PASS,Count loop and loop-back
+Step,runFlow,CMP-FLOW-001 and verify:runner,Engine + live Chromium,PASS,Cross-flow outputs
+Step,routeChange,verify:runner and popup mock-site suites,Engine + live Chromium,PASS,Route modes covered by specialized suites
+Step,saveSession,CMP-MAN-001 and session-context suite,Live Chromium,PASS,Storage state written
+Step,protectedLoginHandoff,CMP-MAN-001,Safe live handoff,PASS,Controller resume only; no MFA/CAPTCHA bypass
+Step,autoSecureLogin,verify:runner and auth/session suites,Contract only,PASS,Real protected provider login NOT RUN
+Step,reuseSession,verify:runner and session-context suite,Contract only,PASS,Real approved captured session NOT RUN
+Step,switchToPopup,CMP-POP-001 and popup suites,Live Chromium,PASS,Fast and delayed popup
+Step,closePopup,CMP-POP-001 and popup suites,Live Chromium,PASS,Alias close
+Step,switchToMainPage,CMP-POP-001,Live Chromium,PASS,Main page restored
+Step,oracle,Oracle policy/profile/data-source/runtime suites,Integration boundary,PASS,Live query BLOCKED
+Step,end,comprehensive fixtures,Engine + live Chromium,PASS,Except manualApproval defect path
+Edge,success,CMP-FLOW-001,Live Chromium,PASS,
+Edge,failure,CMP-ERR-001,Live Chromium,PASS,
+Edge,always,verify:runner,Engine,PASS,
+Edge,conditional,CMP-CON-001,Live Chromium,PASS,
+Edge,outcome,CMP-CON-001,Live Chromium,PASS,
+Edge,manualApproval,CMP-CON-002,Live Chromium,FAIL,Flow reports passed but skips End
+Edge,loop,CMP-CON-001,Live Chromium,PASS,
+Edge,loopBack,CMP-CON-001,Live Chromium,PASS,
+Edge,parallel,CMP-CON-001,Live Chromium,PASS,
+Connector,normal,CMP-FLOW-001,Live Chromium,PASS,
+Connector,conditional,CMP-CON-001,Live Chromium,PASS,Priority respected
+Connector,parallel,CMP-CON-001 plus concurrency suites,Engine + live Chromium,PASS,Join and isolation coverage
+Connector,loop,CMP-CON-001,Live Chromium,PASS,Bounded iteration
+Value source,static,CMP-FLOW-001,Live Chromium,PASS,
+Value source,dynamic,CMP-FLOW-001,Live Chromium,PASS,
+Value source,json,CMP-FLOW-001,Live Chromium,PASS,
+Value source,runtimeInput,CMP-FLOW-001,Live Chromium,PASS,
+Value source,env,CMP-FLOW-001,Live Chromium,PASS,Synthetic environment value
+Value source,flowOutput,CMP-FLOW-001 and CMP-WF-001,Live Chromium,PASS,
+Value source,generated,CMP-FLOW-001,Live Chromium,PASS,Pattern validated
+Value source,currentRow,CMP-FLOW-001,Live Chromium,PASS,
+Value source,instanceVariable,CMP-FLOW-001,Live Chromium,PASS,
+Value source,secret,CMP-FLOW-001 and secrets suite,Live Chromium,PASS,Synthetic secret only
+Security,CAPTCHA/MFA/OTP completion,Manual handoff policy,External/manual,BLOCKED,Must be completed by an authorized user
+Oracle,Live database query,verify:oracle-live,External environment,BLOCKED,URL/user/password not configured and local container absent
+Offline,Clean Windows VM certification,Human release gate,External environment,NOT RUN,Local packaged run is not substituted
+Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project
