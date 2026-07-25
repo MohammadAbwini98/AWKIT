@@ -40,6 +40,19 @@ export type SemanticDegradedReason =
    */
   | "ACTIVE_POINTER_READ_FAILED"
   /**
+   * A rebuild's pointer activation COMMITTED, but the newly-active generation could not be opened or
+   * the live store could not be retargeted onto it.
+   *
+   * Distinct from every other reason because of what must NOT happen next. The pointer swap is the
+   * commit point, so the new generation is authoritative from that instant: reverting the pointer or
+   * resuming writes against the previous generation would silently fork the index into two divergent
+   * histories, one of which is unreachable after the next restart. Writes therefore STOP, the pending
+   * queue and delta journal are preserved, a bounded reopen is attempted, and startup recovers from
+   * the pointer. Reads may continue from the still-open previous store only if explicitly marked
+   * stale — it must never receive a post-activation mutation.
+   */
+  | "ACTIVE_GENERATION_OPEN_FAILED"
+  /**
    * The active pointer governs, so the index is usable, but derived metadata could not be brought
    * into agreement with it. Surfaced rather than hidden: silently serving from a knowingly stale
    * metadata document is how a subtle inconsistency becomes invisible.
@@ -96,6 +109,11 @@ export interface SemanticHealthInput {
    * generation was preserved. Requires an explicit recovery/rebuild.
    */
   activePointerReadFailed?: boolean;
+  /**
+   * A rebuild activated its pointer but the newly-active generation could not be opened/retargeted.
+   * Writes are stopped and the queue/journal preserved until a bounded reopen or a restart succeeds.
+   */
+  activeGenerationOpenFailed?: boolean;
   /** A startup metadata repair failed; the pointer still governs. */
   metadataRepairFailed?: boolean;
   /** Absolute index path. Included in the output ONLY when `includePaths` is true. */
@@ -114,6 +132,8 @@ const SUMMARIES: Record<SemanticDegradedReason, string> = {
   REBUILD_REQUIRED: "Semantic search needs its index rebuilt before it can answer queries.",
   ACTIVE_POINTER_READ_FAILED:
     "Semantic search is paused because its index bookkeeping could not be read. Existing index data has been preserved; rebuild the index to restore search.",
+  ACTIVE_GENERATION_OPEN_FAILED:
+    "Semantic search finished rebuilding but could not open the rebuilt index, so indexing is paused to protect it. Restarting the app will retry; no data has been discarded.",
   METADATA_REPAIR_FAILED: "Semantic search is running, but its index bookkeeping could not be updated. A rebuild will restore it."
 };
 
@@ -151,6 +171,10 @@ export function buildSemanticHealth(input: SemanticHealthInput): SemanticHealth 
   // Before REBUILD_REQUIRED: both end in "rebuild the index", but an unreadable pointer is the more
   // specific and more actionable statement, and it is the one that explains the preserved generations.
   if (input.activePointerReadFailed) return degraded("ACTIVE_POINTER_READ_FAILED");
+  // Before REBUILD_REQUIRED, and deliberately so: a rebuild that activated but could not be opened
+  // WILL also have rebuildRequired set, and reporting "needs a rebuild" would invite the user to run
+  // the very operation that just committed. The actionable statement is "restart to retry the open".
+  if (input.activeGenerationOpenFailed) return degraded("ACTIVE_GENERATION_OPEN_FAILED");
   if (input.rebuildRequired) return degraded("REBUILD_REQUIRED");
   // Reported after the hard blockers but before host state: the host may be perfectly healthy while
   // its bookkeeping is stale, and that is still worth telling someone about.

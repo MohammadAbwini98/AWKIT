@@ -327,10 +327,34 @@ const handlers = {
   open(req) {
     const resolved = assertConfinedPath(req.path);
     if (collections.has(req.generation)) throw new HostError("SEMANTIC_COLLECTION_ALREADY_OPEN");
-    const exists = fs.existsSync(resolved);
-    const collection = exists
-      ? zvec.ZVecOpen(resolved)
-      : zvec.ZVecCreateAndOpen(resolved, buildSchema(req.schema));
+    // Three cases, not two — and the middle one is the production case.
+    //
+    // `createGeneration` allocates a generation by `mkdir`-ing the directory WITHOUT `recursive`;
+    // that mkdir IS its atomic claim against two rebuilds picking the same name. So every real
+    // candidate arrives here as an EXISTING EMPTY directory, while MEASURED vendor behaviour is:
+    //
+    //   ZVecCreateAndOpen(absent dir)   -> OK
+    //   ZVecCreateAndOpen(existing dir) -> throws "path validate failed", empty or not
+    //   ZVecOpen(real collection dir)   -> OK
+    //
+    // So an existing EMPTY directory can be neither created into nor opened, and the rebuild path
+    // failed at populate every single time. The empty directory is removed with `rmdirSync` — never
+    // `rm -r` — because rmdir refuses a non-empty directory, so this can only ever discard a
+    // directory that holds nothing.
+    //
+    // Invisible until the store was driven through the real generation manager: the contract suite
+    // invents its own names, whose directories do not exist, so it only ever took the create path.
+    const entries = fs.existsSync(resolved) ? fs.readdirSync(resolved) : null;
+    let collection;
+    if (entries === null) {
+      collection = zvec.ZVecCreateAndOpen(resolved, buildSchema(req.schema));
+    } else if (entries.length === 0) {
+      fs.rmdirSync(resolved);
+      collection = zvec.ZVecCreateAndOpen(resolved, buildSchema(req.schema));
+    } else {
+      collection = zvec.ZVecOpen(resolved);
+    }
+    const exists = entries !== null && entries.length > 0;
     collections.set(req.generation, { collection, path: resolved });
     // `collectionId` is the field every other request carries and the adapter reads. This used to
     // return only `generation`, so the adapter saw `collectionId: undefined` and reported

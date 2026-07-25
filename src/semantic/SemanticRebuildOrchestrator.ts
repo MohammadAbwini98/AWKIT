@@ -244,7 +244,7 @@ export class SemanticRebuildOrchestrator {
             // perfectly good rebuild for the one reason a rebuild exists to tolerate: concurrent
             // writes. So completeness is judged against the captured set, never the live journal.
             const expected = new Set(state.entries.map((entry) => entry.seq));
-            const applied = await this.replay(candidate.store, state.entries);
+            const { applied, touchedIds, touchedEntities } = await this.replay(candidate.store, state.entries);
             report.replayed = applied.length;
             queue.confirmRebuildDeltaApplied(applied);
 
@@ -257,7 +257,10 @@ export class SemanticRebuildOrchestrator {
 
             // Revalidated AFTER the replay: the counts asserted a moment ago no longer describe the
             // candidate, and activating on a stale validation would defeat the point of validating.
-            const second = await this.validateCandidate(candidate.store, documents, report.populated, report.replayed);
+            const second = await this.validateCandidate(candidate.store, documents, report.populated, report.replayed, {
+              ids: touchedIds,
+              entities: touchedEntities
+            });
             if (!second.ok) return second;
 
             return { ok: true };
@@ -336,21 +339,29 @@ export class SemanticRebuildOrchestrator {
    * Stops at the first failure rather than skipping ahead: the entries are an ordered stream, and
    * applying a later one after skipping an earlier one can invert an upsert/delete pair.
    */
-  private async replay(candidate: SemanticStore, entries: readonly JournalledMutation[]): Promise<number[]> {
+  private async replay(candidate: SemanticStore, entries: readonly JournalledMutation[]): Promise<ReplayOutcome> {
     const applied: number[] = [];
+    // Which snapshot documents the delta has made stale. The snapshot describes the world at the
+    // watermark; every id or entity the delta touches is one the snapshot can no longer be trusted to
+    // describe, so post-replay validation must not assert the snapshot's version of it.
+    const touchedIds = new Set<string>();
+    const touchedEntities = new Set<string>();
     const ordered = [...entries].sort((a, b) => a.seq - b.seq);
     for (const entry of ordered) {
       const { mutation } = entry;
       if (mutation.op === "upsert") {
         await candidate.upsert([mutation.document]);
+        touchedIds.add(mutation.document.id);
       } else if (mutation.op === "delete") {
         await candidate.delete([mutation.id]);
+        touchedIds.add(mutation.id);
       } else {
         await candidate.deleteByEntity(mutation.entityId);
+        touchedEntities.add(mutation.entityId);
       }
       applied.push(entry.seq);
     }
-    return applied;
+    return { applied, touchedIds, touchedEntities };
   }
 
   /**
@@ -365,7 +376,19 @@ export class SemanticRebuildOrchestrator {
     candidate: SemanticStore,
     documents: readonly ValidatedSemanticDocument[],
     populated: number,
-    replayed = 0
+    replayed = 0,
+    /**
+     * Ids and entities the delta replay touched.
+     *
+     * The snapshot is authoritative only for documents the delta did NOT change. A post-watermark
+     * DELETE of a snapshotted document is a correct outcome, but the sample check below reads it as a
+     * missing document and fails the rebuild — so a rebuild that merely overlapped a delete could never
+     * activate, which is precisely the case the delta journal exists to support. A post-watermark
+     * UPSERT is the same problem one step subtler: the content is legitimately newer than the
+     * snapshot, so comparing `sourceHash` against the snapshot's version reports a mismatch that is
+     * really an update.
+     */
+    touched: { ids: ReadonlySet<string>; entities: ReadonlySet<string> } = { ids: new Set(), entities: new Set() }
   ): Promise<GenerationValidation> {
     try {
       const stats = await candidate.stats();
@@ -397,8 +420,10 @@ export class SemanticRebuildOrchestrator {
         return { ok: false, reason: `SEMANTIC_REBUILD_ID_COLLISION unique=${uniqueIds.size} documents=${documents.length}` };
       }
 
-      // Samples, not a full re-read: this runs on every rebuild and must stay bounded.
-      for (const doc of sample(documents, 5)) {
+      // Samples, not a full re-read: this runs on every rebuild and must stay bounded. Documents the
+      // delta touched are excluded rather than asserted — see `touched`.
+      const verifiable = documents.filter((d) => !touched.ids.has(d.id) && !touched.entities.has(d.entityId));
+      for (const doc of sample(verifiable, 5)) {
         const stored = await candidate.get(doc.id);
         if (!stored) return { ok: false, reason: `SEMANTIC_REBUILD_SAMPLE_MISSING id=${doc.kind}` };
         if (stored.sourceHash !== doc.sourceHash) {
@@ -411,7 +436,7 @@ export class SemanticRebuildOrchestrator {
 
       // A typed filter must actually narrow. A candidate whose filters silently match everything would
       // pass every count check above.
-      const firstKind = documents[0]?.kind;
+      const firstKind = verifiable[0]?.kind ?? documents[0]?.kind;
       if (firstKind) {
         const filtered = await candidate.search({ text: "", kinds: [firstKind], topK: 5 });
         if (filtered.hits.some((hit) => hit.kind !== firstKind)) {
@@ -427,6 +452,15 @@ export class SemanticRebuildOrchestrator {
       return { ok: false, reason: "SEMANTIC_REBUILD_VALIDATION_ERROR" };
     }
   }
+}
+
+interface ReplayOutcome {
+  /** Sequence numbers PROVEN applied to the candidate. */
+  applied: number[];
+  /** Document ids the delta upserted or deleted. */
+  touchedIds: Set<string>;
+  /** Entity ids the delta removed wholesale. */
+  touchedEntities: Set<string>;
 }
 
 /** Evenly spread samples, so a validation sample is not always the first N documents. */

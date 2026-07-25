@@ -197,6 +197,40 @@ console.log("\n[NC] the same scenario with the delta journal ignored:\n");
   );
 }
 
+console.log("\nA delta that DELETES a snapshotted document:\n");
+{
+  // The snapshot describes the world at the watermark. A post-watermark DELETE of a document that is
+  // IN that snapshot is a correct outcome, but post-replay validation used to sample the snapshot and
+  // assert every sampled document was present — so it read the deletion as corruption and refused the
+  // rebuild. Any rebuild that merely overlapped a delete could therefore never activate, which is the
+  // exact case the delta journal exists to support. Found by running the real-runtime verifier.
+  const { gens, queue } = await setup();
+  const doomed = doc("doomed");
+  const survivor = doc("kept");
+
+  const orchestrator = new SemanticRebuildOrchestrator({
+    queue,
+    snapshot: async () => {
+      queue.enqueue({ op: "delete", id: doomed.id });
+      // `doomed` is deliberately still IN the snapshot — that is what makes this discriminating.
+      return [survivor, doomed];
+    },
+    rebuildGeneration: gens.rebuildGeneration,
+    openCandidate: gens.openCandidate,
+    retarget: async () => undefined
+  });
+
+  const report = await orchestrator.rebuild();
+  check(
+    "a rebuild whose delta deletes a snapshotted document still ACTIVATES",
+    report.ok && report.activated,
+    JSON.stringify({ refusal: report.refusal, reason: report.reason })
+  );
+  const activated = gens.candidateFor(gens.activePointer);
+  check("the deleted document is absent from the activated generation", (await activated.get(doomed.id)) === null);
+  check("the untouched document is still present", (await activated.get(survivor.id))?.id === survivor.id);
+}
+
 console.log("\nThe queue is never cleared on activation:\n");
 {
   const { gens, queue, orchestrator } = await setup();

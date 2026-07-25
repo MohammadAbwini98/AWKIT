@@ -160,7 +160,17 @@ if (!gotSingleInstanceLock) {
       return Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices(), disposeSecurityKernel()]), timeout]);
     };
 
-    void disposeSemanticSubsystem()
+    // Stage 1 is raced against its own ceiling rather than trusted to be bounded. It now drains the
+    // mutation queue and any in-flight rebuild, and that budget belongs to whoever registered the
+    // index runtime — so the ceiling lives HERE, where quitting is actually owned. Losing the race
+    // leaves the semantic session marked unclean, which is exactly what makes the next startup
+    // reconcile it; that is a better outcome than an application that will not exit.
+    const stage1 = (): Promise<unknown> => {
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
+      return Promise.race([disposeSemanticSubsystem().catch(() => undefined), timeout]);
+    };
+
+    void stage1()
       .catch(() => undefined)
       .then(stage2)
       .finally(() => {

@@ -191,7 +191,17 @@ export class SemanticMutationQueue {
   private readonly maxRetries: number;
   private readonly maxRebuildDelta: number;
 
+  /**
+   * The store this queue currently writes to.
+   *
+   * Held separately from `options` because a rebuild REPLACES it: after the pointer swap the queue
+   * must drain against the newly-active generation, and a `readonly` reference captured at
+   * construction would keep writing into the generation that was just superseded.
+   */
+  private activeStore: SemanticStore;
+
   constructor(private readonly options: SemanticMutationQueueOptions) {
+    this.activeStore = options.store;
     this.maxPending = requireInteger(options.maxPending, 1000, 1, "maxPending");
     this.batchSize = requireInteger(options.batchSize, 100, 1, "batchSize");
     this.maxRetries = requireInteger(options.maxRetries, 2, 0, "maxRetries");
@@ -340,18 +350,18 @@ export class SemanticMutationQueue {
       // Batching is a throughput optimisation and must never change observable order.
       for (const run of adjacentRuns(batch.map((e) => e.mutation))) {
         if (run.op === "upsert") {
-          const outcome = await this.attempt(() => this.options.store.upsert(run.items.map((u) => u.document)));
+          const outcome = await this.attempt(() => this.activeStore.upsert(run.items.map((u) => u.document)));
           if (outcome.ok) result.upserted += outcome.value.inserted + outcome.value.replaced;
           else this.recordFailure(result, outcome.abandoned);
         } else if (run.op === "delete") {
-          const outcome = await this.attempt(() => this.options.store.delete(run.items.map((d) => d.id)));
+          const outcome = await this.attempt(() => this.activeStore.delete(run.items.map((d) => d.id)));
           if (outcome.ok) result.deleted += outcome.value;
           else this.recordFailure(result, outcome.abandoned);
         } else {
           // Entity deletions run one at a time: each targets a different entity, so there is nothing
           // to batch, and a shared failure would obscure which entity was not removed.
           for (const del of run.items) {
-            const outcome = await this.attempt(() => this.options.store.deleteByEntity(del.entityId));
+            const outcome = await this.attempt(() => this.activeStore.deleteByEntity(del.entityId));
             if (outcome.ok) result.deleted += outcome.value;
             else this.recordFailure(result, outcome.abandoned);
           }
@@ -454,6 +464,27 @@ export class SemanticMutationQueue {
 
   get isDrainingPaused(): boolean {
     return this.drainingPaused;
+  }
+
+  /**
+   * Point the queue at the newly-activated generation's store.
+   *
+   * **Refused while a drain is in flight.** A drain reads the store per batch, so swapping underneath
+   * one would split a single drain across two generations — the earlier batches landing in the
+   * generation that was just superseded, where nothing will ever read them again. The rebuild path
+   * therefore pauses draining before the pointer swap and retargets inside that window; this check
+   * exists so a future caller that forgets fails loudly instead of losing writes quietly.
+   */
+  retargetStore(store: SemanticStore): void {
+    if (this.activeDrain) {
+      throw new Error("SEMANTIC_RETARGET_DURING_DRAIN");
+    }
+    this.activeStore = store;
+  }
+
+  /** The store currently being written to. Exposed for assertions, not for callers to write through. */
+  get store(): SemanticStore {
+    return this.activeStore;
   }
 
   /** Register the in-flight rebuild so shutdown can await ONE bounded promise covering both. */

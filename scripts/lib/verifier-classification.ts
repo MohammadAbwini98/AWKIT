@@ -193,6 +193,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
     class: "unit",
     why: "Typed filter builder plus its host-side duplicate, then the SAME expressions executed against the real @zvec/zvec binding on a throwaway on-disk collection. Classified unit because it spawns nothing and drives no browser or Electron process — the native library is loaded in-process, and the verifier fails rather than skipping when the binding is absent."
   },
+  "verify:semantic-rebuild-live": {
+    class: "packaged-application",
+    why: "The rebuild lifecycle through the REAL generation runtime — SemanticIndexRuntime, the generation filesystem, ZvecSemanticStore, a live Electron utilityProcess, the raw staged/packaged host and real Zvec. Classified packaged-application because it launches Electron against a staged host tree. This is where post-activation behaviour becomes observable: the pointer swap committing while the new generation refuses to open, a host killed mid-write and mid-populate, real rollback, and restart opening the pointer-selected generation — none of which a lifecycle stub can express."
+  },
   "verify:semantic-rebuild": {
     class: "unit",
     why: "Rebuild watermark and delta-journal orchestration against in-memory stores and a generation-lifecycle stub: a mutation accepted mid-rebuild survives activation, every pre-activation failure leaves the active pointer and the pending queue untouched, and the queue is never cleared on activation. In-process; no filesystem, subprocess or browser."

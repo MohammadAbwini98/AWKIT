@@ -25,11 +25,29 @@ import {
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
 import { resolveActiveIdentity, repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
+import type { SemanticIndexRuntime } from "@src/semantic/SemanticIndexRuntime";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
 let lastReconciliation: ReconciliationReport | null = null;
 let lastMetadataRepair: MetadataRepairResult | null = null;
+let indexRuntime: SemanticIndexRuntime | null = null;
+
+/**
+ * Register the live index runtime so staged shutdown can drain it.
+ *
+ * Registered rather than constructed here because building one requires a `snapshot` over
+ * authoritative sources, which is the indexing layer's job and does not exist yet. Until something
+ * registers a runtime, shutdown simply has nothing to drain — which is the correct behaviour, not a
+ * silent gap.
+ */
+export function setSemanticIndexRuntime(runtime: SemanticIndexRuntime | null): void {
+  indexRuntime = runtime;
+}
+
+export function getSemanticIndexRuntime(): SemanticIndexRuntime | null {
+  return indexRuntime;
+}
 
 /**
  * Runtime root that owns all mutable semantic data. Never inside resources/ or app.asar.
@@ -106,6 +124,9 @@ export function getSemanticHostManager(): ZvecUtilityHostManager | null {
  */
 export function semanticHealth(options: { includePaths?: boolean; enabledBySetting?: boolean } = {}): SemanticHealth {
   const host = manager?.status() ?? null;
+  // Read once: `status()` is a snapshot, and sampling it twice could report a block alongside a
+  // rebuildRequired flag from a different instant.
+  const index = indexRuntime?.status() ?? null;
   return buildSemanticHealth({
     included: Boolean(resolveHostPath()),
     // Phase 1A has no semantic settings surface yet; treated as enabled so the reported reason
@@ -119,6 +140,11 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
     previousShutdownClean: lastReconciliation ? !lastReconciliation.uncleanShutdown : true,
     reclaimedBytesOnStartup: lastReconciliation?.reclaimedBytes ?? 0,
     activePointerReadFailed: lastReconciliation?.activeIdentityUnknown ?? false,
+    // A rebuild whose pointer COMMITTED but whose generation would not open. Distinct from
+    // REBUILD_REQUIRED on purpose: telling the user to rebuild would invite them to re-run the very
+    // operation that just committed.
+    activeGenerationOpenFailed: index?.block === "ACTIVE_GENERATION_OPEN_FAILED",
+    rebuildRequired: index?.rebuildRequired ?? false,
     metadataRepairFailed: lastMetadataRepair?.status === "failed",
     indexPath: semanticIndexLayout(runtimeRoot()).root,
     includePaths: options.includePaths ?? false
@@ -136,20 +162,43 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
  *
  * Never rejects.
  */
-export async function disposeSemanticSubsystem(): Promise<{ graceful: boolean; elapsedMs: number }> {
+export async function disposeSemanticSubsystem(): Promise<{ graceful: boolean; elapsedMs: number; drained: boolean }> {
   const active = manager;
+  const runtime = indexRuntime;
   manager = null;
+  indexRuntime = null;
   try {
+    // Drain BEFORE the host goes away. The runtime stops accepting mutations, then waits for the
+    // in-flight drain or rebuild on its own wall-clock budget; closing the host underneath a rebuild
+    // is how a candidate generation ends up half-written. `idle: false` means the budget elapsed with
+    // work still in flight — reported, never waited out, because an application that cannot exit is a
+    // worse failure than an index that reconciles on next start.
+    let drained = true;
+    if (runtime) {
+      try {
+        drained = (await runtime.shutdown()).idle;
+      } catch {
+        // Draining is best-effort; a failure here must not prevent the host from being stopped.
+        drained = false;
+      }
+    }
     const result = active ? await active.dispose() : { graceful: true, elapsedMs: 0 };
+
     // Only an orderly close records cleanShutdown=true; a crash therefore leaves it false and the
     // next startup reconciles. When startup could not determine active identity, pass `undefined` so
     // the recorded generation is preserved rather than asserted to be absent.
-    markIndexClosed(
-      runtimeRoot(),
-      lastReconciliation?.activeIdentityUnknown ? undefined : (lastReconciliation?.activeGeneration ?? null)
-    );
-    return result;
+    //
+    // A shutdown that hit its deadline is NOT orderly: work was still in flight, so the session is
+    // deliberately left marked unclean and startup reconciliation finishes the job. Marking it clean
+    // because the process is exiting anyway is exactly how an interrupted write becomes invisible.
+    if (drained) {
+      markIndexClosed(
+        runtimeRoot(),
+        lastReconciliation?.activeIdentityUnknown ? undefined : (lastReconciliation?.activeGeneration ?? null)
+      );
+    }
+    return { ...result, drained };
   } catch {
-    return { graceful: false, elapsedMs: 0 };
+    return { graceful: false, elapsedMs: 0, drained: false };
   }
 }
