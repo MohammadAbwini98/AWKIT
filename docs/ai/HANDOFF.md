@@ -1,8 +1,181 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-25, latest): Zvec entity operations landed — next is rebuild orchestration
+## ACTIVE (2026-07-25, latest): native-host contract + rebuild orchestration — verified and pushed
 
-**Branch/commit:** `main` @ `5f6250a` (working tree clean). Single-branch policy.
+The previous session ended with unverified work in the tree after a shell-tooling outage. That work
+has now been **compiled, executed, corrected and pushed**. The tree is clean apart from docs/beads.
+
+### Repository state
+
+| | |
+|---|---|
+| Branch | `main` (single-branch policy) |
+| HEAD | **`67835cd`** — `git rev-parse HEAD` == `origin/main`, confirmed after `git fetch --prune` |
+| Working tree | clean except `docs/ai/*` and `.beads/issues.jsonl` |
+
+| Commit | Contents |
+|---|---|
+| `a1e6bc8` | Identity filtered by a derived **`entityKey`**, never by raw `entityId` |
+| `d208c64` | **Real utility-host protocol alignment** — the three defects below |
+| `67835cd` | **Rebuild orchestration** — watermark + ordered delta replay |
+
+### Verification actually executed at `67835cd`
+
+`npm run build` PASS · `npx tsc --noEmit` PASS · `npm run typecheck:scripts` PASS ·
+`verify:semantic-zvec-native-contract` **21/0** *(real Electron `utilityProcess` + staged raw host +
+real Zvec binding; shared contract suite **68/68**)* · `verify:semantic-rebuild` **56/0** ·
+`verify:semantic-store` **151/0** · `verify:semantic-queue` **70/0** ·
+`verify:semantic-zvec-filter` **89/0** · `verify:semantic-policy` **141/0** ·
+`verify:zvec-generation-lifecycle` **102/0** · `verify:zvec-generation-recovery` **134/0** ·
+`verify:zvec-generation-concurrency` **12/0** · `verify:zvec-host-source-boundary` **22/0**.
+
+**Not run:** packaged and NSIS-installed layouts, `verify:zvec-packaged-live`,
+`verify:zvec-coexistence`, `validate:offline`, `verify:runner`, mock-site verifiers. The native
+contract has only been driven against the **staged** host tree (`build/native-hosts`).
+
+### What the real-host verifier found (all fixed in `d208c64`)
+
+Driving `ZvecSemanticStore → ZvecUtilityHostManager → utilityProcess → raw host → Zvec` exposed three
+defects that a fully green suite had hidden, because the transport fake was more permissive than the
+backend:
+
+1. **`open` returned `{generation}`, not `{collectionId}`.** The adapter read `collectionId`, got
+   `undefined`, and reported `BACKEND_UNAVAILABLE` for a collection that had in fact opened.
+   *(Fixed and verified — `verify:semantic-store` 151/0 after the fix.)*
+2. **Zvec rejects `:` in a document primary key.** AWKIT ids are `kind:component:hash`, so **not one
+   document could ever have been written to a real index.** Every test passed because the fake used a
+   JavaScript `Map`, which accepts any string as a key. Measured accepted charset:
+   `A-Za-z0-9` plus `- _ . @ # + =`; rejected: `:` `/` `\` `~` `|` `,` `;`, space, non-ASCII, and an
+   over-long key (64 chars fine, 200 refused). Fixed by deriving the backend key
+   (`toZvecDocumentKey = sha256(id)`) while the AWKIT id stays in the `id` FIELD — colons are legal in
+   a field *value*, only the key is restricted.
+3. **`fts: {}` is REJECTED, not treated as match-all.** Every filter-only search (`text: ""`) would
+   have failed against the real host; the fake accepted it. Now sent as a scalar-only query with an
+   explicit match-all clause.
+
+`FakeZvecHostTransport` now enforces the real key charset and rejects an empty full-text clause, so
+this class of defect cannot hide again.
+
+### Rebuild orchestration (`awkit-ttd`, `67835cd`)
+
+`SemanticRebuildOrchestrator` + queue watermark and ordered delta journal. Sequence:
+
+    drain prior active writes → watermark W, start journalling → populate the candidate while normal
+    mutations keep flowing to the ACTIVE generation and are also journalled → validate → pause
+    draining, replay the post-W journal into the candidate in order, revalidate → close the
+    candidate, swap the pointer, retarget, resume draining → only then clear rebuildRequired
+
+The pointer swap is the single commit point. `queue.clear()` is never called on activation.
+
+**Three defects were found by actually executing the verifier** (it opened at 42 passed / 5 failed):
+
+1. **Real bug — delta completeness was judged against the live journal.** A mutation accepted while
+   the replay was in flight counted as "unreplayed" and failed the rebuild, i.e. a busy index could
+   never finish one. Such a mutation is necessarily still pending (draining is paused) and drains
+   against the new generation, so completeness is now judged against the **captured** entry set. A
+   regression test injects a write from inside the replay itself.
+2. **A negative control asserted the wrong invariant** — "pending mutations are intact" required
+   `queue.size` to be unchanged across a failed rebuild, which a *correct* implementation must fail,
+   since draining before the watermark is what makes the watermark mean anything.
+3. **A negative control was vacuous** — the replay-failure test declared its `populated` flag inside
+   `openCandidate`, so it reset on the second open, the replay write succeeded, the rebuild
+   activated, and the control passed while exercising nothing.
+
+The suite-size guard in the native-contract verifier was also corrected from `>= 100` to `>= 68`
+(the measured full size of `runSemanticStoreContract` with `entityOperations`); the original number
+was written before that verifier had ever been executed.
+
+### Running the semantic verifiers
+
+```bash
+npm run prepare:zvec-host
+npm run verify:semantic-zvec-native-contract
+```
+
+`prepare:zvec-host` **must** run first: the native-contract verifier refuses a host tree that is not
+byte-identical to `native-hosts/zvec/zvec-host.cjs` (its first ever run silently tested the old
+protocol-v1 host from `dist/win-unpacked`).
+
+### Measured facts about `@zvec/zvec` 0.6.0 that no type signature reveals
+
+Each of these cost a real debugging cycle. **Do not re-derive them from the `.d.ts` — it is
+incomplete, and inferring absence from it is what produced a wrong architectural conclusion the round
+before this one.**
+
+1. Filter equality is a single `=`; `==` is a syntax error. `IN` takes parentheses, not brackets.
+   `NOT <field> = <v>` does not parse — use `!=`. `AND` / `OR` / `IS NULL` / `LIKE` / `>=` work.
+2. `filter` is a **PRE-filter**, applied before ranking, so pushing it into the query is a
+   *correctness* fix, not an optimisation.
+3. `topk` is **not** vendor-capped. The former 100-document ceiling was AWKIT's own
+   `Math.min(topK, 100)` in the host.
+4. A `nullable` STRING field **rejects an explicit `null`**. Absent optionals must be **omitted**;
+   omission reads back as NULL for `IS NULL`.
+5. `deleteByFilterSync` returns a **status object** and does not throw — an unchecked call reads an
+   invalid-filter rejection as a successful delete.
+6. **No escaper is safe for arbitrary strings.** Escaping only quotes throws on backslash values;
+   escaping both **silently matches nothing**. Unsafe values are refused, and identity is filtered
+   through the derived `entityKey` so no identity is ever unrepresentable.
+7. A document **primary key** accepts only `A-Za-z0-9 - _ . @ # + =` and is length-bounded.
+8. `outputFields: []` returns ids with no scalar fields (documented only for `fetch`, but it works on
+   `query`) — that is what lets an exact-count pass avoid transferring document bodies.
+
+### Known risks / blockers
+
+- **The orchestrator is not yet wired to a real generation root.** It is verified against in-memory
+  stores and a generation-lifecycle stub only; `openCandidate` / `rebuildGeneration` / `retarget`
+  still need binding to `rebuildIntoNewGeneration` and a real runtime root.
+- **A verifier that has never been executed is not evidence.** Both new verifiers contained
+  assertions that were wrong in the direction of *passing* — a vacuous negative control and a
+  suite-size floor above the suite's real size. Run a new verifier before citing its checks.
+- **A stale host tree silently produces a false result.** The native-contract verifier's first run
+  tested the old protocol-v1 host from `dist/win-unpacked`. It now refuses any tree that differs from
+  the repo source; `dist/win-unpacked` is still stale until the next `package:portable`.
+- `resources/dependency-manifest.json` still records `hostProtocolVersion: 1`. It is generated by
+  packaging — **do not hand-edit it.**
+- **A fake that is more permissive than the real backend relocates risk rather than reducing it.**
+  Three defects in this subsystem survived a fully green suite for exactly that reason. When adding to
+  `FakeZvecHostTransport`, model the binding's REJECTIONS, not just its shapes.
+- Writing a literal control character into source is a recurring trap here (it happened again this
+  session, in a check *about* control characters). Always use `\uXXXX` escapes;
+  `verify:source-hygiene` is the guard.
+- Not run: `verify:zvec-packaged-live`, `verify:zvec-coexistence`, the NSIS installed-layout matrix,
+  `validate:offline`, `verify:runner`, and the mock-site verifiers.
+
+### Do not touch without confirmation
+
+- `native-hosts/zvec/zvec-host.cjs` must stay raw, unbundled CommonJS, `utilityProcess`-only, and
+  must never regain a crash-injection path.
+- A filter **string** must never cross `SemanticStore`. The host builds it from a typed clause list
+  and an allowlist, duplicated on purpose (as `assertConfinedPath` duplicates
+  `isConfinedGenerationPath`). An empty clause list is refused, so "delete where nothing" can never
+  mean "delete everything".
+- Raw `entityId`, `revision` and `nodeId` must stay OUT of the filter allowlist in **both** copies.
+- `queue.clear()` must not be called because a rebuild activated — that is what discards a user's
+  mid-rebuild changes.
+- The active-generation pointer is authoritative; the pointer swap is the only commit point.
+- `electron-builder.json`'s `!node_modules/@zvec/**` exclusion and its `extraResources` entry.
+
+### Recommended next step
+
+Two independent threads, in this order:
+
+1. **bd `awkit-9yv` — the packaged layouts.** The real semantic contract has only been driven against
+   the *staged* host tree. Build `package:portable`, then run `verify:zvec-packaged-assets`,
+   `verify:zvec-packaged-live`, `verify:semantic-zvec-native-contract` against the packaged tree, and
+   `verify:zvec-coexistence`; then `package:installer` for the NSIS installed layout. Note that
+   `resources/dependency-manifest.json` still records `hostProtocolVersion: 1` and is regenerated by
+   packaging — a packaged run is what proves the v2 host actually ships.
+2. **Wire the orchestrator to a real generation root** — bind `rebuildGeneration` to
+   `rebuildIntoNewGeneration`, `openCandidate` to a real candidate store, and `retarget` to the live
+   store/queue, then re-run `verify:semantic-rebuild` plus the generation verifiers.
+
+Do not stack product UI work on the rebuild path until (2) is done.
+
+---
+
+## PRIOR (2026-07-25): Zvec entity operations landed via protocol v2
+
+**Branch/commit:** `main` @ `5f6250a` (working tree clean at the time). Single-branch policy.
 
 **Done this session (bd `awkit-8lj`, CLOSED).** Host protocol **v2**: typed
 `scan`/`count`/`deleteByFilter`, and `fetch`/`query` now return real documents.
