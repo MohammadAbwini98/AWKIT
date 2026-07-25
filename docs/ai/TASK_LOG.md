@@ -4,6 +4,43 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 - Zvec Phase 1A: native-host foundation (Claude)
+
+**Task:** Implement the Phase 1A production foundation on `main`, closing Phase 0D conditions 1-5.
+
+**Commits:** `ccb4ede` contracts/layout/boundary verifier, `3a2ba09` host manager + restart policy
++ circuit breaker, `5b37c2b` generation reconciliation, `f0f2f76` spike-hook removal + staged
+shutdown + startup reconciliation.
+
+**New:** `src/semantic/contracts/ZvecHostProtocol.ts`, `src/semantic/SemanticGenerationLayout.ts`,
+`src/semantic/ZvecHostRestartPolicy.ts`, `src/semantic/SemanticGenerationReconciler.ts`,
+`app/main/semantic/ZvecUtilityHostManager.ts`, `app/main/semantic/semanticService.ts`,
+`scripts/verify-zvec-host-source-boundary.mts`, `scripts/verify-zvec-host-lifecycle.mts`,
+`scripts/verify-zvec-generation-recovery.mts`.
+
+**Removed:** the `AWKIT_ZVEC_SPIKE_HOST` hook from `app/main/main.ts`, `__testAbort` from the shipped
+host, and the hook-dependent spike harnesses (recoverable at
+`archive/spike-zvec-phase-0-20260725`).
+
+**Tests:** `npm run build` PASS; `package:portable` PASS; strict `validate:offline` PASS;
+`verify:zvec-packaged-assets` 17/17; `verify:zvec-host-source-boundary` 20/0;
+`verify:zvec-host-lifecycle` 52/0; `verify:zvec-generation-recovery` 31/0. Live packaged run: 2
+seeded orphan generations reclaimed, app reached its window with no spike env vars, and quit wrote
+`cleanShutdown=true` + `lastSuccessfulUpdateAt`.
+**Not run:** `verify:runner`, `verify:popup-identity`, mock-site verifiers.
+
+**Bug found by running the packaged app:** `semanticService` used `app.getPath("userData")` (roaming
+`%APPDATA%`) instead of `getRuntimeDataRoot()` (`%LOCALAPPDATA%/SpecterStudio`). All unit tests
+passed with the bug present because the reconciler takes its root as a parameter. Fixed and pinned by
+a boundary-verifier check.
+
+**Known gap:** removing the spike hook removed the only automated packaged live-CRUD / crash /
+benchmark / coexistence coverage. Recorded in `KNOWN_ISSUES.md`.
+
+**Blocked:** `git push origin main` still rejected (`GH013`); 44 commits are local only.
+
+---
+
 ## 2026-07-25 - Single-branch consolidation + Zvec Phase 0 integration (Claude)
 
 **Task:** Apply the owner's one-branch continuous-implementation directive; consolidate every branch
