@@ -129,22 +129,68 @@ factory; **truthful upsert counts** (`countsKnown`); **runtime field validation*
 agreement, sourceHash format, timestamps, outcome enum, hostname shape, reference consistency,
 embeddings rejected unless explicitly enabled); **drain is single-flight**; queue options validated.
 
-### Known gap — Zvec entity operations are UNSUPPORTED, by design
+### Entity operations now work — the recorded blocker was wrong (2026-07-25, bd `awkit-8lj` CLOSED)
 
-The utility host protocol has **no scan or cursor operation**: `query` is top-K capped at 100 and
-the raw host returns hit counts plus ten ids, not documents. `ZvecSemanticStore` therefore declares
-`capabilities.entityOperations = false` and **throws `UNSUPPORTED_OPERATION`** for `deleteByEntity`,
-`stats` and `clear`, rather than silently truncating — a partial delete reporting success leaves
-content indexed that the caller believes is gone. Search likewise over-fetches the global top 100
-before applying AWKIT filters, so a filtered match ranked outside it is not returned and
-`totalMatched` is not the true filtered total. Tracked as a P1 bead; needs typed host operations.
+The previous round declared `deleteByEntity`, `stats` and `clear` **UNSUPPORTED** because "the host
+has no scan or cursor and `query` is top-K capped at 100". **That premise was incorrect.** The cap
+was AWKIT's own `Math.min(topK, 100)` inside `zvec-host.cjs`, and the vendor exposed what was needed
+all along. Established by *executing* the binding rather than reading its `.d.ts`
+(`verify:semantic-zvec-filter`, 63/0):
 
-**Not covered by any current verifier:** native crash isolation, real FTS ranking quality and
-on-disk durability — the Zvec adapter is exercised through a transport fake. A real-host contract
-run is tracked as its own P1 bead.
+- `deleteByFilterSync` exists, so an entity delete needs no scan.
+- `filter` is a **PRE-filter**, applied before ranking. Proven discriminatingly: with a filter a
+  needle ranked last of 1501 is found at `topk: 10`; the unfiltered top-10 excludes it.
+- `topk` is not vendor-capped (1500 requested → 1500 returned).
+- `fetchSync` returns full field values, and `outputFields: []` returns ids with no fields — which is
+  what lets an exact-count pass avoid materialising document bodies.
 
-**Next:** host scan/count operations, then rebuild orchestration, then real-host parity. Phase 1B
-remains IN PROGRESS.
+**Host protocol is now v2** (breaking: `fetch`/`query` return documents; `scan`/`count`/
+`deleteByFilter` added). `capabilities.entityOperations` is `true`, so the shared contract suite runs
+Zvec through the same positive assertions as the in-memory store instead of asserting a refusal.
+
+**Filters are typed clauses; a filter STRING never crosses `SemanticStore`.** The host builds the
+expression itself from a field allowlist — duplicated deliberately, as `assertConfinedPath`
+duplicates `isConfinedGenerationPath` — so an IPC validation gap cannot widen a delete. The two
+copies are drift-checked.
+
+**The value rule is a refusal, not an escaper**, because measurement showed no escaper is correct:
+escaping only quotes throws a lexer error on backslash values, and escaping both **silently matches
+nothing** (`ok: true`, zero rows deleted — the exact silent-under-delete this subsystem refuses).
+Backslash and control-character values are rejected; quotes are escaped as `\"`.
+
+A filtered delete is verified inside the host (count → delete → re-scan) and reports
+`SEMANTIC_DELETE_INCOMPLETE` rather than a successful partial. A count that hits the host's scan
+bound reports `exact: false` and the adapter refuses it.
+
+### Three defects the transport fake could not catch
+
+The fake encoded the protocol as *intended* while the host implemented something else, so a green
+suite hid all three. Each is now fixed and guarded:
+
+1. A `nullable` STRING field **rejects an explicit `null`**, failing the whole batch.
+   `toZvecDocument` wrote `?? null` for all seven optional fields, so against the real host every
+   document with an absent optional — the common case — was rejected. Absence is now written by
+   OMISSION. The fake now rejects nulls too: reinstating `?? null` crashes the suite before any
+   `[zvec]` check runs.
+2. `fetch` returned `Object.keys(...)` — bare id strings — while the adapter read `.id` off each
+   row, breaking `get`, the delete presence check and the upsert insert/replace split.
+3. `SEMANTIC_SCHEMA` used `type:` where the host reads `dataType`, hidden by an
+   `as unknown as ZvecSafeSchema` cast; every field would have been created with
+   `dataType: undefined`. The cast is gone.
+
+`totalMatched` was also a silent undercount past 100 matches (it reported the fetch window). The host
+now computes the true pre-truncation total. **The existing `topK: 1` assertion could not catch this**
+— against a three-document fixture "candidates fetched" and "documents matched" are the same number,
+so it passed with the defect present. A contract block indexing 130 documents now makes it
+discriminating for both implementations.
+
+**Still not covered by any verifier:** native crash isolation, real FTS ranking quality, on-disk
+durability, and the host's own code path through a real `utilityProcess` — its duplicated filter
+builder, two-pass exact-total query and post-delete re-scan are asserted by source-drift checks, not
+executed. That execution proof is bd **`awkit-9yv`**.
+
+**Next:** rebuild orchestration (`awkit-ttd`), then the real-host contract run (`awkit-9yv`).
+Phase 1B remains IN PROGRESS.
 
 ## Zvec Phase 0/0B/0C/0D - GO WITH CONDITIONS (2026-07-25, superseded by the section above)
 

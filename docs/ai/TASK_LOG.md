@@ -4,6 +4,69 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-25 (later) - Zvec typed filters, host protocol v2, entity operations (Claude)
+
+**Task:** bd `awkit-8lj` — remove the 100-document ceiling that made `deleteByEntity`, `stats` and
+`clear` refuse. **The recorded premise was wrong**, which is the main finding.
+
+**Commits:** `f4f6a37` (typed filters, protocol v2, entity operations), `5f6250a` (exact
+`totalMatched` + the contract check that proves it).
+
+**The premise.** The previous round concluded from the vendor's TypeScript types that there was "no
+scan or cursor operation" and declined to guess at the API. Reading the types was the mistake:
+`deleteByFilterSync` exists, `ZvecQuery.filter` pre-filters before ranking, and the 100 cap was
+AWKIT's own `Math.min(topK, 100)` in `zvec-host.cjs`. Established by executing the real binding in a
+throwaway collection, not by inference. **Lesson worth keeping: when a vendor capability decides an
+architectural conclusion, probe the binding — a `.d.ts` is not a capability inventory.**
+
+**Three defects the transport fake could not catch,** because it encoded the protocol as *intended*
+while the host implemented something else: (1) a `nullable` string field rejects an explicit `null`,
+so `toZvecDocument`'s `?? null` would have had the real host reject every document with an absent
+optional; (2) `fetch` returned bare id strings while the adapter read `.id`; (3) `SEMANTIC_SCHEMA`
+used `type:` where the host reads `dataType`, hidden by an `as unknown as` cast. The fake now
+reproduces the binding's rejections rather than being more permissive than it.
+
+**Escaping — measured, not assumed.** No escaper is correct for arbitrary strings: escaping only
+quotes throws a lexer error on backslash values; escaping both **silently matches nothing** (status
+`ok: true`, zero rows deleted); single-quote doubling matched the *wrong document*. So filter values
+are **refused** when they hold a backslash or control character, and the whole expression is built
+inside the host from a typed clause list — a filter string never crosses `SemanticStore`.
+
+**Testing notes worth keeping.**
+- The pre-filter claim is asserted *with its negative control in the same run*: without the filter,
+  `topk: 10` does not reach the needle ranked last of 1501; with it, the same `topk` finds it.
+- **The existing `totalMatched` assertion was vacuous.** `topK: 1` over a three-document fixture
+  compares "candidates fetched" against "documents matched" — the same number — so it passed with
+  the defect present. Only a fixture larger than the 100-row fetch window discriminates; 130
+  documents now do. Verified by negative control (reports 100, fails).
+- Drift checks on the host's duplicated builder were negative-controlled individually: adding a field
+  to the host allowlist, deleting the post-delete re-scan, and restoring the 100 cap each fail their
+  own assertion and only that one.
+- I introduced a literal NUL into a new verifier while writing a check *about* control characters —
+  the trap `verify:source-hygiene` exists for. Escape sequences only.
+
+**Files:** `native-hosts/zvec/zvec-host.cjs`, `src/semantic/contracts/ZvecFilter.ts` (new),
+`src/semantic/contracts/ZvecHostProtocol.ts`, `src/semantic/ZvecSemanticStore.ts`,
+`src/semantic/FakeZvecHostTransport.ts`, `src/semantic/SemanticStoreContract.ts`,
+`scripts/verify-semantic-zvec-filter.mts` (new), `scripts/lib/verifier-classification.ts`,
+`scripts/prepare-zvec-native-host.mjs`, `package.json`.
+
+**Tests run:** `build` PASS - `typecheck:scripts` PASS - **`verify:semantic-zvec-filter` 63/0**
+(executed against the real `@zvec/zvec`) - `verify:semantic-store` 109/0 (both implementations) -
+`semantic-policy` 135/0 - `semantic-queue` 70/0 - `source-hygiene` 7/0 -
+`zvec-host-source-boundary` 22/0 - `zvec-host-lifecycle` 52/0 - `zvec-generation-recovery` 134/0 -
+`verify:verifier-classification` reconciled at **128** (unit 49).
+
+**Not run:** `verify:zvec-packaged-live` and the packaged/NSIS trees (need `package:portable`),
+`verify:runner`, mock-site verifiers — no runner, recorder, renderer or packaging source changed.
+
+**Result:** `awkit-8lj` CLOSED. **Residual gap, deliberately not claimed as covered:** the host's own
+code path (duplicated filter builder, two-pass exact-total query, post-delete re-scan) is asserted by
+source-drift checks, never executed in a real `utilityProcess`. That proof is bd `awkit-9yv`, whose
+notes now carry it.
+
+---
+
 ## 2026-07-25 - Phase 1B review corrections (Claude)
 
 **Task:** apply the owner's review findings. Two were privacy-affecting.
