@@ -26,6 +26,7 @@ import {
   type SemanticSearchResult
 } from "./contracts/SemanticDocument";
 import type { ValidatedSemanticDocument } from "./SemanticPolicyValidator";
+import { deriveMatchReasons, tokenize } from "./SemanticRanking";
 import {
   SemanticStoreError,
   type SemanticStore,
@@ -49,10 +50,8 @@ export interface InMemorySemanticStoreOptions {
   maxDocuments?: number;
 }
 
-/** Lowercase alphanumeric tokens, length ≥ 2. Shared by indexing and querying so they agree. */
-export function tokenize(text: string): string[] {
-  return (text.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length >= 2);
-}
+/** Re-exported so callers and tests have one tokenizer identity across the subsystem. */
+export { tokenize } from "./SemanticRanking";
 
 export class InMemorySemanticStore implements SemanticStore {
   readonly name = "in-memory";
@@ -225,10 +224,7 @@ function scoreDocument(
   for (const t of contentTokens) contentCounts.set(t, (contentCounts.get(t) ?? 0) + 1);
 
   let score = 0;
-  const reasons: string[] = [];
   let titleHits = 0;
-  let contentHits = 0;
-  let tagHits = 0;
 
   for (const term of terms) {
     if (titleTokens.has(term)) {
@@ -236,38 +232,16 @@ function scoreDocument(
       titleHits += 1;
     }
     const inContent = contentCounts.get(term) ?? 0;
-    if (inContent > 0) {
-      score += Math.min(inContent, 3); // cap so one repeated word cannot dominate
-      contentHits += 1;
-    }
-    if (tagTokens.has(term)) {
-      score += 2;
-      tagHits += 1;
-    }
+    if (inContent > 0) score += Math.min(inContent, 3); // cap so one repeated word cannot dominate
+    if (tagTokens.has(term)) score += 2;
   }
 
-  if (titleHits === terms.length && terms.length > 0) {
-    score += 10;
-    reasons.push("Title exact match");
-  } else if (titleHits > 0) {
-    reasons.push("Title partial match");
-  }
-  if (contentHits > 0) reasons.push("Content match");
-  if (tagHits > 0) reasons.push("Tag match");
+  if (titleHits === terms.length && terms.length > 0) score += 10;
+  if (request.workflowId !== undefined && doc.workflowId === request.workflowId) score += 3;
+  if (request.hostname !== undefined && doc.hostname === request.hostname) score += 2;
+  if (request.nodeType !== undefined && doc.nodeType === request.nodeType) score += 2;
 
-  if (request.workflowId !== undefined && doc.workflowId === request.workflowId) {
-    score += 3;
-    reasons.push("Current workflow match");
-  }
-  if (request.hostname !== undefined && doc.hostname === request.hostname) {
-    score += 2;
-    reasons.push("Current hostname match");
-  }
-  if (request.nodeType !== undefined && doc.nodeType === request.nodeType) {
-    score += 2;
-    reasons.push("Same node type");
-  }
-  if (doc.outcome === "failure") reasons.push("Recorded failure");
-
-  return { score, reasons };
+  // Weights stay local (each backend ranks differently); the EXPLANATION is shared, so `reasons`
+  // means the same thing whichever store answered.
+  return { score, reasons: deriveMatchReasons(doc, terms, request) };
 }

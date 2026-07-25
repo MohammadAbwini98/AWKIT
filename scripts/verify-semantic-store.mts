@@ -16,6 +16,8 @@ import {
   type SemanticStoreFactory
 } from "@src/semantic/SemanticStoreContract";
 import { SemanticStoreError } from "@src/semantic/SemanticStore";
+import { ZvecSemanticStore, toZvecDocument, fromZvecDocument } from "@src/semantic/ZvecSemanticStore";
+import { FakeZvecHostTransport } from "@src/semantic/FakeZvecHostTransport";
 
 let passed = 0;
 let failed = 0;
@@ -30,9 +32,24 @@ function check(label: string, condition: unknown, detail?: string): void {
   }
 }
 
+/**
+ * Both implementations run the IDENTICAL suite. The Zvec adapter is driven through a transport fake
+ * that speaks the real wire shapes, so the adapter's own logic (field projection, existence
+ * pre-reads, filter application, re-validation on read) is exercised for real. It does NOT prove
+ * native behaviour — crash isolation, real FTS ranking and on-disk durability need the actual host
+ * and are covered by verify:zvec-packaged-live.
+ */
 const IMPLEMENTATIONS: Array<{ name: string; factory: SemanticStoreFactory }> = [
-  { name: "in-memory", factory: async () => new InMemorySemanticStore() }
-  // { name: "zvec", factory: async () => new ZvecSemanticStore(...) }  ← same suite, next step
+  { name: "in-memory", factory: async () => new InMemorySemanticStore() },
+  {
+    name: "zvec",
+    factory: async () =>
+      new ZvecSemanticStore({
+        transport: new FakeZvecHostTransport(),
+        generation: "gen-000001",
+        generationPath: "/tmp/awkit-semantic/gen-000001"
+      })
+  }
 ];
 
 console.log("Shared SemanticStore contract:\n");
