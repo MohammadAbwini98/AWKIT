@@ -72,6 +72,32 @@ export interface DrainResult {
   /** Mutations abandoned after exhausting bounded retries or hitting a non-retryable failure. */
   abandoned: number;
   rebuildRequired: boolean;
+  /**
+   * True when this call did NOT drain because draining is paused for a rebuild's delta replay.
+   *
+   * Reported rather than returned as a zero-filled success: a shutdown caller that reads
+   * `upserted: 0, deleted: 0` as "the queue is empty" would close the store with work still pending.
+   * Callers waiting for quiescence should await `whenIdle()`.
+   */
+  skipped?: true;
+}
+
+/** An accepted mutation and the order in which it was accepted. */
+export interface JournalledMutation {
+  mutation: SemanticMutation;
+  seq: number;
+}
+
+export interface RebuildJournalState {
+  /** Sequence number at which the rebuild snapshot was taken. Everything later must be replayed. */
+  watermark: number;
+  entries: readonly JournalledMutation[];
+  /**
+   * True when the journal hit its bound. The rebuild MUST NOT be activated in that state: replaying a
+   * partial delta would produce a candidate that silently lacks recent changes, which is worse than
+   * having no new candidate at all.
+   */
+  overflowed: boolean;
 }
 
 export interface SemanticMutationQueueOptions {
@@ -82,6 +108,15 @@ export interface SemanticMutationQueueOptions {
   batchSize?: number;
   /** Bounded retries for a RETRYABLE failure. Default 2. */
   maxRetries?: number;
+  /**
+   * Max entries the rebuild delta journal will hold. Default 5000.
+   *
+   * Bounded for the same reason as the queue itself, but with the opposite failure response: the
+   * journal never DROPS an entry. Overflow is recorded, and the orchestrator refuses to activate the
+   * candidate — an unactivated rebuild is a retry, whereas a rebuild activated from a truncated delta
+   * silently loses whatever the user changed while it was running.
+   */
+  maxRebuildDelta?: number;
 }
 
 type MutationRun =
@@ -136,14 +171,31 @@ export class SemanticMutationQueue {
   private rebuildRequired = false;
   private droppedUpserts = 0;
 
+  /**
+   * Ordered journal of mutations accepted AFTER a rebuild snapshot was taken.
+   *
+   * A rebuild reads authoritative sources at a point in time and takes seconds to populate. Anything
+   * the user changes in that window is applied to the ACTIVE generation but is absent from the
+   * candidate, so activating the candidate and clearing the queue would silently discard it. The
+   * journal is what makes the window recoverable: the same mutations are replayed into the candidate
+   * before it is activated.
+   */
+  private rebuildJournal: JournalledMutation[] | null = null;
+  private rebuildWatermark = 0;
+  private rebuildJournalOverflowed = false;
+  private drainingPaused = false;
+  private activeRebuild: Promise<unknown> | null = null;
+
   private readonly maxPending: number;
   private readonly batchSize: number;
   private readonly maxRetries: number;
+  private readonly maxRebuildDelta: number;
 
   constructor(private readonly options: SemanticMutationQueueOptions) {
     this.maxPending = requireInteger(options.maxPending, 1000, 1, "maxPending");
     this.batchSize = requireInteger(options.batchSize, 100, 1, "batchSize");
     this.maxRetries = requireInteger(options.maxRetries, 2, 0, "maxRetries");
+    this.maxRebuildDelta = requireInteger(options.maxRebuildDelta, 5000, 1, "maxRebuildDelta");
   }
 
   get size(): number {
@@ -157,6 +209,24 @@ export class SemanticMutationQueue {
 
   get droppedUpsertCount(): number {
     return this.droppedUpserts;
+  }
+
+  /**
+   * Record an accepted mutation in the rebuild journal.
+   *
+   * Every accepted mutation is journalled in arrival order, WITHOUT coalescing. Coalescing is safe for
+   * the pending queue because the last write wins against one live index; the journal instead has to
+   * reproduce a sequence of effects against a candidate built from an older snapshot, and collapsing
+   * `upsert A` / `deleteEntity A` / `upsert A` would change that net effect.
+   */
+  private journal(mutation: SemanticMutation): void {
+    if (this.rebuildJournal === null) return;
+    if (this.rebuildJournal.length >= this.maxRebuildDelta) {
+      // Never dropped silently. The orchestrator checks this and abandons the candidate.
+      this.rebuildJournalOverflowed = true;
+      return;
+    }
+    this.rebuildJournal.push({ mutation, seq: this.nextSeq });
   }
 
   enqueue(mutation: SemanticMutation): EnqueueOutcome {
@@ -187,6 +257,7 @@ export class SemanticMutationQueue {
       // the LATEST operation, otherwise a late delete inherits an early upsert's slot and can be
       // executed before mutations that were actually enqueued before it.
       this.pending.delete(key);
+      this.journal(mutation);
       this.pending.set(key, { mutation, seq: this.nextSeq++ });
       return { accepted: true, coalesced: true, supersededUpsert, supersededByEntity };
     }
@@ -206,6 +277,7 @@ export class SemanticMutationQueue {
       this.rebuildRequired = true;
     }
 
+    this.journal(mutation);
     this.pending.set(key, { mutation, seq: this.nextSeq++ });
     return { accepted: true, coalesced: false, supersededUpsert: false, supersededByEntity };
   }
@@ -235,6 +307,19 @@ export class SemanticMutationQueue {
     // caller the queue was drained while writes were still in flight — an invitation to close the
     // store mid-write.
     if (this.activeDrain) return this.activeDrain;
+
+    // Paused for a rebuild's delta replay. Reported as `skipped` rather than as a zero-filled success,
+    // because "nothing was written" and "there was nothing to write" must not look identical.
+    if (this.drainingPaused) {
+      return Promise.resolve({
+        upserted: 0,
+        deleted: 0,
+        failed: 0,
+        abandoned: 0,
+        rebuildRequired: this.rebuildRequired,
+        skipped: true
+      });
+    }
     this.activeDrain = this.runDrain().finally(() => {
       this.activeDrain = null;
     });
@@ -304,12 +389,115 @@ export class SemanticMutationQueue {
     return { ok: false, abandoned: true };
   }
 
-  /** Discard everything pending. Used when a rebuild supersedes the queued work. */
+  // ── rebuild coordination ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Start journalling, and return the watermark the rebuild snapshot corresponds to.
+   *
+   * Everything accepted from here on is applied to the ACTIVE generation as usual AND recorded, so it
+   * can be replayed into the candidate before activation.
+   */
+  beginRebuildJournal(): number {
+    if (this.rebuildJournal !== null) {
+      // Two concurrent rebuilds would each own a partial delta and neither could be trusted.
+      throw new Error("a rebuild journal is already open");
+    }
+    this.rebuildJournal = [];
+    this.rebuildJournalOverflowed = false;
+    this.rebuildWatermark = this.nextSeq;
+    return this.rebuildWatermark;
+  }
+
+  rebuildJournalState(): RebuildJournalState {
+    return {
+      watermark: this.rebuildWatermark,
+      entries: this.rebuildJournal ? [...this.rebuildJournal] : [],
+      overflowed: this.rebuildJournalOverflowed
+    };
+  }
+
+  /**
+   * Drop journal entries PROVEN applied to the candidate, identified by sequence number.
+   *
+   * Entries are removed by explicit sequence rather than by clearing the journal, so a replay that
+   * stopped part way leaves the unapplied remainder intact for the next attempt.
+   */
+  confirmRebuildDeltaApplied(appliedSeqs: readonly number[]): void {
+    if (this.rebuildJournal === null) return;
+    const applied = new Set(appliedSeqs);
+    this.rebuildJournal = this.rebuildJournal.filter((entry) => !applied.has(entry.seq));
+  }
+
+  /** Close the journal. Anything still unapplied is reported so the caller can refuse to activate. */
+  endRebuildJournal(): { unapplied: number; overflowed: boolean } {
+    const unapplied = this.rebuildJournal?.length ?? 0;
+    const overflowed = this.rebuildJournalOverflowed;
+    this.rebuildJournal = null;
+    this.rebuildJournalOverflowed = false;
+    return { unapplied, overflowed };
+  }
+
+  /**
+   * Stop draining while the delta is replayed into the candidate.
+   *
+   * The window must be short: it is only open between the final delta snapshot and the pointer swap.
+   * Without it, a mutation could be applied to the active generation after the delta was captured and
+   * before the candidate went live, and would then exist in neither.
+   */
+  pauseDraining(): void {
+    this.drainingPaused = true;
+  }
+
+  resumeDraining(): void {
+    this.drainingPaused = false;
+  }
+
+  get isDrainingPaused(): boolean {
+    return this.drainingPaused;
+  }
+
+  /** Register the in-flight rebuild so shutdown can await ONE bounded promise covering both. */
+  trackRebuild<T>(rebuild: Promise<T>): Promise<T> {
+    this.activeRebuild = rebuild;
+    return rebuild.finally(() => {
+      this.activeRebuild = null;
+    }) as Promise<T>;
+  }
+
+  /**
+   * Await quiescence: the in-flight drain AND any in-flight rebuild.
+   *
+   * Shutdown needs a single thing to wait on. Waiting only on `drain()` would return immediately while
+   * a rebuild was mid-populate, and closing the store underneath it is how a candidate generation ends
+   * up half-written.
+   */
+  async whenIdle(): Promise<void> {
+    // Looped because finishing a rebuild can leave a drain outstanding and vice versa; bounded by the
+    // fact that neither restarts itself.
+    for (let i = 0; i < 8; i += 1) {
+      const inFlight = [this.activeDrain, this.activeRebuild].filter(Boolean) as Promise<unknown>[];
+      if (inFlight.length === 0) return;
+      await Promise.allSettled(inFlight);
+    }
+  }
+
+  /**
+   * Discard everything pending.
+   *
+   * **Not for use after a rebuild activates.** A candidate is built from a snapshot, so the queue can
+   * hold mutations that postdate it; clearing them on activation silently loses the user's most recent
+   * changes. That is what the delta journal exists to prevent — replay the journal, then let the queue
+   * drain normally against the new generation.
+   */
   clear(): void {
     this.pending.clear();
   }
 
-  /** Called once a rebuild has re-derived the index from authoritative sources. */
+  /**
+   * Called once a rebuild has re-derived the index from authoritative sources AND its delta has been
+   * replayed. Clearing the flag before the delta is applied would declare an index trustworthy while
+   * it was still missing recent changes.
+   */
   markRebuilt(): void {
     this.rebuildRequired = false;
     this.droppedUpserts = 0;

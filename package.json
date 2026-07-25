@@ -178,6 +178,7 @@
     "verify:semantic-zvec-filter": "tsx scripts/verify-semantic-zvec-filter.mts",
     "verify:semantic-zvec-native-contract": "tsx scripts/verify-semantic-zvec-native-contract.mts",
     "verify:semantic-queue": "tsx scripts/verify-semantic-queue.mts",
+    "verify:semantic-rebuild": "tsx scripts/verify-semantic-rebuild.mts",
     "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts"
   },
   "dependencies": {
