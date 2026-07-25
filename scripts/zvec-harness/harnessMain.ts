@@ -495,22 +495,33 @@ async function run(): Promise<void> {
     manager.call({ type: "insert", collectionId: generation, docs: docs(1200, "doc") }, ZVEC_HOST_TIMEOUTS.writeBatchMs)
   );
 
+  // Protocol v2 replaced the id-only `{ hits }` summary with real rows: `{ docs, truncated,
+  // totalMatched, totalExact }`. These two steps still read `r.hits`, which is now always `undefined`
+  // — so the POSITIVE check (`hits === 0`) silently passed for every run since v2 while asserting
+  // nothing, and only the negative control (`hits !== 0`) failed loudly enough to be noticed. Both now
+  // read the fields the host actually returns, and each asserts the row count AND the total.
+  type QueryReply = { docs: unknown[]; totalMatched: number; totalExact: boolean };
+
   await step("ftsQueryMatches", async () => {
     const r = (await manager.call(
       { type: "query", collectionId: generation, query: { fieldName: "title", fts: { queryString: "automation AND workflow" }, topK: 20 } },
       ZVEC_HOST_TIMEOUTS.queryMs
-    )) as { hits: number };
-    if (r.hits === 0) throw new Error("FTS returned 0 hits for a term the corpus contains");
-    return r;
+    )) as QueryReply;
+    if (!Array.isArray(r.docs)) throw new Error(`query returned no docs array (got ${JSON.stringify(Object.keys(r ?? {}))})`);
+    if (r.docs.length === 0) throw new Error("FTS returned 0 rows for a term the corpus contains");
+    if (!(r.totalMatched > 0)) throw new Error(`FTS matched rows but reported totalMatched=${r.totalMatched}`);
+    return { rows: r.docs.length, totalMatched: r.totalMatched, totalExact: r.totalExact };
   });
 
   await step("ftsNegativeControl", async () => {
     const r = (await manager.call(
       { type: "query", collectionId: generation, query: { fieldName: "title", fts: { queryString: "zzzznonexistentterm" }, topK: 20 } },
       ZVEC_HOST_TIMEOUTS.queryMs
-    )) as { hits: number };
-    if (r.hits !== 0) throw new Error(`expected 0 hits for an absent term, got ${r.hits}`);
-    return r;
+    )) as QueryReply;
+    if (!Array.isArray(r.docs)) throw new Error(`query returned no docs array (got ${JSON.stringify(Object.keys(r ?? {}))})`);
+    if (r.docs.length !== 0) throw new Error(`expected 0 rows for an absent term, got ${r.docs.length}`);
+    if (r.totalMatched !== 0) throw new Error(`expected totalMatched=0 for an absent term, got ${r.totalMatched}`);
+    return { rows: r.docs.length, totalMatched: r.totalMatched };
   });
 
   await step("vectorQuery", async () =>
