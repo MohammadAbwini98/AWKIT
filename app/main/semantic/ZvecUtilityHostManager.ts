@@ -164,7 +164,11 @@ export class ZvecUtilityHostManager {
       try {
         child = utilityProcess.fork(this.opts.hostPath, [], {
           stdio: "pipe",
-          env: this.opts.env ?? process.env
+          // The host fixes its approved root from this at process start and then confines every
+          // request beneath it. Passing the root here (rather than per request) is what keeps a
+          // single validation gap from being able to redirect the host, and is also what lets the
+          // user's configured runtime data location be honoured instead of a hard-coded path.
+          env: { ...(this.opts.env ?? process.env), AWKIT_SEMANTIC_RUNTIME_ROOT: this.opts.runtimeRoot }
         });
       } catch (error) {
         this.state = "degraded";

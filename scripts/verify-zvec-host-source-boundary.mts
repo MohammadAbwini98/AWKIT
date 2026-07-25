@@ -116,6 +116,14 @@ if (existsSync(hostPath)) {
   check("host is CommonJS (uses require, not import)", host.includes('require("@zvec/zvec")') && !/^\s*import\s/m.test(host));
   check("host requires Zvec from its own module root", host.includes('require("@zvec/zvec")'));
   check("host re-implements path confinement independently", host.includes("SEMANTIC_PATH_OUTSIDE_APPROVED_ROOT"));
+  // The approved root must come from the fork environment (so the user's configured runtime data
+  // location is honoured) but be fixed ONCE at process start, never taken per request — a
+  // per-request root would let one validation gap redirect the host anywhere.
+  check("host takes its runtime root from the fork environment", host.includes("AWKIT_SEMANTIC_RUNTIME_ROOT"));
+  check(
+    "host fixes the approved root at module scope, not per request",
+    /const\s+APPROVED_ROOT\s*=/.test(host) && !/function[^]*?AWKIT_SEMANTIC_RUNTIME_ROOT/.test(host.split("const APPROVED_ROOT")[1] ?? "")
+  );
   check("host refuses to run outside a utilityProcess", host.includes("process.parentPort"));
   // A test-only abort must never ship enabled; it is gated behind an env var the harness sets.
   const hasAbort = host.includes("__testAbort");

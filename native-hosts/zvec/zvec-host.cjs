@@ -31,13 +31,18 @@ const zvec = require("@zvec/zvec");
  * §7.1 — the main process resolves generation paths, and the host independently re-verifies them.
  * A host that trusted the caller would turn any future IPC validation gap into arbitrary
  * filesystem access, so this check is deliberately duplicated rather than shared.
+ *
+ * The root is fixed ONCE at process start, from the environment the manager forks with. It is
+ * deliberately not taken per request: a per-request root would let a single validation gap point the
+ * host anywhere, whereas a start-time root means no individual request can ever escape it. It is
+ * also required for correctness — AWKIT lets the user configure its runtime data location, so a
+ * hard-coded %LOCALAPPDATA% path silently ignored that setting.
  */
-const APPROVED_ROOT = path.resolve(
-  process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || ".", "AppData", "Local"),
-  "SpecterStudio",
-  "semantic-index",
-  "generations"
+const SEMANTIC_RUNTIME_ROOT = path.resolve(
+  process.env.AWKIT_SEMANTIC_RUNTIME_ROOT ||
+    path.join(process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || ".", "AppData", "Local"), "SpecterStudio")
 );
+const APPROVED_ROOT = path.join(SEMANTIC_RUNTIME_ROOT, "semantic-index", "generations");
 
 function assertConfinedPath(candidate) {
   if (typeof candidate !== "string" || candidate.length === 0) {
