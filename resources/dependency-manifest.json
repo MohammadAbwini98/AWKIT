@@ -8,7 +8,7 @@
                         "name":  "SpecterStudio",
                         "version":  "0.1.0",
                         "buildMode":  "production-offline",
-                        "builtAt":  "2026-07-25T18:29:43.0429755Z"
+                        "builtAt":  "2026-07-25T19:30:19.7771480Z"
                     },
     "offline":  {
                     "internetRequired":  false,
@@ -92,7 +92,7 @@
                            "platform":  "win32",
                            "arch":  "x64",
                            "stagedRoot":  "native-hosts/zvec",
-                           "totalBytes":  39413306,
+                           "totalBytes":  39414720,
                            "assets":  [
                                           {
                                               "relativePath":  "native-hosts/zvec/node_modules/@zvec/bindings-win32-x64/LICENSE",
@@ -176,8 +176,8 @@
                                           },
                                           {
                                               "relativePath":  "native-hosts/zvec/zvec-host.cjs",
-                                              "size":  23458,
-                                              "sha256":  "9fb14ad3688056fa6f95b65002a8876a2ca601771f47717d9c7ed4e55247acdc"
+                                              "size":  24872,
+                                              "sha256":  "9bd52f89674ecf288ec475141908c63de8744b004f2ba725fb5910d07bfa63ad"
                                           }
                                       ]
                        }
