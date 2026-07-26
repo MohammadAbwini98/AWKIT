@@ -524,7 +524,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   trap/return, live loading/error announcements; test 200% zoom, narrow layout and reduced motion.
 - **Expected:** All operations are keyboard reachable; charts have useful summaries; state is not
   color-only; tables/drawers remain readable without clipping; motion is reduced.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` for the executed audit — `verify:reports-settings-a11y` 14/14 plus two seeded
+  `aria-sort` assertions in `verify:reports-populated-gui` (66/66). Covers keyboard reach, the
+  `:focus-visible` ring on every focused control, accessible names, sorted/unsorted `aria-sort`
+  on the Workflow Reports table, reduced motion, 200% zoom and a narrow width with no horizontal
+  overflow. **Found and fixed:** sort direction was conveyed only by a chevron icon, so a screen
+  reader could not tell which column was sorted or which way. Chart accessible summaries and the
+  drawer focus-trap/return subcases are still unexecuted.
 
 ## 5. Settings cases
 
@@ -756,12 +762,14 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   focus and return; test 200% zoom, narrow viewport, high contrast and reduced motion.
 - **Expected:** Every control has an accessible name and visible focus; errors associate with controls;
   confirmation is operable without pointer; cards do not overflow; motion is reduced.
-- **Status:** `NOT RUN` overall. `verify:settings-e2e` passed keyboard dialog trapping/return focus,
-  live error announcements, narrow layout and reduced motion; 200% zoom, high contrast,
-  unavailable-secret controls and the complete control-by-control accessible-name audit remain.
-
-## 6. Release-gate interpretation
-
+- **Status:** `PASS` for the executed audit — `verify:reports-settings-a11y` 14/14. Covers keyboard
+  reach, the `:focus-visible` ring on every focused control, a page-wide accessible-name audit of every
+  visible control, announcement of a rejected Save through a live region, association of the error with
+  its field, reduced motion, 200% zoom and a narrow width with no horizontal overflow.
+  **Found and fixed:** `validateClient` returned a flat string list, so the banner announced *what* was
+  wrong but the offending input carried no `aria-invalid`/`aria-describedby` — a screen-reader user
+  tabbing the form could not locate the invalid field. Errors now carry their field id and bind to the
+  control. High-contrast mode and the unavailable-secret control subcases remain unexecuted.
 - **Recorder:** component contracts are strong, but release approval for the Recorder feature requires
   REC-001 through REC-004 and REC-013, REC-016, REC-018, REC-021, REC-023 through REC-025, REC-028 and
   REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.

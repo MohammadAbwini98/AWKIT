@@ -131,14 +131,25 @@ export function ReportsWorkflows() {
     });
   };
 
-  const SortHeader = ({ label, col, numeric }: { label: string; col: SortKey; numeric?: boolean }) => (
-    <th className={numeric ? "awkit-th-numeric" : ""}>
-      <button type="button" className="awkit-sort-header" onClick={() => toggleSort(col)}>
-        {label}
-        {sort.key === col ? sort.dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} /> : null}
-      </button>
-    </th>
-  );
+  // Sort state must reach assistive tech, not only the sighted user: the chevron below is an icon
+  // with no accessible text, so without `aria-sort` a screen-reader user cannot tell which column is
+  // sorted or in which direction (SYS-REP-016). `aria-sort` belongs on the header cell, and every
+  // other sortable column must say "none" rather than omit the attribute.
+  const SortHeader = ({ label, col, numeric }: { label: string; col: SortKey; numeric?: boolean }) => {
+    const active = sort.key === col;
+    const ariaSort = active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+    return (
+      <th className={numeric ? "awkit-th-numeric" : ""} aria-sort={ariaSort}>
+        {/* No aria-label here on purpose: `aria-sort` on the cell is the correct ARIA mechanism for
+            sort state, and an aria-label would REPLACE the button's natural accessible name (the
+            column title) with a sentence a screen-reader user would hear on every cell. */}
+        <button type="button" className="awkit-sort-header" onClick={() => toggleSort(col)}>
+          {label}
+          {active ? sort.dir === "asc" ? <ChevronUp size={13} /> : <ChevronDown size={13} /> : null}
+        </button>
+      </th>
+    );
+  };
 
   const modeOptions = distinct(machines ?? [], (m) => m.executionMode);
   const poolOptions = distinct(machines ?? [], (m) => m.browserPoolMode);

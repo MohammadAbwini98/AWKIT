@@ -665,6 +665,28 @@ try {
     ascending[0]?.includes("Beta") && descending[0]?.includes("Alpha"),
     `${ascending[0]} / ${descending[0]}`
   );
+  // SYS-REP-016: sort direction was previously conveyed ONLY by a chevron icon with no accessible
+  // text, so a screen-reader user could not tell which column was sorted or which way. `aria-sort`
+  // belongs on the header cell; every other sortable column must say "none" rather than omit it.
+  const sortState = await win.evaluate(() =>
+    Array.from(document.querySelectorAll("button.awkit-sort-header")).map((b) => ({
+      label: (b.textContent || "").trim().slice(0, 20),
+      ariaSort: b.closest("th")?.getAttribute("aria-sort") ?? null
+    }))
+  );
+  // Assert a DEFINITE direction rather than a specific one: which of asc/desc this lands on depends
+  // on the click bookkeeping above (toggleSort opens a new column at "desc"), and hardcoding it here
+  // would make this check fail for a reason that has nothing to do with the ARIA contract.
+  check(
+    "SYS-REP-016 the sorted column exposes aria-sort, not an icon alone",
+    sortState.some((c) => c.ariaSort === "ascending" || c.ariaSort === "descending"),
+    sortState.map((c) => `${c.label}=${c.ariaSort ?? "MISSING"}`).join(" | ")
+  );
+  check(
+    "SYS-REP-016 unsorted columns expose aria-sort=none rather than omitting it",
+    sortState.length > 1 && sortState.filter((c) => c.ariaSort === "none").length === sortState.length - 1,
+    sortState.map((c) => c.ariaSort ?? "MISSING").join(",")
+  );
   await win.getByLabel("Filter by machine").selectOption("fixture-machine-A");
   await win.waitForTimeout(500);
   const filtered = await win.locator(".awkit-report-panel .awkit-table tbody tr").allTextContents();

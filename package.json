@@ -186,7 +186,8 @@
     "verify:semantic-queue": "tsx scripts/verify-semantic-queue.mts",
     "verify:semantic-rebuild": "tsx scripts/verify-semantic-rebuild.mts",
     "verify:semantic-rebuild-live": "tsx scripts/verify-semantic-rebuild-live.mts",
-    "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts"
+    "verify:source-hygiene": "tsx scripts/verify-source-hygiene.mts",
+    "verify:reports-settings-a11y": "tsx scripts/verify-reports-settings-a11y.mts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

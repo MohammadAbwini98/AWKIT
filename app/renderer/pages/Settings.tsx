@@ -72,37 +72,44 @@ const PATH_FIELDS: { key: keyof UiSettings["paths"]; label: string }[] = [
   { key: "downloadsPath", label: "Downloads" }
 ];
 
+/**
+ * A validation error the UI can ATTACH to its control. A flat string list announces the problem in
+ * the banner but leaves the offending input unmarked, so a screen-reader user tabbing the form gets
+ * no indication which field is wrong (SET-021). `field` is the id of the input it belongs to.
+ */
+type FieldError = { field: string; message: string };
+
 /** Mirror of the main-process validation so the user gets inline errors before save. */
-function validateClient(settings: UiSettings): string[] {
-  const errors: string[] = [];
+function validateClient(settings: UiSettings): FieldError[] {
+  const errors: FieldError[] = [];
   const d = settings.designerDefaults;
   const e = settings.execution;
-  if (!(d.defaultZoomPercent >= 25 && d.defaultZoomPercent <= 200)) errors.push("Default zoom must be between 25 and 200.");
-  if (!(d.defaultNodeWidth > 0)) errors.push("Default node width must be positive.");
-  if (!(d.defaultNodeHeight > 0)) errors.push("Default node height must be positive.");
-  for (const [v, label] of [
-    [e.maxRuns, "Maximum runs"],
-    [e.maxConcurrentRuns, "Maximum concurrent runs"],
-    [e.defaultRuns, "Default runs"],
-    [e.defaultConcurrentRuns, "Default concurrent runs"]
-  ] as [number, string][]) {
-    if (!Number.isInteger(v) || v < 1) errors.push(`${label} must be a positive integer.`);
+  if (!(d.defaultZoomPercent >= 25 && d.defaultZoomPercent <= 200)) errors.push({ field: "set-designer-zoom", message: "Default zoom must be between 25 and 200." });
+  if (!(d.defaultNodeWidth > 0)) errors.push({ field: "set-designer-width", message: "Default node width must be positive." });
+  if (!(d.defaultNodeHeight > 0)) errors.push({ field: "set-designer-height", message: "Default node height must be positive." });
+  for (const [v, label, fieldId] of [
+    [e.maxRuns, "Maximum runs", "set-exec-maxRuns"],
+    [e.maxConcurrentRuns, "Maximum concurrent runs", "set-exec-maxConcurrentRuns"],
+    [e.defaultRuns, "Default runs", "set-exec-defaultRuns"],
+    [e.defaultConcurrentRuns, "Default concurrent runs", "set-exec-defaultConcurrentRuns"]
+  ] as [number, string, string][]) {
+    if (!Number.isInteger(v) || v < 1) errors.push({ field: fieldId, message: `${label} must be a positive integer.` });
   }
-  if (e.defaultRuns > e.maxRuns) errors.push("Default runs cannot exceed maximum runs.");
-  if (e.defaultConcurrentRuns > e.maxConcurrentRuns) errors.push("Default concurrent runs cannot exceed maximum concurrent runs.");
-  if (e.defaultConcurrentRuns > e.defaultRuns) errors.push("Default concurrent runs cannot exceed default runs.");
-  if (e.maxConcurrentRuns > e.maxRuns) errors.push("Maximum concurrent runs cannot exceed maximum runs.");
+  if (e.defaultRuns > e.maxRuns) errors.push({ field: "set-exec-defaultRuns", message: "Default runs cannot exceed maximum runs." });
+  if (e.defaultConcurrentRuns > e.maxConcurrentRuns) errors.push({ field: "set-exec-defaultConcurrentRuns", message: "Default concurrent runs cannot exceed maximum concurrent runs." });
+  if (e.defaultConcurrentRuns > e.defaultRuns) errors.push({ field: "set-exec-defaultConcurrentRuns", message: "Default concurrent runs cannot exceed default runs." });
+  if (e.maxConcurrentRuns > e.maxRuns) errors.push({ field: "set-exec-maxConcurrentRuns", message: "Maximum concurrent runs cannot exceed maximum runs." });
   const r = settings.runtime;
-  if (!["sequential", "auto", "manual"].includes(r.capacityMode)) errors.push("Capacity mode must be sequential, auto, or manual.");
-  if (!["light", "medium", "heavy", "custom"].includes(r.workloadClass)) errors.push("Workload class must be light, medium, heavy, or custom.");
-  if (!Number.isInteger(r.maxBrowsers) || r.maxBrowsers < 1 || r.maxBrowsers > 16) errors.push("Max browsers must be an integer between 1 and 16.");
-  if (!Number.isInteger(r.maxActiveFlows) || r.maxActiveFlows < 1 || r.maxActiveFlows > 64) errors.push("Max active flows must be an integer between 1 and 64.");
-  if (!Number.isInteger(r.absoluteSafetyMaximum) || r.absoluteSafetyMaximum < 1 || r.absoluteSafetyMaximum > 256) errors.push("Absolute safety maximum must be an integer between 1 and 256.");
-  if (!(typeof r.capacitySafetyFactor === "number" && r.capacitySafetyFactor >= 0.1 && r.capacitySafetyFactor <= 1)) errors.push("Capacity safety factor must be between 0.1 and 1.");
-  if (!Number.isInteger(r.reservedLogicalCpuCount) || r.reservedLogicalCpuCount < 0 || r.reservedLogicalCpuCount > 64) errors.push("Reserved logical CPU count must be an integer between 0 and 64.");
-  if (r.administratorMaximumConcurrency !== null && (!Number.isInteger(r.administratorMaximumConcurrency) || r.administratorMaximumConcurrency < 1)) errors.push("Administrator maximum concurrency must be a positive integer or unset.");
+  if (!["sequential", "auto", "manual"].includes(r.capacityMode)) errors.push({ field: "set-runtime-capacityMode", message: "Capacity mode must be sequential, auto, or manual." });
+  if (!["light", "medium", "heavy", "custom"].includes(r.workloadClass)) errors.push({ field: "set-runtime-workloadClass", message: "Workload class must be light, medium, heavy, or custom." });
+  if (!Number.isInteger(r.maxBrowsers) || r.maxBrowsers < 1 || r.maxBrowsers > 16) errors.push({ field: "set-runtime-maxBrowsers", message: "Max browsers must be an integer between 1 and 16." });
+  if (!Number.isInteger(r.maxActiveFlows) || r.maxActiveFlows < 1 || r.maxActiveFlows > 64) errors.push({ field: "set-runtime-maxActiveFlows", message: "Max active flows must be an integer between 1 and 64." });
+  if (!Number.isInteger(r.absoluteSafetyMaximum) || r.absoluteSafetyMaximum < 1 || r.absoluteSafetyMaximum > 256) errors.push({ field: "set-runtime-absoluteSafetyMaximum", message: "Absolute safety maximum must be an integer between 1 and 256." });
+  if (!(typeof r.capacitySafetyFactor === "number" && r.capacitySafetyFactor >= 0.1 && r.capacitySafetyFactor <= 1)) errors.push({ field: "set-runtime-capacitySafetyFactor", message: "Capacity safety factor must be between 0.1 and 1." });
+  if (!Number.isInteger(r.reservedLogicalCpuCount) || r.reservedLogicalCpuCount < 0 || r.reservedLogicalCpuCount > 64) errors.push({ field: "set-runtime-reservedLogicalCpuCount", message: "Reserved logical CPU count must be an integer between 0 and 64." });
+  if (r.administratorMaximumConcurrency !== null && (!Number.isInteger(r.administratorMaximumConcurrency) || r.administratorMaximumConcurrency < 1)) errors.push({ field: "set-runtime-administratorMaximumConcurrency", message: "Administrator maximum concurrency must be a positive integer or unset." });
   for (const { key, label } of PATH_FIELDS) {
-    if (!settings.paths[key]?.trim()) errors.push(`${label} path must not be empty.`);
+    if (!settings.paths[key]?.trim()) errors.push({ field: `set-path-${key}`, message: `${label} path must not be empty.` });
   }
   return errors;
 }
@@ -113,7 +120,7 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<UiSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [pathStatus, setPathStatus] = useState<PathStatus>({});
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<FieldError[]>([]);
   const [banner, setBanner] = useState<Banner>(null);
   /** Gate for the "Ignore invalid HTTPS certificates" confirmation (shown only when ENABLING). */
   const [confirmIgnoreHttps, setConfirmIgnoreHttps] = useState(false);
@@ -227,6 +234,18 @@ export function SettingsPage() {
     if (!settings) return;
     void loadCapacity(workloadClass);
   }, [settings ? true : false, workloadClass, loadCapacity]);
+
+  /**
+   * Bind a validation error to its control. The banner alone announces WHAT is wrong but not WHICH
+   * field, so a keyboard/screen-reader user tabbing the form cannot find it (SET-021).
+   */
+  const fieldError = useCallback(
+    (field: string) => {
+      const err = errors.find((e) => e.field === field);
+      return err ? { "aria-invalid": true as const, "aria-describedby": `${field}-error` } : {};
+    },
+    [errors]
+  );
 
   const patch = useCallback(
     <S extends "designerDefaults" | "execution" | "paths" | "runtime">(section: S, key: keyof UiSettings[S], value: unknown) => {
@@ -429,7 +448,9 @@ export function SettingsPage() {
             <strong>Validation:</strong>
             <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
               {errors.map((err) => (
-                <li key={err}>{err}</li>
+                <li key={`${err.field}:${err.message}`} id={`${err.field}-error`}>
+                  {err.message}
+                </li>
               ))}
             </ul>
           </div>
@@ -592,15 +613,15 @@ export function SettingsPage() {
           <div className="settings-grid">
             <label>
               Default zoom (%)
-              <input type="number" min={25} max={200} step={10} value={d.defaultZoomPercent} onChange={(ev) => patch("designerDefaults", "defaultZoomPercent", Number(ev.target.value))} />
+              <input id="set-designer-zoom" {...fieldError("set-designer-zoom")} type="number" min={25} max={200} step={10} value={d.defaultZoomPercent} onChange={(ev) => patch("designerDefaults", "defaultZoomPercent", Number(ev.target.value))} />
             </label>
             <label>
               Default node width (px)
-              <input type="number" min={1} value={d.defaultNodeWidth} onChange={(ev) => patch("designerDefaults", "defaultNodeWidth", Number(ev.target.value))} />
+              <input id="set-designer-width" {...fieldError("set-designer-width")} type="number" min={1} value={d.defaultNodeWidth} onChange={(ev) => patch("designerDefaults", "defaultNodeWidth", Number(ev.target.value))} />
             </label>
             <label>
               Default node height (px)
-              <input type="number" min={1} value={d.defaultNodeHeight} onChange={(ev) => patch("designerDefaults", "defaultNodeHeight", Number(ev.target.value))} />
+              <input id="set-designer-height" {...fieldError("set-designer-height")} type="number" min={1} value={d.defaultNodeHeight} onChange={(ev) => patch("designerDefaults", "defaultNodeHeight", Number(ev.target.value))} />
             </label>
           </div>
         </section>
@@ -614,19 +635,19 @@ export function SettingsPage() {
           <div className="settings-grid">
             <label>
               Maximum runs
-              <input type="number" min={1} value={e.maxRuns} onChange={(ev) => patch("execution", "maxRuns", Number(ev.target.value))} />
+              <input id="set-exec-maxRuns" {...fieldError("set-exec-maxRuns")} type="number" min={1} value={e.maxRuns} onChange={(ev) => patch("execution", "maxRuns", Number(ev.target.value))} />
             </label>
             <label>
               Maximum concurrent runs
-              <input type="number" min={1} value={e.maxConcurrentRuns} onChange={(ev) => patch("execution", "maxConcurrentRuns", Number(ev.target.value))} />
+              <input id="set-exec-maxConcurrentRuns" {...fieldError("set-exec-maxConcurrentRuns")} type="number" min={1} value={e.maxConcurrentRuns} onChange={(ev) => patch("execution", "maxConcurrentRuns", Number(ev.target.value))} />
             </label>
             <label>
               Default runs
-              <input type="number" min={1} value={e.defaultRuns} onChange={(ev) => patch("execution", "defaultRuns", Number(ev.target.value))} />
+              <input id="set-exec-defaultRuns" {...fieldError("set-exec-defaultRuns")} type="number" min={1} value={e.defaultRuns} onChange={(ev) => patch("execution", "defaultRuns", Number(ev.target.value))} />
             </label>
             <label>
               Default concurrent runs
-              <input type="number" min={1} value={e.defaultConcurrentRuns} onChange={(ev) => patch("execution", "defaultConcurrentRuns", Number(ev.target.value))} />
+              <input id="set-exec-defaultConcurrentRuns" {...fieldError("set-exec-defaultConcurrentRuns")} type="number" min={1} value={e.defaultConcurrentRuns} onChange={(ev) => patch("execution", "defaultConcurrentRuns", Number(ev.target.value))} />
             </label>
             <label>
               Default run mode

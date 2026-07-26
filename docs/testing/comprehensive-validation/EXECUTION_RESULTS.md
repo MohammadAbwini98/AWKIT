@@ -102,13 +102,47 @@ This closes a genuine evidence-integrity hole: every prior packaged result was o
 whoever remembered to repackage first, and nothing in the suite would have said otherwise. It is the
 same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 
+### Reports + Settings accessibility (SYS-REP-016, SET-021) — 2026-07-26
+
+Both cases were wholly `NOT RUN`. New `npm run verify:reports-settings-a11y` (real Electron, isolated
+profile) is **14 PASS / 0 FAIL / 1 NOT RUN**, and two seeded `aria-sort` assertions were added to
+`verify:reports-populated-gui` (64 → **66**).
+
+Covered: keyboard reach; the `:focus-visible` ring on every focused control (driven with real `Tab`
+presses — `.focus()` would never match the selector the ring uses); accessible names; `aria-sort` on
+sorted and unsorted columns; announcement of a rejected Save through a live region; association of the
+error with its field; reduced motion; 200% zoom and a narrow width with no horizontal overflow.
+
+**Two product defects found and fixed:**
+
+1. **Sort state was icon-only.** `ReportsWorkflows.SortHeader` signalled direction with a chevron and
+   no accessible text, so a screen-reader user could not tell which column was sorted or which way.
+   `aria-sort` now sits on the header cell — `ascending`/`descending` on the active column, `none` on
+   the rest. An `aria-label` was tried first and **reverted**: it replaced the button's natural name
+   (the column title) with a sentence, which is worse for table navigation and broke an existing
+   selector. `aria-sort` on the cell is the correct mechanism.
+2. **Validation errors were not associated with their fields.** `validateClient` returned a flat
+   `string[]`, so the banner announced *what* was wrong while the offending input carried no
+   `aria-invalid`/`aria-describedby` — a user tabbing the form could not find it. Errors now carry a
+   field id and bind to the control.
+
+**Explicitly still unexecuted:** chart accessible summaries and the drawer focus-trap/return subcases
+(SYS-REP-016); high-contrast mode and unavailable-secret controls (SET-021). One check reports
+`NOT RUN` by design — Workflow Reports renders its EmptyState on a fresh profile, so the `aria-sort`
+audit runs against seeded data in `verify:reports-populated-gui` instead.
+
+**Regressions re-run:** `verify:reports-populated-gui` 66/66 · `verify:settings-e2e` 116/116 ·
+`verify:reports` 31/31 · `verify:settings-persistence` 3/3 · `verify:e2e-rbac` 51/51 ·
+`verify:verifier-classification` reconciled at **138** (four verifiers were unregistered, three of
+them pre-existing) · `npm run build` and both typechecks PASS.
+
 ## Specialized suite results
 
 | Suite | Result |
 | --- | ---: |
 | Script type-check | `PASS` |
 | Production build | `PASS` |
-| Verifier classification reconciliation | `PASS` — 134 classified: 1 documentation, 7 static, 50 unit, 27 integration, 41 real-browser, 8 packaged |
+| Verifier classification reconciliation | `PASS` — **138** classified: 1 documentation, 7 static, 50 unit, 27 integration, **45** real-browser, 8 packaged |
 | Runner | `PASS` — **89/89** (84 + 5 manual-approval regressions) |
 | Waits | `PASS` — 56/56 |
 | Popup | `PASS` — 12/12 |
@@ -127,7 +161,7 @@ same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 | Telemetry | `PASS` — 61/61 |
 | Observability | `PASS` — 65/65 |
 | Reports GUI | `PASS` — 31/31 |
-| Populated Reports GUI | `PASS` — **64/64** after fixes (pre-fix 44/57) |
+| Populated Reports GUI | `PASS` — **66/66** (64 + 2 `aria-sort` assertions for SYS-REP-016) |
 | Recorder capture/locator/Smart Wait | `PASS` — 78/78 |
 | Recorder flow conversion | `PASS` — 19/19 |
 | Recorder draft/URL persistence | `PASS` — 17/17 |
