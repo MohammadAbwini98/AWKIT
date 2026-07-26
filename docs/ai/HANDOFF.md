@@ -1,5 +1,22 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): REC-018 is complete — Recorder E2E 41/41
+
+The decisive Recorder release gate is now executed, not inferred from component suites.
+`npm run verify:recorder-e2e` drives the real Electron Recorder controls, bundled Chromium, Stop,
+Save to Flow Library, full restart/reopen, production `ExecutionEngine`, Flow Designer no-op save,
+and a second production replay. Result: **41 PASS / 0 FAIL**. Evidence:
+`test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
+
+The fixture stays inert during replay; a resettable mock-site oracle is cleared after capture and
+before each run, so only the replayed actions can submit the fixed synthetic target values. Both
+runs completed all eight nodes in order and wrote valid JSONL logs, reports, and recovery state.
+No authentication secret entered those artifacts. No protected-login control was exercised or
+bypassed.
+
+Regressions: mock site 90/90, Recorder locator/Smart Wait 78/0, flow conversion 19/19, draft/URL
+17/17, script type-check and production build pass.
+
 ## ACTIVE (2026-07-26, latest): AWKIT-E2E-001 fixed — comprehensive campaign 9/9
 
 Phase 0-1 of `docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is done.
@@ -40,10 +57,10 @@ stop you rather than let you publish a misleading pass.
 
 ### Remaining work, in priority order
 
-1. **The 46 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. `REC-018` (Recorder page →
-   browser → record → Stop → Save → reopen → production replay) is the decisive one; component suites
-   being green does not certify the journey. Beads: `awkit-gi2` (REC-018, P1), `awkit-az7` (Reports),
-   `awkit-8ri` (Settings).
+1. **The remaining 45 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. REC-018 is now
+   PASS; populated Reports and complete Settings journeys are next. Beads: `awkit-az7` (Reports),
+   `awkit-8ri` (Settings). Bead `awkit-gi2` can be closed when the user-owned Beads changes are
+   reconciled; this work deliberately did not modify `.beads/*`.
 2. **`ORA-LIVE-001`** (bead `awkit-7bu`) — needs an authorized operator with SYSDBA and an
    out-of-band ephemeral `SPECTER_READER` password. Not agent-actionable; do not let it block the rest.
 3. **Beads hygiene** — `bd ready` is stale against `main` (it still lists `awkit-oyc` and `awkit-ebh`,
@@ -135,10 +152,9 @@ The comprehensive package now includes
 with exact preconditions, steps, expected outcomes, safety boundaries, evidence mapping, and honest
 execution status.
 
-Recorder's underlying engines are heavily covered and green, but do not call the whole feature
-certified: REC-018 (Recorder page → browser → record → Stop → Save → reopen → production replay)
-remains `NOT RUN`. Reports still need populated GUI/drill-down/export authorization checks, and
-Settings still needs paths/general validation/Secrets GUI/import-reset-data-safety/accessibility.
+Recorder's decisive REC-018 journey is now PASS at 41/41 with restart, two production replays and a
+Flow Designer round-trip. Reports still need populated GUI/drill-down/export authorization checks,
+and Settings still needs paths/general validation/Secrets GUI/import-reset-data-safety/accessibility.
 Manual protected-login completion stays `BLOCKED`; no CAPTCHA/MFA/security control was bypassed.
 
 ## ACTIVE (2026-07-26): Oracle Data Source → row-driven browser workflow complete

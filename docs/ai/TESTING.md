@@ -44,7 +44,12 @@ remain structural and legacy workflows remain compatible.
 - `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — live Chromium checks for recorder
   locator generation, runner locator safeguards/fallbacks, and Smart Wait recorder observation
   (safe fetch/XHR path-only signals, loader disappearance, URL changes, table/list/card waits, toast,
-  enabled controls, polling ignored, fixed-delay fallback). As of the last run: **57 checks pass**.
+  enabled controls, polling ignored, fixed-delay fallback). As of the last run: **78 checks pass**.
+- `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
+  an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
+  Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable
+  target-state oracle, Flow Designer no-op save, and a second replay. **41/41** as of 2026-07-26;
+  evidence under `test-artifacts/recorder-e2e/<timestamp>/`.
 - `scripts/verify-recorder-draft.mts` (`npm run verify:recorder-draft`) — browser-free recorder draft,
   URL-history, legacy wait-time, and smart-wait compatibility checks. As of the last run: **17 checks pass**.
 - `scripts/verify-waits.mts` (`npm run verify:waits`) — Smart Wait runner checks for before/after waits,

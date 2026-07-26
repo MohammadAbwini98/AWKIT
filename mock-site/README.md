@@ -44,6 +44,7 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 | `/api/delay?ms=300` | Runner/Smart Wait response waits | Returns local JSON after a bounded deterministic delay. |
 | `/api/status?code=500&ms=0` | Response status vs timeout | Returns the requested status from an allow-list (200, 201, 202, 204, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504; anything else falls back to 500). No 3xx, so it can never act as an open redirect. Optional bounded `ms` delay. |
 | `/api/results?mode=populated&ms=300` | Empty-result completion contracts | `mode=populated` returns three fixed rows; `mode=empty` returns HTTP 200 with zero rows. Both are successes — only the UI outcome differs. |
+| `/api/rec018/state`, `/api/rec018/reset`, `POST /api/rec018/submit` | REC-018 replay equivalence | Resettable, in-memory oracle for the fixed synthetic Recorder-lab form. The verifier resets it after capture; a later matching submission proves the inert fixture was completed by production replay. It accepts no credentials, cookies, headers, or session state. |
 
 ## Using it with Recorder
 

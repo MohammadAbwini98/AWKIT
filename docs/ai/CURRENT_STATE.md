@@ -1,27 +1,29 @@
 # CURRENT_STATE
 
-## REC-018 capture harness built and proven; Electron verifier still to come (2026-07-26, current)
+## REC-018 complete — real Recorder save/restart/replay gate is 41/41 (2026-07-26, current)
 
-`/recorder-lab?rec018=1` now self-drives the basic form so the REC-018 journey can be recorded without
-a human at the keyboard. Bead `awkit-gi2` carries the full design for the remaining verifier.
+`scripts/verify-recorder-e2e.mjs` now proves the decisive Recorder journey in a real Electron app on
+an isolated first-run profile: Recorder page → bundled Chromium → six recorded steps → Stop → Save to
+Flow Library → full app restart on the same data root → visible Flow Library reopen → production
+`ExecutionEngine` replay → Flow Designer open/no-op save → second production replay.
 
-**The design point that matters.** The harness is double-gated on `?rec018=1` **and**
-`window.__awtkit_recordAction` — the binding `RecorderService` exposes only while a recording session
-is attached. Gate 2 is what will keep the eventual replay assertion honest: during a production
-`ExecutionEngine` replay there is no Recorder and no binding, so the harness stays inert and the form
-can only be filled by the replayed steps. Without it the fixture would fill its own form during replay
-and REC-018 would pass while proving nothing.
+**Replay honesty is negative-controlled.** `/recorder-lab?rec018=1` remains double-gated on the query
+and the Recorder-only `window.__awtkit_recordAction` binding. A resettable in-memory mock-site oracle
+records only the fixed synthetic form values. The verifier resets it after capture and before each
+run; because the page harness is inert during production replay, the matching server-side submission
+can only be produced by the replayed `goto,fill,fill,select,check,click` sequence.
 
-Events are dispatched with `dispatchEvent`; the Recorder's init script listens via `addEventListener`
-and does not filter on `isTrusted` (`src/recorder/recorderInitScript.ts` ~1090), so they are captured
-like user-generated events. Bounded and deterministic: 5 steps, 400 ms + 200 ms each.
+**Result:** `npm run verify:recorder-e2e` **41 PASS / 0 FAIL**. Both runs completed every node in exact
+order, wrote valid JSONL logs, run reports and recovery state, reproduced the expected target values,
+and excluded the authentication password from reports/logs. The designer round-trip preserved
+Recorder locator/value/wait metadata and node/connector order. Evidence:
+`test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
 
-**Verified:** `verify:mock-site` **88/88** (was 84 — all three harness branches asserted, including
-the inert one), `verify:recorder` 78/0 unaffected, `verify:recorder-draft` pass, `npm run build` pass,
-`check-memory` pass.
-
-**Still NOT RUN — REC-018 itself.** `scripts/verify-recorder-e2e.mjs` does not exist yet; the fixture
-is a prerequisite, not the gate. Recorder remains uncertified.
+Regressions: `verify:mock-site` **90/90**, `verify:recorder` 78/0, `verify:recorder-flow` 19/19,
+`verify:recorder-draft` 17/17, `typecheck:scripts` and production build pass. The first preflight
+correctly exposed a harness configuration error (isolated `LOCALAPPDATA` hid the developer browser
+cache); the gate now forces the supported production-offline bundled-Chromium path. No product defect
+was found, and no CAPTCHA, MFA, protected login, or security control was bypassed.
 
 ## Phase 2 — Oracle local gates all green; two doc defects withdrawn (2026-07-26)
 
@@ -124,8 +126,9 @@ expected results, safety controls, and `PASS`/`BLOCKED`/`NOT RUN` status.
 - Settings are green for persistence 3/3, capacity GUI 12/12, HTTPS GUI 31/31, accent 33/33,
   branding 30/30, secrets backend 16/16, and Database Drivers GUI 30/30. Paths, general validation,
   Secrets GUI, import/export, reset/data preservation, authorization, and accessibility remain open.
-- The decisive Recorder gap is REC-018: no current verifier proves the complete Electron journey
-  Recorder page → launched browser → actions → Stop → Save → reopen → production replay.
+- REC-018 is now green at 41/41 with restart persistence, two production replays, Flow Designer
+  metadata preservation, and evidence. Other focused Recorder cases retain their individual status;
+  this pass does not infer results for cases it did not execute.
 
 ## Oracle mock-UI fixture (2026-07-26, current)
 

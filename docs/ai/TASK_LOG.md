@@ -6564,3 +6564,26 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   artifacts, their checksums, and the historical reports/logs are unchanged.
 - **Result:** checkpoint stopped as instructed. Promotion is gated on a successful runbook execution
   in a qualifying environment. Nothing pushed; no PR.
+
+## 2026-07-26 — Codex — REC-018 real Recorder E2E gate
+
+- **Task:** resume the comprehensive validation handoff at the decisive missing Recorder journey:
+  Recorder page → browser → capture → Stop → Save → restart/reopen → production replay, then repeat
+  after a Flow Designer save.
+- **Implemented:** `scripts/verify-recorder-e2e.mjs` plus `verify:recorder-e2e`; isolated real Electron
+  first-run/auth, bundled Chromium, rendered Recorder controls, persisted flow/workflow, full restart,
+  Flow Library UI reopen, production `ExecutionEngine`, exact log/report step order, designer
+  metadata comparison, second replay, timestamped screenshots/logs/reports/result ledger.
+- **Honesty control:** added a local resettable `/api/rec018/*` mock-site oracle. It accepts only the
+  fixed synthetic form fields. The fixture remains inert without the Recorder binding; state is reset
+  after capture and before each replay, preventing the page from self-fulfilling the run assertion.
+- **Result:** `verify:recorder-e2e` **41 PASS / 0 FAIL**. Evidence:
+  `test-artifacts/recorder-e2e/2026-07-26T08-55-29-269Z/`.
+- **Regressions:** `verify:mock-site` 90/90, `verify:recorder` 78/0, `verify:recorder-flow` 19/19,
+  `verify:recorder-draft` 17/17, `typecheck:scripts` and production build PASS.
+- **Preflight correction:** an initial run failed because isolated `LOCALAPPDATA` also hid the
+  developer Playwright browser cache. The gate now uses the supported `PRODUCTION_OFFLINE=true`
+  path and therefore validates the bundled browser used by release builds. This was a harness
+  configuration issue, not a product defect.
+- **Security:** no CAPTCHA/MFA/protected login was attempted or bypassed; authentication password was
+  checked absent from run logs/reports. `.beads/*` remained untouched.

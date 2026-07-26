@@ -129,6 +129,24 @@
       var $ = function (id) { return document.getElementById(id); };
       $("recorderSubmit").addEventListener("click", function () {
         $("recorderFormResult").textContent = "Recorder form saved for " + $("recorderFullName").value;
+        // REC-018's resettable server-side oracle proves the production replay reproduced the
+        // business outcome. It is scoped to the explicit test query and carries only fixed,
+        // synthetic form values. `keepalive` lets the request finish when the flow reaches End and
+        // closes its browser context immediately after the click.
+        if (new URLSearchParams(window.location.search).get("rec018") === "1") {
+          var body = new URLSearchParams({
+            fullName: $("recorderFullName").value,
+            email: $("recorderEmail").value,
+            plan: $("recorderPlan").value,
+            newsletter: String($("recorderNewsletter").checked)
+          });
+          window.fetch("/api/rec018/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: body.toString(),
+            keepalive: true
+          }).catch(function () { /* the verifier reports a missing submission */ });
+        }
       });
       $("startManualPause").addEventListener("click", function () {
         var remaining = 3;

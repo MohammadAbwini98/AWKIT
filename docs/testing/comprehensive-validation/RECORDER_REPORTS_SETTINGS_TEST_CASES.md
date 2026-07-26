@@ -220,7 +220,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   sequence, waits, screenshots/logs, and report; repeat after a designer open/save round-trip.
 - **Expected:** Replay reproduces the recorded business outcome; every node completes in order;
   designer save preserves Recorder metadata; report contains no secret values.
-- **Status:** `NOT RUN` — this is the principal missing Recorder end-to-end release gate.
+- **Status:** `PASS` — `npm run verify:recorder-e2e`, **41/41**. Real Electron Recorder controls
+  launched bundled Chromium and captured `goto,fill,fill,select,check,click`; Stop/Save persisted the
+  flow across a full restart and visible Flow Library reopen. Two production `ExecutionEngine`
+  replays (before and after a Flow Designer no-op save) reproduced the reset target-state oracle,
+  completed all eight nodes in order, and wrote valid JSONL logs/reports/recovery state without the
+  authentication secret. Evidence:
+  `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
 
 ### REC-019 — Recorded URL history UI
 

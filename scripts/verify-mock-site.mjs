@@ -130,6 +130,7 @@ try {
     "REC-018 harness is idle without the query gate",
     ((await page.getByTestId("rec018-status").textContent()) ?? "").includes("idle")
   );
+  await page.request.post(`${BASE}/api/rec018/reset`);
   await page.goto(`${BASE}/recorder-lab?rec018=1`);
   await page.waitForTimeout(1400);
   check(
@@ -141,6 +142,8 @@ try {
     (await page.inputValue("#recorderFullName")) === "" &&
       ((await page.getByTestId("recorder-form-result").textContent()) ?? "").includes("idle")
   );
+  const inertState = await (await page.request.get(`${BASE}/api/rec018/state`)).json();
+  check("REC-018 inert branch records no server-side outcome", inertState.count === 0);
   // Positive control: with the binding the Recorder exposes, the harness must drive the form.
   await page.addInitScript(() => {
     window.__awtkit_recordAction = () => {};
@@ -153,6 +156,16 @@ try {
       (await page.inputValue("#recorderPlan")) === "Enterprise" &&
       (await page.isChecked("#recorderNewsletter")) &&
       ((await page.getByTestId("recorder-form-result").textContent()) ?? "").includes("Recorder form saved for Rec018 Operator")
+  );
+  const capturedState = await (await page.request.get(`${BASE}/api/rec018/state`)).json();
+  check(
+    "REC-018 capture outcome is observable and resettable for the replay gate",
+    capturedState.count === 1 &&
+      capturedState.latest?.fullName === "Rec018 Operator" &&
+      capturedState.latest?.email === "rec018@example.test" &&
+      capturedState.latest?.plan === "Enterprise" &&
+      capturedState.latest?.newsletter === true,
+    JSON.stringify(capturedState)
   );
 
   console.log("Designer scenarios:");

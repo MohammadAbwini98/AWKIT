@@ -76,6 +76,7 @@
     "verify:workflow-sentinels": "tsx scripts/verify-workflow-sentinels.mts",
     "verify:reports": "node scripts/verify-reports-gui.mjs",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
+    "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",
     "verify:flow-step-mapping": "tsx scripts/verify-flow-step-mapping.mts",

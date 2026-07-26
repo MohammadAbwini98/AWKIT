@@ -12,8 +12,8 @@ longer a known defect in flow-level connector routing.
 That does **not** make the product release-ready. What changed is the *reason* it is not:
 
 - previously: a confirmed S2 routing defect;
-- now: unexecuted coverage (46 `NOT RUN` Recorder/Reports/Settings cases, of which `REC-018` is
-  decisive) and external gates that need an operator, a database, or a clean machine.
+- now: unexecuted coverage (45 remaining `NOT RUN` Recorder/Reports/Settings cases; REC-018 is now
+  PASS) and external gates that need an operator, a database, or a clean machine.
 
 A green specialized suite is not certification of the corresponding user journey.
 
@@ -35,6 +35,8 @@ A green specialized suite is not certification of the corresponding user journey
   production `ExecutionEngine`, screenshots, JSONL logs, and run report
 - Recorder component engines: semantic locator/smart-wait capture, redaction, draft/URL persistence,
   async review, flow conversion, protected-login detection, popup identity and HTTPS trust
+- Recorder critical journey: real UI capture/save, full restart and Flow Library reopen, two
+  production replays with exact node/log/report order, and Flow Designer metadata preservation
 - Reports empty-state GUI plus telemetry/observability persistence and aggregation
 - Settings capacity/persistence, certificate security, appearance/branding, encrypted secret store,
   and Java/JDBC driver cards
@@ -58,8 +60,10 @@ A green specialized suite is not certification of the corresponding user journey
    `EXECUTION_RESULTS.md` › Additional offline note.
 6. Complete the clean/offline Windows VM release walkthrough.
 7. Perform authorized manual CAPTCHA/MFA/SSO handoffs where those real provider paths are release requirements.
-8. Execute REC-018: Recorder page → launched browser → recorded actions → Stop → Save to Flow Library
-   → reopen → production replay, including evidence and restart persistence.
+8. ~~Execute REC-018: Recorder page → launched browser → recorded actions → Stop → Save to Flow
+   Library → reopen → production replay, including evidence and restart persistence.~~
+   **Done 2026-07-26 — 41/41**, including a designer round-trip and second replay; evidence under
+   `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
 9. Execute populated System Reports truth/drill-down/export cases and remaining Settings paths,
    validation, Secrets GUI, import/export, reset/data-preservation, authorization and accessibility cases.
 
@@ -75,8 +79,9 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
 - **Offline Oracle release claim:** do not approve until live Oracle and packaged-driver gates pass.
 - **Database-free Oracle-to-UI workflow:** ready; current ledger is 7 PASS / 0 FAIL with the live-DB
   variant separately blocked.
-- **Recorder feature release claim:** do not approve from component totals alone; REC-018 remains
-  `NOT RUN`.
+- **Recorder feature release claim:** the decisive REC-018 journey is approved at 41/41. Other
+  focused Recorder cases retain their individual `PASS`/`BLOCKED`/`NOT RUN` status; do not infer
+  those unexecuted cases from REC-018.
 - **System Reports and Settings full-page certification:** not complete; focused case document records
   the exact remaining GUI, authorization and accessibility gates.
 

@@ -14,6 +14,14 @@ const submissions = new Map();
 let counter = 1000;
 
 /**
+ * REC-018 replay oracle. The Recorder lab posts only its fixed synthetic values here when the
+ * `?rec018=1` scenario's Save button is clicked. The focused verifier resets this state after
+ * capture, so a subsequent submission can only come from the production replay (the page harness
+ * is deliberately inert without the Recorder binding).
+ */
+let rec018Submissions = [];
+
+/**
  * Status codes `/api/status` is allowed to return. Allow-listed so the endpoint stays deterministic
  * and can never be turned into an open redirect (3xx is intentionally excluded — `/login` and
  * `/submit` already cover the redirect path).
@@ -232,6 +240,35 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/runner-lab") return serveStatic(res, "runner-lab.html");
   if (req.method === "GET" && path === "/iframe-lab") return serveStatic(res, "iframe-lab.html");
   if (req.method === "GET" && path === "/iframe-child") return serveStatic(res, "iframe-child.html");
+
+  // ── REC-018 record → save → replay oracle ─────────────────────────────────
+  // Local, in-memory and resettable. It records only the deterministic synthetic Recorder-lab
+  // fields; no credentials, cookies, headers, or browser/session state are accepted or returned.
+  if (req.method === "GET" && path === "/api/rec018/state") {
+    return sendJson(res, {
+      ok: true,
+      count: rec018Submissions.length,
+      latest: rec018Submissions.at(-1) ?? null
+    });
+  }
+
+  if (req.method === "POST" && path === "/api/rec018/reset") {
+    rec018Submissions = [];
+    return sendJson(res, { ok: true, count: 0 });
+  }
+
+  if (req.method === "POST" && path === "/api/rec018/submit") {
+    const values = await parseBody(req);
+    const submission = {
+      fullName: String(values.fullName ?? "").slice(0, 100),
+      email: String(values.email ?? "").slice(0, 160),
+      plan: String(values.plan ?? "").slice(0, 40),
+      newsletter: values.newsletter === "true"
+    };
+    rec018Submissions.push(submission);
+    if (rec018Submissions.length > 20) rec018Submissions = rec018Submissions.slice(-20);
+    return sendJson(res, { ok: true, count: rec018Submissions.length, latest: submission });
+  }
 
   // ── Download fixture (Content-Disposition) ─────────────────────────────────
   // Gives `downloadFile` steps a real download event to capture. Deterministic bodies.
