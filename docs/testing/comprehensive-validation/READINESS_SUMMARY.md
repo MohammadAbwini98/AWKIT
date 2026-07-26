@@ -12,8 +12,9 @@ longer a known defect in flow-level connector routing.
 That does **not** make the product release-ready. What changed is the *reason* it is not:
 
 - previously: a confirmed S2 routing defect;
-- now: unexecuted coverage (45 remaining `NOT RUN` Recorder/Reports/Settings cases; REC-018 is now
-  PASS) and external gates that need an operator, a database, or a clean machine.
+- now: unexecuted coverage (43 remaining `NOT RUN` Recorder/Reports/Settings cases; REC-018 and
+  SYS-REP-002/003 are now PASS) and external gates that need an operator, a database, or a clean
+  machine.
 
 A green specialized suite is not certification of the corresponding user journey.
 
@@ -37,7 +38,9 @@ A green specialized suite is not certification of the corresponding user journey
   async review, flow conversion, protected-login detection, popup identity and HTTPS trust
 - Recorder critical journey: real UI capture/save, full restart and Flow Library reopen, two
   production replays with exact node/log/report order, and Flow Designer metadata preservation
-- Reports empty-state GUI plus telemetry/observability persistence and aggregation
+- Reports empty-state GUI plus populated persisted Overview truth and range/refresh behavior;
+  telemetry/observability persistence and aggregation; authorization/path-boundary checks; and full
+  redacted stored-report export
 - Settings capacity/persistence, certificate security, appearance/branding, encrypted secret store,
   and Java/JDBC driver cards
 
@@ -64,8 +67,12 @@ A green specialized suite is not certification of the corresponding user journey
    Library → reopen → production replay, including evidence and restart persistence.~~
    **Done 2026-07-26 — 41/41**, including a designer round-trip and second replay; evidence under
    `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
-9. Execute populated System Reports truth/drill-down/export cases and remaining Settings paths,
-   validation, Secrets GUI, import/export, reset/data-preservation, authorization and accessibility cases.
+9. ~~Execute the first populated System Reports truth/drill-down/export campaign.~~ **Core done
+   2026-07-26 — 64/64 assertions**, closing SYS-REP-002/003 and fixing `AWKIT-REP-001/002`.
+   Complete the exact remaining Reports submatrices (including the real OS folder launch,
+   five-workflow compare cap, live/backpressure, fault injection, denial-audit evidence and
+   accessibility) plus remaining Settings paths, validation, Secrets GUI, import/export,
+   reset/data-preservation, authorization and accessibility cases.
 
 Firefox/WebKit remain outside the present Chromium-first certification unless product scope changes.
 
@@ -82,8 +89,12 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
 - **Recorder feature release claim:** the decisive REC-018 journey is approved at 41/41. Other
   focused Recorder cases retain their individual `PASS`/`BLOCKED`/`NOT RUN` status; do not infer
   those unexecuted cases from REC-018.
-- **System Reports and Settings full-page certification:** not complete; focused case document records
-  the exact remaining GUI, authorization and accessibility gates.
+- **System Reports full-page certification:** materially advanced but not complete. The populated
+  real-Electron gate is 64/64, SYS-REP-002/003 are PASS, and both defects are resolved. Reports stand
+  at 5 PASS / 11 NOT RUN because partially covered cases retain `NOT RUN` until their final subcases
+  execute.
+- **Settings full-page certification:** not complete; focused case document records the exact
+  remaining GUI, authorization and accessibility gates.
 
 ## Retest minimum
 
@@ -94,6 +105,8 @@ After the connector fix:
 3. `npm run verify:comprehensive-e2e`
 4. `npm run verify:concurrency`
 5. `npm run verify:packaged-walkthrough`
+6. `npm run verify:reports-populated-gui`
+7. `npm run verify:e2e-rbac`
 
 Acceptance requires:
 

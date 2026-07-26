@@ -88,6 +88,84 @@ negative-controlled rather than vacuous:
 4. an ordinary (non-handoff) node does not traverse a `manualApproval` connector;
 5. a flow cannot report `passed` when an unapproved continuation was skipped.
 
+### AWKIT-REP-001 — Reports read IPC trusted the renderer without authenticating its session
+
+- **Severity:** S2 / Major security boundary failure
+- **Priority recommendation:** P0 for any release exposing operational reports
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/ipc/telemetry.ipc.ts`, `app/main/ipc/report.ipc.ts`
+- **Detected by:** `SYS-REP-015`
+- **Evidence before fix:** `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/execution-results.json`
+
+**Reproduction before fix**
+
+1. Launch the real Electron application with an isolated populated runtime/report store.
+2. Before login, call `telemetry.overview`, `reports.list`, and `reports.get` through the exposed preload.
+3. Repeat after login with an active user that has no Reports role.
+
+**Actual result**
+
+Every call returned operational run data. The main process checked neither the renderer-bound session
+nor `page.reports`; hiding navigation and guarding the route were the only access controls.
+
+**Expected result**
+
+Every report/telemetry read must derive the actor from `event.sender`, fail closed before login, and
+require `page.reports`. Export and folder-open actions must separately require `report.export`.
+
+**Fix and regression**
+
+All 18 telemetry handlers and all report read/alias handlers now use `assertSenderPermission` with
+`PAGE_REPORTS`. Report export and folder-open use `REPORT_EXPORT`; the latter accepts only an existing
+report id and resolves the configured Reports directory in the trusted process. The real-Electron
+gate proves pre-auth denial, Viewer read allowance with export/open denial, no-role navigation,
+deep-link and direct-IPC denial, crafted-id rejection, and out-of-root `system.openPath` rejection.
+`verify:e2e-rbac` remains 51/51. Persisted denial-audit verification is still explicitly `NOT RUN`
+under `SYS-REP-015`; this resolution does not claim it.
+
+### AWKIT-REP-002 — Run Artifacts used a non-existent summary contract and bypassed export policy
+
+- **Severity:** S2 / Major
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/renderer/pages/ExecutionReports.tsx`, `app/main/preload.ts`,
+  `app/main/ipc/report.ipc.ts`
+- **Detected by:** `SYS-REP-008`, `SYS-REP-015`
+- **Evidence before fix:** `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/execution-results.json`
+
+**Reproduction before fix**
+
+1. Seed one valid stored `ConcurrentRunReport` and one corrupt report file.
+2. Open Run Artifacts as Super User.
+3. Inspect the card, attempt Open, and export it.
+4. Repeat as Viewer.
+
+**Actual result**
+
+- The page projected stored records through fields that do not exist (`workflowName`,
+  `instanceCount`, `reportPath`), so instance count was absent and Open could never render.
+- The preload exposed no report export/open API.
+- Export serialized the lossy renderer card rather than the full stored report.
+- The Export control appeared for Viewer even though Viewer lacks `report.export`.
+
+**Expected result**
+
+The card must consume the persisted `ConcurrentRunReport` contract, export the complete redacted
+record under the exact JSON filename, open only a trusted report-store folder, and expose actions only
+to a role with `report.export`.
+
+**Fix and regression**
+
+The page now uses the real stored-report shape (`scenarioName`/`scenarioId`, `instances.length`),
+fetches the permission-gated complete record before producing JSON, and hides Open/Export unless
+`REPORT_EXPORT` is effective. Preload exposes the two main-owned operations. The populated gate proves
+the corrupt sibling is skipped, exact card identity and instance count, full JSON bytes and filename,
+redaction, Viewer hidden/denied actions, and safe crafted-id handling. The actual Windows Explorer
+launch remains deliberately `NOT RUN` under `SYS-REP-008`; the boundary and button are covered without
+opening an external OS window.
+
 ## Resolved Oracle workflow defects
 
 ### AWKIT-ORA-E2E-001 — Scheduled data rows were absent from runner `currentRow`
@@ -164,6 +242,17 @@ These were found and corrected while building the campaign. They are not open AW
   `dist/win-unpacked is STALE — src\runner\FlowExecutor.ts (…) is newer than the packaged payload (…)`,
   exit 1. The file was then confirmed byte-identical to its pre-test copy and to `HEAD`; the control
   changed only the mtime.
+
+### HARNESS-009 — Electron blob export did not emit Playwright's download event
+
+- **Severity:** S3 / Moderate test-validity defect
+- **Status:** Resolved in `verify:reports-populated-gui`
+- **Symptom:** The pre-fix gate timed out waiting for `Page.download` after the renderer clicked a
+  blob-backed anchor, so the assertion could not distinguish an application export failure from an
+  Electron/Playwright observation limitation.
+- **Resolution:** The gate observes the real `Blob` bytes and the real anchor filename in the page
+  without suppressing the click, persists those exact bytes as evidence, parses the JSON, and compares
+  the full stored-report identity/instances/redaction fields. The final gate is 64/64.
 
 ### HARNESS-001 — Concurrency verifier used removed failure-capture hook
 

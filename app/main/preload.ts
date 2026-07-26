@@ -317,7 +317,9 @@ const api = {
   },
   reports: {
     list: () => ipcRenderer.invoke("report:list") as Promise<unknown[]>,
-    get: (id: string) => ipcRenderer.invoke("reports:get", id) as Promise<unknown | null>
+    get: (id: string) => ipcRenderer.invoke("reports:get", id) as Promise<unknown | null>,
+    export: (id: string) => ipcRenderer.invoke("reports:export", id) as Promise<unknown>,
+    openFolder: (id: string) => ipcRenderer.invoke("reports:openFolder", id) as Promise<string>
   },
   telemetry: {
     overview: (range?: TelemetryRangePreset) => ipcRenderer.invoke("telemetry:overview", range) as Promise<TelemetryOverview>,

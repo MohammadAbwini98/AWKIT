@@ -12,7 +12,7 @@
 | Telemetry/observability/reports/analytics | `PASS` | All specialized suites passed |
 | Recorder component contracts | `PASS` | Capture 78/78; flow 19/19; draft 17/17; async review 21/21; protected detection 45/45 |
 | Recorder full page record→save→replay | `PASS` | REC-018 **41/41**: real UI capture/save, restart/reopen, two production replays, designer round-trip |
-| System Reports populated GUI truth/drill-down/export | `NOT RUN` | Empty-state GUI and backend analytics passed; seeded user journey is still open |
+| System Reports populated GUI truth/drill-down/export | `NOT RUN` | Populated core gate **64/64**; SYS-REP-002/003 closed, exact residual submatrices remain |
 | Settings focused automated contracts | `PASS` | Capacity, persistence, certificate security, appearance/branding, secrets backend, Java/JDBC passed |
 | Settings remaining page journeys | `NOT RUN` | Paths, general validation, Secrets GUI, import/export, reset/data preservation, authorization and accessibility |
 | Auth/security/RBAC/session/secrets/licensing | `PASS` | All specialized suites passed |
@@ -127,6 +127,7 @@ same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 | Telemetry | `PASS` — 61/61 |
 | Observability | `PASS` — 65/65 |
 | Reports GUI | `PASS` — 31/31 |
+| Populated Reports GUI | `PASS` — **64/64** after fixes (pre-fix 44/57) |
 | Recorder capture/locator/Smart Wait | `PASS` — 78/78 |
 | Recorder flow conversion | `PASS` — 19/19 |
 | Recorder draft/URL persistence | `PASS` — 17/17 |
@@ -145,6 +146,7 @@ same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 | Authentication | `PASS` — 49/49 |
 | Security | `PASS` — 39/39 |
 | Authorization/RBAC | `PASS` — 40/40 |
+| Real-Electron per-role RBAC | `PASS` — 51/51 |
 | Session context | `PASS` — 11/11 |
 | Secrets | `PASS` — 16/16 |
 | Licensing | `PASS` — 56/56 |
@@ -182,8 +184,11 @@ npm run verify:https-certificates
 npm run verify:popup-identity
 npx tsx scripts/verify-random-roundtrip.mts
 npm run verify:reports
+npm run verify:reports-populated-gui
 npm run verify:telemetry
 npm run verify:observability
+npm run verify:runtime-analytics-gui
+npm run verify:e2e-rbac
 npm run verify:settings-persistence
 npm run verify:capacity-settings-gui
 npm run verify:https-certificates-gui
@@ -219,6 +224,61 @@ Totals: **41 PASS / 0 FAIL / 0 BLOCKED / 0 NOT RUN** inside REC-018. The page ha
 without the Recorder-only binding; the server-side oracle was reset after capture and before each
 run, so replay success is not self-fulfilled by the fixture.
 
+### Populated System Reports result (2026-07-26)
+
+Command: `npm run verify:reports-populated-gui`
+
+Evidence: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/`
+
+The gate creates a timestamped isolated profile, writes 32 current-window and 10 previous-window
+durable runs through the real `SqliteRuntimeStore`, writes one valid and one corrupt stored report,
+adds attempts/artifacts/capacity/admission/process/anomaly rows, and drives the real Electron renderer,
+preload, IPC and security session boundary.
+
+| Assertion group | Status | Outcome |
+| --- | --- | --- |
+| SYS-REP-002 range/refresh race | `PASS` | All five presets and rapid/repeated refresh settled on the newest request |
+| SYS-REP-003 persisted Overview truth | `PASS` | 32 total; 23 completed, 6 failed, 3 cancelled; visible rates/counts/queue wait matched |
+| SYS-REP-004/005 workflows | `PARTIAL` | Populated truth, two-way Workflow sort, machine/combined filters, two-row comparison passed |
+| SYS-REP-006/007 detail and paging | `PARTIAL` | Exact run/attempt/artifact identity and 32-row two-page history passed |
+| SYS-REP-008 stored reports | `PARTIAL` | Corrupt sibling ignored; full redacted JSON export and trusted folder boundary passed; Explorer launch not run |
+| SYS-REP-009/010 analytics | `PARTIAL` | Six failure categories/rankings plus capacity/admission/active anomaly rendered |
+| SYS-REP-011/012 live/server | `PARTIAL` | Four gauges, second poll, four process cards and storage discovery passed |
+| SYS-REP-015 authorization/path safety | `PARTIAL` | Pre-auth/Viewer/no-role/direct/deep-link/path denials passed; persisted denial audit not run |
+| Renderer stability | `PASS` | No renderer errors |
+
+Totals: **64 PASS / 0 FAIL** at the assertion level. At the case level, SYS-REP-002 and
+SYS-REP-003 move to `PASS`; the partially executed cases remain `NOT RUN` until every listed
+subcase is exercised. Reports now have **5 PASS / 11 NOT RUN** focused cases, and the combined
+Recorder/Reports/Settings ledger has **43 `NOT RUN`** cases remaining.
+
+The negative-controlled pre-fix run was **44 PASS / 13 FAIL**:
+`test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/`. It exposed two product defects:
+unauthenticated/no-role report reads bypassed the main-process permission boundary
+(`AWKIT-REP-001`), and Run Artifacts used incompatible fields, lacked a working trusted open/export
+bridge, exported a lossy card, and showed export to Viewer (`AWKIT-REP-002`). One dependent download
+observation was a harness issue (`HARNESS-009`), corrected by capturing the actual blob bytes and
+anchor filename without suppressing the real click.
+
+Regression results after the fixes:
+
+| Command | Result |
+| --- | ---: |
+| `npm run typecheck` | PASS |
+| `npm run typecheck:scripts` | PASS |
+| `npm run build` | PASS |
+| `npm run verify:reports-populated-gui` | **64/64** |
+| `npm run verify:reports` | 31/31 |
+| `npm run verify:telemetry` | 61/61 |
+| `npm run verify:observability` | 65/65 |
+| `npm run verify:runtime-analytics-gui` | 36/36 |
+| `npm run verify:e2e-rbac` | 51/51 |
+| `npm run verify:ipc-contract` | 4/4 (203 handlers, 181 exposed, 23 backend-only) |
+
+The first attempted RBAC/Runtime Analytics rerun launched both Electron suites concurrently and both
+applications exited during startup. No Electron/Specter/related Node process or port remained. Serial
+reruns passed 51/51 and 36/36, confirming a launch collision rather than a reproducible product defect.
+
 ## Oracle row-driven campaign
 
 Command: `npm run verify:oracle-mock-ui-workflow`
@@ -243,14 +303,14 @@ Totals: **7 PASS, 0 FAIL, 1 BLOCKED, 0 NOT RUN**.
 
 ### Main campaign
 
-- Result ledger: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
-- Inventory: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/inventory.json`
-- Runner logs: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runner-logs.json`
-- Workflow result: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/workflow-result.json`
-- Core screenshot root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/core-cross-flow/screenshots`
-- Retry/failure evidence root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/recovery/screenshots`
-- Download: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/io-flow/downloads/awkit-report.csv`
-- Saved session root: `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runs/manual-session/sessions`
+- Result ledger: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/campaign-results.json`
+- Inventory: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/inventory.json`
+- Runner logs: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runner-logs.json`
+- Workflow result: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/workflow-result.json`
+- Core screenshot root: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runs/core-cross-flow/screenshots`
+- Retry/failure evidence root: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runs/recovery/screenshots`
+- Download: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runs/io-flow/downloads/awkit-report.csv`
+- Saved session root: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runs/manual-session/sessions`
 
 ### Oracle row-driven evidence
 
@@ -267,6 +327,15 @@ Totals: **7 PASS, 0 FAIL, 1 BLOCKED, 0 NOT RUN**.
 - Captured actions + persisted flow: `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/recorded-actions-and-flow.json`
 - Production logs/reports/state: `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/run-{1-before-designer-save,2-after-designer-save}-*`
 - UI screenshots: `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/01-recorder-stopped.png` through `06-populated-reports.png`
+
+### Populated System Reports evidence
+
+- Result ledger: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/execution-results.json`
+- Independent fixture truth: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/expected-fixture.json`
+- Exported full report: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/exports/report-rep-populated-001.json`
+- Screenshots: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/screenshots/01-overview-populated.png`
+  through `05-run-artifacts.png`
+- Retained pre-fix negative control: `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/execution-results.json`
 
 ### UI/report screenshots
 

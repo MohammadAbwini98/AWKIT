@@ -359,8 +359,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Select each range preset; refresh repeatedly; switch routes while a query is pending.
 - **Expected:** Selected range is exposed with `aria-pressed`; queries use the new range; stale results
   do not replace newer results; refresh does not duplicate rows or crash.
-- **Status:** `NOT RUN` for the complete preset/race matrix — 7d and refresh stability passed in
-  `verify:reports`.
+- **Status:** `PASS` — `verify:reports-populated-gui` exercised all five presets, rapid
+  `15m → 7d → 24h` switching, and repeated refresh; the final accessible selection and dataset
+  remained the newest 24h request.
 
 ### SYS-REP-003 — Overview metrics match persisted run truth
 
@@ -370,7 +371,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   cancelled, durations, queue wait, active, queued, and trend series with source rows.
 - **Expected:** Counts/rates use documented denominators; in-progress/cancelled handling is correct;
   displayed durations and series match persisted data.
-- **Status:** `NOT RUN` in GUI; backend aggregate contract passed in `verify:telemetry` 61/61.
+- **Status:** `PASS` — the populated GUI gate independently seeded 32 current-window runs
+  (23 completed, 6 failed, 3 cancelled) and matched durable totals, terminal-only rates, queue wait,
+  visible metric cards, and trend data. Backend aggregate contract remains green at 61/61.
 
 ### SYS-REP-004 — Workflow sorting and machine-context filters
 
@@ -379,7 +382,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Sort each column both ways; apply and combine all four filters; clear filters.
 - **Expected:** Stable correct order; filtered rows/counts match SQLite; empty filter result is explicit;
   no cross-machine comparison is silently presented as same-machine.
-- **Status:** `NOT RUN` with seeded data; filter controls rendered and stayed stable in `verify:reports`.
+- **Status:** `NOT RUN` for the full all-column/all-filter matrix — the populated gate passed
+  two-direction Workflow sorting, machine filtering, machine-context labels, and contradictory
+  combined-filter empty state against two seeded workflows.
 
 ### SYS-REP-005 — Workflow comparison limit and deltas
 
@@ -389,7 +394,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   duration, runs and delta values.
 - **Expected:** Maximum four selected; fifth is disabled/refused; values match backend comparison;
   new/up/down/flat semantics and higher-is-better direction are correct.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the five-workflow/fifth-selection limit — populated comparison and
+  side-by-side deltas passed with two independently seeded workflows.
 
 ### SYS-REP-006 — Recent runs and Run Detail drawer
 
@@ -399,7 +405,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   artifact; close by button/Escape/scrim; delete a retained run and retry.
 - **Expected:** Correct run opens; attempts/artifacts match durable rows; path open is allowed only for
   approved runtime roots; missing run shows retention message; focus returns to opener.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for artifact launch, Escape/scrim/focus return, and missing-retained-run
+  recovery — durable row identity, two attempts, two artifacts, and button-close passed in the
+  populated gate.
 
 ### SYS-REP-007 — Instance Reports paging and live status
 
@@ -408,7 +416,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Compare live distribution; page forward/back; open a row; change time range.
 - **Expected:** Live counts match engine state; no duplicate/missing history rows; buttons disable at
   boundaries; row detail is correct.
-- **Status:** `NOT RUN` with populated data; empty/live-section rendering passed in `verify:reports`.
+- **Status:** `NOT RUN` for queued/running live-state transitions — the populated gate passed
+  32-row two-page history, exact `1–25`/`26–32` boundaries, no duplicate/missing IDs, disabled
+  boundary action, and correct row detail.
 
 ### SYS-REP-008 — Stored Execution Reports list, export and folder open
 
@@ -418,7 +428,12 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   exported content; repeat with no reports and with a corrupt report file.
 - **Expected:** Only real reports appear; empty state has no demo rows; export is valid/redacted;
   folder open is scoped; corrupt records do not crash or expose raw stack/secrets.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` only for launching the real OS folder target. The populated gate passed one
+  real record plus one corrupt sibling, exact report-card fields, permission-aware actions, complete
+  stored-report JSON export (not a card summary), exact filename, and redaction. The new
+  `reports:openFolder` boundary accepts only an existing report id and resolves the configured
+  Reports folder in the main process; crafted ids and unauthorized calls were rejected. The OS
+  Explorer launch was deliberately not executed in automation.
 
 ### SYS-REP-009 — Failure Analytics categories and evidence
 
@@ -428,7 +443,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Open Failure Analytics; compare category distribution, rankings, flakiness and evidence.
 - **Expected:** Only failures enter failure views; taxonomy is correct; low-sample flakiness is hidden;
   evidence points to the correct run and remains redacted.
-- **Status:** `NOT RUN` in GUI; taxonomy/backend logic passed in `verify:telemetry`.
+- **Status:** `NOT RUN` for unknown-category, low-sample, and evidence-navigation subcases — the
+  populated GUI passed six named categories, the exact failed total, and both workflow rankings;
+  taxonomy/backend logic remains green in `verify:telemetry`.
 
 ### SYS-REP-010 — Runtime Analytics historical capacity and anomaly views
 
@@ -438,7 +455,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   regressions and recovered anomalies over multiple ranges.
 - **Expected:** Aggregates, buckets, percentages and anomaly state match source data; unavailable
   metrics are neutral, not zero; environmental observations are labelled.
-- **Status:** `NOT RUN` in GUI; backend observability passed 65/65.
+- **Status:** `NOT RUN` for multi-range and recovered-anomaly transitions — seeded capacity,
+  admission reasons, process history, active anomaly and environmental labels rendered correctly;
+  normal/empty/migration/high-data Runtime Analytics is 36/36 and backend observability is 65/65.
 
 ### SYS-REP-011 — Chrome Consumption live gauges and polling
 
@@ -448,8 +467,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   wait through multiple polls; trigger/release backpressure.
 - **Expected:** Four gauges render with values or neutral unavailable state; page remains stable;
   backpressure reason appears and clears; no timer/listener leak is observed.
-- **Status:** `NOT RUN` for the complete idle/active/backpressure case — idle gauges and polling
-  stability passed in `verify:reports`.
+- **Status:** `NOT RUN` for active-workflow/backpressure/cleanup subcases — four gauges and a second
+  polling cycle passed in both the fresh-profile and populated GUI gates.
 
 ### SYS-REP-012 — Server Performance and storage sizing
 
@@ -459,8 +478,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   directory or deny access in an isolated root; refresh.
 - **Expected:** Four metric cards and storage section render; known sizes are accurate; missing/denied
   paths degrade to unavailable without crashing or leaking paths outside runtime roots.
-- **Status:** `NOT RUN` for the complete sizing/fault-injection case — render and the real sizing
-  section passed in `verify:reports`.
+- **Status:** `NOT RUN` for exact-byte, missing-path, denied-path, large-directory and cache-expiry
+  fault injection — the populated gate passed four process cards and seeded runtime/report storage
+  discovery; fresh-profile sizing remained stable.
 
 ### SYS-REP-013 — Telemetry persistence, retention, paging and migration contract
 
@@ -490,7 +510,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   identity scoping applies; try traversal/out-of-root artifact paths.
 - **Expected:** Main process enforces authorization; no hidden-only security; unauthorized/traversal
   requests are rejected and audited; allowed report reads remain redacted.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` only for persisted denied-attempt audit verification. Main-process
+  authorization is now enforced on every telemetry/report read and report export/open action. The
+  real Electron gate proved pre-auth denial; Viewer read allowance but export/open denial and hidden
+  controls; no-role nav/deep-link/direct-IPC denial; crafted report-id rejection; and out-of-root path
+  rejection. `verify:e2e-rbac` remains green at 51/51. No per-read denial-audit claim is made.
 
 ### SYS-REP-016 — Reports accessibility, zoom and reduced motion
 

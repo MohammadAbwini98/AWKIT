@@ -743,7 +743,7 @@ For every populated report assertion:
 Create a focused populated GUI verifier if none exists, for example:
 
 ```text
-scripts/verify-reports-populated-gui.mjs
+scripts/verify-reports-populated-gui.mts
 ```
 
 Reuse `scripts/seed-observability-fixtures.mts` where suitable, but do not let the expected-result

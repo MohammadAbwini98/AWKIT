@@ -1,5 +1,30 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): populated Reports 64/64; AWKIT-REP-001/002 resolved
+
+The next phase of `FULL_VALIDATION_REMEDIATION_PROMPT.md` is complete. The new
+`npm run verify:reports-populated-gui` seeds real SQLite/report stores in an isolated profile and
+drives Overview, Workflow, Instance, Failure, Runtime, Chrome, Server and Run Artifacts through the
+real Electron/preload/IPC boundary.
+
+- Pre-fix negative control: **44 PASS / 13 FAIL** at
+  `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/`.
+- Final: **64 PASS / 0 FAIL** at
+  `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/`.
+- `AWKIT-REP-001`: pre-auth/no-role telemetry and report reads lacked sender-bound authorization.
+  Fixed with `PAGE_REPORTS` on every telemetry/report read.
+- `AWKIT-REP-002`: Run Artifacts used an incompatible summary shape, lacked trusted open/export
+  bridges, exported only its card, and exposed Export to Viewer. Fixed against the real stored-report
+  contract with `REPORT_EXPORT` enforcement and an id-only main-owned folder-open boundary.
+- Regressions: Reports 31/31, telemetry 61/61, observability 65/65, Runtime Analytics 36/36,
+  real-Electron RBAC 51/51, IPC contract 4/4, type-checks and build pass.
+
+Do not overclaim the 64 assertions as 16/16 Reports cases. Only SYS-REP-002/003 moved to PASS.
+SYS-REP-004–012 and 015 have useful populated/auth subsets but remain `NOT RUN` until the exact
+remaining submatrices execute; SYS-REP-016 is untouched. Actual Explorer launch was not run.
+Reports are **5 PASS / 11 NOT RUN** and the combined Recorder/Reports/Settings ledger now has
+**43 NOT RUN**. Settings is the next agent-actionable workstream.
+
 ## ACTIVE (2026-07-26, latest): REC-018 is complete — Recorder E2E 41/41
 
 The decisive Recorder release gate is now executed, not inferred from component suites.
@@ -20,7 +45,8 @@ Regressions: mock site 90/90, Recorder locator/Smart Wait 78/0, flow conversion 
 ## ACTIVE (2026-07-26, latest): AWKIT-E2E-001 fixed — comprehensive campaign 9/9
 
 Phase 0-1 of `docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is done.
-**There is no longer a known open product defect.** Phases 2-7 of that brief are not started.
+**There is no longer a known open product defect.** Recorder and the first populated Reports phase
+are also complete; Settings and the exact remaining case submatrices are next.
 
 ### What changed
 
@@ -57,8 +83,9 @@ stop you rather than let you publish a misleading pass.
 
 ### Remaining work, in priority order
 
-1. **The remaining 45 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. REC-018 is now
-   PASS; populated Reports and complete Settings journeys are next. Beads: `awkit-az7` (Reports),
+1. **The remaining 43 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. REC-018 and
+   SYS-REP-002/003 are now PASS; complete Settings journeys and residual Reports submatrices are next.
+   Beads: `awkit-az7` (Reports),
    `awkit-8ri` (Settings). Bead `awkit-gi2` can be closed when the user-owned Beads changes are
    reconciled; this work deliberately did not modify `.beads/*`.
 2. **`ORA-LIVE-001`** (bead `awkit-7bu`) — needs an authorized operator with SYSDBA and an

@@ -1,19 +1,48 @@
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
 import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
 import { createReportStore } from "../profileStores";
+import { getConfiguredPaths } from "../storagePaths";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 
 type StoredReport = ConcurrentRunReport & { id: string };
 
 export function registerReportIpc(): void {
   const store = createReportStore();
 
-  ipcMain.handle("reports:list", async () => store.list());
-  ipcMain.handle("reports:get", async (_, id: string) => store.get(id));
-  ipcMain.handle("reports:create", async (_, report: ConcurrentRunReport) => store.import(toStoredReport(report)));
-  ipcMain.handle("reports:delete", async (_, id: string) => store.delete(id));
-  ipcMain.handle("reports:export", async (_, id: string) => store.export(id));
+  ipcMain.handle("reports:list", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    return store.list();
+  });
+  ipcMain.handle("reports:get", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    return store.get(id);
+  });
+  ipcMain.handle("reports:create", async (event, report: ConcurrentRunReport) => {
+    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    return store.import(toStoredReport(report));
+  });
+  ipcMain.handle("reports:delete", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    return store.delete(id);
+  });
+  ipcMain.handle("reports:export", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    return store.export(id);
+  });
+  ipcMain.handle("reports:openFolder", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    // The renderer supplies only a report id. The trusted process resolves the configured report
+    // folder after proving the record exists, so this action cannot be repurposed for traversal.
+    const report = await store.get(id);
+    if (!report) throw new Error("Report not found.");
+    return shell.openPath(getConfiguredPaths().reports);
+  });
 
-  ipcMain.handle("report:list", async () => store.list());
+  ipcMain.handle("report:list", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    return store.list();
+  });
 }
 
 function toStoredReport(report: ConcurrentRunReport): StoredReport {

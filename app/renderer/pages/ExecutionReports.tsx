@@ -12,28 +12,26 @@
  */
 import { Download, FileText, FolderOpen, RefreshCw, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import type { ConcurrentRunReport } from "@src/reports/ExecutionReport";
+import { Permission } from "@src/security/authz/Permissions";
+import { usePermissions } from "../security/usePermissions";
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
 const DEMO_REPORTS_ENABLED = (import.meta as any).env?.VITE_ENABLE_DEMO_REPORTS === "true";
 
-/** Minimal type matching what the IPC layer will eventually return. */
-interface ReportSummary {
+/** Persisted report contract returned by the main-owned report store. */
+type StoredReport = ConcurrentRunReport & {
   id: string;
-  workflowName: string;
-  scenarioName?: string;
-  status: string;
-  startedAt: string;
-  durationMs?: number;
-  instanceCount?: number;
-  reportPath?: string;
   /** Marker used to detect and clean up demo/seed records. */
   source?: string;
-}
+};
 
 export function ExecutionReports() {
-  const [reports, setReports] = useState<ReportSummary[]>([]);
+  const [reports, setReports] = useState<StoredReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { can } = usePermissions();
+  const canExport = can(Permission.REPORT_EXPORT);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,16 +39,15 @@ export function ExecutionReports() {
     try {
       // Attempt to load real reports from the IPC channel.
       // If not yet wired, this will throw or return an empty array — both are safe.
-      const list: ReportSummary[] = await (window.playwrightFlowStudio as Record<string, unknown> & {
-        reports?: { list: () => Promise<ReportSummary[]> };
-      }).reports?.list?.() ?? [];
+      const list = (await window.playwrightFlowStudio.reports.list()) as StoredReport[];
 
       // Filter out any records clearly marked as demo/sample/seed (Phase 05 cleanup).
       const realReports = list.filter((r) => r.source !== "demo" && r.source !== "sample" && r.source !== "seed");
       setReports(realReports);
-    } catch {
+    } catch (cause) {
       // IPC channel may not be wired yet — start empty, do not crash.
       setReports([]);
+      setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setLoading(false);
     }
@@ -60,22 +57,33 @@ export function ExecutionReports() {
     void load();
   }, [load]);
 
-  const openReport = useCallback((report: ReportSummary) => {
-    if (!report.reportPath) return;
-    // Shell open the folder/file when IPC is available.
-    (window.playwrightFlowStudio as Record<string, unknown> & {
-      shell?: { openPath: (p: string) => void };
-    }).shell?.openPath?.(report.reportPath);
+  const openReport = useCallback(async (report: StoredReport) => {
+    setError("");
+    try {
+      const message = await window.playwrightFlowStudio.reports.openFolder(report.id);
+      if (message) setError(message);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
   }, []);
 
-  const exportReport = useCallback((report: ReportSummary) => {
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `report-${report.id}.json`;
-    link.click();
-    URL.revokeObjectURL(href);
+  const exportReport = useCallback(async (report: StoredReport) => {
+    setError("");
+    try {
+      // Export the permission-gated stored record, not the lossy card projection.
+      const complete = await window.playwrightFlowStudio.reports.export(report.id);
+      const blob = new Blob([JSON.stringify(complete, null, 2)], { type: "application/json" });
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = `report-${report.id}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 0);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
   }, []);
 
   return (
@@ -123,39 +131,40 @@ export function ExecutionReports() {
             {reports.map((report) => (
               <div className="report-card" key={report.id}>
                 <div className="report-card-meta">
-                  <strong>{report.workflowName}</strong>
+                  <strong>{report.scenarioName || report.scenarioId || "Workflow"}</strong>
                   <small>
-                    {report.scenarioName ? `${report.scenarioName} · ` : ""}
                     Status: <span className={`state-pill ${report.status.toLowerCase()}`}>{report.status}</span>
                     {" · "}
                     {new Date(report.startedAt).toLocaleString()}
                     {report.durationMs !== undefined ? ` · ${formatDuration(report.durationMs)}` : ""}
-                    {report.instanceCount !== undefined ? ` · ${report.instanceCount} instance${report.instanceCount !== 1 ? "s" : ""}` : ""}
+                    {` · ${report.instances.length} instance${report.instances.length !== 1 ? "s" : ""}`}
                   </small>
                 </div>
                 <div className="report-card-actions">
-                  {report.reportPath ? (
+                  {canExport ? (
                     <button
                       className="toolbar-button"
                       id={`report-open-${report.id}`}
                       title="Open report folder"
                       type="button"
-                      onClick={() => openReport(report)}
+                      onClick={() => void openReport(report)}
                     >
                       <FolderOpen size={14} />
                       Open
                     </button>
                   ) : null}
-                  <button
-                    className="toolbar-button"
-                    id={`report-export-${report.id}`}
-                    title="Export report JSON"
-                    type="button"
-                    onClick={() => exportReport(report)}
-                  >
-                    <Download size={14} />
-                    Export
-                  </button>
+                  {canExport ? (
+                    <button
+                      className="toolbar-button"
+                      id={`report-export-${report.id}`}
+                      title="Export report JSON"
+                      type="button"
+                      onClick={() => void exportReport(report)}
+                    >
+                      <Download size={14} />
+                      Export
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ))}

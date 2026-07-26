@@ -50,6 +50,14 @@ remain structural and legacy workflows remain compatible.
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable
   target-state oracle, Flow Designer no-op save, and a second replay. **41/41** as of 2026-07-26;
   evidence under `test-artifacts/recorder-e2e/<timestamp>/`.
+- `scripts/verify-reports-populated-gui.mts` (`npm run verify:reports-populated-gui`) — deterministic
+  populated real-Electron Reports gate. Seeds the real SQLite/report stores with current/previous
+  run history, attempts, artifacts, runtime/observability rows, one valid report and one corrupt
+  sibling; drives every Reports surface; validates exact Overview truth, range races, populated
+  workflows/detail/paging/analytics, full redacted export, and pre-auth/Viewer/no-role/path
+  authorization. **64/64** as of 2026-07-26; timestamped evidence under
+  `test-artifacts/reports-populated-gui/<timestamp>/`. This assertion count is not a 16/16 case
+  claim; the focused case document keeps exact residual submatrices `NOT RUN`.
 - `scripts/verify-recorder-draft.mts` (`npm run verify:recorder-draft`) — browser-free recorder draft,
   URL-history, legacy wait-time, and smart-wait compatibility checks. As of the last run: **17 checks pass**.
 - `scripts/verify-waits.mts` (`npm run verify:waits`) — Smart Wait runner checks for before/after waits,
@@ -63,7 +71,7 @@ remain structural and legacy workflows remain compatible.
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):
   `verify:e2e-auth` (**30** — full auth lifecycle incl. enumeration + idle lock), `verify:e2e-rbac`
-  (**49** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
+  (**51** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
   are now DENIED and the footer nav is permission-filtered after the bd `awkit-b92` fix), `verify:e2e-licensing`
   (**22** — activation-request privacy, forged-signature rejection, `SPECTER_LICENSE_ENFORCE` gate ON/OFF),
   `verify:e2e-sweep` (**13** — 30 routes console-clean + screenshots, theme, resize, `:focus-visible`; the

@@ -34,7 +34,7 @@ Edge,failure,CMP-ERR-001,Live Chromium,PASS,
 Edge,always,verify:runner,Engine,PASS,
 Edge,conditional,CMP-CON-001,Live Chromium,PASS,
 Edge,outcome,CMP-CON-001,Live Chromium,PASS,
-Edge,manualApproval,CMP-CON-002,Live Chromium,FAIL,Flow reports passed but skips End
+Edge,manualApproval,CMP-CON-002,Live Chromium,PASS,Explicit resume routes to End; ungranted approval cannot report success
 Edge,loop,CMP-CON-001,Live Chromium,PASS,
 Edge,loopBack,CMP-CON-001,Live Chromium,PASS,
 Edge,parallel,CMP-CON-001,Live Chromium,PASS,
@@ -65,7 +65,7 @@ Recorder,Fixed wait complete boundaries,REC-010,RecorderService,NOT RUN,Meaningf
 Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 78/78; async review 21/21
 Recorder,Draft corrupt/missing recovery,REC-014,Filesystem,NOT RUN,Valid restore/discard passed
 Recorder,Flow conversion,REC-015,Profile mapping,PASS,recorder-flow 19/19; round-trip 26/26
-Recorder,Save to library and production replay,REC-016 through REC-018,Electron GUI + profile store + ExecutionEngine,NOT RUN,Principal Recorder release-gate gap
+Recorder,Save to library and production replay,REC-016 through REC-018,Electron GUI + profile store + ExecutionEngine,NOT RUN,REC-018 is PASS at 41/41; REC-016/017 validation and failure submatrices remain
 Recorder,Saved URL history UI,REC-019,Electron GUI,NOT RUN,Storage/dedupe contract passed only
 Recorder,Protected-login detection,REC-020,Detector + mock site,PASS,protected-login-recorder 45/45
 Recorder,Session ignore and handoff recovery,REC-021 + REC-023,Electron GUI + RecorderService,NOT RUN,
@@ -74,13 +74,15 @@ Recorder,Crash/race recovery and authorization,REC-024 through REC-025 + REC-028
 Recorder,HTTPS trust and popup identity,REC-026 through REC-027,Real Chromium + settings GUI,PASS,certificate 49/49 + GUI 31/31; popup identity 43/43
 Recorder,Accessibility/responsive/reduced motion,REC-029,Electron GUI/manual,NOT RUN,
 System Reports,Route rendering,SYS-REP-001,Real Electron,PASS,verify:reports 31/31
-System Reports,Complete range/refresh race matrix,SYS-REP-002,Real Electron,NOT RUN,7d and refresh stability passed
-System Reports,Populated overview/workflow/instance truth,SYS-REP-003 through SYS-REP-007,Electron + telemetry + SQLite,NOT RUN,Backend aggregates passed but populated GUI was not executed
-System Reports,Stored report export and folder open,SYS-REP-008,Electron + filesystem,NOT RUN,
-System Reports,Failure/runtime historical analytics,SYS-REP-009 through SYS-REP-010,Electron + observability,NOT RUN,Backend telemetry 61/61 and observability 65/65 passed
+System Reports,Complete range/refresh race matrix,SYS-REP-002,Real Electron,PASS,All five presets plus rapid switch and repeated refresh passed
+System Reports,Populated overview truth,SYS-REP-003,Electron + telemetry + SQLite,PASS,32 durable runs matched IPC and visible cards
+System Reports,Workflow/instance truth submatrices,SYS-REP-004 through SYS-REP-007,Electron + telemetry + SQLite,NOT RUN,Populated core sorting/filtering/comparison/detail/paging passed; exact remaining submatrices are documented
+System Reports,Stored report export and folder open,SYS-REP-008,Electron + filesystem,NOT RUN,Complete redacted export/corrupt record/path boundary passed; real OS folder launch not executed
+System Reports,Failure/runtime historical analytics,SYS-REP-009 through SYS-REP-010,Electron + observability,NOT RUN,Populated categories/rankings/capacity/anomaly passed; remaining submatrices documented
 System Reports,Chrome and server live surfaces,SYS-REP-011 through SYS-REP-012,Real Electron,NOT RUN,Idle polling/render passed; pressure and fault injection not run
 System Reports,Telemetry/observability persistence contracts,SYS-REP-013 through SYS-REP-014,SQLite integration,PASS,61/61 + 65/65
-System Reports,Authorization/path security/accessibility,SYS-REP-015 through SYS-REP-016,Electron + IPC/manual,NOT RUN,
+System Reports,Authorization/path security,SYS-REP-015,Electron + IPC,NOT RUN,All deny/path checks passed; persisted denied-attempt audit verification remains
+System Reports,Accessibility/zoom/reduced motion,SYS-REP-016,Electron GUI/manual,NOT RUN,
 Settings,Access and settings-edit authorization,SET-001,Electron + IPC,NOT RUN,
 Settings,Appearance and branding,SET-002 through SET-003,Real Electron,PASS,accent 33/33; branding 30/30
 Settings,Recorder defaults and protected detection,SET-004 through SET-005,Electron + RecorderService,NOT RUN,

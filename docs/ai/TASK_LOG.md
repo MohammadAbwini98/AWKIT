@@ -6578,7 +6578,7 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   fixed synthetic form fields. The fixture remains inert without the Recorder binding; state is reset
   after capture and before each replay, preventing the page from self-fulfilling the run assertion.
 - **Result:** `verify:recorder-e2e` **41 PASS / 0 FAIL**. Evidence:
-  `test-artifacts/recorder-e2e/2026-07-26T08-55-29-269Z/`.
+  `test-artifacts/recorder-e2e/2026-07-26T08-59-26-977Z/`.
 - **Regressions:** `verify:mock-site` 90/90, `verify:recorder` 78/0, `verify:recorder-flow` 19/19,
   `verify:recorder-draft` 17/17, `typecheck:scripts` and production build PASS.
 - **Preflight correction:** an initial run failed because isolated `LOCALAPPDATA` also hid the
@@ -6587,3 +6587,31 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   configuration issue, not a product defect.
 - **Security:** no CAPTCHA/MFA/protected login was attempted or bypassed; authentication password was
   checked absent from run logs/reports. `.beads/*` remained untouched.
+
+## 2026-07-26 — Codex — Populated System Reports gate and fixes
+
+- **Task:** continue the comprehensive validation at System Reports with real persisted data,
+  drill-down, export, authorization, path safety, reporting and evidence.
+- **Pre-fix gate:** new `scripts/verify-reports-populated-gui.mts` seeded real SQLite/report stores and
+  drove the real Electron renderer/preload/IPC boundary. Negative control: **44 PASS / 13 FAIL**,
+  evidence `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/`.
+- **Defects fixed:** `AWKIT-REP-001` (S2) added sender-bound `PAGE_REPORTS` authorization to every
+  telemetry/report read and `REPORT_EXPORT` to export/open; `AWKIT-REP-002` (S2) aligned Run
+  Artifacts with the real stored-report contract, added trusted export/open bridges, exported the
+  full stored report, and hid/denied actions for Viewer. Folder open accepts only an existing report
+  id and resolves the configured folder in the main process.
+- **Harness correction:** Electron blob anchors did not emit Playwright's download event. The gate
+  now observes the real blob bytes and anchor filename without suppressing the click, persists those
+  bytes, parses them, and checks identity/instances/redaction (`HARNESS-009`).
+- **Result:** **64 PASS / 0 FAIL**, evidence
+  `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/`, including five screenshots,
+  fixture truth, full exported JSON, and assertion ledger.
+- **Regressions:** Reports 31/31, telemetry 61/61, observability 65/65, Runtime Analytics 36/36,
+  real-Electron RBAC 51/51, IPC contract 4/4, type-check, script type-check and production build PASS.
+  A first parallel RBAC/Runtime launch collided during Electron startup; serial reruns passed and no
+  orphan process or port remained.
+- **Truthful case status:** only SYS-REP-002/003 move to PASS. Partially executed report cases retain
+  `NOT RUN`; actual Explorer launch, full compare/live/fault/audit/accessibility submatrices were not
+  executed. Reports are 5 PASS / 11 NOT RUN; combined focused ledger is 43 NOT RUN.
+- **Security:** no CAPTCHA, MFA, protected login, external site or Oracle credential was touched.
+  `.beads/*` remained unstaged and unmodified by this work.

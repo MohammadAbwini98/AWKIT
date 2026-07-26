@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Populated Reports gate 64/64; two report defects fixed (2026-07-26, current)
+
+`scripts/verify-reports-populated-gui.mts` is a deterministic real-Electron gate over an isolated,
+timestamped profile. It seeds the real `SqliteRuntimeStore` with 32 current-window runs plus
+10 previous-window rows across workflows/machines/modes/pools/workloads, exact attempts/artifacts,
+capacity/admission/process/anomaly history, one valid stored report, and one corrupt sibling.
+
+The pre-fix negative control was **44 PASS / 13 FAIL** and exposed two product defects:
+
+- **AWKIT-REP-001 (S2):** every telemetry/report read trusted the renderer without a bound session or
+  `PAGE_REPORTS`; pre-auth and no-role direct calls returned operational data.
+- **AWKIT-REP-002 (S2):** Run Artifacts projected the stored report through nonexistent fields,
+  could not Open, exported a lossy card, had no trusted export/open preload bridge, and showed Export
+  to Viewer.
+
+All telemetry/report reads now use sender-bound `PAGE_REPORTS`; report export/open uses
+`REPORT_EXPORT`; folder open accepts only an existing report id and resolves the configured directory
+in the main process. Run Artifacts consumes the real `ConcurrentRunReport`, renders
+`scenarioName`/`instances.length`, exports the full permission-gated record, and hides actions without
+permission.
+
+**Final result:** `verify:reports-populated-gui` **64/64**, evidence
+`test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/`. Regressions: Reports 31/31,
+telemetry 61/61, observability 65/65, Runtime Analytics 36/36 (normal/empty/migration/high-data),
+real-Electron RBAC 51/51, IPC contract 4/4, type-checks and build pass. The initial parallel
+RBAC/Runtime launch collided during Electron startup; serial reruns are green and no orphan process
+or port remained.
+
+Case truth remains conservative: SYS-REP-002/003 are now PASS; populated subsets of
+SYS-REP-004–012 and the authorization/path subset of SYS-REP-015 passed, but those cases remain
+`NOT RUN` until every specified subcase executes. Actual Windows Explorer launch, five-workflow cap,
+live/backpressure transitions, fault injection, denial-audit persistence and accessibility were not
+executed. Reports stand at **5 PASS / 11 NOT RUN**; the combined focused ledger has **43 NOT RUN**.
+
 ## REC-018 complete — real Recorder save/restart/replay gate is 41/41 (2026-07-26, current)
 
 `scripts/verify-recorder-e2e.mjs` now proves the decisive Recorder journey in a real Electron app on
@@ -120,9 +154,9 @@ expected results, safety controls, and `PASS`/`BLOCKED`/`NOT RUN` status.
 - Recorder component suites are green: capture/locators/Smart Waits 78/78, flow conversion 19/19,
   draft/URL persistence 17/17, async review 21/21, protected detection 45/45, HTTPS 49/49, popup
   identity 43/43, and designer/profile round-trip 26/26.
-- Reports are green for empty-state GUI 31/31, telemetry 61/61, and observability 65/65. Populated GUI
-  truth, drill-down, stored-report export/path security, authorization, and accessibility remain
-  `NOT RUN`.
+- Reports are green for empty-state GUI 31/31, populated GUI 64/64, telemetry 61/61, observability
+  65/65, Runtime Analytics 36/36, and RBAC 51/51. SYS-REP-002/003 are PASS; exact residual
+  drill-down/live/fault/audit/accessibility submatrices remain `NOT RUN`.
 - Settings are green for persistence 3/3, capacity GUI 12/12, HTTPS GUI 31/31, accent 33/33,
   branding 30/30, secrets backend 16/16, and Database Drivers GUI 30/30. Paths, general validation,
   Secrets GUI, import/export, reset/data preservation, authorization, and accessibility remain open.

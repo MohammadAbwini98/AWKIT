@@ -71,6 +71,10 @@ npm run verify:settings-persistence # node scripts/verify-settings-persistence.m
 npm run verify:reports      # node scripts/verify-reports-gui.mjs — real-Electron smoke of the Reports
                             # Overview page: nav→render, valid state (metrics OR empty), range selector,
                             # refresh, no telemetry/undefined console errors. Requires `npm run build`.
+npm run verify:reports-populated-gui # tsx scripts/verify-reports-populated-gui.mts — isolated real-Electron
+                            # populated Reports gate: real SQLite/report stores, all report pages,
+                            # exact Overview/range truth, drill-down/paging/analytics, full redacted
+                            # export and sender-bound RBAC/path safety; timestamped evidence. (64/64)
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library
