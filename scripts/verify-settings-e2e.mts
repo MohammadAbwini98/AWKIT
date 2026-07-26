@@ -935,6 +935,54 @@ try {
       !("futureUnknownExecutionField" in (afterCrafted.execution as unknown as Record<string, unknown>))
   );
 
+  // SET-017 — the post-import restart round-trip. Everything above proves the import took effect in
+  // the LIVE process; none of it proves the imported document was actually persisted. An import that
+  // updated only in-memory state would satisfy every preceding check and silently revert on the next
+  // launch. The full inventory is re-read too, since an import must never cost the user data.
+  const beforeImportRestart = await snapshotSettings(win);
+  const inventoryBeforeImportRestart = await dataInventory(win);
+  await app.close();
+  ({ app, win } = await launch(env));
+  watch(win);
+  await loginExisting(win, DEFAULT_CREDS.username, DEFAULT_CREDS.password);
+  await openSettings(win);
+  const afterImportRestart = await snapshotSettings(win);
+  check(
+    "SET-017 imported execution defaults survive a real restart",
+    afterImportRestart.execution.maxRuns === beforeImportRestart.execution.maxRuns &&
+      afterImportRestart.execution.defaultRuns === beforeImportRestart.execution.defaultRuns,
+    `${JSON.stringify(afterImportRestart.execution)} vs ${JSON.stringify(beforeImportRestart.execution)}`
+  );
+  // Every top-level key is compared and the differing ones are NAMED, so a legitimately-volatile key
+  // (launch timestamp, last route) is distinguishable from a substantive value that failed to
+  // persist. `app` carries `lastLaunchedAt` and is expected to differ by construction.
+  const volatileKeys = new Set(["app"]);
+  const changedKeys = Object.keys(beforeImportRestart)
+    .filter((key) => !volatileKeys.has(key))
+    .filter((key) => {
+      const before = (beforeImportRestart as unknown as Record<string, unknown>)[key];
+      const after = (afterImportRestart as unknown as Record<string, unknown>)[key];
+      return JSON.stringify(before) !== JSON.stringify(after);
+    });
+  check(
+    "SET-017 the whole imported document round-trips, not just the fields asserted live",
+    changedKeys.length === 0,
+    changedKeys.length === 0
+      ? "every non-volatile key identical"
+      : changedKeys.map((key) => `${key}: ${JSON.stringify((beforeImportRestart as unknown as Record<string, unknown>)[key])} -> ${JSON.stringify((afterImportRestart as unknown as Record<string, unknown>)[key])}`).join(" | ")
+  );
+  check(
+    "SET-017 the certificate bypass is still off after the restart",
+    afterImportRestart.recorder.security.ignoreHttpsErrors === false,
+    String(afterImportRestart.recorder.security.ignoreHttpsErrors)
+  );
+  const inventoryAfterImportRestart = await dataInventory(win);
+  check(
+    "SET-017 no user data was lost across import + restart",
+    JSON.stringify(inventoryAfterImportRestart) === JSON.stringify(inventoryBeforeImportRestart),
+    `${JSON.stringify(inventoryAfterImportRestart)} vs ${JSON.stringify(inventoryBeforeImportRestart)}`
+  );
+
   const beforeInvalidImports = await snapshotSettings(win);
   await setImportFile(win, "malformed.json", "{\"appearance\":");
   check("SET-018 malformed JSON shows an actionable error", await win.locator(".settings-banner.error").filter({ hasText: /JSON|Unexpected|Expected/ }).isVisible().catch(() => false));
@@ -1055,6 +1103,58 @@ try {
       ? offlineBanner.includes("validation passed")
       : offlineBanner.includes(`${offlineFailures} issue`),
     offlineBanner
+  );
+
+  // SET-020 — the failing variant. A passing bundle proves the action runs; it does not prove the
+  // action can DETECT anything, and a validator hard-wired to report success would satisfy the check
+  // above perfectly. A runtime folder is made genuinely unwritable so a real check flips.
+  //
+  // `resources/` is deliberately untouched — the offline rules forbid writing there, and the runtime
+  // folders under the isolated profile give the same signal without it.
+  const brokenFolder = join(runtimeRoot, "downloads");
+  mkdirSync(brokenFolder, { recursive: true });
+  denyDirectoryWrite(brokenFolder);
+  deniedPaths.push({ dir: brokenFolder, kind: "write" });
+  check(
+    "SET-020 the broken-dependency fixture is genuinely unwritable (precondition)",
+    !directoryAcceptsAWrite(brokenFolder),
+    brokenFolder.replace(root, "<repo>")
+  );
+  const brokenStatus = await win.evaluate(() => window.playwrightFlowStudio.offlineRuntime.getStatus());
+  const brokenFailures = brokenStatus.checks.filter((item) => !item.ok);
+  check(
+    "SET-020 a missing/unwritable dependency is detected rather than reported healthy",
+    brokenFailures.length === offlineFailures + 1,
+    `${brokenFailures.length} failing vs ${offlineFailures} baseline: ${brokenFailures.map((item) => item.key).join(", ")}`
+  );
+  check(
+    "SET-020 the failing check names the folder that actually broke",
+    brokenFailures.some((item) => item.key === "folder.downloads"),
+    brokenFailures.map((item) => item.key).join(", ")
+  );
+  await win.getByRole("button", { name: "Validate Offline Runtime" }).click();
+  const brokenBannerText = `Offline runtime validation found ${brokenFailures.length} issue(s).`;
+  await win.getByText(brokenBannerText, { exact: false }).waitFor({ timeout: 10_000 });
+  check(
+    "SET-020 the banner's failure count agrees with the underlying checks",
+    (await win.getByText(brokenBannerText, { exact: false }).count()) > 0,
+    brokenBannerText
+  );
+  // Recovery: the failure must be a real observation of current state, not a latched flag.
+  restoreDirectoryWrite(brokenFolder);
+  deniedPaths.pop();
+  await win.getByRole("button", { name: "Validate Offline Runtime" }).click();
+  await win.waitForTimeout(600);
+  const recoveredStatus = await win.evaluate(() => window.playwrightFlowStudio.offlineRuntime.getStatus());
+  check(
+    "SET-020 restoring the dependency clears the failure on the next validation",
+    recoveredStatus.checks.filter((item) => !item.ok).length === offlineFailures,
+    `${recoveredStatus.checks.filter((item) => !item.ok).length} vs ${offlineFailures}`
+  );
+  check(
+    "SET-020 validation performed no network access (offline contract)",
+    recoveredStatus.internetRequired === false && recoveredStatus.runtimeDownloadsAllowed === false,
+    JSON.stringify({ internetRequired: recoveredStatus.internetRequired, runtimeDownloadsAllowed: recoveredStatus.runtimeDownloadsAllowed })
   );
 
   // Narrow/zoom smoke. This is a concrete overflow check, not a full manual accessibility audit.

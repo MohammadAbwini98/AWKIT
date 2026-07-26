@@ -889,10 +889,19 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Supported values round-trip; export contains no stored secret values; unknown/invalid
   fields are rejected or normalized; import cannot silently enable certificate bypass; user data is
   not deleted.
-- **Status:** `NOT RUN` for the complete post-import restart round-trip. Export bytes/filename/no
+- **Status:** `PASS` — `verify:settings-e2e`, **149/149**. **The post-import restart round-trip is now
+  executed**, which is the half that mattered: every preceding assertion proved the import took effect
+  in the *live* process, and an import that updated only in-memory state would have satisfied all of
+  them and silently reverted on the next launch. After a real restart the imported execution defaults
+  survive, every non-volatile top-level key is identical, the certificate bypass is still off, and the
+  full data inventory (including sessions and driver records) is unchanged. Export bytes/filename/no
   plaintext, supported-value restoration, partial legacy merge, unknown-field pruning, data
-  preservation and certificate-bypass refusal passed in `verify:settings-e2e`; the dedicated HTTPS
-  Settings GUI remains 31/31.
+  preservation and certificate-bypass refusal also pass; the dedicated HTTPS Settings GUI remains
+  31/31.
+  **Note for whoever extends this:** compare the document **per key**, not with a single
+  `JSON.stringify` equality. `hydrate()` produces a different key *order* across a restart, so a
+  whole-document string comparison reports a difference where none exists — it did, and the values
+  were identical.
 
 ### SET-018 — Invalid or corrupt Settings import
 
@@ -927,8 +936,16 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Click Validate Offline Runtime for each state; open Offline Runtime detail when issues exist.
 - **Expected:** Passing bundle reports success; failure count and detail agree; action does not download
   dependencies or require network; no false success on missing browser/runtime.
-- **Status:** `NOT RUN` for missing/corrupt dependency variants. The installed offline bundle's
-  passing validation action completed in `verify:settings-e2e`.
+- **Status:** `PASS` — `verify:settings-e2e`, **149/149**. The passing bundle reports success, and the
+  **failing variant is now exercised**: a runtime folder is made genuinely unwritable (with the
+  denial asserted as a precondition), after which exactly one additional check fails, it is
+  `folder.downloads` by name, and the banner's issue count agrees with the underlying checks.
+  Restoring the folder clears the failure on the next validation, so the result is a real observation
+  of current state rather than a latched flag. `internetRequired` and `runtimeDownloadsAllowed` are
+  both asserted false, so the action cannot be satisfying itself by downloading. `resources/` is
+  deliberately untouched — the offline rules forbid writing there, and the isolated profile's runtime
+  folders give the same signal. This matters because a passing bundle proves only that the action
+  *runs*; a validator hard-wired to report success would have satisfied the previous check perfectly.
 
 ### SET-021 — Settings accessibility and responsive behavior
 
@@ -962,15 +979,22 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
     SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
     SYS-REP-006's artifact launch.
-- **Settings:** **13 PASS / 8 NOT RUN**, with `verify:settings-e2e` at **128/128** — page/IPC
-  authorization, every section, direct validation *and its valid boundary edges*, path truth, Secrets
-  CRUD and rapid submit, counts, the complete UI-state/reset data-preservation inventory (now
-  including sessions and driver records), import recovery, restart checks and modal/error
-  accessibility. SET-016 and SET-019 closed this round.
-  Remaining `NOT RUN` subcases: the path picker/read-only matrix (SET-007), new-designer propagation
-  (SET-008), runner-behaviour proof (SET-009), an unavailable secret store (SET-013), real folder
-  launch and unreadable-store recovery (SET-015), the post-import restart round-trip (SET-017),
-  corrupt offline-dependency variants (SET-020), and SET-004's mid-session half, which shares the
-  Recorder pause fixture with REC-013.
+- **Settings:** **16 PASS / 5 NOT RUN**, with `verify:settings-e2e` at **149/149** — page/IPC
+  authorization, every section, direct validation *and its valid boundary edges*, path truth
+  including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,
+  counts and unreadable-store recovery, the complete UI-state/reset data-preservation inventory (now
+  including sessions and driver records), the post-import restart round-trip, offline validation of
+  both a healthy *and* a broken dependency, and modal/error accessibility. SET-007, SET-016, SET-017,
+  SET-019 and SET-020 closed this round; SET-007 found and fixed `AWKIT-SET-005`.
+  The five remaining cases are open for a *named* residual subcase each:
+  - **SET-004** — the mid-session half. Its fixture now exists (`/recorder-lab?rec013=1`) but
+    `verify:settings-e2e` does not spawn the mock site. Cheapest remaining case.
+  - **SET-008** — propagation of designer defaults into a newly opened designer.
+  - **SET-009** — runner *behaviour* proof (headed/headless, screenshot-on-failure, stop-on-error);
+    persistence already passes, this needs a bounded real run.
+  - **SET-013** — an unavailable secret store. Requires `safeStorage.isEncryptionAvailable()` to be
+    false, which has no injection seam from outside the main process.
+  - **SET-015** — the real OS folder launch, a recorded manual check by the same owner decision as
+    SYS-REP-008.
 
 No defect is inferred from a `NOT RUN` or `BLOCKED` result.
