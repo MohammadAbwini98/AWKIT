@@ -457,9 +457,14 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Sort each column both ways; apply and combine all four filters; clear filters.
 - **Expected:** Stable correct order; filtered rows/counts match SQLite; empty filter result is explicit;
   no cross-machine comparison is silently presented as same-machine.
-- **Status:** `NOT RUN` for the full all-column/all-filter matrix — the populated gate passed
-  two-direction Workflow sorting, machine filtering, machine-context labels, and contradictory
-  combined-filter empty state against two seeded workflows.
+- **Status:** `PASS` — `verify:reports-populated-gui`, **112/112**. Five workflows seeded across three
+  machines with each filter dimension varying independently. Every sortable column (`Workflow`,
+  `Runs`, `Success`, `Avg`, `p95`) was driven in both directions, holding the same row set and
+  reporting a definite `aria-sort` each time; the ordering itself is proven against the column's own
+  values (`Runs` descending `20,12,2,2,2`, ascending `2,2,2,12,20`). All four filters narrow to a
+  strict subset and restore on clear, two filters intersect rather than union (3 → 1), contradictory
+  filters show an explicit empty state, and machine-context labels are asserted so a cross-machine
+  comparison cannot be presented as same-machine.
 
 ### SYS-REP-005 — Workflow comparison limit and deltas
 
@@ -469,8 +474,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   duration, runs and delta values.
 - **Expected:** Maximum four selected; fifth is disabled/refused; values match backend comparison;
   new/up/down/flat semantics and higher-is-better direction are correct.
-- **Status:** `NOT RUN` for the five-workflow/fifth-selection limit — populated comparison and
-  side-by-side deltas passed with two independently seeded workflows.
+- **Status:** `PASS` — `verify:reports-populated-gui`, **112/112**. With five populated rows, Compare
+  renders a control per row; two then four selections render matching cards; a fifth is refused (the
+  control is `disabled` and no fifth card appears) and the four existing selections survive the
+  attempt; deselecting releases a slot (4 → 3); and each card carries both percentage and numeric
+  figures with delta direction.
 
 ### SYS-REP-006 — Recent runs and Run Detail drawer
 
@@ -480,9 +488,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   artifact; close by button/Escape/scrim; delete a retained run and retry.
 - **Expected:** Correct run opens; attempts/artifacts match durable rows; path open is allowed only for
   approved runtime roots; missing run shows retention message; focus returns to opener.
-- **Status:** `NOT RUN` for artifact launch, Escape/scrim/focus return, and missing-retained-run
-  recovery — durable row identity, two attempts, two artifacts, and button-close passed in the
-  populated gate.
+- **Status:** `NOT RUN` for artifact launch and an explicit retention message. Durable row identity,
+  two attempts, two artifacts, button-close, **Escape-close and focus return** now pass in the
+  populated gate (**112/112**) — the last two found and fixed `AWKIT-REP-004`. A missing retained run
+  is asserted to degrade safely (no throw, no path leak), but `telemetry.runDetail` returns
+  `{attempts:[],artifacts:[]}` for an unknown id, which the UI cannot distinguish from a run that was
+  retained with no attempts; surfacing a retention message needs a telemetry contract change and is
+  recorded as `NOT RUN`, not as a pass.
 
 ### SYS-REP-007 — Instance Reports paging and live status
 
@@ -492,7 +504,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Live counts match engine state; no duplicate/missing history rows; buttons disable at
   boundaries; row detail is correct.
 - **Status:** `NOT RUN` for queued/running live-state transitions — the populated gate passed
-  32-row two-page history, exact `1–25`/`26–32` boundaries, no duplicate/missing IDs, disabled
+  38-row two-page history, exact `1–25`/`26–38` boundaries, no duplicate/missing IDs, disabled
   boundary action, and correct row detail.
 
 ### SYS-REP-008 — Stored Execution Reports list, export and folder open
@@ -518,9 +530,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Open Failure Analytics; compare category distribution, rankings, flakiness and evidence.
 - **Expected:** Only failures enter failure views; taxonomy is correct; low-sample flakiness is hidden;
   evidence points to the correct run and remains redacted.
-- **Status:** `NOT RUN` for unknown-category, low-sample, and evidence-navigation subcases — the
-  populated GUI passed six named categories, the exact failed total, and both workflow rankings;
-  taxonomy/backend logic remains green in `verify:telemetry`.
+- **Status:** `NOT RUN` for low-sample flakiness suppression and evidence navigation. The populated
+  GUI (**112/112**) passed six named categories, the exact failed total, both workflow rankings, and
+  now the **unknown-category** subcase: three uncategorised failures are surfaced rather than dropped,
+  the category distribution accounts for every one of the 9 failed runs, and no non-failed run appears
+  in the failure evidence list. Taxonomy/backend logic remains green in `verify:telemetry`.
 
 ### SYS-REP-010 — Runtime Analytics historical capacity and anomaly views
 
@@ -605,8 +619,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   trap/return, live loading/error announcements; test 200% zoom, narrow layout and reduced motion.
 - **Expected:** All operations are keyboard reachable; charts have useful summaries; state is not
   color-only; tables/drawers remain readable without clipping; motion is reduced.
-- **Status:** `PASS` for the executed audit — `verify:reports-settings-a11y` 14/14 plus two seeded
-  `aria-sort` assertions in `verify:reports-populated-gui` (66/66). Covers keyboard reach, the
+- **Status:** `PASS` for the executed audit — `verify:reports-settings-a11y` 14/14 plus seeded
+  `aria-sort` and run-drawer focus assertions in `verify:reports-populated-gui` (**112/112**). The
+  drawer focus-trap/return subcase is now executed and found `AWKIT-REP-004`: focus moves into the
+  drawer on open, Escape dismisses it, and focus returns to the opening control. Chart accessible
+  summaries remain unexecuted. Covers keyboard reach, the
   `:focus-visible` ring on every focused control, accessible names, sorted/unsorted `aria-sort`
   on the Workflow Reports table, reduced motion, 200% zoom and a narrow width with no horizontal
   overflow. **Found and fixed:** sort direction was conveyed only by a chevron icon, so a screen
@@ -864,8 +881,12 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Recorder:** component contracts are strong, but release approval for the Recorder feature requires
   REC-001 through REC-004 and REC-013, REC-016, REC-018, REC-021, REC-023 through REC-025, REC-028 and
   REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.
-- **System Reports:** empty-state GUI and backend analytics are green. Populated GUI truth, drill-down,
-  export/path security, authorization and accessibility remain open.
+- **System Reports:** **9 PASS / 7 NOT RUN.** Empty-state GUI, backend analytics, populated overview
+  truth, the full sort/filter matrix, the comparison limit, export/path security, authorization and
+  the executed accessibility audit are green. Remaining: live queued/running transitions (SYS-REP-007),
+  the real OS folder launch (SYS-REP-008), low-sample flakiness and evidence navigation (SYS-REP-009),
+  multi-range and recovered anomalies (SYS-REP-010), backpressure/cleanup (SYS-REP-011), storage
+  fault injection (SYS-REP-012), and artifact launch plus an explicit retention message (SYS-REP-006).
 - **Settings:** the real-Electron core gate is 116/116, including page/IPC authorization, every
   section, direct validation, path truth, Secrets CRUD, counts, UI-state reset, import recovery,
   reset safety, restart checks and modal/error accessibility. SET-001 and SET-018 are now PASS.

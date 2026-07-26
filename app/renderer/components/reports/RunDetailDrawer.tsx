@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { FolderOpen, X } from "lucide-react";
 import type { RunDetail } from "@src/reports/TelemetryContracts";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -28,9 +29,58 @@ export function RunDetailDrawer({ instanceId, onClose }: RunDetailDrawerProps) {
     void window.playwrightFlowStudio.system.openPath(parentFolder(path)).catch(() => undefined);
   };
 
+  // This is an `aria-modal` dialog, so it owes a keyboard user three things it did not previously
+  // provide: focus moves in on open, Tab is trapped inside, Escape dismisses it, and focus returns
+  // to whatever opened it. Without them a keyboard or screen-reader user who opened the drawer was
+  // stranded — the same defect class as AWKIT-SET-004, which fixed `ConfirmDialog` but never
+  // reached this drawer. The implementation deliberately mirrors `ConfirmDialog`'s.
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const returnFocusRef = useRef<HTMLElement | null>(
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null
+  );
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    drawerRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(drawerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? [])].filter((element) => !element.hasAttribute("hidden"));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        drawerRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus();
+    };
+  }, []);
+
   return (
     <div className="awkit-drawer-scrim" role="dialog" aria-modal="true" aria-label="Run detail" onClick={onClose}>
-      <aside className="awkit-drawer" onClick={(event) => event.stopPropagation()}>
+      <aside ref={drawerRef} tabIndex={-1} className="awkit-drawer" onClick={(event) => event.stopPropagation()}>
         <header className="awkit-drawer-head">
           <div>
             <strong>Run detail</strong>

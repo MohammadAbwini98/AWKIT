@@ -417,6 +417,44 @@ guard. `verify:ipc-contract` was taught to recognise that registrar — without 
 channels became invisible to its static scan, which would have failed **open** for its
 "registered but unexposed and undocumented" check. Contract is back to 4/4 at 203 handlers.
 
+### AWKIT-REP-004 — The Reports run-detail drawer was an `aria-modal` dialog with no keyboard contract
+
+- **Severity:** S3 / Moderate accessibility
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/renderer/components/reports/RunDetailDrawer.tsx`
+- **Detected by:** `SYS-REP-006`, `SYS-REP-016`
+- **Evidence before fix:** `test-artifacts/reports-populated-gui/2026-07-26T19-38-40-665Z/execution-results.json`
+  (**105 PASS / 3 FAIL**)
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-26T20-31-28-001Z/execution-results.json`
+  (**109 PASS / 0 FAIL**)
+
+**Reproduction before fix**
+
+1. Open Workflow Reports with populated run history and activate a row's **Details** button.
+2. The drawer renders with `role="dialog"` and `aria-modal="true"`, but focus stays on the button
+   behind it, Tab walks out into the page underneath, and Escape does nothing.
+3. The only exit is a mouse click on Close or the scrim.
+
+A keyboard or screen-reader user who opened the drawer was stranded: the drawer *claims* to be modal,
+so assistive technology treats content behind it as inert, while focus was in fact still out there.
+
+**This is the same defect class as `AWKIT-SET-004`.** That fix gave `ConfirmDialog` a focus trap,
+Escape support and focus restoration, but the Reports drawer is a separate component and was never
+covered by it — a fix applied to one modal surface, not to the concept.
+
+**Fix:** `RunDetailDrawer` now mirrors `ConfirmDialog`'s pattern — focus moves into the drawer on
+open, Tab/Shift+Tab wrap inside it, Escape dismisses it, and focus returns to the still-connected
+element that opened it.
+
+**The check that proves focus return was vacuous on the first attempt, and this is the reusable
+lesson.** It asserted `document.activeElement.textContent.includes("Details")`. When focus is lost,
+`activeElement` falls back to `<body>`, whose `textContent` contains *every* button label on the page
+— including "Details". The assertion would therefore have passed precisely when the defect was
+present. It now asserts the tag name *and* an exact label. Negative-controlled: with only the
+focus-return line disabled the check fails with `activeElement=<BODY>`; restored, it reports
+`activeElement=<BUTTON> "Details"`.
+
 ### AWKIT-REC-001 — Every Recorder IPC channel was reachable without a session or a permission
 
 - **Severity:** S1 / Critical security boundary failure
