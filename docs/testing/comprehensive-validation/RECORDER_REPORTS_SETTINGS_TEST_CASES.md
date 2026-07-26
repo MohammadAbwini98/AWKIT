@@ -204,7 +204,19 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Click Save; inspect modal labels, classifications and warnings; cancel; reopen; confirm.
 - **Expected:** Save pauses on the review dialog; Cancel retains actions; Confirm persists once;
   keyboard focus is trapped/restored and Escape behavior is deliberate.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the dialog's keyboard focus-trap/Escape semantics only. Everything else
+  is executed in `verify:recorder-gui` (**100 PASS / 0 FAIL / 1 NOT RUN**) against the new
+  `/recorder-lab?rec013=1` harness: Save pauses on the dialog, the dialog is a labelled `role=dialog`,
+  dismissing it retains all three actions **and persists nothing**, a second Save reopens it, and
+  Confirm persists the flow exactly once.
+  **The precondition is now asserted, not assumed** — the `fixedDelay` wait is checked before any
+  dialog assertion, so a fixture that stopped producing review-worthy activity fails loudly instead
+  of quietly reverting to `NOT RUN`.
+  **Two premises recorded so they are not re-derived:** (1) a `fixedDelay` requires Smart Wait capture
+  **ON** and waiting-time capture **OFF** — `RecorderService` passes
+  `allowFixedDelayFallback: !captureWaitTime`, so the intuitive "capture waiting time ON" approach
+  suppresses the very wait the case needs; and (2) the dismiss control is labelled **"Keep editing"**,
+  not "Cancel" — this block had guessed "Cancel" before it had ever executed.
 
 ### REC-014 — Draft crash/restart recovery
 

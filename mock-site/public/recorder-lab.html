@@ -48,6 +48,7 @@
           <p id="recorderFormResult" data-testid="recorder-form-result" role="status">Recorder form idle</p>
         </form>
         <p id="rec018Status" data-testid="rec018-status" role="status">REC-018 harness idle</p>
+        <p id="rec013Status" data-testid="rec013-status" role="status">REC-013 harness idle</p>
       </section>
 
       <section data-testid="recorder-wait-time">
@@ -258,6 +259,55 @@
         steps.forEach(function (step, index) {
           window.setTimeout(step, 400 + index * 200);
         });
+      })();
+
+      // ── REC-013 async-review harness ─────────────────────────────────────────────────────────
+      // Produces a recording the async-review policy classifies as REVIEW-WORTHY, which is the one
+      // precondition REC-013 (and SET-004's mid-session half) could never meet.
+      //
+      // Same two gates as REC-018 above: ?rec013=1 AND window.__awtkit_recordAction. Inert during
+      // any replay, so it cannot drive its own assertions.
+      //
+      // The mechanism is specific, and the obvious guess is wrong. A `fixedDelay` wait is what
+      // `reviewWait` classifies as "needsReview" ("Fixed delay is a timing guess, not a real
+      // completion signal"), and `buildSmartWaits` only emits one when NO reliable condition was
+      // detected AND `allowFixedDelayFallback` is set. RecorderService passes
+      // `allowFixedDelayFallback: !this.captureWaitTime` — so capture-waiting-time must be OFF, not
+      // on, and the gap must be genuinely QUIET: any fetch, DOM mutation or loader in that window
+      // yields a reliable condition instead and the fallback never fires.
+      //
+      // So: act, stay completely still for well over the 400 ms `minMeaningfulMs`, then act again.
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("rec013") !== "1") return;
+        var status = $("rec013Status");
+        if (typeof window.__awtkit_recordAction !== "function") {
+          status.textContent = "REC-013 harness inert (no recorder attached)";
+          return;
+        }
+        // Deliberately not touching `status` between the two actions below — updating this element
+        // would be a DOM mutation inside the quiet window and would suppress the fixedDelay.
+        status.textContent = "REC-013 harness armed";
+        var fire = function (el, type) {
+          el.dispatchEvent(new Event(type, { bubbles: true }));
+        };
+        window.setTimeout(function () {
+          var el = $("recorderFullName");
+          el.value = "Rec013 Operator";
+          fire(el, "input");
+          fire(el, "change");
+        }, 400);
+        // 1,400 ms of deliberate stillness: comfortably over minMeaningfulMs (400) with no signal
+        // of any kind, so the only thing the recorder can infer is recorded think-time.
+        window.setTimeout(function () {
+          var el = $("recorderEmail");
+          el.value = "rec013@example.test";
+          fire(el, "input");
+          fire(el, "change");
+        }, 1800);
+        window.setTimeout(function () {
+          status.textContent = "REC-013 harness completed";
+        }, 2000);
       })();
 
     </script>

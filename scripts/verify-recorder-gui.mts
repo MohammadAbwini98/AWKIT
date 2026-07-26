@@ -406,15 +406,31 @@ try {
     await waitIdle(win);
   }
 
-  // ── REC-013 — async review modal (precondition-gated) ──────────────────────
+  // ── REC-013 — async review modal ───────────────────────────────────────────
+  // The precondition this case could never meet is a recording that contains review-worthy async
+  // activity. `?rec013=1` on the Recorder Lab supplies it: two self-driven actions separated by a
+  // deliberately QUIET 1.4 s. The settings below are load-bearing, not incidental — RecorderService
+  // passes `allowFixedDelayFallback: !captureWaitTime`, so a `fixedDelay` (the wait the policy calls
+  // "needsReview") is only ever emitted with Smart Wait capture ON and waiting-time capture OFF.
   console.log("\nREC-013 — Async review modal interaction");
-  await startAndWaitRecording(win, `${baseUrl}/smart-waits`);
+  await win.evaluate(() =>
+    window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: true, captureWaitTime: false } }));
+  await startAndWaitRecording(win, `${labUrl}?rec013=1`);
   await win.waitForTimeout(3_000);
   await stopButton(win).click();
   await waitIdle(win);
   const reviewActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+  // The fixture's own preconditions, asserted rather than assumed — if either fails, everything
+  // below would be testing an empty recording.
+  check("REC-013 the async fixture produced recorded actions", reviewActions.length >= 2, `${reviewActions.length} actions`);
+  const fixedDelayWaits = reviewActions.flatMap((action) => (action.afterWaits ?? []).filter((wait) => wait.type === "fixedDelay"));
+  check(
+    "REC-013 the quiet gap produced a review-worthy fixedDelay wait",
+    fixedDelayWaits.length >= 1,
+    JSON.stringify(reviewActions.map((action) => (action.afterWaits ?? []).map((wait) => wait.type)))
+  );
   if (reviewActions.length === 0) {
-    notRun("REC-013 the async review dialog gates Save", "no actions were captured on the Smart Wait fixture, so Save had nothing to review");
+    notRun("REC-013 the async review dialog gates Save", "no actions were captured on the async fixture, so Save had nothing to review");
   } else {
     await win.getByLabel("Flow Name").fill("REC-013 Review Modal");
     await win.getByRole("button", { name: "Save to Flow Library", exact: true }).click();
@@ -429,11 +445,22 @@ try {
     } else {
       check("REC-013 Save pauses on the review dialog", true);
       check("REC-013 the dialog is a labelled dialog", (await modal.getAttribute("role")) === "dialog");
-      await modal.getByRole("button", { name: "Cancel", exact: true }).click();
+      // The dismiss control is "Keep editing", not "Cancel". This block was written before it had
+      // ever executed and guessed the label; the real one is deliberately less final-sounding,
+      // because dismissing the review returns you to the recording rather than discarding it.
+      const keepEditing = modal.getByRole("button", { name: "Keep editing", exact: true });
+      check("REC-013 the dismiss control is present and named for what it does", await keepEditing.isVisible());
+      await keepEditing.click();
       await win.waitForTimeout(300);
-      check("REC-013 Cancel closes the dialog", (await modal.isVisible().catch(() => false)) === false);
+      check("REC-013 dismissing the review closes the dialog", (await modal.isVisible().catch(() => false)) === false);
       const retained = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
-      check("REC-013 Cancel retains the recorded actions", retained.length === reviewActions.length, `${retained.length}/${reviewActions.length}`);
+      check("REC-013 dismissing the review retains the recorded actions", retained.length === reviewActions.length, `${retained.length}/${reviewActions.length}`);
+      const savedAfterDismiss = await win.evaluate(() => window.playwrightFlowStudio.flows.list());
+      check(
+        "REC-013 dismissing the review persists nothing",
+        savedAfterDismiss.every((flow) => flow.name !== "REC-013 Review Modal"),
+        JSON.stringify(savedAfterDismiss.map((flow) => flow.name))
+      );
       await win.getByRole("button", { name: "Save to Flow Library", exact: true }).click();
       await modal.waitFor({ state: "visible", timeout: 5_000 });
       check("REC-013 the dialog reopens on a second Save", true);

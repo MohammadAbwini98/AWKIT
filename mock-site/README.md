@@ -46,6 +46,7 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 | `/api/delay?ms=300` | Runner/Smart Wait response waits | Returns local JSON after a bounded deterministic delay. |
 | `/api/status?code=500&ms=0` | Response status vs timeout | Returns the requested status from an allow-list (200, 201, 202, 204, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504; anything else falls back to 500). No 3xx, so it can never act as an open redirect. Optional bounded `ms` delay. |
 | `/api/results?mode=populated&ms=300` | Empty-result completion contracts | `mode=populated` returns three fixed rows; `mode=empty` returns HTTP 200 with zero rows. Both are successes — only the UI outcome differs. |
+| `/recorder-lab?rec013=1` | REC-013 async review modal | **Capture harness.** Self-drives two form fields separated by a deliberately *quiet* 1.4 s so the Recorder emits a `fixedDelay` wait — the one the async-review policy classifies `needsReview`, which is what makes the review dialog open. Double-gated on the query param **and** `window.__awtkit_recordAction`, so it is inert during replay. Status: `data-testid="rec013-status"`. **Requires Smart Wait capture ON and waiting-time capture OFF** — see below. |
 | `/api/rec018/state`, `/api/rec018/reset`, `POST /api/rec018/submit` | REC-018 replay equivalence | Resettable, in-memory oracle for the fixed synthetic Recorder-lab form. The verifier resets it after capture; a later matching submission proves the inert fixture was completed by production replay. It accepts no credentials, cookies, headers, or session state. |
 
 ## Using it with Recorder
@@ -81,6 +82,33 @@ and the gate would pass while proving nothing.
 Observable state via `data-testid="rec018-status"`: `REC-018 harness idle` (no query gate) ->
 `REC-018 harness inert (no recorder attached)` (gate 1 only) -> `REC-018 harness armed` ->
 `REC-018 harness completed`. All three branches are asserted by `npm run verify:mock-site`.
+
+### REC-013 async-review harness (`/recorder-lab?rec013=1`)
+
+Same two gates as REC-018, for a different purpose: producing a recording the async-review policy
+considers **review-worthy**, so the Save-time review dialog actually opens. Without it, REC-013 had
+no reachable precondition and was reported `NOT RUN`.
+
+**The mechanism is specific, and the obvious guess is wrong.** It is a `fixedDelay` wait that
+`reviewWait` classifies as `needsReview` ("Fixed delay is a timing guess, not a real completion
+signal"), and `buildSmartWaits` emits one **only** when no reliable condition was detected *and*
+`allowFixedDelayFallback` is set. `RecorderService` passes
+`allowFixedDelayFallback: !this.captureWaitTime`. So:
+
+- **Smart Wait capture must be ON** and **waiting-time capture must be OFF.** With waiting-time
+  capture on, the fallback is suppressed and no `fixedDelay` is ever produced.
+- **The gap must be genuinely quiet.** Any fetch, DOM mutation or loader inside that window yields a
+  reliable condition instead, and the fallback never fires. This is why the harness does not touch
+  its own status element between the two actions — that mutation alone would suppress it.
+
+The harness fills `#recorderFullName` at 400 ms and `#recorderEmail` at 1800 ms: a 1.4 s still
+window, comfortably above the 400 ms `minMeaningfulMs` floor. Observable state via
+`data-testid="rec013-status"`: `REC-013 harness idle` -> `REC-013 harness inert (no recorder
+attached)` -> `REC-013 harness armed` -> `REC-013 harness completed`.
+
+`verify:recorder-gui` asserts the `fixedDelay` is present **before** asserting anything about the
+dialog, so a fixture that silently stopped producing one fails loudly instead of degrading into a
+vacuous pass.
 
 ## Using it with Flow Designer / Workflow Builder
 
