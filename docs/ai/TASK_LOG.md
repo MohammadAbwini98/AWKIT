@@ -4,7 +4,48 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - Packaged gate re-verified after the Recorder/Reports/Settings work (Claude)
+## 2026-07-26 (latest) - Oracle soak: the harness was measuring itself (Claude)
+
+**Task:** investigate `awkit-q0e` (Node peak RSS growing ~5× within a soak, 2472 MB peak), then fix.
+
+**Finding — there was never a product leak.** Two causes, both in the harness:
+
+1. `benchmark-oracle-jdbc.mts` pushed one element into `latencies` **per query**, unbounded. Measured
+   at 18.2M queries: 502 MB of live data (survives a forced GC) against a 30 MB baseline. Worse, the
+   60 s sampler ran `[...latencies].sort()` **every minute** — a ~500 MB copy-and-sort per tick.
+2. `process.memoryUsage().rss` is the Windows **working set**, trimmed by the OS independently of the
+   process. Measured: array live → `rss=499 MB / heapUsed=470 MB`; after a `SetProcessWorkingSetSize`
+   trim → `rss=5 MB` with `heapUsed` **unchanged** and the array still live. RSS fell 99 % with zero
+   change in live heap — which is why `2472 → 245 MB` in 60 s never reconciled.
+
+**Fix (`c6d4547`):** new `scripts/lib/latency-histogram.mts` (1 ms buckets to 10 s, 100 ms to 100 s,
+overflow bucket, exact max; ~87 KB flat — 18.2M samples cost 0 MB) with the same nearest-rank
+indexing as the old `pct()`, so historical values stay comparable. The verdict moved to `heapUsed`;
+RSS is retained as a labelled diagnostic. **150 MB budget unchanged** — signal changed, tolerance
+did not. Both series go into the artifact.
+
+**Tests run:** histogram controls (equivalence vs the old `pct()` on empty/single/realistic/uniform/
+36.7 s outlier/10 s boundary, documented degradations asserted directly, O(1) memory at 18.2M) — all
+pass. `typecheck:scripts` PASS. **Full 30-min soak 9 PASS / 0 FAIL**: 23,458,521 queries at 13,030/s,
+heap floor 11 → 8 MB (−3), peak 24 MB; RSS flat 78 → 78 MB, peak 80 MB; bridge 194 → 193 MB.
+
+**Same workload, before vs after:** peak RSS **2472 → 80 MB**, throughput **9,746 → 13,030/s (+34 %)**,
+max latency **36,727 → 4,681 ms**. The harness was burning a third of the machine on its own
+accounting, and the multi-second outliers were GC pauses from the per-minute sort.
+
+**Recorded rather than overstated:** with the harness fixed, RSS is stable enough to have carried the
+verdict. `heapUsed` is still the right signal (a trim can corrupt RSS; heap cannot be trimmed), but
+cause 1 was dominant — cause 2 explains why the numbers never reconciled, not why the gate broke.
+
+**Also:** one earlier soak was killed at t+2.2m when a background process exited, and its partial run
+had already overwritten the canonical artifact with a 4-minute result. Filed as `awkit-1ts` (P3).
+
+**Files:** `scripts/lib/latency-histogram.mts` (new), `scripts/benchmark-oracle-jdbc.mts`,
+`docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`, `docs/testing/comprehensive-validation/EXECUTION_RESULTS.md`.
+
+---
+
+## 2026-07-26 - Packaged gate re-verified after the Recorder/Reports/Settings work (Claude)
 
 **Task:** rebuild the portable package and re-run the packaged walkthrough, which had gone stale once
 the Reports and Settings units landed.

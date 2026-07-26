@@ -130,9 +130,20 @@ Two things recorded there that contradict earlier notes in this file's history:
 - **the concurrent-load confound hypothesis is refuted** — the idle run is *worse* on every
   peak-sensitive statistic (slope +1460 vs +1106 MB, endpoint +1219 vs +651, peak 2472 vs 1872).
 
-**A separate uncovered concern:** Node peak RSS grows ~5× within a run (2472 MB peak) and no
-invariant fails on it — the floor statistic is blind to peak amplitude by construction. Tracked as
-**`awkit-q0e`**, deliberately not folded into the leak gate.
+**`awkit-q0e` RESOLVED (`c6d4547`) — there was never a product leak.** The growth was the harness
+measuring itself: `latencies` accumulated one element per query (502 MB live at 18.2M queries) and the
+sampler ran `[...latencies].sort()` **every 60 seconds**, a ~500 MB copy per tick. Replaced with a
+fixed-bucket histogram (18.2M samples → 0 MB). Separately, RSS on Windows is the working set and the
+OS trims it independently of the process (measured: `rss` 499 → 5 MB with `heapUsed` unchanged at
+470 MB), so the verdict moved to `heapUsed` with the 150 MB budget unchanged.
+
+Full 30-min soak with the fixed harness: **9 PASS / 0 FAIL**, 23,458,521 queries at 13,030/s. Heap
+floor 11 → 8 MB (**−3**), peak 24 MB; RSS flat 78 → 78 MB, peak 80 MB. Same workload before vs after:
+peak RSS **2472 → 80 MB**, throughput **9,746 → 13,030/s (+34 %)**, max latency **36,727 → 4,681 ms**.
+The harness was burning a third of the machine on its own accounting.
+
+**Still open (`awkit-1ts`, P3):** `oracle-soak.json` is overwritten by any-length run, so a smoke run
+silently replaces release evidence; a run with <2 samples also passes the memory invariants trivially.
 
 Two long-standing "gates" turned out not to be defects:
 

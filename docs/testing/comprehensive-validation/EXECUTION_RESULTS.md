@@ -512,11 +512,59 @@ and the endpoint delta could not.
    than the confounded one on every peak-sensitive statistic — slope +1460 vs +1106, endpoint +1219
    vs +651, peak 2472 vs 1872. The behaviour is intrinsic, not an artifact of sharing the machine.
 
-**A new, separate concern is now quantified:** Node peak RSS grows roughly 5× across a run (first
-third maxes at 499 MB; the last third hits 1859, 2472, 1887). A 2.4 GB transient peak is an OOM risk
-on a constrained machine, and **no invariant currently fails on it** — the floor statistic is blind to
-peak amplitude by construction. Tracked as **`awkit-q0e`**, deliberately not folded into the leak
-gate.
+**The peak-growth concern (`awkit-q0e`) is now RESOLVED — there was never a product leak.** The
+growth was the harness measuring itself. See the section below.
+
+### `awkit-q0e` — the soak was measuring its own accounting (RESOLVED, `c6d4547`)
+
+Two causes, neither in the product:
+
+1. **Unbounded per-query accumulation.** `latencies` took one element per query. At 18.2M queries that
+   array alone measured **502 MB of live data** (survives a forced GC) against a 30 MB baseline — and
+   the 60-second sampler ran `[...latencies].sort()` **every minute**, a ~500 MB copy-and-sort per
+   tick. Replaced with a fixed-bucket histogram: **18.2M samples now cost 0 MB.**
+2. **RSS is the Windows working set**, trimmed by the OS independently of the process. Measured: with
+   an 18.2M-element array live, `rss=499 MB / heapUsed=470 MB`; after a working-set trim, `rss=5 MB`
+   with `heapUsed` **unchanged** at 470 MB and the array still live. The verdict now uses `heapUsed`;
+   RSS is retained as a labelled diagnostic. The 150 MB budget is unchanged.
+
+**Full 30-minute soak with the fixed harness — 9 PASS / 0 FAIL.** 23,458,521 queries at 13,030/s,
+`failures=0`, cancellation `ok=59 bad=0` p95 252 ms, clean teardown.
+
+| Signal | Result |
+| --- | --- |
+| **node heap floor** — *the gate* | 11 → 8 MB (**rise −3 MB**), slope +0.08 MB/sample (+2 MB), peak 24 MB |
+| node RSS — *diagnostic* | 78 → 78 MB (rise 0), slope 0, peak 80 MB |
+| bridge (Java) RSS | 194 → 193 MB (−1) |
+
+```text
+heap: 14 11 11 18 14 14 21 20 16 13 12 17 24 16 15 21 13 16 21 13 16 20 20 20 8 18 18 12 19
+rss : 78 79 79 80 80 79 79 79 79 79 79 79 79 79 79 79 79 79 79 78 78 79 79 79 78 79 79 79 79
+```
+
+Heap oscillates in a tight 8–24 MB band with no trend; RSS is flat at 78–80 MB for thirty minutes.
+
+**Same workload, before vs after the harness fix:**
+
+| | before | after |
+| --- | ---: | ---: |
+| peak RSS | 2472 MB | **80 MB** |
+| throughput | 9,746/s | **13,030/s** (+34 %) |
+| max latency | 36,727 ms | **4,681 ms** |
+
+The throughput gain and the collapse in max latency are the tell: the harness was spending roughly a
+third of the machine on its own accounting, and the multi-second outliers were GC pauses from the
+per-minute sort.
+
+**Recorded rather than overstated:** with the harness fixed, RSS is stable enough that it would have
+carried the verdict fine. Moving to `heapUsed` is still correct — a trim *can* corrupt an RSS verdict
+and heap cannot be trimmed — but cause 1 was the dominant one. Cause 2 explains why the numbers never
+reconciled, not why the gate broke. No peak ceiling was added: with the harness fixed there is
+nothing left to ceiling.
+
+**Still open (`awkit-1ts`, P3):** `oracle-soak.json` is overwritten by *any* run, so a short smoke run
+silently replaces the release evidence — and a run with fewer than two samples passes the memory
+invariants trivially. Same class as HARNESS-008.
 
 The full series is now written to `reports/oracle-validation/oracle-soak.json`
 (`memory.nodeRssSeriesMb`), so any of this can be re-analysed without another 30-minute run.

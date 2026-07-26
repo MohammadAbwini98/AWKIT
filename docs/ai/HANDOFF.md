@@ -20,10 +20,15 @@ hand-edited.
 - ~~**`awkit-cww`** — `benchmark:oracle-jdbc` Node RSS check is RED.~~ **CLOSED** in `dce4204`: the
   gate now keys on floor rise with the original budgets unchanged, and a clean idle-host soak is
   **9 PASS / 0 FAIL**. Green because the statistic is right, *not* because memory improved.
-- **`awkit-q0e`** (new) — Node **peak** RSS grows ~5× within a soak (2472 MB) and **no invariant
-  fails on it**; the floor statistic is blind to peak amplitude by construction. Decide whether a
-  peak ceiling belongs in the soak, derived from a measured baseline rather than from that run.
-  The full RSS series is now stored in the artifact, so this needs no new 30-minute run to analyse.
+- ~~**`awkit-q0e`** — Node peak RSS grows ~5× within a soak.~~ **CLOSED** (`c6d4547`): there was
+  never a product leak. The harness accumulated one latency sample per query (502 MB live at 18.2M)
+  and re-sorted the whole array every 60 s. Fixed with a histogram (0 MB at 18.2M samples) and the
+  verdict moved from RSS to `heapUsed`. Full soak **9 PASS / 0 FAIL**; peak RSS **2472 → 80 MB**,
+  throughput **+34 %**, max latency **36,727 → 4,681 ms**.
+- **`awkit-1ts`** (new, P3) — `reports/oracle-validation/oracle-soak.json` is overwritten by a run of
+  *any* length, so a smoke run silently replaces the 30-minute release evidence (this happened on
+  2026-07-26 and was caught by chance). A run with fewer than two samples also passes the memory
+  invariants **trivially**, since a trend needs two points. Same class as HARNESS-008.
 - **41 of 66** focused cases remain `NOT RUN` (Recorder 18, Reports 11, Settings 12).
 - **`ORA-LIVE-001`** (`awkit-7bu`) — blocked on an authorized operator *and* still has no real-mode
   code path in `verify-oracle-mock-ui-workflow.mts`.
