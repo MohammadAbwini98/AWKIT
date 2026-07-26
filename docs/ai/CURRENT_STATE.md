@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Recorder persistence, save path and Settings scope — 7 cases (2026-07-26, current)
+
+Phase 3 of the campaign. **`verify:recorder-draft` 17 → 50**, **`verify:recorder-gui` 70 → 90**.
+Closed: REC-006, REC-010, REC-014, REC-016, REC-017, REC-023, SET-005.
+
+**One small production refactor, done for testability and behaviour-preserving.** The
+consecutive-fill compaction lived inside the `__awtkit_recordAction` `exposeBinding` closure, so it
+was unreachable without a browser. Extracted to `RecorderService.recordActionFromPage(page, action)`;
+the binding is now a one-line adapter. Confirmed unchanged by `verify:recorder` 97/97,
+`verify:recorder-e2e` 41/41, `verify:recorder-flow` 19/19 before building on it.
+
+**Boundaries that had never been hit:** REC-010 now asserts **500 ms exactly** (the `<` vs `<=` line),
+499, 501, and the 60 s cap against a 120 s pause. REC-014 covers unparseable JSON, structurally valid
+JSON of the wrong shape, and a missing file — none may throw, none may resurrect actions, and the URL
+history must survive a corrupt draft.
+
+**REC-017 uses a real write failure, not a mock:** the flows directory is replaced by a file so the
+store's own write fails. The error surfaces, the recording stays intact, and retrying after restoring
+the directory saves **exactly once**. A duplicate name creating a second distinctly-identified flow is
+now asserted as *documented policy*, so changing it later is a decision rather than a silent drift.
+
+**SET-005's mid-session check has a control.** Flipping the Setting while a session runs must not
+change that session — asserted alongside a check that the persisted value really did change, so the
+first assertion cannot pass vacuously.
+
+**Ledger: 43 PASS / 22 NOT RUN / 1 BLOCKED** — Recorder 25/3/1, Reports 7/9, Settings 11/10.
+Recorder is now down to REC-013, REC-024 and REC-029.
+
+**Known flakiness worth respecting:** running six or more real-Electron suites back-to-back on this
+machine intermittently fails at window startup (and once exhausted shell process handles). Both
+`verify:recorder-e2e` and `verify:recorder-redaction` failed that way and passed on isolated re-runs.
+Re-run a heavy suite alone before treating its failure as a regression.
+
 ## Recorder page now has a GUI verifier — 8 cases closed, `AWKIT-REC-003` (2026-07-26, current)
 
 `verify:recorder-e2e` proved one happy path. Everything else about the page — idle enablement,

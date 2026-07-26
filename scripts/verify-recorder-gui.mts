@@ -15,7 +15,7 @@
 // Run after `npm run build`:
 //   npm run verify:recorder-gui
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ConsoleMessage, type ElectronApplication, type Page } from "playwright";
@@ -38,10 +38,12 @@ const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const evidenceDir = join(root, "test-artifacts", "recorder-gui", runStamp);
 mkdirSync(evidenceDir, { recursive: true });
 
-const { env, cleanup } = isolatedLaunchEnv("awkit-recorder-gui", {
+const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-gui", {
   PRODUCTION_OFFLINE: "true",
   AWKIT_MAX_BROWSERS: "1"
 });
+
+const appDataRoot = join(dataRoot, "SpecterStudio");
 
 type Result = { name: string; status: "PASS" | "FAIL" | "NOT RUN"; detail: string };
 const results: Result[] = [];
@@ -445,6 +447,226 @@ try {
       );
     }
   }
+
+  // ── REC-016 / REC-017 — the save path ──────────────────────────────────────
+  console.log("\nREC-016 / REC-017 — Save to Flow Library, naming policy and write failure");
+  await startAndWaitRecording(win, labUrl);
+  await poll("actions to save", async () => {
+    const list = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+    return list.length > 0 ? list : null;
+  }, 30_000, 200);
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  const flowNameField = win.getByLabel("Flow Name");
+  const saveButton = win.getByRole("button", { name: "Save to Flow Library", exact: true });
+
+  // REC-017 — blank and whitespace-only names are refused before anything is written.
+  await flowNameField.fill("");
+  await poll("Save disabled on blank name", async () => ((await saveButton.isDisabled()) ? true : null), 10_000, 100).catch(() => undefined);
+  check("REC-017 Save is refused for a blank flow name", await saveButton.isDisabled());
+  await flowNameField.fill("     ");
+  await poll("Save disabled on whitespace name", async () => ((await saveButton.isDisabled()) ? true : null), 10_000, 100).catch(() => undefined);
+  check("REC-017 Save is refused for a whitespace-only flow name", await saveButton.isDisabled());
+
+  // REC-017 — a forced write failure must leave the recording intact and create nothing.
+  // Replacing the flows DIRECTORY with a file is a real, deterministic failure at the store's own
+  // write, not a mocked rejection — so it exercises the actual error path the operator would hit.
+  const flowsDir = join(appDataRoot, "flows");
+  const actionsBeforeFailure = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+  rmSync(flowsDir, { recursive: true, force: true });
+  writeFileSync(flowsDir, "not a directory", "utf8");
+  await flowNameField.fill("REC-017 Write Failure");
+  await saveButton.click();
+  await win.waitForTimeout(2_000);
+  const failureText = (await win.locator(".recorder-save-result").textContent().catch(() => "")) ?? "";
+  check("REC-017 a write failure surfaces an actionable error", /fail/i.test(failureText), failureText.slice(0, 160));
+  const actionsAfterFailure = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+  check(
+    "REC-017 a failed save leaves the recorded actions intact",
+    actionsAfterFailure === actionsBeforeFailure,
+    `${actionsBeforeFailure} → ${actionsAfterFailure}`
+  );
+
+  // Restore the directory and retry: the same recording must save exactly once.
+  rmSync(flowsDir, { force: true });
+  mkdirSync(flowsDir, { recursive: true });
+  await saveButton.click();
+  await win.getByText(/Flow saved to library successfully/).first().waitFor({ timeout: 20_000 });
+  const afterRetry = await win.evaluate(() => window.playwrightFlowStudio.flows.list());
+  check(
+    "REC-017 retry after a failure saves exactly once",
+    afterRetry.filter((flow) => flow.name === "REC-017 Write Failure").length === 1,
+    JSON.stringify(afterRetry.map((flow) => flow.name))
+  );
+  // REC-016 — actions clear only AFTER a successful save, never after the failure above.
+  const actionsAfterSuccess = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+  check("REC-016 the recording clears only after a successful save", actionsAfterSuccess === 0, `${actionsAfterSuccess}`);
+  check("REC-016 a success result is surfaced to the operator", (await win.locator(".recorder-save-result.success").count()) === 1);
+
+  // REC-017 — long and Unicode names must be handled deterministically, not truncated silently.
+  const longName = `REC-017 ${"x".repeat(280)}`;
+  const unicodeName = "REC-017 مرحبا 世界 🎯 flow";
+  for (const [label, name] of [["a very long", longName], ["a Unicode", unicodeName]] as [string, string][]) {
+    await startAndWaitRecording(win, labUrl);
+    await poll("actions to save", async () => {
+      const list = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+      return list.length > 0 ? list : null;
+    }, 30_000, 200);
+    await stopButton(win).click();
+    await waitIdle(win);
+    await waitUiIdle(win);
+    await flowNameField.fill(name);
+    await saveButton.click();
+    await win.getByText(/Flow saved to library successfully/).first().waitFor({ timeout: 20_000 });
+    const stored = await win.evaluate(() => window.playwrightFlowStudio.flows.list());
+    const match = stored.filter((flow) => flow.name === name);
+    check(`REC-017 ${label} flow name is stored verbatim`, match.length === 1, `${match.length} match(es) of ${stored.length}`);
+  }
+
+  // REC-017 — a duplicate name is accepted as a distinct flow (ids differ). Assert the POLICY, so a
+  // future change to reject-or-rename is a deliberate decision rather than a silent regression.
+  await startAndWaitRecording(win, labUrl);
+  await poll("actions to save", async () => {
+    const list = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+    return list.length > 0 ? list : null;
+  }, 30_000, 200);
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+  await flowNameField.fill("REC-017 Write Failure");
+  await saveButton.click();
+  await win.waitForTimeout(2_500);
+  const afterDuplicate = await win.evaluate(() => window.playwrightFlowStudio.flows.list());
+  const duplicates = afterDuplicate.filter((flow) => flow.name === "REC-017 Write Failure");
+  check(
+    "REC-017 a duplicate name creates a second, distinctly-identified flow (documented policy)",
+    duplicates.length === 2 && new Set(duplicates.map((flow) => flow.id)).size === 2,
+    JSON.stringify(duplicates.map((flow) => flow.id))
+  );
+
+  // ── SET-004 — Recorder capture defaults persist and scope to new sessions ──
+  console.log("\nSET-004 / SET-005 — Settings → Recorder session scope");
+  const smartSwitch = win.getByRole("switch", { name: /Smart waits/ });
+  const waitSwitch = win.getByRole("switch", { name: /Capture waiting time/ });
+  const readCaptureSettings = () =>
+    page.evaluate(async () => {
+      const s = await window.playwrightFlowStudio.settings.get();
+      return {
+        captureWaitTime: s.recorder?.captureWaitTime ?? null,
+        captureSmartWaits: s.recorder?.captureSmartWaits ?? null
+      };
+    });
+
+  const beforeToggle = await readCaptureSettings();
+  await smartSwitch.click();
+  await waitSwitch.click();
+  await win.waitForTimeout(500);
+  const afterToggle = await readCaptureSettings();
+  check(
+    "SET-004 toggling the Recorder capture switches persists to Settings",
+    afterToggle.captureSmartWaits === !beforeToggle.captureSmartWaits && afterToggle.captureWaitTime === !beforeToggle.captureWaitTime,
+    `${JSON.stringify(beforeToggle)} → ${JSON.stringify(afterToggle)}`
+  );
+
+  // Re-enter the page: the switches must reload from the persisted values, not from defaults.
+  await navClick(win, "Flows");
+  await navClick(win, "Recorder");
+  await win.waitForSelector(".recorder-page", { timeout: 20_000 });
+  await win.waitForTimeout(500);
+  check(
+    "SET-004 the switches restore from Settings when the page is reopened",
+    (await smartSwitch.getAttribute("aria-checked")) === String(afterToggle.captureSmartWaits) &&
+      (await waitSwitch.getAttribute("aria-checked")) === String(afterToggle.captureWaitTime),
+    `smart=${await smartSwitch.getAttribute("aria-checked")} wait=${await waitSwitch.getAttribute("aria-checked")}`
+  );
+
+  await startAndWaitRecording(win, labUrl);
+  check("SET-004 both capture switches lock during a session, so they cannot change mid-recording", (await smartSwitch.isDisabled()) && (await waitSwitch.isDisabled()));
+  notRun(
+    "SET-004 a mid-session capture-setting change does not alter LIVE capture behaviour",
+    "the UI locks both switches during a recording, so the change cannot be made from the page; proving the behavioural half needs a self-driving pause fixture that shows wait insertion following the launch-time value, which does not exist yet"
+  );
+  await cancelButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  // ── SET-005 — the protected-detection ignore Setting scopes to NEW sessions ─
+  // This is the half that `verify:settings-e2e` could not reach: the Settings confirm/persist/restart
+  // paths pass there, but whether a LIVE session honours the value it launched with did not.
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ recorder: { ignoreProtectedLoginDetection: true } }));
+  await startAndWaitRecording(win, labUrl);
+  const launchedIgnoring = await recorderState(win);
+  check(
+    "SET-005 a session launched while the Setting is on starts with detection ignored",
+    launchedIgnoring.protectedDetectionIgnored === true,
+    JSON.stringify(launchedIgnoring)
+  );
+  // The operator must be able to SEE that detection is suppressed — a silently-ignoring recorder is
+  // the failure mode this notice exists to prevent.
+  const noticeVisible = await win.getByTestId("protected-ignore-notice").isVisible().catch(() => false);
+  check("SET-005 a visible session notice states that detection is ignored", noticeVisible);
+  const noticeText = (await win.getByTestId("protected-ignore-notice").textContent().catch(() => "")) ?? "";
+  check(
+    "SET-005 the notice states authentication must still be completed manually",
+    /manually/i.test(noticeText) && /MFA|CAPTCHA/i.test(noticeText),
+    noticeText.trim().slice(0, 140)
+  );
+
+  // Flip the Setting while that session is live. `recorder:start` reads Settings ONCE at launch, so
+  // the running session must keep the value it started with.
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ recorder: { ignoreProtectedLoginDetection: false } }));
+  await win.waitForTimeout(800);
+  const midSession = await recorderState(win);
+  check(
+    "SET-005 flipping the Setting mid-session does not change the running session",
+    midSession.protectedDetectionIgnored === true && midSession.isRecording === true,
+    JSON.stringify(midSession)
+  );
+  check(
+    "SET-005 the persisted Setting did change, so the check above is not passing vacuously",
+    (await win.evaluate(async () => (await window.playwrightFlowStudio.settings.get()).recorder.ignoreProtectedLoginDetection)) === false
+  );
+
+  await cancelButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+  await startAndWaitRecording(win, labUrl);
+  const nextSession = await recorderState(win);
+  check(
+    "SET-005 the NEXT session picks up the new Setting value",
+    nextSession.protectedDetectionIgnored === false,
+    JSON.stringify(nextSession)
+  );
+  await cancelButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  // Disabling restores the pause behaviour: with the Setting off, a protected surface pauses again.
+  await startAndWaitRecording(win, protectedUrl).catch(() => undefined);
+  const pausedAgain = await poll(
+    "protected surface pauses with the Setting off",
+    async () => {
+      const state = await recorderState(page);
+      return state.isRecording === false ? state : null;
+    },
+    40_000,
+    250
+  ).catch(() => null);
+  check(
+    "SET-005 disabling the Setting restores the protected-login pause",
+    pausedAgain !== null && pausedAgain.isRecording === false,
+    JSON.stringify(pausedAgain)
+  );
+  await win.evaluate(async () => {
+    try {
+      await window.playwrightFlowStudio.recorder.cancel();
+    } catch {
+      /* idle */
+    }
+  });
+  await waitIdle(win);
 
   // ── REC-024 — no orphan browser is left behind ─────────────────────────────
   await waitIdle(win);

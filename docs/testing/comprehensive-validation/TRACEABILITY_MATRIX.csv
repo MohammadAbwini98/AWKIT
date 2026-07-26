@@ -59,18 +59,18 @@ Offline,Clean Windows VM certification,Human release gate,External environment,N
 Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project
 Recorder,Page idle/start/stop/cancel lifecycle,REC-001 through REC-004,Real Electron GUI + RecorderService,PASS,verify:recorder-gui 70/70; AWKIT-REC-003 found and fixed (empty target started a live recording)
 Recorder,Core action capture,REC-005,Real Chromium,PASS,verify:recorder 97/97
-Recorder,Live compaction,REC-006,RecorderService,NOT RUN,Component capture assertions passed; service-level compaction not exercised
+Recorder,Live compaction,REC-006,RecorderService,PASS,verify:recorder-draft 50/50; 16 keystrokes collapse to one action and one draft entry
 Recorder,End-to-end redaction,REC-007,Real Electron + Chromium + production engine,PASS,verify:recorder-redaction 15/15; AWKIT-REC-002 found and fixed (camelCase/snake_case secret names bypassed redaction)
 Recorder,Semantic locator safety,REC-008 through REC-009,Real Chromium + runner,PASS,verify:recorder 97/97
-Recorder,Fixed wait complete boundaries,REC-010,RecorderService,NOT RUN,Meaningful/sub-threshold/off checks passed
+Recorder,Fixed wait complete boundaries,REC-010,RecorderService,PASS,verify:recorder-draft 50/50; 499/500/501 ms boundary and the 60 s cap
 Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 97/97; async review 21/21
-Recorder,Draft corrupt/missing recovery,REC-014,Filesystem,NOT RUN,Valid restore/discard passed
+Recorder,Draft corrupt/missing recovery,REC-014,Filesystem,PASS,verify:recorder-draft 50/50; corrupt, wrong-shaped and missing drafts all load without throwing
 Recorder,Flow conversion,REC-015,Profile mapping,PASS,recorder-flow 19/19; round-trip 26/26
-Recorder,Save to library and production replay,REC-016 through REC-018,Electron GUI + profile store + ExecutionEngine,NOT RUN,REC-018 is PASS at 41/41; REC-016/017 validation and failure submatrices remain
+Recorder,Save to library and production replay,REC-016 through REC-018,Real Electron GUI + profile store + ExecutionEngine,PASS,verify:recorder-gui 90/90 (naming policy + real write-failure and retry) and verify:recorder-e2e 41/41
 Recorder,Saved URL history UI,REC-019,Real Electron GUI,PASS,verify:recorder-gui; paging/page-size/copy and cross-restart persistence remain
 Recorder,Protected-login detection,REC-020,Detector + mock site,PASS,protected-login-recorder 45/45
 Recorder,Session ignore (REC-021),REC-021,Real Electron GUI + RecorderService,PASS,verify:recorder-gui; session-scoped ignore does not change global Settings and does not survive into a new session
-Recorder,Handoff cancel and capture error recovery,REC-023,RecorderService,NOT RUN,
+Recorder,Handoff cancel and capture error recovery,REC-023,RecorderService,PASS,verify:recorder-draft 50/50; cancel from all four phases plus out-of-order guards
 Recorder,Authorized manual handoff,REC-022,Real Chrome/manual,BLOCKED,Requires authorized human and test identity
 Recorder,Single-active-recorder concurrency,REC-025,Real Electron GUI + IPC,PASS,verify:recorder-gui; duplicate start refused, Stop/Cancel idempotent-safe
 Recorder,Browser crash recovery,REC-024,Electron + browser process,NOT RUN,Teardown properties covered by verify:recorder-gui; an out-of-band browser kill is not exercised
@@ -89,7 +89,8 @@ System Reports,Authorization/path security,SYS-REP-015,Electron + IPC,PASS,verif
 System Reports,Accessibility/zoom/reduced motion,SYS-REP-016,Electron GUI/manual,NOT RUN,
 Settings,Access and settings-edit authorization,SET-001,Electron + IPC,PASS,verify:settings-e2e 116/116; pre-auth/Viewer denied and Super User/Administrator permitted
 Settings,Appearance and branding,SET-002 through SET-003,Real Electron,PASS,accent 33/33; branding 30/30
-Settings,Recorder defaults and protected detection,SET-004 through SET-005,Electron + RecorderService,NOT RUN,Protected-detection Settings confirm/persist/restart passed; Recorder session-scope matrix remains
+Settings,Protected-detection session scope,SET-005,Real Electron + RecorderService,PASS,verify:recorder-gui 90/90; launch-time value honoured, mid-session change ignored, next session updated
+Settings,Recorder capture defaults,SET-004,Real Electron + RecorderService,NOT RUN,Persist/restore/lock proven in verify:recorder-gui; mid-session LIVE capture behaviour needs a self-driving pause fixture
 Settings,HTTPS certificate security,SET-006,Real Electron + Chromium,PASS,GUI 31/31; runtime 49/49
 Settings,Paths and validation boundaries,SET-007 through SET-009,Electron + main-process validation,NOT RUN,Path truth/direct invalid matrix/default persistence passed; picker/read-only/artifact and runner propagation remain
 Settings,Runtime capacity and persistence concurrency,SET-010 through SET-011,Real Electron,PASS,capacity GUI 12/12; persistence 3/3

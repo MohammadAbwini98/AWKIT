@@ -607,62 +607,7 @@ export class RecorderService {
     });
 
     await context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
-      // Never capture while paused (e.g. a protected-detection handoff is showing). Defense-in-depth:
-      // the automation browser may stay open during the "detected" phase, so the guard — not just a
-      // closed browser — is what guarantees nothing on a protected page is ever recorded.
-      if (!this.isRecording) return;
-      const sourcePage = source.page;
-      const now = Date.now();
-      // Determine the page alias from the popup registry (main page = 'main').
-      const pageAlias = (() => {
-        for (const [alias, p] of this.popupPages) {
-          if (p === sourcePage) return alias;
-        }
-        return "main";
-      })();
-      // Live text capture: the page fires an 'input' event per keystroke, so collapse consecutive
-      // fills on the same field (same page + same locator) into one action — updating its value
-      // in place — instead of appending one action per character.
-      const last = this.actions[this.actions.length - 1];
-      if (
-        action.type === "fill" &&
-        last &&
-        last.type === "fill" &&
-        sourcePage === this.lastActionPage &&
-        JSON.stringify(last.locator) === JSON.stringify(action.locator)
-      ) {
-        last.name = action.name;
-        last.valueSource = action.valueSource;
-        this.lastActionAt = now; // still typing — reset the think-time clock for the next action
-        this.scheduleDraftPersist();
-        return;
-      }
-      // Smart Wait (Phase 2): attach the conditions observed since the previous action as
-      // `afterWaits` on that previous action (i.e. what the user waited for after doing it).
-      this.attachSmartWaits(now);
-      // Optionally record the user's think-time before this action as a fixed-time wait (Task 1).
-      this.maybeInsertWait(now);
-      // If the interaction happened in a different tab/page than the last recorded
-      // action, insert a Route Change action so the saved flow switches context first.
-      // Skip this for popup pages — they are already handled by the popup event above.
-      if (this.lastActionPage && sourcePage !== this.lastActionPage && pageAlias === "main") {
-        const targetUrl = sourcePage.url();
-        this.actions.push({
-          id: randomUUID(),
-          type: "routeChange",
-          name: `Switch to tab: ${targetUrl}`,
-          valueSource: { type: "static", value: targetUrl }
-        });
-      }
-      this.lastActionPage = sourcePage;
-      // Tag the action with its page alias (omit 'main' to keep legacy flows clean).
-      const taggedAction: RecordedAction = { ...action, id: randomUUID() };
-      if (pageAlias !== "main") taggedAction.pageAlias = pageAlias;
-      // Track click timestamp for popup opener correlation.
-      if (action.type === "click") this.lastClickAt = now;
-      this.actions.push(taggedAction);
-      this.lastActionAt = now;
-      this.scheduleDraftPersist();
+      this.recordActionFromPage(source.page, action);
     });
 
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
@@ -1107,6 +1052,71 @@ export class RecorderService {
     await this.closeBrowser();
     this.ignoreProtectedDetectionSession = false;
     this.ignoredDetectionKeys = new Set<string>();
+  }
+
+  /**
+   * Record one action attributed to the page it happened on.
+   *
+   * Extracted from the `__awtkit_recordAction` binding so the service-level behaviour it owns —
+   * consecutive-fill compaction, think-time capture, route-change insertion and page-alias tagging —
+   * can be exercised without launching a browser. The binding is now a one-line adapter.
+   */
+  private recordActionFromPage(sourcePage: Page, action: Omit<RecordedAction, "id">): void {
+    // Never capture while paused (e.g. a protected-detection handoff is showing). Defense-in-depth:
+    // the automation browser may stay open during the "detected" phase, so the guard — not just a
+    // closed browser — is what guarantees nothing on a protected page is ever recorded.
+    if (!this.isRecording) return;
+    const now = Date.now();
+    // Determine the page alias from the popup registry (main page = 'main').
+    const pageAlias = (() => {
+      for (const [alias, p] of this.popupPages) {
+        if (p === sourcePage) return alias;
+      }
+      return "main";
+    })();
+    // Live text capture: the page fires an 'input' event per keystroke, so collapse consecutive
+    // fills on the same field (same page + same locator) into one action — updating its value
+    // in place — instead of appending one action per character.
+    const last = this.actions[this.actions.length - 1];
+    if (
+      action.type === "fill" &&
+      last &&
+      last.type === "fill" &&
+      sourcePage === this.lastActionPage &&
+      JSON.stringify(last.locator) === JSON.stringify(action.locator)
+    ) {
+      last.name = action.name;
+      last.valueSource = action.valueSource;
+      this.lastActionAt = now; // still typing — reset the think-time clock for the next action
+      this.scheduleDraftPersist();
+      return;
+    }
+    // Smart Wait (Phase 2): attach the conditions observed since the previous action as
+    // `afterWaits` on that previous action (i.e. what the user waited for after doing it).
+    this.attachSmartWaits(now);
+    // Optionally record the user's think-time before this action as a fixed-time wait (Task 1).
+    this.maybeInsertWait(now);
+    // If the interaction happened in a different tab/page than the last recorded
+    // action, insert a Route Change action so the saved flow switches context first.
+    // Skip this for popup pages — they are already handled by the popup event above.
+    if (this.lastActionPage && sourcePage !== this.lastActionPage && pageAlias === "main") {
+      const targetUrl = sourcePage.url();
+      this.actions.push({
+        id: randomUUID(),
+        type: "routeChange",
+        name: `Switch to tab: ${targetUrl}`,
+        valueSource: { type: "static", value: targetUrl }
+      });
+    }
+    this.lastActionPage = sourcePage;
+    // Tag the action with its page alias (omit 'main' to keep legacy flows clean).
+    const taggedAction: RecordedAction = { ...action, id: randomUUID() };
+    if (pageAlias !== "main") taggedAction.pageAlias = pageAlias;
+    // Track click timestamp for popup opener correlation.
+    if (action.type === "click") this.lastClickAt = now;
+    this.actions.push(taggedAction);
+    this.lastActionAt = now;
+    this.scheduleDraftPersist();
   }
 }
 

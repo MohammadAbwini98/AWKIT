@@ -111,7 +111,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   persisted draft actions; stop recording.
 - **Expected:** Consecutive fills for the same page and locator collapse to one action containing the
   final value; draft size does not grow per keystroke.
-- **Status:** `NOT RUN` — capture-without-blur passed, but service-level compaction was not exercised.
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **50/50** (was 17). 16 keystrokes on one field
+  collapse to a single action carrying the final value, the persisted draft holds one fill rather than
+  one per keystroke, a different field starts a new action, and an intervening click breaks the run.
+  Driven through `RecorderService.recordActionFromPage` — extracted from the `__awtkit_recordAction`
+  binding (now a one-line adapter) so service-level behaviour is reachable without a browser.
 
 ### REC-007 — Sensitive input and signal redaction
 
@@ -167,8 +171,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   pause; repeat with the option off.
 - **Expected:** Sub-threshold gaps are ignored; meaningful gaps become bounded fixed-time wait nodes;
   excessive pauses are capped; option-off creates no fixed wait.
-- **Status:** `NOT RUN` for the complete boundary/cap matrix — meaningful/sub-threshold/off behavior
-  passed in `verify:recorder-draft` 17/17.
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **50/50**. The complete matrix: 499 ms inserts
+  nothing, **500 ms exactly** inserts a wait (the `<` vs `<=` boundary), 501 ms inserts one, an
+  excessive 120 s pause is capped at 60 s rather than recorded verbatim, capture-off inserts nothing
+  even for an excessive pause, and no wait is inserted when there is no preceding action.
 
 ### REC-011 — Smart Wait observation and adaptive timeout generation
 
@@ -208,8 +214,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   draft; discard; inspect URL history.
 - **Expected:** Valid actions restore once without overwriting a live session; missing/corrupt drafts
   do not crash; discard removes only draft/actions and keeps saved URLs.
-- **Status:** `NOT RUN` for corrupt/missing recovery — valid restore and discard/URL separation passed
-  in `verify:recorder-draft` 17/17.
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **50/50**. Unparseable JSON, structurally
+  valid JSON of the wrong shape (`actions` not an array), and a missing file each load without
+  throwing and restore no actions; the reusable URL history survives a corrupt draft intact.
 
 ### REC-015 — Recorded actions convert to a valid flow
 
@@ -230,7 +237,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   check again.
 - **Expected:** One flow is stored atomically with the requested name; actions clear only after
   success; success toast/status appear; the flow remains after restart.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`, **90/90**. The recording clears **only** after a
+  successful save — proven against a real forced failure, after which the actions were still intact —
+  and a success result is surfaced. Cross-restart persistence and the visible Flow Library reopen
+  remain covered by `verify:recorder-e2e` 41/41.
 
 ### REC-017 — Save validation, duplicate names, and write failure
 
@@ -240,7 +250,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Try blank/whitespace/very long/Unicode/duplicate names; simulate write failure; retry.
 - **Expected:** Naming policy is deterministic; failure leaves actions intact and shows a useful
   error; no partial/corrupt flow is created; retry saves exactly once.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`, **90/90**. Blank and whitespace-only names
+  disable Save. A **real** write failure (the flows directory replaced by a file, so the store's own
+  write fails rather than a mocked rejection) surfaces an actionable error, leaves the recorded
+  actions intact and creates nothing; restoring the directory and retrying saves **exactly once**.
+  A 288-character name and a mixed Arabic/CJK/emoji name are both stored verbatim.
+  **Documented policy:** a duplicate name creates a second, distinctly-identified flow — asserted, so
+  a future decision to reject or auto-rename is deliberate rather than a silent regression.
 
 ### REC-018 — Replay equivalence of a saved recorded flow
 
@@ -315,7 +331,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Cancel in each allowed phase; force capture/resume errors; retry or start a new recording.
 - **Expected:** Automation/manual browsers close appropriately; draft/session state follows the
   documented policy; error is actionable; no stale active handoff blocks the next session.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-draft`, **50/50**. Cancel from every phase
+  (`detected`, `capturingSession`, `sessionCaptured`, `error`) completes without throwing, ends the
+  recording, and leaves no active handoff to block the next session. The phase guards refuse
+  out-of-order operations with actionable messages: ignore with no detection waiting, normal-browser
+  handoff from the `error` phase, and session capture before the capture phase begins.
 
 ### REC-024 — Browser closes or crashes during recording
 
@@ -636,7 +656,12 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   session; change setting mid-session; inspect current and next sessions.
 - **Expected:** Values persist; launch resolves them once; mid-session setting change does not alter
   live capture behavior; next session uses new values.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the mid-session behavioural half only. `verify:recorder-gui` (**90/90**)
+  proves the rest: toggling either capture switch persists to Settings, both restore from Settings
+  when the page is reopened, and both **lock** during a recording so they cannot be changed
+  mid-session from the page. What remains is showing that a capture setting changed by another route
+  mid-session does not alter LIVE capture — that needs a self-driving pause fixture demonstrating wait
+  insertion against the launch-time value, the same fixture gap as REC-013.
 
 ### SET-005 — Ignore protected-login detection confirmation and scope
 
@@ -645,8 +670,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Enable and cancel confirmation; enable and confirm; start Recorder; disable; restart.
 - **Expected:** Cancel persists nothing; confirm warns that authentication is not bypassed; setting
   affects new sessions; visible session notice appears; disabling restores pause behavior.
-- **Status:** `NOT RUN` for the Recorder/session-scope portion. The Settings confirmation, cancel,
-  persist, restart and disable paths passed in `verify:settings-e2e`.
+- **Status:** `PASS` — the Settings confirmation, cancel, persist, restart and disable paths passed in
+  `verify:settings-e2e` (116/116); `verify:recorder-gui` (**90/90**) now closes the Recorder/session
+  half. A session launched while the Setting is on starts with detection ignored and shows the visible
+  notice, whose text states that authentication, MFA and CAPTCHA must still be completed manually.
+  Flipping the Setting **mid-session** does not change the running session — asserted alongside a
+  control proving the persisted value really did change, so the check cannot pass vacuously — and the
+  **next** session picks up the new value. With the Setting off, a protected surface pauses again.
 
 ### SET-006 — Ignore invalid HTTPS certificates secure lifecycle
 

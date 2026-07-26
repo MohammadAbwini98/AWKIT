@@ -4,7 +4,53 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - Phase 2: the Recorder page finally has a GUI verifier (Claude)
+## 2026-07-26 (latest) - Phase 3: persistence boundaries, the save path, Settings scope (Claude)
+
+**Task:** Phase 3 — Recorder persistence submatrices, the save path, and the two Settings→Recorder
+cases that needed the Phase 2 harness.
+
+**Delivered:** `verify:recorder-draft` **17 → 50**, `verify:recorder-gui` **70 → 90**.
+Closed REC-006, REC-010, REC-014, REC-016, REC-017, REC-023, SET-005. No new product defect.
+
+**One production refactor, for testability.** Consecutive-fill compaction lived inside the
+`__awtkit_recordAction` `exposeBinding` closure — unreachable without a browser. Extracted to
+`RecorderService.recordActionFromPage(page, action)`; the binding is now a one-line adapter.
+Behaviour-preservation confirmed (`verify:recorder` 97/97, `verify:recorder-e2e` 41/41,
+`verify:recorder-flow` 19/19) **before** building the new checks on it.
+
+**Boundaries that had never actually been hit.** REC-010 now asserts 499 ms, **500 ms exactly** (the
+`<` vs `<=` line), 501 ms, and the 60 s cap against a 120 s pause. REC-014 covers unparseable JSON,
+valid JSON of the wrong shape, and a missing file — none may throw or resurrect actions, and the URL
+history must survive a corrupt draft.
+
+**REC-017 forces a real write failure rather than mocking one:** the flows directory is replaced by a
+file, so the store's own write fails. The error surfaces, the recording survives, and retrying after
+restoring the directory saves exactly once. Duplicate-name behaviour (a second, distinctly-identified
+flow) is asserted as *documented policy* so a later change is deliberate.
+
+**SET-005's mid-session assertion carries a control** — that the persisted value really did change —
+so "the running session was unaffected" cannot pass because nothing happened.
+
+**Two things deliberately left NOT RUN**, both blocked on the same missing fixture: REC-013's async
+review dialog, and SET-004's mid-session LIVE capture behaviour. Both need a self-driving pause
+fixture that shows wait insertion following the launch-time value. Recorded, not glossed.
+
+**Tests run:** `verify:recorder-draft` **50/50** · `verify:recorder-gui` **90 PASS / 0 FAIL / 2 NOT
+RUN** · `verify:recorder` 97/97 · `verify:recorder-e2e` 41/41 · `verify:recorder-redaction` 15/15 ·
+`verify:recorder-authz` 44/44 · `verify:recorder-flow` 19/19 · `verify:async-review` 21/21 ·
+`tsc --noEmit` + `typecheck:scripts` + `build` PASS.
+
+**Environment note worth keeping:** six or more real-Electron suites back-to-back on this machine
+intermittently fail at window startup, and once exhausted the shell's process handles.
+`verify:recorder-e2e` and `verify:recorder-redaction` both failed that way and passed on isolated
+re-runs. Re-run a heavy suite alone before calling its failure a regression.
+
+**Ledger: 29 → 22 `NOT RUN`** (counted from the case file). **43 PASS / 22 NOT RUN / 1 BLOCKED** —
+Recorder 25/3/1, Reports 7/9, Settings 11/10.
+
+---
+
+## 2026-07-26 - Phase 2: the Recorder page finally has a GUI verifier (Claude)
 
 **Task:** Phase 2 of the campaign — one harness for the nine Recorder GUI cases.
 
