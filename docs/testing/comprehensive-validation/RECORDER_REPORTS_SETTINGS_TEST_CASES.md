@@ -757,9 +757,15 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   restart.
 - **Expected:** Cancel leaves value unchanged; reset uses runtime default; blank paths are blocked;
   existence/writability labels are accurate; persisted paths drive actual artifact locations.
-- **Status:** `NOT RUN` for the complete picker/read-only/artifact-location matrix. Blank and
-  file-as-directory validation, writable-directory truth, save, reset and restart passed in
-  `verify:settings-e2e`.
+- **Status:** `PASS` — `verify:settings-e2e`, **139/139**. The picker is driven with the OS dialog
+  stubbed in the **main** process, so the real `system:browseFolder` handler, its `SETTINGS_EDIT`
+  check and the renderer's "null means leave it alone" branch all stay under test: cancelling leaves
+  the value unchanged, accepting applies the chosen folder, and the choice persists as the artifact
+  location. Both branches are asserted, because "unchanged after cancel" alone is equally satisfied by
+  a Browse button that does nothing. A **genuinely unwritable** directory (ACL-denied, with the denial
+  asserted as a precondition) is now correctly reported `exists: true, writable: false` and rendered
+  `read-only` — that check found and fixed `AWKIT-SET-005`. Blank and file-as-directory validation,
+  writable-directory truth, individual reset, save and restart also pass.
 
 ### SET-008 — Designer and execution default validation boundaries
 
@@ -849,8 +855,14 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   store temporarily unreadable.
 - **Expected:** Counts match stores and refresh; open folder is the configured runtime root only;
   unreadable store reports safe zero/error according to contract without crashing.
-- **Status:** `NOT RUN` for real folder launch and unreadable-store recovery. Seeded counts and
-  Refresh Counts passed in `verify:settings-e2e`.
+- **Status:** `NOT RUN` for the real OS folder launch only, which is a recorded manual check by the
+  same owner decision as SYS-REP-008. **Unreadable-store recovery is now executed** in
+  `verify:settings-e2e` (**139/139**): the flows store has its read ACL revoked (with unreadability
+  asserted as a precondition), after which the flows count degrades to `0` **while the other three
+  stores keep reporting truthfully** — a handler that let the rejection escape would have taken all
+  four down together. Restoring access returns the count to `3`, so the `0` is demonstrably a
+  degradation rather than a permanent loss. Seeded counts, Refresh Counts and the runtime-folder
+  action also pass.
 
 ### SET-016 — Clear UI State is non-destructive
 

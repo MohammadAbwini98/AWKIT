@@ -417,6 +417,50 @@ guard. `verify:ipc-contract` was taught to recognise that registrar — without 
 channels became invisible to its static scan, which would have failed **open** for its
 "registered but unexposed and undocumented" check. Contract is back to 4/4 at 203 handlers.
 
+### AWKIT-SET-005 — A read-only artifact folder was labelled "writable"
+
+- **Severity:** S3 / Incorrect safety signal on a path the operator is asked to trust
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/main/ipc/settings.ipc.ts` (`checkPath`)
+- **Detected by:** `SET-007`
+- **Evidence before fix:** `test-artifacts/settings-e2e/2026-07-26T21-36-10-510Z/execution-results.json`
+  (**137 PASS / 2 FAIL**)
+- **Evidence after fix:** `test-artifacts/settings-e2e/2026-07-26T21-40-09-590Z/execution-results.json`
+  (**139 PASS / 0 FAIL**)
+
+**Reproduction before fix**
+
+1. Create a directory and deny the current user "create file"/"create folder" on it
+   (`icacls <dir> /deny <user>:(OI)(CI)(WD,AD)`). A real write into it now fails `EPERM`.
+2. Set it as the Screenshots path in Settings and save.
+3. `settings:validatePaths` returns `{exists: true, writable: true}` and the field renders the green
+   **writable** label.
+
+**Root cause:** `checkPath` tested writability with `access(path, W_OK)`. That is not a usable
+writability test for a *directory* on Windows — Node does not consult the directory ACL, so it
+returns success for a folder the user has been explicitly denied write access to. Measured directly:
+
+| deny mask | `existsSync` | `isDirectory` | `access(W_OK)` | real write | `readdir` |
+|---|---|---|---|---|---|
+| `(W)` | false | `EPERM` | **writable** | `EPERM` | `EPERM` |
+| `(WD,AD)` | true | true | **writable** | `EPERM` | OK |
+
+**Why it matters:** these seven paths are where run artifacts land. A wrong "writable" label is worse
+than no label — the operator configures the folder, sees Settings confirm it, saves, and every
+screenshot/log/report write fails later with nothing having warned them. This is the same failure
+*class* as `AWKIT-SET-003` (a file reported as a writable directory), which fixed the `isDirectory`
+half of the same function and left the writability half intact.
+
+**Fix:** writability is now decided by attempting an actual write — a uniquely-named probe file
+created and removed in a `finally`, so a crash between write and delete cannot leave a permanent
+artifact in a user-configured folder. The `isDirectory` guard from `AWKIT-SET-003` is unchanged.
+
+**The fixture's own ACL mask had to be measured, not guessed.** The first attempt denied the whole
+`W` right, which also blocks `stat` — the directory then reads as *missing* rather than read-only, so
+the case under test was never exercised and the run failed for the wrong reason. `WD,AD` is the mask
+that leaves `exists`/`isDirectory`/`readdir` intact while making a real write fail.
+
 ### AWKIT-REP-005 — A recovered anomaly was silently dropped from Runtime Analytics
 
 - **Severity:** S3 / Information gap in an operator-facing health view

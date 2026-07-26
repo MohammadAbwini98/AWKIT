@@ -7,7 +7,8 @@
  * UI-state clearing, import/export/recovery, reset data safety, offline validation and core a11y.
  */
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron as electron, type ConsoleMessage, type ElectronApplication, type Page } from "playwright";
@@ -187,6 +188,62 @@ function seedSessionsAndDrivers(): void {
 }
 
 seedSessionsAndDrivers();
+
+/**
+ * ACL fault injection for SET-007 and SET-015. An owner may always rewrite its own object's DACL, so
+ * none of this needs elevation. Every deny is paired with a restore in the script's `finally`.
+ *
+ * Measured, because the intuitive check is wrong: `fs.access(dir, W_OK)` reports a DENY-(W) directory
+ * as **writable** on Windows — Node does not consult the directory ACL — while an actual write fails
+ * `EPERM`. So a real write is the only honest writability probe here.
+ */
+function icacls(args: string[]): void {
+  execFileSync("icacls", args, { stdio: "ignore" });
+}
+function currentAccount(): string {
+  const domain = process.env.USERDOMAIN;
+  return domain ? `${domain}\\${process.env.USERNAME ?? ""}` : process.env.USERNAME ?? "";
+}
+/**
+ * Deny only "create file" + "create folder" (`WD,AD`). The mask matters and was measured:
+ * denying the whole `W` right also blocks `stat`, so the directory reads as **missing** rather than
+ * read-only and the case under test never gets exercised. `WD,AD` leaves `exists`/`isDirectory`/
+ * `readdir` intact while making a real write fail `EPERM` — which is exactly the read-only directory
+ * SET-007 is about.
+ */
+function denyDirectoryWrite(dir: string): void {
+  icacls([dir, "/deny", `${currentAccount()}:(OI)(CI)(WD,AD)`]);
+}
+function restoreDirectoryWrite(dir: string): void {
+  icacls([dir, "/remove:d", currentAccount()]);
+}
+function denyDirectoryRead(dir: string): void {
+  icacls([dir, "/deny", `${currentAccount()}:(OI)(CI)(RX)`]);
+}
+function restoreDirectoryRead(dir: string): void {
+  icacls([dir, "/remove:d", currentAccount()]);
+}
+/** True only when a real file can be created in the directory. */
+function directoryAcceptsAWrite(dir: string): boolean {
+  const probe = join(dir, `.awkit-probe-${randomBytes(4).toString("hex")}`);
+  try {
+    writeFileSync(probe, "");
+    rmSync(probe, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function directoryIsReadable(dir: string): boolean {
+  try {
+    readdirSync(dir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** Paths denied during the run, restored in `finally` so the evidence tree stays deletable. */
+const deniedPaths: Array<{ dir: string; kind: "read" | "write" }> = [];
 
 type Result = { name: string; pass: boolean; detail?: string };
 const results: Result[] = [];
@@ -437,6 +494,68 @@ try {
   check("SET-007 blank path did not persist", afterBlank.paths.screenshotsPath === savedScreenshotsPath);
   await screenshotsInput.fill(savedScreenshotsPath);
 
+  // SET-007 — the folder picker. The OS dialog is stubbed in the MAIN process, so the real
+  // `system:browseFolder` handler, its SETTINGS_EDIT permission check, and the renderer's own
+  // "null means leave the value alone" branch all stay in the path under test. Only the native
+  // window is replaced — stubbing at the preload/renderer level would have skipped all three.
+  const stubFolderPicker = async (result: { canceled: boolean; filePaths: string[] }) => {
+    await app!.evaluate(({ dialog }, value) => {
+      (dialog as unknown as { showOpenDialog: unknown }).showOpenDialog = async () => value;
+    }, result);
+  };
+  const browseButton = screenshotsField.getByRole("button", { name: "Browse", exact: true });
+
+  await stubFolderPicker({ canceled: true, filePaths: [] });
+  await browseButton.click();
+  await win.waitForTimeout(400);
+  check(
+    "SET-007 cancelling the picker leaves the path unchanged",
+    (await screenshotsInput.inputValue()) === savedScreenshotsPath,
+    `${await screenshotsInput.inputValue()}`
+  );
+  // A picker that returned a path but never applied it would also satisfy the cancel check above,
+  // so the accepting branch is asserted too — otherwise "unchanged" proves only that Browse is inert.
+  const pickedDir = join(evidenceRoot, "picked-artifact-location");
+  mkdirSync(pickedDir, { recursive: true });
+  await stubFolderPicker({ canceled: false, filePaths: [pickedDir] });
+  await browseButton.click();
+  await win.waitForTimeout(400);
+  check("SET-007 accepting the picker applies the chosen folder", (await screenshotsInput.inputValue()) === pickedDir, `${await screenshotsInput.inputValue()}`);
+  await win.getByRole("button", { name: "Save Changes" }).click();
+  await win.waitForTimeout(600);
+  check("SET-007 the picked folder persists as the artifact location", (await snapshotSettings(win)).paths.screenshotsPath === pickedDir);
+
+  // SET-007 — a directory the user has been DENIED write access to must not be labelled writable.
+  // These paths are where run artifacts land, so a wrong label sends the operator away happy and
+  // fails at run time.
+  const readOnlyDir = join(evidenceRoot, "read-only-artifact-location");
+  mkdirSync(readOnlyDir, { recursive: true });
+  denyDirectoryWrite(readOnlyDir);
+  deniedPaths.push({ dir: readOnlyDir, kind: "write" });
+  check(
+    "SET-007 the read-only fixture is genuinely unwritable (precondition)",
+    !directoryAcceptsAWrite(readOnlyDir),
+    readOnlyDir.replace(root, "<repo>")
+  );
+  await screenshotsInput.fill(readOnlyDir);
+  await win.getByRole("button", { name: "Save Changes" }).click();
+  await win.waitForTimeout(800);
+  const readOnlyStatus = await win.evaluate(() => window.playwrightFlowStudio.settings.validatePaths());
+  check(
+    "SET-007 a read-only directory is reported existing but NOT writable",
+    readOnlyStatus.screenshotsPath.exists && !readOnlyStatus.screenshotsPath.writable,
+    JSON.stringify(readOnlyStatus.screenshotsPath)
+  );
+  // `innerText` returns the CSS `text-transform`ed text, so this compares case-insensitively rather
+  // than against the source string.
+  const readOnlyLabel = await screenshotsField.locator(".settings-path-label em").innerText().catch(() => "");
+  check("SET-007 the rendered label says read-only, not writable", readOnlyLabel.trim().toLowerCase() === "read-only", readOnlyLabel);
+  restoreDirectoryWrite(readOnlyDir);
+  deniedPaths.pop();
+  await screenshotsInput.fill(savedScreenshotsPath);
+  await win.getByRole("button", { name: "Save Changes" }).click();
+  await win.waitForTimeout(600);
+
   // Direct invalid IPC must fail in the main process; restore after a vulnerable pre-fix write.
   const invalidCases: Array<{ name: string; patch: unknown; expected: string }> = [
     { name: "zoom 24", patch: { designerDefaults: { defaultZoomPercent: 24 } }, expected: "Default zoom" },
@@ -669,6 +788,39 @@ try {
   check("SET-015 Refresh Counts observes a newly added profile", refreshedCounts.Flows === "3", JSON.stringify(refreshedCounts));
   const runtimeFolderButton = win.getByRole("button", { name: "Open Runtime Folder" });
   check("SET-015 runtime-folder action is rendered", await runtimeFolderButton.isVisible());
+
+  // SET-015 — an unreadable store must degrade, not crash the whole card. `countSafe` catches per
+  // store, so the flows count should fall back to 0 while every OTHER count stays truthful; a
+  // handler that let the rejection escape would take all four down together.
+  const flowsStoreDir = join(runtimeRoot, "flows");
+  denyDirectoryRead(flowsStoreDir);
+  deniedPaths.push({ dir: flowsStoreDir, kind: "read" });
+  check(
+    "SET-015 the flows store is genuinely unreadable (precondition)",
+    !directoryIsReadable(flowsStoreDir),
+    flowsStoreDir.replace(root, "<repo>")
+  );
+  await win.getByRole("button", { name: "Refresh Counts" }).click();
+  await win.waitForTimeout(800);
+  const unreadableStats = await win.evaluate(() => window.playwrightFlowStudio.settings.getStorageStats());
+  check(
+    "SET-015 an unreadable store degrades to 0 without throwing",
+    unreadableStats.flows === 0,
+    JSON.stringify(unreadableStats)
+  );
+  check(
+    "SET-015 the other stores keep reporting truthfully alongside it",
+    unreadableStats.workflows === 1 && unreadableStats.dataSources === 1 && unreadableStats.reports === 1,
+    JSON.stringify(unreadableStats)
+  );
+  const unreadableCounts = await cardValues(win, "Data Storage");
+  check("SET-015 the card still renders rather than erroring out", unreadableCounts.Flows === "0" && unreadableCounts.Workflows === "1", JSON.stringify(unreadableCounts));
+  restoreDirectoryRead(flowsStoreDir);
+  deniedPaths.pop();
+  await win.getByRole("button", { name: "Refresh Counts" }).click();
+  await win.waitForTimeout(800);
+  const recoveredStats = await win.evaluate(() => window.playwrightFlowStudio.settings.getStorageStats());
+  check("SET-015 restoring access restores the real count, so the 0 was not permanent", recoveredStats.flows === 3, JSON.stringify(recoveredStats));
 
   // Clear UI State must preserve substantive settings and every seeded data class.
   await win.evaluate(() =>
@@ -1009,6 +1161,17 @@ try {
   check("Settings journeys emitted no renderer errors", rendererErrors.length === 0, rendererErrors.slice(0, 4).join(" | "));
 } finally {
   if (app) await app.close().catch(() => undefined);
+  // Any ACL denial still standing is restored here, or the evidence tree becomes undeletable.
+  // Reported as a check so a silent failure to restore cannot pass unnoticed.
+  for (const { dir, kind } of deniedPaths.splice(0)) {
+    try {
+      if (kind === "read") restoreDirectoryRead(dir);
+      else restoreDirectoryWrite(dir);
+      check(`fixture cleanup: the injected ${kind} denial was restored`, kind === "read" ? directoryIsReadable(dir) : directoryAcceptsAWrite(dir), dir.replace(root, "<repo>"));
+    } catch (error) {
+      check(`fixture cleanup: the injected ${kind} denial was restored`, false, error instanceof Error ? error.message : String(error));
+    }
+  }
 }
 
 writeFileSync(

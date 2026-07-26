@@ -1,6 +1,8 @@
 import { ipcMain, shell, app } from "electron";
 import { existsSync } from "node:fs";
-import { access, constants, stat } from "node:fs/promises";
+import { rm, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import {
   clearUiState,
   getDefaultPaths,
@@ -45,16 +47,31 @@ async function countSafe(list: () => Promise<unknown[]>): Promise<number> {
   }
 }
 
+/**
+ * Writability is decided by attempting an actual write, not by `access(path, W_OK)`.
+ *
+ * `access` is not a usable writability test for a DIRECTORY on Windows: Node does not consult the
+ * directory ACL, so a folder the user has been explicitly denied "create file"/"create folder" on
+ * still reports writable, while a real write fails `EPERM` (measured both ways). These paths are
+ * where run artifacts land, so a wrong "writable" label sends the operator away satisfied and then
+ * fails at run time, with nothing in Settings having warned them (`AWKIT-SET-005`).
+ *
+ * The probe file is uniquely named and removed in a `finally`, so a crash between write and delete
+ * cannot leave a permanent artifact in a user-configured folder.
+ */
 async function checkPath(path: string): Promise<{ path: string; exists: boolean; writable: boolean }> {
   const exists = !!path && existsSync(path);
   let writable = false;
   if (exists) {
+    const probePath = join(path, `.awkit-write-probe-${randomUUID()}`);
     try {
       if (!(await stat(path)).isDirectory()) return { path, exists, writable: false };
-      await access(path, constants.W_OK);
+      await writeFile(probePath, "");
       writable = true;
     } catch {
       writable = false;
+    } finally {
+      await rm(probePath, { force: true }).catch(() => undefined);
     }
   }
   return { path, exists, writable };
