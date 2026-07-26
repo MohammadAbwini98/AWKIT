@@ -82,7 +82,7 @@ System Reports,Stored report export and folder open,SYS-REP-008,Electron + files
 System Reports,Failure/runtime historical analytics,SYS-REP-009 through SYS-REP-010,Electron + observability,NOT RUN,Populated categories/rankings/capacity/anomaly passed; remaining submatrices documented
 System Reports,Chrome and server live surfaces,SYS-REP-011 through SYS-REP-012,Real Electron,NOT RUN,Idle polling/render passed; pressure and fault injection not run
 System Reports,Telemetry/observability persistence contracts,SYS-REP-013 through SYS-REP-014,SQLite integration,PASS,61/61 + 65/65
-System Reports,Authorization/path security,SYS-REP-015,Electron + IPC,NOT RUN,All deny/path checks passed; persisted denied-attempt audit verification remains
+System Reports,Authorization/path security,SYS-REP-015,Electron + IPC,PASS,verify:reports-populated-gui 74/74; denied attempts now persist an audit row (AWKIT-REP-003)
 System Reports,Accessibility/zoom/reduced motion,SYS-REP-016,Electron GUI/manual,NOT RUN,
 Settings,Access and settings-edit authorization,SET-001,Electron + IPC,PASS,verify:settings-e2e 116/116; pre-auth/Viewer denied and Super User/Administrator permitted
 Settings,Appearance and branding,SET-002 through SET-003,Real Electron,PASS,accent 33/33; branding 30/30

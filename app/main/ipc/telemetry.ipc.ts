@@ -58,75 +58,85 @@ function trendBucketsForPreset(preset: TelemetryRangePreset | undefined): number
   }
 }
 
-function reportsRead<TArgs extends unknown[], TResult>(
+/**
+ * Register a telemetry read behind `page.reports`, auditing the channel when it is refused.
+ *
+ * Registration and authorization are deliberately fused into one call: a telemetry read cannot be
+ * added without its guard, and the channel string exists once, so the audit can never name a
+ * channel other than the one that actually rejected.
+ */
+function handleReportsRead<TArgs extends unknown[], TResult>(
+  channel: string,
   handler: (...args: TArgs) => TResult | Promise<TResult>
-): (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TResult> {
-  return async (event, ...args) => {
-    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+): void {
+  ipcMain.handle(channel, async (event: IpcMainInvokeEvent, ...args: TArgs) => {
+    await assertSenderPermission(event, Permission.PAGE_REPORTS, {
+      audit: { eventType: "TELEMETRY_READ_DENIED", channel }
+    });
     return handler(...args);
-  };
+  });
 }
 
 export function registerTelemetryIpc(): void {
-  ipcMain.handle("telemetry:overview", reportsRead((preset?: TelemetryRangePreset) => executionEngine.getTelemetryOverview(resolveRange(preset))));
+  handleReportsRead("telemetry:overview", (preset?: TelemetryRangePreset) => executionEngine.getTelemetryOverview(resolveRange(preset)));
 
-  ipcMain.handle("telemetry:workflows", reportsRead((preset?: TelemetryRangePreset) => executionEngine.getTelemetryWorkflows(resolveRange(preset))));
+  handleReportsRead("telemetry:workflows", (preset?: TelemetryRangePreset) => executionEngine.getTelemetryWorkflows(resolveRange(preset)));
 
-  ipcMain.handle("telemetry:workflowComparison", reportsRead((preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+  handleReportsRead("telemetry:workflowComparison", (preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
     executionEngine.getTelemetryWorkflowComparison(resolveRange(preset), machineFilter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:workflowTrend", reportsRead((scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+  handleReportsRead("telemetry:workflowTrend", (scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
     executionEngine.getTelemetryWorkflowTrend(scenarioId, resolveRange(preset), trendBucketsForPreset(preset), machineFilter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:machines", reportsRead((preset?: TelemetryRangePreset) => executionEngine.getTelemetryMachines(resolveRange(preset))));
+  handleReportsRead("telemetry:machines", (preset?: TelemetryRangePreset) => executionEngine.getTelemetryMachines(resolveRange(preset)));
 
-  ipcMain.handle("telemetry:runHistory", reportsRead((preset?: TelemetryRangePreset, page?: TelemetryPage, filter?: RunHistoryFilter) =>
+  handleReportsRead("telemetry:runHistory", (preset?: TelemetryRangePreset, page?: TelemetryPage, filter?: RunHistoryFilter) =>
     executionEngine.getTelemetryRunHistory(resolveRange(preset), page ?? {}, filter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:runDetail", reportsRead((instanceId: string) => executionEngine.getTelemetryRunDetail(instanceId)));
+  handleReportsRead("telemetry:runDetail", (instanceId: string) => executionEngine.getTelemetryRunDetail(instanceId));
 
-  ipcMain.handle("telemetry:failures", reportsRead((preset?: TelemetryRangePreset) => executionEngine.getTelemetryFailures(resolveRange(preset))));
+  handleReportsRead("telemetry:failures", (preset?: TelemetryRangePreset) => executionEngine.getTelemetryFailures(resolveRange(preset)));
 
-  ipcMain.handle("telemetry:runtimeSeries", reportsRead((preset?: TelemetryRangePreset) =>
+  handleReportsRead("telemetry:runtimeSeries", (preset?: TelemetryRangePreset) =>
     executionEngine.getTelemetryRuntimeSeries(resolveRange(preset), bucketMsForPreset(preset))
-  ));
+  );
 
-  ipcMain.handle("telemetry:processHistory", reportsRead((preset?: TelemetryRangePreset, limit?: number) => {
+  handleReportsRead("telemetry:processHistory", (preset?: TelemetryRangePreset, limit?: number) => {
     const range = resolveRange(preset);
     return executionEngine.getTelemetryProcessHistory(range.sinceIso, limit);
-  }));
+  });
 
   // ── Observability analytics (Runtime Observability & Historical Analytics phase) ──
-  ipcMain.handle("telemetry:capacityAnalytics", reportsRead((preset?: TelemetryRangePreset) =>
+  handleReportsRead("telemetry:capacityAnalytics", (preset?: TelemetryRangePreset) =>
     executionEngine.getTelemetryCapacityAnalytics(resolveRange(preset))
-  ));
+  );
 
-  ipcMain.handle("telemetry:workflowHistoricalStats", reportsRead((scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+  handleReportsRead("telemetry:workflowHistoricalStats", (scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
     executionEngine.getTelemetryWorkflowHistoricalStats(scenarioId, resolveRange(preset), machineFilter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:workflowHistoricalTrend", reportsRead((scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
+  handleReportsRead("telemetry:workflowHistoricalTrend", (scenarioId: string | undefined, preset?: TelemetryRangePreset, machineFilter?: MachineFilter) =>
     executionEngine.getTelemetryWorkflowHistoricalTrend(scenarioId, resolveRange(preset), machineFilter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:runVsHistory", reportsRead((instanceId: string, preset?: TelemetryRangePreset) =>
+  handleReportsRead("telemetry:runVsHistory", (instanceId: string, preset?: TelemetryRangePreset) =>
     executionEngine.getTelemetryRunVsHistory(instanceId, resolveRange(preset))
-  ));
+  );
 
-  ipcMain.handle("telemetry:workflowRankings", reportsRead((preset?: TelemetryRangePreset, metric?: WorkflowRankingMetric, limit?: number, machineFilter?: MachineFilter) =>
+  handleReportsRead("telemetry:workflowRankings", (preset?: TelemetryRangePreset, metric?: WorkflowRankingMetric, limit?: number, machineFilter?: MachineFilter) =>
     executionEngine.getTelemetryWorkflowRankings(resolveRange(preset), metric ?? "most-executed", limit, machineFilter)
-  ));
+  );
 
-  ipcMain.handle("telemetry:anomalies", reportsRead((preset?: TelemetryRangePreset, workflowId?: string, limit?: number) =>
+  handleReportsRead("telemetry:anomalies", (preset?: TelemetryRangePreset, workflowId?: string, limit?: number) =>
     executionEngine.getTelemetryAnomalies(resolveRange(preset), workflowId, limit)
-  ));
+  );
 
-  ipcMain.handle("telemetry:observabilitySummary", reportsRead(() => executionEngine.getObservabilitySummary()));
+  handleReportsRead("telemetry:observabilitySummary", () => executionEngine.getObservabilitySummary());
 
-  ipcMain.handle("telemetry:server", reportsRead(async (): Promise<ServerReport> => {
+  handleReportsRead("telemetry:server", async (): Promise<ServerReport> => {
     const status = await executionEngine.getRuntimeStatus();
     const storage = await computeStorageCached(status.environment?.sqlitePath);
     return {
@@ -141,7 +151,7 @@ export function registerTelemetryIpc(): void {
       backpressureReason: status.capacity.blockedReason,
       processAvailability: status.processes?.availability
     };
-  }));
+  });
 }
 
 // ── Storage sizing (cached; disk walks are bounded and best-effort) ──────────

@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Recorder IPC is authorized — `AWKIT-REC-001` fixed, REC-028 44/44 (2026-07-26, current)
+## Denied Reports/telemetry reads are now audited — `AWKIT-REP-003`, SYS-REP-015 PASS (2026-07-26, current)
+
+Authorization on the Reports surface was already enforced; nothing recorded the refusals. A repeated
+probing attempt left no trace, because `appendAudit` was wired only into branding, licensing, user
+administration and authentication.
+
+`assertSenderPermission` now takes an opt-in `audit` descriptor. Report and telemetry channels pass
+one, so a denial appends an audit row naming the channel, the required permission and the actor
+(none, when there is no session). `verify:reports-populated-gui` is **74/74** (was 66) and reads the
+rows back through the operator-visible `AUDIT_VIEW` surface.
+
+Three constraints worth keeping:
+
+- **No caller-supplied argument is ever written** — asserted, so the audit log cannot be used as an
+  injection sink.
+- **Auditing never throws.** An unwritable trail must not suppress the denial.
+- **The session is validated exactly once.** `AuthorizationService.resolveActor` was extracted so a
+  denial can name its actor without a second `sessions.validate()` — that call runs `touchSession`,
+  so re-running it would let a **rejected** request slide the idle expiry it was just refused under.
+  `requirePermission` is now defined in terms of `resolveActor`.
+
+Auditing is **opt-in per channel**, not global — volume on a high-frequency polling channel should be
+a deliberate choice. `telemetry.ipc.ts` registers reads through `handleReportsRead(channel, handler)`,
+which fuses registration with authorization. **`verify:ipc-contract` had to be taught about that
+registrar:** without it, 18 telemetry channels vanished from its static scan, and its "registered but
+unexposed and undocumented" check would have failed **open**. Contract is 4/4 at 203 handlers.
+
+## Recorder IPC is authorized — `AWKIT-REC-001` fixed, REC-028 44/44 (2026-07-26)
 
 The Recorder was the third IPC surface to get an authorization audit, and the only one that had
 **none at all**. `app/main/ipc/recorder.ipc.ts` registered all 13 handlers as `async (_, …)`, so the

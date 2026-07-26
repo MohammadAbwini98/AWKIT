@@ -55,10 +55,20 @@ function check(name: string, pass: boolean, detail?: string) {
 }
 
 // Collect registered channels (with duplicate detection) from every ipc handler file.
+//
+// A channel counts as registered when it is passed as a string literal either to `ipcMain.handle`
+// directly, or to one of the registration helpers below — helpers that call `ipcMain.handle` with
+// the channel as a VARIABLE, which this file's static scan cannot otherwise see. Any new helper of
+// that shape must be added here. Check 1 fails closed if one is missed (a preload invoke would
+// appear to have no handler), but check 3 would fail OPEN — an unscanned handler is not tested for
+// being unexposed and undocumented — so this list is load-bearing, not a convenience.
+const REGISTRARS = ["ipcMain\\.handle", "handleReportsRead"];
+const REGISTRATION_RE = new RegExp(`(?:${REGISTRARS.join("|")})\\(\\s*"([^"]+)"`, "g");
+
 const registered = new Map<string, number>();
 for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith(".ts"))) {
   const src = readFileSync(join(IPC_DIR, file), "utf8");
-  for (const m of src.matchAll(/ipcMain\.handle\(\s*"([^"]+)"/g)) {
+  for (const m of src.matchAll(REGISTRATION_RE)) {
     registered.set(m[1], (registered.get(m[1]) ?? 0) + 1);
   }
 }

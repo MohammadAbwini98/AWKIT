@@ -47,19 +47,32 @@ export class AuthorizationService {
   }
 
   /**
-   * Validate the session and require `permission`. Throws SecurityError (SESSION_EXPIRED / NOT_AUTHORIZED)
-   * on failure. Returns the acting user + effective permissions on success. This is the boundary a crafted
-   * IPC/DevTools call cannot bypass — the UI never reaches the mutation without passing here.
+   * Validate the session and resolve the acting user WITHOUT requiring any permission. Throws
+   * SecurityError (SESSION_EXPIRED) when the session or user is not usable.
+   *
+   * Callers that need to know WHO was denied — e.g. to write a denial audit entry — must use this
+   * and test the permission themselves rather than calling `requirePermission` twice:
+   * `sessions.validate` touches the session (sliding idle expiry), so a second call would let a
+   * REJECTED request keep the session alive.
    */
-  async requirePermission(sessionRef: string, permission: Permission): Promise<AuthorizedActor> {
+  async resolveActor(sessionRef: string): Promise<AuthorizedActor> {
     const resolution = await this.sessions.validate(sessionRef);
     if (!resolution.valid) throw new SecurityError(AuthReason.SESSION_EXPIRED);
     const user = this.store.getUserById(resolution.userId);
     // Deactivated/archived/deleted mid-session fails closed.
     if (!user || user.status !== "active") throw new SecurityError(AuthReason.SESSION_EXPIRED);
-    const permissions = this.permissionsFor(user);
-    if (!permissions.has(permission)) throw new SecurityError(AuthReason.NOT_AUTHORIZED);
-    return { user, sessionRef, permissions };
+    return { user, sessionRef, permissions: this.permissionsFor(user) };
+  }
+
+  /**
+   * Validate the session and require `permission`. Throws SecurityError (SESSION_EXPIRED / NOT_AUTHORIZED)
+   * on failure. Returns the acting user + effective permissions on success. This is the boundary a crafted
+   * IPC/DevTools call cannot bypass — the UI never reaches the mutation without passing here.
+   */
+  async requirePermission(sessionRef: string, permission: Permission): Promise<AuthorizedActor> {
+    const actor = await this.resolveActor(sessionRef);
+    if (!actor.permissions.has(permission)) throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+    return actor;
   }
 
   /** Throw REAUTH_REQUIRED unless the session was re-authenticated within the reauth window. */

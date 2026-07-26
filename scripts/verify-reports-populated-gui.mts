@@ -915,6 +915,56 @@ try {
   check("SYS-REP-015 no-role direct report read is denied", noRoleDirect.get.rejected, noRoleDirect.get.message);
   check("SYS-REP-015 no-role direct report-folder open is denied", noRoleDirect.open.rejected, noRoleDirect.open.message);
 
+  // SYS-REP-015 — the denials above must be RECORDED, not just refused. Read the durable audit
+  // trail back through the Super User's own AUDIT_VIEW surface, so this asserts what an operator
+  // would actually be able to see rather than an internal call.
+  const auditRows = await win.evaluate(async () => {
+    const api = window.playwrightFlowStudio;
+    const login = await api.security.login({
+      providerId: "local",
+      username: "reportsverifier",
+      password: "Str0ng!Passw0rd"
+    });
+    if (!login.ok) return { ok: false as const, reason: login.reason, rows: [] };
+    const listed = await api.security.admin.listAudit({ sessionRef: login.principal.sessionRef, limit: 200 });
+    return { ok: listed.ok as boolean, reason: listed.reason, rows: listed.value ?? [] };
+  });
+  check("SYS-REP-015 audit trail is readable by an AUDIT_VIEW holder", auditRows.ok, auditRows.reason);
+
+  const denials = auditRows.rows.filter(
+    (row) => row.result === "failure" && (row.eventType === "TELEMETRY_READ_DENIED" || row.eventType.startsWith("REPORT_"))
+  );
+  // `report:list` (singular) is what the preload's `reports.list()` actually invokes — the plural
+  // `reports:list` handler exists but no renderer path reaches it.
+  for (const channel of ["telemetry:overview", "report:list", "reports:get", "reports:openFolder"]) {
+    const row = denials.find((entry) => entry.targetId === channel);
+    check(
+      `SYS-REP-015 denied ${channel} is persisted in the audit trail`,
+      Boolean(row) && row?.reasonCode === "NOT_AUTHORIZED",
+      JSON.stringify(row ?? denials.map((entry) => entry.targetId))
+    );
+  }
+  // A denial audit is only useful if it says WHO. The no-role user is the most recent denier.
+  check(
+    "SYS-REP-015 denial audit attributes the acting user",
+    denials.some((row) => row.actorName === noRole.username),
+    JSON.stringify(denials.slice(0, 4).map((row) => ({ t: row.targetId, actor: row.actorName })))
+  );
+  // The pre-auth probes ran with no session at all; those must still be recorded, without inventing
+  // an identity for them.
+  check(
+    "SYS-REP-015 pre-auth denial is recorded with no attributed actor",
+    denials.some((row) => !row.actorName),
+    JSON.stringify(denials.map((row) => row.actorName).slice(0, 8))
+  );
+  // The audit must not become a place where caller-supplied text lands. The no-role user passed
+  // REPORT_ID to the denied `reports:get` / `reports:openFolder` calls; it must not be echoed back.
+  check(
+    "SYS-REP-015 denial audit records no caller-supplied argument",
+    !JSON.stringify(denials).includes(REPORT_ID),
+    REPORT_ID
+  );
+
   const outsidePath = resolve(root, "..");
   const outsideOpen = await win.evaluate((path: string) => window.playwrightFlowStudio.system.openPath(path), outsidePath);
   check(

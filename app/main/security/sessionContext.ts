@@ -63,24 +63,81 @@ export function boundSessionRef(event: IpcMainInvokeEvent): string | undefined {
 export async function assertSenderPermission(
   event: IpcMainInvokeEvent,
   permission: Permission,
-  options: { sensitive?: boolean } = {}
+  options: { sensitive?: boolean; audit?: DenialAudit } = {}
 ): Promise<AuthorizedActor> {
   assertTrustedSender(event);
   const sessionRef = boundSessions.get(event.sender.id);
-  if (!sessionRef) throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+  if (!sessionRef) {
+    // No bound session at all: there is no identity to attribute, only the attempt itself.
+    await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, null, null);
+    throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+  }
   // Loaded lazily so the pure sender-binding registry (and its fail-closed path) stays free of the
   // Electron-backed kernel import — the module can be unit-tested off-Electron, and this line only runs
   // once a window is actually bound (the real enforcement path).
   const { getSecurityKernel } = await import("./securityKernel");
   const kernel = await getSecurityKernel();
   try {
-    const actor = await kernel.authz.requirePermission(sessionRef, permission);
+    // `resolveActor` + an explicit membership test, rather than `requirePermission`, so a denial can
+    // name the actor WITHOUT a second `sessions.validate()` — that call touches the session, so
+    // re-running it would let a rejected request slide the idle expiry it was just refused under.
+    const actor = await kernel.authz.resolveActor(sessionRef);
+    if (!actor.permissions.has(permission)) {
+      await recordDenial(options.audit, permission, AuthReason.NOT_AUTHORIZED, actor, sessionRef);
+      throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+    }
     if (options.sensitive) kernel.authz.requireFreshReauth(sessionRef);
     return actor;
   } catch (error) {
     if (error instanceof SecurityError && error.reason === AuthReason.SESSION_EXPIRED) {
       unbindByWebContentsId(event.sender.id);
+      await recordDenial(options.audit, permission, AuthReason.SESSION_EXPIRED, null, sessionRef);
     }
     throw error;
+  }
+}
+
+/**
+ * Opt-in denial auditing for a gated channel. Supplied per call site rather than applied globally so
+ * the volume of a high-frequency polling channel is a deliberate choice, not an accident.
+ */
+export interface DenialAudit {
+  /** Stable, non-caller-controlled event type, e.g. `REPORT_READ_DENIED`. */
+  eventType: string;
+  /** The IPC channel that was refused. Never a caller-supplied value. */
+  channel: string;
+}
+
+/**
+ * Append a denial to the shared security audit trail. Best effort by construction: auditing must
+ * never convert a clean authorization denial into a different error, and must never be the reason a
+ * refusal fails to happen. Records only the channel, the required permission and the reason — no
+ * caller-supplied argument is ever written, so a crafted request cannot inject content into the log.
+ */
+async function recordDenial(
+  audit: DenialAudit | undefined,
+  permission: Permission,
+  reason: string,
+  actor: AuthorizedActor | null,
+  sessionRef: string | null
+): Promise<void> {
+  if (!audit) return;
+  try {
+    const { getSecurityKernel } = await import("./securityKernel");
+    const kernel = await getSecurityKernel();
+    await kernel.store.appendAudit({
+      at: new Date().toISOString(),
+      eventType: audit.eventType,
+      result: "failure",
+      reasonCode: reason,
+      actorUserId: actor?.user.id ?? null,
+      actorName: actor?.user.username ?? null,
+      sessionId: sessionRef,
+      targetType: "ipc-channel",
+      targetId: audit.channel,
+      detail: { requiredPermission: permission }
+    });
+  } catch {
+    // An unwritable audit trail must not suppress the denial itself.
   }
 }

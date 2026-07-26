@@ -11,27 +11,39 @@ export function registerReportIpc(): void {
   const store = createReportStore();
 
   ipcMain.handle("reports:list", async (event) => {
-    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    await assertSenderPermission(event, Permission.PAGE_REPORTS, {
+      audit: { eventType: "REPORT_READ_DENIED", channel: "reports:list" }
+    });
     return store.list();
   });
   ipcMain.handle("reports:get", async (event, id: string) => {
-    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    await assertSenderPermission(event, Permission.PAGE_REPORTS, {
+      audit: { eventType: "REPORT_READ_DENIED", channel: "reports:get" }
+    });
     return store.get(id);
   });
   ipcMain.handle("reports:create", async (event, report: ConcurrentRunReport) => {
-    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    await assertSenderPermission(event, Permission.REPORT_EXPORT, {
+      audit: { eventType: "REPORT_WRITE_DENIED", channel: "reports:create" }
+    });
     return store.import(toStoredReport(report));
   });
   ipcMain.handle("reports:delete", async (event, id: string) => {
-    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    await assertSenderPermission(event, Permission.REPORT_EXPORT, {
+      audit: { eventType: "REPORT_WRITE_DENIED", channel: "reports:delete" }
+    });
     return store.delete(id);
   });
   ipcMain.handle("reports:export", async (event, id: string) => {
-    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    await assertSenderPermission(event, Permission.REPORT_EXPORT, {
+      audit: { eventType: "REPORT_EXPORT_DENIED", channel: "reports:export" }
+    });
     return store.export(id);
   });
   ipcMain.handle("reports:openFolder", async (event, id: string) => {
-    await assertSenderPermission(event, Permission.REPORT_EXPORT);
+    await assertSenderPermission(event, Permission.REPORT_EXPORT, {
+      audit: { eventType: "REPORT_OPEN_FOLDER_DENIED", channel: "reports:openFolder" }
+    });
     // The renderer supplies only a report id. The trusted process resolves the configured report
     // folder after proving the record exists, so this action cannot be repurposed for traversal.
     const report = await store.get(id);
@@ -40,7 +52,9 @@ export function registerReportIpc(): void {
   });
 
   ipcMain.handle("report:list", async (event) => {
-    await assertSenderPermission(event, Permission.PAGE_REPORTS);
+    await assertSenderPermission(event, Permission.PAGE_REPORTS, {
+      audit: { eventType: "REPORT_READ_DENIED", channel: "report:list" }
+    });
     return store.list();
   });
 }

@@ -521,11 +521,17 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   identity scoping applies; try traversal/out-of-root artifact paths.
 - **Expected:** Main process enforces authorization; no hidden-only security; unauthorized/traversal
   requests are rejected and audited; allowed report reads remain redacted.
-- **Status:** `NOT RUN` only for persisted denied-attempt audit verification. Main-process
-  authorization is now enforced on every telemetry/report read and report export/open action. The
-  real Electron gate proved pre-auth denial; Viewer read allowance but export/open denial and hidden
-  controls; no-role nav/deep-link/direct-IPC denial; crafted report-id rejection; and out-of-root path
-  rejection. `verify:e2e-rbac` remains green at 51/51. No per-read denial-audit claim is made.
+- **Status:** `PASS` — `verify:reports-populated-gui`, **74/74**. Main-process authorization is
+  enforced on every telemetry/report read and report export/open action. The real Electron gate
+  proves pre-auth denial; Viewer read allowance but export/open denial and hidden controls; no-role
+  nav/deep-link/direct-IPC denial; crafted report-id rejection; and out-of-root path rejection.
+  **Denied attempts are now persisted and verified:** each of `telemetry:overview`, `report:list`,
+  `reports:get` and `reports:openFolder` produces an audit row with `result=failure` and
+  `reasonCode=NOT_AUTHORIZED`, read back through the operator-visible `AUDIT_VIEW` surface rather
+  than an internal call. The entry names the acting user when there is one, records no actor for a
+  pre-auth attempt rather than inventing one, and contains no caller-supplied argument.
+  **Gap closed — `AWKIT-REP-003`:** the app rejected unauthorized reads but recorded nothing, so a
+  probing attempt left no trace. `verify:e2e-rbac` remains 51/51.
 
 ### SYS-REP-016 — Reports accessibility, zoom and reduced motion
 

@@ -274,6 +274,57 @@ connected element on unmount. The gate proves announcements, forward/reverse wra
 return, narrow layout and reduced motion. SET-021 remains `NOT RUN` overall because 200% zoom,
 high-contrast, unavailable-secret controls and the complete accessible-name audit were not executed.
 
+### AWKIT-REP-003 — Unauthorized Reports/telemetry reads were rejected but never recorded
+
+- **Severity:** S3 / Missing detective control (no data was exposed)
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/security/sessionContext.ts`, `app/main/ipc/report.ipc.ts`,
+  `app/main/ipc/telemetry.ipc.ts`, `src/security/authz/AuthorizationService.ts`
+- **Detected by:** `SYS-REP-015`
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-26T18-05-45-598Z/` (**74/74**)
+
+**Reproduction before fix**
+
+1. As a user with no Reports role, call `telemetry:overview`, `report:list`, `reports:get` and
+   `reports:openFolder` directly through preload. All four are correctly denied.
+2. As a Super User, open the Audit Log (`security:admin:listAudit`).
+
+**Actual result**
+
+Nothing. `appendAudit` was wired only into branding, licensing, user administration and
+authentication, so a repeated probing attempt against the Reports surface left no trace at all —
+the preventive control worked while the detective control did not exist. SYS-REP-015 requires that
+unauthorized requests are "rejected **and audited**".
+
+**Expected result and fix**
+
+`assertSenderPermission` gained an opt-in `audit` descriptor; report and telemetry channels pass
+one. A denial now appends `{eventType, result: "failure", reasonCode, targetType: "ipc-channel",
+targetId: <channel>, detail: {requiredPermission}}`, attributing the acting user when a session
+exists and recording no actor when there is none.
+
+Three deliberate constraints:
+
+1. **Only the channel and required permission are recorded** — never a caller-supplied argument, so
+   a crafted request cannot inject content into the audit log. Asserted directly.
+2. **Auditing is best-effort and never throws**, so an unwritable audit trail can never suppress the
+   denial itself.
+3. **The session is validated exactly once.** `AuthorizationService.resolveActor` was extracted so a
+   denial can name its actor without a second `sessions.validate()` — that call runs `touchSession`,
+   so re-running it would have let a *rejected* request slide the idle expiry it was just refused
+   under. `requirePermission` is now defined in terms of `resolveActor`, so both paths share one
+   implementation.
+
+Auditing is opt-in per channel rather than global: the volume cost on a high-frequency polling
+channel should be a deliberate choice. Extending it to every gated IPC surface is not done here.
+
+Side effect: `telemetry.ipc.ts` now registers reads through a `handleReportsRead(channel, handler)`
+helper that fuses registration with authorization, so a telemetry read cannot be added without its
+guard. `verify:ipc-contract` was taught to recognise that registrar — without it the 18 telemetry
+channels became invisible to its static scan, which would have failed **open** for its
+"registered but unexposed and undocumented" check. Contract is back to 4/4 at 203 handlers.
+
 ### AWKIT-REC-001 — Every Recorder IPC channel was reachable without a session or a permission
 
 - **Severity:** S1 / Critical security boundary failure

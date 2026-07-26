@@ -4,7 +4,46 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - REC-028: the Recorder had no authorization at all (Claude)
+## 2026-07-26 (latest) - SYS-REP-015: refusals were not recorded (Claude)
+
+**Task:** close SYS-REP-015, whose only remaining subcase was "denied attempts are audited".
+
+**It was a real gap, not a test gap.** `appendAudit` was wired into branding, licensing, user admin
+and authentication only — never into the Reports/telemetry permission checks. Unauthorized reads
+were correctly *rejected*; nothing recorded that they happened.
+
+**Fix — `AWKIT-REP-003` (S3).** `assertSenderPermission` gained an opt-in `audit` descriptor; report
+and telemetry channels pass one. Denials append a row with the channel, required permission, reason
+and actor. Opt-in per channel rather than global, so polling volume stays a deliberate choice.
+
+**Three things I had to get right, and one I nearly got wrong:**
+
+1. **Validate the session exactly once.** Naming the actor on a denial needs the resolved user, but
+   `sessions.validate()` calls `touchSession` — a second call would have let a *rejected* request
+   slide the idle expiry it was just refused under. Extracted `AuthorizationService.resolveActor`;
+   `requirePermission` is now defined in terms of it, so there is still one implementation.
+2. **Never write a caller-supplied argument** into the log; asserted directly with the report id the
+   denied call carried.
+3. **Auditing never throws** — an unwritable trail must not suppress the denial.
+4. **`verify:ipc-contract` caught my refactor.** Fusing telemetry registration+authorization into
+   `handleReportsRead(channel, handler)` hid 18 channels from the contract verifier's static scan —
+   203 → 185 handlers, 4/4 → 3/4. Its "registered but unexposed and undocumented" check would have
+   failed **open**. Taught the scanner about the registrar; back to 4/4 at 203.
+
+**One assertion of mine was wrong:** I expected an audit row for `reports:list`, but the preload's
+`reports.list()` invokes `report:list` (singular). The product was right; the test was wrong.
+
+**Tests run:** `verify:reports-populated-gui` **74/74** (was 66) · `verify:settings-e2e` 116/116 ·
+`verify:e2e-rbac` 51/51 · `verify:e2e-reauth` 19/19 · `verify:reports` 31/31 · `verify:authz` 40/0 ·
+`verify:auth` 49/0 · `verify:security` 39/0 · `verify:telemetry` 61/61 · `verify:observability` 65/0
+· `verify:ipc-contract` 4/4 · `verify:recorder-authz` 44/0 · `tsc --noEmit`, `build`,
+`typecheck:scripts` PASS.
+
+**Ledger: 38 → 37 `NOT RUN`.** Reports 6 → 7 PASS.
+
+---
+
+## 2026-07-26 - REC-028: the Recorder had no authorization at all (Claude)
 
 **Task:** begin completing the 39 `NOT RUN` cases in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`,
 security and P0 first.
