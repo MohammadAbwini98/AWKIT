@@ -4,7 +4,50 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - Oracle soak: the harness was measuring itself (Claude)
+## 2026-07-26 (latest) - REC-028: the Recorder had no authorization at all (Claude)
+
+**Task:** begin completing the 39 `NOT RUN` cases in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`,
+security and P0 first.
+
+**Predicted from source before writing a test.** `app/main/ipc/recorder.ipc.ts` registered all 13
+handlers as `async (_, …)` — the `IpcMainInvokeEvent` was discarded, so no handler could identify its
+sender. Meanwhile `Permission.PAGE_RECORDER` existed and was enforced **only** in the renderer route
+table. `report.ipc.ts` carried 8 `assertSenderPermission` calls and `settings.ipc.ts` 11 after their
+own campaigns; the Recorder carried zero.
+
+**Reproduced, not assumed.** New `npm run verify:recorder-authz` (real Electron, isolated profile)
+probes all 11 preload-reachable `recorder:*` channels with no bound session, as a Viewer, as an
+Operator, and after sign-out. Pre-fix: **3 PASS / 26 FAIL**. With **no session at all**, `saveUrl`
+persisted URL history, `saveFlow` **created a real flow** (bypassing the `workflow.create` check that
+`flows:create` enforces on the same store), and `start` launched and navigated a browser. The hidden
+nav entry was the only thing withholding the Recorder from a Viewer.
+
+**Fix — `AWKIT-REC-001` (S1).** Every handler now takes `event` and calls `assertSenderPermission`.
+Operating the Recorder requires `page.recorder`; `saveFlow` additionally requires `workflow.create`.
+Session revocation is covered for free — `assertSenderPermission` unbinds on `SESSION_EXPIRED`.
+Post-fix: **44 PASS / 0 FAIL**.
+
+**Two verifier design points that mattered.** Denials assert the *reason* (`NOT_AUTHORIZED`), not that
+a promise rejected — two channels fail for unrelated business/navigation reasons and would otherwise
+have read as "secure". And every mutation probe asserts the **absence of the side effect**, because
+"it threw" and "it changed nothing" are different claims.
+
+**Tests run:** `verify:recorder-authz` 44/0 · `verify:recorder-e2e` **41/41** (the authorized journey
+still works end to end) · `verify:recorder` 78/0 · `verify:recorder-draft` 17/17 ·
+`verify:recorder-flow` 19/19 · `verify:e2e-rbac` 51/51 · `verify:authz` 40/0 · `verify:security` 39/0
+· `verify:ipc-contract` 4/4 · `verify:verifier-classification` reconciled **139** · `build` and
+`typecheck:scripts` PASS.
+
+**Ledger: 39 → 38 `NOT RUN`.** Recorder 10 → 11 PASS.
+
+**Filed:** `awkit-7lj` — `flows:list`/`get`/`export` are unauthenticated reads in the same style
+(out of REC-028's scope, recorded not silently changed); `session.ipc.ts` and `instance.ipc.ts` also
+have zero sender checks. `awkit-38k` — the Recorder campaign's remaining 17 cases, which had no bead
+at all while Reports and Settings did. Closed `awkit-gi2` (REC-018).
+
+---
+
+## 2026-07-26 - Oracle soak: the harness was measuring itself (Claude)
 
 **Task:** investigate `awkit-q0e` (Node peak RSS growing ~5× within a soak, 2472 MB peak), then fix.
 

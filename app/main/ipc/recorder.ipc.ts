@@ -9,6 +9,8 @@ import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import { getSessionService } from "./session.ipc";
 import { getUiSettings } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 
 export function registerRecorderIpc(): void {
   // Persist an unsaved recording (actions) to a draft under the runtime data folder so it survives an
@@ -21,7 +23,12 @@ export function registerRecorderIpc(): void {
   void recorderService.ensureDraftLoaded();
   void recorderService.ensureUrlHistoryLoaded();
 
-  ipcMain.handle("recorder:start", async (_, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
+  // Every handler below is authorized against the CALLING renderer's bound session, not against a
+  // renderer-supplied claim. Hiding the Recorder nav entry is a UI affordance, never the boundary:
+  // before this, any sender — including one with no session at all — could start a browser, persist
+  // URL history, and create flows. Same class of gap as AWKIT-REP-001 and AWKIT-SET-001.
+  ipcMain.handle("recorder:start", async (event, url: string, options?: { captureWaitTime?: boolean; captureSmartWaits?: boolean }) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     let executablePath: string | undefined;
     if (isProductionOffline()) {
       const bundled = new BundledBrowserResolver(getResourcesRoot()).resolveChromium();
@@ -47,58 +54,73 @@ export function registerRecorderIpc(): void {
     return recorderService.getStatus();
   });
 
-  ipcMain.handle("recorder:stop", async () => {
+  ipcMain.handle("recorder:stop", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return await recorderService.stopRecording();
   });
 
-  ipcMain.handle("recorder:cancel", async () => {
+  ipcMain.handle("recorder:cancel", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     await recorderService.cancelRecording();
     return { success: true };
   });
 
-  ipcMain.handle("recorder:getActions", async () => {
+  ipcMain.handle("recorder:getActions", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     await recorderService.ensureDraftLoaded();
     return recorderService.getActions();
   });
 
-  ipcMain.handle("recorder:getStatus", async () => {
+  ipcMain.handle("recorder:getStatus", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return recorderService.getStatus();
   });
 
-  ipcMain.handle("recorder:getUrls", async () => {
+  ipcMain.handle("recorder:getUrls", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     await recorderService.ensureUrlHistoryLoaded();
     return recorderService.getUrls();
   });
 
-  ipcMain.handle("recorder:saveUrl", async (_, url: string) => {
+  ipcMain.handle("recorder:saveUrl", async (event, url: string) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return await recorderService.saveUrl(url);
   });
 
   // ── Protected login / popup manual handoff ─────────────────────────────────
-  ipcMain.handle("recorder:getHandoff", async () => {
+  ipcMain.handle("recorder:getHandoff", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return recorderService.getHandoff();
   });
 
-  ipcMain.handle("recorder:continueWithNormalBrowser", async () => {
+  ipcMain.handle("recorder:continueWithNormalBrowser", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return await recorderService.continueWithNormalBrowser();
   });
 
-  ipcMain.handle("recorder:captureSessionAndResume", async (_, sessionName?: string) => {
+  ipcMain.handle("recorder:captureSessionAndResume", async (event, sessionName?: string) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return await recorderService.captureSessionAndResume(sessionName);
   });
 
-  ipcMain.handle("recorder:cancelHandoff", async () => {
+  ipcMain.handle("recorder:cancelHandoff", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     await recorderService.cancelSecureHandoff();
     return { success: true };
   });
 
   // Session-level "Ignore and continue recording": treat the active protected detection as a false
   // positive and resume the same recorder session (never bypasses authentication).
-  ipcMain.handle("recorder:ignoreProtectedDetection", async () => {
+  ipcMain.handle("recorder:ignoreProtectedDetection", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return recorderService.ignoreCurrentProtectedDetection();
   });
 
-  ipcMain.handle("recorder:saveFlow", async (_, name: string, actions: RecordedAction[]) => {
+  ipcMain.handle("recorder:saveFlow", async (event, name: string, actions: RecordedAction[]) => {
+    // Saving CREATES a flow profile, so this needs the same permission `flows:create` demands —
+    // otherwise the Recorder is a way to author flows without `workflow.create`.
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     const store = createFlowProfileStore();
     // Recorded flows always open with default Start/End nodes and the actions between them,
     // replaying recorded waits/tab-switches. Logic lives in a pure, unit-tested helper.

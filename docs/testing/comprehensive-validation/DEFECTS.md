@@ -274,6 +274,62 @@ connected element on unmount. The gate proves announcements, forward/reverse wra
 return, narrow layout and reduced motion. SET-021 remains `NOT RUN` overall because 200% zoom,
 high-contrast, unavailable-secret controls and the complete accessible-name audit were not executed.
 
+### AWKIT-REC-001 — Every Recorder IPC channel was reachable without a session or a permission
+
+- **Severity:** S1 / Critical security boundary failure
+- **Priority recommendation:** P0
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/ipc/recorder.ipc.ts` (all 13 handlers)
+- **Detected by:** `REC-028`
+- **Evidence before fix:** `test-artifacts/recorder-authz/2026-07-26T17-50-19-068Z/results.json`
+  (**3 passed / 26 failed**)
+- **Evidence after fix:** `test-artifacts/recorder-authz/2026-07-26T17-52-58-107Z/results.json`
+  (**44 passed / 0 failed**)
+
+**Reproduction before fix**
+
+1. Launch the real Electron app on an isolated profile and stop at the login card — no session is
+   bound to the renderer.
+2. Through the real preload surface, call every `recorder:*` channel: `getStatus`, `getActions`,
+   `getUrls`, `getHandoff`, `saveUrl`, `saveFlow`, `ignoreProtectedDetection`, `cancelHandoff`,
+   `stop`, `cancel`, `start`.
+3. Sign in, then repeat as a Viewer, which does not hold `page.recorder`.
+
+**Actual result**
+
+Every handler executed. `recorder.ipc.ts` registered all 13 handlers as `async (_, …)` — the
+`IpcMainInvokeEvent` was discarded, so no handler could identify its sender even in principle. With
+**no session at all**:
+
+- `recorder:saveUrl` persisted a caller-supplied URL into the reusable URL history;
+- `recorder:saveFlow` **created a real flow profile in the library** — which also bypassed the
+  `workflow.create` permission that `flows:create` enforces on the same store;
+- `recorder:start` launched a browser and navigated it (the probe failed only at
+  `net::ERR_CONNECTION_REFUSED`, i.e. after launch);
+- `stop`, `cancel`, `cancelHandoff` and the handoff channels all ran.
+
+The Viewer run behaved identically. The **only** thing withholding the Recorder from a Viewer was
+the hidden navigation entry — the verifier confirms the nav item is correctly absent while every
+underlying channel answered. That is hidden-only security, and it is the same class of gap as
+`AWKIT-REP-001` (Reports) and `AWKIT-SET-001` (Settings) on the two surfaces already audited.
+
+**Expected result and fix**
+
+Every handler now derives its actor from `event.sender` via `assertSenderPermission`. Operating the
+Recorder requires `page.recorder`; `recorder:saveFlow` additionally requires `workflow.create`, so
+saving a recording cannot author a flow that `flows:create` would have refused. Because
+`assertSenderPermission` unbinds the renderer on `SESSION_EXPIRED`, access is also lost when a
+session is revoked — the verifier re-probes after sign-out and every channel denies.
+
+Regressions: `verify:recorder-e2e` **41/41** (the full record → save → restart → production replay
+journey still works for an authorized user), `verify:recorder` 78/78, `verify:recorder-draft` 17/17,
+`verify:recorder-flow` 19/19, `verify:e2e-rbac` 51/51, `verify:authz` 40/40, `verify:security`
+39/39, `verify:ipc-contract` 4/4.
+
+**Note for follow-up, not fixed here:** `flows:list`, `flows:get` and `flows:export` in
+`app/main/ipc/flow.ipc.ts` are also unauthenticated reads. That is outside REC-028's scope and is
+recorded rather than silently changed.
+
 ## Resolved Oracle workflow defects
 
 ### AWKIT-ORA-E2E-001 — Scheduled data rows were absent from runner `currentRow`

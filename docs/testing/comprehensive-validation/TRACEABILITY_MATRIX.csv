@@ -70,7 +70,8 @@ Recorder,Saved URL history UI,REC-019,Electron GUI,NOT RUN,Storage/dedupe contra
 Recorder,Protected-login detection,REC-020,Detector + mock site,PASS,protected-login-recorder 45/45
 Recorder,Session ignore and handoff recovery,REC-021 + REC-023,Electron GUI + RecorderService,NOT RUN,
 Recorder,Authorized manual handoff,REC-022,Real Chrome/manual,BLOCKED,Requires authorized human and test identity
-Recorder,Crash/race recovery and authorization,REC-024 through REC-025 + REC-028,Electron + IPC + browser process,NOT RUN,
+Recorder,Crash and race recovery,REC-024 through REC-025,Electron + browser process,NOT RUN,
+Recorder,Authorization boundary,REC-028,Real Electron + preload + sender-bound IPC,PASS,verify:recorder-authz 44/44; AWKIT-REC-001 found and fixed; route deep-link and mid-session revocation remain
 Recorder,HTTPS trust and popup identity,REC-026 through REC-027,Real Chromium + settings GUI,PASS,certificate 49/49 + GUI 31/31; popup identity 43/43
 Recorder,Accessibility/responsive/reduced motion,REC-029,Electron GUI/manual,NOT RUN,
 System Reports,Route rendering,SYS-REP-001,Real Electron,PASS,verify:reports 31/31

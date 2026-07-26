@@ -327,7 +327,18 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   expiry/revocation.
 - **Expected:** Unauthorized users cannot render or invoke Recorder operations; main-process checks
   reject direct calls; active recording is safely terminated on revoked access.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-authz`, **44/44**. All 11 preload-reachable
+  `recorder:*` channels were probed with no bound session, as a Viewer (no `page.recorder`), as an
+  Operator (has it), and again after sign-out. Denials are asserted on the *reason*
+  (`NOT_AUTHORIZED`), not merely on rejection, and each mutation probe additionally asserts that no
+  URL and no flow was persisted. Operator reads remain permitted, so the guard does not over-deny.
+  **Found and fixed — `AWKIT-REC-001` (S1):** every handler discarded its `IpcMainInvokeEvent`, so
+  with no session at all a caller could persist URL history, **create a flow** (bypassing the
+  `workflow.create` check `flows:create` enforces), and launch a browser. The hidden nav entry was
+  the only thing withholding the Recorder from a Viewer. Pre-fix negative control **3/26** at
+  `test-artifacts/recorder-authz/2026-07-26T17-50-19-068Z/`.
+  Still unexecuted: deep-linking the Recorder route in the renderer, and terminating an *active*
+  recording when access is revoked mid-session — both belong to the Recorder GUI harness.
 
 ### REC-029 — Recorder accessibility, responsive layout, and reduced motion
 

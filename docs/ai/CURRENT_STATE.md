@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Packaged gate re-verified at `82c2514` — 70/70 (2026-07-26, current)
+## Recorder IPC is authorized — `AWKIT-REC-001` fixed, REC-028 44/44 (2026-07-26, current)
+
+The Recorder was the third IPC surface to get an authorization audit, and the only one that had
+**none at all**. `app/main/ipc/recorder.ipc.ts` registered all 13 handlers as `async (_, …)`, so the
+`IpcMainInvokeEvent` was discarded and no handler could identify its sender. `Permission.PAGE_RECORDER`
+existed but was enforced only in the renderer route table.
+
+`npm run verify:recorder-authz` (new; real Electron, isolated profile) probes every preload-reachable
+`recorder:*` channel with no bound session, as a Viewer, as an Operator, and after sign-out.
+**Pre-fix 3/26** — with no session at all, `saveUrl` persisted URL history, `saveFlow` created a real
+flow (bypassing the `workflow.create` check `flows:create` enforces on the same store), and `start`
+launched and navigated a browser. **Post-fix 44/0.**
+
+Operating the Recorder now requires `page.recorder`; `recorder:saveFlow` additionally requires
+`workflow.create`. Revocation is covered because `assertSenderPermission` unbinds the renderer on
+`SESSION_EXPIRED`. `verify:recorder-e2e` remains **41/41**, so the authorized record → save →
+restart → production replay journey is unaffected.
+
+The verifier asserts the **denial reason** (`NOT_AUTHORIZED`), not merely that a call rejected — two
+channels fail for unrelated business/navigation reasons and would otherwise have counted as secure —
+and every mutation probe additionally asserts that nothing was persisted.
+
+**Recorded, not fixed:** `flows:list`/`flows:get`/`flows:export` are unauthenticated reads in the
+same style (bead `awkit-7lj`); `session.ipc.ts` and `instance.ipc.ts` have zero sender checks.
+
+Focused-case ledger: **38 of 66 `NOT RUN`** (Recorder 17, Reports 10, Settings 11) + 1 BLOCKED.
+
+## Packaged gate re-verified at `82c2514` — 70/70 (2026-07-26)
 
 `npm run package:portable` was rebuilt and `npm run verify:packaged-walkthrough` re-run against it:
 **70 passed, 0 failed**. This is the first packaged run that exercises the whole session's work
