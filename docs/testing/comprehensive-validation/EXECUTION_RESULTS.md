@@ -21,7 +21,7 @@
 | Oracle row-driven browser workflow | `PASS` | 7 PASS / 0 FAIL; 8 rows through real bridge, Chromium, and production ExecutionEngine |
 | Oracle live | `BLOCKED` | No approved URL/user/password; local container absent |
 | Packaged runtime | `PASS` | 25/25 |
-| Packaged clean-profile walkthrough | `PASS` | 69/69 on a fresh temporary profile |
+| Packaged clean-profile walkthrough | `PASS` | **70/70** on a fresh temporary profile, against a package rebuilt after the fix |
 | Clean/offline Windows VM | `NOT RUN` | Separate manual release gate |
 | CAPTCHA/MFA/OTP/protected-login completion | `BLOCKED` | Manual handoff required; no bypass attempted |
 | Firefox/WebKit certification | `NOT RUN` | Chromium-first scope |
@@ -78,11 +78,29 @@ downstream work, and the skipped-approval report). Its two negative controls —
 an ordinary node — passed both before and after, so the added coverage is negative-controlled rather
 than vacuously green.
 
-**`npm run verify:packaged-walkthrough` was NOT re-run for this fix.** `dist/win-unpacked` was built
-2026-07-25 22:31, before the change, and `scripts/verify-packaged-walkthrough.mts` has no staleness
-guard — it would have exercised the pre-fix bundle and reported a pass that says nothing about this
-change. Its last recorded result (69/69) therefore stands as a *packaging* baseline only. Re-running it
-against this fix requires a fresh `npm run package:portable`.
+### Packaged verification of this fix (2026-07-26)
+
+`dist/win-unpacked` was built 2026-07-25 22:31 — *before* the fix — and
+`scripts/verify-packaged-walkthrough.mts` had **no staleness guard**, so running it as-found would
+have exercised the pre-fix bundle and reported a pass that said nothing about the change. Both were
+addressed rather than worked around:
+
+| Step | Result |
+| --- | --- |
+| `npm run package:portable` | PASS — fresh `dist/win-unpacked` (`app.asar` 2026-07-26 03:09) and portable EXE (03:13) |
+| Fix present in the packaged payload | Confirmed — the guard's error string is in `out/main/main.js`, which electron-builder packs into `app.asar` |
+| `npm run verify:packaged-walkthrough` | **70 passed, 0 failed** (69 + the new staleness check) |
+
+**New precondition check.** Part A now refuses to run when the newest file under `src/` or `app/` is
+newer than the packaged payload, naming the offending file and both timestamps. It was
+negative-controlled: touching `src/runner/FlowExecutor.ts` made the verifier exit 1 with
+`dist/win-unpacked is STALE — src\runner\FlowExecutor.ts (…) is newer than the packaged payload (…)`,
+and the file was confirmed byte-identical to its pre-test copy and to `HEAD` afterwards (the control
+changed only the mtime).
+
+This closes a genuine evidence-integrity hole: every prior packaged result was only as trustworthy as
+whoever remembered to repackage first, and nothing in the suite would have said otherwise. It is the
+same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 
 ## Specialized suite results
 
@@ -91,7 +109,7 @@ against this fix requires a fresh `npm run package:portable`.
 | Script type-check | `PASS` |
 | Production build | `PASS` |
 | Verifier classification reconciliation | `PASS` — 134 classified: 1 documentation, 7 static, 50 unit, 27 integration, 41 real-browser, 8 packaged |
-| Runner | `PASS` — 84/84 |
+| Runner | `PASS` — **89/89** (84 + 5 manual-approval regressions) |
 | Waits | `PASS` — 56/56 |
 | Popup | `PASS` — 12/12 |
 | Popup identity | `PASS` — 43/43 |
@@ -140,7 +158,7 @@ against this fix requires a fresh `npm run package:portable`.
 | Oracle runtime | `PASS` — 36/36 |
 | Oracle lazy resolution | `PASS` — 20/20 |
 | Packaged runtime | `PASS` — 25/25 |
-| Packaged clean-profile walkthrough | `PASS` — 69/69 |
+| Packaged clean-profile walkthrough | `PASS` — **70/70** (re-run 2026-07-26 on a freshly built package) |
 | Oracle mock-UI fixture | `PASS` — 36/36 |
 | Oracle row-driven workflow | `PASS` — 7/7 executed cases; 1 live-Oracle case `BLOCKED` |
 

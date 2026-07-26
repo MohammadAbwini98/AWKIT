@@ -24,24 +24,31 @@ checking for other markdown-only defects.
 Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/` (the pre-fix run at
 `2026-07-25T22-37-55-841Z/` is retained, not overwritten).
 
-### Read this before trusting a packaged result
+`package:portable` was rebuilt and `verify:packaged-walkthrough` re-run against it: **70/70**.
 
-**`verify:packaged-walkthrough` has no staleness guard.** It drives whatever sits in
-`dist/win-unpacked`, which is currently a bundle built 2026-07-25 22:31 — *before* this fix. Running
-it as-is produces a green result that says nothing about the current source. It was deliberately NOT
-run for this change. Re-run `npm run package:portable` first, or the pass is meaningless. This is the
-same class of trap as the stale Zvec host tree recorded further down this file.
+### `verify:packaged-walkthrough` now refuses a stale packaged tree
+
+It previously drove whatever sat in `dist/win-unpacked` with **no freshness check** — a packaged pass
+was only as trustworthy as whoever remembered to repackage first, and nothing in the suite would have
+said otherwise. Part A now refuses when the newest file under `src/` or `app/` is newer than the
+packaged payload, naming the file and both timestamps. Negative-controlled (a touched source file
+made it exit 1; the file was then confirmed byte-identical to `HEAD`). Same class of trap as the
+stale Zvec host tree recorded further down this file.
+
+If you change product code, **repackage before citing any packaged result** — the verifier will now
+stop you rather than let you publish a misleading pass.
 
 ### Remaining work, in priority order
 
-1. **Fresh package + `verify:packaged-walkthrough`** — the only gate this fix still owes.
-2. **The 46 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. `REC-018` (Recorder page →
+1. **The 46 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. `REC-018` (Recorder page →
    browser → record → Stop → Save → reopen → production replay) is the decisive one; component suites
-   being green does not certify the journey.
-3. **`ORA-LIVE-001`** — needs an authorized operator with SYSDBA and an out-of-band ephemeral
-   `SPECTER_READER` password. Not agent-actionable; do not let it block the rest.
-4. **Beads hygiene** — `bd ready` is stale against `main` (it still lists `awkit-oyc` and `awkit-ebh`,
-   both merged). Cross-check before treating any bead as open.
+   being green does not certify the journey. Beads: `awkit-gi2` (REC-018, P1), `awkit-az7` (Reports),
+   `awkit-8ri` (Settings).
+2. **`ORA-LIVE-001`** (bead `awkit-7bu`) — needs an authorized operator with SYSDBA and an
+   out-of-band ephemeral `SPECTER_READER` password. Not agent-actionable; do not let it block the rest.
+3. **Beads hygiene** — `bd ready` is stale against `main` (it still lists `awkit-oyc` and `awkit-ebh`,
+   both merged). Cross-check before treating any bead as open. `AWKIT-E2E-001` had lived only in
+   `DEFECTS.md` with no Beads record at all — worth checking for other markdown-only defects.
 
 ### Do not touch
 

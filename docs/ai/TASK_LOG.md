@@ -37,11 +37,19 @@ negative controls passed both times, so the coverage is negative-controlled, not
 `verify:artifacts` 13/0 · `verify:flow-step-mapping` 101/0 · `typecheck` PASS ·
 `typecheck:scripts` PASS. Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/`.
 
-**Not run, and why:** `verify:packaged-walkthrough` — `dist/win-unpacked` predates the fix
-(built 2026-07-25 22:31) and `scripts/verify-packaged-walkthrough.mts` has **no staleness guard**, so
-running it would have exercised the pre-fix bundle and produced a pass that says nothing about this
-change. Needs a fresh `package:portable` first. Phases 2-7 of the brief (Oracle live gates, the three
-fixture packages, and the 46 `NOT RUN` Recorder/Reports/Settings cases) were not started.
+**Packaged gate closed in the same pass.** `dist/win-unpacked` predated the fix and
+`scripts/verify-packaged-walkthrough.mts` had **no staleness guard**, so running it as-found would
+have exercised the pre-fix bundle. Both were addressed: `package:portable` rebuilt (asar 03:09,
+portable EXE 03:13), the fix confirmed present in `out/main/main.js`, and
+`verify:packaged-walkthrough` re-run at **70/70** (69 + a new precondition check that refuses a
+packaged tree older than `src/` or `app/`). The guard was negative-controlled — touching
+`src/runner/FlowExecutor.ts` made it exit 1 with a precise STALE diagnostic, and the file was then
+confirmed byte-identical to its pre-test copy and to `HEAD`.
+
+**Not started:** Phases 2-7 of the brief — Oracle live gates (`awkit-7bu`, blocked on an authorized
+operator), the three deterministic fixture packages, and the 46 `NOT RUN` Recorder/Reports/Settings
+cases (`awkit-gi2` REC-018, `awkit-az7` Reports, `awkit-8ri` Settings). `AWKIT-E2E-001` itself had no
+Beads record before this pass — it existed only in `DEFECTS.md`.
 
 **Note:** commit `cbc1c59` (the unified remediation prompt) landed on `main` from another session
 while this work was in progress; it touched only `docs/`, and nothing here was overwritten.

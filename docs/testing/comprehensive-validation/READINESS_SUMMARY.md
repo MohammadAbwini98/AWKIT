@@ -45,9 +45,11 @@ A green specialized suite is not certification of the corresponding user journey
    approval.~~ **Done 2026-07-26** (bead `awkit-3eo`); see `DEFECTS.md`.
 2. ~~Re-run `CMP-CON-002` and require the main campaign to reach 9/9 PASS.~~ **Done** —
    `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/`.
-3. Re-run `npm run verify:packaged-walkthrough` against a **freshly packaged** tree. The recorded 69/69
-   was produced from a bundle built before the connector fix, and the verifier has no staleness guard.
-4. Supply an approved Oracle test environment and execute the same persisted form workflow in real mode.
+3. ~~Re-run `npm run verify:packaged-walkthrough` against a **freshly packaged** tree.~~ **Done** —
+   `package:portable` rebuilt, walkthrough **70/70**, and the verifier now refuses a stale tree
+   outright (negative-controlled).
+4. Supply an approved Oracle test environment and execute the same persisted form workflow in real mode
+   (bead `awkit-7bu`).
 5. Resolve or explicitly waive the zero-megabyte packaged Oracle driver bundle warning.
 6. Complete the clean/offline Windows VM release walkthrough.
 7. Perform authorized manual CAPTCHA/MFA/SSO handoffs where those real provider paths are release requirements.
@@ -63,9 +65,8 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
 - **Core Chromium automation beta/internal use:** acceptable. The `manualApproval` restriction is
   lifted — the connector is now routed only after an explicit resume, and a skipped approval fails the
   flow instead of reporting success.
-- **General release advertising complete supported connector coverage:** the defect gate is met
-  (9/9 campaign, 89/89 runner). Approval still depends on the packaged re-run in item 3 above, since
-  no packaged evidence yet exercises this fix.
+- **General release advertising complete supported connector coverage:** the defect gate is met —
+  9/9 campaign, 89/89 runner, and 70/70 packaged walkthrough against a package rebuilt after the fix.
 - **Offline Oracle release claim:** do not approve until live Oracle and packaged-driver gates pass.
 - **Database-free Oracle-to-UI workflow:** ready; current ledger is 7 PASS / 0 FAIL with the live-DB
   variant separately blocked.

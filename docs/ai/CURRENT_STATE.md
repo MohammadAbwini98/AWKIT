@@ -26,9 +26,20 @@ whose only outgoing edge was `manualApproval` reported `passed` while End never 
   78/0, `verify:waits` 56/0, `verify:popup` 12/0, `verify:cancellation` 12/0, `verify:artifacts` 13/0,
   `verify:flow-step-mapping` 101/0, `typecheck` and `typecheck:scripts` clean.
   Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/`.
-- **NOT re-run:** `verify:packaged-walkthrough`. `dist/win-unpacked` was built 2026-07-25 22:31,
-  before this fix, and the verifier has **no staleness guard** — it would have exercised the pre-fix
-  bundle and reported a meaningless pass. A fresh `package:portable` is required first.
+- **Packaged too:** `package:portable` was rebuilt and `verify:packaged-walkthrough` re-run against
+  it — **70/70** (69 + the new staleness check below). The fix is confirmed present in the packaged
+  payload (`out/main/main.js`, which electron-builder packs into `app.asar`).
+
+### `verify:packaged-walkthrough` now refuses a stale packaged tree
+
+The verifier drove whatever sat in `dist/win-unpacked` with **no freshness check**, so a packaged run
+was only as trustworthy as whoever remembered to repackage first — a green result could describe code
+no longer in the tree. Part A now refuses when the newest file under `src/` or `app/` is newer than
+the packaged payload, naming the offending file and both timestamps.
+
+Negative-controlled: touching `src/runner/FlowExecutor.ts` made it exit 1 with the STALE diagnostic;
+the file was then confirmed byte-identical to its pre-test copy and to `HEAD` (the control changed
+only the mtime). Same class of trap as the stale Zvec host tree in `HANDOFF.md`.
 
 ## Unified validation remediation prompt (2026-07-26, current)
 

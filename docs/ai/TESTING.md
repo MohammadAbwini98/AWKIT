@@ -129,6 +129,12 @@ remain structural and legacy workflows remain compatible.
   ACTUAL portable EXE boots a second fresh profile, NSIS sha512 matches latest.yml, and the app's
   processes make NO non-loopback TCP connections (bundled-Chromium startup egress is warn-only;
   `AWKIT_WALKTHROUGH_STRICT_NET=1` makes it fail). Evidence: `dist/phase5-evidence/`.
+  **2026-07-26: now 70 checks** — Part A gained a staleness precondition. The verifier previously
+  drove whatever sat in `dist/win-unpacked` with no freshness check, so a green packaged result was
+  only as trustworthy as whoever remembered to repackage first. It now **exits 1** when the newest
+  file under `src/` or `app/` is newer than the packaged payload, naming the file and both
+  timestamps. Negative-controlled (a touched source file reproduced the refusal). Always run
+  `npm run package:portable` before citing any packaged result.
 - Phase 5.1 (2026-07-07, Chromium no-egress hardening — `src/runner/ChromiumHardening.ts`):
   `verify:chromium-hardening` (**13** — launches the BUNDLED Chromium with `buildChromiumHardeningArgs`
   and asserts ZERO non-loopback TCP over a 20 s idle window while external navigation, incl.
