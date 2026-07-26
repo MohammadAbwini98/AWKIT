@@ -264,6 +264,98 @@ Totals: **7 PASS, 0 FAIL, 1 BLOCKED, 0 NOT RUN**.
 | Firefox/WebKit | `NOT RUN` | Chromium-first product scope |
 | Production/private external API targets | `NOT RUN` | Only the authorized loopback mock API was used |
 
+## Phase 2 — Oracle local gates re-executed (2026-07-26)
+
+Every Oracle gate that does not require a live database was re-run at `94c858e` after
+`npm run build:oracle-bridge` and `npm run prepare:oracle-runtime` (both PASS; the bridge reports
+"no JRE/driver bundled; both are user-selected").
+
+| Verifier | Result |
+| --- | ---: |
+| `verify:oracle-bridge` | 32 / 0 |
+| `verify:oracle-bridge-real-build` | 16 / 0 |
+| `verify:oracle-sql-policy` | 30 / 0 |
+| `verify:oracle-profiles` | 22 / 0 |
+| `verify:oracle-data-source` | 28 / 0 |
+| `verify:oracle-lazy-resolution` | 20 / 0 |
+| `verify:oracle-runtime` | 36 / 0 |
+| `verify:oracle-java-runtime` | 48 / 0 |
+| `verify:oracle-driver-bundle` | 47 / 0 |
+| `verify:oracle-direct-jdbc` | 23 / 0 |
+| `verify:oracle-packaging` | 23 / 0 |
+| `verify:oracle-offline-bundle` | 11 / 0 |
+| `verify:oracle-runtime-prep` | 14 / 0 |
+| **13 non-GUI subtotal** | **350 / 0** |
+| `verify:oracle-mock-ui` | 36 / 0 |
+| `verify:oracle-drivers-gui` | **30 / 30** |
+| `verify:oracle-mock-ui-workflow` | **7 PASS / 0 FAIL / 1 BLOCKED** |
+| `validate:offline` | PASS (Zvec 17/17) |
+
+`verify:oracle-drivers-gui` was previously recorded at **25/30**, with five Oracle bridge/Java/ojdbc
+checks "environmental/inconclusive". They pass now: the cause was simply that the bridge runtime had
+not been built in that worktree. Building and staging it resolved all five — no product change was
+needed, and no waiver is required.
+
+### ORA-LIVE-001 is blocked by two things, not one
+
+The recorded status ("blocked pending an authorized operator and ephemeral credential") understated
+the gap. `scripts/verify-oracle-mock-ui-workflow.mts` **has no real-mode code path**: it reads no
+`AWKIT_ORACLE_LIVE_*` variable anywhere and calls `addLiveOracleBlock()` unconditionally. Supplying
+credentials today would still produce a mock run and a `BLOCKED` verdict.
+
+Phase 2 item 4 of the brief — "ensure the verifier supports an explicit real mode" — is therefore
+**not satisfied**, and is tracked on bead `awkit-7bu`. Implementing it needs the same persisted Data
+Source, flow, workflow, query, DOM mapping, two-instance bound, production `ExecutionEngine`,
+screenshots, logs and report as mock mode, must fail closed when any variable is absent, and must
+never fall back to the mock bridge.
+
+Interim mitigation landed: the `BLOCKED` entry now states both reasons, and when `AWKIT_ORACLE_LIVE_*`
+is present the verifier prints a loud warning that nothing was executed against a database. Variable
+*presence* is counted; no value is read, printed, or persisted. Both branches were exercised.
+
+The generic `verify:oracle-live` matrix (previously 7/7) is a **separate scope** and remains so; the
+two must not be conflated.
+
 ## Additional offline note
 
-`validate:offline` passed in development mode and verified the Zvec bundle/checksum (17/17), but reported the Oracle packaged driver bundle as 0 MB. This is a release-readiness warning and must be resolved or explicitly waived before claiming full offline Oracle support.
+`validate:offline` passes in development mode and verifies the Zvec bundle/checksum (17/17).
+
+### The "0 MB Oracle driver bundle warning" was a misreading — resolved 2026-07-26
+
+It was recorded as a release-readiness warning requiring resolution or waiver. Investigation of the
+validator's actual output shows **no Oracle warning and no Oracle failure exists**. Full Oracle
+section of the run:
+
+```text
+Validating bundled Oracle JDBC runtime...
+Oracle bundle size: 0 MB
+```
+
+That second line was a bare informational `Write-Host` in `scripts/validate-offline-bundle.ps1`,
+emitted *after* every Oracle check had already passed. It is not in the warnings list, not in the
+failures list, and `validate:offline` exits 0.
+
+**Measured contents of `resources/oracle-jdbc/`:**
+
+| File | Bytes |
+| --- | ---: |
+| `bridge/awkit-oracle-jdbc-bridge.jar` | 40,550 |
+| `manifest.json` | 2,131 |
+| `checksums.json` | 212 |
+| **Total** | **42,893** (0.041 MB) |
+
+`[math]::Round(42893 / 1MB, 1)` is `0.0`, printed as `0 MB`. The bridge jar is **present and
+non-zero**, so this is not the "missing bridge jar" packaging defect — it is the expected
+user-selected-driver layout, which the validator actively *enforces*: it adds a hard failure if
+`runtime\bin\java.exe` or any `lib\*.jar` is found, because Java and the Oracle driver are chosen by
+the user in Settings and must never be vendored.
+
+**Resolution — documentation and output, not packaging.** No driver or JRE was vendored. The size
+line now reports KB below 1 MB and states what the bundle is:
+
+```text
+Oracle bundle size: 41.9 KB (bridge jar only, as expected; Java + Oracle driver are user-selected)
+```
+
+Item 5 of `READINESS_SUMMARY.md` ("resolve or explicitly waive the zero-megabyte bundle warning") is
+therefore closed as **not a defect**, with no waiver required.

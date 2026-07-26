@@ -50,7 +50,12 @@ A green specialized suite is not certification of the corresponding user journey
    outright (negative-controlled).
 4. Supply an approved Oracle test environment and execute the same persisted form workflow in real mode
    (bead `awkit-7bu`).
-5. Resolve or explicitly waive the zero-megabyte packaged Oracle driver bundle warning.
+5. ~~Resolve or explicitly waive the zero-megabyte packaged Oracle driver bundle warning.~~
+   **Closed 2026-07-26 as not a defect; no waiver needed.** There was never an Oracle warning — the
+   validator printed a rounded informational size (`42,893 bytes` → `0 MB`) for a bundle that
+   correctly contains only AWKIT's 40 KB bridge jar. Java and the Oracle driver are user-selected and
+   the validator *fails* if either is vendored. Output now reads KB below 1 MB. See
+   `EXECUTION_RESULTS.md` › Additional offline note.
 6. Complete the clean/offline Windows VM release walkthrough.
 7. Perform authorized manual CAPTCHA/MFA/SSO handoffs where those real provider paths are release requirements.
 8. Execute REC-018: Recorder page → launched browser → recorded actions → Stop → Save to Flow Library

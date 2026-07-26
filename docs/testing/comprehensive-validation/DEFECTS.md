@@ -136,6 +136,35 @@ negative-controlled rather than vacuous:
 
 These were found and corrected while building the campaign. They are not open AWKIT product defects.
 
+### HARNESS-008 — Packaged walkthrough accepted a packaged tree older than its own sources
+
+- **Severity:** S2 / Major test-validity defect — it silently invalidates a release gate
+- **Status:** **Resolved 2026-07-26** (commit `94c858e`)
+- **Affected area:** `scripts/verify-packaged-walkthrough.mts`, Part A preconditions
+- **Detected by:** attempting to verify the `AWKIT-E2E-001` fix in packaged form
+- **Symptom:** none — and that is the defect. The suite reported a clean 69/69 while driving whatever
+  happened to sit in `dist/win-unpacked`.
+- **Cause:** Part A checked only that the packaged EXE *existed*. It never compared the packaged
+  payload against the sources it claimed to contain, so a green packaged result was only as
+  trustworthy as whoever remembered to run `npm run package:portable` first. Concretely: the tree
+  present when the `AWKIT-E2E-001` fix landed had been built 2026-07-25 22:31, hours earlier, and
+  would have "passed" without containing the fix at all.
+- **Impact:** every historical packaged-walkthrough result carries this caveat. A pass could describe
+  code no longer in the repository, and nothing in the suite would have contradicted it. Same class as
+  the stale Zvec native host recorded in `docs/ai/HANDOFF.md`, where the first native-contract run
+  silently exercised a protocol-v1 host from `dist/win-unpacked`.
+- **Resolution:** Part A now resolves the newest file mtime under `src/` and `app/` and compares it
+  against `dist/win-unpacked/resources/app.asar` (falling back to the EXE). If any source is newer the
+  verifier prints the offending path and both timestamps and **exits 1** rather than producing a
+  misleading pass. Check count 69 → 70.
+- **Verification:** `verify:packaged-walkthrough` **70/70** against a freshly built package, with the
+  `AWKIT-E2E-001` fix confirmed present in `out/main/main.js` (the bundle electron-builder packs into
+  `app.asar`).
+- **Negative control:** `touch src/runner/FlowExecutor.ts` reproduced the refusal —
+  `dist/win-unpacked is STALE — src\runner\FlowExecutor.ts (…) is newer than the packaged payload (…)`,
+  exit 1. The file was then confirmed byte-identical to its pre-test copy and to `HEAD`; the control
+  changed only the mtime.
+
 ### HARNESS-001 — Concurrency verifier used removed failure-capture hook
 
 - **Symptom:** `verify:concurrency` crashed before assertions.
@@ -174,7 +203,12 @@ These were found and corrected while building the campaign. They are not open AW
 ## Environmental gaps, not defects
 
 - Live Oracle: blocked because no approved URL/user/password is configured and the local Oracle container is absent.
-- Oracle packaged driver bundle: local development offline validation reported a zero-megabyte Oracle bundle warning; release packaging remains an explicit readiness gate.
+- ~~Oracle packaged driver bundle: local development offline validation reported a zero-megabyte
+  Oracle bundle warning.~~ **Withdrawn 2026-07-26 — never a defect or a warning.** `validate:offline`
+  emits no Oracle warning and exits 0; the "0 MB" was an informational rounded size for a bundle whose
+  measured contents are AWKIT's 40,550-byte bridge jar plus manifest and checksums (42,893 bytes
+  total). Shipping zero Oracle driver bytes is the enforced user-selected-driver model, not a gap. See
+  `EXECUTION_RESULTS.md` › Additional offline note.
 - Clean/offline Windows VM walkthrough: not run.
 - CAPTCHA/MFA/OTP/protected-login completion: intentionally blocked for authorized manual handoff.
 - Firefox/WebKit certification: not run under this Chromium-first scope.

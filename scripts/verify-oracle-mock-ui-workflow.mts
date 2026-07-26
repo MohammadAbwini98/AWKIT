@@ -174,9 +174,34 @@ async function runCase<T>(
   }
 }
 
+/**
+ * ORA-LIVE-001 is BLOCKED for TWO independent reasons, and reporting only the first has already
+ * understated the gap: (1) no authorized ephemeral credential is available, and (2) this verifier
+ * has no real-mode code path at all — it always drives the explicit development mock bridge.
+ * Supplying AWKIT_ORACLE_LIVE_* therefore does NOT make the case executable here. Say so, so an
+ * operator who arrives with credentials is not left inferring that credentials alone would have
+ * run it.
+ */
 function addLiveOracleBlock(): void {
   if (cases.some((item) => item.id === "ORA-LIVE-001")) return;
+  const liveEnvNames = ["AWKIT_ORACLE_LIVE_URL", "AWKIT_ORACLE_LIVE_USER", "AWKIT_ORACLE_LIVE_PASSWORD"];
+  // Presence only — a value is never read, printed, or persisted.
+  const livePresent = liveEnvNames.filter((name) => Boolean(process.env[name])).length;
   const now = new Date().toISOString();
+  const details = livePresent
+    ? `AWKIT_ORACLE_LIVE_* is set (${livePresent}/${liveEnvNames.length} present), but this verifier has NO ` +
+      "real-mode path: it always drives the explicit development mock bridge. It did NOT connect to a database, " +
+      "and this run proves nothing about live Oracle. The generic live matrix is `npm run verify:oracle-live`; " +
+      "the exact persisted-workflow live rerun is still unimplemented."
+    : "Not executed: requires an authorized operator to unlock SPECTER_READER, mint an ephemeral password, " +
+      "supply AWKIT_ORACLE_LIVE_URL/AWKIT_ORACLE_LIVE_USER/AWKIT_ORACLE_LIVE_PASSWORD, run the gate, then rotate " +
+      "and lock the account. Credentials alone are NOT sufficient — this verifier has no real-mode path yet.";
+  if (livePresent) {
+    console.warn(
+      `\n[ORA-LIVE-001] WARNING: live Oracle environment variables are set (${livePresent}/${liveEnvNames.length}), ` +
+        "but this verifier only runs the development mock bridge. Nothing here was executed against a database."
+    );
+  }
   cases.push({
     id: "ORA-LIVE-001",
     title: "Live Oracle 19c execution of the same persisted workflow",
@@ -184,9 +209,7 @@ function addLiveOracleBlock(): void {
     startedAt: now,
     endedAt: now,
     durationMs: 0,
-    details:
-      "Not executed: requires an authorized operator to unlock SPECTER_READER, mint an ephemeral password, " +
-      "supply AWKIT_ORACLE_LIVE_URL/AWKIT_ORACLE_LIVE_USER/AWKIT_ORACLE_LIVE_PASSWORD, run the gate, then rotate and lock the account.",
+    details,
     evidence: [join(ROOT, "docs", "ai", "ORACLE_JDBC_VALIDATION_GATES.md")]
   });
 }

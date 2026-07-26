@@ -1,6 +1,32 @@
 # CURRENT_STATE
 
-## AWKIT-E2E-001 fixed — comprehensive campaign is 9/9 (2026-07-26, current)
+## Phase 2 — Oracle local gates all green; two doc defects withdrawn (2026-07-26, current)
+
+Every Oracle gate not needing a live database was re-run at `94c858e`: **13 non-GUI verifiers
+350/0**, `verify:oracle-mock-ui` 36/0, `verify:oracle-drivers-gui` **30/30**,
+`verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**, `validate:offline` PASS.
+
+Two long-standing "gates" turned out not to be defects:
+
+- **`verify:oracle-drivers-gui` 25/30 → 30/30.** The five "environmental/inconclusive" Oracle
+  bridge/Java/ojdbc checks pass once `build:oracle-bridge` + `prepare:oracle-runtime` have run. The
+  cause was an unbuilt bridge in that worktree, not a product gap. No waiver needed.
+- **The "0 MB packaged Oracle driver bundle warning" never existed.** `validate:offline` emits no
+  Oracle warning and exits 0. The line was a bare informational `Write-Host` printed *after* every
+  Oracle check passed. Measured bundle: `bridge/awkit-oracle-jdbc-bridge.jar` 40,550 B + manifest
+  2,131 B + checksums 212 B = **42,893 B**, which `[math]::Round(x/1MB,1)` renders as `0 MB`. The jar
+  is present and non-zero, so this is not the missing-bridge defect — it is the enforced
+  user-selected-driver layout (the validator *fails* if a JRE or `lib\*.jar` is found). Fixed by
+  reporting KB below 1 MB; **no driver or JRE was vendored**.
+
+**ORA-LIVE-001 is blocked by two things, not one.**
+`scripts/verify-oracle-mock-ui-workflow.mts` has **no real-mode code path** — it reads no
+`AWKIT_ORACLE_LIVE_*` variable and blocks unconditionally, so credentials alone would not make it
+executable. Tracked on bead `awkit-7bu`. Interim mitigation: the `BLOCKED` entry now states both
+reasons and warns loudly when those variables are present that nothing ran against a database
+(presence only — no value is read, printed, or persisted).
+
+## AWKIT-E2E-001 fixed — comprehensive campaign is 9/9 (2026-07-26)
 
 The one confirmed open product defect is closed (bead `awkit-3eo`). A flow-level `manualApproval`
 connector was never routed: `FlowExecutor.resolveNext` had precedence for outcome, conditional,

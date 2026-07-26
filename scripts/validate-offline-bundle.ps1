@@ -233,8 +233,16 @@ if (Test-Path $oracleDir) {
     $failures.Add("Oracle bundle: forbidden secret/wallet artifact present: $($f.Name)")
   }
   $oracleSize = (Get-ChildItem -Path $oracleDir -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-  $oracleSizeMb = [math]::Round(($oracleSize / 1MB), 1)
-  Write-Host "Oracle bundle size: $oracleSizeMb MB"
+  # Report KB below 1 MB. A bridge-only bundle is tens of KB by design, and rounding that to "0 MB"
+  # has already been mis-recorded once as a zero-megabyte *driver bundle* warning — it is not a
+  # warning at all, it is the expected user-selected-driver layout. A genuinely missing or empty
+  # bridge jar is caught by the required-file and checksum checks above, not by this line.
+  $oracleSizeText = if ($oracleSize -ge 1MB) {
+    "$([math]::Round(($oracleSize / 1MB), 1)) MB"
+  } else {
+    "$([math]::Round(($oracleSize / 1KB), 1)) KB"
+  }
+  Write-Host "Oracle bundle size: $oracleSizeText (bridge jar only, as expected; Java + Oracle driver are user-selected)"
 } else {
   $warnings.Add("Oracle JDBC bridge not bundled (optional feature). Run 'npm run prepare:oracle-runtime' to stage Specter's bridge jar. Java + Oracle drivers are always user-selected in Settings.")
 }
