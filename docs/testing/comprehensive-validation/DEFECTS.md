@@ -274,6 +274,44 @@ connected element on unmount. The gate proves announcements, forward/reverse wra
 return, narrow layout and reduced motion. SET-021 remains `NOT RUN` overall because 200% zoom,
 high-contrast, unavailable-secret controls and the complete accessible-name audit were not executed.
 
+### AWKIT-REC-003 — An empty Target URL started a live recording pointed at nothing
+
+- **Severity:** S3 / Usability and state-integrity failure
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `src/recorder/RecorderService.ts` (`startRecording`)
+- **Detected by:** `REC-003`
+- **Evidence after fix:** `test-artifacts/recorder-gui/` (**70 PASS / 0 FAIL / 1 NOT RUN**)
+
+**Reproduction before fix**
+
+1. Open the Recorder with an empty Target URL.
+2. Click Start Recording.
+
+**Actual result**
+
+The recording started. `getStatus()` returned `isRecording: true`, the status line read
+`Recording (capturing waits)...`, and a browser session was live with no target.
+
+The trap is that the Target URL input **disables itself while recording**, so the operator could not
+type a URL to correct the mistake — the only exit was Cancel. The `!url.trim()` guard exists on the
+**Save URL** button but not on **Start Recording**, whose `disabled` is only
+`isRecording || handoffActive`, and `normalizeUrl("")` returns `""` without objecting.
+
+**Expected result and fix**
+
+REC-003 requires that an invalid target "does not leave a live recorder" and shows a useful error.
+`startRecording` now refuses a blank target **before** any state is mutated or a browser is
+launched, throwing `Enter a target URL before starting a recording.` Placing the guard before the
+state assignment matters: rejecting later would leave `isRecording` already set.
+
+**How this was nearly missed.** The first version of the REC-003 loop waited for
+`isRecording === false` and then asserted. That condition is **already true while a start is in
+flight**, so the poll returned at t=0 and all four invalid targets "passed" without ever being
+attempted. The loop now waits for the status line to move off `Starting browser...` — the observable
+an operator actually sees — and only then judges the state. The empty-target defect surfaced
+immediately once the check stopped being vacuous.
+
 ### AWKIT-REC-002 — camelCase and snake_case secret field names bypassed redaction
 
 - **Severity:** S2 / Secret leakage into persisted artifacts

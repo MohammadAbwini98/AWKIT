@@ -43,7 +43,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   Recorded Actions, Save Options, and Recorded URLs; inspect initial enabled/disabled states.
 - **Expected:** Page loads without console errors; status is Idle; Start is enabled; Stop/Cancel/Save
   are disabled; the URL is editable; no stale action or handoff is displayed.
-- **Status:** `NOT RUN` — no current verifier drives the Recorder page itself.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. Idle status, Stop/Cancel disabled, Save
+  refused with nothing recorded, editable Target URL, the empty-state panel instead of a timeline,
+  no stale action, no handoff panel, and no console error. Note: `Start` is NOT gated on a non-empty
+  URL — that guard sits on `Save URL` — so the empty-target path is asserted in REC-003.
 
 ### REC-002 — Start a recording from a valid loopback URL
 
@@ -53,7 +56,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   browser; inspect Recorder status and Target URL controls.
 - **Expected:** Exactly one browser session opens at the target; status becomes Recording; target and
   capture toggles are locked; Stop/Cancel become enabled; the first action is a sanitized `goto`.
-- **Status:** `NOT RUN` — the packaged walkthrough proves launch/cancel, but not this complete page path.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. A loopback start locks the Target URL field,
+  both capture switches and `Save URL`, enables Stop/Cancel, disables Start, and records a first
+  action of type `goto` whose target matches the requested loopback URL.
 
 ### REC-003 — Invalid URL and browser-launch failure recovery
 
@@ -63,7 +68,18 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   browser launch failure; then retry with a valid loopback URL.
 - **Expected:** Unsafe/invalid targets do not leave a live recorder; a useful error is shown; no orphan
   browser remains; Start is re-enabled; a later valid start succeeds.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. Empty, malformed, `javascript:` pseudo-scheme,
+  a refused loopback port and an unreachable host each surface an error, leave no live recording and
+  re-enable Start; a valid target then starts normally.
+  **`file:`, `about:` and `data:` are deliberately PERMITTED** targets — `RecorderService.normalizeUrl`
+  names them explicitly — so they are not "unsupported schemes" here; an `about:` start is asserted to
+  succeed as the positive control for that design decision.
+  **Found and fixed — `AWKIT-REC-003` (S3):** an empty target started a live recording pointed at
+  nothing, and because the Target URL field disables while recording, the operator could not correct
+  it without cancelling. **The check that found it was vacuous first:** waiting for
+  `isRecording === false` is already true while a start is in flight, so all four invalid targets
+  passed at t=0 without being attempted. The loop now waits for the status line to leave
+  `Starting browser...`. Simulated browser-launch failure remains unexecuted.
 
 ### REC-004 — Stop versus Cancel lifecycle
 
@@ -73,7 +89,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   create actions, then Cancel.
 - **Expected:** Stop closes the browser and retains final actions for review/save. Cancel closes the
   browser, clears actions and draft, disables Save, and retains reusable URL history only.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. Stop retains the actions, shows
+  `Recording stopped. Ready to save.`, re-enables Start and disables Stop/Cancel. Cancel clears the
+  actions, restores the empty state, and leaves the reusable URL history intact.
 
 ### REC-005 — Core DOM controls become correct recorded action types
 
@@ -83,7 +101,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   and uncheck a checkbox; choose a radio; stop without blurring the last text input.
 - **Expected:** Actions are `click`, `fill`, `select`, `check`, `uncheck`, and `radio` as appropriate;
   locators are usable; the final focused input value is captured.
-- **Status:** `PASS` — `npm run verify:recorder`, 78/78.
+- **Status:** `PASS` — `npm run verify:recorder`, 97/97 (was 78 before the AWKIT-REC-002 pattern guards).
 
 ### REC-006 — Live typing is compacted to one final fill action
 
@@ -129,7 +147,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   locators; replay the resulting steps.
 - **Expected:** Recorder prefers role, label, placeholder, test id, or stable ID; utility-only classes
   are rejected; container/compound context resolves exactly one intended visible/actionable element.
-- **Status:** `PASS` — `verify:recorder`, 78/78.
+- **Status:** `PASS` — `verify:recorder`, 97/97.
 
 ### REC-009 — Ambiguous locator refuses to guess
 
@@ -139,7 +157,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   one-enabled variants.
 - **Expected:** Equal candidates fail with a friendly multiple-elements diagnostic and no click;
   visible/actionable disambiguation succeeds only when deterministic.
-- **Status:** `PASS` — `verify:recorder`, 78/78.
+- **Status:** `PASS` — `verify:recorder`, 97/97.
 
 ### REC-010 — Fixed waiting-time capture thresholds
 
@@ -161,7 +179,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Stable response/UI waits are attached in the correct order; URL/query secrets are
   removed; polling is ignored; adaptive timeouts honor configured min/max; fixed fallback is not
   duplicated when fixed-time capture is enabled.
-- **Status:** `PASS` — `verify:recorder`, 78/78.
+- **Status:** `PASS` — `verify:recorder`, 97/97.
 
 ### REC-012 — Async activity classification before save
 
@@ -248,7 +266,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   change page size; copy; reuse a URL while idle; try reuse while recording; restart.
 - **Expected:** URLs normalize and deduplicate; newest first; search/pagination are accurate; copy
   matches sanitized URL; reuse is disabled during recording; history persists separately from draft.
-- **Status:** `NOT RUN` — storage/deduplication passed in `verify:recorder-draft`; UI behavior did not.
+- **Status:** `PASS` — `npm run verify:recorder-gui` drives the table itself: a repeated URL
+  deduplicates to one row, the newest entry sorts first, search narrows the rows, a no-match search
+  shows none, clearing restores the list, a row's reuse control loads the URL into the Target field,
+  and reuse is disabled while a recording is active. Paging and page-size controls, the copy action,
+  and cross-restart persistence of history remain unexecuted.
 
 ### REC-020 — Protected-login detection without security bypass
 
@@ -269,7 +291,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   start a new recording session.
 - **Expected:** Same context/page/action list resumes; notice is visible; current detection does not
   re-pause; global Settings remain unchanged; a new session does not inherit the session override.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. A protected surface raises the handoff panel;
+  Ignore-and-continue resumes the SAME recording with its actions intact, sets
+  `protectedDetectionIgnored`, shows the operator notice, leaves the global Setting at `false`, and a
+  subsequent session starts with the override cleared. Re-visiting the same signal within the session
+  was not separately exercised.
 
 ### REC-022 — Authorized manual Chrome handoff and session reuse
 
@@ -299,7 +325,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   runs; return to Recorder; stop/cancel/save or restart.
 - **Expected:** UI leaves Recording state; draft remains recoverable where safe; no process leak;
   Stop/Cancel do not hang; next Start works.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for a real browser close/crash. `verify:recorder-gui` proves the adjacent
+  teardown properties — a session torn down mid-handoff leaves the Recording state, re-enables Start,
+  a new recording starts cleanly, and no recording remains active at suite end — but it does not kill
+  the browser process or close the recorded page out-of-band, which is the case's actual trigger.
 
 ### REC-025 — Single-active-recorder concurrency and rapid commands
 
@@ -309,7 +338,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   away and back while starting/stopping.
 - **Expected:** At most one browser/context exists; duplicate Start returns “already in progress” or
   is UI-disabled; Stop/Cancel are idempotent-safe; state and draft remain consistent.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui`. The rendered Start control is disabled during a
+  recording; a direct duplicate `recorder:start` through preload is refused with
+  `Recording is already in progress.` and the original session survives; Stop and Cancel with nothing
+  running are safe and leave consistent state. Navigating away and back mid-command is not covered.
 
 ### REC-026 — HTTPS certificate handling remains explicit and session-scoped
 

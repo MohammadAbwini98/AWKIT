@@ -430,6 +430,14 @@ export class RecorderService {
     await this.ensureUrlHistoryLoaded();
 
     const target = RecorderService.normalizeUrl(url);
+    // Refuse a blank target BEFORE any state is mutated or a browser is launched. `normalizeUrl`
+    // returns "" for blank input, and the start path went on to open a browser and enter the
+    // Recording state anyway — leaving a live session pointed at nothing, with the Target URL field
+    // locked (it disables while recording), so the only way out was Cancel. The Start button is not
+    // gated on a non-empty URL (that guard sits on Save URL), so this is the only place to catch it.
+    if (!target) {
+      throw new Error("Enter a target URL before starting a recording.");
+    }
 
     this.actions = [];
     this.urlSessionId = randomUUID();

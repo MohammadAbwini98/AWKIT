@@ -57,21 +57,23 @@ Oracle,Live database query,verify:oracle-live,External environment,BLOCKED,URL/u
 Oracle,Persisted row-driven UI workflow,verify:oracle-mock-ui-workflow,Real Java bridge + live Chromium + production ExecutionEngine,PASS,7 executed cases passed; live-19c variant separately blocked
 Offline,Clean Windows VM certification,Human release gate,External environment,NOT RUN,Local packaged run is not substituted
 Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project
-Recorder,Page idle/start/stop/cancel lifecycle,REC-001 through REC-004,Electron GUI + RecorderService,NOT RUN,No full Recorder-page verifier
-Recorder,Core action capture,REC-005,Real Chromium,PASS,verify:recorder 78/78
+Recorder,Page idle/start/stop/cancel lifecycle,REC-001 through REC-004,Real Electron GUI + RecorderService,PASS,verify:recorder-gui 70/70; AWKIT-REC-003 found and fixed (empty target started a live recording)
+Recorder,Core action capture,REC-005,Real Chromium,PASS,verify:recorder 97/97
 Recorder,Live compaction,REC-006,RecorderService,NOT RUN,Component capture assertions passed; service-level compaction not exercised
 Recorder,End-to-end redaction,REC-007,Real Electron + Chromium + production engine,PASS,verify:recorder-redaction 15/15; AWKIT-REC-002 found and fixed (camelCase/snake_case secret names bypassed redaction)
-Recorder,Semantic locator safety,REC-008 through REC-009,Real Chromium + runner,PASS,verify:recorder 78/78
+Recorder,Semantic locator safety,REC-008 through REC-009,Real Chromium + runner,PASS,verify:recorder 97/97
 Recorder,Fixed wait complete boundaries,REC-010,RecorderService,NOT RUN,Meaningful/sub-threshold/off checks passed
-Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 78/78; async review 21/21
+Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 97/97; async review 21/21
 Recorder,Draft corrupt/missing recovery,REC-014,Filesystem,NOT RUN,Valid restore/discard passed
 Recorder,Flow conversion,REC-015,Profile mapping,PASS,recorder-flow 19/19; round-trip 26/26
 Recorder,Save to library and production replay,REC-016 through REC-018,Electron GUI + profile store + ExecutionEngine,NOT RUN,REC-018 is PASS at 41/41; REC-016/017 validation and failure submatrices remain
-Recorder,Saved URL history UI,REC-019,Electron GUI,NOT RUN,Storage/dedupe contract passed only
+Recorder,Saved URL history UI,REC-019,Real Electron GUI,PASS,verify:recorder-gui; paging/page-size/copy and cross-restart persistence remain
 Recorder,Protected-login detection,REC-020,Detector + mock site,PASS,protected-login-recorder 45/45
-Recorder,Session ignore and handoff recovery,REC-021 + REC-023,Electron GUI + RecorderService,NOT RUN,
+Recorder,Session ignore (REC-021),REC-021,Real Electron GUI + RecorderService,PASS,verify:recorder-gui; session-scoped ignore does not change global Settings and does not survive into a new session
+Recorder,Handoff cancel and capture error recovery,REC-023,RecorderService,NOT RUN,
 Recorder,Authorized manual handoff,REC-022,Real Chrome/manual,BLOCKED,Requires authorized human and test identity
-Recorder,Crash and race recovery,REC-024 through REC-025,Electron + browser process,NOT RUN,
+Recorder,Single-active-recorder concurrency,REC-025,Real Electron GUI + IPC,PASS,verify:recorder-gui; duplicate start refused, Stop/Cancel idempotent-safe
+Recorder,Browser crash recovery,REC-024,Electron + browser process,NOT RUN,Teardown properties covered by verify:recorder-gui; an out-of-band browser kill is not exercised
 Recorder,Authorization boundary,REC-028,Real Electron + preload + sender-bound IPC,PASS,verify:recorder-authz 44/44; AWKIT-REC-001 found and fixed; route deep-link and mid-session revocation remain
 Recorder,HTTPS trust and popup identity,REC-026 through REC-027,Real Chromium + settings GUI,PASS,certificate 49/49 + GUI 31/31; popup identity 43/43
 Recorder,Accessibility/responsive/reduced motion,REC-029,Electron GUI/manual,NOT RUN,

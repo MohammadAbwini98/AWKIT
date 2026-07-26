@@ -75,6 +75,7 @@
     "verify:settings-e2e": "tsx scripts/verify-settings-e2e.mts",
     "verify:recorder-authz": "tsx scripts/verify-recorder-authz.mts",
     "verify:recorder-redaction": "node scripts/verify-recorder-redaction.mjs",
+    "verify:recorder-gui": "tsx scripts/verify-recorder-gui.mts",
     "verify:single-instance": "node scripts/verify-single-instance.mjs",
     "verify:workflow-sentinels": "tsx scripts/verify-workflow-sentinels.mts",
     "verify:reports": "node scripts/verify-reports-gui.mjs",

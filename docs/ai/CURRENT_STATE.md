@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Recorder page now has a GUI verifier — 8 cases closed, `AWKIT-REC-003` (2026-07-26, current)
+
+`verify:recorder-e2e` proved one happy path. Everything else about the page — idle enablement,
+invalid targets, Stop vs Cancel, the URL history table, the false-positive ignore path, and
+double-Start concurrency — had no verifier at all. New `npm run verify:recorder-gui`:
+**70 PASS / 0 FAIL / 1 NOT RUN**, covering REC-001, REC-002, REC-003, REC-004, REC-019, REC-021,
+REC-025 and the teardown half of REC-024.
+
+**`AWKIT-REC-003` (S3) found and fixed:** clicking Start with an **empty** Target URL started a live
+recording pointed at nothing. The `!url.trim()` guard is on **Save URL**, not Start, and
+`normalizeUrl("")` returns `""` without objecting. Worse, the Target URL input disables itself while
+recording, so the operator could not correct the mistake — the only exit was Cancel.
+`startRecording` now refuses a blank target before any state is mutated or a browser is launched.
+
+**The check that found it was vacuous first, and this is the reusable lesson.** The REC-003 loop
+originally waited for `isRecording === false` and then asserted — but that flag is *already* false
+while a start is in flight, so the poll returned at t=0 and all four invalid targets "passed"
+without ever being attempted. It now waits for the status line to leave `Starting browser...`, the
+observable an operator actually sees. The defect surfaced the moment the check stopped being vacuous.
+
+**Two premises of mine were wrong and are now recorded in the case file**, so the next agent does not
+re-derive them: `file:`, `about:` and `data:` are **deliberately permitted** targets (named
+explicitly in `RecorderService.normalizeUrl`), so they are not "unsupported schemes"; and REC-001's
+spec says Start *is* enabled while idle — the empty-target path belongs to REC-003.
+
+**REC-013 is NOT RUN, not passed.** The async review dialog only opens when a recording contains
+review-worthy async activity, and no self-driving fixture produces any yet. Tracked as a bead rather
+than asserted vacuously.
+
 ## Recorder secret redaction had a word-boundary hole — `AWKIT-REC-002`, REC-007 PASS (2026-07-26, current)
 
 `SENSITIVE_FIELD_PATTERN` in `src/recorder/recorderInitScript.ts` contains `\btoken\b` and
@@ -82,7 +111,8 @@ and every mutation probe additionally asserts that nothing was persisted.
 **Recorded, not fixed:** `flows:list`/`flows:get`/`flows:export` are unauthenticated reads in the
 same style (bead `awkit-7lj`); `session.ipc.ts` and `instance.ipc.ts` have zero sender checks.
 
-Focused-case ledger: **38 of 66 `NOT RUN`** (Recorder 17, Reports 10, Settings 11) + 1 BLOCKED.
+Focused-case ledger at the time of that change: 38 of 66 `NOT RUN`. **Current: 36 PASS / 29 NOT RUN /
+1 BLOCKED** — Recorder 19/9/1, Reports 7/9, Settings 10/11.
 
 ## Packaged gate re-verified at `82c2514` — 70/70 (2026-07-26)
 

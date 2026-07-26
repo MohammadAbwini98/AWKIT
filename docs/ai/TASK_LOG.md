@@ -4,7 +4,53 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - REC-007: a word boundary was leaking secrets (Claude)
+## 2026-07-26 (latest) - Phase 2: the Recorder page finally has a GUI verifier (Claude)
+
+**Task:** Phase 2 of the campaign — one harness for the nine Recorder GUI cases.
+
+**Delivered:** `npm run verify:recorder-gui`, **70 PASS / 0 FAIL / 1 NOT RUN**. Closes REC-001,
+REC-002, REC-003, REC-004, REC-019, REC-021, REC-025 and the teardown half of REC-024.
+
+**`AWKIT-REC-003` (S3) found and fixed.** Start with an **empty** Target URL began a live recording
+pointed at nothing — the `!url.trim()` guard is on Save URL, not Start, and `normalizeUrl("")`
+returns `""`. Because the URL field disables while recording, the operator could not fix it without
+cancelling. `startRecording` now refuses a blank target before any state is mutated or a browser
+launched (order matters — rejecting later would leave `isRecording` already set).
+
+**The lesson worth keeping: my check was vacuous before it was useful.** REC-003 waited for
+`isRecording === false`, which is *already* true while a start is in flight — so the poll returned at
+t=0 and all four invalid targets passed without being attempted. Rewritten to wait for the status
+line to leave `Starting browser...`. The defect appeared the instant the check became real.
+
+**Three of my own premises were wrong; all are now written into the case file so they are not
+re-derived:**
+
+1. `file:`/`about:`/`data:` are **deliberately permitted** targets (named in `normalizeUrl`), not
+   unsupported schemes. Asserting they fail would have asserted the opposite of the design. Replaced
+   with a `javascript:` pseudo-scheme, plus an `about:blank` positive control for the allowance.
+2. REC-001 specifies Start *is* enabled while idle. My "Start disabled on empty URL" assertion was my
+   assumption, not the spec.
+3. Most early failures were UI-lag, not defects: I polled the **service** status then asserted on
+   **rendered** control enablement. Added explicit UI-level waits.
+
+**REC-013 is NOT RUN and stays that way.** The review dialog opens only for review-worthy async
+activity and no self-driving fixture produces any; filed as a bead rather than asserted vacuously.
+REC-024's out-of-band browser kill is likewise still unexecuted — the teardown properties around it
+are covered, the crash trigger is not.
+
+**Tests run:** `verify:recorder-gui` **70/0/1** (new) · `verify:recorder` 97/97 ·
+`verify:recorder-e2e` 41/41 · `verify:recorder-redaction` 15/15 · `verify:recorder-draft` 17/17 ·
+`verify:recorder-flow` 19/19 · `verify:protected-login-recorder` 45/45 · `verify:async-review` 21/21
+· `verify:verifier-classification` reconciled · `build` + `typecheck:scripts` PASS.
+*(One batch run reported protected-login 44/45; an isolated re-run was 45/45. Environmental
+contention from six back-to-back browser suites, not a code path this change touches.)*
+
+**Ledger: 36 → 29 `NOT RUN`** (counted from the case file, not estimated). Recorder 12 → 19 PASS.
+Full tally: **36 PASS / 29 NOT RUN / 1 BLOCKED** — Recorder 19/9/1, Reports 7/9, Settings 10/11.
+
+---
+
+## 2026-07-26 - REC-007: a word boundary was leaking secrets (Claude)
 
 **Task:** close REC-007, whose unexecuted part was draft/flow/log/report canary scanning.
 
