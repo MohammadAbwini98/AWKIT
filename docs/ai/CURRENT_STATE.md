@@ -29,6 +29,15 @@ Every Oracle gate not needing a live database was re-run at `94c858e`: **13 non-
 350/0**, `verify:oracle-mock-ui` 36/0, `verify:oracle-drivers-gui` **30/30**,
 `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**, `validate:offline` PASS.
 
+**One Oracle gate is RED:** `benchmark:oracle-jdbc` (30-min soak) is **8 PASS / 1 FAIL** — the
+`Node (Specter) RSS did not leak (drift < 150MB)` check reports `drift=651MB`. Throughput
+(19.6M queries at 10,864/s), zero query failures, cancellation, bridge RSS (−37 MB) and teardown all
+passed. The check computes a two-point endpoint delta on a sawtooth series that dips to 53 MB
+mid-run — below its own start — so it cannot distinguish a leak from GC, though rising peaks do not
+rule one out. The run also shared the machine with packaging and GUI verifiers. **The threshold was
+deliberately not loosened**; bead `awkit-cww` carries the proposed trend-statistic fix as an owner
+decision.
+
 Two long-standing "gates" turned out not to be defects:
 
 - **`verify:oracle-drivers-gui` 25/30 → 30/30.** The five "environmental/inconclusive" Oracle

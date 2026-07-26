@@ -290,6 +290,41 @@ Every Oracle gate that does not require a live database was re-run at `94c858e` 
 | `verify:oracle-drivers-gui` | **30 / 30** |
 | `verify:oracle-mock-ui-workflow` | **7 PASS / 0 FAIL / 1 BLOCKED** |
 | `validate:offline` | PASS (Zvec 17/17) |
+| `benchmark:oracle-jdbc` (30-min soak) | **8 PASS / 1 FAIL** — see below |
+
+### `benchmark:oracle-jdbc` is RED — Node RSS leak check failed
+
+The 30-minute soak is **not** green, and the earlier Phase 2 summary omitted it. Correcting that here.
+
+Passing: full 30.2 min, **19,659,232 queries at 10,864.8/s**, `failures=0`, cancellation `ok=56 bad=0`
+p95 251 ms, bridge (Java) RSS drift **−37 MB**, `pending=0`, no orphan Java, no pool metrics.
+
+Failing: `Node (Specter) RSS did not leak (drift < 150MB)` — `drift=651MB over 28 samples`
+(start 104 MB, end 755 MB).
+
+**The check's method cannot support either conclusion.**
+`scripts/benchmark-oracle-jdbc.mts:246` computes `rssDrift = nodeRss[last] − nodeRss[0]` — a two-point
+endpoint delta that ignores the other 26 samples. The observed series is a strong sawtooth:
+
+```text
+104 126 159 319 138 363 521 328 328 53 … 745 1286 827 1872 755
+```
+
+It **dips to 53 MB** at t+10.3 m, *below* the 104 MB start — a monotonic leak cannot decrease, so the
+process demonstrably returns memory. But the peaks do rise (521 → 745 → 1286 → 1872), so growth in the
+high-water mark is **not** ruled out. Had the final sample landed in a trough the check would have
+passed, which makes it close to arbitrary on this signal.
+
+**Confound:** this run shared the machine with electron-builder packaging, Electron GUI verifiers, and
+Chromium workloads. Re-run on an otherwise-idle host before concluding anything.
+
+**Deliberately not changed.** The threshold was not loosened and the method was not rewritten. Editing
+a red gate's measurement is how a real regression gets buried; the fix (a trend statistic over all
+samples, with a threshold derived from a measured idle-host baseline) is an owner decision recorded on
+bead **`awkit-cww`**.
+
+Not caused by this session's changes — none of them touch Oracle JDBC or memory. The artifact
+`reports/oracle-validation/oracle-soak.json` is untracked, so there is no committed baseline to diff.
 
 `verify:oracle-drivers-gui` was previously recorded at **25/30**, with five Oracle bridge/Java/ojdbc
 checks "environmental/inconclusive". They pass now: the cause was simply that the bridge runtime had
