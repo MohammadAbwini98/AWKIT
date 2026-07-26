@@ -757,9 +757,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   above maxima; concurrency above runs; valid boundaries.
 - **Expected:** Invalid combinations show all actionable errors and do not persist; main-process
   validation rejects direct invalid IPC; valid boundaries save and appear in new designer/run forms.
-- **Status:** `NOT RUN` for new-designer/new-run propagation and the exact valid boundary matrix.
-  Eight invalid direct-IPC combinations were rejected without persistence and rendered validation
-  errors were announced in `verify:settings-e2e`.
+- **Status:** `NOT RUN` for new-designer/new-run propagation only. **The valid boundary matrix is now
+  executed** in `verify:settings-e2e` (**128/128**): zoom `25` and `200` (the inclusive edges), node
+  width `1`, `maxRuns` `1`, `defaultRuns === maxRuns` and `maxConcurrentRuns === maxRuns` are each
+  accepted *and* read back persisted. This is the half that was missing — rejecting `24` and `201`
+  proves only that something is refused out there, and is equally satisfied by a rule that wrongly
+  refuses `25` and `200` too. Eight invalid direct-IPC combinations are still rejected without
+  persistence, and rendered validation errors are announced.
 
 ### SET-009 — Execution defaults persist and influence a new run
 
@@ -809,9 +813,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   delete with cancel/confirm; restart; attempt duplicate/rapid submit.
 - **Expected:** Inline validation is accurate; value is never rendered after save; list shows name/date
   only; cancel preserves; confirm deletes; unavailable state disables storage safely.
-- **Status:** `NOT RUN` for unavailable-store and rapid-submit variants. Real GUI add, update,
-  masked-list, cancel-delete, confirm-delete, restart persistence and no-plaintext evidence passed in
-  `verify:settings-e2e`.
+- **Status:** `NOT RUN` for the unavailable-store variant only. **Rapid submit is now executed** in
+  `verify:settings-e2e` (**128/128**): three Add clicks fired without awaiting produce **exactly one**
+  row and exactly one durable record — asserted as `=== 1` rather than `>= 1`, since `>= 1` is what a
+  duplicate-creating implementation would also satisfy. Real GUI add, update, masked-list,
+  cancel-delete, confirm-delete, restart persistence and no-plaintext evidence also pass.
 
 ### SET-014 — Java Runtime and Oracle JDBC Driver settings
 
@@ -841,9 +847,14 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Clear UI State; restart; inspect layout and all saved records/files.
 - **Expected:** Only UI-state keys reset; flows, workflows, data sources, reports, sessions, secrets,
   drivers and settings data remain.
-- **Status:** `NOT RUN` for the complete saved-data inventory because sessions and driver records
-  were not seeded. Two flows, one workflow, one data source, one report, a secret and non-default
-  settings survived Clear UI State and restart in `verify:settings-e2e`.
+- **Status:** `PASS` — `verify:settings-e2e`, **128/128**. The inventory is now complete: sessions and
+  driver records (a captured session profile, a Java runtime and an Oracle JDBC driver bundle) are
+  seeded as real store files and read back through each store's own `list()`, **not** through
+  `settings:getStorageStats`, which counts only flows/workflows/dataSources/reports and is therefore
+  blind to exactly the two classes that were previously unverified. Their presence is asserted as an
+  explicit precondition first, so "preserved" cannot mean "there was nothing to lose". Two flows, one
+  workflow, one data source, one report, a secret and non-default settings also survive Clear UI State
+  and restart.
 
 ### SET-017 — Export/import round-trip and protected security fields
 
@@ -879,9 +890,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Trigger reset and cancel; trigger and confirm; restart; inventory records/files.
 - **Expected:** Cancel changes nothing; confirm resets documented Settings/theme defaults and applies
   runtime caps; saved flows/workflows/data/reports/sessions/secrets/drivers are not deleted.
-- **Status:** `NOT RUN` as a complete data-preservation inventory because sessions and driver records
-  were not seeded. Cancel/confirm, documented default restoration, restart, and preservation of
-  seeded flows/workflows/data sources/reports/secrets passed in `verify:settings-e2e`.
+- **Status:** `PASS` — `verify:settings-e2e`, **128/128**. Cancel/confirm, documented default
+  restoration, runtime caps and restart all pass, and the data-preservation inventory is now
+  complete: the seeded session, Java runtime and driver bundle survive the confirmed reset, and the
+  three classes are asserted identical from before Clear UI State through to after the reset. Profile
+  counts are compared separately because SET-015 legitimately adds a flow mid-run.
 
 ### SET-020 — Offline Runtime validation action
 
@@ -925,11 +938,15 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
     SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
     SYS-REP-006's artifact launch.
-- **Settings:** the real-Electron core gate is 116/116, including page/IPC authorization, every
-  section, direct validation, path truth, Secrets CRUD, counts, UI-state reset, import recovery,
-  reset safety, restart checks and modal/error accessibility. SET-001 and SET-018 are now PASS.
-  Cases with unexecuted picker, runner/session integration, unavailable-store, OS-launch,
-  sessions/drivers inventory, corrupt offline bundle, 200% zoom and high-contrast subcases remain
-  `NOT RUN`.
+- **Settings:** **13 PASS / 8 NOT RUN**, with `verify:settings-e2e` at **128/128** — page/IPC
+  authorization, every section, direct validation *and its valid boundary edges*, path truth, Secrets
+  CRUD and rapid submit, counts, the complete UI-state/reset data-preservation inventory (now
+  including sessions and driver records), import recovery, restart checks and modal/error
+  accessibility. SET-016 and SET-019 closed this round.
+  Remaining `NOT RUN` subcases: the path picker/read-only matrix (SET-007), new-designer propagation
+  (SET-008), runner-behaviour proof (SET-009), an unavailable secret store (SET-013), real folder
+  launch and unreadable-store recovery (SET-015), the post-import restart round-trip (SET-017),
+  corrupt offline-dependency variants (SET-020), and SET-004's mid-session half, which shares the
+  Recorder pause fixture with REC-013.
 
 No defect is inferred from a `NOT RUN` or `BLOCKED` result.

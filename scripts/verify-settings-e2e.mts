@@ -105,6 +105,89 @@ for (const id of seeded.reports) {
   );
 }
 
+/**
+ * SET-016 / SET-019 — sessions and driver records are the two user-owned data classes this gate has
+ * never seeded, so "reset preserved everything" was previously only ever asserted about the classes
+ * that happened to be present. A destructive action that spared flows and wiped captured sessions
+ * would have passed. Seeded as real store files, and read back through each store's own list().
+ */
+const SEEDED_SESSION_ID = "settings-session-1";
+const SEEDED_JAVA_ID = "settings-java-1";
+const SEEDED_DRIVER_ID = "settings-driver-1";
+
+function seedSessionsAndDrivers(): void {
+  const profilesDir = join(runtimeRoot, "profiles");
+  const sessionDir = join(profilesDir, SEEDED_SESSION_ID);
+  mkdirSync(sessionDir, { recursive: true });
+  writeFileSync(
+    join(profilesDir, "session-profiles.json"),
+    JSON.stringify(
+      [
+        {
+          id: SEEDED_SESSION_ID,
+          name: "Settings Fixture Session",
+          profileDir: sessionDir,
+          targetUrl: "http://127.0.0.1:4173/",
+          origin: "http://127.0.0.1:4173",
+          source: "manual",
+          createdAt: new Date().toISOString(),
+          status: "ready"
+        }
+      ],
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const javaDir = join(runtimeRoot, "java-runtimes");
+  mkdirSync(javaDir, { recursive: true });
+  writeFileSync(
+    join(javaDir, `${SEEDED_JAVA_ID}.json`),
+    JSON.stringify(
+      {
+        id: SEEDED_JAVA_ID,
+        name: "Settings Fixture JRE",
+        javaExecutablePath: join(runtimeRoot, "java-runtimes", "fixture", "bin", "java.exe"),
+        javaHomePath: join(runtimeRoot, "java-runtimes", "fixture"),
+        javaVersion: "17.0.8",
+        javaMajorVersion: 17,
+        vendor: "Fixture",
+        architecture: "x64",
+        importedAt: new Date().toISOString(),
+        status: "unverified"
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  const bundleDir = join(runtimeRoot, "oracle-drivers", SEEDED_DRIVER_ID);
+  mkdirSync(bundleDir, { recursive: true });
+  writeFileSync(
+    join(bundleDir, "manifest.json"),
+    JSON.stringify(
+      {
+        id: SEEDED_DRIVER_ID,
+        name: "Settings Fixture Driver",
+        source: "user-import",
+        managedDirectory: bundleDir,
+        jdbcJar: "ojdbc17.jar",
+        companionJars: [],
+        checksums: { "ojdbc17.jar": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+        importedAt: new Date().toISOString(),
+        validationStatus: "unverified"
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+seedSessionsAndDrivers();
+
 type Result = { name: string; pass: boolean; detail?: string };
 const results: Result[] = [];
 function check(name: string, pass: unknown, detail?: unknown): void {
@@ -115,6 +198,29 @@ function check(name: string, pass: unknown, detail?: unknown): void {
   };
   results.push(result);
   console.log(`  ${result.pass ? "✓" : "✗"} ${name}${result.detail ? ` — ${result.detail}` : ""}`);
+}
+
+/**
+ * The complete user-owned data inventory, read through each store's own list() rather than through
+ * `settings:getStorageStats` — that IPC counts only flows/workflows/dataSources/reports, so sessions
+ * and driver records are invisible to it and a destructive action could remove them unnoticed.
+ */
+async function dataInventory(win: Page): Promise<{
+  stats: { flows: number; workflows: number; dataSources: number; reports: number };
+  sessions: string[];
+  javaRuntimes: string[];
+  drivers: string[];
+}> {
+  return win.evaluate(async () => {
+    const api = window.playwrightFlowStudio;
+    const stats = await api.settings.getStorageStats();
+    return {
+      stats: { flows: stats.flows, workflows: stats.workflows, dataSources: stats.dataSources, reports: stats.reports },
+      sessions: (await api.session.list()).map((entry) => entry.id).sort(),
+      javaRuntimes: (await api.oracle.java.list()).map((entry) => entry.id).sort(),
+      drivers: (await api.oracle.drivers.list()).map((entry) => entry.id).sort()
+    };
+  });
 }
 
 type Probe = { rejected: boolean; message: string };
@@ -368,6 +474,42 @@ try {
     check(`SET-008 main rejects ${test.name}`, probe.rejected && probe.message.includes(test.expected), probe.message);
   }
 
+  // SET-008 — the other half of every boundary. Rejecting 24 and 201 proves only that SOMETHING is
+  // refused out there; it is equally satisfied by a rule that also refuses 25 and 200. These assert
+  // the inclusive edges are ACCEPTED and actually persisted, which is where an off-by-one lives.
+  // Values are taken from `validateSettings`'s own comparisons, not restated from memory.
+  const validBoundaryCases: Array<{ name: string; patch: Record<string, unknown>; read: (settings: UiSettings) => unknown; expected: unknown }> = [
+    { name: "zoom at the lower inclusive edge (25)", patch: { designerDefaults: { defaultZoomPercent: 25 } }, read: (s) => s.designerDefaults.defaultZoomPercent, expected: 25 },
+    { name: "zoom at the upper inclusive edge (200)", patch: { designerDefaults: { defaultZoomPercent: 200 } }, read: (s) => s.designerDefaults.defaultZoomPercent, expected: 200 },
+    { name: "node width at the smallest positive integer (1)", patch: { designerDefaults: { defaultNodeWidth: 1 } }, read: (s) => s.designerDefaults.defaultNodeWidth, expected: 1 },
+    { name: "maxRuns at the smallest positive integer (1)", patch: { execution: { maxRuns: 1, defaultRuns: 1, maxConcurrentRuns: 1, defaultConcurrentRuns: 1 } }, read: (s) => s.execution.maxRuns, expected: 1 },
+    { name: "defaultRuns exactly equal to maxRuns", patch: { execution: { maxRuns: 5, defaultRuns: 5, maxConcurrentRuns: 1, defaultConcurrentRuns: 1 } }, read: (s) => s.execution.defaultRuns, expected: 5 },
+    { name: "maxConcurrentRuns exactly equal to maxRuns", patch: { execution: { maxRuns: 5, defaultRuns: 5, maxConcurrentRuns: 5, defaultConcurrentRuns: 5 } }, read: (s) => s.execution.maxConcurrentRuns, expected: 5 }
+  ];
+  for (const test of validBoundaryCases) {
+    const probe = await win.evaluate(async (patch: unknown) => {
+      try {
+        const next = await window.playwrightFlowStudio.settings.update(patch as never);
+        return { rejected: false, settings: next };
+      } catch (error) {
+        return { rejected: true, message: error instanceof Error ? error.message : String(error) };
+      }
+    }, test.patch);
+    const persisted = probe.rejected ? undefined : test.read(probe.settings as UiSettings);
+    check(
+      `SET-008 main accepts and persists ${test.name}`,
+      !probe.rejected && persisted === test.expected,
+      probe.rejected ? probe.message : `persisted ${String(persisted)}`
+    );
+  }
+  // Leave the store where the invalid-case loop expected to find it.
+  await win.evaluate((restore: UiSettings) =>
+    window.playwrightFlowStudio.settings.update({
+      designerDefaults: restore.designerDefaults,
+      execution: restore.execution,
+      runtime: restore.runtime
+    }), originalForInvalid);
+
   // Valid execution defaults save, become the persisted source for import/export, and survive restart.
   await win.getByLabel("Maximum runs").fill("12");
   await win.getByLabel("Maximum concurrent runs").fill("4");
@@ -452,6 +594,25 @@ try {
   await win.getByText(`Secret "${PERSISTED_SECRET}" saved.`).waitFor({ timeout: 10_000 });
   check("SET-013 secret inputs clear after save", (await secretNameInput.inputValue()) === "" && (await secretValueInput.inputValue()) === "");
   check("SET-013 value control is password-masked", (await secretValueInput.getAttribute("type")) === "password");
+
+  // SET-013 rapid submit. Clicking Add three times without waiting must not create three rows, lose
+  // the value, or leave the card in an error state. Asserted as EXACTLY one row rather than ">= 1",
+  // because ">= 1" is what a duplicate-creating implementation would also satisfy.
+  const RAPID_SECRET = "settings_rapid_submit";
+  await secretNameInput.fill(RAPID_SECRET);
+  await secretValueInput.fill(`SYNTHETIC-RAPID-${randomBytes(6).toString("hex")}`);
+  const rapidAdd = secretsCard.getByRole("button", { name: "Add", exact: true });
+  await Promise.all([rapidAdd.click(), rapidAdd.click().catch(() => undefined), rapidAdd.click().catch(() => undefined)]);
+  await win.getByText(`Secret "${RAPID_SECRET}" saved.`).waitFor({ timeout: 10_000 });
+  await win.waitForTimeout(600);
+  check(
+    "SET-013 three rapid submits create exactly one secret, not three",
+    (await win.locator(".settings-secret-row").filter({ hasText: RAPID_SECRET }).count()) === 1,
+    `${await win.locator(".settings-secret-row").filter({ hasText: RAPID_SECRET }).count()} rows`
+  );
+  const rapidStored = await win.evaluate((name: string) =>
+    window.playwrightFlowStudio.secrets.list().then((list) => list.filter((entry) => entry.name === name).length), RAPID_SECRET);
+  check("SET-013 the durable store also holds exactly one record for it", rapidStored === 1, `${rapidStored}`);
   const pageTextAfterSecret = await win.locator("body").innerText();
   const secretFile = join(runtimeRoot, "secrets.json");
   const secretDisk = existsSync(secretFile) ? readFileSync(secretFile, "utf8") : "";
@@ -519,6 +680,20 @@ try {
   const beforeClear = await snapshotSettings(win);
   const countsBeforeClear = await win.evaluate(() => window.playwrightFlowStudio.settings.getStorageStats());
   const secretsBeforeClear = await win.evaluate(() => window.playwrightFlowStudio.secrets.list());
+  const inventoryBeforeClear = await dataInventory(win);
+  // The precondition for every preservation claim below. If the seed never landed, "preserved"
+  // would mean "there was nothing to lose".
+  check(
+    "SET-016/019 sessions and driver records were actually seeded (precondition)",
+    inventoryBeforeClear.sessions.includes(SEEDED_SESSION_ID) &&
+      inventoryBeforeClear.javaRuntimes.includes(SEEDED_JAVA_ID) &&
+      inventoryBeforeClear.drivers.includes(SEEDED_DRIVER_ID),
+    JSON.stringify({
+      sessions: inventoryBeforeClear.sessions,
+      java: inventoryBeforeClear.javaRuntimes,
+      drivers: inventoryBeforeClear.drivers
+    })
+  );
   await win.getByRole("button", { name: "Clear UI State" }).click();
   await win.getByText("UI state cleared. Flows, workflows, and reports were not touched.").waitFor({ timeout: 10_000 });
   const afterClear = await snapshotSettings(win);
@@ -533,6 +708,12 @@ try {
   check("SET-016 Clear UI State preserves execution settings", JSON.stringify(afterClear.execution) === JSON.stringify(beforeClear.execution));
   check("SET-016 Clear UI State preserves all profile counts", JSON.stringify(countsAfterClear) === JSON.stringify(countsBeforeClear));
   check("SET-016 Clear UI State preserves secrets", secretsAfterClear.some((secret) => secret.name === PERSISTED_SECRET) && secretsBeforeClear.length === secretsAfterClear.length);
+  const inventoryAfterClear = await dataInventory(win);
+  check(
+    "SET-016 Clear UI State preserves captured sessions and driver records",
+    JSON.stringify(inventoryAfterClear) === JSON.stringify(inventoryBeforeClear),
+    JSON.stringify(inventoryAfterClear)
+  );
 
   // Capture the real Blob + anchor produced by the Settings export action.
   await win.evaluate(`(() => {
@@ -684,6 +865,27 @@ try {
     "SET-019 reset preserves secrets",
     beforeResetSecrets.some((secret) => secret.name === PERSISTED_SECRET) &&
       afterResetSecrets.some((secret) => secret.name === PERSISTED_SECRET)
+  );
+  const inventoryAfterReset = await dataInventory(win);
+  check(
+    "SET-019 reset preserves captured sessions and driver records",
+    inventoryAfterReset.sessions.includes(SEEDED_SESSION_ID) &&
+      inventoryAfterReset.javaRuntimes.includes(SEEDED_JAVA_ID) &&
+      inventoryAfterReset.drivers.includes(SEEDED_DRIVER_ID),
+    JSON.stringify({
+      sessions: inventoryAfterReset.sessions,
+      java: inventoryAfterReset.javaRuntimes,
+      drivers: inventoryAfterReset.drivers
+    })
+  );
+  // Profile counts legitimately move during the run (SET-015 adds a flow), so only the three classes
+  // that must never change are compared across the whole session.
+  const stableClasses = (inventory: Awaited<ReturnType<typeof dataInventory>>) =>
+    JSON.stringify({ sessions: inventory.sessions, java: inventory.javaRuntimes, drivers: inventory.drivers });
+  check(
+    "SET-016/019 sessions and driver records are identical from before Clear UI State to after reset",
+    stableClasses(inventoryAfterReset) === stableClasses(inventoryBeforeClear),
+    `${stableClasses(inventoryAfterReset)} vs ${stableClasses(inventoryBeforeClear)}`
   );
 
   // Offline validation reflects the real local bundle result and never initiates a download.
