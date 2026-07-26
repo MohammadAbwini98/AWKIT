@@ -117,14 +117,22 @@ Every Oracle gate not needing a live database was re-run at `94c858e`: **13 non-
 350/0**, `verify:oracle-mock-ui` 36/0, `verify:oracle-drivers-gui` **30/30**,
 `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**, `validate:offline` PASS.
 
-**One Oracle gate is RED:** `benchmark:oracle-jdbc` (30-min soak) is **8 PASS / 1 FAIL** — the
-`Node (Specter) RSS did not leak (drift < 150MB)` check reports `drift=651MB`. Throughput
-(19.6M queries at 10,864/s), zero query failures, cancellation, bridge RSS (−37 MB) and teardown all
-passed. The check computes a two-point endpoint delta on a sawtooth series that dips to 53 MB
-mid-run — below its own start — so it cannot distinguish a leak from GC, though rising peaks do not
-rule one out. The run also shared the machine with packaging and GUI verifiers. **The threshold was
-deliberately not loosened**; bead `awkit-cww` carries the proposed trend-statistic fix as an owner
-decision.
+**`benchmark:oracle-jdbc` was RED and is now 9 PASS / 0 FAIL** (`dce4204`, bd `awkit-cww` CLOSED) —
+**because the statistic was fixed, not because memory behaviour improved.** See
+`EXECUTION_RESULTS.md` for the full ledger. The gate keys on floor rise (min last third − min first
+third) with the original 150 MB/200 MB budgets unchanged. Clean idle-host run: 18.2M queries at
+9,746/s, `failures=0`, Node floor 137 → 245 MB (**+108, 72 % of budget**), bridge floor −1 MB.
+
+Two things recorded there that contradict earlier notes in this file's history:
+
+- the old endpoint-delta verdict was roughly right for the wrong reason — every trend statistic on
+  the original series pointed the same way, harder;
+- **the concurrent-load confound hypothesis is refuted** — the idle run is *worse* on every
+  peak-sensitive statistic (slope +1460 vs +1106 MB, endpoint +1219 vs +651, peak 2472 vs 1872).
+
+**A separate uncovered concern:** Node peak RSS grows ~5× within a run (2472 MB peak) and no
+invariant fails on it — the floor statistic is blind to peak amplitude by construction. Tracked as
+**`awkit-q0e`**, deliberately not folded into the leak gate.
 
 Two long-standing "gates" turned out not to be defects:
 

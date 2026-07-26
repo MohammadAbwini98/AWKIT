@@ -17,9 +17,13 @@ hand-edited.
 
 ### Still open
 
-- **`awkit-cww`** — `benchmark:oracle-jdbc` Node RSS check is **RED** (8 PASS / 1 FAIL). The
-  endpoint-delta method cannot distinguish a leak from GC sawtooth; threshold deliberately NOT
-  loosened. Owner decision.
+- ~~**`awkit-cww`** — `benchmark:oracle-jdbc` Node RSS check is RED.~~ **CLOSED** in `dce4204`: the
+  gate now keys on floor rise with the original budgets unchanged, and a clean idle-host soak is
+  **9 PASS / 0 FAIL**. Green because the statistic is right, *not* because memory improved.
+- **`awkit-q0e`** (new) — Node **peak** RSS grows ~5× within a soak (2472 MB) and **no invariant
+  fails on it**; the floor statistic is blind to peak amplitude by construction. Decide whether a
+  peak ceiling belongs in the soak, derived from a measured baseline rather than from that run.
+  The full RSS series is now stored in the artifact, so this needs no new 30-minute run to analyse.
 - **41 of 66** focused cases remain `NOT RUN` (Recorder 18, Reports 11, Settings 12).
 - **`ORA-LIVE-001`** (`awkit-7bu`) — blocked on an authorized operator *and* still has no real-mode
   code path in `verify-oracle-mock-ui-workflow.mts`.

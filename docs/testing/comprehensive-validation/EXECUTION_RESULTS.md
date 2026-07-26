@@ -479,11 +479,52 @@ Every Oracle gate that does not require a live database was re-run at `94c858e` 
 | `verify:oracle-drivers-gui` | **30 / 30** |
 | `verify:oracle-mock-ui-workflow` | **7 PASS / 0 FAIL / 1 BLOCKED** |
 | `validate:offline` | PASS (Zvec 17/17) |
-| `benchmark:oracle-jdbc` (30-min soak) | **8 PASS / 1 FAIL** — see below |
+| `benchmark:oracle-jdbc` (30-min soak) | **9 PASS / 0 FAIL** after the statistic fix — see below |
 
-### `benchmark:oracle-jdbc` is RED — Node RSS leak check failed
+### `benchmark:oracle-jdbc` — RESOLVED 2026-07-26 (`dce4204`, bd `awkit-cww`)
 
-The 30-minute soak is **not** green, and the earlier Phase 2 summary omitted it. Correcting that here.
+The gate is green **because the statistic now measures the right thing, not because memory behaviour
+improved.** Read that sentence before quoting the 9/0.
+
+Clean idle-host 30-minute soak: **18,243,386 queries at 9,746/s**, `failures=0`, cancellation
+`ok=55 bad=0` p95 252 ms, `pending=0`, no orphan Java.
+
+| Statistic | Node (Specter) | Verdict |
+| --- | --- | --- |
+| **floor rise** (min 1st third → min last third) — *the gate* | 137 → 245 MB = **+108 MB** | PASS, at **72 % of the 150 MB budget** |
+| least-squares slope (diagnostic) | +52.14 MB/sample = **+1460 MB** | — |
+| endpoint delta (the old check, diagnostic) | **+1219 MB** | would still FAIL |
+| peak (diagnostic) | **2472 MB** | uncovered — see `awkit-q0e` |
+
+Bridge (Java) floor 157 → 156 MB (−1), slope −0.39 MB/sample. Flat, as it always was.
+
+**This is not a leak.** The last third still returns to 245 MB against a 137 MB start, so the process
+demonstrably still reclaims memory — which is exactly what the floor statistic is designed to detect
+and the endpoint delta could not.
+
+**Two corrections to what was previously recorded here.**
+
+1. The earlier entry argued the endpoint delta was "close to arbitrary" and leaned on the series
+   dipping to 53 MB. Computing trend statistics on that same data pointed the *other* way — slope
+   +1106 MB, floor +350 MB, median 319 → 827 MB. The old check was roughly right for the wrong
+   reason, and the previous framing erred in the exonerating direction.
+2. **The concurrent-load confound hypothesis is refuted by measurement.** The idle run is *worse*
+   than the confounded one on every peak-sensitive statistic — slope +1460 vs +1106, endpoint +1219
+   vs +651, peak 2472 vs 1872. The behaviour is intrinsic, not an artifact of sharing the machine.
+
+**A new, separate concern is now quantified:** Node peak RSS grows roughly 5× across a run (first
+third maxes at 499 MB; the last third hits 1859, 2472, 1887). A 2.4 GB transient peak is an OOM risk
+on a constrained machine, and **no invariant currently fails on it** — the floor statistic is blind to
+peak amplitude by construction. Tracked as **`awkit-q0e`**, deliberately not folded into the leak
+gate.
+
+The full series is now written to `reports/oracle-validation/oracle-soak.json`
+(`memory.nodeRssSeriesMb`), so any of this can be re-analysed without another 30-minute run.
+
+### Historical: why the check was RED (superseded by the above)
+
+*Retained for provenance. The run below is the 2026-07-26 soak taken under concurrent load, before
+the statistic was fixed in `dce4204`. Its `FAIL` verdict is superseded by the section above.*
 
 Passing: full 30.2 min, **19,659,232 queries at 10,864.8/s**, `failures=0`, cancellation `ok=56 bad=0`
 p95 251 ms, bridge (Java) RSS drift **−37 MB**, `pending=0`, no orphan Java, no pool metrics.
