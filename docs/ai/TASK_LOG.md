@@ -4,7 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - AWKIT-E2E-001: manualApproval connector routing (Claude)
+## 2026-07-26 (latest) - Packaged gate re-verified after the Recorder/Reports/Settings work (Claude)
+
+**Task:** rebuild the portable package and re-run the packaged walkthrough, which had gone stale once
+the Reports and Settings units landed.
+
+**Why it was needed:** the staleness guard from `94c858e` refused to run, naming
+`app\renderer\components\shared\ConfirmDialog.tsx` (09:52) as newer than the packaged payload
+(00:09). The guard fired correctly on work it was not written for.
+
+**Done:** `npm run package:portable` PASS (`app.asar` 03:09 → 15:08; `package-portable.ps1:3` runs
+`npm run build` itself, so the bundles cannot be stale). Fixes confirmed present in
+`out/main/main.js` before running the gate — `Settings failed validation` ×2, `retainKnownKeys` ×9,
+`Appearance must be light` ×1, `manual-approval connector to` ×1.
+
+**Tests run:** `npm run verify:packaged-walkthrough` **70 passed, 0 failed**, including the
+`packaged payload is at least as new as src/ and app/` precondition. First packaged run covering the
+whole session together: `manualApproval` routing + Reports authorization/export + Settings
+authorization and main-process validation.
+
+**Files:** `resources/dependency-manifest.json` (regenerated `builtAt`, produced by packaging, not
+hand-edited), `docs/ai/CURRENT_STATE.md`, `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`,
+`docs/testing/comprehensive-validation/EXECUTION_RESULTS.md`.
+
+**Not run / still open:** `benchmark:oracle-jdbc` remains RED (`awkit-cww`); 41 of 66 focused cases
+remain `NOT RUN`; `ORA-LIVE-001` still blocked and still lacks a real-mode path; the clean/offline VM
+walkthrough remains a separate human gate that this script explicitly does not claim.
+
+---
+
+## 2026-07-26 - AWKIT-E2E-001: manualApproval connector routing (Claude)
 
 **Task:** Phase 0-1 of the unified validation remediation brief — reproduce and fix the one confirmed
 open product defect, then re-run the comprehensive campaign. Bead `awkit-3eo` (newly filed; the defect

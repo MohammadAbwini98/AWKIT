@@ -1,6 +1,23 @@
 # CURRENT_STATE
 
-## Settings real-Electron gate 116/116; four defects fixed (2026-07-26, current)
+## Packaged gate re-verified at `82c2514` — 70/70 (2026-07-26, current)
+
+`npm run package:portable` was rebuilt and `npm run verify:packaged-walkthrough` re-run against it:
+**70 passed, 0 failed**. This is the first packaged run that exercises the whole session's work
+together — the `manualApproval` routing fix, the Reports authorization/export contract, and the
+Settings authorization plus main-process validation.
+
+The staleness guard added in `94c858e` had already refused the previous package, naming
+`ConfirmDialog.tsx` as newer than the payload — the guard working on code it was not written for.
+After the rebuild (`app.asar` 03:09 → 15:08) the precondition passes, and the fixes are confirmed
+present in `out/main/main.js` (`Settings failed validation`, `retainKnownKeys`,
+`Appearance must be light`, and the `manual-approval connector to` guard).
+
+`resources/dependency-manifest.json` carries the regenerated `builtAt`; it is produced by packaging
+and was not hand-edited. **Rule of thumb: after any `src/` or `app/` change, repackage before citing
+a packaged result — the verifier will now stop you rather than let a misleading pass through.**
+
+## Settings real-Electron gate 116/116; four defects fixed (2026-07-26)
 
 `scripts/verify-settings-e2e.mts` is a deterministic real-Electron gate over a timestamped isolated
 profile. It seeds two flows, one workflow, one data source, one stored report and synthetic secrets,

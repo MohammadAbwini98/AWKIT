@@ -1,6 +1,31 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-26, latest): Settings 116/116; AWKIT-SET-001–004 resolved
+## ACTIVE (2026-07-26, latest): packaged gate re-verified at `82c2514` — 70/70
+
+The package was rebuilt and `verify:packaged-walkthrough` re-run: **70 passed, 0 failed**. This is
+the first packaged run covering the whole session together — `manualApproval` routing, the Reports
+authorization/export contract, and Settings authorization plus main-process validation. Fixes
+confirmed present in `out/main/main.js` before the run.
+
+**The staleness guard is now proven in the wild.** It refused the previous package, naming
+`ConfirmDialog.tsx` as newer than the payload — on work it was not written for. After any `src/` or
+`app/` change, repackage before citing a packaged result; the verifier will stop you rather than let
+a misleading pass through.
+
+`resources/dependency-manifest.json` holds the regenerated `builtAt` — produced by packaging, never
+hand-edited.
+
+### Still open
+
+- **`awkit-cww`** — `benchmark:oracle-jdbc` Node RSS check is **RED** (8 PASS / 1 FAIL). The
+  endpoint-delta method cannot distinguish a leak from GC sawtooth; threshold deliberately NOT
+  loosened. Owner decision.
+- **41 of 66** focused cases remain `NOT RUN` (Recorder 18, Reports 11, Settings 12).
+- **`ORA-LIVE-001`** (`awkit-7bu`) — blocked on an authorized operator *and* still has no real-mode
+  code path in `verify-oracle-mock-ui-workflow.mts`.
+- Clean/offline Windows VM walkthrough and protected-login manual handoffs remain external gates.
+
+## PRIOR (2026-07-26): Settings 116/116; AWKIT-SET-001–004 resolved
 
 The Settings phase of `FULL_VALIDATION_REMEDIATION_PROMPT.md` is complete. The new
 `npm run verify:settings-e2e` creates a timestamped isolated profile, seeds representative product
