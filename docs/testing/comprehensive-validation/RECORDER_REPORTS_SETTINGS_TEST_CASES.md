@@ -716,12 +716,23 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   session; change setting mid-session; inspect current and next sessions.
 - **Expected:** Values persist; launch resolves them once; mid-session setting change does not alter
   live capture behavior; next session uses new values.
-- **Status:** `NOT RUN` for the mid-session behavioural half only. `verify:recorder-gui` (**90/90**)
-  proves the rest: toggling either capture switch persists to Settings, both restore from Settings
-  when the page is reopened, and both **lock** during a recording so they cannot be changed
-  mid-session from the page. What remains is showing that a capture setting changed by another route
-  mid-session does not alter LIVE capture — that needs a self-driving pause fixture demonstrating wait
-  insertion against the launch-time value, the same fixture gap as REC-013.
+- **Status:** `PASS` — `verify:recorder-gui`, **103 PASS / 0 FAIL / 0 NOT RUN**. Toggling either
+  capture switch persists to Settings, both restore from Settings when the page is reopened, and both
+  **lock** during a recording. **The mid-session behavioural half is now executed** on the
+  `/recorder-lab?rec013=1` fixture, using the two *observable* consequences of the capture flags
+  rather than an unfalsifiable claim that "nothing changed":
+  - A session is launched with Smart Wait capture ON and waiting-time capture OFF, which makes a quiet
+    gap produce a `fixedDelay` and suppresses `wait` action insertion.
+  - Waiting-time capture is then switched **on** mid-recording through Settings — the only route left,
+    since the page locks its own switches. The change is asserted to have really persisted, so
+    "live capture was unaffected" cannot pass vacuously.
+  - The live session still reports `fixedDelay=2, waitActions=0`: its launch-time values, not the new
+    ones. `RecorderService.start` assigns `captureWaitTime`/`captureSmartWaits` once, so the binding
+    is launch-time by construction and there is no race in when the change lands.
+  - The **next** session on the identical fixture reports `fixedDelay=0, waitActions=1` — the exact
+    opposite shape. That is both the "next session uses new values" half and the negative control for
+    the assertion above: the same fixture and the same quiet gap driven to the opposite result, so the
+    first outcome cannot have been a property of the fixture rather than of the setting.
 
 ### SET-005 — Ignore protected-login detection confirmation and scope
 
@@ -984,16 +995,17 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
     SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
     SYS-REP-006's artifact launch.
-- **Settings:** **16 PASS / 5 NOT RUN**, with `verify:settings-e2e` at **151/151** — page/IPC
+- **Settings:** **17 PASS / 4 NOT RUN**, with `verify:settings-e2e` at **151/151** and
+  `verify:recorder-gui` at **103/103** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
   including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,
   counts and unreadable-store recovery, the complete UI-state/reset data-preservation inventory (now
   including sessions and driver records), the post-import restart round-trip, offline validation of
-  both a healthy *and* a broken dependency, and modal/error accessibility. SET-007, SET-016, SET-017,
-  SET-019 and SET-020 closed this round; SET-007 found and fixed `AWKIT-SET-005`.
+  both a healthy *and* a broken dependency, and modal/error accessibility. SET-004, SET-007, SET-016,
+  SET-017, SET-019 and SET-020 closed this round; SET-007 found and fixed `AWKIT-SET-005`. SET-004's
+  mid-session half is proven in `verify:recorder-gui`, which owns the mock site and the Recorder
+  controls, rather than by duplicating that infrastructure into the Settings gate.
   The five remaining cases are open for a *named* residual subcase each:
-  - **SET-004** — the mid-session half. Its fixture now exists (`/recorder-lab?rec013=1`) but
-    `verify:settings-e2e` does not spawn the mock site. Cheapest remaining case.
   - **SET-008** — the new-**run-form** half of propagation only; the designer half is executed.
   - **SET-009** — runner *behaviour* proof (headed/headless, screenshot-on-failure, stop-on-error);
     persistence already passes, this needs a bounded real run.

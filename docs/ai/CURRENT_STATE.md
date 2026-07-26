@@ -51,11 +51,26 @@ after cancel" alone is equally satisfied by a Browse button that does nothing.
 
 Every ACL denial is registered and restored in a `finally`, and each restoration is a reported check.
 
-**Still open in Settings (4):** SET-004's mid-session half (fixture exists, `verify:settings-e2e` does
-not spawn the mock site); SET-009's runner-behaviour proof (needs a bounded real run, and owns the
-new-run-form half of SET-008's propagation); SET-013's unavailable secret store (needs
+**SET-004's mid-session half is closed too**, in `verify:recorder-gui` (**103 PASS / 0 FAIL / 0 NOT
+RUN** — no unmet preconditions left in that suite) rather than by duplicating the mock site into the
+Settings gate. It uses the two *observable* consequences of the capture flags instead of an
+unfalsifiable "nothing changed": a session launched with Smart Wait capture ON and waiting-time
+capture OFF reports `fixedDelay=2, waitActions=0` even after waiting-time capture is switched on
+mid-recording through Settings (the only route left, since the page locks its own switches), while
+the **next** session on the identical fixture reports `fixedDelay=0, waitActions=1`. That opposite
+shape is simultaneously the "next session uses new values" half and the negative control for the
+first assertion. `RecorderService.start` assigns both flags once, so the binding is launch-time by
+construction and there is no race in when the change lands.
+
+**Still open in Settings (3):** SET-008's new-run-form propagation and SET-009's runner-behaviour
+proof (both need a bounded real run); SET-013's unavailable secret store (needs
 `safeStorage.isEncryptionAvailable()` false, which has no injection seam from outside the main
 process); SET-015's real OS folder launch (recorded manual check).
+
+**Ledger correction:** the previous entry recorded **51 PASS / 14 NOT RUN**. The true count at that
+commit was **50 / 15** — SET-008 stayed `NOT RUN` for its run-form half and was counted as closed by
+mistake. Closing SET-004 here brings the real total to **51 PASS / 14 NOT RUN / 1 BLOCKED**
+(Recorder 25/3/1, Reports 9/7, Settings 17/4), so the figure is now accurate.
 
 ## Reports/Settings residual submatrices — 6 cases, 2 defects (2026-07-27)
 

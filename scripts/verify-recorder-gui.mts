@@ -609,11 +609,67 @@ try {
     `smart=${await smartSwitch.getAttribute("aria-checked")} wait=${await waitSwitch.getAttribute("aria-checked")}`
   );
 
-  await startAndWaitRecording(win, labUrl);
+  // Launch-time values for the live-session probe. Smart Wait capture ON with waiting-time capture
+  // OFF is the combination that makes a quiet gap produce a `fixedDelay`
+  // (`allowFixedDelayFallback: !captureWaitTime`) and suppresses `wait` action insertion
+  // (`maybeInsertWait` returns early on `!this.captureWaitTime`). Those two *observable* outcomes are
+  // what separate "the live session kept its launch-time value" from "the live session picked up the
+  // change" — without them the claim is unfalsifiable.
+  const reopenRecorder = async () => {
+    await navClick(win!, "Flows");
+    await navClick(win!, "Recorder");
+    await win!.waitForSelector(".recorder-page", { timeout: 20_000 });
+    await win!.waitForTimeout(500);
+  };
+  const captureShape = async () => {
+    const actions = await win!.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+    return {
+      total: actions.length,
+      fixedDelays: actions.flatMap((action) => (action.afterWaits ?? []).filter((wait) => wait.type === "fixedDelay")).length,
+      waitActions: actions.filter((action) => action.type === "wait").length
+    };
+  };
+
+  await win.evaluate(() =>
+    window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: true, captureWaitTime: false } }));
+  await reopenRecorder();
+
+  await startAndWaitRecording(win, `${labUrl}?rec013=1`);
   check("SET-004 both capture switches lock during a session, so they cannot change mid-recording", (await smartSwitch.isDisabled()) && (await waitSwitch.isDisabled()));
-  notRun(
-    "SET-004 a mid-session capture-setting change does not alter LIVE capture behaviour",
-    "the UI locks both switches during a recording, so the change cannot be made from the page; proving the behavioural half needs a self-driving pause fixture that shows wait insertion following the launch-time value, which does not exist yet"
+
+  // Because the page locks its own switches, Settings is the only route left to change the value
+  // mid-recording — which is precisely the scenario this case is about.
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ recorder: { captureWaitTime: true } }));
+  await win.waitForTimeout(3_000);
+  const midSessionSettings = await readCaptureSettings();
+  // Control: if the Setting did not really change, "live capture was unaffected" is vacuously true.
+  check(
+    "SET-004 the mid-session change really did persist (control)",
+    midSessionSettings.captureWaitTime === true,
+    JSON.stringify(midSessionSettings)
+  );
+  const liveShape = await captureShape();
+  check(
+    "SET-004 the live session still follows its launch-time capture values, not the new ones",
+    liveShape.fixedDelays >= 1 && liveShape.waitActions === 0,
+    `fixedDelay=${liveShape.fixedDelays} waitActions=${liveShape.waitActions} of ${liveShape.total} actions`
+  );
+  await cancelButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  // The other half of the same promise: the NEXT session must use the new value. This doubles as the
+  // negative control for the assertion above — the same fixture and the same quiet gap, driven to the
+  // OPPOSITE shape, so "fixedDelay present, no wait action" cannot have been a property of the
+  // fixture rather than of the setting.
+  await reopenRecorder();
+  await startAndWaitRecording(win, `${labUrl}?rec013=1`);
+  await win.waitForTimeout(3_000);
+  const nextShape = await captureShape();
+  check(
+    "SET-004 the next session launches with the new capture values",
+    nextShape.waitActions >= 1 && nextShape.fixedDelays === 0,
+    `fixedDelay=${nextShape.fixedDelays} waitActions=${nextShape.waitActions} of ${nextShape.total} actions`
   );
   await cancelButton(win).click();
   await waitIdle(win);

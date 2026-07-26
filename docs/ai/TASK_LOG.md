@@ -4,7 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Phase 4 cont.: the remaining Settings cases (Claude)
+## 2026-07-27 (latest) - SET-004 mid-session half; ledger correction (Claude)
+
+**Task:** wire up SET-004's mid-session behavioural half.
+
+**Delivered:** `verify:recorder-gui` **100 → 103 PASS / 0 FAIL / 0 NOT RUN** — the suite now has no
+unmet preconditions at all. SET-004 closes. Ledger **51 PASS / 14 NOT RUN / 1 BLOCKED**
+(Recorder 25/3/1, Reports 9/7, Settings 17/4).
+
+**Kept in `verify:recorder-gui`**, which already owns the mock site and the Recorder controls, rather
+than duplicating that infrastructure into `verify:settings-e2e`.
+
+**Method.** "The live session was unaffected" is unfalsifiable on its own, so the test uses the two
+observable consequences of the capture flags. A session launched with Smart Wait capture ON and
+waiting-time capture OFF reports `fixedDelay=2, waitActions=0` even after waiting-time capture is
+switched on mid-recording through Settings (the only route left — the page locks its own switches),
+with the persisted change asserted separately as a control. The next session on the identical fixture
+reports `fixedDelay=0, waitActions=1`: both the "next session uses new values" half and the negative
+control for the first assertion. `RecorderService.start` assigns both flags once, so the binding is
+launch-time by construction and the timing of the change cannot matter.
+
+**Ledger correction.** The previous entry recorded 51/14 one commit early; the true count at `fe5aa25`
+was **50/15**, because SET-008 stayed `NOT RUN` for its run-form half. Closing SET-004 makes 51/14
+correct now, but it was wrong when written.
+
+**Files:** `scripts/verify-recorder-gui.mts`,
+`docs/testing/comprehensive-validation/{RECORDER_REPORTS_SETTINGS_TEST_CASES,EXECUTION_RESULTS}.md`,
+`docs/ai/{CURRENT_STATE,TASK_LOG,HANDOFF}.md`.
+
+**Tests run:** `typecheck:scripts` ✓, recorder-gui **103/103**.
+`REC-004 Cancel returns the page to its empty state` failed once and passed on an isolated re-run —
+the known intermittent real-Electron startup flake, not a regression.
+
+---
+
+## 2026-07-27 - Phase 4 cont.: the remaining Settings cases (Claude)
 
 **Task:** continue Phase 4 across the Settings surface — the eight cases still `NOT RUN`.
 

@@ -40,9 +40,10 @@ not consult the directory ACL on Windows at all, which is the defect `AWKIT-SET-
   SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, SYS-REP-006's
   artifact launch, and SET-009's runner-behaviour proof (which also owns the new-run-form half of
   SET-008's propagation).
-- **SET-004's mid-session half now has its fixture** (`/recorder-lab?rec013=1`) but is not yet wired
-  into `verify:settings-e2e`, which does not currently spawn the mock site. That is the cheapest
-  remaining case.
+- **SET-004 is closed.** Its mid-session half is proven in `verify:recorder-gui` (which already owns
+  the mock site and the Recorder controls) rather than by duplicating that infrastructure into
+  `verify:settings-e2e`. `verify:recorder-gui` is now **103 PASS / 0 FAIL / 0 NOT RUN** — no unmet
+  preconditions remain in that suite.
 
 ### Repackage before citing any packaged result
 
