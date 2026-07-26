@@ -20,6 +20,12 @@
  * AWKIT_ORACLE_SOAK_CONCURRENCY (limiter, default 4), AWKIT_ORACLE_SOAK_DRIVERS (offered load, default 8).
  *
  * Run: `npm run benchmark:oracle-jdbc`. Writes a redacted artifact to reports/oracle-validation/oracle-soak.json.
+ *
+ * ONLY a full-length run (AWKIT_ORACLE_SOAK_MINUTES >= 30) writes that canonical path. A shorter
+ * smoke run goes to `oracle-soak-SHORT-<n>min.json`, prints a banner saying it is not the release
+ * gate, and reports the memory invariants as NOT RUN rather than passed — a trend needs two samples,
+ * so a short run cannot support a memory verdict either way (bd awkit-1ts). `reports/` is gitignored,
+ * so this artifact is local evidence only and is not carried in version control.
  */
 import { existsSync, mkdirSync, writeFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -40,6 +46,10 @@ const isWin = process.platform === "win32";
 const sep = isWin ? ";" : ":";
 
 const SOAK_MINUTES = Number(process.env.AWKIT_ORACLE_SOAK_MINUTES ?? "30");
+/** Anything shorter is a smoke run: it may not overwrite the canonical release artifact (bd awkit-1ts). */
+const RELEASE_GATE_MINUTES = 30;
+/** A trend needs two points, so a run this short cannot support a memory verdict either way. */
+const MIN_MEMORY_SAMPLES = 2;
 const CONCURRENCY = Math.max(1, Number(process.env.AWKIT_ORACLE_SOAK_CONCURRENCY ?? "4"));
 const DRIVERS = Math.max(CONCURRENCY, Number(process.env.AWKIT_ORACLE_SOAK_DRIVERS ?? "8"));
 
@@ -307,7 +317,14 @@ async function main(): Promise<number> {
   const leaks = [cfg?.password, cfg?.user, "SELECT ", "__simulate", "s3cr3t"].filter((s) => s && serialized.includes(s));
   const outDir = join(repoRoot, "reports", "oracle-validation");
   mkdirSync(outDir, { recursive: true });
-  const outPath = join(outDir, "oracle-soak.json");
+  // bd awkit-1ts: the canonical artifact is release evidence, and this script used to overwrite it
+  // on EVERY invocation regardless of duration — so a 2-minute smoke run silently replaced the
+  // 30-minute soak, with nothing in the file or its name to say so. That happened on 2026-07-26 and
+  // was caught by chance. A short run now writes to its own clearly-named path instead.
+  const isGateRun = SOAK_MINUTES >= RELEASE_GATE_MINUTES;
+  const outPath = isGateRun
+    ? join(outDir, "oracle-soak.json")
+    : join(outDir, `oracle-soak-SHORT-${SOAK_MINUTES}min.json`);
   if (leaks.length > 0) {
     console.error(`  ✗ refusing to write artifact — it would leak: ${leaks.map(() => "***").join(", ")}`);
     return 1;
@@ -315,8 +332,21 @@ async function main(): Promise<number> {
   writeFileSync(outPath, JSON.stringify(artifact, null, 2));
 
   // ── Invariants (pass/fail) ──────────────────────────────────────────────────
-  let passed = 0, failed = 0;
+  let passed = 0, failed = 0, notRun = 0;
   const check = (name: string, cond: boolean, detail = "") => { if (cond) { passed++; console.log(`  ✓ ${name}${detail ? ` — ${detail}` : ""}`); } else { failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`); } };
+  /**
+   * A memory invariant with fewer than two samples is NOT a pass — `rssFloorWithinBudget` returns
+   * true there because a trend is undefined, not because the process behaved. Counting that as a
+   * pass is how a 2-minute smoke run reported a green memory gate that proved nothing (bd awkit-1ts).
+   */
+  const checkTrend = (name: string, samples: number, cond: boolean, detail = "") => {
+    if (samples < MIN_MEMORY_SAMPLES) {
+      notRun++;
+      console.log(`  ~ ${name} — NOT RUN: ${samples} sample(s), needs ${MIN_MEMORY_SAMPLES} for a trend${detail ? ` · ${detail}` : ""}`);
+      return;
+    }
+    check(name, cond, detail);
+  };
   console.log(`\nSoak complete (${durationMin.toFixed(1)} min) — invariants:`);
   check("ran the full soak duration", durationMin >= SOAK_MINUTES - 0.2, `${durationMin.toFixed(1)}/${SOAK_MINUTES} min`);
   check("sustained real throughput", latencies.count > 0, `${latencies.count} queries, ${artifact.throughput.queriesPerSec}/s`);
@@ -330,8 +360,9 @@ async function main(): Promise<number> {
   // the process, so it cannot carry a leak conclusion — measured: an 18.2M-element array live gave
   // rss=499MB/heapUsed=470MB, and after a working-set trim rss=5MB with heapUsed UNCHANGED at 470MB
   // and the array still fully live. The 150MB budget is carried over unchanged from the RSS check.
-  check(
+  checkTrend(
     "Node (Specter) HEAP floor did not rise (< 150MB)",
+    heapTrend.samples,
     rssFloorWithinBudget(heapTrend, 150),
     `floor ${heapTrend.floorStartMb}→${heapTrend.floorEndMb}MB (rise=${heapTrend.floorRiseMb}MB) · ` +
       `slope=${heapTrend.slopeMbPerSample}MB/sample (${heapTrend.slopeTotalMb}MB) · ` +
@@ -343,8 +374,9 @@ async function main(): Promise<number> {
     `  · Node RSS (diagnostic, OS-trimmed — NOT a verdict): floor ${nodeTrend.floorStartMb}→${nodeTrend.floorEndMb}MB ` +
       `(rise=${nodeTrend.floorRiseMb}MB) · slope=${nodeTrend.slopeTotalMb}MB · endpointDelta=${nodeTrend.endpointDeltaMb}MB · peak=${nodeTrend.peakMb}MB`
   );
-  check(
+  checkTrend(
     "bridge (Java) RSS floor did not rise (< 200MB)",
+    bridgeTrend.samples,
     rssFloorWithinBudget(bridgeTrend, 200),
     `floor ${bridgeTrend.floorStartMb}→${bridgeTrend.floorEndMb}MB (rise=${bridgeTrend.floorRiseMb}MB) · ` +
       `slope=${bridgeTrend.slopeMbPerSample}MB/sample · endpointDelta=${bridgeTrend.endpointDeltaMb}MB · ` +
@@ -354,7 +386,14 @@ async function main(): Promise<number> {
   check("teardown: no orphan Java (bridge stopped)", manager.isRunning() === false);
   check("no pool metrics (connections are per-query)", artifact.connections.poolMetrics === null);
   console.log(`\n  → redacted artifact: ${outPath}`);
-  console.log(`\n${passed} passed, ${failed} failed`);
+  console.log(`\n${passed} passed, ${failed} failed${notRun ? `, ${notRun} NOT RUN` : ""}`);
+  if (!isGateRun) {
+    console.log(
+      `\n  !! SMOKE RUN (${SOAK_MINUTES} min < ${RELEASE_GATE_MINUTES} min). This is NOT the release gate:\n` +
+        `     the canonical reports/oracle-validation/oracle-soak.json was NOT written, and the\n` +
+        `     result above must not be cited as soak evidence.`
+    );
+  }
   return failed === 0 ? 0 : 1;
 }
 

@@ -562,9 +562,20 @@ and heap cannot be trimmed — but cause 1 was the dominant one. Cause 2 explain
 reconciled, not why the gate broke. No peak ceiling was added: with the harness fixed there is
 nothing left to ceiling.
 
-**Still open (`awkit-1ts`, P3):** `oracle-soak.json` is overwritten by *any* run, so a short smoke run
-silently replaces the release evidence — and a run with fewer than two samples passes the memory
-invariants trivially. Same class as HARNESS-008.
+**`awkit-1ts` — RESOLVED.** The soak artifact was overwritten by a run of *any* length, so a smoke run
+silently replaced the release evidence (this happened on 2026-07-26 and was caught by chance, not by a
+guard), and a run with fewer than two samples passed the memory invariants trivially. Two guards now:
+
+- only `AWKIT_ORACLE_SOAK_MINUTES >= 30` writes the canonical `oracle-soak.json`; a shorter run writes
+  `oracle-soak-SHORT-<n>min.json` and prints *"This is NOT the release gate … must not be cited as
+  soak evidence"*;
+- `checkTrend()` reports the memory invariants as **NOT RUN**, not passed, below two samples — a trend
+  is undefined there, not satisfied.
+
+Verified with a real 1-minute run: tally `7 passed, 0 failed, 2 NOT RUN` (previously `9 passed, 0
+failed`), artifact routed to the SHORT path, and the canonical file left **byte-identical**
+(md5 unchanged, still `durationMinutes 30.01` / 23,458,521 queries). `reports/` is gitignored, so this
+artifact is local evidence only.
 
 The full series is now written to `reports/oracle-validation/oracle-soak.json`
 (`memory.nodeRssSeriesMb`), so any of this can be re-analysed without another 30-minute run.

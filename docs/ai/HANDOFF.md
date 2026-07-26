@@ -25,10 +25,11 @@ hand-edited.
   and re-sorted the whole array every 60 s. Fixed with a histogram (0 MB at 18.2M samples) and the
   verdict moved from RSS to `heapUsed`. Full soak **9 PASS / 0 FAIL**; peak RSS **2472 → 80 MB**,
   throughput **+34 %**, max latency **36,727 → 4,681 ms**.
-- **`awkit-1ts`** (new, P3) — `reports/oracle-validation/oracle-soak.json` is overwritten by a run of
-  *any* length, so a smoke run silently replaces the 30-minute release evidence (this happened on
-  2026-07-26 and was caught by chance). A run with fewer than two samples also passes the memory
-  invariants **trivially**, since a trend needs two points. Same class as HARNESS-008.
+- ~~**`awkit-1ts`** — the soak artifact is overwritten by a run of any length.~~ **CLOSED**: only a
+  run of >= 30 min writes the canonical `oracle-soak.json`; a shorter one writes
+  `oracle-soak-SHORT-<n>min.json`, prints a "NOT the release gate" banner, and reports the memory
+  invariants as **NOT RUN** rather than passed. Verified with a 1-minute run that left the canonical
+  artifact byte-identical.
 - **41 of 66** focused cases remain `NOT RUN` (Recorder 18, Reports 11, Settings 12).
 - **`ORA-LIVE-001`** (`awkit-7bu`) — blocked on an authorized operator *and* still has no real-mode
   code path in `verify-oracle-mock-ui-workflow.mts`.
