@@ -1,6 +1,63 @@
 # CURRENT_STATE
 
-## Reports/Settings residual submatrices — 6 cases, 2 defects (2026-07-27, current)
+## Settings residual submatrices — 5 more cases, `AWKIT-SET-005` (2026-07-27, current)
+
+Continuation of Phase 4 across the Settings surface. **`verify:settings-e2e` 128 → 151.** Ledger
+**47 → 51 PASS / 18 → 14 NOT RUN / 1 BLOCKED** (Recorder 25/3/1, Reports 9/7, Settings 17/4).
+Closed: SET-007, SET-008, SET-017, SET-020 — and SET-015's unreadable-store half.
+
+**`AWKIT-SET-005` — a read-only artifact folder was labelled "writable".** `checkPath` decided
+writability with `access(path, W_OK)`, which is not a usable test for a *directory* on Windows: Node
+does not consult the directory ACL, so a folder the user has been denied write access to reports
+writable while a real write fails `EPERM`. These seven paths are where run artifacts land, so a wrong
+label is worse than none — the operator picks the folder, Settings confirms it, and every screenshot,
+log and report write fails later with nothing having warned them. Same class as `AWKIT-SET-003`, which
+fixed the `isDirectory` half of this exact function and left the writability half intact.
+**The correct pattern already existed in the repo** — `OfflineRuntimeValidator.canWrite` does a real
+write probe. `checkPath` now does the same, with the probe file removed in a `finally`.
+
+**Two fixture premises had to be measured rather than reasoned about, and both were wrong first.**
+
+- **The ACL mask matters.** Denying the whole `W` right also blocks `stat`, so the directory reads as
+  *missing* rather than read-only and the case under test is never exercised — the first run failed
+  for the wrong reason and would have been easy to misread as the defect. `WD,AD` leaves
+  `exists`/`isDirectory`/`readdir` intact while making a real write fail.
+- **`JSON.stringify` equality on the settings document compares key ORDER.** `hydrate()` produces a
+  different order across a restart, so a whole-document comparison reported a difference where the
+  values were identical. The check is now per key and *names* the differing ones, which is what
+  distinguishes a volatile key (`app.lastLaunchedAt`, `lastRouteId`) from a value that genuinely
+  failed to persist.
+
+**What the new checks are actually for, in each case:**
+
+- **SET-017** — every prior assertion proved the import took effect in the *live* process. An import
+  that updated only in-memory state would have satisfied all of them and silently reverted on next
+  launch. The restart round-trip is the half that mattered.
+- **SET-020** — a passing bundle proves the action *runs*, not that it can **detect** anything; a
+  validator hard-wired to report success would have satisfied the old check perfectly. A genuinely
+  unwritable runtime folder now flips exactly one named check, and restoring it clears the failure,
+  so the result is an observation of current state rather than a latched flag.
+- **SET-008** — designer propagation is driven at **two** zoom values (75 % and 150 %), because one
+  would match by coincidence against the 100 % default. `flowDesignerZoomPercent` is cleared first,
+  or the assertion reads the saved per-designer zoom and passes regardless of the Setting.
+- **SET-015** — an unreadable store degrades to `0` while the other three keep reporting truthfully
+  (a rejection that escaped would take all four down together), and restoring access returns the
+  count, so the `0` is demonstrably a degradation and not a loss.
+
+**The folder picker is stubbed in the MAIN process**, so the real `system:browseFolder` handler, its
+`SETTINGS_EDIT` check and the renderer's "null means leave it alone" branch all stay under test.
+Stubbing at the preload level would have skipped all three. Both branches are asserted — "unchanged
+after cancel" alone is equally satisfied by a Browse button that does nothing.
+
+Every ACL denial is registered and restored in a `finally`, and each restoration is a reported check.
+
+**Still open in Settings (4):** SET-004's mid-session half (fixture exists, `verify:settings-e2e` does
+not spawn the mock site); SET-009's runner-behaviour proof (needs a bounded real run, and owns the
+new-run-form half of SET-008's propagation); SET-013's unavailable secret store (needs
+`safeStorage.isEncryptionAvailable()` false, which has no injection seam from outside the main
+process); SET-015's real OS folder launch (recorded manual check).
+
+## Reports/Settings residual submatrices — 6 cases, 2 defects (2026-07-27)
 
 Phase 4 of the campaign. **`verify:reports-populated-gui` 74 → 136**, **`verify:settings-e2e`
 116 → 128**, **`verify:recorder-gui` 90 → 100**. Ledger **43 → 47 PASS**, **22 → 18 NOT RUN**

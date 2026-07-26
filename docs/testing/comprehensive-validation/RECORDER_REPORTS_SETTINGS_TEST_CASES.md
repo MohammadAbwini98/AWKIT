@@ -775,8 +775,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   above maxima; concurrency above runs; valid boundaries.
 - **Expected:** Invalid combinations show all actionable errors and do not persist; main-process
   validation rejects direct invalid IPC; valid boundaries save and appear in new designer/run forms.
-- **Status:** `NOT RUN` for new-designer/new-run propagation only. **The valid boundary matrix is now
-  executed** in `verify:settings-e2e` (**128/128**): zoom `25` and `200` (the inclusive edges), node
+- **Status:** `NOT RUN` for the new-**run**-form half of propagation only, which is scoped to SET-009
+  and not counted twice here. **New-designer propagation is now executed**: two different zoom
+  defaults (75 % and 150 %) are driven through a freshly opened Flow Designer and read back from the
+  visible zoom control. Two values, because one would match by coincidence — the default is 100 %.
+  The per-designer `flowDesignerZoomPercent` is cleared first, or the assertion would silently read
+  the saved per-designer zoom and pass regardless of the Setting. **The valid boundary matrix is also
+  executed** in `verify:settings-e2e` (**151/151**): zoom `25` and `200` (the inclusive edges), node
   width `1`, `maxRuns` `1`, `defaultRuns === maxRuns` and `maxConcurrentRuns === maxRuns` are each
   accepted *and* read back persisted. This is the half that was missing — rejecting `24` and `201`
   proves only that something is refused out there, and is equally satisfied by a rule that wrongly
@@ -979,7 +984,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
     SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
     SYS-REP-006's artifact launch.
-- **Settings:** **16 PASS / 5 NOT RUN**, with `verify:settings-e2e` at **149/149** — page/IPC
+- **Settings:** **16 PASS / 5 NOT RUN**, with `verify:settings-e2e` at **151/151** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
   including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,
   counts and unreadable-store recovery, the complete UI-state/reset data-preservation inventory (now
@@ -989,7 +994,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   The five remaining cases are open for a *named* residual subcase each:
   - **SET-004** — the mid-session half. Its fixture now exists (`/recorder-lab?rec013=1`) but
     `verify:settings-e2e` does not spawn the mock site. Cheapest remaining case.
-  - **SET-008** — propagation of designer defaults into a newly opened designer.
+  - **SET-008** — the new-**run-form** half of propagation only; the designer half is executed.
   - **SET-009** — runner *behaviour* proof (headed/headless, screenshot-on-failure, stop-on-error);
     persistence already passes, this needs a bounded real run.
   - **SET-013** — an unavailable secret store. Requires `safeStorage.isEncryptionAvailable()` to be

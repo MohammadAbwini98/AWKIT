@@ -1,20 +1,26 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): Phase 4 — Reports/Settings submatrices, ledger 47/18/1
+## ACTIVE (2026-07-27, latest): Phase 4 — Reports/Settings submatrices, ledger 51/14/1
 
-`verify:reports-populated-gui` **74 → 136**, `verify:settings-e2e` **116 → 128**,
-`verify:recorder-gui` **90 → 100**. Combined ledger **47 PASS / 18 NOT RUN / 1 BLOCKED**
-(Recorder 25/3/1, Reports 9/7, Settings 13/8), counted from the case file rather than from assertion
-totals. Two product defects found and fixed: `AWKIT-REP-004` (Reports drawer had no keyboard
-contract) and `AWKIT-REP-005` (recovered anomalies were dropped). Full detail in `CURRENT_STATE.md`
-and `DEFECTS.md`.
+`verify:reports-populated-gui` **74 → 136**, `verify:settings-e2e` **116 → 151**,
+`verify:recorder-gui` **90 → 100**. Combined ledger **51 PASS / 14 NOT RUN / 1 BLOCKED**
+(Recorder 25/3/1, Reports 9/7, Settings 17/4), counted from the case file rather than from assertion
+totals. Three product defects found and fixed: `AWKIT-REP-004` (Reports drawer had no keyboard
+contract), `AWKIT-REP-005` (recovered anomalies were dropped) and `AWKIT-SET-005` (a read-only
+artifact folder was labelled writable). Full detail in `CURRENT_STATE.md` and `DEFECTS.md`.
 
 ### Read this before adding checks here
 
-Three assertions in this area were **wrong in the passing direction** until they were executed:
-a focus check `<body>` would have satisfied, a sort check an arbitrary ordering would have satisfied,
-and a button label ("Cancel") that had simply been guessed — the real one is "Keep editing". Two are
-now negative-controlled and one is value-checked. Run a new check before citing it.
+Assertions in this area keep being **wrong in the passing direction** until executed: a focus check
+`<body>` would have satisfied, a sort check an arbitrary ordering would have satisfied, a button
+label ("Cancel") that had simply been guessed — the real one is "Keep editing" — and a whole-document
+`JSON.stringify` comparison that was really comparing key *order*. All are now negative-controlled or
+value-checked. Run a new check before citing it.
+
+**Fixture premises need measuring too, not just product behaviour.** Two were wrong on first attempt
+this round: denying the whole `W` right on a directory also blocks `stat`, so it reads as *missing*
+rather than read-only and the case under test never runs (use `WD,AD`); and `access(dir, W_OK)` does
+not consult the directory ACL on Windows at all, which is the defect `AWKIT-SET-005` itself.
 
 ### Still open here, with causes
 
@@ -27,10 +33,13 @@ now negative-controlled and one is value-checked. Run a new check before citing 
   `{attempts:[],artifacts:[]}` for an unknown id, indistinguishable from a retained run with no
   attempts.
 - **Owner-decision manual.** SYS-REP-008's real Explorer launch; SET-015's real folder launch.
+- **No injection seam.** SET-013's unavailable secret store needs
+  `safeStorage.isEncryptionAvailable()` to return false, which cannot be forced from outside the main
+  process.
 - **Straightforward remaining work.** SYS-REP-009 low-sample flakiness and evidence navigation,
   SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, SYS-REP-006's
-  artifact launch, SET-007, SET-008's new-designer propagation, SET-009, SET-013's unavailable store,
-  SET-015's unreadable store, SET-017, SET-020.
+  artifact launch, and SET-009's runner-behaviour proof (which also owns the new-run-form half of
+  SET-008's propagation).
 - **SET-004's mid-session half now has its fixture** (`/recorder-lab?rec013=1`) but is not yet wired
   into `verify:settings-e2e`, which does not currently spawn the mock site. That is the cheapest
   remaining case.

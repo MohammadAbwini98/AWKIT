@@ -4,7 +4,43 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Phase 4: Reports/Settings residual submatrices (Claude)
+## 2026-07-27 (latest) - Phase 4 cont.: the remaining Settings cases (Claude)
+
+**Task:** continue Phase 4 across the Settings surface — the eight cases still `NOT RUN`.
+
+**Delivered:** `verify:settings-e2e` **128 → 151**. Ledger **47 → 51 PASS / 18 → 14 NOT RUN /
+1 BLOCKED** (Settings 13 → 17 PASS). Closed SET-007, SET-008, SET-017, SET-020, plus SET-015's
+unreadable-store half.
+
+**One product defect: `AWKIT-SET-005`.** `checkPath` labelled an ACL-denied directory "writable"
+because `access(dir, W_OK)` does not consult the directory ACL on Windows. These paths are where run
+artifacts land, so the operator would have been told a folder was fine and had every artifact write
+fail later. Fixed with a real write probe — the pattern `OfflineRuntimeValidator.canWrite` already
+used.
+
+**Two fixture premises were measured, and both were wrong on the first attempt:** denying the whole
+`W` right also blocks `stat` (the directory reads as *missing*, not read-only, so the case is never
+exercised), and `JSON.stringify` equality on the settings document compares key *order*, which
+`hydrate()` changes across a restart.
+
+**Files:** `app/main/ipc/settings.ipc.ts`, `scripts/verify-settings-e2e.mts`,
+`docs/testing/comprehensive-validation/{DEFECTS,RECORDER_REPORTS_SETTINGS_TEST_CASES,EXECUTION_RESULTS}.md`,
+`docs/ai/{CURRENT_STATE,TASK_LOG,HANDOFF}.md`.
+
+**Tests run:** build ✓, `typecheck:scripts` ✓, settings-e2e **151/151**, settings-persistence 3/3,
+capacity-settings-gui 12/12, reports-settings-a11y 14/14, flow-designer 56/56.
+
+**Not run:** `package:portable` + `verify:packaged-walkthrough` (this round changed `app/main`, so the
+recorded 70/70 is still not citable), `validate:offline`, `verify:runner`, clean-machine.
+
+**Remaining in Settings (4):** SET-004 mid-session (fixture exists, verifier does not spawn the mock
+site), SET-009 runner behaviour (needs a bounded real run; also owns the new-run-form half of
+SET-008), SET-013 unavailable secret store (no injection seam for
+`safeStorage.isEncryptionAvailable()`), SET-015 real OS folder launch (manual).
+
+---
+
+## 2026-07-27 - Phase 4: Reports/Settings residual submatrices (Claude)
 
 **Task:** Phase 4 — resume the interrupted Reports/Settings submatrix work, then close what is
 closable across both surfaces plus the shared Recorder fixture.

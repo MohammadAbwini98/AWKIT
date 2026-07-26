@@ -954,9 +954,13 @@ try {
     `${JSON.stringify(afterImportRestart.execution)} vs ${JSON.stringify(beforeImportRestart.execution)}`
   );
   // Every top-level key is compared and the differing ones are NAMED, so a legitimately-volatile key
-  // (launch timestamp, last route) is distinguishable from a substantive value that failed to
-  // persist. `app` carries `lastLaunchedAt` and is expected to differ by construction.
-  const volatileKeys = new Set(["app"]);
+  // is distinguishable from a substantive value that failed to persist. Two keys are volatile by
+  // construction and are excluded deliberately, not because they were inconvenient:
+  //   - `app` carries `lastLaunchedAt`, which a restart must change.
+  //   - `lastRouteId` records where the user last was, and reopening Settings after the restart is
+  //     itself a navigation. It is UI state — the same key `clearUiState` resets — and is no part of
+  //     what an import promises to round-trip.
+  const volatileKeys = new Set(["app", "lastRouteId"]);
   const changedKeys = Object.keys(beforeImportRestart)
     .filter((key) => !volatileKeys.has(key))
     .filter((key) => {
@@ -1156,6 +1160,31 @@ try {
     recoveredStatus.internetRequired === false && recoveredStatus.runtimeDownloadsAllowed === false,
     JSON.stringify({ internetRequired: recoveredStatus.internetRequired, runtimeDownloadsAllowed: recoveredStatus.runtimeDownloadsAllowed })
   );
+
+  // SET-008 — designer defaults must reach a NEWLY OPENED designer, not just the settings file.
+  // FlowChartDesigner only falls back to `designerDefaults.defaultZoomPercent` when the per-designer
+  // `flowDesignerZoomPercent` is 0, so that is cleared first; otherwise this would silently assert
+  // the saved per-designer zoom and pass regardless of the Setting.
+  //
+  // Two different values are driven through, because a single value can match by coincidence — the
+  // default happens to be 100, and "the designer opened at 100%" proves nothing about propagation.
+  for (const zoomPercent of [75, 150]) {
+    await win.evaluate((percent: number) =>
+      window.playwrightFlowStudio.settings.update({
+        flowDesignerZoomPercent: 0,
+        designerDefaults: { defaultZoomPercent: percent }
+      }), zoomPercent);
+    await navClick(win, "Flow Designer");
+    await win.waitForSelector(".canvas-zoom-control", { timeout: 20_000 });
+    await win.waitForTimeout(800);
+    const shownZoom = (await win.locator(".canvas-zoom-button.zoom-value").innerText()).trim();
+    check(
+      `SET-008 a newly opened designer adopts the configured ${zoomPercent}% default zoom`,
+      shownZoom === `${zoomPercent}%`,
+      `${shownZoom} vs ${zoomPercent}%`
+    );
+    await openSettings(win);
+  }
 
   // Narrow/zoom smoke. This is a concrete overflow check, not a full manual accessibility audit.
   const browserWindow = await app.browserWindow(win);
