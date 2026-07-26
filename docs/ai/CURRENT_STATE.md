@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Phase 2 — Oracle local gates all green; two doc defects withdrawn (2026-07-26, current)
+## REC-018 capture harness built and proven; Electron verifier still to come (2026-07-26, current)
+
+`/recorder-lab?rec018=1` now self-drives the basic form so the REC-018 journey can be recorded without
+a human at the keyboard. Bead `awkit-gi2` carries the full design for the remaining verifier.
+
+**The design point that matters.** The harness is double-gated on `?rec018=1` **and**
+`window.__awtkit_recordAction` — the binding `RecorderService` exposes only while a recording session
+is attached. Gate 2 is what will keep the eventual replay assertion honest: during a production
+`ExecutionEngine` replay there is no Recorder and no binding, so the harness stays inert and the form
+can only be filled by the replayed steps. Without it the fixture would fill its own form during replay
+and REC-018 would pass while proving nothing.
+
+Events are dispatched with `dispatchEvent`; the Recorder's init script listens via `addEventListener`
+and does not filter on `isTrusted` (`src/recorder/recorderInitScript.ts` ~1090), so they are captured
+like user-generated events. Bounded and deterministic: 5 steps, 400 ms + 200 ms each.
+
+**Verified:** `verify:mock-site` **88/88** (was 84 — all three harness branches asserted, including
+the inert one), `verify:recorder` 78/0 unaffected, `verify:recorder-draft` pass, `npm run build` pass,
+`check-memory` pass.
+
+**Still NOT RUN — REC-018 itself.** `scripts/verify-recorder-e2e.mjs` does not exist yet; the fixture
+is a prerequisite, not the gate. Recorder remains uncertified.
+
+## Phase 2 — Oracle local gates all green; two doc defects withdrawn (2026-07-26)
 
 Every Oracle gate not needing a live database was re-run at `94c858e`: **13 non-GUI verifiers
 350/0**, `verify:oracle-mock-ui` 36/0, `verify:oracle-drivers-gui` **30/30**,

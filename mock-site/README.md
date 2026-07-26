@@ -24,6 +24,7 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
 | `/smart-waits` | Smart Wait Engine, Runner timing, Recorder wait capture | Element appears/disappears, text changes, button enables, loader/content, delayed navigation, modal, toast, delayed API response, sequential waits, intentional failure context, and fast no-wait scenario. |
 | `/async-results` | Async completion policies, response status handling, empty-result contracts | Loader plus exactly one outcome per action: three invoice rows (`data-testid="results-table"`, rows in `tbody`), a **valid empty result** (HTTP 200, zero rows → table hidden, `data-testid="empty-state"` visible), or a selectable HTTP error (`data-testid="error-banner"`). Controls: `load-populated`, `load-empty`, `load-error`, `error-code`, `results-delay-ms`, `reset-async-results`. Use it to prove an error status is reported as a status failure rather than a wait timeout, and that an empty result only counts as success when an empty outcome is explicitly configured. |
 | `/recorder-lab` | Recorder, locator engine, saved URL history | Accessible form controls, manual pause/countdown, reusable local URLs, linear Start/End flow, dynamic DOM with stable selectors, and a **non-unique controls** scenario (`data-testid="duplicate-controls"`): two package cards share a checkbox accessible name (`0796713928`) and a `Select package` button, plus a customer table repeating an `Edit` button per row — the Recorder must disambiguate with a compound selector or by scoping to the stable container (`package-basic`/`package-pro`/row text). |
+| `/recorder-lab?rec018=1` | REC-018 record → save → replay gate | **Capture harness.** Self-drives the basic form so the Recorder has real DOM events to capture without a human, then goes inert during replay. Double-gated on the query param **and** `window.__awtkit_recordAction`, so it never affects other recordings and never fills the form during a production replay. Status: `data-testid="rec018-status"`. See "Using it with Recorder" below. |
 | `/designer-lab` | Flow Designer, Workflow Builder, Instance Monitor | Canvas-like area with Start/Action/End, contextual edge/leaf picker and selection-drawer contract, workflow cards grid, stable named flows/workflows, an execution-grouped workflow run summary that opens a three-instance detail modal, and Smart Wait scenario data examples. |
 | `/mock/popup/` | Multi-Window / Popup Flow Handling | Index of 9 popup scenarios: target blank, window.open, auto-close, stays-open, multiple popups, failure cases, smart-wait popup, reversed order, and script/timer identity. |
 | `/popup/reversed-order.html` | Deterministic page identity (FR-C1.5) | Opens two distinguishable popups — alpha (`/popup/reversed-popup-alpha.html`) and beta (`/popup/reversed-popup-beta.html`) — in **either** order (`open-alpha-first-button`, `open-beta-first-button`, plus single-open and `close-all-button`). Each popup's identity comes from its own stable path, so both orders must resolve to the same two aliases. A positional `popup-N` counter swaps them; an identity-derived alias must not. Status text: `data-testid="order-status"`. |
@@ -51,6 +52,32 @@ Open `http://localhost:4321/`. Change the port with `MOCK_SITE_PORT`.
    saved URL reuse, dynamic DOM, and Start -> actions -> End flow validation.
 3. Record `http://localhost:4321/smart-waits` for Smart Wait observation signals.
 4. Record `http://localhost:4321/login` -> `/form` for the existing core login/form flow.
+5. Record `http://localhost:4321/recorder-lab?rec018=1` for the **REC-018 capture harness** (below).
+
+### REC-018 capture harness (`/recorder-lab?rec018=1`)
+
+Lets the REC-018 release gate — Recorder page -> launched browser -> recorded actions -> Stop -> Save
+-> reopen -> production replay — run without a human at the keyboard. On load the page fills the basic
+form (`Rec018 Operator`, `rec018@example.test`, plan `Enterprise`, newsletter checked) and clicks
+**Save recorder form**, so `recorder-form-result` reads `Recorder form saved for Rec018 Operator`.
+Events are dispatched with `dispatchEvent`; the Recorder's init script listens via `addEventListener`
+and does not filter on `isTrusted`, so they are captured exactly like user-generated events. Bounded
+and deterministic: five steps at 400 ms + 200 ms each, ~1.2 s total.
+
+It fires only when **both** gates are open:
+
+1. the URL carries `?rec018=1` — so every other `/recorder-lab` recording is unaffected; and
+2. `window.__awtkit_recordAction` exists — the binding `RecorderService` exposes, present **only**
+   while a recording session is attached.
+
+Gate 2 is what keeps the REC-018 replay assertion honest. During a production `ExecutionEngine` replay
+there is no Recorder and therefore no binding, so the harness stays inert and the form can only be
+filled by the replayed steps themselves. Without it the fixture would fill its own form during replay
+and the gate would pass while proving nothing.
+
+Observable state via `data-testid="rec018-status"`: `REC-018 harness idle` (no query gate) ->
+`REC-018 harness inert (no recorder attached)` (gate 1 only) -> `REC-018 harness armed` ->
+`REC-018 harness completed`. All three branches are asserted by `npm run verify:mock-site`.
 
 ## Using it with Flow Designer / Workflow Builder
 

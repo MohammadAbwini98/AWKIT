@@ -47,6 +47,7 @@
           </div>
           <p id="recorderFormResult" data-testid="recorder-form-result" role="status">Recorder form idle</p>
         </form>
+        <p id="rec018Status" data-testid="rec018-status" role="status">REC-018 harness idle</p>
       </section>
 
       <section data-testid="recorder-wait-time">
@@ -178,6 +179,67 @@
           $("duplicateResult").textContent = "Edit clicked for: " + (cell ? cell.textContent : "unknown");
         });
       });
+
+      // ── REC-018 capture harness ──────────────────────────────────────────────────────────────
+      // Drives the basic form so the Recorder has real DOM events to capture without a human at
+      // the keyboard. The Recorder's init script listens with addEventListener and does NOT filter
+      // on event.isTrusted, so these are captured exactly like user-generated events.
+      //
+      // It fires only when BOTH gates are open:
+      //   1. the URL carries ?rec018=1 — so every other /recorder-lab recording is unaffected; and
+      //   2. window.__awtkit_recordAction exists — the binding RecorderService exposes, which is
+      //      present ONLY while a recording session is attached to the page.
+      //
+      // Gate 2 is what keeps the REC-018 replay assertion honest. During a production
+      // ExecutionEngine replay there is no Recorder and therefore no binding, so this block stays
+      // inert and the form can only be filled by the replayed steps themselves. Without it the
+      // fixture would fill its own form during replay and the gate would pass while proving nothing.
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("rec018") !== "1") return;
+        var status = $("rec018Status");
+        if (typeof window.__awtkit_recordAction !== "function") {
+          status.textContent = "REC-018 harness inert (no recorder attached)";
+          return;
+        }
+        status.textContent = "REC-018 harness armed";
+        var fire = function (el, type) {
+          el.dispatchEvent(new Event(type, { bubbles: true }));
+        };
+        var steps = [
+          function () {
+            var el = $("recorderFullName");
+            el.value = "Rec018 Operator";
+            fire(el, "input");
+            fire(el, "change");
+          },
+          function () {
+            var el = $("recorderEmail");
+            el.value = "rec018@example.test";
+            fire(el, "input");
+            fire(el, "change");
+          },
+          function () {
+            var el = $("recorderPlan");
+            el.value = "Enterprise";
+            fire(el, "change");
+          },
+          function () {
+            var el = $("recorderNewsletter");
+            el.checked = true;
+            fire(el, "change");
+          },
+          function () {
+            $("recorderSubmit").click();
+            status.textContent = "REC-018 harness completed";
+          }
+        ];
+        // Bounded, deterministic stagger: enough separation for the Recorder to attribute each
+        // action, with a fixed total (~1.2 s) so the verifier can wait on a known upper bound.
+        steps.forEach(function (step, index) {
+          window.setTimeout(step, 400 + index * 200);
+        });
+      })();
     </script>
   </body>
 </html>

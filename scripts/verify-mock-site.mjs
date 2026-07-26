@@ -123,6 +123,38 @@ try {
   check("container-scoped checkbox targets the Basic card", ((await page.getByTestId("duplicate-result").textContent()) ?? "").includes("package-basic"));
   check("customer table repeats Edit per row", (await page.locator("[data-testid='duplicate-customer-table'] .row-edit").count()) === 2);
 
+  // REC-018 capture harness. Both gates must hold, and the SECOND one is what keeps the REC-018
+  // replay assertion honest: with ?rec018=1 but no Recorder attached the harness must stay inert,
+  // so a production replay of the saved flow can only fill the form via the replayed steps.
+  check(
+    "REC-018 harness is idle without the query gate",
+    ((await page.getByTestId("rec018-status").textContent()) ?? "").includes("idle")
+  );
+  await page.goto(`${BASE}/recorder-lab?rec018=1`);
+  await page.waitForTimeout(1400);
+  check(
+    "REC-018 harness stays INERT when no recorder binding is present",
+    ((await page.getByTestId("rec018-status").textContent()) ?? "").includes("inert")
+  );
+  check(
+    "REC-018 harness does not touch the form without a recorder",
+    (await page.inputValue("#recorderFullName")) === "" &&
+      ((await page.getByTestId("recorder-form-result").textContent()) ?? "").includes("idle")
+  );
+  // Positive control: with the binding the Recorder exposes, the harness must drive the form.
+  await page.addInitScript(() => {
+    window.__awtkit_recordAction = () => {};
+  });
+  await page.goto(`${BASE}/recorder-lab?rec018=1`);
+  await page.waitForTimeout(2000);
+  check(
+    "REC-018 harness drives the form once a recorder binding exists",
+    (await page.inputValue("#recorderFullName")) === "Rec018 Operator" &&
+      (await page.inputValue("#recorderPlan")) === "Enterprise" &&
+      (await page.isChecked("#recorderNewsletter")) &&
+      ((await page.getByTestId("recorder-form-result").textContent()) ?? "").includes("Recorder form saved for Rec018 Operator")
+  );
+
   console.log("Designer scenarios:");
   await page.goto(`${BASE}/designer-lab`);
   check("designer page has canvas region", await page.getByRole("region", { name: "Mock designer canvas" }).isVisible());
