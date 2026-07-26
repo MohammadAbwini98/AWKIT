@@ -127,6 +127,7 @@
 
     <script>
       var $ = function (id) { return document.getElementById(id); };
+
       $("recorderSubmit").addEventListener("click", function () {
         $("recorderFormResult").textContent = "Recorder form saved for " + $("recorderFullName").value;
         // REC-018's resettable server-side oracle proves the production replay reproduced the
@@ -258,6 +259,7 @@
           window.setTimeout(step, 400 + index * 200);
         });
       })();
+
     </script>
   </body>
 </html>

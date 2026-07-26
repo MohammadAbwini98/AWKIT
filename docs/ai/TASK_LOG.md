@@ -4,7 +4,43 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - SYS-REP-015: refusals were not recorded (Claude)
+## 2026-07-26 (latest) - REC-007: a word boundary was leaking secrets (Claude)
+
+**Task:** close REC-007, whose unexecuted part was draft/flow/log/report canary scanning.
+
+**Found a real leak — `AWKIT-REC-002` (S2).** `SENSITIVE_FIELD_PATTERN` contains `\btoken\b` and
+`\bsecret\b` and reads as correct. But `\b` needs a **non-word** character before the term, and both
+dominant naming conventions supply a word one: `apiToken` (camelCase) and `api_token` (`_` is a word
+character). Measured exempt: `apiToken`, `accessToken`, `refreshToken`, `api_token`, `clientSecret`,
+`client_secret`, `devicePin`, `userSsn`, `cardCvv` — written verbatim into saved flows. The hole hit
+every `\b`-anchored term, not just tokens; hyphenated names worked only because `-` isn't a word char.
+
+Fixed by normalizing the haystack (split camelCase, `_` → space) rather than dropping the anchors —
+dropping them redacts `shipping` and `tokenizer_label`, and over-redaction silently discards values
+the user needs. Both directions asserted.
+
+**Two things this cost, worth remembering:**
+
+1. **Extending the shared `/recorder-lab` broke REC-018.** Adding password/OTP inputs made the whole
+   page read as a protected login surface, so the detector paused every recording on it — including
+   REC-018's, which went 41/41 → fail. Moved to a dedicated `/recorder-sensitive` page. "Prefer
+   extending an existing page" stops applying when the addition changes the page's security
+   character.
+2. **I misread the same evidence twice.** `isRecording:false, actionCount:1` was the detector
+   pausing; a later run showed `isRecording:true` and I concluded the detector had stopped firing —
+   it was just a timing race against an 8 s settle. The fix was to assert the handoff phase
+   (`handoff.phase="detected"`) instead of inferring from a status flag read at one instant.
+
+**Tests run:** `verify:recorder-redaction` **15/15** (new) · `verify:recorder` **97/97** (was 78) ·
+`verify:recorder-e2e` 41/41 · `verify:recorder-draft` 17/17 · `verify:recorder-flow` 19/19 ·
+`verify:protected-login-recorder` 45/45 · `verify:mock-site` 90/90 ·
+`verify:verifier-classification` reconciled · `build` PASS.
+
+**Ledger: 37 → 36 `NOT RUN`.** Recorder 11 → 12 PASS. **Phase 1 (security/P0) is complete.**
+
+---
+
+## 2026-07-26 - SYS-REP-015: refusals were not recorded (Claude)
 
 **Task:** close SYS-REP-015, whose only remaining subcase was "denied attempts are audited".
 

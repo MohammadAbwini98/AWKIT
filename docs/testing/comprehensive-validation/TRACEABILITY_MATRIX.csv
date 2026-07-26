@@ -59,7 +59,8 @@ Offline,Clean Windows VM certification,Human release gate,External environment,N
 Browser,Firefox/WebKit certification,None,Product scope,NOT RUN,Chromium-first project
 Recorder,Page idle/start/stop/cancel lifecycle,REC-001 through REC-004,Electron GUI + RecorderService,NOT RUN,No full Recorder-page verifier
 Recorder,Core action capture,REC-005,Real Chromium,PASS,verify:recorder 78/78
-Recorder,Live compaction and end-to-end redaction,REC-006 through REC-007,RecorderService + artifacts,NOT RUN,Component capture/redaction assertions passed
+Recorder,Live compaction,REC-006,RecorderService,NOT RUN,Component capture assertions passed; service-level compaction not exercised
+Recorder,End-to-end redaction,REC-007,Real Electron + Chromium + production engine,PASS,verify:recorder-redaction 15/15; AWKIT-REC-002 found and fixed (camelCase/snake_case secret names bypassed redaction)
 Recorder,Semantic locator safety,REC-008 through REC-009,Real Chromium + runner,PASS,verify:recorder 78/78
 Recorder,Fixed wait complete boundaries,REC-010,RecorderService,NOT RUN,Meaningful/sub-threshold/off checks passed
 Recorder,Smart Wait and async review,REC-011 through REC-012,Real Chromium + policy,PASS,verify:recorder 78/78; async review 21/21

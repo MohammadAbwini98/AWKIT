@@ -207,6 +207,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/details") return serveStatic(res, "details.html");
   if (req.method === "GET" && path === "/smart-waits") return serveStatic(res, "smart-waits.html");
   if (req.method === "GET" && path === "/recorder-lab") return serveStatic(res, "recorder-lab.html");
+  if (req.method === "GET" && path === "/recorder-sensitive") return serveStatic(res, "recorder-sensitive.html");
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
   if (req.method === "GET" && path === "/async-results") return serveStatic(res, "async-results.html");
   // ── Multi-Window / Popup Lab ───────────────────────────────────────────────
@@ -268,6 +269,20 @@ const server = createServer(async (req, res) => {
     rec018Submissions.push(submission);
     if (rec018Submissions.length > 20) rec018Submissions = rec018Submissions.slice(-20);
     return sendJson(res, { ok: true, count: rec018Submissions.length, latest: submission });
+  }
+
+  // REC-007 — accepts a secret-shaped POST so the Recorder's network observer has a real signal to
+  // classify. The values are COUNTED and discarded: nothing is stored, logged, or echoed back, so
+  // the fixture itself can never become the place a canary leaks from.
+  if (req.method === "POST" && path === "/api/recorder/sensitive") {
+    let received = 0;
+    try {
+      const parsed = JSON.parse((await readRawBody(req)).toString("utf8"));
+      received = parsed && typeof parsed === "object" ? Object.keys(parsed).length : 0;
+    } catch {
+      received = 0;
+    }
+    return sendJson(res, { ok: true, receivedFields: received });
   }
 
   // ── Download fixture (Content-Disposition) ─────────────────────────────────

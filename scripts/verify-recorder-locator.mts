@@ -179,6 +179,43 @@ async function main() {
     check("password value is masked (not stored)", (action?.valueSource?.value ?? "") === "", JSON.stringify(action?.valueSource));
   }
 
+  // 6a. Secret-shaped field NAMES are redacted in the two dominant naming conventions.
+  //
+  // Regression for REC-007/AWKIT-REC-002: the sensitive-field pattern anchors several terms with
+  // \b, but a word boundary requires a NON-word character — and both `apiToken` (camelCase) and
+  // `api_token` (snake_case) put a word character immediately before the term. `\btoken\b` matched
+  // neither, so some of the commonest secret field names on the web were silently exempt. The
+  // non-sensitive controls at the end must stay UNREDACTED, or the fix would just be over-matching.
+  {
+    const redacted: [string, string][] = [
+      ["apiToken", "CANARY-A"],
+      ["api_token", "CANARY-B"],
+      ["accessToken", "CANARY-C"],
+      ["clientSecret", "CANARY-D"],
+      ["client_secret", "CANARY-E"],
+      ["devicePin", "CANARY-F"],
+      ["userSsn", "CANARY-G"],
+      ["cardCvv", "CANARY-H"]
+    ];
+    for (const [name, value] of redacted) {
+      const html = `<form><label for="f">Field</label><input id="f" name="${name}" type="text" /></form>`;
+      const action = await capture(html, async (p) => {
+        await p.locator("#f").fill(value);
+        await p.locator("#f").blur();
+      });
+      check(`sensitive field name "${name}" records a step`, action?.type === "fill", action?.type);
+      check(`sensitive field name "${name}" is redacted`, (action?.valueSource?.value ?? "") === "", JSON.stringify(action?.valueSource));
+    }
+    for (const name of ["displayName", "shippingAddress", "tokenizer_label"]) {
+      const html = `<form><label for="f">Field</label><input id="f" name="${name}" type="text" /></form>`;
+      const action = await capture(html, async (p) => {
+        await p.locator("#f").fill("ordinary value");
+        await p.locator("#f").blur();
+      });
+      check(`ordinary field name "${name}" is NOT redacted`, action?.valueSource?.value === "ordinary value", JSON.stringify(action?.valueSource));
+    }
+  }
+
   // 6b. Live text capture: text typed WITHOUT blurring the field is still recorded. This is the
   // regression the 'input'-event handler fixes — 'change' alone only fires on blur.
   {

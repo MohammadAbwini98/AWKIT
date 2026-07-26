@@ -105,8 +105,20 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Steps may be recorded, but sensitive values are empty or secret references; network
   data stores method/path only; query strings, bodies, headers, cookies, tokens, and canaries do not
   appear anywhere.
-- **Status:** `NOT RUN` end to end — field redaction and safe-signal component assertions passed in
-  `verify:recorder` and `verify:protected-login-recorder`; draft/flow/log/report canary scanning did not.
+- **Status:** `PASS` — `npm run verify:recorder-redaction`, **15/15**, plus 19 new pattern
+  assertions in `verify:recorder` (97/97, was 78). A real Recorder session on `/recorder-sensitive`
+  types fixed canaries into password, one-time-code, card, CVC, PIN, SSN, API-token and
+  shared-secret controls and submits — putting the token in a query string, an `Authorization`
+  header and a JSON body. **Every file** under the isolated application data root is then scanned:
+  recorded actions, the on-disk draft, the saved flow JSON, URL history, recorder status/handoff
+  diagnostics, the production run's JSONL log and the stored report. Zero canaries. A deliberately
+  non-sensitive display name is asserted **present** in the same corpus, so the scan cannot pass
+  vacuously. The fixture also pauses on protected-login detection at the secure default
+  (`handoff.phase="detected"`), asserted before the run disables detection for the redaction test.
+  **Found and fixed — `AWKIT-REC-002` (S2):** `\btoken\b` and `\bsecret\b` never matched `apiToken`
+  or `api_token`, because a word boundary needs a non-word character and both camelCase and
+  snake_case supply a word one. `accessToken`, `refreshToken`, `clientSecret`, `devicePin`,
+  `userSsn` and `cardCvv` were all exempt from redaction and were written verbatim into saved flows.
 
 ### REC-008 — Semantic locator generation and repeated-container disambiguation
 

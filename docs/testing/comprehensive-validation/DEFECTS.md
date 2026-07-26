@@ -274,6 +274,60 @@ connected element on unmount. The gate proves announcements, forward/reverse wra
 return, narrow layout and reduced motion. SET-021 remains `NOT RUN` overall because 200% zoom,
 high-contrast, unavailable-secret controls and the complete accessible-name audit were not executed.
 
+### AWKIT-REC-002 — camelCase and snake_case secret field names bypassed redaction
+
+- **Severity:** S2 / Secret leakage into persisted artifacts
+- **Priority recommendation:** P0
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `src/recorder/recorderInitScript.ts` (`shouldRedactValue`)
+- **Detected by:** `REC-007`
+- **Evidence before fix:** `test-artifacts/recorder-redaction/2026-07-26T18-21-24-237Z/` (**7/4**)
+- **Evidence after fix:** `test-artifacts/recorder-redaction/2026-07-26T18-38-08-339Z/` (**15/0**)
+
+**Reproduction before fix**
+
+Record a form containing inputs named `apiToken` and `clientSecret`, type a value into each, then
+read the recorded actions and the saved flow JSON.
+
+**Actual result**
+
+Both values were captured verbatim and persisted into the flow:
+
+```
+["", "", "", "", "", "", "CANARY-TOKEN-9d5f3a7c2e8b", "CANARY-SHARED-4f1e6b8a3d7c", "Rec007 Display Name"]
+```
+
+`SENSITIVE_FIELD_PATTERN` **does** contain `\bsecret\b` and `\btoken\b`. The failure is the word
+boundary: `\b` requires a **non-word** character before the term, and both dominant field-naming
+conventions supply a word character instead — `apiToken` (camelCase, preceded by `i`) and
+`api_token` (snake_case, preceded by `_`, which regex counts as a word character).
+
+Measured against the pre-fix pattern, every one of these was exempt:
+
+`apiToken` · `accessToken` · `refreshToken` · `api_token` · `clientSecret` · `client_secret` ·
+`devicePin` · `userSsn` · `cardCvv`
+
+So the gap was never specific to tokens — it applied to **every** `\b`-anchored term in the pattern
+(`pin`, `cvv`, `cvc`, `csc`, `ssn`, `secret`, `token`). Only the standalone spellings (`otp`, `ssn`,
+`pin`, `cardNumber`, `client-secret`) ever matched. Hyphenated names worked by accident, because `-`
+is not a word character.
+
+**Expected result and fix**
+
+Normalize the haystack before testing: insert a separator at each camelCase boundary and treat `_`
+as one, so the anchors mean what they were written to mean.
+
+```ts
+const normalized = hay.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+```
+
+Deliberately not fixed by dropping the `\b` anchors: that would redact `shipping` (contains "pin")
+and `tokenizer_label`, and an over-redacting recorder silently discards values a user needs.
+
+Covered in two places: `verify:recorder` (97/97, was 78) asserts all nine variants redact **and**
+that `displayName` / `shippingAddress` / `tokenizer_label` still do not — so the fix cannot be
+"achieved" by over-matching. `verify:recorder-redaction` (15/0) proves it end to end.
+
 ### AWKIT-REP-003 — Unauthorized Reports/telemetry reads were rejected but never recorded
 
 - **Severity:** S3 / Missing detective control (no data was exposed)

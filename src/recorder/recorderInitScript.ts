@@ -1084,7 +1084,15 @@ export function installRecorderCapture(): void {
       el.getAttribute("placeholder") || "",
       ac
     ].join(" ");
-    return SENSITIVE_FIELD_PATTERN.test(hay);
+    // Several terms above are anchored with \b so "pin" does not fire on "shipping". But a word
+    // boundary needs a NON-word character, and the two dominant field-naming conventions supply a
+    // word character instead: `apiToken` (camelCase) and `api_token` (snake_case) both put a word
+    // char immediately before the term, so \btoken\b never matched either. That silently exempted
+    // apiToken / accessToken / refreshToken / clientSecret / devicePin / userSsn / cardCvv — some
+    // of the most common secret field names on the web. Insert a separator at each camelCase
+    // boundary and treat `_` as one, so the anchors mean what they were written to mean.
+    const normalized = hay.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+    return SENSITIVE_FIELD_PATTERN.test(normalized);
   }
 
   window.addEventListener(

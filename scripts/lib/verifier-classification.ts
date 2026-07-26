@@ -65,6 +65,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:reports-populated-gui": { class: "real-browser", why: "Seeds durable history, then drives the REAL Reports pages and asserts values against independently computed truth." },
   "verify:reports-settings-a11y": { class: "real-browser", why: "Real-Electron accessibility audit of Reports and Settings (keyboard, focus ring, names, live regions, zoom, reduced motion)." },
   "verify:settings-e2e": { class: "real-browser", why: "Real-Electron Settings journey on an isolated profile: authorization, validation, import/reset safety, accessibility." },
+  "verify:recorder-redaction": { class: "real-browser", why: "REC-007 end-to-end secret redaction: a real Recorder session captures secret-shaped fields, then every file under the isolated app data root is scanned for the canaries, with a non-sensitive positive control proving the scan is not vacuous." },
   "verify:recorder-authz": { class: "real-browser", why: "Real-Electron Recorder authorization boundary: every recorder:* channel probed pre-auth, as a role without page.recorder, as one with it, and after sign-out — asserting the denial reason and the absence of side effects." },
   "verify:recorder-e2e": { class: "real-browser", why: "REC-018 — drives the real Recorder UI, saves, restarts, and replays through the production ExecutionEngine." },
   "verify:recorder": { class: "real-browser", why: "Records inside a real Chromium page and asserts unique semantic locators." },

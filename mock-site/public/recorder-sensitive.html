@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mock Site - Recorder Sensitive Fields</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card lab">
+      <h1>Recorder Sensitive Fields</h1>
+      <p class="hint">
+        Expected behavior: every control below is captured as a recorded step, but no typed value
+        reaches the draft, flow JSON, run log, report, or diagnostics.
+      </p>
+      <p class="hint">
+        This lives on its own page, not on <code>/recorder-lab</code>. A page carrying password and
+        one-time-code inputs reads as a protected login surface to the Recorder's detector, which
+        correctly pauses the recording — so putting these fields on the shared lab page would change
+        the security character of every other scenario recorded there.
+      </p>
+      <p class="hint">
+        Nothing here authenticates anything. The values are synthetic canaries and the endpoint
+        accepts and discards them.
+      </p>
+
+      <!-- REC-007: every field here must be RECORDED as a step whose captured value is redacted.
+           Values typed in are canaries; the verifier scans the draft, flow, logs and reports for
+           them. The submit issues a POST with a sensitive query string and body so the Smart Wait
+           network signal is checked for leakage too. Nothing here authenticates anything. -->
+      <section data-testid="recorder-sensitive-fields">
+        <h2>Sensitive field redaction</h2>
+        <p>Expected: each control is captured as a step, but no typed value reaches any artifact.</p>
+        <form id="recorderSensitiveForm">
+          <div class="row">
+            <label>Account password
+              <input id="recSecretPassword" data-testid="rec-secret-password" name="password" type="password" autocomplete="off" />
+            </label>
+            <label>One-time code
+              <input id="recSecretOtp" data-testid="rec-secret-otp" name="otp" type="text" autocomplete="one-time-code" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Card number
+              <input id="recSecretCard" data-testid="rec-secret-card" name="cardNumber" type="text" autocomplete="cc-number" />
+            </label>
+            <label>CVC
+              <input id="recSecretCvc" data-testid="rec-secret-cvc" name="cvc" type="text" autocomplete="cc-csc" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Device PIN
+              <input id="recSecretPin" data-testid="rec-secret-pin" name="pin" type="text" />
+            </label>
+            <label>Social security number
+              <input id="recSecretSsn" data-testid="rec-secret-ssn" name="ssn" type="text" />
+            </label>
+          </div>
+          <div class="row">
+            <label>API token
+              <input id="recSecretToken" data-testid="rec-secret-token" name="apiToken" type="text" />
+            </label>
+            <label>Shared secret
+              <input id="recSecretShared" data-testid="rec-secret-shared" name="clientSecret" type="text" />
+            </label>
+          </div>
+          <div class="row">
+            <label>Display name (not sensitive)
+              <input id="recSafeName" data-testid="rec-safe-name" name="displayName" type="text" placeholder="Ada Lovelace" />
+            </label>
+          </div>
+          <div class="row">
+            <button id="recSensitiveSubmit" data-testid="rec-sensitive-submit" type="button">Submit sensitive form</button>
+            <button id="recSensitiveReset" data-testid="rec-sensitive-reset" type="button">Reset sensitive form</button>
+          </div>
+          <p id="recSensitiveResult" data-testid="rec-sensitive-result" role="status">Sensitive form idle</p>
+        </form>
+      </section>
+
+    </main>
+
+    <script>
+      var $ = function (id) { return document.getElementById(id); };
+
+      // REC-007 — submitting drives a real network signal whose URL and body carry secret-shaped
+      // material, so the Smart Wait network observer is exercised against exactly the values the
+      // verifier then hunts for. The server discards them; nothing is stored or echoed.
+      $("recSensitiveSubmit").addEventListener("click", function () {
+        var query = new URLSearchParams({
+          token: $("recSecretToken").value,
+          otp: $("recSecretOtp").value,
+          ts: String(Date.now())
+        });
+        window.fetch("/api/recorder/sensitive?" + query.toString(), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + $("recSecretToken").value
+          },
+          body: JSON.stringify({
+            password: $("recSecretPassword").value,
+            cardNumber: $("recSecretCard").value,
+            cvc: $("recSecretCvc").value,
+            ssn: $("recSecretSsn").value,
+            clientSecret: $("recSecretShared").value
+          })
+        })
+          .then(function (response) { return response.json(); })
+          .then(function (result) {
+            $("recSensitiveResult").textContent = "Sensitive form accepted (" + result.receivedFields + " fields)";
+          })
+          .catch(function () {
+            $("recSensitiveResult").textContent = "Sensitive form request failed";
+          });
+      });
+
+      $("recSensitiveReset").addEventListener("click", function () {
+        $("recorderSensitiveForm").reset();
+        $("recSensitiveResult").textContent = "Sensitive form idle";
+      });
+
+      // REC-007 — same double-gated self-driving pattern as REC-018 above (?rec007=1 AND an
+      // attached recorder binding), typing canary values into every sensitive control so the
+      // verifier can then scan every persisted artifact for them.
+      //
+      // The canaries are FIXED CONSTANTS declared here, and `scripts/verify-recorder-redaction.mts`
+      // hardcodes the same strings. They are deliberately not passed in through the URL: the
+      // Recorder records its own `goto` target verbatim, so a canary in the query or fragment would
+      // land in the recorded step legitimately, and the scan would fail for a reason that has
+      // nothing to do with field redaction.
+      //
+      // These are synthetic markers chosen to be unmistakable in a grep — not credentials. They
+      // authenticate nothing and are accepted by no system.
+      window.__AWKIT_REC007_CANARIES = {
+        password: "CANARY-PASSWORD-8f2a1c7d4b6e",
+        otp: "CANARY-OTP-3d9e5a1f8c2b",
+        card: "CANARY-CARD-6b4f2e9d7a3c",
+        cvc: "CANARY-CVC-1a8c4e2f9d5b",
+        pin: "CANARY-PIN-7e3b9f1d6a4c",
+        ssn: "CANARY-SSN-2c6a8d4b1f9e",
+        token: "CANARY-TOKEN-9d5f3a7c2e8b",
+        shared: "CANARY-SHARED-4f1e6b8a3d7c",
+        safe: "Rec007 Display Name"
+      };
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("rec007") !== "1") return;
+        var status = $("recSensitiveResult");
+        var canaries = window.__AWKIT_REC007_CANARIES;
+        status.textContent = "REC-007 harness inert (no recorder attached)";
+        // The binding is installed by the Recorder's context, which is not guaranteed to have
+        // finished before this inline script parses. Poll briefly instead of checking once, then
+        // give up — so with no recorder attached the page stays inert (the gate that keeps a
+        // production replay honest), while a slightly late binding still arms the harness.
+        var waited = 0;
+        var arm = window.setInterval(function () {
+          waited += 100;
+          if (typeof window.__awtkit_recordAction === "function") {
+            window.clearInterval(arm);
+            status.textContent = "REC-007 harness armed";
+            run();
+          } else if (waited >= 5000) {
+            window.clearInterval(arm);
+          }
+        }, 100);
+        function run() {
+          var fire = function (el, type) {
+            el.dispatchEvent(new Event(type, { bubbles: true }));
+          };
+          var fill = function (id, value) {
+            return function () {
+              var el = $(id);
+              el.value = value;
+              fire(el, "input");
+              fire(el, "change");
+            };
+          };
+          var steps = [
+            fill("recSecretPassword", canaries.password),
+            fill("recSecretOtp", canaries.otp),
+            fill("recSecretCard", canaries.card),
+            fill("recSecretCvc", canaries.cvc),
+            fill("recSecretPin", canaries.pin),
+            fill("recSecretSsn", canaries.ssn),
+            fill("recSecretToken", canaries.token),
+            fill("recSecretShared", canaries.shared),
+            fill("recSafeName", canaries.safe),
+            function () {
+              $("recSensitiveSubmit").click();
+              status.textContent = "REC-007 harness completed";
+            }
+          ];
+          steps.forEach(function (step, index) {
+            window.setTimeout(step, 400 + index * 200);
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

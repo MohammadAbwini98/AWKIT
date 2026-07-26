@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## Recorder secret redaction had a word-boundary hole — `AWKIT-REC-002`, REC-007 PASS (2026-07-26, current)
+
+`SENSITIVE_FIELD_PATTERN` in `src/recorder/recorderInitScript.ts` contains `\btoken\b` and
+`\bsecret\b`, so it looked correct. It was not: `\b` needs a **non-word** character before the term,
+and the two dominant field-naming conventions supply a word one — `apiToken` (camelCase) and
+`api_token` (snake_case, `_` counts as a word character).
+
+Measured: `apiToken`, `accessToken`, `refreshToken`, `api_token`, `clientSecret`, `client_secret`,
+`devicePin`, `userSsn` and `cardCvv` were **all** exempt from redaction and written verbatim into
+saved flows. The hole applied to every `\b`-anchored term, not just tokens. Hyphenated names worked
+only by accident (`-` is not a word character).
+
+Fixed by normalizing the haystack before the test — split camelCase, treat `_` as a separator — so
+the anchors mean what they were written to mean. Deliberately **not** fixed by dropping the anchors:
+that redacts `shipping` (contains "pin") and `tokenizer_label`, and an over-redacting recorder
+silently discards values the user needs. `verify:recorder` (**97/97**, was 78) asserts both
+directions.
+
+New `npm run verify:recorder-redaction` (**15/15**) proves it end to end: a real Recorder session
+types canaries into nine secret-shaped controls, then **every file** under the isolated data root is
+scanned — actions, draft, flow JSON, URL history, handoff diagnostics, the production run's JSONL
+log and the stored report. A non-sensitive value is asserted **present** in the same corpus, so the
+scan cannot pass vacuously.
+
+**New mock-site scenario: `/recorder-sensitive`** (not a `/recorder-lab` section). A page carrying
+password and one-time-code inputs reads as a protected login surface, so the detector pauses it —
+correct behavior that broke REC-018 when these fields briefly lived on the shared lab page. The
+verifier asserts that pause (`handoff.phase="detected"`) before disabling detection for the
+redaction run.
+
 ## Denied Reports/telemetry reads are now audited — `AWKIT-REP-003`, SYS-REP-015 PASS (2026-07-26, current)
 
 Authorization on the Reports surface was already enforced; nothing recorded the refusals. A repeated
