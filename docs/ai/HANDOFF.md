@@ -1,6 +1,118 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-26, latest): three-surface remediation prompt ready
+## ACTIVE (2026-07-26, latest): AWKIT-E2E-001 fixed — comprehensive campaign 9/9
+
+Phase 0-1 of `docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is done.
+**There is no longer a known open product defect.** Phases 2-7 of that brief are not started.
+
+### What changed
+
+`FlowExecutor.resolveNext` never routed a flow-level `manualApproval` edge, so a `manualHandoff` node
+whose only outgoing edge was `manualApproval` reported `passed` while End never executed. Fixed by a
+`manualApproval` case gated on `outcome === "manualContinued"` (an explicit operator resume), plus a
+guard that fails — rather than silently passes — a flow that dead-ends at an ungranted approval edge.
+Full rationale and the deliberate scope limits are in `CURRENT_STATE.md` and `DEFECTS.md`.
+
+Bead `awkit-3eo`. The defect had been tracked only in `DEFECTS.md` and had **no Beads record** — worth
+checking for other markdown-only defects.
+
+### Verified at this change
+
+`verify:runner` **89/0** (84 + 5 new regressions) · `verify:comprehensive-e2e` **9 PASS / 0 FAIL** ·
+`verify:concurrency` 78/0 · `verify:waits` 56/0 · `verify:popup` 12/0 · `verify:cancellation` 12/0 ·
+`verify:artifacts` 13/0 · `verify:flow-step-mapping` 101/0 · `typecheck` + `typecheck:scripts` clean.
+Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/` (the pre-fix run at
+`2026-07-25T22-37-55-841Z/` is retained, not overwritten).
+
+### Read this before trusting a packaged result
+
+**`verify:packaged-walkthrough` has no staleness guard.** It drives whatever sits in
+`dist/win-unpacked`, which is currently a bundle built 2026-07-25 22:31 — *before* this fix. Running
+it as-is produces a green result that says nothing about the current source. It was deliberately NOT
+run for this change. Re-run `npm run package:portable` first, or the pass is meaningless. This is the
+same class of trap as the stale Zvec host tree recorded further down this file.
+
+### Remaining work, in priority order
+
+1. **Fresh package + `verify:packaged-walkthrough`** — the only gate this fix still owes.
+2. **The 46 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. `REC-018` (Recorder page →
+   browser → record → Stop → Save → reopen → production replay) is the decisive one; component suites
+   being green does not certify the journey.
+3. **`ORA-LIVE-001`** — needs an authorized operator with SYSDBA and an out-of-band ephemeral
+   `SPECTER_READER` password. Not agent-actionable; do not let it block the rest.
+4. **Beads hygiene** — `bd ready` is stale against `main` (it still lists `awkit-oyc` and `awkit-ebh`,
+   both merged). Cross-check before treating any bead as open.
+
+### Do not touch
+
+- Do not treat `manualApproval` as a general success edge, and do not enable it on `sessionCaptured`.
+  Both would bypass the approval semantic the fix exists to protect.
+- Do not remove the dead-end guard in `executeFlow` — it is what stops the silent success from
+  relocating rather than being fixed.
+
+## PRIOR (2026-07-26): verification pass — no source changes; tree is current
+
+A verification-only session. **No source file was modified.** The Oracle mock-UI work described in the
+sections below was already committed at `cfe4594`; this pass independently re-ran its gates at `HEAD`
+and added one piece of evidence that was not previously recorded.
+
+### Repository state (verified, not assumed)
+
+| | |
+|---|---|
+| Branch | `main` (single-branch policy) |
+| HEAD | **`d43dfa6`** — `git rev-parse HEAD` == `origin/main`; nothing to push |
+| Working tree | clean **except** `.beads/interactions.jsonl` and `.beads/issues.jsonl` |
+| Source/doc diff | none — `git diff HEAD` is empty for all code, scripts, and `docs/ai/` |
+
+### Re-verified at `d43dfa6`
+
+| Command | Result |
+|---|---|
+| `npm run verify:oracle-mock-ui` | **36 passed, 0 failed** (builds + drives the real Java bridge; no database) |
+| `npm run verify:oracle-bridge` | **32 passed, 0 failed** (generic mock shape unaffected by the fixture branch) |
+| `npm run build` | PASS (`tsc --noEmit` + main/preload/renderer bundles) |
+| `node scripts/ai-memory/check-memory.mjs` | PASS |
+
+### New evidence: `verify:oracle-mock-ui` is not vacuous
+
+A deliberate-drift negative control was run and reverted. Changing one fixture row's country from `AE`
+to a non-existent `ZZ` failed **exactly two** checks with precise diagnostics —
+`every country / accountType / skill / gender is a real option — null-optional-text: country ZZ` and
+`every value agrees with the SQL fixture — row 2 column COUNTRY: mock="AE" sql="ZZ"` — then passed
+36/36 again after restoring the file (confirmed byte-identical to a pre-test copy).
+
+This matters because the suite's value rests on two claims that would otherwise be untested: that the
+SQL fixture and its database-free twin cannot silently drift apart, and that the fixture's select/radio
+values are still real controls on `/form`. Both now have a demonstrated failure mode.
+
+### Remaining work
+
+1. **Provision `SPECTER_MOCKUI` on real Oracle** — still **NOT RUN**. Requires an authorized operator:
+   SYSDBA provisioning, an out-of-band ephemeral `SPECTER_READER` password, then rotate + `ACCOUNT LOCK`.
+   Procedure: `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md`. The one BLOCKED workflow case is live-Oracle only.
+2. **Unrelated open defect** — the `manualApproval` connector routing failure keeps the broader campaign
+   at 8 PASS / 1 FAIL. Not caused by, and not fixed by, the Oracle work.
+3. **Beads hygiene** — `awkit-v8x` was opened and closed during this pass for work that `cfe4594` had
+   already delivered, so it is a duplicate record. `.beads/*.jsonl` is the only dirty path in the tree;
+   reconcile or drop it before the next sync rather than treating it as new scope.
+
+### Do not touch
+
+- Do not retrieve, persist, print, or reconstruct an Oracle password anywhere, including logs and Markdown.
+- Do not weaken the fail-closed rule: packaged builds must never accept the mock executor.
+- Do not hardcode `DATE` or `NUMBER(p,2)` values in `MockFormCasesFixture` — it deliberately mirrors the
+  real JDBC conversions (`Timestamp`→`Instant`, JVM-zone dependent; `BigDecimal.toPlainString()`), and
+  hardcoding would disagree with a real database on any non-UTC host.
+- Do not create branches or worktrees; `main` is the only development branch.
+
+### Recommended next step
+
+Take the three-surface remediation prompt below (`RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md`) — it
+is the only self-contained, execution-ready brief outstanding. The Oracle track needs an operator with
+database credentials, not an agent, so it should not block it.
+
+## ACTIVE (2026-07-26): three-surface remediation prompt ready
 
 Use `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_REMEDIATION_PROMPT.md` for the
 next implementation pass. It is self-contained and orders the work as: reproduce/fix
@@ -9,7 +121,7 @@ exercise populated Reports, complete Settings safety/RBAC/accessibility, then ru
 packaged regression. It explicitly forbids treating `NOT RUN` as a defect without reproduction and
 keeps protected authentication as manual handoff.
 
-## ACTIVE (2026-07-26, latest): Recorder / Reports / Settings test-design gap closed
+## ACTIVE (2026-07-26): Recorder / Reports / Settings test-design gap closed
 
 The comprehensive package now includes
 `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md`: 66 focused cases
@@ -22,7 +134,7 @@ remains `NOT RUN`. Reports still need populated GUI/drill-down/export authorizat
 Settings still needs paths/general validation/Secrets GUI/import-reset-data-safety/accessibility.
 Manual protected-login completion stays `BLOCKED`; no CAPTCHA/MFA/security control was bypassed.
 
-## ACTIVE (2026-07-26, latest): Oracle Data Source → row-driven browser workflow complete
+## ACTIVE (2026-07-26): Oracle Data Source → row-driven browser workflow complete
 
 The missing Oracle mock-UI workflow is now persisted and executed. The same credential-free fixture
 set can run through the explicit development mock bridge today and against real Oracle after an

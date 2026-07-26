@@ -1,15 +1,21 @@
 # AWKIT Comprehensive Validation Defects
 
-## Open product defect
+## Open product defects
+
+None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved below.
+
+## Resolved comprehensive-campaign defects
 
 ### AWKIT-E2E-001 — Flow-level `manualApproval` connector is silently ignored
 
 - **Severity:** S2 / Major
 - **Priority recommendation:** P1 before declaring the complete flow-routing model ready
-- **Status:** Open / reproducible
+- **Status:** **Resolved 2026-07-26** (bead `awkit-3eo`)
 - **Affected area:** `src/runner/FlowExecutor.ts`, `FlowExecutor.resolveNext`
 - **Detected by:** `CMP-CON-002`
-- **Evidence:** `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
+- **Evidence before fix:** `test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
+- **Evidence after fix:** `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/campaign-results.json`
+  (9 PASS / 0 FAIL; `CMP-CON-002` PASS)
 
 **Preconditions**
 
@@ -43,9 +49,44 @@
 - Downstream actions may be skipped while the run is reported successful.
 - Reports can therefore state success for an incomplete business process.
 
-**Suggested fix**
+**Fix applied**
 
-Treat an outgoing `manualApproval` edge as eligible only after a manual/protected handoff has actually resumed, then add a regression asserting the exact executed-node sequence and terminal End. Do not globally treat it as an ordinary success edge, because that could bypass the approval semantic.
+`resolveNext` gained a `manualApproval` case placed immediately before the `success`/`always`
+fallback, eligible **only** when the step reports `outcome === "manualContinued"` — the outcome
+`StepExecutor` sets exactly when an operator chose to continue a handoff. A cancel throws inside
+`waitForHandoffAction`, so a cancelled handoff fails the step and never reaches routing. The edge is
+deliberately *not* a general success edge: an ordinary passed node never traverses one.
+
+A second, narrower guard closes the relocated half of the same bug. When routing dead-ends at a node
+whose only remaining outgoing edge is an ungranted `manualApproval`, the flow now finishes `failed`
+with a message naming the step and the skipped target, instead of reporting `passed`. Without it,
+any future path that reaches a handoff node without an explicit resume would reproduce the original
+symptom — a report claiming success for a business process that stopped early.
+
+Deliberate scope limits:
+
+- `outcome === "sessionCaptured"` does **not** enable the edge. Automatic session reuse is not an
+  approval, and `sessionAlreadyExists` involves no human at all.
+- The workflow-level equivalent in `PlaywrightRunner.resolveNextFlow` already treats `manualApproval`
+  as a continuation link and was left unchanged; it is flow-to-flow routing, a different granularity,
+  and was not implicated by `CMP-CON-002`.
+- A node cannot carry both `success` and `manualApproval`: both are `normal` connectors, so
+  `multipleStandardOutgoing` structural validation rejects that pair before execution. Placement
+  relative to the success fallback is therefore unreachable for valid persisted flows.
+
+**Regression**
+
+`npm run verify:runner` (flow-level connector routing section) gained 5 checks, taking it from 84 to
+**89**. Before the runtime change they failed 3/5 — approved routing, approved downstream work, and
+the skipped-approval report — with the two negative controls already passing, so the suite was
+negative-controlled rather than vacuous:
+
+1. an approved handoff routes through the connector to End, asserting the exact node sequence
+   `start,approve,approved-work,end`;
+2. the approved downstream work actually ran (`#firstName === "Approved"`) before `passed` is reported;
+3. a cancelled handoff never traverses the connector and the flow fails;
+4. an ordinary (non-handoff) node does not traverse a `manualApproval` connector;
+5. a flow cannot report `passed` when an unapproved continuation was skipped.
 
 ## Resolved Oracle workflow defects
 

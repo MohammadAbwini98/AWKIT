@@ -27,7 +27,10 @@ remain structural and legacy workflows remain compatible.
   handoff close Playwright, launch normal-browser capture, load captured profile, and ignore the triggering
   navigation timeout while waiting for the normal browser], **Save Session**
   [writes storageState; fails on missing name / no-overwrite collision], flow-level and workflow-level
-  connector routing).
+  connector routing). **89 checks as of 2026-07-26** — the flow-level connector section gained 5
+  manual-approval regressions with the `AWKIT-E2E-001` fix (approved routing to End with an exact node
+  sequence, approved downstream work, cancelled handoff, an ordinary node as a negative control, and
+  no `passed` when an unapproved continuation was skipped).
 - `mock-site/server.mjs` — offline Feature Test Lab website, default port 4321. Core legacy routes remain
   `/login` → `/form` → `/success`, with `/details` opened via `#openNewTabButton` for Route Change.
   Feature lab routes include `/smart-waits`, `/recorder-lab`, `/designer-lab`, and `/api/delay`.

@@ -600,6 +600,91 @@ async function main() {
       `status=${invalidDuplicateRes.result.status} error=${invalidDuplicateRes.result.error}`
     );
 
+    // AWKIT-E2E-001: a manualApproval connector is followed only after an explicit resume.
+    // The approval edge must carry the flow onward to real downstream work, must not be
+    // treated as an ordinary success edge, and must never let a flow report `passed` while
+    // the approved continuation was skipped.
+    const approvalFlow = (sourceId: string, sourceNode: FlowStep): FlowProfile => ({
+      id: `b-manual-approval-${sourceId}`,
+      name: "Manual approval connector",
+      version: 1,
+      nodes: [
+        { id: "start", type: "start", name: "Start" },
+        sourceNode,
+        { id: "approved-work", type: "fill", name: "Approved work", locator: { strategy: "id", value: "firstName" }, value: "Approved" },
+        { id: "end", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "ma1", source: "start", target: sourceId, type: "success" },
+        { id: "ma2", source: sourceId, target: "approved-work", type: "manualApproval" },
+        { id: "ma3", source: "approved-work", target: "end", type: "success" }
+      ]
+    });
+
+    const runApprovalFlow = async (
+      flow: FlowProfile,
+      resolveHandoff?: (controller: ManualHandoffController, ctx: InstanceExecutionContext) => void
+    ): Promise<{ result: FlowExecutionResult; value: string }> => {
+      const page = await browser.newPage();
+      await gotoForm(page);
+      const ctx = await makeContext(flow.id);
+      const controller = new ManualHandoffController();
+      const exec = new FlowExecutor(new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx, controller));
+      const execution = exec.executeFlow(flow, ctx);
+      if (resolveHandoff) {
+        for (let i = 0; i < 40 && !controller.getPending(ctx.executionId, ctx.instanceId); i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        resolveHandoff(controller, ctx);
+      }
+      const result = await execution;
+      const value = await page.inputValue("#firstName");
+      await page.close();
+      return { result, value };
+    };
+
+    const handoffNode: FlowStep = { id: "approve", type: "manualHandoff", name: "Approve", message: "Approve the synthetic local continuation." };
+
+    const approvedRes = await runApprovalFlow(approvalFlow("approve", handoffNode), (controller, ctx) =>
+      controller.resume(ctx.executionId, ctx.instanceId)
+    );
+    const approvedIds = approvedRes.result.steps.map((step) => step.stepId);
+    check(
+      "an approved manual handoff routes through the manualApproval connector to End",
+      approvedRes.result.status === "passed" && approvedIds.join(",") === "start,approve,approved-work,end",
+      `status=${approvedRes.result.status} steps=${approvedIds.join(",")}`
+    );
+    check(
+      "the approved downstream work actually runs before the flow reports passed",
+      approvedRes.value === "Approved",
+      `value=${approvedRes.value}`
+    );
+
+    const cancelledRes = await runApprovalFlow(approvalFlow("approve", { ...handoffNode, id: "approve" }), (controller, ctx) =>
+      controller.cancel(ctx.executionId, ctx.instanceId)
+    );
+    check(
+      "a cancelled manual handoff never traverses the manualApproval connector",
+      cancelledRes.result.status === "failed" && !cancelledRes.result.steps.some((step) => step.stepId === "approved-work"),
+      `status=${cancelledRes.result.status} steps=${cancelledRes.result.steps.map((step) => step.stepId).join(",")}`
+    );
+
+    // Negative control: manualApproval is NOT a general success edge. An ordinary passed node
+    // must never traverse one, or the approval semantic could be bypassed entirely.
+    const unapprovedRes = await runApprovalFlow(
+      approvalFlow("plain", { id: "plain", type: "scroll", name: "Plain", config: { scrollAmount: 5 } })
+    );
+    check(
+      "an ordinary node does not traverse a manualApproval connector without an approval",
+      !unapprovedRes.result.steps.some((step) => step.stepId === "approved-work") && unapprovedRes.value !== "Approved",
+      `steps=${unapprovedRes.result.steps.map((step) => step.stepId).join(",")} value=${unapprovedRes.value}`
+    );
+    check(
+      "a flow cannot report passed when an unapproved manualApproval continuation was skipped",
+      unapprovedRes.result.status === "failed",
+      `status=${unapprovedRes.result.status} error=${unapprovedRes.result.error}`
+    );
+
     // Connector events reach the live-progress reporter.
     const evPage = await browser.newPage();
     await evPage.goto(`${BASE}/form`);

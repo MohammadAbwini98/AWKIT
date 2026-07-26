@@ -4,8 +4,8 @@
 
 | Area | Status | Result |
 | --- | --- | --- |
-| Comprehensive real-browser campaign | `FAIL` | 8 PASS / 1 FAIL; one open manual-approval routing defect |
-| Exhaustive runner and wait semantics | `PASS` | 84/84 and 56/56 |
+| Comprehensive real-browser campaign | `PASS` | **9 PASS / 0 FAIL** after the `AWKIT-E2E-001` fix (2026-07-26) |
+| Exhaustive runner and wait semantics | `PASS` | **89/89** (84 + 5 manual-approval regressions) and 56/56 |
 | Popup/multi-window | `PASS` | Main campaign plus 12/12, 43/43, 11/11 |
 | Concurrency/cancellation/locks/artifacts | `PASS` | Baseline and all stress suites passed |
 | Durable store/startup recovery | `PASS` | 11/11 and 10/10 |
@@ -32,27 +32,57 @@ Command:
 
 `npm run verify:comprehensive-e2e`
 
-Machine-readable result:
+Machine-readable result (current, post-fix):
 
-`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/campaign-results.json`
+`test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/campaign-results.json`
 
 Structured runner log:
 
-`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/runner-logs.json`
+`test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/runner-logs.json`
+
+Superseded pre-fix run (retained, not overwritten):
+`test-artifacts/comprehensive-e2e/2026-07-25T22-37-55-841Z/`
 
 | Case | Status | Duration | Outcome |
 | --- | --- | ---: | --- |
-| CMP-INV-001 | `PASS` | 2 ms | 30 steps, 9 edges, 4 connector kinds, 10 value sources inventoried |
-| CMP-FLOW-001 | `PASS` | 1,366 ms | Core live DOM actions and cross-flow values passed |
-| CMP-IO-001 | `PASS` | 821 ms | Upload, async waits, output, download passed |
-| CMP-CON-001 | `PASS` | 654 ms | Conditional, parallel, outcome, loop, loop-back passed |
-| CMP-CON-002 | `FAIL` | 184 ms | `manualApproval` edge skipped; End not executed |
-| CMP-ERR-001 | `PASS` | 1,153 ms | Retry, evidence, failure routing, recovery passed |
-| CMP-POP-001 | `PASS` | 2,626 ms | Popup lifecycle passed |
-| CMP-WF-001 | `PASS` | 5,235 ms | Four-flow persisted workflow passed |
-| CMP-MAN-001 | `PASS` | 904 ms | Safe handoffs and session save passed |
+| CMP-INV-001 | `PASS` | 3 ms | 30 step types, 9 edge types, 4 connector kinds, 10 value-source types inventoried |
+| CMP-FLOW-001 | `PASS` | 1,324 ms | Core live DOM actions and cross-flow values passed |
+| CMP-IO-001 | `PASS` | 1,190 ms | Upload, async waits, output mapping, confined download passed |
+| CMP-CON-001 | `PASS` | 663 ms | Conditional, parallel, outcome, loop, loop-back passed |
+| CMP-CON-002 | `PASS` | 194 ms | The approved handoff continued through the `manualApproval` connector to End |
+| CMP-ERR-001 | `PASS` | 1,078 ms | Retry, per-attempt evidence, failure routing, recovery passed |
+| CMP-POP-001 | `PASS` | 2,285 ms | Popup lifecycle passed |
+| CMP-WF-001 | `PASS` | 4,679 ms | Four-flow persisted workflow passed |
+| CMP-MAN-001 | `PASS` | 826 ms | Safe synthetic handoffs and local session save passed |
 
-Totals: **8 PASS, 1 FAIL, 0 BLOCKED, 0 NOT RUN** inside the main campaign. External gates are recorded separately below.
+Totals: **9 PASS, 0 FAIL, 0 BLOCKED, 0 NOT RUN** inside the main campaign. External gates are recorded
+separately below.
+
+### `AWKIT-E2E-001` fix verification (2026-07-26)
+
+| Command | Before fix | After fix |
+| --- | --- | --- |
+| `npm run verify:runner` | 86 passed, **3 failed** | **89 passed, 0 failed** |
+| `npm run verify:comprehensive-e2e` | 8 PASS / 1 FAIL | **9 PASS / 0 FAIL** |
+| `npm run typecheck` | pass | pass |
+| `npm run typecheck:scripts` | pass | pass |
+| `npm run verify:concurrency` | — | 78 passed, 0 failed |
+| `npm run verify:waits` | — | 56 passed, 0 failed |
+| `npm run verify:popup` | — | 12 passed, 0 failed |
+| `npm run verify:cancellation` | — | 12 passed, 0 failed |
+| `npm run verify:artifacts` | — | 13 passed, 0 failed |
+| `npm run verify:flow-step-mapping` | — | 101 passed, 0 failed |
+
+The three pre-fix failures were the new regression's positive assertions (approved routing, approved
+downstream work, and the skipped-approval report). Its two negative controls — a cancelled handoff and
+an ordinary node — passed both before and after, so the added coverage is negative-controlled rather
+than vacuously green.
+
+**`npm run verify:packaged-walkthrough` was NOT re-run for this fix.** `dist/win-unpacked` was built
+2026-07-25 22:31, before the change, and `scripts/verify-packaged-walkthrough.mts` has no staleness
+guard — it would have exercised the pre-fix bundle and reported a pass that says nothing about this
+change. Its last recorded result (69/69) therefore stands as a *packaging* baseline only. Re-running it
+against this fix requires a fresh `npm run package:portable`.
 
 ## Specialized suite results
 

@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## AWKIT-E2E-001 fixed — comprehensive campaign is 9/9 (2026-07-26, current)
+
+The one confirmed open product defect is closed (bead `awkit-3eo`). A flow-level `manualApproval`
+connector was never routed: `FlowExecutor.resolveNext` had precedence for outcome, conditional,
+loop-back, success, always and legacy `next`, but no `manualApproval` case, so a `manualHandoff` node
+whose only outgoing edge was `manualApproval` reported `passed` while End never executed.
+
+- **Routing fix:** `resolveNext` now selects a `manualApproval` target immediately before the
+  `success`/`always` fallback, and **only** when the step reports `outcome === "manualContinued"` —
+  the outcome `StepExecutor` sets exactly when an operator chose to continue. A cancel throws inside
+  `waitForHandoffAction`, so a cancelled handoff fails the step and never reaches routing. It is
+  deliberately not a general success edge; an ordinary node never traverses one.
+- **Skipped-approval guard:** when routing dead-ends at a node whose only outgoing edge is an
+  ungranted `manualApproval`, the flow finishes `failed` naming the step and the skipped target,
+  instead of reporting `passed`. Without it the same silent-success symptom simply relocates.
+- **Deliberately excluded:** `outcome === "sessionCaptured"` does not enable the edge (automatic
+  session reuse is not an approval), and `PlaywrightRunner.resolveNextFlow` — the workflow-level
+  equivalent, which already treats `manualApproval` as a continuation link — was left unchanged.
+- **A node cannot carry both `success` and `manualApproval`:** both are `normal` connectors, so
+  `multipleStandardOutgoing` structural validation rejects that pair before execution. Precedence
+  between them is unreachable for valid persisted flows.
+- **Verified:** `verify:runner` **89/0** (84 + 5 new; failed 3/5 before the fix, with both negative
+  controls already passing), `verify:comprehensive-e2e` **9 PASS / 0 FAIL**, `verify:concurrency`
+  78/0, `verify:waits` 56/0, `verify:popup` 12/0, `verify:cancellation` 12/0, `verify:artifacts` 13/0,
+  `verify:flow-step-mapping` 101/0, `typecheck` and `typecheck:scripts` clean.
+  Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/`.
+- **NOT re-run:** `verify:packaged-walkthrough`. `dist/win-unpacked` was built 2026-07-25 22:31,
+  before this fix, and the verifier has **no staleness guard** — it would have exercised the pre-fix
+  bundle and reported a meaningless pass. A fresh `package:portable` is required first.
+
 ## Unified validation remediation prompt (2026-07-26, current)
 
 `docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is the execution-ready

@@ -4,7 +4,79 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - Recorder, Reports, and Settings remediation prompt (Codex)
+## 2026-07-26 (latest) - AWKIT-E2E-001: manualApproval connector routing (Claude)
+
+**Task:** Phase 0-1 of the unified validation remediation brief — reproduce and fix the one confirmed
+open product defect, then re-run the comprehensive campaign. Bead `awkit-3eo` (newly filed; the defect
+had been tracked only in `DEFECTS.md`, never in Beads).
+
+**Defect:** `FlowExecutor.resolveNext` had no `manualApproval` case, so a `manualHandoff` node whose
+only outgoing edge was `manualApproval` dead-ended — the flow reported `passed` and End never ran. A
+report could therefore claim success for a business process that stopped early.
+
+**Fix (`src/runner/FlowExecutor.ts`):** a `manualApproval` case immediately before the
+`success`/`always` fallback, gated on `stepResult.outcome === "manualContinued"` (set by
+`StepExecutor` exactly when an operator continued a handoff; a cancel throws and fails the step
+first). Plus a guard: routing that dead-ends at a node with an ungranted `manualApproval` edge now
+finishes `failed` naming the step and skipped target, rather than `passed` — otherwise the same
+silent-success symptom just relocates. `sessionCaptured` deliberately does **not** enable the edge;
+`PlaywrightRunner.resolveNextFlow` (workflow level) was deliberately left unchanged.
+
+**Regression written before the runtime change** (`scripts/verify-runner.mts`, +5 checks, 84 → 89):
+exact node sequence `start,approve,approved-work,end`; approved downstream work observed in the live
+DOM; cancelled handoff does not traverse; an ordinary node does not traverse; no `passed` when an
+unapproved continuation is skipped. It failed 3/5 before the fix and passes 5/5 after — the two
+negative controls passed both times, so the coverage is negative-controlled, not vacuous.
+
+**Files:** `src/runner/FlowExecutor.ts`, `scripts/verify-runner.mts`, `docs/ai/CURRENT_STATE.md`,
+`docs/ai/TESTING.md`, `docs/ai/TASK_LOG.md`, `docs/ai/HANDOFF.md`, and the validation package
+(`DEFECTS.md`, `EXECUTION_RESULTS.md`, `READINESS_SUMMARY.md`).
+
+**Tests run:** `verify:runner` **89/0** · `verify:comprehensive-e2e` **9 PASS / 0 FAIL** ·
+`verify:concurrency` 78/0 · `verify:waits` 56/0 · `verify:popup` 12/0 · `verify:cancellation` 12/0 ·
+`verify:artifacts` 13/0 · `verify:flow-step-mapping` 101/0 · `typecheck` PASS ·
+`typecheck:scripts` PASS. Evidence: `test-artifacts/comprehensive-e2e/2026-07-26T00-01-06-419Z/`.
+
+**Not run, and why:** `verify:packaged-walkthrough` — `dist/win-unpacked` predates the fix
+(built 2026-07-25 22:31) and `scripts/verify-packaged-walkthrough.mts` has **no staleness guard**, so
+running it would have exercised the pre-fix bundle and produced a pass that says nothing about this
+change. Needs a fresh `package:portable` first. Phases 2-7 of the brief (Oracle live gates, the three
+fixture packages, and the 46 `NOT RUN` Recorder/Reports/Settings cases) were not started.
+
+**Note:** commit `cbc1c59` (the unified remediation prompt) landed on `main` from another session
+while this work was in progress; it touched only `docs/`, and nothing here was overwritten.
+
+---
+
+## 2026-07-26 - Oracle mock-UI gate re-verification + negative control (agent)
+
+**Task:** handoff preparation — establish verified repository state and re-run the Oracle mock-UI gates.
+
+**No source changes.** `git diff HEAD` is empty for all code, scripts, and `docs/ai/`. The Oracle
+mock-UI fixture, its database-free twin, and `verify:oracle-mock-ui` were already delivered by
+`cfe4594`; this pass confirmed them at `HEAD` rather than re-authoring them.
+
+**Repo state:** branch `main`, HEAD `d43dfa6` == `origin/main` (nothing to push), tree clean except
+`.beads/*.jsonl`.
+
+**Tests run:** `verify:oracle-mock-ui` **36/36**, `verify:oracle-bridge` **32/32**, `npm run build`
+PASS, `scripts/ai-memory/check-memory.mjs` PASS.
+
+**New evidence — the suite is not vacuous.** A deliberate-drift control (one fixture country `AE` → a
+non-existent `ZZ`) failed exactly two checks with precise diagnostics (option fit, and SQL↔mock
+parity), then returned to 36/36 after the file was restored byte-identical. Previously the suite's two
+central claims — that the SQL fixture and its DB-free twin cannot drift, and that fixture values are
+still real `/form` controls — had no demonstrated failure mode.
+
+**Not run:** real-Oracle provisioning of `SPECTER_MOCKUI` (needs an authorized operator with SYSDBA and
+an out-of-band ephemeral reader password); the live-Oracle workflow case stays BLOCKED.
+
+**Housekeeping:** bead `awkit-v8x` was opened and closed for work `cfe4594` had already delivered — a
+duplicate record. `.beads/*.jsonl` is the only dirty path; reconcile before the next sync.
+
+---
+
+## 2026-07-26 - Recorder, Reports, and Settings remediation prompt (Codex)
 
 **Task:** write a complete coding-agent prompt that carries forward all three focused test outcomes,
 observations, defects, and open release gates.

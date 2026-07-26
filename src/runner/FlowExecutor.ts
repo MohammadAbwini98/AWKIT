@@ -187,6 +187,22 @@ export class FlowExecutor {
       }
 
       const next = this.resolveNext(flow, currentStep, stepResult, outputs, context, loopBackCounts);
+      if (!next.nextStepId) {
+        // Routing dead-ended. If the only continuation was a manual-approval connector that was
+        // never granted, the approved work was skipped — reporting `passed` here is exactly what
+        // let an incomplete business process look complete in a report.
+        const ungrantedApproval = flow.edges.find((edge) => edge.source === currentStep!.id && edge.type === "manualApproval");
+        if (ungrantedApproval) {
+          return this.finish(
+            flow.id,
+            startedAt,
+            steps,
+            outputs,
+            "failed",
+            `Step ${currentStep.id} has a manual-approval connector to ${ungrantedApproval.target}, but the handoff was never approved, so the approved continuation did not run.`
+          );
+        }
+      }
       // A loopBack re-opens the loop body for another pass.
       if (next.viaLoopBack) visited.clear();
       currentStep = next.nextStepId ? byId.get(next.nextStepId) : undefined;
@@ -628,11 +644,24 @@ export class FlowExecutor {
       if (evaluateBoolean(loopBack.condition.expression, getValueWithStepResult)) return takeLoopBack(loopBack);
     }
 
-    // 4. Standard fallbacks: success → always.
+    // 4. Manual-approval connectors — eligible ONLY after an explicit human resume of this
+    //    node's own handoff. `manualContinued` is set by StepExecutor exactly when the operator
+    //    chose to continue; a cancel throws, so a cancelled handoff fails the step and never
+    //    reaches routing. This is deliberately NOT a general success edge: an ordinary node
+    //    must never traverse an approval connector, or the approval semantic is bypassed.
+    //    A node cannot carry both a success and a manualApproval edge — both are `normal`
+    //    connectors, so structural validation rejects that pair before execution.
+    const approvalTarget = pick("manualApproval");
+    if (approvalTarget && stepResult.outcome === "manualContinued") {
+      this.emitConnectorEvent(context, `Manual approval granted → ${approvalTarget}.`);
+      return { nextStepId: approvalTarget, viaLoopBack: false };
+    }
+
+    // 5. Standard fallbacks: success → always.
     const fallback = pick("success") ?? pick("always");
     if (fallback) return { nextStepId: fallback, viaLoopBack: false };
 
-    // 5. Unconditional loopBack — last resort when nothing else matched.
+    // 6. Unconditional loopBack — last resort when nothing else matched.
     if (loopBack && !loopBack.condition?.expression && loopBackAvailable(loopBack)) return takeLoopBack(loopBack);
 
     return { nextStepId: step.next, viaLoopBack: false };
