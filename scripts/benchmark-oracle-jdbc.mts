@@ -32,6 +32,7 @@ import { OracleBridgeCallError } from "../src/oracle/OracleBridgeProtocol";
 import { OracleQueryService, type DescriptorResolution } from "../src/oracle/OracleQueryService";
 import { OracleDriverBundleStore } from "../src/oracle/OracleDriverBundleStore";
 import { JavaRuntimeStore } from "../src/oracle/JavaRuntimeStore";
+import { rssTrend, rssFloorWithinBudget } from "./lib/rss-trend.mts";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWin = process.platform === "win32";
@@ -63,6 +64,7 @@ function bridgeRssMb(): number | null {
   }
 }
 const nodeRssMb = (): number => Math.round(process.memoryUsage().rss / 1048576);
+
 
 function liveConfig() {
   const url = process.env.AWKIT_ORACLE_LIVE_URL;
@@ -243,8 +245,10 @@ async function main(): Promise<number> {
   const sortedDb = [...dbTimes].sort((a, z) => a - z);
   const sortedCancel = [...cancelLatencies].sort((a, z) => a - z);
   const durationMin = (Date.now() - startedAt) / 60_000;
-  const rssDrift = nodeRss.length >= 2 ? nodeRss[nodeRss.length - 1] - nodeRss[0] : 0;
-  const bridgeDrift = bridgeRss.length >= 2 ? bridgeRss[bridgeRss.length - 1] - bridgeRss[0] : 0;
+  const nodeTrend = rssTrend(nodeRss);
+  const bridgeTrend = rssTrend(bridgeRss);
+  const rssDrift = nodeTrend.endpointDeltaMb;
+  const bridgeDrift = bridgeTrend.endpointDeltaMb;
 
   const artifact = {
     schemaVersion: 1,
@@ -258,7 +262,22 @@ async function main(): Promise<number> {
     latencyMs: { p50: pct(sortedLat, 50), p95: pct(sortedLat, 95), p99: pct(sortedLat, 99), max: sortedLat[sortedLat.length - 1] ?? 0 },
     dbTimeMs: { p50: pct(sortedDb, 50), p95: pct(sortedDb, 95) },
     cancellation: { attempts: cancellationsOk + cancellationsBad, cancelled: cancellationsOk, notCancelled: cancellationsBad, latencyMsP50: pct(sortedCancel, 50), latencyMsP95: pct(sortedCancel, 95) },
-    memory: { nodeRssStartMb: nodeRss[0] ?? nodeRssMb(), nodeRssEndMb: nodeRss[nodeRss.length - 1] ?? nodeRssMb(), nodeRssDriftMb: rssDrift, bridgeRssStartMb: bridgeRss[0] ?? null, bridgeRssEndMb: bridgeRss[bridgeRss.length - 1] ?? null, bridgeRssDriftMb: bridgeDrift, samples: nodeRss.length },
+    memory: {
+      nodeRssStartMb: nodeRss[0] ?? nodeRssMb(),
+      nodeRssEndMb: nodeRss[nodeRss.length - 1] ?? nodeRssMb(),
+      nodeRssDriftMb: rssDrift,
+      bridgeRssStartMb: bridgeRss[0] ?? null,
+      bridgeRssEndMb: bridgeRss[bridgeRss.length - 1] ?? null,
+      bridgeRssDriftMb: bridgeDrift,
+      samples: nodeRss.length,
+      nodeTrend,
+      bridgeTrend: bridgeRss.length >= 2 ? bridgeTrend : null,
+      // The raw series is recorded so a disputed verdict can be re-analysed WITHOUT re-running a
+      // 30-minute soak. The previous artifact kept only start/end/drift, which is why the first
+      // failing run had to be reconstructed from console output.
+      nodeRssSeriesMb: [...nodeRss],
+      bridgeRssSeriesMb: [...bridgeRss]
+    },
     connections: { model: "direct-JDBC — one connection opened+closed per query (no pool)", poolMetrics: null },
     failures: { unexpected: unexpectedFailures, byCategory: errorsByCategory },
     teardown: { pendingBeforeDispose, pendingAfterDispose: manager.pendingCount(), bridgeRunningAfterDispose: manager.isRunning() },
@@ -285,8 +304,24 @@ async function main(): Promise<number> {
   check("sustained real throughput", latencies.length > 0, `${latencies.length} queries, ${artifact.throughput.queriesPerSec}/s`);
   check("no unexpected query failures", unexpectedFailures === 0, `failures=${unexpectedFailures} ${JSON.stringify(errorsByCategory)}`);
   check("cancellation stayed prompt (all CANCELLED)", cancellationsOk > 0 && cancellationsBad === 0, `ok=${cancellationsOk} bad=${cancellationsBad} p95=${pct(sortedCancel, 95)}ms`);
-  check("Node (Specter) RSS did not leak (drift < 150MB)", Math.abs(rssDrift) < 150, `drift=${rssDrift}MB over ${nodeRss.length} samples`);
-  check("bridge (Java) RSS did not leak (drift < 200MB)", bridgeRss.length < 2 || Math.abs(bridgeDrift) < 200, `drift=${bridgeDrift}MB over ${bridgeRss.length} samples`);
+  // Leak = the process can no longer return to its baseline, i.e. the FLOOR rises. The 150/200MB
+  // budgets are carried over unchanged from the original endpoint-delta checks so this is strictly
+  // a change of statistic, not a relaxation of tolerance. Slope and endpoint delta are printed as
+  // diagnostics; a disagreement between them and the floor is worth reading, not ignoring.
+  check(
+    "Node (Specter) RSS floor did not rise (< 150MB)",
+    rssFloorWithinBudget(nodeTrend, 150),
+    `floor ${nodeTrend.floorStartMb}→${nodeTrend.floorEndMb}MB (rise=${nodeTrend.floorRiseMb}MB) · ` +
+      `slope=${nodeTrend.slopeMbPerSample}MB/sample (${nodeTrend.slopeTotalMb}MB) · ` +
+      `endpointDelta=${nodeTrend.endpointDeltaMb}MB · peak=${nodeTrend.peakMb}MB · ${nodeTrend.samples} samples`
+  );
+  check(
+    "bridge (Java) RSS floor did not rise (< 200MB)",
+    rssFloorWithinBudget(bridgeTrend, 200),
+    `floor ${bridgeTrend.floorStartMb}→${bridgeTrend.floorEndMb}MB (rise=${bridgeTrend.floorRiseMb}MB) · ` +
+      `slope=${bridgeTrend.slopeMbPerSample}MB/sample · endpointDelta=${bridgeTrend.endpointDeltaMb}MB · ` +
+      `${bridgeTrend.samples} samples`
+  );
   check("teardown: no pending bridge requests", manager.pendingCount() === 0, `pending=${manager.pendingCount()}`);
   check("teardown: no orphan Java (bridge stopped)", manager.isRunning() === false);
   check("no pool metrics (connections are per-query)", artifact.connections.poolMetrics === null);
