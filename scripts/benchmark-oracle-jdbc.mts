@@ -33,6 +33,7 @@ import { OracleQueryService, type DescriptorResolution } from "../src/oracle/Ora
 import { OracleDriverBundleStore } from "../src/oracle/OracleDriverBundleStore";
 import { JavaRuntimeStore } from "../src/oracle/JavaRuntimeStore";
 import { rssTrend, rssFloorWithinBudget } from "./lib/rss-trend.mts";
+import { LatencyHistogram } from "./lib/latency-histogram.mts";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const isWin = process.platform === "win32";
@@ -64,6 +65,7 @@ function bridgeRssMb(): number | null {
   }
 }
 const nodeRssMb = (): number => Math.round(process.memoryUsage().rss / 1048576);
+const nodeHeapMb = (): number => Math.round(process.memoryUsage().heapUsed / 1048576);
 
 
 function liveConfig() {
@@ -152,11 +154,19 @@ async function main(): Promise<number> {
   ];
   const req = (sql: string) => ({ connectionProfileId: "soak", sql, binds: [], timeoutMs: 15_000, maxRows: 50, fetchSize: 50 });
 
-  const latencies: number[] = [];
-  const dbTimes: number[] = [];
-  const cancelLatencies: number[] = [];
+  // Bounded-memory percentiles (bd awkit-q0e). These were plain arrays with one push PER QUERY;
+  // at 18.2M queries `latencies` alone measured 502MB of LIVE data against a 30MB baseline, so the
+  // harness's own accounting dominated the very memory signal this soak exists to check.
+  const latencies = new LatencyHistogram();
+  const dbTimes = new LatencyHistogram();
+  const cancelLatencies = new LatencyHistogram();
   const nodeRss: number[] = [];
   const bridgeRss: number[] = [];
+  // V8's own accounting. RSS on Windows is the WORKING SET, which the OS trims independently of the
+  // process — measured: an 18.2M-element array live gave rss=499MB/heapUsed=470MB, and after a
+  // working-set trim rss=5MB while heapUsed was UNCHANGED at 470MB with the array still live. RSS
+  // therefore cannot carry a leak verdict here; heapUsed can.
+  const nodeHeap: number[] = [];
   let unexpectedFailures = 0;
   let cancellationsOk = 0;
   let cancellationsBad = 0;
@@ -182,8 +192,8 @@ async function main(): Promise<number> {
       const t0 = Date.now();
       try {
         const r = await service.execute(req(sql));
-        latencies.push(Date.now() - t0);
-        if (typeof r.executionMs === "number") dbTimes.push(r.executionMs);
+        latencies.record(Date.now() - t0);
+        if (typeof r.executionMs === "number") dbTimes.record(r.executionMs);
       } catch (err) {
         const cat = err instanceof OracleBridgeCallError ? err.category : "UNKNOWN";
         errorsByCategory[cat] = (errorsByCategory[cat] ?? 0) + 1;
@@ -212,7 +222,7 @@ async function main(): Promise<number> {
         const cat = err instanceof OracleBridgeCallError ? err.category : "UNKNOWN";
         if (cat === "CANCELLED") {
           cancellationsOk += 1;
-          cancelLatencies.push(Date.now() - t0);
+          cancelLatencies.record(Date.now() - t0);
         } else {
           cancellationsBad += 1;
         }
@@ -220,16 +230,20 @@ async function main(): Promise<number> {
     }
   })();
 
-  // Sampler: RSS + a progress line every 60s.
+  // Sampler: memory + a progress line every 60s.
+  //
+  // This loop used to run `[...latencies].sort()` EVERY MINUTE over an array holding one entry per
+  // query — a ~500MB copy-and-sort per tick by the end of a run. That, not the product, produced
+  // most of the RSS spikes the soak was reporting. The histogram answers percentiles without
+  // copying anything.
   const sampler = (async () => {
     while (!stop && Date.now() < deadline) {
       await sleepUntil(60_000);
       if (stop || Date.now() >= deadline) break;
-      const n = nodeRssMb(); const b = bridgeRssMb();
-      nodeRss.push(n); if (b != null) bridgeRss.push(b);
+      const n = nodeRssMb(); const h = nodeHeapMb(); const b = bridgeRssMb();
+      nodeRss.push(n); nodeHeap.push(h); if (b != null) bridgeRss.push(b);
       const mins = ((Date.now() - startedAt) / 60_000).toFixed(1);
-      const sorted = [...latencies].sort((a, z) => a - z);
-      console.log(`  t+${mins}m  queries=${latencies.length} p50=${pct(sorted, 50)}ms p95=${pct(sorted, 95)}ms nodeRSS=${n}MB bridgeRSS=${b ?? "?"}MB cancels=${cancellationsOk} fails=${unexpectedFailures} active≤${CONCURRENCY}`);
+      console.log(`  t+${mins}m  queries=${latencies.count} p50=${latencies.percentile(50)}ms p95=${latencies.percentile(95)}ms nodeHeap=${h}MB nodeRSS=${n}MB bridgeRSS=${b ?? "?"}MB cancels=${cancellationsOk} fails=${unexpectedFailures} active≤${CONCURRENCY}`);
     }
   })();
 
@@ -241,10 +255,9 @@ async function main(): Promise<number> {
   const pendingBeforeDispose = manager.pendingCount();
   await manager.dispose().catch(() => undefined);
 
-  const sortedLat = [...latencies].sort((a, z) => a - z);
-  const sortedDb = [...dbTimes].sort((a, z) => a - z);
-  const sortedCancel = [...cancelLatencies].sort((a, z) => a - z);
   const durationMin = (Date.now() - startedAt) / 60_000;
+  // heapUsed carries the leak verdict; RSS is kept as a diagnostic only (see nodeHeap's comment).
+  const heapTrend = rssTrend(nodeHeap);
   const nodeTrend = rssTrend(nodeRss);
   const bridgeTrend = rssTrend(bridgeRss);
   const rssDrift = nodeTrend.endpointDeltaMb;
@@ -258,10 +271,10 @@ async function main(): Promise<number> {
     durationMinutes: Number(durationMin.toFixed(2)),
     config: { soakMinutes: SOAK_MINUTES, maxConcurrency: CONCURRENCY, offeredDrivers: DRIVERS },
     bridge: { executionMode: hello.executionMode, driverVersion: hello.driverVersion, javaVersion: hello.javaVersion, protocolVersion: hello.protocolVersion },
-    throughput: { queries: latencies.length, queriesPerSec: Number((latencies.length / Math.max(1, durationMin * 60)).toFixed(1)) },
-    latencyMs: { p50: pct(sortedLat, 50), p95: pct(sortedLat, 95), p99: pct(sortedLat, 99), max: sortedLat[sortedLat.length - 1] ?? 0 },
-    dbTimeMs: { p50: pct(sortedDb, 50), p95: pct(sortedDb, 95) },
-    cancellation: { attempts: cancellationsOk + cancellationsBad, cancelled: cancellationsOk, notCancelled: cancellationsBad, latencyMsP50: pct(sortedCancel, 50), latencyMsP95: pct(sortedCancel, 95) },
+    throughput: { queries: latencies.count, queriesPerSec: Number((latencies.count / Math.max(1, durationMin * 60)).toFixed(1)) },
+    latencyMs: { p50: latencies.percentile(50), p95: latencies.percentile(95), p99: latencies.percentile(99), max: latencies.max },
+    dbTimeMs: { p50: dbTimes.percentile(50), p95: dbTimes.percentile(95) },
+    cancellation: { attempts: cancellationsOk + cancellationsBad, cancelled: cancellationsOk, notCancelled: cancellationsBad, latencyMsP50: cancelLatencies.percentile(50), latencyMsP95: cancelLatencies.percentile(95) },
     memory: {
       nodeRssStartMb: nodeRss[0] ?? nodeRssMb(),
       nodeRssEndMb: nodeRss[nodeRss.length - 1] ?? nodeRssMb(),
@@ -270,6 +283,11 @@ async function main(): Promise<number> {
       bridgeRssEndMb: bridgeRss[bridgeRss.length - 1] ?? null,
       bridgeRssDriftMb: bridgeDrift,
       samples: nodeRss.length,
+      nodeHeapStartMb: nodeHeap[0] ?? nodeHeapMb(),
+      nodeHeapEndMb: nodeHeap[nodeHeap.length - 1] ?? nodeHeapMb(),
+      // heapTrend carries the verdict; nodeTrend (RSS) is diagnostic only.
+      heapTrend,
+      nodeHeapSeriesMb: [...nodeHeap],
       nodeTrend,
       bridgeTrend: bridgeRss.length >= 2 ? bridgeTrend : null,
       // The raw series is recorded so a disputed verdict can be re-analysed WITHOUT re-running a
@@ -301,19 +319,29 @@ async function main(): Promise<number> {
   const check = (name: string, cond: boolean, detail = "") => { if (cond) { passed++; console.log(`  ✓ ${name}${detail ? ` — ${detail}` : ""}`); } else { failed++; console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ""}`); } };
   console.log(`\nSoak complete (${durationMin.toFixed(1)} min) — invariants:`);
   check("ran the full soak duration", durationMin >= SOAK_MINUTES - 0.2, `${durationMin.toFixed(1)}/${SOAK_MINUTES} min`);
-  check("sustained real throughput", latencies.length > 0, `${latencies.length} queries, ${artifact.throughput.queriesPerSec}/s`);
+  check("sustained real throughput", latencies.count > 0, `${latencies.count} queries, ${artifact.throughput.queriesPerSec}/s`);
   check("no unexpected query failures", unexpectedFailures === 0, `failures=${unexpectedFailures} ${JSON.stringify(errorsByCategory)}`);
-  check("cancellation stayed prompt (all CANCELLED)", cancellationsOk > 0 && cancellationsBad === 0, `ok=${cancellationsOk} bad=${cancellationsBad} p95=${pct(sortedCancel, 95)}ms`);
+  check("cancellation stayed prompt (all CANCELLED)", cancellationsOk > 0 && cancellationsBad === 0, `ok=${cancellationsOk} bad=${cancellationsBad} p95=${cancelLatencies.percentile(95)}ms`);
   // Leak = the process can no longer return to its baseline, i.e. the FLOOR rises. The 150/200MB
   // budgets are carried over unchanged from the original endpoint-delta checks so this is strictly
   // a change of statistic, not a relaxation of tolerance. Slope and endpoint delta are printed as
   // diagnostics; a disagreement between them and the floor is worth reading, not ignoring.
+  // The VERDICT is heapUsed. RSS on Windows is the working set and the OS trims it independently of
+  // the process, so it cannot carry a leak conclusion — measured: an 18.2M-element array live gave
+  // rss=499MB/heapUsed=470MB, and after a working-set trim rss=5MB with heapUsed UNCHANGED at 470MB
+  // and the array still fully live. The 150MB budget is carried over unchanged from the RSS check.
   check(
-    "Node (Specter) RSS floor did not rise (< 150MB)",
-    rssFloorWithinBudget(nodeTrend, 150),
-    `floor ${nodeTrend.floorStartMb}→${nodeTrend.floorEndMb}MB (rise=${nodeTrend.floorRiseMb}MB) · ` +
-      `slope=${nodeTrend.slopeMbPerSample}MB/sample (${nodeTrend.slopeTotalMb}MB) · ` +
-      `endpointDelta=${nodeTrend.endpointDeltaMb}MB · peak=${nodeTrend.peakMb}MB · ${nodeTrend.samples} samples`
+    "Node (Specter) HEAP floor did not rise (< 150MB)",
+    rssFloorWithinBudget(heapTrend, 150),
+    `floor ${heapTrend.floorStartMb}→${heapTrend.floorEndMb}MB (rise=${heapTrend.floorRiseMb}MB) · ` +
+      `slope=${heapTrend.slopeMbPerSample}MB/sample (${heapTrend.slopeTotalMb}MB) · ` +
+      `endpointDelta=${heapTrend.endpointDeltaMb}MB · peak=${heapTrend.peakMb}MB · ${heapTrend.samples} samples`
+  );
+  // Diagnostic only — deliberately NOT a pass/fail criterion. Recorded so a divergence between the
+  // heap and the working set stays visible instead of being silently discarded.
+  console.log(
+    `  · Node RSS (diagnostic, OS-trimmed — NOT a verdict): floor ${nodeTrend.floorStartMb}→${nodeTrend.floorEndMb}MB ` +
+      `(rise=${nodeTrend.floorRiseMb}MB) · slope=${nodeTrend.slopeTotalMb}MB · endpointDelta=${nodeTrend.endpointDeltaMb}MB · peak=${nodeTrend.peakMb}MB`
   );
   check(
     "bridge (Java) RSS floor did not rise (< 200MB)",
