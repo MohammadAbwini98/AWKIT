@@ -417,6 +417,45 @@ guard. `verify:ipc-contract` was taught to recognise that registrar — without 
 channels became invisible to its static scan, which would have failed **open** for its
 "registered but unexposed and undocumented" check. Contract is back to 4/4 at 203 handlers.
 
+### AWKIT-REP-005 — A recovered anomaly was silently dropped from Runtime Analytics
+
+- **Severity:** S3 / Information gap in an operator-facing health view
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/renderer/pages/ReportsRuntime.tsx` (`AnomaliesPanel`),
+  `app/renderer/styles/global.css`
+- **Detected by:** `SYS-REP-010`
+- **Evidence before fix:** `test-artifacts/reports-populated-gui/2026-07-26T20-41-50-639Z/execution-results.json`
+  (**129 PASS / 1 FAIL**)
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-26T20-48-22-606Z/execution-results.json`
+  (**136 PASS / 0 FAIL**)
+
+**Reproduction before fix**
+
+1. Seed two anomalies for one workflow: one `state: "active"`, one `state: "recovered"`.
+2. Open Runtime Analytics. `telemetry.anomalies` returns **both**, with states intact —
+   `SqliteRuntimeStore.queryAnomalies` maps `state` faithfully and `verify:observability` (65/65)
+   covers the transition.
+3. The panel renders only the active row. Had the active one also recovered, the panel would show
+   *"No anomalies detected in this range"* — identical to a workflow that never regressed at all.
+
+`AnomaliesPanel` opened with `anomalies.filter((a) => a.state === "active")` and drove both the table
+and its empty state from that list, so the recovered half of the data was discarded after being
+correctly fetched, stored and transported.
+
+**Why it matters:** recovery is the half of the signal that tells an operator whether a regression is
+still costing them anything. Dropping it does not merely hide information, it makes a recovered
+regression indistinguishable from no regression — the panel actively asserts the wrong thing.
+
+**Fix:** the panel now renders active and recovered rows (active first), each carrying its own
+labelled `StatusBadge` state, with the recovered rows tinted via `--awkit-text-muted` and the panel
+subtitle reporting both counts. The empty state appears only when there are genuinely no anomalies.
+Colour is never the only signal — the state is a text label in its own column.
+
+**The check was hardened after it passed.** Asserting only that the recovered note appears would also
+be satisfied by rendering every row as "active". It now additionally asserts that the rendered state
+badges include *both* `active` and `recovered` — verified in the run above as `active,recovered`.
+
 ### AWKIT-REP-004 — The Reports run-detail drawer was an `aria-modal` dialog with no keyboard contract
 
 - **Severity:** S3 / Moderate accessibility

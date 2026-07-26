@@ -7787,6 +7787,12 @@ button.recorded-url-use:disabled {
 .awkit-obs-table td {
   color: var(--awkit-text);
 }
+/* A recovered anomaly is history, not a live problem: de-emphasised but still present, because
+   hiding it made "regressed then recovered" look identical to "never regressed" (AWKIT-REP-005).
+   The state is carried by its own labelled badge, so this tint is never the only signal. */
+.awkit-obs-table tr.is-recovered td {
+  color: var(--awkit-text-muted);
+}
 .awkit-obs-env {
   color: var(--awkit-text-muted);
   font-size: var(--text-xs, 11px);

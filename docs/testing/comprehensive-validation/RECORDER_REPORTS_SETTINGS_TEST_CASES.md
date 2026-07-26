@@ -505,7 +505,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   boundaries; row detail is correct.
 - **Status:** `NOT RUN` for queued/running live-state transitions — the populated gate passed
   38-row two-page history, exact `1–25`/`26–38` boundaries, no duplicate/missing IDs, disabled
-  boundary action, and correct row detail.
+  boundary action, and correct row detail. **Same root cause as SYS-REP-011:** `useLiveDistribution`
+  polls `executions.list()` from the live `ExecutionEngine`, never the durable store, so seeded
+  history cannot produce a queued or running instance. Asserting "no instances in the pool" here
+  would prove only that the fixture seeds no live work, which is true by construction — it is
+  recorded as `NOT RUN`, not passed.
 
 ### SYS-REP-008 — Stored Execution Reports list, export and folder open
 
@@ -544,9 +548,15 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   regressions and recovered anomalies over multiple ranges.
 - **Expected:** Aggregates, buckets, percentages and anomaly state match source data; unavailable
   metrics are neutral, not zero; environmental observations are labelled.
-- **Status:** `NOT RUN` for multi-range and recovered-anomaly transitions — seeded capacity,
-  admission reasons, process history, active anomaly and environmental labels rendered correctly;
-  normal/empty/migration/high-data Runtime Analytics is 36/36 and backend observability is 65/65.
+- **Status:** `NOT RUN` for the neutral-vs-zero unavailable-metric matrix on this page only.
+  **Multi-range and recovered-anomaly transitions are now executed** in
+  `verify:reports-populated-gui` (**136/136**). Capacity buckets are seeded so that each preset band
+  contains exactly one more than the last, and all five presets return their derived count —
+  `15m=12 1h=13 24h=14 7d=15 all=16` — so a range argument that was ignored, clamped or sign-flipped
+  produces a different sequence. The recovered-anomaly subcase found and fixed `AWKIT-REP-005`.
+  Seeded capacity, admission reasons, process history, active anomaly and environmental labels
+  render correctly; normal/empty/migration/high-data Runtime Analytics is 36/36 and backend
+  observability is 65/65.
 
 ### SYS-REP-011 — Chrome Consumption live gauges and polling
 
@@ -557,7 +567,12 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Four gauges render with values or neutral unavailable state; page remains stable;
   backpressure reason appears and clears; no timer/listener leak is observed.
 - **Status:** `NOT RUN` for active-workflow/backpressure/cleanup subcases — four gauges and a second
-  polling cycle passed in both the fresh-profile and populated GUI gates.
+  polling cycle passed in both the fresh-profile and populated GUI gates. **Root cause of the gap,
+  recorded so it is not re-investigated:** `telemetry:server` reads `backpressureBlocked` from
+  `executionEngine.getRuntimeStatus().capacity.dispatchBlocked` — live in-memory engine state that a
+  store-seeded fixture cannot produce at all. Closing this needs a harness that saturates a real
+  engine with real instances, not more seeding. The admission/backpressure logic itself is green in
+  `verify:capacity`.
 
 ### SYS-REP-012 — Server Performance and storage sizing
 
@@ -567,9 +582,25 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   directory or deny access in an isolated root; refresh.
 - **Expected:** Four metric cards and storage section render; known sizes are accurate; missing/denied
   paths degrade to unavailable without crashing or leaking paths outside runtime roots.
-- **Status:** `NOT RUN` for exact-byte, missing-path, denied-path, large-directory and cache-expiry
-  fault injection — the populated gate passed four process cards and seeded runtime/report storage
-  discovery; fresh-profile sizing remained stable.
+- **Status:** `NOT RUN` for the large-directory bound only. `dirSizeMb` deliberately stops after
+  20,000 entries, so a folder above that silently under-reports; that bound is documented in the
+  source but has never been exercised. Everything else is executed in `verify:reports-populated-gui`
+  (**136/136**):
+  - **Exact bytes** — 1.5 MiB written to a Screenshots *sub-folder* reads back as `1.5`, Logs as `5`,
+    and the total equals the sum of its parts, so the walk recurses and the arithmetic is checked
+    against what was written rather than against itself.
+  - **Missing path** — the Downloads folder is never created and reports `0` without failing the
+    report.
+  - **Denied path** — a 4 MiB sub-tree has its read ACL revoked via `icacls` *before the app starts*,
+    so the first storage read already exercises the branch. The denial is asserted as a precondition
+    (this process genuinely cannot enumerate it) so the exclusion cannot pass for the wrong reason;
+    Logs reads `5`, not the `9` an unbounded walk would report, and the rest of the page still
+    renders. The ACL is restored in a `finally` and the restoration is itself a check.
+  - **Cache expiry** — storage is cached for 60 s. A read, then a 2 MiB write, then a second read
+    returns the *stale* figure (`3`, where a fresh walk would say `5`); after the TTL elapses the
+    recomputed figure is exactly `5`.
+  - **No path leak** — every Windows path the page renders is required to sit under the runtime root,
+    with the count reported so the check cannot pass vacuously on a page that renders none.
 
 ### SYS-REP-013 — Telemetry persistence, retention, paging and migration contract
 
@@ -881,12 +912,19 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Recorder:** component contracts are strong, but release approval for the Recorder feature requires
   REC-001 through REC-004 and REC-013, REC-016, REC-018, REC-021, REC-023 through REC-025, REC-028 and
   REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.
-- **System Reports:** **9 PASS / 7 NOT RUN.** Empty-state GUI, backend analytics, populated overview
-  truth, the full sort/filter matrix, the comparison limit, export/path security, authorization and
-  the executed accessibility audit are green. Remaining: live queued/running transitions (SYS-REP-007),
-  the real OS folder launch (SYS-REP-008), low-sample flakiness and evidence navigation (SYS-REP-009),
-  multi-range and recovered anomalies (SYS-REP-010), backpressure/cleanup (SYS-REP-011), storage
-  fault injection (SYS-REP-012), and artifact launch plus an explicit retention message (SYS-REP-006).
+- **System Reports:** **9 PASS / 7 NOT RUN**, with `verify:reports-populated-gui` at **136/136**.
+  Empty-state GUI, backend analytics, populated overview truth, the full sort/filter matrix, the
+  comparison limit, multi-range capacity, recovered anomalies, storage sizing/denial/cache fault
+  injection, export/path security, authorization and the executed accessibility audit are green.
+  The seven remaining cases are each open for a *named* residual submatrix, not wholesale:
+  - **Blocked on a live engine, not on more seeding** — SYS-REP-007 (queued/running transitions) and
+    SYS-REP-011 (backpressure) both read live `ExecutionEngine` state that a store-seeded fixture
+    cannot produce. These belong to a run-driving harness.
+  - **Owner-decision manual** — SYS-REP-008's real Explorer launch.
+  - **Needs a contract change** — SYS-REP-006's explicit retention message.
+  - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
+    SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
+    SYS-REP-006's artifact launch.
 - **Settings:** the real-Electron core gate is 116/116, including page/IPC authorization, every
   section, direct validation, path truth, Secrets CRUD, counts, UI-state reset, import recovery,
   reset safety, restart checks and modal/error accessibility. SET-001 and SET-018 are now PASS.

@@ -6,8 +6,9 @@
  * known rows and drives the real Electron renderer, preload and IPC boundary.
  */
 import { randomBytes } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { _electron as electron, type ConsoleMessage, type ElectronApplication, type Page } from "playwright";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
@@ -30,6 +31,7 @@ const runtimeDir = join(runtimeRoot, "runtime");
 const reportDir = join(runtimeRoot, "reports");
 const screenshotDir = join(runtimeRoot, "screenshots", "reports-fixture");
 const logDir = join(runtimeRoot, "logs", "reports-fixture");
+const deniedDir = join(logDir, "denied-subtree");
 const screenshots = join(evidenceRoot, "screenshots");
 const exportsDir = join(evidenceRoot, "exports");
 for (const dir of [runtimeDir, reportDir, screenshotDir, logDir, screenshots, exportsDir]) {
@@ -39,6 +41,17 @@ for (const dir of [runtimeDir, reportDir, screenshotDir, logDir, screenshots, ex
 const REPORT_ID = "rep-populated-001";
 const DETAIL_RUN_ID = "run-alpha-00";
 const FORBIDDEN_SENTINEL = "REPORT_SECRET_MUST_NOT_APPEAR";
+const RECOVERED_ANOMALY_NOTE = "Synthetic regression that has since recovered";
+/**
+ * SYS-REP-012 sizing payloads, in whole MiB so the reported figure is exact rather than
+ * approximately-right. `dirSizeMb` rounds to one decimal, and the few bytes of pre-existing fixture
+ * evidence in these folders are far below that resolution.
+ */
+const LOGS_PAYLOAD_MIB = 3;
+const SCREENSHOTS_PAYLOAD_MIB = 1.5;
+const CACHE_PROBE_PAYLOAD_MIB = 2;
+/** Written into a directory whose read access is then revoked, so it must NOT reach any total. */
+const DENIED_PAYLOAD_MIB = 4;
 const DEFAULT_CREDS = {
   displayName: "Reports Verifier",
   username: "reportsverifier",
@@ -76,6 +89,35 @@ function check(name: string, pass: unknown, detail?: unknown): void {
 
 function iso(ms: number): string {
   return new Date(ms).toISOString();
+}
+
+/**
+ * Revoke read access to a directory this process owns. An owner may always rewrite an object's DACL,
+ * so this needs no elevation. Paired with `restoreDirectoryRead` in the script's `finally` — an
+ * un-restored deny would leave an undeletable directory in `test-artifacts/`.
+ */
+function denyDirectoryRead(dir: string): void {
+  execFileSync("icacls", [dir, "/deny", `${userdomainAccount()}:(OI)(CI)(RX)`], { stdio: "ignore" });
+}
+
+function restoreDirectoryRead(dir: string): void {
+  execFileSync("icacls", [dir, "/remove:d", userdomainAccount()], { stdio: "ignore" });
+}
+
+function userdomainAccount(): string {
+  const domain = process.env.USERDOMAIN;
+  const user = process.env.USERNAME ?? "";
+  return domain ? `${domain}\\${user}` : user;
+}
+
+/** True when this process genuinely cannot enumerate the directory — the precondition, not the claim. */
+function directoryIsUnreadable(dir: string): boolean {
+  try {
+    readdirSync(dir);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 function genPassword(tag: string): string {
@@ -355,6 +397,17 @@ async function seedFixture(): Promise<{
   const tracePath = join(logDir, "run-alpha-trace.zip");
   writeFileSync(artifactPath, "synthetic screenshot evidence", "utf8");
   writeFileSync(tracePath, "synthetic trace evidence", "utf8");
+  // SYS-REP-012 — known-byte payloads so the rendered figure can be checked against arithmetic
+  // rather than against itself. Written into sub-folders to also prove the walk recurses.
+  writeFileSync(join(logDir, "sizing-payload.bin"), Buffer.alloc(LOGS_PAYLOAD_MIB * 1024 * 1024));
+  writeFileSync(join(screenshotDir, "sizing-payload.bin"), Buffer.alloc(SCREENSHOTS_PAYLOAD_MIB * 1024 * 1024));
+  // SYS-REP-012 denied-path injection. A real ACL denial, not a simulated one: `dirSizeMb` catches a
+  // failing `readdir` and continues, so the denied sub-tree's bytes must be excluded while the rest
+  // of the report still renders. Denied BEFORE the app starts so the very first storage read already
+  // exercises the branch — no cache-TTL dance, and no window in which the app sees it readable.
+  mkdirSync(deniedDir, { recursive: true });
+  writeFileSync(join(deniedDir, "unreadable-payload.bin"), Buffer.alloc(DENIED_PAYLOAD_MIB * 1024 * 1024));
+  denyDirectoryRead(deniedDir);
   store.recordArtifact({
     instanceId: DETAIL_RUN_ID,
     executionId: `exec-${DETAIL_RUN_ID}`,
@@ -439,6 +492,54 @@ async function seedFixture(): Promise<{
     };
     store.recordProcessSample(processSample);
   }
+  // SYS-REP-010 — the twelve buckets above all sit inside 15 minutes, so every range preset returns
+  // the same data and a range selector that ignored its argument entirely would pass. These four sit
+  // in exactly one preset band each, which makes the expected bucket count per preset a derivable
+  // number rather than an assertion that "something changed".
+  const agedBucketMinutes = [40, 6 * 60, 3 * 24 * 60, 10 * 24 * 60];
+  for (const ageMinutes of agedBucketMinutes) {
+    const start = now - ageMinutes * 60_000;
+    store.recordCapacityBucket({
+      bucketStart: iso(start),
+      bucketEnd: iso(start + 30_000),
+      sampleCount: 10,
+      cpuMean: 30,
+      cpuP95: 40,
+      cpuMax: 50,
+      memoryMean: 40,
+      memoryP95: 50,
+      memoryMax: 60,
+      awkitRssMeanMb: 180,
+      awkitRssP95Mb: 220,
+      awkitRssMaxMb: 250,
+      chromiumRssMeanMb: 500,
+      chromiumRssP95Mb: 650,
+      chromiumRssMaxMb: 800,
+      adaptiveTargetMean: 4,
+      adaptiveTargetMin: 3,
+      adaptiveTargetMax: 5,
+      weightedBudgetMean: 6,
+      weightedBudgetMin: 6,
+      weightedBudgetMax: 6,
+      activeWeightMean: 3,
+      activeWeightP95: 4,
+      activeWeightMax: 5,
+      activeFlowsMean: 3,
+      activeFlowsP95: 4,
+      activeFlowsMax: 5,
+      queuedFlowsMean: 1,
+      queuedFlowsP95: 2,
+      queuedFlowsMax: 3,
+      sharedBrowsersMean: 2,
+      sharedBrowsersMax: 3,
+      contextCountMean: 3,
+      contextCountMax: 4,
+      pageCountMean: 3,
+      pageCountMax: 4,
+      weightedAdmissionActive: true
+    } satisfies DurableCapacityBucketRecord);
+  }
+
   const anomaly: DurableAnomalyRecord = {
     workflowId: "wf-alpha",
     runId: DETAIL_RUN_ID,
@@ -455,6 +556,18 @@ async function seedFixture(): Promise<{
     note: "Synthetic, independently seeded regression"
   };
   store.recordAnomaly(anomaly);
+  // SYS-REP-010 — a regression that recovered is a state transition an operator needs to see. The
+  // durable layer stores and returns `state: "recovered"` faithfully (verify:observability 65/65),
+  // so this asks the same question of the GUI.
+  store.recordAnomaly({
+    ...anomaly,
+    runId: "run-alpha-01",
+    detectedAt: iso(now - 90_000),
+    signalType: "duration-p95",
+    severity: "info",
+    state: "recovered",
+    note: RECOVERED_ANOMALY_NOTE
+  } satisfies DurableAnomalyRecord);
   await store.persistNow();
   await store.close();
 
@@ -651,6 +764,26 @@ try {
     traversalProbe.rejected && traversalProbe.message.includes("Report not found"),
     traversalProbe.message
   );
+  // SYS-REP-012 cache probe, opened here and closed at Server Performance much later. Storage sizing
+  // is cached for 60s (STORAGE_TTL_MS). Reading it, then adding a known payload, then reading again
+  // must return the STALE figure — otherwise the cache does not exist and the "cached for up to a
+  // minute" promise on the page is false. The matching expiry assertion runs after the rest of the
+  // suite has elapsed past the TTL, so no dead wait is spent here.
+  const storageBaseline = await win.evaluate(() => window.playwrightFlowStudio.telemetry.server());
+  check(
+    `SYS-REP-012 first storage read sees the ${LOGS_PAYLOAD_MIB} MiB seeded into Logs`,
+    storageBaseline.storage.logsMb === LOGS_PAYLOAD_MIB,
+    `${storageBaseline.storage.logsMb} vs ${LOGS_PAYLOAD_MIB}`
+  );
+  writeFileSync(join(logDir, "cache-probe.bin"), Buffer.alloc(CACHE_PROBE_PAYLOAD_MIB * 1024 * 1024));
+  const cacheProbeWrittenAt = Date.now();
+  const storageCached = await win.evaluate(() => window.playwrightFlowStudio.telemetry.server());
+  check(
+    "SYS-REP-012 a second read inside the TTL returns the cached figure, not a fresh walk",
+    storageCached.storage.logsMb === LOGS_PAYLOAD_MIB,
+    `${storageCached.storage.logsMb} (a fresh walk would report ${LOGS_PAYLOAD_MIB + CACHE_PROBE_PAYLOAD_MIB})`
+  );
+
   const overview = await win.evaluate(() => window.playwrightFlowStudio.telemetry.overview("24h"));
   check("SYS-REP-003 total matches independently seeded current rows", overview.totalRuns === fixture.expected.total, JSON.stringify(overview));
   check(
@@ -982,6 +1115,17 @@ try {
   await win.getByRole("button", { name: "Details" }).first().click();
   await win.getByRole("dialog", { name: "Run detail" }).waitFor({ timeout: 15_000 });
   check("SYS-REP-007 first-row detail identity is correct", (await win.getByRole("dialog", { name: "Run detail" }).innerText()).includes(DETAIL_RUN_ID));
+  // The live distribution polls `executions.list()` — the in-memory ExecutionEngine instance list —
+  // and never reads the durable store this fixture seeds. Seeded history therefore cannot produce a
+  // queued or running instance, and asserting "no instances in the pool" here would prove only that
+  // the fixture seeds no live work, which is by construction.
+  const liveStatusText = await win.locator(".awkit-report-page").innerText();
+  notRunCheck(
+    "SYS-REP-007 live queued/running distribution matches engine state",
+    `useLiveDistribution reads executions.list() from the live ExecutionEngine, not the seeded store; the page correctly reports ${
+      liveStatusText.includes("No instances in the pool right now") ? '"No instances in the pool right now"' : "an unexpected live state"
+    }. Proving the transitions needs a harness that starts real instances`
+  );
   await win.getByRole("button", { name: "Close", exact: true }).click();
 
   // Failure analytics populated categories + ranking.
@@ -1036,6 +1180,71 @@ try {
   const runtimeText = await win.locator(".awkit-report-page").innerText();
   check("SYS-REP-010 capacity samples, admission reasons and anomaly render", runtimeText.includes("Capacity & queue effectiveness") && runtimeText.includes("CPU pressure") && runtimeText.includes("failure-rate") && runtimeText.includes("Synthetic, independently seeded regression"));
   check("SYS-REP-010 environmental metrics are labelled", (await win.locator(".awkit-obs-env").count()) >= 4);
+
+  // SYS-REP-010 — every preset, against counts derived from the seed. Twelve buckets sit inside
+  // 15 minutes and one more sits in each wider band, so a range argument that was ignored, clamped,
+  // or applied with the wrong sign produces a different sequence than this one.
+  const expectedBuckets: Array<[string, number]> = [["15m", 12], ["1h", 13], ["24h", 14], ["7d", 15], ["all", 16]];
+  const observedBuckets = await win.evaluate(async (presets: string[]) => {
+    const out: Array<{ preset: string; bucketCount: number }> = [];
+    for (const preset of presets) {
+      const capacity = await window.playwrightFlowStudio.telemetry.capacityAnalytics(preset as never);
+      out.push({ preset, bucketCount: capacity.bucketCount });
+    }
+    return out;
+  }, expectedBuckets.map(([preset]) => preset));
+  for (const [preset, expected] of expectedBuckets) {
+    const observed = observedBuckets.find((entry) => entry.preset === preset)?.bucketCount;
+    check(`SYS-REP-010 the "${preset}" range returns exactly its ${expected} seeded capacity buckets`, observed === expected, `${observed} vs ${expected}`);
+  }
+  check(
+    "SYS-REP-010 widening the range never returns fewer buckets",
+    observedBuckets.every((entry, i) => i === 0 || observedBuckets[i - 1].bucketCount <= entry.bucketCount),
+    observedBuckets.map((entry) => `${entry.preset}=${entry.bucketCount}`).join(" ")
+  );
+
+  // Driving the selector proves the RENDERED page follows the range, not just the IPC call above.
+  for (const preset of ["15m", "7d"]) {
+    await win.getByRole("button", { name: preset, exact: true }).click();
+    await waitForReportPage(win, "Runtime Analytics");
+  }
+  check("SYS-REP-010 the range selector re-renders without error", (await win.locator(".awkit-report-page").count()) === 1);
+
+  // A regression that recovered is a state transition, and the durable layer returns it faithfully.
+  const anomalyStates = await win.evaluate(async () => {
+    const rows = await window.playwrightFlowStudio.telemetry.anomalies("all" as never, undefined, 100);
+    return rows.map((row) => ({ state: row.state, note: row.note ?? "" }));
+  });
+  check(
+    "SYS-REP-010 the durable layer returns both an active and a recovered anomaly",
+    anomalyStates.some((a) => a.state === "active") && anomalyStates.some((a) => a.state === "recovered"),
+    JSON.stringify(anomalyStates)
+  );
+  const runtimeTextAll = await win.locator(".awkit-report-page").innerText();
+  check(
+    "SYS-REP-010 a recovered anomaly is surfaced rather than silently dropped",
+    runtimeTextAll.includes(RECOVERED_ANOMALY_NOTE),
+    `recovered note ${runtimeTextAll.includes(RECOVERED_ANOMALY_NOTE) ? "present" : "ABSENT"}`
+  );
+  check(
+    "SYS-REP-010 the active anomaly is still shown alongside it",
+    runtimeTextAll.includes("Synthetic, independently seeded regression"),
+    `active note ${runtimeTextAll.includes("Synthetic, independently seeded regression") ? "present" : "ABSENT"}`
+  );
+  // Rendering both rows is not enough: the two states must be told apart. Showing everything as
+  // "active" would satisfy the two checks above while still misreporting the workflow's health.
+  const anomalyRowStates = await win.evaluate(() =>
+    Array.from(document.querySelectorAll(".awkit-obs-table tr.is-recovered, .awkit-obs-table tbody tr")).length === 0
+      ? []
+      : Array.from(document.querySelectorAll(".awkit-obs-table tbody tr"))
+          .map((tr) => (tr.querySelector(".awkit-status-badge")?.textContent || "").trim())
+          .filter(Boolean)
+  );
+  check(
+    "SYS-REP-010 each anomaly row carries its own labelled state, not colour alone",
+    anomalyRowStates.includes("active") && anomalyRowStates.includes("recovered"),
+    anomalyRowStates.join(",") || "no state badges rendered"
+  );
   await win.screenshot({ path: join(screenshots, "04-runtime-analytics.png"), fullPage: true });
 
   await navClick(win, "Chrome Consumption");
@@ -1043,12 +1252,79 @@ try {
   check("SYS-REP-011 four live gauges render", (await win.locator(".awkit-gauge-card").count()) === 4);
   await win.waitForTimeout(2_500);
   check("SYS-REP-011 polling remains stable through a second cycle", (await win.locator(".awkit-gauge-card").count()) === 4);
+  // `backpressureBlocked` is read from the LIVE ExecutionEngine's runtime status, not from the
+  // durable store this fixture seeds, so no amount of seeding can produce it. Proving it needs a
+  // harness that saturates a real engine with real instances. Recorded, not silently skipped.
+  notRunCheck(
+    "SYS-REP-011 backpressure appears and clears",
+    "telemetry:server reads dispatchBlocked from the live ExecutionEngine, which this store-seeded fixture never populates; the admission/backpressure logic itself is covered by verify:capacity"
+  );
 
   await navClick(win, "Server Performance");
   await waitForReportPage(win, "Server Performance");
   const serverText = await win.locator(".awkit-report-page").innerText();
   check("SYS-REP-012 four process metric cards render", (await win.locator(".metric-card").count()) >= 4);
   check("SYS-REP-012 storage sizing includes the seeded stores", serverText.includes("Storage usage") && serverText.includes("Reports") && serverText.includes("Runtime DB"), serverText.slice(0, 600));
+
+  // SYS-REP-012 — exact bytes. "A number rendered" is not the claim; "the number equals what was
+  // written" is. `dirSizeMb` rounds to 0.1 MB and the pre-existing fixture evidence in these folders
+  // is a few dozen bytes, far below that resolution.
+  // Close the cache probe opened at Overview. Only sleep for whatever is left of the TTL — the rest
+  // of the suite has already consumed most of it.
+  const ttlRemaining = 61_000 - (Date.now() - cacheProbeWrittenAt);
+  if (ttlRemaining > 0) await win.waitForTimeout(ttlRemaining);
+  const expectedLogsMb = LOGS_PAYLOAD_MIB + CACHE_PROBE_PAYLOAD_MIB;
+  const storage = await win.evaluate(() => window.playwrightFlowStudio.telemetry.server());
+  check(
+    `SYS-REP-012 the cache expires and the recomputed Logs figure equals the ${expectedLogsMb} MiB on disk`,
+    storage.storage.logsMb === expectedLogsMb,
+    `${storage.storage.logsMb} vs ${expectedLogsMb} (elapsed ${Math.round((Date.now() - cacheProbeWrittenAt) / 1000)}s)`
+  );
+  check(
+    `SYS-REP-012 Screenshots sizing equals the ${SCREENSHOTS_PAYLOAD_MIB} MiB written into a sub-folder`,
+    storage.storage.screenshotsMb === SCREENSHOTS_PAYLOAD_MIB,
+    `${storage.storage.screenshotsMb} vs ${SCREENSHOTS_PAYLOAD_MIB}`
+  );
+  check(
+    "SYS-REP-012 the total is the sum of its parts",
+    Math.abs(storage.storage.totalMb -
+      (storage.storage.reportsMb + storage.storage.screenshotsMb + storage.storage.logsMb + storage.storage.downloadsMb + storage.storage.runtimeDbMb)) < 0.05,
+    JSON.stringify(storage.storage)
+  );
+  check(
+    "SYS-REP-012 a runtime folder that was never created reports 0 rather than failing the whole report",
+    storage.storage.downloadsMb === 0,
+    `downloads=${storage.storage.downloadsMb}`
+  );
+  // The denied sub-tree. The precondition is asserted first: if the ACL did not actually take, the
+  // exclusion below would pass for the wrong reason (nothing to exclude) rather than proving
+  // anything. The Logs figure above already equals the readable payload exactly, so the denied
+  // 4 MiB is demonstrably excluded — and the rest of the report still rendered.
+  check(
+    `SYS-REP-012 the ${DENIED_PAYLOAD_MIB} MiB sub-tree is genuinely unreadable (precondition)`,
+    directoryIsUnreadable(deniedDir),
+    deniedDir.replace(root, "<repo>")
+  );
+  check(
+    "SYS-REP-012 an unreadable sub-tree is skipped, not counted and not fatal",
+    storage.storage.logsMb === expectedLogsMb && serverText.includes("Storage usage"),
+    `logs=${storage.storage.logsMb}; a walk that ignored the denial would report ${expectedLogsMb + DENIED_PAYLOAD_MIB}`
+  );
+  // "Unavailable" must read as unknown, not as a measured zero.
+  check(
+    "SYS-REP-012 an unavailable process metric renders neutral rather than a fabricated 0",
+    storage.chromiumMemoryMb === undefined ? serverText.includes("—") : true,
+    `chromiumMemoryMb=${String(storage.chromiumMemoryMb)}`
+  );
+  // Extract every Windows path the page renders and require each to sit under this run's evidence
+  // root. A blanket "does not contain C:\" would also pass on a page that renders no paths at all,
+  // so the count is reported either way rather than hidden.
+  const renderedPaths = serverText.match(/[A-Za-z]:\\[^\s"']+/g) ?? [];
+  check(
+    "SYS-REP-012 every path the page renders stays inside the runtime root",
+    renderedPaths.every((path) => path.toLowerCase().startsWith(runtimeRoot.toLowerCase())),
+    `${renderedPaths.length} path(s) rendered: ${renderedPaths.slice(0, 3).join(" | ") || "none"}`
+  );
 
   // Stored run report list/export contract. A corrupt sibling must not crash or create a fake row.
   await navClick(win, "Run Artifacts");
@@ -1263,6 +1539,14 @@ try {
   check("Reports pages emitted no renderer errors", rendererErrors.length === 0, rendererErrors.slice(0, 3).join(" | "));
 } finally {
   await app.close().catch(() => undefined);
+  // Always give the denied sub-tree back its inherited permissions, or the evidence folder becomes
+  // undeletable. Reported as a check so a silent failure to restore cannot go unnoticed.
+  try {
+    restoreDirectoryRead(deniedDir);
+    check("SYS-REP-012 the injected ACL denial was restored", !directoryIsUnreadable(deniedDir), deniedDir.replace(root, "<repo>"));
+  } catch (error) {
+    check("SYS-REP-012 the injected ACL denial was restored", false, error instanceof Error ? error.message : String(error));
+  }
 }
 
 writeFileSync(join(evidenceRoot, "execution-results.json"), JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2), "utf8");

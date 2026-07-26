@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Cpu, Gauge, LineChart, ListChecks, ShieldAlert
 import type { ProcessHistoryPoint, RuntimeSeriesPoint, TelemetryRangePreset } from "@src/reports/TelemetryContracts";
 import type { AnomalyEvent, CapacityAnalytics, CapacityMetricStats, RuntimeObservabilitySummary } from "@src/reports/ObservabilityContracts";
 import { MetricCard } from "../components/shared/MetricCard";
+import { StatusBadge } from "../components/shared/StatusBadge";
 import { EmptyState } from "../components/shared/EmptyState";
 import { SkeletonCard } from "../components/shared/SkeletonCard";
 import { ReportPage } from "../components/reports/ReportPage";
@@ -362,22 +363,33 @@ function CapacityEffectivenessPanel({ capacity }: { capacity: CapacityAnalytics 
 }
 
 function AnomaliesPanel({ anomalies }: { anomalies: AnomalyEvent[] }) {
+  // Recovered anomalies are shown, not filtered out. Dropping them made "this workflow regressed and
+  // then recovered" indistinguishable from "this workflow never regressed", even though the durable
+  // layer records the transition faithfully (AWKIT-REP-005). Active rows sort first so the panel
+  // still leads with what needs attention.
   const active = anomalies.filter((a) => a.state === "active");
+  const recovered = anomalies.filter((a) => a.state === "recovered");
+  const ordered = [...active, ...recovered];
   return (
     <section className="work-panel awkit-report-panel">
       <div className="awkit-report-panel-head">
         <div>
           <strong>Anomalies &amp; regressions</strong>
-          <span>Deterministic, explainable detections vs each workflow's history</span>
+          <span>
+            {recovered.length > 0
+              ? `Deterministic detections vs each workflow's history — ${active.length} active, ${recovered.length} recovered`
+              : "Deterministic, explainable detections vs each workflow's history"}
+          </span>
         </div>
         <ShieldAlert size={18} />
       </div>
-      {active.length === 0 ? (
+      {ordered.length === 0 ? (
         <EmptyState icon={<ShieldAlert size={24} />} title="No anomalies detected in this range" hint="Run-level and regression checks compare each workflow to its own history." />
       ) : (
         <table className="awkit-obs-table">
           <thead>
             <tr>
+              <th>State</th>
               <th>Severity</th>
               <th>Signal</th>
               <th>Scope</th>
@@ -386,8 +398,11 @@ function AnomaliesPanel({ anomalies }: { anomalies: AnomalyEvent[] }) {
             </tr>
           </thead>
           <tbody>
-            {active.map((a) => (
-              <tr key={a.id ?? `${a.signalType}-${a.detectedAt}`}>
+            {ordered.map((a) => (
+              <tr key={a.id ?? `${a.signalType}-${a.detectedAt}`} className={a.state === "recovered" ? "is-recovered" : ""}>
+                <td>
+                  <StatusBadge tone={a.state === "recovered" ? "success" : "warning"} label={a.state} />
+                </td>
                 <td>
                   <span className={`awkit-sev awkit-sev-${a.severity}`}>{a.severity}</span>
                 </td>
