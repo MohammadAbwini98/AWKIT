@@ -1,6 +1,66 @@
 # CURRENT_STATE
 
-## Recorder persistence, save path and Settings scope — 7 cases (2026-07-26, current)
+## Reports/Settings residual submatrices — 6 cases, 2 defects (2026-07-27, current)
+
+Phase 4 of the campaign. **`verify:reports-populated-gui` 74 → 136**, **`verify:settings-e2e`
+116 → 128**, **`verify:recorder-gui` 90 → 100**. Ledger **43 → 47 PASS**, **22 → 18 NOT RUN**
+(Recorder 25/3/1, Reports 9/7, Settings 13/8). Closed: SYS-REP-004, SYS-REP-005, SET-016, SET-019.
+
+**Two real product defects, both found by a check that had never been executed.**
+
+`AWKIT-REP-004` — `RunDetailDrawer` rendered `role="dialog" aria-modal="true"` with no Escape
+handler, no focus move, no trap and no focus return. Assistive tech treats content behind an
+`aria-modal` dialog as inert, so a keyboard user was stranded. Same class as `AWKIT-SET-004`, which
+fixed `ConfirmDialog` but never reached this component — a fix applied to one modal surface, not to
+the concept.
+
+`AWKIT-REP-005` — `AnomaliesPanel` filtered to `state === "active"` and drove its empty state from
+that list, so a regression that *recovered* rendered identically to a workflow that never regressed.
+The durable layer returns `"recovered"` faithfully; the renderer discarded it. Both states now render
+with their own labelled badge.
+
+**Three checks were vacuous before they were run. This keeps being the same lesson.**
+
+1. Focus return asserted `activeElement.textContent.includes("Details")`. When focus is lost,
+   `activeElement` falls back to `<body>`, whose `textContent` contains every button label on the
+   page — "Details" among them. It would have passed *exactly when the defect was present*.
+   Negative-controlled: with only the focus-return line disabled it reports `activeElement=<BODY>`.
+2. Column sorting asserted set-preservation plus a definite `aria-sort` — both satisfied by a column
+   that reports a direction and then orders rows arbitrarily. Now asserted against the column's own
+   values (`Runs` descending `20,12,2,2,2` / ascending `2,2,2,12,20`), monotonic per direction rather
+   than exact-reverse, because ties are expected and a stable sort correctly breaks that symmetry.
+3. REC-013's dismiss control was assumed to be "Cancel". It is **"Keep editing"**. The block had
+   never executed, and timed out the first time it did.
+
+**Storage sizing is now checked against arithmetic, not against itself** (SYS-REP-012): 1.5 MiB
+written to a *sub*-folder reads back as `1.5` (so the walk recurses), the total equals the sum of its
+parts, a never-created folder reports `0`, and a **real `icacls` ACL denial** applied before the app
+starts excludes its 4 MiB — with the denial asserted as a precondition, so "excluded" cannot pass
+because there was nothing to exclude. Restored in a `finally`, and the restoration is itself a check.
+Cache behaviour uses the suite's own elapsed time rather than a dead wait: stale `3` inside the TTL,
+exactly `5` after it.
+
+**The Settings reset inventory had a real blind spot.** Sessions and driver records were never
+seeded, so "Clear UI State and Reset preserve your data" was only ever asserted about the classes
+that happened to be present — a destructive action that spared flows and wiped captured sessions
+would have passed 116/116. They are also invisible to `settings:getStorageStats`, which counts only
+flows/workflows/dataSources/reports, so the inventory reads through each store's own `list()`.
+
+**REC-013's fixture recipe is counter-intuitive and the recorded plan for it was wrong.** The bead
+proposed "Capture waiting time ON with pauses ≥ 500 ms". That *suppresses* the wait it needs:
+`RecorderService` passes `allowFixedDelayFallback: !this.captureWaitTime`. The working recipe is the
+inverse — Smart Wait capture ON, waiting-time capture OFF — plus a genuinely **quiet** gap, since any
+fetch, DOM mutation or loader yields a reliable condition instead. The harness does not even update
+its own status element between actions; that one mutation would have suppressed it.
+
+**Two subcases are blocked on architecture, not on effort.** SYS-REP-007's live distribution and
+SYS-REP-011's backpressure both read live `ExecutionEngine` state (`executions.list()` and
+`getRuntimeStatus().capacity.dispatchBlocked`) that a store-seeded fixture cannot produce at all.
+More seeding will never close them; a run-driving harness will. Recorded as `NOT RUN` with that
+reason rather than asserted vacuously — "no instances in the pool" would have been true by
+construction.
+
+## Recorder persistence, save path and Settings scope — 7 cases (2026-07-26)
 
 Phase 3 of the campaign. **`verify:recorder-draft` 17 → 50**, **`verify:recorder-gui` 70 → 90**.
 Closed: REC-006, REC-010, REC-014, REC-016, REC-017, REC-023, SET-005.

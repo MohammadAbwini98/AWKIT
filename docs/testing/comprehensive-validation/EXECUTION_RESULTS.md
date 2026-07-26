@@ -12,9 +12,10 @@
 | Telemetry/observability/reports/analytics | `PASS` | All specialized suites passed |
 | Recorder component contracts | `PASS` | Capture 78/78; flow 19/19; draft 17/17; async review 21/21; protected detection 45/45 |
 | Recorder full page record→save→replay | `PASS` | REC-018 **41/41**: real UI capture/save, restart/reopen, two production replays, designer round-trip |
-| System Reports populated GUI truth/drill-down/export | `NOT RUN` | Populated core gate **64/64**; SYS-REP-002/003 closed, exact residual submatrices remain |
+| System Reports populated GUI truth/drill-down/export | `NOT RUN` | Populated core gate **136/136**; Reports **9 PASS / 7 NOT RUN**. Sort/filter matrix, comparison limit, multi-range capacity, recovered anomalies and storage sizing/denial/cache all closed; `AWKIT-REP-004` and `AWKIT-REP-005` found and fixed |
 | Settings real-Electron core journey | `PASS` | **116/116** after fixes; access/IPC boundary, every section, validation, paths, Secrets, counts, import/reset/restart and core accessibility |
-| Settings residual submatrices | `NOT RUN` | 9 PASS / 12 NOT RUN cases; exact picker/runner/session/fault/accessibility variants remain |
+| Settings residual submatrices | `NOT RUN` | Core gate **128/128**; Settings **13 PASS / 8 NOT RUN**. The Clear-UI-State/Reset data-preservation inventory now covers sessions and driver records; valid boundary edges and rapid submit closed |
+| Recorder/Reports/Settings combined ledger | — | **47 PASS / 18 NOT RUN / 1 BLOCKED** (was 43/22/1). Counted from the case file, not from assertion totals |
 | Auth/security/RBAC/session/secrets/licensing | `PASS` | All specialized suites passed |
 | Flow Designer/Workflow Builder | `PASS` | Mapping, sentinels, and both GUI suites passed |
 | Oracle offline/integration boundary | `PASS` | Policy, profile, source, runtime, and lazy resolution passed |

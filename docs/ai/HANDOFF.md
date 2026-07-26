@@ -1,6 +1,47 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-26, latest): packaged gate re-verified at `82c2514` — 70/70
+## ACTIVE (2026-07-27, latest): Phase 4 — Reports/Settings submatrices, ledger 47/18/1
+
+`verify:reports-populated-gui` **74 → 136**, `verify:settings-e2e` **116 → 128**,
+`verify:recorder-gui` **90 → 100**. Combined ledger **47 PASS / 18 NOT RUN / 1 BLOCKED**
+(Recorder 25/3/1, Reports 9/7, Settings 13/8), counted from the case file rather than from assertion
+totals. Two product defects found and fixed: `AWKIT-REP-004` (Reports drawer had no keyboard
+contract) and `AWKIT-REP-005` (recovered anomalies were dropped). Full detail in `CURRENT_STATE.md`
+and `DEFECTS.md`.
+
+### Read this before adding checks here
+
+Three assertions in this area were **wrong in the passing direction** until they were executed:
+a focus check `<body>` would have satisfied, a sort check an arbitrary ordering would have satisfied,
+and a button label ("Cancel") that had simply been guessed — the real one is "Keep editing". Two are
+now negative-controlled and one is value-checked. Run a new check before citing it.
+
+### Still open here, with causes
+
+- **Blocked on architecture, not effort.** SYS-REP-007 (live queued/running distribution) and
+  SYS-REP-011 (backpressure) read live `ExecutionEngine` state — `executions.list()` and
+  `getRuntimeStatus().capacity.dispatchBlocked`. A store-seeded fixture **cannot** produce either.
+  More seeding will never close them; a harness that starts real instances will. Do not "fix" this by
+  asserting "no instances in the pool" — that is true by construction.
+- **Needs a contract change.** SYS-REP-006's retention message: `telemetry.runDetail` returns
+  `{attempts:[],artifacts:[]}` for an unknown id, indistinguishable from a retained run with no
+  attempts.
+- **Owner-decision manual.** SYS-REP-008's real Explorer launch; SET-015's real folder launch.
+- **Straightforward remaining work.** SYS-REP-009 low-sample flakiness and evidence navigation,
+  SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, SYS-REP-006's
+  artifact launch, SET-007, SET-008's new-designer propagation, SET-009, SET-013's unavailable store,
+  SET-015's unreadable store, SET-017, SET-020.
+- **SET-004's mid-session half now has its fixture** (`/recorder-lab?rec013=1`) but is not yet wired
+  into `verify:settings-e2e`, which does not currently spawn the mock site. That is the cheapest
+  remaining case.
+
+### Repackage before citing any packaged result
+
+This round changed `app/renderer`, so the recorded **70/70** packaged walkthrough below is **not
+citable** until `npm run package:portable` is re-run. `verify:packaged-walkthrough` will refuse the
+stale tree rather than let a misleading pass through.
+
+## PRIOR (2026-07-26): packaged gate re-verified at `82c2514` — 70/70
 
 The package was rebuilt and `verify:packaged-walkthrough` re-run: **70 passed, 0 failed**. This is
 the first packaged run covering the whole session together — `manualApproval` routing, the Reports

@@ -4,7 +4,51 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-26 (latest) - Phase 3: persistence boundaries, the save path, Settings scope (Claude)
+## 2026-07-27 (latest) - Phase 4: Reports/Settings residual submatrices (Claude)
+
+**Task:** Phase 4 — resume the interrupted Reports/Settings submatrix work, then close what is
+closable across both surfaces plus the shared Recorder fixture.
+
+**Delivered:** `verify:reports-populated-gui` **74 → 136**, `verify:settings-e2e` **116 → 128**,
+`verify:recorder-gui` **90 → 100**. Ledger **43 → 47 PASS / 22 → 18 NOT RUN / 1 BLOCKED**.
+Closed SYS-REP-004, SYS-REP-005, SET-016, SET-019; REC-013, SYS-REP-010, SYS-REP-012, SET-008 and
+SET-013 lost their named residual subcases.
+
+**Two product defects, both fixed.** `AWKIT-REP-004`: the Reports run drawer was `aria-modal` with
+no Escape, focus move, trap or return — same class as `AWKIT-SET-004`, which had fixed
+`ConfirmDialog` but not this component. `AWKIT-REP-005`: `AnomaliesPanel` dropped recovered
+anomalies, making "regressed then recovered" render identically to "never regressed".
+
+**Three assertions were vacuous before first execution** — a focus check that `<body>` would have
+satisfied, a sort check that an arbitrary ordering would have satisfied, and a button label that had
+been guessed. All three are now negative-controlled or value-checked.
+
+**New mock-site fixture** `/recorder-lab?rec013=1`, double-gated like REC-018/REC-007. The recorded
+plan for it was wrong: a `fixedDelay` needs waiting-time capture **OFF**, not on
+(`allowFixedDelayFallback: !captureWaitTime`), plus a genuinely quiet gap.
+
+**Files:** `app/renderer/components/reports/RunDetailDrawer.tsx`,
+`app/renderer/pages/ReportsRuntime.tsx`, `app/renderer/styles/global.css`,
+`scripts/verify-reports-populated-gui.mts`, `scripts/verify-settings-e2e.mts`,
+`scripts/verify-recorder-gui.mts`, `mock-site/public/recorder-lab.html`, `mock-site/README.md`,
+`docs/testing/comprehensive-validation/{DEFECTS,RECORDER_REPORTS_SETTINGS_TEST_CASES,EXECUTION_RESULTS}.md`,
+`docs/ai/{CURRENT_STATE,TASK_LOG,HANDOFF}.md`.
+
+**Tests run:** build ✓, `typecheck:scripts` ✓, reports-populated-gui **136/136**, settings-e2e
+**128/128**, recorder-gui **100 PASS / 0 FAIL / 1 NOT RUN**, telemetry 61/61, observability 65/65,
+reports 31/31, reports-settings-a11y 14/14, mock-site 90/90, recorder 97/97.
+
+**Not run:** `package:portable` + `verify:packaged-walkthrough` (this round changed `app/renderer`,
+so the existing 70/70 is **not** citable until a repackage), `validate:offline`, `verify:runner`,
+clean-machine.
+
+**Remaining:** SYS-REP-007 live distribution and SYS-REP-011 backpressure are blocked on a
+run-driving harness, not on seeding — both read live `ExecutionEngine` state. SET-004's mid-session
+half now has its fixture but is not yet wired into the Settings gate.
+
+---
+
+## 2026-07-26 - Phase 3: persistence boundaries, the save path, Settings scope (Claude)
 
 **Task:** Phase 3 — Recorder persistence submatrices, the save path, and the two Settings→Recorder
 cases that needed the Phase 2 harness.
