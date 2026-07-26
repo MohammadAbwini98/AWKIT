@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-26, latest): Settings 116/116; AWKIT-SET-001–004 resolved
+
+The Settings phase of `FULL_VALIDATION_REMEDIATION_PROMPT.md` is complete. The new
+`npm run verify:settings-e2e` creates a timestamped isolated profile, seeds representative product
+data and synthetic secrets, then drives every Settings section through the real Electron renderer,
+preload and sender-bound main process with restart and direct-IPC negative controls.
+
+- Complete pre-fix negative control: **81 PASS / 33 FAIL** at
+  `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/`.
+- Final: **116 PASS / 0 FAIL** at
+  `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/`.
+- `AWKIT-SET-001` (S2): Settings metadata/UI reset/folder operations and every Secrets handler lacked
+  authoritative sender permission checks. Reads now require `PAGE_SETTINGS`; mutations require
+  `SETTINGS_EDIT`.
+- `AWKIT-SET-002` (S2): crafted updates/imports bypassed authoritative validation. Main-owned writes
+  now validate before persistence; arrays are rejected, unknown fixed-schema keys pruned and GUI
+  import capped at 1 MB.
+- `AWKIT-SET-003` (S3): a file was reported as a writable directory. Path validation now requires a
+  directory.
+- `AWKIT-SET-004` (S3): errors were not announced and modal focus escaped/was not returned. Settings
+  live regions and `ConfirmDialog` keyboard focus semantics are fixed.
+- Regressions: Settings persistence 3/3, RBAC 51/51, HTTPS 31/31, capacity 12/12, accent 33/33,
+  branding 30/30, Oracle Drivers 30/30, Flow Designer 56/56, Workflow Builder 20/20, secrets 16/16,
+  authz 40/40, IPC contract 4/4, type-checks and build pass.
+
+Do not overclaim 116 assertions as 21/21 Settings cases. Only SET-001 and SET-018 moved to PASS;
+partially executed cases remain `NOT RUN` for their exact unexecuted submatrices. Settings are
+**9 PASS / 12 NOT RUN** and the combined Recorder/Reports/Settings ledger is **41 NOT RUN**.
+
 ## ACTIVE (2026-07-26, latest): populated Reports 64/64; AWKIT-REP-001/002 resolved
 
 The next phase of `FULL_VALIDATION_REMEDIATION_PROMPT.md` is complete. The new
@@ -23,7 +52,7 @@ Do not overclaim the 64 assertions as 16/16 Reports cases. Only SYS-REP-002/003 
 SYS-REP-004–012 and 015 have useful populated/auth subsets but remain `NOT RUN` until the exact
 remaining submatrices execute; SYS-REP-016 is untouched. Actual Explorer launch was not run.
 Reports are **5 PASS / 11 NOT RUN** and the combined Recorder/Reports/Settings ledger now has
-**43 NOT RUN**. Settings is the next agent-actionable workstream.
+**41 NOT RUN** after the Settings campaign.
 
 ## ACTIVE (2026-07-26, latest): REC-018 is complete — Recorder E2E 41/41
 
@@ -45,8 +74,8 @@ Regressions: mock site 90/90, Recorder locator/Smart Wait 78/0, flow conversion 
 ## ACTIVE (2026-07-26, latest): AWKIT-E2E-001 fixed — comprehensive campaign 9/9
 
 Phase 0-1 of `docs/testing/comprehensive-validation/FULL_VALIDATION_REMEDIATION_PROMPT.md` is done.
-**There is no longer a known open product defect.** Recorder and the first populated Reports phase
-are also complete; Settings and the exact remaining case submatrices are next.
+**There is no longer a known open product defect.** Recorder, the first populated Reports phase and
+the Settings core campaign are complete; exact remaining case submatrices are next.
 
 ### What changed
 
@@ -83,8 +112,9 @@ stop you rather than let you publish a misleading pass.
 
 ### Remaining work, in priority order
 
-1. **The remaining 43 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. REC-018 and
-   SYS-REP-002/003 are now PASS; complete Settings journeys and residual Reports submatrices are next.
+1. **The remaining 41 `NOT RUN` cases** in `RECORDER_REPORTS_SETTINGS_TEST_CASES.md`. REC-018,
+   SYS-REP-002/003 and SET-001/018 are now PASS; complete the exact residual Recorder, Reports and
+   Settings submatrices recorded beside each case.
    Beads: `awkit-az7` (Reports),
    `awkit-8ri` (Settings). Bead `awkit-gi2` can be closed when the user-owned Beads changes are
    reconciled; this work deliberately did not modify `.beads/*`.
@@ -179,10 +209,10 @@ The comprehensive package now includes
 with exact preconditions, steps, expected outcomes, safety boundaries, evidence mapping, and honest
 execution status.
 
-Recorder's decisive REC-018 journey is now PASS at 41/41 with restart, two production replays and a
-Flow Designer round-trip. Reports still need populated GUI/drill-down/export authorization checks,
-and Settings still needs paths/general validation/Secrets GUI/import-reset-data-safety/accessibility.
-Manual protected-login completion stays `BLOCKED`; no CAPTCHA/MFA/security control was bypassed.
+Recorder's decisive REC-018 journey is PASS at 41/41. The populated Reports core is 64/64 and the
+Settings core is 116/116; the exact partially executed case submatrices remain documented beside
+their `NOT RUN` statuses. Manual protected-login completion stays `BLOCKED`; no CAPTCHA/MFA/security
+control was bypassed.
 
 ## ACTIVE (2026-07-26): Oracle Data Source → row-driven browser workflow complete
 

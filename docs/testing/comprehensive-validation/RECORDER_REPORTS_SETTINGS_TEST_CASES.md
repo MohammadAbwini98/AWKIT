@@ -536,7 +536,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   import/open-folder IPC directly from each role.
 - **Expected:** Authorized roles see permitted cards; main process rejects unauthorized mutations;
   UI-state-only updates follow policy; loading/error states do not expose controls prematurely.
-- **Status:** `NOT RUN` as a complete permission matrix.
+- **Status:** `PASS` — `verify:settings-e2e`, 116/116. The real Electron renderer, preload and
+  sender-bound main process were exercised before login and as Super User, Administrator and Viewer.
+  Read-only metadata required `page.settings`; mutation required `settings.edit`; Viewer and pre-auth
+  calls were denied without changing settings or secrets.
 
 ### SET-002 — Appearance and accent persistence
 
@@ -575,7 +578,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Enable and cancel confirmation; enable and confirm; start Recorder; disable; restart.
 - **Expected:** Cancel persists nothing; confirm warns that authentication is not bypassed; setting
   affects new sessions; visible session notice appears; disabling restores pause behavior.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the Recorder/session-scope portion. The Settings confirmation, cancel,
+  persist, restart and disable paths passed in `verify:settings-e2e`.
 
 ### SET-006 — Ignore invalid HTTPS certificates secure lifecycle
 
@@ -596,7 +600,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   restart.
 - **Expected:** Cancel leaves value unchanged; reset uses runtime default; blank paths are blocked;
   existence/writability labels are accurate; persisted paths drive actual artifact locations.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the complete picker/read-only/artifact-location matrix. Blank and
+  file-as-directory validation, writable-directory truth, save, reset and restart passed in
+  `verify:settings-e2e`.
 
 ### SET-008 — Designer and execution default validation boundaries
 
@@ -606,7 +612,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   above maxima; concurrency above runs; valid boundaries.
 - **Expected:** Invalid combinations show all actionable errors and do not persist; main-process
   validation rejects direct invalid IPC; valid boundaries save and appear in new designer/run forms.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for new-designer/new-run propagation and the exact valid boundary matrix.
+  Eight invalid direct-IPC combinations were rejected without persistence and rendered validation
+  errors were announced in `verify:settings-e2e`.
 
 ### SET-009 — Execution defaults persist and influence a new run
 
@@ -616,7 +624,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   stop-on-error; save/restart; open a new run; execute failure/recovery cases.
 - **Expected:** New run form receives defaults within maxima; runner honors selected flags; existing
   saved workflow/card values are not silently overwritten.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for runner-behavior proof. Save/restart persistence for execution defaults
+  passed in `verify:settings-e2e`.
 
 ### SET-010 — Runtime concurrency modes and host recommendation
 
@@ -655,7 +664,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   delete with cancel/confirm; restart; attempt duplicate/rapid submit.
 - **Expected:** Inline validation is accurate; value is never rendered after save; list shows name/date
   only; cancel preserves; confirm deletes; unavailable state disables storage safely.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for unavailable-store and rapid-submit variants. Real GUI add, update,
+  masked-list, cancel-delete, confirm-delete, restart persistence and no-plaintext evidence passed in
+  `verify:settings-e2e`.
 
 ### SET-014 — Java Runtime and Oracle JDBC Driver settings
 
@@ -675,7 +686,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   store temporarily unreadable.
 - **Expected:** Counts match stores and refresh; open folder is the configured runtime root only;
   unreadable store reports safe zero/error according to contract without crashing.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for real folder launch and unreadable-store recovery. Seeded counts and
+  Refresh Counts passed in `verify:settings-e2e`.
 
 ### SET-016 — Clear UI State is non-destructive
 
@@ -684,7 +696,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Clear UI State; restart; inspect layout and all saved records/files.
 - **Expected:** Only UI-state keys reset; flows, workflows, data sources, reports, sessions, secrets,
   drivers and settings data remain.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for the complete saved-data inventory because sessions and driver records
+  were not seeded. Two flows, one workflow, one data source, one report, a secret and non-default
+  settings survived Clear UI State and restart in `verify:settings-e2e`.
 
 ### SET-017 — Export/import round-trip and protected security fields
 
@@ -695,8 +709,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Supported values round-trip; export contains no stored secret values; unknown/invalid
   fields are rejected or normalized; import cannot silently enable certificate bypass; user data is
   not deleted.
-- **Status:** `NOT RUN` for the complete round-trip — certificate-bypass refusal passed in the
-  HTTPS Settings GUI 31/31.
+- **Status:** `NOT RUN` for the complete post-import restart round-trip. Export bytes/filename/no
+  plaintext, supported-value restoration, partial legacy merge, unknown-field pruning, data
+  preservation and certificate-bypass refusal passed in `verify:settings-e2e`; the dedicated HTTPS
+  Settings GUI remains 31/31.
 
 ### SET-018 — Invalid or corrupt Settings import
 
@@ -706,7 +722,10 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   partial legacy object and unsupported future-version object.
 - **Expected:** Error is actionable; existing settings remain unchanged and parseable; partial legacy
   values merge/migrate safely; no stack trace or secret is exposed.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `verify:settings-e2e`, 116/116. Malformed JSON, array top-level input,
+  oversized input, invalid enums/numbers/paths, unknown/future fields and partial legacy input were
+  negative-controlled. Failed imports preserved the current parseable store; valid legacy input
+  merged through the documented defaults.
 
 ### SET-019 — Reset all defaults without deleting user data
 
@@ -715,7 +734,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Trigger reset and cancel; trigger and confirm; restart; inventory records/files.
 - **Expected:** Cancel changes nothing; confirm resets documented Settings/theme defaults and applies
   runtime caps; saved flows/workflows/data/reports/sessions/secrets/drivers are not deleted.
-- **Status:** `NOT RUN` as a complete data-preservation case.
+- **Status:** `NOT RUN` as a complete data-preservation inventory because sessions and driver records
+  were not seeded. Cancel/confirm, documented default restoration, restart, and preservation of
+  seeded flows/workflows/data sources/reports/secrets passed in `verify:settings-e2e`.
 
 ### SET-020 — Offline Runtime validation action
 
@@ -724,7 +745,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Click Validate Offline Runtime for each state; open Offline Runtime detail when issues exist.
 - **Expected:** Passing bundle reports success; failure count and detail agree; action does not download
   dependencies or require network; no false success on missing browser/runtime.
-- **Status:** `NOT RUN`.
+- **Status:** `NOT RUN` for missing/corrupt dependency variants. The installed offline bundle's
+  passing validation action completed in `verify:settings-e2e`.
 
 ### SET-021 — Settings accessibility and responsive behavior
 
@@ -734,7 +756,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   focus and return; test 200% zoom, narrow viewport, high contrast and reduced motion.
 - **Expected:** Every control has an accessible name and visible focus; errors associate with controls;
   confirmation is operable without pointer; cards do not overflow; motion is reduced.
-- **Status:** `NOT RUN` overall — Database Drivers reduced-motion/overflow checks passed only for that card.
+- **Status:** `NOT RUN` overall. `verify:settings-e2e` passed keyboard dialog trapping/return focus,
+  live error announcements, narrow layout and reduced motion; 200% zoom, high contrast,
+  unavailable-secret controls and the complete control-by-control accessible-name audit remain.
 
 ## 6. Release-gate interpretation
 
@@ -743,8 +767,11 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.
 - **System Reports:** empty-state GUI and backend analytics are green. Populated GUI truth, drill-down,
   export/path security, authorization and accessibility remain open.
-- **Settings:** persistence, capacity, HTTPS security, secrets backend, appearance/branding and
-  Java/JDBC cards are green. General form validation, paths, import/export, reset/data preservation,
-  secrets GUI, authorization and accessibility remain open.
+- **Settings:** the real-Electron core gate is 116/116, including page/IPC authorization, every
+  section, direct validation, path truth, Secrets CRUD, counts, UI-state reset, import recovery,
+  reset safety, restart checks and modal/error accessibility. SET-001 and SET-018 are now PASS.
+  Cases with unexecuted picker, runner/session integration, unavailable-store, OS-launch,
+  sessions/drivers inventory, corrupt offline bundle, 200% zoom and high-contrast subcases remain
+  `NOT RUN`.
 
 No defect is inferred from a `NOT RUN` or `BLOCKED` result.

@@ -83,14 +83,15 @@ System Reports,Chrome and server live surfaces,SYS-REP-011 through SYS-REP-012,R
 System Reports,Telemetry/observability persistence contracts,SYS-REP-013 through SYS-REP-014,SQLite integration,PASS,61/61 + 65/65
 System Reports,Authorization/path security,SYS-REP-015,Electron + IPC,NOT RUN,All deny/path checks passed; persisted denied-attempt audit verification remains
 System Reports,Accessibility/zoom/reduced motion,SYS-REP-016,Electron GUI/manual,NOT RUN,
-Settings,Access and settings-edit authorization,SET-001,Electron + IPC,NOT RUN,
+Settings,Access and settings-edit authorization,SET-001,Electron + IPC,PASS,verify:settings-e2e 116/116; pre-auth/Viewer denied and Super User/Administrator permitted
 Settings,Appearance and branding,SET-002 through SET-003,Real Electron,PASS,accent 33/33; branding 30/30
-Settings,Recorder defaults and protected detection,SET-004 through SET-005,Electron + RecorderService,NOT RUN,
+Settings,Recorder defaults and protected detection,SET-004 through SET-005,Electron + RecorderService,NOT RUN,Protected-detection Settings confirm/persist/restart passed; Recorder session-scope matrix remains
 Settings,HTTPS certificate security,SET-006,Real Electron + Chromium,PASS,GUI 31/31; runtime 49/49
-Settings,Paths and validation boundaries,SET-007 through SET-009,Electron + main-process validation,NOT RUN,
+Settings,Paths and validation boundaries,SET-007 through SET-009,Electron + main-process validation,NOT RUN,Path truth/direct invalid matrix/default persistence passed; picker/read-only/artifact and runner propagation remain
 Settings,Runtime capacity and persistence concurrency,SET-010 through SET-011,Real Electron,PASS,capacity GUI 12/12; persistence 3/3
 Settings,Secret store,SET-012,Encrypted store,PASS,16/16
-Settings,Secrets card user journey,SET-013,Real Electron,NOT RUN,Backend store passed only
+Settings,Secrets card user journey,SET-013,Real Electron,NOT RUN,GUI CRUD/restart/no-plaintext passed; unavailable-store and rapid-submit variants remain
 Settings,Java and Oracle JDBC drivers,SET-014,Real Electron + Java bridge,PASS,30/30
-Settings,Storage/UI-state/import/reset/offline actions,SET-015 through SET-020,Electron + filesystem,NOT RUN,Only certificate import hardening passed
-Settings,Accessibility/responsive/reduced motion,SET-021,Electron GUI/manual,NOT RUN,Driver card alone passed reduced-motion/overflow
+Settings,Storage/UI-state/import/reset/offline actions,SET-015 through SET-017 + SET-019 through SET-020,Electron + filesystem,NOT RUN,Counts/UI reset/export-import/reset/offline success partially passed; exact residual submatrices documented
+Settings,Invalid or corrupt import recovery,SET-018,Electron + filesystem,PASS,verify:settings-e2e 116/116 with malformed/type/size/value/legacy/future negative controls
+Settings,Accessibility/responsive/reduced motion,SET-021,Electron GUI/manual,NOT RUN,Dialog focus/error announcement/narrow/reduced-motion passed; 200% zoom/high contrast/full audit remain

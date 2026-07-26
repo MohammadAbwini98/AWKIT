@@ -1,6 +1,6 @@
 import { ipcMain, shell, app } from "electron";
 import { existsSync } from "node:fs";
-import { access, constants } from "node:fs/promises";
+import { access, constants, stat } from "node:fs/promises";
 import {
   clearUiState,
   getDefaultPaths,
@@ -50,6 +50,7 @@ async function checkPath(path: string): Promise<{ path: string; exists: boolean;
   let writable = false;
   if (exists) {
     try {
+      if (!(await stat(path)).isDirectory()) return { path, exists, writable: false };
       await access(path, constants.W_OK);
       writable = true;
     } catch {
@@ -80,23 +81,36 @@ export function registerSettingsIpc(): void {
     applyConcurrency();
     return next;
   });
-  ipcMain.handle("settings:clearUiState", async () => clearUiState());
-  ipcMain.handle("settings:export", async () => getUiSettings());
+  ipcMain.handle("settings:clearUiState", async (event) => {
+    await assertSenderPermission(event, Permission.SETTINGS_EDIT);
+    return clearUiState();
+  });
+  ipcMain.handle("settings:export", async (event) => {
+    await assertSenderPermission(event, Permission.SETTINGS_EDIT);
+    return getUiSettings();
+  });
   ipcMain.handle("settings:import", async (event, incoming: unknown) => {
     await assertSenderPermission(event, Permission.SETTINGS_EDIT);
     const next = await replaceUiSettings(incoming);
     applyConcurrency();
     return next;
   });
-  ipcMain.handle("settings:validate", async () => validateSettings(await getUiSettings()));
+  ipcMain.handle("settings:validate", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_SETTINGS);
+    return validateSettings(await getUiSettings());
+  });
 
-  ipcMain.handle("settings:getDefaultPaths", async () => getDefaultPaths());
+  ipcMain.handle("settings:getDefaultPaths", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_SETTINGS);
+    return getDefaultPaths();
+  });
   ipcMain.handle("settings:openRuntimeFolder", async (event) => {
     await assertSenderPermission(event, Permission.SETTINGS_EDIT);
     return shell.openPath(getRuntimeDataRoot());
   });
 
-  ipcMain.handle("settings:getStorageStats", async () => {
+  ipcMain.handle("settings:getStorageStats", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_SETTINGS);
     const [flows, workflows, dataSources, reports] = await Promise.all([
       countSafe(() => createFlowProfileStore().list()),
       countSafe(() => createWorkflowProfileStore().list()),
@@ -114,7 +128,8 @@ export function registerSettingsIpc(): void {
     };
   });
 
-  ipcMain.handle("settings:validatePaths", async () => {
+  ipcMain.handle("settings:validatePaths", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_SETTINGS);
     const { paths } = await getUiSettings();
     const entries = await Promise.all(
       Object.entries(paths).map(async ([key, value]) => [key, await checkPath(value)] as const)

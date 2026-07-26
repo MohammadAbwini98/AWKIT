@@ -58,6 +58,15 @@ remain structural and legacy workflows remain compatible.
   authorization. **64/64** as of 2026-07-26; timestamped evidence under
   `test-artifacts/reports-populated-gui/<timestamp>/`. This assertion count is not a 16/16 case
   claim; the focused case document keeps exact residual submatrices `NOT RUN`.
+- `scripts/verify-settings-e2e.mts` (`npm run verify:settings-e2e`) — deterministic real-Electron
+  Settings gate on a timestamped isolated profile. Seeds representative flows/workflow/data
+  source/report and synthetic secrets; drives all Settings sections, pre-auth/Super
+  User/Administrator/Viewer IPC authorization, direct validation, paths, execution defaults,
+  Secrets GUI/no-plaintext evidence, counts, Clear UI State, export/import recovery, reset/restart,
+  offline validation and core dialog/error/narrow/reduced-motion accessibility. **116/116** as of
+  2026-07-26; timestamped screenshots/export/result ledger under
+  `test-artifacts/settings-e2e/<timestamp>/`. This is not a 21/21 case claim; exact residual
+  submatrices remain `NOT RUN` in the focused case document.
 - `scripts/verify-recorder-draft.mts` (`npm run verify:recorder-draft`) — browser-free recorder draft,
   URL-history, legacy wait-time, and smart-wait compatibility checks. As of the last run: **17 checks pass**.
 - `scripts/verify-waits.mts` (`npm run verify:waits`) — Smart Wait runner checks for before/after waits,

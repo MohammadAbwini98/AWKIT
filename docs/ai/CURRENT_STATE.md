@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Settings real-Electron gate 116/116; four defects fixed (2026-07-26, current)
+
+`scripts/verify-settings-e2e.mts` is a deterministic real-Electron gate over a timestamped isolated
+profile. It seeds two flows, one workflow, one data source, one stored report and synthetic secrets,
+then drives every Settings section through the rendered UI, preload and sender-bound main process.
+
+The complete pre-fix negative control was **81 PASS / 33 FAIL** and reproduced:
+
+- **AWKIT-SET-001 (S2):** Settings metadata/UI reset/folder actions and every Secrets IPC handler
+  lacked sender authorization; pre-auth and Viewer could inspect metadata and overwrite/delete
+  secrets by name.
+- **AWKIT-SET-002 (S2):** direct settings updates did not run authoritative validation; imports
+  accepted arrays, retained unknown fixed-schema fields and had no renderer size bound.
+- **AWKIT-SET-003 (S3):** path validation reported an existing writable file as a writable directory.
+- **AWKIT-SET-004 (S3):** Settings errors lacked live semantics and confirmation dialogs did not trap
+  or restore focus.
+
+Reads now require `PAGE_SETTINGS`; mutations require `SETTINGS_EDIT`; all merged writes validate
+before persistence; replacement rejects arrays, prunes unknown fixed-schema fields and enforces a
+1 MB GUI import cap; path checks require a directory; and Settings alerts/dialogs are keyboard and
+screen-reader operable.
+
+**Final result:** `verify:settings-e2e` **116/116**, evidence
+`test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/`. Regressions: Settings persistence 3/3,
+real-Electron RBAC 51/51, HTTPS Settings 31/31, capacity 12/12, accent 33/33, branding 30/30,
+Oracle Drivers 30/30, Flow Designer 56/56, Workflow Builder 20/20, secrets 16/16,
+authorization 40/40, IPC contract 4/4, both type-checks and production build pass.
+
+Case truth remains conservative: SET-001 and SET-018 are now PASS; Settings stand at
+**9 PASS / 12 NOT RUN**. Partial results do not close cases whose picker/OS-launch,
+runner/session propagation, fault variants, sessions/drivers inventory, 200% zoom, high-contrast or
+complete accessibility submatrices were not executed. The combined Recorder/Reports/Settings ledger
+now has **41 NOT RUN**.
+
 ## Populated Reports gate 64/64; two report defects fixed (2026-07-26, current)
 
 `scripts/verify-reports-populated-gui.mts` is a deterministic real-Electron gate over an isolated,
@@ -32,7 +66,8 @@ Case truth remains conservative: SYS-REP-002/003 are now PASS; populated subsets
 SYS-REP-004–012 and the authorization/path subset of SYS-REP-015 passed, but those cases remain
 `NOT RUN` until every specified subcase executes. Actual Windows Explorer launch, five-workflow cap,
 live/backpressure transitions, fault injection, denial-audit persistence and accessibility were not
-executed. Reports stand at **5 PASS / 11 NOT RUN**; the combined focused ledger has **43 NOT RUN**.
+executed. Reports stand at **5 PASS / 11 NOT RUN**; after the Settings campaign the combined focused
+ledger has **41 NOT RUN**.
 
 ## REC-018 complete — real Recorder save/restart/replay gate is 41/41 (2026-07-26, current)
 

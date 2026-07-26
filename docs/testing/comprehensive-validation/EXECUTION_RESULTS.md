@@ -13,8 +13,8 @@
 | Recorder component contracts | `PASS` | Capture 78/78; flow 19/19; draft 17/17; async review 21/21; protected detection 45/45 |
 | Recorder full page record→save→replay | `PASS` | REC-018 **41/41**: real UI capture/save, restart/reopen, two production replays, designer round-trip |
 | System Reports populated GUI truth/drill-down/export | `NOT RUN` | Populated core gate **64/64**; SYS-REP-002/003 closed, exact residual submatrices remain |
-| Settings focused automated contracts | `PASS` | Capacity, persistence, certificate security, appearance/branding, secrets backend, Java/JDBC passed |
-| Settings remaining page journeys | `NOT RUN` | Paths, general validation, Secrets GUI, import/export, reset/data preservation, authorization and accessibility |
+| Settings real-Electron core journey | `PASS` | **116/116** after fixes; access/IPC boundary, every section, validation, paths, Secrets, counts, import/reset/restart and core accessibility |
+| Settings residual submatrices | `NOT RUN` | 9 PASS / 12 NOT RUN cases; exact picker/runner/session/fault/accessibility variants remain |
 | Auth/security/RBAC/session/secrets/licensing | `PASS` | All specialized suites passed |
 | Flow Designer/Workflow Builder | `PASS` | Mapping, sentinels, and both GUI suites passed |
 | Oracle offline/integration boundary | `PASS` | Policy, profile, source, runtime, and lazy resolution passed |
@@ -135,6 +135,7 @@ same class of trap as the stale Zvec host tree recorded in `docs/ai/HANDOFF.md`.
 | Recorder protected-login detection | `PASS` — 45/45 |
 | Recorder full page record→save→replay | `PASS` — **41/41** |
 | Random designer/profile round-trip | `PASS` — 26/26 (direct script invocation) |
+| Settings real-Electron E2E | `PASS` — **116/116** after fixes (pre-fix 81/114) |
 | Settings persistence | `PASS` — 3/3 (isolated application-data root) |
 | Capacity Settings GUI | `PASS` — 12/12 |
 | HTTPS certificate runtime | `PASS` — 49/49 |
@@ -189,6 +190,7 @@ npm run verify:telemetry
 npm run verify:observability
 npm run verify:runtime-analytics-gui
 npm run verify:e2e-rbac
+npm run verify:settings-e2e
 npm run verify:settings-persistence
 npm run verify:capacity-settings-gui
 npm run verify:https-certificates-gui
@@ -250,7 +252,8 @@ preload, IPC and security session boundary.
 Totals: **64 PASS / 0 FAIL** at the assertion level. At the case level, SYS-REP-002 and
 SYS-REP-003 move to `PASS`; the partially executed cases remain `NOT RUN` until every listed
 subcase is exercised. Reports now have **5 PASS / 11 NOT RUN** focused cases, and the combined
-Recorder/Reports/Settings ledger has **43 `NOT RUN`** cases remaining.
+Recorder/Reports/Settings ledger has **41 `NOT RUN`** cases remaining after the Settings campaign
+below.
 
 The negative-controlled pre-fix run was **44 PASS / 13 FAIL**:
 `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/`. It exposed two product defects:
@@ -278,6 +281,65 @@ Regression results after the fixes:
 The first attempted RBAC/Runtime Analytics rerun launched both Electron suites concurrently and both
 applications exited during startup. No Electron/Specter/related Node process or port remained. Serial
 reruns passed 51/51 and 36/36, confirming a launch collision rather than a reproducible product defect.
+
+### Settings real-Electron result (2026-07-26)
+
+Command: `npm run verify:settings-e2e`
+
+Evidence: `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/`
+
+The gate creates a timestamped isolated profile with two flows, one workflow, one data source, one
+stored report and synthetic secrets. It drives the real Electron renderer/preload/main process,
+exercises every Settings section, and restarts on the same profile. Secret values are generated only
+inside the run and are neither printed nor written to the result ledger.
+
+| Assertion group | Status | Outcome |
+| --- | --- | --- |
+| Access and main-process authorization | `PASS` | Pre-auth/Viewer metadata and mutations denied; Super User/Administrator policy enforced |
+| Application/Recorder/path/default cards | `PASS` | Save, cancel, confirmation, restart, path truth and eight invalid direct updates verified |
+| Secrets GUI and storage safety | `PASS` | Add/update/masked list/cancel-delete/confirm-delete/restart; no plaintext in DOM, settings, results or disk |
+| Counts and Clear UI State | `PASS` | Seeded counts refreshed; UI state cleared without deleting seeded product data or the secret |
+| Export/import and recovery | `PASS` | Exact JSON download, round-trip, partial legacy merge, unknown-field pruning, malformed/array/oversize/invalid rejection |
+| Reset and restart | `PASS` | Cancel was inert; confirm restored defaults while preserving seeded data and secret |
+| Accessibility/responsive core | `PASS` | Error announcements, modal focus trap/Escape/return, narrow layout and reduced motion |
+| Renderer stability | `PASS` | No renderer errors |
+
+Totals: **116 PASS / 0 FAIL** at the assertion level. SET-001 and SET-018 move to `PASS`;
+Settings now stand at **9 PASS / 12 NOT RUN**. Partially executed cases retain `NOT RUN` for their
+unexecuted subcases: Recorder live-session scope, OS folder picker/launch, read-only/missing paths,
+new-designer/runner propagation, unavailable/rapid secret storage, unreadable stores, session/driver
+data inventory, corrupt/missing offline dependencies, 200% zoom, high contrast and the complete
+control-by-control accessibility audit.
+
+The complete pre-fix negative control was **81 PASS / 33 FAIL**:
+`test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/`. It reproduced four product defects:
+the Settings/Secrets IPC authorization gap (`AWKIT-SET-001`), missing main-process validation and
+unsafe import normalization (`AWKIT-SET-002`), file-as-directory path truth (`AWKIT-SET-003`), and
+modal/error accessibility gaps (`AWKIT-SET-004`). Two earlier runs were incomplete verifier
+development runs and are not evidence. A post-fix 114/116 run exposed two stale-banner/timing
+assertions in the verifier; correcting those harness observations without a production change
+produced the final 116/116.
+
+Regression results after the fixes:
+
+| Command | Result |
+| --- | ---: |
+| `npm run typecheck` | PASS |
+| `npm run typecheck:scripts` | PASS |
+| `npm run build` | PASS |
+| `npm run verify:settings-e2e` | **116/116** |
+| `npm run verify:settings-persistence` | 3/3 |
+| `npm run verify:e2e-rbac` | 51/51 |
+| `npm run verify:https-certificates-gui` | 31/31 |
+| `npm run verify:capacity-settings-gui` | 12/12 |
+| `npm run verify:accent-gui` | 33/33 |
+| `npm run verify:branding-gui` | 30/30 |
+| `npm run verify:oracle-drivers-gui` | 30/30 |
+| `npm run verify:flow-designer` | 56/56 |
+| `npm run verify:workflow-builder` | 20/20 |
+| `npm run verify:secrets` | 16/16 |
+| `npm run verify:authz` | 40/40 |
+| `npm run verify:ipc-contract` | 4/4 |
 
 ## Oracle row-driven campaign
 
@@ -336,6 +398,15 @@ Totals: **7 PASS, 0 FAIL, 1 BLOCKED, 0 NOT RUN**.
 - Screenshots: `test-artifacts/reports-populated-gui/2026-07-26T09-30-15-417Z/screenshots/01-overview-populated.png`
   through `05-run-artifacts.png`
 - Retained pre-fix negative control: `test-artifacts/reports-populated-gui/2026-07-26T09-16-20-217Z/execution-results.json`
+
+### Settings evidence
+
+- Result ledger: `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/execution-results.json`
+- Exported settings: `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/exports/webflow-studio-settings.json`
+- Screenshots: `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/screenshots/01-settings-super-user.png`
+  through `04-settings-viewer-denied.png`
+- Retained pre-fix negative control:
+  `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/execution-results.json`
 
 ### UI/report screenshots
 

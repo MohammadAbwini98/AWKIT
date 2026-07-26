@@ -6615,3 +6615,33 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   executed. Reports are 5 PASS / 11 NOT RUN; combined focused ledger is 43 NOT RUN.
 - **Security:** no CAPTCHA, MFA, protected login, external site or Oracle credential was touched.
   `.beads/*` remained unstaged and unmodified by this work.
+
+## 2026-07-26 — Codex — Settings real-Electron gate and fixes
+
+- **Task:** continue the comprehensive validation at Settings with every section, sender-bound
+  authorization, validation, paths, Secrets GUI, counts, import/export, reset/data safety,
+  restart/recovery and accessibility evidence.
+- **Pre-fix gate:** new `scripts/verify-settings-e2e.mts` seeded representative product data and
+  synthetic secrets in a timestamped isolated profile, then drove the real Electron
+  renderer/preload/main boundary. Complete negative control: **81 PASS / 33 FAIL**, evidence
+  `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/`.
+- **Defects fixed:** `AWKIT-SET-001` (S2) added `PAGE_SETTINGS`/`SETTINGS_EDIT` checks to unguarded
+  Settings/Secrets/folder operations; `AWKIT-SET-002` (S2) made validation authoritative on the
+  main-owned write path, rejected array imports, pruned unknown fixed-schema keys and capped GUI
+  import at 1 MB; `AWKIT-SET-003` (S3) stopped treating files as writable directories;
+  `AWKIT-SET-004` (S3) added live error semantics plus modal focus trap/Escape/return.
+- **Result:** **116 PASS / 0 FAIL**, evidence
+  `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/`, including four screenshots, exact exported
+  JSON and machine-readable assertion ledger. Synthetic secret values were not printed or retained
+  in the result ledger.
+- **Harness corrections:** incomplete early verifier-development runs are not evidence. A 114/116
+  post-fix run exposed stale-banner/timing selectors; correcting those observation points without a
+  production change yielded the final 116/116.
+- **Regressions:** Settings persistence 3/3, RBAC 51/51, HTTPS 31/31, capacity 12/12, accent 33/33,
+  branding 30/30, Oracle Drivers 30/30, Flow Designer 56/56, Workflow Builder 20/20, secrets 16/16,
+  authorization 40/40, IPC contract 4/4, type-check, script type-check and production build PASS.
+- **Truthful case status:** SET-001/018 move to PASS. Settings are 9 PASS / 12 NOT RUN; combined
+  focused ledger is 41 NOT RUN. Partial cases keep explicit residual picker, live runner/session,
+  fault, inventory and accessibility submatrices `NOT RUN`.
+- **Security:** no CAPTCHA, MFA, protected login, external site or Oracle credential was touched.
+  `.beads/*` remained unstaged and unmodified by this work.

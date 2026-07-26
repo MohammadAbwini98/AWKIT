@@ -8,6 +8,8 @@ import { getConfiguredPaths } from "../storagePaths";
 import { isPathInside } from "@src/utils/pathSafety";
 import { assertTrustedSender } from "./senderGuard";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
+import { assertSenderPermission } from "../security/sessionContext";
+import { Permission } from "@src/security/authz/Permissions";
 
 const WORKLOAD_CLASSES: WorkloadClass[] = ["light", "medium", "heavy", "custom"];
 
@@ -34,6 +36,7 @@ export function registerSystemIpc(): void {
   });
 
   ipcMain.handle("system:browseFolder", async (event, defaultPath?: string) => {
+    await assertSenderPermission(event, Permission.SETTINGS_EDIT);
     const window = BrowserWindow.fromWebContents(event.sender) ?? undefined;
     const options = {
       title: "Choose a folder",

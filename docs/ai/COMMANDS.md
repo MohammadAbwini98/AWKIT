@@ -66,6 +66,12 @@ npm run verify:settings-persistence # node scripts/verify-settings-persistence.m
                             # concurrent settings patches all persist (serialized, no lost updates), no
                             # leftover *.tmp files (atomic writes), and an update fired just before close is
                             # flushed on shutdown (before-quit). Requires build. (3/3)
+npm run verify:settings-e2e # tsx scripts/verify-settings-e2e.mts — timestamped isolated real-Electron
+                            # Settings campaign: all sections; pre-auth/SU/Admin/Viewer IPC boundary;
+                            # direct validation/path truth; Secrets GUI + no plaintext; counts/UI reset;
+                            # export/import/reset/restart; offline validation and core accessibility.
+                            # Writes screenshots, export and machine-readable ledger under
+                            # test-artifacts/settings-e2e/<timestamp>/. Requires build. (116/116)
 # (report tool, not a gate) node scripts/measure-large-graphs.mjs — seeds 40/100/200/500-node flows and
 #   prints load/zoom/drag/save/heap metrics + an in-session navigation leak check. Requires build.
 npm run verify:reports      # node scripts/verify-reports-gui.mjs — real-Electron smoke of the Reports

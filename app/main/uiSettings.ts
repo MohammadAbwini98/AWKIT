@@ -274,6 +274,48 @@ const defaultSettings: UiSettings = {
   tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
 };
 
+function retainKnownKeys(target: unknown, template: Record<string, unknown>): void {
+  if (!target || typeof target !== "object" || Array.isArray(target)) return;
+  const record = target as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (!(key in template)) delete record[key];
+  }
+}
+
+/**
+ * Imported and persisted JSON is untrusted. Hydration fills defaults, but object spreads alone also
+ * preserve typo/future keys forever. Drop unknown fixed-schema keys while retaining the two dynamic
+ * maps (`workflowRunCards` and table `filters`).
+ */
+function pruneUnknownSettings(settings: UiSettings): UiSettings {
+  retainKnownKeys(settings, defaultSettings as unknown as Record<string, unknown>);
+  for (const key of [
+    "workflowBuilder",
+    "instanceRunSettings",
+    "app",
+    "selections",
+    "designerDefaults",
+    "execution",
+    "runtime",
+    "paths"
+  ] as const) {
+    retainKnownKeys(settings[key], defaultSettings[key] as unknown as Record<string, unknown>);
+  }
+  retainKnownKeys(settings.recorder, defaultSettings.recorder as unknown as Record<string, unknown>);
+  retainKnownKeys(
+    settings.recorder.security,
+    defaultSettings.recorder.security as unknown as Record<string, unknown>
+  );
+  retainKnownKeys(
+    settings.recorder.asyncAwareness,
+    defaultSettings.recorder.asyncAwareness as unknown as Record<string, unknown>
+  );
+  retainKnownKeys(settings.tables, defaultSettings.tables as unknown as Record<string, unknown>);
+  retainKnownKeys(settings.tables.flows, defaultTableState as unknown as Record<string, unknown>);
+  retainKnownKeys(settings.tables.workflows, defaultTableState as unknown as Record<string, unknown>);
+  return settings;
+}
+
 /** Default runtime-folder paths used when a path setting is left empty. */
 export function getDefaultPaths(): UiSettings["paths"] {
   const folders = getRuntimePaths().folders;
@@ -337,7 +379,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
       workflows: { ...defaultTableState, ...parsed.tables?.workflows }
     }
   };
-  return resolvePathDefaults(merged);
+  return pruneUnknownSettings(resolvePathDefaults(merged));
 }
 
 /** Apply a partial patch over the current settings, deep-merging known groups. */
@@ -410,6 +452,8 @@ export function pendingSettingsWrites(): number {
 export async function updateUiSettings(patch: DeepPartial<UiSettings>): Promise<UiSettings> {
   return enqueueSettingsWrite(async () => {
     const next = mergePatch(await getUiSettings(), patch);
+    const errors = validateSettings(next);
+    if (errors.length) throw new Error(`Settings failed validation: ${errors.join(" ")}`);
     await writeSettings(next);
     return next;
   });
@@ -447,7 +491,7 @@ export async function clearUiState(): Promise<UiSettings> {
 
 /** Validate and replace the entire settings document (used by Import). */
 export async function replaceUiSettings(incoming: unknown): Promise<UiSettings> {
-  if (!incoming || typeof incoming !== "object") {
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
     throw new Error("Invalid settings file: expected a JSON object.");
   }
   return enqueueSettingsWrite(async () => {
@@ -469,11 +513,18 @@ export function validateSettings(settings: UiSettings): string[] {
   const d = settings.designerDefaults;
   const e = settings.execution;
 
-  if (!(d.defaultZoomPercent >= 25 && d.defaultZoomPercent <= 200)) {
+  if (!["light", "dark", "system"].includes(settings.appearance)) {
+    errors.push("Appearance must be light, dark, or system.");
+  }
+  if (!(typeof d.defaultZoomPercent === "number" && Number.isFinite(d.defaultZoomPercent) && d.defaultZoomPercent >= 25 && d.defaultZoomPercent <= 200)) {
     errors.push("Default zoom must be between 25 and 200.");
   }
-  if (!(d.defaultNodeWidth > 0)) errors.push("Default node width must be a positive value.");
-  if (!(d.defaultNodeHeight > 0)) errors.push("Default node height must be a positive value.");
+  if (!(typeof d.defaultNodeWidth === "number" && Number.isFinite(d.defaultNodeWidth) && d.defaultNodeWidth > 0)) {
+    errors.push("Default node width must be a positive value.");
+  }
+  if (!(typeof d.defaultNodeHeight === "number" && Number.isFinite(d.defaultNodeHeight) && d.defaultNodeHeight > 0)) {
+    errors.push("Default node height must be a positive value.");
+  }
 
   const positives: [number, string][] = [
     [e.maxRuns, "Maximum runs"],
@@ -488,6 +539,21 @@ export function validateSettings(settings: UiSettings): string[] {
   if (e.defaultConcurrentRuns > e.maxConcurrentRuns) errors.push("Default concurrent runs cannot exceed maximum concurrent runs.");
   if (e.defaultConcurrentRuns > e.defaultRuns) errors.push("Default concurrent runs cannot exceed default runs.");
   if (e.maxConcurrentRuns > e.maxRuns) errors.push("Maximum concurrent runs cannot exceed maximum runs.");
+  if (!["headed", "headless"].includes(e.defaultRunMode)) {
+    errors.push("Default run mode must be headed or headless.");
+  }
+  if (typeof e.screenshotOnFailure !== "boolean") errors.push("Screenshot on failure must be true or false.");
+  if (typeof e.stopOnError !== "boolean") errors.push("Stop on error must be true or false.");
+
+  if (typeof settings.recorder.captureWaitTime !== "boolean") {
+    errors.push("Recorder capture waiting time must be true or false.");
+  }
+  if (typeof settings.recorder.captureSmartWaits !== "boolean") {
+    errors.push("Recorder Smart Wait capture must be true or false.");
+  }
+  if (typeof settings.recorder.ignoreProtectedLoginDetection !== "boolean") {
+    errors.push("Protected login detection override must be true or false.");
+  }
 
   const r = settings.runtime;
   if (!["sequential", "auto", "manual"].includes(r.capacityMode)) {
@@ -530,7 +596,9 @@ export function validateSettings(settings: UiSettings): string[] {
   }
 
   for (const [key, value] of Object.entries(settings.paths)) {
-    if (!value || !String(value).trim()) errors.push(`Path "${key}" must not be empty.`);
+    if (typeof value !== "string" || !value.trim()) {
+      errors.push(`Path "${key}" must be a non-empty path string.`);
+    }
   }
 
   const acc = settings.accent;

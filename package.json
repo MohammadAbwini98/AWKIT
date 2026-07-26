@@ -72,6 +72,7 @@
     "verify:auth-gui": "node scripts/verify-auth-gui.mjs",
     "verify:secrets": "tsx scripts/verify-secrets.mts",
     "verify:settings-persistence": "node scripts/verify-settings-persistence.mjs",
+    "verify:settings-e2e": "tsx scripts/verify-settings-e2e.mts",
     "verify:single-instance": "node scripts/verify-single-instance.mjs",
     "verify:workflow-sentinels": "tsx scripts/verify-workflow-sentinels.mts",
     "verify:reports": "node scripts/verify-reports-gui.mjs",

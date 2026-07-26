@@ -12,9 +12,9 @@ longer a known defect in flow-level connector routing.
 That does **not** make the product release-ready. What changed is the *reason* it is not:
 
 - previously: a confirmed S2 routing defect;
-- now: unexecuted coverage (43 remaining `NOT RUN` Recorder/Reports/Settings cases; REC-018 and
-  SYS-REP-002/003 are now PASS) and external gates that need an operator, a database, or a clean
-  machine.
+- now: unexecuted coverage (41 remaining `NOT RUN` Recorder/Reports/Settings cases; REC-018,
+  SYS-REP-002/003 and SET-001/018 are now PASS) and external gates that need an operator, a
+  database, or a clean machine.
 
 A green specialized suite is not certification of the corresponding user journey.
 
@@ -41,8 +41,10 @@ A green specialized suite is not certification of the corresponding user journey
 - Reports empty-state GUI plus populated persisted Overview truth and range/refresh behavior;
   telemetry/observability persistence and aggregation; authorization/path-boundary checks; and full
   redacted stored-report export
-- Settings capacity/persistence, certificate security, appearance/branding, encrypted secret store,
-  and Java/JDBC driver cards
+- Settings real-Electron core journey at 116/116: sender-bound authorization, every section,
+  main-process validation, path truth, Secrets CRUD/restart/no-plaintext, counts, UI-state reset,
+  export/import recovery, reset safety, modal/error accessibility and restart checks; plus the
+  existing capacity/persistence, certificate, appearance/branding and Java/JDBC suites
 
 ## What must be fixed or completed
 
@@ -71,8 +73,13 @@ A green specialized suite is not certification of the corresponding user journey
    2026-07-26 — 64/64 assertions**, closing SYS-REP-002/003 and fixing `AWKIT-REP-001/002`.
    Complete the exact remaining Reports submatrices (including the real OS folder launch,
    five-workflow compare cap, live/backpressure, fault injection, denial-audit evidence and
-   accessibility) plus remaining Settings paths, validation, Secrets GUI, import/export,
-   reset/data-preservation, authorization and accessibility cases.
+   accessibility).
+10. ~~Execute the first full Settings page/IPC/data-safety campaign.~~ **Core done 2026-07-26 —
+    116/116 assertions**, closing SET-001/018 and fixing `AWKIT-SET-001` through `004`. Complete the
+    exact residual Settings submatrices: live Recorder/session propagation, picker/OS-launch and
+    read-only paths, new-designer/runner propagation, unavailable/rapid secret store, unreadable
+    stores, session/driver preservation inventory, missing/corrupt offline dependencies, 200% zoom,
+    high contrast and the complete accessible-name audit.
 
 Firefox/WebKit remain outside the present Chromium-first certification unless product scope changes.
 
@@ -93,8 +100,10 @@ Firefox/WebKit remain outside the present Chromium-first certification unless pr
   real-Electron gate is 64/64, SYS-REP-002/003 are PASS, and both defects are resolved. Reports stand
   at 5 PASS / 11 NOT RUN because partially covered cases retain `NOT RUN` until their final subcases
   execute.
-- **Settings full-page certification:** not complete; focused case document records the exact
-  remaining GUI, authorization and accessibility gates.
+- **Settings full-page certification:** materially advanced but not complete. The core
+  real-Electron gate is 116/116 and the four reproduced defects are resolved. Settings stand at
+  9 PASS / 12 NOT RUN because the residual integration, fault and accessibility submatrices above
+  were not executed.
 
 ## Retest minimum
 
@@ -106,7 +115,8 @@ After the connector fix:
 4. `npm run verify:concurrency`
 5. `npm run verify:packaged-walkthrough`
 6. `npm run verify:reports-populated-gui`
-7. `npm run verify:e2e-rbac`
+7. `npm run verify:settings-e2e`
+8. `npm run verify:e2e-rbac`
 
 Acceptance requires:
 

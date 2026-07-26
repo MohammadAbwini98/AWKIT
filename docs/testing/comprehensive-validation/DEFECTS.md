@@ -166,6 +166,114 @@ redaction, Viewer hidden/denied actions, and safe crafted-id handling. The actua
 launch remains deliberately `NOT RUN` under `SYS-REP-008`; the boundary and button are covered without
 opening an external OS window.
 
+### AWKIT-SET-001 — Settings metadata, UI reset and secret operations lacked sender authorization
+
+- **Severity:** S2 / Major security boundary failure
+- **Priority recommendation:** P0
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/ipc/settings.ipc.ts`, `app/main/ipc/secrets.ipc.ts`,
+  `app/main/ipc/system.ipc.ts`
+- **Detected by:** `SET-001`, `SET-013`, `SET-015`, `SET-016`
+- **Evidence before fix:** `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/execution-results.json`
+
+**Reproduction before fix**
+
+1. Launch the real Electron app on an isolated profile containing known settings and a synthetic
+   secret.
+2. Before login, call Settings export/default-path/storage-stat/path-validation/UI-reset channels
+   and every Secrets channel through preload.
+3. Repeat as Viewer, which has neither `page.settings` nor `settings.edit`.
+4. Attempt to overwrite and delete the named secret and invoke the Settings folder picker.
+
+**Actual result**
+
+Read-only calls exposed local paths/counts and secret names; UI state could be reset; secret values
+could be overwritten or deleted; and the OS folder picker could be invoked. The comment claiming a
+global sender guard did not match the implementation. No channel returned decrypted secret values,
+but confidentiality metadata and secret integrity were outside the authenticated role boundary.
+
+**Expected result and fix**
+
+Every handler must derive the actor from `event.sender`: Settings/secret metadata requires
+`page.settings`, and exports, folder actions, UI reset, secret set/delete and every other mutation
+require `settings.edit`. All affected handlers now use `assertSenderPermission`; the real-Electron
+gate proves pre-auth and Viewer denial without state change, plus authorized Super User and
+Administrator behavior. `verify:e2e-rbac` remains 51/51, `verify:authz` 40/40 and the IPC contract
+4/4.
+
+### AWKIT-SET-002 — Crafted settings updates/imports bypassed authoritative validation
+
+- **Severity:** S2 / Major
+- **Priority recommendation:** P0
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/uiSettings.ts`, `app/renderer/pages/Settings.tsx`
+- **Detected by:** `SET-008`, `SET-018`
+- **Evidence before fix:** `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/execution-results.json`
+
+**Reproduction before fix**
+
+1. As an authorized Administrator, bypass the form and call `settings:update` with invalid zoom,
+   dimensions, run counts/concurrency, run mode, booleans or path types.
+2. Import an array, an object with unknown nested fields, or an oversized file.
+3. Restart and inspect the persisted settings file and dependent Settings controls.
+
+**Actual result**
+
+`settings:update` merged and wrote invalid values without calling `validateSettings`. Array imports
+were treated as objects, unknown fixed-schema keys survived hydration, and the renderer placed no
+size bound on import. Invalid state could therefore persist and destabilize later UI/runtime logic.
+
+**Expected result and fix**
+
+The main-owned write path now validates the fully merged document before persistence, including
+finite ranges, enums, booleans, positive integer run limits and non-empty string paths. Replacement
+rejects arrays; hydration prunes unknown fixed-schema keys while preserving documented dynamic maps;
+the renderer rejects files above 1 MB. Eight invalid direct updates, malformed/array/oversized/
+invalid imports, unknown fields and partial legacy input are negative-controlled in the final
+116/116 run.
+
+### AWKIT-SET-003 — Path validation reported an existing file as a writable directory
+
+- **Severity:** S3 / Moderate
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-26**
+- **Affected area:** `app/main/ipc/settings.ipc.ts`
+- **Detected by:** `SET-007`
+- **Evidence before fix:** `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/execution-results.json`
+
+**Reproduction before fix:** Set a configured runtime path to an existing writable file and invoke
+path validation. The result reported `exists=true, writable=true`, even though downstream artifact
+code requires a directory.
+
+**Fix:** The trusted path checker now calls `stat()` and reports a non-directory as not writable
+before testing write access. The verifier proves a real directory remains writable and a real file
+does not pass the directory contract. Picker, read-only-directory and actual artifact-location
+subcases remain explicitly `NOT RUN` under SET-007.
+
+### AWKIT-SET-004 — Settings errors and confirmation dialogs were not fully keyboard/screen-reader operable
+
+- **Severity:** S3 / Moderate accessibility
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-26** for the reproduced core defects
+- **Affected area:** `app/renderer/components/shared/ConfirmDialog.tsx`,
+  `app/renderer/pages/Settings.tsx`
+- **Detected by:** `SET-021`
+- **Evidence before fix:** `test-artifacts/settings-e2e/2026-07-26T09-49-23-933Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/settings-e2e/2026-07-26T09-55-38-176Z/execution-results.json`
+
+**Reproduction before fix:** Trigger a validation/import error, then open a Settings confirmation
+dialog and navigate with Tab/Shift+Tab/Escape. Error banners had no alert/live semantics; focus could
+leave the modal; closing did not reliably return focus to the invoking control.
+
+**Fix:** Error/status banners now use appropriate `role` and live-region semantics. `ConfirmDialog`
+traps focus, supports Escape, remains focusable when it has no controls, and restores the prior
+connected element on unmount. The gate proves announcements, forward/reverse wrap, Escape/close
+return, narrow layout and reduced motion. SET-021 remains `NOT RUN` overall because 200% zoom,
+high-contrast, unavailable-secret controls and the complete accessible-name audit were not executed.
+
 ## Resolved Oracle workflow defects
 
 ### AWKIT-ORA-E2E-001 — Scheduled data rows were absent from runner `currentRow`

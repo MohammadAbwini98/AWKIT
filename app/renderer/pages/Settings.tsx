@@ -41,6 +41,7 @@ const WORKLOAD_CLASSES: WorkloadClass[] = ["light", "medium", "heavy", "custom"]
 /** Client mirror of `SECRET_NAME_PATTERN` (src/secrets/SecretStore) — kept inline so the renderer
  *  bundle never imports the node:fs-backed store module. Main-process validation is authoritative. */
 const SECRET_NAME_RE = /^[A-Za-z0-9._-]{1,64}$/;
+const SETTINGS_IMPORT_MAX_BYTES = 1_048_576;
 
 function formatMb(mb: number | undefined): string {
   if (!mb || mb <= 0) return "—";
@@ -343,13 +344,18 @@ export function SettingsPage() {
     const link = document.createElement("a");
     link.href = href;
     link.download = "webflow-studio-settings.json";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(href);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(href), 0);
   }, [api]);
 
   const importSettings = useCallback(
     async (file: File) => {
       try {
+        if (file.size > SETTINGS_IMPORT_MAX_BYTES) {
+          throw new Error("Settings file is too large. Maximum size is 1 MB.");
+        }
         const parsed = JSON.parse(await file.text());
         await api.import(parsed);
         setBanner({ type: "success", text: "Settings imported." });
@@ -409,9 +415,17 @@ export function SettingsPage() {
           </button>
         </div>
 
-        {banner ? <div className={`settings-banner ${banner.type}`}>{banner.text}</div> : null}
+        {banner ? (
+          <div
+            className={`settings-banner ${banner.type}`}
+            role={banner.type === "error" ? "alert" : "status"}
+            aria-live={banner.type === "error" ? "assertive" : "polite"}
+          >
+            {banner.text}
+          </div>
+        ) : null}
         {errors.length ? (
-          <div className="settings-banner error">
+          <div className="settings-banner error" role="alert" aria-live="assertive">
             <strong>Validation:</strong>
             <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
               {errors.map((err) => (
@@ -810,10 +824,10 @@ export function SettingsPage() {
                   {secrets.some((s) => s.name === secretName.trim()) ? "Update" : "Add"}
                 </button>
               </div>
-              {secretError ? <p className="form-message error-text">{secretError}</p> : null}
+              {secretError ? <p className="form-message error-text" role="alert">{secretError}</p> : null}
             </>
           ) : (
-            <div className="settings-banner error">
+            <div className="settings-banner error" role="alert">
               Secure storage is not available on this system, so secrets cannot be saved.
             </div>
           )}
