@@ -149,11 +149,22 @@ async function main(): Promise<number> {
         const els = Array.from(document.querySelectorAll("button.awkit-sort-header"));
         return els.slice(1).map((b) => b.closest("th")?.getAttribute("aria-sort") ?? null);
       });
-      check(
-        "Reports: unsorted columns expose aria-sort=none rather than nothing",
-        unsorted.length === 0 || unsorted.every((v: string | null) => v === "none"),
-        `values: ${unsorted.map((v: string | null) => v ?? "MISSING").join(",")}`
-      );
+      // `unsorted.length === 0 || …` would pass whenever the table has a single sortable column,
+      // asserting nothing while looking green. A table with only one sortable column is a legitimate
+      // state, not a defect — so it is reported as NOT RUN rather than hidden inside the condition.
+      // Same escape-hatch shape as the two vacuous checks found in verify:reports-populated-gui.
+      if (unsorted.length === 0) {
+        checkSkip(
+          "Reports: unsorted columns expose aria-sort=none rather than nothing",
+          "this table renders a single sortable column, so there is no unsorted sibling to audit"
+        );
+      } else {
+        check(
+          "Reports: unsorted columns expose aria-sort=none rather than nothing",
+          unsorted.every((v: string | null) => v === "none"),
+          `${unsorted.length} unsorted column(s): ${unsorted.map((v: string | null) => v ?? "MISSING").join(",")}`
+        );
+      }
     }
 
     // Reduced motion must be honoured.
