@@ -1,4 +1,5 @@
-// Recorder page GUI journeys — REC-001, REC-002, REC-003, REC-004, REC-019, REC-021, REC-024, REC-025.
+// Recorder page GUI journeys — REC-001, REC-002, REC-003, REC-004, REC-013, REC-019, REC-021,
+// REC-024, REC-025, REC-029, plus the Recorder-side halves of SET-004 and SET-005.
 //
 // `verify:recorder-e2e` proves the ONE happy path (record → save → restart → replay). Everything
 // else about the page itself — idle enablement, invalid targets, Stop vs Cancel semantics, the URL
@@ -87,6 +88,79 @@ const statusText = (win: Page) => win.locator(".recorder-status-text");
 
 async function recorderState(win: Page) {
   return win.evaluate(() => window.playwrightFlowStudio.recorder.getStatus());
+}
+
+/**
+ * Describe what actually holds focus. `insideDialog` is the load-bearing field, and it is phrased as
+ * CONTAINMENT on purpose: the equivalent check in Reports once asserted
+ * `activeElement.textContent.includes(<label>)`, which passes *precisely when the defect is present* —
+ * focus falls back to `<body>`, and body's `textContent` contains every label on the page. Containment
+ * cannot be satisfied that way, and `isBody` names the failure mode when it happens.
+ */
+async function focusInfo(target: Page) {
+  return target.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null;
+    const dialog = document.querySelector('[data-testid="recorder-review-modal"]');
+    return {
+      tag: el?.tagName ?? "(none)",
+      name: (el?.getAttribute("aria-label") || el?.textContent || "").trim().slice(0, 48),
+      isBody: el === document.body,
+      insideDialog: Boolean(dialog && el && dialog.contains(el)),
+      // The opener, matched by its own class rather than by label text — the modal's confirm button
+      // carries the same visible label, and `<body>` would match a text test.
+      isPageSaveButton: el?.classList?.contains("recorder-save-button") === true
+    };
+  });
+}
+
+/**
+ * Press Tab n times and report what received focus, its accessible name, and whether it shows a
+ * visible ring.
+ *
+ * The name is computed the way a screen reader resolves one — `aria-label`, `aria-labelledby`,
+ * `title`, an associated or wrapping `<label>`, then text content. An `aria-label || textContent`
+ * shortcut reports every text-labelled INPUT as unnamed and invents defects that are not there.
+ * `placeholder` is deliberately NOT counted: it is not a name, and it disappears as soon as the user
+ * types into the field.
+ *
+ * No named function binding may be declared inside `evaluate` — esbuild annotates those with
+ * `__name`, which does not exist in the page and fails at runtime with a bare ReferenceError.
+ */
+async function tabThrough(target: Page, n: number) {
+  const seen: { tag: string; name: string; ring: boolean; selector: string }[] = [];
+  for (let i = 0; i < n; i += 1) {
+    await target.keyboard.press("Tab");
+    const info = await target.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      const style = getComputedStyle(el);
+      const id = el.getAttribute("id");
+      const labelledBy = el.getAttribute("aria-labelledby");
+      const name =
+        (el.getAttribute("aria-label") || "").trim() ||
+        (labelledBy ? (document.getElementById(labelledBy)?.textContent || "").trim() : "") ||
+        (el.getAttribute("title") || "").trim() ||
+        (id ? (document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent || "").trim() : "") ||
+        (el.closest("label")?.textContent || "").trim() ||
+        (el.textContent || "").trim();
+      return {
+        tag: el.tagName,
+        name: name.slice(0, 40),
+        ring: style.outlineStyle !== "none" || style.boxShadow !== "none",
+        selector: `${el.tagName}${id ? `#${id}` : ""}${el.className ? `.${String(el.className).split(" ")[0]}` : ""}`
+      };
+    });
+    if (info) seen.push(info);
+  }
+  return seen;
+}
+
+/** Horizontal overflow of the scrolling element — the thing 200% zoom and a narrow window break. */
+async function horizontalOverflow(target: Page) {
+  return target.evaluate(() => {
+    const el = document.scrollingElement || document.documentElement;
+    return { scrollW: el.scrollWidth, clientW: el.clientWidth };
+  });
 }
 
 async function waitIdle(target: Page): Promise<void> {
@@ -310,7 +384,28 @@ try {
   await waitUiIdle(win);
   const afterCancel = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
   check("REC-004 Cancel clears the recorded actions", afterCancel.length === 0, `${afterCancel.length} actions`);
-  check("REC-004 Cancel returns the page to its empty state", (await win.locator(".recorder-empty").count()) === 1);
+  // Polled, and reported with the rendered row count. A bare one-shot `count() === 1` produced an
+  // empty FAIL detail that was twice misread as an "intermittent Electron startup flake" — the row
+  // count is what distinguishes "the renderer has not caught up yet" from "stale actions are still
+  // on screen", which is a real defect and does not self-correct.
+  const emptyState = await poll(
+    "cancelled recorder shows its empty state",
+    async () => {
+      const empty = await page.locator(".recorder-empty").count();
+      const rows = await page.locator(".recorder-timeline-row").count();
+      return empty === 1 && rows === 0 ? { empty, rows } : null;
+    },
+    8_000,
+    200
+  ).catch(async () => ({
+    empty: await page.locator(".recorder-empty").count(),
+    rows: await page.locator(".recorder-timeline-row").count()
+  }));
+  check(
+    "REC-004 Cancel returns the page to its empty state",
+    emptyState.empty === 1 && emptyState.rows === 0,
+    `empty-state=${emptyState.empty} stale rendered rows=${emptyState.rows}`
+  );
   const urlsAfterCancel = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;
   check(
     "REC-004 Cancel keeps the reusable URL history (only the draft is discarded)",
@@ -445,6 +540,76 @@ try {
     } else {
       check("REC-013 Save pauses on the review dialog", true);
       check("REC-013 the dialog is a labelled dialog", (await modal.getAttribute("role")) === "dialog");
+
+      // ── REC-013 / REC-029 — the dialog's keyboard contract ───────────────────
+      // This modal declares `aria-modal="true"`, which tells assistive tech that everything behind it
+      // is inert. That declaration is a PROMISE: focus must move in, stay in, and come back. The same
+      // class of defect was fixed once in `ConfirmDialog` (AWKIT-SET-004) and then found again in
+      // `RunDetailDrawer` (AWKIT-REP-004) — each time in a surface with its own markup, because the
+      // fix had been applied to a component rather than to the concept. This is the third such
+      // surface and the first time it has been checked.
+      const openFocus = await focusInfo(win);
+      check(
+        "REC-013 opening the review dialog moves focus into it",
+        openFocus.insideDialog,
+        `activeElement=<${openFocus.tag}>${openFocus.isBody ? " (focus was never moved)" : ""} name="${openFocus.name}"`
+      );
+
+      // Six presses against a two-button dialog: an untrapped dialog escapes to the page behind well
+      // inside that, and a trap that only works forwards is a real half-fix, so both directions run.
+      const forwardTrap: Awaited<ReturnType<typeof focusInfo>>[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        await win.keyboard.press("Tab");
+        forwardTrap.push(await focusInfo(win));
+      }
+      check(
+        "REC-013 Tab is trapped inside the review dialog",
+        forwardTrap.every((sample) => sample.insideDialog),
+        forwardTrap.map((s) => `${s.tag}${s.insideDialog ? "" : s.isBody ? "(BODY)" : "(ESCAPED)"}`).join(" → ")
+      );
+      const backwardTrap: Awaited<ReturnType<typeof focusInfo>>[] = [];
+      for (let i = 0; i < 4; i += 1) {
+        await win.keyboard.press("Shift+Tab");
+        backwardTrap.push(await focusInfo(win));
+      }
+      check(
+        "REC-013 Shift+Tab is trapped inside the review dialog",
+        backwardTrap.every((sample) => sample.insideDialog),
+        backwardTrap.map((s) => `${s.tag}${s.insideDialog ? "" : s.isBody ? "(BODY)" : "(ESCAPED)"}`).join(" → ")
+      );
+
+      // Escape must dismiss — and must dismiss the way "Keep editing" does, not the way Confirm does.
+      // A dialog that saved on Escape would satisfy "Escape closes it" and destroy the operator's
+      // intent, so what Escape *did* is asserted, not just that it closed.
+      await win.keyboard.press("Escape");
+      await win.waitForTimeout(400);
+      check("REC-013 Escape dismisses the review dialog", (await modal.isVisible().catch(() => false)) === false);
+      const afterEscapeFocus = await focusInfo(win);
+      check(
+        "REC-013 focus returns to the control that opened the dialog",
+        afterEscapeFocus.isPageSaveButton,
+        `activeElement=<${afterEscapeFocus.tag}>${afterEscapeFocus.isBody ? " (focus was dropped on the page)" : ""} name="${afterEscapeFocus.name}"`
+      );
+      const retainedAfterEscape = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+      check(
+        "REC-013 Escape retains the recorded actions",
+        retainedAfterEscape.length === reviewActions.length,
+        `${retainedAfterEscape.length}/${reviewActions.length}`
+      );
+      const savedAfterEscape = await win.evaluate(() => window.playwrightFlowStudio.flows.list());
+      check(
+        "REC-013 Escape persists nothing — it is a dismissal, not a save",
+        savedAfterEscape.every((flow) => flow.name !== "REC-013 Review Modal"),
+        JSON.stringify(savedAfterEscape.map((flow) => flow.name))
+      );
+
+      // ── Second opening: the pointer dismissal route ──────────────────────────
+      // Scoped by class, not by label: the modal's confirm button carries the same visible label, so
+      // a role+name lookup is ambiguous whenever the dialog is open — which is exactly the state a
+      // failing dismissal leaves behind, turning a real defect into an unrelated strict-mode error.
+      await win.locator("button.recorder-save-button").click();
+      await modal.waitFor({ state: "visible", timeout: 5_000 });
+      check("REC-013 the dialog reopens after a dismissal", true);
       // The dismiss control is "Keep editing", not "Cancel". This block was written before it had
       // ever executed and guessed the label; the real one is deliberately less final-sounding,
       // because dismissing the review returns you to the recording rather than discarding it.
@@ -461,7 +626,12 @@ try {
         savedAfterDismiss.every((flow) => flow.name !== "REC-013 Review Modal"),
         JSON.stringify(savedAfterDismiss.map((flow) => flow.name))
       );
-      await win.getByRole("button", { name: "Save to Flow Library", exact: true }).click();
+
+      // ── Third opening: the commit route ──────────────────────────────────────
+      // Scoped by class, not by label: the modal's confirm button carries the same visible label, so
+      // a role+name lookup is ambiguous whenever the dialog is open — which is exactly the state a
+      // failing dismissal leaves behind, turning a real defect into an unrelated strict-mode error.
+      await win.locator("button.recorder-save-button").click();
       await modal.waitFor({ state: "visible", timeout: 5_000 });
       check("REC-013 the dialog reopens on a second Save", true);
       await modal.getByTestId("review-confirm-save").click();
@@ -742,6 +912,47 @@ try {
     pausedAgain !== null && pausedAgain.isRecording === false,
     JSON.stringify(pausedAgain)
   );
+
+  // REC-029's handoff state, checked inside the paused window SET-005 has already produced rather
+  // than by driving a second protected recording. This is the state where a keyboard user most needs
+  // the page to be navigable: the recording has stopped and they have to act.
+  // Wait for the panel rather than sampling once. `getStatus()` flips as soon as the main process
+  // pauses, but the panel is driven by a separate `getHandoff()` poll on an 800 ms interval, so an
+  // instantaneous read races the renderer and reports NOT RUN for a state that does arrive.
+  const handoffPanel = win.getByTestId("protected-handoff-panel");
+  const handoffVisible = await handoffPanel
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (handoffVisible) {
+    const handoffTabs = await tabThrough(win, 12);
+    const handoffInteractive = handoffTabs.filter((t) => ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA"].includes(t.tag));
+    check(
+      "REC-029 handoff: the handoff controls are keyboard reachable and named",
+      handoffInteractive.length >= 1 && handoffInteractive.every((t) => t.name.length > 0),
+      handoffInteractive.map((t) => `${t.tag}"${t.name}"`).join(" → ") || "nothing received focus"
+    );
+    // What matters is that the operator LEARNS the recording paused and needs them — not that one
+    // particular element carries the live region. Asserted by the announcement's TEXT, so an
+    // unrelated live region elsewhere on the page cannot satisfy it, and so the check does not
+    // hard-code which element is allowed to do the announcing.
+    const handoffAnnouncements = await win.evaluate(() =>
+      Array.from(document.querySelectorAll("[aria-live], [role='status'], [role='alert']"))
+        .map((region) => (region.textContent || "").trim())
+        .filter(Boolean)
+    );
+    check(
+      "REC-029 handoff: the paused state is announced, not only rendered",
+      handoffAnnouncements.some((text) => /manual handoff|protected login|paused/i.test(text)),
+      JSON.stringify(handoffAnnouncements).slice(0, 220)
+    );
+  } else {
+    notRun(
+      "REC-029 handoff: the handoff controls are keyboard reachable and named",
+      "the protected-login pause did not render the handoff panel in this run, so there was no handoff state to audit"
+    );
+  }
+
   await win.evaluate(async () => {
     try {
       await window.playwrightFlowStudio.recorder.cancel();
@@ -750,6 +961,203 @@ try {
     }
   });
   await waitIdle(win);
+
+  // ── REC-029 — accessibility, responsive layout and reduced motion ──────────
+  // Wholly NOT RUN until now. Focus is driven with real Tab presses, never `.focus()`: `:focus-visible`
+  // — the selector the global ring uses — does not match programmatic focus, so a `.focus()`-based
+  // check would report a ring that a keyboard user never sees.
+  console.log("\nREC-029 — Recorder accessibility, responsive layout and reduced motion");
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  const idleTabs = await tabThrough(win, 12);
+  const idleInteractive = idleTabs.filter((t) => ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA"].includes(t.tag));
+  check(
+    "REC-029 idle: Tab reaches the Recorder's interactive controls",
+    idleInteractive.length >= 4,
+    idleTabs.map((t) => t.tag).join(" → ") || "nothing received focus"
+  );
+  check(
+    "REC-029 idle: every keyboard-focused control shows a focus ring",
+    idleInteractive.length > 0 && idleInteractive.every((t) => t.ring),
+    idleInteractive.map((t) => `${t.tag}:${t.ring ? "ring" : "NONE"}`).join(" ")
+  );
+  check(
+    "REC-029 idle: no focusable control is missing an accessible name",
+    idleInteractive.every((t) => t.name.length > 0),
+    idleInteractive.filter((t) => !t.name).map((t) => t.selector).join(", ") || "all named"
+  );
+
+  // Every visible control on the page, not only the ones Tab happened to reach in 12 presses.
+  const unnamedControls = await win.evaluate(() => {
+    const out: string[] = [];
+    document.querySelectorAll(".recorder-page button, .recorder-page input, .recorder-page select, .recorder-page textarea").forEach((el) => {
+      const e = el as HTMLElement;
+      if (e.offsetParent === null) return; // not rendered
+      const id = e.getAttribute("id");
+      const named =
+        (e.getAttribute("aria-label") || "").trim() ||
+        (e.getAttribute("aria-labelledby") || "").trim() ||
+        (e.getAttribute("title") || "").trim() ||
+        (id ? (document.querySelector(`label[for="${CSS.escape(id)}"]`)?.textContent || "").trim() : "") ||
+        (e.closest("label")?.textContent || "").trim() ||
+        (e.tagName === "BUTTON" ? (e.textContent || "").trim() : "");
+      if (!named) out.push(`${e.tagName}.${(e.className || "").toString().split(" ")[0]}`);
+    });
+    return out;
+  });
+  check(
+    "REC-029 idle: every visible Recorder control has an accessible name",
+    unnamedControls.length === 0,
+    unnamedControls.length ? `unnamed: ${unnamedControls.slice(0, 8).join(", ")}` : "all named"
+  );
+
+  // A switch that renders its state only as a coloured track is invisible to a screen reader.
+  const switchStates = await win.evaluate(() =>
+    Array.from(document.querySelectorAll('.recorder-page [role="switch"]')).map((el) => ({
+      name: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 40),
+      checked: el.getAttribute("aria-checked")
+    }))
+  );
+  check(
+    "REC-029 idle: every switch exposes its checked state to assistive tech",
+    switchStates.length >= 2 && switchStates.every((s) => s.checked === "true" || s.checked === "false"),
+    JSON.stringify(switchStates)
+  );
+
+  // The status pill is the page's primary state readout — Idle / Recording / Ready to save / Manual
+  // handoff. If it changes silently, a screen-reader user has no way to know the recording started.
+  // Asserted as "the element that CARRIES the status is live", not "some live region exists on the
+  // page": the action timeline is already `aria-live`, and it would satisfy the weaker phrasing while
+  // the status itself stayed silent.
+  // Declared inline rather than as a helper binding: esbuild annotates a named function inside
+  // `evaluate` with `__name`, which does not exist in the page and throws a bare ReferenceError.
+  const [pillLiveness, messageLiveness] = await win.evaluate(() =>
+    [".recorder-status-pill", ".recorder-status-text"].map((selector) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const region = el.closest("[aria-live], [role='status'], [role='alert']");
+      return {
+        text: (el.textContent || "").trim().slice(0, 40),
+        role: region?.getAttribute("role") ?? null,
+        politeness: region?.getAttribute("aria-live") ?? null,
+        announced: Boolean(region)
+      };
+    })
+  );
+  const statusLiveness = { pill: pillLiveness, message: messageLiveness };
+  check(
+    "REC-029 the recorder status is announced, not only rendered",
+    statusLiveness.pill?.announced === true,
+    statusLiveness.pill
+      ? `pill="${statusLiveness.pill.text}" role=${statusLiveness.pill.role ?? "none"} aria-live=${statusLiveness.pill.politeness ?? "none"}`
+      : "no .recorder-status-pill found"
+  );
+  // The transient operation message ("Saving flow...", failures) is the other half of "status updates
+  // are announced". It renders only when there is something to say, so its absence is NOT RUN.
+  if (statusLiveness.message) {
+    check(
+      "REC-029 the transient status message is announced",
+      statusLiveness.message.announced,
+      `message="${statusLiveness.message.text}" role=${statusLiveness.message.role ?? "none"}`
+    );
+  } else {
+    notRun("REC-029 the transient status message is announced", "no status message was displayed at this point in the journey");
+  }
+
+  // ── Recording state: the pulse must reduce ─────────────────────────────────
+  await startAndWaitRecording(win, labUrl);
+  const readPulse = async () =>
+    win!.evaluate(() => {
+      const dot = document.querySelector(".recorder-recording-dot");
+      const pill = document.querySelector(".recorder-status-pill.is-recording");
+      return {
+        dot: dot ? getComputedStyle(dot).animationIterationCount : null,
+        pillBefore: pill ? getComputedStyle(pill, "::before").animationIterationCount : null
+      };
+    });
+  // Measured BOTH ways round. "Iteration count is 1 under reduced motion" is equally satisfied by an
+  // element that has no animation at all, so the unreduced reading is the control that proves there
+  // was motion to reduce.
+  const pulseNormal = await readPulse();
+  check(
+    "REC-029 the recording indicator animates continuously by default (control)",
+    pulseNormal.dot === "infinite" || pulseNormal.pillBefore === "infinite",
+    JSON.stringify(pulseNormal)
+  );
+  await win.emulateMedia({ reducedMotion: "reduce" });
+  await win.waitForTimeout(400);
+  const pulseReduced = await readPulse();
+  check(
+    "REC-029 the recording pulse is reduced under prefers-reduced-motion",
+    (pulseReduced.dot === null || pulseReduced.dot === "1") && (pulseReduced.pillBefore === null || pulseReduced.pillBefore === "1"),
+    JSON.stringify(pulseReduced)
+  );
+  await win.emulateMedia({ reducedMotion: null });
+  await win.waitForTimeout(200);
+
+  const recordingTabs = await tabThrough(win, 10);
+  const recordingInteractive = recordingTabs.filter((t) => ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA"].includes(t.tag));
+  check(
+    "REC-029 recording: the live controls remain keyboard reachable and named",
+    recordingInteractive.length >= 2 && recordingInteractive.every((t) => t.name.length > 0),
+    recordingInteractive.map((t) => `${t.tag}"${t.name}"`).join(" → ") || "nothing received focus"
+  );
+  // Recorded actions must be announced as they arrive, not only painted into the timeline.
+  check(
+    "REC-029 recording: the action timeline is a live region",
+    await win.evaluate(() => {
+      const list = document.querySelector(".recorder-timeline");
+      return Boolean(list?.closest("[aria-live], [role='status'], [role='log']"));
+    })
+  );
+
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
+  // ── Ready-to-save state ────────────────────────────────────────────────────
+  const readyTabs = await tabThrough(win, 14);
+  const readyInteractive = readyTabs.filter((t) => ["BUTTON", "A", "INPUT", "SELECT", "TEXTAREA"].includes(t.tag));
+  check(
+    "REC-029 ready to save: Save and the Flow Name field are keyboard reachable",
+    readyInteractive.some((t) => /Save to Flow Library/.test(t.name)) && readyInteractive.some((t) => t.tag === "INPUT"),
+    readyInteractive.map((t) => `${t.tag}"${t.name}"`).join(" → ")
+  );
+
+  // ── Zoom, narrow width and reduced motion ──────────────────────────────────
+  const bw = await app.browserWindow(win);
+  await bw.evaluate((w: { webContents: { setZoomFactor: (n: number) => void } }) => w.webContents.setZoomFactor(2));
+  await win.waitForTimeout(600);
+  const zoomOverflow = await horizontalOverflow(win);
+  check(
+    "REC-029 no horizontal overflow at 200% zoom",
+    zoomOverflow.scrollW <= zoomOverflow.clientW + 2,
+    `scrollWidth=${zoomOverflow.scrollW} clientWidth=${zoomOverflow.clientW}`
+  );
+  await win.screenshot({ path: join(evidenceDir, "rec029-zoom-200.png") }).catch(() => undefined);
+  await bw.evaluate((w: { webContents: { setZoomFactor: (n: number) => void } }) => w.webContents.setZoomFactor(1));
+
+  await bw.evaluate((w: { setBounds: (b: { width: number; height: number }) => void }) => w.setBounds({ width: 900, height: 800 }));
+  await win.waitForTimeout(500);
+  const narrowOverflow = await horizontalOverflow(win);
+  check(
+    "REC-029 no horizontal overflow at a narrow window width",
+    narrowOverflow.scrollW <= narrowOverflow.clientW + 2,
+    `scrollWidth=${narrowOverflow.scrollW} clientWidth=${narrowOverflow.clientW}`
+  );
+  await win.screenshot({ path: join(evidenceDir, "rec029-narrow.png") }).catch(() => undefined);
+  await bw.evaluate((w: { setBounds: (b: { width: number; height: number }) => void }) => w.setBounds({ width: 1280, height: 800 }));
+  await win.waitForTimeout(400);
+
+  await win.emulateMedia({ reducedMotion: "reduce" });
+  await win.waitForTimeout(300);
+  check(
+    "REC-029 the Recorder renders under prefers-reduced-motion",
+    await win.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches) &&
+      (await win.locator(".recorder-page").isVisible())
+  );
+  await win.emulateMedia({ reducedMotion: null });
 
   // ── REC-024 — no orphan browser is left behind ─────────────────────────────
   await waitIdle(win);
@@ -781,7 +1189,7 @@ const failed = results.filter((r) => r.status === "FAIL").length;
 const skipped = results.filter((r) => r.status === "NOT RUN").length;
 writeFileSync(
   join(evidenceDir, "execution-results.json"),
-  JSON.stringify({ runId: runStamp, cases: ["REC-001", "REC-002", "REC-003", "REC-004", "REC-013", "REC-019", "REC-021", "REC-024", "REC-025"], passed, failed, notRun: skipped, results, rendererErrors }, null, 2),
+  JSON.stringify({ runId: runStamp, cases: ["REC-001", "REC-002", "REC-003", "REC-004", "REC-013", "REC-019", "REC-021", "REC-024", "REC-025", "REC-029", "SET-004", "SET-005"], passed, failed, notRun: skipped, results, rendererErrors }, null, 2),
   "utf8"
 );
 console.log(`\nRecorder GUI: ${passed} PASS / ${failed} FAIL / ${skipped} NOT RUN`);

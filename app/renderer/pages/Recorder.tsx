@@ -32,6 +32,8 @@ export function Recorder() {
   const [urlPage, setUrlPage] = useState(1);
   const [urlPageSize, setUrlPageSize] = useState(10);
   const actionsListRef = useRef<HTMLDivElement | null>(null);
+  const reviewDialogRef = useRef<HTMLDivElement | null>(null);
+  const reviewReturnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -53,6 +55,63 @@ export function Recorder() {
     if (!list) return;
     list.scrollTop = list.scrollHeight;
   }, [actions.length]);
+
+  /**
+   * Keyboard semantics for the async review dialog. It declares `aria-modal="true"`, which tells
+   * assistive tech that everything behind it is inert — so focus must move in, stay in, and return
+   * to the opener. Without this a keyboard user is stranded: Tab walks into content their screen
+   * reader has been told does not exist. `ConfirmDialog` and `RunDetailDrawer` already implement
+   * exactly this contract; this dialog has its own markup and so never inherited it.
+   */
+  useEffect(() => {
+    if (!reviewOpen) return;
+    reviewReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusable = () =>
+      [...(reviewDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? [])].filter((element) => !element.hasAttribute("hidden"));
+    (focusable()[0] ?? reviewDialogRef.current)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // Escape dismisses the way "Keep editing" does. It must never commit the save — the whole
+        // point of this dialog is that saving is a deliberate act.
+        e.preventDefault();
+        setReviewOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const list = focusable();
+      if (list.length === 0) {
+        e.preventDefault();
+        reviewDialogRef.current?.focus();
+        return;
+      }
+      const first = list[0];
+      const last = list[list.length - 1];
+      // Focus can be outside the dialog entirely — it is conditionally rendered, and the confirm
+      // button becomes disabled mid-save, which drops focus to the body. Pull it back rather than
+      // letting the first Tab escape.
+      if (!reviewDialogRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (reviewReturnFocusRef.current?.isConnected) reviewReturnFocusRef.current.focus();
+    };
+  }, [reviewOpen]);
 
   useEffect(() => {
     const poll = () => {
@@ -305,7 +364,13 @@ export function Recorder() {
               <span>Capture browser actions into a reusable flow.</span>
             </div>
           </div>
-          <span className={`recorder-status-pill${isRecording ? " is-recording" : handoffActive ? " is-handoff" : " is-idle"}`}>
+          {/* The page's primary state readout. `role="status"` (polite + atomic) so that starting,
+              stopping or pausing a recording is announced rather than only recoloured — a
+              screen-reader user otherwise has no signal that the recorder changed state at all. */}
+          <span
+            className={`recorder-status-pill${isRecording ? " is-recording" : handoffActive ? " is-handoff" : " is-idle"}`}
+            role="status"
+          >
             {isRecording ? "Recording" : handoffActive ? "Manual handoff" : actions.length > 0 ? "Ready to save" : "Idle"}
           </span>
         </header>
@@ -396,7 +461,7 @@ export function Recorder() {
             <XCircle size={16} />
             Cancel
           </button>
-          {statusMsg ? <span className="recorder-status-text">{statusMsg}</span> : null}
+          {statusMsg ? <span className="recorder-status-text" role="status">{statusMsg}</span> : null}
         </div>
       </section>
 
@@ -640,8 +705,11 @@ export function Recorder() {
 
         <div className="table-search recorder-url-search">
           <Search size={15} />
+          {/* A placeholder is not an accessible name: it is not reliably announced as one, and it
+              disappears the moment the user types. */}
           <input
             value={urlSearch}
+            aria-label="Search recorded URLs"
             placeholder="Search by URL, title, source, or session..."
             onChange={(e) => {
               setUrlSearch(e.target.value);
@@ -732,8 +800,10 @@ export function Recorder() {
       {reviewOpen ? (
         <div className="modal-overlay" role="presentation" onClick={() => setReviewOpen(false)}>
           <div
+            ref={reviewDialogRef}
             className="modal-dialog recorder-review-dialog"
             role="dialog"
+            tabIndex={-1}
             aria-modal="true"
             aria-label="Async activity review"
             data-testid="recorder-review-modal"
