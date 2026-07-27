@@ -4,7 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Program Status & Roadmap dashboard, isolated in tools/roadmap (Claude)
+## 2026-07-27 (latest) - Verifier classification reconciled; a 7/1 surfaced on this machine (Claude)
+
+**Task:** resolve `verify:verifier-classification` by classifying `verify:reports-live-engine` and
+`verify:settings-runner-behaviour` from what each actually executes. Scope limited to that.
+
+**Delivered:** the gate is **GREEN — all 144 scripts classified**, no stale entries. Both are
+`real-browser` (`real-browser` 48 → 50, total 142 → 144), decided independently: both hard-require
+`out/main/main.js`, both `electron.launch({ args: [root] })` the built unpackaged app, both spawn the
+mock site; `reports-live-engine` starts real Chromium instances (`dryRun: false`, 3 instances) and
+saturates the live engine, `settings-runner-behaviour` starts a real run from the run card. `args:
+[root]` rules out `packaged-application`; `integration` excludes browser/Electron by definition.
+Registry metadata only — no verifier behaviour changed.
+
+**Commands:** `verify:verifier-classification` green · `verify:reports-live-engine` **21/0** ·
+`verify:settings-runner-behaviour` **7 PASS / 1 FAIL** · `build` passed · `typecheck:scripts` passed ·
+`verify:source-hygiene` 7/0 · `validate:offline` passed · `verify:roadmap-dashboard` 105/0.
+
+**The 7/1, investigated but deliberately not fixed.** `locator.click` on `button.workflow-card-run`
+times out, intercepted by `.workflow-card-hint`. Reproduced 3/3 including with all other GUIs closed.
+`global.css:5423` gates the `:hover` reveal behind `@media (hover: hover) and (pointer: fine)`; the
+`:focus-within` equivalent at `5411` is ungated. A window not matching that media query never reveals
+the button to a pointer — exactly the observed error. Not a regression: `5c2990d` touched no `app/` or
+`src/` file, the markup predates it, the sibling suite hit 21/21 on the same build in the same
+session, and this suite's first seven checks pass. Loosening the check to make it green was
+explicitly out of scope; options are recorded in `HANDOFF.md`.
+
+**Files:** `scripts/lib/verifier-classification.ts` (+2 entries),
+`docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+
+## 2026-07-27 (earlier) - Program Status & Roadmap dashboard, isolated in tools/roadmap (Claude)
 
 **Task:** build a continuously-updating web page showing the roadmap, pending work, dependencies,
 reported issues, implementation order and agent activity — isolated from the app, runnable on its own.

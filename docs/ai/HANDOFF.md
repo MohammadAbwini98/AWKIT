@@ -1,24 +1,59 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): Program Status & Roadmap dashboard shipped; one gate left red
+## ACTIVE (2026-07-27, latest): classification gate GREEN; one verifier fails on this machine
 
-`npm run roadmap` → <http://127.0.0.1:4380>. `npm run verify:roadmap-dashboard` **105 PASS / 0 FAIL**.
-Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED** — Recorder 28/0/1, Reports 14/2, Settings 19/2.
-`npm run build`, `typecheck:scripts`, `verify:source-hygiene` (7/0) and `validate:offline` all pass
-unchanged. Contract: `tools/roadmap/README.md`.
+`npm run verify:verifier-classification` is **green — all 144 scripts classified** (`real-browser`
+48 → 50, total 142 → 144). Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
-### The one thing genuinely owed — and it predates this task
+**`npm run verify:settings-runner-behaviour` now fails here: 7 PASS / 1 FAIL** (it was 11/11 when it
+was written). See below — it is not caused by the classification change, and it is not a code
+regression. **This is the open item.**
 
-**`npm run verify:verifier-classification` is RED on `main`.** `verify:reports-live-engine` and
-`verify:settings-runner-behaviour` — added by the two sessions before this one, the ones that found
-`AWKIT-REP-008` and `AWKIT-SET-006` — were never added to `scripts/lib/verifier-classification.ts`.
-The dashboard's parsers surfaced this before it had a UI; it is not caused by this change, which
-registered only its own verifier (`static-source-validation` 7 → 8, total 141 → 142).
+### The two verifiers are now classified — both `real-browser`, decided independently
 
-**Next step:** classify those two from what each script actually *exercises*, not from its name —
-both drive a live engine, so the honest class is likely `real-browser` or `integration`, but read each
-verifier's own header before deciding. Guessing would defeat the registry's purpose (FR-I1 I1.5
-exists precisely so a structural check is never counted as runtime validation).
+Evidence read from each script's execution path, not its name:
+
+| | `verify:reports-live-engine` | `verify:settings-runner-behaviour` |
+|---|---|---|
+| Requires `out/main/main.js`, else `exit 1` | yes (l.241) | yes (l.206) |
+| `electron.launch({ args: [root] })` | l.264 | l.230 |
+| Spawns the mock site (Node child) | l.253 | l.219 |
+| Starts real Chromium work | `executions.runWorkflow({ headless: true, dryRun: false, totalInstances: 3 })` l.340 | real run from the card's Run button, ON/OFF/ON failure-evidence bundles |
+| Executed result | **21 PASS / 0 FAIL** | **7 PASS / 1 FAIL** (below) |
+
+`args: [root]` launches the **built, unpackaged** app via `out/` — so `packaged-application` (which
+means `dist/win-unpacked` or the offline bundle) is wrong for both. `integration` is excluded by its
+own definition, "…but no browser/Electron". Both match `real-browser` on both halves of its rule.
+
+### `verify:settings-runner-behaviour` — 7/1, and why it is NOT a regression
+
+Fails at *SET-009 — the runner honours screenshot-on-failure*, on
+`locator.click` of `button.workflow-card-run`, timing out after 30s with
+`<span class="workflow-card-hint">…</span> intercepts pointer events`. **Reproduced 3/3**, including
+with every other GUI closed.
+
+**Diagnosis — a media-query dependency in the environment, not broken code:**
+
+- `global.css:5411` `.workflow-card:focus-within .workflow-card-summary { opacity: 0 }` — **ungated**.
+- `global.css:5423` `@media (hover: hover) and (pointer: fine)` wraps
+  `.workflow-card:hover .workflow-card-summary { … pointer-events: none }` — **gated**.
+
+If the Electron window does not match `(hover: hover) and (pointer: fine)`, the pointer-hover reveal
+never fires, `.workflow-card-summary` keeps `pointer-events: auto`, and its hint span sits over the
+Run button. That is exactly the observed error. Supporting evidence that the machine is not simply
+"bad at GUI": the sibling `verify:reports-live-engine` drove the same Electron build to **21/21** in
+the same session, and this suite's own first 7 checks — real Settings writes, real run-card rendering
+— all pass. Only the pointer-hover step fails.
+
+Also ruled out: commit `5c2990d` touched **no** `app/` or `src/` file, so the product is byte-identical
+to when 11/11 was recorded, and the hover-reveal markup dates from the initial commits.
+
+**Next step — do not "fix" it by loosening the check.** Decide between:
+1. the harness focusing the card (`.focus()` / keyboard) instead of hovering, since `:focus-within` is
+   the ungated path the product already supports — a harness change, product untouched; or
+2. confirming on the owner's normal desktop session whether it still scores 11/11, which would settle
+   it as environment-only and needs no change at all.
+Option 2 first: it is free and it is the only thing that distinguishes the two.
 
 ### If you touch this dashboard, two traps are already recorded
 

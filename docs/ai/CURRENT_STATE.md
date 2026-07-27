@@ -1,6 +1,37 @@
 # CURRENT_STATE
 
-## Program Status & Roadmap dashboard — `tools/roadmap` (2026-07-27, current)
+## Verifier classification reconciled; `verify:settings-runner-behaviour` fails here (2026-07-27, current)
+
+`npm run verify:verifier-classification` is **GREEN — all 144 `verify:`/`validate:` scripts are
+classified**, no stale entries. `verify:reports-live-engine` and `verify:settings-runner-behaviour`
+were the two missing ones; both are `real-browser` (`real-browser` 48 → 50, total 142 → 144).
+Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+Each was classified from its actual execution path, decided independently — they happened to land in
+the same class, but for separately verified reasons. Both hard-require `out/main/main.js` and
+`exit 1` without it, both `electron.launch({ args: [root] })` the **built, unpackaged** app, and both
+spawn the mock site as a Node child. `reports-live-engine` then starts real Chromium instances
+(`executions.runWorkflow({ headless: true, dryRun: false, totalInstances: 3 })`) and saturates the
+live engine until dispatch is refused; `settings-runner-behaviour` starts a real run from the run
+card's own Run button and asserts the failure-evidence bundles on disk change with
+screenshot-on-failure ON/OFF/ON. `args: [root]` rules out `packaged-application` (that class means
+`dist/win-unpacked` or the offline bundle), and `integration` excludes browser/Electron by definition.
+
+**Executed, not assumed:** `verify:reports-live-engine` **21 PASS / 0 FAIL**.
+
+**`verify:settings-runner-behaviour` is 7 PASS / 1 FAIL on this machine** (11/11 when written).
+Reproduced 3/3. It fails on `locator.click` of `button.workflow-card-run`, intercepted by
+`.workflow-card-hint`. **Not a code regression and not caused by this change:** commit `5c2990d`
+touched no `app/` or `src/` file, and the reveal is gated — `global.css:5423`
+`@media (hover: hover) and (pointer: fine)` wraps the `:hover` rule that sets
+`pointer-events: none` on the summary layer, while the `:focus-within` equivalent at `5411` is
+ungated. An Electron window not matching that media query never reveals the Run button to a pointer.
+The sibling suite scored 21/21 on the same build in the same session, and this suite's own first
+seven checks (real Settings writes, real run-card rendering) pass — only the pointer-hover step
+fails. Next step is recorded in `HANDOFF.md`; it was deliberately **not** "fixed" by loosening a
+check.
+
+## Program Status & Roadmap dashboard — `tools/roadmap` (2026-07-27, earlier)
 
 `npm run roadmap` → <http://127.0.0.1:4380>. `npm run verify:roadmap-dashboard` is **105 PASS / 0
 FAIL**. `npm run build`, `typecheck:scripts`, `verify:source-hygiene` (7/0) and `validate:offline`
