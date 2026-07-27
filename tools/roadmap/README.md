@@ -56,6 +56,50 @@ priority as tiebreak. It knows nothing about effort, value, or any dependency no
 and 24 of the 29 queued issues declare no dependency at all. The view says so, with the count
 computed live so it self-corrects as edges are added.
 
+## Keeping it current — update the source, never the page
+
+**This dashboard is derived.** It re-parses the files above on a 1.5s poll, so it updates itself the
+moment one of them changes — no restart, no build step, nothing to regenerate. There is no file here
+you can edit to make a number say something different, and there should never be: a page that can be
+edited independently of the repository is a page that can lie about it, which is precisely the
+failure the consistency banner exists to detect.
+
+So on every task — any change made, stage reached, or issue observed or reported — update the source
+that owns that fact, and the dashboard follows:
+
+| What happened | Update this |
+|---|---|
+| Work started / finished / newly discovered | `bd` — create, `--claim`, close; add `blocks` edges for real dependencies |
+| A test case changed status | the validation case ledger |
+| A defect observed, reported, or fixed | `DEFECTS.md` (keep `Detected by` pointing at a real case id) |
+| Requirement coverage changed | `TRACEABILITY_MATRIX.csv` |
+| A roadmap phase changed status | `src/roadmap/ImplementationRoadmap.ts` |
+| State, behaviour or commands changed | `docs/ai/CURRENT_STATE.md` |
+| Work paused, blocked, or handed over | `docs/ai/HANDOFF.md` |
+| Any task finished | `docs/ai/TASK_LOG.md` |
+| A fragile area or risky assumption | `docs/ai/KNOWN_ISSUES.md` |
+| A new `verify:*` / `validate:*` script | `scripts/lib/verifier-classification.ts` |
+| You are taking sustained ownership | `assignments.json` (below) |
+
+**Dependencies exist only if you declare them.** The ordering view can use nothing but `blocks` edges
+from `bd`. If you know B cannot start until A lands, record it — otherwise no view can know.
+
+Then confirm you introduced no drift:
+
+```bash
+npm run verify:roadmap-dashboard
+```
+
+and check the Overview banner still reads **"Sources agree"**. Amber means two sources now claim
+different things — fix the one that is wrong, at the source.
+
+Two traps that have already bitten: the **newest** `##` section of `CURRENT_STATE.md` and
+`HANDOFF.md` must carry the `N PASS / N NOT RUN / N BLOCKED` tally, because the parser scopes to the
+newest heading only; and `verify:verifier-classification` stays red until a new verifier is
+registered — it went unnoticed for two sessions.
+
+Canonical procedure: `docs/ai/DEVELOPMENT_WORKFLOW.md` § 6.
+
 ## Claiming an item
 
 Add an entry to `assignments.json`. `expiresAt` defaults to `claimedAt + 24h`; expired claims render

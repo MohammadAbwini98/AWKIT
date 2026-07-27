@@ -1,13 +1,19 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): classification gate GREEN; one verifier fails on this machine
+## ACTIVE (2026-07-27, latest): classification gate GREEN; dashboard upkeep is now a standing rule
 
 `npm run verify:verifier-classification` is **green — all 144 scripts classified** (`real-browser`
 48 → 50, total 142 → 144). Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
-**`npm run verify:settings-runner-behaviour` now fails here: 7 PASS / 1 FAIL** (it was 11/11 when it
-was written). See below — it is not caused by the classification change, and it is not a code
-regression. **This is the open item.**
+**`npm run verify:settings-runner-behaviour` is FLAKY, not broken — it passes.** Measured on
+identical code with no rebuild: **FAIL, FAIL, FAIL, then 11 PASS / 0 FAIL**. An earlier note in this
+file called it reproducible and environment-blocked; that was true of the first three runs and is
+**superseded** by the fourth. Details and the re-run rule: `KNOWN_ISSUES.md`.
+
+**Standing rule added this session:** every task must keep the Program Status dashboard current by
+updating the sources it parses — it is derived and must never be hand-edited. Canonical procedure:
+`docs/ai/DEVELOPMENT_WORKFLOW.md` § 6, echoed in `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and
+`tools/roadmap/README.md`.
 
 ### The two verifiers are now classified — both `real-browser`, decided independently
 
@@ -25,35 +31,22 @@ Evidence read from each script's execution path, not its name:
 means `dist/win-unpacked` or the offline bundle) is wrong for both. `integration` is excluded by its
 own definition, "…but no browser/Electron". Both match `real-browser` on both halves of its rule.
 
-### `verify:settings-runner-behaviour` — 7/1, and why it is NOT a regression
+### `verify:settings-runner-behaviour` — flaky, and it does pass
 
-Fails at *SET-009 — the runner honours screenshot-on-failure*, on
-`locator.click` of `button.workflow-card-run`, timing out after 30s with
-`<span class="workflow-card-hint">…</span> intercepts pointer events`. **Reproduced 3/3**, including
-with every other GUI closed.
+Four runs, identical code, no rebuild between them: **7/1, 7/1, 7/1, then 11/0.** The suite is
+sound; the failing step is a timing-sensitive click on the workflow card's hover-revealed Run button.
+The earlier "reproducible / environment-blocked" conclusion recorded here is **withdrawn** — a
+per-machine media-query mismatch would be deterministic, and run 4 was green with nothing changed but
+Markdown.
 
-**Diagnosis — a media-query dependency in the environment, not broken code:**
+Not a regression, and not caused by `5c2990d` or `536ec52`: neither touched `app/` or `src/`, the
+hover-reveal markup predates both, and `verify:reports-live-engine` scored 21/21 on the same build in
+the same session.
 
-- `global.css:5411` `.workflow-card:focus-within .workflow-card-summary { opacity: 0 }` — **ungated**.
-- `global.css:5423` `@media (hover: hover) and (pointer: fine)` wraps
-  `.workflow-card:hover .workflow-card-summary { … pointer-events: none }` — **gated**.
-
-If the Electron window does not match `(hover: hover) and (pointer: fine)`, the pointer-hover reveal
-never fires, `.workflow-card-summary` keeps `pointer-events: auto`, and its hint span sits over the
-Run button. That is exactly the observed error. Supporting evidence that the machine is not simply
-"bad at GUI": the sibling `verify:reports-live-engine` drove the same Electron build to **21/21** in
-the same session, and this suite's own first 7 checks — real Settings writes, real run-card rendering
-— all pass. Only the pointer-hover step fails.
-
-Also ruled out: commit `5c2990d` touched **no** `app/` or `src/` file, so the product is byte-identical
-to when 11/11 was recorded, and the hover-reveal markup dates from the initial commits.
-
-**Next step — do not "fix" it by loosening the check.** Decide between:
-1. the harness focusing the card (`.focus()` / keyboard) instead of hovering, since `:focus-within` is
-   the ungated path the product already supports — a harness change, product untouched; or
-2. confirming on the owner's normal desktop session whether it still scores 11/11, which would settle
-   it as environment-only and needs no change at all.
-Option 2 first: it is free and it is the only thing that distinguishes the two.
+**Rule going forward: a single red run of this suite proves nothing — re-run it.** Only if it becomes
+persistent should the harness be changed, and then by driving the card through `:focus-within` (the
+ungated path at `global.css:5411`) rather than by weakening the assertion. This is the suite that
+found `AWKIT-SET-006`; its checks stay as strict as they are. Full record: `KNOWN_ISSUES.md`.
 
 ### If you touch this dashboard, two traps are already recorded
 

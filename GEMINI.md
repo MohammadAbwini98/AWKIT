@@ -33,6 +33,14 @@ Gemini-specific behavior.
 - For mock-site changes, run `npm run verify:mock-site` plus the related feature verifier.
 - After each task, update `docs/ai/CURRENT_STATE.md` and append to `docs/ai/TASK_LOG.md`, per
   the End-of-task checklist in `AGENTS.md`.
+- **Keep the Program Status dashboard current** (`npm run roadmap` → <http://127.0.0.1:4380>). It is
+  **derived** — it re-parses 13 repository files on a 1.5s poll, so never edit `tools/roadmap/` to
+  record progress; update the source that owns the fact. Any change, stage reached, or issue
+  observed/reported belongs in `bd` (with `blocks` edges for real dependencies), the validation
+  ledger, `DEFECTS.md`, `ImplementationRoadmap.ts`, or the `docs/ai/` memory files. Claim work you
+  are actively doing in `tools/roadmap/assignments.json` — it is the only authoritative assignee, and
+  claims expire. Finish with `npm run verify:roadmap-dashboard` and confirm the Overview banner reads
+  "Sources agree". Procedure and traps: `docs/ai/DEVELOPMENT_WORKFLOW.md` § 6.
 
 ## Owner workflow directive - one branch, continuous implementation
 

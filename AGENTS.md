@@ -81,6 +81,29 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 - Cover every new mock-site page/scenario with `npm run verify:mock-site` or another focused verifier, and
   document the URL in the mock-site docs and AI memory files.
 
+## Program Status dashboard — keep it current on every task
+
+`npm run roadmap` → <http://127.0.0.1:4380> is the single view of what is left, in what order,
+blocked by what, and who is on it. It lives in `tools/roadmap/` and is never bundled into the app.
+
+**It is DERIVED — never edit it to record progress.** It re-parses 13 repository files on a 1.5s
+poll, so it updates itself the moment a source changes. Hand-editing anything under `tools/roadmap/`
+to change a number makes the page disagree with the repository, which is the exact failure it exists
+to detect. Update the **source**, not the page.
+
+So whenever you make a change, reach a stage, or observe/report an issue, update the source that owns
+that fact — `bd` for work items and their `blocks` dependencies, the validation ledger for case
+status, `DEFECTS.md` for defects, `ImplementationRoadmap.ts` for phase status, and
+`docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG,KNOWN_ISSUES}.md` as the End-of-task checklist already
+requires. Register any new `verify:*` / `validate:*` script in
+`scripts/lib/verifier-classification.ts`. Claim an item you are actively working on in
+`tools/roadmap/assignments.json` (claims expire; a stale claim is worse than none) — it is the only
+authoritative assignee, since the tracker has none and `TASK_LOG.md` records only completed work.
+
+Then run `npm run verify:roadmap-dashboard` and check the Overview banner still reads
+**"Sources agree"**. Full procedure and the known traps: `docs/ai/DEVELOPMENT_WORKFLOW.md` § 6;
+contract and isolation proof: `tools/roadmap/README.md`.
+
 ## Testing rules
 
 - There is **no** `lint` and **no** `test` npm script. Verification = `npm run build` (typecheck + bundles) and `npm run verify:runner` (live runner checks against the mock site via `tsx`).
@@ -109,7 +132,13 @@ Project spec/history also lives in `playwright_flow_studio_updated_phases/` (mas
 5. Append an entry to `docs/ai/TASK_LOG.md` (date, agent, task, files, tests, result).
 6. Add to `docs/ai/KNOWN_ISSUES.md` if you hit a repeated bug, fragile area, or risky assumption.
 7. Update `FEATURES.md` / `ARCHITECTURE.md` / `COMMANDS.md` / `DECISIONS.md` only if those changed.
-8. Note remaining risks or manual verification (e.g. the clean-machine GUI walkthrough).
+8. Record progress in the sources the **Program Status dashboard** reads — `bd` work items and their
+   `blocks` edges, the validation ledger, `DEFECTS.md`, `ImplementationRoadmap.ts`, and
+   `tools/roadmap/assignments.json` for anything you are actively working on. Register any new
+   `verify:*` / `validate:*` script in `scripts/lib/verifier-classification.ts`. Then
+   `npm run verify:roadmap-dashboard` and confirm the Overview still reads "Sources agree".
+   **Never hand-edit `tools/roadmap/` to change a number — it is derived.**
+9. Note remaining risks or manual verification (e.g. the clean-machine GUI walkthrough).
 
 ## Git Full Cycle Skill
 

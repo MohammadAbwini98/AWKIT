@@ -4,7 +4,42 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Verifier classification reconciled; a 7/1 surfaced on this machine (Claude)
+## 2026-07-27 (latest) - Dashboard upkeep made a standing rule; the 7/1 was flaky, it passes (Claude)
+
+**Task:** instruct every agent to keep the Program Status dashboard current on any change, stage, or
+observed/reported issue; then re-run `verify:settings-runner-behaviour` on the owner's desktop session.
+
+**Delivered — the standing rule.** Canonical procedure in `docs/ai/DEVELOPMENT_WORKFLOW.md` § 6, with
+pointers from `AGENTS.md` (a rules section + End-of-task checklist item 8), `CLAUDE.md`, `GEMINI.md`,
+`docs/ai/README.md` and `tools/roadmap/README.md`. The load-bearing point everywhere: **the dashboard
+is DERIVED — never edit `tools/roadmap/` to record progress.** It re-parses 13 files on a 1.5s poll,
+so a page that could be edited independently of the repository is a page that can lie about it. The
+rule instead maps each fact to the source that owns it, requires `blocks` edges in `bd` for real
+dependencies (24 of 29 queued issues still declare none), requires claiming actively-worked items in
+`assignments.json`, and ends with `verify:roadmap-dashboard` + an Overview reading "Sources agree".
+
+**CORRECTION — `verify:settings-runner-behaviour` is flaky, not blocked. It passes: 11 PASS / 0 FAIL.**
+Four runs, identical code, no rebuild: 7/1, 7/1, 7/1, **11/0**. The previous entry's conclusion — a
+deterministic `@media (hover: hover) and (pointer: fine)` environment mismatch — is **withdrawn**; that
+would not have produced a green run. The failing step is a timing-sensitive click on the card's
+hover-revealed Run button, intercepted by `.workflow-card-hint` while the summary layer is still
+cross-fading. Root cause not fully isolated. Recorded in `KNOWN_ISSUES.md` with the rule that **one
+red run proves nothing — re-run it**, and that if it ever becomes persistent the fix is to drive
+`:focus-within` (the ungated path at `global.css:5411`), never to weaken the assertion. This is the
+suite that found `AWKIT-SET-006`.
+
+Writing the rule immediately caught me with it: the new `CURRENT_STATE.md` section shipped without its
+ledger tally, which silently drops a consistency source — trap #1 in the text I had just written.
+`verify:roadmap-dashboard` failed it, and it was fixed before commit.
+
+**Commands:** `verify:settings-runner-behaviour` **11/0** · `verify:roadmap-dashboard` 105/0 ·
+`verify:verifier-classification` green (144/144) · `check-memory` passed · `build` passed ·
+`typecheck:scripts` passed · `verify:source-hygiene` 7/0 · `validate:offline` passed.
+
+**Files:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `tools/roadmap/README.md`,
+`docs/ai/{DEVELOPMENT_WORKFLOW,README,CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`. No code changed.
+
+## 2026-07-27 (earlier) - Verifier classification reconciled; a 7/1 surfaced on this machine (Claude)
 
 **Task:** resolve `verify:verifier-classification` by classifying `verify:reports-live-engine` and
 `verify:settings-runner-behaviour` from what each actually executes. Scope limited to that.

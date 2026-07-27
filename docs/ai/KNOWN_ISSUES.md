@@ -3,6 +3,33 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## FLAKY: `verify:settings-runner-behaviour` — the hover-reveal Run button (2026-07-27)
+
+**Measured on identical code, no rebuild between runs: FAIL, FAIL, FAIL, PASS.**
+7 PASS / 1 FAIL three times, then **11 PASS / 0 FAIL**. Treat it as flaky, not broken — and do not
+record a run as authoritative without repeating it.
+
+The failing step is always the same: `locator.click` on `button.workflow-card-run` times out after
+30s with `<span class="workflow-card-hint">…</span> intercepts pointer events`. The workflow card
+cross-fades its summary layer out to expose the run controls, and until that happens the summary
+keeps `pointer-events: auto`, so the hit-test lands on the hint span.
+
+- `global.css:5411` — `.workflow-card:focus-within .workflow-card-summary { opacity: 0 }` — ungated.
+- `global.css:5423` — `@media (hover: hover) and (pointer: fine)` gates the `:hover` twin that sets
+  `pointer-events: none`.
+
+**Root cause is NOT fully isolated.** A per-machine media-query mismatch was the first hypothesis and
+is now doubtful — that would be deterministic, and the suite does pass. The remaining suspects are
+window foreground/activation at the moment Playwright hit-tests, and the cross-fade transition not
+having settled (the failing logs show `element is not stable` before the interception). It is not a
+product regression: no `app/` or `src/` file changed across all four runs, the hover-reveal markup
+dates from the initial commits, and the sibling `verify:reports-live-engine` scored 21/21 on the same
+build in the same session.
+
+**If it fails, re-run before concluding anything.** If it becomes persistent, prefer driving the card
+through `:focus-within` — the ungated path the product already supports — over loosening the
+assertion. Never make it green by weakening what it checks; this suite is what found `AWKIT-SET-006`.
+
 ## Fragile area: checks that CANNOT FAIL — seven instances, no guard (2026-07-27)
 
 Seven assertions across this repo's verifiers have been found green while asserting **nothing**. Every

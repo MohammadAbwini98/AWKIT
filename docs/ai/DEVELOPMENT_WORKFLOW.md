@@ -68,7 +68,66 @@ How AI agents should work in this repository.
 - Keep handoffs short and factual. Do not copy secrets, tokens, cookies, passwords, private URLs,
   credentials, or session values into Markdown.
 
-## 6. Finish — report
+## 6. Keep the Program Status dashboard current (every task)
+
+`npm run roadmap` → <http://127.0.0.1:4380> is the single view of what is left, in what order,
+blocked by what, and who is on it. **Contract: `tools/roadmap/README.md`.**
+
+> **The dashboard is DERIVED. Never edit it to record progress.**
+> It re-parses 13 repository files on a 1.5s poll, so it updates itself the moment a source changes.
+> Hand-editing anything under `tools/roadmap/` to change a number would make the page disagree with
+> the repository — which is the exact failure it exists to detect. Update the **source**; the page
+> follows within ~1.5s with no restart.
+
+Whenever you make a change, reach a stage, or observe/report an issue, update the source that owns
+that fact:
+
+| What happened | Update this — the dashboard reads it |
+|---|---|
+| Work started / finished / newly discovered | `bd` (`.beads/issues.jsonl`) — create, `--claim`, close; add `blocks` edges for real dependencies |
+| A test case changed status | `docs/testing/comprehensive-validation/RECORDER_REPORTS_SETTINGS_TEST_CASES.md` |
+| A defect observed, reported, or fixed | `.../DEFECTS.md` (keep `Detected by` pointing at a real case id) |
+| Requirement coverage changed | `.../TRACEABILITY_MATRIX.csv` |
+| A roadmap phase changed status | `src/roadmap/ImplementationRoadmap.ts` |
+| State / behaviour / commands changed | `docs/ai/CURRENT_STATE.md` |
+| Work paused, blocked, or handed over | `docs/ai/HANDOFF.md` |
+| Any task finished | `docs/ai/TASK_LOG.md` |
+| A fragile area or risky assumption | `docs/ai/KNOWN_ISSUES.md` |
+| A new `verify:*` / `validate:*` script | `scripts/lib/verifier-classification.ts` (`verify:verifier-classification` fails until you do) |
+| You are taking sustained ownership of an item | `tools/roadmap/assignments.json` — see below |
+
+**Dependencies are only real if you declare them.** The ordering view can only use `blocks` edges
+from `bd`. Today 24 of 29 queued issues declare none, so their rank is a priority sort, not a
+schedule. If you know B cannot start until A lands, record it — otherwise the dashboard cannot.
+
+**Claiming work.** Add an entry to `tools/roadmap/assignments.json` when you start sustained work on
+an item, and remove it when you stop. It is the **only** authoritative "who is on it" — the tracker
+has no per-issue assignee and `TASK_LOG.md` records only completed work. Claims expire
+(`claimedAt + 24h` by default) because a stale claim is worse than none. The muted *"recent activity
+in this area"* line is derived from `TASK_LOG.md`, is never authoritative, and must never be written
+or read as "who is working on this".
+
+**Then confirm you did not introduce drift:**
+
+```bash
+npm run verify:roadmap-dashboard
+```
+
+and open the Overview — its consistency banner must read **"Sources agree"**. An amber banner means
+two sources now claim different things; fix the source that is wrong. Do not reconcile it in the
+dashboard.
+
+### Two traps that have already bitten
+
+1. **The newest `##` section of `CURRENT_STATE.md` and `HANDOFF.md` must carry the ledger tally**
+   (`N PASS / N NOT RUN / N BLOCKED`). The parser scopes to the newest heading only, so adding a
+   section without that line silently drops a consistency source. `verify:roadmap-dashboard` check
+   #3 catches it.
+2. **Registering a new verifier is not optional.** `verify:verifier-classification` fails while any
+   `verify:*` / `validate:*` script is missing from the registry, and it stayed red for two sessions
+   because of exactly this.
+
+## 7. Finish — report
 - Summary of the change; files changed; tests run and not-run (with why); remaining risks or manual
   verification needed.
 

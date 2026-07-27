@@ -1,6 +1,19 @@
 # CURRENT_STATE
 
-## Verifier classification reconciled; `verify:settings-runner-behaviour` fails here (2026-07-27, current)
+## Dashboard upkeep is a standing rule; classification reconciled (2026-07-27, current)
+
+**Every task must now keep the Program Status dashboard current**, by updating the sources it parses
+— it is derived and must never be hand-edited to record progress. Canonical procedure:
+`docs/ai/DEVELOPMENT_WORKFLOW.md` § 6, echoed in `AGENTS.md` (rules + End-of-task checklist item 8),
+`CLAUDE.md`, `GEMINI.md`, `docs/ai/README.md` and `tools/roadmap/README.md`. It names which source
+owns which fact, requires `blocks` edges in `bd` for real dependencies, requires claiming actively-
+worked items in `tools/roadmap/assignments.json`, and ends with `npm run verify:roadmap-dashboard`
+plus an Overview banner reading "Sources agree".
+
+Validation state is unchanged by this task: the ledger still measures **61 PASS / 4 NOT RUN /
+1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2).
+
+## Verifier classification reconciled (2026-07-27, earlier the same day)
 
 `npm run verify:verifier-classification` is **GREEN — all 144 `verify:`/`validate:` scripts are
 classified**, no stale entries. `verify:reports-live-engine` and `verify:settings-runner-behaviour`
@@ -19,17 +32,16 @@ screenshot-on-failure ON/OFF/ON. `args: [root]` rules out `packaged-application`
 
 **Executed, not assumed:** `verify:reports-live-engine` **21 PASS / 0 FAIL**.
 
-**`verify:settings-runner-behaviour` is 7 PASS / 1 FAIL on this machine** (11/11 when written).
-Reproduced 3/3. It fails on `locator.click` of `button.workflow-card-run`, intercepted by
-`.workflow-card-hint`. **Not a code regression and not caused by this change:** commit `5c2990d`
-touched no `app/` or `src/` file, and the reveal is gated — `global.css:5423`
-`@media (hover: hover) and (pointer: fine)` wraps the `:hover` rule that sets
-`pointer-events: none` on the summary layer, while the `:focus-within` equivalent at `5411` is
-ungated. An Electron window not matching that media query never reveals the Run button to a pointer.
-The sibling suite scored 21/21 on the same build in the same session, and this suite's own first
-seven checks (real Settings writes, real run-card rendering) pass — only the pointer-hover step
-fails. Next step is recorded in `HANDOFF.md`; it was deliberately **not** "fixed" by loosening a
-check.
+**`verify:settings-runner-behaviour` is FLAKY, and it passes: `11 PASS / 0 FAIL`.** Four runs on
+identical code with no rebuild between them — 7/1, 7/1, 7/1, **11/0**. The failing step is always a
+timing-sensitive `locator.click` on `button.workflow-card-run`, intercepted by the
+`.workflow-card-hint` span while the card's summary layer is still cross-fading out. The earlier
+reading of this as a deterministic environment block (a `@media (hover: hover) and (pointer: fine)`
+mismatch at `global.css:5423`) is **withdrawn** — that would not have produced a green run. Not a
+regression: neither `5c2990d` nor `536ec52` touched `app/` or `src/`, the markup predates both, and
+`verify:reports-live-engine` scored **21 PASS / 0 FAIL** on the same build in the same session.
+**A single red run of this suite proves nothing — re-run it.** Recorded in `KNOWN_ISSUES.md`; not
+"fixed" by loosening a check.
 
 ## Program Status & Roadmap dashboard — `tools/roadmap` (2026-07-27, earlier)
 

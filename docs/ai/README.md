@@ -19,7 +19,11 @@ This directory is the single source of truth for AI coding agents and human hand
 - `SECURITY.md` — safe automation and secret-handling rules.
 - `KNOWN_ISSUES.md` — debugging and fragile areas.
 - `DECISIONS.md` — accepted architecture/product decisions.
-- `DEVELOPMENT_WORKFLOW.md` — how agents start, implement, verify, and finish tasks.
+- `DEVELOPMENT_WORKFLOW.md` — how agents start, implement, verify, and finish tasks. **§ 6 is
+  mandatory on every task**: keep the Program Status dashboard current by updating the sources it
+  parses (it is derived — never edit `tools/roadmap/` to record progress).
+- `../../tools/roadmap/README.md` — the Program Status & Roadmap dashboard (`npm run roadmap`):
+  what it reads, the provenance rules it will not break, and its isolation proof.
 
 ## Token discipline
 
