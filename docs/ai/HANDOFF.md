@@ -56,11 +56,22 @@ reports-live-engine 21/21 · concurrency 81/81 · runner 89/89 · capacity-modes
 15/15 · telemetry 61/61 · observability 65/65 · durable-store 11/11 · `build` + `typecheck:scripts`
 clean.
 
-### The packaged gate is STALE again
+### The packaged gate was re-run after this change — both green
 
-This changed `src/runner/concurrency/BackpressureController.ts`, so the 70/70 and 87/0 recorded below
-are **not citable** until `npm run package:portable` is re-run. Both suites' freshness guards will
-refuse the current payload rather than let a misleading pass through.
+`BackpressureController.ts` is `src/`, so the earlier packaged results went stale immediately.
+`npm run package:portable` was re-run and both gates executed against the new payload:
+
+| Gate | Result |
+|---|---|
+| `npm run verify:packaged-walkthrough` | **70 PASS / 0 FAIL** |
+| `npx tsx scripts/verify-packaged-validation.mts` | **87 PASS / 0 FAIL** (`freshly built (3 min old)`) |
+
+So the `AWKIT-REP-008` fix is verified in the **packaged** app, not only in the dev tree. Part M again
+observed no non-loopback TCP connection from any app process (25 samples, 64 loopback);
+`dependency-manifest.json`'s `builtAt` is `2026-07-27T12:35:31Z`.
+
+**Still external:** the clean/offline Windows **VM** walkthrough, which the script explicitly does not
+claim, and signing / SmartScreen reputation (packaging skips signing — no cert configured).
 
 ### Recommended next step
 

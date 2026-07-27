@@ -39,10 +39,12 @@ counting call sites; the others sit in branches this fixture does not take.)
 `scripts/verify-reports-populated-gui.mts`, `docs/testing/comprehensive-validation/*`, `docs/ai/*`.
 
 **Tests run:** reports-live-engine 21/21, concurrency 81/81 (was 78), runner 89/89, capacity-modes
-10/10, runtime-status 15/15, telemetry 61/61, observability 65/65, durable-store 11/11, build +
-typecheck:scripts clean.
-**Not run:** `package:portable` + the packaged gates — this changed `src/`, so the 70/70 and 87/0 from
-earlier today are stale again and their freshness guards will refuse the current payload.
+10/10, runtime-status 15/15, telemetry 61/61, observability 65/65, durable-store 11/11,
+reports-populated-gui 155/0/3, build + typecheck:scripts clean. **Repackaged after the `src/` change
+and both packaged gates re-run: walkthrough 70/0, packaged-validation 87/0** — so the
+`AWKIT-REP-008` fix is verified in the packaged app, not only in the dev tree.
+**Not run:** the clean/offline Windows VM walkthrough (separate human gate, explicitly not claimed by
+the script) and code signing / SmartScreen reputation.
 
 ---
 
