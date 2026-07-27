@@ -14,14 +14,24 @@ export interface AdmissionDecision {
   reason?: string;
 }
 
+/**
+ * How long a refusal stays "current". The dispatch loop re-asks roughly every 500ms for as long as it
+ * is genuinely blocked, so a real block keeps re-stamping itself well inside this window; once nothing
+ * is asking to dispatch any more, the state decays to "not blocked" instead of persisting forever.
+ */
+const BLOCK_FRESHNESS_MS = 5_000;
+
 export class BackpressureController {
   private lastBlockedReason: string | undefined;
+  private lastBlockedAt = 0;
 
   constructor(
     private readonly pool: BrowserWorkerPool,
     private readonly limits: ConcurrencyLimits = pool.concurrencyLimits,
     /** Optional CPU/memory sampler; thresholds only apply while its sample is fresh. */
-    private readonly sampler?: ResourceSampler
+    private readonly sampler?: ResourceSampler,
+    /** Injected for tests; production uses the wall clock. */
+    private readonly now: () => number = () => Date.now()
   ) {}
 
   /**
@@ -68,6 +78,7 @@ export class BackpressureController {
 
   snapshot(activeFlows: number, queueDepth: number, adaptive?: { target: number; state: string }): CapacitySnapshot {
     const poolSnapshot = this.pool.snapshot();
+    const currentBlock = this.currentBlock();
     return {
       timestamp: new Date().toISOString(),
       activeBrowsers: poolSnapshot.activeSlots,
@@ -84,8 +95,8 @@ export class BackpressureController {
       cpuPercent: this.safeLatest()?.cpuPercent,
       processCpuPercent: this.safeLatest()?.processCpuPercent,
       sampledAt: this.safeLatest()?.sampledAt,
-      dispatchBlocked: this.lastBlockedReason !== undefined,
-      blockedReason: this.lastBlockedReason,
+      dispatchBlocked: currentBlock !== undefined,
+      blockedReason: currentBlock,
       adaptiveTarget: adaptive?.target,
       adaptiveState: adaptive?.state
     };
@@ -110,6 +121,25 @@ export class BackpressureController {
 
   private block(reason: string): AdmissionDecision {
     this.lastBlockedReason = reason;
+    this.lastBlockedAt = this.now();
     return { allow: false, reason };
+  }
+
+  /**
+   * The refusal that is still current, or `undefined`.
+   *
+   * `lastBlockedReason` used to be cleared ONLY by a subsequent successful `admit()`. When a run ended
+   * while blocked, nothing asked to dispatch again, so `dispatchBlocked` stayed true indefinitely: an
+   * idle app reported "Dispatch is currently throttled by backpressure" on Chrome Consumption, in
+   * `telemetry:server`, in the status bar and in the Instance Monitor, with zero active flows. The
+   * snapshot must describe the present, so a refusal nobody has renewed decays instead of sticking.
+   */
+  private currentBlock(): string | undefined {
+    if (this.lastBlockedReason === undefined) return undefined;
+    if (this.now() - this.lastBlockedAt > BLOCK_FRESHNESS_MS) {
+      this.lastBlockedReason = undefined;
+      return undefined;
+    }
+    return this.lastBlockedReason;
   }
 }

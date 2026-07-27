@@ -183,6 +183,27 @@ async function partD(): Promise<void> {
   check("blocks when browser pool saturated", !satDecision.allow && /pool saturated/.test(satDecision.reason ?? ""));
   check("capacity snapshot exposes blocked state + reason", satBp.snapshot(1, 3).dispatchBlocked && satBp.snapshot(1, 3).blockedReason !== undefined);
 
+  // Regression for the SYS-REP-011 defect: a refusal that NOBODY RENEWS must decay, not stick.
+  // `lastBlockedReason` used to be cleared only by a later successful admit(), so a run that ended
+  // while blocked left an idle app reporting "Dispatch is currently throttled by backpressure" —
+  // with zero active flows — on Chrome Consumption, telemetry:server, the status bar and the
+  // Instance Monitor. Driven with an injected clock so the check is deterministic, not a sleep.
+  let clock = 1_000;
+  const stalePool = new BrowserWorkerPool({ ...base, maxBrowsersPerHost: 1 });
+  stalePool.tryAcquireSlot("stale-1");
+  const staleBp = new BackpressureController(stalePool, stalePool.concurrencyLimits, undefined, () => clock);
+  staleBp.admit(1, 3);
+  check("a just-made refusal reports blocked", staleBp.snapshot(1, 3).dispatchBlocked === true);
+  clock += 4_000; // the dispatch loop re-asks about every 500ms, so a real block stays well inside this
+  check("a refusal stays current while dispatch is still being attempted", staleBp.snapshot(1, 3).dispatchBlocked === true);
+  clock += 2_000;
+  const decayed = staleBp.snapshot(0, 0);
+  check(
+    "a refusal nobody renewed decays instead of sticking to an idle engine",
+    decayed.dispatchBlocked === false && decayed.blockedReason === undefined,
+    JSON.stringify({ dispatchBlocked: decayed.dispatchBlocked, blockedReason: decayed.blockedReason })
+  );
+
   const flowPool = new BrowserWorkerPool({ ...base, maxBrowsersPerHost: 8, maxActiveFlows: 2 });
   const flowBp = new BackpressureController(flowPool);
   check("blocks at maxActiveFlows", !flowBp.admit(2, 0).allow);
