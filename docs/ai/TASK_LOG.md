@@ -4,7 +4,50 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - SET-004 mid-session half; ledger correction (Claude)
+## 2026-07-27 (latest) - Recorder a11y: REC-013 + REC-029, 3 defects (Claude)
+
+**Task:** close REC-013's residual keyboard semantics and REC-029, the only wholly `NOT RUN` case.
+
+**Delivered:** `verify:recorder-gui` **103 → 128 PASS / 0 FAIL / 0 NOT RUN**. Ledger **53 PASS / 12
+NOT RUN / 1 BLOCKED** (Recorder 27/1/1, Reports 9/7, Settings 17/4). Recorder has one case left
+(REC-024) plus operator-blocked REC-022.
+
+**Defects.** `AWKIT-REC-004` — the async review dialog rendered `role="dialog" aria-modal="true"`
+with no focus move, no trap, no `Escape` and no focus return; `aria-modal` declares the content behind
+it inert, so a keyboard user tabbing out landed in content their screen reader was told does not
+exist. **Third surface with this identical defect** after `ConfirmDialog` (`AWKIT-SET-004`) and
+`RunDetailDrawer` (`AWKIT-REP-004`) — each with its own markup, so none inherited the fix.
+`AWKIT-REC-005` — the status pill, the page's primary state readout, was in no live region.
+`AWKIT-REC-006` — the URL search box was named only by its placeholder.
+
+**Method.** Checks were written and executed **before** the fix:
+`test-artifacts/recorder-gui/2026-07-27T08-51-42-761Z/` is a real negative control at 74 PASS / 6 FAIL,
+with `Tab` recorded escaping the dialog as `INPUT(ESCAPED) → BUTTON(ESCAPED) → …`. Focus is asserted
+by **containment**, never by label text, because `activeElement` falls back to `<body>` whose
+`textContent` holds every label on the page. Reduced motion is measured both ways (`infinite` → `1`),
+since asserting only the reduced value is satisfied by an element with no animation at all.
+
+**Two of my own premises were wrong first.** An `aria-label || textContent` accessible name reported
+every `<label>`-wrapped `INPUT` as unnamed and invented two defects; and a named arrow binding inside
+`page.evaluate` threw `ReferenceError: __name is not defined` (the recorded esbuild trap).
+
+**REC-004 reclassified.** Dismissed twice as "the known intermittent Electron flake", it failed twice
+consecutively. I hypothesised a stale-response race and the measurement **disproved** it
+(`empty-state=1 stale rendered rows=0`): a one-shot assertion was sampling before React committed.
+The check now polls and reports the rendered row count. No product change made on the wrong theory.
+
+**Files:** `app/renderer/pages/Recorder.tsx`, `scripts/verify-recorder-gui.mts`,
+`docs/testing/comprehensive-validation/{RECORDER_REPORTS_SETTINGS_TEST_CASES,DEFECTS}.md`,
+`docs/ai/{CURRENT_STATE,HANDOFF,KNOWN_ISSUES,TASK_LOG}.md`.
+
+**Tests run:** recorder-gui 128/128 (twice), recorder-e2e 41/41, mock-site 90/90,
+reports-settings-a11y 14/14, `build` clean, `typecheck:scripts` clean.
+**Not run:** `package:portable` + `verify:packaged-walkthrough` — this round changed
+`app/renderer`, so the recorded 70/70 is non-citable until a repackage.
+
+---
+
+## 2026-07-27 - SET-004 mid-session half; ledger correction (Claude)
 
 **Task:** wire up SET-004's mid-session behavioural half.
 

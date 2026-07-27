@@ -1,6 +1,64 @@
 # CURRENT_STATE
 
-## Settings residual submatrices — 5 more cases, `AWKIT-SET-005` (2026-07-27, current)
+## Recorder accessibility — REC-013 and REC-029 closed, 3 defects (2026-07-27, current)
+
+`verify:recorder-gui` **103 → 128 PASS / 0 FAIL / 0 NOT RUN**. Ledger **51 → 53 PASS / 14 → 12 NOT
+RUN / 1 BLOCKED** (Recorder 27/1/1, Reports 9/7, Settings 17/4). Recorder now has **one** case left
+(REC-024's real browser crash) plus the operator-blocked REC-022.
+
+**`AWKIT-REC-004` — the async review dialog declared `aria-modal="true"` and implemented none of it.**
+No focus move, no trap, no `Escape`, no focus return. `aria-modal` tells assistive tech that
+everything behind the dialog is **inert**, so a keyboard user tabbing out of it landed in content
+their screen reader had been told does not exist. Measured pre-fix: focus stayed on the opener, and
+`Tab` walked straight into the page behind as `INPUT(ESCAPED) → BUTTON(ESCAPED) → …`.
+
+**This is the third surface with the identical defect.** `AWKIT-SET-004` fixed `ConfirmDialog`;
+`AWKIT-REP-004` found it again in `RunDetailDrawer`; this one is inline markup in `Recorder.tsx` and
+inherited nothing. The fix has been applied to a component three times and to the *concept* zero
+times — there is still no guard that fails a new `aria-modal` surface lacking the contract. Recorded
+in `KNOWN_ISSUES.md`.
+
+**`AWKIT-REC-005`** — the status pill (`Idle`/`Recording`/`Ready to save`/`Manual handoff`), the
+page's primary state readout, sat in no live region. The action timeline was already `aria-live`, so
+*actions* were announced while the *state* was not. Both it and the transient status message are now
+`role="status"`. **`AWKIT-REC-006`** — the recorded-URL search box had only a `placeholder`, which is
+not an accessible name and vanishes on the first keystroke.
+
+**The pre-fix run is the evidence, not the argument.** `test-artifacts/recorder-gui/2026-07-27T08-51-42-761Z/`
+is a genuine negative control at **74 PASS / 6 FAIL**: the checks were written and executed *before*
+the fix, and five of them failed in the way predicted from reading the code.
+
+**Three test premises had to be measured, and two of my own were wrong first:**
+
+- **Focus assertions must test CONTAINMENT, not label text.** When focus is lost `activeElement`
+  falls back to `<body>`, whose `textContent` contains every button label on the page — the exact
+  shape that made an equivalent Reports check pass *while the defect was present*.
+- **An `aria-label || textContent` accessible name is wrong** and invented two defects that did not
+  exist: it reports every `<label>`-wrapped `INPUT` as unnamed. The name is now resolved the way a
+  screen reader does (`aria-label` → `aria-labelledby` → `title` → associated/wrapping `<label>` →
+  text), with `placeholder` deliberately excluded.
+- **Reduced motion is measured both ways round.** The pulse reads `infinite` unreduced and `1` under
+  `prefers-reduced-motion`. Asserting only the reduced value is equally satisfied by an element with
+  no animation at all, so the unreduced reading is the control that proves there was motion to reduce.
+
+**REC-004's "known intermittent Electron flake" was not a flake, and not a product defect either.**
+It failed twice consecutively. I hypothesised a stale-response race (the 500 ms poll's in-flight
+`getActions()` overwriting `setActions([])` after the interval is torn down) — and **the measurement
+disproved it**: with a polled assertion the state reads `empty-state=1 stale rendered rows=0`. The
+empty state does arrive; a one-shot `count() === 1` was simply sampling before React committed, and
+its empty FAIL detail is what let it be misread as a flake twice. The check now polls and reports the
+rendered row count, which is what distinguishes "renderer hasn't caught up" from "stale rows on
+screen". No product change was made on the disproven theory. Two consecutive green runs since.
+
+**REC-029 covers all five states its preconditions name** — idle, recording, ready-to-save,
+review-dialog, and handoff. The handoff state is audited inside the paused window SET-005 already
+produces rather than by driving a second protected recording, waiting for the panel because it is fed
+by a separate 800 ms `getHandoff()` poll that an instantaneous read races.
+
+**Verification:** recorder-gui 128/128 (twice), recorder-e2e 41/41, mock-site 90/90,
+reports-settings-a11y 14/14, `build` clean, `typecheck:scripts` clean.
+
+## Settings residual submatrices — 5 more cases, `AWKIT-SET-005` (2026-07-27)
 
 Continuation of Phase 4 across the Settings surface. **`verify:settings-e2e` 128 → 151.** Ledger
 **47 → 51 PASS / 18 → 14 NOT RUN / 1 BLOCKED** (Recorder 25/3/1, Reports 9/7, Settings 17/4).

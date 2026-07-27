@@ -204,11 +204,20 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Click Save; inspect modal labels, classifications and warnings; cancel; reopen; confirm.
 - **Expected:** Save pauses on the review dialog; Cancel retains actions; Confirm persists once;
   keyboard focus is trapped/restored and Escape behavior is deliberate.
-- **Status:** `NOT RUN` for the dialog's keyboard focus-trap/Escape semantics only. Everything else
-  is executed in `verify:recorder-gui` (**100 PASS / 0 FAIL / 1 NOT RUN**) against the new
-  `/recorder-lab?rec013=1` harness: Save pauses on the dialog, the dialog is a labelled `role=dialog`,
-  dismissing it retains all three actions **and persists nothing**, a second Save reopens it, and
-  Confirm persists the flow exactly once.
+- **Status:** `PASS` — `npm run verify:recorder-gui` (**128 PASS / 0 FAIL / 0 NOT RUN**) against the
+  `/recorder-lab?rec013=1` harness. The dialog is driven through **three openings, one per dismissal
+  route**: Escape, "Keep editing", and Confirm. Save pauses on the dialog, it is a labelled
+  `role=dialog`, each dismissal retains all three actions **and persists nothing**, and Confirm
+  persists the flow exactly once.
+  **The keyboard contract closed `AWKIT-REC-004`** — the dialog declared `aria-modal="true"` while
+  implementing none of what that declares. Focus now moves in on open, Tab and Shift+Tab are both
+  trapped, Escape dismisses the way "Keep editing" does (never the way Confirm does), and focus
+  returns to the opener. Pre-fix negative control at
+  `test-artifacts/recorder-gui/2026-07-27T08-51-42-761Z/`: five of these failed, with Tab recorded
+  escaping to the page behind as `INPUT(ESCAPED) → BUTTON(ESCAPED) → …`.
+  **Focus assertions are phrased as CONTAINMENT, not text**, because `activeElement` falls back to
+  `<body>` when focus is lost and body's `textContent` contains every label on the page — the exact
+  shape that made an equivalent Reports check pass while the defect was present.
   **The precondition is now asserted, not assumed** — the `fixedDelay` wait is checked before any
   dialog assertion, so a fixture that stopped producing review-worthy activity fails loudly instead
   of quietly reverting to `NOT RUN`.
@@ -425,7 +434,28 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Expected:** Logical tab order and visible focus; switches expose checked state; dialogs trap/restore
   focus; actions/status updates are announced; controls do not overlap or require hover; pulse motion
   is removed/reduced.
-- **Status:** `NOT RUN`.
+- **Status:** `PASS` — `npm run verify:recorder-gui` (**128 PASS / 0 FAIL / 0 NOT RUN**). All five
+  states named in the preconditions are audited: **idle**, **recording**, **ready-to-save**,
+  **review-dialog** (the focus contract above) and **handoff** — the last inside the paused window
+  SET-005 already produces, rather than by driving a second protected recording.
+  Focus is driven with real `Tab` presses, never `.focus()`: `:focus-visible`, the selector the global
+  ring uses, does not match programmatic focus, so a `.focus()`-based check would report a ring no
+  keyboard user ever sees.
+  **Two defects fixed here.** `AWKIT-REC-005` — the status pill (`Idle` / `Recording` / `Ready to
+  save` / `Manual handoff`), the page's primary state readout, changed silently; it and the transient
+  status message are now `role="status"`. Asserted by the announcement's **text** reaching a live
+  region (`"Manual handoff"` during handoff), so an unrelated live region cannot satisfy it and the
+  check does not hard-code which element does the announcing. `AWKIT-REC-006` — the recorded-URL
+  search box had only a `placeholder`, which is not an accessible name and disappears on first
+  keystroke.
+  **Reduced motion is measured both ways round**: the recording pulse reads `infinite` unreduced and
+  `1` under `prefers-reduced-motion`. Asserting only the reduced value is equally satisfied by an
+  element with no animation at all, so the unreduced reading is the control that proves there was
+  motion to reduce. No horizontal overflow at 200 % zoom or at a 900 px window.
+  The accessible name is computed the way a screen reader resolves one (`aria-label` →
+  `aria-labelledby` → `title` → associated/wrapping `<label>` → text). An `aria-label || textContent`
+  shortcut reported every text-labelled `INPUT` as unnamed and invented two defects that were not
+  there; `placeholder` is deliberately excluded.
 
 ## 4. System Reports cases
 

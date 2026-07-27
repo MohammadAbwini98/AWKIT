@@ -1,6 +1,50 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): Phase 4 — Reports/Settings submatrices, ledger 51/14/1
+## ACTIVE (2026-07-27, latest): Recorder a11y — REC-013 + REC-029 closed, ledger 53/12/1
+
+`verify:recorder-gui` **103 → 128 PASS / 0 FAIL / 0 NOT RUN**. Combined ledger **53 PASS / 12 NOT RUN
+/ 1 BLOCKED** (Recorder 27/1/1, Reports 9/7, Settings 17/4), counted from the case file. Three
+defects fixed: `AWKIT-REC-004` (review dialog declared `aria-modal` with no focus contract),
+`AWKIT-REC-005` (status readout in no live region), `AWKIT-REC-006` (search box named only by
+placeholder). Full detail in `CURRENT_STATE.md` and `DEFECTS.md`.
+
+### Read this before adding a dialog anywhere in this app
+
+**Three surfaces have now shipped `aria-modal="true"` with none of the focus machinery it promises** —
+`ConfirmDialog` (`AWKIT-SET-004`), `RunDetailDrawer` (`AWKIT-REP-004`), and the Recorder review dialog
+(`AWKIT-REC-004`). Each had its own markup, so none inherited the previous fix. Copy the *contract*,
+not the component. **There is still no guard**; a source scan over `aria-modal="true"` would close the
+class rather than the instance. See `KNOWN_ISSUES.md`.
+
+### Recorder is nearly finished
+
+Only **REC-024** remains (a real browser close/crash, which the suite currently proves only the
+adjacent teardown properties of), plus **REC-022**, `BLOCKED` on an authorized human.
+
+### Two traps this round, recorded so they are not re-derived
+
+- **Focus checks must assert CONTAINMENT.** `activeElement` falls back to `<body>` when focus is lost,
+  and body's `textContent` contains every label on the page — a text-matching focus check passes
+  *precisely when the defect is present*.
+- **`aria-label || textContent` is not an accessible name.** It reports every `<label>`-wrapped
+  `INPUT` as unnamed; it invented two defects that were not there before being corrected to the real
+  resolution order. `placeholder` is not a name and must not be counted.
+
+### REC-004 was neither a flake nor a defect
+
+It had been dismissed twice as "the known intermittent Electron startup flake". It failed twice
+consecutively here. I hypothesised a stale-response race and **the measurement disproved it** — the
+empty state does arrive (`empty-state=1 stale rendered rows=0`); a one-shot assertion was sampling
+before React committed, and its empty FAIL detail is what made it look intermittent. The check now
+polls and reports the rendered row count. **No product change was made on the disproven hypothesis.**
+
+### Still not run
+
+`package:portable` + `verify:packaged-walkthrough`. This round changed `app/renderer/pages/Recorder.tsx`,
+so the recorded 70/70 stays non-citable until a repackage; the freshness guard will refuse the stale
+tree rather than let a misleading pass through.
+
+## PRIOR (2026-07-27): Phase 4 — Reports/Settings submatrices, ledger 51/14/1
 
 `verify:reports-populated-gui` **74 → 136**, `verify:settings-e2e` **116 → 151**,
 `verify:recorder-gui` **90 → 100**. Combined ledger **51 PASS / 14 NOT RUN / 1 BLOCKED**

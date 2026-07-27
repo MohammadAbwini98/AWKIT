@@ -3,6 +3,42 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Fragile area: a modal contract fixed per-component instead of per-concept (2026-07-27)
+
+**Three separate surfaces have now shipped `role="dialog"`/`aria-modal="true"` with none of the focus
+machinery that declaration promises**, each found only when someone finally checked that surface:
+
+| defect | surface | fixed |
+|---|---|---|
+| `AWKIT-SET-004` | `components/shared/ConfirmDialog.tsx` | 2026-07-26 |
+| `AWKIT-REP-004` | `components/reports/RunDetailDrawer.tsx` | 2026-07-26 |
+| `AWKIT-REC-004` | inline review dialog in `pages/Recorder.tsx` | 2026-07-27 |
+
+Each has its own markup, so none inherited the previous fix. **Before adding any new dialog, drawer or
+overlay, copy the contract, not the component:** capture the opener, move focus in, trap `Tab` and
+`Shift+Tab`, dismiss on `Escape` with the *non-destructive* action, restore focus on unmount.
+
+There is still **no guard** that fails a new `aria-modal` surface lacking this. A source-scan verifier
+over `aria-modal="true"` occurrences would close the class rather than the instance.
+
+**Related observation, not yet actioned:** `Recorder.tsx`'s protected-login handoff panel declares
+`role="alertdialog"` but is an inline `<section>` that never receives focus. An `alertdialog` that is
+never focused is announced by essentially no screen reader. The paused state *is* announced correctly
+via the status pill (`AWKIT-REC-005`), so this is a role-choice smell rather than an information gap —
+but it sits on the protected-login surface governed by `docs/ai/SECURITY.md`, so changing focus
+behaviour there needs a deliberate decision, not a drive-by edit.
+
+## Unlabelled `table-search` inputs in three remaining renderer surfaces (2026-07-27)
+
+All four `table-search` inputs relied on `placeholder` alone for their accessible name. A placeholder
+is not a name — it is not reliably announced as one and it disappears on the first keystroke.
+
+`Recorder.tsx` is fixed (`AWKIT-REC-006`) because `REC-029` covers it. **Still unlabelled:**
+`pages/DataSourceEditor.tsx`, `pages/SessionsManager.tsx`, and the shared
+`components/table/TableUI.tsx` — the last of which would fix several pages at once. They were left
+unchanged deliberately: no verifier currently asserts them, and changing four surfaces on the back of
+a Recorder case would be untested scope creep.
+
 ## Fragile area: `@zvec/zvec` collection paths, and fakes that are more permissive than the backend
 
 **Measured vendor constraint (do not re-derive from types):**

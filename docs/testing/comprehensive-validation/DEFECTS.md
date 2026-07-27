@@ -6,6 +6,87 @@ None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REC-004 — The async review dialog declared `aria-modal` and implemented none of it
+
+- **Severity:** S2 / Keyboard and assistive-technology user is stranded
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/renderer/pages/Recorder.tsx` (async activity review dialog)
+- **Detected by:** `REC-013`, `REC-029`
+- **Evidence before fix:** `test-artifacts/recorder-gui/2026-07-27T08-51-42-761Z/execution-results.json`
+  (**74 PASS / 6 FAIL**)
+- **Evidence after fix:** `test-artifacts/recorder-gui/2026-07-27T09-08-59-961Z/execution-results.json`
+  (**128 PASS / 0 FAIL / 0 NOT RUN**)
+
+**Reproduction before fix**
+
+1. Record on `/recorder-lab?rec013=1` with Smart Wait capture ON and waiting-time capture OFF, so the
+   quiet gap produces a review-worthy `fixedDelay`.
+2. Press **Save to Flow Library**. The review dialog opens.
+3. Focus never moves into it — `activeElement` is still the Save button that opened it.
+4. Press `Tab`. Focus walks into the page *behind* the dialog:
+   `INPUT(ESCAPED) → BUTTON(ESCAPED) → BUTTON(ESCAPED) → …`
+5. Press `Escape`. Nothing happens; the dialog stays open.
+
+The dialog rendered `role="dialog" aria-modal="true"`, which tells assistive technology that
+everything behind it is **inert** — so a screen-reader user tabbing out of it lands in content their
+reader has been told does not exist, with no way back and no way to dismiss without a pointer.
+
+**This is the third surface with this exact defect.** `AWKIT-SET-004` fixed `ConfirmDialog`;
+`AWKIT-REP-004` then found it again in `RunDetailDrawer`. Each has its own markup, so each time the
+fix had been applied to a *component* rather than to the *concept*. This dialog is inline markup in
+`Recorder.tsx` and inherited nothing.
+
+**Fix**
+
+The same contract the other two already implement, scoped to `reviewOpen`: capture the previously
+focused element, move focus to the first focusable control, trap `Tab`/`Shift+Tab` in both
+directions, dismiss on `Escape`, and restore focus on unmount. `Escape` routes to `setReviewOpen(false)`
+— the **"Keep editing"** semantic, never Confirm — because the entire purpose of this dialog is that
+saving is a deliberate act.
+
+**Why the checks are phrased as containment**
+
+Focus assertions test `dialog.contains(document.activeElement)`, not label text. When focus is lost
+`activeElement` falls back to `<body>`, whose `textContent` contains every button label on the page —
+which is exactly how the equivalent Reports check once passed *while the defect was present*.
+
+### AWKIT-REC-005 — The Recorder status readout changed silently
+
+- **Severity:** S3 / Information gap for assistive technology
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/renderer/pages/Recorder.tsx` (status pill, transient status message)
+- **Detected by:** `REC-029`
+- **Evidence after fix:** `test-artifacts/recorder-gui/2026-07-27T09-08-59-961Z/execution-results.json`
+
+The status pill is the page's primary state readout — `Idle` / `Recording` / `Ready to save` /
+`Manual handoff` — and it sat in no live region. Starting a recording, stopping one, or pausing for a
+protected-login handoff was conveyed only by a colour and a word that changed on screen. The action
+timeline was already `aria-live="polite"`, so *actions* were announced while the *state* was not.
+
+Both the pill and the transient status message are now `role="status"` (polite + atomic). The check
+asserts the announcement's **text** reaches a live region — `"Manual handoff"` is observed during the
+handoff pause — so an unrelated live region elsewhere on the page cannot satisfy it, and the check
+does not hard-code which element is allowed to do the announcing.
+
+### AWKIT-REC-006 — The recorded-URL search box had no accessible name
+
+- **Severity:** S3 / Unlabelled control
+- **Priority recommendation:** P3
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/renderer/pages/Recorder.tsx` (Recorded URLs search)
+- **Detected by:** `REC-029`
+
+The input carried a `placeholder` and nothing else. A placeholder is not an accessible name: it is
+not reliably announced as one, and it disappears the moment the user types. Fixed with an
+`aria-label`.
+
+**Same pattern elsewhere, deliberately not changed here.** All four `table-search` inputs in the
+renderer share this shape — `DataSourceEditor.tsx`, `SessionsManager.tsx` and the shared
+`components/table/TableUI.tsx` are the other three. Only the Recorder one is in scope for `REC-029`
+and covered by a verifier; the rest are recorded in `KNOWN_ISSUES.md` rather than changed untested.
+
 ### AWKIT-E2E-001 — Flow-level `manualApproval` connector is silently ignored
 
 - **Severity:** S2 / Major
