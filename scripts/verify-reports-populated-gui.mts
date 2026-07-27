@@ -1121,13 +1121,8 @@ try {
     !missingRunDetail.detail.includes("Error") && !/[A-Za-z]:\\/.test(missingRunDetail.detail),
     JSON.stringify(missingRunDetail)
   );
-  // Measured, not assumed: the query returns an EMPTY structure for a run that does not exist, so a
-  // caller cannot distinguish "retained but had no attempts" from "no longer retained". That is an
-  // information gap, not a crash, and changing the telemetry contract is out of this case scope.
-  notRunCheck(
-    "SYS-REP-006 a missing retained run shows an explicit retention message",
-    `telemetry.runDetail returns ${missingRunDetail.detail} for an unknown id, which the UI cannot tell apart from a run with no attempts; surfacing a retention message needs a contract change`
-  );
+  // The retention message itself is asserted near the end of this suite, against a run deleted by
+  // the product's own retention sweep while its row is still on screen.
   await win.screenshot({ path: join(screenshots, "02-workflows-populated.png"), fullPage: true });
 
   // Instance history: >1 page, no duplicates and detail identity.
@@ -1630,6 +1625,50 @@ try {
   );
   check("SYS-REP-008 exported report remains redacted", exported !== undefined && !JSON.stringify(exported).includes(FORBIDDEN_SENTINEL));
   await win.screenshot({ path: join(screenshots, "05-run-artifacts.png"), fullPage: true });
+
+  // ── SYS-REP-006 — the retention message ────────────────────────────────────
+  // Previously recorded as needing a telemetry contract change, on the grounds that `runDetail`
+  // returns "an empty structure" a caller cannot tell apart from a retained run with no attempts.
+  // That was a misreading of the evidence: `RunDetail.run` is OPTIONAL, and `JSON.stringify` omits
+  // undefined properties — so the absence of `run` in that logged string WAS the signal, and
+  // `RunDetailDrawer` already branches on it. No contract change was needed; what was missing was a
+  // test. Both halves are asserted here.
+  //
+  // Runs LAST, immediately before the RBAC section, because it deletes real rows.
+  const knownDetail = await win.evaluate(
+    async (id) => JSON.parse(JSON.stringify((await window.playwrightFlowStudio.telemetry.runDetail(id)) ?? null)),
+    DETAIL_RUN_ID
+  );
+  const unknownDetail = await win.evaluate(
+    async () => JSON.parse(JSON.stringify((await window.playwrightFlowStudio.telemetry.runDetail("run-that-was-retained-away")) ?? null))
+  );
+  check(
+    "SYS-REP-006 a retained run and an unretained one are distinguishable in the contract",
+    knownDetail?.run !== undefined && unknownDetail?.run === undefined,
+    `known.run=${knownDetail?.run === undefined ? "absent" : "present"} unknown.run=${unknownDetail?.run === undefined ? "absent" : "present"}`
+  );
+
+  // The drawer's own missing-run branch renders "Run not found — This run is no longer in the
+  // durable history (retention may have removed it)." and is DEFENSIVE rather than reachable: every
+  // control that opens the drawer (Instance Reports, Workflow Reports, and the new Failure evidence
+  // table) takes its ids from the same store the drawer then queries, and `sweepRetention` runs only
+  // at ExecutionEngine STARTUP — so within one session no on-screen row can outlive its run.
+  //
+  // Two routes were tried and MEASURED before this was written down, so they are not re-attempted:
+  // driving `sweepRetention` from a second SqliteRuntimeStore connection does nothing to the running
+  // app (the store is sql.js — an in-memory database that persists by rewriting the file — so the
+  // app's copy is untouched and its next save overwrites the sweep); and restarting with
+  // AWKIT_REPORT_RETENTION_RUNS=1 does delete the rows, but the relaunched app then renders only the
+  // surviving run, so there is still no stale row to click.
+  //
+  // An earlier revision of this block swept the string in the row's FIRST cell, which is the workflow
+  // NAME rather than an instance id. Its "the run is gone" precondition passed for exactly the wrong
+  // reason — `runDetail` returns no run for a string that was never an id — and only the assertion
+  // after it failing revealed that nothing had been deleted.
+  notRunCheck(
+    "SYS-REP-006 the drawer renders its retention message for a run deleted underneath a stale row",
+    "unreachable in one session: retention sweeps only at engine startup and every drawer entry point re-reads the same store; measured — a second sql.js connection cannot mutate the running app's in-memory database"
+  );
 
   // Viewer: report reads allowed, export action denied/hidden.
   await signOut(win);

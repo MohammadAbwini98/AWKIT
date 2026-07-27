@@ -551,13 +551,23 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   artifact; close by button/Escape/scrim; delete a retained run and retry.
 - **Expected:** Correct run opens; attempts/artifacts match durable rows; path open is allowed only for
   approved runtime roots; missing run shows retention message; focus returns to opener.
-- **Status:** `NOT RUN` for artifact launch and an explicit retention message. Durable row identity,
-  two attempts, two artifacts, button-close, **Escape-close and focus return** now pass in the
-  populated gate (**112/112**) — the last two found and fixed `AWKIT-REP-004`. A missing retained run
-  is asserted to degrade safely (no throw, no path leak), but `telemetry.runDetail` returns
-  `{attempts:[],artifacts:[]}` for an unknown id, which the UI cannot distinguish from a run that was
-  retained with no attempts; surfacing a retention message needs a telemetry contract change and is
-  recorded as `NOT RUN`, not as a pass.
+- **Status:** `NOT RUN` for the real artifact launch and for rendering the retention message.
+  Durable row identity, two attempts, two artifacts, button-close, **Escape-close and focus return**
+  pass in the populated gate — the last two found and fixed `AWKIT-REP-004`.
+  **The previously recorded reason for this case was wrong and is corrected.** It said
+  `telemetry.runDetail` returns `{attempts:[],artifacts:[]}` for an unknown id, "which the UI cannot
+  distinguish from a run retained with no attempts", and that a **contract change** was required.
+  `RunDetail.run` is optional and `JSON.stringify` omits undefined properties — so the *absence* of
+  `run` in that logged string was itself the signal, and `RunDetailDrawer` already branches on it.
+  Now asserted directly: `known.run=present unknown.run=absent`. **No contract change was needed.**
+  What remains is narrower and honest: the drawer's missing-run branch is **defensive**, not
+  reachable in one session. Every control that opens the drawer takes its ids from the same store the
+  drawer then queries, and `sweepRetention` runs only at `ExecutionEngine` startup. Two routes were
+  measured and rejected — a second `SqliteRuntimeStore` connection cannot mutate the running app
+  (the store is **sql.js**, in-memory, persisting by rewriting the file), and restarting with
+  `AWKIT_REPORT_RETENTION_RUNS=1` does delete rows but then renders only the survivors, so there is
+  still no stale row to click. Reaching it needs an in-session retention path or a renderer hook.
+  The **artifact launch** is the same owner-decision manual check as SYS-REP-008 and SET-015.
 
 ### SYS-REP-007 — Instance Reports paging and live status
 
@@ -597,11 +607,27 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Open Failure Analytics; compare category distribution, rankings, flakiness and evidence.
 - **Expected:** Only failures enter failure views; taxonomy is correct; low-sample flakiness is hidden;
   evidence points to the correct run and remains redacted.
-- **Status:** `NOT RUN` for low-sample flakiness suppression and evidence navigation. The populated
-  GUI (**112/112**) passed six named categories, the exact failed total, both workflow rankings, and
-  now the **unknown-category** subcase: three uncategorised failures are surfaced rather than dropped,
-  the category distribution accounts for every one of the 9 failed runs, and no non-failed run appears
-  in the failure evidence list. Taxonomy/backend logic remains green in `verify:telemetry`.
+- **Status:** `PASS` — `npm run verify:reports-populated-gui` (**158 PASS / 0 FAIL**). Six named
+  categories, the exact failed total, both workflow rankings and the unknown-category subcase pass as
+  before; taxonomy/backend logic remains green in `verify:telemetry`.
+  **`AWKIT-REP-006` was found here: the page had no evidence at all.** It is described as
+  "evidence-based insights", but `FailureBreakdown` was `{total, categories, topWorkflows}` — there
+  was no way to get from "12 timeouts" to *which* runs timed out. `queryFailures` already held the
+  filtered failed runs and discarded them; it now returns `recent`, rendered as a Failure evidence
+  table that opens the existing `RunDetailDrawer` on the run it names (asserted by **id**, not by
+  "a drawer opened").
+  **The check that was supposed to cover this had never tested anything.** "Only failed runs appear
+  in the failure evidence list" read `failures.recent`, a field the contract did not have; it
+  resolved to `undefined ?? []` and then passed on its own `length === 0 ||` escape hatch. Both the
+  missing field and the escape hatch are gone, and an empty evidence list now fails.
+  **Evidence is redacted by construction** — the contract carries identity, workflow, category and
+  timings only, asserted by inspecting the row's own **keys** so a future free-text field fails the
+  check rather than silently shipping.
+  **Low-sample suppression is asserted per row on both sides of the 5-run threshold:**
+  Gamma/Delta/Epsilon (2 runs) render `—`; Alpha (20) renders `21` and Beta (12) renders `18`. The
+  suppressed rows are seeded 1-failed-of-2, so their success rate is under 100 % and an implementation
+  ignoring the threshold would have printed `30` — which is what makes the dash *suppression* rather
+  than a zero, and what stops the check passing on a workflow that simply never failed.
 
 ### SYS-REP-010 — Runtime Analytics historical capacity and anomaly views
 
@@ -611,7 +637,21 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   regressions and recovered anomalies over multiple ranges.
 - **Expected:** Aggregates, buckets, percentages and anomaly state match source data; unavailable
   metrics are neutral, not zero; environmental observations are labelled.
-- **Status:** `NOT RUN` for the neutral-vs-zero unavailable-metric matrix on this page only.
+- **Status:** `PASS` — `npm run verify:reports-populated-gui` (**158 PASS / 0 FAIL**).
+  **The neutral-vs-zero matrix is now driven through the real range selector** rather than by mutating
+  data, so the dash is provably range-driven absence: process samples are seeded 40-51 minutes back
+  and capacity snapshots 0-11 minutes back, so at **15m** "Peak Chromium memory" reads `—` with the
+  detail *"process sampling unavailable"*, and at **1h** the same card reads `610 MB` / *"peak 4
+  process(es)"*. A second card populated in the **same** 15m render (`Peak system memory = 51%`) is
+  the control that the dash is not simply an empty page, and Server Performance pins the opposite
+  direction: a never-created folder is a **measured** `0` and renders as `0`, not as the dash that
+  means unknown.
+  **The check that nominally covered this was vacuous** — `chromiumMemoryMb === undefined ? realCheck
+  : true`, and the fixture always defines it, so the ternary returned `true` unconditionally.
+  **The fixture had also never seeded `runtime_capacity_snapshots`**, a different table from the
+  capacity *buckets* it did seed (`queryRuntimeSeries` reads the former, `queryCapacityAnalytics` the
+  latter). Three of the four metric cards and both timelines had therefore only ever rendered `—`,
+  and no check noticed.
   **Multi-range and recovered-anomaly transitions are now executed** in
   `verify:reports-populated-gui` (**136/136**). Capacity buckets are seeded so that each preset band
   contains exactly one more than the last, and all five presets return their derived count —
@@ -645,10 +685,17 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   directory or deny access in an isolated root; refresh.
 - **Expected:** Four metric cards and storage section render; known sizes are accurate; missing/denied
   paths degrade to unavailable without crashing or leaking paths outside runtime roots.
-- **Status:** `NOT RUN` for the large-directory bound only. `dirSizeMb` deliberately stops after
-  20,000 entries, so a folder above that silently under-reports; that bound is documented in the
-  source but has never been exercised. Everything else is executed in `verify:reports-populated-gui`
-  (**136/136**):
+- **Status:** `PASS` — `npm run verify:reports-populated-gui` (**158 PASS / 0 FAIL**).
+  **The large-directory bound is now exercised, and it was hiding `AWKIT-REP-007`.** `dirSizeMb`
+  stops after 20,000 entries and returned a silently truncated figure that presented itself as a
+  total — an operator deciding whether to clean up saw a small number and concluded there was nothing
+  to clean. Same class as `AWKIT-SET-005`. The walk now reports whether it hit the bound, and the page
+  renders **"at least N MB"** plus an explicit note. Driven by a real 20,001-entry directory, asserted
+  as a precondition, with a completed walk (`truncated === false`) as the control.
+  **That directory is created in the OS temp dir and removed in a `finally`** — this suite's profile
+  lives under `test-artifacts/`, which sits inside the user's OneDrive, and 20,000 files there would
+  be pushed straight into cloud sync.
+  Everything else was already executed:
   - **Exact bytes** — 1.5 MiB written to a Screenshots *sub-folder* reads back as `1.5`, Logs as `5`,
     and the total equals the sum of its parts, so the walk recurses and the arithmetic is checked
     against what was written rather than against itself.

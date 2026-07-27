@@ -1,6 +1,69 @@
 # CURRENT_STATE
 
-## REC-024 closed — the Recorder surface is complete (2026-07-27, current)
+## Reports block — 3 cases closed, 2 defects, 2 vacuous checks (2026-07-27, current)
+
+`verify:reports-populated-gui` **136 → 158 PASS / 0 FAIL**. Ledger **57 PASS / 8 NOT RUN /
+1 BLOCKED**; Reports **9 → 12 PASS / 4 NOT RUN**. Closed: SYS-REP-009, SYS-REP-010, SYS-REP-012.
+
+**`AWKIT-REP-006` — Failure Analytics had no evidence.** The page is described as "evidence-based
+insights" and `FailureBreakdown` was `{total, categories, topWorkflows}`. An operator could read that
+12 runs timed out and had no way to reach *which* ones. `queryFailures` already held the filtered
+failed runs and discarded them; it now returns `recent`, rendered as a table that opens the existing
+`RunDetailDrawer` on the run it names. Evidence is redacted **structurally** — identity, workflow,
+category, timings only — asserted by inspecting the row's own keys.
+
+**`AWKIT-REP-007` — storage sizes were silently truncated.** `dirSizeMb` stops after 20,000 entries;
+the bound is correct, but the result had no way to say so, so a large folder reported a figure that
+read as a total. An operator deciding whether to clean up saw a small number. Same class as
+`AWKIT-SET-005`. Now reports `truncated`, and the page renders "at least N MB" plus a note.
+
+**Two checks already in the passing ledger were vacuous, both via the same escape-hatch shape.**
+
+1. "Only failed runs appear in the failure evidence list" read `failures.recent`, a field the
+   contract **did not have** — `undefined ?? []` and then `length === 0 ||` passed it. It had never
+   tested anything.
+2. "An unavailable process metric renders neutral rather than a fabricated 0" was
+   `chromiumMemoryMb === undefined ? realCheck : true`. The fixture always defines it, so the ternary
+   returned `true` unconditionally.
+
+That is now five instances of this pattern in the campaign. **The tell is a check whose condition can
+short-circuit to `true`** — `x === undefined ? … : true`, `list.length === 0 || …`. Grep for them.
+
+**A third blind spot: the fixture never seeded `runtime_capacity_snapshots`** — a different table
+from the capacity *buckets* it did seed (`queryRuntimeSeries` reads the former, `queryCapacityAnalytics`
+the latter). Three of the four Runtime Analytics metric cards and both timelines had only ever
+rendered `—`, and nothing noticed.
+
+**SYS-REP-010's neutral-vs-zero matrix is driven through the real range selector**, not by mutating
+data, so the dash is provably absence: process samples sit 40-51 min back, capacity snapshots 0-11 min
+back. At 15m "Peak Chromium memory" reads `—` / "process sampling unavailable"; at 1h the same card
+reads `610 MB` / "peak 4 process(es)". A co-rendered populated card proves the page is not simply
+empty, and Server Performance pins the other direction — a never-created folder is a **measured** `0`.
+
+**The 20,001-entry directory is created in the OS temp dir, never under the repo.** This suite's
+profile lives beneath `test-artifacts/`, which is inside the user's OneDrive; 20,000 files there
+would be pushed into cloud sync.
+
+**SYS-REP-006's recorded reason was wrong and is corrected.** It claimed `telemetry.runDetail` cannot
+distinguish an unknown id from a retained run with no attempts, and that a **contract change** was
+required. `RunDetail.run` is optional and `JSON.stringify` omits undefined properties — the *absence*
+of `run` was the signal all along, and `RunDetailDrawer` already branches on it. Now asserted:
+`known.run=present unknown.run=absent`. No contract change was needed.
+
+**Still open in Reports (4):** SYS-REP-007 and SYS-REP-011 need a harness that starts real
+`ExecutionEngine` instances (`executions.list()` and `capacity.dispatchBlocked` are live in-memory
+state no seeding can produce); SYS-REP-008's real Explorer launch and SYS-REP-006's artifact launch
+are owner-decision manual checks; SYS-REP-006 also keeps a narrow defensive residual — the drawer's
+missing-run branch is unreachable in one session, since retention sweeps only at engine startup and
+every drawer entry point re-reads the same store. Measured: a second `SqliteRuntimeStore` connection
+cannot mutate the running app, because the store is **sql.js** — in-memory, persisting by rewriting
+the file.
+
+**Verification:** reports-populated-gui 158/158, telemetry 61/61, observability 65/65, reports 31/31,
+runtime-analytics-gui 36/36, runtime-status 15/15, reports-settings-a11y 14/14, `build` and
+`typecheck:scripts` clean.
+
+## REC-024 closed — the Recorder surface is complete (2026-07-27)
 
 `verify:recorder-gui` **128 → 152 PASS / 0 FAIL / 0 NOT RUN**. Ledger **54 PASS / 11 NOT RUN /
 1 BLOCKED**. **Recorder is 28 PASS / 0 NOT RUN / 1 BLOCKED** — every Recorder case that can be

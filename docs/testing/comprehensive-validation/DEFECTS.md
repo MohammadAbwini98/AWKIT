@@ -6,6 +6,59 @@ None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REP-006 — Failure Analytics had no evidence
+
+- **Severity:** S3 / The page cannot support the conclusions it presents
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `src/reports/TelemetryContracts.ts`, `src/runner/store/SqliteRuntimeStore.ts`,
+  `app/renderer/pages/ReportsFailures.tsx`
+- **Detected by:** `SYS-REP-009`
+- **Evidence after fix:** `test-artifacts/reports-populated-gui/2026-07-27T10-52-*/execution-results.json`
+  (**158 PASS / 0 FAIL**)
+
+The page is described as "evidence-based insights". `FailureBreakdown` was
+`{total, categories, topWorkflows}` — there was no evidence in it. An operator could read that 12
+runs failed with timeouts and had no way to reach *which* runs, so the aggregate could neither be
+acted on nor checked. `queryFailures` already had the filtered failed runs in hand and threw them
+away.
+
+Fixed by returning `recent` from the same already-filtered rows the aggregates are computed from, so
+the evidence cannot disagree with the counts beside it, and rendering it as a table that opens the
+existing `RunDetailDrawer`.
+
+**The check that should have caught this had never tested anything.** "Only failed runs appear in the
+failure evidence list" read `failures.recent` — a field the contract did not have — so it evaluated
+`undefined ?? []` and then passed on its own `length === 0 ||` escape hatch. Same shape as the
+vacuous ternary in `AWKIT-REP-007` below. Both are now real checks.
+
+**Redaction is structural, not filtered.** The evidence row carries identity, workflow, category and
+timings only; no free-text error message crosses the boundary. Asserted by inspecting the row's own
+**keys**, so adding a message field later fails the check instead of silently shipping.
+
+### AWKIT-REP-007 — Storage sizes were silently truncated
+
+- **Severity:** S3 / Misleading operational figure
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/main/ipc/telemetry.ipc.ts` (`dirSizeMb`),
+  `app/renderer/pages/ReportsServer.tsx`, `src/reports/TelemetryContracts.ts`
+- **Detected by:** `SYS-REP-012`
+
+`dirSizeMb` stops after 20,000 entries. The bound was documented in the source and correct as a
+bound — what was missing was any way for the result to say so. A folder above that size reported a
+number that read as a total, so an operator deciding whether to clean up saw a small figure and
+concluded there was nothing to clean. Same class as `AWKIT-SET-005`, where a read-only folder was
+labelled writable: a wrong figure is worse than no figure.
+
+`StorageUsage.truncated` now reports it, and the page renders **"at least N MB"** plus an explicit
+note. Exercised with a real 20,001-entry directory (asserted as a precondition) and controlled by a
+completed walk reporting `truncated === false`.
+
+The oversized directory is created in the OS temp dir and removed in a `finally`: the suite's profile
+lives under `test-artifacts/`, which is inside the user's OneDrive, and 20,000 files there would be
+pushed into cloud sync.
+
 ### AWKIT-REC-007 — The Recorder never noticed its browser dying
 
 - **Severity:** S2 / Operator stranded in a session that no longer exists

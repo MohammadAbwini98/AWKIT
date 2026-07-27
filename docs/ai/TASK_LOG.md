@@ -4,7 +4,47 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - REC-024: the Recorder surface is complete (Claude)
+## 2026-07-27 (latest) - Reports block: 3 cases, 2 defects, 2 vacuous checks (Claude)
+
+**Task:** the Reports block — the 7 `NOT RUN` System Reports cases.
+
+**Delivered:** `verify:reports-populated-gui` **136 → 158 PASS / 0 FAIL**. Ledger **57 PASS / 8 NOT
+RUN / 1 BLOCKED** (Recorder 28/0/1, Reports 12/4, Settings 17/4). SYS-REP-009, SYS-REP-010 and
+SYS-REP-012 closed; SYS-REP-006 substantially advanced and its recorded blocker corrected.
+
+**Defects.** `AWKIT-REP-006` — Failure Analytics is described as "evidence-based insights" and
+`FailureBreakdown` had no evidence at all, so "12 timeouts" could not be traced to any run;
+`queryFailures` already held the filtered rows and discarded them. `AWKIT-REP-007` — `dirSizeMb`
+stops at 20,000 entries and returned a truncated figure presenting itself as a total.
+
+**Two vacuous checks in the passing ledger, both short-circuiting to `true`:** `failures.recent` read
+from a contract with no `recent` field (`undefined ?? []` then `length === 0 ||`), and
+`chromiumMemoryMb === undefined ? realCheck : true`. Five instances of this pattern now; the tell is
+a condition that can short-circuit. Grep `=== undefined ?` and `.length === 0 ||`.
+
+**Fixture blind spot:** `runtime_capacity_snapshots` was never seeded (a different table from the
+capacity *buckets* that were), so three of four Runtime Analytics cards had only ever shown `—`.
+
+**SYS-REP-006's blocker was wrong.** A contract change was never needed: `RunDetail.run` is optional
+and `JSON.stringify` omits undefined, so the absence of `run` was the signal. Asserted directly.
+
+**Measured constraints recorded:** the durable store is sql.js (in-memory; a second connection cannot
+mutate a running app), and bulk test files must go to the OS temp dir — `test-artifacts/` is inside
+the user's OneDrive.
+
+**Files:** `src/reports/TelemetryContracts.ts`, `src/runner/store/{SqliteRuntimeStore,RuntimeStore}.ts`,
+`app/main/ipc/telemetry.ipc.ts`, `app/renderer/pages/{ReportsFailures,ReportsServer}.tsx`,
+`scripts/verify-reports-populated-gui.mts`, `docs/testing/comprehensive-validation/*`, `docs/ai/*`.
+
+**Tests run:** reports-populated-gui 158/158, telemetry 61/61, observability 65/65, reports 31/31,
+runtime-analytics-gui 36/36, runtime-status 15/15, reports-settings-a11y 14/14, build +
+typecheck:scripts clean.
+**Not run:** SYS-REP-007/011 (need a live-engine harness), SYS-REP-008 + SYS-REP-006 artifact launch
+(owner-decision manual), `package:portable` + `verify:packaged-walkthrough`.
+
+---
+
+## 2026-07-27 - REC-024: the Recorder surface is complete (Claude)
 
 **Task:** close REC-024, the last automatable Recorder case.
 

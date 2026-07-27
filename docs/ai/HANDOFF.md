@@ -1,6 +1,59 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): REC-024 closed — the Recorder surface is COMPLETE, ledger 54/11/1
+## ACTIVE (2026-07-27, latest): Reports block — 3 closed, ledger 57/8/1
+
+`verify:reports-populated-gui` **136 → 158 PASS / 0 FAIL**. Ledger **57 PASS / 8 NOT RUN /
+1 BLOCKED** (Recorder 28/0/1, Reports 12/4, Settings 17/4). Closed SYS-REP-009, SYS-REP-010,
+SYS-REP-012. Two defects: `AWKIT-REP-006` (Failure Analytics had no evidence data at all) and
+`AWKIT-REP-007` (storage sizes silently truncated past the 20,000-entry walk bound).
+
+### The vacuous-check pattern now has FIVE instances — grep for it
+
+Two more were found sitting in the passing ledger this round, both with the same tell: **a condition
+that can short-circuit to `true`**.
+
+- `failures.recent` was read from a contract that had no `recent` field → `undefined ?? []` → passed
+  on its own `list.length === 0 ||`.
+- `chromiumMemoryMb === undefined ? realCheck : true` — the fixture always defines it.
+
+**Search the suites for `=== undefined ?` and `.length === 0 ||`.** Every one found so far was wrong
+in the direction of passing.
+
+### Read before extending the Reports fixture
+
+- `runtime_capacity_snapshots` and `runtime_capacity_buckets` are **different tables**.
+  `queryRuntimeSeries` reads snapshots; `queryCapacityAnalytics` reads buckets. The fixture seeded
+  only buckets, so three of four Runtime Analytics metric cards had never rendered anything but `—`.
+- **Never create bulk files under `test-artifacts/`.** This suite's profile lives there, and the repo
+  is inside the user's OneDrive — the 20,001-entry directory for SYS-REP-012 goes to the OS temp dir
+  and is removed in a `finally`.
+- The durable store is **sql.js**: an in-memory database that persists by rewriting the file. A second
+  `SqliteRuntimeStore` connection therefore **cannot** mutate a running app's data.
+
+### SYS-REP-006's recorded blocker was wrong
+
+It claimed a telemetry **contract change** was needed because `runDetail` "cannot distinguish" an
+unknown id from a retained run with no attempts. `RunDetail.run` is optional and `JSON.stringify`
+omits undefined properties — the absence of `run` in the logged string *was* the signal, and
+`RunDetailDrawer` already branches on it. Asserted now: `known.run=present unknown.run=absent`.
+
+### The 4 Reports cases still open, with causes
+
+- **SYS-REP-007 + SYS-REP-011** — one root cause, and the only substantial build left in this
+  campaign: both read live in-memory `ExecutionEngine` state (`executions.list()`,
+  `capacity.dispatchBlocked`) that **no seeding can produce**. Needs a harness that starts real
+  instances and saturates admission. `verify:recorder-e2e` already drives a production
+  `ExecutionEngine` and `verify:capacity` covers the admission logic — those are the pieces to reuse.
+- **SYS-REP-008 + SYS-REP-006's artifact launch** — owner-decision manual checks, same class as
+  SET-015's folder launch.
+- **SYS-REP-006's drawer branch** — defensive and unreachable in one session (see above).
+
+### Still not run
+
+`package:portable` + `verify:packaged-walkthrough`. This work changed `src/` and `app/`, so the
+recorded 70/70 stays non-citable until a repackage.
+
+## PRIOR (2026-07-27): REC-024 closed — the Recorder surface is COMPLETE, ledger 54/11/1
 
 `verify:recorder-gui` **128 → 152 PASS / 0 FAIL / 0 NOT RUN**. Ledger **54 PASS / 11 NOT RUN /
 1 BLOCKED**. **Recorder: 28 PASS / 0 NOT RUN / 1 BLOCKED.** Every automatable Recorder case is
