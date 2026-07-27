@@ -960,7 +960,23 @@ export class SqliteRuntimeStore implements RuntimeStore {
       categories: [...categoryCounts.entries()]
         .map(([category, count]) => ({ category, count }))
         .sort((a, b) => b.count - a.count),
-      topWorkflows: [...workflowCounts.values()].sort((a, b) => b.failed - a.failed).slice(0, 10)
+      topWorkflows: [...workflowCounts.values()].sort((a, b) => b.failed - a.failed).slice(0, 10),
+      // Built from the SAME already-filtered `runs` the aggregates above are computed from, so the
+      // evidence cannot disagree with the counts it sits beside. Newest first; a run that never
+      // recorded an end time sorts last rather than being dropped.
+      recent: runs
+        .slice()
+        .sort((a, b) => (Date.parse(b.endedAt ?? "") || 0) - (Date.parse(a.endedAt ?? "") || 0))
+        .slice(0, 25)
+        .map((run) => ({
+          instanceId: run.instanceId,
+          executionId: run.executionId,
+          scenarioId: run.scenarioId,
+          scenarioName: run.scenarioName,
+          category: (run.reportCategory as ReportCategory | undefined) ?? toReportCategory(run.errorClass as ErrorClass | undefined),
+          endedAt: run.endedAt,
+          durationMs: run.durationMs
+        }))
     };
   }
 

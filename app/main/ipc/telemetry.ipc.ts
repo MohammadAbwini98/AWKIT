@@ -162,15 +162,27 @@ const STORAGE_TTL_MS = 60_000;
 async function computeStorageCached(sqlitePath: string | undefined): Promise<StorageUsage> {
   if (storageCache && Date.now() - storageCache.at < STORAGE_TTL_MS) return storageCache.value;
   const paths = getConfiguredPaths();
-  const [reportsMb, screenshotsMb, logsMb, downloadsMb, runtimeDbMb] = await Promise.all([
+  const [reports, screenshots, logs, downloads, runtimeDbMb] = await Promise.all([
     dirSizeMb(paths.reports),
     dirSizeMb(paths.screenshots),
     dirSizeMb(paths.logs),
     dirSizeMb(paths.downloads),
     sqlitePath ? fileSizeMb(sqlitePath) : Promise.resolve(0)
   ]);
+  const reportsMb = reports.mb;
+  const screenshotsMb = screenshots.mb;
+  const logsMb = logs.mb;
+  const downloadsMb = downloads.mb;
   const totalMb = Math.round((reportsMb + screenshotsMb + logsMb + downloadsMb + runtimeDbMb) * 10) / 10;
-  const value: StorageUsage = { reportsMb, screenshotsMb, logsMb, downloadsMb, runtimeDbMb, totalMb };
+  const value: StorageUsage = {
+    reportsMb,
+    screenshotsMb,
+    logsMb,
+    downloadsMb,
+    runtimeDbMb,
+    totalMb,
+    truncated: reports.truncated || screenshots.truncated || logs.truncated || downloads.truncated
+  };
   storageCache = { at: Date.now(), value };
   return value;
 }
@@ -184,12 +196,21 @@ async function fileSizeMb(path: string): Promise<number> {
   }
 }
 
-/** Sum file sizes under a directory. Bounded (≤20k entries), never throws. */
-async function dirSizeMb(root: string): Promise<number> {
+const DIR_WALK_ENTRY_BOUND = 20_000;
+
+/**
+ * Sum file sizes under a directory. Bounded, never throws.
+ *
+ * Reports whether the bound was reached, because a truncated size that presents itself as a total is
+ * a reporting lie: the operator sees a small number and concludes there is nothing to clean up. The
+ * caller surfaces this as "at least", not as an exact figure.
+ */
+async function dirSizeMb(root: string): Promise<{ mb: number; truncated: boolean }> {
   let bytes = 0;
   let visited = 0;
+  let truncated = false;
   const stack = [root];
-  while (stack.length > 0 && visited < 20_000) {
+  while (stack.length > 0 && visited < DIR_WALK_ENTRY_BOUND) {
     const dir = stack.pop()!;
     let entries;
     try {
@@ -199,7 +220,10 @@ async function dirSizeMb(root: string): Promise<number> {
     }
     for (const entry of entries) {
       visited += 1;
-      if (visited >= 20_000) break;
+      if (visited >= DIR_WALK_ENTRY_BOUND) {
+        truncated = true;
+        break;
+      }
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         stack.push(full);
@@ -212,5 +236,7 @@ async function dirSizeMb(root: string): Promise<number> {
       }
     }
   }
-  return Math.round((bytes / (1024 * 1024)) * 10) / 10;
+  // Unvisited directories still on the stack mean the walk stopped early too.
+  if (stack.length > 0 && visited >= DIR_WALK_ENTRY_BOUND) truncated = true;
+  return { mb: Math.round((bytes / (1024 * 1024)) * 10) / 10, truncated };
 }

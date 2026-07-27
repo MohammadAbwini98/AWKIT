@@ -185,11 +185,32 @@ export interface FailureCategoryCount {
   count: number;
 }
 
+/**
+ * One failed run behind the aggregates — the "evidence" a Failure Analytics reader needs in order to
+ * go from "12 timeouts" to the run that actually timed out.
+ *
+ * Deliberately carries identity, workflow, category and timings ONLY. No free-text error message
+ * crosses this boundary, so an evidence row cannot leak a secret that a masker would otherwise have
+ * had to catch. The full detail (attempts, artifacts) is fetched per run through `telemetry.runDetail`,
+ * which is already authorization-gated.
+ */
+export interface FailureEvidenceRow {
+  instanceId: string;
+  executionId: string;
+  scenarioId?: string;
+  scenarioName?: string;
+  category: ReportCategory;
+  endedAt?: string;
+  durationMs?: number;
+}
+
 export interface FailureBreakdown {
   total: number;
   categories: FailureCategoryCount[];
   /** Scenarios with the most failed runs in range. */
   topWorkflows: Array<{ scenarioId?: string; scenarioName?: string; failed: number }>;
+  /** Most recently ended failed runs in range, newest first. Bounded. */
+  recent: FailureEvidenceRow[];
 }
 
 export interface RuntimeSeriesPoint {
@@ -219,6 +240,16 @@ export interface StorageUsage {
   downloadsMb: number;
   runtimeDbMb: number;
   totalMb: number;
+  /**
+   * True when at least one folder walk hit its entry bound, so the figures above are a LOWER BOUND
+   * rather than a total.
+   *
+   * The walk has always been bounded; what it lacked was a way to say so. A silently truncated size
+   * is worse than no size: an operator deciding whether to clean up sees a small number and concludes
+   * there is nothing to clean. Same class as `AWKIT-SET-005`, where a read-only folder was labelled
+   * writable.
+   */
+  truncated: boolean;
 }
 
 export interface ServerReport {

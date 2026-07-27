@@ -8,7 +8,8 @@
 import { randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { _electron as electron, type ConsoleMessage, type ElectronApplication, type Page } from "playwright";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SqliteRuntimeStore } from "@src/runner/store/SqliteRuntimeStore";
@@ -48,6 +49,8 @@ const RECOVERED_ANOMALY_NOTE = "Synthetic regression that has since recovered";
  * evidence in these folders are far below that resolution.
  */
 const LOGS_PAYLOAD_MIB = 3;
+/** One past `dirSizeMb`'s 20,000-entry bound — the smallest directory that forces truncation. */
+const DIR_BOUND_ENTRIES = 20_001;
 const SCREENSHOTS_PAYLOAD_MIB = 1.5;
 const CACHE_PROBE_PAYLOAD_MIB = 2;
 /** Written into a directory whose read access is then revoked, so it must NOT reach any total. */
@@ -475,8 +478,13 @@ async function seedFixture(): Promise<{
       count: i + 1
     };
     store.recordAdmissionBucket(admission);
+    // SYS-REP-010 neutral-vs-zero: process samples are deliberately seeded 40-51 minutes back, OUTSIDE
+    // the narrowest range preset but inside the rest. That makes "Peak Chromium memory" genuinely
+    // unavailable at 15m and populated at 1h — so the neutral "—" can be shown to be range-driven
+    // absence rather than a hardcoded dash, while the capacity buckets above (0-11 min) keep
+    // "Peak system memory" populated in the SAME 15m render.
     const processSample: DurableProcessSampleRecord = {
-      timestamp: bucket.bucketStart,
+      timestamp: iso(now - (40 + i) * 60_000),
       chromiumProcessCount: 2 + (i % 3),
       chromiumMemoryMb: 500 + i * 10,
       chromiumCpuPercent: 20 + i,
@@ -491,6 +499,30 @@ async function seedFixture(): Promise<{
       availability: "full"
     };
     store.recordProcessSample(processSample);
+
+    // Runtime capacity SNAPSHOTS, which are a different table from the capacity BUCKETS above:
+    // `queryRuntimeSeries` reads `runtime_capacity_snapshots`, while `queryCapacityAnalytics` reads
+    // `runtime_capacity_buckets`. The fixture seeded only the latter, so the concurrency/host
+    // timelines and three of the four Runtime Analytics metric cards ("Busiest window", "Peak active
+    // browsers", "Peak system memory") had never rendered anything but "—" and no check noticed.
+    // Seeded in the recent window so they stay available at 15m, which is what makes the
+    // neutral-vs-zero matrix a contrast rather than an empty page.
+    store.recordCapacitySnapshot({
+      timestamp: bucket.bucketStart,
+      activeBrowsers: 2 + (i % 3),
+      maxBrowsers: 6,
+      activeFlows: 3 + (i % 2),
+      maxActiveFlows: 8,
+      activeContexts: 4,
+      activePages: 4,
+      queueDepth: i % 4,
+      freeMemoryMb: 4_096,
+      processRssMb: 180 + i,
+      systemMemoryPercent: 40 + i,
+      cpuPercent: 30 + i,
+      recentCrashes: 0,
+      dispatchBlocked: false
+    });
   }
   // SYS-REP-010 — the twelve buckets above all sit inside 15 minutes, so every range preset returns
   // the same data and a range selector that ignored its argument entirely would pass. These four sit
@@ -1161,17 +1193,102 @@ try {
   );
   // Only FAILURES may enter failure views — a completed or cancelled run appearing here would
   // silently inflate every reliability figure downstream.
+  //
+  // This check used to read `failures.recent`, a field `FailureBreakdown` did not have. It resolved
+  // to `undefined ?? []` every run, and the `length === 0 ||` escape hatch then passed it — so it sat
+  // in the ledger having never tested anything. `recent` now exists (AWKIT-REP-006) and the escape
+  // hatch is gone: an empty evidence list is a FAILURE here, because the fixture seeds failures.
   const failureRunIds = await win.evaluate(async () => {
     const failures = await window.playwrightFlowStudio.telemetry.failures("24h");
-    return ((failures as { recent?: Array<{ instanceId?: string }> }).recent ?? []).map((row) => row.instanceId ?? "");
+    return (failures.recent ?? []).map((row) => row.instanceId);
   });
   const seededFailedIds = new Set(fixture.currentRuns.filter((run) => run.status === "failed").map((run) => run.instanceId));
   check(
+    "SYS-REP-009 the failure evidence list is populated",
+    failureRunIds.length > 0,
+    `${failureRunIds.length} evidence rows for ${fixture.expected.failed} seeded failures`
+  );
+  check(
     "SYS-REP-009 only failed runs appear in the failure evidence list",
-    failureRunIds.length === 0 || failureRunIds.every((id) => seededFailedIds.has(id)),
+    failureRunIds.length > 0 && failureRunIds.every((id) => seededFailedIds.has(id)),
     JSON.stringify(failureRunIds.filter((id) => !seededFailedIds.has(id)).slice(0, 5))
   );
+  // Evidence must be REDACTED by construction: the contract carries identity, category and timings
+  // only. A free-text error message here is how a secret reaches a report.
+  const evidenceKeys = await win.evaluate(async () => {
+    const failures = await window.playwrightFlowStudio.telemetry.failures("24h");
+    return [...new Set((failures.recent ?? []).flatMap((row) => Object.keys(row)))].sort();
+  });
+  check(
+    "SYS-REP-009 evidence rows carry no free-text error field",
+    !evidenceKeys.some((key) => /message|error|stack|detail|output|log/i.test(key)),
+    evidenceKeys.join(",")
+  );
+
   check("SYS-REP-009 reliability table includes both workflows", failureText.includes("Fixture Workflow Alpha") && failureText.includes("Fixture Workflow Beta"));
+
+  // ── SYS-REP-009 — low-sample flakiness suppression ─────────────────────────
+  // Read per row, because "a — appears somewhere on the page" is satisfied by any empty cell.
+  // Alpha/Beta have 20 and 12 runs; Gamma/Delta/Epsilon have 2 each, below the 5-run threshold.
+  const reliabilityRows = await win.evaluate(() => {
+    const out: { workflow: string; runs: number; success: string; flakiness: string }[] = [];
+    document.querySelectorAll(".awkit-report-panel table.awkit-table tbody tr").forEach((tr) => {
+      const cells = [...tr.querySelectorAll("td")].map((td) => (td.textContent || "").trim());
+      if (cells.length === 5 && /^\d+$/.test(cells[1])) {
+        out.push({ workflow: cells[0], runs: Number(cells[1]), success: cells[2], flakiness: cells[4] });
+      }
+    });
+    return out;
+  });
+  const lowSample = reliabilityRows.filter((row) => row.runs < 5);
+  const highSample = reliabilityRows.filter((row) => row.runs >= 5);
+  check(
+    "SYS-REP-009 the reliability table contains rows on BOTH sides of the 5-run threshold (control)",
+    lowSample.length > 0 && highSample.length > 0,
+    `low=${lowSample.map((r) => `${r.workflow}:${r.runs}`).join(" ")} | high=${highSample.map((r) => `${r.workflow}:${r.runs}`).join(" ")}`
+  );
+  check(
+    "SYS-REP-009 a low-sample workflow reports no flakiness score",
+    lowSample.length > 0 && lowSample.every((row) => row.flakiness === "—"),
+    lowSample.map((r) => `${r.workflow}(${r.runs} runs)=${r.flakiness}`).join(" ")
+  );
+  // The other half, and the reason the check above is not satisfied by a column that is always "—".
+  check(
+    "SYS-REP-009 a sufficiently sampled workflow DOES report a score",
+    highSample.length > 0 && highSample.every((row) => /^\d+$/.test(row.flakiness)),
+    highSample.map((r) => `${r.workflow}(${r.runs} runs)=${r.flakiness}`).join(" ")
+  );
+  // The suppressed rows are not silently-zero rows. Asserted from the data BESIDE the blank cell:
+  // each low-sample workflow is seeded 1 failed of 2 runs, so its success rate is under 100% and an
+  // implementation that ignored the threshold would have printed 30 there, not 0. Without this,
+  // "the cell is —" is equally satisfied by a workflow that simply never failed.
+  check(
+    "SYS-REP-009 the suppressed rows DID fail, so '—' is suppression rather than a zero score",
+    lowSample.length > 0 && lowSample.every((row) => row.success !== "100%"),
+    lowSample.map((r) => `${r.workflow}: ${r.runs} runs, ${r.success} success → ${r.flakiness}`).join(" | ")
+  );
+
+  // ── SYS-REP-009 — evidence navigation ──────────────────────────────────────
+  const evidenceTable = win.getByTestId("failure-evidence-table");
+  check("SYS-REP-009 the failure evidence table is rendered", await evidenceTable.isVisible());
+  const firstEvidenceId = failureRunIds[0];
+  await win.getByTestId(`failure-evidence-open-${firstEvidenceId}`).click();
+  const evidenceDrawer = win.getByRole("dialog", { name: "Run detail" });
+  await evidenceDrawer.waitFor({ state: "visible", timeout: 8_000 });
+  const evidenceDetail = await evidenceDrawer.innerText();
+  // Points at the CORRECT run — the id it was opened with, not merely "a run".
+  check(
+    "SYS-REP-009 evidence navigation opens the run it names",
+    evidenceDetail.includes(firstEvidenceId),
+    `expected ${firstEvidenceId} in drawer: ${evidenceDetail.slice(0, 200)}`
+  );
+  check(
+    "SYS-REP-009 the navigated run is one of the seeded failures",
+    seededFailedIds.has(firstEvidenceId),
+    firstEvidenceId
+  );
+  await win.getByRole("button", { name: "Close", exact: true }).click();
+  check("SYS-REP-009 the evidence drawer closes", (await win.getByRole("dialog", { name: "Run detail" }).count()) === 0);
   await win.screenshot({ path: join(screenshots, "03-failure-analytics.png"), fullPage: true });
 
   // Populated runtime analytics and server storage.
@@ -1209,6 +1326,65 @@ try {
     await waitForReportPage(win, "Runtime Analytics");
   }
   check("SYS-REP-010 the range selector re-renders without error", (await win.locator(".awkit-report-page").count()) === 1);
+
+  // ── SYS-REP-010 — the neutral-vs-zero matrix ───────────────────────────────
+  // "Unavailable" and "measured zero" must not look the same. A metric with no samples in range has
+  // to read as UNKNOWN; rendering `0` there tells the operator the system measured no Chromium
+  // memory, which is a different and false claim.
+  //
+  // Driven through the real range selector rather than by mutating data, so the dash is provably
+  // range-driven absence: process samples sit 40-51 minutes back, capacity buckets 0-11 minutes back.
+  const metricCardValues = async () =>
+    win!.evaluate(() => {
+      const out: Record<string, { value: string; detail: string }> = {};
+      document.querySelectorAll(".metric-card").forEach((card) => {
+        // MetricCard renders <div><span>label</span><strong>value</strong></div>{icon}<p>detail</p>.
+        const label = card.querySelector("span")?.textContent?.trim() ?? "";
+        const value = card.querySelector("strong")?.textContent?.trim() ?? "";
+        const detail = card.querySelector("p")?.textContent?.trim() ?? "";
+        if (label) out[label] = { value, detail };
+      });
+      return out;
+    });
+
+  await win.getByRole("button", { name: "15m", exact: true }).click();
+  await waitForReportPage(win, "Runtime Analytics");
+  const narrowCards = await metricCardValues();
+  check(
+    "SYS-REP-010 a metric with no samples in range reads as unknown, not as a measured 0",
+    narrowCards["Peak Chromium memory"]?.value === "—",
+    `Peak Chromium memory = ${JSON.stringify(narrowCards["Peak Chromium memory"])}`
+  );
+  check(
+    "SYS-REP-010 the unavailable metric SAYS it is unavailable rather than showing a bare dash",
+    /unavailable/i.test(narrowCards["Peak Chromium memory"]?.detail ?? ""),
+    narrowCards["Peak Chromium memory"]?.detail ?? "(no detail)"
+  );
+  // Co-rendered control: another card in the SAME render is populated, so the dash above is not
+  // simply "this page has no data at all".
+  check(
+    "SYS-REP-010 a metric that DOES have samples in the same range still reports a value",
+    /^\d+%$/.test(narrowCards["Peak system memory"]?.value ?? ""),
+    `Peak system memory = ${narrowCards["Peak system memory"]?.value ?? "(missing)"}`
+  );
+
+  await win.getByRole("button", { name: "1h", exact: true }).click();
+  await waitForReportPage(win, "Runtime Analytics");
+  const widerCards = await metricCardValues();
+  // The other half: widening the range makes the SAME metric available. Without this, "renders —"
+  // is equally satisfied by a card that is hardcoded to a dash.
+  check(
+    "SYS-REP-010 widening the range makes the same metric available, so the dash was absence",
+    /MB$/.test(widerCards["Peak Chromium memory"]?.value ?? ""),
+    `Peak Chromium memory at 1h = ${widerCards["Peak Chromium memory"]?.value ?? "(missing)"}`
+  );
+  check(
+    "SYS-REP-010 the now-available metric reports its sampled process count rather than 'unavailable'",
+    /peak \d+ process/i.test(widerCards["Peak Chromium memory"]?.detail ?? ""),
+    widerCards["Peak Chromium memory"]?.detail ?? "(no detail)"
+  );
+  await win.getByRole("button", { name: "24h", exact: true }).click();
+  await waitForReportPage(win, "Runtime Analytics");
 
   // A regression that recovered is a state transition, and the durable layer returns it faithfully.
   const anomalyStates = await win.evaluate(async () => {
@@ -1310,21 +1486,93 @@ try {
     storage.storage.logsMb === expectedLogsMb && serverText.includes("Storage usage"),
     `logs=${storage.storage.logsMb}; a walk that ignored the denial would report ${expectedLogsMb + DENIED_PAYLOAD_MIB}`
   );
-  // "Unavailable" must read as unknown, not as a measured zero.
+  // The other half of SYS-REP-010's neutral-vs-zero matrix, on the page that owns measured zeroes:
+  // a folder that was never created is a MEASURED 0 and must render as `0`, not as the `—` that
+  // means "unknown". Together with the Runtime Analytics assertions, both directions are pinned —
+  // unknown never renders as 0, and 0 never renders as unknown.
+  //
+  // The previous form of this check read `chromiumMemoryMb === undefined ? … : true`. The fixture
+  // always defines it, so the ternary evaluated to `true` and the check passed without testing
+  // anything — the same escape-hatch shape as the `length === 0 ||` in SYS-REP-009.
   check(
-    "SYS-REP-012 an unavailable process metric renders neutral rather than a fabricated 0",
-    storage.chromiumMemoryMb === undefined ? serverText.includes("—") : true,
-    `chromiumMemoryMb=${String(storage.chromiumMemoryMb)}`
+    "SYS-REP-012 a measured zero renders as 0, not as the dash that means unknown",
+    storage.storage.downloadsMb === 0 && /(^|\D)0(\D|$)/.test(serverText),
+    `downloadsMb=${String(storage.storage.downloadsMb)} (a never-created folder: measured, not unknown)`
   );
   // Extract every Windows path the page renders and require each to sit under this run's evidence
   // root. A blanket "does not contain C:\" would also pass on a page that renders no paths at all,
   // so the count is reported either way rather than hidden.
+  // The truncation flag must be FALSE for the folders measured above, or "at least" would be shown
+  // permanently and the bound test below would prove nothing.
+  check(
+    "SYS-REP-012 a walk that completed reports an exact total, not a lower bound (control)",
+    storage.storage.truncated === false,
+    `truncated=${String(storage.storage.truncated)}`
+  );
+
   const renderedPaths = serverText.match(/[A-Za-z]:\\[^\s"']+/g) ?? [];
   check(
     "SYS-REP-012 every path the page renders stays inside the runtime root",
     renderedPaths.every((path) => path.toLowerCase().startsWith(runtimeRoot.toLowerCase())),
     `${renderedPaths.length} path(s) rendered: ${renderedPaths.slice(0, 3).join(" | ") || "none"}`
   );
+
+  // ── SYS-REP-012 — the large-directory bound ────────────────────────────────
+  // `dirSizeMb` stops after 20,000 entries. That bound was documented in the source and had never
+  // been exercised, so nothing proved either that it exists or that the figure it produces announces
+  // itself as partial. Before this round it did not: the walk returned a silently truncated number
+  // that read as a total, which is the same class of reporting lie as `AWKIT-SET-005`.
+  //
+  // The directory is created in the OS TEMP dir, never under the repo: this profile lives beneath
+  // `test-artifacts/`, which sits inside the user's OneDrive, and 20k files there would be pushed
+  // straight into cloud sync. `downloadsPath` is pointed at it through the same settings path SET-007
+  // covers, and both are restored in a `finally`.
+  const boundDir = mkdtempSync(join(tmpdir(), "awkit-dirbound-"));
+  const previousDownloadsPath = await win.evaluate(async () => (await window.playwrightFlowStudio.settings.get()).paths?.downloadsPath ?? "");
+  try {
+    for (let i = 0; i < DIR_BOUND_ENTRIES; i += 1) writeFileSync(join(boundDir, `entry-${i}.bin`), "");
+    check(
+      `SYS-REP-012 the oversized directory really holds more than the 20,000-entry bound (precondition)`,
+      readdirSync(boundDir).length === DIR_BOUND_ENTRIES && DIR_BOUND_ENTRIES > 20_000,
+      `${readdirSync(boundDir).length} entries`
+    );
+    await win.evaluate(
+      async (dir) => { await window.playwrightFlowStudio.settings.update({ paths: { downloadsPath: dir } }); },
+      boundDir
+    );
+    // Storage is cached for 60 s and a settings change does not invalidate it, so the previous
+    // reading has to expire before the new folder can be measured.
+    await win.waitForTimeout(61_000);
+    const bounded = await win.evaluate(() => window.playwrightFlowStudio.telemetry.server());
+    check(
+      "SYS-REP-012 a directory past the entry bound reports the walk as truncated",
+      bounded.storage.truncated === true,
+      `truncated=${String(bounded.storage.truncated)} downloadsMb=${bounded.storage.downloadsMb}`
+    );
+    await navClick(win, "Reports");
+    await navClick(win, "Server Performance");
+    await waitForReportPage(win, "Server Performance");
+    const boundedText = await win.locator(".awkit-report-page").innerText();
+    check(
+      "SYS-REP-012 the truncated total presents itself as a lower bound, not as a total",
+      /at least/i.test(await win.getByTestId("storage-total-summary").innerText()),
+      (await win.getByTestId("storage-total-summary").innerText()).slice(0, 120)
+    );
+    check(
+      "SYS-REP-012 the operator is told why the figure is partial",
+      (await win.getByTestId("storage-truncated-note").count()) === 1 && /lower bound/i.test(boundedText),
+      boundedText.slice(-320)
+    );
+  } finally {
+    await win
+      .evaluate(
+        async (previous) => { await window.playwrightFlowStudio.settings.update({ paths: { downloadsPath: previous } }); },
+        previousDownloadsPath
+      )
+      .catch(() => undefined);
+    rmSync(boundDir, { recursive: true, force: true });
+  }
+  check("SYS-REP-012 the oversized directory is removed again", !existsSync(boundDir));
 
   // Stored run report list/export contract. A corrupt sibling must not crash or create a fake row.
   await navClick(win, "Run Artifacts");

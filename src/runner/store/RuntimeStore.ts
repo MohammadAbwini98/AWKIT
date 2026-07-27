@@ -236,7 +236,7 @@ export class NullRuntimeStore implements RuntimeStore {
     return { total: 0, success: 0, failed: 0, cancelled: 0, other: 0, byStatus: {} };
   }
   queryFailures(_range: TelemetryRange): FailureBreakdown {
-    return { total: 0, categories: [], topWorkflows: [] };
+    return { total: 0, categories: [], topWorkflows: [], recent: [] };
   }
   queryRuntimeSeries(_range: TelemetryRange, _bucketMs: number): RuntimeSeriesPoint[] {
     return [];

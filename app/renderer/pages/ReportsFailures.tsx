@@ -8,6 +8,8 @@ import { ReportPage } from "../components/reports/ReportPage";
 import { DonutChart, type DonutSegment } from "../components/reports/DonutChart";
 import { BarChart, type BarDatum } from "../components/reports/BarChart";
 import { useTelemetryQuery } from "../components/reports/useTelemetryQuery";
+import { RunDetailDrawer } from "../components/reports/RunDetailDrawer";
+import { formatDurationMs, formatWhen } from "../components/reports/statusTone";
 
 interface FailuresData {
   failures: FailureBreakdown;
@@ -66,6 +68,7 @@ function buildInsights(data: FailuresData): string[] {
 
 export function ReportsFailures() {
   const [range, setRange] = useState<TelemetryRangePreset>("24h");
+  const [evidenceRunId, setEvidenceRunId] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useTelemetryQuery<FailuresData>(async () => {
     const [failures, workflows] = await Promise.all([
@@ -196,8 +199,60 @@ export function ReportsFailures() {
               </div>
             )}
           </section>
+
+          {/* The evidence behind the aggregates. Without it this page can tell an operator that 12
+              runs timed out but not WHICH ones, so the numbers cannot be acted on or checked. The
+              rows carry no free-text error message by contract; full detail is fetched per run
+              through the already authorization-gated telemetry.runDetail. */}
+          {data.failures.recent.length > 0 ? (
+            <section className="work-panel awkit-report-panel">
+              <div className="awkit-report-panel-head">
+                <div>
+                  <strong>Failure evidence</strong>
+                  <span>Most recent failed runs in this range</span>
+                </div>
+              </div>
+              <div className="awkit-table-wrap">
+                <table className="awkit-table" data-testid="failure-evidence-table">
+                  <thead>
+                    <tr>
+                      <th>Workflow</th>
+                      <th>Category</th>
+                      <th>Ended</th>
+                      <th className="awkit-th-numeric">Duration</th>
+                      <th>Run</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.failures.recent.map((row) => (
+                      <tr key={row.instanceId}>
+                        <td>{row.scenarioName ?? row.scenarioId ?? "(unknown)"}</td>
+                        <td>{reportCategoryLabel(row.category)}</td>
+                        <td>{row.endedAt ? formatWhen(row.endedAt) : <span className="awkit-muted">—</span>}</td>
+                        <td className="awkit-td-numeric">
+                          {typeof row.durationMs === "number" ? formatDurationMs(row.durationMs) : <span className="awkit-muted">—</span>}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="toolbar-button"
+                            data-testid={`failure-evidence-open-${row.instanceId}`}
+                            onClick={() => setEvidenceRunId(row.instanceId)}
+                          >
+                            Details
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </>
       )}
+
+      {evidenceRunId ? <RunDetailDrawer instanceId={evidenceRunId} onClose={() => setEvidenceRunId(null)} /> : null}
     </ReportPage>
   );
 }

@@ -80,7 +80,11 @@ function ServerContent({ data }: { data: ServerReport }) {
         <div className="awkit-report-panel-head">
           <div>
             <strong>Storage usage</strong>
-            <span>{data.storage.totalMb.toLocaleString()} MB across artifacts, logs, and the runtime store</span>
+            {/* A truncated walk must not present itself as a total — see StorageUsage.truncated. */}
+            <span data-testid="storage-total-summary">
+              {data.storage.truncated ? "at least " : ""}
+              {data.storage.totalMb.toLocaleString()} MB across artifacts, logs, and the runtime store
+            </span>
           </div>
           <HardDrive size={16} />
         </div>
@@ -92,6 +96,14 @@ function ServerContent({ data }: { data: ServerReport }) {
         <p className="awkit-muted">
           Storage sizes are computed from the configured Reports, Screenshots, Logs, and Downloads folders plus the runtime SQLite file,
           cached for up to a minute. AWKIT never deletes your artifacts automatically — only bounded reporting rows are retained.
+          {data.storage.truncated ? (
+            <>
+              {" "}
+              <strong data-testid="storage-truncated-note">
+                One or more folders contain more files than a single scan reads, so these sizes are a lower bound, not a total.
+              </strong>
+            </>
+          ) : null}
         </p>
       </section>
     </>
