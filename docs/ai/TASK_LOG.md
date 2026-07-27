@@ -20,10 +20,13 @@ condition outright; it had been green since it was written and asserted nothing.
 `NOT RUN` third state it never had, which is the structural cause: a suite with only pass/fail pushes
 a legitimately-absent precondition into the condition.
 
-**Executed: 86 PASS / 1 FAIL.** The rewritten check passes on a real assertion. The one failure is the
-script's own freshness guard refusing the 2026-07-26 package (1400 min old vs a 180-min budget).
-`src/validation` last changed 2026-07-22, before that package was built, so the other 86 results
-describe current code.
+**Executed: 86 PASS / 1 FAIL**, the one failure being the script's own freshness guard refusing the
+2026-07-26 package (1400 min old vs a 180-min budget). After repackaging: **87 PASS / 0 FAIL**.
+
+**The packaged gate is current again.** `package:portable` re-run (offline validation strict-mode
+PASS, Zvec host 17/17), `verify:packaged-walkthrough` **70 PASS / 0 FAIL** against the new build — the
+first citable packaged result since this campaign began changing `src/` and `app/`. No non-loopback
+TCP connection from any app process (Part M); NSIS sha512 matches `latest.yml` (Part L).
 
 **Verified rather than assumed:** `verify:reports-settings-a11y` is 14 PASS / 0 FAIL at HEAD, but the
 branch fixed in `cdcf8e3` is **unreachable on a fresh profile** (EmptyState → no sort headers). The
@@ -33,10 +36,10 @@ branch fixed in `cdcf8e3` is **unreachable on a fresh profile** (EmptyState → 
 **Files:** `scripts/verify-packaged-validation.mts`, `docs/ai/{HANDOFF,CURRENT_STATE,KNOWN_ISSUES,TASK_LOG}.md`,
 `.beads/*.jsonl` (reconciling `awkit-59s` + `awkit-38k`, closed by the previous session).
 
-**Tests run:** build PASS, typecheck:scripts PASS, reports-settings-a11y 14/14,
-verify-packaged-validation 86/1 (freshness guard), check-memory PASS.
-**Not run:** `package:portable` + `verify:packaged-walkthrough` — three sessions old now; the packaged
-70/70 stays non-citable and the freshness guard above will keep refusing until a repackage.
+**Tests run:** build PASS, typecheck:scripts PASS, reports-settings-a11y 14/14, check-memory PASS,
+`package:portable` PASS, verify:packaged-walkthrough **70/0**, verify-packaged-validation **87/0**.
+**Not run:** the clean/offline Windows VM walkthrough (separate human gate, explicitly not claimed by
+the script) and code signing / SmartScreen reputation (packaging skips signing — no cert configured).
 
 ---
 
