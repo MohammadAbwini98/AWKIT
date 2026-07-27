@@ -366,10 +366,31 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   runs; return to Recorder; stop/cancel/save or restart.
 - **Expected:** UI leaves Recording state; draft remains recoverable where safe; no process leak;
   Stop/Cancel do not hang; next Start works.
-- **Status:** `NOT RUN` for a real browser close/crash. `verify:recorder-gui` proves the adjacent
-  teardown properties — a session torn down mid-handoff leaves the Recording state, re-enables Start,
-  a new recording starts cleanly, and no recording remains active at suite end — but it does not kill
-  the browser process or close the recorded page out-of-band, which is the case's actual trigger.
+- **Status:** `PASS` — `npm run verify:recorder-gui` (**152 PASS / 0 FAIL / 0 NOT RUN**). Three
+  separate runs, each producing a **real out-of-band death** and each mapping to a distinct Playwright
+  signal the service must handle:
+
+  | trigger | mechanism | signal |
+  |---|---|---|
+  | the recorded page crashes | kill the tab's renderer process | `page.crash` |
+  | the browser window is closed | `CloseMainWindow()` on the browser process | `browser.disconnected` |
+  | the browser process is terminated | `taskkill /T /F` on the browser root | `browser.disconnected` |
+
+  Each run asserts: the session had recorded actions **before** the death (the case's precondition,
+  asserted not assumed), the recorder leaves the Recording state on its own, the recorded actions are
+  still retrievable, Cancel completes rather than hanging on dead handles, Start works again, and no
+  orphan browser process is left behind.
+  **`AWKIT-REC-007` was found here** — the service wired no liveness signal at all, so a recorder
+  whose browser had died stayed in `Recording` forever.
+  **The kill must be proven to have killed something.** Every trigger asserts the targeted pids are
+  gone before the product assertion runs, and reports `NOT RUN` otherwise. That check is what stopped
+  a mechanism that silently did nothing from being written up as a product defect — see below.
+  **Two mechanisms were measured to be unusable and are recorded so they are not retried:**
+  `window.close()` from the recorded page is **refused** on an `http://` origin (the page stays open),
+  as is `window.open("","_self").close()`; and `taskkill /T` **without** `/F` does not end Chromium.
+  Process discovery walks the whole descendant tree of the Electron instance and diffs against a
+  baseline taken before launch, because Windows recycles pids and several of the developer's own
+  Chrome processes carried a stale `ParentProcessId` matching the app's.
 
 ### REC-025 — Single-active-recorder concurrency and rapid commands
 

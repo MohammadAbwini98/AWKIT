@@ -6,6 +6,49 @@ None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REC-007 — The Recorder never noticed its browser dying
+
+- **Severity:** S2 / Operator stranded in a session that no longer exists
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `src/recorder/RecorderService.ts` (`attachLivenessWatch`, `startRecording`,
+  `resumeAfterHandoff`)
+- **Detected by:** `REC-024`
+- **Evidence before fix:** `test-artifacts/recorder-gui/2026-07-27T09-32-38-378Z/execution-results.json`
+- **Evidence after fix:** `test-artifacts/recorder-gui/2026-07-27T09-54-10-088Z/execution-results.json`
+  (**152 PASS / 0 FAIL / 0 NOT RUN**)
+
+**Reproduction before fix**
+
+1. Start a recording and let it capture at least one action.
+2. Kill the recorded browser out of band — crash its renderer, close its window, or terminate the
+   process. Do **not** use Stop or Cancel.
+3. `recorder.getStatus()` keeps returning `{"isRecording": true}` indefinitely.
+
+`RecorderService` registered a `close` listener for **popups** and nothing at all for the main page,
+the browser, or the context. `getStatus()` returns the raw `isRecording` flag with no liveness check,
+and the Recorder page polls it on an interval — so the UI kept showing **Recording** and kept Start,
+the Target URL field and both capture switches disabled. The operator was stranded in a session whose
+browser no longer existed, with Cancel as the only way out.
+
+**Fix**
+
+`attachLivenessWatch` wires four signals, because none implies the others:
+
+- `page.close` — the recorded tab went away while the browser lives.
+- `page.crash` — **measured**: a renderer crash leaves `page.isClosed() === false` and fires neither
+  `close` nor `disconnected`. Without this the recorder stays stuck behind a crashed tab, which is
+  the case's own wording ("browser closes **or crashes**").
+- `browser.disconnected` — a normal launch dying or being killed.
+- `context.close` — the persistent-context resume path, where `this.browser` is deliberately `null`.
+
+It fires only on an **unexpected** death: every supported teardown sets `isRecording = false` before
+closing anything, and a handle belonging to an already-replaced session is ignored, so the handoff
+resume path cannot be killed by its predecessor's listeners.
+
+The recorded actions and the draft are **preserved** — that is the whole difference between this path
+and `cancelRecording`. An unexpected death must not destroy what the user recorded.
+
 ### AWKIT-REC-004 — The async review dialog declared `aria-modal` and implemented none of it
 
 - **Severity:** S2 / Keyboard and assistive-technology user is stranded

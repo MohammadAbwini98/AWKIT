@@ -1,6 +1,60 @@
 # CURRENT_STATE
 
-## Recorder accessibility — REC-013 and REC-029 closed, 3 defects (2026-07-27, current)
+## REC-024 closed — the Recorder surface is complete (2026-07-27, current)
+
+`verify:recorder-gui` **128 → 152 PASS / 0 FAIL / 0 NOT RUN**. Ledger **54 PASS / 11 NOT RUN /
+1 BLOCKED**. **Recorder is 28 PASS / 0 NOT RUN / 1 BLOCKED** — every Recorder case that can be
+automated is now executed; only REC-022 remains, and it needs an authorized human with an approved
+test identity.
+
+**`AWKIT-REC-007` — the Recorder never noticed its browser dying.** `RecorderService` registered a
+`close` listener for **popups** and nothing at all for the main page, the browser or the context, and
+`getStatus()` returns the raw `isRecording` flag with no liveness check. Kill the recorded browser
+out of band and the page — which polls that status — kept showing **Recording** with Start, the
+Target URL field and both capture switches disabled. The operator was stranded in a session whose
+browser no longer existed, with Cancel as the only way out.
+
+`attachLivenessWatch` now wires four signals, because none implies the others: `page.close`,
+`page.crash`, `browser.disconnected` and `context.close` (the persistent-context resume path, where
+`this.browser` is deliberately null). It fires only on an *unexpected* death — every supported
+teardown sets `isRecording = false` before closing anything — and ignores handles from an
+already-replaced session, so a resumed handoff cannot be killed by its predecessor's listeners.
+**Actions and the draft are preserved**, which is the whole difference between this path and
+`cancelRecording`.
+
+**`page.crash` is a separate signal and was nearly missed.** Measured: a renderer crash leaves
+`page.isClosed() === false` and fires **neither** `close` **nor** `disconnected`. A fix wired to the
+two obvious events would have left the recorder stuck behind a crashed tab — which is the case's own
+wording, "browser closes **or crashes**".
+
+**Three mechanisms had to be measured before the test could exist, and two were dead ends:**
+
+- **`window.close()` is refused from an `http://` origin** — the page simply stays open (`pages: 1`).
+  So is `window.open("","_self").close()`. A self-close is only honoured for script-opened windows, so
+  an out-of-band close of the MAIN page is not reachable from a fixture at all. The mock-site harness
+  written for it was removed rather than left in place looking functional.
+- **`taskkill /T` without `/F` does not end Chromium** — the browser process survived it.
+- What works: kill the tab's **renderer** (crash), `CloseMainWindow()` on the browser process (window
+  closed), and `taskkill /T /F` on the browser root (terminated).
+
+**The kill must be proven to have killed something.** Both dead ends first presented as "the recorder
+stayed in Recording" — indistinguishable from the real defect. Every trigger now asserts the targeted
+pids are actually gone before the product assertion runs, and reports `NOT RUN` otherwise. Without
+that control, two test failures would have been written up as product defects.
+
+**Process discovery is a baseline diff, not an absolute set.** Windows recycles pids, and a process
+whose real parent died keeps the stale `ParentProcessId` — several of the developer's own Chrome
+processes matched this Electron instance's pid that way and looked like permanent orphan leaks. Only
+pids that appear *for this recording* count. The walk covers the whole descendant tree because
+`app.process()` is the `electron.exe` launcher and the browser is a **grandchild**; a direct-children
+query found nothing at all, which only surfaced because the "process was located" precondition is
+asserted.
+
+**Verification:** recorder-gui 152/152, recorder-e2e 41/41, recorder-draft 50/50,
+protected-login-recorder 45/45, recorder locator 97/97, recorder-flow 19/19, recorder-authz 44/44,
+mock-site 90/90, `build` clean, `typecheck:scripts` clean.
+
+## Recorder accessibility — REC-013 and REC-029 closed, 3 defects (2026-07-27)
 
 `verify:recorder-gui` **103 → 128 PASS / 0 FAIL / 0 NOT RUN**. Ledger **51 → 53 PASS / 14 → 12 NOT
 RUN / 1 BLOCKED** (Recorder 27/1/1, Reports 9/7, Settings 17/4). Recorder now has **one** case left

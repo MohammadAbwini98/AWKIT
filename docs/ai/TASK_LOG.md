@@ -4,7 +4,51 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Recorder a11y: REC-013 + REC-029, 3 defects (Claude)
+## 2026-07-27 (latest) - REC-024: the Recorder surface is complete (Claude)
+
+**Task:** close REC-024, the last automatable Recorder case.
+
+**Delivered:** `verify:recorder-gui` **128 → 152 PASS / 0 FAIL / 0 NOT RUN**. Ledger **54 PASS /
+11 NOT RUN / 1 BLOCKED**; **Recorder 28 PASS / 0 NOT RUN / 1 BLOCKED** — only REC-022 remains and it
+needs an authorized human. The other 11 open cases are all Reports (7) and Settings (4).
+
+**Defect `AWKIT-REC-007`.** `RecorderService` registered a `close` listener for **popups** and nothing
+for the main page, the browser or the context, and `getStatus()` returns the raw `isRecording` flag
+with no liveness check. Killing the recorded browser out of band left the page — which polls that
+status — showing **Recording** forever, with Start, the Target URL field and both capture switches
+disabled. Fixed with `attachLivenessWatch`: `page.close` + `page.crash` + `browser.disconnected` +
+`context.close`, firing only on an unexpected death (supported teardowns set `isRecording = false`
+first) and ignoring handles from an already-replaced session. Actions and draft are preserved.
+
+**`page.crash` was nearly missed.** Measured: a renderer crash leaves `page.isClosed() === false` and
+fires neither `close` nor `disconnected`. The two obvious events would have left the recorder stuck
+behind a crashed tab — the case's own wording is "closes **or crashes**".
+
+**Two trigger mechanisms measured as dead ends, recorded so they are not retried:** `window.close()`
+is refused from an `http://` origin (as is `window.open("","_self").close()`), so an out-of-band close
+of the MAIN page is unreachable from a fixture — the harness written for it was removed rather than
+left looking functional; and `taskkill /T` without `/F` does not end Chromium. Working triggers: kill
+the renderer, `CloseMainWindow()`, and `taskkill /T /F`.
+
+**The controls are what made this trustworthy.** Both dead ends first presented as "the recorder
+stayed in Recording", indistinguishable from the real defect, so every trigger now asserts the
+targeted pids are actually gone before the product assertion runs and reports `NOT RUN` otherwise.
+Process discovery diffs against a baseline (Windows recycles pids; stale `ParentProcessId`s made the
+developer's own Chrome look like an orphan leak) and walks the whole descendant tree (the browser is a
+**grandchild** of `app.process()`, so a direct-children query found nothing).
+
+**Files:** `src/recorder/RecorderService.ts`, `scripts/verify-recorder-gui.mts`,
+`mock-site/public/recorder-lab.html`, `docs/testing/comprehensive-validation/*`, `docs/ai/*`.
+
+**Tests run:** recorder-gui 152/152, recorder-e2e 41/41, recorder-draft 50/50,
+protected-login-recorder 45/45, recorder 97/97, recorder-flow 19/19, recorder-authz 44/44,
+mock-site 90/90, `build` + `typecheck:scripts` clean.
+**Not run:** `package:portable` + `verify:packaged-walkthrough` — `src/` and `app/` changed, so the
+recorded 70/70 is non-citable until a repackage.
+
+---
+
+## 2026-07-27 - Recorder a11y: REC-013 + REC-029, 3 defects (Claude)
 
 **Task:** close REC-013's residual keyboard semantics and REC-029, the only wholly `NOT RUN` case.
 

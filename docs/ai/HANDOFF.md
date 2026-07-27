@@ -1,6 +1,50 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): Recorder a11y — REC-013 + REC-029 closed, ledger 53/12/1
+## ACTIVE (2026-07-27, latest): REC-024 closed — the Recorder surface is COMPLETE, ledger 54/11/1
+
+`verify:recorder-gui` **128 → 152 PASS / 0 FAIL / 0 NOT RUN**. Ledger **54 PASS / 11 NOT RUN /
+1 BLOCKED**. **Recorder: 28 PASS / 0 NOT RUN / 1 BLOCKED.** Every automatable Recorder case is
+executed; only REC-022 remains and it needs an authorized human. The remaining 11 are all Reports (7)
+and Settings (4).
+
+`AWKIT-REC-007`: the service wired **no** liveness signal for the main page, the browser or the
+context — only for popups — so a recorder whose browser died out of band stayed in `Recording`
+forever with Start and every capture control disabled. Fixed with `attachLivenessWatch`
+(`page.close` + `page.crash` + `browser.disconnected` + `context.close`), firing only on an
+*unexpected* death and **preserving** the actions and draft.
+
+### Read this before writing another out-of-band-death test
+
+**Three mechanisms were measured; two are dead ends. Do not retry them:**
+
+- **`window.close()` is REFUSED from an `http://` origin** (the page stays open), and so is
+  `window.open("","_self").close()`. An out-of-band close of the MAIN recorded page is not reachable
+  from a fixture. The mock-site harness written for it was removed rather than left looking functional.
+- **`taskkill /T` without `/F` does not end Chromium.**
+- Working triggers: kill the tab's **renderer** (→ `page.crash`), `CloseMainWindow()` on the browser
+  process (→ `disconnected`), `taskkill /T /F` on the browser root (→ `disconnected`).
+
+**`page.crash` is its own signal.** A renderer crash leaves `page.isClosed() === false` and fires
+neither `close` nor `disconnected`. Wiring only the two obvious events leaves the recorder stuck
+behind a crashed tab.
+
+**Assert that the kill killed something.** Both dead ends presented as "the recorder stayed in
+Recording" — identical to the real defect. Every trigger asserts the targeted pids are gone before the
+product assertion runs, and reports `NOT RUN` otherwise. Without that control two *test* failures
+would have been written up as product defects.
+
+**Process discovery must diff against a baseline.** Windows recycles pids and stale
+`ParentProcessId`s made the developer's own Chrome look like a permanent orphan leak. Also walk the
+whole descendant tree: `app.process()` is the `electron.exe` launcher, so the browser is a
+**grandchild** and a direct-children query finds nothing.
+
+### Still not run
+
+`package:portable` + `verify:packaged-walkthrough`. This work changed `app/renderer` and
+`src/recorder`, so the recorded 70/70 stays non-citable until a repackage; the freshness guard will
+refuse the stale tree.
+
+## PRIOR (2026-07-27): Recorder a11y — REC-013 + REC-029 closed, ledger 53/12/1
 
 `verify:recorder-gui` **103 → 128 PASS / 0 FAIL / 0 NOT RUN**. Combined ledger **53 PASS / 12 NOT RUN
 / 1 BLOCKED** (Recorder 27/1/1, Reports 9/7, Settings 17/4), counted from the case file. Three
