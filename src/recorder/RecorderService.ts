@@ -411,6 +411,52 @@ export class RecorderService {
     this.page = null;
   }
 
+  /**
+   * End the session when the recorded browser goes away WITHOUT the app asking it to — the user
+   * closed the tab or the window, or the process was killed.
+   *
+   * Without this, `isRecording` stays true forever. The Recorder page polls `getStatus()` on an
+   * interval, so it keeps reporting "Recording" and keeps Start, the Target URL field and both
+   * capture switches disabled — the operator is stranded in a session whose browser no longer
+   * exists, with Cancel as the only way out.
+   *
+   * All four signals are wired because none implies the others:
+   *
+   * - `page.close` — the recorded tab went away while the browser lives.
+   * - `page.crash` — the tab's RENDERER died. Measured: the Page object stays alive and
+   *   `page.isClosed()` is still false, so neither `close` nor `disconnected` fires. Without this the
+   *   recorder sits in Recording forever behind a crashed tab, which is the case's own wording
+   *   ("browser closes **or crashes**").
+   * - `browser.disconnected` — a normal launch died or its process was killed.
+   * - `context.close` — the persistent-context resume path, where `this.browser` is deliberately null.
+   *
+   * The recorded actions and the draft are PRESERVED. That is the whole difference between this path
+   * and `cancelRecording`: an unexpected death must not destroy what the user recorded.
+   */
+  private attachLivenessWatch(browser: Browser | null, context: BrowserContext | null, page: Page): void {
+    const onUnexpectedDeath = (): void => {
+      // Every SUPPORTED teardown (stop, cancel, handoff) sets isRecording=false *before* closing
+      // anything, so this guard is what makes the handler fire only on an unexpected death.
+      if (!this.isRecording) return;
+      // Ignore a handle belonging to a session we have already replaced — the resume path relaunches
+      // a second browser, and its predecessor's listeners outlive it.
+      const isCurrent = this.page === page || (browser !== null && this.browser === browser) || (context !== null && this.context === context);
+      if (!isCurrent) return;
+
+      this.isRecording = false;
+      this.lastActionPage = null;
+      this.popupPages.clear();
+      // Best-effort, and deliberately not awaited: this runs from an event handler.
+      void this.persistDraft().catch(() => undefined);
+      void this.closeBrowser().catch(() => undefined);
+    };
+
+    page.on("close", onUnexpectedDeath);
+    page.on("crash", onUnexpectedDeath);
+    browser?.on("disconnected", onUnexpectedDeath);
+    context?.on("close", onUnexpectedDeath);
+  }
+
   /** Tear down the browser and reset state so a failed start never leaves us "in progress". */
   private async cleanup(): Promise<void> {
     this.isRecording = false;
@@ -496,6 +542,8 @@ export class RecorderService {
     this.attachUrlCapture(this.page);
     // Watch the main page for protected login / MFA / OTP / CAPTCHA / approval surfaces.
     this.attachProtectedDetection(this.page, "main");
+    // End the session if the browser dies underneath it instead of staying stuck in Recording.
+    this.attachLivenessWatch(this.browser, this.context, this.page);
 
     // Wire popup handling + capture bindings + the init script onto the context.
     await this.wireContext(this.context);
@@ -914,6 +962,8 @@ export class RecorderService {
 
     this.attachUrlCapture(this.page);
     this.attachProtectedDetection(this.page, "main");
+    // Persistent-context resume: `this.browser` is null here, so `context.close` is the death signal.
+    this.attachLivenessWatch(null, context, this.page);
     await this.wireContext(context);
 
     this.lastActionPage = this.page;

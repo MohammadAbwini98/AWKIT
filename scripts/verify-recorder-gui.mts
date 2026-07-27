@@ -155,6 +155,113 @@ async function tabThrough(target: Page, n: number) {
   return seen;
 }
 
+/**
+ * Chromium processes belonging to the app under test.
+ *
+ * Scoped to DESCENDANTS of this Electron instance, so nothing else on the machine can match — in
+ * particular the developer's own Chrome, which descends from a different session process.
+ *
+ * It must be the whole descendant TREE, not the direct children: `app.process()` is the `electron.exe`
+ * Playwright launched, and that spawns the real main process, so the recorded browser is a grandchild.
+ * A direct-children query finds nothing at all. That was caught only because the "process was located"
+ * precondition is asserted — without it, every kill would have been a no-op and every assertion below
+ * it would have passed while testing nothing.
+ */
+async function recordedBrowserPids(
+  electronPid: number
+): Promise<{ pid: number; name: string; parent: number; renderer: boolean }[]> {
+  const script =
+    "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | ConvertTo-Json -Compress";
+  const out = await new Promise<string>((resolveOut) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      windowsHide: true
+    });
+    let buffer = "";
+    child.stdout?.on("data", (chunk) => (buffer += String(chunk)));
+    child.on("close", () => resolveOut(buffer));
+    child.on("error", () => resolveOut(""));
+  });
+  if (!out.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(out);
+  } catch {
+    return [];
+  }
+  const rows = (Array.isArray(parsed) ? parsed : [parsed]) as {
+    ProcessId?: number;
+    ParentProcessId?: number;
+    Name?: string;
+    CommandLine?: string | null;
+  }[];
+  type Proc = { pid: number; name: string; parent: number; renderer: boolean };
+  const childrenOf = new Map<number, Proc[]>();
+  for (const row of rows) {
+    if (typeof row.ProcessId !== "number" || typeof row.ParentProcessId !== "number") continue;
+    const bucket = childrenOf.get(row.ParentProcessId) ?? [];
+    bucket.push({
+      pid: row.ProcessId,
+      name: String(row.Name ?? ""),
+      parent: row.ParentProcessId,
+      // Chromium tags every child process with --type=; the browser process alone carries none.
+      renderer: /--type=renderer/i.test(String(row.CommandLine ?? ""))
+    });
+    childrenOf.set(row.ParentProcessId, bucket);
+  }
+  // Every Chromium descendant, renderers included — the leak check must see those too, since killing
+  // a browser root can briefly orphan its renderers.
+  const found: Proc[] = [];
+  const seen = new Set<number>([electronPid]);
+  const queue = [electronPid];
+  while (queue.length > 0) {
+    for (const child of childrenOf.get(queue.shift() as number) ?? []) {
+      if (seen.has(child.pid)) continue; // a recycled pid must not make this walk loop
+      seen.add(child.pid);
+      queue.push(child.pid);
+      if (/^(chrome|chromium|headless_shell)\.exe$/i.test(child.name)) found.push(child);
+    }
+  }
+  return found;
+}
+
+/** The browser roots among a Chromium descendant set — those whose parent is not itself Chromium. */
+function browserRoots(processes: { pid: number; parent: number }[]): number[] {
+  const pids = new Set(processes.map((p) => p.pid));
+  return processes.filter((p) => !pids.has(p.parent)).map((p) => p.pid);
+}
+
+/**
+ * Ask processes to close their main window — the programmatic equivalent of the user clicking the X,
+ * which is what "the browser is closed" actually means.
+ *
+ * `taskkill /T` without `/F` was tried first and measured NOT to end Chromium (the browser process
+ * survived), so it produced no condition to test at all.
+ */
+async function closeMainWindows(pids: number[]): Promise<void> {
+  if (pids.length === 0) return;
+  const script =
+    `foreach ($p in Get-Process -Id ${pids.join(",")} -ErrorAction SilentlyContinue) ` +
+    "{ if ($p.MainWindowHandle -ne 0) { [void]$p.CloseMainWindow() } }";
+  await new Promise<void>((resolveClose) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      windowsHide: true,
+      stdio: "ignore"
+    });
+    child.on("close", () => resolveClose());
+    child.on("error", () => resolveClose());
+  });
+}
+
+/** Kill a process tree. `force` is a hard terminate; without it Chromium is asked to close. */
+async function killTree(pid: number, force: boolean): Promise<void> {
+  await new Promise<void>((resolveKill) => {
+    const args = force ? ["/PID", String(pid), "/T", "/F"] : ["/PID", String(pid), "/T"];
+    const child = spawn("taskkill.exe", args, { windowsHide: true, stdio: "ignore" });
+    child.on("close", () => resolveKill());
+    child.on("error", () => resolveKill());
+  });
+}
+
 /** Horizontal overflow of the scrolling element — the thing 200% zoom and a narrow window break. */
 async function horizontalOverflow(target: Page) {
   return target.evaluate(() => {
@@ -472,11 +579,11 @@ try {
       String(globalSetting.recorder.ignoreProtectedLoginDetection)
     );
 
-    // ── REC-024 — the recorded browser dies underneath the session ────────────
-    console.log("\nREC-024 — Browser closes or crashes during recording");
+    // ── REC-024 (handoff teardown half) ───────────────────────────────────────
+    // The app's own supported teardown while a handoff was active. This is NOT the case's trigger —
+    // the three out-of-band deaths are driven further down, after the a11y block.
+    console.log("\nREC-024 — supported teardown while a handoff was active");
     const killed = await win.evaluate(async () => {
-      // Closing from the app's own side is the supported teardown; a hard process kill is covered
-      // by the orphan check below.
       try {
         await window.playwrightFlowStudio.recorder.cancel();
         return true;
@@ -1158,6 +1265,179 @@ try {
       (await win.locator(".recorder-page").isVisible())
   );
   await win.emulateMedia({ reducedMotion: null });
+
+  // ── REC-024 — the recorded browser dies OUT OF BAND ────────────────────────
+  // Three separate runs, one per trigger the case names. The `recorder.cancel()` teardown further up
+  // is the SUPPORTED path and proves nothing here: the service tears itself down in that path, so
+  // every assertion about "the UI leaves Recording" is satisfied by the code that asked it to. These
+  // three take the browser away WITHOUT telling the app.
+  console.log("\nREC-024 — Browser closes or crashes during recording");
+  const electronPid = app.process().pid;
+  if (typeof electronPid !== "number") {
+    notRun("REC-024 the recorded browser dies out of band", "the Electron main process id was unavailable");
+  } else {
+    // The case names three triggers; these are the three that can actually be PRODUCED here, and
+    // each maps to a distinct Playwright signal the service must handle. Two mechanisms were tried
+    // and measured to be unusable first, recorded so they are not attempted again:
+    //   - `window.close()` from the recorded page is REFUSED on an http:// origin (page stays open,
+    //     `pages: 1`). So is the `window.open("","_self").close()` variant. Chromium only honours a
+    //     self-close for script-opened windows, so an out-of-band MAIN-page close is not reachable
+    //     from a fixture. `page.close` is still wired in the service, and is exercised for popups.
+    //   - A renderer crash leaves `page.isClosed() === false` and fires NEITHER `close` NOR
+    //     `disconnected` — only `crash`. That is why killing a renderer is its own trigger.
+    type Trigger = {
+      label: string;
+      /** Kills something and returns the pids whose disappearance proves the trigger fired. */
+      kill: (live: { pid: number; parent: number; renderer: boolean }[]) => Promise<number[]>;
+    };
+    const triggers: Trigger[] = [
+      {
+        label: "the recorded page crashes",
+        kill: async (live) => {
+          const renderers = live.filter((p) => p.renderer).map((p) => p.pid);
+          for (const pid of renderers) await killTree(pid, true);
+          return renderers;
+        }
+      },
+      {
+        label: "the browser window is closed",
+        kill: async (live) => {
+          // Every Chromium process is offered the message; only the one owning the browser window
+          // has a handle, and closing Chromium's last window exits it.
+          await closeMainWindows(live.map((p) => p.pid));
+          return browserRoots(live);
+        }
+      },
+      {
+        label: "the browser process is terminated",
+        kill: async (live) => {
+          const roots = browserRoots(live);
+          for (const pid of roots) await killTree(pid, true);
+          return roots;
+        }
+      }
+    ];
+
+    for (const trigger of triggers) {
+      // Baseline BEFORE the launch, and everything below is measured as a difference from it.
+      // Windows recycles pids, and a process whose real parent died long ago keeps that stale
+      // ParentProcessId — several of the developer's own Chrome processes matched this Electron pid
+      // that way and looked like permanent orphans. Only pids that appear for THIS recording count.
+      const baseline = new Set((await recordedBrowserPids(electronPid)).map((p) => p.pid));
+      const newBrowsers = async () => (await recordedBrowserPids(electronPid)).filter((p) => !baseline.has(p.pid));
+
+      await startAndWaitRecording(win, labUrl);
+      // REC-024's precondition is an active recording WITH persisted actions. A session that died
+      // before capturing anything exercises the empty-session path instead and would pass for the
+      // wrong reason, so this is asserted rather than assumed.
+      const beforeDeath = await poll(
+        `${trigger.label}: actions before the browser dies`,
+        async () => {
+          const list = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+          return list.length > 0 ? list : null;
+        },
+        30_000,
+        200
+      ).catch(() => []);
+      check(
+        `REC-024 (${trigger.label}) the session had recorded actions before the death`,
+        beforeDeath.length > 0,
+        `${beforeDeath.length} actions`
+      );
+
+      const livePids = await newBrowsers();
+      // Without this, a kill that found nothing would leave the session healthy and every assertion
+      // below would pass while testing absolutely nothing.
+      check(
+        `REC-024 (${trigger.label}) the recorded browser processes were located`,
+        livePids.length > 0,
+        livePids.map((p) => `${p.pid}${p.renderer ? "(renderer)" : ""}`).join(", ") || "no Chromium descendant found"
+      );
+      const targeted = await trigger.kill(livePids);
+
+      // The trigger must actually have killed something. This is the check that separates a real
+      // product defect from a test that quietly did nothing: `window.close()` looked exactly like a
+      // stuck recorder until it was measured and turned out never to have closed the page at all.
+      const deathHappened = await poll(
+        `${trigger.label}: the targeted processes are gone`,
+        async () => {
+          const alive = new Set((await newBrowsers()).map((p) => p.pid));
+          return targeted.length > 0 && targeted.every((pid) => !alive.has(pid)) ? true : null;
+        },
+        20_000,
+        400
+      ).catch(() => false);
+
+      if (deathHappened !== true) {
+        notRun(
+          `REC-024 (${trigger.label}) the recorder leaves the Recording state on its own`,
+          `the trigger did not end the targeted processes (${targeted.join(", ") || "none targeted"}), so the condition under test was never produced`
+        );
+      } else {
+        check(`REC-024 (${trigger.label}) the trigger really ended the browser (control)`, true, `${targeted.length} process(es)`);
+        // THE assertion. A recorder whose browser is gone must not stay locked in Recording — the
+        // page disables Start, the Target URL field and both capture switches while `isRecording` is
+        // true, so a stuck flag strands the operator with no way forward but Cancel.
+        const leftRecording = await poll(
+          `${trigger.label}: recorder leaves the Recording state`,
+          async () => ((await recorderState(page)).isRecording === false ? true : null),
+          20_000,
+          250
+        ).catch(() => false);
+        check(
+          `REC-024 (${trigger.label}) the recorder leaves the Recording state on its own`,
+          leftRecording === true,
+          leftRecording ? "" : JSON.stringify(await recorderState(win))
+        );
+      }
+
+      // "Draft remains recoverable where safe" — the actions captured before the death survive.
+      const survived = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+      check(
+        `REC-024 (${trigger.label}) the actions recorded before the death are still retrievable`,
+        survived.length >= beforeDeath.length && survived.length > 0,
+        `${survived.length} retained of ${beforeDeath.length} captured`
+      );
+
+      // Stop/Cancel must not hang on dead browser handles.
+      const teardownStart = Date.now();
+      const tornDown = await Promise.race([
+        win
+          .evaluate(async () => {
+            try {
+              await window.playwrightFlowStudio.recorder.cancel();
+              return true;
+            } catch {
+              return true; // an actionable rejection is fine; a HANG is what this bounds
+            }
+          })
+          .catch(() => true),
+        new Promise<false>((r) => setTimeout(() => r(false), 15_000))
+      ]);
+      check(
+        `REC-024 (${trigger.label}) Cancel completes rather than hanging on a dead browser`,
+        tornDown === true,
+        `${Date.now() - teardownStart} ms`
+      );
+
+      await waitIdle(win);
+      await waitUiIdle(win);
+      check(`REC-024 (${trigger.label}) Start works again afterwards`, await startButton(win).isEnabled());
+
+      // No process leak: nothing Chromium-shaped may outlive the session.
+      const leaked = await poll(
+        `${trigger.label}: no orphan browser process`,
+        async () => ((await newBrowsers()).length === 0 ? true : null),
+        20_000,
+        500
+      ).catch(() => false);
+      check(
+        `REC-024 (${trigger.label}) no orphan browser process is left behind`,
+        leaked === true,
+        leaked ? "" : (await newBrowsers()).map((p) => `${p.name}:${p.pid}`).join(", ")
+      );
+    }
+  }
 
   // ── REC-024 — no orphan browser is left behind ─────────────────────────────
   await waitIdle(win);

@@ -310,6 +310,12 @@
         }, 2000);
       })();
 
+      // REC-024 deliberately has NO fixture here. A self-closing harness was written and measured:
+      // Chromium REFUSES `window.close()` from an http:// origin (the page stays open), and the
+      // `window.open("","_self").close()` variant is refused too — a self-close is only honoured for
+      // script-opened windows. REC-024's out-of-band deaths are produced from outside the page in
+      // verify-recorder-gui.mts by killing the renderer or the browser process instead.
+
     </script>
   </body>
 </html>
