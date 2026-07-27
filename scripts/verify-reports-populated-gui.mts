@@ -74,13 +74,21 @@ const noRole = {
 interface CheckResult {
   name: string;
   pass: boolean;
+  /** NOT RUN is its own state: neither a pass nor a defect, and never counted as either. */
+  notRun?: boolean;
   detail?: string;
 }
 
 const results: CheckResult[] = [];
-/** An unmet precondition is neither a pass nor a defect — record it as such. */
+/**
+ * An unmet precondition is neither a pass nor a defect — record it as such.
+ *
+ * This used to push `pass: true`, so every NOT RUN was tallied into the headline PASS count: the
+ * suite reported "158 PASS / 0 FAIL" while six of those had run nothing. A NOT RUN that reads as a
+ * PASS is the same failure mode as a check that cannot fail — see docs/ai/KNOWN_ISSUES.md.
+ */
 function notRunCheck(name: string, why: string): void {
-  results.push({ name, pass: true, detail: `NOT RUN: ${why}` });
+  results.push({ name, pass: false, notRun: true, detail: `NOT RUN: ${why}` });
   console.log(`  - ${name} — NOT RUN: ${why}`);
 }
 
@@ -1151,7 +1159,7 @@ try {
     "SYS-REP-007 live queued/running distribution matches engine state",
     `useLiveDistribution reads executions.list() from the live ExecutionEngine, not the seeded store; the page correctly reports ${
       liveStatusText.includes("No instances in the pool right now") ? '"No instances in the pool right now"' : "an unexpected live state"
-    }. Proving the transitions needs a harness that starts real instances`
+    }. PROVEN ELSEWHERE: npm run verify:reports-live-engine starts real instances and asserts the rendered distribution equals executions.list()`
   );
   await win.getByRole("button", { name: "Close", exact: true }).click();
 
@@ -1428,7 +1436,7 @@ try {
   // harness that saturates a real engine with real instances. Recorded, not silently skipped.
   notRunCheck(
     "SYS-REP-011 backpressure appears and clears",
-    "telemetry:server reads dispatchBlocked from the live ExecutionEngine, which this store-seeded fixture never populates; the admission/backpressure logic itself is covered by verify:capacity"
+    "telemetry:server reads dispatchBlocked from the live ExecutionEngine, which this store-seeded fixture never populates. PROVEN ELSEWHERE: npm run verify:reports-live-engine saturates a real engine until dispatch is refused, then releases it (that run is what found AWKIT-REP-008)"
   );
 
   await navClick(win, "Server Performance");
@@ -1838,7 +1846,8 @@ try {
 
 writeFileSync(join(evidenceRoot, "execution-results.json"), JSON.stringify({ generatedAt: new Date().toISOString(), results }, null, 2), "utf8");
 const passed = results.filter((result) => result.pass).length;
-const failed = results.length - passed;
-console.log(`\nPopulated Reports GUI: ${passed} PASS / ${failed} FAIL`);
+const notRunCount = results.filter((result) => result.notRun).length;
+const failed = results.length - passed - notRunCount;
+console.log(`\nPopulated Reports GUI: ${passed} PASS / ${failed} FAIL${notRunCount > 0 ? ` / ${notRunCount} NOT RUN` : ""}`);
 console.log(`Evidence: ${relative(root, evidenceRoot)}`);
 process.exit(failed === 0 ? 0 : 1);

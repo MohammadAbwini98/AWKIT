@@ -4,7 +4,49 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Completed the interrupted handoff; a seventh unfailable check (Claude)
+## 2026-07-27 (latest) - Live-engine harness: SYS-REP-007 + SYS-REP-011 closed (Claude)
+
+**Task:** build the live-engine harness for the two Reports cases that no seeding could reach.
+
+**Delivered:** `npm run verify:reports-live-engine` — **21 PASS / 0 FAIL**. Ledger **59 PASS / 6 NOT
+RUN / 1 BLOCKED**; Reports **14 PASS / 2 NOT RUN**, and both remaining Reports cases are the same
+owner-decision OS folder launch — **no agent-actionable engineering is left in Reports**.
+
+**How.** Starts real instances against the local mock site and drives the app into its supported
+**sequential** capacity mode through the real `settings.update` IPC; the product then refuses dispatch
+on its own (`active flow limit reached (1/1)`). An idle-engine negative control runs first, so neither
+assertion can be satisfied by a page that renders the same thing regardless of engine state.
+
+**Defect `AWKIT-REP-008`, found by the release half of SYS-REP-011.** `dispatchBlocked` was
+`lastBlockedReason !== undefined`, cleared only by a later successful `admit()` — which never comes
+once a run ends. 45 s after every instance ended, with zero active flows, the app still reported
+itself throttled, in `ReportsChrome`, `telemetry:server`, `StatusBar` and `InstanceMonitor`. Fixed by
+making a refusal decay (5 s; the loop re-asks every ~500 ms), chosen over clear-on-exit because that
+must be remembered by every exit path. Pre-fix control 19/2 → post-fix 21/0.
+
+**Two measured facts recorded so they are not re-derived:** env vars cannot set the concurrency caps
+(settings-derived `overrides` are spread after the env values — the first run set both and still saw
+`maxActiveFlows=4`), and a rendered-vs-engine comparison races by construction, so the suite polls for
+agreement and prints the last disagreement rather than relaxing the comparison.
+
+**Also fixed: a NOT RUN counted as a PASS.** `verify-reports-populated-gui`'s `notRunCheck` pushed
+`pass: true`, so "158 PASS / 0 FAIL" included entries that ran nothing. Measured after the fix:
+**155 PASS / 0 FAIL / 3 NOT RUN** — no check changed behaviour. (Three, not the six you get from
+counting call sites; the others sit in branches this fixture does not take.)
+
+**Files:** `scripts/verify-reports-live-engine.mts` (new), `package.json`,
+`src/runner/concurrency/BackpressureController.ts`, `scripts/verify-concurrency.mts`,
+`scripts/verify-reports-populated-gui.mts`, `docs/testing/comprehensive-validation/*`, `docs/ai/*`.
+
+**Tests run:** reports-live-engine 21/21, concurrency 81/81 (was 78), runner 89/89, capacity-modes
+10/10, runtime-status 15/15, telemetry 61/61, observability 65/65, durable-store 11/11, build +
+typecheck:scripts clean.
+**Not run:** `package:portable` + the packaged gates — this changed `src/`, so the 70/70 and 87/0 from
+earlier today are stale again and their freshness guards will refuse the current payload.
+
+---
+
+## 2026-07-27 - Completed the interrupted handoff; a seventh unfailable check (Claude)
 
 **Task:** finish the `/HANDOFF` the previous session was cut off during, and verify its claims at HEAD
 rather than copying them forward.

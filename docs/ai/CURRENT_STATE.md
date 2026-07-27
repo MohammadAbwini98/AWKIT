@@ -1,6 +1,69 @@
 # CURRENT_STATE
 
-## A seventh unfailable check, this one in a release gate (2026-07-27, current)
+## Live-engine harness — SYS-REP-007 + SYS-REP-011 closed, `AWKIT-REP-008` fixed (2026-07-27, current)
+
+`npm run verify:reports-live-engine` (new) is **21 PASS / 0 FAIL**. Ledger **59 PASS / 6 NOT RUN /
+1 BLOCKED**; Reports **14 PASS / 2 NOT RUN**. **No engineering work remains in Reports** — both open
+cases are the same owner-decision OS folder launch.
+
+### What the harness does that seeding cannot
+
+Both cases read state that exists only in the main process's live `ExecutionEngine`:
+`useLiveDistribution` polls `executions.list()`, and `telemetry:server` reads
+`getRuntimeStatus().capacity.dispatchBlocked`. The suite starts **real** instances against the local
+mock site, drives the app into its supported **sequential** capacity mode through the real
+`settings.update` IPC, and lets the product refuse dispatch on its own — reason
+**`active flow limit reached (1/1)`**. Nothing is injected or mocked.
+
+- **SYS-REP-007:** the **rendered** buckets equal `executions.list()` — `{"running":1,"pending":2}` on
+  both sides — with both a running and a queued bucket visible and the "3 instance(s) in the pool"
+  headline agreeing with the engine total.
+- **SYS-REP-011:** the notice appears on Chrome Consumption with `role="status"` and its reason,
+  `telemetry:server.backpressureBlocked` is `true`, all four gauges keep rendering while throttled,
+  and it **clears** on release.
+
+An idle-engine negative control runs first (pool empty, page says so, no notice), so none of the
+above can be satisfied by a page that renders the same thing regardless of engine state.
+
+### `AWKIT-REP-008` — an idle app reported itself throttled, forever
+
+The *release* half of SYS-REP-011 found it. `dispatchBlocked` was `lastBlockedReason !== undefined`,
+and that reason was cleared **only** by a later successful `admit()`. The dispatch loop stops calling
+`admit()` when its run ends, so a run that finished or was cancelled while blocked left the refusal in
+place permanently: 45 s after every instance ended, with **zero active flows**, the app still reported
+*"Dispatch is currently throttled by backpressure — active flow limit reached (1/1)"*. Not one page —
+`ReportsChrome`, `telemetry:server`, `StatusBar` and `InstanceMonitor` all read the same stale field.
+
+Fixed by making a refusal **decay**: `block()` timestamps itself, and the snapshot reports a block only
+while it is still current (5 s). The dispatch loop re-asks about every 500 ms, so a genuine block
+re-stamps itself continuously while one nobody renews lapses. A self-healing rule was chosen over
+"clear it on the way out" **deliberately** — the latter must be remembered by every present and future
+exit path, and this defect exists because one of them was not.
+
+Pre-fix control **19 PASS / 2 FAIL** → post-fix **21 PASS / 0 FAIL**. Guarded by three new
+injected-clock checks in `verify:concurrency` (78 → **81 PASS / 0 FAIL**).
+
+### A NOT RUN that was being counted as a PASS
+
+`verify-reports-populated-gui`'s `notRunCheck` pushed `pass: true`, so its headline **158 PASS / 0
+FAIL** silently included every entry that had run nothing. Measured after the fix:
+**155 PASS / 0 FAIL / 3 NOT RUN** — no check changed behaviour; the tally stopped lying. (Three of
+the six `notRunCheck` call sites execute on this fixture; the rest sit in branches it does not take.
+The count was *measured*, not derived from the number of call sites.) Same family as the
+unfailable-check pattern below.
+
+Two of those three are now proven elsewhere by the live-engine suite and say so in their own reason
+strings; the third — SYS-REP-006's drawer branch for a run deleted underneath a stale row — remains
+genuinely unreachable in one session.
+
+### Verification
+
+reports-live-engine 21/21, concurrency 81/81, runner 89/89, capacity-modes 10/10, runtime-status
+15/15, telemetry 61/61, observability 65/65, durable-store 11/11, `build` and `typecheck:scripts`
+clean. **This changed `src/`, so the packaged results below are stale again** — repackage before
+citing them.
+
+## A seventh unfailable check, this one in a release gate (2026-07-27)
 
 `scripts/verify-packaged-validation.mts` contained
 `check("Warnings/findings state present", statuses.some(…) || true)`. The trailing `|| true` defeats

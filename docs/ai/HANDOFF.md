@@ -1,6 +1,74 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): a SEVENTH unfailable check — this one in a release gate
+## ACTIVE (2026-07-27, latest): live-engine harness — SYS-REP-007 + SYS-REP-011 closed
+
+`npm run verify:reports-live-engine` (**new**, 21 PASS / 0 FAIL) closes the last two cases that
+needed engineering. Ledger **59 PASS / 6 NOT RUN / 1 BLOCKED**; Reports **14 PASS / 2 NOT RUN**, and
+**both remaining Reports cases are the same owner-decision OS folder launch** — an agent cannot
+approve a shell launch on the owner's behalf. Recorder is 28/0/1, Settings 17/4.
+
+### How it produces state no seeding can
+
+It starts REAL instances against the local mock site and drives the app into its supported
+**sequential** capacity mode through the real `settings.update` IPC. The product then refuses
+dispatch on its own: `active flow limit reached (1/1)`. Nothing is injected.
+
+### Read this before extending it — two measured facts
+
+- **Env vars will NOT set the caps.** `AWKIT_MAX_ACTIVE_FLOWS` / `AWKIT_MAX_BROWSERS` are read by
+  `loadConcurrencyLimits`, but `applyRuntimeConcurrencyFromSettings` pushes the settings-derived caps
+  in as programmatic `overrides`, spread **after** the env values. The first run of this suite set
+  both and observed `maxActiveFlows=4` regardless. Drive the **setting**, then read the cap back off
+  the live capacity snapshot — asserting the setting was persisted proves nothing about the engine.
+- **A rendered-vs-engine comparison races by construction.** The page polls every 2 s while the
+  engine keeps changing. The suite polls for *agreement* and prints the last disagreement verbatim if
+  it never settles. Do not relax the comparison to make it green.
+
+### `AWKIT-REP-008` — found by the half of the case that says "and clears"
+
+`dispatchBlocked` never cleared. `lastBlockedReason` was cleared **only** by a later successful
+`admit()`, and the dispatch loop stops calling `admit()` once its run ends — so a run that finished or
+was cancelled while blocked left the refusal in place permanently. 45 s after every instance ended,
+with **zero active flows**, the app still reported *"Dispatch is currently throttled by backpressure —
+active flow limit reached (1/1)"*, in `ReportsChrome`, `telemetry:server`, `StatusBar` and
+`InstanceMonitor` at once.
+
+Fixed by making a refusal **decay** (timestamped; current for 5 s, and the loop re-asks every ~500 ms).
+Chosen over "clear it on the way out" deliberately: that has to be remembered by every present and
+future exit path, and this defect exists because one of them was not.
+
+Pre-fix control **19/2** → post-fix **21/0**, plus three injected-clock regression checks in
+`verify:concurrency` (78 → **81/0**). **Do not delete those** — they are the only guard.
+
+### A NOT RUN that was counted as a PASS
+
+`verify-reports-populated-gui`'s `notRunCheck` pushed `pass: true`, so its headline **158 PASS / 0
+FAIL** included entries that had run nothing. Measured after the fix: **155 PASS / 0 FAIL / 3 NOT
+RUN**. No check changed behaviour — the tally stopped lying. Same family as the unfailable checks
+below.
+
+Note the count is 3, not the 6 you get by counting `notRunCheck` call sites: three of them sit in
+branches this fixture does not take. **Take the number from a run, not from a grep.**
+
+### Verification
+
+reports-live-engine 21/21 · concurrency 81/81 · runner 89/89 · capacity-modes 10/10 · runtime-status
+15/15 · telemetry 61/61 · observability 65/65 · durable-store 11/11 · `build` + `typecheck:scripts`
+clean.
+
+### The packaged gate is STALE again
+
+This changed `src/runner/concurrency/BackpressureController.ts`, so the 70/70 and 87/0 recorded below
+are **not citable** until `npm run package:portable` is re-run. Both suites' freshness guards will
+refuse the current payload rather than let a misleading pass through.
+
+### Recommended next step
+
+The campaign has no agent-actionable engineering left in Reports. What remains is Settings (4) plus
+the owner-decision manual launches, and REC-022 which needs an authorized human. If you touch `src/`
+or `app/` again, repackage before citing any packaged result.
+
+## PRIOR (2026-07-27): a SEVENTH unfailable check — this one in a release gate
 
 The previous session was cut off mid-handoff. This one completed it, and while doing so ran the grep
 that session recommended across a surface it had not covered: the **packaged** gates.

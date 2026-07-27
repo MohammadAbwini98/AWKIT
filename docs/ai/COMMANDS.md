@@ -81,6 +81,12 @@ npm run verify:reports-populated-gui # tsx scripts/verify-reports-populated-gui.
                             # populated Reports gate: real SQLite/report stores, all report pages,
                             # exact Overview/range truth, drill-down/paging/analytics, full redacted
                             # export and sender-bound RBAC/path safety; timestamped evidence. (64/64)
+npm run verify:reports-live-engine # tsx scripts/verify-reports-live-engine.mts — SYS-REP-007 + SYS-REP-011.
+                            # The only suite that produces LIVE ExecutionEngine state: starts real
+                            # instances against the mock site, switches the app to sequential capacity
+                            # via its own settings IPC, and asserts the rendered live distribution
+                            # equals executions.list() and that backpressure appears AND clears.
+                            # Spawns the mock site itself; needs `npm run build` first. (21/21)
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library

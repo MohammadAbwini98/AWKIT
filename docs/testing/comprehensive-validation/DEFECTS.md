@@ -6,6 +6,40 @@ None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REP-008 — backpressure never cleared; an idle app reported itself throttled forever
+
+- **Severity:** S3 / A live gauge reports a state the system is not in
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `src/runner/concurrency/BackpressureController.ts`
+- **Detected by:** `SYS-REP-011` — the *release* half of "backpressure appears **and clears**"
+- **Evidence before fix:** `test-artifacts/reports-live-engine/2026-07-27T12-10-*/execution-results.json`
+  (**19 PASS / 2 FAIL**) — `dispatchBlocked:true, blockedReason:"active flow limit reached (1/1)",
+  activeFlows:0` recorded 45 s after every instance had ended
+- **Evidence after fix:** `test-artifacts/reports-live-engine/2026-07-27T12-15-*/execution-results.json`
+  (**21 PASS / 0 FAIL**)
+
+`CapacitySnapshot.dispatchBlocked` was `lastBlockedReason !== undefined`, and `lastBlockedReason` was
+cleared **only** by a later *successful* `admit()`. The dispatch loop stops calling `admit()` once its
+run ends, so a run that finished or was cancelled while blocked left the last refusal in place
+permanently. With zero active flows the app went on reporting **"Dispatch is currently throttled by
+backpressure — active flow limit reached (1/1)"**.
+
+This is not one page: `ReportsChrome` renders the notice, `telemetry:server` returns
+`backpressureBlocked: true`, `StatusBar` shows a throttled indicator and `InstanceMonitor` shows the
+reason — all from the same stale field. An operator investigating why nothing was dispatching would
+have been sent after a limit that was no longer binding.
+
+Fixed by making the refusal **decay**: `block()` timestamps itself and the snapshot reports a block
+only while it is still current (5 s; the dispatch loop re-asks about every 500 ms, so a genuine block
+re-stamps itself continuously, while one nobody renews lapses). A self-healing rule was chosen over
+"clear it on the way out" deliberately — the latter has to be remembered by every present and future
+exit path, and this defect exists precisely because one of them did not.
+
+**Guarded, not just fixed:** `verify:concurrency` gained three checks driven by an injected clock —
+a fresh refusal reports blocked, it stays current while dispatch is still being attempted, and one
+nobody renewed decays. 78 → **81 PASS / 0 FAIL**.
+
 ### AWKIT-REP-006 — Failure Analytics had no evidence
 
 - **Severity:** S3 / The page cannot support the conclusions it presents

@@ -576,13 +576,16 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Steps:** Compare live distribution; page forward/back; open a row; change time range.
 - **Expected:** Live counts match engine state; no duplicate/missing history rows; buttons disable at
   boundaries; row detail is correct.
-- **Status:** `NOT RUN` for queued/running live-state transitions — the populated gate passed
-  38-row two-page history, exact `1–25`/`26–38` boundaries, no duplicate/missing IDs, disabled
-  boundary action, and correct row detail. **Same root cause as SYS-REP-011:** `useLiveDistribution`
-  polls `executions.list()` from the live `ExecutionEngine`, never the durable store, so seeded
-  history cannot produce a queued or running instance. Asserting "no instances in the pool" here
-  would prove only that the fixture seeds no live work, which is true by construction — it is
-  recorded as `NOT RUN`, not passed.
+- **Status:** `PASS` — history half by `npm run verify:reports-populated-gui` (38-row two-page
+  history, exact `1–25`/`26–38` boundaries, no duplicate/missing IDs, disabled boundary action,
+  correct row detail); live half by `npm run verify:reports-live-engine` (**21 PASS / 0 FAIL**).
+  `useLiveDistribution` polls `executions.list()` from the live `ExecutionEngine`, so the seeded
+  fixture could never produce a queued or running instance. The live suite starts **real** instances
+  against the mock site at the app's sequential capacity mode and asserts the **rendered** buckets
+  equal `executions.list()` — `{"running":1,"pending":2}` on both sides, both a running and a queued
+  bucket visible, and the "3 instance(s) in the pool" headline agreeing with the engine total.
+  A negative control on the idle engine (pool empty, page says so) runs first, so the comparison
+  cannot be satisfied by a page that renders the same thing regardless of engine state.
 
 ### SYS-REP-008 — Stored Execution Reports list, export and folder open
 
@@ -669,13 +672,17 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   wait through multiple polls; trigger/release backpressure.
 - **Expected:** Four gauges render with values or neutral unavailable state; page remains stable;
   backpressure reason appears and clears; no timer/listener leak is observed.
-- **Status:** `NOT RUN` for active-workflow/backpressure/cleanup subcases — four gauges and a second
-  polling cycle passed in both the fresh-profile and populated GUI gates. **Root cause of the gap,
-  recorded so it is not re-investigated:** `telemetry:server` reads `backpressureBlocked` from
-  `executionEngine.getRuntimeStatus().capacity.dispatchBlocked` — live in-memory engine state that a
-  store-seeded fixture cannot produce at all. Closing this needs a harness that saturates a real
-  engine with real instances, not more seeding. The admission/backpressure logic itself is green in
-  `verify:capacity`.
+- **Status:** `PASS` — `npm run verify:reports-live-engine` (**21 PASS / 0 FAIL**). Four gauges and a
+  second polling cycle were already green in the fresh-profile and populated gates; the
+  backpressure/cleanup subcases needed a real engine, because `telemetry:server` reads
+  `backpressureBlocked` from `getRuntimeStatus().capacity.dispatchBlocked` — live in-memory state no
+  seeding can produce. The live suite drives the app into its **sequential** capacity mode through
+  the real `settings.update` IPC, runs 3 instances, and the product refuses dispatch on its own:
+  reason **`active flow limit reached (1/1)`**, surfaced on Chrome Consumption with `role="status"`,
+  in `telemetry:server.backpressureBlocked`, and with all four gauges still rendering while throttled.
+  **The release half found `AWKIT-REP-008`:** backpressure never cleared — 45 s after every instance
+  ended and with zero active flows, the app still reported itself throttled. Fixed and guarded; the
+  suite went 19/2 → 21/0 across that fix.
 
 ### SYS-REP-012 — Server Performance and storage sizing
 
@@ -1080,19 +1087,23 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
 - **Recorder:** component contracts are strong, but release approval for the Recorder feature requires
   REC-001 through REC-004 and REC-013, REC-016, REC-018, REC-021, REC-023 through REC-025, REC-028 and
   REC-029 to execute. REC-018 is the decisive record→save→reopen→replay gate.
-- **System Reports:** **9 PASS / 7 NOT RUN**, with `verify:reports-populated-gui` at **136/136**.
+- **System Reports:** **14 PASS / 2 NOT RUN**, with `verify:reports-populated-gui` at
+  **155 PASS / 0 FAIL / 3 NOT RUN** and `verify:reports-live-engine` at **21 PASS / 0 FAIL**.
   Empty-state GUI, backend analytics, populated overview truth, the full sort/filter matrix, the
   comparison limit, multi-range capacity, recovered anomalies, storage sizing/denial/cache fault
-  injection, export/path security, authorization and the executed accessibility audit are green.
-  The seven remaining cases are each open for a *named* residual submatrix, not wholesale:
-  - **Blocked on a live engine, not on more seeding** — SYS-REP-007 (queued/running transitions) and
-    SYS-REP-011 (backpressure) both read live `ExecutionEngine` state that a store-seeded fixture
-    cannot produce. These belong to a run-driving harness.
-  - **Owner-decision manual** — SYS-REP-008's real Explorer launch.
-  - **Needs a contract change** — SYS-REP-006's explicit retention message.
-  - **Straightforward remaining work** — SYS-REP-009 low-sample flakiness and evidence navigation,
-    SYS-REP-010's neutral-vs-zero matrix, SYS-REP-012's 20,000-entry directory bound, and
-    SYS-REP-006's artifact launch.
+  injection, export/path security, authorization, the accessibility audit, and now the **live**
+  queued/running distribution and backpressure lifecycle are green.
+  - **No engineering remains in Reports.** Both open cases are the same owner-decision manual step —
+    SYS-REP-008's real Explorer launch and SYS-REP-006's artifact launch — the class SET-015 also
+    belongs to. An agent cannot approve an OS shell launch on the owner's behalf.
+  - SYS-REP-006's drawer branch stays defensive and unreachable in one session (retention sweeps only
+    at engine startup, and every drawer entry point re-reads the same store); its telemetry contract
+    half is `PASS`, and the "needs a contract change" note recorded against it was **wrong** — see
+    `CURRENT_STATE.md`.
+  - `verify:reports-populated-gui`'s `NOT RUN` entries used to be tallied into its PASS count. They
+    are counted separately now, which is why its headline moved from 158 to **155/0/3** without any
+    check changing behaviour. Two of the three are proven by `verify:reports-live-engine` and say so
+    in their own reason strings.
 - **Settings:** **17 PASS / 4 NOT RUN**, with `verify:settings-e2e` at **151/151** and
   `verify:recorder-gui` at **103/103** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
