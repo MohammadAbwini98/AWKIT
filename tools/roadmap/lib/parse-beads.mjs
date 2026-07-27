@@ -20,7 +20,20 @@ import { readSource } from "./read-cache.mjs";
 export const KNOWN_EDGE_TYPES = new Set(["blocks", "parent-child", "discovered-from"]);
 
 /** Statuses observed in the export. */
-export const KNOWN_STATUSES = new Set(["open", "closed"]);
+/**
+ * bd's seven built-in statuses (`bd statuses`), not just the two this repository happens to use
+ * today. Accepting only open/closed was a latent trap: `bd update <id> --claim` sets `in_progress`,
+ * so the documented way to claim work would have made this parser warn and the verifier fail.
+ */
+export const KNOWN_STATUSES = new Set([
+  "open",
+  "in_progress",
+  "blocked",
+  "deferred",
+  "closed",
+  "pinned",
+  "hooked"
+]);
 
 /**
  * @typedef {Object} BeadEdge
@@ -137,10 +150,18 @@ export function parseBeads() {
     warnings.push(`beads ${e.from}: depends on "${e.to}", which is not in the export`);
   }
 
+  /** @type {Record<string, number>} */
+  const byStatus = {};
+  for (const b of beads) byStatus[b.status] = (byStatus[b.status] ?? 0) + 1;
+
   const stats = {
     total: beads.length,
     open: beads.filter((b) => b.status === "open").length,
     closed: beads.filter((b) => b.status === "closed").length,
+    // Everything not closed. Reporting `open` alone under-counts the moment any other status is
+    // used — a blocked or in-progress issue is still outstanding work.
+    outstanding: beads.filter((b) => b.status !== "closed").length,
+    byStatus,
     edges: edges.length,
     blocksEdges: edges.filter((e) => e.type === "blocks").length,
     parentChildEdges: edges.filter((e) => e.type === "parent-child").length,

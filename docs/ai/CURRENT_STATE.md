@@ -30,6 +30,26 @@ old behaviour rather than merely to pass against the new.
 `tools/roadmap/lib/*` is already in the Node module cache — `POST /api/refresh` will not pick up a
 code edit. Restart the server after changing the tool; changing a *source file* needs no restart.
 
+**`awkit-7bu` is now `blocked` in `bd`, and the dashboard understands bd's full status taxonomy**;
+`verify:roadmap-dashboard` is **119 PASS / 0 FAIL**. The bead's title had said `BLOCKED` since
+2026-07-26 while its status stayed `open`, so every ready-work view offered it as startable. It is
+not: it needs an authorized operator for SYSDBA provisioning *and* an out-of-band ephemeral
+credential, and `scripts/verify-oracle-mock-ui-workflow.mts` still has no real-mode code path at
+all. Neither is expressible as a dependency edge, which is why the status field is the right home.
+
+Fixing that exposed a **latent trap in the dashboard**: it accepted only `open`/`closed` of bd's
+seven statuses and mapped everything not-closed to `open`. `bd update <id> --claim` sets
+`in_progress` — so the documented way to claim work would have warned on parse, failed the gate, and
+still shown the claimed issue as unstarted. Now: `in_progress`/`hooked` → `active` (queued),
+`blocked` → `blocked` (queued, never ready), `deferred` → excluded, `pinned` → `open`. A **deferred
+prerequisite now blocks its dependent** rather than counting as satisfied — the old "not in the
+queue means done" shortcut failed open in exactly the case where it mattered most. Kahn cannot drain
+a declared-blocked item or its dependents, so Tarjan separates the residue: a strongly-connected
+component is a real cycle, everything else is held from outside the graph and renders in its own
+**"Blocked — not startable"** section with no layer, rather than being mislabelled a cycle. Stats
+gained `outstanding` and `byStatus`, because reporting `open` alone under-counts the moment any
+other status is used.
+
 ## Verifier classification reconciled (2026-07-27, earlier the same day)
 
 `npm run verify:verifier-classification` is **GREEN — all 144 `verify:`/`validate:` scripts are

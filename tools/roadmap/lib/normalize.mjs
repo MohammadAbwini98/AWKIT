@@ -60,6 +60,34 @@ const AREA_KEYWORDS = [
 const TYPE_RANK = { bug: 0, task: 1, feature: 2, chore: 3, epic: 4 };
 
 /**
+ * bd's seven statuses -> the dashboard's vocabulary. Collapsing everything that is not `closed`
+ * into `open` — what this used to do — silently put declared-blocked and deliberately-deferred work
+ * into "Ready now", which is the opposite of what those statuses mean.
+ *
+ * `blocked` is kept distinct from `open` because it is a DECLARED fact from the tracker, not an
+ * inference from the dependency graph: an issue can be unstartable for a reason nobody can express
+ * as an edge (an authorized operator, a credential, a third party).
+ */
+const BEAD_STATUS = {
+  open: "open",
+  pinned: "open", // persistent, but available to work
+  in_progress: "active",
+  hooked: "active", // attached to an agent's hook
+  blocked: "blocked",
+  deferred: "deferred",
+  closed: "done"
+};
+
+/**
+ * @param {string} status
+ * @returns {string} normalised status; an unrecognised value stays `open` so unknown work is never
+ *   hidden from the queue — the parser warns about it separately.
+ */
+export function normalizeBeadStatus(status) {
+  return BEAD_STATUS[status] ?? "open";
+}
+
+/**
  * @typedef {Object} Provenance
  * @property {string|null} value
  * @property {"declared"|"derived"} confidence
@@ -201,7 +229,7 @@ export function normalizeBeads(beads) {
       nativeId: b.id,
       kind: "issue",
       title: b.title,
-      status: b.status === "closed" ? "done" : "open",
+      status: normalizeBeadStatus(b.status),
       rawStatus: b.status,
       priority: b.priority,
       rawPriority: b.priority === null ? null : `P${b.priority}`,

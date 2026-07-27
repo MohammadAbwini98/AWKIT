@@ -43,8 +43,16 @@ export function computeOrder(items) {
 
   // Epics are containers, not work. awkit-wza is the Randomized Test Lab epic; ranking it beside
   // its own children would double-count and put a non-actionable row in the queue.
-  const queue = items.filter((i) => i.status === "open" && i.kind === "issue" && i.type !== "epic");
+  // `deferred` is deliberately on ice and is not outstanding work, so it is excluded outright.
+  // `blocked` IS outstanding — it belongs in the queue, just never in "Ready now".
+  const QUEUED_STATUSES = new Set(["open", "active", "blocked"]);
+  const queue = items.filter(
+    (i) => QUEUED_STATUSES.has(i.status) && i.kind === "issue" && i.type !== "epic"
+  );
   const queueIds = new Set(queue.map((i) => i.id));
+
+  /** Declared unstartable by the tracker, for a reason no edge can express. */
+  const declaredBlocked = new Set(queue.filter((i) => i.status === "blocked").map((i) => i.id));
 
   /** @type {Map<string, {open: string[], done: string[]}>} */
   const blockers = new Map();
@@ -62,8 +70,11 @@ export function computeOrder(items) {
         continue;
       }
       if (target.status === "done") done.push(dep);
-      else if (queueIds.has(dep)) open.push(dep);
-      else done.push(dep); // closed, or excluded from the queue (an epic): not a wait state
+      else if (target.type === "epic") done.push(dep); // a container is not a wait state
+      // Everything else outstanding is a wait state, including a DEFERRED prerequisite. Treating
+      // "not in the queue" as satisfied would have marked an item ready because its blocker had
+      // been put on ice — the one case where fail-open is most tempting and most wrong.
+      else open.push(dep);
     }
     blockers.set(item.id, { open, done });
   }
@@ -87,6 +98,9 @@ export function computeOrder(items) {
   for (;;) {
     const ready = queue
       .filter((i) => !settled.has(i.id))
+      // A declared-blocked item never becomes ready, and so never settles — which also holds back
+      // anything depending on it, correctly and without a special case downstream.
+      .filter((i) => !declaredBlocked.has(i.id))
       .filter((i) => (blockers.get(i.id)?.open ?? []).every((d) => settled.has(d)));
 
     if (ready.length === 0) break;
@@ -97,10 +111,16 @@ export function computeOrder(items) {
     layerIndex += 1;
   }
 
-  // Whatever Kahn could not drain is in a cycle. Zero instances today; the branch exists because
-  // a guard that cannot fire is decoration, and the verifier proves it against a synthetic cycle.
+  // Whatever Kahn could not drain is either in a cycle or waiting on something that will never
+  // settle. Tarjan separates the two: a strongly-connected component is a genuine cycle, and
+  // everything else in the residue is held up from outside the graph — a declared-blocked issue,
+  // a deferred prerequisite, or a dependency on a record we cannot see.
   const residue = queue.filter((i) => !settled.has(i.id)).map((i) => i.id);
   const cycles = findCycles(residue, blockers);
+  const inCycle = new Set(cycles.flatMap((c) => c.ids));
+  const externallyBlocked = residue
+    .filter((id) => !inCycle.has(id))
+    .sort(comparator(byId, unblocks));
 
   /** @type {OrderedItem[]} */
   const ordered = [];
@@ -119,6 +139,21 @@ export function computeOrder(items) {
       });
     }
   }
+  // Ranked after every schedulable layer: this work is real and outstanding, but nothing in the
+  // graph will release it, so it cannot be given a position in the schedule.
+  for (const id of externallyBlocked) {
+    const b = blockers.get(id) ?? { open: [], done: [] };
+    ordered.push({
+      id,
+      rank: rank++,
+      layer: null,
+      state: "blocked",
+      declaredBlocked: declaredBlocked.has(id),
+      openBlockers: b.open,
+      doneBlockers: b.done,
+      unblocks: unblocks.get(id) ?? 0
+    });
+  }
   for (const cycle of cycles) {
     for (const id of cycle.ids) {
       const b = blockers.get(id) ?? { open: [], done: [] };
@@ -127,6 +162,7 @@ export function computeOrder(items) {
         rank: null,
         layer: -1,
         state: "cycle",
+        declaredBlocked: declaredBlocked.has(id),
         openBlockers: b.open,
         doneBlockers: b.done,
         unblocks: unblocks.get(id) ?? 0
@@ -146,12 +182,17 @@ export function computeOrder(items) {
     ordered,
     layers,
     cycles,
+    externallyBlocked,
     caveat,
     stats: {
       queued: queue.length,
       ranked: ordered.filter((o) => o.rank !== null).length,
       ready: ordered.filter((o) => o.state === "ready").length,
       blocked: ordered.filter((o) => o.state === "blocked").length,
+      declaredBlocked: declaredBlocked.size,
+      externallyBlocked: externallyBlocked.length,
+      deferred: items.filter((i) => i.kind === "issue" && i.status === "deferred").length,
+      active: queue.filter((i) => i.status === "active").length,
       inCycle: ordered.filter((o) => o.state === "cycle").length,
       layers: layers.length,
       cycles: cycles.length

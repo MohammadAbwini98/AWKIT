@@ -169,7 +169,15 @@ function renderOverview(ctx) {
         el("span", { text: `${snap.stats.items} records across ${snap.sources.length} sources` })
       ]),
       el("div", { class: "roadmap-summary-grid" }, [
-        statCard("list-checks", "Open issues", snap.stats.beads.open, "Beads status=open"),
+        statCard(
+          "list-checks",
+          "Outstanding",
+          snap.stats.beads.outstanding,
+          `not closed — ${Object.keys(snap.stats.beads.byStatus)
+            .filter((status) => status !== "closed")
+            .map((status) => `${snap.stats.beads.byStatus[status]} ${status}`)
+            .join(", ")}`
+        ),
         statCard("circle-check", "Ready now", order.ready, "Zero open blockers"),
         statCard("clock", "Blocked", order.blocked, "At least one open blocker"),
         statCard("bug", "Open defects", snap.stats.defects.open, "DEFECTS.md 'Open product defects'"),
@@ -373,6 +381,15 @@ function queueRow(entry, item, ctx) {
             text: `blocked by ${entry.openBlockers.map((b) => ctx.byId.get(b)?.nativeId ?? b).join(", ")}`
           })
         : null,
+      // A declared block has no edge to name, so say where it comes from instead of leaving the
+      // row looking startable.
+      entry.declaredBlocked
+        ? el("span", {
+            class: "rm-blockers",
+            text: "declared blocked in bd",
+            title: `status "${item.rawStatus}" — blocked for a reason no dependency edge expresses`
+          })
+        : null,
       activityNote(item)
     ])
   ]);
@@ -393,6 +410,12 @@ function renderQueue(ctx) {
       entries: layer.ids.map((id) => visible.find((v) => v.id === id)).filter(Boolean)
     }))
     .filter((group) => group.entries.length > 0);
+
+  // Ranked, but outside every layer — the graph cannot release them, so they get their own section
+  // rather than being shown "after" a layer they are not actually waiting on.
+  const blockedOutside = (snap.order.externallyBlocked ?? [])
+    .map((id) => visible.find((v) => v.id === id))
+    .filter(Boolean);
 
   return frag([
     el("section", { class: "work-panel" }, [
@@ -444,6 +467,26 @@ function renderQueue(ctx) {
             )
           ),
 
+      blockedOutside.length > 0
+        ? el("div", {}, [
+            subheading(
+              `Blocked — not startable (${blockedOutside.length})`,
+              "held up from outside the dependency graph"
+            ),
+            el("p", { class: "rm-panel-note" }, [
+              `These are outstanding, but nothing in the graph will release them — each is either
+               declared blocked in the tracker, waiting on deferred work, or waiting on a record the
+               dashboard cannot see. They carry no scheduling position, because there is nothing to
+               schedule them after.`
+            ]),
+            el(
+              "div",
+              { class: "rm-queue" },
+              blockedOutside.map((entry) => queueRow(entry, byId.get(entry.id), ctx))
+            )
+          ])
+        : null,
+
       snap.order.cycles.length > 0
         ? el("div", {}, [
             subheading("Circular dependencies", "must be broken manually — these have no rank"),
@@ -493,7 +536,14 @@ function renderIssues(ctx) {
 function issuesTab(ctx) {
   const { snap, byId, filter } = ctx;
   const all = ctx.items.filter((i) => i.kind === "issue");
-  const wanted = local.issuesStatus === "all" ? all : all.filter((i) => i.status === local.issuesStatus);
+  // "Outstanding" means everything not closed, not literally status === "open" — otherwise a
+  // blocked or in-progress issue disappears from a list whose own label counts it.
+  const wanted =
+    local.issuesStatus === "all"
+      ? all
+      : local.issuesStatus === "done"
+        ? all.filter((i) => i.status === "done")
+        : all.filter((i) => i.status !== "done");
   const visible = wanted.filter((i) => matchesFilter(i, filter));
 
   return el("section", { class: "work-panel" }, [
@@ -508,7 +558,7 @@ function issuesTab(ctx) {
     ]),
     toggleRow(
       [
-        ["open", `Open (${snap.stats.beads.open})`],
+        ["open", `Outstanding (${snap.stats.beads.outstanding})`],
         ["done", `Closed (${snap.stats.beads.closed})`],
         ["all", `All (${snap.stats.beads.total})`]
       ],
@@ -949,7 +999,7 @@ export const VIEWS = [
     icon: "layout-dashboard",
     title: "Overview",
     subtitle: (s) =>
-      `${s.stats.beads.open} open issues · ${s.order.stats.ready} ready now · ${s.ledger.tally.pass}/${s.ledger.tally.total} cases passing`,
+      `${s.stats.beads.outstanding} outstanding · ${s.order.stats.ready} ready now · ${s.ledger.tally.pass}/${s.ledger.tally.total} cases passing`,
     count: () => null,
     render: renderOverview
   },
@@ -986,8 +1036,8 @@ export const VIEWS = [
     label: "Issues & Defects",
     icon: "bug",
     title: "Issues & Defects",
-    subtitle: (s) => `${s.stats.beads.open} open issues · ${s.stats.defects.open} open defects`,
-    count: (s) => s.stats.beads.open,
+    subtitle: (s) => `${s.stats.beads.outstanding} outstanding · ${s.stats.defects.open} open defects`,
+    count: (s) => s.stats.beads.outstanding,
     render: renderIssues
   },
   {

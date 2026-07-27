@@ -24,7 +24,7 @@ import { join } from "node:path";
 
 import { readAssignments } from "../tools/roadmap/lib/agents.mjs";
 import { buildSnapshot } from "../tools/roadmap/lib/model.mjs";
-import { deriveAreaWeighted } from "../tools/roadmap/lib/normalize.mjs";
+import { deriveAreaWeighted, normalizeBeadStatus } from "../tools/roadmap/lib/normalize.mjs";
 import { computeOrder } from "../tools/roadmap/lib/order.mjs";
 import { KNOWN_EDGE_TYPES, KNOWN_STATUSES, parseBeads } from "../tools/roadmap/lib/parse-beads.mjs";
 import { LEDGER_STATUSES, parseLedger } from "../tools/roadmap/lib/parse-ledger.mjs";
@@ -71,7 +71,21 @@ try {
   console.log("Beads issue tracker:");
   const beads = parseBeads();
   check("111 issues parse", beads.stats.total === 111, `got ${beads.stats.total}`);
-  check("30 open / 81 closed", beads.stats.open === 30 && beads.stats.closed === 81);
+  check(
+    "30 outstanding / 81 closed",
+    beads.stats.outstanding === 30 && beads.stats.closed === 81,
+    `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
+  );
+  check(
+    "every status in the export is one bd actually defines",
+    Object.keys(beads.stats.byStatus).every((s) => KNOWN_STATUSES.has(s)),
+    JSON.stringify(beads.stats.byStatus)
+  );
+  check(
+    "the full bd status taxonomy is accepted, not just open/closed",
+    KNOWN_STATUSES.size === 7 && KNOWN_STATUSES.has("in_progress") && KNOWN_STATUSES.has("blocked"),
+    "`bd update --claim` sets in_progress; rejecting it would fail this gate the first time anyone claimed work"
+  );
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
@@ -185,8 +199,23 @@ try {
     order.ordered.filter((o) => o.state === "ready").every((o) => o.openBlockers.length === 0)
   );
   check(
-    "every blocked item has at least one open blocker",
-    order.ordered.filter((o) => o.state === "blocked").every((o) => o.openBlockers.length > 0)
+    "every blocked item is blocked for a stated reason",
+    order.ordered
+      .filter((o) => o.state === "blocked")
+      .every((o) => o.openBlockers.length > 0 || o.declaredBlocked === true),
+    "either an edge names the blocker, or the tracker declared the status — never neither"
+  );
+  check(
+    "a declared-blocked issue is never offered as ready",
+    order.ordered.filter((o) => o.declaredBlocked).every((o) => o.state === "blocked"),
+    "awkit-7bu said BLOCKED in its title for a day while the queue ranked it startable"
+  );
+  check(
+    "the declared-blocked issue is present and out of the layers",
+    order.stats.declaredBlocked === 1 &&
+      order.externallyBlocked.length === 1 &&
+      order.ordered.find((o) => o.id === order.externallyBlocked[0])?.layer === null,
+    `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );
   check(
     "an open blocker is itself queued",
@@ -218,6 +247,47 @@ try {
   check(
     "an item outside the cycle is still ranked",
     cycleOrder.ordered.find((o) => o.id === "bead:free")?.rank === 1
+  );
+
+  // Statuses with no instance in the repository today. Each collapsed into plain "open" before this
+  // was fixed, so a claimed or deferred issue was offered as ready work.
+  check(
+    "in_progress normalises to active and stays in the queue",
+    normalizeBeadStatus("in_progress") === "active" &&
+      computeOrder([{ ...makeIssue("bead:claimed", []), status: "active" }]).stats.queued === 1,
+    "`bd update --claim` sets in_progress; claimed work must remain visible, not vanish"
+  );
+  check(
+    "deferred is excluded from the queue entirely",
+    normalizeBeadStatus("deferred") === "deferred" &&
+      computeOrder([{ ...makeIssue("bead:iced", []), status: "deferred" }]).stats.queued === 0
+  );
+  check(
+    "a DEFERRED prerequisite blocks its dependent (fail closed)",
+    (() => {
+      const o = computeOrder([
+        { ...makeIssue("bead:iced", []), status: "deferred" },
+        makeIssue("bead:waiting", ["bead:iced"])
+      ]);
+      const waiting = o.ordered.find((x) => x.id === "bead:waiting");
+      return waiting?.state === "blocked" && waiting.openBlockers.includes("bead:iced");
+    })(),
+    "treating 'not in the queue' as satisfied would mark an item ready because its blocker was put on ice"
+  );
+  check(
+    "a dependent of a declared-blocked issue is blocked too, and not called a cycle",
+    (() => {
+      const o = computeOrder([
+        { ...makeIssue("bead:stuck", []), status: "blocked" },
+        makeIssue("bead:downstream", ["bead:stuck"])
+      ]);
+      return (
+        o.cycles.length === 0 &&
+        o.externallyBlocked.length === 2 &&
+        o.ordered.every((x) => x.state === "blocked")
+      );
+    })(),
+    "Kahn cannot drain either one; Tarjan must separate 'held from outside' from 'circular'"
   );
 
   /* ======================================================================

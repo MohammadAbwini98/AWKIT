@@ -4,7 +4,49 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Area derivation reweighted: title beats body, position beats list order (Claude)
+## 2026-07-27 (latest) - awkit-7bu set to blocked; dashboard taught bd's full status taxonomy (Claude)
+
+**Task:** fix `awkit-7bu`'s status. Its title had said `BLOCKED` since 2026-07-26 while its bd
+status stayed `open`, so `bd ready` and the dashboard both offered it as startable work.
+
+**Why the status field, not an edge.** It is blocked by two things, neither expressible as a bd
+dependency: an authorized operator for SYSDBA provisioning plus an out-of-band ephemeral credential,
+and the fact that `scripts/verify-oracle-mock-ui-workflow.mts` has no real-mode code path at all
+(recorded in its own notes on 2026-07-26). `bd update awkit-7bu --status blocked` + a note.
+
+**The status change exposed a latent trap in my own tool.** The dashboard accepted only
+`open`/`closed` of bd's **seven** statuses and mapped everything not-closed to `open`. Since
+`bd update <id> --claim` sets `in_progress`, the documented way to claim work would have made the
+parser warn, failed `verify:roadmap-dashboard`, and *still* shown the claimed issue as unstarted.
+Fixed across three modules:
+
+- `parse-beads.mjs` — `KNOWN_STATUSES` is now all seven; stats gained `outstanding` and `byStatus`,
+  because reporting `open` alone under-counts as soon as any other status is used.
+- `normalize.mjs` — `normalizeBeadStatus`: `in_progress`/`hooked` → `active`, `blocked` → `blocked`,
+  `deferred` → `deferred`, `pinned` → `open`, `closed` → `done`.
+- `order.mjs` — queue = `{open, active, blocked}`; `deferred` excluded. A **deferred prerequisite now
+  blocks its dependent**: the old "not in the queue means satisfied" shortcut failed OPEN in exactly
+  the case that mattered. Kahn cannot drain a declared-blocked item or anything depending on it, so
+  Tarjan splits the residue — an SCC is a real cycle, the rest is held from outside the graph and
+  gets its own **"Blocked — not startable"** section with `layer: null` instead of being mislabelled.
+
+**The verifier caught my own semantic change**, which is the point of it: "every blocked item has at
+least one open blocker" went red, because a declared block has no edge to name. Corrected to "blocked
+for a stated reason" — an edge *or* a declared status, never neither.
+
+**Guarded: 111 -> 119 PASS / 0 FAIL.** Four new checks drive statuses with no instance in the repo
+today (`in_progress` stays queued, `deferred` is excluded, a deferred prerequisite blocks, a
+dependent of a declared-blocked issue is blocked and not called a cycle) using synthetic items, so
+the branches are executed rather than merely present.
+
+**Result:** ready 25 -> 24; `awkit-7bu` ranks 29 in "Blocked — not startable (1)", labelled
+"declared blocked in bd". Rank stays a gapless 1..29.
+
+**Files:** `.beads/issues.jsonl`, `tools/roadmap/lib/{parse-beads,normalize,order}.mjs`,
+`tools/roadmap/public/views.js`, `scripts/verify-roadmap-dashboard.mjs`,
+`docs/ai/{CURRENT_STATE,TASK_LOG}.md`.
+
+## 2026-07-27 (earlier) - Area derivation reweighted: title beats body, position beats list order (Claude)
 
 **Task:** fix the dashboard's area chips, which were visibly wrong on ~8 of 29 queued issues.
 
