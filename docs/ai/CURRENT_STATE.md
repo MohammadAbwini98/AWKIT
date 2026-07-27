@@ -13,6 +13,23 @@ plus an Overview banner reading "Sources agree".
 Validation state is unchanged by this task: the ledger still measures **61 PASS / 4 NOT RUN /
 1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2).
 
+**Area derivation was reweighted** (`tools/roadmap/lib/normalize.mjs`); `verify:roadmap-dashboard` is
+now **111 PASS / 0 FAIL**. It concatenated title + description into one haystack and returned the
+first keyword *in the keyword table's own order*, so a passing mention in a long body outranked the
+subject of the title — all five Test Lab issues were scattered across Reports, Licensing and
+Security, a Settings issue read as Recorder, and the Reports issue read as Security. Now
+`deriveAreaWeighted` lets the title decide whenever it matches at all and consults the body only when
+the title is silent (saying so in its basis); within a scope the **earliest occurrence** wins, with
+list order as a tiebreak only — needed on its own, since `secret` precedes `settings` in the table
+and "Settings … secret-store GUI" would otherwise still file as Security. Defects invert the two
+scopes deliberately: the affected-file list leads, because a title like "a control that did nothing"
+names nothing while its files name the engine. Six checks guard it, each verified to fail against the
+old behaviour rather than merely to pass against the new.
+
+**The dashboard hot-reloads data, not its own code.** The 1.5s poll re-reads the 13 sources, but
+`tools/roadmap/lib/*` is already in the Node module cache — `POST /api/refresh` will not pick up a
+code edit. Restart the server after changing the tool; changing a *source file* needs no restart.
+
 ## Verifier classification reconciled (2026-07-27, earlier the same day)
 
 `npm run verify:verifier-classification` is **GREEN — all 144 `verify:`/`validate:` scripts are

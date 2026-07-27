@@ -11,7 +11,13 @@
  *     it is not guessed from a neighbouring value.
  */
 
-/** Keyword -> area. First match wins, so order is significance order, not alphabetical. */
+/**
+ * Keyword -> area. Order is significance order, not alphabetical, and is used only as a TIEBREAK:
+ * within a given scope the *earliest occurrence in the text* wins, because titles and file lists are
+ * written subject-first. Ordering alone is not enough — "Settings full-page coverage (unavailable
+ * secret-store GUI)" contains both `settings` and `secret`, and list order alone would file a
+ * Settings issue under Security.
+ */
 const AREA_KEYWORDS = [
   ["recorder", "Recorder"],
   ["zvec", "Zvec / semantic"],
@@ -44,7 +50,10 @@ const AREA_KEYWORDS = [
   ["preload", "IPC / main process"],
   ["test lab", "Test Lab"],
   ["randomi", "Test Lab"],
-  ["locator", "Locators"]
+  ["locator", "Locators"],
+  // An instance is the runner's unit of execution; Instance Monitor is its surface. Listed last
+  // because the word appears incidentally in many bodies — position, not list order, decides.
+  ["instance", "Runner / engine"]
 ];
 
 /** Sort weight for the work queue: a regression of shipped behaviour outranks new work. */
@@ -78,18 +87,79 @@ const TYPE_RANK = { bug: 0, task: 1, feature: 2, chore: 3, epic: 4 };
  */
 
 /**
+ * Best keyword match within ONE scope of text.
+ *
+ * Earliest occurrence wins. A title states its subject first — "Designer round trip drops a bare
+ * FlowStep.value", "Test Lab Phase 6: campaign reporting" — so the leading keyword is the subject
+ * and anything later is detail. The keyword list order breaks ties only.
+ *
+ * @param {string} text
+ * @returns {{needle: string, area: string, at: number}|null}
+ */
+function matchArea(text) {
+  const haystack = (text ?? "").toLowerCase();
+  if (!haystack) return null;
+  let best = null;
+  for (const [needle, area] of AREA_KEYWORDS) {
+    const at = haystack.indexOf(needle);
+    // Strictly-less-than, and the list is walked in order, so an earlier keyword wins a tie.
+    if (at !== -1 && (best === null || at < best.at)) best = { needle, area, at };
+  }
+  return best;
+}
+
+/**
+ * Single-scope derivation, for text that has no title/body split (a TASK_LOG heading, a bare
+ * defect title).
+ *
  * @param {string} text
  * @param {string} basis
  * @returns {Provenance}
  */
-export function deriveArea(text, basis = "title+description") {
-  const haystack = (text ?? "").toLowerCase();
-  for (const [needle, area] of AREA_KEYWORDS) {
-    if (haystack.includes(needle)) {
-      return { value: area, confidence: "derived", basis: `matched "${needle}" in ${basis}` };
-    }
+export function deriveArea(text, basis = "title") {
+  const hit = matchArea(text);
+  if (!hit) return { value: null, confidence: "derived", basis: `no keyword matched in ${basis}` };
+  return { value: hit.area, confidence: "derived", basis: `matched "${hit.needle}" in ${basis}` };
+}
+
+/**
+ * Two-scope derivation: the primary scope decides whenever it matches at all, and the secondary is
+ * consulted only when the primary is silent.
+ *
+ * Concatenating the two and scanning once — what this used to do — lets an incidental word in a
+ * long body outrank the subject of the title. Measured examples from this repository: a Settings
+ * coverage issue filed under Recorder because its body cited `verify:recorder-gui`, and all four
+ * Test Lab issues scattered across Reports, Licensing and Security because their bodies mention
+ * those words. The body is real evidence, but it is weaker evidence, and the ranking must say so.
+ *
+ * @param {string} primary
+ * @param {string} secondary
+ * @param {string} primaryLabel
+ * @param {string} secondaryLabel
+ * @returns {Provenance}
+ */
+export function deriveAreaWeighted(primary, secondary, primaryLabel, secondaryLabel) {
+  const fromPrimary = matchArea(primary);
+  if (fromPrimary) {
+    return {
+      value: fromPrimary.area,
+      confidence: "derived",
+      basis: `matched "${fromPrimary.needle}" in ${primaryLabel}`
+    };
   }
-  return { value: null, confidence: "derived", basis: `no keyword matched in ${basis}` };
+  const fromSecondary = matchArea(secondary);
+  if (fromSecondary) {
+    return {
+      value: fromSecondary.area,
+      confidence: "derived",
+      basis: `matched "${fromSecondary.needle}" in ${secondaryLabel} (no keyword in ${primaryLabel})`
+    };
+  }
+  return {
+    value: null,
+    confidence: "derived",
+    basis: `no keyword matched in ${primaryLabel} or ${secondaryLabel}`
+  };
 }
 
 /**
@@ -136,7 +206,7 @@ export function normalizeBeads(beads) {
       priority: b.priority,
       rawPriority: b.priority === null ? null : `P${b.priority}`,
       type: b.issueType,
-      area: deriveArea(`${b.title} ${b.description}`),
+      area: deriveAreaWeighted(b.title, b.description, "title", "description"),
       dependsOn,
       blocks: [],
       related,
@@ -203,8 +273,11 @@ export function normalizeDefects(defects) {
     priority: severityToPriority(d.severity),
     rawPriority: d.severity,
     type: "bug",
+    // For a defect the affected files are the most direct evidence of area — a title like
+    // "a control that did nothing" names nothing, while its file list names the engine. So the
+    // affected area leads here and the title is the fallback, the reverse of a bead.
     area: d.affectedArea
-      ? deriveArea(`${d.affectedArea} ${d.title}`, "affected area + title")
+      ? deriveAreaWeighted(d.affectedArea, d.title, "affected area", "title")
       : deriveArea(d.title, "title"),
     dependsOn: [],
     blocks: [],

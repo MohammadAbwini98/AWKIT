@@ -24,6 +24,7 @@ import { join } from "node:path";
 
 import { readAssignments } from "../tools/roadmap/lib/agents.mjs";
 import { buildSnapshot } from "../tools/roadmap/lib/model.mjs";
+import { deriveAreaWeighted } from "../tools/roadmap/lib/normalize.mjs";
 import { computeOrder } from "../tools/roadmap/lib/order.mjs";
 import { KNOWN_EDGE_TYPES, KNOWN_STATUSES, parseBeads } from "../tools/roadmap/lib/parse-beads.mjs";
 import { LEDGER_STATUSES, parseLedger } from "../tools/roadmap/lib/parse-ledger.mjs";
@@ -286,6 +287,42 @@ try {
   check(
     "every area carries a confidence and a basis",
     snapshot.items.every((i) => i.area && typeof i.area.confidence === "string" && typeof i.area.basis === "string")
+  );
+
+  // Area weighting. Every case below returned the WRONG value before the weighting fix, when title
+  // and body were concatenated into one haystack and the keyword list's own order decided.
+  check(
+    "a title keyword outranks a body keyword",
+    deriveAreaWeighted("Settings full-page coverage", "extends verify:recorder-gui", "title", "description").value ===
+      "Settings",
+    "a Settings issue was filed under Recorder because its body cited a recorder verifier"
+  );
+  check(
+    "the earliest keyword in a scope wins, not the first in the keyword list",
+    deriveAreaWeighted("Settings coverage: unavailable secret-store GUI", "", "title", "description").value ===
+      "Settings",
+    "`secret` precedes `settings` in the keyword table; position must decide, not list order"
+  );
+  check(
+    "a body keyword is still used when the title is silent",
+    deriveAreaWeighted("Phase 4 follow-up", "the popup registration path", "title", "description").value ===
+      "Runner / engine"
+  );
+  check(
+    "the body's basis says the title was silent",
+    deriveAreaWeighted("Phase 4 follow-up", "the popup path", "title", "description").basis.includes(
+      "no keyword in title"
+    ),
+    "a weaker signal must announce itself"
+  );
+  check(
+    "no keyword anywhere stays unclassified rather than guessing",
+    deriveAreaWeighted("Phase 4 follow-up", "nothing recognisable", "title", "description").value === null
+  );
+  check(
+    "the five Test Lab issues are all filed under Test Lab",
+    snapshot.items.filter((i) => i.nativeId.startsWith("awkit-wza.")).every((i) => i.area.value === "Test Lab"),
+    "they were scattered across Reports, Licensing and Security by body keywords"
   );
   check(
     "the consistency banner checked something",

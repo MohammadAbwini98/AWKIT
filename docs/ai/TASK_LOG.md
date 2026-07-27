@@ -4,7 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Dashboard upkeep made a standing rule; the 7/1 was flaky, it passes (Claude)
+## 2026-07-27 (latest) - Area derivation reweighted: title beats body, position beats list order (Claude)
+
+**Task:** fix the dashboard's area chips, which were visibly wrong on ~8 of 29 queued issues.
+
+**Root cause.** `deriveArea` concatenated title + description into one haystack and returned the
+first keyword *in the keyword table's own order*. So a passing mention anywhere in a long body
+outranked the subject of the title, and the table's ordering decided everything: all five Test Lab
+issues scattered across Reports/Licensing/Security, `awkit-8ri` (Settings) read as Recorder because
+its body cites `verify:recorder-gui`, `awkit-az7` (Reports) as Security, `awkit-cxa` (Designer) as
+Security, `awkit-4km` (async engine) as Security, `awkit-4a6` (Instance Monitor) as Packaging.
+
+**Fix — two changes, both needed.** (1) `deriveAreaWeighted(primary, secondary, ...)`: the title
+decides whenever it matches at all; the body is consulted only when the title is silent and says so
+in its basis. Defects invert the scopes deliberately — the affected-file list leads, because a title
+like "a control that did nothing" names nothing while its files name the engine. (2) Within a scope
+the **earliest occurrence** wins, list order tiebreaking only. Needed independently: `secret`
+precedes `settings` in the table, so "Settings ... unavailable secret-store GUI" filed as Security
+under list order alone. Also added `instance -> Runner / engine`.
+
+Ranks shifted because area is a sort key in the queue; priority and dependencies are untouched.
+
+**Guarded, and the guards were checked for discrimination rather than assumed.**
+`verify:roadmap-dashboard` 105 -> **111 PASS / 0 FAIL**. I reimplemented the OLD concatenation logic
+and ran it against the three new fixtures: it returns Recorder / Security / Reports where the checks
+demand Settings / Settings / Test Lab. A fourth asserts all five `wza` issues group under Test Lab.
+
+**Gotcha worth knowing: the dashboard hot-reloads DATA, not its own CODE.** `POST /api/refresh` and
+the 1.5s poll re-read the 13 sources, but `tools/roadmap/lib/*` is already in the Node module cache,
+so the browser kept rendering the old areas until the server was restarted. Editing a source file
+needs no restart; editing the tool does.
+
+**Files:** `tools/roadmap/lib/normalize.mjs`, `scripts/verify-roadmap-dashboard.mjs`,
+`docs/ai/{CURRENT_STATE,TASK_LOG}.md`.
+
+## 2026-07-27 (earlier) - Dashboard upkeep made a standing rule; the 7/1 was flaky, it passes (Claude)
 
 **Task:** instruct every agent to keep the Program Status dashboard current on any change, stage, or
 observed/reported issue; then re-run `verify:settings-runner-behaviour` on the owner's desktop session.
