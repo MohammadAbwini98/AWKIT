@@ -34,7 +34,8 @@ import {
   Save,
   Search,
   ShieldCheck,
-  Trash2
+  Trash2,
+  Upload
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScenarioFlowNode } from "../components/scenario/ScenarioFlowNode";
@@ -70,6 +71,10 @@ import { isExecutionBlocking, validateFlowSet } from "@src/validation/FlowValida
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
+import {
+  validateWorkflowProfile,
+  WORKFLOW_IMPORT_ID_CONFLICT
+} from "@src/profiles/workflowProfileValidation";
 
 type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
 type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
@@ -141,6 +146,10 @@ function serializeWorkflowDoc(profile: WorkflowProfile): string {
   });
 }
 
+function workflowConflictExistingName(message: string, fallback?: string): string {
+  return /A workflow named "([^"]*)" already uses ID/.exec(message)?.[1] ?? fallback ?? "the saved workflow";
+}
+
 // ── Workflow Definition panel width constraints (persisted) ──────────────────
 // Persisted key: ui.workflowBuilder.leftPanelWidth
 const WORKFLOW_DEF_MIN_WIDTH = 260;
@@ -207,12 +216,14 @@ function ScenarioBuilderContent() {
   // Track whether we have done the initial load to avoid re-loading on re-render
   const initialLoadDone = useRef(false);
   const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [snapshotRevision, setSnapshotRevision] = useState(0);
   const pendingSnapshot = useRef(true);
   const engineRef = useRef<FlowCanvasHandle>(null);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
   const navigation = useNavigation();
   const { can } = usePermissions();
   const canSaveWorkflow = can(Permission.WORKFLOW_EDIT);
+  const canImportWorkflow = can(Permission.WORKFLOW_CREATE);
 
   // Task 07: save success/failure toast
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -221,6 +232,9 @@ function ScenarioBuilderContent() {
   const [flowVisibleCount, setFlowVisibleCount] = useState(SAVED_FLOWS_PAGE_SIZE);
   // Points 6/7: "New" prompts for a workflow name, then creates + loads that workflow.
   const [namingWorkflow, setNamingWorkflow] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const [discardImport, setDiscardImport] = useState<WorkflowProfile | null>(null);
+  const [importConflict, setImportConflict] = useState<{ profile: WorkflowProfile; existingName: string } | null>(null);
 
   const persistBuilderZoom = useCallback((percent: number) => {
     window.playwrightFlowStudio.settings.update({ workflowBuilderZoomPercent: percent }).catch(() => undefined);
@@ -242,7 +256,9 @@ function ScenarioBuilderContent() {
       pendingSnapshot.current = false;
       setSavedSnapshot(docSnapshot);
     }
-  }, [docSnapshot]);
+  }, [docSnapshot, snapshotRevision]);
+
+  const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
 
   const scenarioProfile = useMemo(() => workflowToScenarioProfile(workflowProfile), [workflowProfile]);
   const executionPlan = useMemo(() => new ScenarioOrchestrator().createExecutionPlan(scenarioProfile), [scenarioProfile]);
@@ -864,6 +880,7 @@ function ScenarioBuilderContent() {
       if (needsLayout) window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
       setSaveState("Loaded");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded workflow settles
+      setSnapshotRevision((current) => current + 1);
       window.playwrightFlowStudio.settings
         .update({ selectedBuilderWorkflowId: profile.id, selections: { lastSelectedWorkflowId: profile.id } })
         .catch(() => undefined);
@@ -919,7 +936,64 @@ function ScenarioBuilderContent() {
     URL.revokeObjectURL(href);
   }, [workflowProfile]);
 
-  const isDirty = savedSnapshot !== "" && docSnapshot !== savedSnapshot;
+  const persistImportedWorkflow = useCallback(
+    async (profile: WorkflowProfile, allowOverwrite = false, precheckedName?: string) => {
+      let existingName = precheckedName;
+      try {
+        const existing = allowOverwrite
+          ? null
+          : await window.playwrightFlowStudio.workflows.get(profile.id);
+        existingName = existing?.name ?? existingName;
+        const imported = await window.playwrightFlowStudio.workflows.import(
+          profile,
+          allowOverwrite ? { allowOverwrite: true } : undefined
+        );
+        setWorkflows(await window.playwrightFlowStudio.workflows.list());
+        setDiscardImport(null);
+        setImportConflict(null);
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        loadWorkflowProfile(imported);
+        setToast({ tone: "success", message: `Workflow imported: ${imported.name}` });
+      } catch (importError) {
+        const message = importError instanceof Error ? importError.message : String(importError);
+        if (!allowOverwrite && message.includes(WORKFLOW_IMPORT_ID_CONFLICT)) {
+          setImportConflict({
+            profile,
+            existingName: workflowConflictExistingName(message, existingName)
+          });
+          return;
+        }
+        setToast({ tone: "error", message: `Failed to import workflow. ${message}`.trim() });
+      }
+    },
+    [loadWorkflowProfile]
+  );
+
+  const importWorkflowFile = useCallback(
+    async (file: File) => {
+      let candidate: unknown;
+      try {
+        candidate = JSON.parse(await file.text());
+      } catch {
+        setToast({ tone: "error", message: "Failed to import workflow: the selected file is not valid JSON." });
+        return;
+      }
+
+      const validation = validateWorkflowProfile(candidate);
+      if (!validation.ok) {
+        setToast({ tone: "error", message: `Failed to import workflow: ${validation.errors.join(" ")}` });
+        return;
+      }
+
+      if (isDirty) {
+        setDiscardImport(validation.profile);
+        return;
+      }
+      await persistImportedWorkflow(validation.profile);
+    },
+    [isDirty, persistImportedWorkflow]
+  );
 
   const handlePaneClick = useCallback(() => {
     setSelectedEdgeId(null);
@@ -1071,6 +1145,28 @@ function ScenarioBuilderContent() {
             <Download size={14} />
             Export
           </button>
+          <button
+            className="toolbar-button"
+            id="sb-import"
+            onClick={() => importInputRef.current?.click()}
+            disabled={!canImportWorkflow}
+            title={canImportWorkflow ? "Import a workflow JSON file" : "Requires the Create Workflows permission"}
+            type="button"
+          >
+            <Upload size={14} />
+            Import
+          </button>
+          <input
+            accept=".json,application/json"
+            ref={importInputRef}
+            style={{ display: "none" }}
+            type="file"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importWorkflowFile(file);
+              event.target.value = "";
+            }}
+          />
         </div>
 
         <span className="sb-toolbar-sep" aria-hidden="true" />
@@ -1628,6 +1724,30 @@ function ScenarioBuilderContent() {
           icon="connect"
           onConfirm={confirmConnect}
           onCancel={() => setConnectPrompt(null)}
+        />
+      ) : null}
+      {discardImport ? (
+        <ConfirmDialog
+          title="Discard unsaved edits?"
+          message={`Importing "${discardImport.name}" will discard the unsaved edits on this canvas. Continue?`}
+          confirmLabel="Discard edits"
+          danger
+          onConfirm={() => {
+            const profile = discardImport;
+            setDiscardImport(null);
+            void persistImportedWorkflow(profile);
+          }}
+          onCancel={() => setDiscardImport(null)}
+        />
+      ) : null}
+      {importConflict ? (
+        <ConfirmDialog
+          title="Replace existing workflow?"
+          message={`A workflow named "${importConflict.existingName}" already uses ID "${importConflict.profile.id}". Importing "${importConflict.profile.name}" will permanently replace the saved workflow. Continue?`}
+          confirmLabel="Replace workflow"
+          danger
+          onConfirm={() => void persistImportedWorkflow(importConflict.profile, true, importConflict.existingName)}
+          onCancel={() => setImportConflict(null)}
         />
       ) : null}
     </section>

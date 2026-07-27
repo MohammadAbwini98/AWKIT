@@ -59,10 +59,10 @@ export const implementationRoadmap: RoadmapPhase[] = [
   {
     id: "E",
     title: "Scenario Builder / Workflow Builder",
-    status: "in-progress",
+    status: "complete",
     deliverables: ["Workflows Library page", "Multiple workflow CRUD", "Canvas shows enabled flows", "Flow order sync", "Save/load/clone/export"],
     acceptance: "User can create multiple workflows, view all in a library page, and open any to see its flows on the canvas.",
-    implementationNote: "All five deliverables shipped: Workflows Library page, workflow CRUD, canvas load of saved flows, order sync, and save/load/clone/export. Remaining: the Workflow Builder itself has no import-from-file UI - import exists only in WorkflowsLibrary.tsx, so a workflow JSON cannot be brought in from the builder canvas."
+    implementationNote: "All five deliverables shipped: Workflows Library page, workflow CRUD, canvas load of saved flows, order sync, and save/load/clone/export. Workflow JSON import is available from both the library and builder, with shared structural validation, dirty-canvas confirmation, and confirm-before-overwrite collision handling."
   },
   {
     id: "F",

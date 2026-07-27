@@ -77,6 +77,33 @@ function seedWorkflowFixture(localAppData) {
   writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
 }
 
+function importFixture(name, flowIds) {
+  return {
+    id: "verify-workflow",
+    name,
+    description: "Workflow Builder import verifier fixture.",
+    version: 1,
+    nodes: flowIds.map((flowId, index) => ({
+      id: flowId,
+      type: "flowRef",
+      flowId,
+      alias: flowId,
+      order: index + 1,
+      required: true,
+      inputBindings: {},
+      position: { x: 160 + index * 320, y: 180 }
+    })),
+    edges: flowIds.slice(1).map((flowId, index) => ({
+      id: `import-edge-${index}`,
+      source: flowIds[index],
+      target: flowId,
+      type: "success"
+    })),
+    runtimeInputs: [],
+    execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
+  };
+}
+
 const results = [];
 function check(name, pass, detail) {
   results.push({ name, pass: Boolean(pass), detail });
@@ -114,6 +141,37 @@ async function loopItemLabel(win, nodeId) {
 }
 
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
+const WF_NAME_INPUT = 'label.sb-toolbar-field:has(span:text-is("Name")) input';
+const IMPORT_INPUT = '.sb-toolbar-group[aria-label="Workflow"] input[type="file"]';
+
+async function setImportFile(win, value, fileName = "workflow.json") {
+  const body = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  await win.locator(IMPORT_INPUT).setInputFiles({
+    name: fileName,
+    mimeType: "application/json",
+    buffer: Buffer.from(body, "utf8")
+  });
+}
+
+async function importState(win) {
+  return win.evaluate(async () => {
+    const stored = await window.playwrightFlowStudio.workflows.get("verify-workflow");
+    const nodes = [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .map((node) => node.getAttribute("data-id"))
+      .filter(Boolean)
+      .sort();
+    const edges = [...document.querySelectorAll("g.awkit-flow-edge")]
+      .map((edge) => `${edge.getAttribute("data-source")}->${edge.getAttribute("data-target")}`)
+      .sort();
+    const selected = document.querySelector(".scenario-flow-node.selected")?.closest(".awkit-flow-node")?.getAttribute("data-id") ?? null;
+    const saveState = (document.querySelector(".sb-save-state")?.textContent ?? "").trim();
+    return { stored, nodes, edges, selected, saveState };
+  });
+}
+
+function sameImportState(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 const app = await electron.launch({ args: [root], cwd: root, env });
 try {
@@ -170,6 +228,103 @@ try {
     toolbarLayout ? JSON.stringify(toolbarLayout) : "toolbar not found"
   );
 
+  // --- 2. Import-from-file: dirty guard, conflict guard, cancellation, dismissal, validation ---
+  const incomingReplacement = importFixture("Incoming Replacement", ["verify-flow-a"]);
+  await win.locator('.awkit-flow-node[data-id="verify-flow-a"] .scenario-flow-node').click();
+  await win.fill(WF_NAME_INPUT, "Dirty canvas draft");
+  await win.waitForFunction(() => document.querySelector(".sb-save-state")?.textContent?.includes("Unsaved changes"));
+  const dirtyBaseline = await importState(win);
+
+  await setImportFile(win, incomingReplacement);
+  const discardDialog = win.getByRole("alertdialog");
+  await discardDialog.waitFor({ state: "visible" });
+  check(
+    "Import over a dirty canvas prompts before discarding",
+    (await discardDialog.textContent()).includes("Discard unsaved edits")
+      && sameImportState(dirtyBaseline, await importState(win))
+  );
+  await discardDialog.getByRole("button", { name: "Discard edits" }).click();
+  await win.getByRole("alertdialog").waitFor({ state: "visible" });
+  const firstConflictText = (await win.getByRole("alertdialog").textContent()) ?? "";
+  check(
+    "ID collision dialog shows the saved and incoming workflow names",
+    firstConflictText.includes("Verify — Workflow")
+      && firstConflictText.includes("Incoming Replacement")
+      && firstConflictText.includes("verify-workflow")
+  );
+  await win.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await win.waitForTimeout(150);
+  const cancelledState = await importState(win);
+  check(
+    "Cancellation leaves storage, canvas, selection, and dirty state unchanged",
+    sameImportState(dirtyBaseline, cancelledState),
+    JSON.stringify(cancelledState)
+  );
+
+  await setImportFile(win, incomingReplacement);
+  await win.getByRole("alertdialog").getByRole("button", { name: "Discard edits" }).click();
+  await win.getByRole("alertdialog").waitFor({ state: "visible" });
+  await win.keyboard.press("Escape");
+  await win.waitForTimeout(150);
+  check(
+    "Escape dismissal behaves as cancel",
+    sameImportState(dirtyBaseline, await importState(win))
+  );
+
+  await setImportFile(win, incomingReplacement);
+  await win.getByRole("alertdialog").getByRole("button", { name: "Discard edits" }).click();
+  await win.getByRole("alertdialog").getByRole("button", { name: "Replace workflow" }).click();
+  // The in-house canvas can emit a late measurement render for the outgoing node set. Sample only
+  // after that bounded render window, then require the imported containment state to be present.
+  await win.waitForTimeout(750);
+  await win.waitForFunction(
+    () => {
+      const nodes = [...document.querySelectorAll(".awkit-flow-node[data-id]")];
+      return nodes.length === 1 && nodes[0].getAttribute("data-id") === "verify-flow-a"
+        && document.querySelectorAll("g.awkit-flow-edge").length === 0;
+    },
+    null,
+    { timeout: 5000 }
+  );
+  const replacedState = await importState(win);
+  check(
+    "Confirmed replacement overwrites storage and loads the imported canvas",
+    replacedState.stored?.name === "Incoming Replacement"
+      && replacedState.nodes.length === 1
+      && replacedState.nodes.includes("verify-flow-a")
+      && replacedState.edges.length === 0
+      && !replacedState.saveState.includes("Unsaved"),
+    JSON.stringify(replacedState)
+  );
+
+  const differentlyNamed = importFixture("Different Incoming Name", ["verify-flow-b"]);
+  const cleanBaseline = await importState(win);
+  await setImportFile(win, differentlyNamed);
+  await win.getByRole("alertdialog").waitFor({ state: "visible" });
+  const differentNameText = (await win.getByRole("alertdialog").textContent()) ?? "";
+  check(
+    "Same ID with a different name still conflicts and shows both names",
+    differentNameText.includes("Incoming Replacement")
+      && differentNameText.includes("Different Incoming Name")
+      && differentNameText.includes("verify-workflow")
+  );
+  await win.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await win.waitForTimeout(150);
+  const differentNameCancelled = await importState(win);
+  check(
+    "Different-name collision cancel preserves the loaded state",
+    sameImportState(cleanBaseline, differentNameCancelled),
+    JSON.stringify(differentNameCancelled)
+  );
+
+  const beforeInvalid = await importState(win);
+  await setImportFile(win, { hello: "world" }, "invalid-workflow.json");
+  await win.getByText(/Workflow id must be a non-empty string/).waitFor({ state: "visible" });
+  check(
+    "An invalid workflow file never touches storage or the canvas",
+    sameImportState(beforeInvalid, await importState(win))
+  );
+
   // Load a saved workflow with edges (so a cross-node connector exists for geometry).
   let edgeCountNow = dom.edges;
   if (edgeCountNow <= 1) {
@@ -191,7 +346,7 @@ try {
     await win.waitForTimeout(400);
   }
 
-  // --- 2. Loop toggle via the node kebab menu creates/removes a self-loop connector ---
+  // --- 3. Loop toggle via the node kebab menu creates/removes a self-loop connector ---
   const NODE = await win.evaluate(() => {
     const node = [...document.querySelectorAll(".awkit-flow-node[data-id]")].find((n) => n.querySelector(".scenario-flow-node.flowRef"));
     return node ? node.getAttribute("data-id") : null;
@@ -220,7 +375,7 @@ try {
     check("Removing the loop deletes the connector", !after.hasSelfLoop && after.count === before, `count=${after.count} (baseline ${before})`);
   }
 
-  // --- 3. New workflows use the structural Start -> End scaffold and contextual picker ---
+  // --- 4. New workflows use the structural Start -> End scaffold and contextual picker ---
   // "New" now prompts for a workflow name (points 6/7), then creates + loads that workflow.
   await win.click("#sb-new");
   await win.waitForTimeout(300);
@@ -246,7 +401,7 @@ try {
   await win.keyboard.press("Escape");
   await win.waitForTimeout(300);
 
-  // --- 4. Default edge "+" splices Start -> flow -> End ---
+  // --- 5. Default edge "+" splices Start -> flow -> End ---
   const insertBtn = win.locator(".awkit-edge-add").first();
   if (await insertBtn.isVisible().catch(() => false)) {
     await insertBtn.evaluate((el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window })));

@@ -5,9 +5,33 @@ import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { createWorkflowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
+import {
+  validateWorkflowProfile,
+  WORKFLOW_IMPORT_ID_CONFLICT
+} from "@src/profiles/workflowProfileValidation";
+
+interface WorkflowImportOptions {
+  allowOverwrite?: boolean;
+}
 
 export function registerScenarioIpc(): void {
   const store = createWorkflowProfileStore();
+  const importWorkflow = async (profile: WorkflowProfile, options?: WorkflowImportOptions): Promise<WorkflowProfile> => {
+    const validation = validateWorkflowProfile(profile);
+    if (!validation.ok) {
+      throw new Error(`Workflow import rejected: ${validation.errors.join(" ")}`);
+    }
+
+    const existing = await store.get(validation.profile.id);
+    if (existing && options?.allowOverwrite !== true) {
+      throw Object.assign(
+        new Error(`${WORKFLOW_IMPORT_ID_CONFLICT}: A workflow named "${existing.name}" already uses ID "${existing.id}".`),
+        { code: WORKFLOW_IMPORT_ID_CONFLICT, existingName: existing.name }
+      );
+    }
+
+    return store.import(validation.profile);
+  };
 
   ipcMain.handle("workflows:list", async () => store.list());
   ipcMain.handle("workflows:get", async (_, id: string) => store.get(id));
@@ -28,9 +52,9 @@ export function registerScenarioIpc(): void {
     return store.clone(id, nextId);
   });
   ipcMain.handle("workflows:export", async (_, id: string) => store.export(id));
-  ipcMain.handle("workflows:import", async (event, profile: WorkflowProfile) => {
+  ipcMain.handle("workflows:import", async (event, profile: WorkflowProfile, options?: WorkflowImportOptions) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
-    return store.import(profile);
+    return importWorkflow(profile, options);
   });
 
   ipcMain.handle("scenario:list", async () => (await store.list()).map(workflowToScenarioProfile));
@@ -40,6 +64,6 @@ export function registerScenarioIpc(): void {
   });
   ipcMain.handle("scenario:save", async (event, profile: ScenarioProfile) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
-    return store.import(scenarioToWorkflowProfile(profile));
+    return importWorkflow(scenarioToWorkflowProfile(profile), { allowOverwrite: true });
   });
 }

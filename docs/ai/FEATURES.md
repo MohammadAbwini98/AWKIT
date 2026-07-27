@@ -78,6 +78,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   not on open, selection, zoom/pan, node measurement, or after a successful save.
 
 ### Workflow Builder — `app/renderer/pages/ScenarioBuilder.tsx`
+- ✅ **Import workflow JSON from the Builder or Workflows Library** through a shared structural
+  validator. Dirty canvases prompt before discard; ID collisions require an explicit destructive
+  replacement confirmation and are rechecked by the authoritative IPC before overwrite.
 - ✅ Link saved flows into a `WorkflowProfile`; typed connectors (Connection Properties panel).
 - ✅ Resizable "Workflow Definition" panel; collapsible data-source/connector sections; zoom.
 - ✅ Workflow data-source binding; selection persistence.

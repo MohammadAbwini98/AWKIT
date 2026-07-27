@@ -9,6 +9,14 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { NodeOptionsMenu, type NodeMenuItem } from "../components/shared/NodeOptionsMenu";
 import { applyTable, useTableState, type RowAdapter } from "../components/table/tableState";
 import { AdvancedTableFilters, DataTablePagination, SortableHeaderCell, TableEmptyState, type FilterFieldDef } from "../components/table/TableUI";
+import {
+  validateWorkflowProfile,
+  WORKFLOW_IMPORT_ID_CONFLICT
+} from "@src/profiles/workflowProfileValidation";
+
+function workflowConflictExistingName(message: string, fallback?: string): string {
+  return /A workflow named "([^"]*)" already uses ID/.exec(message)?.[1] ?? fallback ?? "the saved workflow";
+}
 
 const workflowAdapter: RowAdapter<WorkflowProfile> = {
   id: (w) => w.id,
@@ -74,6 +82,7 @@ export function WorkflowsLibrary() {
   const [error, setError] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [namingWorkflow, setNamingWorkflow] = useState(false);
+  const [importConflict, setImportConflict] = useState<{ profile: WorkflowProfile; existingName: string } | null>(null);
   // Point 5: a single "…" kebab per row opens a context menu of the row's actions.
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -160,17 +169,53 @@ export function WorkflowsLibrary() {
     }
   }, []);
 
-  const importWorkflow = useCallback(
-    async (file: File) => {
+  const persistImportedWorkflow = useCallback(
+    async (profile: WorkflowProfile, allowOverwrite = false, precheckedName?: string) => {
       try {
-        const profile = JSON.parse(await file.text()) as WorkflowProfile;
-        await window.playwrightFlowStudio.workflows.import(profile);
+        await window.playwrightFlowStudio.workflows.import(
+          profile,
+          allowOverwrite ? { allowOverwrite: true } : undefined
+        );
+        setImportConflict(null);
+        setError("");
         await load();
-      } catch {
-        setError("Failed to import workflow. Make sure the file is a valid workflow JSON.");
+      } catch (importError) {
+        const message = importError instanceof Error ? importError.message : String(importError);
+        if (!allowOverwrite && message.includes(WORKFLOW_IMPORT_ID_CONFLICT)) {
+          setImportConflict({ profile, existingName: workflowConflictExistingName(message, precheckedName) });
+          return;
+        }
+        setError(`Failed to import workflow. ${message}`.trim());
       }
     },
     [load]
+  );
+
+  const importWorkflow = useCallback(
+    async (file: File) => {
+      let candidate: unknown;
+      try {
+        candidate = JSON.parse(await file.text());
+      } catch {
+        setError("Failed to import workflow: the selected file is not valid JSON.");
+        return;
+      }
+
+      const validation = validateWorkflowProfile(candidate);
+      if (!validation.ok) {
+        setError(`Failed to import workflow: ${validation.errors.join(" ")}`);
+        return;
+      }
+
+      try {
+        const existing = await window.playwrightFlowStudio.workflows.get(validation.profile.id);
+        await persistImportedWorkflow(validation.profile, false, existing?.name);
+      } catch (importError) {
+        const message = importError instanceof Error ? importError.message : String(importError);
+        setError(`Failed to import workflow. ${message}`.trim());
+      }
+    },
+    [persistImportedWorkflow]
   );
 
   const { paged, total, totalPages, page } = applyTable(workflows, table.state, workflowAdapter);
@@ -352,6 +397,17 @@ export function WorkflowsLibrary() {
           danger
           onConfirm={() => void deleteWorkflow(deleteTarget.id)}
           onCancel={() => setDeleteConfirmId(null)}
+        />
+      ) : null}
+
+      {importConflict ? (
+        <ConfirmDialog
+          title="Replace existing workflow?"
+          message={`A workflow named "${importConflict.existingName}" already uses ID "${importConflict.profile.id}". Importing "${importConflict.profile.name}" will permanently replace the saved workflow. Continue?`}
+          confirmLabel="Replace workflow"
+          danger
+          onConfirm={() => void persistImportedWorkflow(importConflict.profile, true, importConflict.existingName)}
+          onCancel={() => setImportConflict(null)}
         />
       ) : null}
     </section>

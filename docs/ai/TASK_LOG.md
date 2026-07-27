@@ -7529,3 +7529,26 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   fault, inventory and accessibility submatrices `NOT RUN`.
 - **Security:** no CAPTCHA, MFA, protected login, external site or Oracle credential was touched.
   `.beads/*` remained unstaged and unmodified by this work.
+
+## 2026-07-27 — Codex — Phase E Workflow Builder import-from-file
+
+- **Task:** complete `awkit-d3c`, the final Phase E gap: import workflow JSON from the Builder with
+  shared validation and confirm-before-overwrite behavior in Builder, Library, and IPC.
+- **Implemented:** added pure `validateWorkflowProfile` structural validation; added IPC validation,
+  collision recheck/error code, and explicit `allowOverwrite`; added hidden file input, dirty-canvas
+  discard confirmation, destructive collision confirmation, safe cancel/Escape behavior, and
+  success load/list refresh to the Builder; aligned the Workflows Library import path.
+- **Verification coverage:** `verify-workflow-sentinels.mts` now checks valid/missing-field/dangling-
+  endpoint/missing-flowId/mutation cases. `verify-workflow-builder-gui.mjs` now drives real
+  `setInputFiles()` and proves replacement, Cancel, Escape, different-name collision text, invalid
+  file isolation, and dirty-canvas ordering by node/edge containment.
+- **Files:** `src/profiles/workflowProfileValidation.ts`, `app/main/ipc/scenario.ipc.ts`,
+  `app/main/preload.ts`, `app/renderer/pages/{ScenarioBuilder,WorkflowsLibrary}.tsx`,
+  `scripts/verify-{workflow-sentinels,workflow-builder-gui,roadmap-dashboard}.*`,
+  `src/roadmap/ImplementationRoadmap.ts`, `tools/roadmap/assignments.json`, and AI memory docs.
+- **Checks:** `npm run build` PASS; `npm run verify:workflow-sentinels` **11/11**;
+  `npm run verify:workflow-builder` final **28/28**; `npm run verify:roadmap-dashboard` **135/135**
+  with **Sources agree**; AI memory check PASS. Two development runs caught and corrected a mojibake
+  verifier literal and an early transient canvas sample; no product assertion was weakened.
+- **Result:** Phase E is **complete**; roadmap is 9 complete / 0 in progress / 2 partially completed
+  (**82%**). Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.

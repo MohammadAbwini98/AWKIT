@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Phase E complete — Workflow Builder import-from-file (2026-07-27, current)
+
+Phase E (Scenario Builder / Workflow Builder) is **complete**. The Workflow Builder now imports
+workflow JSON through a hidden file input that the real Electron GUI gate can drive. The Library and
+Builder share `validateWorkflowProfile`, and the authoritative `workflows:import` IPC repeats that
+validation before persistence. Malformed documents report all structural errors and never change
+storage or the canvas.
+
+ID collisions are confirm-before-overwrite at both renderer entry points and rechecked at the IPC
+boundary with `WORKFLOW_IMPORT_ID_CONFLICT`. In the Builder, dirty-canvas confirmation runs first.
+Cancel or Escape at either dialog preserves storage, canvas nodes/edges, selection, and dirty state;
+replacement is the only path that passes `allowOverwrite: true`. `scenario:save` keeps its intentional
+overwrite behavior.
+
+The roadmap is now **9 complete / 0 in progress / 2 partially completed (82%)**. `awkit-d3c` is
+closed. Verification: `npm run build` passed, `verify:workflow-sentinels` **11/11**, and the real
+Electron `verify:workflow-builder` **28/28**. The validation ledger is unchanged at
+**61 PASS / 4 NOT RUN / 1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2).
+
 ## Roadmap phases reconciled after 282 commits of drift (2026-07-27, current)
 
 `src/roadmap/ImplementationRoadmap.ts` had **not been touched since the initial commit**

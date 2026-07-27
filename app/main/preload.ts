@@ -253,7 +253,8 @@ const api = {
     delete: (id: string) => ipcRenderer.invoke("workflows:delete", id) as Promise<void>,
     clone: (id: string, nextId?: string) => ipcRenderer.invoke("workflows:clone", id, nextId) as Promise<WorkflowProfile>,
     export: (id: string) => ipcRenderer.invoke("workflows:export", id) as Promise<WorkflowProfile>,
-    import: (profile: WorkflowProfile) => ipcRenderer.invoke("workflows:import", profile) as Promise<WorkflowProfile>
+    import: (profile: WorkflowProfile, options?: { allowOverwrite?: boolean }) =>
+      ipcRenderer.invoke("workflows:import", profile, options) as Promise<WorkflowProfile>
   },
   scenarios: {
     list: () => ipcRenderer.invoke("scenario:list") as Promise<unknown[]>
