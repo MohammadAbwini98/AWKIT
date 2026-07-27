@@ -6,6 +6,41 @@ None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-SET-006 — "Screenshot on failure" was a control that did nothing
+
+- **Severity:** S3 / An enabled control with no effect (RULES.md: no fake/no-op controls)
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-07-27**
+- **Affected area:** `app/renderer/pages/InstanceMonitor.tsx`, `app/main/ipc/execution.ipc.ts`,
+  `src/instances/{InstanceConfig,InstanceManager}.ts`, `src/runner/ExecutionEngine.ts`
+- **Detected by:** `SET-009` — "the runner honors the selected flags"
+- **Evidence before fix:** `test-artifacts/settings-runner-behaviour/2026-07-27T13-02-*/` — ON/OFF/ON
+  produced **4 / 4 / 4** failure-evidence bundles; the setting changed nothing
+- **Evidence after fix:** `test-artifacts/settings-runner-behaviour/2026-07-27T13-05-*/`
+  (**11 PASS / 0 FAIL**) — ON/OFF/ON produces **4 / 0 / 4**
+
+Settings › Execution Defaults offered "Screenshot on failure", every workflow run card offered its own
+toggle, both persisted — and neither reached a run. `runWorkflowFromCard` sent `headless`,
+`totalInstances`, `maxConcurrentInstances`, `isolationMode` and `stopOnError`; `RunWorkflowRequest` had
+no field for it at all. The runner's default came from `resolveArtifactSettings()`, and **all four
+artifact profiles hardcode `screenshotOnFailure: true`**, so failure evidence was captured
+unconditionally no matter what the user chose. The only control that ever worked was the per-step
+`onFailure.screenshot` in the Flow Designer.
+
+Fixed by carrying the run-level choice the same way certificate trust already travels: a new optional
+`RunWorkflowRequest.screenshotOnFailure` → the instance template → `InstanceConfig` → the engine, where
+it takes precedence over the artifact-profile default. Per-step `onFailure.screenshot` still wins over
+both, and an omitted field still means "artifact-profile default", so no existing caller changes
+behaviour.
+
+**Two measurement traps on the way to this, both worth keeping.** The first version of the check
+polled `executions.list()` for "some terminal instance" — which a *previous* run's finished instance
+satisfies instantly, so it sampled the artifact directory before the run under test had written
+anything and reported the defect as **fixed**. It now waits for a NEW `executionId` and for every
+instance of that execution to end. And a single ON→OFF pair cannot separate "the setting works" from
+"the second run writes nothing for an unrelated reason", so the suite runs **ON → OFF → ON**; the
+4/0/4 shape is what makes the difference attributable to the setting.
+
 ### AWKIT-REP-008 — backpressure never cleared; an idle app reported itself throttled forever
 
 - **Severity:** S3 / A live gauge reports a state the system is not in

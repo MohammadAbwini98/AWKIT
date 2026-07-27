@@ -1348,7 +1348,9 @@ export class ExecutionEngine {
           message,
           data: { ...fields }
         }),
-      screenshotOnFailure: browserConfig.artifact.screenshotOnFailure,
+      // Run-level choice (run card / Settings execution defaults) wins over the artifact-profile
+      // default; a per-step `onFailure.screenshot` still wins over both, in FlowExecutor.
+      screenshotOnFailure: instance.config.screenshotOnFailure ?? browserConfig.artifact.screenshotOnFailure,
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
       onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),

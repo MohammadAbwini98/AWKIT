@@ -1,6 +1,55 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): live-engine harness — SYS-REP-007 + SYS-REP-011 closed
+## ACTIVE (2026-07-27, latest): SET-008 + SET-009 closed; `AWKIT-SET-006` fixed
+
+`npm run verify:settings-runner-behaviour` (**new**, 11 PASS / 0 FAIL). Ledger **61 PASS / 4 NOT RUN /
+1 BLOCKED** — Recorder 28/0/1, Reports 14/2, Settings **19/2**.
+
+**Every case still open is an owner decision, not engineering work.** Reports' two are OS folder
+launches; Settings' two are SET-015 (same) and SET-013 (below); REC-022 needs an authorized human.
+
+### `AWKIT-SET-006` — "Screenshot on failure" was a control that did nothing
+
+Settings and every run card offered the toggle, both persisted, and neither reached a run.
+`RunWorkflowRequest` had no field for it, and all four artifact profiles hardcode
+`screenshotOnFailure: true`, so failure evidence was captured unconditionally. Fixed by carrying the
+run-level choice the way certificate trust already travels (request → instance template →
+`InstanceConfig` → engine); per-step `onFailure.screenshot` still wins. **4/4/4 → 4/0/4.**
+
+### Read this before writing another run-driven check — both traps gave a WRONG answer
+
+- **`executions.list()` returns every instance of the session.** Polling for "some terminal instance"
+  is satisfied instantly by a *previous* run's corpse. That sampled the artifact directory before the
+  run under test wrote anything and reported this defect as **already working**. Wait for a new
+  `executionId`, then for every instance of that execution to end.
+- **A single ON→OFF pair cannot attribute a difference.** "No artifact" is also what an unrelated
+  second-run failure produces. Run **ON → OFF → ON**.
+
+Worth keeping in mind generally: static reading said the flag was never sent, the first measurement
+said it worked, and the corrected measurement agreed with the static reading. Neither alone was
+enough — the disagreement is what exposed the harness bug.
+
+### SET-013 needs an owner decision, and here is the exact shape of it
+
+The unavailable-store **contract** is already proven: `verify:secrets` drives a real `SecretStore`
+with an injected `isAvailable: () => false` and asserts it refuses to store and returns nothing. The
+missing half is the **GUI** — the Secrets card rendering that state — which needs
+`safeStorage.isEncryptionAvailable()` to be false inside the running app. There is no seam. Adding an
+env-gated override to `app/main/secretStore.ts` would put a test hook into a shipped security path,
+the same class of thing deliberately removed from the Zvec host (`__testAbort`). **I did not add one.**
+If the owner wants it, that is a deliberate decision to record, not a drive-by edit.
+
+### Verification
+
+settings-runner-behaviour 11/11 · runner 89/89 · artifacts 13/13 · failure-evidence 34/34 ·
+failure-screenshot-precedence 6/6 · concurrency 81/81 · `build` + `typecheck:scripts` clean.
+
+### The packaged gate is STALE again
+
+This changed `src/instances`, `src/runner`, `app/main` and `app/renderer`. Repackage before citing the
+70/70 or 87/0 below; both freshness guards will refuse the current payload.
+
+## PRIOR (2026-07-27): live-engine harness — SYS-REP-007 + SYS-REP-011 closed
 
 `npm run verify:reports-live-engine` (**new**, 21 PASS / 0 FAIL) closes the last two cases that
 needed engineering. Ledger **59 PASS / 6 NOT RUN / 1 BLOCKED**; Reports **14 PASS / 2 NOT RUN**, and

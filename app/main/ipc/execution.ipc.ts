@@ -38,6 +38,8 @@ export interface RunWorkflowRequest {
   dryRun?: boolean;
   totalInstances?: number;
   maxConcurrentInstances?: number;
+  /** Capture failure evidence for steps with no explicit `onFailure.screenshot`. Omitted = artifact-profile default. */
+  screenshotOnFailure?: boolean;
   /** Per-card run parameters (Concurrent Instance Monitor workflow cards). */
   isolationMode?: "browserContext" | "persistentContext";
   stopOnError?: boolean;
@@ -436,7 +438,10 @@ async function resolveInstanceTemplate(
     timeoutMs: 30000,
     viewport: { width: 1365, height: 768 },
     ignoreHttpsErrors,
-    ignoreHttpsErrorsSource: explainIgnoreHttpsErrors(certificateTrustSources)
+    ignoreHttpsErrorsSource: explainIgnoreHttpsErrors(certificateTrustSources),
+    // Run-level failure-evidence choice. Only carried when the caller stated one, so an omitted
+    // field still means "use the artifact profile's default" rather than "capture nothing".
+    screenshotOnFailure: typeof request.screenshotOnFailure === "boolean" ? request.screenshotOnFailure : undefined
   };
 
   if (ignoreHttpsErrors) {

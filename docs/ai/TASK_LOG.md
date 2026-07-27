@@ -4,7 +4,47 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Live-engine harness: SYS-REP-007 + SYS-REP-011 closed (Claude)
+## 2026-07-27 (latest) - SET-008 + SET-009 closed; AWKIT-SET-006 fixed (Claude)
+
+**Task:** close the remaining Settings cases.
+
+**Delivered:** `npm run verify:settings-runner-behaviour` — **11 PASS / 0 FAIL**. Ledger **61 PASS /
+4 NOT RUN / 1 BLOCKED**; Settings **19 PASS / 2 NOT RUN**. Every case still open across the whole
+campaign is now an owner decision, not engineering work.
+
+**Defect `AWKIT-SET-006`.** "Screenshot on failure" was offered in Settings and on every run card,
+persisted in both places, and reached nothing: `RunWorkflowRequest` had no field for it and all four
+artifact profiles hardcode `screenshotOnFailure: true`. A RULES.md violation (no no-op controls).
+Fixed by carrying the run-level choice the way certificate trust already travels — request → instance
+template → `InstanceConfig` → engine — with per-step `onFailure.screenshot` still winning and an
+omitted field still meaning "artifact default". ON → OFF → ON went 4/4/4 → **4/0/4**.
+
+**Two harness traps that each produced a wrong answer first, both now guarded in the suite:**
+`executions.list()` returns every instance of the session, so polling for "some terminal instance" is
+satisfied by a previous run's corpse and samples artifacts too early — it reported the defect as
+*working*. And a single ON→OFF pair cannot attribute the difference to the setting, so the suite runs
+ON→OFF→ON. Static reading, first measurement and corrected measurement disagreed; the disagreement is
+what exposed the harness bug.
+
+**Not closed, and why:** SET-013's GUI half needs `safeStorage.isEncryptionAvailable()` false inside
+the running app; the contract is already proven by `verify:secrets` with an injected fake, but there
+is no seam, and adding an env hook to `app/main/secretStore.ts` would put a test hook in a shipped
+security path (the class deliberately removed from the Zvec host). Owner decision — not taken.
+SET-015 is the real OS folder launch, same owner-decision class as SYS-REP-008.
+
+**Files:** `scripts/verify-settings-runner-behaviour.mts` (new), `package.json`,
+`app/renderer/pages/InstanceMonitor.tsx`, `app/main/ipc/execution.ipc.ts`,
+`src/instances/{InstanceConfig,InstanceManager}.ts`, `src/runner/ExecutionEngine.ts`,
+`docs/testing/comprehensive-validation/*`, `docs/ai/*`.
+
+**Tests run:** settings-runner-behaviour 11/11, runner 89/89, artifacts 13/13, failure-evidence 34/34,
+failure-screenshot-precedence 6/6, concurrency 81/81, build + typecheck:scripts clean.
+**Not run:** `package:portable` + the packaged gates — this changed `src/` and `app/`, so the 70/0 and
+87/0 from earlier today are stale again.
+
+---
+
+## 2026-07-27 - Live-engine harness: SYS-REP-007 + SYS-REP-011 closed (Claude)
 
 **Task:** build the live-engine harness for the two Reports cases that no seeding could reach.
 

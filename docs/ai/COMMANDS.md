@@ -87,6 +87,13 @@ npm run verify:reports-live-engine # tsx scripts/verify-reports-live-engine.mts 
                             # via its own settings IPC, and asserts the rendered live distribution
                             # equals executions.list() and that backpressure appears AND clears.
                             # Spawns the mock site itself; needs `npm run build` first. (21/21)
+npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-behaviour.mts — SET-009 +
+                            # SET-008's run-form half. Proves Settings execution defaults reach a NEWLY
+                            # OPENED run card (two distinct value sets), that a card's own saved value
+                            # survives a later Settings change while an untouched card takes the new
+                            # default, and that the RUNNER honours screenshot-on-failure — driven by
+                            # real runs started from the card's Run button, ON/OFF/ON. Spawns the mock
+                            # site; needs `npm run build` first. (11/11)
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library

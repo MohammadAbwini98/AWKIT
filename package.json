@@ -81,6 +81,7 @@
     "verify:reports": "node scripts/verify-reports-gui.mjs",
     "verify:reports-populated-gui": "tsx scripts/verify-reports-populated-gui.mts",
     "verify:reports-live-engine": "tsx scripts/verify-reports-live-engine.mts",
+    "verify:settings-runner-behaviour": "tsx scripts/verify-settings-runner-behaviour.mts",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:waits": "tsx scripts/verify-waits.mts",

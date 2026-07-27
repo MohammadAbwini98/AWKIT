@@ -352,7 +352,8 @@ export function InstanceMonitor() {
           totalInstances: params.totalRuns,
           maxConcurrentInstances: params.concurrentInstances,
           isolationMode: params.isolationMode,
-          stopOnError: params.stopOnError
+          stopOnError: params.stopOnError,
+          screenshotOnFailure: params.screenshotOnFailure
         })) as { status?: string; message?: string; error?: string; validation?: { issues?: { message: string; blocking?: boolean }[] } };
 
         if (result.status === "validationFailed") setRunMessage(`${workflow.name}: ${describeValidationFailure(result.validation)}`);

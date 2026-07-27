@@ -891,8 +891,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   above maxima; concurrency above runs; valid boundaries.
 - **Expected:** Invalid combinations show all actionable errors and do not persist; main-process
   validation rejects direct invalid IPC; valid boundaries save and appear in new designer/run forms.
-- **Status:** `NOT RUN` for the new-**run**-form half of propagation only, which is scoped to SET-009
-  and not counted twice here. **New-designer propagation is now executed**: two different zoom
+- **Status:** `PASS` — the new-**run**-form half is now executed under SET-009
+  (`verify:settings-runner-behaviour`, two distinct default sets reaching a freshly opened run card),
+  and the rest was already green. **New-designer propagation is executed**: two different zoom
   defaults (75 % and 150 %) are driven through a freshly opened Flow Designer and read back from the
   visible zoom control. Two values, because one would match by coincidence — the default is 100 %.
   The per-designer `flowDesignerZoomPercent` is cleared first, or the assertion would silently read
@@ -912,8 +913,19 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   stop-on-error; save/restart; open a new run; execute failure/recovery cases.
 - **Expected:** New run form receives defaults within maxima; runner honors selected flags; existing
   saved workflow/card values are not silently overwritten.
-- **Status:** `NOT RUN` for runner-behavior proof. Save/restart persistence for execution defaults
-  passed in `verify:settings-e2e`.
+- **Status:** `PASS` — `npm run verify:settings-runner-behaviour` (**11 PASS / 0 FAIL**), on top of the
+  save/restart persistence already green in `verify:settings-e2e`. Two different default sets (7/2/headed
+  and 3/1/headless) each reach a newly opened run card, because one set can agree by coincidence with a
+  card that ignores Settings. A card whose value was edited keeps it across a later Settings change
+  (9 vs a new default of 4) **while an untouched card takes the new default** — without that second
+  half, "nothing changed" would satisfy the first. The runner half is proven by real runs started from
+  the card's own Run button, and **it found `AWKIT-SET-006`**: screenshot-on-failure was a no-op.
+  ON → OFF → ON now yields **4 → 0 → 4** failure-evidence bundles.
+
+  Two traps recorded so they are not repeated: `executions.list()` returns every instance of the
+  session, so polling for "some terminal instance" is satisfied by a PREVIOUS run's corpse and samples
+  the artifact directory too early — wait for a new `executionId`. And a single ON→OFF pair cannot
+  separate the setting from run order; the third run is what makes it evidence.
 
 ### SET-010 — Runtime concurrency modes and host recommendation
 
@@ -1104,8 +1116,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
     are counted separately now, which is why its headline moved from 158 to **155/0/3** without any
     check changing behaviour. Two of the three are proven by `verify:reports-live-engine` and say so
     in their own reason strings.
-- **Settings:** **17 PASS / 4 NOT RUN**, with `verify:settings-e2e` at **151/151** and
-  `verify:recorder-gui` at **103/103** — page/IPC
+- **Settings:** **19 PASS / 2 NOT RUN**, with `verify:settings-e2e` at **151/151**,
+  `verify:settings-runner-behaviour` at **11/11** and `verify:recorder-gui` at **103/103** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
   including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,
   counts and unreadable-store recovery, the complete UI-state/reset data-preservation inventory (now
@@ -1114,13 +1126,18 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   SET-017, SET-019 and SET-020 closed this round; SET-007 found and fixed `AWKIT-SET-005`. SET-004's
   mid-session half is proven in `verify:recorder-gui`, which owns the mock site and the Recorder
   controls, rather than by duplicating that infrastructure into the Settings gate.
-  The five remaining cases are open for a *named* residual subcase each:
-  - **SET-008** — the new-**run-form** half of propagation only; the designer half is executed.
-  - **SET-009** — runner *behaviour* proof (headed/headless, screenshot-on-failure, stop-on-error);
-    persistence already passes, this needs a bounded real run.
-  - **SET-013** — an unavailable secret store. Requires `safeStorage.isEncryptionAvailable()` to be
-    false, which has no injection seam from outside the main process.
+  SET-008 and SET-009 closed on 2026-07-27 via `verify:settings-runner-behaviour`, which found and
+  fixed `AWKIT-SET-006` (screenshot-on-failure was a control that did nothing).
+  The two remaining cases are open for a *named* residual subcase each, and **neither is ordinary
+  engineering work**:
+  - **SET-013** — the unavailable-secret-store variant. The *contract* is already proven at the layer
+    that decides it: `verify:secrets` drives a real `SecretStore` with an injected
+    `isAvailable: () => false` and asserts it refuses to store and returns nothing. What is missing is
+    the **GUI** half, which needs `safeStorage.isEncryptionAvailable()` to return false inside the
+    running app. There is no seam, and adding an env-gated override to `app/main/secretStore.ts` would
+    put a test hook in a shipped security path — the same class of thing that was deliberately removed
+    from the Zvec host (`__testAbort`). **That is an owner decision, not an agent one.**
   - **SET-015** — the real OS folder launch, a recorded manual check by the same owner decision as
-    SYS-REP-008.
+    SYS-REP-008 and SYS-REP-006's artifact launch.
 
 No defect is inferred from a `NOT RUN` or `BLOCKED` result.

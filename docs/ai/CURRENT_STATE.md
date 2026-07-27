@@ -1,6 +1,58 @@
 # CURRENT_STATE
 
-## Live-engine harness — SYS-REP-007 + SYS-REP-011 closed, `AWKIT-REP-008` fixed (2026-07-27, current)
+## SET-008 + SET-009 closed; `AWKIT-SET-006` — a control that did nothing (2026-07-27, current)
+
+`npm run verify:settings-runner-behaviour` (new) is **11 PASS / 0 FAIL**. Ledger **61 PASS / 4 NOT
+RUN / 1 BLOCKED**; Settings **19 PASS / 2 NOT RUN**. The two open Settings cases are **not ordinary
+engineering** — see below.
+
+### `AWKIT-SET-006` — "Screenshot on failure" never reached a run
+
+Settings › Execution Defaults offered it, every workflow run card offered its own toggle, both
+persisted — and neither reached the runner. `runWorkflowFromCard` sent `headless`, `totalInstances`,
+`maxConcurrentInstances`, `isolationMode` and `stopOnError`; `RunWorkflowRequest` had **no field for
+it at all**. The runner's default came from `resolveArtifactSettings()`, and all four artifact profiles
+hardcode `screenshotOnFailure: true`, so failure evidence was captured unconditionally regardless of
+what the user chose. The only working control was the per-step `onFailure.screenshot` in the Designer.
+This is a RULES.md violation: an enabled control that does nothing.
+
+Fixed by carrying the run-level choice exactly the way certificate trust already travels — request →
+instance template → `InstanceConfig` → engine, taking precedence over the artifact-profile default.
+Per-step `onFailure.screenshot` still wins over both, and an omitted field still means "artifact
+default", so no existing caller changes behaviour. ON → OFF → ON went **4 / 4 / 4** before the fix and
+**4 / 0 / 4** after.
+
+### Two measurement traps, both of which produced a WRONG answer first
+
+1. **A stale corpse satisfied the wait.** The first version polled `executions.list()` for "some
+   terminal instance" — which a *previous* run's finished instance satisfies instantly. It sampled the
+   artifact directory before the run under test had written anything, reported 4 → 0 → 4, and would
+   have recorded this defect as *working*. It now waits for a new `executionId` and for every instance
+   of that execution to end.
+2. **A single ON→OFF pair cannot attribute the difference.** "No screenshot" is also what a second run
+   that writes nothing for an unrelated reason produces. The suite runs **ON → OFF → ON**; the 4/0/4
+   shape is what makes the setting the cause rather than run order.
+
+Static reading said the flag was never sent; the first measurement said it worked; the corrected
+measurement agreed with the static reading. **Neither reading alone was sufficient.**
+
+### The two remaining Settings cases are owner decisions
+
+- **SET-013** — the unavailable-secret-store *contract* is already proven by `verify:secrets`, which
+  drives a real `SecretStore` with an injected `isAvailable: () => false`. The missing **GUI** half
+  needs `safeStorage.isEncryptionAvailable()` to return false inside the running app. There is no
+  seam, and adding an env-gated override to `app/main/secretStore.ts` would put a test hook in a
+  shipped security path — the class of thing deliberately removed from the Zvec host (`__testAbort`).
+  Not an agent decision.
+- **SET-015** — the real OS folder launch, same owner-decision class as SYS-REP-008.
+
+### Verification
+
+settings-runner-behaviour 11/11, runner 89/89, artifacts 13/13, failure-evidence 34/34,
+failure-screenshot-precedence 6/6, concurrency 81/81, `build` + `typecheck:scripts` clean.
+**This changed `src/` and `app/`, so the packaged results below are stale again.**
+
+## Live-engine harness — SYS-REP-007 + SYS-REP-011 closed, `AWKIT-REP-008` fixed (2026-07-27)
 
 `npm run verify:reports-live-engine` (new) is **21 PASS / 0 FAIL**. Ledger **59 PASS / 6 NOT RUN /
 1 BLOCKED**; Reports **14 PASS / 2 NOT RUN**. **No engineering work remains in Reports** — both open

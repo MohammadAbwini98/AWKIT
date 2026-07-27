@@ -119,7 +119,10 @@ export class InstanceManager {
       // Certificate trust, already resolved by the execution IPC. `?? false` keeps the secure default
       // for any run profile built without it (older callers, verifiers, tests).
       ignoreHttpsErrors: profile.instanceTemplate.ignoreHttpsErrors ?? false,
-      ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default"
+      ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default",
+      // Left undefined when the run profile does not carry it, so the artifact-profile default still
+      // governs for every caller that never set it.
+      screenshotOnFailure: profile.instanceTemplate.screenshotOnFailure
     };
   }
 

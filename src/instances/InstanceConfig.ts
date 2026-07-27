@@ -29,4 +29,10 @@ export interface InstanceConfig {
   ignoreHttpsErrors?: boolean;
   /** Diagnostics only: which precedence tier supplied `ignoreHttpsErrors`. */
   ignoreHttpsErrorsSource?: "run" | "workflow" | "app" | "default";
+  /**
+   * Run-level "capture failure evidence" choice, from the run card / Settings execution defaults.
+   * A per-step `onFailure.screenshot` still wins over it (FlowExecutor). Absent = fall back to the
+   * artifact profile's default, which is how every run behaved before this was carried.
+   */
+  screenshotOnFailure?: boolean;
 }
