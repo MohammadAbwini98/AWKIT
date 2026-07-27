@@ -177,6 +177,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:ipc-contract": { class: "static-source-validation", why: "Statically parses app/main/ipc + preload for channel-contract drift." },
   "verify:oracle-offline-bundle": { class: "static-source-validation", why: "Audits Oracle offline-bundle integrity over fixtures (no packaged app run)." },
   "verify:oracle-packaging": { class: "static-source-validation", why: "Checks Oracle packaging + path-resolution config." },
+  "verify:roadmap-dashboard": { class: "static-source-validation", why: "Parses the repo's roadmap/issue/ledger/traceability sources plus the tools/roadmap model and server; never launches a browser or the app." },
 
   // ── Packaged application (drives the built artifact or the offline dependency bundle) ─────────
   "verify:packaged-runtime": { class: "packaged-application", why: "Smoke of the packaged app runtime." },

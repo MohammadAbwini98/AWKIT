@@ -1,6 +1,66 @@
 # CURRENT_STATE
 
-## SET-008 + SET-009 closed; `AWKIT-SET-006` — a control that did nothing (2026-07-27, current)
+## Program Status & Roadmap dashboard — `tools/roadmap` (2026-07-27, current)
+
+`npm run roadmap` → <http://127.0.0.1:4380>. `npm run verify:roadmap-dashboard` is **105 PASS / 0
+FAIL**. `npm run build`, `typecheck:scripts`, `verify:source-hygiene` (7/0) and `validate:offline`
+all pass **unchanged** — verified before and after.
+
+Validation state is unchanged by this task: the ledger still measures **61 PASS / 4 NOT RUN /
+1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2), and the dashboard's consistency banner
+confirms `HANDOFF.md` and this file both assert the same figures.
+
+A standalone read-only web dashboard that parses the project's 13 real status sources live and
+renders one picture of what is left, in what order, blocked by what, and who is on it. It is
+deliberately outside the application: `tools/` sits outside `tsconfig.json`'s 4-entry `include`
+allowlist and electron-builder's `files` allowlist, so `tsc --noEmit --listFiles` matches **0** files
+under `tools/roadmap`. Zero new npm dependencies — pure `node:http` plus plain ES modules, following
+`mock-site/server.mjs`. Full contract: `tools/roadmap/README.md`.
+
+**Three findings the dashboard surfaced, which are about the repository rather than about it:**
+
+1. **The open dependency graph is nearly empty.** Only 5 of 30 open issues carry a `blocks` edge. The
+   *entire* open DAG is the Test Lab chain `wza.5 → wza.6 → {wza.7 → wza.8, wza.9}` — **24 of the 29
+   queued issues declare no dependency at all.** The Work Queue therefore states, with the count
+   computed live, that its rank is a priority sort rather than a schedule for that 83%.
+2. **Beads is measurably stale against the ledger.** `awkit-8ri` claims "Settings: 4 NOT RUN" and
+   `awkit-az7` claims "Reports: 7"; the ledger measures 2 and 2. Both are shown with their sources
+   and flagged — never reconciled or averaged.
+3. **`verify:verifier-classification` is red on `main`, and not because of this change.**
+   `verify:reports-live-engine` and `verify:settings-runner-behaviour` — added in the two preceding
+   sessions, the ones that found `AWKIT-REP-008` and `AWKIT-SET-006` — were never added to
+   `scripts/lib/verifier-classification.ts`. This change registers only its own verifier; the
+   per-class count moved `static-source-validation` **7 → 8** (total 141 → 142) exactly as expected.
+   **Classifying those two remains open** — guessing a class would defeat the registry's purpose.
+
+**Agent attribution is two structurally separate fields.** The tracker has no per-issue assignee (all
+111 issues carry the same owner) and `TASK_LOG.md` records only completed work, so "who is working on
+this issue" has no honest source. `Assignee` comes from `tools/roadmap/assignments.json` only (solid
+chip, expiring, empty state is the literal word *Unclaimed*); *"recent activity in this area"* comes
+from `TASK_LOG.md` and renders muted/dashed/italic, never as "working on". The verifier asserts no
+derived attribution can set a claim state, driven against a fixture rather than the shipped empty
+file — otherwise that assertion would be an `.every()` over an empty array.
+
+**`GET /app.css` serves `app/renderer/styles/global.css` verbatim**, so the page is literally the same
+UI rather than a lookalike, with permanently zero token drift. This couples the page to renderer CSS,
+so the verifier guards the 19 borrowed class names; a `.roadmap-card` rename now fails loudly instead
+of degrading the page silently.
+
+### Two defects found and fixed while building it
+
+- **`assignments.json` was invisible to the liveness fingerprint.** It is read by `agents.mjs` but is
+  not a repository source, so it was absent from `WATCHED_SOURCE_IDS` — a new claim would have sat
+  unread behind the snapshot cache until some *unrelated* document happened to change. The one file
+  the tool asks an agent to edit was the one file it ignored. Now folded into the server fingerprint;
+  proven end to end (file write → SSE push → chip renders, claimed and expired variants).
+- **The dependency-graph edge overlay could never draw.** It was scheduled purely on
+  `requestAnimationFrame`, which a non-compositing tab starves indefinitely — measured: 33 nodes, **0
+  edges**. A graph whose edges silently never appear is indistinguishable from a graph with no edges.
+  The first draw now runs on an explicit mount hook; rAF is kept only to coalesce redraws. Also fixed
+  in the same area: bezier control points crossed at narrow lane gaps, and the lane grid overflowed
+  its own SVG overlay so the last lane's edges were unreachable.
+
+## SET-008 + SET-009 closed; `AWKIT-SET-006` — a control that did nothing (2026-07-27, earlier)
 
 `npm run verify:settings-runner-behaviour` (new) is **11 PASS / 0 FAIL**. Ledger **61 PASS / 4 NOT
 RUN / 1 BLOCKED**; Settings **19 PASS / 2 NOT RUN**. The two open Settings cases are **not ordinary

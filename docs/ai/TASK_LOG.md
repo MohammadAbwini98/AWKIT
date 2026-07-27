@@ -4,7 +4,50 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - SET-008 + SET-009 closed; AWKIT-SET-006 fixed (Claude)
+## 2026-07-27 (latest) - Program Status & Roadmap dashboard, isolated in tools/roadmap (Claude)
+
+**Task:** build a continuously-updating web page showing the roadmap, pending work, dependencies,
+reported issues, implementation order and agent activity — isolated from the app, runnable on its own.
+
+**Delivered:** `npm run roadmap` → <http://127.0.0.1:4380>; `npm run verify:roadmap-dashboard`
+**105 PASS / 0 FAIL**. Eight views over 13 live-parsed sources (222 records), served by a zero-
+dependency `node:http` server bound to loopback. `GET /app.css` serves `global.css` verbatim, so the
+page is the app's real UI with zero token drift rather than a lookalike.
+
+**Isolation proven, not asserted.** `tsc --noEmit --listFiles` matches **0** files under
+`tools/roadmap`; `npm run build`, `typecheck:scripts`, `verify:source-hygiene` (7/0) and
+`validate:offline` all pass unchanged, run before and after. `electron-builder.json` untouched.
+
+**Five briefing assumptions were measured and found wrong** before any code was written — Node is
+18.16 not 20; the assumed TASK_LOG heading regex matches 38 of 247 (a two-strategy extractor recovers
+225 = 91.1%); the traceability CSV has unescaped commas so a 6-way split misaligns 3 rows; the naive
+object-literal→JSON conversion throws on phase E's prose colon; and **the open dependency graph is
+nearly empty** — 24 of 29 queued issues declare no dependency, which reshaped the whole design.
+
+**Two defects found and fixed in the new code.** (1) `assignments.json` — the only file the tool asks
+an agent to edit — was absent from the liveness fingerprint, so a claim would have sat unread behind
+the snapshot cache until an unrelated document changed; now folded in and proven end to end. (2) The
+graph's SVG edge overlay was scheduled purely on `requestAnimationFrame`, which a non-compositing tab
+starves: measured 33 nodes / **0 edges**. First draw now runs on an explicit mount hook.
+
+**One vacuous check found in my own verifier and fixed:** "every assignee comes from
+assignments.json" was an `.every()` over an empty array, since the file ships with no claims — true
+without testing anything. Now driven against a fixture via an injected path, and it asserts the
+expired-claim branch too. Mutation-tested: three deliberate breaks each produce FAIL and exit 1.
+
+**Files:** `tools/roadmap/**` (server, 9 parsers, normalize/link/order/agents/model, 6 public assets,
+README), `scripts/verify-roadmap-dashboard.mjs`, `scripts/lib/verifier-classification.ts` (+1 entry),
+`package.json` (+3 scripts), `.claude/launch.json`, `docs/ai/{CURRENT_STATE,COMMANDS,TASK_LOG}.md`.
+
+**Not done / known:** `verify:verifier-classification` is **red on `main` and was before this task** —
+`verify:reports-live-engine` and `verify:settings-runner-behaviour` from the two preceding sessions
+were never registered. This change registered only its own verifier (`static-source-validation`
+7 → 8, total 141 → 142, the expected delta); classifying those two is still open and is deliberately
+not guessed. No screenshot evidence: the browser pane could not composite in this session, so the UI
+was verified structurally (computed tokens, grid geometry, overflow, theme cycling, SSE round-trip)
+rather than visually.
+
+## 2026-07-27 - SET-008 + SET-009 closed; AWKIT-SET-006 fixed (Claude)
 
 **Task:** close the remaining Settings cases.
 

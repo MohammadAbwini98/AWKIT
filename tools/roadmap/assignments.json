@@ -1,0 +1,21 @@
+{
+  "$comment": [
+    "Opt-in agent claims. This is the ONLY source the dashboard treats as authoritative for",
+    "'who is working on this'. Nothing else in the repository records an assignee.",
+    "",
+    "An agent starting sustained work on an item may add a claim here; the dashboard shows it as",
+    "an Assignee chip. Items with no claim show 'Unclaimed', which is the honest default.",
+    "",
+    "expiresAt defaults to claimedAt + 24h when omitted. Expired claims render struck through,",
+    "because a stale claim is worse than no claim.",
+    "",
+    "itemId uses the dashboard's namespaced ids: 'bead:awkit-7lj', 'case:SET-013',",
+    "'defect:AWKIT-SET-006', 'phase:E'.",
+    "",
+    "Example:",
+    "  { \"itemId\": \"bead:awkit-7lj\", \"agent\": \"Claude\", \"state\": \"in-progress\",",
+    "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
+    "    \"note\": \"IPC authz sweep\" }"
+  ],
+  "claims": []
+}

@@ -20,6 +20,12 @@ npm run dev              # node scripts/dev.mjs → electron-vite dev (Electron 
 npm run preview          # electron-vite preview
 npm run mock-site        # node mock-site/server.mjs  (offline test website, port 4321 by default)
 npm run dev:mock-site    # same as mock-site
+npm run roadmap          # node tools/roadmap/server.mjs — Program Status & Roadmap dashboard,
+                         # http://127.0.0.1:4380 (ROADMAP_PORT overrides). Read-only, binds loopback
+                         # only, zero dependencies. NOT part of the app: tools/ is outside
+                         # tsconfig's include and electron-builder's files allowlist.
+                         # See tools/roadmap/README.md.
+npm run dev:roadmap      # same as roadmap
 ```
 
 ## Typecheck / build
@@ -37,6 +43,16 @@ npm run verify:all-typecheck # build + typecheck:scripts — the combined type g
 ```bash
 npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (4 checks)
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
+npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 105 checks over the
+                            # tools/roadmap dashboard: source readability, exact record counts
+                            # (111 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
+                            # FOUR-WAY ledger reconciliation (case file = its own rollup =
+                            # CURRENT_STATE.md = HANDOFF.md — this is what catches doc drift),
+                            # ordering invariants incl. a SYNTHETIC 2-cycle proving the cycle branch
+                            # fires, byte-identical determinism, the provenance rules driven against
+                            # a claims fixture, server routes (200/304/404/405), the offline rules,
+                            # and the 19 global.css class names the page borrows.
+                            # static-source-validation: never launches a browser or the app.
 npm run verify:mock-site    # node scripts/verify-mock-site.mjs — starts the local Feature Test Lab
                             # mock site and checks scenario URLs, delay behavior, and stable selectors
 npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — launches the REAL built Electron

@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): SET-008 + SET-009 closed; `AWKIT-SET-006` fixed
+## ACTIVE (2026-07-27, latest): Program Status & Roadmap dashboard shipped; one gate left red
+
+`npm run roadmap` → <http://127.0.0.1:4380>. `npm run verify:roadmap-dashboard` **105 PASS / 0 FAIL**.
+Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED** — Recorder 28/0/1, Reports 14/2, Settings 19/2.
+`npm run build`, `typecheck:scripts`, `verify:source-hygiene` (7/0) and `validate:offline` all pass
+unchanged. Contract: `tools/roadmap/README.md`.
+
+### The one thing genuinely owed — and it predates this task
+
+**`npm run verify:verifier-classification` is RED on `main`.** `verify:reports-live-engine` and
+`verify:settings-runner-behaviour` — added by the two sessions before this one, the ones that found
+`AWKIT-REP-008` and `AWKIT-SET-006` — were never added to `scripts/lib/verifier-classification.ts`.
+The dashboard's parsers surfaced this before it had a UI; it is not caused by this change, which
+registered only its own verifier (`static-source-validation` 7 → 8, total 141 → 142).
+
+**Next step:** classify those two from what each script actually *exercises*, not from its name —
+both drive a live engine, so the honest class is likely `real-browser` or `integration`, but read each
+verifier's own header before deciding. Guessing would defeat the registry's purpose (FR-I1 I1.5
+exists precisely so a structural check is never counted as runtime validation).
+
+### If you touch this dashboard, two traps are already recorded
+
+- **`docs/ai/CURRENT_STATE.md`'s newest `##` section must carry the ledger tally.** `parse-narrative.mjs`
+  scopes to the newest heading only. Adding a section without a `N PASS / N NOT RUN / N BLOCKED` line
+  silently drops a source from the consistency banner — the verifier caught exactly that during this
+  task and it is check #3 of 105.
+- **`.every()` over a filtered-empty collection.** The provenance check here was vacuous until it was
+  driven against a fixture through `readAssignments(now, path)`. Pair any `.every()` with a
+  cardinality assertion on the same collection.
+
+## 2026-07-27 (earlier): SET-008 + SET-009 closed; `AWKIT-SET-006` fixed
 
 `npm run verify:settings-runner-behaviour` (**new**, 11 PASS / 0 FAIL). Ledger **61 PASS / 4 NOT RUN /
 1 BLOCKED** — Recorder 28/0/1, Reports 14/2, Settings **19/2**.

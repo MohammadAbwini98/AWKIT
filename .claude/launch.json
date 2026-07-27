@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "mock-site"],
       "port": 4321
+    },
+    {
+      "name": "roadmap",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "roadmap"],
+      "port": 4380
     }
   ]
 }
