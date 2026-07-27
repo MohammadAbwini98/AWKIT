@@ -50,7 +50,12 @@ measurement agreed with the static reading. **Neither reading alone was sufficie
 
 settings-runner-behaviour 11/11, runner 89/89, artifacts 13/13, failure-evidence 34/34,
 failure-screenshot-precedence 6/6, concurrency 81/81, `build` + `typecheck:scripts` clean.
-**This changed `src/` and `app/`, so the packaged results below are stale again.**
+
+**Packaged after this change, and both gates re-run:** `package:portable`, then
+`verify:packaged-walkthrough` **70 PASS / 0 FAIL** and `verify-packaged-validation` **87 PASS / 0
+FAIL** (`freshly built (3 min old)`). The `AWKIT-SET-006` wiring therefore holds in the packaged app —
+worth having, since the fix crosses the IPC boundary the packaged build bundles.
+`dependency-manifest.json`'s `builtAt` is `2026-07-27T13:16:24Z`.
 
 ## Live-engine harness — SYS-REP-007 + SYS-REP-011 closed, `AWKIT-REP-008` fixed (2026-07-27)
 

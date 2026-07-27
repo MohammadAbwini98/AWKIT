@@ -39,8 +39,9 @@ SET-015 is the real OS folder launch, same owner-decision class as SYS-REP-008.
 
 **Tests run:** settings-runner-behaviour 11/11, runner 89/89, artifacts 13/13, failure-evidence 34/34,
 failure-screenshot-precedence 6/6, concurrency 81/81, build + typecheck:scripts clean.
-**Not run:** `package:portable` + the packaged gates — this changed `src/` and `app/`, so the 70/0 and
-87/0 from earlier today are stale again.
+**Repackaged after the `src/`+`app/` change and both packaged gates re-run: walkthrough 70/0,
+packaged-validation 87/0** — so the `AWKIT-SET-006` wiring holds in the packaged app, not only the dev
+tree. **Not run:** the clean/offline Windows VM walkthrough and code signing / SmartScreen.
 
 ---
 
