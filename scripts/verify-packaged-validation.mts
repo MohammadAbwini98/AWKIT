@@ -38,6 +38,7 @@ const upgradeRoot = join(baseDir, `upgrade-${stamp}`);
 
 let passed = 0;
 let failed = 0;
+let notRun = 0;
 const failures: string[] = [];
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
@@ -48,6 +49,17 @@ function check(label: string, condition: unknown, detail?: string): void {
     failures.push(label);
     console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
   }
+}
+
+/**
+ * A check whose PRECONDITION is absent is neither a pass nor a defect. The alternative — folding the
+ * precondition into the condition as `… || true` — produces a check that can never fail, which is
+ * how one of these went unnoticed here for a whole release gate. Third state, same as the a11y and
+ * Oracle-soak verifiers.
+ */
+function checkSkip(label: string, reason: string): void {
+  notRun += 1;
+  console.log(`  ~ ${label} — NOT RUN: ${reason}`);
 }
 
 const appEnv = (localAppData: string): Record<string, string> => {
@@ -469,7 +481,23 @@ try {
     check("Runnable state present", (byId.get("pv-valid") as any)?.runnable === true);
     check("Not-Runnable state present", (byId.get("pv-broken") as any)?.runnable === false);
     check("Legacy state present", statuses.some((s: any) => s.underCompatibility === true));
-    check("Warnings/findings state present", statuses.some((s: any) => s.runnable === true && (s.errorCount > 0 || s.warningCount > 0)) || true);
+    // This read `… || true`, so it asserted NOTHING while reporting green. The precondition and the
+    // assertion are now separate facts: a flow tolerated UNDER COMPATIBILITY is the fixture's
+    // runnable-yet-imperfect case, and such a flow must be runnable *and* still say why. If no grant
+    // survives in this profile there is nothing to audit — NOT RUN, not a silent pass.
+    const underCompat = statuses.filter((s: any) => s.underCompatibility === true);
+    if (underCompat.length === 0) {
+      checkSkip(
+        "Warnings/findings state present",
+        "no flow is under compatibility in this profile, so there is no runnable-yet-imperfect flow to audit"
+      );
+    } else {
+      check(
+        "Warnings/findings state present",
+        underCompat.every((s: any) => s.runnable === true && (s.errorCount > 0 || s.warningCount > 0)),
+        JSON.stringify(underCompat.map((s: any) => ({ flowId: s.flowId, runnable: s.runnable, errors: s.errorCount, warnings: s.warningCount })))
+      );
+    }
     check("every status is derived, never persisted onto the profile", !("runnable" in ((await api.flowGet(t, "pv-valid")) ?? {})));
 
     // Migration ceremony.
@@ -636,6 +664,6 @@ try {
   await rm(upgradeRoot, { recursive: true, force: true }).catch(() => undefined);
 }
 
-console.log(`\n${passed} passed, ${failed} failed`);
+console.log(`\n${passed} passed, ${failed} failed${notRun > 0 ? `, ${notRun} not run` : ""}`);
 if (failures.length > 0) console.error(`Failures: ${failures.join(" | ")}`);
 process.exit(failed > 0 ? 1 : 0);

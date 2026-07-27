@@ -3,6 +3,36 @@
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Fragile area: checks that CANNOT FAIL — seven instances, no guard (2026-07-27)
+
+Seven assertions across this repo's verifiers have been found green while asserting **nothing**. Every
+one had the same shape: a real condition with an **escape hatch** that short-circuits to `true`.
+
+| # | suite | the shape | why it never failed |
+|---|---|---|---|
+| 1-3 | `verify-zvec-*` (2026-07-25) | vacuous negative control; suite-size floor below the real size | recorded further down this file |
+| 4 | `verify-reports-populated-gui` | `(failures.recent ?? []).length === 0 \|\| …` | the contract had no `recent` field at all |
+| 5 | `verify-reports-populated-gui` | `chromiumMemoryMb === undefined ? realCheck : true` | the fixture always defines it |
+| 6 | `verify-reports-settings-a11y` | `unsorted.length === 0 \|\| …` | a single-column table satisfies it |
+| 7 | `verify-packaged-validation` | `statuses.some(…) \|\| true` | **unconditionally true**, in a release gate |
+
+**The tell:** a `check(...)` whose *condition* can be satisfied without the product doing anything.
+Grep `=== undefined ?`, `.length === 0 ||`, and `|| true` **inside a check condition**.
+
+**Two things that look like the pattern and are not:** `check("…", true)` on its own line is usually a
+legitimate "control flow reached here" marker after an awaited action that would otherwise have
+thrown; and `x === undefined ? "—" : …` in output formatting is not an assertion.
+
+**The root cause is structural, not careless.** Every instance appeared in a verifier with only
+**pass/fail** and no `NOT RUN` state. When a precondition can legitimately be absent and the only two
+outcomes are "pass" and "invent a defect", the precondition gets folded into the condition — and the
+check dies silently. Suites with a `checkSkip`/NOT RUN third state (`verify-reports-settings-a11y`,
+the Oracle soak) do not develop this. **Give a new verifier three states from the start.**
+
+**There is no guard.** A source-scan verifier over `scripts/**` for these three shapes inside a
+`check(` argument list would close the class rather than the instance, the same way a scan over
+`aria-modal="true"` would close the modal-contract class below.
+
 ## Fragile area: a modal contract fixed per-component instead of per-concept (2026-07-27)
 
 **Three separate surfaces have now shipped `role="dialog"`/`aria-modal="true"` with none of the focus

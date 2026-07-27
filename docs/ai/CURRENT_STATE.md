@@ -1,6 +1,29 @@
 # CURRENT_STATE
 
-## Reports block — 3 cases closed, 2 defects, 2 vacuous checks (2026-07-27, current)
+## A seventh unfailable check, this one in a release gate (2026-07-27, current)
+
+`scripts/verify-packaged-validation.mts` contained
+`check("Warnings/findings state present", statuses.some(…) || true)`. The trailing `|| true` defeats
+the condition outright, so the check has been green since it was written without asserting anything —
+in a **packaged release gate**. Seventh instance of the pattern recorded in `KNOWN_ISSUES.md`.
+
+The fix keeps the precondition and the assertion as separate facts, so neither can stand in for the
+other: a flow tolerated **under compatibility** is the fixture's runnable-yet-imperfect case, and such
+a flow must be `runnable === true` *and* still report findings (`errorCount`/`warningCount` > 0). An
+empty set is `NOT RUN`, not a pass. The script gained the `NOT RUN` third state it never had — having
+only pass/fail is what pushed the precondition into the condition in the first place.
+
+**Executed: 86 PASS / 1 FAIL.** The rewritten check passes on a real assertion. The single failure is
+the script's own freshness guard (`the portable EXE is freshly built (1400 min old, < 180)`) refusing
+the 2026-07-26 package — the guard doing its job. `src/validation` and `app/main/ipc/validation.ipc.ts`
+last changed 2026-07-22, before that package was built, so the other 86 results describe current code.
+
+**`verify:reports-settings-a11y` re-run at HEAD: 14 PASS / 0 FAIL.** Note that the branch fixed in
+`cdcf8e3` is unreachable on a fresh profile — Workflow Reports renders its EmptyState, so there are no
+sort headers to audit. The `aria-sort` contract's real coverage is in `verify:reports-populated-gui`,
+where it is written as `sortState.length > 1 && …` and therefore cannot pass vacuously.
+
+## Reports block — 3 cases closed, 2 defects, 2 vacuous checks (2026-07-27)
 
 `verify:reports-populated-gui` **136 → 158 PASS / 0 FAIL**. Ledger **57 PASS / 8 NOT RUN /
 1 BLOCKED**; Reports **9 → 12 PASS / 4 NOT RUN**. Closed: SYS-REP-009, SYS-REP-010, SYS-REP-012.
@@ -28,6 +51,8 @@ read as a total. An operator deciding whether to clean up saw a small number. Sa
 
 That is now five instances of this pattern in the campaign. **The tell is a check whose condition can
 short-circuit to `true`** — `x === undefined ? … : true`, `list.length === 0 || …`. Grep for them.
+*(Two more were found afterwards — a sixth in the a11y suite and a seventh in the packaged validation
+gate, taking the running total to seven. See the section at the top of this file.)*
 
 **A third blind spot: the fixture never seeded `runtime_capacity_snapshots`** — a different table
 from the capacity *buckets* it did seed (`queryRuntimeSeries` reads the former, `queryCapacityAnalytics`

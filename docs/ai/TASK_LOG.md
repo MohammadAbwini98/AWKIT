@@ -4,7 +4,43 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - Reports block: 3 cases, 2 defects, 2 vacuous checks (Claude)
+## 2026-07-27 (latest) - Completed the interrupted handoff; a seventh unfailable check (Claude)
+
+**Task:** finish the `/HANDOFF` the previous session was cut off during, and verify its claims at HEAD
+rather than copying them forward.
+
+**Delivered.** The recommended grep was run against a surface the previous session had not covered —
+the packaged gates — and found a **seventh** instance of the unfailable-check pattern, this one in a
+release gate: `verify-packaged-validation.mts` had
+`check("Warnings/findings state present", statuses.some(…) || true)`. The `|| true` defeats the
+condition outright; it had been green since it was written and asserted nothing.
+
+**Fix:** precondition and assertion are now separate facts — a flow under compatibility must be
+`runnable === true` **and** still report findings; an empty set is `NOT RUN`. The script gained the
+`NOT RUN` third state it never had, which is the structural cause: a suite with only pass/fail pushes
+a legitimately-absent precondition into the condition.
+
+**Executed: 86 PASS / 1 FAIL.** The rewritten check passes on a real assertion. The one failure is the
+script's own freshness guard refusing the 2026-07-26 package (1400 min old vs a 180-min budget).
+`src/validation` last changed 2026-07-22, before that package was built, so the other 86 results
+describe current code.
+
+**Verified rather than assumed:** `verify:reports-settings-a11y` is 14 PASS / 0 FAIL at HEAD, but the
+branch fixed in `cdcf8e3` is **unreachable on a fresh profile** (EmptyState → no sort headers). The
+`aria-sort` contract's real coverage is in `verify:reports-populated-gui`, written as
+`sortState.length > 1 && …`, which cannot pass vacuously.
+
+**Files:** `scripts/verify-packaged-validation.mts`, `docs/ai/{HANDOFF,CURRENT_STATE,KNOWN_ISSUES,TASK_LOG}.md`,
+`.beads/*.jsonl` (reconciling `awkit-59s` + `awkit-38k`, closed by the previous session).
+
+**Tests run:** build PASS, typecheck:scripts PASS, reports-settings-a11y 14/14,
+verify-packaged-validation 86/1 (freshness guard), check-memory PASS.
+**Not run:** `package:portable` + `verify:packaged-walkthrough` — three sessions old now; the packaged
+70/70 stays non-citable and the freshness guard above will keep refusing until a repackage.
+
+---
+
+## 2026-07-27 - Reports block: 3 cases, 2 defects, 2 vacuous checks (Claude)
 
 **Task:** the Reports block — the 7 `NOT RUN` System Reports cases.
 

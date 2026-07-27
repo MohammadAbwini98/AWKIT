@@ -1,6 +1,83 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-27, latest): Reports block — 3 closed, ledger 57/8/1
+## ACTIVE (2026-07-27, latest): a SEVENTH unfailable check — this one in a release gate
+
+The previous session was cut off mid-handoff. This one completed it, and while doing so ran the grep
+that session recommended across a surface it had not covered: the **packaged** gates.
+
+### `verify-packaged-validation.mts` held a check that could not fail
+
+```ts
+check("Warnings/findings state present", statuses.some(…) || true);   // ← always true
+```
+
+`… || true` defeats the condition entirely. This sits in a **release gate**, has been green since it
+was written, and has never asserted anything. Seventh instance of the pattern.
+
+Fixed by separating the precondition from the assertion, so neither can stand in for the other: a
+flow tolerated **under compatibility** is the fixture's runnable-yet-imperfect case, and such a flow
+must be `runnable === true` **and** still report `errorCount`/`warningCount` > 0. If no grant survives
+in the profile there is nothing to audit — `NOT RUN`, not a silent pass. The script gained the `NOT
+RUN` third state it lacked (it had only pass/fail, which is *why* the precondition got folded into
+the condition).
+
+**Executed, not assumed: 86 passed / 1 failed.** The check now passes on a real assertion. The one
+failure is the script's own **freshness guard** — `the portable EXE is freshly built (1400 min old,
+< 180)` — refusing the 2026-07-26 package. That is the guard working, not a regression. The
+validation subsystem itself last changed `2026-07-22`, before that package was built, so the other 86
+results describe current code.
+
+### The tell, and where to look next
+
+Grep `=== undefined ?`, `.length === 0 ||`, and **`|| true`** inside a `check(` condition. Two greps
+that are *not* worth repeating: `check("…", true)` on its own is usually a legitimate "we reached
+here" marker after an awaited action, and `x === undefined ? "—" : …` in output formatting is fine.
+The dangerous form is a **real condition with an escape hatch bolted on**.
+
+Surfaces already swept: `verify-reports-populated-gui`, `verify-reports-settings-a11y`,
+`verify-packaged-validation`, and all of `scripts/` for the two earlier tells. **Not swept:** the
+`src/`-side unit-style verifiers for a `|| true` equivalent inside their own assertion helpers.
+
+### The `cdcf8e3` a11y fix is latent, and that is fine
+
+`verify:reports-settings-a11y` is **14 PASS / 0 FAIL** at HEAD (re-run this session). But the branch
+fixed in `cdcf8e3` is **not reached** on a fresh profile: Workflow Reports renders its EmptyState, so
+`sortHeaders.length === 0` and the whole table block is skipped. The `aria-sort` contract is really
+covered by `verify:reports-populated-gui`, whose version — `sortState.length > 1 && …filter(=== "none").length === sortState.length - 1` —
+**cannot** pass vacuously. The a11y fix is a correction to a latent path, not new coverage.
+
+### Repository state (verified)
+
+| | |
+|---|---|
+| Branch | `main`, single-branch policy |
+| Working tree before this session | clean except `.beads/interactions.jsonl` + `.beads/issues.jsonl` |
+| Beads pending | `awkit-59s` and `awkit-38k` closed by the prior session (REC-013, REC-024) — truthful against the ledger, so committed here as reconciliation. `awkit-8ri` / `awkit-az7` annotated, still open. |
+
+### Commands run this session
+
+| Command | Result |
+|---|---|
+| `npm run build` | PASS |
+| `npm run typecheck:scripts` | PASS |
+| `npm run verify:reports-settings-a11y` | **14 PASS / 0 FAIL** (1 NOT RUN — EmptyState precondition) |
+| `npx tsx scripts/verify-packaged-validation.mts` | **86 PASS / 1 FAIL** — the failure is the stale-package freshness guard |
+| `node scripts/ai-memory/check-memory.mjs` | see below |
+
+### Still not run — unchanged and now three sessions old
+
+`package:portable` + `verify:packaged-walkthrough`, and now `verify-packaged-validation`'s own
+freshness gate. **The packaged 70/70 remains non-citable.** Repackaging would clear all three at once
+and is the cheapest outstanding item; it was deferred here only because it is not handoff work.
+
+### Recommended next step
+
+Unchanged from the previous session: the **live-engine harness** closes SYS-REP-007 and SYS-REP-011
+together and is the last real engineering in the campaign. `verify:recorder-e2e` already drives a
+production `ExecutionEngine`; `verify:capacity` already covers admission. Repackage first if you want
+any packaged claim to be citable.
+
+## PRIOR (2026-07-27): Reports block — 3 closed, ledger 57/8/1
 
 `verify:reports-populated-gui` **136 → 158 PASS / 0 FAIL**. Ledger **57 PASS / 8 NOT RUN /
 1 BLOCKED** (Recorder 28/0/1, Reports 12/4, Settings 17/4). Closed SYS-REP-009, SYS-REP-010,
