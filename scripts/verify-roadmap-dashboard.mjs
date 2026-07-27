@@ -24,7 +24,7 @@ import { join } from "node:path";
 
 import { readAssignments } from "../tools/roadmap/lib/agents.mjs";
 import { buildSnapshot } from "../tools/roadmap/lib/model.mjs";
-import { deriveAreaWeighted, normalizeBeadStatus } from "../tools/roadmap/lib/normalize.mjs";
+import { deriveAreaWeighted, normalizeBeadStatus, normalizePhases } from "../tools/roadmap/lib/normalize.mjs";
 import { computeOrder } from "../tools/roadmap/lib/order.mjs";
 import { KNOWN_EDGE_TYPES, KNOWN_STATUSES, parseBeads } from "../tools/roadmap/lib/parse-beads.mjs";
 import { LEDGER_STATUSES, parseLedger } from "../tools/roadmap/lib/parse-ledger.mjs";
@@ -70,10 +70,10 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("111 issues parse", beads.stats.total === 111, `got ${beads.stats.total}`);
+  check("112 issues parse", beads.stats.total === 112, `got ${beads.stats.total}`);
   check(
-    "30 outstanding / 81 closed",
-    beads.stats.outstanding === 30 && beads.stats.closed === 81,
+    "31 outstanding / 81 closed",
+    beads.stats.outstanding === 31 && beads.stats.closed === 81,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -167,16 +167,72 @@ try {
     phases.phases.map((p) => p.id).join("") === EXPECTED_PHASE_IDS,
     phases.phases.map((p) => p.id).join("")
   );
-  check(
-    "phase E's prose colon does not corrupt the parse",
-    phases.phases.find((p) => p.id === "E")?.implementationNote.includes("Remaining:") === true,
-    "a naive key-quoting regex mangles this exact string"
-  );
   const mangled = extractPhases("export const implementationRoadmap = [ {{{ not an array", null, 0);
   check(
     "a mangled literal is rejected rather than half-parsed",
     mangled.phases.length === 0 && mangled.warnings.length > 0,
     `got ${mangled.phases.length} phases, ${mangled.warnings.length} warnings`
+  );
+
+  // The mid-string colon property is proven against a FIXTURE, not against whichever prose phase E
+  // happens to carry today. The old form asserted the live note contained "Remaining:", so ordinary
+  // rewording of a note broke a parser check that had nothing to do with the wording.
+  const syntheticPhase = (status) =>
+    [
+      "export const implementationRoadmap: RoadmapPhase[] = [",
+      "  {",
+      '    id: "A",',
+      '    title: "Synthetic",',
+      `    status: ${JSON.stringify(status)},`,
+      '    deliverables: ["one"],',
+      '    acceptance: "n/a",',
+      '    implementationNote: "Shipped: yes. Remaining: a named gap."',
+      "  }",
+      "];"
+    ].join("\n");
+
+  const syntheticPartial = extractPhases(syntheticPhase("partially-completed"), null, 0);
+  check(
+    "a mid-string 'Word:' inside a note does not corrupt the parse",
+    syntheticPartial.phases.length === 1 &&
+      syntheticPartial.phases[0].implementationNote === "Shipped: yes. Remaining: a named gap.",
+    "a naive key-quoting regex quotes 'Shipped' and 'Remaining' mid-string and invalidates the JSON"
+  );
+  check(
+    "partially-completed is an accepted phase status",
+    syntheticPartial.warnings.every((w) => !/unrecognised status/.test(w)),
+    syntheticPartial.warnings.join(" | ")
+  );
+  // Proves the line above is not vacuous: the unrecognised-status path must actually fire.
+  check(
+    "an unknown phase status still warns",
+    extractPhases(syntheticPhase("mostly-done"), null, 0).warnings.some((w) =>
+      /unrecognised status "mostly-done"/.test(w)
+    ),
+    "if this never fires, the accepted-status check above proves nothing"
+  );
+  check(
+    "a partially-completed phase is counted separately and credited no completion",
+    syntheticPartial.summary.partiallyCompleted === 1 &&
+      syntheticPartial.summary.complete === 0 &&
+      syntheticPartial.summary.completionPercent === 0,
+    `partial=${syntheticPartial.summary.partiallyCompleted} complete=${syntheticPartial.summary.complete} pct=${syntheticPartial.summary.completionPercent}`
+  );
+  check(
+    "a partially-completed phase normalises to active, never done",
+    normalizePhases(syntheticPartial.phases, 0)[0]?.status === "active",
+    "mapping it to done would count an unclosed phase as finished work"
+  );
+  // Live-data guards. Cardinality first, so neither `every` can pass over an empty list.
+  check(
+    "all 11 live phase notes parsed non-empty",
+    phases.phases.length === 11 && phases.phases.every((p) => p.implementationNote.length > 0),
+    "a silently truncated string value would leave a phase with no note"
+  );
+  check(
+    "no live phase carries an unrecognised status",
+    phases.warnings.every((w) => !/unrecognised status/.test(w)),
+    phases.warnings.join(" | ")
   );
 
   /* ======================================================================
@@ -463,6 +519,43 @@ try {
     check(`${file} has no remote URL`, !/https?:\/\//.test(text.replace(NAMESPACE_URIS, "")));
     check(`${file} has no @import url(`, !/@import\s+url\(/.test(text));
   }
+  // icon() falls back to ICON_NODES.circle for a name it does not know, so a typo or a status added
+  // without its icon renders a plain circle and nothing fails. Resolve every referenced name here.
+  const viewsSrc = readFileSync(join(publicDir, "views.js"), "utf8");
+  const iconsSrc = readFileSync(join(publicDir, "icons.js"), "utf8");
+  const definedIcons = new Set(
+    [...iconsSrc.matchAll(/^ {2}"?([a-z][a-z0-9-]*)"?:\s*\[/gm)].map((m) => m[1])
+  );
+  const statusIconBlock = /const statusIcon = \{([\s\S]*?)\};/.exec(viewsSrc)?.[1] ?? "";
+  // Capture ANY string content, not [a-z0-9-]+. A restrictive class silently skips the malformed
+  // name instead of collecting it, so the membership test below would never see a typo — the check
+  // would pass precisely when it was needed. (Verified by mutation: "circle-dashedX" must fail.)
+  const referencedIcons = [
+    ...[...viewsSrc.matchAll(/\b(?:icon|iconSpan|statCard)\(\s*"([^"]*)"/g)].map((m) => m[1]),
+    ...[...statusIconBlock.matchAll(/:\s*"([^"]*)"/g)].map((m) => m[1])
+  ];
+  check(
+    "the icon-name scan actually found names to resolve",
+    definedIcons.size >= 20 && referencedIcons.length >= 10,
+    `${definedIcons.size} defined, ${referencedIcons.length} referenced`
+  );
+  check(
+    "every icon name views.js references is defined in icons.js",
+    referencedIcons.every((name) => definedIcons.has(name)),
+    referencedIcons.filter((name) => !definedIcons.has(name)).join(", ") || "-"
+  );
+  check(
+    "every phase status maps to its own icon",
+    ["complete", "in-progress", "partially-completed", "pending", "blocked"].every((s) =>
+      new RegExp(`"?${s}"?:\\s*"`).test(statusIconBlock)
+    ),
+    statusIconBlock.trim()
+  );
+  check(
+    "partially-completed renders a label, not its raw hyphenated value",
+    /"partially-completed"\)\s*return\s*"Partially completed"/.test(viewsSrc.replace(/\s+/g, " ")),
+    "the generic title-case path would render 'Partially-completed'"
+  );
   check(
     "no asset builds markup with innerHTML",
     assets.every((f) => !/\.innerHTML\s*=/.test(readFileSync(join(publicDir, f), "utf8"))),
@@ -493,7 +586,16 @@ try {
     "roadmap-next-panel",
     "roadmap-card-header",
     "roadmap-deliverables",
-    "roadmap-acceptance"
+    "roadmap-acceptance",
+    // Phase status modifiers. The dashboard sets `roadmap-card <rawStatus>` and
+    // `roadmap-status <rawStatus>` verbatim from the source file, so a status with no rule renders
+    // as an unstyled chip rather than failing.
+    "roadmap-status.complete",
+    "roadmap-status.in-progress",
+    "roadmap-status.partially-completed",
+    "roadmap-status.pending",
+    "roadmap-status.blocked",
+    "roadmap-card.partially-completed"
   ];
   for (const name of borrowed) {
     check(

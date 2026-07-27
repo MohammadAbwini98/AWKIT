@@ -17,7 +17,13 @@
 import { readSource } from "./read-cache.mjs";
 
 export const EXPECTED_PHASE_IDS = "ABCDEFGHIJK";
-export const PHASE_STATUSES = new Set(["complete", "in-progress", "pending", "blocked"]);
+export const PHASE_STATUSES = new Set([
+  "complete",
+  "in-progress",
+  "partially-completed",
+  "pending",
+  "blocked"
+]);
 
 const ARRAY_LITERAL = /export const implementationRoadmap[^=]*=\s*(\[[\s\S]*?\n\]);/;
 /** Line-anchored: only quote a key that begins a line (after indentation). */
@@ -38,7 +44,7 @@ const TRAILING_COMMA = /,(\s*[\]}])/g;
  * @returns {{
  *   ok: boolean,
  *   phases: RoadmapPhase[],
- *   summary: {total: number, complete: number, inProgress: number, pending: number, blocked: number, completionPercent: number},
+ *   summary: {total: number, complete: number, inProgress: number, partiallyCompleted: number, pending: number, blocked: number, completionPercent: number},
  *   warnings: string[],
  *   stats: Record<string, number>,
  *   mtimeMs: number
@@ -63,7 +69,15 @@ export function extractPhases(text, readError = null, mtimeMs = 0) {
   const empty = {
     ok: false,
     phases: [],
-    summary: { total: 0, complete: 0, inProgress: 0, pending: 0, blocked: 0, completionPercent: 0 },
+    summary: {
+      total: 0,
+      complete: 0,
+      inProgress: 0,
+      partiallyCompleted: 0,
+      pending: 0,
+      blocked: 0,
+      completionPercent: 0
+    },
     warnings,
     stats: {},
     mtimeMs
@@ -130,6 +144,9 @@ export function extractPhases(text, readError = null, mtimeMs = 0) {
     total: phases.length,
     complete,
     inProgress: phases.filter((p) => p.status === "in-progress").length,
+    // Mirrors getRoadmapSummary in the source module: a partially-completed phase shipped its
+    // deliverables but retains a named gap, so it is counted separately and credited no completion.
+    partiallyCompleted: phases.filter((p) => p.status === "partially-completed").length,
     pending: phases.filter((p) => p.status === "pending").length,
     blocked: phases.filter((p) => p.status === "blocked").length,
     completionPercent: phases.length === 0 ? 0 : Math.round((complete / phases.length) * 100)

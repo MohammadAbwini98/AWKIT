@@ -4,7 +4,63 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-27 (latest) - awkit-7bu set to blocked; dashboard taught bd's full status taxonomy (Claude)
+## 2026-07-27 (latest) - Roadmap phases reconciled after 282 commits of drift; partially-completed status added (Claude)
+
+**Task:** answer why Phase E still read "In progress", then correct the phase statuses.
+
+**Root cause:** `src/roadmap/ImplementationRoadmap.ts` was last changed in the initial commit
+(`c198e2e`, 2026-07-04) — **282 commits ago**. It is hand-maintained and nothing derives it, so it
+went stale in silence. The giveaway was not Phase E but **Phase K, declaring Recorder Mode `pending`
+/ "intentionally queued"** while the Recorder ships ranked locators, compound/tree disambiguation,
+runtime self-healing, Smart Wait observation, the protected-login handoff and eight verifiers. The
+dashboard was reporting the file faithfully — being derived, it cannot be fresher than its source.
+
+**Reconciled against code, not prose:** E stays in-progress (all deliverables shipped; the one real
+gap is no import-from-file UI in `ScenarioBuilder.tsx` — filed as **`awkit-d3c`**). F, G, H → complete
+(fan-out, `dataDrivenConcurrent`, loops + depth-5 recursion guard are all integrated end to end).
+J, K → **partially-completed**. 45% → 73%.
+
+**New status `partially-completed`,** because neither existing value described J or K honestly: the
+deliverables shipped but each retains a named gap that is not active development. J's acceptance
+sentence *is* the unexecuted clean-machine walkthrough; K has REC-024 NOT RUN and REC-022
+permanently blocked (`awkit-38k`). Threaded through `RoadmapStatus`, `getRoadmapSummary` (credited
+**no** completion %), `getNextRoadmapPhase`, both renderers, `PHASE_STATUSES`, and `normalizePhases`
+— mapped to `active`, never `done`.
+
+**Two fail-open defects found, both the same shape.** (1) `icon()` falls back to `ICON_NODES.circle`
+for an unknown name, so a status added without its icon degrades silently; new check resolves every
+referenced icon name. (2) That check's **own first version was fail-open** — capturing `[a-z0-9-]+`
+meant a malformed name was never collected, so mutating to `"circle-dashedX"` still passed;
+`[^"]+` fixed it, mutation-verified to fail then reverted. (3) Adding a new top section to
+`CURRENT_STATE.md` without a ledger tally dropped it from the consistency banner (`checked` 2 → 1)
+while the banner still read "Sources agree" — `parse-narrative.mjs` reads only the newest section.
+Caught by inspection, fixed by quoting the tally, and now recorded in that section.
+
+**The browser pass caught three more that every static gate had passed.** (1) The
+`.roadmap-summary-grid` edit was **dead** — the responsive block at the end of `global.css`
+overrides it from a shared 8-selector list, so the base rule never applied. (2) The five cards
+missed one row **by four pixels**: the shared rule's `minmax(180px, 1fr)` needs 948px against the
+panel's 944px, dropping "Completion" to its own row; pulled into its own rule at 150px → five 179px
+tracks, one row, still wrapping to 2x3 at 800px. (3) **`--awkit-info` had no dark value** while
+accent/success/warning/danger all lighten and info's own soft/muted there already derive from
+`#60a5fa` — added `--awkit-info: #60a5fa`, which **changes all 16 `var(--awkit-info)` consumers in
+dark mode**, not only the new chip.
+
+**Verified:** `npm run build` clean · `verify:roadmap-dashboard` **119 → 135 PASS / 0 FAIL** ·
+`verify:verifier-classification` reconciled · `verify:source-hygiene` 7/0 · `ai:memory` passed ·
+snapshot 8 complete / 1 in-progress / 2 partial / 0 pending, consistency `checked: 2`, agrees ·
+live page at 127.0.0.1:4380: all 11 cards correct, J/K read "Partially completed", 5 summary cards
+in one row at 1280, 2x3 at 800, no overflow, both themes symmetric with the sibling chip.
+**Not done:** no screenshot — the Browser pane was not displayed so the page never composited
+frames; evidence is DOM + computed styles, which does not cover pure aesthetics. The app's own
+Electron Roadmap page was not launched; it shares `global.css` and the same markup.
+
+**Files:** `src/roadmap/ImplementationRoadmap.ts`, `app/renderer/pages/{ImplementationRoadmap,Dashboard}.tsx`,
+`app/renderer/styles/global.css`, `tools/roadmap/lib/{parse-roadmap-phases,normalize}.mjs`,
+`tools/roadmap/public/{icons,views}.js`, `scripts/verify-roadmap-dashboard.mjs`,
+`docs/ai/{CURRENT_STATE,TASK_LOG}.md`, `.beads/issues.jsonl`.
+
+## 2026-07-27 (earlier) - awkit-7bu set to blocked; dashboard taught bd's full status taxonomy (Claude)
 
 **Task:** fix `awkit-7bu`'s status. Its title had said `BLOCKED` since 2026-07-26 while its bd
 status stayed `open`, so `bd ready` and the dashboard both offered it as startable work.

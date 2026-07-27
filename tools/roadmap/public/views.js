@@ -281,6 +281,7 @@ function renderPhases(ctx) {
   const statusIcon = {
     complete: "circle-check",
     "in-progress": "clock",
+    "partially-completed": "circle-dashed",
     pending: "circle",
     blocked: "triangle-alert"
   };
@@ -302,6 +303,7 @@ function renderPhases(ctx) {
       el("div", { class: "roadmap-summary-grid" }, [
         statCard("list-checks", "Completed phases", `${summary.complete}/${summary.total}`),
         statCard("clock", "In progress", summary.inProgress),
+        statCard("circle-dashed", "Partially completed", summary.partiallyCompleted),
         statCard("circle", "Pending", summary.pending),
         statCard("circle-check", "Completion", `${summary.completionPercent}%`)
       ]),
@@ -348,6 +350,8 @@ function renderPhases(ctx) {
 
 function formatPhaseStatus(status) {
   if (status === "in-progress") return "In progress";
+  // Without this case the generic path renders "Partially-completed" — the hyphen is not a label.
+  if (status === "partially-completed") return "Partially completed";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 

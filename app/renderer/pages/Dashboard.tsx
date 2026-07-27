@@ -55,7 +55,8 @@ export function Dashboard() {
             <strong>{nextRoadmapPhase ? `Phase ${nextRoadmapPhase.id}: ${nextRoadmapPhase.title}` : "Roadmap complete"}</strong>
             <span>Remaining state</span>
             <strong>
-              {roadmapSummary.inProgress} in progress, {roadmapSummary.pending} pending
+              {roadmapSummary.inProgress} in progress, {roadmapSummary.partiallyCompleted} partially
+              completed, {roadmapSummary.pending} pending
             </strong>
           </div>
         </section>

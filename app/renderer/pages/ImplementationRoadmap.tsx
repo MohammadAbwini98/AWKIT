@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Clock3, ListChecks, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Circle, CircleDashed, Clock3, ListChecks, TriangleAlert } from "lucide-react";
 import {
   formatRoadmapStatus,
   getNextRoadmapPhase,
@@ -10,6 +10,7 @@ import {
 const statusIcons: Record<RoadmapStatus, typeof CheckCircle2> = {
   complete: CheckCircle2,
   "in-progress": Clock3,
+  "partially-completed": CircleDashed,
   pending: Circle,
   blocked: TriangleAlert
 };
@@ -38,6 +39,11 @@ export function ImplementationRoadmap() {
             <Clock3 size={18} />
             <span>In progress</span>
             <strong>{summary.inProgress}</strong>
+          </article>
+          <article>
+            <CircleDashed size={18} />
+            <span>Partially completed</span>
+            <strong>{summary.partiallyCompleted}</strong>
           </article>
           <article>
             <Circle size={18} />

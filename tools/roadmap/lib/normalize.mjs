@@ -387,6 +387,10 @@ function phaseStatus(status) {
       return "done";
     case "in-progress":
       return "active";
+    // Not "done": a partially-completed phase still has a named unclosed gap. Mapping it to done
+    // would let it be counted as finished work everywhere the normalised status is consumed.
+    case "partially-completed":
+      return "active";
     case "blocked":
       return "blocked";
     case "pending":

@@ -1,6 +1,75 @@
 # CURRENT_STATE
 
-## Dashboard upkeep is a standing rule; classification reconciled (2026-07-27, current)
+## Roadmap phases reconciled after 282 commits of drift (2026-07-27, current)
+
+`src/roadmap/ImplementationRoadmap.ts` had **not been touched since the initial commit**
+(`c198e2e`, 2026-07-04) while 282 commits landed on `main`. It is hand-maintained and nothing
+derives it, so it went stale silently — most visibly declaring **Recorder Mode `pending`,
+"intentionally queued"**, while the Recorder is one of the most developed features in the app
+(ranked unique locators, compound/tree disambiguation, runtime self-healing, Smart Wait observation,
+protected-login handoff, eight `verify:recorder-*` suites). The dashboard was reporting this
+faithfully: it is derived, so it can never be fresher than its source.
+
+Reconciled against the code, not against the old prose:
+
+| Phase | Was | Now | Why |
+|---|---|---|---|
+| E Scenario / Workflow Builder | in-progress | **in-progress** | all 5 deliverables shipped; the one real gap is that `ScenarioBuilder.tsx` has no import-from-file UI (import lives only in `WorkflowsLibrary.tsx`) — now tracked as **`awkit-d3c`** |
+| F Concurrent Instances | in-progress | **complete** | runner fan-out is integrated end to end; `verify:concurrency`, `verify:instance-monitor(-gui)` |
+| G Data-Driven Concurrent Runs | in-progress | **complete** | `ConcurrentRunMode.dataDrivenConcurrent` wired through `execution.ipc.ts` → `InstanceManager` → Instance Monitor → `ExecutionReport`, with per-instance retry |
+| H Advanced Flow Control | in-progress | **complete** | `FlowExecutor` executes loops (`mock-loop-flow`), Run Another Flow has a depth-5 recursion guard |
+| J Offline Packaging | in-progress | **partially-completed** | every deliverable built; its acceptance sentence *is* the clean-machine walkthrough, never executed |
+| K Recorder Mode | pending | **partially-completed** | shipped and verified; two cases open under `awkit-38k` (REC-024 NOT RUN, REC-022 permanently blocked) |
+
+Summary moved **45% → 73%** (8 complete, 1 in progress, 2 partially completed, 0 pending).
+
+Validation state is unchanged by this task: the ledger still measures **61 PASS / 4 NOT RUN /
+1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2). This section must keep quoting it —
+`parse-narrative.mjs` reads only the *newest* section of this file, so a new head without the tally
+silently drops CURRENT_STATE from the consistency banner (checked 2 → 1) while the banner still
+reads "Sources agree".
+
+**A `partially-completed` status was added** because neither existing value described J or K
+honestly — the deliverables shipped, but each retains a named gap that is not active development.
+"Complete" would assert an unrun check passed; "in-progress" would imply work underway that is not.
+It is threaded through `RoadmapStatus`, `getRoadmapSummary` (new `partiallyCompleted`, deliberately
+credited **no** completion percentage), `getNextRoadmapPhase` (in-progress → partially-completed →
+pending), both renderers, `PHASE_STATUSES`, and `normalizePhases` — where it maps to `active`, never
+`done`, so an unclosed phase is never counted as finished work. `verify:roadmap-dashboard`
+**119 → 135 PASS / 0 FAIL**.
+
+**Trap found while guarding it — an icon typo failed open.** `icon()` in `tools/roadmap/public/icons.js`
+falls back to `ICON_NODES.circle` for an unknown name, so a status added without its icon renders a
+plain circle and nothing fails. The new check resolves every icon name `views.js` references against
+`icons.js`. Its **first version was itself fail-open**: capturing with `[a-z0-9-]+` meant a malformed
+name simply was not collected, so a mutation to `"circle-dashedX"` still passed. Capturing `[^"]+`
+fixed it — mutation-verified to fail, then reverted. The staleness above and this are the same
+failure in two forms: *nothing fires when the input never enters the collection.*
+
+**The browser pass then caught three things every static gate had passed.** All eleven cards, both
+themes and two viewports were checked against the live page at `127.0.0.1:4380`:
+
+1. **The CSS edit was dead.** `.roadmap-summary-grid` is overridden by the *responsive block at the
+   end of `global.css`* ("these overrides come last so they win the cascade"), which sets it in a
+   shared 8-selector list. Editing the base rule at line ~2933 changed nothing. The base rule now
+   carries a NOTE saying so; the class was pulled out of the shared list into its own rule.
+2. **The five cards did not fit — by four pixels.** The shared responsive rule used
+   `minmax(180px, 1fr)`; 5 x 180 + 4 x 12 = 948 against the roadmap panel's 944px, so "Completion"
+   dropped onto a second row alone. Its own rule at `minmax(150px, 1fr)` gives five 179px tracks in
+   one row, and still wraps cleanly to 2 x 3 at 800px.
+3. **`--awkit-info` had no dark value.** Accent, success, warning and danger all lighten in the dark
+   block, and info's own `-soft`/`-muted` there are already derived from `#60a5fa` — the base was
+   simply missed, leaving it at the light `#3b82f6` and rendering dimmer than every sibling chip on
+   a dark surface. Added `--awkit-info: #60a5fa`. **This affects all 16 `var(--awkit-info)`
+   consumers in dark mode, not just the new chip** — a deliberate palette completion, flag it if
+   that was not wanted.
+
+Measured after the fixes — light: `#3b82f6` on `#eaf1fe`; dark: `#60a5fa` on 13% of itself, the
+same structure the `complete` chip uses in each theme. No horizontal overflow at 1280 or 800.
+**Screenshots were not possible** (the Browser pane was not displayed, so the page never composited
+frames); the evidence is DOM structure and computed styles, which does not cover pure aesthetics.
+
+## Dashboard upkeep is a standing rule; classification reconciled (2026-07-27, earlier)
 
 **Every task must now keep the Program Status dashboard current**, by updating the sources it parses
 — it is derived and must never be hand-edited to record progress. Canonical procedure:

@@ -255,6 +255,11 @@ body {
   --awkit-danger: #f87171;
   --awkit-danger-soft: rgba(248, 113, 113, 0.13);
   --awkit-danger-muted: rgba(248, 113, 113, 0.38);
+  /* --awkit-info was the one status family whose BASE was never given a dark value: accent,
+     success, warning and danger all lighten here, and info's own soft/muted below are already
+     derived from #60a5fa, so the base was simply missed. Left at the light #3b82f6 it rendered
+     dimmer than every sibling chip on a dark surface. */
+  --awkit-info: #60a5fa;
   --awkit-info-soft: rgba(96, 165, 250, 0.13);
   --awkit-info-muted: rgba(96, 165, 250, 0.38);
   --awkit-neutral-soft: rgba(255, 255, 255, 0.06);
@@ -2933,7 +2938,9 @@ table {
 .roadmap-summary-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  /* NOTE: this declaration does not win — the responsive block at the end of this file overrides
+     grid-template-columns for this class. Change the column count THERE, not here. */
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin-bottom: 16px;
 }
 
@@ -2999,6 +3006,10 @@ table {
   border-left-color: var(--awkit-warning);
 }
 
+.roadmap-card.partially-completed {
+  border-left-color: var(--awkit-info);
+}
+
 .roadmap-card.pending {
   border-left-color: var(--awkit-text-muted);
 }
@@ -3039,6 +3050,11 @@ table {
 .roadmap-status.in-progress {
   background: var(--awkit-warning-soft);
   color: var(--awkit-warning);
+}
+
+.roadmap-status.partially-completed {
+  background: var(--awkit-info-soft);
+  color: var(--awkit-info);
 }
 
 .roadmap-status.pending {
@@ -3264,12 +3280,18 @@ table {
 .metrics-grid,
 .instance-dashboard,
 .report-summary-grid,
-.roadmap-summary-grid,
 .contract-overview,
 .offline-summary-grid,
 .runtime-preview-grid,
 .scenario-chain {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+/* Pulled out of the list above at 180px. This grid carries FIVE cards since `partially-completed`
+   was added, and 5 x 180 + 4 x 12 = 948 needs 948px of panel; at the roadmap panel's 944px it fell
+   four pixels short and dropped "Completion" onto a second row by itself. 150px fits five. */
+.roadmap-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .roadmap-grid,
