@@ -1,5 +1,9 @@
 import { isWorkflowFlowNode, workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
-import { validateWorkflowProfile } from "@src/profiles/workflowProfileValidation";
+import {
+  formatWorkflowConflictMessage,
+  parseWorkflowConflictName,
+  validateWorkflowProfile
+} from "@src/profiles/workflowProfileValidation";
 
 let passed = 0;
 const check = (label: string, value: boolean) => {
@@ -80,4 +84,10 @@ check(
   !validateWorkflowProfile(requiredFieldMutation).ok
 );
 
-console.log(`\n${passed}/11 workflow sentinel checks passed`);
+const conflictName = 'Quoted "workflow" name';
+check(
+  "workflow conflict producer/parser round-trips the existing name",
+  parseWorkflowConflictName(formatWorkflowConflictMessage(conflictName, workflow.id)) === conflictName
+);
+
+console.log(`\n${passed}/12 workflow sentinel checks passed`);

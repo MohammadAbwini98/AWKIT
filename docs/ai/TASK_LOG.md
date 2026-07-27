@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - REC-022 narrowed to a real IdP only (Codex)
+
+**Task:** automate every REC-022 guarantee the offline mock can express without claiming Phase K
+complete, and finish the Phase E review follow-ups.
+
+**Delivered:** `verify:protected-login-recorder` **57/57** now covers the real Recorder pause guard,
+exact non-empty draft preservation under password/OTP attempts, open-but-inert detected browser,
+unpause positive control, persisted-profile Auto Secure Login + Reuse Session replay, authenticated
+dashboard, and no-session negative control. The session-reuse fixture derives state from
+origin-scoped `localStorage`. All three new boundaries were mutation-proven to fail. REC-022 remains
+`BLOCKED` only on a real authorized IdP/operator run and is tracked as P2 **`awkit-cey`**; Phase K
+remains `partially-completed`.
+
+**Phase E follow-ups:** build PASS; `verify:workflow-builder` **28/28**; shared workflow-conflict
+producer/parser with round-trip sentinel; exhaustive workflow-node type map; targeted ignore for
+`.codex/config.toml`; unpushed Phase E commit amended with a truthful body.
+
+**Validation:** `npm run build`; `verify:workflow-builder` 28/28;
+`verify:workflow-sentinels` 12/12; `verify:protected-login-recorder` 57/57;
+`verify:recorder-gui` 152/0/0; `verify:mock-site` 94/94; `verify:roadmap-dashboard` 135/135.
+`npm run ai:memory` PASS. Packaging/offline
+gates not run because no such surface changed. Ledger unchanged at **61 PASS / 4 NOT RUN /
+1 BLOCKED**.
+
 ## 2026-07-27 (latest) - Roadmap phases reconciled after 282 commits of drift; partially-completed status added (Claude)
 
 **Task:** answer why Phase E still read "In progress", then correct the phase statuses.

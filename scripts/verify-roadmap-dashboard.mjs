@@ -70,10 +70,10 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("112 issues parse", beads.stats.total === 112, `got ${beads.stats.total}`);
+  check("113 issues parse", beads.stats.total === 113, `got ${beads.stats.total}`);
   check(
-    "30 outstanding / 82 closed",
-    beads.stats.outstanding === 30 && beads.stats.closed === 82,
+    "31 outstanding / 82 closed",
+    beads.stats.outstanding === 31 && beads.stats.closed === 82,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

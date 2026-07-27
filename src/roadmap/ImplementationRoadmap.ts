@@ -110,7 +110,7 @@ export const implementationRoadmap: RoadmapPhase[] = [
     status: "partially-completed",
     deliverables: ["Browser action recorder", "Locator suggestions", "Action-to-node conversion", "Editable recorded flows"],
     acceptance: "User records a flow and saves it as editable nodes.",
-    implementationNote: "All four deliverables shipped and the acceptance criterion is met: ranked unique locators with compound/tree disambiguation, runtime locator self-healing, Smart Wait observation, auto-captured URLs, and the protected-login handoff. Eight verify:recorder-* suites cover it (verify:recorder-gui 103 PASS / 0 FAIL / 0 NOT RUN). Not complete because two verification cases remain open under awkit-38k: REC-024 (real browser crash) is NOT RUN, and REC-022 is permanently blocked - it needs an authorized human operator and a protected login must never be automated."
+    implementationNote: "All four deliverables shipped and the acceptance criterion is met: ranked unique locators with compound/tree disambiguation, runtime locator self-healing, Smart Wait observation, auto-captured URLs, and the protected-login handoff. verify:recorder-gui is 152 PASS / 0 FAIL / 0 NOT RUN. REC-024 passed on 2026-07-27 (commit 958f575), and its campaign bead awkit-38k is closed. Phase K remains partially completed because REC-022 is the single blocker: its mock-expressible safety and replay guarantees are automated, but the final real-IdP handoff still requires an authorized operator and approved test identity (awkit-cey)."
   }
 ];
 

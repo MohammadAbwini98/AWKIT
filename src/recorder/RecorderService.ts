@@ -736,8 +736,9 @@ export class RecorderService {
 
   /**
    * Enter the protected-login handoff: stop recording new actions, preserve the draft, store safe
-   * handoff metadata, and close the automation browser. Never automates the protected page and never
-   * captures passwords/OTPs/CAPTCHA values/cookies/tokens.
+   * handoff metadata, and leave the automation browser open but inert so a false positive can resume
+   * in place. Never automates the protected page and never captures passwords/OTPs/CAPTCHA
+   * values/cookies/tokens. The browser closes only if the user chooses the real-browser handoff.
    */
   private async beginHandoff(
     page: Page,

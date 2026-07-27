@@ -74,12 +74,13 @@ export interface RecordedAction {
  * Recorder protected-login / protected-popup handoff state.
  *
  * When the recorder detects a protected login / MFA / OTP / CAPTCHA / passkey / approval surface it
- * PAUSES, closes the automation browser, and enters this handoff so the user can complete the step
- * manually in their real Chrome. No secrets (passwords, OTPs, CAPTCHA values, cookies, tokens) are
- * ever captured or logged.
+ * PAUSES capture and enters this handoff. The automation browser remains open but inert during the
+ * recoverable `detected` phase; choosing the real-browser handoff closes it before the user completes
+ * the step manually in Chrome. No secrets (passwords, OTPs, CAPTCHA values, cookies, tokens) are ever
+ * captured or logged.
  */
 export type RecorderHandoffPhase =
-  | "detected"          // protected surface found; automation browser closed; awaiting the user
+  | "detected"          // protected surface found; automation browser open but capture paused
   | "capturingSession"  // real Chrome launched; user completing the manual login/approval
   | "sessionCaptured"   // session validated + secure nodes inserted
   | "resumed"           // Playwright relaunched with the saved session; recording continues

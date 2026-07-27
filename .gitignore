@@ -149,3 +149,6 @@ test-artifacts/
 # ignored here — Beads manages its own commit policy via .beads/.gitignore (issues.jsonl/config.yaml
 # are committed; the Dolt store embeddeddolt/ is ignored).
 .codebase-memory/
+
+# Machine-local Codex sandbox policy; never publish a workstation's access mode.
+.codex/config.toml

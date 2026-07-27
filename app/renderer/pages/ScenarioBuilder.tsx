@@ -72,6 +72,7 @@ import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
 import {
+  parseWorkflowConflictName,
   validateWorkflowProfile,
   WORKFLOW_IMPORT_ID_CONFLICT
 } from "@src/profiles/workflowProfileValidation";
@@ -144,10 +145,6 @@ function serializeWorkflowDoc(profile: WorkflowProfile): string {
     nodes: [...profile.nodes].sort((a, b) => a.id.localeCompare(b.id)),
     edges: [...profile.edges].sort((a, b) => a.id.localeCompare(b.id))
   });
-}
-
-function workflowConflictExistingName(message: string, fallback?: string): string {
-  return /A workflow named "([^"]*)" already uses ID/.exec(message)?.[1] ?? fallback ?? "the saved workflow";
 }
 
 // ── Workflow Definition panel width constraints (persisted) ──────────────────
@@ -960,7 +957,7 @@ function ScenarioBuilderContent() {
         if (!allowOverwrite && message.includes(WORKFLOW_IMPORT_ID_CONFLICT)) {
           setImportConflict({
             profile,
-            existingName: workflowConflictExistingName(message, existingName)
+            existingName: parseWorkflowConflictName(message) ?? existingName ?? "the saved workflow"
           });
           return;
         }

@@ -168,6 +168,26 @@ try {
     JSON.stringify(capturedState)
   );
 
+  console.log("Session reuse scenario:");
+  await page.goto(`${BASE}/mock/session-reuse`);
+  check(
+    "session reuse starts logged out without persisted origin state",
+    (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "false"
+  );
+  await page.getByTestId("simulate-login").click();
+  await page.reload();
+  check(
+    "session reuse restores authenticated state from persisted origin storage",
+    (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "true"
+  );
+  check("persisted session reveals the authenticated dashboard after reload", await page.getByTestId("dashboard").isVisible());
+  await page.getByTestId("simulate-logout").click();
+  await page.reload();
+  check(
+    "manual logout clears the persisted origin state",
+    (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "false"
+  );
+
   console.log("Designer scenarios:");
   await page.goto(`${BASE}/designer-lab`);
   check("designer page has canvas region", await page.getByRole("region", { name: "Mock designer canvas" }).isVisible());

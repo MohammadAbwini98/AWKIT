@@ -10,13 +10,10 @@ import { NodeOptionsMenu, type NodeMenuItem } from "../components/shared/NodeOpt
 import { applyTable, useTableState, type RowAdapter } from "../components/table/tableState";
 import { AdvancedTableFilters, DataTablePagination, SortableHeaderCell, TableEmptyState, type FilterFieldDef } from "../components/table/TableUI";
 import {
+  parseWorkflowConflictName,
   validateWorkflowProfile,
   WORKFLOW_IMPORT_ID_CONFLICT
 } from "@src/profiles/workflowProfileValidation";
-
-function workflowConflictExistingName(message: string, fallback?: string): string {
-  return /A workflow named "([^"]*)" already uses ID/.exec(message)?.[1] ?? fallback ?? "the saved workflow";
-}
 
 const workflowAdapter: RowAdapter<WorkflowProfile> = {
   id: (w) => w.id,
@@ -182,7 +179,10 @@ export function WorkflowsLibrary() {
       } catch (importError) {
         const message = importError instanceof Error ? importError.message : String(importError);
         if (!allowOverwrite && message.includes(WORKFLOW_IMPORT_ID_CONFLICT)) {
-          setImportConflict({ profile, existingName: workflowConflictExistingName(message, precheckedName) });
+          setImportConflict({
+            profile,
+            existingName: parseWorkflowConflictName(message) ?? precheckedName ?? "the saved workflow"
+          });
           return;
         }
         setError(`Failed to import workflow. ${message}`.trim());

@@ -122,6 +122,15 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `isSaving` guard against duplicate-click corruption. **Auto-captures visited URLs** (main-frame
   navigations + opened tabs) with sensitive query values masked, shown in a searchable/paginated
   "Recorded URLs" table (Time/Title/URL/Source/Session/copy) via `recorder.getUrls()`.
+- ✅ **Protected-login pause boundary:** while detection is shown, the automation browser stays open
+  but inert so false positives can resume in place. `recordActionFromPage` drops every action while
+  paused; the protected-login verifier proves password/OTP attempts preserve the exact non-empty
+  draft and proves the identical action records after unpause.
+- ✅ **Mock-authenticated session replay:** `/mock/session-reuse` derives authentication from
+  persisted origin storage. A production runner verification loads a captured profile through Auto
+  Secure Login + Reuse Session and reaches the dashboard without a login action; a fresh no-session
+  control fails. The remaining REC-022 gap is deliberately manual: a real approved IdP and authorized
+  operator (`awkit-cey`).
 - ✅ **Smart Wait recorder observation:** default-on `settings.recorder.captureSmartWaits` records
   high-confidence `afterWaits` from passive loaders, fetch/XHR completion (method + URL path only),
   URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback. Recorder

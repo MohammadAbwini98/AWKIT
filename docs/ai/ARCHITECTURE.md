@@ -359,9 +359,11 @@ must be documented in `mock-site/README.md` and AI memory files.
   with URL/title/text provider patterns — detect-only, never reading secrets. The evaluate body avoids named
   function expressions so esbuild's `__name` helper is never referenced in-page. On first detection while
   recording, `beginHandoff` stops action capture, persists the draft, records secret-free
-  `RecorderHandoffInfo` (`src/recorder/RecorderTypes.ts`), and closes the automation browser via a
-  context-or-browser-safe `closeBrowser` (the resume path uses `launchPersistentContext`, so there is no
-  separate `Browser`). `continueWithNormalBrowser` → `SessionCaptureService.startCapture(url,
+  `RecorderHandoffInfo` (`src/recorder/RecorderTypes.ts`), and leaves the automation browser open but
+  inert so a false positive can resume in place. The load-bearing `recordActionFromPage` guard drops
+  every action while capture is paused. `continueWithNormalBrowser` then closes the automation browser
+  via a context-or-browser-safe `closeBrowser` (the resume path uses `launchPersistentContext`, so there
+  is no separate `Browser`) before calling `SessionCaptureService.startCapture(url,
   "manualChromeHandoff")` (real Chrome, app-owned scoped profile). `captureSessionAndResume` stops the manual
   Chrome, validates the profile (`SessionCaptureService.hasCapturedData`), inserts `Auto Secure Login` +
   `Reuse Session` actions at the front of the draft (deduped; session id linked to Reuse Session), then

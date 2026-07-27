@@ -6,6 +6,7 @@ import { createWorkflowProfileStore } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import {
+  formatWorkflowConflictMessage,
   validateWorkflowProfile,
   WORKFLOW_IMPORT_ID_CONFLICT
 } from "@src/profiles/workflowProfileValidation";
@@ -25,7 +26,7 @@ export function registerScenarioIpc(): void {
     const existing = await store.get(validation.profile.id);
     if (existing && options?.allowOverwrite !== true) {
       throw Object.assign(
-        new Error(`${WORKFLOW_IMPORT_ID_CONFLICT}: A workflow named "${existing.name}" already uses ID "${existing.id}".`),
+        new Error(formatWorkflowConflictMessage(existing.name, existing.id)),
         { code: WORKFLOW_IMPORT_ID_CONFLICT, existingName: existing.name }
       );
     }

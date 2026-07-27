@@ -1,5 +1,26 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): REC-022 now needs only the real-IdP operator run
+
+Phase K stays **partially-completed**. REC-024 is PASS, `verify:recorder-gui` is
+**152 PASS / 0 FAIL / 0 NOT RUN**, `awkit-38k` is closed, and the sole remaining Phase K blocker is
+REC-022. Its external prerequisite is now visible as blocked P2 bead **`awkit-cey`**: an authorized
+operator plus an approved test identity. Do not automate, type into, scrape, or solve that protected
+surface.
+
+All offline/mock-expressible REC-022 guarantees are pinned by
+`verify:protected-login-recorder` **57/57**: the real Recorder pause preserves an exact non-empty
+draft while the browser remains open/inert, protected password/OTP actions are dropped, unpause
+records the identical action, secure session nodes retain their link, and a captured persistent
+profile replays through Auto Secure Login + Reuse Session to the authenticated mock dashboard.
+The identical flow fails with that session removed, and a fresh dashboard assertion also fails. The
+guard, session fixture, and protected-action count checks were each
+mutation-proven red and reverted. Ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+Next action is only the authorized real-IdP REC-022 run described in
+`docs/ai/tasks/PHASE_K_RECORDER_REC022_SHRINK.md`; if it passes, update the ledger and reconsider
+Phase K. Packaging/offline gates are out of scope for this work.
+
 ## ACTIVE (2026-07-27, latest): classification gate GREEN; dashboard upkeep is now a standing rule
 
 `npm run verify:verifier-classification` is **green — all 144 scripts classified** (`real-browser`

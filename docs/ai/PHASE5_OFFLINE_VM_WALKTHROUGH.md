@@ -126,8 +126,8 @@ Playwright, no Chrome requirement, and a snapshot taken before starting.
 
 ### 3.5 Session reuse & protected login (Phase 5E)
 
-- [ ] Recorder against a protected login page pauses, closes the automation browser, and offers
-      the real-Chrome handoff (never automates the protected surface).
+- [ ] Recorder against a protected login page pauses capture while leaving the automation browser
+      open but inert, then offers the real-Chrome handoff (never automates the protected surface).
 - [ ] Manual Chrome handoff opens the user's real Chrome with an app-owned scoped profile.
 - [ ] Capture Session & Resume links the session to a `Reuse Session` node.
 - [ ] Reuse Session run restarts the browser on the captured profile without

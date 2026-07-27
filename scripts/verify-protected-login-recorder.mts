@@ -6,13 +6,23 @@
 //
 // Run: npm run verify:protected-login-recorder
 import { spawn } from "node:child_process";
-import { chromium, type Browser } from "playwright";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { chromium, type Browser, type Page } from "playwright";
 import {
   detectFromRecorderSignals,
   detectRecorderProtectedLogin
 } from "@src/security/ProtectedLoginDetector";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { RecorderService } from "@src/recorder/RecorderService";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
+import { PlaywrightRunner } from "@src/runner/PlaywrightRunner";
+import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
+import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
+import type { InstanceConfig } from "@src/instances/InstanceConfig";
+import type { SessionProfile } from "@src/session/SessionProfile";
 
 const PORT = 4407;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -27,6 +37,83 @@ function check(label: string, condition: unknown, detail = ""): void {
     console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
   }
 }
+
+async function waitUntil(predicate: () => boolean, label: string, timeoutMs = 5_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for ${label}`);
+}
+
+function linearFlow(id: string, steps: FlowStep[]): FlowProfile {
+  const nodes: FlowStep[] = [
+    { id: "start", type: "start", name: "Start" },
+    ...steps,
+    { id: "end", type: "end", name: "End" }
+  ];
+  return {
+    id,
+    name: id,
+    version: 1,
+    nodes,
+    edges: nodes.slice(0, -1).map((node, index) => ({
+      id: `${id}-edge-${index}`,
+      source: node.id,
+      target: nodes[index + 1].id,
+      type: "success"
+    }))
+  };
+}
+
+async function makeExecutionContext(flowId: string): Promise<InstanceExecutionContext> {
+  const root = await mkdtemp(join(tmpdir(), "awkit-rec022-run-"));
+  return {
+    executionId: `rec022-${Date.now()}`,
+    instanceId: "rec022-instance",
+    scenarioId: "rec022-scenario",
+    flowId,
+    instanceOrderNumber: 1,
+    totalInstances: 1,
+    runtimeInputs: {},
+    instanceInputs: {},
+    flowOutputs: {},
+    paths: {
+      downloads: join(root, "downloads"),
+      screenshots: join(root, "screenshots"),
+      logs: join(root, "logs"),
+      reports: join(root, "reports"),
+      sessions: join(root, "sessions")
+    }
+  };
+}
+
+function scenarioFor(flowId: string): ScenarioProfile {
+  return {
+    id: `scenario-${flowId}`,
+    name: `Scenario ${flowId}`,
+    executionMode: "sequential",
+    maxParallelFlows: 1,
+    flows: [{ order: 1, flowId, required: true }],
+    links: [],
+    failurePolicy: {
+      stopOnRequiredFlowFailure: true,
+      continueOnOptionalFlowFailure: true,
+      takeScreenshotOnFailure: false
+    }
+  };
+}
+
+const runnerConfig: InstanceConfig = {
+  id: "rec022-instance",
+  name: "REC-022 session replay",
+  browser: "chromium",
+  headless: true,
+  isolationMode: "browserContext",
+  timeoutMs: 30_000,
+  viewport: { width: 1280, height: 800 }
+};
 
 // ── 1. Pure detection (no browser) ───────────────────────────────────────────
 console.log("Pure recorder detection:");
@@ -125,8 +212,70 @@ async function waitForServer(): Promise<void> {
 }
 
 let browser: Browser | undefined;
+let recorder: RecorderService | undefined;
+let capturedProfileDir: string | undefined;
 try {
   await waitForServer();
+
+  console.log("Recorder pause boundary:");
+  recorder = new RecorderService();
+  await recorder.startRecording(`${BASE}/mock/sso-text-app`, {
+    executablePath: chromium.executablePath(),
+    captureSmartWaits: false
+  });
+  const recorderInternals = recorder as unknown as {
+    browser: Browser | null;
+    page: Page | null;
+    recordActionFromPage(sourcePage: Page, action: Omit<RecordedAction, "id">): void;
+  };
+  const recorderPage = recorderInternals.page;
+  if (!recorderPage) throw new Error("Recorder did not expose its live page to the verification seam.");
+
+  await recorderPage.getByTestId("open-reports").click();
+  await waitUntil(() => (recorder?.getActions().length ?? 0) > 1, "a non-navigation business action");
+  const preDetectionCount = recorder.getActions().length;
+  check("pre-detection draft contains a non-zero business action", preDetectionCount > 1, String(preDetectionCount));
+
+  await recorderPage.goto(`${BASE}/mock/protected-login`);
+  await waitUntil(() => recorder?.getHandoff()?.phase === "detected", "protected-login handoff detection");
+  check("protected-login detection pauses the Recorder", recorder.getStatus().isRecording === false);
+  check(
+    "automation browser remains open during the detected phase",
+    recorderInternals.browser?.isConnected() === true && recorderPage.isClosed() === false
+  );
+
+  await recorderPage.getByTestId("password").fill("not-a-real-password");
+  await recorderPage.getByTestId("otp").fill("123456");
+  await recorderPage.waitForTimeout(150);
+  check(
+    "password/OTP input cannot change the preserved non-empty draft",
+    recorder.getActions().length === preDetectionCount,
+    `${recorder.getActions().length}/${preDetectionCount}`
+  );
+
+  const identicalAction: Omit<RecordedAction, "id"> = {
+    type: "click",
+    name: "Click Open Reports",
+    locator: { strategy: "testId", value: "open-reports" }
+  };
+  recorderInternals.recordActionFromPage(recorderPage, identicalAction);
+  check(
+    "private recordActionFromPage drops an action while paused",
+    recorder.getActions().length === preDetectionCount,
+    `${recorder.getActions().length}/${preDetectionCount}`
+  );
+
+  recorder.ignoreCurrentProtectedDetection();
+  await recorderPage.goto(`${BASE}/mock/sso-text-app`);
+  recorderInternals.recordActionFromPage(recorderPage, identicalAction);
+  check(
+    "the identical private action records after unpausing",
+    recorder.getActions().length === preDetectionCount + 1,
+    `${recorder.getActions().length}/${preDetectionCount + 1}`
+  );
+  await recorder.cancelRecording();
+  recorder = undefined;
+
   browser = await chromium.launch();
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -190,6 +339,164 @@ try {
   check("session-reuse shows authenticated marker after login", (await page.getByTestId("auth-status").getAttribute("data-authenticated")) === "true");
   check("session-reuse reveals a dashboard marker", await page.getByTestId("dashboard").isVisible());
 
+  console.log("Captured-session runner replay:");
+  capturedProfileDir = await mkdtemp(join(tmpdir(), "awkit-rec022-session-"));
+  const capturedContext = await chromium.launchPersistentContext(capturedProfileDir, { headless: true });
+  const capturedPage = capturedContext.pages()[0] ?? await capturedContext.newPage();
+  await capturedPage.goto(`${BASE}/mock/session-reuse`);
+  await capturedPage.evaluate(() => {
+    localStorage.setItem("awkit.mock.session-reuse.authenticated", "true");
+  });
+  await capturedPage.reload();
+  check(
+    "captured profile fixture carries the persisted authentication signal",
+    (await capturedPage.getByTestId("auth-status").getAttribute("data-authenticated")) === "true"
+  );
+  await capturedContext.close();
+
+  const capturedProfile: SessionProfile = {
+    id: "rec022-captured-session",
+    name: "REC-022 captured session",
+    profileDir: capturedProfileDir,
+    targetUrl: `${BASE}/mock/session-reuse`,
+    loginUrl: `${BASE}/mock/session-reuse`,
+    origin: BASE,
+    source: "manualChromeHandoff",
+    createdAt: new Date().toISOString(),
+    status: "ready"
+  };
+  let manualCaptureCalls = 0;
+  let markedSessionId = "";
+  const capturedSessionService = {
+    list: async () => [capturedProfile],
+    startCapture: async () => {
+      manualCaptureCalls += 1;
+      throw new Error("The authenticated replay must not launch a login capture.");
+    },
+    getStatus: () => ({ active: false, status: "closed" as const }),
+    getById: async (id: string) => id === capturedProfile.id ? capturedProfile : null,
+    markUsed: async (id: string) => {
+      markedSessionId = id;
+    }
+  } as any;
+  const authenticatedFlow = linearFlow("rec022-authenticated-replay", [
+    {
+      id: "auto-login",
+      type: "autoSecureLogin",
+      name: "Auto Secure Login",
+      value: `${BASE}/mock/session-reuse`
+    },
+    {
+      id: "reuse-session",
+      type: "reuseSession",
+      name: "Reuse Session",
+      config: { reuseSessionMode: "selected", reuseSessionId: capturedProfile.id }
+    },
+    {
+      id: "open-dashboard",
+      type: "goto",
+      name: "Open authenticated dashboard",
+      url: `${BASE}/mock/session-reuse`
+    },
+    {
+      id: "assert-authenticated",
+      type: "assertText",
+      name: "Assert authenticated state",
+      locator: { strategy: "testId", value: "auth-status" },
+      config: { assertionType: "text", comparisonOperator: "equals", expectedValue: "Authenticated" }
+    },
+    {
+      id: "assert-dashboard",
+      type: "assertVisible",
+      name: "Assert dashboard visible",
+      locator: { strategy: "testId", value: "dashboard" }
+    }
+  ]);
+  const authenticatedRunner = new PlaywrightRunner({
+    flows: [authenticatedFlow],
+    productionOffline: false,
+    resourcesRoot: join(process.cwd(), "resources"),
+    sessionService: capturedSessionService
+  });
+  const authenticatedResult = await authenticatedRunner.executeScenario(
+    scenarioFor(authenticatedFlow.id),
+    await makeExecutionContext(authenticatedFlow.id),
+    runnerConfig
+  );
+  check(
+    "runner replays Auto Secure Login + Reuse Session into the authenticated dashboard",
+    authenticatedResult.status === "passed" &&
+      authenticatedResult.flows[0]?.steps.some((step) => step.stepId === "assert-dashboard" && step.status === "passed"),
+    authenticatedResult.error ?? authenticatedResult.flows[0]?.error
+  );
+  check(
+    "authenticated replay performs no login interaction",
+    manualCaptureCalls === 0 &&
+      !authenticatedFlow.nodes.some((node) => node.type === "click" || node.type === "fill"),
+    `captureCalls=${manualCaptureCalls}`
+  );
+  check("Reuse Session marks the captured profile used", markedSessionId === capturedProfile.id, markedSessionId);
+
+  let missingSessionCaptureCalls = 0;
+  const missingSessionService = {
+    list: async () => [],
+    startCapture: async () => {
+      missingSessionCaptureCalls += 1;
+      throw new Error("No captured session is available in the negative control.");
+    },
+    getStatus: () => ({ active: false, status: "closed" as const }),
+    getById: async () => null,
+    markUsed: async () => undefined
+  } as any;
+  const missingSessionRunner = new PlaywrightRunner({
+    flows: [authenticatedFlow],
+    productionOffline: false,
+    resourcesRoot: join(process.cwd(), "resources"),
+    sessionService: missingSessionService
+  });
+  const missingSessionResult = await missingSessionRunner.executeScenario(
+    scenarioFor(authenticatedFlow.id),
+    await makeExecutionContext(authenticatedFlow.id),
+    runnerConfig
+  );
+  check(
+    "the identical Auto Secure Login + Reuse Session flow fails when its captured session is removed",
+    missingSessionResult.status === "failed" && missingSessionCaptureCalls === 1,
+    missingSessionResult.error ?? missingSessionResult.flows[0]?.error
+  );
+
+  const noSessionFlow = linearFlow("rec022-no-session-control", [
+    {
+      id: "open-dashboard",
+      type: "goto",
+      name: "Open dashboard without a session",
+      url: `${BASE}/mock/session-reuse`
+    },
+    {
+      id: "assert-authenticated",
+      type: "assertText",
+      name: "Assert authenticated state",
+      locator: { strategy: "testId", value: "auth-status" },
+      config: { assertionType: "text", comparisonOperator: "equals", expectedValue: "Authenticated" }
+    }
+  ]);
+  const noSessionRunner = new PlaywrightRunner({
+    flows: [noSessionFlow],
+    productionOffline: false,
+    resourcesRoot: join(process.cwd(), "resources")
+  });
+  const noSessionResult = await noSessionRunner.executeScenario(
+    scenarioFor(noSessionFlow.id),
+    await makeExecutionContext(noSessionFlow.id),
+    runnerConfig
+  );
+  check(
+    "the same dashboard assertion fails without the captured session",
+    noSessionResult.status === "failed" &&
+      (noSessionResult.error ?? noSessionResult.flows[0]?.error ?? "").includes("Assertion failed"),
+    noSessionResult.error ?? noSessionResult.flows[0]?.error
+  );
+
   console.log("Mock SSO-text false-positive scenario:");
   await page.goto(`${BASE}/mock/sso-text-app`);
   await page.getByRole("heading", { name: "Company Portal" }).waitFor();
@@ -208,7 +515,9 @@ try {
   failed += 1;
   console.error(error);
 } finally {
+  if (recorder) await recorder.cancelRecording().catch(() => undefined);
   if (browser) await browser.close().catch(() => undefined);
+  if (capturedProfileDir) await rm(capturedProfileDir, { recursive: true, force: true }).catch(() => undefined);
   server.kill();
 }
 

@@ -342,7 +342,17 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   capture session; resume; save; replay.
 - **Expected:** AWKIT never types or solves protected input; protected page actions are not recorded;
   captured session produces Auto Secure Login + Reuse Session nodes; resumed business steps replay.
-- **Status:** `BLOCKED` — requires an authorized human and approved test identity.
+- **Status:** `BLOCKED` — `npm run verify:protected-login-recorder` (**57/57**) now automates every
+  mock-expressible expectation: the actual Recorder pauses with a non-empty draft while its automation
+  browser remains open and inert; attempted password/OTP inputs and a direct paused
+  `recordActionFromPage` call leave the action count exactly unchanged; the identical action records
+  after resume; secure nodes preserve the selected session id; and a production runner flow containing
+  Auto Secure Login + Reuse Session reaches the authenticated dashboard from a persisted-profile
+  fixture without a login interaction. The identical flow fails when that profile is removed, and
+  the same dashboard assertion fails in a fresh no-session context. The remaining manual script is
+  only the real-IdP step: an authorized operator with an
+  approved test identity must complete the real Chrome login/MFA/CAPTCHA handoff and confirm reuse.
+  Tracked as `awkit-cey`; no protected input may be automated.
 
 ### REC-023 — Handoff cancel and capture error recovery
 

@@ -10,7 +10,33 @@ export type WorkflowValidationResult =
 
 export const WORKFLOW_IMPORT_ID_CONFLICT = "WORKFLOW_IMPORT_ID_CONFLICT";
 
-const WORKFLOW_NODE_TYPES = new Set(["start", "end", "flowRef"]);
+const WORKFLOW_NODE_TYPE_MAP = {
+  start: true,
+  end: true,
+  flowRef: true
+} satisfies Record<WorkflowNode["type"], true>;
+
+const WORKFLOW_NODE_TYPES = new Set<WorkflowNode["type"]>(
+  Object.keys(WORKFLOW_NODE_TYPE_MAP) as WorkflowNode["type"][]
+);
+
+export function formatWorkflowConflictMessage(existingName: string, existingId: string): string {
+  return (
+    `${WORKFLOW_IMPORT_ID_CONFLICT}: A workflow named ${JSON.stringify(existingName)} ` +
+    `already uses ID ${JSON.stringify(existingId)}.`
+  );
+}
+
+export function parseWorkflowConflictName(message: string): string | undefined {
+  const match = /A workflow named (".*") already uses ID ".*"\./.exec(message);
+  if (!match) return undefined;
+  try {
+    const name = JSON.parse(match[1]);
+    return typeof name === "string" ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -57,7 +83,10 @@ export function validateWorkflowProfile(candidate: unknown): WorkflowValidationR
         nodeIds.add(value.id);
       }
 
-      if (typeof value.type !== "string" || !WORKFLOW_NODE_TYPES.has(value.type)) {
+      if (
+        typeof value.type !== "string" ||
+        !WORKFLOW_NODE_TYPES.has(value.type as WorkflowNode["type"])
+      ) {
         errors.push(`Workflow node at index ${index} must have type "start", "end", or "flowRef".`);
         return;
       }

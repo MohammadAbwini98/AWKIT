@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## Phase K REC-022 narrowed to a real IdP only (2026-07-28, current)
+
+Phase K remains **partially-completed**. REC-024 is PASS (2026-07-27, `958f575`),
+`verify:recorder-gui` is **152 PASS / 0 FAIL / 0 NOT RUN**, and `awkit-38k` is closed. REC-022 is
+the single remaining blocker, now tracked explicitly as P2 bead **`awkit-cey`** with status
+`blocked`: completing it requires an authorized operator and an approved test identity.
+
+`verify:protected-login-recorder` grew to **57/57** and now automates every REC-022 guarantee the
+offline mock can express. It drives the real Recorder into a detected pause with a non-empty draft,
+proves the still-open automation browser is inert, proves password/OTP and direct private-action
+attempts leave the draft count exactly unchanged, and proves the identical action records after
+resume. The mock session page now reads an origin-scoped persisted authentication signal on load.
+A production runner flow containing Auto Secure Login + Reuse Session loads that captured-profile
+fixture and reaches the authenticated dashboard without login interaction; the identical flow with
+its session removed fails, as does a fresh no-session dashboard assertion. Three deliberate
+mutations—removing the `isRecording` guard,
+removing the captured profile, and injecting a protected action—each made the focused verifier fail
+before being reverted.
+
+The Phase E follow-ups are also closed: its previously unreported `npm run build` and
+`verify:workflow-builder` **28/28** gates pass; workflow conflict messages use one shared
+producer/parser contract with a round-trip sentinel; workflow node kinds are exhaustively linked to
+their TypeScript union; and `.codex/config.toml` is targeted in `.gitignore`. The validation ledger
+is unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2).
+Packaging/offline gates were not run because no packaging or offline surface changed.
+
 ## Phase E complete — Workflow Builder import-from-file (2026-07-27, current)
 
 Phase E (Scenario Builder / Workflow Builder) is **complete**. The Workflow Builder now imports
