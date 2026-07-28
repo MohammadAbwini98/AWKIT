@@ -1,8 +1,8 @@
 # CURRENT_STATE
 
-## Dashboard backlog Tranche 1 in progress — two P1 beads closed (2026-07-28, current)
+## Dashboard backlog Tranche 1 in progress — three P1 beads closed (2026-07-28, current)
 
-The first two Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
+The first three Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
 but the tracker remained open. `verify:flow-step-mapping` now exercises the actual shipped
 `mock-conditional-flow.json` condition through the real designer conversion pair and passes
 **102/102**. Temporarily restoring the historical converter logic produced **93/102** and explicitly
@@ -14,8 +14,14 @@ reads fail with `NOT_AUTHORIZED` before sign-in while a signed-in Viewer retains
 read-only flow-library access (**50/50**). Removing the three canonical guards produced **47/50**;
 the mutation was reverted.
 
-The dashboard now measures **113 beads / 29 outstanding / 84 closed**. The validation ledger is
-unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-oyc`; the
+`awkit-oyc`'s shipped FR-B2 implementation captures every failed attempt before the retry verdict,
+keeps each attempt's evidence, preserves the original automation error and last `screenshotPath`,
+and produces bounded, confined artifacts through the screenshot limiter. Its deterministic gate is
+now **35/35** and its real-Chromium artifact gate is **17/17**. Moving the retry verdict before
+capture produced **34/35**; the mutation was reverted.
+
+The dashboard now measures **113 beads / 28 outstanding / 85 closed**. The validation ledger is
+unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-ebh`; the
 remaining tranches and owner-gated items have not been started.
 
 ## Phase K REC-022 narrowed to a real IdP only (2026-07-28, current)

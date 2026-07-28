@@ -23,6 +23,7 @@ import type { StepExecutor } from "@src/runner/StepExecutor";
 import type { StepEvidenceRef, StepExecutionResult } from "@src/runner/RunnerResult";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 import { safePathComponent } from "@src/utils/pathSafety";
+import { RetryPolicy } from "@src/runner/runtime/RetryPolicy";
 
 let passed = 0;
 let failed = 0;
@@ -43,6 +44,7 @@ interface RunOutcome {
   result: StepExecutionResult;
   executeCalls: number;
   evidenceAttempts: number[];
+  failureTimeline: string[];
   threw: boolean;
 }
 
@@ -63,6 +65,7 @@ async function runFailing(opts: {
   const capture = opts.capture ?? "ok";
   let executeCalls = 0;
   const evidenceAttempts: number[] = [];
+  const failureTimeline: string[] = [];
 
   const stub = {
     async execute(step: FlowStep): Promise<StepExecutionResult> {
@@ -77,6 +80,7 @@ async function runFailing(opts: {
     },
     async captureFailureEvidence(_step: FlowStep, o: { attempt: number }): Promise<StepEvidenceRef[]> {
       evidenceAttempts.push(o.attempt);
+      failureTimeline.push(`capture:${o.attempt}`);
       if (capture === "throws") throw new Error(opts.captureThrowMessage ?? "dead page: cannot photograph");
       const now = new Date().toISOString();
       return [{ kind: "screenshot", path: `/artifacts/s1-a${o.attempt}.png`, attempt: o.attempt, pageId: "main", capturedAt: now }];
@@ -84,6 +88,19 @@ async function runFailing(opts: {
   } as unknown as StepExecutor;
 
   const flowExecutor = new FlowExecutor(stub, undefined, undefined, undefined, opts.profileDefault);
+  const retryPolicy = new RetryPolicy();
+  (
+    flowExecutor as unknown as {
+      retryPolicy: {
+        decide(input: Parameters<RetryPolicy["decide"]>[0]): ReturnType<RetryPolicy["decide"]>;
+      };
+    }
+  ).retryPolicy = {
+    decide(input) {
+      failureTimeline.push(`decide:${input.attempt}`);
+      return retryPolicy.decide(input);
+    }
+  };
   const step = {
     id: "s1",
     type: "click",
@@ -100,7 +117,7 @@ async function runFailing(opts: {
     threw = true;
     result = { stepId: "s1", status: "failed", startedAt: "", endedAt: "", durationMs: 0, outputs: {} };
   }
-  return { result, executeCalls, evidenceAttempts, threw };
+  return { result, executeCalls, evidenceAttempts, failureTimeline, threw };
 }
 
 async function main(): Promise<void> {
@@ -111,6 +128,11 @@ async function main(): Promise<void> {
   check("retryable failure with retry.count=2 runs 3 attempts", multi.executeCalls === 3, `executeCalls=${multi.executeCalls}`);
   check("captureFailureEvidence is called once per failing attempt (B2.1)", multi.evidenceAttempts.length === 3, `calls=${JSON.stringify(multi.evidenceAttempts)}`);
   check("each attempt is captured under its own distinct index [0,1,2] (B2.2)", JSON.stringify(multi.evidenceAttempts) === "[0,1,2]");
+  check(
+    "each failed attempt is captured before its retry decision (B2.1)",
+    JSON.stringify(multi.failureTimeline) === '["capture:0","decide:0","capture:1","decide:1","capture:2","decide:2"]',
+    `timeline=${JSON.stringify(multi.failureTimeline)}`
+  );
   const evi = multi.result.evidence ?? [];
   check("result carries all 3 attempts' evidence, in order (B2.2)", evi.length === 3 && JSON.stringify(evi.map((e) => e.attempt)) === "[0,1,2]", `evidence=${JSON.stringify(evi.map((e) => e.attempt))}`);
   check("no attempt's evidence is overwritten by a later attempt (B2.2)", new Set(evi.map((e) => e.path)).size === 3);

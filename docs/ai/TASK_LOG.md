@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-oyc` per-attempt failure evidence reconciled and pinned (Codex)
+
+**Task:** close the third dashboard backlog Tranche 1 P1 bead by proving evidence is captured inside
+each failed attempt before retry policy can trigger recovery.
+
+**Result:** the FR-B2 product fix was already shipped in `269cd70` and hardened by `b4d2974`. The
+focused verifier now records the production failure timeline and requires every `capture:n` to
+precede `decide:n`, alongside its existing accumulation, error-precedence, opt-out, and
+`screenshotPath` contracts.
+
+**Verification:** `npm run verify:failure-evidence` **35/35** and
+`npm run verify:failure-evidence-live` **17/17**. Mutation proof: moving `RetryPolicy.decide` ahead
+of capture produced **34/35** with the exact inverted timeline, then was reverted. Dashboard source
+counts move to **113 total / 28 outstanding / 85 closed**. Packaging/offline gates were not run
+because no packaging surface changed.
+
 ## 2026-07-28 (latest) - `awkit-7lj` flow-library reads fail closed before authentication (Codex)
 
 **Task:** close the second dashboard backlog Tranche 1 P1 bead without changing the Viewer role's
