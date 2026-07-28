@@ -1361,7 +1361,8 @@ export class ExecutionEngine {
       sharedBrowserPool: shared ? this.sharedBrowserPool : undefined,
       // Phase A6: stagger expensive operations across every instance.
       operationLimiters: this.operationLimiters,
-      oracleNodeRunner: this.oracleNodeRunner
+      oracleNodeRunner: this.oracleNodeRunner,
+      locatorRecoveryRoot: join(dirs.root, "locator-recovery")
     });
 
     let runError: string | undefined;

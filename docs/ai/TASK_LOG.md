@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-v4r` persisted locator winner and bounded recovery (Codex)
+
+**Task:** stop paying for a permanently dead primary locator and recover safely when every recorded
+candidate misses, without network services, utility-class matching, or silent guessing.
+
+**Result:** the runtime-data store records one hashed JSON file per scenario/flow/step with the last
+winning candidate and a class-free structural fingerprint whose business text and attribute values
+are token-hashed before persistence. Later runs prefer that winner. Only
+after all candidates miss and a bounded recheck, the resolver scans at most 200 visible elements,
+requires a high score plus unique margin, logs the recovery and tells the user to re-record.
+No-history, valid-candidate, and equal-twin paths preserve existing behavior. `awkit-v4r` is closed.
+
+**Verification:** `verify:recorder` **110/110** and `verify:runner` **89/89**. Mutation: threshold
+`0.86 → 1.01` produced **107/110** with all three recovery sentinels red; reverted. Dashboard counts
+move to **113 total / 24 outstanding / 89 closed**.
+
 ## 2026-07-28 (latest) - `awkit-60w` numeric record-to-replay fidelity gate (Codex)
 
 **Task:** turn Recorder replayability into a measured percentage over real interactions, not a

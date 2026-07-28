@@ -41,10 +41,13 @@ remain structural and legacy workflows remain compatible.
   protected-login detector (provider URLs, Google insecure-browser page, MFA/CAPTCHA text, no false
   positives, no secret fields). As of the last run: **16 checks pass**. `verify:runner` also covers the
   Protected Login Handoff node pausing/resuming and auto-detect not pausing normal mock pages (82 total).
-- `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — live Chromium checks for recorder
-  locator generation, runner locator safeguards/fallbacks, and Smart Wait recorder observation
+- `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — **110 checks** in live Chromium
+  for recorder locator generation, runner locator safeguards/fallbacks, persisted winner ordering,
+  bounded all-candidates-miss recovery, and Smart Wait recorder observation
   (safe fetch/XHR path-only signals, loader disappearance, URL changes, table/list/card waits, toast,
-  enabled controls, polling ignored, fixed-delay fallback). As of the last run: **78 checks pass**.
+  enabled controls, polling ignored, fixed-delay fallback). Recovery coverage includes no-history,
+  equal-twin, valid-recorded-candidate, class/business-text exclusion, durable-source, and
+  loud-warning sentinels.
 - `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
   an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable

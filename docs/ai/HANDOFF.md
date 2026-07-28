@@ -1,5 +1,23 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): `awkit-v4r` closed; continue Tranche 2 with `awkit-4a6`
+
+The locator resolver now remembers the winning recorded candidate per scenario/flow/step in the
+stable runtime-data root and prefers it in later runs. A prior successful element also supplies a
+class-free structural fingerprint for a bounded local fallback; visible text/labels/attribute
+values are token-hashed before persistence. Recovery runs only after every
+saved candidate misses and a 500 ms recheck, scans at most 200 visible elements, requires score
+>= 0.86 plus >= 0.08 uniqueness margin, and never guesses between equal twins. Accepted recovery is
+logged loudly with a re-record instruction; memory errors remain non-fatal and observable.
+
+Focused proof is `verify:recorder` **110/110**; full runner regression is **89/89**. Raising the
+acceptance threshold to 1.01 made the recovery gate fail **107/110**, then was reverted. Continue
+the six-tranche program with `awkit-4a6`; do not cross the owner-only boundaries documented in
+`docs/ai/tasks/DASHBOARD_BACKLOG_PROGRAM.md`.
+
+Dashboard counts are **113 / 24 outstanding / 89 closed**. Validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 2 in progress
 
 `awkit-epz`'s authorized fail-loud half is complete: portable and NSIS packaging now refuse a

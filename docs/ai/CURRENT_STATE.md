@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 2 — locator winner memory and bounded recovery complete (2026-07-28, current)
+
+`awkit-v4r` is closed. The runner now persists the last successful recorded locator candidate per
+scenario/flow/step under the configured runtime-data root and tries that candidate first on the next
+run. The record also carries a bounded structural fingerprint: tag, role, accessible name/text,
+selected stable attributes, and three ancestor descriptors. Text, labels, and attribute values are
+token-hashed before persistence, and CSS classes are never read or stored.
+
+Local recovery is deliberately narrower than ordinary resolution. It is available only when the
+same candidate set has succeeded before, every saved candidate currently resolves to zero, and a
+500 ms bounded recheck still finds nothing. It scans at most 200 visible elements, applies
+step-type compatibility, requires a similarity score of at least 0.86 and a unique margin of 0.08,
+and otherwise preserves the existing Playwright auto-wait path. Ambiguous twins are never guessed.
+Every accepted recovery logs a warning with its score and tells the user to re-record the step.
+
+`verify:recorder` is **110/110** and `verify:runner` is **89/89**. Raising the recovery threshold
+above every possible score produced **107/110** with the three recovery sentinels red; the mutation
+was reverted. Dashboard source counts are now **113 beads / 24 outstanding / 89 closed**. The
+validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 2 in progress — packaging fails loud and payload provenance is separate (2026-07-28, current)
 
 The authorized fail-loud half of `awkit-epz` is implemented. Both portable and NSIS packaging

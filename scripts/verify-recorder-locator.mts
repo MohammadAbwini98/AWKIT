@@ -16,6 +16,7 @@ import type { Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "@src/recorder/smartWaitObservation";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
@@ -454,6 +455,169 @@ async function main() {
     const { status, error } = await run(html, { id: "cr4", type: "click", name: "Click Go", locator: { strategy: "css", value: "button.act" } });
     check("self-heal: two equal twins → fails (no wrong-element guess)", status === "failed", status);
     check("self-heal: failure stays a friendly message", /multiple elements|matched multiple/i.test(error ?? ""), error);
+  }
+
+  console.log("Part E — Persisted locator winner and bounded local recovery");
+
+  const recoveryRoot = await mkdtemp(join(tmpdir(), "wfs-locator-memory-"));
+  const recoveryStore = new FileLocatorRecoveryStore(recoveryRoot);
+  const recoveryScope = { scenarioId: "scenario-recovery", flowId: "flow-recovery" };
+
+  // E1. The recorded alternative that won is persisted and tried first by a fresh factory.
+  {
+    const step: FlowStep = {
+      id: "winner-order",
+      type: "click",
+      name: "Click winning candidate",
+      locator: {
+        strategy: "id",
+        value: "stale-primary",
+        alternatives: [{ strategy: "id", value: "last-winner" }]
+      }
+    };
+    await page.setContent(`<button id="last-winner" onclick="window.__hit='learned'">Continue</button>`);
+    await (await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step)).click();
+
+    const events: string[] = [];
+    await page.setContent(
+      `<button id="stale-primary" onclick="window.__hit='primary'">Continue</button>` +
+        `<button id="last-winner" onclick="window.__hit='remembered'">Continue</button>`
+    );
+    const freshFactory = new LocatorFactory(page, {
+      recoveryStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => events.push(event.type)
+    });
+    await (await freshFactory.resolve(step)).click();
+    check(
+      "winner memory: a fresh factory tries the persisted winner first",
+      (await page.evaluate(() => (window as any).__hit)) === "remembered",
+      JSON.stringify(events)
+    );
+    check("winner memory: preferred-candidate is observable", events.includes("preferred-candidate"), JSON.stringify(events));
+  }
+
+  // E2. Only after every saved candidate misses, a unique high-similarity local element can recover.
+  {
+    const step: FlowStep = {
+      id: "bounded-recovery",
+      type: "click",
+      name: "Click Save order",
+      locator: { strategy: "id", value: "save-order-old" }
+    };
+    await page.setContent(
+      `<section data-testid="checkout"><button id="save-order-old" class="flex items-center" onclick="window.__hit='old'">Save order</button></section>`
+    );
+    await (await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step)).click();
+
+    const events: Array<{ type: string; message: string }> = [];
+    await page.setContent(
+      `<section data-testid="checkout"><button id="save-order-new" class="grid justify-center" onclick="window.__hit='recovered'">Save order</button></section>`
+    );
+    const factory = new LocatorFactory(page, {
+      recoveryStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => events.push(event)
+    });
+    const recovered = await factory.resolve(step);
+    const recoveredCount = await recovered.count();
+    if (recoveredCount === 1) await recovered.click();
+    check(
+      "local recovery: unique high-similarity element is clicked after all candidates miss",
+      recoveredCount === 1 && (await page.evaluate(() => (window as any).__hit)) === "recovered",
+      JSON.stringify(events)
+    );
+    check(
+      "local recovery: warning explicitly tells the user to re-record",
+      events.some((event) => event.type === "local-recovery" && /RECOVERED locator.+Re-record/i.test(event.message)),
+      JSON.stringify(events)
+    );
+    const record = await recoveryStore.get("scenario-recovery\u0000flow-recovery\u0000bounded-recovery");
+    check("local recovery: durable record marks the recovery source", record?.source === "local-recovery", JSON.stringify(record));
+    check(
+      "local recovery: fingerprint never stores utility or hashed classes",
+      !JSON.stringify(record?.fingerprint).includes("flex") && !JSON.stringify(record?.fingerprint).includes("justify-center"),
+      JSON.stringify(record?.fingerprint)
+    );
+    check(
+      "local recovery: durable fingerprint does not store visible business text",
+      !JSON.stringify(record?.fingerprint).toLocaleLowerCase().includes("save order"),
+      JSON.stringify(record?.fingerprint)
+    );
+  }
+
+  // E3. No successful history means no similarity scan: the legacy auto-wait locator is returned.
+  {
+    const events: string[] = [];
+    const step: FlowStep = {
+      id: "no-history",
+      type: "click",
+      name: "Click unlearned target",
+      locator: { strategy: "id", value: "missing-recorded-id" }
+    };
+    await page.setContent(`<button id="similar-looking">Click unlearned target</button>`);
+    const unresolved = await new LocatorFactory(page, {
+      recoveryStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => events.push(event.type)
+    }).resolve(step);
+    check("local recovery: no history preserves the missing recorded locator", (await unresolved.count()) === 0);
+    check("local recovery: no history emits no recovery event", !events.includes("local-recovery"), JSON.stringify(events));
+  }
+
+  // E4. Two equally similar twins are below the uniqueness margin, so recovery refuses to guess.
+  {
+    const step: FlowStep = {
+      id: "ambiguous-recovery",
+      type: "click",
+      name: "Click Approve",
+      locator: { strategy: "id", value: "approve-old" }
+    };
+    await page.setContent(`<div><button id="approve-old">Approve</button></div>`);
+    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step);
+    await page.setContent(`<div><button id="approve-a">Approve</button><button id="approve-b">Approve</button></div>`);
+    const events: string[] = [];
+    const unresolved = await new LocatorFactory(page, {
+      recoveryStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => events.push(event.type)
+    }).resolve(step);
+    check("local recovery: equal twins remain unresolved", (await unresolved.count()) === 0);
+    check("local recovery: equal twins emit no recovery claim", !events.includes("local-recovery"), JSON.stringify(events));
+  }
+
+  // E5. A still-valid recorded candidate always wins before recovery, even beside a close lookalike.
+  {
+    const step: FlowStep = {
+      id: "recorded-still-valid",
+      type: "click",
+      name: "Click Publish",
+      locator: { strategy: "id", value: "publish-recorded" }
+    };
+    await page.setContent(`<button id="publish-recorded">Publish</button>`);
+    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step);
+    const events: string[] = [];
+    await page.setContent(
+      `<button id="publish-recorded" onclick="window.__hit='recorded'">Publish</button>` +
+        `<button id="publish-lookalike" onclick="window.__hit='lookalike'">Publish</button>`
+    );
+    const resolved = await new LocatorFactory(page, {
+      recoveryStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => events.push(event.type)
+    }).resolve(step);
+    await resolved.click();
+    check(
+      "local recovery: a valid recorded candidate is never replaced",
+      (await page.evaluate(() => (window as any).__hit)) === "recorded",
+      JSON.stringify(events)
+    );
+    check("local recovery: valid candidate emits no recovery event", !events.includes("local-recovery"), JSON.stringify(events));
   }
 
   console.log("Part D — Smart Wait recorder observation (Phase 2)");

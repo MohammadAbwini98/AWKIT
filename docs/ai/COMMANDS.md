@@ -110,7 +110,7 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
                             # default, and that the RUNNER honours screenshot-on-failure — driven by
                             # real runs started from the card's Run button, ON/OFF/ON. Spawns the mock
                             # site; needs `npm run build` first. (11/11)
-npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
+npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, and Smart Wait signals/correlation (110/110)
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library
                             # → production replay → Flow Designer save → two DOM-drift replays. Reports

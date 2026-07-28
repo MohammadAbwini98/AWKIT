@@ -7,6 +7,7 @@ import { BrowserContextFactory, type BrowserContextFactoryOptions, type BrowserR
 import { FlowExecutor } from "./FlowExecutor";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
+import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
@@ -101,6 +102,8 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   screenshotOnFailure?: boolean;
   /** Runs Oracle query nodes through the main-process OracleQueryService (undefined = unavailable). */
   oracleNodeRunner?: OracleNodeRunner;
+  /** Stable runtime-data folder for offline locator winner/recovery memory. */
+  locatorRecoveryRoot?: string;
 }
 
 export class PlaywrightRunner {
@@ -108,6 +111,7 @@ export class PlaywrightRunner {
   private readonly browserContextFactory: BrowserContextFactory;
   private readonly manualHandoffController: ManualHandoffController;
   private readonly scenarioOrchestrator: ScenarioOrchestrator;
+  private readonly locatorRecoveryStore?: LocatorRecoveryStore;
   /** Per-run failure-trace capture; armed only when the context provides a traces dir. */
   private traceService?: TraceService;
 
@@ -116,6 +120,9 @@ export class PlaywrightRunner {
     this.browserContextFactory = new BrowserContextFactory(options);
     this.manualHandoffController = options.manualHandoffController ?? new ManualHandoffController();
     this.scenarioOrchestrator = options.scenarioOrchestrator ?? new ScenarioOrchestrator();
+    this.locatorRecoveryStore = options.locatorRecoveryRoot
+      ? new FileLocatorRecoveryStore(options.locatorRecoveryRoot)
+      : undefined;
   }
 
   async executeScenario(
@@ -496,7 +503,7 @@ export class PlaywrightRunner {
     const runChild: ChildFlowRunner = (childId) => this.executeChildFlow(childId, holder, restartBrowser, context, logger, stack);
     const stepExecutor = new StepExecutor(
       holder.page,
-      new LocatorFactory(holder.page),
+      this.createLocatorFactory(holder.page, context, logger),
       new ValueResolver(context),
       context,
       this.manualHandoffController,
@@ -542,7 +549,7 @@ export class PlaywrightRunner {
       holder.popupIdentity.markInternal(branchPage);
       const branchExecutor = new StepExecutor(
         branchPage,
-        new LocatorFactory(branchPage),
+        this.createLocatorFactory(branchPage, context, logger),
         new ValueResolver(context),
         context,
         this.manualHandoffController,
@@ -608,6 +615,23 @@ export class PlaywrightRunner {
     }
     const childContext: InstanceExecutionContext = { ...baseContext, flowId };
     return this.runFlowWithChildren(flow, childContext, holder, restartBrowser, logger, [...stack, flowId]);
+  }
+
+  private createLocatorFactory(
+    page: Page,
+    context: InstanceExecutionContext,
+    logger: MemoryRunnerLogger
+  ): LocatorFactory {
+    return new LocatorFactory(page, {
+      recoveryStore: this.locatorRecoveryStore,
+      scope: { scenarioId: context.scenarioId, flowId: context.flowId },
+      onRecoveryEvent: (event) =>
+        logger.log({
+          level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",
+          message: `[locator:${event.type}] ${event.message}`,
+          ...this.logMeta(context)
+        })
+    });
   }
 
   private finish(
