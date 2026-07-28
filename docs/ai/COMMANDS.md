@@ -141,7 +141,7 @@ npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-pr
 # stale tree reports a confident PASS for code that was never built.
 npm run prepare:zvec-host   # stage the raw host + binding into build/native-hosts/zvec
 npm run verify:semantic-policy   # projection/redaction/validator privacy pipeline (pure)
-npm run verify:semantic-store    # shared SemanticStore contract vs BOTH implementations (transport fake)
+npm run verify:semantic-store    # shared contract vs both stores + ambiguous mutation no-replay policy (153 checks)
 npm run verify:semantic-queue    # coalescing, ordering, overflow, no blind replay (pure)
 npm run verify:semantic-rebuild  # rebuild watermark + ordered delta replay vs in-memory stores and a
                             # generation-lifecycle stub (pure)
@@ -150,7 +150,7 @@ npm run verify:semantic-zvec-native-contract # shared contract through the REAL 
                             # → utilityProcess → raw host → Zvec
 npm run verify:semantic-rebuild-live # the REBUILD lifecycle through the real generation runtime: real
                             # candidate build, activation, retarget, restart, rollback, host crash
-                            # mid-write and mid-populate, post-activation open failure
+                            # mid-write/mid-populate, ambiguous timeout, post-activation open failure (24 checks / 68 assertions)
 npm run verify:zvec-host-source-boundary # the host stays raw CJS, utilityProcess-only, no crash hook
 npm run verify:zvec-host-lifecycle       # fork/handshake/deadlines/restart policy/circuit breaker
 npm run verify:zvec-generation-lifecycle # create/validate/activate/rollback + atomic pointer swap

@@ -491,10 +491,15 @@ async function run(): Promise<void> {
     /** A transport that can inject a fault before forwarding. The tool behind every failure case. */
     class FaultTransport {
       fault: ((request: Record<string, unknown>) => void) | null = null;
+      timeoutOverride: ((request: Record<string, unknown>, timeoutMs: number) => number) | null = null;
+      readonly callsByType = new Map<string, number>();
       constructor(private readonly inner: { call<T>(request: unknown, timeoutMs: number): Promise<T> }) {}
       async call<T>(request: unknown, timeoutMs: number): Promise<T> {
-        this.fault?.(request as Record<string, unknown>);
-        return this.inner.call<T>(request, timeoutMs);
+        const typed = request as Record<string, unknown>;
+        const type = typeof typed.type === "string" ? typed.type : "unknown";
+        this.callsByType.set(type, (this.callsByType.get(type) ?? 0) + 1);
+        this.fault?.(typed);
+        return this.inner.call<T>(request, this.timeoutOverride?.(typed, timeoutMs) ?? timeoutMs);
       }
     }
 
@@ -942,6 +947,7 @@ async function run(): Promise<void> {
         await runtime.rebuild();
 
         // Kill the utility process underneath an in-flight write.
+        const before = transport.callsByType.get("upsert") ?? 0;
         transport.fault = (req) => {
           if (req.type === "upsert") {
             const pid = mgr.status().pid;
@@ -959,7 +965,9 @@ async function run(): Promise<void> {
         transport.fault = null;
 
         const status = runtime.status();
+        const attempts = (transport.callsByType.get("upsert") ?? 0) - before;
         expect("[crashWrite] the crash did not take the application process down", true);
+        expect("[crashWrite] the ambiguous mutation was not replayed after host exit", attempts === 1, `${attempts} upsert calls`);
         expect("[crashWrite] the failure is surfaced rather than silently swallowed", status.rebuildRequired || status.pending > 0, JSON.stringify({ rebuildRequired: status.rebuildRequired, pending: status.pending }));
         expect("[crashWrite] the host recorded an unexpected exit", (mgr.status().unexpectedExits ?? 0) > 0, String(mgr.status().unexpectedExits));
         await runtime.shutdown();
@@ -967,7 +975,41 @@ async function run(): Promise<void> {
       return { checks: checks.length };
     });
 
-    // ── 17. a host crash while populating the candidate leaves the active generation intact ──
+    // ── 17. a timed-out mutation is ambiguous and must never be blind-replayed ──
+    await step("ambiguousMutationTimeoutRequiresRebuildWithoutReplay", async () => {
+      await scenario("timeoutMutation", async ({ transport }) => {
+        const runtime = newRuntime(
+          transport,
+          async () => [doc("wf-a")],
+          { maxPending: 2_000, batchSize: 1_500 }
+        );
+        await runtime.open();
+        await runtime.rebuild();
+
+        const before = transport.callsByType.get("upsert") ?? 0;
+        transport.timeoutOverride = (request, timeoutMs) => request.type === "upsert" ? 0 : timeoutMs;
+        for (let index = 0; index < 1_500; index += 1) {
+          runtime.enqueue({ op: "upsert", document: doc(`timeout-${index}`) });
+        }
+        const result = await runtime.mutationQueue.drain();
+        transport.timeoutOverride = null;
+        const attempts = (transport.callsByType.get("upsert") ?? 0) - before;
+
+        expect("[timeoutMutation] the real host request exceeded its deadline", result.failed === 1, JSON.stringify(result));
+        expect("[timeoutMutation] the ambiguous write was sent exactly once", attempts === 1, `${attempts} upsert calls`);
+        expect("[timeoutMutation] the batch was abandoned rather than reported applied", result.abandoned === 1, JSON.stringify(result));
+        expect("[timeoutMutation] authoritative rebuild is required", result.rebuildRequired && runtime.status().rebuildRequired);
+        expect("[timeoutMutation] the ambiguous batch is not left queued for blind replay", runtime.status().pending === 0, String(runtime.status().pending));
+
+        // The late host reply may represent either outcome. Let it settle before shutdown, but never
+        // infer whether the write landed from timing; the rebuild flag is the reconciliation policy.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await runtime.shutdown();
+      });
+      return { checks: checks.length };
+    });
+
+    // ── 18. a host crash while populating the candidate leaves the active generation intact ──
     await step("hostCrashDuringPopulateLeavesActiveGenerationIntact", async () => {
       await scenario("crashPopulate", async ({ mgr, transport }) => {
         const runtime = newRuntime(transport, async () => [doc("wf-a")]);
@@ -997,7 +1039,7 @@ async function run(): Promise<void> {
       return { checks: checks.length };
     });
 
-    // ── 18. startup reconciliation handles a candidate interrupted mid-build ──
+    // ── 19. startup reconciliation handles a candidate interrupted mid-build ──
     await step("startupReconciliationHandlesInterruptedCandidate", async () => {
       await scenario("reconcile", async ({ transport }) => {
         const runtime = newRuntime(transport, async () => [doc("wf-a")]);

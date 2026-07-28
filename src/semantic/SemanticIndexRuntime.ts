@@ -80,6 +80,10 @@ export interface SemanticIndexRuntimeOptions {
   shutdownDeadlineMs?: number;
   /** Max pending mutations before overflow handling engages. Passed through to the queue. */
   maxPending?: number;
+  /** Max adjacent mutations per host write. Passed through to the queue. */
+  batchSize?: number;
+  /** Retries for classified-safe failures. Ambiguous mutations are never retried. */
+  maxRetries?: number;
   /** Max delta-journal entries before a rebuild refuses to activate. Passed through to the queue. */
   maxRebuildDelta?: number;
   logger?: (level: "info" | "warn" | "error", message: string) => void;
@@ -149,6 +153,8 @@ export class SemanticIndexRuntime {
     this.queue = new SemanticMutationQueue({
       store: new RefusingSemanticStore("NO_ACTIVE_GENERATION"),
       maxPending: options.maxPending,
+      batchSize: options.batchSize,
+      maxRetries: options.maxRetries,
       maxRebuildDelta: options.maxRebuildDelta
     });
     this.orchestrator = new SemanticRebuildOrchestrator({

@@ -24,6 +24,11 @@ export type SemanticStoreErrorCode =
   | "NOT_OPEN"
   | "ALREADY_CLOSED"
   | "WRITE_FAILED"
+  /**
+   * A mutation deadline or host exit happened after dispatch, so the backend may already have
+   * applied it. The queue must not replay it; authoritative rebuild is the reconciliation path.
+   */
+  | "AMBIGUOUS_MUTATION"
   | "READ_FAILED"
   | "QUERY_FAILED"
   | "CAPACITY_EXCEEDED"

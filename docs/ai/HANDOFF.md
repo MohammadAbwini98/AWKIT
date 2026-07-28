@@ -1,5 +1,21 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): `awkit-hzf` closed; reconcile generation activation bead
+
+Ambiguous Zvec mutation outcomes now survive the adapter boundary as `AMBIGUOUS_MUTATION`. The queue
+never retries them: it abandons the item, marks `rebuildRequired`, and leaves authoritative rebuild
+as the only reconciliation path. This applies to a dispatched write that times out or loses its host.
+
+Proof is `verify:semantic-store` **153/153**, real-host `verify:semantic-rebuild-live` **24/24**
+with 68 assertions, semantic queue **70/70**, build PASS, and script typecheck PASS. A disabled
+mapping produced **152/153** and three write attempts; reverted. Dashboard counts are
+**113 / 21 outstanding / 92 closed**; validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+Continue with `awkit-ttd`. Its production binding already exists, so audit the current real-host
+activation evidence against every bead criterion, fill any residual proof gap, then close only if
+the current state proves it.
+
 ## ACTIVE (2026-07-28, latest): `awkit-9yv` closed; reconcile ambiguous Zvec timeouts next
 
 The real shared semantic-store contract is green on staged, packaged, and freshly NSIS-installed

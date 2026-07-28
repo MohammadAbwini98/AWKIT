@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 3 — ambiguous Zvec mutation outcomes reconciled (2026-07-28, current)
+
+`awkit-hzf` is closed. A host deadline or exit after a mutation was dispatched is now preserved by
+the adapter as `AMBIGUOUS_MUTATION` instead of collapsing into retryable `WRITE_FAILED`. The mutation
+queue sends that operation exactly once, abandons the queue entry, and marks the index
+`rebuildRequired`. An authoritative-source rebuild is the only reconciliation path because the late
+host reply may mean the mutation landed, did not land, or was still applying; timing is never used to
+invent an answer.
+
+The focused fake-transport reproduction initially made three write attempts and failed
+**152/153**. With the fix it passes **153/153**. The real utility-host verifier forces a
+1,500-document write past a zero-length deadline and proves one dispatch, one abandonment, no
+requeue, and rebuild-required; it passes **24/24** with 68 lifecycle assertions. Host exit during a
+write is also pinned to one dispatch. `verify:semantic-queue` is **70/70**, build and
+`typecheck:scripts` pass. Disabling the mapping reproduced **152/153** and was reverted.
+
+Dashboard source counts are **113 beads / 21 outstanding / 92 closed**. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 3 — real Zvec contract closed on all three layouts (2026-07-28, current)
 
 `awkit-9yv` is closed. The shared `SemanticStoreContract` and scale cases now run through the real

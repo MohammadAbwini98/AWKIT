@@ -72,8 +72,8 @@ try {
   const beads = parseBeads();
   check("113 issues parse", beads.stats.total === 113, `got ${beads.stats.total}`);
   check(
-    "22 outstanding / 91 closed",
-    beads.stats.outstanding === 22 && beads.stats.closed === 91,
+    "21 outstanding / 92 closed",
+    beads.stats.outstanding === 21 && beads.stats.closed === 92,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

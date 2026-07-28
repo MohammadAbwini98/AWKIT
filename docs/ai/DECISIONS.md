@@ -4,6 +4,20 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-28 — An ambiguous semantic mutation is never replayed
+
+- **Decision:** when a dispatched Zvec mutation times out or the utility host exits before replying,
+  classify it as `AMBIGUOUS_MUTATION`, abandon that queue item, and require an authoritative rebuild.
+  Do not retry it and do not infer success or failure from a late reply.
+- **Why:** the host may have committed the write before the deadline, may still be applying it, or
+  may have failed before touching the collection. Replaying can corrupt counts and order; dropping it
+  without a rebuild silently leaves the index stale.
+- **Consequence:** the mutation queue reports one abandoned failure and `rebuildRequired`; the source
+  snapshot plus ordered rebuild delta, not a second write attempt, determines the final index.
+- **Enforcement:** `ZvecSemanticStore` preserves the manager's timeout/exit classification through
+  the vendor-neutral store boundary. `SemanticMutationQueue` retries only explicitly safe generic
+  read/write/query failures; `AMBIGUOUS_MUTATION` is outside that set.
+
 ### 2026-07-25 — A failed retarget after activation degrades; it never reverts the pointer
 
 - **Decision:** once `activateGeneration` writes the active pointer, that generation is

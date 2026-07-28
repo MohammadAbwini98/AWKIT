@@ -256,6 +256,9 @@ export class ZvecSemanticStore implements SemanticStore {
   /** Map a host failure onto a stable store code. Vendor text never escapes this method. */
   private fail(error: unknown, fallback: SemanticStoreErrorCode): never {
     if (error instanceof SemanticStoreError) throw error;
+    if (fallback === "WRITE_FAILED" && isAmbiguousHostMutation(error)) {
+      throw new SemanticStoreError("AMBIGUOUS_MUTATION");
+    }
     throw new SemanticStoreError(fallback);
   }
 
@@ -582,4 +585,14 @@ export class ZvecSemanticStore implements SemanticStore {
       degraded: degraded || !totalExact
     };
   }
+}
+
+/**
+ * A write request that timed out or lost its host after dispatch has an unknown outcome. Kept
+ * structural so this framework-neutral adapter never imports Electron's host-manager class.
+ */
+function isAmbiguousHostMutation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const reason = (error as { reason?: unknown }).reason;
+  return reason === "SEMANTIC_HOST_TIMEOUT" || reason === "SEMANTIC_HOST_EXITED";
 }

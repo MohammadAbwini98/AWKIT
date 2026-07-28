@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-hzf` ambiguous Zvec writes reconcile by rebuild (Codex)
+
+**Task:** define and prove the policy for a mutation whose real utility-host request times out and
+may already have applied.
+
+**Result:** timeout and host-exit write failures map to `AMBIGUOUS_MUTATION`; the queue sends them
+once, abandons them, and sets `rebuildRequired`. It never blind-replays and never infers the outcome
+from a late reply. The real-host harness drives a 1,500-document write past a zero deadline and also
+pins the host-exit path. `awkit-hzf` is closed.
+
+**Verification:** semantic store **153/153**; real rebuild **24/24** with 68 assertions; semantic
+queue **70/70**; build and script typecheck PASS. The pre-fix and explicit disabled-mapping mutation
+both produced **152/153** with three write attempts; reverted. Dashboard counts move to
+**113 total / 21 outstanding / 92 closed**.
+
 ## 2026-07-28 (latest) - `awkit-9yv` real Zvec contract closed on every required layout (Codex)
 
 **Task:** reconcile the open real-host contract bead and prove the shared store contract plus

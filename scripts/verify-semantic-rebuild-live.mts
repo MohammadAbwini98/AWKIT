@@ -187,11 +187,11 @@ try {
         report.contract.failed === 0,
         report.contract.failures.map((f) => `${f.label}${f.detail ? ` [${f.detail}]` : ""}`).slice(0, 8).join(" | ")
       );
-      // A scenario set that stopped early would otherwise "pass" silently. 50 is a floor under the
-      // number the suite actually emits, not an estimate of it: if this trips, count the assertions
+      // A scenario set that stopped early would otherwise "pass" silently. 68 is the measured full
+      // assertion count, not an estimate: if this trips, count the assertions
       // before touching it — a count that GREW means raise the floor, a count that SHRANK is the
       // truncation this guard exists to catch.
-      check("the lifecycle suite executed its full set of assertions", report.contract.total >= 50, String(report.contract.total));
+      check("the lifecycle suite executed its full set of assertions", report.contract.total >= 68, String(report.contract.total));
     } else {
       check("the harness reported lifecycle results", false, "no results block in the report");
     }

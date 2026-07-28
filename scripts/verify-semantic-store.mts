@@ -16,6 +16,7 @@ import {
   type SemanticStoreFactory
 } from "@src/semantic/SemanticStoreContract";
 import { SemanticStoreError } from "@src/semantic/SemanticStore";
+import { SemanticMutationQueue } from "@src/semantic/SemanticMutationQueue";
 import { ZvecSemanticStore, toZvecDocument, fromZvecDocument } from "@src/semantic/ZvecSemanticStore";
 import { FakeZvecHostTransport } from "@src/semantic/FakeZvecHostTransport";
 
@@ -127,6 +128,44 @@ console.log("\nInjected failures (error paths a healthy store never reaches):\n"
   check(
     "replacing an existing id does NOT count against capacity",
     (await capped.upsert([contractDocument({ entityId: "wf-1", title: "A", body: "a" })])).replaced === 1
+  );
+
+  let timedWriteCalls = 0;
+  const timeoutStore = new ZvecSemanticStore({
+    generation: "gen-timeout",
+    generationPath: "/tmp/awkit-semantic/gen-timeout",
+    transport: {
+      async call<T>(request: unknown): Promise<T> {
+        const type = (request as { type?: string }).type;
+        if (type === "open") return { collectionId: "gen-timeout" } as T;
+        if (type === "fetch") return { docs: [] } as T;
+        if (type === "upsert") {
+          timedWriteCalls += 1;
+          throw Object.assign(new Error("late host reply"), { reason: "SEMANTIC_HOST_TIMEOUT" });
+        }
+        return {} as T;
+      }
+    }
+  });
+  await timeoutStore.open();
+  const timeoutQueue = new SemanticMutationQueue({ store: timeoutStore, maxRetries: 2 });
+  timeoutQueue.enqueue({
+    op: "upsert",
+    document: contractDocument({ entityId: "wf-timeout", title: "Timeout", body: "ambiguous outcome" })
+  });
+  const timeoutDrain = await timeoutQueue.drain();
+  check(
+    "an ambiguous host timeout is never blind-replayed",
+    timedWriteCalls === 1,
+    `${timedWriteCalls} write attempts`
+  );
+  check(
+    "an ambiguous host timeout abandons the queue item and requires authoritative rebuild",
+    timeoutDrain.failed === 1 &&
+      timeoutDrain.abandoned === 1 &&
+      timeoutDrain.rebuildRequired &&
+      timeoutQueue.size === 0,
+    JSON.stringify(timeoutDrain)
   );
 }
 

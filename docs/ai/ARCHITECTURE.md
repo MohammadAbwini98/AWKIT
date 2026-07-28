@@ -526,6 +526,9 @@ app/main/semantic/
 **Transport:** the main process forks the host as an Electron `utilityProcess` and speaks correlated
 JSON requests with per-operation deadlines. Zvec is **not resolvable from the main process at all** —
 bundling it is what caused a hard crash in Phase 0B, and `verify:zvec-host-source-boundary` guards it.
+If a dispatched mutation times out or the host exits before replying, `ZvecSemanticStore` preserves
+that as `AMBIGUOUS_MUTATION`; the queue never retries it and marks `rebuildRequired`, so the
+authoritative snapshot reconciles an outcome that cannot be known from the reply race.
 
 **The active-generation pointer is authoritative, everywhere.** Metadata is derived and never decides
 active identity. `resolveActiveIdentity` is the single mapping from "how the pointer read went" to
