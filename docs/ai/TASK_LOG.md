@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-ebh` deterministic popup identity reconciled; Tranche 1 complete (Codex)
+
+**Task:** close the fourth and final dashboard backlog Tranche 1 P1 bead by pinning one owner for
+popup registration and preserving recorded plus deterministic synthetic aliases.
+
+**Result:** the product implementation and required reversed-order/script-timer Test Lab fixtures
+were already shipped in `a948cde`, `a9dedd8`, and `b6cd333`. The identity verifier now also scans
+the production expected-popup paths: click and `switchToPopup` must each claim the page observed by
+the context owner and may not independently register or observe it.
+
+**Verification:** build PASS; `verify:popup-identity` **44/44**, `verify:popup` **12/12**,
+`verify:popup-mock-site` **11/11**, `verify:mock-site` **94/94**, `verify:recorder` **97/97**, and
+`verify:runner` **89/89**. Mutation proof: replacing the click claim with another observation
+produced **43/44**, then was reverted. Dashboard source counts move to **113 total / 27 outstanding
+/ 86 closed**. Packaging/offline gates were not run because no packaging surface changed.
+
 ## 2026-07-28 (latest) - `awkit-oyc` per-attempt failure evidence reconciled and pinned (Codex)
 
 **Task:** close the third dashboard backlog Tranche 1 P1 bead by proving evidence is captured inside

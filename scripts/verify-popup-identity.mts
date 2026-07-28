@@ -588,6 +588,20 @@ async function main(): Promise<void> {
       );
     });
 
+    await test("Expected-popup step paths CLAIM observed pages; they never register independently", async () => {
+      const source = await readFile(join(here, "../src/runner/StepExecutor.ts"), "utf8");
+      const start = source.indexOf("private async executeStep(");
+      const end = source.indexOf("private async executeRouteChange(");
+      assert(start > 0 && end > start, "could not locate executeStep's body for the ownership scan");
+      const executeStep = source.slice(start, end);
+      const claims = executeStep.match(/this\.popupIdentity\.claim\(popupPage, alias\)/g) ?? [];
+      assert(claims.length === 2, `click + switchToPopup must each claim the observed Page; found ${claims.length} claims`);
+      assert(
+        !/registerPopupPage|observePopupPage|popupIdentity\.observe/.test(executeStep),
+        "an expected-popup step reintroduced an independent registration/observation path"
+      );
+    });
+
     // ─── Suite 7: internal-page pending-identity race ─────────────────────────
     console.log("\nSuite 7: Internal-page race in exact production ordering");
     {

@@ -1,8 +1,8 @@
 # CURRENT_STATE
 
-## Dashboard backlog Tranche 1 in progress — three P1 beads closed (2026-07-28, current)
+## Dashboard backlog Tranche 1 complete — four P1 beads closed (2026-07-28, current)
 
-The first three Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
+All four Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
 but the tracker remained open. `verify:flow-step-mapping` now exercises the actual shipped
 `mock-conditional-flow.json` condition through the real designer conversion pair and passes
 **102/102**. Temporarily restoring the historical converter logic produced **93/102** and explicitly
@@ -20,9 +20,16 @@ and produces bounded, confined artifacts through the screenshot limiter. Its det
 now **35/35** and its real-Chromium artifact gate is **17/17**. Moving the retry verdict before
 capture produced **34/35**; the mutation was reverted.
 
-The dashboard now measures **113 beads / 28 outstanding / 85 closed**. The validation ledger is
-unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-ebh`; the
-remaining tranches and owner-gated items have not been started.
+`awkit-ebh`'s shipped popup registry has one BrowserContext-level observation owner. Recorded popup
+steps atomically claim the observed page, deterministic synthetic aliases survive reversed open
+order, and the same page never holds two public aliases. The identity gate is now **44/44**;
+replacing the click path's claim with a second observation produced **43/44** and was reverted.
+Popup steps are **12/12**, popup Test Lab scenarios **11/11**, the full mock site **94/94**,
+Recorder **97/97**, and runner **89/89**.
+
+The dashboard now measures **113 beads / 27 outstanding / 86 closed**. The validation ledger is
+unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 is complete; later tranches and
+owner-gated items have not been started.
 
 ## Phase K REC-022 narrowed to a real IdP only (2026-07-28, current)
 

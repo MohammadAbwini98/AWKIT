@@ -1,5 +1,18 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 1 complete; stop before Tranche 2
+
+The four authorized Tranche 1 P1 beads are closed in order: `awkit-cxa`, `awkit-7lj`, `awkit-oyc`,
+and `awkit-ebh`. The dashboard now measures **113 beads / 27 outstanding / 86 closed**, with
+**2 declared-blocked** issues. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+No owner-gated item or later tranche was started, and `tools/roadmap/assignments.json` is clear.
+
+Focused gates are green: flow-step mapping **102/102**, real-Electron recorder authorization
+**50/50**, failure evidence **35/35** plus live artifacts **17/17**, popup identity **44/44**, popup
+steps **12/12**, popup Test Lab **11/11**, full mock site **94/94**, Recorder **97/97**, and runner
+**89/89**. Each new sentinel was mutation-proven red and reverted. Resume only with Tranche 2 from
+`docs/ai/tasks/DASHBOARD_BACKLOG_PROGRAM.md`; do not infer permission for owner-gated work.
+
 ## ACTIVE (2026-07-28, latest): REC-022 now needs only the real-IdP operator run
 
 Phase K stays **partially-completed**. REC-024 is PASS, `verify:recorder-gui` is
