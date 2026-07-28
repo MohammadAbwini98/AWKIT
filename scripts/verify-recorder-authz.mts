@@ -41,6 +41,8 @@ import type {} from "../app/renderer/types/preload.d.ts";
 
 type Probe = { rejected: boolean; message: string };
 type ProbeSet = Record<string, Probe>;
+type ValueProbe = Probe & { value?: unknown };
+type ValueProbeSet = Record<string, ValueProbe>;
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -50,6 +52,17 @@ mkdirSync(evidenceDir, { recursive: true });
 // Canaries. If an unauthorized caller reaches the handler, these persist and we can prove it.
 const canaryUrl = `http://127.0.0.1:4599/rec028-${randomBytes(3).toString("hex")}`;
 const canaryFlowName = `REC-028 Unauthorized Flow ${randomBytes(3).toString("hex")}`;
+const canaryFlowId = `awkit-7lj-${randomBytes(3).toString("hex")}`;
+const canaryFlow = {
+  id: canaryFlowId,
+  name: `AWKIT-7LJ Flow ${randomBytes(3).toString("hex")}`,
+  version: 1,
+  nodes: [
+    { id: "start", type: "start", name: "Start" },
+    { id: "end", type: "end", name: "End" }
+  ],
+  edges: [{ id: "edge-start-end", source: "start", target: "end", type: "success" }]
+};
 
 const results: { name: string; pass: boolean; detail: string }[] = [];
 
@@ -106,6 +119,29 @@ function probeScript(url: string, flowName: string): string {
   })()`;
 }
 
+function flowReadProbeScript(flowId: string): string {
+  return `(async () => {
+    const api = window.playwrightFlowStudio.flows;
+    const result = {};
+    const calls = {
+      list: function () { return api.list(); },
+      get: function () { return api.get(${JSON.stringify(flowId)}); },
+      export: function () { return api.export(${JSON.stringify(flowId)}); }
+    };
+    for (const name of Object.keys(calls)) {
+      try {
+        result[name] = { rejected: false, message: "allowed", value: await calls[name]() };
+      } catch (error) {
+        result[name] = {
+          rejected: true,
+          message: error instanceof Error ? error.message : String(error)
+        };
+      }
+    }
+    return result;
+  })()`;
+}
+
 const channels = [
   "getStatus",
   "getActions",
@@ -153,9 +189,20 @@ try {
   for (const channel of channels) {
     check(`REC-028 pre-auth recorder:${channel} is denied as unauthorized`, deniedForAuth(preAuth[channel]), preAuth[channel]?.message);
   }
+  const preAuthFlowReads = (await win.evaluate(flowReadProbeScript(canaryFlowId))) as ValueProbeSet;
+  for (const channel of ["list", "get", "export"] as const) {
+    check(
+      `awkit-7lj pre-auth flows:${channel} is denied as unauthorized`,
+      deniedForAuth(preAuthFlowReads[channel]),
+      preAuthFlowReads[channel]?.message
+    );
+  }
 
   await signInFirstRun(win);
   await win.waitForTimeout(500);
+  await win.evaluate(
+    `(async () => window.playwrightFlowStudio.flows.create(${JSON.stringify(canaryFlow)}))()`
+  );
 
   // Did the pre-auth probes actually change state? This is the part that matters.
   const afterPreAuth = await win.evaluate(async () => ({
@@ -211,6 +258,26 @@ try {
       viewerProbes[channel]?.message
     );
   }
+
+  const viewerFlowReads = (await win.evaluate(flowReadProbeScript(canaryFlowId))) as ValueProbeSet;
+  const viewerList = viewerFlowReads.list?.value as Array<{ id?: string }> | undefined;
+  const viewerGet = viewerFlowReads.get?.value as { id?: string } | undefined;
+  const viewerExport = viewerFlowReads.export?.value as { id?: string } | undefined;
+  check(
+    "awkit-7lj Viewer flows:list remains permitted by page.flows",
+    !viewerFlowReads.list?.rejected && viewerList?.some((flow) => flow.id === canaryFlowId),
+    viewerFlowReads.list?.message
+  );
+  check(
+    "awkit-7lj Viewer flows:get remains permitted by page.flows",
+    !viewerFlowReads.get?.rejected && viewerGet?.id === canaryFlowId,
+    viewerFlowReads.get?.message
+  );
+  check(
+    "awkit-7lj Viewer flows:export remains permitted by page.flows",
+    !viewerFlowReads.export?.rejected && viewerExport?.id === canaryFlowId,
+    viewerFlowReads.export?.message
+  );
 
   const viewerSideEffects = await win.evaluate(async () => ({
     flows: await window.playwrightFlowStudio.flows.list()

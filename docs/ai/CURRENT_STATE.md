@@ -1,15 +1,21 @@
 # CURRENT_STATE
 
-## Dashboard backlog Tranche 1 in progress — `awkit-cxa` reconciled (2026-07-28, current)
+## Dashboard backlog Tranche 1 in progress — two P1 beads closed (2026-07-28, current)
 
-The first Tranche 1 P1 bead is closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
+The first two Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
 but the tracker remained open. `verify:flow-step-mapping` now exercises the actual shipped
 `mock-conditional-flow.json` condition through the real designer conversion pair and passes
 **102/102**. Temporarily restoring the historical converter logic produced **93/102** and explicitly
 lost that shipped expression; the mutation was reverted.
 
-The dashboard now measures **113 beads / 30 outstanding / 83 closed**. The validation ledger is
-unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-7lj`; the
+`awkit-7lj` now sender-binds `flows:list`, `flows:get`, `flows:export`, and the legacy `flow:list`
+alias to `Permission.PAGE_FLOWS`. The real-Electron authorization gate proves all three canonical
+reads fail with `NOT_AUTHORIZED` before sign-in while a signed-in Viewer retains the intended
+read-only flow-library access (**50/50**). Removing the three canonical guards produced **47/50**;
+the mutation was reverted.
+
+The dashboard now measures **113 beads / 29 outstanding / 84 closed**. The validation ledger is
+unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-oyc`; the
 remaining tranches and owner-gated items have not been started.
 
 ## Phase K REC-022 narrowed to a real IdP only (2026-07-28, current)

@@ -19,6 +19,10 @@ app/
     ipc/                IPC handlers: flow, scenario(workflow), execution, instance,
                         dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime,
                         oracle
+                        Flow-library reads (`flows:list/get/export` and legacy `flow:list`) are
+                        sender-bound to `Permission.PAGE_FLOWS`; mutations use their create/edit/delete
+                        permissions. The Viewer role intentionally has read-only flow-page permission,
+                        while callers without an authenticated session fail closed.
     oracleService.ts    Main-process Oracle wiring (lazy singleton): profile store + DPAPI secret vault +
                         bridge manager + profile/query services; owns the fail-closed launch decision and
                         disposes the Java child on before-quit (no orphan process)

@@ -18,8 +18,14 @@ export interface FlowImportValidation {
 export function registerFlowIpc(): void {
   const store = createFlowProfileStore();
 
-  ipcMain.handle("flows:list", async () => store.list());
-  ipcMain.handle("flows:get", async (_, id: string) => store.get(id));
+  ipcMain.handle("flows:list", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_FLOWS);
+    return store.list();
+  });
+  ipcMain.handle("flows:get", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.PAGE_FLOWS);
+    return store.get(id);
+  });
   ipcMain.handle("flows:create", async (event, profile: FlowProfile) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     return store.create(profile);
@@ -36,7 +42,10 @@ export function registerFlowIpc(): void {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     return store.clone(id, nextId);
   });
-  ipcMain.handle("flows:export", async (_, id: string) => store.export(id));
+  ipcMain.handle("flows:export", async (event, id: string) => {
+    await assertSenderPermission(event, Permission.PAGE_FLOWS);
+    return store.export(id);
+  });
   ipcMain.handle("flows:import", async (event, profile: FlowProfile) => {
     await assertSenderPermission(event, Permission.WORKFLOW_CREATE);
     // Stage 2b: a parseable flow ALWAYS imports (as a Draft when invalid) — validation informs, it
@@ -56,5 +65,8 @@ export function registerFlowIpc(): void {
     return { profile: imported, validation };
   });
 
-  ipcMain.handle("flow:list", async () => store.list());
+  ipcMain.handle("flow:list", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_FLOWS);
+    return store.list();
+  });
 }

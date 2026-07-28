@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-7lj` flow-library reads fail closed before authentication (Codex)
+
+**Task:** close the second dashboard backlog Tranche 1 P1 bead without changing the Viewer role's
+intentional read-only flow-page access.
+
+**Result:** `flows:list`, `flows:get`, `flows:export`, and legacy `flow:list` now require the
+sender-bound `Permission.PAGE_FLOWS`. The real-Electron authorization verifier seeds a canary flow,
+proves the three canonical calls return `NOT_AUTHORIZED` before sign-in, and confirms a signed-in
+Viewer can still list, get, and export that flow.
+
+**Verification:** `npm run verify:recorder-authz` **50/50**. Mutation proof: removing the three
+canonical guards produced **47/50**, then the mutation was reverted. Dashboard source counts move to
+**113 total / 29 outstanding / 84 closed**. Packaging/offline gates were not run because no
+packaging surface changed.
+
 ## 2026-07-28 (latest) - `awkit-cxa` shipped-fixture regression pinned and tracker closed (Codex)
 
 **Task:** start dashboard backlog Tranche 1 with the silent Flow Designer round-trip data-loss bead.
