@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+& (Join-Path $PSScriptRoot "validate-offline-bundle.ps1") -PackagingInputsOnly
 npm run build
 # Stage the raw, unbundled Zvec utility host BEFORE the manifest is generated, so its checksums
 # describe the exact tree electron-builder will ship via extraResources.

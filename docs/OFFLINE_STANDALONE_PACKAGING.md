@@ -76,9 +76,11 @@ Both targets at once:
 npm run package:offline
 ```
 
-Each packaging script runs: `npm run build` → regenerate manifest (`production-offline`) →
-**strict** offline validation → `electron-builder`. Strict validation fails the build if
-the bundled Chromium is missing or unvalidated, so a broken offline bundle cannot ship.
+Each packaging script runs: required-input preflight → `npm run build` → regenerate manifest
+(`production-offline`) → **strict** offline validation → `electron-builder`. The preflight refuses
+before the build when `resources/browsers/chromium/chrome.exe` is missing or empty and names that
+exact input. Strict validation then verifies the complete generated offline bundle, so a broken
+offline bundle cannot ship.
 Output is written to `dist/`.
 
 ## Packaging configuration

@@ -1,5 +1,18 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 2 in progress
+
+`awkit-epz`'s authorized fail-loud half is complete: portable and NSIS packaging now refuse a
+missing or zero-byte `resources/browsers/chromium/chrome.exe` before `npm run build`, and the error
+names the exact input. The current payload passes the preflight plus normal and strict offline
+validation; missing-file and empty-file mutations fail as intended.
+
+The bead remains open because the owner must choose the browser vendoring, version/hash provenance,
+and reproducibility policy. Do not guess that strategy. Continue Tranche 2 with `awkit-c0c`, then
+`awkit-60w`, `awkit-v4r`, and `awkit-4a6`. Dashboard counts remain
+**113 / 27 outstanding / 86 closed** and the validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 1 complete; stop before Tranche 2
 
 The four authorized Tranche 1 P1 beads are closed in order: `awkit-cxa`, `awkit-7lj`, `awkit-oyc`,

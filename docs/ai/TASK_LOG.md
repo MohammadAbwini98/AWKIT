@@ -4,6 +4,20 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-epz` fail-loud packaging half implemented; owner half remains open (Codex)
+
+**Task:** begin dashboard backlog Tranche 2 without crossing the owner-only Chromium vendoring and
+reproducibility decision.
+
+**Result:** portable and NSIS wrappers now invoke the existing offline validator in a focused
+packaging-input mode before `npm run build`. It refuses a missing or zero-byte bundled Chromium and
+names the exact `resources/browsers/chromium/chrome.exe` path. `awkit-epz` remains open for its
+owner-policy acceptance criteria.
+
+**Verification:** current-input preflight PASS; missing-file mutation FAIL as expected; empty-file
+mutation FAIL as expected; `npm run validate:offline` PASS; strict offline validation PASS.
+Dashboard counts remain **113 total / 27 outstanding / 86 closed**.
+
 ## 2026-07-28 (latest) - `awkit-ebh` deterministic popup identity reconciled; Tranche 1 complete (Codex)
 
 **Task:** close the fourth and final dashboard backlog Tranche 1 P1 bead by pinning one owner for

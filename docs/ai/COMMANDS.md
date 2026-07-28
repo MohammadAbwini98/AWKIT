@@ -305,10 +305,11 @@ standard verify workflow. Full write-up + results: `docs/ai/EXECUTION_ENGINE_CAP
 npm run prepare:offline  # prepare-offline-deps.ps1 -InstallChromium (installs+copies Chromium, regenerates manifest)
 npm run offline:prepare  # prepare-offline-deps.ps1 (copy cached Chromium, no install)
 npm run offline:manifest # generate-dependency-manifest.ps1
-npm run validate:offline # validate-offline-bundle.ps1 (add -Strict via the package scripts)
-npm run package:portable # build + manifest + strict validate + electron-builder --win portable
+npm run validate:offline # validate-offline-bundle.ps1 (add -Strict for the release gate;
+                         # -PackagingInputsOnly is the pre-build Chromium presence/completeness gate)
+npm run package:portable # preflight required inputs + build + manifest + strict validate + electron-builder --win portable
 npm run package:nsis     # per-user NSIS installer (alias of package:installer)
-npm run package:installer# package-per-user-installer.ps1
+npm run package:installer# same preflight-first chain via package-per-user-installer.ps1
 npm run package:offline  # package:portable && package:installer
 ```
 Output: `dist/WebFlow Studio <version>.exe` (portable), `dist/WebFlow Studio Setup <version>.exe` (installer).

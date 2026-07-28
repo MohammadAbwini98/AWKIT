@@ -1,5 +1,21 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 2 started — offline packaging now refuses a missing browser before build (2026-07-28, current)
+
+The authorized fail-loud half of `awkit-epz` is implemented. Both portable and NSIS packaging
+entry points now run `validate-offline-bundle.ps1 -PackagingInputsOnly` before `npm run build`.
+The preflight names the exact required
+`resources/browsers/chromium/chrome.exe` path and rejects both a missing file and a zero-byte file,
+so packaging cannot spend time building or produce a hollow artifact when its browser input is
+absent.
+
+The current payload passes the preflight, normal `validate:offline`, and strict offline validation.
+Missing-file and empty-file mutations both failed loudly. `awkit-epz` intentionally remains open:
+the Chromium vendoring, version/hash provenance, and reproducibility strategy are the owner-policy
+half that the dashboard backlog program reserves for the owner. Dashboard source counts therefore
+remain **113 beads / 27 outstanding / 86 closed**. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 1 complete — four P1 beads closed (2026-07-28, current)
 
 All four Tranche 1 P1 beads are closed. `awkit-cxa`'s product fix had already landed in `082cfea`,

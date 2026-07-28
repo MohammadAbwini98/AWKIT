@@ -1,10 +1,16 @@
 param(
-  [switch]$Strict
+  [switch]$Strict,
+  [switch]$PackagingInputsOnly,
+  [string]$RootPath
 )
 
 $ErrorActionPreference = "Stop"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
+$root = if ([string]::IsNullOrWhiteSpace($RootPath)) {
+  Resolve-Path (Join-Path $PSScriptRoot "..")
+} else {
+  Resolve-Path $RootPath
+}
 $manifest = Join-Path $root "resources\dependency-manifest.json"
 $browser = Join-Path $root "resources\browsers\chromium\chrome.exe"
 $offlineRuntime = Join-Path $root "resources\offline-runtime.json"
@@ -16,6 +22,19 @@ $sampleFlows = Join-Path $root "resources\sample-flows"
 $sampleWorkflows = Join-Path $root "resources\sample-workflows"
 $sampleScenarios = Join-Path $root "resources\sample-scenarios"
 $sampleData = Join-Path $root "resources\sample-data"
+
+if ($PackagingInputsOnly) {
+  if (-not (Test-Path -LiteralPath $browser -PathType Leaf)) {
+    throw "Offline packaging refused before build. Missing required input: $browser"
+  }
+
+  if ((Get-Item -LiteralPath $browser).Length -le 0) {
+    throw "Offline packaging refused before build. Incomplete required input (empty file): $browser"
+  }
+
+  Write-Host "Offline packaging input preflight passed: $browser"
+  return
+}
 
 if (-not (Test-Path $manifest)) {
   Write-Error "Missing dependency manifest: $manifest"
