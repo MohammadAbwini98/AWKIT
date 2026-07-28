@@ -1,6 +1,36 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-28, latest): `awkit-ttd` closed; Zvec Phase 1B structurally complete
+## ACTIVE (2026-07-28, latest): semantic product surface started (`awkit-c7j`)
+
+The semantic subsystem is reachable from the renderer for the first time, behind main-process
+authorization. Five permissions (plan §10), a pure `SemanticApi.ts` sanitizer shared by the handler
+and its verifier, seven IPC channels on `window.playwrightFlowStudio.semantic`, and a `semantic`
+group in `ui-settings.json`.
+
+**Two owner decisions are now encoded — do not silently change them.** Both semantic management
+permissions are in `SENSITIVE_PERMISSIONS` (fresh re-auth required), and **Viewer is denied
+`SEMANTIC_SEARCH`**. `verify:authz` asserts both per role; if you change either, change the check
+deliberately rather than relaxing it.
+
+Watch this trap: `ADMINISTRATOR_PERMISSIONS` is a **denylist** over `ALL_PERMISSIONS`, so a new
+permission is granted to Administrator automatically. That was correct for the semantic set, but a
+future Super-User-only permission must be excluded explicitly or it is a silent privilege grant.
+
+`semantic:cancelRebuild` returns `NOT_SUPPORTED` on purpose — the orchestrator has no cancellation
+token and the pointer swap is an irreversible commit point.
+
+Proof: build PASS · authz **53/0** · semantic-store **199/0** · ipc-contract 4/4 · settings-e2e
+**151/0** real Electron · roadmap 135/135. Two mutations red before revert.
+
+**Next, in order:** `awkit-9xh` (run-failure + locator projections and the indexing events that feed
+them, then `similarFailures` / `suggestLocators`), then `awkit-0jp` (search UI + Settings → Semantic
+Index panel, `global.css` tokens only). Both are `blocks`-linked to `awkit-c7j`.
+
+Dashboard counts are **117 / 22 outstanding / 95 closed**; the ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**. Remember `bd export -o .beads/issues.jsonl` after any `bd`
+mutation — `verify:roadmap-dashboard` parses that export, and new `blocks` edges move its edge pin too.
+
+## ACTIVE (2026-07-28): `awkit-ttd` closed; Zvec Phase 1B structurally complete
 
 The semantic index runtime is now constructed and registered in the Electron main process.
 `initializeSemanticSubsystem()` reaches `getSemanticHostManager()`, which builds a

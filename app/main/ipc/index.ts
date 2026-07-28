@@ -19,6 +19,7 @@ import { registerSecurityIpc } from "./security.ipc";
 import { registerLicensingIpc } from "./licensing.ipc";
 import { registerBrandingIpc } from "./branding.ipc";
 import { registerValidationIpc } from "./validation.ipc";
+import { registerSemanticIpc } from "./semantic.ipc";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { isTrustedSender } from "./senderGuard";
 
@@ -65,4 +66,5 @@ export function registerIpcHandlers(): void {
   registerLicensingIpc();
   registerBrandingIpc();
   registerValidationIpc();
+  registerSemanticIpc();
 }

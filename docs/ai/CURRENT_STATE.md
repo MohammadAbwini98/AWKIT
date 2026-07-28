@@ -1,6 +1,52 @@
 # CURRENT_STATE
 
-## Dashboard backlog Tranche 3 — semantic index runtime bound to production (2026-07-28, current)
+## Zvec Phase 2 tranche 1 — semantic product surface: RBAC + service + IPC/preload (2026-07-28, current)
+
+`awkit-c7j`. The semantic subsystem is now reachable from the renderer for the first time, behind
+main-process authorization.
+
+**Permissions** (plan §10) — five added to `src/security/authz/Permissions.ts`. Two owner decisions
+the plan required to be explicit rather than silent: `SEMANTIC_MANAGE_INDEX` and
+`SEMANTIC_MANAGE_EMBEDDINGS` **both join `SENSITIVE_PERMISSIONS`**, so rebuild, clear and settings
+changes demand a fresh re-authentication; and **Viewer does not get `SEMANTIC_SEARCH`** (deny by
+default — granting later is a one-line change, revoking later is a regression). Operator gets search
+plus failure similarity. Administrator inherits all five automatically, because
+`ADMINISTRATOR_PERMISSIONS` is a **denylist** over `ALL_PERMISSIONS` — correct here, but it means any
+future Super-User-only permission must be excluded explicitly or it is granted silently.
+
+**Contract** — `src/semantic/contracts/SemanticApi.ts` is pure, so the IPC handler and its verifier
+apply the identical rules: bounded query/filter strings, a bounded kind list, `topK` clamped to
+`SEMANTIC_MAX_TOP_K`, and structured fields only. Unknown properties are **dropped**, so a renderer
+cannot smuggle a Zvec filter expression or a filesystem path; a present-but-malformed filter is an
+error rather than a silent drop, because discarding a constraint widens a search instead of
+narrowing it. Handlers return stable reason codes — no native or vendor error crosses IPC.
+
+**Channels** — `semantic:getStatus | search | rebuild | cancelRebuild | clear | getSettings |
+updateSettings`, registered in `app/main/ipc/semantic.ipc.ts` and exposed as
+`window.playwrightFlowStudio.semantic`. New `semantic` group in `ui-settings.json`
+(`enabled`, `defaultTopK`), which finally gives `semanticHealth({ enabledBySetting })` a real value
+instead of the hardcoded `true` it had since Phase 1A.
+
+**`cancelRebuild` returns `NOT_SUPPORTED` and that is deliberate.** `SemanticRebuildOrchestrator` has
+no cancellation token and the pointer swap is an irreversible commit point, so reporting "cancelled"
+would be a claim the process cannot make. The channel exists so the contract and a future UI can be
+written against a truthful answer.
+
+Verification: build PASS · `verify:authz` **53/0** (up from 40; per-role semantic assertions) ·
+`verify:semantic-store` **199/0** (up from 179) · `verify:ipc-contract` **4/4** (211 handlers, 189
+exposed) · `verify:settings-e2e` **151/0** real Electron · `verify:settings-persistence` 3/3 ·
+`verify:security` 39/0 · `verify:semantic-policy` 141/0 · roadmap dashboard **135/135**. Two
+mutations went red before revert: forwarding raw renderer input (leaked `filter`, `collectionPath`,
+`generationPath`) and granting Viewer search. A third finding came from the toolchain — the new authz
+block had a `viewer` identifier collision, proving that block had never executed when first written.
+
+Not built: `similarFailures` / `suggestLocators` (need run-failure and locator projections plus
+indexing events — `awkit-9xh`) and any renderer UI (`awkit-0jp`).
+
+Dashboard source counts are **117 beads / 22 outstanding / 95 closed**. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+## Dashboard backlog Tranche 3 — semantic index runtime bound to production (2026-07-28)
 
 `awkit-ttd` is closed, and with it the last structural gap in Zvec Phase 1B. Two of the three items
 its note listed as outstanding were already done: the orchestrator has been bound to the real

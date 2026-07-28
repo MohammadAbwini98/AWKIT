@@ -27,6 +27,13 @@ import {
   SemanticSnapshotError
 } from "@main/semantic/semanticSnapshot";
 import { projectAndValidate } from "@src/semantic/SemanticPolicyValidator";
+import {
+  sanitizeSearchRequest,
+  sanitizeSettingsPatch,
+  SEMANTIC_MAX_KINDS,
+  SEMANTIC_MAX_QUERY_LENGTH
+} from "@src/semantic/contracts/SemanticApi";
+import { SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
@@ -321,6 +328,51 @@ console.log("\nRebuild snapshot (authoritative flow + workflow projection):\n");
   corpus = [flow(), flow({ id: "flow-second", name: "Second" })];
   check("a later snapshot re-resolves the sources", (await relocating()).length === 2, `${resolutions} resolutions`);
   check("the sources were resolved once per snapshot", resolutions === 2, `${resolutions} resolutions`);
+}
+
+console.log("\nRenderer API contract (untrusted input is sanitized, not trusted):\n");
+{
+  const ok = sanitizeSearchRequest({ text: "  payment gateway  ", topK: 5, kinds: ["flow"], workflowId: "wf-1" });
+  check("a well-formed request is accepted", ok.ok);
+  check("free text is trimmed", ok.ok && ok.value.text === "payment gateway", ok.ok ? ok.value.text : "");
+  check("structured filters survive", ok.ok && ok.value.workflowId === "wf-1" && ok.value.kinds?.[0] === "flow");
+
+  check("a non-object request is rejected", !sanitizeSearchRequest("payment").ok);
+  check("empty text is rejected", !sanitizeSearchRequest({ text: "   " }).ok);
+  check("an unknown document kind is rejected", !sanitizeSearchRequest({ text: "x", kinds: ["not-a-kind"] }).ok);
+  check("too many kinds are rejected", !sanitizeSearchRequest({ text: "x", kinds: Array(SEMANTIC_MAX_KINDS + 1).fill("flow") }).ok);
+  check("a non-integer topK is rejected", !sanitizeSearchRequest({ text: "x", topK: 2.5 }).ok);
+  check("a zero topK is rejected", !sanitizeSearchRequest({ text: "x", topK: 0 }).ok);
+
+  // Clamped rather than rejected — an over-large topK is a bounded request, not an attack.
+  const huge = sanitizeSearchRequest({ text: "x", topK: 10_000 });
+  check("an over-large topK is clamped to the ceiling", huge.ok && huge.value.topK === SEMANTIC_MAX_TOP_K, huge.ok ? String(huge.value.topK) : "");
+
+  const long = sanitizeSearchRequest({ text: "q".repeat(SEMANTIC_MAX_QUERY_LENGTH + 500) });
+  check("an over-long query is bounded", long.ok && long.value.text.length === SEMANTIC_MAX_QUERY_LENGTH, long.ok ? String(long.value.text.length) : "");
+
+  // The rule the whole module exists for: a renderer cannot smuggle a query expression or a path.
+  const smuggle = sanitizeSearchRequest({
+    text: "x",
+    filter: "1=1 OR schemaVersion >= 0",
+    collectionPath: "C:/Windows/System32",
+    generationPath: "../../etc"
+  }) as { ok: true; value: Record<string, unknown> };
+  check("an unknown property is dropped, not forwarded", smuggle.ok && !("filter" in smuggle.value));
+  check("no path property survives sanitization", smuggle.ok && !("collectionPath" in smuggle.value) && !("generationPath" in smuggle.value));
+  check("the sanitized request carries only contract fields", smuggle.ok && Object.keys(smuggle.value).every((k) =>
+    ["text", "topK", "kinds", "workflowId", "flowId", "nodeType", "hostname", "errorCategory"].includes(k)
+  ), smuggle.ok ? Object.keys(smuggle.value).join(",") : "");
+
+  // A malformed filter must be reported once, not once per evaluation of the helper.
+  const badFilter = sanitizeSearchRequest({ text: "x", workflowId: "" });
+  check("a malformed filter is an error, not a silent drop", !badFilter.ok);
+  check("a malformed filter reports exactly one error", !badFilter.ok && badFilter.errors.length === 1, !badFilter.ok ? JSON.stringify(badFilter.errors) : "");
+
+  check("a settings patch accepts valid values", sanitizeSettingsPatch({ enabled: false, defaultTopK: 10 }).ok);
+  check("a non-boolean enabled is rejected", !sanitizeSettingsPatch({ enabled: "yes" }).ok);
+  check("a defaultTopK above the ceiling is rejected", !sanitizeSettingsPatch({ defaultTopK: SEMANTIC_MAX_TOP_K + 1 }).ok);
+  check("an empty patch is valid (a no-op save)", sanitizeSettingsPatch({}).ok);
 }
 
 console.log("\nProduction registration (the runtime must be reachable from the app):\n");

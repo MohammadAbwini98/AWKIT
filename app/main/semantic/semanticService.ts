@@ -15,6 +15,15 @@ import path from "node:path";
 import fs from "node:fs";
 
 import { getRuntimeDataRoot } from "../appPaths";
+import { getUiSettings } from "../uiSettings";
+
+import { SEMANTIC_MAX_TOP_K, type SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
+import type {
+  SemanticAdminResponse,
+  SemanticSearchResponse,
+  SemanticSettingsView,
+  SemanticStatusView
+} from "@src/semantic/contracts/SemanticApi";
 
 import { buildSemanticHealth, type SemanticHealth } from "@src/semantic/contracts/SemanticHealth";
 import { semanticIndexLayout } from "@src/semantic/SemanticGenerationLayout";
@@ -235,8 +244,9 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
   const index = indexRuntime?.status() ?? null;
   return buildSemanticHealth({
     included: Boolean(resolveHostPath()),
-    // Phase 1A has no semantic settings surface yet; treated as enabled so the reported reason
-    // reflects the real host state rather than a setting that does not exist.
+    // Callers that hold the user's setting pass it (see `semanticStatusView`). The `?? true` default
+    // is for internal callers that only want host/index state — it must not be read as "the feature
+    // is on", which is why the settings-aware path resolves it explicitly.
     enabledBySetting: options.enabledBySetting ?? true,
     hostState: host?.state ?? "stopped",
     circuitOpen: host?.circuitOpen ?? false,
@@ -255,6 +265,94 @@ export function semanticHealth(options: { includePaths?: boolean; enabledBySetti
     indexPath: semanticIndexLayout(runtimeRoot()).root,
     includePaths: options.includePaths ?? false
   });
+}
+
+/** Current semantic settings, hydrated with defaults. */
+export async function semanticSettings(): Promise<SemanticSettingsView> {
+  const settings = await getUiSettings();
+  return {
+    enabled: settings.semantic.enabled,
+    defaultTopK: settings.semantic.defaultTopK,
+    maxTopK: SEMANTIC_MAX_TOP_K
+  };
+}
+
+/**
+ * Status for the renderer: health plus a flattened index view.
+ *
+ * Reads the user's `semantic.enabled` setting rather than assuming true, so a disabled subsystem
+ * reports as disabled instead of as a host that merely happens not to be running.
+ */
+export async function semanticStatusView(options: { includePaths?: boolean } = {}): Promise<SemanticStatusView> {
+  const settings = await semanticSettings();
+  const index = indexRuntime?.status() ?? null;
+  return {
+    health: semanticHealth({ includePaths: options.includePaths, enabledBySetting: settings.enabled }),
+    index: {
+      activeGeneration: index?.activeGeneration ?? null,
+      writable: index?.writable ?? false,
+      rebuildRequired: index?.rebuildRequired ?? false,
+      pendingMutations: index?.pending ?? 0,
+      reconciliationRequired: index?.reconciliationRequired ?? false
+    }
+  };
+}
+
+/**
+ * Run a search against the ACTIVE generation.
+ *
+ * The request is already sanitized by `sanitizeSearchRequest` at the IPC boundary; this adds the
+ * availability checks that only the main process can make. Returns a stable reason code — a native
+ * or vendor error never crosses back (plan §11.3).
+ */
+export async function searchSemanticIndex(request: SemanticSearchRequest): Promise<SemanticSearchResponse> {
+  const settings = await semanticSettings();
+  if (!settings.enabled) {
+    return { code: "NOT_AVAILABLE", hits: [], degraded: false, message: "The semantic index is turned off in Settings." };
+  }
+  const status = await ensureSemanticIndexOpen();
+  if (!status) {
+    return { code: "NOT_AVAILABLE", hits: [], degraded: false, message: "The semantic index is not included in this build." };
+  }
+  const store = indexRuntime?.store ?? null;
+  if (!store || !status.writable) {
+    // Not an error: a blocked or never-built index has nothing to answer with, and saying "search
+    // failed" would send the user looking for a fault in their query.
+    return { code: "INDEX_NOT_READY", hits: [], degraded: false, message: "The semantic index is not ready yet." };
+  }
+  try {
+    const result = await store.search(request);
+    return { code: "OK", hits: [...result.hits], degraded: result.degraded };
+  } catch (error) {
+    logSemantic("warn", `Semantic search failed: ${describeError(error)}`);
+    return { code: "SEARCH_FAILED", hits: [], degraded: false, message: "The search could not be completed." };
+  }
+}
+
+/**
+ * Delete every document in the active generation (plan §9.4).
+ *
+ * Does NOT remove the generation or move the pointer — the index stays live and simply becomes
+ * empty, so a later rebuild repopulates it in place. Permission-gated and re-auth-gated by the
+ * caller; this function does not authorize.
+ */
+export async function clearSemanticIndex(): Promise<SemanticAdminResponse> {
+  const status = await ensureSemanticIndexOpen();
+  if (!status) {
+    return { code: "NOT_AVAILABLE", ok: false, message: "The semantic index is not included in this build." };
+  }
+  const store = indexRuntime?.store ?? null;
+  if (!store || !status.writable) {
+    return { code: "INDEX_NOT_READY", ok: false, message: "The semantic index is not ready yet." };
+  }
+  try {
+    await store.clear();
+    logSemantic("info", "Semantic index cleared by an administrator.");
+    return { code: "OK", ok: true };
+  } catch (error) {
+    logSemantic("error", `Semantic clear failed: ${describeError(error)}`);
+    return { code: "CLEAR_FAILED", ok: false, message: "The index could not be cleared." };
+  }
 }
 
 /**

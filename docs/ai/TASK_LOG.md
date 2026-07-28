@@ -4,7 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - `awkit-ttd` semantic index runtime bound to production (Claude)
+## 2026-07-28 (latest) - `awkit-c7j` semantic product surface: RBAC + service + IPC/preload (Claude)
+
+**Task:** begin the semantic product surface — permissions, an authorized main-process service, and
+the IPC/preload contract.
+
+**Result:** five semantic permissions added per plan §10, with two owner decisions recorded rather
+than assumed (both management permissions are re-auth-gated; Viewer is denied search). New pure
+`SemanticApi.ts` sanitizes every renderer payload — bounded strings, clamped `topK`, structured
+fields only, unknown properties dropped so no filter expression or path can be smuggled through.
+Seven channels registered and exposed on `window.playwrightFlowStudio.semantic`, plus a `semantic`
+group in `ui-settings.json` that gives `semanticHealth({ enabledBySetting })` a real value for the
+first time. `cancelRebuild` deliberately returns `NOT_SUPPORTED`: the orchestrator has no
+cancellation token and the pointer swap is irreversible, so "cancelled" would be an untrue claim.
+
+**Files:** `src/security/authz/Permissions.ts`, `src/semantic/contracts/SemanticApi.ts` (new),
+`app/main/ipc/semantic.ipc.ts` (new), `app/main/ipc/index.ts`, `app/main/preload.ts`,
+`app/main/uiSettings.ts`, `app/main/semantic/semanticService.ts`, `scripts/verify-authz.mts`,
+`scripts/verify-semantic-store.mts`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/`, `docs/ai/`.
+
+**Verification:** build PASS; authz **53/0** (was 40); semantic-store **199/0** (was 179);
+ipc-contract 4/4; settings-e2e **151/0** (real Electron); settings-persistence 3/3; security 39/0;
+semantic-policy 141/0; roadmap dashboard 135/135. Two mutations red before revert (raw-input
+forwarding leaked `filter`/`collectionPath`/`generationPath`; Viewer granted search). **Not run:**
+packaging/offline gates — no packaging or offline surface touched. **Not built:** similarFailures /
+suggestLocators (`awkit-9xh`) and renderer UI (`awkit-0jp`).
+
+**Gotcha:** a `bd create` whose shell pipe errored had already written the issue, so retrying created
+a duplicate (`awkit-5ir`, closed as such). Check `bd list` before re-running a create that "failed".
+
+## 2026-07-28 - `awkit-ttd` semantic index runtime bound to production (Claude)
 
 **Task:** reconcile the last Phase 1B bead — rebuild orchestration and generation activation — and
 close it only if the current state proves it.

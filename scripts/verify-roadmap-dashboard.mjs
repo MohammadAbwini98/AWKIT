@@ -70,10 +70,10 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("113 issues parse", beads.stats.total === 113, `got ${beads.stats.total}`);
+  check("117 issues parse", beads.stats.total === 117, `got ${beads.stats.total}`);
   check(
-    "20 outstanding / 93 closed",
-    beads.stats.outstanding === 20 && beads.stats.closed === 93,
+    "22 outstanding / 95 closed",
+    beads.stats.outstanding === 22 && beads.stats.closed === 95,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -89,8 +89,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "74 edges are present to classify",
-    beads.stats.edges === 74,
+    "76 edges are present to classify",
+    beads.stats.edges === 76,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

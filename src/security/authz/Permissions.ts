@@ -47,7 +47,13 @@ export const Permission = {
   LICENSE_IMPORT: "license.import",
   LICENSE_REPLACE: "license.replace",
   LICENSE_REVOKE: "license.revoke",
-  LICENSE_AUDIT_VIEW: "license.audit.view"
+  LICENSE_AUDIT_VIEW: "license.audit.view",
+  // ── Semantic index (Zvec) — plan §10 ────────────────────────────────────────
+  SEMANTIC_SEARCH: "semantic.search",
+  SEMANTIC_VIEW_FAILURE_SIMILARITY: "semantic.viewFailureSimilarity",
+  SEMANTIC_MANAGE_INDEX: "semantic.manageIndex",
+  SEMANTIC_MANAGE_EMBEDDINGS: "semantic.manageEmbeddings",
+  SEMANTIC_EXPORT_DIAGNOSTICS: "semantic.exportDiagnostics"
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
@@ -55,7 +61,14 @@ export type Permission = (typeof Permission)[keyof typeof Permission];
 /** All permission values (used to grant the SuperUser role everything). */
 export const ALL_PERMISSIONS: readonly Permission[] = Object.freeze(Object.values(Permission));
 
-/** Sensitive actions that additionally require a fresh re-authentication (§11). */
+/**
+ * Sensitive actions that additionally require a fresh re-authentication (§11).
+ *
+ * The two semantic management permissions are here by an explicit owner decision (2026-07-28), which
+ * the Zvec plan §10 required to be made rather than left silent: rebuilding or clearing the index is
+ * destructive in effect, and `SETTINGS_EDIT` — a lesser action — already demands re-auth.
+ * `SEMANTIC_SEARCH` deliberately does NOT, or every query would prompt.
+ */
 export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission>([
   Permission.USER_MANAGE,
   Permission.LICENSE_MANAGE,
@@ -63,7 +76,9 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.LICENSE_REPLACE,
   Permission.LICENSE_REVOKE,
   Permission.SETTINGS_EDIT,
-  Permission.SETTINGS_BRANDING_MANAGE
+  Permission.SETTINGS_BRANDING_MANAGE,
+  Permission.SEMANTIC_MANAGE_INDEX,
+  Permission.SEMANTIC_MANAGE_EMBEDDINGS
 ]);
 
 export type RoleId = "SuperUser" | "Administrator" | "Operator" | "Viewer";
@@ -87,6 +102,9 @@ const VIEWER_PERMISSIONS: readonly Permission[] = [
   Permission.WORKFLOW_VIEW
 ];
 
+// Viewer deliberately has NO semantic permission. Plan §10 records search as
+// "Optional (policy-configurable)" for this role; the owner decided (2026-07-28) to deny by default,
+// because granting it later is a one-line change while revoking it later is a regression for users.
 const OPERATOR_PERMISSIONS: readonly Permission[] = [
   ...VIEWER_PERMISSIONS,
   Permission.PAGE_RECORDER,
@@ -95,13 +113,22 @@ const OPERATOR_PERMISSIONS: readonly Permission[] = [
   Permission.WORKFLOW_EXECUTE,
   Permission.WORKFLOW_STOP,
   Permission.DATASOURCE_MANAGE,
-  Permission.REPORT_EXPORT
+  Permission.REPORT_EXPORT,
+  // Read-only semantic access. Failure similarity is scoped by the reports the Operator may already
+  // view; it grants no new underlying data, only a different way to reach it.
+  Permission.SEMANTIC_SEARCH,
+  Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY
 ];
 
 // Administrator = everything except user administration, licensing, and workspace branding (those stay
 // Super-User-only). Every licensing permission (page.license + license.*) is withheld here so only the
 // Super User manages licenses — matching "Built-in Super User receives the required licensing
 // permissions" — and the custom-logo permission is withheld the same way (branding is Super-User-only).
+//
+// NOTE — this is a DENYLIST over `ALL_PERMISSIONS`, so any permission added to `Permission` is granted
+// to Administrator automatically unless excluded here. That is correct for the semantic permissions
+// (plan §10 assigns Administrator all four semantic capabilities), but it means adding a Super-User-only
+// permission requires editing this filter as well; forgetting to is a silent privilege grant.
 const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
   (p) =>
     p !== Permission.USER_MANAGE &&

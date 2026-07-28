@@ -14,7 +14,7 @@ import { SecurityKernel } from "../src/security/SecurityKernel";
 import { PassthroughColumnCrypto } from "../src/security/crypto/ColumnCrypto";
 import { AuthReason, SecurityError } from "../src/security/errors/ReasonCodes";
 import { SECURITY_DB_FILENAME } from "../src/security/store/SecurityStoreSchema";
-import { BUILTIN_ROLES, Permission, effectivePermissions } from "../src/security/authz/Permissions";
+import { BUILTIN_ROLES, Permission, SENSITIVE_PERMISSIONS, effectivePermissions } from "../src/security/authz/Permissions";
 import type { Permission as Perm } from "../src/security/authz/Permissions";
 
 let passed = 0;
@@ -211,6 +211,41 @@ async function main(): Promise<void> {
   const auditView = await adminCall(kernel, suSession, Permission.AUDIT_VIEW, false, () => kernel.store.listAudit(500, 0));
   check("privileged actions are audited (USER_CREATE present)", auditView.ok === true && auditView.value.some((r) => r.eventType === "USER_CREATE"));
   check("audit view carries no secret fields", auditView.ok === true && JSON.stringify(auditView.value).match(/passwordSecret|IDENTIFIED BY/i) === null);
+
+  // ── Semantic index permissions (Zvec plan §10) ───────────────────────────────
+  //
+  // Asserted per ROLE rather than "the permission exists", because the defect that matters is a role
+  // silently gaining or losing access. `ADMINISTRATOR_PERMISSIONS` is a denylist over
+  // `ALL_PERMISSIONS`, so an omission there grants privilege rather than withholding it.
+  console.log("Semantic permissions:");
+  const permsOf = (role: "SuperUser" | "Administrator" | "Operator" | "Viewer") =>
+    new Set<Perm>(BUILTIN_ROLES[role].permissions);
+  const viewerPerms = permsOf("Viewer");
+  const operatorPerms = permsOf("Operator");
+  const adminPerms = permsOf("Administrator");
+  const superUserPerms = permsOf("SuperUser");
+
+  check("Viewer cannot search (owner decision: deny by default)", !viewerPerms.has(Permission.SEMANTIC_SEARCH));
+  check("Viewer cannot manage the index", !viewerPerms.has(Permission.SEMANTIC_MANAGE_INDEX));
+  check("Operator can search", operatorPerms.has(Permission.SEMANTIC_SEARCH));
+  check("Operator can view failure similarity", operatorPerms.has(Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY));
+  check("Operator canNOT manage the index", !operatorPerms.has(Permission.SEMANTIC_MANAGE_INDEX));
+  check("Operator canNOT manage embeddings", !operatorPerms.has(Permission.SEMANTIC_MANAGE_EMBEDDINGS));
+  check("Administrator can manage the index", adminPerms.has(Permission.SEMANTIC_MANAGE_INDEX));
+  check("Administrator can manage embeddings", adminPerms.has(Permission.SEMANTIC_MANAGE_EMBEDDINGS));
+  check("Administrator can search", adminPerms.has(Permission.SEMANTIC_SEARCH));
+  check("SuperUser holds every semantic permission", [
+    Permission.SEMANTIC_SEARCH,
+    Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY,
+    Permission.SEMANTIC_MANAGE_INDEX,
+    Permission.SEMANTIC_MANAGE_EMBEDDINGS,
+    Permission.SEMANTIC_EXPORT_DIAGNOSTICS
+  ].every((p) => superUserPerms.has(p)));
+
+  // The owner decision that plan §10 required to be explicit rather than silent.
+  check("index management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_INDEX));
+  check("embedding management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_EMBEDDINGS));
+  check("search does NOT require re-auth (it would prompt on every query)", !SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_SEARCH));
 
   await kernel.close();
 

@@ -13,6 +13,7 @@ import {
   normalizeRecorderSecuritySettings,
   type RecorderSecuritySettings
 } from "@src/security/browser/CertificateTrust";
+import { SEMANTIC_DEFAULT_TOP_K, SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -174,6 +175,18 @@ export interface UiSettings {
     logsPath: string;
     downloadsPath: string;
   };
+  /**
+   * Optional semantic index (Zvec). `enabled` is the user-facing master switch that
+   * `semanticHealth({ enabledBySetting })` reports against — before this group existed that argument
+   * was hardcoded true, so the reported reason could never say "turned off by the user".
+   *
+   * Turning it off does NOT delete the index; clearing is a separate, permission-gated action.
+   */
+  semantic: {
+    enabled: boolean;
+    /** Default result count for a search that does not specify one. Bounded by SEMANTIC_MAX_TOP_K. */
+    defaultTopK: number;
+  };
   tables: { flows: TableState; workflows: TableState };
 }
 
@@ -271,6 +284,12 @@ const defaultSettings: UiSettings = {
     logsPath: "",
     downloadsPath: ""
   },
+  semantic: {
+    // Default ON: the subsystem is already lazy (no host process until a semantic operation runs), so
+    // defaulting off would hide a feature behind a switch nobody knows to look for.
+    enabled: true,
+    defaultTopK: SEMANTIC_DEFAULT_TOP_K
+  },
   tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
 };
 
@@ -297,7 +316,8 @@ function pruneUnknownSettings(settings: UiSettings): UiSettings {
     "designerDefaults",
     "execution",
     "runtime",
-    "paths"
+    "paths",
+    "semantic"
   ] as const) {
     retainKnownKeys(settings[key], defaultSettings[key] as unknown as Record<string, unknown>);
   }
@@ -374,6 +394,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     runtime: { ...defaultSettings.runtime, ...parsed.runtime },
     workflowRunCards: { ...defaultSettings.workflowRunCards, ...parsed.workflowRunCards },
     paths: { ...defaultSettings.paths, ...parsed.paths },
+    semantic: { ...defaultSettings.semantic, ...parsed.semantic },
     tables: {
       flows: { ...defaultTableState, ...parsed.tables?.flows },
       workflows: { ...defaultTableState, ...parsed.tables?.workflows }
@@ -405,6 +426,7 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
     runtime: { ...current.runtime, ...patch.runtime },
     workflowRunCards: { ...current.workflowRunCards, ...patch.workflowRunCards } as UiSettings["workflowRunCards"],
     paths: { ...current.paths, ...patch.paths },
+    semantic: { ...current.semantic, ...patch.semantic },
     tables: {
       flows: { ...current.tables.flows, ...patch.tables?.flows },
       workflows: { ...current.tables.workflows, ...patch.tables?.workflows }
@@ -599,6 +621,14 @@ export function validateSettings(settings: UiSettings): string[] {
     if (typeof value !== "string" || !value.trim()) {
       errors.push(`Path "${key}" must be a non-empty path string.`);
     }
+  }
+
+  const sem = settings.semantic;
+  if (typeof sem?.enabled !== "boolean") {
+    errors.push("Semantic index enabled must be true or false.");
+  }
+  if (!Number.isInteger(sem?.defaultTopK) || sem.defaultTopK < 1 || sem.defaultTopK > SEMANTIC_MAX_TOP_K) {
+    errors.push(`Semantic default result count must be an integer between 1 and ${SEMANTIC_MAX_TOP_K}.`);
   }
 
   const acc = settings.accent;

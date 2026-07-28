@@ -3,6 +3,14 @@ import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
+import type { SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
+import type {
+  SemanticAdminResponse,
+  SemanticSearchResponse,
+  SemanticSettingsPatch,
+  SemanticSettingsView,
+  SemanticStatusView
+} from "@src/semantic/contracts/SemanticApi";
 import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { FlowValidationStatusDto as FlowValidationStatus } from "./ipc/validation.ipc";
 import type { InstanceProfile, RuntimeInputProfile } from "./profileStores";
@@ -259,6 +267,25 @@ const api = {
   },
   scenarios: {
     list: () => ipcRenderer.invoke("scenario:list") as Promise<unknown[]>
+  },
+  /**
+   * Optional semantic index (plan §11.1). Every method is authorized in the main process; the
+   * renderer's own permission checks only decide what to render. `rebuild`, `clear` and
+   * `updateSettings` additionally require a fresh re-authentication.
+   *
+   * `search` takes a structured request — there is deliberately no way to pass a query expression or
+   * a filesystem path through this surface.
+   */
+  semantic: {
+    getStatus: () => ipcRenderer.invoke("semantic:getStatus") as Promise<SemanticStatusView>,
+    search: (request: SemanticSearchRequest) =>
+      ipcRenderer.invoke("semantic:search", request) as Promise<SemanticSearchResponse>,
+    rebuild: () => ipcRenderer.invoke("semantic:rebuild") as Promise<SemanticAdminResponse>,
+    cancelRebuild: () => ipcRenderer.invoke("semantic:cancelRebuild") as Promise<SemanticAdminResponse>,
+    clear: () => ipcRenderer.invoke("semantic:clear") as Promise<SemanticAdminResponse>,
+    getSettings: () => ipcRenderer.invoke("semantic:getSettings") as Promise<SemanticSettingsView>,
+    updateSettings: (patch: SemanticSettingsPatch) =>
+      ipcRenderer.invoke("semantic:updateSettings", patch) as Promise<SemanticAdminResponse>
   },
   executions: {
     list: () => ipcRenderer.invoke("execution:list") as Promise<unknown[]>,

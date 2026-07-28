@@ -560,9 +560,23 @@ what makes reported state real: while nothing registered a runtime, `semanticHea
 `rebuildRequired` and `activeGenerationOpenFailed` from `null` and reported healthy unconditionally,
 and `disposeSemanticSubsystem` had nothing to drain so it recorded every session as a clean shutdown.
 
-**Still reachable from no product surface** (by design): no semantic IPC, preload API, renderer
-surface or automatic indexing. `ensureSemanticIndexOpen()` and `rebuildSemanticIndex()` are the
-entry points a later phase will call.
+**Reachable from the renderer, behind main-process authorization** (plan §10-§11). Seven channels —
+`semantic:getStatus | search | rebuild | cancelRebuild | clear | getSettings | updateSettings` —
+registered in `app/main/ipc/semantic.ipc.ts` and exposed as `window.playwrightFlowStudio.semantic`.
+Every one calls `assertSenderPermission` first; the three management channels pass
+`{ sensitive: true }`, because `SEMANTIC_MANAGE_INDEX` and `SEMANTIC_MANAGE_EMBEDDINGS` are in
+`SENSITIVE_PERMISSIONS` and therefore require a fresh re-authentication.
+
+`src/semantic/contracts/SemanticApi.ts` is the single, pure definition of what may cross IPC, so the
+handler and its verifier enforce identical rules: bounded strings and arrays, `topK` clamped to
+`SEMANTIC_MAX_TOP_K`, structured filter fields only, and **unknown properties dropped** — the
+renderer cannot supply a Zvec expression, a collection path, or any filesystem path. Responses carry
+stable reason codes; no native or vendor error crosses the boundary.
+
+Still absent: `similarFailures` / `suggestLocators` (no run-failure or locator projections yet, and
+no indexing events), automatic indexing, and any renderer UI. `semantic:cancelRebuild` answers
+`NOT_SUPPORTED` because the orchestrator has no cancellation token and the pointer swap is an
+irreversible commit point.
 
 ## Architectural constraints (Confirmed)
 
