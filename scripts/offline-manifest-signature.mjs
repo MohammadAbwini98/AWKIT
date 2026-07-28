@@ -64,6 +64,13 @@ async function signManifest(manifestPath, signaturePath, privateKeyPath, publicK
   ) {
     throw new Error("Offline-manifest private key does not match the shipped public key.");
   }
+  // Re-emit the public key from its parsed value so Windows checkout line endings cannot make two
+  // otherwise identical release payloads differ.
+  await writeFile(
+    publicKeyPath,
+    publicKey.export({ type: "spki", format: "pem" }),
+    "utf8"
+  );
 
   const signature = sign(null, manifestBytes, privateKey);
   const record = {

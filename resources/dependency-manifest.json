@@ -4,12 +4,12 @@
                    "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-07-28T21:00:58.7304238Z",
+    "manifestGeneratedAt":  "2026-07-28T21:33:20.3514754Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.0",
                         "buildMode":  "production-offline-prep",
-                        "sourceCommit":  "7eb3fe270e7147d41805511a8fc2d7be1bea50d9",
+                        "sourceCommit":  "def092c90c32bb12ad40b1dfcfb92debba04716f",
                         "sourceTreeDirty":  true
                     },
     "offline":  {
@@ -41,7 +41,7 @@
                          "payloadProvenance":  {
                                                    "approvalPolicy":  "resources/offline-browser-policy.json",
                                                    "approvalPolicySha256":  "b83abfc81c706e32148ad892fba626e75719068e57d3295d3f805ed2f5f31a80",
-                                                   "source":  "exact Playwright cache entry chromium-1228",
+                                                   "source":  "approved Chrome for Testing payload",
                                                    "sourceUrl":  "https://cdn.playwright.dev/builds/cft/149.0.7827.55/win64/chrome-win64.zip",
                                                    "sourceArchiveSha256":  "ebc0c2b75e2ea98151a7f18ff47037bfcbab44a8660e79b9ffa6520f9b7607ab",
                                                    "sourceArchiveSize":  192511857,
@@ -50,7 +50,7 @@
                                                    "browserRevision":  "1228",
                                                    "browserVersion":  "149.0.7827.55",
                                                    "executableSha256":  "b798f9e53a98d29eb7f36f8c409f905d3184780a04d2bcb56989067194784bd1",
-                                                   "stagedAt":  "2026-07-28T21:00:50.7808936Z",
+                                                   "stagedAt":  "",
                                                    "sourceTimestamp":  "2026-05-29T03:10:27Z",
                                                    "sourceTimestampBasis":  "Pinned archive Last-Modified recorded in offline-browser-policy.json",
                                                    "hash":  {

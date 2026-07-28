@@ -6,7 +6,7 @@
  * only the generated dependency manifest and its detached signature (resources + vendor copies).
  */
 import { createReadStream } from "node:fs";
-import { readdir, stat, writeFile } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,9 @@ const EXCLUDED = new Set([
   "resources/resources/dependency-manifest.sig",
   "resources/vendor/dependency-manifest.json",
   "resources/vendor/dependency-manifest.sig"
+]);
+const NORMALIZED_JSON_FIELDS = new Map([
+  ["resources/native-hosts/zvec/zvec-native-host-manifest.json", ["builtAt"]]
 ]);
 
 const CRC_TABLE = new Uint32Array(256);
@@ -45,6 +48,21 @@ function crc32File(path) {
   });
 }
 
+function crc32Buffer(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0").toUpperCase();
+}
+
+function normalizedEntry(path, bytes) {
+  const ignoredFields = NORMALIZED_JSON_FIELDS.get(path);
+  if (!ignoredFields) return null;
+  const parsed = JSON.parse(bytes.toString("utf8"));
+  for (const field of ignoredFields) delete parsed[field];
+  const normalized = Buffer.from(`${JSON.stringify(parsed)}\n`, "utf8");
+  return { size: normalized.length, crc32: crc32Buffer(normalized), normalizedFields: ignoredFields };
+}
+
 async function inventoryDirectory(root) {
   const entries = new Map();
   async function walk(directory) {
@@ -56,7 +74,10 @@ async function inventoryDirectory(root) {
         const path = normalizePath(relative(root, absolute));
         if (EXCLUDED.has(path)) continue;
         const metadata = await stat(absolute);
-        entries.set(path, { size: metadata.size, crc32: await crc32File(absolute) });
+        const normalized = NORMALIZED_JSON_FIELDS.has(path)
+          ? normalizedEntry(path, await readFile(absolute))
+          : null;
+        entries.set(path, normalized ?? { size: metadata.size, crc32: await crc32File(absolute) });
       }
     }
   }
@@ -85,7 +106,20 @@ function inventoryArchive(path) {
     const crc32 = fields.get("CRC");
     const size = fields.get("Size");
     if (!entryPath || !crc32 || size === undefined || EXCLUDED.has(entryPath)) continue;
-    entries.set(entryPath, { size: Number(size), crc32: crc32.toUpperCase() });
+    const ignoredFields = NORMALIZED_JSON_FIELDS.get(entryPath);
+    if (ignoredFields) {
+      const extracted = spawnSync(SEVEN_ZIP, ["x", "-so", path, entryPath], {
+        encoding: "buffer",
+        maxBuffer: 16 * 1024 * 1024,
+        windowsHide: true
+      });
+      if (extracted.status !== 0) {
+        throw new Error(`7-Zip could not read ${entryPath} from ${path}.`);
+      }
+      entries.set(entryPath, normalizedEntry(entryPath, extracted.stdout));
+    } else {
+      entries.set(entryPath, { size: Number(size), crc32: crc32.toUpperCase() });
+    }
   }
   return entries;
 }
@@ -125,8 +159,9 @@ async function main() {
   const right = await inventory(resolve(rightPath));
   const differences = compare(left, right);
   const report = {
-    model: "decompressed-path-size-crc32",
+    model: "decompressed-path-size-crc32-with-documented-field-normalization",
     excluded: [...EXCLUDED],
+    normalizedJsonFields: Object.fromEntries(NORMALIZED_JSON_FIELDS),
     left: { path: resolve(leftPath), entries: left.size },
     right: { path: resolve(rightPath), entries: right.size },
     equivalent: differences.length === 0,
@@ -139,7 +174,9 @@ async function main() {
     for (const difference of differences.slice(0, 50)) process.stderr.write(`${JSON.stringify(difference)}\n`);
     process.exitCode = 1;
   } else {
-    process.stdout.write(`Offline payloads are semantically equivalent (${left.size} entries; generated manifest/signature excluded).\n`);
+    process.stdout.write(
+      `Offline payloads are semantically equivalent (${left.size} entries; generated manifest/signature excluded; documented volatile JSON fields normalized).\n`
+    );
   }
 }
 

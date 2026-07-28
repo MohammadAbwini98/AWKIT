@@ -29,6 +29,7 @@ const classesDir = join(targetDir, "classes");
 const jarPath = join(targetDir, "awkit-oracle-jdbc-bridge.jar");
 const libDir = join(repoRoot, "resources", "oracle-jdbc", "lib");
 const MAIN_CLASS = "com.specterstudio.oracle.bridge.Main";
+const REPRODUCIBLE_JAR_TIMESTAMP = "2020-01-01T00:00:00Z";
 
 const isWin = process.platform === "win32";
 const exe = (name) => (isWin ? `${name}.exe` : name);
@@ -150,7 +151,21 @@ export function buildOracleBridge({ quiet = false } = {}) {
     : "";
   writeFileSync(manifest, `Manifest-Version: 1.0\nMain-Class: ${MAIN_CLASS}\n${cpLine}`, "utf8");
 
-  execFileSync(jdk.jar, ["cfm", jarPath, manifest, "-C", classesDir, "."], { stdio: quiet ? "pipe" : "inherit" });
+  execFileSync(
+    jdk.jar,
+    [
+      "--create",
+      "--file",
+      jarPath,
+      "--manifest",
+      manifest,
+      `--date=${REPRODUCIBLE_JAR_TIMESTAMP}`,
+      "-C",
+      classesDir,
+      "."
+    ],
+    { stdio: quiet ? "pipe" : "inherit" }
+  );
   log(`[oracle-bridge] built ${jarPath}`);
 
   return { jdk, jarPath, classesDir, mainClass: MAIN_CLASS, oracleCompiled: compileOracle };

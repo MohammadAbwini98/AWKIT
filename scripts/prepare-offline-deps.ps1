@@ -61,7 +61,7 @@ try {
   $provenance = [ordered]@{
     approvalPolicy = "resources/offline-browser-policy.json"
     approvalPolicySha256 = $policyHash
-    source = $sourceDescription
+    source = "approved Chrome for Testing payload"
     sourceUrl = [string]$policy.browser.archive.url
     sourceArchiveSha256 = [string]$policy.browser.archive.sha256
     sourceArchiveSize = [long]$policy.browser.archive.size
@@ -70,7 +70,7 @@ try {
     browserRevision = [string]$policy.browser.revision
     browserVersion = [string]$policy.browser.version
     executableSha256 = [string]$policy.browser.executableSha256
-    stagedAt = (Get-Date).ToUniversalTime().ToString("o")
+    stagedAt = $null
     sourceTimestamp = [string]$policy.browser.archive.sourceLastModifiedUtc
     sourceTimestampBasis = "Pinned archive Last-Modified recorded in offline-browser-policy.json"
     hash = $stagedTree
