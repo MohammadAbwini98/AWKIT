@@ -71,9 +71,12 @@ try {
   console.log("Beads issue tracker:");
   const beads = parseBeads();
   check("118 issues parse", beads.stats.total === 118, `got ${beads.stats.total}`);
+  // Moved 22/96 → 21/97 on 2026-07-28 when `awkit-0jp` (semantic UI) closed. Move this pin
+  // deliberately when a bead closes — never relax it to a range, or it stops noticing that the
+  // export was not refreshed (`bd close` does not rewrite `.beads/issues.jsonl`; `bd export` does).
   check(
-    "22 outstanding / 96 closed",
-    beads.stats.outstanding === 22 && beads.stats.closed === 96,
+    "21 outstanding / 97 closed",
+    beads.stats.outstanding === 21 && beads.stats.closed === 97,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

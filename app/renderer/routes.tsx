@@ -21,6 +21,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Table2,
   Users,
   Workflow,
@@ -34,6 +35,7 @@ import { ExecutionMonitor } from "./pages/ExecutionMonitor";
 import { ExecutionReports } from "./pages/ExecutionReports";
 import { FlowChartDesigner } from "./pages/FlowChartDesigner";
 import { FlowLibrary } from "./pages/FlowLibrary";
+import { SemanticSearch } from "./pages/SemanticSearch";
 import { FormDesigner } from "./pages/FormDesigner";
 import { InstanceMonitor } from "./pages/InstanceMonitor";
 import { ImplementationRoadmap } from "./pages/ImplementationRoadmap";
@@ -67,6 +69,7 @@ export type RouteId =
   | "scenarioBuilder"
   | "workflowsLibrary"
   | "flowLibrary"
+  | "semanticSearch"
   | "runtimeInputs"
   | "dataSources"
   | "dataSourceEditor"
@@ -128,6 +131,13 @@ export const routes: AppRoute[] = [
     description: "Saved reusable automation flows.",
     icon: Boxes,
     component: FlowLibrary
+  },
+  {
+    id: "semanticSearch",
+    label: "Semantic Search",
+    description: "Search flows, workflows, past failures and locator memory by meaning.",
+    icon: Sparkles,
+    component: SemanticSearch
   },
   {
     id: "flowChart",

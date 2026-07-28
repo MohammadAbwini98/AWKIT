@@ -4,7 +4,52 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - handoff refreshed for the next agent (Claude)
+## 2026-07-28 (latest) - `awkit-0jp` semantic UI: search page + Settings index panel (Claude)
+
+**Task:** give the semantic subsystem a product surface. It had permissions, nine IPC channels and
+real data, and nothing in the app used any of it.
+
+**Result:** a **Semantic Search** page (Build nav group, gated on `SEMANTIC_SEARCH`) with all three
+query kinds on one results surface, and a **Settings → Semantic Index** panel with health, enable /
+default-topK, Rebuild and Clear.
+
+Three things worth knowing:
+
+1. **A contract gap blocked the admin half.** Re-auth-gated channels *threw*, so the renderer could
+   only distinguish "re-authenticate" from "denied" by parsing a rejected `invoke` message — which
+   the contract forbids. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` and `authorizeSemanticAction`
+   (pure, injected `assert`). It catches **only** `SecurityError`; anything else rethrows.
+   `branding.ipc.ts` maps every error to a reason — that part was deliberately not copied.
+2. **`SemanticKinds.ts` is new.** `SemanticDocument.ts` imports `node:crypto`, so any *value* import
+   of it pulls `createHash` into the renderer bundle; the first renderer import of a semantic bound
+   failed the build. Kinds, the kind guard and topK bounds moved to a pure module that
+   `SemanticDocument.ts` re-exports, so no existing importer changed.
+3. **Two defects were found by looking at a screenshot, not by an assertion** — the kind filter
+   rendered two identical "Locator" checkboxes, and the enable toggle rendered oversized because it
+   lacked the app's `inline-check` class. Both fixed; a label-uniqueness check now pins the first.
+
+**Files:** new `app/renderer/pages/{SemanticSearch,SemanticIndexSettings}.tsx`,
+`app/renderer/semantic/{useSemanticQuery,useSensitiveSemanticAction,SemanticResultList,semanticMessages}`,
+`src/semantic/contracts/SemanticKinds.ts`, `scripts/verify-semantic-ui-gui.mjs`; changed
+`SemanticApi.ts`, `SemanticDocument.ts`, `semantic.ipc.ts`, `routes.tsx`, `routePermissions.ts`,
+`LeftNavigation.tsx`, `Settings.tsx`, `global.css`, `verify-semantic-store.mts`, `verify-authz.mts`,
+`verifier-classification.ts`, `package.json`, `.beads/`, `docs/ai/`.
+
+**Verification:** `verify:semantic-ui-gui` **14/14 real Electron** (new; registered in
+`verifier-classification.ts`) · `verify:semantic-store` **231/0** (was 215) · `verify:authz` **59/0**
+(was 53) · `verify:settings-e2e` 151/0 · runner 89/0 · recorder 110/0 · semantic-policy 141/0 ·
+semantic-rebuild 64/0 · rebuild-live 24/0 · native-contract 22/0 · queue 70/0 · security 39/0 ·
+`verify:ipc-contract` 4/4 with pins unmoved at 213/191 · source-hygiene 9/0 · classification
+reconciled · `verify:all-typecheck` PASS · roadmap 135/135 (bead pin moved 22/96 → 21/97).
+**Four mutations went red before revert:** swallowing an unexpected error, ignoring the retry cap,
+removing the route gate, duplicating a kind label.
+**Not run:** packaging and offline gates — no packaging surface touched. Dark mode not exercised.
+
+**Caught mid-task:** a JSX comment placed inside a ternary branch broke the build, and the GUI
+verifier still reported 14/14 — because it ran against the previous bundle. Rebuild before believing
+a GUI result.
+
+## 2026-07-28 - handoff refreshed for the next agent (Claude)
 
 **Task:** `/HANDOFF` — bring the takeoff note, current state and known issues in line with `main` @
 `190565a` so the next agent or human can start without re-deriving the day.

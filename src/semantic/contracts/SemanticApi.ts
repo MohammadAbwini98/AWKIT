@@ -16,14 +16,19 @@
  * Framework-agnostic: no Electron, no filesystem, no React.
  */
 
+// Values come from the PURE module; only types come from `SemanticDocument.ts`, which imports
+// `node:crypto` and therefore cannot be bundled into the renderer. Renderer surfaces import this
+// contract for its bounds and reason codes, so a value import from `SemanticDocument.ts` here would
+// break the renderer build — see `SemanticKinds.ts`.
 import {
   isSemanticDocumentKind,
   SEMANTIC_DEFAULT_TOP_K,
   SEMANTIC_MAX_TOP_K,
-  type SemanticDocumentKind,
-  type SemanticSearchHit,
-  type SemanticSearchRequest
-} from "./SemanticDocument";
+  type SemanticDocumentKind
+} from "./SemanticKinds";
+import type { SemanticSearchHit, SemanticSearchRequest } from "./SemanticDocument";
+// Pure: a frozen reason-code map and an `Error` subclass, no platform imports.
+import { AuthReason, SecurityError } from "../../security/errors/ReasonCodes";
 import type { SemanticHealth } from "./SemanticHealth";
 
 /** Longest free-text query accepted. A query is a phrase, not a document. */
@@ -36,6 +41,13 @@ export const SEMANTIC_MAX_KINDS = 8;
 /**
  * Stable reason codes. The renderer switches on these; it never parses a message, and a native or
  * vendor error string never reaches it.
+ *
+ * `REAUTH_REQUIRED` and `NOT_AUTHORIZED` exist because the two are **not** interchangeable to a
+ * user: the first is recoverable by confirming a password and retrying, the second is not
+ * recoverable at all. `SEMANTIC_MANAGE_INDEX` is in `SENSITIVE_PERMISSIONS`, so a stale re-auth
+ * window is the ordinary case for an authorized administrator, not an error. Without a code for it
+ * the renderer could only tell the two apart by matching the text of a rejected `invoke`, which the
+ * rule above forbids.
  */
 export type SemanticReasonCode =
   | "OK"
@@ -46,7 +58,43 @@ export type SemanticReasonCode =
   | "REBUILD_REFUSED"
   | "CLEAR_FAILED"
   | "SETTINGS_REJECTED"
-  | "NOT_SUPPORTED";
+  | "NOT_SUPPORTED"
+  /** A sensitive action needs a fresh password confirmation. Recoverable: re-auth, then retry once. */
+  | "REAUTH_REQUIRED"
+  /** The caller lacks the permission, or the session died. Not recoverable by retrying. */
+  | "NOT_AUTHORIZED";
+
+/**
+ * Authorize a mutating semantic call and translate the outcome into a contract reason code.
+ *
+ * Pure and Electron-free on purpose: the authorization *check* belongs to the main process, but the
+ * **rule for turning its failure into a reason code** belongs here, where the handler and its
+ * verifier apply the identical version of it. `assert` is injected so a verifier can drive every
+ * branch — including the one that must not be a branch at all.
+ *
+ * Only `SecurityError` is caught. **Anything else rethrows.** Reporting a programming fault as
+ * `NOT_AUTHORIZED` would turn a crash into a plausible permission message that a user would act on,
+ * and would hide the defect from whoever has to fix it.
+ *
+ * `SESSION_EXPIRED` folds into `NOT_AUTHORIZED` rather than getting a code of its own: the renderer's
+ * security gate already tears the session down on expiry, so the user is on the login screen before
+ * any message could be shown. `REAUTH_REQUIRED` is the only separable outcome, because it is the only
+ * one the user can resolve without leaving the page.
+ */
+export async function authorizeSemanticAction(
+  assert: () => Promise<unknown>
+): Promise<{ ok: true } | { ok: false; code: SemanticReasonCode; message: string }> {
+  try {
+    await assert();
+    return { ok: true };
+  } catch (error) {
+    if (!(error instanceof SecurityError)) throw error;
+    if (error.reason === AuthReason.REAUTH_REQUIRED) {
+      return { ok: false, code: "REAUTH_REQUIRED", message: "Confirm your password to continue." };
+    }
+    return { ok: false, code: "NOT_AUTHORIZED", message: "You are not authorized to manage the semantic index." };
+  }
+}
 
 export interface SemanticStatusView {
   health: SemanticHealth;

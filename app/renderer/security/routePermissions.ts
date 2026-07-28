@@ -13,6 +13,12 @@ export const RoutePermissions: Partial<Record<RouteId, Permission>> = {
   workflow: Permission.PAGE_WORKFLOWS,
   runtimeInputs: Permission.PAGE_WORKFLOWS,
   flowLibrary: Permission.PAGE_FLOWS,
+  // A capability permission rather than a PAGE_* one: semantic access is granted per role by
+  // capability, and Viewer holds none, so the nav filter hides this and the route guard blocks
+  // direct entry. NOTE: a route absent from this map is visible to EVERY signed-in user, so removing
+  // this line opens the page rather than closing it — `verify:authz` asserts its presence for that
+  // reason.
+  semanticSearch: Permission.SEMANTIC_SEARCH,
   flowChart: Permission.PAGE_FLOWS,
   formDesigner: Permission.PAGE_FLOWS,
   dataSources: Permission.PAGE_DATA_SOURCES,

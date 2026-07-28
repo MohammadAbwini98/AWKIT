@@ -16,6 +16,8 @@ import { AuthReason, SecurityError } from "../src/security/errors/ReasonCodes";
 import { SECURITY_DB_FILENAME } from "../src/security/store/SecurityStoreSchema";
 import { BUILTIN_ROLES, Permission, SENSITIVE_PERMISSIONS, effectivePermissions } from "../src/security/authz/Permissions";
 import type { Permission as Perm } from "../src/security/authz/Permissions";
+// Type-only import of `RouteId` inside this module, so no React component is pulled in.
+import { RoutePermissions } from "../app/renderer/security/routePermissions";
 
 let passed = 0;
 let failed = 0;
@@ -246,6 +248,21 @@ async function main(): Promise<void> {
   check("index management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_INDEX));
   check("embedding management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_EMBEDDINGS));
   check("search does NOT require re-auth (it would prompt on every query)", !SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_SEARCH));
+
+  // The Semantic Search route (awkit-0jp). `RoutePermissions` treats an ABSENT route as visible to
+  // every signed-in user, so an unregistered route is not a locked door — it is an open one. That is
+  // why the first check asserts presence before the second asserts which permission it names.
+  console.log("\nSemantic Search route gating:");
+  const routePermission = RoutePermissions.semanticSearch;
+  check("the semanticSearch route is registered as gated at all (absent = visible to everyone)", routePermission !== undefined);
+  check("it is gated on SEMANTIC_SEARCH", routePermission === Permission.SEMANTIC_SEARCH);
+
+  // Both directions. A one-sided assertion passes while the grant is wrong.
+  const routeVisibleTo = (perms: Set<Perm>) => routePermission === undefined || perms.has(routePermission);
+  check("Viewer cannot reach Semantic Search", !routeVisibleTo(viewerPerms));
+  check("Operator can reach Semantic Search", routeVisibleTo(operatorPerms));
+  check("Administrator can reach Semantic Search", routeVisibleTo(adminPerms));
+  check("SuperUser can reach Semantic Search", routeVisibleTo(superUserPerms));
 
   await kernel.close();
 

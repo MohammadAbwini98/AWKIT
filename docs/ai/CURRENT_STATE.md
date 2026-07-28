@@ -1,6 +1,46 @@
 # CURRENT_STATE
 
-## Verification surface hardened; two silent gaps closed (2026-07-28, current)
+## Zvec Phase 2 tranche 3 — the semantic index is reachable from the product (2026-07-28, current)
+
+`awkit-0jp`. Until now the subsystem had permissions, nine IPC channels and real data, and **nothing
+in the app used any of it**. There is now a **Semantic Search** page in the Build nav group and a
+**Settings → Semantic Index** panel.
+
+**A contract gap had to be closed first.** `rebuild`, `clear` and `updateSettings` are re-auth gated,
+but authorization *threw*, so the renderer could only tell "re-authenticate" from "denied" by parsing
+the text of a rejected `invoke` — which `SemanticApi.ts` explicitly forbids. `SemanticReasonCode`
+gained `REAUTH_REQUIRED` and `NOT_AUTHORIZED`, and `authorizeSemanticAction` (pure, injected `assert`)
+now translates the outcome. It catches **only** `SecurityError`; anything else rethrows, because
+reporting a programming fault as `NOT_AUTHORIZED` turns a crash into a plausible permission message.
+`branding.ipc.ts` maps every error to a reason — that part was deliberately not copied.
+
+**The query layer is reusable, and that is the point.** `useSemanticQuery` (all three query kinds
+behind one call shape), `useSensitiveSemanticAction` (re-auth, retry **once**), `SemanticResultList`
+and `semanticMessages` live in `app/renderer/semantic/`. Later beads embedding search into the
+Libraries, Reports and Designers call these rather than the preload directly.
+
+**`SemanticKinds.ts` is new and structural.** `SemanticDocument.ts` imports `node:crypto`, so **any
+value imported from it drags `createHash` into the renderer bundle** — the first renderer import of a
+semantic bound failed the build with `"createHash" is not exported by "__vite-browser-external"`. The
+kinds, the kind guard and the topK bounds now live in a pure module that `SemanticDocument.ts`
+re-exports, so every existing importer is unchanged.
+
+Two defects were found by **looking at a screenshot**, not by an assertion: the kind filter rendered
+two identical "Locator" checkboxes, and the enable toggle rendered as an oversized native checkbox
+(it needed the app's `inline-check` class). Both are fixed, and `verify:semantic-store` now pins that
+no two document kinds share a label.
+
+Verification: `verify:semantic-ui-gui` **14/14 real Electron** (new — a Viewer genuinely does not see
+the nav entry, 21 items without it) · `verify:semantic-store` **231/0** (was 215) · `verify:authz`
+**59/0** (was 53) · `verify:settings-e2e` 151/0 · runner 89/0 · recorder 110/0 · `verify:ipc-contract`
+4/4 with pins unmoved at 213/191 · `verify:all-typecheck` PASS. Four mutations went red before revert
+(swallowing an unexpected error, ignoring the retry cap, removing the route gate, duplicating a
+label). Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads 118 / 21 outstanding / 97
+closed. **Not run:** packaging and offline gates — no packaging surface touched. Dark mode was not
+exercised; the new CSS is token-only, which is the mechanism the rest of the app relies on, but that
+is an inference rather than a measurement.
+
+## Verification surface hardened; two silent gaps closed (2026-07-28)
 
 No product behaviour changed. What changed is what the gates actually cover, and two of them were
 lying by omission.

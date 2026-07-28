@@ -30,6 +30,7 @@ import { Permission } from "@src/security/authz/Permissions";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
+import { SemanticIndexSettings } from "./SemanticIndexSettings";
 
 const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string; hint: string }[] = [
   { id: "sequential", label: "Sequential", hint: "One instance at a time — safest, machine-independent." },
@@ -874,6 +875,7 @@ export function SettingsPage() {
             Java is selected first (it launches the isolated bridge that loads the driver). */}
         <JavaRuntimeSettings />
         <OracleDriverSettings />
+        {can(Permission.SEMANTIC_SEARCH) ? <SemanticIndexSettings /> : null}
 
         {/* Data Storage */}
         <section className="work-panel settings-card">

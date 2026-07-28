@@ -28,11 +28,16 @@ import {
 } from "@main/semantic/semanticSnapshot";
 import { projectAndValidate } from "@src/semantic/SemanticPolicyValidator";
 import {
+  authorizeSemanticAction,
   sanitizeSearchRequest,
   sanitizeSettingsPatch,
   SEMANTIC_MAX_KINDS,
-  SEMANTIC_MAX_QUERY_LENGTH
+  SEMANTIC_MAX_QUERY_LENGTH,
+  type SemanticAdminResponse
 } from "@src/semantic/contracts/SemanticApi";
+import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
+import { decideSensitiveOutcome } from "@renderer/semantic/useSensitiveSemanticAction";
+import { SEMANTIC_KIND_OPTIONS, semanticKindLabel } from "@renderer/semantic/semanticMessages";
 import { SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { RunHistoryRow } from "@src/reports/TelemetryContracts";
@@ -462,6 +467,93 @@ console.log("\nRenderer API contract (untrusted input is sanitized, not trusted)
   check("a non-boolean enabled is rejected", !sanitizeSettingsPatch({ enabled: "yes" }).ok);
   check("a defaultTopK above the ceiling is rejected", !sanitizeSettingsPatch({ defaultTopK: SEMANTIC_MAX_TOP_K + 1 }).ok);
   check("an empty patch is valid (a no-op save)", sanitizeSettingsPatch({}).ok);
+}
+
+console.log("\nAuthorization outcomes (a denial and a bug must not look the same):\n");
+{
+  const ok = await authorizeSemanticAction(async () => undefined);
+  check("an authorized call succeeds", ok.ok);
+
+  const reauth = await authorizeSemanticAction(async () => {
+    throw new SecurityError(AuthReason.REAUTH_REQUIRED);
+  });
+  check("a stale re-auth window answers REAUTH_REQUIRED", !reauth.ok && reauth.code === "REAUTH_REQUIRED", !reauth.ok ? reauth.code : "ok");
+
+  const denied = await authorizeSemanticAction(async () => {
+    throw new SecurityError(AuthReason.NOT_AUTHORIZED);
+  });
+  check("a missing permission answers NOT_AUTHORIZED", !denied.ok && denied.code === "NOT_AUTHORIZED", !denied.ok ? denied.code : "ok");
+
+  const expired = await authorizeSemanticAction(async () => {
+    throw new SecurityError(AuthReason.SESSION_EXPIRED);
+  });
+  check("an expired session folds into NOT_AUTHORIZED", !expired.ok && expired.code === "NOT_AUTHORIZED", !expired.ok ? expired.code : "ok");
+
+  check(
+    "REAUTH_REQUIRED and NOT_AUTHORIZED are distinguishable",
+    !reauth.ok && !denied.ok && reauth.code !== denied.code,
+    "the renderer cannot tell a recoverable prompt from a hard denial"
+  );
+
+  // The assertion this whole section exists for. Mapping every throw to a reason code — which
+  // `branding.ipc.ts` does — turns a programming fault into a plausible permission message, and the
+  // real defect never surfaces. A non-SecurityError must escape.
+  let propagated: unknown = null;
+  try {
+    await authorizeSemanticAction(async () => {
+      throw new TypeError("kernel exploded");
+    });
+  } catch (error) {
+    propagated = error;
+  }
+  check("an unexpected error PROPAGATES rather than becoming an auth code", propagated instanceof TypeError, `got ${String(propagated)}`);
+}
+
+console.log("\nRenderer labels (every kind is nameable, and distinctly):\n");
+{
+  const labels = SEMANTIC_KIND_OPTIONS.map((kind) => semanticKindLabel(kind));
+  check("every document kind has a label", labels.every((l) => typeof l === "string" && l.length > 0), JSON.stringify(labels));
+  check("the label list covers the whole union", labels.length === SEMANTIC_KIND_OPTIONS.length);
+
+  // These labels are rendered as separate filter checkboxes. Two kinds sharing one label produces
+  // two identical controls that a user cannot tell apart — which shipped, and was caught by looking
+  // at a screenshot rather than by any assertion. `locator-success` and `locator-failure` were both
+  // "Locator".
+  check(
+    "no two kinds share a label",
+    new Set(labels).size === labels.length,
+    labels.filter((l, i) => labels.indexOf(l) !== i).join(", ")
+  );
+}
+
+console.log("\nSensitive-action retry rule (bounded, or the prompt loops forever):\n");
+{
+  const reauthResponse: SemanticAdminResponse = { code: "REAUTH_REQUIRED", ok: false };
+  const success: SemanticAdminResponse = { code: "OK", ok: true };
+  const refused: SemanticAdminResponse = { code: "REBUILD_REFUSED", ok: false, message: "Generation locked." };
+  const notSupported: SemanticAdminResponse = { code: "NOT_SUPPORTED", ok: false };
+
+  check("a success reports its notice", decideSensitiveOutcome(success, false, "Index rebuilt.").kind === "success");
+  check("a first REAUTH_REQUIRED prompts", decideSensitiveOutcome(reauthResponse, false, "n").kind === "prompt-reauth");
+
+  // Single-retry enforcement: the same response on the RETRY must not prompt again. Without this the
+  // pair (prompt → retry → prompt) is unbounded and presents to the user as a hung button.
+  const second = decideSensitiveOutcome(reauthResponse, true, "n");
+  check("a second REAUTH_REQUIRED does NOT prompt again", second.kind !== "prompt-reauth", second.kind);
+  check("a second REAUTH_REQUIRED surfaces as an error", second.kind === "error");
+
+  const refusedOutcome = decideSensitiveOutcome(refused, false, "n");
+  check("a refusal is an error, not a prompt", refusedOutcome.kind === "error");
+  check(
+    "a refusal keeps its own message rather than a generic one",
+    refusedOutcome.kind === "error" && refusedOutcome.message.includes("Generation locked."),
+    refusedOutcome.kind === "error" ? refusedOutcome.message : refusedOutcome.kind
+  );
+
+  // `cancelRebuild` answers NOT_SUPPORTED by design; it must read as a real answer, not a failure to
+  // retry or re-authenticate.
+  const cancelOutcome = decideSensitiveOutcome(notSupported, false, "n");
+  check("cancellation reports NOT_SUPPORTED as an error, never a prompt", cancelOutcome.kind === "error");
 }
 
 console.log("\nProduction registration (the runtime must be reachable from the app):\n");

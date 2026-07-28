@@ -9,23 +9,30 @@
  *   1. **The renderer never supplies a query expression or a path.** Requests are sanitized into
  *      structured fields by `sanitizeSearchRequest`; a raw Zvec filter string cannot be constructed
  *      from anything the renderer sends.
- *   2. **No raw native error crosses IPC.** Handlers return stable reason codes. The one exception is
- *      an authorization failure, which throws so the existing `SecurityError` path can reject the
- *      renderer call the same way every other gated channel does.
+ *   2. **No raw native error crosses IPC.** Handlers return stable reason codes.
  *
  * `semantic:rebuild` and `semantic:clear` additionally require a fresh re-authentication, because
  * `SEMANTIC_MANAGE_INDEX` is in `SENSITIVE_PERMISSIONS`.
+ *
+ * **Authorization on the mutating channels answers with a code, not a throw** (`authorize` below).
+ * The read channels still throw, which is deliberate: a denied read has no recoverable renderer
+ * response, whereas a stale re-auth window on rebuild/clear is the ordinary case for an authorized
+ * administrator and the UI must be able to prompt and retry. A throw cannot express that difference
+ * — it arrives at the renderer as a rejected `invoke` whose only distinguishing feature is the text
+ * of its message, and rule 2 exists precisely so the renderer never reads a message.
  */
 
-import { ipcMain } from "electron";
+import { ipcMain, type IpcMainInvokeEvent } from "electron";
 
 import { Permission } from "@src/security/authz/Permissions";
 import {
+  authorizeSemanticAction,
   sanitizeLocatorSuggestionRequest,
   sanitizeSearchRequest,
   sanitizeSettingsPatch,
   sanitizeSimilarFailureRequest,
   type SemanticAdminResponse,
+  type SemanticReasonCode,
   type SemanticSearchResponse,
   type SemanticSettingsView,
   type SemanticStatusView
@@ -42,6 +49,20 @@ import {
   similarSemanticFailures,
   suggestSemanticLocators
 } from "../semantic/semanticService";
+
+/**
+ * Authorize a mutating semantic call. The rule for translating a failure into a reason code lives in
+ * `authorizeSemanticAction` (pure, in the contract) so this handler and `verify:semantic-store` apply
+ * the identical version of it — including that a non-`SecurityError` rethrows rather than being
+ * reported as a permission problem.
+ */
+async function authorize(
+  event: IpcMainInvokeEvent,
+  permission: Permission,
+  sensitive: boolean
+): Promise<{ ok: true } | { ok: false; code: SemanticReasonCode; message: string }> {
+  return authorizeSemanticAction(() => assertSenderPermission(event, permission, { sensitive }));
+}
 
 export function registerSemanticIpc(): void {
   ipcMain.handle("semantic:getStatus", async (event): Promise<SemanticStatusView> => {
@@ -81,7 +102,8 @@ export function registerSemanticIpc(): void {
   });
 
   ipcMain.handle("semantic:rebuild", async (event): Promise<SemanticAdminResponse> => {
-    await assertSenderPermission(event, Permission.SEMANTIC_MANAGE_INDEX, { sensitive: true });
+    const auth = await authorize(event, Permission.SEMANTIC_MANAGE_INDEX, true);
+    if (!auth.ok) return { code: auth.code, ok: false, message: auth.message };
     const report = await rebuildSemanticIndex();
     if (!report) {
       return { code: "NOT_AVAILABLE", ok: false, message: "The semantic index is not included in this build." };
@@ -99,7 +121,8 @@ export function registerSemanticIpc(): void {
   });
 
   ipcMain.handle("semantic:cancelRebuild", async (event): Promise<SemanticAdminResponse> => {
-    await assertSenderPermission(event, Permission.SEMANTIC_MANAGE_INDEX, { sensitive: true });
+    const auth = await authorize(event, Permission.SEMANTIC_MANAGE_INDEX, true);
+    if (!auth.ok) return { code: auth.code, ok: false, message: auth.message };
     // Deliberately NOT implemented as a no-op that reports success. `SemanticRebuildOrchestrator` has
     // no cancellation token, and the pointer swap is an irreversible commit point, so "cancelled"
     // would be a claim this process cannot make. Tracked as awkit-9xh's sibling work; the channel
@@ -112,7 +135,8 @@ export function registerSemanticIpc(): void {
   });
 
   ipcMain.handle("semantic:clear", async (event): Promise<SemanticAdminResponse> => {
-    await assertSenderPermission(event, Permission.SEMANTIC_MANAGE_INDEX, { sensitive: true });
+    const auth = await authorize(event, Permission.SEMANTIC_MANAGE_INDEX, true);
+    if (!auth.ok) return { code: auth.code, ok: false, message: auth.message };
     return clearSemanticIndex();
   });
 
@@ -123,7 +147,8 @@ export function registerSemanticIpc(): void {
 
   ipcMain.handle("semantic:updateSettings", async (event, patch: unknown): Promise<SemanticAdminResponse> => {
     // Changing whether the index runs at all is index management, not a display preference.
-    await assertSenderPermission(event, Permission.SEMANTIC_MANAGE_INDEX, { sensitive: true });
+    const auth = await authorize(event, Permission.SEMANTIC_MANAGE_INDEX, true);
+    if (!auth.ok) return { code: auth.code, ok: false, message: auth.message };
     const sanitized = sanitizeSettingsPatch(patch);
     if (!sanitized.ok) {
       return { code: "SETTINGS_REJECTED", ok: false, message: sanitized.errors.join(" ") };

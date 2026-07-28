@@ -18,6 +18,7 @@ real defects:
 | `ea90491` | `awkit-9xh` | Run + locator projections; `similarFailures` and `suggestLocators`. All nine plan §11 channels now serve real data. |
 | `9d87715` | — | Restored the dashboard consistency banner. A new top section here had been written without the ledger tally, which silently dropped this file from the banner (`checked` 2 → 1) while the page still read "Sources agree". |
 | `190565a` | — | Removed a literal NUL byte from `TASK_LOG.md`, **extended `verify:source-hygiene` to Markdown under `docs/`**, and unbroke `typecheck:scripts`, which had been red on `main` since `ea90491`. |
+| (this one) | `awkit-0jp` | **Semantic Search page + Settings → Semantic Index panel** — the subsystem is finally reachable from the product. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` reason codes, a reusable renderer query layer, and `SemanticKinds.ts` so the contract can be bundled into the renderer at all. |
 
 **Verification at `190565a`** (all executed, not inferred): `npm run build` PASS (at `ea90491`;
 no app-project file has changed since) · `npm run typecheck:scripts` PASS ·
@@ -75,11 +76,21 @@ plus the real-host suite. Treat those as open evidence gaps, not as passes.
   re-running one that appears to have failed, or you create a duplicate.
 - **A new `verify:*` script must be registered** in `scripts/lib/verifier-classification.ts` or
   `verify:verifier-classification` fails. Prefer extending an existing verifier.
+- **`SemanticDocument.ts` cannot be value-imported from the renderer.** It imports `node:crypto`, so
+  any value taken from it drags `createHash` into the bundle and the build fails with `"createHash"
+  is not exported by "__vite-browser-external"`. Types erase and are fine. Import values from
+  `SemanticKinds.ts` (pure); `SemanticDocument.ts` re-exports them for everyone else.
+- **A GUI verifier can report green against a stale bundle.** A broken build leaves the previous
+  `out/` in place, and `verify:semantic-ui-gui` scored 14/14 while the source did not compile.
+  Rebuild before believing a GUI result.
+- **A route absent from `RoutePermissions` is visible to every signed-in user**, so deleting a line
+  there opens a page rather than closing it. `verify:authz` asserts the semantic route's *presence*
+  before asserting which permission it names.
 
 ### Program Status dashboard — where the numbers stand
 
 The validation ledger measures **61 PASS / 4 NOT RUN / 1 BLOCKED** over 66 cases. Beads: **118
-total / 22 outstanding / 96 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
+total / 21 outstanding / 97 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
 Phase E closed 2026-07-28 with `awkit-d3c`. `DEFECTS.md` (34) and `TRACEABILITY_MATRIX.csv` (101
 rows) were not moved by this work — nothing here was detected by a validation case. Live parse
 warnings: **6**, all `defects HARNESS-00N: no Status field` (a pre-existing shape gap in that file's
@@ -101,15 +112,17 @@ in the sources that no assertion pins. A derived view is worth looking at, not j
 
 ### Recommended next step
 
-`awkit-0jp` — the renderer surface: a search entry point and a Settings → Semantic Index panel
-showing `SemanticHealth` and exposing rebuild/clear (both re-auth gated). **`global.css` Hologram
-tokens only** — no hardcoded hex, no arbitrary px, no parallel class system, and do not change the
-`.app-shell` / `.app-main` grids without explicit permission (`docs/ai/RULES.md` › UI). The preload
-surface it needs already exists and is typed.
+`awkit-thg` — incremental indexing events. Deliberately *not* trivial: `ExecutionEngine` has no event
+emitter, and plan §14.3 forbids an indexing exception reaching workflow execution. The bead already
+names the reusable projection helpers so the projections are not rewritten. Until it lands, freshness
+is rebuild-only and the Settings panel says so.
 
-Then `awkit-thg` (incremental indexing events). It is deliberately *not* trivial: `ExecutionEngine`
-has no event emitter, and plan §14.3 forbids an indexing exception reaching workflow execution. The
-bead already names the reusable projection helpers so the projections are not rewritten.
+After that, the contextual search entry points the owner scoped as follow-ups: embedding search into
+the Libraries, similar-failures into Reports → Failures, and locator suggestions into the Designers.
+**Call the hooks in `app/renderer/semantic/`, do not call the preload directly** — `useSemanticQuery`
+owns bounding, the empty/degraded distinction and reason-code messaging, and
+`useSensitiveSemanticAction` owns the re-auth-and-retry-once rule. They exist so those beads do not
+each reimplement it.
 
 ### Do-not-touch without explicit instruction
 

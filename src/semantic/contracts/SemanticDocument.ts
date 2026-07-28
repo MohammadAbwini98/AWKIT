@@ -23,30 +23,18 @@ import { createHash } from "node:crypto";
 /** Schema version of the document shape itself, independent of profile/runtime DB versions (§7.1). */
 export const SEMANTIC_SCHEMA_VERSION = 1;
 
-export type SemanticDocumentKind =
-  | "workflow"
-  | "flow"
-  | "node-template"
-  | "locator-success"
-  | "locator-failure"
-  | "run-failure"
-  | "run-summary"
-  | "documentation";
+// Kinds and query bounds live in `SemanticKinds.ts` and are re-exported here so every existing
+// importer is unchanged. They are separate because this module imports `node:crypto`, which makes it
+// impossible to bundle into the renderer — see that file's header.
+export {
+  SEMANTIC_DEFAULT_TOP_K,
+  SEMANTIC_DOCUMENT_KINDS,
+  SEMANTIC_MAX_TOP_K,
+  isSemanticDocumentKind,
+  type SemanticDocumentKind
+} from "./SemanticKinds";
 
-export const SEMANTIC_DOCUMENT_KINDS: readonly SemanticDocumentKind[] = [
-  "workflow",
-  "flow",
-  "node-template",
-  "locator-success",
-  "locator-failure",
-  "run-failure",
-  "run-summary",
-  "documentation"
-];
-
-export function isSemanticDocumentKind(value: unknown): value is SemanticDocumentKind {
-  return typeof value === "string" && (SEMANTIC_DOCUMENT_KINDS as readonly string[]).includes(value);
-}
+import { SEMANTIC_DOCUMENT_KINDS, type SemanticDocumentKind } from "./SemanticKinds";
 
 export type SemanticOutcome = "success" | "failure" | "cancelled" | "unknown";
 
@@ -272,8 +260,6 @@ export interface SemanticSearchRequest {
   groupBy?: "kind" | "workflowId" | "errorCategory" | "hostname";
 }
 
-export const SEMANTIC_DEFAULT_TOP_K = 20;
-export const SEMANTIC_MAX_TOP_K = 100;
 
 /**
  * One result.

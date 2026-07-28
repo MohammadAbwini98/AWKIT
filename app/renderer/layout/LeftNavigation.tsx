@@ -44,7 +44,7 @@ function SpecterAppIcon({ size = 32 }: { size?: number }) {
 const routeGroups = [
   {
     label: "Build",
-    routes: ["dashboard", "workflowsLibrary", "scenarioBuilder", "flowLibrary", "flowChart", "formDesigner", "recorder"] satisfies RouteId[]
+    routes: ["dashboard", "workflowsLibrary", "scenarioBuilder", "flowLibrary", "semanticSearch", "flowChart", "formDesigner", "recorder"] satisfies RouteId[]
   },
   {
     label: "Data",
