@@ -2,8 +2,10 @@
 
 ## TAKEOFF (2026-07-28) — consolidated handoff, read this first
 
-**Repository state:** `main` @ `190565a`, working tree clean, `origin/main` in sync, Dolt data ref
-pushed. Nothing is half-committed and no branch or worktree is outstanding. AWKIT is single-branch
+**Repository state:** working tree clean, `origin/main` in sync, Dolt data ref pushed. Nothing is
+half-committed and no branch or worktree is outstanding. The last **code-bearing** commit is
+`190565a`; anything after it on `main` is documentation, including this note — so `git log -1` will
+show a later sha, and that is expected rather than drift. AWKIT is single-branch
 (`docs/ai/BRANCH_AND_COMMIT_POLICY.md`); do not create branches or worktrees.
 
 **What the last five commits did** — three of feature work, then two of reconciliation that found
