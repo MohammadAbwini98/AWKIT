@@ -573,10 +573,21 @@ handler and its verifier enforce identical rules: bounded strings and arrays, `t
 renderer cannot supply a Zvec expression, a collection path, or any filesystem path. Responses carry
 stable reason codes; no native or vendor error crosses the boundary.
 
-Still absent: `similarFailures` / `suggestLocators` (no run-failure or locator projections yet, and
-no indexing events), automatic indexing, and any renderer UI. `semantic:cancelRebuild` answers
-`NOT_SUPPORTED` because the orchestrator has no cancellation token and the pointer swap is an
-irreversible commit point.
+**What the index contains, and the source chosen for each.** `semanticSnapshot.ts` projects flows and
+workflows from their profile stores, plus two bounded *recall* sources: recent runs
+(`SEMANTIC_RUN_HISTORY_LIMIT`) and locator memory (`SEMANTIC_LOCATOR_MEMORY_LIMIT`). Run documents
+are built from **`RunHistoryRow`, not `DurableRunRecord`** — the row carries `errorClass` but no raw
+error string and no URL, so there is structurally nothing to leak; `errorSummary` stays unpopulated
+for the same reason. Locator documents project **only the winning strategy**: the stored signature is
+`JSON.stringify({ strategy, value, name, exact })`, and `value`/`name` are a real element's selector
+and accessible name. The authoring stores THROW when unreadable (a partial snapshot would activate an
+index denying the user's automation exists); the two recall sources DEGRADE instead, because losing
+them costs only suggestion quality.
+
+Still absent: incremental indexing events — documents reach the index through the rebuild snapshot
+only, so results are as fresh as the last rebuild — and any renderer UI.
+`semantic:cancelRebuild` answers `NOT_SUPPORTED` because the orchestrator has no cancellation token
+and the pointer swap is an irreversible commit point.
 
 ## Architectural constraints (Confirmed)
 

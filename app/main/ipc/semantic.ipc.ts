@@ -21,8 +21,10 @@ import { ipcMain } from "electron";
 
 import { Permission } from "@src/security/authz/Permissions";
 import {
+  sanitizeLocatorSuggestionRequest,
   sanitizeSearchRequest,
   sanitizeSettingsPatch,
+  sanitizeSimilarFailureRequest,
   type SemanticAdminResponse,
   type SemanticSearchResponse,
   type SemanticSettingsView,
@@ -36,7 +38,9 @@ import {
   rebuildSemanticIndex,
   searchSemanticIndex,
   semanticSettings,
-  semanticStatusView
+  semanticStatusView,
+  similarSemanticFailures,
+  suggestSemanticLocators
 } from "../semantic/semanticService";
 
 export function registerSemanticIpc(): void {
@@ -54,6 +58,26 @@ export function registerSemanticIpc(): void {
       return { code: "INVALID_REQUEST", hits: [], degraded: false, message: sanitized.errors.join(" ") };
     }
     return searchSemanticIndex(sanitized.value);
+  });
+
+  ipcMain.handle("semantic:similarFailures", async (event, request: unknown): Promise<SemanticSearchResponse> => {
+    // A distinct permission: failure similarity exposes cross-run diagnostic patterns, which is a
+    // different disclosure from searching the automation the user authored.
+    await assertSenderPermission(event, Permission.SEMANTIC_VIEW_FAILURE_SIMILARITY);
+    const sanitized = sanitizeSimilarFailureRequest(request);
+    if (!sanitized.ok) {
+      return { code: "INVALID_REQUEST", hits: [], degraded: false, message: sanitized.errors.join(" ") };
+    }
+    return similarSemanticFailures(sanitized.value);
+  });
+
+  ipcMain.handle("semantic:suggestLocators", async (event, request: unknown): Promise<SemanticSearchResponse> => {
+    await assertSenderPermission(event, Permission.SEMANTIC_SEARCH);
+    const sanitized = sanitizeLocatorSuggestionRequest(request);
+    if (!sanitized.ok) {
+      return { code: "INVALID_REQUEST", hits: [], degraded: false, message: sanitized.errors.join(" ") };
+    }
+    return suggestSemanticLocators(sanitized.value);
   });
 
   ipcMain.handle("semantic:rebuild", async (event): Promise<SemanticAdminResponse> => {

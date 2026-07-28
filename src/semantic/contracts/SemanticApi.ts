@@ -90,6 +90,24 @@ export interface SemanticSettingsPatch {
   defaultTopK?: number;
 }
 
+/** Find failures resembling this one. `excludeRunId` keeps the query out of its own results. */
+export interface SimilarFailureRequest {
+  text: string;
+  workflowId?: string;
+  errorCategory?: string;
+  excludeRunId?: string;
+  topK?: number;
+}
+
+/** Which locator strategies have worked before in this scope. */
+export interface LocatorSuggestionRequest {
+  workflowId?: string;
+  flowId?: string;
+  nodeType?: string;
+  text?: string;
+  topK?: number;
+}
+
 export type SemanticSanitizeResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
 function boundedString(value: unknown, max: number): string | undefined {
@@ -159,6 +177,59 @@ export function sanitizeSearchRequest(input: unknown): SemanticSanitizeResult<Se
   };
 
   return errors.length > 0 ? { ok: false, errors } : { ok: true, value: request };
+}
+
+/**
+ * Both derived queries reuse `sanitizeSearchRequest` for the fields they share.
+ *
+ * Written as a delegation rather than a second copy of the bounding rules: two sanitizers drift, and
+ * the weaker one becomes the way in. Only the fields unique to each request are handled here.
+ */
+export function sanitizeSimilarFailureRequest(input: unknown): SemanticSanitizeResult<SimilarFailureRequest> {
+  const base = sanitizeSearchRequest(input);
+  if (!base.ok) return base;
+  const raw = input as Record<string, unknown>;
+
+  let excludeRunId: string | undefined;
+  if (raw.excludeRunId !== undefined) {
+    excludeRunId = boundedString(raw.excludeRunId, SEMANTIC_MAX_FILTER_LENGTH);
+    if (excludeRunId === undefined) {
+      return { ok: false, errors: ["excludeRunId must be a non-empty string when provided."] };
+    }
+  }
+
+  return {
+    ok: true,
+    value: {
+      text: base.value.text,
+      topK: base.value.topK,
+      ...(base.value.workflowId ? { workflowId: base.value.workflowId } : {}),
+      ...(base.value.errorCategory ? { errorCategory: base.value.errorCategory } : {}),
+      ...(excludeRunId ? { excludeRunId } : {})
+    }
+  };
+}
+
+export function sanitizeLocatorSuggestionRequest(input: unknown): SemanticSanitizeResult<LocatorSuggestionRequest> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return { ok: false, errors: ["Locator suggestion request must be an object."] };
+  }
+  const raw = input as Record<string, unknown>;
+  // `text` is optional here but required by the shared sanitizer, so a placeholder stands in for the
+  // shared bounding pass and is then discarded. The scope filters are what actually narrow this query.
+  const base = sanitizeSearchRequest({ ...raw, text: raw.text ?? "locator" });
+  if (!base.ok) return base;
+
+  return {
+    ok: true,
+    value: {
+      topK: base.value.topK,
+      ...(typeof raw.text === "string" && raw.text.trim() ? { text: base.value.text } : {}),
+      ...(base.value.workflowId ? { workflowId: base.value.workflowId } : {}),
+      ...(base.value.flowId ? { flowId: base.value.flowId } : {}),
+      ...(base.value.nodeType ? { nodeType: base.value.nodeType } : {})
+    }
+  };
 }
 
 /** Validate a settings patch. `defaultTopK` is bounded by the same ceiling the search path enforces. */

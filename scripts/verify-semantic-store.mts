@@ -35,6 +35,8 @@ import {
 } from "@src/semantic/contracts/SemanticApi";
 import { SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
+import type { RunHistoryRow } from "@src/reports/TelemetryContracts";
+import type { LocatorRecoveryRecord } from "@src/runner/LocatorRecoveryStore";
 import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 let passed = 0;
@@ -328,6 +330,90 @@ console.log("\nRebuild snapshot (authoritative flow + workflow projection):\n");
   corpus = [flow(), flow({ id: "flow-second", name: "Second" })];
   check("a later snapshot re-resolves the sources", (await relocating()).length === 2, `${resolutions} resolutions`);
   check("the sources were resolved once per snapshot", resolutions === 2, `${resolutions} resolutions`);
+}
+
+console.log("\nRun + locator projection (recall sources):\n");
+{
+  const run = (over: Partial<RunHistoryRow> = {}): RunHistoryRow => ({
+    instanceId: "run-1",
+    executionId: "exec-1",
+    scenarioId: "workflow-nightly",
+    scenarioName: "Nightly regression",
+    status: "completed",
+    startedAt: "2026-07-28T00:00:00.000Z",
+    endedAt: "2026-07-28T00:01:00.000Z",
+    durationMs: 60_000,
+    ...over
+  });
+
+  const sourcesWith = (runs: RunHistoryRow[], locators: LocatorRecoveryRecord[]) => ({
+    flows: { list: async () => [] },
+    workflows: { list: async () => [] },
+    runs: { list: async () => runs },
+    locators: { list: async () => locators }
+  });
+
+  const mixed = await buildSemanticSnapshot(
+    sourcesWith([run(), run({ instanceId: "run-2", status: "failed", errorClass: "TimeoutError" })], [])
+  );
+  // Every run yields a summary; only a failure additionally yields a failure document.
+  check("each run produces a summary document", mixed.documents.filter((d) => d.kind === "run-summary").length === 2);
+  check("only the failed run produces a failure document", mixed.documents.filter((d) => d.kind === "run-failure").length === 1);
+  check(
+    "the failure document is the failed run",
+    mixed.documents.find((d) => d.kind === "run-failure")?.entityId === "run-2"
+  );
+  check("the failure carries the bounded error class", /TimeoutError/.test(JSON.stringify(mixed.documents)));
+  check("run projection rejects nothing well-formed", mixed.rejected.length === 0, JSON.stringify(mixed.rejected));
+
+  const cancelled = await buildSemanticSnapshot(sourcesWith([run({ status: "cancelled" })], []));
+  check("a cancelled run is not indexed as a failure", cancelled.documents.every((d) => d.kind !== "run-failure"));
+
+  // Locator memory: strategy only. `winningCandidateSignature` embeds the selector value and the
+  // element's accessible name, which is exactly what must never be indexed.
+  const locatorRecord = (over: Partial<LocatorRecoveryRecord> = {}): LocatorRecoveryRecord => ({
+    version: 1,
+    scopeKey: ["workflow-nightly", "flow-login", "step-3"].join(String.fromCharCode(0)),
+    candidatesDigest: "d".repeat(64),
+    winningCandidateSignature: JSON.stringify({
+      strategy: "role",
+      value: "#account-4417-2299",
+      name: "Jane Q. Customer",
+      exact: true
+    }),
+    source: "recorded-candidate",
+    updatedAt: "2026-07-28T00:00:00.000Z",
+    ...over
+  });
+
+  const loc = await buildSemanticSnapshot(sourcesWith([], [locatorRecord()]));
+  check("a locator memory record produces one document", loc.documents.filter((d) => d.kind === "locator-success").length === 1);
+  const serialized = JSON.stringify(loc.documents);
+  check("the winning strategy IS indexed", /role/.test(serialized));
+  check("the selector value is NEVER indexed", !/account-4417-2299/.test(serialized), serialized.slice(0, 200));
+  check("the element's accessible name is NEVER indexed", !/Jane Q. Customer/.test(serialized));
+  check("the scope is preserved for filtering", /workflow-nightly/.test(serialized) && /flow-login/.test(serialized));
+
+  // A record this layer cannot address yields no document AND is not counted as read, or the
+  // report's `read - rejected === documents` identity would silently break.
+  const unparseable = await buildSemanticSnapshot(
+    sourcesWith([], [locatorRecord({ winningCandidateSignature: "not-json" }), locatorRecord()])
+  );
+  check("an unparseable signature is skipped, not rejected", unparseable.rejected.length === 0);
+  check("the skipped record is not counted as read", unparseable.read === 1, `read=${unparseable.read}`);
+  check("read minus rejected still equals documents", unparseable.read - unparseable.rejected.length === unparseable.documents.length);
+
+  // Derived sources degrade; they must not take the whole snapshot down the way an authoring store does.
+  const degraded = await buildSemanticSnapshot({
+    flows: { list: async () => [] },
+    workflows: { list: async () => [] },
+    runs: { list: async () => { throw new Error("EIO"); } },
+    locators: { list: async () => { throw new Error("EIO"); } }
+  });
+  check("an unreadable recall source degrades instead of throwing", degraded.documents.length === 0 && degraded.read === 0);
+
+  const absent = await buildSemanticSnapshot({ flows: { list: async () => [] }, workflows: { list: async () => [] } });
+  check("omitted recall sources are valid", absent.documents.length === 0);
 }
 
 console.log("\nRenderer API contract (untrusted input is sanitized, not trusted):\n");

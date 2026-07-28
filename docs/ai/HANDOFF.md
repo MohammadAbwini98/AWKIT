@@ -1,6 +1,37 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-28, latest): semantic product surface started (`awkit-c7j`)
+## ACTIVE (2026-07-28, latest): `awkit-9xh` closed — all nine semantic channels serve real data
+
+Run and locator documents now reach the index, so `semantic:similarFailures` and
+`semantic:suggestLocators` work. All nine plan §11 channels exist; only `cancelRebuild` answers
+`NOT_SUPPORTED`, and that remains deliberate.
+
+**Two privacy rules are load-bearing here — do not "enrich" these projections without re-reading
+them.** Run documents come from `RunHistoryRow`, NOT `DurableRunRecord`, because the row has no raw
+error string and no URL; `errorSummary` is intentionally unpopulated. Locator documents project only
+`.strategy` out of `winningCandidateSignature`, whose `value` and `name` fields are a real element's
+selector and accessible name. `verify:semantic-store` pins both and both went red under mutation.
+
+**Freshness is rebuild-only by owner decision.** No incremental indexing events — `ExecutionEngine`
+has no emitter and plan §14.3 forbids indexing exceptions reaching workflow execution. `awkit-thg`
+carries that work and already names the reusable projection helpers.
+
+Proof: build PASS · semantic-store **215/0** · authz 53/0 · semantic-rebuild 64/0 · real-host
+rebuild 24/0 · ipc-contract 4/4 · recorder 110/0 · runner 89/0 · source-hygiene 7/0 · roadmap
+135/135.
+
+**Trap that cost time:** writing the NUL `scopeKey` separator as a string escape made an editing tool
+emit a **literal NUL byte** into the source. `verify:source-hygiene` forbids that. Use
+`String.fromCharCode(0)`.
+
+**Next:** `awkit-0jp` — the renderer surface (search UI + Settings → Semantic Index panel),
+`global.css` tokens only. `awkit-thg` for incremental freshness.
+
+Dashboard counts are **118 / 22 outstanding / 96 closed**; ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**. Run `bd export -o .beads/issues.jsonl` after any `bd` mutation —
+`verify:roadmap-dashboard` parses that export, and new `blocks` edges move its edge pin too.
+
+## ACTIVE (2026-07-28): semantic product surface started (`awkit-c7j`)
 
 The semantic subsystem is reachable from the renderer for the first time, behind main-process
 authorization. Five permissions (plan §10), a pure `SemanticApi.ts` sanitizer shared by the handler

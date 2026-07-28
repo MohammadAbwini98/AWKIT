@@ -4,7 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - `awkit-c7j` semantic product surface: RBAC + service + IPC/preload (Claude)
+## 2026-07-28 (latest) - `awkit-9xh` run + locator projections; similarFailures / suggestLocators (Claude)
+
+**Task:** give the index run and locator documents so the last two plan §11 channels can work.
+
+**Result:** `LocatorRecoveryStore.list()` added (bounded, tolerant of unparseable records);
+`semanticSnapshot.ts` now projects run-summary, run-failure and locator-success alongside flows and
+workflows; `semantic:similarFailures` and `semantic:suggestLocators` implemented and exposed. Run
+documents are built from `RunHistoryRow` rather than `DurableRunRecord` because the row has no raw
+error string and no URL — nothing to leak. Locator documents carry the winning strategy only, never
+the selector or the matched element's name. Owner decision: no incremental indexing events this
+round (`awkit-thg`); freshness comes from rebuild, which avoids touching the runner hot path.
+
+**Files:** `src/runner/LocatorRecoveryStore.ts`, `app/main/semantic/semanticSnapshot.ts`,
+`app/main/semantic/semanticService.ts`, `src/semantic/contracts/SemanticApi.ts`,
+`app/main/ipc/semantic.ipc.ts`, `app/main/preload.ts`, `scripts/verify-semantic-store.mts`,
+`scripts/verify-roadmap-dashboard.mjs`, `.beads/`, `docs/ai/`.
+
+**Verification:** build PASS; semantic-store **215/0** (was 199); authz 53/0; semantic-rebuild 64/0;
+real-host semantic-rebuild-live 24/0; ipc-contract 4/4 (213 handlers, 191 exposed); recorder 110/0;
+runner 89/0; source-hygiene 7/0; roadmap 135/135. Two mutations red before revert (indexing the full
+locator signature leaked the selector and the accessible name; treating non-success as failure
+indexed cancelled runs). **Not run:** packaging/offline gates — neither surface touched.
+
+**Gotcha:** writing the NUL `scopeKey` separator as a string escape made an editing tool emit a
+literal NUL byte into the source, which `verify:source-hygiene` forbids. Use
+`String.fromCharCode(0)` — no tool can re-expand that into a control character.
+
+## 2026-07-28 - `awkit-c7j` semantic product surface: RBAC + service + IPC/preload (Claude)
 
 **Task:** begin the semantic product surface — permissions, an authorized main-process service, and
 the IPC/preload contract.

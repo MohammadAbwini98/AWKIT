@@ -20,6 +20,9 @@
 
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import { isWorkflowFlowNode, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import type { RunHistoryRow } from "@src/reports/TelemetryContracts";
+import type { LocatorRecoveryRecord, LocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
+import type { SemanticOutcome } from "@src/semantic/contracts/SemanticDocument";
 import {
   projectAndValidate,
   type SemanticRejection,
@@ -30,13 +33,32 @@ import type { ProfileStore } from "@src/storage/ProfileStore";
 /** Only `list()` is needed. Narrowing the dependency keeps a verifier's fakes small and honest. */
 export type SemanticSnapshotSource<TProfile extends { id: string }> = Pick<ProfileStore<TProfile>, "list">;
 
+/**
+ * Most recent runs projected into the index.
+ *
+ * Run history grows without bound, so this is capped deliberately rather than incidentally: the
+ * semantic index is a recall aid over recent work, not an archive. Raising it costs rebuild time
+ * linearly.
+ */
+export const SEMANTIC_RUN_HISTORY_LIMIT = 500;
+/** Locator memory grows with every distinct step ever resolved; same reasoning. */
+export const SEMANTIC_LOCATOR_MEMORY_LIMIT = 2000;
+
 export interface SemanticSnapshotSources {
   flows: SemanticSnapshotSource<FlowProfile>;
   workflows: SemanticSnapshotSource<WorkflowProfile>;
+  /**
+   * Optional. Absent sources contribute nothing rather than failing — a build without a runtime
+   * store still indexes flows and workflows.
+   */
+  runs?: { list(limit: number): Promise<readonly RunHistoryRow[]> };
+  locators?: Pick<LocatorRecoveryStore, "list">;
 }
 
+export type SemanticSnapshotKind = "flow" | "workflow" | "run-summary" | "run-failure" | "locator-success";
+
 export interface SemanticSnapshotRejection {
-  kind: "flow" | "workflow";
+  kind: SemanticSnapshotKind;
   /** The entity's own id. Never its content — a rejection detail must not become a leak. */
   entityId: string;
   reasons: SemanticRejection[];
@@ -49,12 +71,37 @@ export interface SemanticSnapshotReport {
   rejected: SemanticSnapshotRejection[];
 }
 
-/** Thrown when a source cannot be enumerated. Never carries a path or a vendor message. */
+/**
+ * Thrown when a source cannot be enumerated. Never carries a path or a vendor message.
+ *
+ * Only the AUTHORING sources throw. Runs and locator memory are derived, best-effort recall data:
+ * losing them degrades suggestion quality, whereas losing flows or workflows would activate an index
+ * that silently claims the user's automation does not exist.
+ */
 export class SemanticSnapshotError extends Error {
   constructor(readonly source: "flows" | "workflows") {
     super(`SNAPSHOT_SOURCE_UNREADABLE: ${source}`);
     this.name = "SemanticSnapshotError";
   }
+}
+
+/**
+ * Field separator inside `LocatorRecoveryRecord.scopeKey` (see `LocatorFactory.scopeKey`).
+ *
+ * Built with `fromCharCode` rather than written as a literal or an escape: `verify:source-hygiene`
+ * forbids literal control characters in TS sources, and an escape sequence in a string literal is
+ * easy for an editing tool to silently re-expand into the very literal the guard rejects. This form
+ * cannot be re-expanded.
+ */
+const LOCATOR_SCOPE_SEPARATOR = String.fromCharCode(0);
+
+/** Map a durable run status onto the bounded semantic outcome enum. */
+function runOutcome(status: string): SemanticOutcome {
+  const normalized = status.toLowerCase();
+  if (normalized === "completed" || normalized === "success" || normalized === "passed") return "success";
+  if (normalized === "failed" || normalized === "error") return "failure";
+  if (normalized === "cancelled" || normalized === "canceled" || normalized === "stopped") return "cancelled";
+  return "unknown";
 }
 
 /** A timestamp the validator would reject is worse than none: absent means "use now". */
@@ -114,6 +161,81 @@ export function workflowSemanticSource(
 }
 
 /**
+ * The allowlisted view of a completed run (`SEMANTIC_PROJECTION_ALLOWLIST["run-summary"]`).
+ *
+ * Built from `RunHistoryRow`, which is deliberately the narrowest run projection AWKIT already has:
+ * it carries `errorClass` but **no raw error string and no URL**. `DurableRunRecord` has both, and
+ * the plan excludes them structurally because an error message routinely embeds tokens and a URL
+ * embeds query parameters. Reading the narrower row means there is nothing here to leak.
+ */
+export function runSummarySemanticSource(run: RunHistoryRow): Record<string, unknown> {
+  return {
+    runId: run.instanceId,
+    workflowId: run.scenarioId,
+    outcome: runOutcome(run.status),
+    durationMs: run.durationMs,
+    updatedAt: timestamp(run.endedAt ?? run.startedAt)
+  };
+}
+
+/**
+ * The allowlisted view of a failed run (`SEMANTIC_PROJECTION_ALLOWLIST["run-failure"]`).
+ *
+ * `errorSummary` is deliberately NOT populated. The allowlist permits a redacted, bounded sentence,
+ * but the only text available at this layer is the raw error, which is exactly what the projection
+ * excludes. `errorClass` is the classifier's bounded label and carries the diagnostic value without
+ * the payload; inventing a summary from the raw string would reintroduce the leak the allowlist
+ * exists to prevent.
+ */
+export function runFailureSemanticSource(run: RunHistoryRow): Record<string, unknown> {
+  return {
+    runId: run.instanceId,
+    // The execution is the attempt: `RunHistoryRow` has no retry counter, and a stable per-attempt
+    // discriminator is what keeps two attempts of one run from collapsing onto the same document.
+    attemptId: run.executionId,
+    workflowId: run.scenarioId,
+    errorCategory: run.errorClass ?? run.reportCategory,
+    outcome: runOutcome(run.status),
+    updatedAt: timestamp(run.endedAt ?? run.startedAt)
+  };
+}
+
+/**
+ * The allowlisted view of remembered locator memory (`SEMANTIC_PROJECTION_ALLOWLIST["locator-success"]`).
+ *
+ * **Only the winning STRATEGY is projected, never the selector or the matched text.**
+ * `winningCandidateSignature` is `JSON.stringify({ strategy, value, name, exact })`, so `value` and
+ * `name` are the accessible name and selector of a real element — an account number in a table row,
+ * a person's name. This reads `.strategy` out of that JSON and discards the rest; the fingerprint,
+ * which holds text and attributes, is not read at all.
+ */
+export function locatorSemanticSource(record: LocatorRecoveryRecord): Record<string, unknown> | undefined {
+  // scopeKey is scenarioId + NUL + flowId + NUL + stepId (LocatorFactory.scopeKey). The separator is
+  // written as an escape, never a literal control character - verify:source-hygiene enforces that.
+  const [workflowId, flowId, nodeId] = record.scopeKey.split(LOCATOR_SCOPE_SEPARATOR);
+  if (!workflowId || !nodeId) return undefined;
+
+  let locatorStrategy: string | undefined;
+  try {
+    const parsed = JSON.parse(record.winningCandidateSignature) as { strategy?: unknown };
+    if (typeof parsed.strategy === "string") locatorStrategy = parsed.strategy;
+  } catch {
+    return undefined;
+  }
+  if (!locatorStrategy) return undefined;
+
+  return {
+    workflowId,
+    flowId: flowId || undefined,
+    nodeId,
+    locatorStrategy,
+    // `source` is a two-value enum describing HOW the locator was learned, not what it matched.
+    contextKind: record.source,
+    updatedAt: timestamp(record.updatedAt)
+  };
+}
+
+/**
  * Read both stores and project every entity. Throws only when a store is unreadable.
  *
  * Returns the full report rather than just the documents so a caller can tell "the user has no
@@ -138,7 +260,7 @@ export async function buildSemanticSnapshot(sources: SemanticSnapshotSources): P
   const documents: ValidatedSemanticDocument[] = [];
   const rejected: SemanticSnapshotRejection[] = [];
 
-  const project = (kind: "flow" | "workflow", entityId: string, source: Record<string, unknown>): void => {
+  const project = (kind: SemanticSnapshotKind, entityId: string, source: Record<string, unknown>): void => {
     const result = projectAndValidate(kind, source);
     if (result.ok) documents.push(result.document);
     else rejected.push({ kind, entityId, reasons: result.rejections });
@@ -149,7 +271,50 @@ export async function buildSemanticSnapshot(sources: SemanticSnapshotSources): P
     project("workflow", workflow.id, workflowSemanticSource(workflow, flowNameById));
   }
 
-  return { documents, read: flows.length + workflows.length, rejected };
+  // Derived recall sources. Unlike the authoring stores above these degrade rather than throw: an
+  // unreadable run history costs suggestion quality, whereas an unreadable flow store would activate
+  // an index that claims the user's automation does not exist.
+  let runs: readonly RunHistoryRow[] = [];
+  if (sources.runs) {
+    try {
+      runs = await sources.runs.list(SEMANTIC_RUN_HISTORY_LIMIT);
+    } catch {
+      runs = [];
+    }
+  }
+  for (const run of runs) {
+    project("run-summary", run.instanceId, runSummarySemanticSource(run));
+    // Only failures get a failure document. Projecting every run as a failure would make
+    // `similarFailures` return successes, which is worse than returning nothing.
+    if (runOutcome(run.status) === "failure") {
+      project("run-failure", run.instanceId, runFailureSemanticSource(run));
+    }
+  }
+
+  let locators: readonly LocatorRecoveryRecord[] = [];
+  if (sources.locators) {
+    try {
+      locators = await sources.locators.list(SEMANTIC_LOCATOR_MEMORY_LIMIT);
+    } catch {
+      locators = [];
+    }
+  }
+  let locatorsRead = 0;
+  for (const record of locators) {
+    const source = locatorSemanticSource(record);
+    // An unparseable scopeKey or signature yields no document and is not a rejection: nothing was
+    // wrong with the record, this layer simply cannot address it. Counting it as read would break
+    // the `read - rejected === documents` identity the report promises.
+    if (!source) continue;
+    locatorsRead += 1;
+    project("locator-success", record.scopeKey, source);
+  }
+
+  return {
+    documents,
+    read: flows.length + workflows.length + runs.length + runs.filter((r) => runOutcome(r.status) === "failure").length + locatorsRead,
+    rejected
+  };
 }
 
 /**

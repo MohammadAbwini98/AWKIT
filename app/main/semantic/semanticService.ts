@@ -11,18 +11,22 @@
  */
 
 import { app } from "electron";
-import path from "node:path";
+import path, { join } from "node:path";
 import fs from "node:fs";
 
-import { getRuntimeDataRoot } from "../appPaths";
+import { getRuntimeDataRoot, getRuntimePaths } from "../appPaths";
 import { getUiSettings } from "../uiSettings";
+import { executionEngine } from "@src/runner/ExecutionEngine";
+import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 
 import { SEMANTIC_MAX_TOP_K, type SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
 import type {
+  LocatorSuggestionRequest,
   SemanticAdminResponse,
   SemanticSearchResponse,
   SemanticSettingsView,
-  SemanticStatusView
+  SemanticStatusView,
+  SimilarFailureRequest
 } from "@src/semantic/contracts/SemanticApi";
 
 import { buildSemanticHealth, type SemanticHealth } from "@src/semantic/contracts/SemanticHealth";
@@ -154,7 +158,20 @@ export function getSemanticHostManager(): ZvecUtilityHostManager | null {
         // Resolved per rebuild, not captured here: the flow and workflow folders are configurable in
         // Settings, and a store pinned at startup would keep indexing the previous location.
         snapshot: createSemanticSnapshotProvider(
-          () => ({ flows: createFlowProfileStore(), workflows: createWorkflowProfileStore() }),
+          () => ({
+            flows: createFlowProfileStore(),
+            workflows: createWorkflowProfileStore(),
+            // Bounded, most-recent-first. `queryRunHistory` clamps a page to 500 rows, which is the
+            // same ceiling the snapshot wants, so the clamp is the contract rather than a surprise.
+            runs: {
+              list: async (limit) =>
+                executionEngine.getTelemetryRunHistory({}, { limit, offset: 0 }).rows
+            },
+            // Must match `ExecutionEngine`'s own `join(dirs.root, "locator-recovery")`, where
+            // `dirs.root` is `getRuntimePaths().root` (see execution.ipc `resolveStorageDirs`).
+            // Pointing elsewhere would silently index an empty folder.
+            locators: new FileLocatorRecoveryStore(join(getRuntimePaths().root, "locator-recovery"))
+          }),
           logSemantic
         ),
         logger: logSemantic
@@ -327,6 +344,45 @@ export async function searchSemanticIndex(request: SemanticSearchRequest): Promi
     logSemantic("warn", `Semantic search failed: ${describeError(error)}`);
     return { code: "SEARCH_FAILED", hits: [], degraded: false, message: "The search could not be completed." };
   }
+}
+
+/**
+ * Failures resembling a given one (plan §11.1).
+ *
+ * Implemented as a scoped search over `run-failure` documents rather than a separate retrieval path,
+ * so it inherits the identical sanitization, ranking and explainability. The requesting run is
+ * excluded from its own results — returning the query as its own best match is noise, not similarity.
+ */
+export async function similarSemanticFailures(request: SimilarFailureRequest): Promise<SemanticSearchResponse> {
+  const response = await searchSemanticIndex({
+    text: request.text,
+    kinds: ["run-failure"],
+    topK: request.topK,
+    ...(request.workflowId ? { workflowId: request.workflowId } : {}),
+    ...(request.errorCategory ? { errorCategory: request.errorCategory } : {})
+  });
+  if (response.code !== "OK" || !request.excludeRunId) return response;
+  return { ...response, hits: response.hits.filter((hit) => hit.entityId !== request.excludeRunId) };
+}
+
+/**
+ * Locator strategies that have worked before for this workflow/flow (plan §11.1).
+ *
+ * Returns `locator-success` documents, which record WHICH STRATEGY resolved an element and never the
+ * selector or the matched text — so a suggestion can say "role worked here before" without ever
+ * surfacing the account number that element displayed.
+ */
+export async function suggestSemanticLocators(request: LocatorSuggestionRequest): Promise<SemanticSearchResponse> {
+  return searchSemanticIndex({
+    // The strategy vocabulary is the searchable content for this kind; an empty query would match
+    // nothing, so the caller's node type is used as the text when it supplies no other hint.
+    text: request.text ?? request.nodeType ?? "locator",
+    kinds: ["locator-success"],
+    topK: request.topK,
+    ...(request.workflowId ? { workflowId: request.workflowId } : {}),
+    ...(request.flowId ? { flowId: request.flowId } : {}),
+    ...(request.nodeType ? { nodeType: request.nodeType } : {})
+  });
 }
 
 /**

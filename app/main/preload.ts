@@ -5,11 +5,13 @@ import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import type { OfflineRuntimeStatus } from "@src/offline/OfflineRuntimeValidator";
 import type { SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
 import type {
+  LocatorSuggestionRequest,
   SemanticAdminResponse,
   SemanticSearchResponse,
   SemanticSettingsPatch,
   SemanticSettingsView,
-  SemanticStatusView
+  SemanticStatusView,
+  SimilarFailureRequest
 } from "@src/semantic/contracts/SemanticApi";
 import type { RunWorkflowRequest } from "./ipc/execution.ipc";
 import type { FlowValidationStatusDto as FlowValidationStatus } from "./ipc/validation.ipc";
@@ -280,6 +282,10 @@ const api = {
     getStatus: () => ipcRenderer.invoke("semantic:getStatus") as Promise<SemanticStatusView>,
     search: (request: SemanticSearchRequest) =>
       ipcRenderer.invoke("semantic:search", request) as Promise<SemanticSearchResponse>,
+    similarFailures: (request: SimilarFailureRequest) =>
+      ipcRenderer.invoke("semantic:similarFailures", request) as Promise<SemanticSearchResponse>,
+    suggestLocators: (request: LocatorSuggestionRequest) =>
+      ipcRenderer.invoke("semantic:suggestLocators", request) as Promise<SemanticSearchResponse>,
     rebuild: () => ipcRenderer.invoke("semantic:rebuild") as Promise<SemanticAdminResponse>,
     cancelRebuild: () => ipcRenderer.invoke("semantic:cancelRebuild") as Promise<SemanticAdminResponse>,
     clear: () => ipcRenderer.invoke("semantic:clear") as Promise<SemanticAdminResponse>,

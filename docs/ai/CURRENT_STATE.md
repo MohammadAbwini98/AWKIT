@@ -1,6 +1,49 @@
 # CURRENT_STATE
 
-## Zvec Phase 2 tranche 1 — semantic product surface: RBAC + service + IPC/preload (2026-07-28, current)
+## Zvec Phase 2 tranche 2 — run + locator projections, similarFailures / suggestLocators (2026-07-28, current)
+
+`awkit-9xh`. The last two channels from plan §11 now work, because the index finally contains
+documents about *runs* and *locator memory*, not just authored flows and workflows.
+
+**Source choice is the privacy control.** Run documents are built from `RunHistoryRow`, **not**
+`DurableRunRecord`. The row carries `errorClass` but no raw error string and no URL, so there is
+structurally nothing to leak — `DurableRunRecord` has both, and the plan excludes them because an
+error message routinely embeds tokens and a URL embeds query parameters. `errorSummary` is
+deliberately left unpopulated: the allowlist permits a redacted sentence, but the only text at this
+layer is the raw error, and inventing a summary from it would reintroduce exactly the leak the
+allowlist prevents.
+
+**Locator documents project only the winning strategy.** `winningCandidateSignature` is
+`JSON.stringify({ strategy, value, name, exact })`, so `value` and `name` are a real element's
+selector and accessible name. Only `.strategy` is read; the fingerprint, which holds text and
+attributes, is not read at all. Two verifier assertions pin this and both went red under a mutation
+that indexed the full signature.
+
+Also added: `LocatorRecoveryStore.list()` (bounded; skips unparseable records rather than throwing),
+a `run-failure` document only for genuinely failed runs — a cancelled run is not a failure, or
+`similarFailures` would return cancellations — and bounded corpora
+(`SEMANTIC_RUN_HISTORY_LIMIT` 500, `SEMANTIC_LOCATOR_MEMORY_LIMIT` 2000), because both sources grow
+without bound. The two recall sources **degrade** on read failure while the authoring stores still
+throw: losing run history costs suggestion quality, losing flows would activate an index claiming the
+user's automation does not exist.
+
+**Freshness comes from rebuild only.** Owner decision: no incremental indexing events this round.
+`ExecutionEngine` has no event emitter, and adding one touches the runner hot path where plan §14.3
+forbids exception propagation into workflow execution. Tracked as `awkit-thg`.
+
+Verification: build PASS · `verify:semantic-store` **215/0** (was 199) · `verify:authz` 53/0 ·
+`verify:semantic-rebuild` 64/0 · real-host `verify:semantic-rebuild-live` **24/0** ·
+`verify:ipc-contract` 4/4 (213 handlers, 191 exposed) · `verify:recorder` 110/0 · `verify:runner`
+89/0 · `verify:source-hygiene` 7/0 · roadmap dashboard 135/135. Two mutations red before revert.
+
+**Gotcha worth remembering:** writing the NUL `scopeKey` separator as a string escape caused an
+editing tool to emit a **literal NUL byte** into the source, which `verify:source-hygiene` forbids.
+Fixed by deriving it as `String.fromCharCode(0)` — a form no tool can re-expand.
+
+Dashboard source counts are **118 beads / 22 outstanding / 96 closed**. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+## Zvec Phase 2 tranche 1 — semantic product surface: RBAC + service + IPC/preload (2026-07-28)
 
 `awkit-c7j`. The semantic subsystem is now reachable from the renderer for the first time, behind
 main-process authorization.
