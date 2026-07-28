@@ -16,6 +16,7 @@
 *.css text eol=lf
 *.html text eol=lf
 *.toml text eol=lf
+*.pem text eol=lf
 
 # Shell scripts
 *.sh text eol=lf
