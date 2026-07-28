@@ -186,6 +186,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:packaged-runtime": { class: "packaged-application", why: "Smoke of the packaged app runtime." },
   "verify:packaged-walkthrough": { class: "packaged-application", why: "Packaged clean-profile release-candidate walkthrough." },
   "validate:offline": { class: "packaged-application", why: "Validates the offline dependency bundle (sql-wasm, resources, manifest)." },
+  "verify:offline-supply-chain": { class: "packaged-application", why: "Verifies the pinned browser archive/payload policy, Ed25519-signed dependency manifest, runtime tamper detection, and real staged resources/vendor trees." },
 
   // ── Semantic subsystem (Zvec) ────────────────────────────────────────────────────────────────
   // Added 2026-07-25. Phase 1A introduced these twelve scripts without registering them, so this

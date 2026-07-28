@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { BundledBrowserResolver } from "./BundledBrowserResolver";
 import { loadDependencyManifest, validateDependencyManifestPolicy } from "./DependencyManifest";
 import type { RuntimePaths } from "./PortablePathResolver";
+import { validateOfflineSupplyChain } from "./SupplyChainIntegrity";
 
 export interface OfflineRuntimeCheck {
   key: string;
@@ -39,6 +40,9 @@ export class OfflineRuntimeValidator {
     const offlineManifestPath = options.offlineManifestPath ?? join(options.resourcesRoot, "offline-runtime.json");
     const manifest = await loadDependencyManifest(manifestPath);
     const manifestPolicyIssues = validateDependencyManifestPolicy(manifest);
+    const supplyChainIssues = options.productionOffline
+      ? await validateOfflineSupplyChain(options.resourcesRoot, manifest)
+      : [];
     const offlineManifestExists = existsSync(offlineManifestPath);
     const rootWritable = await this.canWrite(options.runtimePaths.root);
     const playwrightRuntimeExists = this.playwrightRuntimeExists();
@@ -66,6 +70,14 @@ export class OfflineRuntimeValidator {
           label: "Dependency manifest",
           ok: manifest !== null && manifestPolicyIssues.length === 0,
           detail: manifestPolicyIssues.length ? manifestPolicyIssues.join(" ") : manifestPath
+        },
+        {
+          key: "supplyChain",
+          label: "Offline payload authenticity",
+          ok: supplyChainIssues.length === 0,
+          detail: supplyChainIssues.length
+            ? supplyChainIssues.join(" ")
+            : "Dependency manifest signature and bundled Chromium approval hashes verified."
         },
         {
           key: "offlineManifest",

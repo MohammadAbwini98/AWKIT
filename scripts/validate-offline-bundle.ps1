@@ -11,8 +11,15 @@ $root = if ([string]::IsNullOrWhiteSpace($RootPath)) {
 } else {
   Resolve-Path $RootPath
 }
+. (Join-Path $PSScriptRoot "lib\offline-browser-integrity.ps1")
+$browserPolicy = Get-AwkitOfflineBrowserPolicy -RootPath $root
 $manifest = Join-Path $root "resources\dependency-manifest.json"
 $browser = Join-Path $root "resources\browsers\chromium\chrome.exe"
+$browserRoot = Split-Path $browser -Parent
+$browserProvenance = Join-Path $root "resources\browsers\chromium-provenance.json"
+$vendorBrowserRoot = Join-Path $root "vendor\browsers\chromium"
+$manifestSignature = Join-Path $root "resources\dependency-manifest.sig"
+$manifestPublicKey = Join-Path $root "resources\trust\offline-manifest-public.pem"
 $offlineRuntime = Join-Path $root "resources\offline-runtime.json"
 $playwrightRuntime = Join-Path $root "node_modules\playwright"
 $playwrightCoreRuntime = Join-Path $root "node_modules\playwright-core"
@@ -24,15 +31,22 @@ $sampleScenarios = Join-Path $root "resources\sample-scenarios"
 $sampleData = Join-Path $root "resources\sample-data"
 
 if ($PackagingInputsOnly) {
-  if (-not (Test-Path -LiteralPath $browser -PathType Leaf)) {
-    throw "Offline packaging refused before build. Missing required input: $browser"
+  try {
+    Assert-AwkitPlaywrightPin -RootPath $root -Policy $browserPolicy
+    [void](Assert-AwkitBrowserTree -BrowserRoot $browserRoot -Policy $browserPolicy)
+    [void](Assert-AwkitBrowserTree -BrowserRoot $vendorBrowserRoot -Policy $browserPolicy)
+    if (-not (Test-Path -LiteralPath $browserProvenance -PathType Leaf)) {
+      throw "Approved browser provenance is missing: $browserProvenance"
+    }
+    $signatureOutput = & node (Join-Path $PSScriptRoot "offline-manifest-signature.mjs") verify --manifest $manifest --signature $manifestSignature --public-key $manifestPublicKey 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      throw "Dependency-manifest signature verification failed: $signatureOutput"
+    }
+  } catch {
+    throw "Offline packaging refused before build. $($_.Exception.Message)"
   }
 
-  if ((Get-Item -LiteralPath $browser).Length -le 0) {
-    throw "Offline packaging refused before build. Incomplete required input (empty file): $browser"
-  }
-
-  Write-Host "Offline packaging input preflight passed: $browser"
+  Write-Host "Offline packaging input preflight passed: Chromium $($browserPolicy.browser.version), revision $($browserPolicy.browser.revision), payload $($browserPolicy.browser.payload.sha256)"
   return
 }
 
@@ -44,6 +58,10 @@ if (-not (Test-Path $manifest)) {
 $manifestJson = Get-Content -Raw $manifest | ConvertFrom-Json
 $failures = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
+$signatureOutput = & node (Join-Path $PSScriptRoot "offline-manifest-signature.mjs") verify --manifest $manifest --signature $manifestSignature --public-key $manifestPublicKey 2>&1
+if ($LASTEXITCODE -ne 0) {
+  $failures.Add("Dependency-manifest signature verification failed: $signatureOutput")
+}
 
 function Add-Problem {
   param([string]$Message, [bool]$IsStrictFailure)
@@ -62,46 +80,6 @@ function Test-Property {
   )
 
   return $null -ne $Object -and ($Object.PSObject.Properties.Name -contains $Name)
-}
-
-function Get-PayloadTreeDigest {
-  param([string]$Path)
-
-  $resolvedRoot = (Resolve-Path -LiteralPath $Path).Path.TrimEnd("\")
-  $excludedRelativePaths = @("debug.log")
-  $files = @(Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse -Force |
-    Where-Object { $excludedRelativePaths -notcontains $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") } |
-    Sort-Object { $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") })
-  $lines = New-Object System.Text.StringBuilder
-  [long]$totalBytes = 0
-
-  foreach ($file in $files) {
-    $relativePath = $file.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/")
-    $fileHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-    [void]$lines.Append($relativePath)
-    [void]$lines.Append("`0")
-    [void]$lines.Append([string]$file.Length)
-    [void]$lines.Append("`0")
-    [void]$lines.Append($fileHash)
-    [void]$lines.Append("`n")
-    $totalBytes += $file.Length
-  }
-
-  $sha256 = [System.Security.Cryptography.SHA256]::Create()
-  try {
-    $digestBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($lines.ToString()))
-    $digest = -join ($digestBytes | ForEach-Object { $_.ToString("x2") })
-  } finally {
-    $sha256.Dispose()
-  }
-
-  return [ordered]@{
-    algorithm = "sha256-tree-v1"
-    sha256 = $digest
-    fileCount = $files.Count
-    totalBytes = $totalBytes
-    excludedRelativePaths = $excludedRelativePaths
-  }
 }
 
 function Require-Section {
@@ -125,7 +103,7 @@ function Require-Boolean {
   }
 }
 
-foreach ($section in @("schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies", "semanticNative")) {
+foreach ($section in @("schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "supplyChain", "dependencies", "semanticNative")) {
   Require-Section $section
 }
 
@@ -135,6 +113,14 @@ if (-not (Test-Path $offlineRuntime)) {
 
 if (-not (Test-Path $browser)) {
   Add-Problem "Bundled Chromium is not present: $browser" $Strict
+} else {
+  try {
+    Assert-AwkitPlaywrightPin -RootPath $root -Policy $browserPolicy
+    [void](Assert-AwkitBrowserTree -BrowserRoot $browserRoot -Policy $browserPolicy)
+    [void](Assert-AwkitBrowserTree -BrowserRoot $vendorBrowserRoot -Policy $browserPolicy)
+  } catch {
+    $failures.Add($_.Exception.Message)
+  }
 }
 
 if (-not (Test-Path $playwrightRuntime) -or -not (Test-Path $playwrightCoreRuntime)) {
@@ -163,6 +149,12 @@ if (Test-Property $manifestJson "application") {
   if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.buildMode)) {
     $failures.Add("Manifest build mode is required.")
   }
+  if ([string]$manifestJson.application.sourceCommit -notmatch "^[0-9a-f]{40}$") {
+    $failures.Add("Manifest sourceCommit must be an exact Git commit.")
+  }
+  if ($Strict -and $manifestJson.application.sourceTreeDirty -ne $false) {
+    $failures.Add("Strict mode requires the dependency manifest to come from a clean source tree.")
+  }
   if (Test-Property $manifestJson.application "builtAt") {
     $failures.Add("Manifest application.builtAt is ambiguous; use top-level manifestGeneratedAt.")
   }
@@ -172,8 +164,8 @@ if ([string]::IsNullOrWhiteSpace([string]$manifestJson.manifestGeneratedAt)) {
   $failures.Add("Manifest generation timestamp is required: manifestGeneratedAt.")
 }
 
-if ($manifestJson.schema.version -lt 2) {
-  $failures.Add("Manifest schema version 2 or newer is required for payload provenance.")
+if ($manifestJson.schema.version -lt 3) {
+  $failures.Add("Manifest schema version 3 or newer is required for signed supply-chain provenance.")
 }
 
 if (Test-Property $manifestJson "offline") {
@@ -229,7 +221,7 @@ if (Test-Property $manifestJson "browsers") {
             ([string]$provenance.hash.sha256) -notmatch "^[0-9a-f]{64}$") {
           $failures.Add("Chromium payload provenance must include a sha256-tree-v1 digest.")
         } else {
-          $actualDigest = Get-PayloadTreeDigest (Split-Path $browser -Parent)
+          $actualDigest = Get-AwkitPayloadTreeDigest -Path (Split-Path $browser -Parent) -ExcludedRelativePaths @($provenance.hash.excludedRelativePaths)
           if ($actualDigest.sha256 -ne $provenance.hash.sha256 -or
               $actualDigest.fileCount -ne $provenance.hash.fileCount -or
               $actualDigest.totalBytes -ne $provenance.hash.totalBytes -or
@@ -239,6 +231,16 @@ if (Test-Property $manifestJson "browsers") {
         }
       }
     }
+  }
+}
+
+if (Test-Property $manifestJson "supplyChain") {
+  if ($manifestJson.supplyChain.browserPolicyPath -ne "resources/offline-browser-policy.json" -or
+      $manifestJson.supplyChain.manifestSignaturePath -ne "resources/dependency-manifest.sig" -or
+      $manifestJson.supplyChain.publicKeyPath -ne "resources/trust/offline-manifest-public.pem" -or
+      $manifestJson.supplyChain.signatureAlgorithm -ne "Ed25519" -or
+      $manifestJson.supplyChain.payloadEquivalenceModel -ne "path-size-sha256") {
+    $failures.Add("Manifest supplyChain section does not match the signed offline packaging contract.")
   }
 }
 

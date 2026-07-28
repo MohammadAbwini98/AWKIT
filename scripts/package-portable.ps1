@@ -14,4 +14,9 @@ npx electron-builder --win portable --config electron-builder.json
 # success and leave a stale EXE on disk. Observed 2026-07-06.
 if ($LASTEXITCODE -ne 0) { throw "electron-builder (portable) failed with exit code $LASTEXITCODE" }
 
+$packageJson = Get-Content -Raw (Join-Path $PSScriptRoot "..\package.json") | ConvertFrom-Json
+$artifact = Join-Path $PSScriptRoot "..\dist\SpecterStudio $($packageJson.version).exe"
+node (Join-Path $PSScriptRoot "write-artifact-provenance.mjs") --artifact $artifact --kind portable
+if ($LASTEXITCODE -ne 0) { throw "portable artifact provenance failed with exit code $LASTEXITCODE" }
+
 Write-Host "Portable package created under dist/."

@@ -14,4 +14,9 @@ npx electron-builder --win nsis --config electron-builder.json
 # success and leave a stale installer on disk. Observed 2026-07-06.
 if ($LASTEXITCODE -ne 0) { throw "electron-builder (nsis) failed with exit code $LASTEXITCODE" }
 
+$packageJson = Get-Content -Raw (Join-Path $PSScriptRoot "..\package.json") | ConvertFrom-Json
+$artifact = Join-Path $PSScriptRoot "..\dist\SpecterStudio Setup $($packageJson.version).exe"
+node (Join-Path $PSScriptRoot "write-artifact-provenance.mjs") --artifact $artifact --kind nsis
+if ($LASTEXITCODE -ne 0) { throw "NSIS artifact provenance failed with exit code $LASTEXITCODE" }
+
 Write-Host "Per-user installer created under dist/."

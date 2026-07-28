@@ -33,6 +33,7 @@ electron.vite.config.*.mjs
 
 # === Bundled offline runtime (large binaries — Chromium, native modules, npm cache) ===
 vendor/
+.release-local/
 resources/browsers/
 
 # === Oracle JDBC bridge: compiled artifacts + the generated bridge bundle (staged at package time) ===

@@ -5,6 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
+. (Join-Path $PSScriptRoot "lib\offline-browser-integrity.ps1")
 $packageJsonPath = Join-Path $root "package.json"
 $resourcesRoot = Join-Path $root "resources"
 $manifestPath = Join-Path $resourcesRoot "dependency-manifest.json"
@@ -18,6 +19,14 @@ $sqlJsWasm = Join-Path $nodeModules "sql.js\dist\sql-wasm.wasm"
 $sqlJsJs = Join-Path $nodeModules "sql.js\dist\sql-wasm.js"
 
 $packageJson = Get-Content -Raw $packageJsonPath | ConvertFrom-Json
+$browserPolicy = Get-AwkitOfflineBrowserPolicy -RootPath $root
+Assert-AwkitPlaywrightPin -RootPath $root -Policy $browserPolicy
+$sourceCommit = (& git -C $root rev-parse HEAD 2>$null).Trim()
+if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch "^[0-9a-f]{40}$") {
+  throw "Cannot generate release provenance without an exact source commit."
+}
+$sourceChanges = @(& git -C $root status --porcelain -- . ":(exclude)resources/dependency-manifest.json" ":(exclude)resources/dependency-manifest.sig")
+$sourceTreeDirty = $sourceChanges.Count -gt 0
 
 function Get-DependencyVersion {
   param([string]$Name)
@@ -31,50 +40,6 @@ function Get-DependencyVersion {
   }
 
   return "not-used"
-}
-
-function Get-PayloadTreeDigest {
-  param([string]$Path)
-
-  if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
-    return $null
-  }
-
-  $resolvedRoot = (Resolve-Path -LiteralPath $Path).Path.TrimEnd("\")
-  $excludedRelativePaths = @("debug.log")
-  $files = @(Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse -Force |
-    Where-Object { $excludedRelativePaths -notcontains $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") } |
-    Sort-Object { $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") })
-  $lines = New-Object System.Text.StringBuilder
-  [long]$totalBytes = 0
-
-  foreach ($file in $files) {
-    $relativePath = $file.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/")
-    $fileHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-    [void]$lines.Append($relativePath)
-    [void]$lines.Append("`0")
-    [void]$lines.Append([string]$file.Length)
-    [void]$lines.Append("`0")
-    [void]$lines.Append($fileHash)
-    [void]$lines.Append("`n")
-    $totalBytes += $file.Length
-  }
-
-  $sha256 = [System.Security.Cryptography.SHA256]::Create()
-  try {
-    $digestBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($lines.ToString()))
-    $digest = -join ($digestBytes | ForEach-Object { $_.ToString("x2") })
-  } finally {
-    $sha256.Dispose()
-  }
-
-  return [ordered]@{
-    algorithm = "sha256-tree-v1"
-    sha256 = $digest
-    fileCount = $files.Count
-    totalBytes = $totalBytes
-    excludedRelativePaths = $excludedRelativePaths
-  }
 }
 
 # === Optional semantic native host (Zvec) ===
@@ -120,11 +85,18 @@ if ($null -ne $zvecHostManifest) {
 }
 
 $browserExists = Test-Path $browserPath
-$browserPayloadDigest = Get-PayloadTreeDigest $browserRoot
+$browserPayloadDigest = if ($browserExists) {
+  Assert-AwkitBrowserTree -BrowserRoot $browserRoot -Policy $browserPolicy
+} else {
+  $null
+}
 $browserAcquisition = if (Test-Path -LiteralPath $browserProvenancePath -PathType Leaf) {
   Get-Content -Raw -LiteralPath $browserProvenancePath | ConvertFrom-Json
 } else {
   $null
+}
+if ($browserExists -and $null -eq $browserAcquisition) {
+  throw "Bundled Chromium exists without approved acquisition provenance. Run npm run prepare:offline."
 }
 $nodeModulesIncluded = Test-Path $nodeModules
 $nativeModulesPath = Join-Path $root "vendor\native-modules"
@@ -163,30 +135,20 @@ if ($browserExists) {
 
 $browserPayloadProvenance = if ($browserExists) {
   [ordered]@{
-    source = if ($null -ne $browserAcquisition) {
-      [string]$browserAcquisition.source
-    } else {
-      "legacy staged payload; acquisition details unavailable"
-    }
-    requestedPlaywrightVersion = if ($null -ne $browserAcquisition) {
-      [string]$browserAcquisition.requestedPlaywrightVersion
-    } else {
-      Get-DependencyVersion "playwright"
-    }
-    installedPlaywrightVersion = if ($null -ne $browserAcquisition) {
-      [string]$browserAcquisition.installedPlaywrightVersion
-    } elseif (Test-Path (Join-Path $playwrightRuntime "package.json")) {
-      [string]((Get-Content -Raw (Join-Path $playwrightRuntime "package.json") | ConvertFrom-Json).version)
-    } else {
-      "unavailable"
-    }
-    stagedAt = if ($null -ne $browserAcquisition) {
-      [string]$browserAcquisition.stagedAt
-    } else {
-      $null
-    }
-    sourceTimestamp = (Get-Item -LiteralPath $browserPath).LastWriteTimeUtc.ToString("o")
-    sourceTimestampBasis = "chrome.exe LastWriteTimeUtc; payload source metadata, not manifest generation time"
+    approvalPolicy = [string]$browserAcquisition.approvalPolicy
+    approvalPolicySha256 = [string]$browserAcquisition.approvalPolicySha256
+    source = [string]$browserAcquisition.source
+    sourceUrl = [string]$browserAcquisition.sourceUrl
+    sourceArchiveSha256 = [string]$browserAcquisition.sourceArchiveSha256
+    sourceArchiveSize = [long]$browserAcquisition.sourceArchiveSize
+    requestedPlaywrightVersion = [string]$browserAcquisition.requestedPlaywrightVersion
+    installedPlaywrightVersion = [string]$browserAcquisition.installedPlaywrightVersion
+    browserRevision = [string]$browserAcquisition.browserRevision
+    browserVersion = [string]$browserAcquisition.browserVersion
+    executableSha256 = [string]$browserAcquisition.executableSha256
+    stagedAt = [string]$browserAcquisition.stagedAt
+    sourceTimestamp = [string]$browserAcquisition.sourceTimestamp
+    sourceTimestampBasis = [string]$browserAcquisition.sourceTimestampBasis
     hash = $browserPayloadDigest
   }
 } else {
@@ -196,7 +158,7 @@ $browserPayloadProvenance = if ($browserExists) {
 $manifest = [ordered]@{
   schema = [ordered]@{
     name = "playwright-flow-studio-offline-dependency-manifest"
-    version = 2
+    version = 3
     sourceTemplate = "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
   }
   manifestGeneratedAt = (Get-Date).ToUniversalTime().ToString("o")
@@ -204,6 +166,8 @@ $manifest = [ordered]@{
     name = "SpecterStudio"
     version = [string]$packageJson.version
     buildMode = $BuildMode
+    sourceCommit = $sourceCommit
+    sourceTreeDirty = $sourceTreeDirty
   }
   offline = [ordered]@{
     internetRequired = $false
@@ -229,6 +193,7 @@ $manifest = [ordered]@{
       included = $browserExists
       relativeExecutablePath = "resources/browsers/chromium/chrome.exe"
       version = $browserVersion
+      revision = [string]$browserPolicy.browser.revision
       validated = $browserLaunchTestPassed
       payloadProvenance = $browserPayloadProvenance
     }
@@ -268,6 +233,14 @@ $manifest = [ordered]@{
     noInternetDownloadAttempted = $true
     noAdminOnlyPathRequired = $true
   }
+  supplyChain = [ordered]@{
+    browserPolicyPath = "resources/offline-browser-policy.json"
+    manifestSignaturePath = "resources/dependency-manifest.sig"
+    publicKeyPath = "resources/trust/offline-manifest-public.pem"
+    signatureAlgorithm = "Ed25519"
+    payloadEquivalenceModel = "path-size-sha256"
+    wholeArtifactHashPurpose = "identifies one accepted artifact; not reproducible-build proof"
+  }
   dependencies = [ordered]@{
     electron = Get-DependencyVersion "electron"
     playwright = Get-DependencyVersion "playwright"
@@ -287,6 +260,18 @@ New-Item -ItemType Directory -Force -Path (Join-Path $root "vendor") | Out-Null
 # emits a BOM, which makes Node's JSON.parse throw when the app reads the manifest.
 $manifestJson = $manifest | ConvertTo-Json -Depth 8
 [System.IO.File]::WriteAllText($manifestPath, $manifestJson, (New-Object System.Text.UTF8Encoding($false)))
-Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $root "vendor\dependency-manifest.json") -Force
+$signaturePath = Join-Path $resourcesRoot "dependency-manifest.sig"
+node (Join-Path $PSScriptRoot "offline-manifest-signature.mjs") sign --manifest $manifestPath --signature $signaturePath
+if ($LASTEXITCODE -ne 0) {
+  throw "Dependency-manifest signing failed with exit code $LASTEXITCODE"
+}
+
+$vendorRoot = Join-Path $root "vendor"
+$vendorTrustRoot = Join-Path $vendorRoot "trust"
+New-Item -ItemType Directory -Force -Path $vendorTrustRoot | Out-Null
+Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $vendorRoot "dependency-manifest.json") -Force
+Copy-Item -LiteralPath $signaturePath -Destination (Join-Path $vendorRoot "dependency-manifest.sig") -Force
+Copy-Item -LiteralPath (Join-Path $resourcesRoot "offline-browser-policy.json") -Destination (Join-Path $vendorRoot "offline-browser-policy.json") -Force
+Copy-Item -LiteralPath (Join-Path $resourcesRoot "trust\offline-manifest-public.pem") -Destination (Join-Path $vendorTrustRoot "offline-manifest-public.pem") -Force
 
 Write-Host "Generated dependency manifest: $manifestPath"

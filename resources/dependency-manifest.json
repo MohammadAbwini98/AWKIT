@@ -1,14 +1,16 @@
 {
     "schema":  {
                    "name":  "playwright-flow-studio-offline-dependency-manifest",
-                   "version":  2,
+                   "version":  3,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
-    "manifestGeneratedAt":  "2026-07-28T12:31:50.8659068Z",
+    "manifestGeneratedAt":  "2026-07-28T21:00:58.7304238Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.0",
-                        "buildMode":  "production-offline"
+                        "buildMode":  "production-offline-prep",
+                        "sourceCommit":  "7eb3fe270e7147d41805511a8fc2d7be1bea50d9",
+                        "sourceTreeDirty":  true
                     },
     "offline":  {
                     "internetRequired":  false,
@@ -34,14 +36,23 @@
                          "included":  true,
                          "relativeExecutablePath":  "resources/browsers/chromium/chrome.exe",
                          "version":  "149.0.7827.55",
+                         "revision":  "1228",
                          "validated":  true,
                          "payloadProvenance":  {
-                                                   "source":  "legacy staged payload; acquisition details unavailable",
-                                                   "requestedPlaywrightVersion":  "^1.49.1",
+                                                   "approvalPolicy":  "resources/offline-browser-policy.json",
+                                                   "approvalPolicySha256":  "b83abfc81c706e32148ad892fba626e75719068e57d3295d3f805ed2f5f31a80",
+                                                   "source":  "exact Playwright cache entry chromium-1228",
+                                                   "sourceUrl":  "https://cdn.playwright.dev/builds/cft/149.0.7827.55/win64/chrome-win64.zip",
+                                                   "sourceArchiveSha256":  "ebc0c2b75e2ea98151a7f18ff47037bfcbab44a8660e79b9ffa6520f9b7607ab",
+                                                   "sourceArchiveSize":  192511857,
+                                                   "requestedPlaywrightVersion":  "1.61.0",
                                                    "installedPlaywrightVersion":  "1.61.0",
-                                                   "stagedAt":  null,
-                                                   "sourceTimestamp":  "2026-06-17T20:40:25.2182236Z",
-                                                   "sourceTimestampBasis":  "chrome.exe LastWriteTimeUtc; payload source metadata, not manifest generation time",
+                                                   "browserRevision":  "1228",
+                                                   "browserVersion":  "149.0.7827.55",
+                                                   "executableSha256":  "b798f9e53a98d29eb7f36f8c409f905d3184780a04d2bcb56989067194784bd1",
+                                                   "stagedAt":  "2026-07-28T21:00:50.7808936Z",
+                                                   "sourceTimestamp":  "2026-05-29T03:10:27Z",
+                                                   "sourceTimestampBasis":  "Pinned archive Last-Modified recorded in offline-browser-policy.json",
                                                    "hash":  {
                                                                 "algorithm":  "sha256-tree-v1",
                                                                 "sha256":  "a6e86ba2c9c514294e6fcb5e8702a47c0f00c918cf704444ba556a9f15582ce7",
@@ -89,9 +100,17 @@
                              "noInternetDownloadAttempted":  true,
                              "noAdminOnlyPathRequired":  true
                          },
+    "supplyChain":  {
+                        "browserPolicyPath":  "resources/offline-browser-policy.json",
+                        "manifestSignaturePath":  "resources/dependency-manifest.sig",
+                        "publicKeyPath":  "resources/trust/offline-manifest-public.pem",
+                        "signatureAlgorithm":  "Ed25519",
+                        "payloadEquivalenceModel":  "path-size-sha256",
+                        "wholeArtifactHashPurpose":  "identifies one accepted artifact; not reproducible-build proof"
+                    },
     "dependencies":  {
-                         "electron":  "^33.2.1",
-                         "playwright":  "^1.49.1",
+                         "electron":  "33.4.11",
+                         "playwright":  "1.61.0",
                          "react":  "^18.3.1",
                          "reactFlow":  "not-used",
                          "framerMotion":  "11.18.2",

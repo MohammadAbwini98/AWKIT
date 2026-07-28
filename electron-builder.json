@@ -40,7 +40,12 @@
       "from": "vendor",
       "to": "vendor",
       "filter": [
-        "**/*"
+        "**/*",
+        "!browsers/**",
+        "!dependency-manifest.json",
+        "!dependency-manifest.sig",
+        "!offline-browser-policy.json",
+        "!trust/**"
       ]
     },
     {

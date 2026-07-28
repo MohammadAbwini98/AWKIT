@@ -11,6 +11,8 @@ export interface DependencyManifest {
     name: string;
     version: string;
     buildMode: string;
+    sourceCommit: string;
+    sourceTreeDirty: boolean;
   };
   offline: {
     internetRequired: boolean;
@@ -36,11 +38,20 @@ export interface DependencyManifest {
     included: boolean;
     relativeExecutablePath: string;
     version: string;
+    revision: string;
     validated: boolean;
     payloadProvenance: {
+      approvalPolicy: string;
+      approvalPolicySha256: string;
       source: string;
+      sourceUrl: string;
+      sourceArchiveSha256: string;
+      sourceArchiveSize: number;
       requestedPlaywrightVersion: string;
       installedPlaywrightVersion: string;
+      browserRevision: string;
+      browserVersion: string;
+      executableSha256: string;
       stagedAt: string | null;
       sourceTimestamp: string;
       sourceTimestampBasis: string;
@@ -56,6 +67,14 @@ export interface DependencyManifest {
   paths: Record<string, string>;
   validation: Record<string, boolean>;
   startupChecklist?: Record<string, boolean>;
+  supplyChain: {
+    browserPolicyPath: string;
+    manifestSignaturePath: string;
+    publicKeyPath: string;
+    signatureAlgorithm: string;
+    payloadEquivalenceModel: string;
+    wholeArtifactHashPurpose: string;
+  };
   dependencies: Record<string, string>;
 }
 
@@ -73,7 +92,7 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
   if (!manifest) return ["Dependency manifest is missing or invalid JSON."];
 
   const issues: string[] = [];
-  const requiredTopLevelSections = ["schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies"];
+  const requiredTopLevelSections = ["schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "supplyChain", "dependencies"];
   const requiredRuntimeFlags = ["electronIncluded", "nodeRuntimeIncluded", "productionNodeModulesIncluded", "nativeModulesIncluded"];
   const requiredValidationFlags = [
     "bundledBrowserExists",
@@ -92,12 +111,18 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
   if (manifest.application?.name !== "SpecterStudio") issues.push("Manifest application name must be SpecterStudio.");
   if (!manifest.application?.version) issues.push("Manifest application version is required.");
   if (!manifest.application?.buildMode) issues.push("Manifest build mode is required.");
+  if (!/^[0-9a-f]{40}$/.test(manifest.application?.sourceCommit ?? "")) {
+    issues.push("Manifest application sourceCommit must be an exact Git commit.");
+  }
+  if (manifest.application?.sourceTreeDirty !== false) {
+    issues.push("Release dependency manifest must be generated from a clean source tree.");
+  }
   if (!manifest.manifestGeneratedAt) issues.push("Manifest generation timestamp is required.");
   if ((manifest.application as Record<string, unknown>)?.builtAt) {
     issues.push("Manifest application.builtAt is ambiguous; use manifestGeneratedAt.");
   }
-  if (!manifest.schema || manifest.schema.version < 2) {
-    issues.push("Manifest schema version 2 or newer is required for payload provenance.");
+  if (!manifest.schema || manifest.schema.version < 3) {
+    issues.push("Manifest schema version 3 or newer is required for signed supply-chain provenance.");
   }
 
   if (manifest.offline?.internetRequired) issues.push("Manifest must not require internet access.");
@@ -131,6 +156,12 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
       issues.push("Manifest bundled Chromium entry must include payload provenance.");
     } else {
       if (!chromium.payloadProvenance.source) issues.push("Chromium payload provenance source is required.");
+      if (!chromium.payloadProvenance.approvalPolicySha256) {
+        issues.push("Chromium payload provenance must identify its approval policy.");
+      }
+      if (!chromium.payloadProvenance.sourceArchiveSha256 || !chromium.payloadProvenance.executableSha256) {
+        issues.push("Chromium payload provenance must include archive and executable SHA-256 values.");
+      }
       if (!chromium.payloadProvenance.requestedPlaywrightVersion) {
         issues.push("Chromium payload provenance must record the requested Playwright version.");
       }
@@ -144,6 +175,16 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
         issues.push("Chromium payload provenance must include a sha256-tree-v1 digest.");
       }
     }
+  }
+
+  if (
+    manifest.supplyChain?.browserPolicyPath !== "resources/offline-browser-policy.json" ||
+    manifest.supplyChain?.manifestSignaturePath !== "resources/dependency-manifest.sig" ||
+    manifest.supplyChain?.publicKeyPath !== "resources/trust/offline-manifest-public.pem" ||
+    manifest.supplyChain?.signatureAlgorithm !== "Ed25519" ||
+    manifest.supplyChain?.payloadEquivalenceModel !== "path-size-sha256"
+  ) {
+    issues.push("Manifest supply-chain contract is missing or invalid.");
   }
 
   for (const pathKey of requiredPaths) {

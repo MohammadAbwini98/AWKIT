@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "playwright": {
+    "version": "1.61.0",
+    "browserMetadataPath": "node_modules/playwright-core/browsers.json"
+  },
+  "browser": {
+    "name": "chromium",
+    "distribution": "Chrome for Testing",
+    "platform": "win64",
+    "revision": "1228",
+    "version": "149.0.7827.55",
+    "cacheDirectory": "chromium-1228",
+    "archiveRoot": "chrome-win64",
+    "relativeExecutablePath": "chrome.exe",
+    "archive": {
+      "url": "https://cdn.playwright.dev/builds/cft/149.0.7827.55/win64/chrome-win64.zip",
+      "sha256": "ebc0c2b75e2ea98151a7f18ff47037bfcbab44a8660e79b9ffa6520f9b7607ab",
+      "size": 192511857,
+      "sourceLastModifiedUtc": "2026-05-29T03:10:27Z"
+    },
+    "executableSha256": "b798f9e53a98d29eb7f36f8c409f905d3184780a04d2bcb56989067194784bd1",
+    "payload": {
+      "algorithm": "sha256-tree-v1",
+      "sha256": "a6e86ba2c9c514294e6fcb5e8702a47c0f00c918cf704444ba556a9f15582ce7",
+      "fileCount": 308,
+      "totalBytes": 435574347,
+      "excludedRelativePaths": [
+        "debug.log"
+      ]
+    }
+  },
+  "notices": {
+    "bundledNotice": "resources/THIRD_PARTY_NOTICES.md",
+    "chromeTerms": "chrome://terms",
+    "chromeCredits": "chrome://credits",
+    "playwrightLicense": "node_modules/playwright/LICENSE",
+    "playwrightNotice": "node_modules/playwright/NOTICE"
+  }
+}
