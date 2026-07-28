@@ -4,7 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - running the dashboard found two defects the verifiers could not (Claude)
+## 2026-07-28 (latest) - handoff refreshed for the next agent (Claude)
+
+**Task:** `/HANDOFF` — bring the takeoff note, current state and known issues in line with `main` @
+`190565a` so the next agent or human can start without re-deriving the day.
+
+**Result:** rewrote the TAKEOFF section of `HANDOFF.md` — repository state, a five-row commit table
+(three feature, two reconciliation), verification measured at `190565a`, and two traps promoted into
+it: the control-character escape hazard now extends to Markdown and is guarded, and `npm run build`
+does not typecheck `scripts/` (the combined gate `npm run verify:all-typecheck` already existed and
+is now named where it is needed). Added a new top section to `CURRENT_STATE.md` covering the
+verification-surface change, **with the ledger tally in it** — omitting it is the exact defect
+`9d87715` had to repair. Added the dashboard instruction that matters most: open the page, do not
+only gate on it; its Parse warnings panel reports source irregularities no assertion pins.
+
+**Files:** `docs/ai/HANDOFF.md`, `docs/ai/CURRENT_STATE.md`, `docs/ai/KNOWN_ISSUES.md`,
+`docs/ai/TASK_LOG.md`.
+
+**Verification:** `verify:roadmap-dashboard` 135/135 with the banner re-measured from
+`buildSnapshot()` after both narrative edits — `agrees: true`, `checked: 2`, both heads at 61/4/1;
+`verify:source-hygiene` 9/0 (the new Markdown scan covers every file edited here);
+`node scripts/ai-memory/check-memory.mjs` PASS. **Not run:** `npm run build` and every runner,
+packaging and offline gate — documentation only, no code, script or asset changed.
+
+**Remaining work is unchanged:** `awkit-0jp` (semantic renderer surface) then `awkit-thg`
+(incremental indexing). No blockers.
+
+## 2026-07-28 - running the dashboard found two defects the verifiers could not (Claude)
 
 **Task:** actually start `npm run roadmap` and read the rendered page, rather than trusting
 `verify:roadmap-dashboard`. Two real defects surfaced immediately, both invisible to every gate.

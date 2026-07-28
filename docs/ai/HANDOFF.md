@@ -2,26 +2,31 @@
 
 ## TAKEOFF (2026-07-28) — consolidated handoff, read this first
 
-**Repository state:** `main` @ `ea90491`, working tree clean, `origin/main` in sync, Dolt data ref
+**Repository state:** `main` @ `190565a`, working tree clean, `origin/main` in sync, Dolt data ref
 pushed. Nothing is half-committed and no branch or worktree is outstanding. AWKIT is single-branch
 (`docs/ai/BRANCH_AND_COMMIT_POLICY.md`); do not create branches or worktrees.
 
-**What the last three commits did (Zvec semantic subsystem, Phase 1B → Phase 2):**
+**What the last five commits did** — three of feature work, then two of reconciliation that found
+real defects:
 
 | Commit | Bead | Outcome |
 |---|---|---|
 | `07e697b` | `awkit-ttd` | `SemanticIndexRuntime` is constructed and **registered** in the Electron main process. It never had been — `setSemanticIndexRuntime` had zero callers, so health reported healthy unconditionally and every shutdown recorded clean. |
 | `8178bf4` | `awkit-c7j` | RBAC + authorized service + IPC/preload. Five permissions, seven channels on `window.playwrightFlowStudio.semantic`, `semantic` settings group. |
 | `ea90491` | `awkit-9xh` | Run + locator projections; `similarFailures` and `suggestLocators`. All nine plan §11 channels now serve real data. |
+| `9d87715` | — | Restored the dashboard consistency banner. A new top section here had been written without the ledger tally, which silently dropped this file from the banner (`checked` 2 → 1) while the page still read "Sources agree". |
+| `190565a` | — | Removed a literal NUL byte from `TASK_LOG.md`, **extended `verify:source-hygiene` to Markdown under `docs/`**, and unbroke `typecheck:scripts`, which had been red on `main` since `ea90491`. |
 
-**Verification at `ea90491`** (all executed, not inferred): `npm run build` PASS ·
+**Verification at `190565a`** (all executed, not inferred): `npm run build` PASS (at `ea90491`;
+no app-project file has changed since) · `npm run typecheck:scripts` PASS ·
 `verify:semantic-store` 215/0 · `verify:authz` 53/0 · `verify:semantic-rebuild` 64/0 · real-host
 `verify:semantic-rebuild-live` 24/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed) ·
 `verify:settings-e2e` 151/0 (real Electron) · `verify:recorder` 110/0 · `verify:runner` 89/0 ·
 `verify:semantic-policy` 141/0 · `verify:semantic-queue` 70/0 · `verify:security` 39/0 ·
-`verify:source-hygiene` 7/0 · `verify:verifier-classification` reconciled ·
-`verify:roadmap-dashboard` 135/135 with the consistency banner measured directly as `agrees: true`
-over 2 sources.
+`verify:source-hygiene` **9/0** (was 7/0 — two Markdown checks added, mutation-tested) ·
+`verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the
+consistency banner measured directly from `buildSnapshot()` as `agrees: true`, `checked: 2`,
+`staleClaims: 0` — not inferred from the check passing.
 
 **NOT run, and why:** packaging and offline gates (`validate:offline`, packaged-EXE, clean-machine)
 — none of this work touched a packaging or offline-runtime surface. No real-Electron end-to-end
@@ -48,10 +53,18 @@ plus the real-host suite. Treat those as open evidence gaps, not as passes.
 - **`ADMINISTRATOR_PERMISSIONS` is a denylist over `ALL_PERMISSIONS`.** Any new permission is granted
   to Administrator automatically. A Super-User-only permission that is not excluded there is a silent
   privilege grant.
-- **Do not write a control character as a `\uXXXX` escape in a TS source.** An editing tool wrote a
-  **literal NUL byte** instead; `grep` then reports the file as binary and a file read renders the
-  NUL as a space, so the source *looks* correct while `verify:source-hygiene` fails. Use
-  `String.fromCharCode(0)` — no tool can re-expand it.
+- **Do not write a control character as a `\uXXXX` escape — in a TS source *or in Markdown*.** An
+  editing tool expands it and writes a **literal NUL byte**; `grep` then answers "Binary file
+  matches" instead of showing the line, and a file read renders the NUL as a space, so the file
+  *looks* correct. Use `String.fromCharCode(0)` in code, or the token `U+0000` in prose. This has now
+  happened three times, twice in files about the trap itself. `verify:source-hygiene` covers
+  `src`/`app`/`scripts` `.ts` **and** `docs/**/*.md` as of `190565a`; before that a NUL sat in
+  `TASK_LOG.md` for many commits while the suite reported green.
+- **`npm run build` does NOT typecheck `scripts/`.** They are a separate project
+  (`tsconfig.scripts.json`). `tsx` strips types without checking them, so a verifier can be
+  type-broken while its own suite runs green and every task entry truthfully reports "build PASS" —
+  exactly what `ea90491` did. After editing anything under `scripts/`, run the combined gate
+  **`npm run verify:all-typecheck`** (`build` + `typecheck:scripts`).
 - **`bd close` / `bd create` do not refresh `.beads/issues.jsonl`.** That export is what
   `verify:roadmap-dashboard` parses. Run `bd export -o .beads/issues.jsonl` after any `bd` mutation.
   Closing a bead moves the outstanding/closed pins in `scripts/verify-roadmap-dashboard.mjs`, and
@@ -65,14 +78,24 @@ plus the real-host suite. Treat those as open evidence gaps, not as passes.
 
 The validation ledger measures **61 PASS / 4 NOT RUN / 1 BLOCKED** over 66 cases. Beads: **118
 total / 22 outstanding / 96 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
-Phase E closed today with `awkit-d3c`. `DEFECTS.md` (34) and `TRACEABILITY_MATRIX.csv` (101 rows)
-were not moved by this work — nothing here was detected by a validation case.
+Phase E closed 2026-07-28 with `awkit-d3c`. `DEFECTS.md` (34) and `TRACEABILITY_MATRIX.csv` (101
+rows) were not moved by this work — nothing here was detected by a validation case. Live parse
+warnings: **6**, all `defects HARNESS-00N: no Status field` (a pre-existing shape gap in that file's
+harness section, unowned by any bead).
 
 **This section is load-bearing for the consistency banner.** `parse-narrative.mjs` reads only the
 **newest** `##` section of this file and of `CURRENT_STATE.md`, and compares the tally it finds
 against the ledger's measured one. A new top section that omits the tally does not fail loudly — it
-silently drops the banner from two sources to one while still reading "Sources agree". Keep the
-`N PASS / N NOT RUN / N BLOCKED` numbers in whatever section you put at the top.
+silently drops the banner from two sources to one while still reading "Sources agree" (`agrees` is
+computed with `.every()`, vacuously true over zero copies; the only thing catching it is the
+`checked >= 2` assertion). Keep the `N PASS / N NOT RUN / N BLOCKED` numbers in whatever section you
+put at the top.
+
+**Open the page, do not only verify it.** `npm run roadmap` → <http://127.0.0.1:4380>. On
+2026-07-28 the rendered page surfaced two defects that `verify:roadmap-dashboard` 135/135,
+`verify:source-hygiene` 7/0 and a green `npm run build` had all passed over: the NUL byte, and a red
+`typecheck:scripts`. The page's own **Parse warnings** panel is the signal — it reports irregularities
+in the sources that no assertion pins. A derived view is worth looking at, not just gating on.
 
 ### Recommended next step
 

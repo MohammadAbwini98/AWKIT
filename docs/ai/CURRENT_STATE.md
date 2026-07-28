@@ -1,6 +1,33 @@
 # CURRENT_STATE
 
-## Zvec Phase 2 tranche 2 — run + locator projections, similarFailures / suggestLocators (2026-07-28, current)
+## Verification surface hardened; two silent gaps closed (2026-07-28, current)
+
+No product behaviour changed. What changed is what the gates actually cover, and two of them were
+lying by omission.
+
+**`npm run typecheck:scripts` was RED on `main`** from `ea90491` until `190565a`. `npm run build`
+typechecks the app project only; `scripts/` is a separate project (`tsconfig.scripts.json`), and
+`tsx` strips types without checking them. So a verifier script did not compile while its own suite
+ran 215/0 and every task entry truthfully reported "build PASS". Fixed by widening one cast through
+`unknown`; no assertion changed. **Use `npm run verify:all-typecheck` after touching `scripts/`** —
+it is `build` + `typecheck:scripts` and already existed.
+
+**`verify:source-hygiene` now scans `docs/**/*.md`, not only TypeScript** — 7 → 9 checks,
+mutation-tested (a probe file containing a NUL turns it red at 8/1). It previously scanned
+`src`/`app`/`scripts` for `.ts`/`.mts`/`.tsx` only, which is why a literal NUL byte survived in
+`docs/ai/TASK_LOG.md` across many commits: `grep` answers "Binary file matches" rather than showing
+the line, and the roadmap dashboard's reader strips NULs and merely warns. Only the **rendered**
+dashboard showed it. Its parse-warning message also named a hardcoded "offset 62127" that every
+append to that file had invalidated — the byte was at 102796. It now reports the count only.
+
+Both were found by opening `npm run roadmap` → <http://127.0.0.1:4380> and reading the page, after
+`verify:roadmap-dashboard` reported 135/135. Treat the dashboard's **Parse warnings** panel as a
+first-class signal: it reports irregularities in the sources that no assertion pins.
+
+Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads 118 / 22 outstanding / 96 closed;
+live parse warnings 7 → 6. `npm run build` not re-run — no app-project file changed.
+
+## Zvec Phase 2 tranche 2 — run + locator projections, similarFailures / suggestLocators (2026-07-28)
 
 `awkit-9xh`. The last two channels from plan §11 now work, because the index finally contains
 documents about *runs* and *locator memory*, not just authored flows and workflows.

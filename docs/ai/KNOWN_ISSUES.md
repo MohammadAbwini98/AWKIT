@@ -784,7 +784,8 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   entries truthfully report "build PASS" — which is what happened: `ea90491` landed a cast in
   `verify-semantic-store.mts` that `tsc -p tsconfig.scripts.json` rejects, and nothing noticed,
   because `tsx` strips types without checking them and the suite still ran 215/0. **After editing
-  anything under `scripts/`, run `typecheck:scripts` — the suite passing proves nothing about it.**
+  anything under `scripts/`, run the combined gate `npm run verify:all-typecheck`** (`build` +
+  `typecheck:scripts`) — the suite passing proves nothing about whether it compiles.
 
 - **Never write a control character as a `\uXXXX` escape in a source file — derive it in code.**
   (2026-07-28, hit twice in one session.) An editing tool expanded the escape and wrote a **literal
