@@ -129,6 +129,44 @@
     <script>
       var $ = function (id) { return document.getElementById(id); };
 
+      // Record-to-replay fidelity drift profiles. Capture always uses the baseline DOM. The
+      // fidelity verifier then changes only the goto URL in the persisted recorded flow so replay
+      // encounters realistic locator drift while the business controls and accessible names stay
+      // intact.
+      (function () {
+        var drift = new URLSearchParams(window.location.search).get("fidelityDrift");
+        if (drift !== "primary-loss" && drift !== "structural") return;
+
+        [
+          $("recorderFullName"),
+          $("recorderEmail"),
+          $("recorderPlan"),
+          $("recorderNewsletter"),
+          $("recorderSubmit")
+        ].forEach(function (el) {
+          el.removeAttribute("data-testid");
+        });
+
+        if (drift === "structural") {
+          $("recorderFullName").setAttribute("placeholder", "Full legal name");
+          $("recorderEmail").setAttribute("placeholder", "name@company.test");
+          $("recorderPlan").setAttribute("name", "subscriptionPlan");
+
+          [
+            $("recorderFullName"),
+            $("recorderEmail"),
+            $("recorderPlan"),
+            $("recorderNewsletter"),
+            $("recorderSubmit")
+          ].forEach(function (el, index) {
+            var wrapper = document.createElement("div");
+            wrapper.setAttribute("data-fidelity-wrapper", String(index + 1));
+            el.parentNode.insertBefore(wrapper, el);
+            wrapper.appendChild(el);
+          });
+        }
+      })();
+
       $("recorderSubmit").addEventListener("click", function () {
         $("recorderFormResult").textContent = "Recorder form saved for " + $("recorderFullName").value;
         // REC-018's resettable server-side oracle proves the production replay reproduced the

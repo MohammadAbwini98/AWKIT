@@ -11,6 +11,12 @@
 // A resettable mock-site oracle is cleared after capture, so only the production replay can create
 // the subsequently asserted submission.
 //
+// awkit-60w adds a numeric fidelity gate over three real six-action scenarios: baseline,
+// primary-locator loss, and structural/attribute drift. The first measured baseline was 100%.
+// Aggregate >=95% makes one lost action out of 18 turn the gate red (17/18 = 94.44%); per-scenario
+// >=80% prevents the aggregate from hiding a catastrophic local collapse (4/6 = 66.67%). These
+// thresholds come from this fixture's measured denominator, not the reference project's numbers.
+//
 // Run after `npm run build`:
 //   npm run verify:recorder-e2e
 import { _electron as electron } from "playwright";
@@ -39,6 +45,8 @@ const baseUrl = `http://127.0.0.1:${port}`;
 const targetUrl = `${baseUrl}/recorder-lab?rec018=1`;
 const flowName = "REC-018 Recorded Replay";
 const workflowId = "rec-018-replay-workflow";
+const MIN_AGGREGATE_FIDELITY_PERCENT = 95;
+const MIN_SCENARIO_FIDELITY_PERCENT = 80;
 const runStamp = new Date().toISOString().replace(/[:.]/g, "-");
 const evidenceDir = path.join(root, "test-artifacts", "recorder-e2e", runStamp);
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-recorder-e2e", {
@@ -53,6 +61,7 @@ const serverLogPath = path.join(evidenceDir, "mock-site.log");
 const results = [];
 const rendererErrors = [];
 const mockOutcomes = [];
+const fidelityScenarios = [];
 let app;
 let server;
 
@@ -147,6 +156,63 @@ function recorderMetadataMatches(actions, flow) {
 
 function businessActionSequence(actions) {
   return actions.map((action) => action.type).join(",");
+}
+
+function businessStepIds(flow) {
+  return (flow?.nodes ?? []).filter((node) => node.type !== "start" && node.type !== "end").map((node) => node.id);
+}
+
+function withReplayUrl(flow, url) {
+  const variant = JSON.parse(JSON.stringify(flow));
+  const goto = variant.nodes.find((node) => node.type === "goto");
+  if (!goto?.valueSource) throw new Error("Recorded flow has no goto valueSource to target the drift fixture.");
+  goto.valueSource.value = url;
+  goto.name = `Navigate to ${url}`;
+  variant.updatedAt = new Date().toISOString();
+  return variant;
+}
+
+function percent(matched, total) {
+  return total > 0 ? Number(((matched / total) * 100).toFixed(2)) : 0;
+}
+
+function enforceFidelityGate() {
+  console.log("\nRecord-to-replay fidelity:");
+  console.log("  Scenario                              Matched   Total   Fidelity   Outcome");
+  for (const scenario of fidelityScenarios) {
+    console.log(
+      `  ${scenario.label.padEnd(37)} ${String(scenario.matchedSteps).padStart(7)} ${String(scenario.totalSteps).padStart(7)} ${`${scenario.fidelityPercent.toFixed(2)}%`.padStart(10)}   ${scenario.outcomeMatched ? "matched" : "missed"}`
+    );
+  }
+
+  const matchedSteps = fidelityScenarios.reduce((sum, scenario) => sum + scenario.matchedSteps, 0);
+  const totalSteps = fidelityScenarios.reduce((sum, scenario) => sum + scenario.totalSteps, 0);
+  const aggregatePercent = percent(matchedSteps, totalSteps);
+  console.log(`  ${"AGGREGATE".padEnd(37)} ${String(matchedSteps).padStart(7)} ${String(totalSteps).padStart(7)} ${`${aggregatePercent.toFixed(2)}%`.padStart(10)}`);
+
+  check("fidelity gate covers baseline plus two distinct DOM-drift profiles", fidelityScenarios.length === 3);
+  for (const scenario of fidelityScenarios) {
+    check(
+      `${scenario.label} fidelity is at least ${MIN_SCENARIO_FIDELITY_PERCENT}%`,
+      scenario.fidelityPercent >= MIN_SCENARIO_FIDELITY_PERCENT,
+      `${scenario.matchedSteps}/${scenario.totalSteps} = ${scenario.fidelityPercent.toFixed(2)}%`
+    );
+  }
+  check(
+    `aggregate record-to-replay fidelity is at least ${MIN_AGGREGATE_FIDELITY_PERCENT}%`,
+    aggregatePercent >= MIN_AGGREGATE_FIDELITY_PERCENT,
+    `${matchedSteps}/${totalSteps} = ${aggregatePercent.toFixed(2)}%`
+  );
+
+  return {
+    baselinePercent: 100,
+    aggregateThresholdPercent: MIN_AGGREGATE_FIDELITY_PERCENT,
+    perScenarioThresholdPercent: MIN_SCENARIO_FIDELITY_PERCENT,
+    matchedSteps,
+    totalSteps,
+    aggregatePercent,
+    scenarios: fidelityScenarios
+  };
 }
 
 function uniqueInOrder(values) {
@@ -257,7 +323,7 @@ async function waitForTerminalInstance(win, executionId) {
   );
 }
 
-async function runProductionReplay(win, flow, label) {
+async function runProductionReplay(win, flow, label, driftProfile) {
   console.log(`\n${label}: production ExecutionEngine replay`);
   await resetReplayOracle();
 
@@ -275,21 +341,26 @@ async function runProductionReplay(win, flow, label) {
   requireCheck(`${label} is accepted by the production run gate`, response?.status === "started", JSON.stringify(response));
 
   const instance = await waitForTerminalInstance(win, response.executionId);
-  requireCheck(`${label} completes`, instance.status === "completed", JSON.stringify({
+  check(`${label} completes`, instance.status === "completed", JSON.stringify({
     status: instance.status,
     currentStep: instance.currentStep,
     error: instance.error
   }));
 
-  const state = await poll(
-    `${label} mock business outcome`,
-    async () => {
-      const current = await httpJson(`${baseUrl}/api/rec018/state`);
-      return expectedSubmission(current) ? current : null;
-    },
-    10_000,
-    100
-  );
+  let state;
+  try {
+    state = await poll(
+      `${label} mock business outcome`,
+      async () => {
+        const current = await httpJson(`${baseUrl}/api/rec018/state`);
+        return expectedSubmission(current) ? current : null;
+      },
+      10_000,
+      100
+    );
+  } catch {
+    state = await httpJson(`${baseUrl}/api/rec018/state`);
+  }
   mockOutcomes.push({ label, state });
   check(`${label} reproduces the recorded target state while the fixture is inert`, expectedSubmission(state), JSON.stringify(state));
 
@@ -334,6 +405,32 @@ async function runProductionReplay(win, flow, label) {
     JSON.stringify(reportSteps.map((step) => step.stepId)) === JSON.stringify(expectedNodeOrder) &&
       reportSteps.every((step) => step.status === "passed"),
     JSON.stringify(reportSteps.map((step) => ({ id: step.stepId, status: step.status })))
+  );
+
+  const expectedBusinessSteps = businessStepIds(flow);
+  const logSucceeded = new Set(parsedLog.filter((row) => row.event === "step.succeeded").map((row) => row.nodeId));
+  const reportPassed = new Set(reportSteps.filter((step) => step.status === "passed").map((step) => step.stepId));
+  const matchedStepIds = expectedBusinessSteps.filter((stepId) => logSucceeded.has(stepId) && reportPassed.has(stepId));
+  const outcomeMatched = expectedSubmission(state);
+  const scenarioScore = {
+    label,
+    driftProfile,
+    matchedSteps: matchedStepIds.length,
+    totalSteps: expectedBusinessSteps.length,
+    fidelityPercent: percent(matchedStepIds.length, expectedBusinessSteps.length),
+    matchedStepIds,
+    missedStepIds: expectedBusinessSteps.filter((stepId) => !matchedStepIds.includes(stepId)),
+    outcomeMatched,
+    forcedFallbackMatches:
+      driftProfile === "baseline"
+        ? 0
+        : flow.nodes.filter((node) => node.locator && matchedStepIds.includes(node.id)).length
+  };
+  fidelityScenarios.push(scenarioScore);
+  check(
+    `${label} produces a non-vacuous step-fidelity denominator`,
+    scenarioScore.totalSteps === capturedActions.length && scenarioScore.totalSteps > 0,
+    `${scenarioScore.totalSteps} recorded business steps`
   );
   check(
     `${label} report and log do not contain the authentication secret`,
@@ -394,6 +491,8 @@ let capturedActions = [];
 let savedFlow;
 let firstReplay;
 let secondReplay;
+let thirdReplay;
+let fidelitySummary;
 
 try {
   await waitForServer();
@@ -502,7 +601,7 @@ try {
   );
   requireCheck("Replay workflow fixture is persisted through the app API", importedWorkflow?.id === workflowId, JSON.stringify(importedWorkflow));
 
-  firstReplay = await runProductionReplay(replayWin, persisted, "run-1-before-designer-save");
+  firstReplay = await runProductionReplay(replayWin, persisted, "baseline", "baseline");
 
   console.log("\nRound-trip: Flow Library row → Flow Designer → Save");
   await libraryRow.click();
@@ -525,12 +624,42 @@ try {
         afterDesignerSave.edges.map((edge) => `${edge.source}->${edge.target}`).join(",")
   );
 
-  secondReplay = await runProductionReplay(replayWin, afterDesignerSave, "run-2-after-designer-save");
+  const primaryLossFlow = withReplayUrl(
+    afterDesignerSave,
+    `${targetUrl}&fidelityDrift=primary-loss`
+  );
+  const persistedPrimaryLoss = await replayWin.evaluate(
+    ({ id, profile }) => window.playwrightFlowStudio.flows.update(id, profile),
+    { id: primaryLossFlow.id, profile: primaryLossFlow }
+  );
+  secondReplay = await runProductionReplay(
+    replayWin,
+    persistedPrimaryLoss,
+    "primary-locator-loss",
+    "primary-loss"
+  );
+
+  const structuralFlow = withReplayUrl(
+    persistedPrimaryLoss,
+    `${targetUrl}&fidelityDrift=structural`
+  );
+  const persistedStructural = await replayWin.evaluate(
+    ({ id, profile }) => window.playwrightFlowStudio.flows.update(id, profile),
+    { id: structuralFlow.id, profile: structuralFlow }
+  );
+  thirdReplay = await runProductionReplay(
+    replayWin,
+    persistedStructural,
+    "structural-wrapper-drift",
+    "structural"
+  );
+
+  fidelitySummary = enforceFidelityGate();
 
   await navClick(replayWin, "Reports");
   await replayWin.waitForSelector(".reports-page, .page", { timeout: 20_000 });
   await replayWin.screenshot({ path: path.join(evidenceDir, "06-populated-reports.png"), fullPage: true });
-  check("Both production runs are stored for the Reports surface", Boolean(firstReplay.report && secondReplay.report));
+  check("All fidelity production runs are stored for the Reports surface", Boolean(firstReplay.report && secondReplay.report && thirdReplay.report));
   check("Recorder E2E emits no renderer console/page errors", rendererErrors.length === 0, JSON.stringify(rendererErrors));
 
   const passed = results.filter((result) => result.status === "PASS").length;
@@ -538,7 +667,8 @@ try {
   await writeEvidence({
     flowId: savedFlow.id,
     workflowId,
-    executionIds: [firstReplay.response.executionId, secondReplay.response.executionId],
+    executionIds: [firstReplay.response.executionId, secondReplay.response.executionId, thirdReplay.response.executionId],
+    fidelity: fidelitySummary,
     evidenceDir
   });
   console.log(`\nREC-018: ${passed} PASS / ${failed} FAIL`);

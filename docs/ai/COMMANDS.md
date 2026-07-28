@@ -113,7 +113,9 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live checks unique locators, runner locator safeguards, live text capture, and Smart Wait recorder observation signals/correlation
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library
-                            # → production replay → Flow Designer save → second replay; timestamped evidence
+                            # → production replay → Flow Designer save → two DOM-drift replays. Reports
+                            # matched/total and fidelity % per scenario plus aggregate (>=95% aggregate,
+                            # >=80% each); timestamped machine-readable evidence. (61/61, 18/18 = 100%)
 npm run verify:recorder-draft # tsx scripts/verify-recorder-draft.mts — recorder action-draft persistence + reusable saved-URL history + wait-time/smart-wait compatibility logic; no browser launched
 npm run verify:recorder-flow # tsx scripts/verify-recorder-flow.mts — pure buildRecordedFlow checks: default Start/End nodes, action wiring, wait/route-change replay; no browser launched
 npm run verify:protected-login # tsx scripts/verify-protected-login.mts — pure protected-login detector unit checks

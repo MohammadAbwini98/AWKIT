@@ -15,8 +15,14 @@ own source metadata and deterministic tree digest. Legacy acquisition details re
 unknown; future staging writes a source sidecar. Strict validation recomputes the digest and a
 one-character mutation failed as intended.
 
-Continue Tranche 2 with `awkit-60w`, then `awkit-v4r` and `awkit-4a6`. Dashboard counts are
-**113 / 26 outstanding / 87 closed** and the validation ledger remains
+`awkit-60w` is also closed. REC-018 now measures real production replay fidelity across baseline,
+primary-locator loss, and structural drift: **18/18 = 100% aggregate**, with **61/61** focused checks
+and **96/96** mock-site checks. Thresholds are **95% aggregate / 80% each**, derived from the
+six-action, three-scenario baseline. Removing the final stable email name drove the structural
+scenario to **2/6** and aggregate to **14/18 = 77.78%**, proving the number is not decorative.
+
+Continue Tranche 2 with `awkit-v4r`, then `awkit-4a6`. Dashboard counts are
+**113 / 25 outstanding / 88 closed** and the validation ledger remains
 **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
 ## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 1 complete; stop before Tranche 2

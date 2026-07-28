@@ -48,8 +48,12 @@ remain structural and legacy workflows remain compatible.
 - `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
   an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable
-  target-state oracle, Flow Designer no-op save, and a second replay. **41/41** as of 2026-07-26;
-  evidence under `test-artifacts/recorder-e2e/<timestamp>/`.
+  target-state oracle, Flow Designer no-op save, and two replay-only DOM-drift profiles. The
+  awkit-60w gate scores real report+log agreement as matched business steps / recorded business
+  steps, prints a per-scenario table and aggregate, and enforces **>=95% aggregate / >=80% each**.
+  First measured baseline: **18/18 = 100%**, **61/61 checks** on 2026-07-28. Removing one control's
+  last stable accessible name produced **2/6** for that scenario and **14/18 = 77.78%** aggregate,
+  proving the metric turns red. Evidence under `test-artifacts/recorder-e2e/<timestamp>/`.
 - `scripts/verify-reports-populated-gui.mts` (`npm run verify:reports-populated-gui`) — deterministic
   populated real-Electron Reports gate. Seeds the real SQLite/report stores with current/previous
   run history, attempts, artifacts, runtime/observability rows, one valid report and one corrupt

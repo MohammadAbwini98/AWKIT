@@ -70,7 +70,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:recorder-gui": { class: "real-browser", why: "Recorder page GUI journeys in real Electron: idle enablement, start, invalid-target recovery, Stop vs Cancel, URL history table, protected-detection ignore scope, browser teardown and single-active-recorder concurrency." },
   "verify:recorder-redaction": { class: "real-browser", why: "REC-007 end-to-end secret redaction: a real Recorder session captures secret-shaped fields, then every file under the isolated app data root is scanned for the canaries, with a non-sensitive positive control proving the scan is not vacuous." },
   "verify:recorder-authz": { class: "real-browser", why: "Real-Electron Recorder authorization boundary: every recorder:* channel probed pre-auth, as a role without page.recorder, as one with it, and after sign-out — asserting the denial reason and the absence of side effects." },
-  "verify:recorder-e2e": { class: "real-browser", why: "REC-018 — drives the real Recorder UI, saves, restarts, and replays through the production ExecutionEngine." },
+  "verify:recorder-e2e": { class: "real-browser", why: "REC-018 + awkit-60w — drives the real Recorder UI, saves/restarts, then measures matched production-replay steps across baseline and two live DOM-drift profiles in bundled Chromium." },
   "verify:recorder": { class: "real-browser", why: "Records inside a real Chromium page and asserts unique semantic locators." },
   "verify:waits": { class: "real-browser", why: "Live Smart Wait checks against real Chromium." },
   "verify:concurrency": { class: "real-browser", why: "BrowserContextFactory profile-lock + cleanup with real Chromium." },

@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-60w` numeric record-to-replay fidelity gate (Codex)
+
+**Task:** turn Recorder replayability into a measured percentage over real interactions, not a
+hardcoded score or URL-open smoke test.
+
+**Result:** the REC-018 real-Electron journey records six business actions once, then replays the
+persisted flow through the production engine against baseline, primary-locator-loss, and structural
+DOM-drift fixtures. Score = business step IDs that agree as succeeded in both JSONL and the report /
+recorded business step IDs. It prints and persists per-scenario plus aggregate metrics and enforces
+**95% aggregate / 80% each**, chosen from the measured 100% first baseline.
+
+**Verification:** `verify:recorder-e2e` **61/61**, scenarios **6/6 + 6/6 + 6/6 = 18/18 (100%)**;
+`verify:mock-site` **96/96**. Mutation: removing the final stable accessible name from one drifted
+email field produced structural **2/6**, aggregate **14/18 = 77.78%**, and **7 focused failures**;
+reverted. Dashboard counts move to **113 total / 25 outstanding / 88 closed**.
+
 ## 2026-07-28 (latest) - `awkit-c0c` manifest and browser-payload timestamps separated (Codex)
 
 **Task:** remove the dependency manifest's misleading single `application.builtAt` date without

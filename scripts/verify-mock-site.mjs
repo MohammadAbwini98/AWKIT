@@ -144,6 +144,24 @@ try {
   );
   const inertState = await (await page.request.get(`${BASE}/api/rec018/state`)).json();
   check("REC-018 inert branch records no server-side outcome", inertState.count === 0);
+
+  await page.goto(`${BASE}/recorder-lab?rec018=1&fidelityDrift=primary-loss`);
+  check(
+    "fidelity primary-loss profile removes recorded test ids but keeps accessible controls",
+    (await page.locator("[data-testid='recorder-full-name'], [data-testid='recorder-email'], [data-testid='recorder-plan'], [data-testid='recorder-newsletter'], [data-testid='recorder-submit']").count()) === 0 &&
+      (await page.getByLabel("Full name").count()) === 1 &&
+      (await page.getByRole("button", { name: "Save recorder form" }).count()) === 1
+  );
+
+  await page.goto(`${BASE}/recorder-lab?rec018=1&fidelityDrift=structural`);
+  check(
+    "fidelity structural profile churns fallback attributes and wrappers without changing intent",
+    (await page.locator("[data-fidelity-wrapper]").count()) === 5 &&
+      (await page.getByPlaceholder("Ada Lovelace").count()) === 0 &&
+      (await page.locator('select[name="plan"]').count()) === 0 &&
+      (await page.getByRole("textbox", { name: "Email address" }).count()) === 1
+  );
+
   // Positive control: with the binding the Recorder exposes, the harness must drive the form.
   await page.addInitScript(() => {
     window.__awtkit_recordAction = () => {};

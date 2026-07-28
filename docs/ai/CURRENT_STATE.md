@@ -23,7 +23,16 @@ source capture, its source is truthfully marked `legacy staged payload; acquisit
 unavailable`; future `prepare:offline` runs write an acquisition sidecar. A one-character digest
 mutation made strict validation fail and was reverted.
 
-Dashboard source counts are now **113 beads / 26 outstanding / 87 closed**. The validation ledger
+`awkit-60w` is closed. The real REC-018 journey now reports matched recorded business steps over
+total recorded business steps for a baseline and two replay-only DOM-drift profiles. All three
+six-action scenarios replay through the production ExecutionEngine and independently match the
+server-side outcome: **6/6, 6/6, 6/6; aggregate 18/18 = 100%**. The measured first baseline set the
+gate at **95% aggregate / 80% per scenario**: one missed action out of 18 makes the aggregate red,
+while a local collapse cannot hide inside the total. Removing the email control's final stable
+accessible name produced **2/6** for structural drift and **14/18 = 77.78%** aggregate; the mutation
+was reverted. The focused gate is **61/61** and the full mock site is **96/96**.
+
+Dashboard source counts are now **113 beads / 25 outstanding / 88 closed**. The validation ledger
 remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
 ## Dashboard backlog Tranche 1 complete — four P1 beads closed (2026-07-28, current)
