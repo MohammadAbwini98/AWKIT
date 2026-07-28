@@ -1,6 +1,102 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-28, latest): `awkit-9xh` closed — all nine semantic channels serve real data
+## TAKEOFF (2026-07-28) — consolidated handoff, read this first
+
+**Repository state:** `main` @ `ea90491`, working tree clean, `origin/main` in sync, Dolt data ref
+pushed. Nothing is half-committed and no branch or worktree is outstanding. AWKIT is single-branch
+(`docs/ai/BRANCH_AND_COMMIT_POLICY.md`); do not create branches or worktrees.
+
+**What the last three commits did (Zvec semantic subsystem, Phase 1B → Phase 2):**
+
+| Commit | Bead | Outcome |
+|---|---|---|
+| `07e697b` | `awkit-ttd` | `SemanticIndexRuntime` is constructed and **registered** in the Electron main process. It never had been — `setSemanticIndexRuntime` had zero callers, so health reported healthy unconditionally and every shutdown recorded clean. |
+| `8178bf4` | `awkit-c7j` | RBAC + authorized service + IPC/preload. Five permissions, seven channels on `window.playwrightFlowStudio.semantic`, `semantic` settings group. |
+| `ea90491` | `awkit-9xh` | Run + locator projections; `similarFailures` and `suggestLocators`. All nine plan §11 channels now serve real data. |
+
+**Verification at `ea90491`** (all executed, not inferred): `npm run build` PASS ·
+`verify:semantic-store` 215/0 · `verify:authz` 53/0 · `verify:semantic-rebuild` 64/0 · real-host
+`verify:semantic-rebuild-live` 24/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed) ·
+`verify:settings-e2e` 151/0 (real Electron) · `verify:recorder` 110/0 · `verify:runner` 89/0 ·
+`verify:semantic-policy` 141/0 · `verify:semantic-queue` 70/0 · `verify:security` 39/0 ·
+`verify:source-hygiene` 7/0 · `verify:verifier-classification` reconciled ·
+`verify:roadmap-dashboard` 135/135 with the consistency banner measured directly as `agrees: true`
+over 2 sources.
+
+**NOT run, and why:** packaging and offline gates (`validate:offline`, packaged-EXE, clean-machine)
+— none of this work touched a packaging or offline-runtime surface. No real-Electron end-to-end
+exercise of the semantic path itself exists; production registration is proven by source-scan guards
+plus the real-host suite. Treat those as open evidence gaps, not as passes.
+
+### Decisions encoded in code — do not change silently
+
+1. **Both semantic management permissions are in `SENSITIVE_PERMISSIONS`** (fresh re-auth required),
+   and **Viewer is denied `SEMANTIC_SEARCH`**. Plan §10 required these be explicit; the owner decided
+   them on 2026-07-28. `verify:authz` asserts both per role.
+2. **Privacy is decided by SOURCE CHOICE, not by filtering afterwards.** Run documents are built from
+   `RunHistoryRow`, **not** `DurableRunRecord`, because the row has no raw error string and no URL.
+   `errorSummary` is intentionally unpopulated. Locator documents project only `.strategy` out of
+   `winningCandidateSignature`, whose `value`/`name` are a real element's selector and accessible
+   name. Two `verify:semantic-store` assertions pin this; both went red under mutation. **Do not
+   "enrich" these projections without re-reading the allowlist in `SemanticProjection.ts`.**
+3. **Index freshness is rebuild-only** (owner decision). No incremental indexing events.
+4. **`semantic:cancelRebuild` answers `NOT_SUPPORTED`** — the orchestrator has no cancellation token
+   and the pointer swap is an irreversible commit point, so "cancelled" would be an untrue claim.
+
+### Traps that have already cost time here
+
+- **`ADMINISTRATOR_PERMISSIONS` is a denylist over `ALL_PERMISSIONS`.** Any new permission is granted
+  to Administrator automatically. A Super-User-only permission that is not excluded there is a silent
+  privilege grant.
+- **Do not write a control character as a `\uXXXX` escape in a TS source.** An editing tool wrote a
+  **literal NUL byte** instead; `grep` then reports the file as binary and a file read renders the
+  NUL as a space, so the source *looks* correct while `verify:source-hygiene` fails. Use
+  `String.fromCharCode(0)` — no tool can re-expand it.
+- **`bd close` / `bd create` do not refresh `.beads/issues.jsonl`.** That export is what
+  `verify:roadmap-dashboard` parses. Run `bd export -o .beads/issues.jsonl` after any `bd` mutation.
+  Closing a bead moves the outstanding/closed pins in `scripts/verify-roadmap-dashboard.mjs`, and
+  adding a `blocks` edge moves its edge-count pin too — update the pins deliberately, never relax them.
+- **A `bd create` whose shell pipe errors has already written the issue.** Check `bd list` before
+  re-running one that appears to have failed, or you create a duplicate.
+- **A new `verify:*` script must be registered** in `scripts/lib/verifier-classification.ts` or
+  `verify:verifier-classification` fails. Prefer extending an existing verifier.
+
+### Program Status dashboard — where the numbers stand
+
+The validation ledger measures **61 PASS / 4 NOT RUN / 1 BLOCKED** over 66 cases. Beads: **118
+total / 22 outstanding / 96 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
+Phase E closed today with `awkit-d3c`. `DEFECTS.md` (34) and `TRACEABILITY_MATRIX.csv` (101 rows)
+were not moved by this work — nothing here was detected by a validation case.
+
+**This section is load-bearing for the consistency banner.** `parse-narrative.mjs` reads only the
+**newest** `##` section of this file and of `CURRENT_STATE.md`, and compares the tally it finds
+against the ledger's measured one. A new top section that omits the tally does not fail loudly — it
+silently drops the banner from two sources to one while still reading "Sources agree". Keep the
+`N PASS / N NOT RUN / N BLOCKED` numbers in whatever section you put at the top.
+
+### Recommended next step
+
+`awkit-0jp` — the renderer surface: a search entry point and a Settings → Semantic Index panel
+showing `SemanticHealth` and exposing rebuild/clear (both re-auth gated). **`global.css` Hologram
+tokens only** — no hardcoded hex, no arbitrary px, no parallel class system, and do not change the
+`.app-shell` / `.app-main` grids without explicit permission (`docs/ai/RULES.md` › UI). The preload
+surface it needs already exists and is typed.
+
+Then `awkit-thg` (incremental indexing events). It is deliberately *not* trivial: `ExecutionEngine`
+has no event emitter, and plan §14.3 forbids an indexing exception reaching workflow execution. The
+bead already names the reusable projection helpers so the projections are not rewritten.
+
+### Do-not-touch without explicit instruction
+
+`native-hosts/zvec/zvec-host.cjs` (raw CJS, unbundled, utility-process only) · the
+`!node_modules/@zvec/**` exclusion and `extraResources` entry in `electron-builder.json` · the
+active-generation pointer authority rule · the `window.playwrightFlowStudio` global name ·
+anything under `tools/roadmap/` as a way to record progress — it is **derived**, so change the source
+instead.
+
+---
+
+## ACTIVE (2026-07-28): `awkit-9xh` closed — all nine semantic channels serve real data
 
 Run and locator documents now reach the index, so `semantic:similarFailures` and
 `semantic:suggestLocators` work. All nine plan §11 channels exist; only `cancelRebuild` answers

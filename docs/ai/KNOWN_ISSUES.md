@@ -752,6 +752,13 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   it is serialized via `Function.prototype.toString()`. Do not extract helpers to module scope or
   reference imports; `getRecorderInitScriptContent()` shims esbuild's `__name` (added by `tsx`/keepNames)
   so injection survives different bundlers.
+- **`ADMINISTRATOR_PERMISSIONS` is a DENYLIST, so a new permission is granted to Administrator by
+  default.** `src/security/authz/Permissions.ts:132` filters `ALL_PERMISSIONS` down by exclusion.
+  Adding a member to `Permission` therefore grants it to Administrator with no further edit — correct
+  for the semantic set added by bd `awkit-c7j`, but a Super-User-only permission that is not added to
+  that filter is a **silent privilege grant** with no failing check. Assert new permissions in
+  `verify:authz` in both directions (granted where intended, denied where intended); a one-directional
+  assertion passes while the grant is wrong.
 - Concurrency/worker isolation (`RunnerWorkerHost`/`RunnerWorker`) is not load-tested.
 - Form Designer and Runtime Input end-to-end flows are not covered by `verify:runner`.
 - Large renderer bundle (~900 KB) — fine for desktop, but no code-splitting.
@@ -770,6 +777,23 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   computed node position in the gesture ref for pointer-up/drop. Regression coverage lives in the real
   Electron Flow Designer verifier (rapid pane drag plus hit-tested node-over-node drag). Do not replace
   this with optional chaining or error suppression; that would hide a broken gesture.
+
+- **Never write a control character as a `\uXXXX` escape in a source file — derive it in code.**
+  (2026-07-28, hit twice in one session.) An editing tool expanded the escape and wrote a **literal
+  NUL byte** into `LocatorRecoveryStore.ts`, which `verify:source-hygiene` forbids. It was slow to
+  find because the failure hides itself: `grep` reports the file as "binary" instead of matching, and
+  reading the file renders the NUL as a space, so the source *looks* correct. Use
+  `String.fromCharCode(0)` — no tool can re-expand it. The same mistake was then reproduced while
+  writing the lesson into a notes file, so treat "I know about this one" as insufficient: after
+  editing any file that mentions a control character, scan it for literal ones.
+
+- **A new top section in `CURRENT_STATE.md` or `HANDOFF.md` must carry the
+  `N PASS / N NOT RUN / N BLOCKED` tally.** (2026-07-28.) `tools/roadmap/lib/parse-narrative.mjs`
+  scopes to the newest `##` heading only. A section that omits the tally does not fail loudly — it
+  drops that file from the consistency banner, which then compares one source against itself and
+  still renders "Sources agree". `buildConsistency` computes `agrees` with `.every()`, which is
+  vacuously true over an empty set; the only thing standing between that and a silent lie is the
+  `checked >= 2` assertion in `verify:roadmap-dashboard`. Do not relax it.
 
 - When packaging fails at the startup gate, the cause has historically been a **manifest** issue
   (BOM or stale path/name), not a missing file. Check `resources/dependency-manifest.json` first.

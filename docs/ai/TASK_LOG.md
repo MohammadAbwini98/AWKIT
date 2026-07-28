@@ -4,7 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - `awkit-9xh` run + locator projections; similarFailures / suggestLocators (Claude)
+## 2026-07-28 (latest) - dashboard reconciliation: the TAKEOFF section had silently broken the consistency banner (Claude)
+
+**Task:** review the day's session and commits, and confirm every Program Status dashboard source
+reflects them. Docs only — no code changed.
+
+**Result:** found one real drift and closed it. The previous session's `HANDOFF.md` TAKEOFF section
+was written as a new top heading with no ledger tally, and the session ended before the check ran.
+`parse-narrative.mjs` scopes to the newest `##` heading only, so the banner silently dropped from two
+sources to one — `verify:roadmap-dashboard` was **132/134** at the start of this task, failing "both
+narrative documents assert a tally" and "the consistency banner checked something". Added the tally
+plus bead/phase counts to that section, and a note in it saying why the numbers must stay there.
+Also recorded two things from the day that no source carried: the literal-control-character editing
+trap (hit twice in one session) and the newest-section tally rule, both under *Repeated problems
+pattern*; and the `ADMINISTRATOR_PERMISSIONS` denylist as a risky assumption.
+
+Audited the other sources and found them already current: every commit today updated
+`.beads/issues.jsonl`, `CURRENT_STATE.md` and `TASK_LOG.md`; `bd stats` (118/22/96) matches the
+export; `ImplementationRoadmap.ts` has Phase E `complete`; `verify:verifier-classification` is
+reconciled (144 across seven classes); `assignments.json` is empty with no stale claims. `DEFECTS.md`
+and `TRACEABILITY_MATRIX.csv` were correctly untouched — nothing today was detected by a validation
+case, and no requirement's coverage status changed.
+
+**Files:** `docs/ai/HANDOFF.md`, `docs/ai/KNOWN_ISSUES.md`, `docs/ai/TASK_LOG.md`.
+
+**Verification:** `verify:roadmap-dashboard` **135/135** (from 132/134); banner measured directly
+from `buildSnapshot()` as `agrees: true | checked: 2 | staleClaims: 0`, both heads at 61/4/1;
+`verify:source-hygiene` 7/0; both edited files byte-scanned for control characters (0).
+**Not run:** build and the runner/packaging/offline gates — no code, script or asset changed.
+
+**Observation, not fixed:** `TRACEABILITY_MATRIX.csv` cites `verify:recorder 97/97` on three rows
+(last touched 2026-07-26); the suite now scores 110/0. Left alone deliberately — that column records
+point-in-time evidence per row, and rewriting the number would misstate when it was measured.
+
+## 2026-07-28 - `awkit-9xh` run + locator projections; similarFailures / suggestLocators (Claude)
 
 **Task:** give the index run and locator documents so the last two plan §11 channels can work.
 
