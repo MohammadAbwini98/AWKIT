@@ -15,7 +15,8 @@
  * timeouts recalculated on load, condition reordering, and legacy flows gaining incompatible fields.
  */
 import { fromFlowStep, toFlowStep, type FlowDesignerNode, type FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
-import type { FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
+import { readFile } from "node:fs/promises";
+import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
 
 let passed = 0;
 let failed = 0;
@@ -286,6 +287,20 @@ console.log("\nBare `value` with no `valueSource` round-trips losslessly (awkit-
   // A genuine static value node (value + explicit static valueSource) is UNCHANGED by the fix.
   const staticNode = cycle(baseStep({ type: "fill", name: "User", value: "alice", valueSource: { type: "static", value: "alice" } }));
   check("explicit static valueSource still preserved (fix does not disturb it)", staticNode.value === "alice" && json(staticNode.valueSource) === json({ type: "static", value: "alice" }), json(staticNode.valueSource));
+
+  const shippedFixture = JSON.parse(
+    await readFile("resources/test-fixtures/mock-site/flows/mock-conditional-flow.json", "utf8")
+  ) as FlowProfile;
+  const shippedCondition = shippedFixture.nodes.find((step) => step.id === "cond");
+  const shippedRoundTrip = shippedCondition ? cycle(shippedCondition) : undefined;
+  check(
+    "shipped mock conditional expression survives the real designer round trip",
+    shippedCondition?.value === "${runtimeInputs.path} === 'A'" &&
+      shippedCondition.valueSource === undefined &&
+      shippedRoundTrip?.value === shippedCondition.value &&
+      shippedRoundTrip.valueSource === undefined,
+    json({ before: shippedCondition, after: shippedRoundTrip })
+  );
 }
 
 console.log("\nBackward-compatible defaults for missing optional properties:");

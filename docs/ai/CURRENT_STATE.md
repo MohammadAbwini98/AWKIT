@@ -1,5 +1,17 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 1 in progress — `awkit-cxa` reconciled (2026-07-28, current)
+
+The first Tranche 1 P1 bead is closed. `awkit-cxa`'s product fix had already landed in `082cfea`,
+but the tracker remained open. `verify:flow-step-mapping` now exercises the actual shipped
+`mock-conditional-flow.json` condition through the real designer conversion pair and passes
+**102/102**. Temporarily restoring the historical converter logic produced **93/102** and explicitly
+lost that shipped expression; the mutation was reverted.
+
+The dashboard now measures **113 beads / 30 outstanding / 83 closed**. The validation ledger is
+unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**. Tranche 1 continues with `awkit-7lj`; the
+remaining tranches and owner-gated items have not been started.
+
 ## Phase K REC-022 narrowed to a real IdP only (2026-07-28, current)
 
 Phase K remains **partially-completed**. REC-024 is PASS (2026-07-27, `958f575`),

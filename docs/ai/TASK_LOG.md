@@ -4,6 +4,19 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-cxa` shipped-fixture regression pinned and tracker closed (Codex)
+
+**Task:** start dashboard backlog Tranche 1 with the silent Flow Designer round-trip data-loss bead.
+
+**Result:** the designer-boundary fix was already present from commit `082cfea`; the stale bead was
+closed after adding a regression that loads the shipped `mock-conditional-flow.json` fixture and
+round-trips its bare condition expression through the production converters.
+
+**Verification:** `npm run verify:flow-step-mapping` **102/102**. Mutation proof: restoring the old
+`fromFlowStep` value chain produced **93/102**, including an explicit failure for the shipped
+fixture, then was reverted. Dashboard source counts move to **113 total / 30 outstanding /
+83 closed**. Packaging/offline gates were not run because no packaging surface changed.
+
 ## 2026-07-28 (latest) - Declared-blocked pin moved to 2; the layer check only ever tested one (Claude)
 
 **Task:** review Codex's Phase K work, then fix what the review found.
