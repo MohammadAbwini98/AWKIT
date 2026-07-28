@@ -186,6 +186,13 @@ export interface UiSettings {
     enabled: boolean;
     /** Default result count for a search that does not specify one. Bounded by SEMANTIC_MAX_TOP_K. */
     defaultTopK: number;
+    /**
+     * Index each run as it finishes, instead of only when a rebuild runs. Separate from `enabled` on
+     * purpose: `enabled` decides whether semantic search exists at all, this decides whether the
+     * index stays fresh without being asked. Off is a supported state — records are still written,
+     * they are simply indexed by the next rebuild rather than immediately.
+     */
+    autoIndex: boolean;
   };
   tables: { flows: TableState; workflows: TableState };
 }
@@ -288,7 +295,13 @@ const defaultSettings: UiSettings = {
     // Default ON: the subsystem is already lazy (no host process until a semantic operation runs), so
     // defaulting off would hide a feature behind a switch nobody knows to look for.
     enabled: true,
-    defaultTopK: SEMANTIC_DEFAULT_TOP_K
+    defaultTopK: SEMANTIC_DEFAULT_TOP_K,
+    // Default ON, and the MIGRATION for existing installs is this default plus the merge order in
+    // `hydrate` (`{ ...defaultSettings.semantic, ...parsed.semantic }` — defaults first). A settings
+    // file written before this key existed therefore hydrates to `true` with no migration code.
+    // `verify:semantic-store` pins that, because the guarantee otherwise rests on a merge direction
+    // nobody is watching.
+    autoIndex: true
   },
   tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
 };

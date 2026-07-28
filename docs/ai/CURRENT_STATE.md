@@ -1,6 +1,48 @@
 # CURRENT_STATE
 
-## Zvec Phase 2 tranche 3 — the semantic index is reachable from the product (2026-07-28, current)
+## Zvec Phase 2 tranche 4 — incremental indexing; the subsystem is feature-complete (2026-07-28, current)
+
+`awkit-thg`. Search results are no longer only as fresh as the last manual rebuild: each run is
+indexed as it finishes.
+
+**`ExecutionEngine` gained its first observer**, injected exactly like `setSecretResolver` /
+`setOracleNodeRunner` so `src/` still never imports Electron. It fires in the `finally` block right
+after `upsertRun` — the run is finalized there and every field exists — and for **every** terminal
+state including cancellation, since a cancelled run is still worth finding, merely not a failure.
+
+**The §14.3 guarantee lives in `src/runner/RunCompletionObserver.ts`, not in the engine.**
+`ExecutionEngine.ts` transitively imports Electron through `app/main/appPaths`, so nothing in it can
+be exercised by a `tsx` verifier — and "an indexing fault must never propagate into workflow
+execution" is precisely the rule that must not rest on a comment. The guard is a pure function a
+verifier drives directly, and a source scan asserts the engine calls through it. That scan earned its
+place: mutating the engine to call the observer directly was caught, but the first version of the
+scan missed the `?.()` form, which is how anyone would actually write the bypass.
+
+**Locator freshness piggybacks on run completion; the locator hot path is untouched.** A
+`LocatorRecoveryRecord` carries no run id, so "records from this run" is underivable afterwards —
+filtering by `updatedAt` misattributes records whenever two runs overlap. Instead
+`LocatorFactory.writeMemory` (the single write funnel) reports each scope key it successfully stores,
+and the engine accumulates them per instance in a `Set`, which dedups within the run for free.
+
+**`semantic.autoIndex`, default ON**, separate from `semantic.enabled`. Off is a supported state, not
+a degraded one: records are still written and the next rebuild picks them all up, so nothing is ever
+lost. **There is no migration code** — `hydrate` spreads defaults before stored settings, so a
+settings file predating the key reads `true`. Two checks pin that, because otherwise the guarantee
+rests on a merge direction nobody watches.
+
+Settings → Semantic Index now shows **last indexed / last indexing error** alongside the toggle. The
+queue's error text is a fixed sentence chosen from the outcome, never a store code.
+
+Verification: `verify:semantic-store` **261/0** (was 231) · `verify:semantic-queue` **80/0** (was 70)
+· `verify:semantic-ui-gui` **19/19 real Electron** (was 14) · `verify:runner` 89/0 ·
+`verify:settings-e2e` 151/0 · authz 59/0 · recorder 110/0 · semantic-policy 141/0 · semantic-rebuild
+64/0 · `verify:ipc-contract` 4/4, pins unmoved at 213/191 (no channel added) · `verify:all-typecheck`
+PASS. **Five mutations went red before revert:** letting the observer throw escape, bypassing the
+guard in the engine, reversing the hydrate merge order, ignoring the `autoIndex` gate, and never
+clearing the last error. Ledger unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads 118 / 20
+outstanding / 98 closed. **Not run:** packaging and offline gates — no packaging surface touched.
+
+## Zvec Phase 2 tranche 3 — the semantic index is reachable from the product (2026-07-28)
 
 `awkit-0jp`. Until now the subsystem had permissions, nine IPC channels and real data, and **nothing
 in the app used any of it**. There is now a **Semantic Search** page in the Build nav group and a

@@ -113,6 +113,16 @@ export function SemanticIndexSettings() {
           <strong>{status?.index.reconciliationRequired ? "Yes" : "No"}</strong>
           <span>Previous shutdown</span>
           <strong>{health.previousShutdownClean ? "Clean" : "Unclean — reconciliation ran"}</strong>
+          <span>Last indexed</span>
+          <strong>
+            {status?.index.lastIndexedAt ? new Date(status.index.lastIndexedAt).toLocaleString() : "Not since this app started"}
+          </strong>
+          {status?.index.lastIndexError ? (
+            <>
+              <span>Last indexing error</span>
+              <strong>{status.index.lastIndexError}</strong>
+            </>
+          ) : null}
         </div>
       ) : (
         !loadError && <p className="form-message">Reading index status…</p>
@@ -133,6 +143,21 @@ export function SemanticIndexSettings() {
               }}
             />
             Enable semantic features
+          </label>
+          <label className="inline-check">
+            <input
+              checked={settings.autoIndex}
+              disabled={action.busy || !settings.enabled}
+              type="checkbox"
+              onChange={(ev) => {
+                const autoIndex = ev.target.checked;
+                void runThenReload(
+                  () => api().updateSettings({ autoIndex }),
+                  autoIndex ? "The index will stay fresh automatically." : "Automatic indexing turned off."
+                );
+              }}
+            />
+            Keep the index fresh automatically
           </label>
           <label>
             <span>Default results per query</span>
@@ -175,8 +200,10 @@ export function SemanticIndexSettings() {
 
       {canManage ? (
         <p className="settings-card-hint">
-          Freshness comes from a rebuild — the index does not update itself as you edit. A rebuild in
-          progress cannot be cancelled yet.
+          {settings?.autoIndex
+            ? "Each run is indexed as it finishes. Rebuild regenerates the whole index from your flows, workflows, run history and locator memory — use it after turning automatic indexing back on, or to recover from an indexing error."
+            : "Automatic indexing is off, so results are only as fresh as the last rebuild. Nothing is lost meanwhile: runs and locator memory are still recorded and a rebuild picks them all up."}
+          {" A rebuild in progress cannot be cancelled yet."}
         </p>
       ) : null}
 

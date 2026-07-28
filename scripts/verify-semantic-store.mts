@@ -38,6 +38,7 @@ import {
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import { decideSensitiveOutcome } from "@renderer/semantic/useSensitiveSemanticAction";
 import { SEMANTIC_KIND_OPTIONS, semanticKindLabel } from "@renderer/semantic/semanticMessages";
+import { notifyRunCompletion, type RunCompletionEvent } from "@src/runner/RunCompletionObserver";
 import { SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { RunHistoryRow } from "@src/reports/TelemetryContracts";
@@ -554,6 +555,137 @@ console.log("\nSensitive-action retry rule (bounded, or the prompt loops forever
   // retry or re-authenticate.
   const cancelOutcome = decideSensitiveOutcome(notSupported, false, "n");
   check("cancellation reports NOT_SUPPORTED as an error, never a prompt", cancelOutcome.kind === "error");
+}
+
+console.log("\nIncremental indexing (plan §14) — a run must never be harmed by indexing it:\n");
+{
+  const row = {
+    instanceId: "i-1",
+    executionId: "e-1",
+    status: "failed",
+    startedAt: "2026-07-28T10:00:00.000Z",
+    endedAt: "2026-07-28T10:00:05.000Z",
+    durationMs: 5000
+  };
+  const event: RunCompletionEvent = { run: row, locatorScopeKeys: ["a", "b"] };
+
+  // No observer is not an error; it is the ordinary state in every tsx verifier.
+  const none = notifyRunCompletion(undefined, event);
+  check("no observer is a silent no-op", !none.notified && !none.threw);
+
+  // Captured as plain values rather than the event object: TypeScript does not see an assignment
+  // made inside a callback, so a `let seen: RunCompletionEvent | null` narrows to `never` after the
+  // null check and the property read fails to compile.
+  let seenInstanceId = "";
+  let seenKeys = "";
+  const ok = notifyRunCompletion((e) => {
+    seenInstanceId = e.run.instanceId;
+    seenKeys = e.locatorScopeKeys.join(",");
+  }, event);
+  check("an observer receives the finalized run", ok.notified && !ok.threw && seenInstanceId === "i-1");
+  check("the event carries the run's own locator keys", seenKeys === "a,b", seenKeys);
+
+  // THE §14.3 requirement, driven rather than asserted: a throwing observer must not escape. If this
+  // ever regresses, an indexing bug becomes a failed workflow run.
+  let escaped = false;
+  let fired = false;
+  let threwResult = { notified: false, threw: false };
+  try {
+    threwResult = notifyRunCompletion(() => {
+      fired = true;
+      throw new Error("indexing exploded");
+    }, event);
+  } catch {
+    escaped = true;
+  }
+  check("a throwing observer does NOT propagate", !escaped);
+  // Guard the guard: without this, "did not propagate" would also pass if the observer never ran.
+  check("the throwing observer actually ran", fired);
+  check("the throw is reported to the caller, not hidden entirely", threwResult.notified && threwResult.threw);
+}
+
+console.log("\nAuto-index setting (default ON, and the migration is the merge order):\n");
+{
+  check("the patch sanitizer accepts autoIndex", sanitizeSettingsPatch({ autoIndex: false }).ok);
+  check("a non-boolean autoIndex is rejected", !sanitizeSettingsPatch({ autoIndex: "yes" }).ok);
+  check("an autoIndex patch round-trips its value", (() => {
+    const result = sanitizeSettingsPatch({ autoIndex: false });
+    return result.ok && result.value.autoIndex === false;
+  })());
+
+  // `uiSettings.ts` reaches Electron through `appPaths`, so it cannot be imported here — these two
+  // facts are scanned instead. They are the whole of the migration story for existing installations:
+  // there is no migration CODE, only a default plus a merge order, and if either changes silently a
+  // user who upgrades gets a different answer than a user who installs fresh.
+  const uiSettingsSource = readFileSync(fileURLToPath(new URL("../app/main/uiSettings.ts", import.meta.url)), "utf8");
+
+  // Scope to the DEFAULTS literal before matching. A bare /semantic:\s*\{…\}/ matches the interface
+  // declaration first — where `autoIndex: boolean` lives, not `autoIndex: true` — so the check read
+  // the type instead of the value and failed against correct code. Narrow the region, then capture
+  // permissively inside it.
+  const defaultsBlock = /const defaultSettings[\s\S]*?\n\};/.exec(uiSettingsSource)?.[0] ?? "";
+  check("the defaults literal was found to inspect", defaultsBlock.length > 0);
+  const semanticDefaults = /semantic:\s*\{[\s\S]*?\n  \}/.exec(defaultsBlock)?.[0] ?? "";
+  check("the semantic defaults block was found to inspect", semanticDefaults.length > 0);
+  check("autoIndex defaults to true", /autoIndex:\s*true/.test(semanticDefaults), semanticDefaults.slice(0, 160));
+  check("the scan read the VALUE, not the type declaration", !/autoIndex:\s*boolean/.test(semanticDefaults));
+
+  // Defaults FIRST, stored second — that ordering is what makes an absent key resolve to the default
+  // rather than to `undefined`. Reversed, every existing installation would silently read as OFF.
+  check(
+    "hydrate spreads defaults BEFORE stored settings",
+    /semantic:\s*\{\s*\.\.\.defaultSettings\.semantic,\s*\.\.\.parsed\.semantic\s*\}/.test(uiSettingsSource),
+    "an absent autoIndex would hydrate to undefined, not true"
+  );
+}
+
+console.log("\nIncremental indexing wiring (a guard nothing calls guards nothing):\n");
+{
+  const enginePath = fileURLToPath(new URL("../src/runner/ExecutionEngine.ts", import.meta.url));
+  const engineSource = readFileSync(enginePath, "utf8");
+
+  // The engine must call the GUARDED helper, not the observer directly. Calling
+  // `this.runCompletionObserver(event)` would compile, pass every behavioural check above (they
+  // exercise the helper, not the engine), and reinstate exactly the defect §14.3 forbids.
+  check("the engine calls the guarded helper", /notifyRunCompletion\(\s*this\.runCompletionObserver/.test(engineSource));
+  // Matches BOTH `observer(event)` and `observer?.(event)`. The optional-call form is the natural
+  // way to write the bypass and slipped past a pattern that only knew the plain form — found by
+  // mutating the engine to bypass the guard and watching this check stay green.
+  check(
+    "the engine never invokes the observer directly",
+    !/this\.runCompletionObserver\s*\??\.?\s*\(/.test(engineSource),
+    "an unguarded call would let an indexing throw fail the run"
+  );
+  check("the observer fires after the run is recorded", engineSource.indexOf("upsertRun") < engineSource.indexOf("notifyRunCompletion(this."));
+  check("locator keys are accumulated per instance", /onLocatorRemembered:/.test(engineSource));
+  check("the per-instance key set is released when the run ends", /locatorScopeKeys\.delete\(/.test(engineSource));
+
+  // The locator write funnel reports only AFTER a successful put; reporting a key whose record was
+  // never stored would have the run ask the index to project something that does not exist.
+  const factorySource = readFileSync(fileURLToPath(new URL("../src/runner/LocatorFactory.ts", import.meta.url)), "utf8");
+  const writeMemory = /private async writeMemory[\s\S]*?\n  \}/.exec(factorySource)?.[0] ?? "";
+  check("the locator write funnel was found to inspect", writeMemory.length > 0);
+  check(
+    "onRemembered fires only after a successful put",
+    writeMemory.indexOf("recoveryStore?.put") < writeMemory.indexOf("onRemembered?."),
+    writeMemory.slice(0, 160)
+  );
+
+  // Main must actually subscribe, and the listener must consult the setting. Either missing turns
+  // the whole feature into dead code that every check above still passes.
+  const ipcSource = readFileSync(fileURLToPath(new URL("../app/main/ipc/execution.ipc.ts", import.meta.url)), "utf8");
+  check("the main process subscribes to run completion", /setRunCompletionObserver\(/.test(ipcSource));
+  check("it subscribes with the semantic listener", /indexCompletedRun/.test(ipcSource));
+
+  const serviceSource = readFileSync(fileURLToPath(new URL("../app/main/semantic/semanticService.ts", import.meta.url)), "utf8");
+  const listener = /export function indexCompletedRun[\s\S]*?\n\}/.exec(serviceSource)?.[0] ?? "";
+  check("the listener was found to inspect", listener.length > 0);
+  check("the listener honours semantic.autoIndex", /semantic\.autoIndex/.test(listener));
+  check("the listener honours semantic.enabled too", /semantic\.enabled/.test(listener));
+  check("the listener reuses the shared run projections", /runSummarySemanticSource/.test(listener) && /runFailureSemanticSource/.test(listener));
+  check("the listener classifies with the shared runOutcome", /runOutcome\(/.test(listener));
+  check("a failure document is gated on the failure outcome", /runOutcome\([\s\S]{0,40}===\s*"failure"/.test(listener));
+  check("the listener reuses the locator projection", /locatorSemanticSource/.test(listener));
 }
 
 console.log("\nProduction registration (the runtime must be reachable from the app):\n");

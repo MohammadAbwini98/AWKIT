@@ -108,6 +108,12 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   oracleNodeRunner?: OracleNodeRunner;
   /** Stable runtime-data folder for offline locator winner/recovery memory. */
   locatorRecoveryRoot?: string;
+  /**
+   * Notified with the scope key of each locator recovery record this run writes, so the caller can
+   * index them once the run finishes (plan §14). The caller owns deduplication; keys repeat freely
+   * because a step can re-resolve.
+   */
+  onLocatorRemembered?: (scopeKey: string) => void;
 }
 
 export class PlaywrightRunner {
@@ -629,6 +635,7 @@ export class PlaywrightRunner {
     return new LocatorFactory(page, {
       recoveryStore: this.locatorRecoveryStore,
       scope: { scenarioId: context.scenarioId, flowId: context.flowId },
+      onRemembered: this.options.onLocatorRemembered,
       onRecoveryEvent: (event) =>
         logger.log({
           level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",

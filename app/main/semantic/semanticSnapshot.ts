@@ -95,8 +95,15 @@ export class SemanticSnapshotError extends Error {
  */
 const LOCATOR_SCOPE_SEPARATOR = String.fromCharCode(0);
 
-/** Map a durable run status onto the bounded semantic outcome enum. */
-function runOutcome(status: string): SemanticOutcome {
+/**
+ * Map a durable run status onto the bounded semantic outcome enum.
+ *
+ * Exported because incremental indexing must classify a run exactly as the rebuild snapshot does. If
+ * the two ever disagreed, a run would earn a `run-failure` document from one path and not the other,
+ * and `similarFailures` would return different results depending on how a document happened to be
+ * indexed — a difference no user could see or explain.
+ */
+export function runOutcome(status: string): SemanticOutcome {
   const normalized = status.toLowerCase();
   if (normalized === "completed" || normalized === "success" || normalized === "passed") return "success";
   if (normalized === "failed" || normalized === "error") return "failure";

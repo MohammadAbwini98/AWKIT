@@ -16,8 +16,9 @@ import fs from "node:fs";
 
 import { getRuntimeDataRoot, getRuntimePaths } from "../appPaths";
 import { getUiSettings } from "../uiSettings";
-import { executionEngine } from "@src/runner/ExecutionEngine";
+import { executionEngine, type RunCompletionEvent } from "@src/runner/ExecutionEngine";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
+import { projectAndValidate, type ValidatedSemanticDocument } from "@src/semantic/SemanticPolicyValidator";
 
 import { SEMANTIC_MAX_TOP_K, type SemanticSearchRequest } from "@src/semantic/contracts/SemanticDocument";
 import type {
@@ -41,7 +42,14 @@ import { resolveActiveIdentity, repairMetadataFromPointer, type MetadataRepairRe
 import { SemanticIndexRuntime, type SemanticIndexRuntimeStatus } from "@src/semantic/SemanticIndexRuntime";
 import type { RebuildReport } from "@src/semantic/SemanticRebuildOrchestrator";
 import { createFlowProfileStore, createWorkflowProfileStore } from "../profileStores";
-import { createSemanticSnapshotProvider } from "./semanticSnapshot";
+import {
+  createSemanticSnapshotProvider,
+  locatorSemanticSource,
+  runFailureSemanticSource,
+  runOutcome,
+  runSummarySemanticSource,
+  type SemanticSnapshotKind
+} from "./semanticSnapshot";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
@@ -290,7 +298,8 @@ export async function semanticSettings(): Promise<SemanticSettingsView> {
   return {
     enabled: settings.semantic.enabled,
     defaultTopK: settings.semantic.defaultTopK,
-    maxTopK: SEMANTIC_MAX_TOP_K
+    maxTopK: SEMANTIC_MAX_TOP_K,
+    autoIndex: settings.semantic.autoIndex
   };
 }
 
@@ -310,7 +319,9 @@ export async function semanticStatusView(options: { includePaths?: boolean } = {
       writable: index?.writable ?? false,
       rebuildRequired: index?.rebuildRequired ?? false,
       pendingMutations: index?.pending ?? 0,
-      reconciliationRequired: index?.reconciliationRequired ?? false
+      reconciliationRequired: index?.reconciliationRequired ?? false,
+      lastIndexedAt: index?.lastIndexedAt ?? null,
+      lastIndexError: index?.lastIndexError ?? null
     }
   };
 }
@@ -461,4 +472,63 @@ export async function disposeSemanticSubsystem(): Promise<{ graceful: boolean; e
   } catch {
     return { graceful: false, elapsedMs: 0, drained: false };
   }
+}
+
+/**
+ * Index a finalized run incrementally (plan §14), so search results are fresh without a rebuild.
+ *
+ * Wired to `ExecutionEngine.setRunCompletionObserver` in `registerExecutionIpc`. Four properties
+ * matter more than the mechanics:
+ *
+ * 1. **It never throws.** The engine also guards the call, but a fault belongs to the layer that
+ *    caused it — and §14.3 forbids an indexing failure reaching workflow execution. Both layers hold
+ *    the line; neither relies on the other.
+ * 2. **Nothing is lost when it fails or is switched off.** The run row is already in the durable
+ *    store and the locator records are already on disk. Skipping the enqueue costs freshness, never
+ *    data, which is what makes `autoIndex: false` a supported state rather than a degraded one.
+ * 3. **It classifies with the same `runOutcome` the rebuild snapshot uses**, so a run earns exactly
+ *    the same documents by either path.
+ * 4. **It is fire-and-forget.** The engine calls it synchronously from run finalization, so the work
+ *    is queued on a promise the caller does not await.
+ */
+export function indexCompletedRun(event: RunCompletionEvent): void {
+  void (async () => {
+    try {
+      const settings = await getUiSettings();
+      // Two independent switches: `enabled` decides whether semantic search exists at all,
+      // `autoIndex` whether it stays fresh unasked. Either being off means no enqueue.
+      if (!settings.semantic.enabled || !settings.semantic.autoIndex) return;
+
+      const runtime = indexRuntime;
+      if (!runtime) return;
+
+      const documents: ValidatedSemanticDocument[] = [];
+      const add = (kind: SemanticSnapshotKind, source: Record<string, unknown> | undefined): void => {
+        if (!source) return;
+        const result = projectAndValidate(kind, source);
+        // A rejected document is dropped, not thrown. The policy validator is the authority on what
+        // may be indexed; a run that fails it must not take the run's own reporting down with it.
+        if (result.ok) documents.push(result.document);
+      };
+
+      add("run-summary", runSummarySemanticSource(event.run));
+      if (runOutcome(event.run.status) === "failure") {
+        add("run-failure", runFailureSemanticSource(event.run));
+      }
+
+      if (event.locatorScopeKeys.length > 0) {
+        const store = new FileLocatorRecoveryStore(join(getRuntimePaths().root, "locator-recovery"));
+        for (const scopeKey of event.locatorScopeKeys) {
+          const record = await store.get(scopeKey).catch(() => undefined);
+          if (record) add("locator-success", locatorSemanticSource(record));
+        }
+      }
+
+      // `enqueue` answers `{accepted, block}` rather than throwing, so a blocked index (rebuilding,
+      // or failed open) simply declines the work and the next rebuild picks it up.
+      for (const document of documents) runtime.enqueue({ op: "upsert", document });
+    } catch {
+      /* freshness is best-effort; the records remain on disk for the next rebuild */
+    }
+  })();
 }

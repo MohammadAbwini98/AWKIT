@@ -105,6 +105,10 @@ export interface SemanticStatusView {
     rebuildRequired: boolean;
     pendingMutations: number;
     reconciliationRequired: boolean;
+    /** ISO time of the last successful incremental index write; null if none yet. */
+    lastIndexedAt: string | null;
+    /** Safe sentence for the last indexing failure; never a native message. */
+    lastIndexError: string | null;
   };
 }
 
@@ -131,11 +135,14 @@ export interface SemanticSettingsView {
   defaultTopK: number;
   /** Hard ceiling the renderer must not exceed; surfaced so the UI can bound its own control. */
   maxTopK: number;
+  /** Index each run as it finishes. Off = the index is only as fresh as the last rebuild. */
+  autoIndex: boolean;
 }
 
 export interface SemanticSettingsPatch {
   enabled?: boolean;
   defaultTopK?: number;
+  autoIndex?: boolean;
 }
 
 /** Find failures resembling this one. `excludeRunId` keeps the query out of its own results. */
@@ -292,6 +299,10 @@ export function sanitizeSettingsPatch(input: unknown): SemanticSanitizeResult<Se
   if (raw.enabled !== undefined) {
     if (typeof raw.enabled !== "boolean") errors.push("Semantic enabled must be true or false.");
     else patch.enabled = raw.enabled;
+  }
+  if (raw.autoIndex !== undefined) {
+    if (typeof raw.autoIndex !== "boolean") errors.push("Automatic indexing must be true or false.");
+    else patch.autoIndex = raw.autoIndex;
   }
   if (raw.defaultTopK !== undefined) {
     if (

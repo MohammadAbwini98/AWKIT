@@ -4,7 +4,50 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - `awkit-0jp` semantic UI: search page + Settings index panel (Claude)
+## 2026-07-28 (latest) - `awkit-thg` semantic incremental indexing (Claude)
+
+**Task:** make search results fresh without a manual rebuild — the last gap in the Zvec subsystem.
+
+**Result:** each run is indexed as it finishes, behind a new `semantic.autoIndex` setting (default
+ON, separate from `semantic.enabled`).
+
+Four decisions worth knowing:
+
+1. **`ExecutionEngine` got its first observer**, injected like `setSecretResolver` so `src/` still
+   never imports Electron. Fires after `upsertRun` in the `finally`, for every terminal state
+   including cancellation.
+2. **The §14.3 guard lives in `src/runner/RunCompletionObserver.ts`, not the engine.**
+   `ExecutionEngine.ts` transitively imports Electron, so a `tsx` verifier cannot load it — and "an
+   indexing fault must never propagate into workflow execution" cannot rest on a comment. The guard
+   is a pure function a verifier drives; a source scan asserts the engine calls through it.
+3. **Locators piggyback on run completion.** A `LocatorRecoveryRecord` has no run id, so filtering by
+   `updatedAt` was the alternative — and it misattributes records whenever two runs overlap.
+   `LocatorFactory.writeMemory` reports each key it successfully stores; the engine accumulates per
+   instance in a `Set`, which dedups within the run for free and adds no emitter to the hot path.
+4. **No migration code for the new setting** — `hydrate` spreads defaults before stored settings, so
+   an older settings file reads `true`. Two checks pin the default and the merge order.
+
+**Files:** new `src/runner/RunCompletionObserver.ts`; changed `ExecutionEngine.ts`,
+`LocatorFactory.ts`, `PlaywrightRunner.ts`, `SemanticMutationQueue.ts`, `SemanticIndexRuntime.ts`,
+`SemanticApi.ts`, `uiSettings.ts`, `semanticService.ts`, `semanticSnapshot.ts`, `execution.ipc.ts`,
+`SemanticIndexSettings.tsx`, `verify-semantic-store.mts`, `verify-semantic-queue.mts`,
+`verify-semantic-ui-gui.mjs`, `verify-roadmap-dashboard.mjs`, `.beads/`, `docs/ai/`.
+
+**Verification:** semantic-store **261/0** (was 231) · semantic-queue **80/0** (was 70) ·
+semantic-ui-gui **19/19 real Electron** (was 14) · runner 89/0 · settings-e2e 151/0 · authz 59/0 ·
+recorder 110/0 · semantic-policy 141/0 · semantic-rebuild 64/0 · ipc-contract 4/4 with pins unmoved
+at 213/191 · source-hygiene 9/0 · classification reconciled · `verify:all-typecheck` PASS · roadmap
+135/135 (bead pin 21/97 → 20/98). **Five mutations red before revert:** the observer throw escaping,
+the engine bypassing the guard, the hydrate merge order reversed, the `autoIndex` gate ignored, and
+the last error never cleared. **Not run:** packaging/offline gates — no packaging surface touched.
+
+**Two things the checks caught that review would not:** my source scan for "the engine never calls
+the observer directly" missed the `?.()` form — the way anyone would actually write the bypass — and
+was only found by mutating the engine and watching the check stay green. And a `let seen: T | null`
+assigned inside a callback narrows to `never` in TypeScript, which `tsx` runs happily and
+`typecheck:scripts` rejects.
+
+## 2026-07-28 - `awkit-0jp` semantic UI: search page + Settings index panel (Claude)
 
 **Task:** give the semantic subsystem a product surface. It had permissions, nine IPC channels and
 real data, and nothing in the app used any of it.

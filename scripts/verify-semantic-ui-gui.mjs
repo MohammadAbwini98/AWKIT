@@ -81,6 +81,21 @@ try {
   check("the panel reports a health status", (await panel.locator(".semantic-health-dot").count()) >= 1);
   check("a managing role sees Rebuild", (await panel.getByRole("button", { name: /Rebuild Index/ }).count()) === 1);
   check("a managing role sees Clear", (await panel.getByRole("button", { name: /Clear Index/ }).count()) === 1);
+
+  // Incremental indexing (awkit-thg): the toggle and the status readout the owner asked for.
+  const autoIndex = panel.locator("label", { hasText: "Keep the index fresh automatically" }).locator("input");
+  check("the automatic-indexing toggle is present", (await autoIndex.count()) === 1);
+  check("it defaults to ON for a fresh profile", await autoIndex.first().isChecked());
+  const panelText = await panel.innerText();
+  check("the panel reports when it last indexed", /Last indexed/.test(panelText));
+  // A fresh profile has never indexed, and that must read as "not yet" rather than as an error or a
+  // blank — the two states a user would act on differently.
+  check(
+    "an unindexed profile says so plainly",
+    /Not since this app started/.test(panelText),
+    panelText.slice(0, 200)
+  );
+  check("no indexing error is shown on a clean profile", !/Last indexing error/.test(panelText));
   // Scroll it into view before capturing: the panel sits well below the fold, so an unscrolled
   // screenshot is evidence of the top of Settings, not of the thing being asserted.
   await panel.scrollIntoViewIfNeeded().catch(() => undefined);

@@ -303,6 +303,56 @@ console.log("\nNo blind replay:\n");
   check("a recovered write does not force a rebuild", !queue.needsRebuild);
 }
 
+console.log("\nObservable indexing status (what Settings renders):\n");
+{
+  const store = await openStore();
+  const queue = new SemanticMutationQueue({ store });
+
+  check("a fresh queue reports no last success", queue.lastSuccessAt === null);
+  check("a fresh queue reports no last error", queue.lastError === null);
+
+  // A drain that wrote NOTHING is not a success. Reporting one would let a stalled queue render as
+  // freshly indexed, which is the opposite of what this readout exists to tell the user.
+  await queue.drain();
+  check("an empty drain does not fabricate a success", queue.lastSuccessAt === null);
+
+  queue.enqueue({ op: "upsert", document: doc("wf-status-1") });
+  await queue.drain();
+  const afterSuccess = queue.lastSuccessAt;
+  check("a drain that wrote something records a success time", afterSuccess !== null);
+  check("the recorded time parses as a real timestamp", afterSuccess !== null && !Number.isNaN(Date.parse(afterSuccess)));
+  check("a success leaves no error behind", queue.lastError === null);
+
+  // Now fail, then recover: the error must appear and then be CLEARED by the next clean drain,
+  // otherwise the panel shows a stale fault forever and the user rebuilds for no reason.
+  let failNext = true;
+  const inner = await openStore();
+  const flaky: SemanticStore = {
+    ...inner,
+    name: "flaky",
+    upsert: async (docs: Parameters<SemanticStore["upsert"]>[0]) => {
+      if (failNext) throw new SemanticStoreError("UNSUPPORTED_OPERATION");
+      return inner.upsert(docs);
+    }
+  } as unknown as SemanticStore;
+
+  const flakyQueue = new SemanticMutationQueue({ store: flaky, maxRetries: 0 });
+  flakyQueue.enqueue({ op: "upsert", document: doc("wf-status-2") });
+  await flakyQueue.drain();
+  check("a failed drain records an error", flakyQueue.lastError !== null, String(flakyQueue.lastError));
+  check(
+    "the recorded error is a safe sentence, not a store code",
+    !/UNSUPPORTED_OPERATION|WRITE_FAILED|CAPACITY_EXCEEDED/.test(flakyQueue.lastError ?? ""),
+    String(flakyQueue.lastError)
+  );
+
+  failNext = false;
+  flakyQueue.enqueue({ op: "upsert", document: doc("wf-status-3") });
+  await flakyQueue.drain();
+  check("a later successful drain clears the error", flakyQueue.lastError === null, String(flakyQueue.lastError));
+  check("and records its own success time", flakyQueue.lastSuccessAt !== null);
+}
+
 console.log("\nSerialization and batching:\n");
 {
   const store = await openStore();

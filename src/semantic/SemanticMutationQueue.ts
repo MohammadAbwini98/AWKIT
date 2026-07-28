@@ -172,6 +172,16 @@ export class SemanticMutationQueue {
   private droppedUpserts = 0;
 
   /**
+   * Observable outcome of the most recent drain, for the Settings status readout.
+   *
+   * `lastError` is a fixed sentence chosen from the outcome, never an error's own message — the same
+   * rule the IPC contract applies, for the same reason: a store or vendor message can carry a path
+   * or a query fragment, and this value is rendered.
+   */
+  private lastSuccessAtIso: string | null = null;
+  private lastErrorText: string | null = null;
+
+  /**
    * Ordered journal of mutations accepted AFTER a rebuild snapshot was taken.
    *
    * A rebuild reads authoritative sources at a point in time and takes seconds to populate. Anything
@@ -219,6 +229,16 @@ export class SemanticMutationQueue {
 
   get droppedUpsertCount(): number {
     return this.droppedUpserts;
+  }
+
+  /** ISO timestamp of the last drain that completed with no failures and actually wrote something. */
+  get lastSuccessAt(): string | null {
+    return this.lastSuccessAtIso;
+  }
+
+  /** A safe sentence describing the last failure, cleared by the next clean drain. */
+  get lastError(): string | null {
+    return this.lastErrorText;
   }
 
   /**
@@ -370,11 +390,22 @@ export class SemanticMutationQueue {
     }
 
     result.rebuildRequired = this.rebuildRequired;
+
+    // Success is recorded only when work was actually written AND nothing failed. A drain that wrote
+    // nothing is not evidence of a healthy index, and reporting it as a success would let a stalled
+    // queue look freshly indexed.
+    if (result.failed === 0 && result.upserted + result.deleted > 0) {
+      this.lastSuccessAtIso = new Date().toISOString();
+      this.lastErrorText = null;
+    }
     return result;
   }
 
   private recordFailure(result: DrainResult, abandoned: boolean): void {
     result.failed += 1;
+    this.lastErrorText = abandoned
+      ? "A change could not be indexed after retries. Rebuild the index to resynchronise it."
+      : "A change could not be indexed and will be retried.";
     if (abandoned) {
       result.abandoned += 1;
       // The mutation is NOT re-queued. Re-queueing an operation whose failure we could not classify

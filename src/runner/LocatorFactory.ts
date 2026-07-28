@@ -49,6 +49,16 @@ export interface LocatorFactoryOptions {
   scope?: { scenarioId: string; flowId?: string };
   recoveryGraceMs?: number;
   onRecoveryEvent?: (event: LocatorRecoveryEvent) => void;
+  /**
+   * Called with the scope key of each recovery record successfully written, so the run that wrote it
+   * can index it when it finishes (plan §14).
+   *
+   * This is a notification, not an emitter with subscribers — the caller accumulates into a `Set`, so
+   * it costs O(1) per write and adds nothing to the locator resolution path. It exists because a
+   * `LocatorRecoveryRecord` carries no run id, making "which records did THIS run write" underivable
+   * afterwards without misattributing under concurrent runs.
+   */
+  onRemembered?: (scopeKey: string) => void;
 }
 
 interface RankedCandidate {
@@ -354,6 +364,9 @@ export class LocatorFactory {
   private async writeMemory(record: LocatorRecoveryRecord, stepId: string): Promise<void> {
     try {
       await this.options.recoveryStore?.put(record);
+      // Only after the write SUCCEEDED. Reporting a key whose record was never stored would have the
+      // run ask the index to project something that does not exist.
+      this.options.onRemembered?.(record.scopeKey);
     } catch (error) {
       this.emit({ type: "memory-error", stepId, message: `Locator memory write failed: ${String(error)}` });
     }

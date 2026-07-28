@@ -18,18 +18,23 @@ real defects:
 | `ea90491` | `awkit-9xh` | Run + locator projections; `similarFailures` and `suggestLocators`. All nine plan §11 channels now serve real data. |
 | `9d87715` | — | Restored the dashboard consistency banner. A new top section here had been written without the ledger tally, which silently dropped this file from the banner (`checked` 2 → 1) while the page still read "Sources agree". |
 | `190565a` | — | Removed a literal NUL byte from `TASK_LOG.md`, **extended `verify:source-hygiene` to Markdown under `docs/`**, and unbroke `typecheck:scripts`, which had been red on `main` since `ea90491`. |
-| (this one) | `awkit-0jp` | **Semantic Search page + Settings → Semantic Index panel** — the subsystem is finally reachable from the product. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` reason codes, a reusable renderer query layer, and `SemanticKinds.ts` so the contract can be bundled into the renderer at all. |
+| `e29f5f2` | `awkit-0jp` | **Semantic Search page + Settings → Semantic Index panel** — the subsystem became reachable from the product. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` reason codes, a reusable renderer query layer, and `SemanticKinds.ts` so the contract can be bundled into the renderer at all. |
+| (this one) | `awkit-thg` | **Incremental indexing.** Each run is indexed as it finishes, behind `semantic.autoIndex` (default ON). `ExecutionEngine` gained its first observer; the §14.3 guard lives in `RunCompletionObserver.ts` so a verifier can drive it. **The Zvec subsystem is now feature-complete.** |
 
-**Verification at `190565a`** (all executed, not inferred): `npm run build` PASS (at `ea90491`;
-no app-project file has changed since) · `npm run typecheck:scripts` PASS ·
-`verify:semantic-store` 215/0 · `verify:authz` 53/0 · `verify:semantic-rebuild` 64/0 · real-host
-`verify:semantic-rebuild-live` 24/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed) ·
-`verify:settings-e2e` 151/0 (real Electron) · `verify:recorder` 110/0 · `verify:runner` 89/0 ·
-`verify:semantic-policy` 141/0 · `verify:semantic-queue` 70/0 · `verify:security` 39/0 ·
-`verify:source-hygiene` **9/0** (was 7/0 — two Markdown checks added, mutation-tested) ·
-`verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the
+**Verification at the current tip** (all executed, not inferred): `npm run verify:all-typecheck`
+PASS (`build` + `typecheck:scripts`) · `verify:semantic-store` **261/0** · `verify:semantic-queue`
+**80/0** · `verify:semantic-ui-gui` **19/19** (real Electron) · `verify:authz` 59/0 ·
+`verify:semantic-rebuild` 64/0 · real-host `verify:semantic-rebuild-live` 24/0 ·
+`verify:semantic-policy` 141/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed — unmoved
+across three tranches, because no channel was added) · `verify:settings-e2e` 151/0 (real Electron) ·
+`verify:recorder` 110/0 · `verify:runner` 89/0 · `verify:security` 39/0 · `verify:source-hygiene` 9/0
+· `verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the
 consistency banner measured directly from `buildSnapshot()` as `agrees: true`, `checked: 2`,
 `staleClaims: 0` — not inferred from the check passing.
+
+**Nine mutations were driven red and reverted** across `awkit-0jp` and `awkit-thg`, including the two
+that matter most: letting an indexing throw escape into workflow execution, and the engine bypassing
+the guard that prevents it.
 
 **NOT run, and why:** packaging and offline gates (`validate:offline`, packaged-EXE, clean-machine)
 — none of this work touched a packaging or offline-runtime surface. No real-Electron end-to-end
@@ -47,7 +52,11 @@ plus the real-host suite. Treat those as open evidence gaps, not as passes.
    `winningCandidateSignature`, whose `value`/`name` are a real element's selector and accessible
    name. Two `verify:semantic-store` assertions pin this; both went red under mutation. **Do not
    "enrich" these projections without re-reading the allowlist in `SemanticProjection.ts`.**
-3. **Index freshness is rebuild-only** (owner decision). No incremental indexing events.
+3. **Index freshness is incremental, behind `semantic.autoIndex` (default ON).** Superseded the
+   earlier rebuild-only decision on 2026-07-28. Off is a **supported** state, not a degraded one:
+   records are still written and the next rebuild picks them all up, so turning it off costs
+   freshness and never data. There is no migration code for the setting — `hydrate` spreads defaults
+   before stored settings, so an older settings file reads `true`; two checks pin that.
 4. **`semantic:cancelRebuild` answers `NOT_SUPPORTED`** — the orchestrator has no cancellation token
    and the pointer swap is an irreversible commit point, so "cancelled" would be an untrue claim.
 
@@ -90,7 +99,7 @@ plus the real-host suite. Treat those as open evidence gaps, not as passes.
 ### Program Status dashboard — where the numbers stand
 
 The validation ledger measures **61 PASS / 4 NOT RUN / 1 BLOCKED** over 66 cases. Beads: **118
-total / 21 outstanding / 97 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
+total / 20 outstanding / 98 closed**. Phases: 11 total — 9 complete, 2 partially completed (J, K);
 Phase E closed 2026-07-28 with `awkit-d3c`. `DEFECTS.md` (34) and `TRACEABILITY_MATRIX.csv` (101
 rows) were not moved by this work — nothing here was detected by a validation case. Live parse
 warnings: **6**, all `defects HARNESS-00N: no Status field` (a pre-existing shape gap in that file's
@@ -112,17 +121,17 @@ in the sources that no assertion pins. A derived view is worth looking at, not j
 
 ### Recommended next step
 
-`awkit-thg` — incremental indexing events. Deliberately *not* trivial: `ExecutionEngine` has no event
-emitter, and plan §14.3 forbids an indexing exception reaching workflow execution. The bead already
-names the reusable projection helpers so the projections are not rewritten. Until it lands, freshness
-is rebuild-only and the Settings panel says so.
+**The Zvec semantic subsystem is feature-complete.** No semantic bead is open. The remaining work the
+owner scoped is the contextual search entry points: embedding search into the Libraries,
+similar-failures into Reports → Failures, and locator suggestions into the Designers. None is filed
+yet — file them before starting.
 
-After that, the contextual search entry points the owner scoped as follow-ups: embedding search into
-the Libraries, similar-failures into Reports → Failures, and locator suggestions into the Designers.
-**Call the hooks in `app/renderer/semantic/`, do not call the preload directly** — `useSemanticQuery`
-owns bounding, the empty/degraded distinction and reason-code messaging, and
-`useSensitiveSemanticAction` owns the re-auth-and-retry-once rule. They exist so those beads do not
-each reimplement it.
+**Call the hooks in `app/renderer/semantic/`, never the preload directly.** `useSemanticQuery` owns
+bounding, the empty/degraded distinction and reason-code messaging; `useSensitiveSemanticAction` owns
+re-auth-and-retry-once. They exist so those beads do not each reimplement it.
+
+Outside the semantic area, `bd ready` is the honest source. `awkit-epz` (P1, offline packaging inputs
+versioned and verifiable) is top of the work queue and is a genuine release-readiness item.
 
 ### Do-not-touch without explicit instruction
 

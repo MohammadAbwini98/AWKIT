@@ -24,6 +24,7 @@ import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
+import { indexCompletedRun } from "../semantic/semanticService";
 import { evaluateRunGate } from "../licensing/licenseRuntime";
 import {
   CERTIFICATE_BYPASS_LOG_MESSAGE,
@@ -59,6 +60,10 @@ export function registerExecutionIpc(): void {
 
   // Oracle query nodes run through the main-process OracleQueryService (owns the JDBC bridge).
   executionEngine.setOracleNodeRunner(getOracleNodeRunner());
+
+  // Keep the semantic index fresh as runs finish, instead of only when a rebuild runs (plan §14).
+  // Gated on `semantic.autoIndex` inside the observer, and non-throwing on both sides of the seam.
+  executionEngine.setRunCompletionObserver((event) => indexCompletedRun(event));
 
   ipcMain.handle("execution:list", async () => executionEngine.getInstances());
   ipcMain.handle("execution:validate", async (_, workflowId: string) => validateWorkflow(workflowId));

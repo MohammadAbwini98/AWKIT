@@ -91,6 +91,7 @@ import {
   type RunDetail,
   type RunHistoryFilter,
   type RunHistoryPage,
+  type RunHistoryRow,
   type RunStatusCounts,
   type RuntimeSeriesPoint,
   type TelemetryOverview,
@@ -118,6 +119,13 @@ import {
 } from "./store/RuntimeStoreSchema";
 import { runStartupRecovery } from "./store/StartupRecovery";
 import { PassiveCdpTrace, type CdpObservationSnapshot } from "./observation/PassiveCdpTrace";
+import {
+  notifyRunCompletion,
+  type RunCompletionEvent,
+  type RunCompletionObserver
+} from "./RunCompletionObserver";
+
+export type { RunCompletionEvent } from "./RunCompletionObserver";
 
 /** Per-execution context retained so a single instance can be re-run on demand. */
 interface RunContext {
@@ -226,6 +234,16 @@ export class ExecutionEngine {
   private machineRunContext: MachineRunContext = {};
   /** Phase B1 — peak simultaneously-active instance count observed per execution (for reporting). */
   private readonly executionPeakConcurrency = new Map<string, number>();
+
+  /**
+   * Locator recovery scope keys written per in-flight instance, for incremental indexing (plan §14).
+   *
+   * A `Set` rather than an array, so repeat resolutions of the same step collapse to one document
+   * before anything is projected — that is the whole of the "deduplicate within the run" requirement.
+   * Cleared when the run's completion event is emitted, so an instance cannot retain keys after it
+   * ends; concurrent runs never share an entry because the map is keyed by instance.
+   */
+  private readonly locatorScopeKeys = new Map<string, Set<string>>();
   /** Per-instance unsettled runner promises — the watchdog's "is anything actually running" signal. */
   private readonly activeInstanceRunners = new Map<string, Promise<void>>();
   /** Per-instance hard-cancellation sources (Phase 3). */
@@ -463,6 +481,22 @@ export class ExecutionEngine {
 
   public setOracleNodeRunner(runner: OracleNodeRunner): void {
     this.oracleNodeRunner = runner;
+  }
+
+  /**
+   * Injected by the main process: observe a finalized run so the semantic index can be updated
+   * incrementally instead of waiting for a rebuild (plan §14). Kept as a callback for the same
+   * reason as the two above — `src/` never imports Electron, and the tsx verifiers that don't set it
+   * simply run with no observer.
+   *
+   * Fires for EVERY terminal state, including cancellation: a cancelled run is still a run worth
+   * finding, it is merely not a failure. The projection layer decides which document kinds a status
+   * earns; that is not this callback's judgement to make.
+   */
+  private runCompletionObserver?: RunCompletionObserver;
+
+  public setRunCompletionObserver(observer: RunCompletionObserver): void {
+    this.runCompletionObserver = observer;
   }
 
   /** Resolve the secret names a scenario's flows reference into a per-run map (undefined when none/no resolver). */
@@ -1401,7 +1435,17 @@ export class ExecutionEngine {
       // Phase A6: stagger expensive operations across every instance.
       operationLimiters: this.operationLimiters,
       oracleNodeRunner: this.oracleNodeRunner,
-      locatorRecoveryRoot: join(dirs.root, "locator-recovery")
+      locatorRecoveryRoot: join(dirs.root, "locator-recovery"),
+      // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
+      // is read once when this instance finishes.
+      onLocatorRemembered: (scopeKey) => {
+        let keys = this.locatorScopeKeys.get(instance.instanceId);
+        if (!keys) {
+          keys = new Set<string>();
+          this.locatorScopeKeys.set(instance.instanceId, keys);
+        }
+        keys.add(scopeKey);
+      }
     });
 
     let runError: string | undefined;
@@ -1534,6 +1578,30 @@ export class ExecutionEngine {
       });
       // Observability: deterministic anomaly + regression detection for this finalized run (Phase 06).
       this.runAnomalyChecks(instance.instanceId, instance.scenarioId);
+
+      // The run is now finalized, so offer it for incremental indexing (plan §14). Deliberately
+      // AFTER `upsertRun` — the observer's projection must describe the run as recorded, not as it
+      // was mid-finalization — and deliberately before `persistNow`, which is already fire-and-forget.
+      // `notifyRunCompletion` (RunCompletionObserver.ts) swallows everything the observer throws —
+      // plan §14.3's last requirement. It lives there rather than here so a verifier can drive it;
+      // this module transitively imports Electron and cannot be loaded by one.
+      const finalStatus = this.pool.get(instance.instanceId)?.status ?? machine.status;
+      notifyRunCompletion(this.runCompletionObserver, {
+        run: {
+          instanceId: instance.instanceId,
+          executionId: instance.executionId,
+          scenarioId: instance.scenarioId,
+          status: finalStatus,
+          startedAt: runStartedAtIso,
+          endedAt: endedAtIso,
+          durationMs: Math.max(0, Date.parse(endedAtIso) - Date.parse(runStartedAtIso)),
+          reportCategory: runError ? toReportCategory(endErrorClass) : undefined,
+          errorClass: endErrorClass
+        },
+        locatorScopeKeys: [...(this.locatorScopeKeys.get(instance.instanceId) ?? [])]
+      });
+      this.locatorScopeKeys.delete(instance.instanceId);
+
       void this.durableStore.persistNow();
       runLogger.log({
         runId: instance.executionId,

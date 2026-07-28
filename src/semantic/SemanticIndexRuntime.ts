@@ -65,6 +65,10 @@ export interface SemanticIndexRuntimeStatus {
   pending: number;
   /** True once a post-activation failure requires startup reconciliation to finish the job. */
   reconciliationRequired: boolean;
+  /** ISO time of the last drain that wrote something with no failures; null if none yet. */
+  lastIndexedAt: string | null;
+  /** Safe sentence for the last indexing failure, cleared by the next clean drain. */
+  lastIndexError: string | null;
 }
 
 export interface SemanticIndexRuntimeOptions {
@@ -353,7 +357,9 @@ export class SemanticIndexRuntime {
       block: this.block,
       rebuildRequired: this.queue.needsRebuild,
       pending: this.queue.size,
-      reconciliationRequired: this.reconciliationRequired
+      reconciliationRequired: this.reconciliationRequired,
+      lastIndexedAt: this.queue.lastSuccessAt,
+      lastIndexError: this.queue.lastError
     };
   }
 
