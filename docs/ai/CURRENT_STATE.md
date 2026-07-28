@@ -26,6 +26,16 @@ their TypeScript union; and `.codex/config.toml` is targeted in `.gitignore`. Th
 is unchanged at **61 PASS / 4 NOT RUN / 1 BLOCKED** (Recorder 28/0/1, Reports 14/2, Settings 19/2).
 Packaging/offline gates were not run because no packaging or offline surface changed.
 
+**Follow-up the same day — the declared-blocked pin had to move, and it was hiding a second issue.**
+`awkit-cey` was committed as `open` while bd held it `blocked`, so the working tree failed
+`verify:roadmap-dashboard` at **134/135** even though HEAD passed: the check pinned
+`declaredBlocked === 1` and there are now two (`awkit-7bu`, `awkit-cey`). `blocked` is the correct
+status — an authorized operator plus an out-of-band prerequisite is not expressible as a `blocks`
+edge — so the pin moved to 2 rather than the bead moving back. The same check asserted the layer of
+`externallyBlocked[0]` **only**, so the second declared-blocked issue was never validated at all;
+that is now `.every()`, kept non-vacuous by the count assertion beside it. Both halves were
+mutation-tested to fail before reverting. Back to **135/135**.
+
 ## Phase E complete — Workflow Builder import-from-file (2026-07-27, current)
 
 Phase E (Scenario Builder / Workflow Builder) is **complete**. The Workflow Builder now imports

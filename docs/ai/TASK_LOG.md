@@ -4,7 +4,35 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - REC-022 narrowed to a real IdP only (Codex)
+## 2026-07-28 (latest) - Declared-blocked pin moved to 2; the layer check only ever tested one (Claude)
+
+**Task:** review Codex's Phase K work, then fix what the review found.
+
+**Review result:** all seven claimed gate counts re-run and accurate — `build` PASS,
+`verify:workflow-builder` 28/28, `verify:workflow-sentinels` 12/12,
+`verify:protected-login-recorder` 57/57, `verify:recorder-gui` 152/0/0 (undisturbed),
+`verify:mock-site` 94/94, `verify:roadmap-dashboard` 135/135 at HEAD.
+
+**The defect:** the *working tree* failed at **134/135**. `awkit-cey` was committed `open` while bd
+held it `blocked`, and the check pinned `declaredBlocked === 1` against the two that now exist
+(`awkit-7bu`, `awkit-cey`). Confirmed by stashing the uncommitted `.beads/issues.jsonl` edit — 135
+at HEAD, 134 with it — then restoring.
+
+**Resolved toward `blocked`, not away from it.** REC-022 is held by an authorized operator plus an
+approved real-IdP identity; that is not expressible as a `blocks` edge, which is the same reasoning
+already applied to `awkit-7bu`. So the pin moved to 2 and the bead keeps the correct status.
+
+**It was hiding a second issue.** The check asserted the layer of `externallyBlocked[0]` only, so
+the second declared-blocked issue was never validated — a fail-open that opened the moment the count
+went from 1 to 2. Now `.every()`, with the count assertion beside it keeping it non-vacuous.
+
+**Mutation-tested both halves:** the count already had live evidence (it produced the 134/135), and
+flipping the layer comparison to `=== 0` produced `FAIL` before reverting.
+
+**Files:** `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`,
+`docs/ai/{CURRENT_STATE,TASK_LOG}.md`.
+
+## 2026-07-28 (earlier) - REC-022 narrowed to a real IdP only (Codex)
 
 **Task:** automate every REC-022 guarantee the offline mock can express without claiming Phase K
 complete, and finish the Phase E review follow-ups.
