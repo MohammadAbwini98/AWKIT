@@ -90,10 +90,18 @@ export function parseTaskLog() {
   }
 
   if (read.nulStripped > 0) {
-    // Expected: this file carries exactly one NUL. Worth stating rather than hiding, because a
-    // NUL inside a heading would drop that entry from the tally without any other symptom.
+    // This file should carry NONE. Worth stating rather than hiding, because a NUL inside a heading
+    // would drop that entry from the tally without any other symptom — and because the write is
+    // almost always accidental: an editing tool expanding a `\uXXXX` escape in prose about control
+    // characters. `grep` then reports the file as binary instead of matching it.
+    //
+    // Do NOT re-add a hardcoded offset here. The previous message named "offset 62127", which every
+    // subsequent append silently invalidated; by the time the NUL was found it sat at 102796 and the
+    // message was pointing 40KB away. Report the count, which is always true, and let the reader
+    // locate it.
     warnings.push(
-      `taskLog: stripped ${read.nulStripped} NUL byte(s) before parsing (known: 1 at offset 62127)`
+      `taskLog: stripped ${read.nulStripped} NUL byte(s) before parsing — expected 0; find them with ` +
+        `a byte scan, not grep`
     );
   }
 

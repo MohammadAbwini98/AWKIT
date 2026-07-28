@@ -778,6 +778,14 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   Electron Flow Designer verifier (rapid pane drag plus hit-tested node-over-node drag). Do not replace
   this with optional chaining or error suppression; that would hide a broken gesture.
 
+- **"build PASS" does not cover `scripts/`.** (2026-07-28.) `npm run build` typechecks the app
+  project; verifier scripts are a separate project (`tsconfig.scripts.json`, `npm run
+  typecheck:scripts`). A verifier can therefore be type-broken on `main` while a whole day of task
+  entries truthfully report "build PASS" — which is what happened: `ea90491` landed a cast in
+  `verify-semantic-store.mts` that `tsc -p tsconfig.scripts.json` rejects, and nothing noticed,
+  because `tsx` strips types without checking them and the suite still ran 215/0. **After editing
+  anything under `scripts/`, run `typecheck:scripts` — the suite passing proves nothing about it.**
+
 - **Never write a control character as a `\uXXXX` escape in a source file — derive it in code.**
   (2026-07-28, hit twice in one session.) An editing tool expanded the escape and wrote a **literal
   NUL byte** into `LocatorRecoveryStore.ts`, which `verify:source-hygiene` forbids. It was slow to

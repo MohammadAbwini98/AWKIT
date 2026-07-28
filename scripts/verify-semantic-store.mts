@@ -443,7 +443,10 @@ console.log("\nRenderer API contract (untrusted input is sanitized, not trusted)
     filter: "1=1 OR schemaVersion >= 0",
     collectionPath: "C:/Windows/System32",
     generationPath: "../../etc"
-  }) as { ok: true; value: Record<string, unknown> };
+    // Widened through `unknown` on purpose: the assertions below inspect keys the contract type does
+    // not declare, which is the entire point — `SemanticSearchRequest` has no index signature, so a
+    // direct cast is a compile error (it made `typecheck:scripts` red). Runtime behaviour unchanged.
+  }) as unknown as { ok: true; value: Record<string, unknown> };
   check("an unknown property is dropped, not forwarded", smuggle.ok && !("filter" in smuggle.value));
   check("no path property survives sanitization", smuggle.ok && !("collectionPath" in smuggle.value) && !("generationPath" in smuggle.value));
   check("the sanitized request carries only contract fields", smuggle.ok && Object.keys(smuggle.value).every((k) =>

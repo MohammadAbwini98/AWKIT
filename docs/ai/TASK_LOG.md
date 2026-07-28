@@ -4,7 +4,43 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-07-28 (latest) - dashboard reconciliation: the TAKEOFF section had silently broken the consistency banner (Claude)
+## 2026-07-28 (latest) - running the dashboard found two defects the verifiers could not (Claude)
+
+**Task:** actually start `npm run roadmap` and read the rendered page, rather than trusting
+`verify:roadmap-dashboard`. Two real defects surfaced immediately, both invisible to every gate.
+
+**Result:**
+
+1. **A literal NUL byte had been sitting in this file** (`docs/ai/TASK_LOG.md`), inside prose about
+   `entityKey = sha256(kind U+0000 NFC(entityId))` — the escape-expansion trap, committed by an
+   earlier session. Nothing caught it: `verify:source-hygiene` scanned only `src`/`app`/`scripts`
+   and only `.ts`/`.mts`/`.tsx`, `grep` reported the file as "binary" instead of matching, and the
+   dashboard's reader strips NULs and merely warns. Only the rendered page showed it. Replaced with
+   the readable token, and **extended `verify:source-hygiene` to scan `docs/**/*.md`** (7 → 9
+   checks, mutation-tested: a probe file with a NUL turned it red, 8/1).
+2. **`npm run typecheck:scripts` was RED on `main`**, from today's `ea90491`. `npm run build`
+   typechecks the app project only, so the whole day reported "build PASS" truthfully while a
+   verifier script did not compile — `tsx` strips types without checking them, so the suite ran
+   215/0 regardless. Fixed the cast in `verify-semantic-store.mts` by widening through `unknown`
+   (runtime behaviour and every assertion unchanged).
+
+Also removed a stale hardcoded offset in `parse-task-log.mjs`: its warning named "offset 62127",
+which every append to this file silently invalidated — the NUL was actually at 102796, ~40KB away.
+It now reports the count only.
+
+**Files:** `docs/ai/TASK_LOG.md`, `docs/ai/KNOWN_ISSUES.md`, `scripts/verify-source-hygiene.mts`,
+`scripts/verify-semantic-store.mts`, `tools/roadmap/lib/parse-task-log.mjs`.
+
+**Verification:** `typecheck:scripts` PASS (was failing); `verify:source-hygiene` **9/0** (was 7/0),
+mutation-tested; `verify:semantic-store` 215/0 unchanged; `verify:verifier-classification`
+reconciled (no new script — an existing one was extended); `verify:roadmap-dashboard` 135/135; live
+dashboard read at `127.0.0.1:4380` — banner "Sources agree" over 2 sources, parse warnings **7 → 6**.
+**Not run:** `npm run build` — no app-project file changed; packaging/offline gates — untouched.
+
+**Lesson:** the three checks that should have caught the NUL all passed, and the page did not. A
+derived view is worth *opening*, not just verifying.
+
+## 2026-07-28 - dashboard reconciliation: the TAKEOFF section had silently broken the consistency banner (Claude)
 
 **Task:** review the day's session and commits, and confirm every Program Status dashboard source
 reflects them. Docs only — no code changed.
@@ -1546,7 +1582,7 @@ or memory-gate run was possible after that point. Nothing unverified is recorded
 
 **1. The refusal-based filter design had an operational gap (owner-identified, correct).** Refusing an
 unrepresentable filter value is fail-closed, but it leaves a legitimate entity permanently
-undeletable. Fixed by deriving `entityKey = sha256(kind   NFC(entityId))` — alphabet always
+undeletable. Fixed by deriving `entityKey = sha256(kind U+0000 NFC(entityId))` — alphabet always
 `[0-9a-f]{64}` — and matching `entityKey IN (one key per kind)`. Raw `entityId`, `revision` and
 `nodeId` were removed from the filter allowlist in both the TypeScript source and the host's
 independent copy. The key is factory-computed and **recomputed-and-compared** on read, so a
