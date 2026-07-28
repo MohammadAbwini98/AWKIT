@@ -1,4 +1,4 @@
-import { Activity, ChevronDown, FileImage, MonitorDot, Pause, Play, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
+import { Activity, ChevronDown, Eye, FileImage, MonitorDot, Pause, Play, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageChrome } from "../state/pageChrome";
 import { usePermissions } from "../security/usePermissions";
@@ -8,6 +8,7 @@ import { RecoverableRunsPanel } from "../components/instances/RecoverableRunsPan
 import { ProtectedLoginHandoffPanel, type ProtectedLoginCapabilities } from "../components/auth/ProtectedLoginHandoffPanel";
 import { LiveExecutionReportModal } from "../components/instances/LiveExecutionReportModal";
 import { WorkflowInstancesModal } from "../components/instances/WorkflowInstancesModal";
+import { BrowserObservationModal } from "../components/instances/BrowserObservationModal";
 import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import {
   filterWorkflows,
@@ -123,6 +124,7 @@ export function InstanceMonitor() {
   const [classicOpen, setClassicOpen] = useState(false);
   const [authCaps, setAuthCaps] = useState<ProtectedLoginCapabilities | null>(null);
   const [reportInstanceId, setReportInstanceId] = useState<string | null>(null);
+  const [observationInstanceId, setObservationInstanceId] = useState<string | null>(null);
   const [workflowRunExecutionId, setWorkflowRunExecutionId] = useState<string | null>(null);
   const [stopAllConfirmOpen, setStopAllConfirmOpen] = useState(false);
   const [stoppingAll, setStoppingAll] = useState(false);
@@ -1003,6 +1005,14 @@ export function InstanceMonitor() {
                             <Activity size={13} />
                           </button>
                           <button
+                            aria-label={`Open read-only browser observation for ${instance.config.name}`}
+                            title="Open the read-only live browser view and CDP trace status"
+                            type="button"
+                            onClick={() => setObservationInstanceId(instance.instanceId)}
+                          >
+                            <Eye size={13} />
+                          </button>
+                          <button
                             disabled={fileButtonDisabled(instance.status, instance.paths.screenshots)}
                             title={fileButtonTitle(instance.status, instance.paths.screenshots, "Screenshots")}
                             type="button"
@@ -1051,6 +1061,20 @@ export function InstanceMonitor() {
                 instance={target}
                 workflow={workflows.find((workflow) => workflow.id === target.scenarioId)}
                 onClose={() => setReportInstanceId(null)}
+              />
+            );
+          })()
+        : null}
+
+      {observationInstanceId
+        ? (() => {
+            const target = instances.find((instance) => instance.instanceId === observationInstanceId);
+            if (!target) return null;
+            return (
+              <BrowserObservationModal
+                instanceId={target.instanceId}
+                instanceName={target.config.name}
+                onClose={() => setObservationInstanceId(null)}
               />
             );
           })()

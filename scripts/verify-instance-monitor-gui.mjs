@@ -165,6 +165,37 @@ try {
   }
   await modal.getByRole("button", { name: "Close workflow instance details" }).click();
 
+  const observationActions = win.getByRole("button", { name: /Open read-only browser observation for/ });
+  check("Instance rows expose a read-only browser observation action", (await observationActions.count()) === 4);
+  await observationActions.first().click();
+  const observationModal = win.getByRole("dialog", { name: "Browser observation" });
+  await observationModal.waitFor({ state: "visible" });
+  check("Browser observation opens as a modal", await observationModal.isVisible());
+  check(
+    "Browser observation identifies the passive safety boundary",
+    /Read-only CDP client.*local trace.*no action commands/i.test((await observationModal.textContent()) ?? "")
+  );
+  check(
+    "Browser observation focuses its close action",
+    await observationModal
+      .getByRole("button", { name: "Close browser observation" })
+      .evaluate((element) => document.activeElement === element)
+  );
+  await win.keyboard.press("Tab");
+  check(
+    "Browser observation traps keyboard focus",
+    await observationModal.evaluate((element) => element.contains(document.activeElement))
+  );
+  await observationModal.locator("img[alt^='Latest read-only browser view']").waitFor({
+    state: "visible",
+    timeout: 10000
+  });
+  check(
+    "Browser observation renders a live sampled screenshot",
+    await observationModal.locator("img[alt^='Latest read-only browser view']").isVisible()
+  );
+  await observationModal.getByRole("button", { name: "Close browser observation" }).click();
+
   await win.locator("#im-stop-all").click();
   const confirm = win.getByRole("alertdialog");
   await confirm.waitFor({ state: "visible" });

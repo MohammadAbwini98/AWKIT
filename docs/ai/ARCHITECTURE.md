@@ -242,6 +242,14 @@ must be documented in `mock-site/README.md` and AI memory files.
   a read-only Instance Monitor strip (browsers/flows/pages/queued/locks + stale, crashes,
   backpressure reason, last watchdog action; 2s poll). Verifiers: `verify:locks`,
   `verify:browser-pool`, `verify:watchdog`, `verify:artifacts`, `verify:runtime-status`.
+  **Passive observation:** `ExecutionEngine` creates one `PassiveCdpTrace` per enabled run and
+  `PlaywrightRunner` supplies every browser generation through awaited lifecycle callbacks. The
+  service attaches a second CDP session per page, restricted by an explicit observation-command
+  allowlist, and fails open. Raw NDJSON, bounded screenshots, optional DOM, manifest/index, 17
+  session buckets, per-navigation page slices, and summaries live under
+  `<instance root>/observation`; `execution:observationSnapshot` exposes only the current
+  permission-gated live snapshot to Instance Monitor. Runtime swaps and unconditional run cleanup
+  detach sessions and stop samplers before the browser slot is released.
   **Phase 3 (2026-07-06, see `docs/ai/PHASE3_DURABLE_RUNTIME.md`):** durable runtime under
   `<runtime root>/runtime/` — `runtime.sqlite` (real SQLite file via the pure-WASM `sql.js`
   driver; runs/attempts/heartbeats/cancellations/watchdog events/artifacts/capacity snapshots

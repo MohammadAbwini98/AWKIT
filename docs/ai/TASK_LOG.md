@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-4a6` passive CDP trace and Instance Monitor live view (Codex)
+
+**Task:** add a second observation-only CDP client, durable local run trace, and live browser view
+without changing runner actions or weakening offline behavior.
+
+**Result:** each browser generation can emit a capped, secret-sanitized raw NDJSON firehose,
+bounded two-second screenshots, optional DOM samples, 17 predictable session buckets, and
+top-navigation-bisected per-page slices. The idempotent finalizer writes `summary.json` as the
+entry point. Instance Monitor exposes a permission-gated, keyboard-contained read-only modal from
+the same attach, and every attach/sample/finalize failure remains fail-open. `awkit-4a6` is closed.
+
+**Verification:** `verify:instance-monitor` **55/55**, `verify:artifacts` **23/23**,
+`verify:instance-monitor-gui` **18/18**, `verify:runner` **89/89**, and build PASS. Mutation:
+allowlisting `Input.dispatchMouseEvent` produced **54/55**, then was reverted. Dashboard counts
+move to **113 total / 23 outstanding / 90 closed**.
+
 ## 2026-07-28 (latest) - `awkit-v4r` persisted locator winner and bounded recovery (Codex)
 
 **Task:** stop paying for a permanently dead primary locator and recover safely when every recorded

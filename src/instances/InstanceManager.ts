@@ -141,6 +141,7 @@ export class InstanceManager {
       reports: join(dirs.reports, executionId, `${instanceId}.json`),
       storage: join(instanceRoot, "storage"),
       traces: join(instanceRoot, "traces"),
+      observation: join(instanceRoot, "observation"),
       userDataDir: isolationMode === "persistentContext" ? join(instanceRoot, "profile") : undefined
     };
   }

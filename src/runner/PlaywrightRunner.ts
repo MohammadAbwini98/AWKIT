@@ -72,14 +72,18 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
    * mid-run Reuse Session / Auto Secure Login swap). Lets the engine's BrowserWorkerPool track
    * contexts/pages/health of the live runtime without owning its lifecycle.
    */
-  onBrowserRuntime?: (info: { runtime: BrowserRuntime; generation: number }) => void;
+  onBrowserRuntime?: (info: { runtime: BrowserRuntime; generation: number }) => void | Promise<void>;
   /**
    * Called immediately before the runner intentionally closes a browser runtime (end-of-run
    * cleanup, hard cancel, or Reuse Session swap of the old generation). Lets the engine tell its
    * BrowserWorkerPool that the resulting "disconnected" event is an expected teardown, not a crash,
    * so ordinary run completions don't inflate the crash-rate backpressure window.
    */
-  onRuntimeClosing?: (info: { runtime: BrowserRuntime; generation: number; reason: BrowserCloseReason }) => void;
+  onRuntimeClosing?: (info: {
+    runtime: BrowserRuntime;
+    generation: number;
+    reason: BrowserCloseReason;
+  }) => void | Promise<void>;
   /**
    * Hard-cancellation token (Phase 3). On cancel, the runner closes the CURRENT browser runtime
    * so in-flight Playwright actions reject immediately, and refuses to start further flows/steps.
@@ -162,7 +166,7 @@ export class PlaywrightRunner {
       context: holder.runtime.context,
       generation: holder.generation
     }, logger, context);
-    this.options.onBrowserRuntime?.({ runtime: holder.runtime, generation: holder.generation });
+    await this.options.onBrowserRuntime?.({ runtime: holder.runtime, generation: holder.generation });
     this.traceService = new TraceService(context.paths.traces, this.options.traceMode);
     await this.traceService.attach(holder.runtime.context);
 
@@ -224,7 +228,7 @@ export class PlaywrightRunner {
         holder.popupIdentity.resetForNewContext(candidate.page);
         this.bindPopupIdentityObserver(holder);
         holder.activeExecutor?.setActivePage(candidate.page);
-        this.options.onBrowserRuntime?.({ runtime: candidate.runtime, generation: newGeneration });
+        await this.options.onBrowserRuntime?.({ runtime: candidate.runtime, generation: newGeneration });
         await this.traceService?.attach(candidate.runtime.context);
         logger.log({ level: "info", message: `[swap:g${newGeneration}] published as current runtime.`, ...this.logMeta(context) });
 
@@ -466,7 +470,7 @@ export class PlaywrightRunner {
   ): Promise<void> {
     // Announce the intentional teardown BEFORE closing so the pool doesn't score the resulting
     // browser "disconnected" as a crash (which would falsely trip the crash-rate backpressure).
-    this.options.onRuntimeClosing?.({ runtime, generation, reason });
+    await this.options.onRuntimeClosing?.({ runtime, generation, reason });
     logger.log({ level: "info", message: `[browser:g${generation}] closing runtime (${reason}).`, ...this.logMeta(context) });
     await runtime.close();
     logger.log({ level: "info", message: `[browser:g${generation}] runtime closed (${reason}).`, ...this.logMeta(context) });

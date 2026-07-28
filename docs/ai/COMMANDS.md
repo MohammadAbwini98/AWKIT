@@ -120,13 +120,13 @@ npm run verify:recorder-draft # tsx scripts/verify-recorder-draft.mts — record
 npm run verify:recorder-flow # tsx scripts/verify-recorder-flow.mts — pure buildRecordedFlow checks: default Start/End nodes, action wiring, wait/route-change replay; no browser launched
 npm run verify:protected-login # tsx scripts/verify-protected-login.mts — pure protected-login detector unit checks
 npm run verify:data-editor  # tsx scripts/verify-data-editor.mts — data-source table editor logic + file round-trip
-npm run verify:instance-monitor  # tsx scripts/verify-instance-monitor.mts — workflow-card logic + execution-group summaries + stop eligibility (35 pure checks)
-npm run verify:instance-monitor-gui # real Electron isolated four-instance run: summary record/modal/focus + pending/running bulk stop (12 checks)
+npm run verify:instance-monitor  # tsx scripts/verify-instance-monitor.mts — workflow summaries/stop logic + passive CDP allowlist/17-bucket/page bisection (55 pure checks)
+npm run verify:instance-monitor-gui # real Electron isolated four-instance run: summary/modal + passive live screenshot/focus + bulk stop (18 checks)
 npm run verify:concurrency  # tsx scripts/verify-concurrency.mts — concurrency layer: locks (fencing/TTL/atomic), semaphore, browser pool saturation, backpressure, retry policy + dangerous-mutation guard, watchdog, JSONL logs, state artifacts, live Chromium profile lock
 npm run verify:locks        # tsx scripts/verify-locks.mts — profile-lock lifecycle incl. release after failed launchPersistentContext; origin/account kind capacities; stale snapshots
 npm run verify:browser-pool # tsx scripts/verify-browser-pool.mts — slot caps/saturation, release after failure/cancel, generation-guarded runtime tracking (fake runtimes)
 npm run verify:watchdog     # tsx scripts/verify-watchdog.mts — stale-heartbeat/orphan detection, manual-handoff no-false-positive, dedupe, watchdog snapshot
-npm run verify:artifacts    # tsx scripts/verify-artifacts.mts — JSONL logs, failure trace zips + default screenshots (live Chromium), run-state files
+npm run verify:artifacts    # tsx scripts/verify-artifacts.mts — JSONL/failure/state artifacts + passive second-client CDP trace, redaction, caps, retention (23 live checks)
 npm run verify:runtime-status # tsx scripts/verify-runtime-status.mts — dispatch claims, lock debug snapshot, capacity counts, aggregated runtime status
 npm run verify:durable-store  # tsx scripts/verify-durable-store.mts — SQLite runtime store (sql.js): migrations, run/attempt persistence across restart
 npm run verify:telemetry      # tsx scripts/verify-telemetry.mts — reporting read-model: v1→v2→v3→v4 in-place migration, run-summary + process samples, retention, ReportCategories, ProcessTreeSampler

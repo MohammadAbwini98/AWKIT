@@ -117,6 +117,7 @@ import {
   type DurableRunRecord
 } from "./store/RuntimeStoreSchema";
 import { runStartupRecovery } from "./store/StartupRecovery";
+import { PassiveCdpTrace, type CdpObservationSnapshot } from "./observation/PassiveCdpTrace";
 
 /** Per-execution context retained so a single instance can be re-run on demand. */
 interface RunContext {
@@ -140,6 +141,8 @@ export class ExecutionEngine {
   private readonly manualHandoffController = new ManualHandoffController();
   // Kept beyond the run lifetime so "Repeat" can re-run a finished instance.
   private readonly runContexts = new Map<string, RunContext>();
+  /** Live and recently-completed passive CDP traces, keyed by instance id for the Monitor. */
+  private readonly observationTraces = new Map<string, PassiveCdpTrace>();
 
   // ── Concurrency & stability layer ────────────────────────────────────────
   /** Bounded browser slots: caps live Chromium processes on the host (env-configurable). */
@@ -891,6 +894,26 @@ export class ExecutionEngine {
       throw new Error(`Cannot remove instance ${instanceId} because it is still active.`);
     }
     this.pool.remove(instanceId);
+    this.observationTraces.delete(instanceId);
+  }
+
+  public getObservationSnapshot(instanceId: string): CdpObservationSnapshot | undefined {
+    const instance = this.pool.get(instanceId);
+    if (!instance) return undefined;
+    const trace = this.observationTraces.get(instanceId);
+    if (trace) return trace.snapshot();
+    return {
+      instanceId,
+      status: process.env.AWKIT_CDP_OBSERVATION === "0" ? "unavailable" : "waiting",
+      traceRoot: instance.paths.observation ?? join(instance.paths.storage, "observation"),
+      eventCount: 0,
+      sampleCount: 0,
+      truncated: false,
+      message:
+        process.env.AWKIT_CDP_OBSERVATION === "0"
+          ? "Passive browser observation is disabled by AWKIT_CDP_OBSERVATION=0."
+          : "Waiting for the browser runtime."
+    };
   }
 
   public async startRun(
@@ -1251,6 +1274,16 @@ export class ExecutionEngine {
     if (seededOrigin) originClaims.seed(seededOrigin.key.slice("origin:".length), seededOrigin, undefined);
 
     const runLogger = new RunLogger(instance.paths.logs);
+    const passiveTrace =
+      process.env.AWKIT_CDP_OBSERVATION === "0"
+        ? undefined
+        : new PassiveCdpTrace({
+            root: instance.paths.observation ?? join(instance.paths.storage, "observation"),
+            executionId: instance.executionId,
+            instanceId: instance.instanceId,
+            scenarioId: instance.scenarioId
+          });
+    if (passiveTrace) this.observationTraces.set(instance.instanceId, passiveTrace);
     const machine = new FlowRunStateMachine("queued");
     const attempts = new NodeAttemptLog();
     machine.transition("running", "instance dispatched with browser slot");
@@ -1353,8 +1386,14 @@ export class ExecutionEngine {
       screenshotOnFailure: instance.config.screenshotOnFailure ?? browserConfig.artifact.screenshotOnFailure,
       sessionService: getSessionService(),
       manualHandoffController: this.manualHandoffController,
-      onBrowserRuntime: ({ runtime, generation }) => this.browserPool.registerRuntime(slot!, runtime, generation),
-      onRuntimeClosing: ({ generation }) => this.browserPool.markExpectedClose(slot!, generation),
+      onBrowserRuntime: async ({ runtime, generation }) => {
+        this.browserPool.registerRuntime(slot!, runtime, generation);
+        await passiveTrace?.startGeneration(runtime, generation);
+      },
+      onRuntimeClosing: async ({ generation }) => {
+        this.browserPool.markExpectedClose(slot!, generation);
+        await passiveTrace?.stopGeneration(generation);
+      },
       cancellation: cancelSource.token,
       originClaims,
       // Phase A5: only shared-eligible instances lease from the shared Chromium pool.
@@ -1439,6 +1478,16 @@ export class ExecutionEngine {
       // Cleanup is unconditional: slot back to the pool, dispatch claims (in-memory + durable),
       // origin tracker, and stray profile locks released, state artifacts + log flush before the
       // promise settles.
+      await passiveTrace?.stop().catch(() => undefined);
+      if (passiveTrace?.hasArtifacts()) {
+        this.durableStore.recordArtifact({
+          instanceId: instance.instanceId,
+          executionId: instance.executionId,
+          kind: "cdp-observation-trace",
+          path: passiveTrace.snapshot().traceRoot,
+          createdAt: new Date().toISOString()
+        });
+      }
       this.browserPool.releaseSlot(slot);
       await originClaims.release().catch(() => undefined);
       if (claimTokens?.length) globalResourceLocks.releaseMany(claimTokens);

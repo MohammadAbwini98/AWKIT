@@ -110,9 +110,10 @@ remain structural and legacy workflows remain compatible.
   kind-prefix origin/account capacities, active+stale snapshots), `verify:browser-pool` (**13** —
   fake runtimes: saturation, release after failure/cancel, generation-guarded page/crash tracking,
   backpressure), `verify:watchdog` (**13** — stale/orphan detection, manual-handoff
-  no-false-positive, dedupe, snapshot), `verify:artifacts` (**13** — live Chromium: failure trace
+  no-false-positive, dedupe, snapshot), `verify:artifacts` (**23** — live Chromium: failure trace
   zip saved / success discarded, default failure screenshot, trace errors never mask the step
-  error, state files), `verify:runtime-status` (**15** — dispatch claims, lock debug snapshot,
+  error, state files, and passive second-client CDP trace shape/redaction/size/sample retention),
+  `verify:runtime-status` (**15** — dispatch claims, lock debug snapshot,
   capacity counts, aggregated status shape).
 - Phase 3 verifiers (deterministic; temp SQLite/lock dirs; live parts local-only):
   `verify:durable-store` (**11** — migrations idempotent across reopen, real SQLite file,
@@ -317,12 +318,14 @@ Recorder, Instances, all Reports tabs, Data Sources, Sessions, Settings):**
 - Concurrency/worker isolation now has deterministic stress coverage (`verify:stress:*`,
   `verify:soak:runtime` — fake runtimes/temp stores, developer-machine scale); real multi-hour
   soak with live browsers is still not automated.
-- Concurrent Instance Monitor non-DOM logic is verified by `npm run verify:instance-monitor` (**35**
+- Concurrent Instance Monitor non-DOM logic is verified by `npm run verify:instance-monitor` (**55**
   pure checks: search/visible-count/validation/name resolution, execution grouping, status/count/progress
-  summaries, run ordering, and stop eligibility). `npm run verify:instance-monitor-gui` adds **12** real
-  Electron checks using an isolated temporary profile and local-only slow workflow: one grouped record for
-  four instances, all-instance modal/details/report actions, modal focus/trap behavior, destructive
-  confirmation, and hard cancellation of two running + two queued instances. Remaining manual-only DOM coverage: workflow-card hover/focus
+  summaries, run ordering, stop eligibility, the observation command boundary, and idempotent
+  17-bucket/page bisection). `npm run verify:instance-monitor-gui` adds **18** real Electron checks
+  using an isolated temporary profile and local-only slow workflow: one grouped record for four
+  instances, all-instance details/report actions, passive live screenshot rendering, both modal
+  focus traps, destructive confirmation, and hard cancellation of two running + two queued
+  instances. Remaining manual-only DOM coverage: workflow-card hover/focus
   cross-fade/equal-height behavior and simultaneous runs from two different workflow cards.
 
 ## Unknown / Needs Verification

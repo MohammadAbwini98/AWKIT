@@ -22,6 +22,7 @@ import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+import type { CdpObservationSnapshot } from "@src/runner/observation/PassiveCdpTrace";
 import type { BrandingStateView } from "./ipc/branding.ipc";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
@@ -271,6 +272,8 @@ const api = {
     removeInstance: (instanceId: string) => ipcRenderer.invoke("execution:removeInstance", instanceId) as Promise<{ success: boolean; error?: string }>,
     repeatInstance: (instanceId: string) => ipcRenderer.invoke("execution:repeatInstance", instanceId) as Promise<{ success: boolean; error?: string }>,
     runtimeStatus: () => ipcRenderer.invoke("execution:runtimeStatus") as Promise<RuntimeStatusSnapshot>,
+    observationSnapshot: (instanceId: string) =>
+      ipcRenderer.invoke("execution:observationSnapshot", instanceId) as Promise<CdpObservationSnapshot | undefined>,
     recoveryDetails: (instanceId: string) =>
       ipcRenderer.invoke("execution:recoveryDetails", instanceId) as Promise<{
         run?: DurableRunRecord;

@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 2 complete — passive CDP observation and local trace (2026-07-28, current)
+
+`awkit-4a6` is closed, completing every authorized Tranche 2 engineering item. Each running browser
+generation can now carry a second, fail-open CDP client restricted to an explicit observation
+allowlist. It records a secret-sanitized, size-capped raw event stream, bounded two-second visual
+samples, and an opt-in DOM timeline beneath the existing per-instance artifact root. Finalization
+rebuilds 17 predictable session buckets plus navigation-bisected per-page slices in an idempotent
+pass, with `summary.json` as the small analysis entry point.
+
+Instance Monitor exposes the same attach as a permission-gated, read-only live browser modal with
+local screenshots, trace status, keyboard focus containment, and no runner action surface.
+Observation attach, sampling, or finalization failures never replace the workflow result. The
+runner always stops samplers during runtime swaps, cancellation, crashes, and ordinary cleanup.
+
+Focused proof is `verify:instance-monitor` **55/55**, `verify:artifacts` **23/23**,
+`verify:instance-monitor-gui` **18/18**, and `verify:runner` **89/89**; `npm run build` passes.
+Temporarily admitting `Input.dispatchMouseEvent` to the observation allowlist produced
+**54/55**, then was reverted. Dashboard source counts are **113 beads / 23 outstanding /
+90 closed**. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 2 — locator winner memory and bounded recovery complete (2026-07-28, current)
 
 `awkit-v4r` is closed. The runner now persists the last successful recorded locator candidate per

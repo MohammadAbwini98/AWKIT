@@ -120,6 +120,10 @@ export function registerExecutionIpc(): void {
   });
   // Concurrency-layer status: capacity, lock table, browser pool, watchdog (read-only, no secrets).
   ipcMain.handle("execution:runtimeStatus", async () => executionEngine.getRuntimeStatus());
+  ipcMain.handle("execution:observationSnapshot", async (event, instanceId: string) => {
+    await assertSenderPermission(event, Permission.PAGE_INSTANCES);
+    return executionEngine.getObservationSnapshot(instanceId);
+  });
   // Recoverable/interrupted prior runs (Phase 4C): durable detail + explicit user verdicts.
   ipcMain.handle("execution:recoveryDetails", async (_, instanceId: string) => executionEngine.getRecoveryDetails(instanceId));
   ipcMain.handle("execution:recoveryAction", async (event, instanceId: string, action: "markReviewed" | "markAbandoned") => {

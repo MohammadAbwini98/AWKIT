@@ -1,5 +1,22 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): Tranche 2 complete; continue with Zvec Tranche 3
+
+`awkit-4a6` is closed. A second observation-only CDP session now follows each browser generation,
+fails open, emits a bounded and secret-sanitized local trace, and rebuilds the required 17
+session-wide plus navigation-bisected per-page buckets. Instance Monitor uses the same attach for a
+permission-gated live screenshot view. DOM capture is opt-in, sampling defaults to two seconds, and
+all cleanup paths stop the sampler.
+
+Verification is green: Instance Monitor **55/55**, artifacts **23/23**, real Electron GUI
+**18/18**, runner **89/89**, and build PASS. The action-command mutation failed **54/55** and was
+reverted. Dashboard counts are **113 / 23 outstanding / 90 closed**; the validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+Tranche 2 is complete except for the explicitly owner-reserved Chromium vendoring policy half of
+`awkit-epz`, which remains open. Continue the program with Tranche 3 in strict order:
+`awkit-9yv`, then `awkit-hzf`, then `awkit-ttd`.
+
 ## ACTIVE (2026-07-28, latest): `awkit-v4r` closed; continue Tranche 2 with `awkit-4a6`
 
 The locator resolver now remembers the winning recorded candidate per scenario/flow/step in the

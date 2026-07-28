@@ -16,6 +16,7 @@ import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { FlowExecutor } from "@src/runner/FlowExecutor";
 import { TraceService } from "@src/runner/artifacts/TraceService";
+import { PassiveCdpTrace } from "@src/runner/observation/PassiveCdpTrace";
 import { RunLogger } from "@src/runner/artifacts/RunLogger";
 import { writeRunStateArtifacts } from "@src/runner/artifacts/RunStateArtifacts";
 import { NodeAttemptLog } from "@src/runner/runtime/NodeAttempt";
@@ -161,6 +162,142 @@ async function main(): Promise<void> {
   check(
     "node attempt carries error class, trace path, and URL",
     attemptsJson[0].errorClass === "navigation" && attemptsJson[0].tracePath === failResult.tracePath && attemptsJson[0].currentUrl === "http://127.0.0.1/"
+  );
+
+  console.log("\nPart D — passive second-client CDP trace + bounded visual retention");
+  const observationRoot = join(root, "observation");
+  const observationBrowser = await chromium.launch({ headless: true });
+  const observedContext = await observationBrowser.newContext();
+  const observedPage = await observedContext.newPage();
+  const observation = new PassiveCdpTrace({
+    root: observationRoot,
+    executionId: "e-art",
+    instanceId: "i-art",
+    scenarioId: "s-art",
+    sampleIntervalMs: 60_000,
+    maxRawBytes: 4_096,
+    maxSamples: 2
+  });
+  await observation.startGeneration({ context: observedContext }, 1);
+  await observedPage.setContent(
+    `<button id="observed-action" onclick="window.__observedHit='yes'">Run observed action</button>`
+  );
+  const observedExecutor = new StepExecutor(
+    observedPage,
+    new LocatorFactory(observedPage),
+    new ValueResolver(context),
+    context
+  );
+  const observedResult = await observedExecutor.execute({
+    id: "observed-click",
+    type: "click",
+    name: "Click through primary Playwright client",
+    locator: { strategy: "id", value: "observed-action" }
+  } as FlowStep);
+  check(
+    "second CDP client does not interfere with the runner action",
+    observedResult.status === "passed" &&
+      (await observedPage.evaluate(() => (window as any).__observedHit)) === "yes",
+    observedResult.error
+  );
+
+  const secretCanary = "CDP-SECRET-CANARY-4A6";
+  await observedPage.evaluate((secret) =>
+    fetch(`http://127.0.0.1:9/observation-probe?token=${encodeURIComponent(secret)}`, {
+      method: "POST",
+      headers: { "x-api-key": secret },
+      body: secret
+    }).catch(() => undefined), secretCanary);
+  await observedPage.evaluate((secret) => {
+    for (let index = 0; index < 20; index += 1) console.log(secret, "x".repeat(300), index);
+  }, secretCanary);
+  await observedPage.waitForTimeout(150);
+  await observation.sampleNow();
+  await observation.sampleNow();
+  await observation.sampleNow();
+  await observation.stop();
+  await observedContext.close();
+  await observationBrowser.close();
+
+  const observationFiles = await readdir(observationRoot);
+  check(
+    "observation trace writes manifest, index, root summary, CDP, screenshots, and DOM folders",
+    ["manifest.json", "index.jsonl", "summary.json", "cdp", "screenshots", "dom"].every((name) =>
+      observationFiles.includes(name)
+    ),
+    observationFiles.join(", ")
+  );
+  const observationManifest = JSON.parse(await readFile(join(observationRoot, "manifest.json"), "utf8"));
+  check(
+    "manifest records the read-only domains and bounded policy",
+    ["Network", "Console", "Runtime", "Log", "Page"].every((domain) =>
+      observationManifest.domains.includes(domain)
+    ) &&
+      observationManifest.captureDom === false &&
+      observationManifest.maxRawBytes === 4_096 &&
+      observationManifest.maxSamples === 2,
+    JSON.stringify(observationManifest)
+  );
+  const rawTrace = await readFile(join(observationRoot, "cdp", "raw.ndjson"), "utf8");
+  const rawRecords = rawTrace
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as any);
+  const sanitizedProbe = rawRecords.find(
+    (entry) =>
+      entry.method === "Network.requestWillBeSent" &&
+      entry.params?.request?.url === "http://127.0.0.1:9/observation-probe"
+  );
+  check(
+    "raw CDP firehose captures the probe while redacting URL, headers, body, and console values",
+    Boolean(sanitizedProbe) &&
+      sanitizedProbe.params.request.postData === "[REDACTED]" &&
+      sanitizedProbe.params.request.headers?.["x-api-key"] === "[REDACTED]" &&
+      !rawTrace.includes(secretCanary)
+  );
+  check(
+    "raw trace stops at the configured byte cap and reports truncation",
+    (await stat(join(observationRoot, "cdp", "raw.ndjson"))).size <= 4_096 &&
+      observation.snapshot().truncated,
+    JSON.stringify(observation.snapshot())
+  );
+  const retainedScreenshots = await readdir(join(observationRoot, "screenshots"));
+  const retainedIndex = (await readFile(join(observationRoot, "index.jsonl"), "utf8"))
+    .split(/\r?\n/)
+    .filter(Boolean);
+  check(
+    "visual retention keeps at most the configured samples and matching index rows",
+    retainedScreenshots.length > 0 &&
+      retainedScreenshots.length <= 2 &&
+      retainedIndex.length === retainedScreenshots.length,
+    `${retainedScreenshots.length} screenshots / ${retainedIndex.length} index rows`
+  );
+  check(
+    "live-view snapshot is an in-memory PNG data URL",
+    observation.snapshot().screenshotDataUrl?.startsWith("data:image/png;base64,") === true
+  );
+  const domFiles = await readdir(join(observationRoot, "dom"));
+  check("DOM capture is opt-in and stays empty by default", domFiles.length === 0, domFiles.join(", "));
+  const cdpSummary = JSON.parse(await readFile(join(observationRoot, "cdp", "summary.json"), "utf8"));
+  check(
+    "summary is the analysis entry point with page and bucket counts",
+    cdpSummary.eventCount > 0 && Array.isArray(cdpSummary.pages) && cdpSummary.buckets["console/logs"] > 0,
+    JSON.stringify(cdpSummary)
+  );
+  check(
+    "predictable session buckets exist even when empty",
+    (
+      await Promise.all(
+        [
+          "network/requests.jsonl",
+          "console/logs.jsonl",
+          "runtime/all.jsonl",
+          "page/navigations.jsonl",
+          "target/attached.jsonl",
+          "target/detached.jsonl"
+        ].map((relative) => stat(join(observationRoot, "cdp", relative)).then(() => true).catch(() => false))
+      )
+    ).every(Boolean)
   );
 
   await rm(root, { recursive: true, force: true }).catch(() => undefined);

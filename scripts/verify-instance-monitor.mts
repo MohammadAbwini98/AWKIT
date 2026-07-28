@@ -12,6 +12,14 @@ import {
   visibleCardCount
 } from "@src/instances/instanceCardLogic";
 import { compareElapsedToHistory } from "../app/renderer/components/instances/executionReportModel";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  bisectCdpTrace,
+  isObservationCommand,
+  type CdpTraceRecord
+} from "@src/runner/observation/PassiveCdpTrace";
 
 let passed = 0;
 let failed = 0;
@@ -119,5 +127,103 @@ check("finished faster → ahead", (() => { const r = compareElapsedToHistory(80
 check("finished slower → behind", (() => { const r = compareElapsedToHistory(12_000, base, false); return r?.tone === "behind" && r.label === "20% slower than avg"; })());
 check("finished within ±5% → about average (neutral)", (() => { const r = compareElapsedToHistory(10_200, base, false); return r?.tone === "neutral" && r.label === "about average"; })());
 
-console.log(`\n${passed} passed, ${failed} failed`);
-process.exit(failed === 0 ? 0 : 1);
+async function verifyPassiveObservationModel(): Promise<void> {
+  console.log("passive observation model:");
+  check("observation allowlist contains read-only capture", isObservationCommand("Page.captureScreenshot"));
+  check("observation allowlist rejects mouse actions", !isObservationCommand("Input.dispatchMouseEvent"));
+  check("observation allowlist rejects script injection", !isObservationCommand("Page.addScriptToEvaluateOnNewDocument"));
+
+  const root = await mkdtemp(join(tmpdir(), "wfs-cdp-bisect-"));
+  const cdpRoot = join(root, "cdp");
+  await mkdir(cdpRoot, { recursive: true });
+  const record = (
+    method: string,
+    pageId: string,
+    wallTimeMs: number,
+    params: Record<string, unknown> = {}
+  ): CdpTraceRecord => ({
+    receivedAt: new Date(wallTimeMs).toISOString(),
+    wallTimeMs,
+    method,
+    params,
+    generation: 1,
+    pageId
+  });
+  const records: CdpTraceRecord[] = [
+    record("Network.requestWillBeSent", "page-a", 1, { type: "Document" }),
+    record("Page.frameNavigated", "page-a", 2, { frame: { id: "main-a", parentId: null } }),
+    record("Page.frameNavigated", "page-a", 3, { frame: { id: "child-a", parentId: "main-a" } }),
+    record("Runtime.consoleAPICalled", "page-a", 4, { type: "log" }),
+    record("Page.frameNavigated", "page-a", 5, { frame: { id: "main-a-2", parentId: "" } }),
+    record("Network.responseReceived", "page-a", 6, { type: "Document" }),
+    record("Log.entryAdded", "page-b", 7, { entry: { level: "warning" } }),
+    record("Page.frameNavigated", "page-b", 8, { frame: { id: "main-b" } })
+  ];
+  await writeFile(
+    join(cdpRoot, "raw.ndjson"),
+    `${records.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
+    "utf8"
+  );
+
+  const summary = await bisectCdpTrace(root);
+  check("bisection keeps every raw event", summary.eventCount === records.length, JSON.stringify(summary));
+  check("pre-navigation events clamp to page zero", summary.pages[0]?.eventCount === 4, JSON.stringify(summary.pages));
+  check("iframe navigation does not create a page boundary", summary.pages.length === 3, JSON.stringify(summary.pages));
+  check("empty-string parentId creates a new top-level page slice", summary.pages[1]?.eventCount === 2, JSON.stringify(summary.pages));
+  check("a second CDP target gets its own page slice", summary.pages[2]?.eventCount === 2, JSON.stringify(summary.pages));
+  check(
+    "Runtime.consoleAPICalled is remapped into the console bucket",
+    summary.buckets["console/logs"] === 1,
+    JSON.stringify(summary.buckets)
+  );
+
+  const expectedBuckets = [
+    "network/requests",
+    "network/responses",
+    "network/finished",
+    "network/failed",
+    "network/websocket",
+    "console/logs",
+    "console/exceptions",
+    "runtime/all",
+    "log/entries",
+    "page/navigations",
+    "page/lifecycle",
+    "page/dialogs",
+    "page/frames",
+    "page/all",
+    "dom/all",
+    "target/attached",
+    "target/detached"
+  ];
+  const bucketExists = await Promise.all(
+    expectedBuckets.map((bucket) =>
+      stat(join(cdpRoot, `${bucket}.jsonl`))
+        .then(() => true)
+        .catch(() => false)
+    )
+  );
+  check("all 17 session buckets exist, including empty buckets", bucketExists.every(Boolean));
+  check(
+    "empty per-page buckets are omitted",
+    !(await stat(join(cdpRoot, "pages", "p0", "network", "responses.jsonl"))
+      .then(() => true)
+      .catch(() => false))
+  );
+
+  const firstSummary = await readFile(join(root, "summary.json"), "utf8");
+  await bisectCdpTrace(root);
+  const secondSummary = await readFile(join(root, "summary.json"), "utf8");
+  check("bisection is idempotent", firstSummary === secondSummary);
+  await rm(root, { recursive: true, force: true });
+}
+
+verifyPassiveObservationModel()
+  .then(() => {
+    console.log(`\n${passed} passed, ${failed} failed`);
+    process.exit(failed === 0 ? 0 : 1);
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

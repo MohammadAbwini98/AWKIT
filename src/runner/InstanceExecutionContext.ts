@@ -68,6 +68,8 @@ export interface InstanceExecutionContext {
     sessions?: string;
     /** Per-run trace output dir — presence of this path is what arms failure-trace capture. */
     traces?: string;
+    /** Passive CDP observation trace and live-view samples. */
+    observation?: string;
     /**
      * Extra roots that `uploadFile` must never read from (audit F-01) — e.g. the global runtime
      * data root that holds captured browser profiles (cookies/Login Data) and the durable store.

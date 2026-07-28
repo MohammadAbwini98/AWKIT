@@ -6115,6 +6115,83 @@ table {
   gap: 8px;
 }
 
+/* Passive CDP browser observation — uses the report modal shell and Hologram tokens. */
+.browser-observation-modal {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.browser-observation-safety {
+  align-items: center;
+  color: var(--awkit-success);
+  display: flex;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+}
+
+.browser-observation-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.browser-observation-frame {
+  background: var(--awkit-surface-inset);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  overflow: hidden;
+  padding: var(--space-2);
+}
+
+.browser-observation-frame img {
+  aspect-ratio: 16 / 9;
+  background: var(--awkit-surface-soft);
+  border-radius: var(--radius-sm);
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.browser-observation-frame figcaption,
+.browser-observation-path span,
+.browser-observation-empty span {
+  color: var(--awkit-text-muted);
+  font-size: var(--text-xs);
+}
+
+.browser-observation-empty {
+  align-items: center;
+  color: var(--awkit-text-secondary);
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.pill-degraded {
+  background: var(--awkit-warning-soft);
+  color: var(--awkit-warning);
+}
+
+.pill-unavailable,
+.pill-waiting {
+  background: var(--awkit-surface-inset);
+  color: var(--awkit-text-secondary);
+}
+
+.browser-observation-path {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+}
+
+.browser-observation-path span {
+  overflow-wrap: anywhere;
+}
+
 .report-banner {
   display: flex;
   flex-direction: column;

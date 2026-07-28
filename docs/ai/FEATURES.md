@@ -209,6 +209,12 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `executionId` and shows workflow status, active/pending/completed/failed counts, progress, total, and
   duration. Selecting a record opens `WorkflowInstancesModal` with every instance's execution details and
   a link to its live report; concurrent runs of the same workflow remain separate.
+- ✅ **Passive browser observation + durable CDP trace:** every live browser generation may attach a
+  second, fail-open CDP client whose command allowlist is limited to observation domains and local
+  screenshot/optional DOM reads. It stores a capped and secret-sanitized raw stream, bounded visual
+  samples, 17 session buckets, navigation-bisected page slices, and an analysis-first summary under
+  the instance artifact root. Instance Monitor displays the same attach in a permission-gated,
+  keyboard-contained read-only live-view modal.
 - ✅ **Workflow cards grid** (`components/instances/WorkflowRunCard.tsx`): primary run UX — one card per
   saved workflow with status badge, summary metadata, and per-card run parameters revealed on
   hover/keyboard focus (independent per workflow; persisted to `settings.workflowRunCards`). Search by

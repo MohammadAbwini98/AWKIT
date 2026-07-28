@@ -13,6 +13,8 @@ export interface InstanceRuntimePaths {
   storage: string;
   /** Failure-trace output dir (arms per-step trace capture when present). */
   traces?: string;
+  /** Passive CDP observation trace and live-view samples for this run. */
+  observation?: string;
   userDataDir?: string;
 }
 
@@ -76,7 +78,8 @@ export function toExecutionContext(state: InstanceRuntimeState): InstanceExecuti
       screenshots: state.paths.screenshots,
       logs: state.paths.logs,
       reports: state.paths.reports,
-      traces: state.paths.traces
+      traces: state.paths.traces,
+      observation: state.paths.observation
     }
   };
 }

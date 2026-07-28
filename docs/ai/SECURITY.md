@@ -8,6 +8,10 @@
 - If you find secret-like values in the repo, do **not** copy them into documentation — note only
   that secret-like values exist and where to review them manually.
 - Mask secrets in structured logs and reports (per the spec's reporting/logging rules).
+- Passive CDP observation is local and read-only: its command allowlist excludes input/navigation
+  actions, DOM capture is opt-in, URL queries/fragments and request/console payloads are removed,
+  sensitive headers/credentials are redacted, raw bytes and retained samples are bounded, and
+  renderer access requires `Permission.PAGE_INSTANCES`.
 
 ## Environment / config
 - Runtime config comes from `.env` files, runtime profiles, and the UI settings store.
