@@ -71,13 +71,13 @@ try {
   console.log("Beads issue tracker:");
   const beads = parseBeads();
   check("118 issues parse", beads.stats.total === 118, `got ${beads.stats.total}`);
-  // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) on
-  // 2026-07-28. Move this pin
+  // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
+  // 18/100 (`awkit-y24`) on 2026-07-28. Move this pin
   // deliberately when a bead closes — never relax it to a range, or it stops noticing that the
   // export was not refreshed (`bd close` does not rewrite `.beads/issues.jsonl`; `bd export` does).
   check(
-    "19 outstanding / 99 closed",
-    beads.stats.outstanding === 19 && beads.stats.closed === 99,
+    "18 outstanding / 100 closed",
+    beads.stats.outstanding === 18 && beads.stats.closed === 100,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

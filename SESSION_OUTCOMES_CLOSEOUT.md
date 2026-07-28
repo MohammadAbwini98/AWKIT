@@ -17,7 +17,7 @@ Update the **Status** column as each item lands. Legend: `[ ]` todo · `[~]` in 
 | 0a | Create this tracker file | deliverable | — | [x] |
 | 0b | Close AWKIT dev instance → rerun `verify:settings-persistence` | Cond. 5 | `verify:settings-persistence` green | [!] 4 Electron procs running — needs you to close AWKIT |
 | 1 | **awkit-cxa (P1):** designer preserves bare `FlowStep.value` losslessly | Cond. 3 / Finding 4 | `verify:flow-step-mapping` (pins inverted) + `tsc` | [x] |
-| 2 | **awkit-y24 (P2):** grouped completion `A AND (B OR C)` → GUI 11.3 PASS | Cond. 1 / Finding 3 | `verify:waits` + `verify:flow-step-mapping` + `verify:runner` + `verify:mock-site` | [~] code done; GUI walkthrough pending |
+| 2 | **awkit-y24 (P2):** grouped completion `A AND (B OR C)` → GUI 11.3 PASS | Cond. 1 / Finding 3 | `verify:waits` + `verify:flow-step-mapping` + `verify:runner` + `verify:mock-site` | [x] GUI 11.3 automated and PASS (2026-07-28) |
 | 3 | **awkit-4km C1:** 202 → terminal-status polling (own commit) | Bead awkit-4km | `verify:waits` + `verify:mock-site` + round-trip | [x] (C1 only) |
 | 4 | Coverage-gap hardening (verifier breadth) | Section 8 | `verify:flow-step-mapping` | [x] (+ fixed generated/secret drop) |
 | 5a | Distributable installer on a host that clears `-mx=9` | Cond. 2 | `package:portable` exit 0 + artifact recorded | [!] |
@@ -43,12 +43,17 @@ Update the **Status** column as each item lands. Legend: `[ ]` todo · `[~]` in 
 | Bead | Pri | Closed by | Status |
 |---|---|---|---|
 | `awkit-cxa` | P1 | Item 1 | ✅ fixed (uncommitted) |
-| `awkit-y24` | P2 | Item 2 | ✅ implemented (uncommitted); GUI 11.3 walkthrough pending |
+| `awkit-y24` | P2 | Item 2 | ✅ closed; GUI 11.3 58/58 real Electron |
 | `awkit-4km` | P2 | Item 3 (C1 only; WS/SSE + CDP stay deferred) | ⏳ C1 done (uncommitted); WS/SSE + CDP still open |
 
 ---
 
 ## Notes / log
+
+- 2026-07-28 — **Item 2 / `awkit-y24` CLOSED.** Real-Electron Flow Designer verification now
+  creates the API + OR-group, edits both branches, saves, and confirms the stored profile retains
+  `API AND (table rows OR empty-state text)`. `verify:flow-designer` 58/58; `verify:waits` 58/0
+  (including empty-group fail-closed); mapping 102/0; runner 89/0; mock-site 96/96.
 
 - 2026-07-22 — Tracker created from the approved close-out plan. Decisions: full in-repo scope
   incl. awkit-4km C1 (202-polling only); awkit-cxa fixed on the designer round-trip side (preserve

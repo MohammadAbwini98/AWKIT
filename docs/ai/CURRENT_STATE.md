@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Grouped async completion is closed with real GUI evidence (2026-07-28, current)
+
+`awkit-y24` is closed. A required `anyOf` wait expresses `A AND (B OR C)` under the existing
+`allRequired` completion policy, so an API success cannot override a missing UI outcome. The real
+Flow Designer now has measured evidence for GUI check 11.3: it configured and saved
+`response(/api/results) AND (tableHasRows(#resultsTable) OR textVisible(empty state))`, and the
+persisted flow retained the nested shape without flattening.
+
+The closure audit found and fixed one edge case: an empty required OR-group used to pass vacuously.
+It now fails closed and tells the user to add a completion branch. Runtime truth-table coverage proves
+rows and empty-state alternatives pass, while neither outcome and an empty group fail.
+
+Verification: `verify:flow-designer` **58/58 real Electron** · `verify:waits` **58/0** ·
+`verify:flow-step-mapping` **102/0** · `verify:async-review` 21/0 · `verify:runner` 89/0 ·
+`verify:mock-site` 96/96 · `verify:all-typecheck` PASS. Screenshot:
+`test-artifacts/grouped-wait-gui/awkit-y24-configured.png`. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 18 outstanding / 100 closed**.
+
 ## Offline packaging inputs are pinned, signed, and clean-clone reproducible (2026-07-28, current)
 
 `awkit-epz` is closed. Playwright is pinned to `1.61.0`; the approved Windows x64 Chrome for

@@ -510,6 +510,22 @@ async function main() {
   // ── 202 → poll-to-terminal (awkit-4km C1) ───────────────────────────────────
   // The runner observes the page's own repeated status responses and completes only when one is
   // terminal — never treating an in-progress 202 as done.
+  // Removing every branch must fail closed. Treating an empty OR as true recreates the original
+  // defect: the successful API response becomes the only effective gate.
+  {
+    const html = `<button id="b">Go</button>`;
+    const { status, error } = await run(html, {
+      id: "G4",
+      type: "click",
+      name: "Empty OR",
+      locator: { strategy: "id", value: "b" },
+      completionMode: "allRequired",
+      afterWaits: [{ type: "anyOf", conditions: [], timeoutMs: 500 }]
+    });
+    check("group: empty required OR-group fails closed", status === "failed", status);
+    check("empty group failure asks for a completion branch", /OR-group has no branches/.test(error ?? ""), error);
+  }
+
   console.log("API polling (awkit-4km C1) — 202 → terminal:");
   // P1. Status-based: two 202 "processing" polls, then a terminal 200 → passes.
   {

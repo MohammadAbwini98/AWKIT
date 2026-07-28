@@ -423,7 +423,8 @@ must be documented in `mock-site/README.md` and AI memory files.
   `response` with `armBeforeAction` registers `waitForResponse` *before* the action, awaited after) →
   action → await armed → `afterWaits`. `executeWaitCondition` dispatches loaderHidden / elementVisible /
   elementHidden / elementEnabled / textVisible / toastVisible / response / tableHasRows / listHasItems /
-  urlChanged / domStable / fixedDelay, reusing `LocatorFactory` for locator waits and emitting a
+  urlChanged / domStable / fixedDelay / apiPolling / nested anyOf, reusing `LocatorFactory` for
+  locator waits and emitting a
   structured diagnostic on failure. Recorder-generated armed response waits on a successful `goto` are
   treated as optional navigation hints when they time out after the navigation completed and the page is
   still live, because session reuse can legitimately change which bootstrap endpoints repeat; hand-authored
@@ -431,9 +432,11 @@ must be documented in `mock-site/README.md` and AI memory files.
   armed response), sanitized current URL (origin + path only), recorded reason, last observed state, and a
   suggestion. `networkidle` is intentionally not a Smart Wait strategy. The legacy `wait` step node
   (`executeWait`: time/selector/navigation/networkIdle/textVisible) is unchanged, and steps without waits
-  behave exactly as before. Flow Designer preserves waits through save/load and exposes a Smart Waits Node
-  Properties section for timeout editing/removal. Verified by `npm run verify:waits` (21/21) and
-  `npm run verify:flow-designer` (19/19). The recorder can emit these as `afterWaits` from Smart Wait
+  behave exactly as before. A required `anyOf` condition is one parent wait under `allRequired`, so
+  `API AND (rows OR empty-state)` is expressible; no branches is a failure, never vacuous success.
+  Flow Designer preserves the nested shape through save/load and edits it recursively. Verified by
+  `npm run verify:waits` (58/58) and `npm run verify:flow-designer` (58/58). The recorder can emit
+  these as `afterWaits` from Smart Wait
   observation; legacy fixed-time `wait` nodes remain supported.
 - **Shared connector styling:** `app/renderer/components/shared/connectorStyle.ts` (`buildConnectorVisual` +
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;

@@ -4,6 +4,17 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-y24` grouped completion GUI closure (Codex)
+
+**Task:** close the remaining GUI 11.3 evidence gap for `API success AND (rows OR empty state)`.
+
+**Result:** the real Flow Designer configured and persisted the nested `anyOf` shape through the
+preload/profile store. The runner's empty-group behavior was corrected from vacuous success to a
+fail-closed diagnostic, preventing removal of all branches from recreating the original defect.
+
+**Evidence:** Flow Designer 58/58 real Electron with screenshot; waits 58/0; mapping 102/0;
+async-review 21/0; runner 89/0; mock site 96/96; combined typecheck PASS.
+
 ## 2026-07-28 (latest) - `awkit-epz` pinned offline supply chain (Codex)
 
 **Task:** close the P1 defect where a clean checkout could silently package without Chromium and

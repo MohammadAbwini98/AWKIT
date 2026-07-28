@@ -2,8 +2,8 @@
 
 ## TAKEOFF (2026-07-28) — consolidated handoff, read this first
 
-**Repository state:** `main` contains the completed `awkit-epz` offline supply-chain work through
-`09a6044`; the final reconciliation commit follows it. No task branch or worktree is outstanding.
+**Repository state:** `main` contains the completed `awkit-epz` offline supply-chain work and the
+`awkit-y24` grouped-completion GUI closure. No task branch or worktree is outstanding.
 AWKIT is single-branch
 (`docs/ai/BRANCH_AND_COMMIT_POLICY.md`); do not create branches or worktrees.
 
@@ -20,6 +20,7 @@ real defects:
 | `e29f5f2` | `awkit-0jp` | **Semantic Search page + Settings → Semantic Index panel** — the subsystem became reachable from the product. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` reason codes, a reusable renderer query layer, and `SemanticKinds.ts` so the contract can be bundled into the renderer at all. |
 | `7eb3fe2` | `awkit-thg` | **Incremental indexing.** Each run is indexed as it finishes, behind `semantic.autoIndex` (default ON). `ExecutionEngine` gained its first observer; the §14.3 guard lives in `RunCompletionObserver.ts` so a verifier can drive it. **The Zvec subsystem is now feature-complete.** |
 | `def092c`..`09a6044` | `awkit-epz` | **Pinned and verifiable offline Chromium.** Exact CfT/Playwright policy and hashes, signed manifest/startup validation, fail-fast packaging, provenance, semantic artifact comparison, deterministic Oracle JAR, and a successful clean-clone offline package. |
+| (current reconciliation) | `awkit-y24` | **Grouped completion closed.** Real Flow Designer configured/saved API AND (rows OR empty state); empty groups now fail closed. GUI 58/58, waits 58/0, mapping 102/0. |
 
 **Verification at the current tip** (all executed, not inferred): `npm run verify:all-typecheck`
 PASS (`build` + `typecheck:scripts`) · `verify:semantic-store` **261/0** · `verify:semantic-queue`
@@ -27,7 +28,9 @@ PASS (`build` + `typecheck:scripts`) · `verify:semantic-store` **261/0** · `ve
 `verify:semantic-rebuild` 64/0 · real-host `verify:semantic-rebuild-live` 24/0 ·
 `verify:semantic-policy` 141/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed — unmoved
 across three tranches, because no channel was added) · `verify:settings-e2e` 151/0 (real Electron) ·
-`verify:recorder` 110/0 · `verify:runner` 89/0 · `verify:security` 39/0 · `verify:source-hygiene` 9/0
+`verify:recorder` 110/0 · `verify:runner` 89/0 · `verify:flow-designer` **58/58** ·
+`verify:waits` **58/0** · `verify:flow-step-mapping` **102/0** ·
+`verify:mock-site` **96/96** · `verify:security` 39/0 · `verify:source-hygiene` 9/0
 · `verify:offline-supply-chain` **22/0** · strict offline validation PASS · portable packaging
 PASS in the primary checkout and a fresh clone · decompressed payload equivalence **571 entries,
 0 differences** · `verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the

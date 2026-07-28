@@ -605,7 +605,9 @@ export class StepExecutor {
           // Cancellation is owned by the `withCancellation` wrapper in `resolveDeferredWait`; the outer
           // catch below turns an all-branches-failed AggregateError into a formatted diagnostic.
           const children = wait.conditions ?? [];
-          if (children.length === 0) return; // an empty group is vacuously satisfied
+          if (children.length === 0) {
+            throw new Error("OR-group has no branches; add at least one completion outcome");
+          }
           await Promise.any(children.map((child) => this.executeWaitCondition(step, child, phase))).catch(() => {
             const branches = children.map((child) => StepExecutor.describeWaitCondition(child)).join(" OR ");
             throw new Error(`none of the OR-group branches were satisfied: ${branches}`);

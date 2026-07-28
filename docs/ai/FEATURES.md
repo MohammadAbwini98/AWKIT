@@ -21,7 +21,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   loop/runFlow/goto/condition/manualHandoff/**routeChange**).
 - ✅ **Smart Wait editing:** Flow Designer preserves `beforeWaits`/`afterWaits` on saved steps and Node
   Properties shows captured waits with before/after grouping, condition details, timeout editing, per-wait
-  remove, and clear-list controls.
+  remove, and clear-list controls. A nested required `anyOf` group supports `A AND (B OR C)` without
+  flattening; empty groups fail closed. Real-Electron GUI check 11.3 configures and persists the
+  API-success AND (rows OR empty-state) contract.
 - ✅ **Route Change node**: switches the active automation page/tab/URL — modes switchToUrl,
   switchToLatestTab, waitForNewTab, navigateCurrentPage (URL match exact/contains/regex; wait-until).
   Runtime switches `StepExecutor.activePage` + `LocatorFactory.setPage` so later steps target the new tab.

@@ -610,6 +610,73 @@ try {
   const chipRunnable = (await win.locator('[data-testid="flow-validation-chip"]').textContent().catch(() => "")) ?? "";
   check("Validation chip shows Runnable for the valid flow", chipRunnable.trim() === "Runnable", `chip="${chipRunnable.trim()}"`);
 
+  // awkit-y24 / GUI check 11.3: configure the exact empty-result contract through the real Flow
+  // Designer, save it, and read it back through the real preload/store boundary.
+  await win.locator('.awkit-flow-node[data-id="click"]').click();
+  await win.waitForTimeout(300);
+  const showProperties = win.getByTitle("Show Node Properties");
+  if (await showProperties.isVisible().catch(() => false)) {
+    await showProperties.click();
+    await win.waitForTimeout(320);
+  }
+  const asyncCompletion = win.locator("details.property-group", { hasText: "Async Completion" });
+  if (!(await asyncCompletion.evaluate((element) => element.hasAttribute("open")).catch(() => false))) {
+    await asyncCompletion.locator("summary").click();
+  }
+  // Change away and back so React emits the explicit allRequired value; merely selecting the
+  // already-rendered default correctly produces no change event and leaves the field absent.
+  await asyncCompletion.getByLabel("Completion policy").selectOption("anyRequired");
+  await asyncCompletion.getByLabel("Completion policy").selectOption("allRequired");
+  const afterAction = asyncCompletion.locator(".smart-wait-list", {
+    has: win.locator(".smart-wait-list-heading strong", { hasText: "After action" })
+  });
+  await afterAction.locator(".smart-wait-list-heading").getByRole("button", { name: "API", exact: true }).click();
+  await afterAction.locator(".smart-wait-list-heading").getByRole("button", { name: "OR group", exact: true }).click();
+
+  const apiCard = afterAction.locator(":scope > .smart-wait-card", { hasText: /^Response/ });
+  await apiCard.locator('input[placeholder="/api/orders"]').fill("/api/results");
+  const groupCard = afterAction.locator(":scope > .smart-wait-card", { has: win.locator(".anyof-group") });
+  await groupCard.locator('input[placeholder="#results"]').fill("#resultsTable");
+  await groupCard.locator('input[placeholder="Saved successfully"]').fill("No invoices match the current filter.");
+  const configuredGroup = await groupCard.evaluate((element) => ({
+    branches: element.querySelectorAll(".anyof-branch").length,
+    text: element.textContent ?? ""
+  }));
+  check(
+    "GUI 11.3 exposes a required rows OR empty-state group with two editable branches",
+    configuredGroup.branches === 2 &&
+      configuredGroup.text.includes("Table rows") &&
+      configuredGroup.text.includes("Text visible"),
+    JSON.stringify(configuredGroup)
+  );
+  if (process.env.AWKIT_GROUPED_WAIT_EVIDENCE) {
+    await win.screenshot({ path: process.env.AWKIT_GROUPED_WAIT_EVIDENCE });
+  }
+
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(600);
+  const groupedFlow = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-flow-designer"));
+  const groupedStep = groupedFlow?.nodes?.find((node) => node.id === "click");
+  const persistedApi = groupedStep?.afterWaits?.find((wait) => wait.type === "response");
+  const persistedGroup = groupedStep?.afterWaits?.find((wait) => wait.type === "anyOf");
+  check(
+    "GUI 11.3 persists API AND (table rows OR empty-state text) without flattening",
+    (groupedStep?.completionMode === undefined || groupedStep?.completionMode === "allRequired") &&
+      persistedApi?.urlContains === "/api/results" &&
+      persistedApi?.armBeforeAction === true &&
+      persistedGroup?.conditions?.length === 2 &&
+      persistedGroup.conditions[0]?.type === "tableHasRows" &&
+      persistedGroup.conditions[0]?.tableLocator?.value === "#resultsTable" &&
+      persistedGroup.conditions[1]?.type === "textVisible" &&
+      persistedGroup.conditions[1]?.text === "No invoices match the current filter.",
+    JSON.stringify(groupedStep?.afterWaits ?? null)
+  );
+  const collapseGroupedProperties = win.getByTitle("Collapse properties");
+  if (await collapseGroupedProperties.isVisible().catch(() => false)) {
+    await collapseGroupedProperties.click();
+    await win.waitForTimeout(320);
+  }
+
   // 9b. Switch to the seeded invalid draft via the Saved Flow dropdown. Re-open defensively —
   // the trigger click can race the popover dismiss from the selection just made in 9a.
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -623,8 +690,13 @@ try {
   check("Validation chip flips to Draft — not runnable for the invalid draft", chipDraft.includes("not runnable"), `chip="${chipDraft.trim()}"`);
 
   // 9c. The chip opens the issue list, with blocking vs off-path badges.
-  await win.click('[data-testid="flow-validation-chip"]');
-  await win.waitForTimeout(200);
+  await win.keyboard.press("Escape").catch(() => {});
+  await win.waitForTimeout(500);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await win.locator('[data-testid="flow-validation-chip"]').evaluate((element) => element.click());
+    await win.waitForTimeout(250);
+    if (await win.locator('[data-testid="flow-validation-panel"]').isVisible().catch(() => false)) break;
+  }
   const panelBadges = await win.evaluate(() => {
     const panel = document.querySelector('[data-testid="flow-validation-panel"]');
     if (!panel) return null;
