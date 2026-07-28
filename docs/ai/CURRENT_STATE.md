@@ -1,6 +1,6 @@
 # CURRENT_STATE
 
-## Dashboard backlog Tranche 2 started — offline packaging now refuses a missing browser before build (2026-07-28, current)
+## Dashboard backlog Tranche 2 in progress — packaging fails loud and payload provenance is separate (2026-07-28, current)
 
 The authorized fail-loud half of `awkit-epz` is implemented. Both portable and NSIS packaging
 entry points now run `validate-offline-bundle.ps1 -PackagingInputsOnly` before `npm run build`.
@@ -12,9 +12,19 @@ absent.
 The current payload passes the preflight, normal `validate:offline`, and strict offline validation.
 Missing-file and empty-file mutations both failed loudly. `awkit-epz` intentionally remains open:
 the Chromium vendoring, version/hash provenance, and reproducibility strategy are the owner-policy
-half that the dashboard backlog program reserves for the owner. Dashboard source counts therefore
-remain **113 beads / 27 outstanding / 86 closed**. The validation ledger remains
-**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+half that the dashboard backlog program reserves for the owner.
+
+`awkit-c0c` is closed. Dependency-manifest schema v2 removes ambiguous
+`application.builtAt`, adds top-level `manifestGeneratedAt`, and records browser payload source,
+requested/installed Playwright versions, a source timestamp with its exact basis, and a
+deterministic `sha256-tree-v1` digest over 308 files / 435,574,347 bytes. The runtime-created
+`debug.log` is explicitly excluded and recorded as such. Because this existing payload predates
+source capture, its source is truthfully marked `legacy staged payload; acquisition details
+unavailable`; future `prepare:offline` runs write an acquisition sidecar. A one-character digest
+mutation made strict validation fail and was reverted.
+
+Dashboard source counts are now **113 beads / 26 outstanding / 87 closed**. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
 ## Dashboard backlog Tranche 1 complete — four P1 beads closed (2026-07-28, current)
 

@@ -28,6 +28,12 @@ runtime.
 The raw icon source (`resources/icon-source.png`, `resources/icon.png`) is excluded from
 the package via the `extraResources` filter.
 
+The dependency manifest's top-level `manifestGeneratedAt` records only when that JSON document was
+written. Chromium provenance lives separately on its browser entry: acquisition source (or an
+explicit legacy/unknown marker), requested and installed Playwright versions, the executable's
+source timestamp and basis, and a deterministic `sha256-tree-v1` digest with file count and total
+bytes. Do not use the manifest timestamp as the browser payload's age.
+
 ## Build prerequisites (developer machine, online once)
 
 ```powershell
@@ -54,7 +60,9 @@ npm run validate:offline                       # non-strict validation (warnings
 ```
 
 `prepare:offline` fails loudly if Chromium cannot be located, and writes a manifest marked
-`development-missing-browser` so the gap is visible.
+`development-missing-browser` so the gap is visible. A successful staging run also writes
+`resources/browsers/chromium-provenance.json`; the generated dependency manifest folds that source
+record together with a digest of the actual copied tree.
 
 ## How to package
 

@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-c0c` manifest and browser-payload timestamps separated (Codex)
+
+**Task:** remove the dependency manifest's misleading single `application.builtAt` date without
+inventing provenance for an already-staged browser.
+
+**Result:** schema v2 now uses top-level `manifestGeneratedAt`; Chromium records source,
+requested/installed Playwright versions, source timestamp plus basis, and a deterministic
+`sha256-tree-v1` digest (308 files / 435,574,347 bytes; runtime `debug.log` explicitly excluded).
+Legacy acquisition is marked unavailable, while future staging writes an acquisition sidecar.
+Validators, the TypeScript reader, template, runbook, and packaging docs use the split semantics.
+`awkit-c0c` is closed.
+
+**Verification:** `npm run build` PASS; normal and strict offline validation PASS; a one-character
+digest mutation made strict validation FAIL and was reverted. Dashboard counts move to
+**113 total / 26 outstanding / 87 closed**.
+
 ## 2026-07-28 (latest) - `awkit-epz` fail-loud packaging half implemented; owner half remains open (Codex)
 
 **Task:** begin dashboard backlog Tranche 2 without crossing the owner-only Chromium vendoring and

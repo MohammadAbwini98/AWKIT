@@ -9,6 +9,8 @@ $packageJsonPath = Join-Path $root "package.json"
 $resourcesRoot = Join-Path $root "resources"
 $manifestPath = Join-Path $resourcesRoot "dependency-manifest.json"
 $browserPath = Join-Path $resourcesRoot "browsers\chromium\chrome.exe"
+$browserRoot = Join-Path $resourcesRoot "browsers\chromium"
+$browserProvenancePath = Join-Path $resourcesRoot "browsers\chromium-provenance.json"
 $nodeModules = Join-Path $root "node_modules"
 $playwrightRuntime = Join-Path $nodeModules "playwright"
 $playwrightCoreRuntime = Join-Path $nodeModules "playwright-core"
@@ -29,6 +31,50 @@ function Get-DependencyVersion {
   }
 
   return "not-used"
+}
+
+function Get-PayloadTreeDigest {
+  param([string]$Path)
+
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+    return $null
+  }
+
+  $resolvedRoot = (Resolve-Path -LiteralPath $Path).Path.TrimEnd("\")
+  $excludedRelativePaths = @("debug.log")
+  $files = @(Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse -Force |
+    Where-Object { $excludedRelativePaths -notcontains $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") } |
+    Sort-Object { $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") })
+  $lines = New-Object System.Text.StringBuilder
+  [long]$totalBytes = 0
+
+  foreach ($file in $files) {
+    $relativePath = $file.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/")
+    $fileHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    [void]$lines.Append($relativePath)
+    [void]$lines.Append("`0")
+    [void]$lines.Append([string]$file.Length)
+    [void]$lines.Append("`0")
+    [void]$lines.Append($fileHash)
+    [void]$lines.Append("`n")
+    $totalBytes += $file.Length
+  }
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $digestBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($lines.ToString()))
+    $digest = -join ($digestBytes | ForEach-Object { $_.ToString("x2") })
+  } finally {
+    $sha256.Dispose()
+  }
+
+  return [ordered]@{
+    algorithm = "sha256-tree-v1"
+    sha256 = $digest
+    fileCount = $files.Count
+    totalBytes = $totalBytes
+    excludedRelativePaths = $excludedRelativePaths
+  }
 }
 
 # === Optional semantic native host (Zvec) ===
@@ -74,6 +120,12 @@ if ($null -ne $zvecHostManifest) {
 }
 
 $browserExists = Test-Path $browserPath
+$browserPayloadDigest = Get-PayloadTreeDigest $browserRoot
+$browserAcquisition = if (Test-Path -LiteralPath $browserProvenancePath -PathType Leaf) {
+  Get-Content -Raw -LiteralPath $browserProvenancePath | ConvertFrom-Json
+} else {
+  $null
+}
 $nodeModulesIncluded = Test-Path $nodeModules
 $nativeModulesPath = Join-Path $root "vendor\native-modules"
 $nativeModuleFileCount = if (Test-Path $nativeModulesPath) { (Get-ChildItem -File -Recurse -Force $nativeModulesPath -ErrorAction SilentlyContinue | Measure-Object).Count } else { 0 }
@@ -109,17 +161,49 @@ if ($browserExists) {
   $browserVersion = "missing"
 }
 
+$browserPayloadProvenance = if ($browserExists) {
+  [ordered]@{
+    source = if ($null -ne $browserAcquisition) {
+      [string]$browserAcquisition.source
+    } else {
+      "legacy staged payload; acquisition details unavailable"
+    }
+    requestedPlaywrightVersion = if ($null -ne $browserAcquisition) {
+      [string]$browserAcquisition.requestedPlaywrightVersion
+    } else {
+      Get-DependencyVersion "playwright"
+    }
+    installedPlaywrightVersion = if ($null -ne $browserAcquisition) {
+      [string]$browserAcquisition.installedPlaywrightVersion
+    } elseif (Test-Path (Join-Path $playwrightRuntime "package.json")) {
+      [string]((Get-Content -Raw (Join-Path $playwrightRuntime "package.json") | ConvertFrom-Json).version)
+    } else {
+      "unavailable"
+    }
+    stagedAt = if ($null -ne $browserAcquisition) {
+      [string]$browserAcquisition.stagedAt
+    } else {
+      $null
+    }
+    sourceTimestamp = (Get-Item -LiteralPath $browserPath).LastWriteTimeUtc.ToString("o")
+    sourceTimestampBasis = "chrome.exe LastWriteTimeUtc; payload source metadata, not manifest generation time"
+    hash = $browserPayloadDigest
+  }
+} else {
+  $null
+}
+
 $manifest = [ordered]@{
   schema = [ordered]@{
     name = "playwright-flow-studio-offline-dependency-manifest"
-    version = 1
+    version = 2
     sourceTemplate = "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
   }
+  manifestGeneratedAt = (Get-Date).ToUniversalTime().ToString("o")
   application = [ordered]@{
     name = "SpecterStudio"
     version = [string]$packageJson.version
     buildMode = $BuildMode
-    builtAt = (Get-Date).ToUniversalTime().ToString("o")
   }
   offline = [ordered]@{
     internetRequired = $false
@@ -146,6 +230,7 @@ $manifest = [ordered]@{
       relativeExecutablePath = "resources/browsers/chromium/chrome.exe"
       version = $browserVersion
       validated = $browserLaunchTestPassed
+      payloadProvenance = $browserPayloadProvenance
     }
   )
   paths = [ordered]@{

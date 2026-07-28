@@ -1,14 +1,14 @@
 {
     "schema":  {
                    "name":  "playwright-flow-studio-offline-dependency-manifest",
-                   "version":  1,
+                   "version":  2,
                    "sourceTemplate":  "playwright_flow_studio_updated_phases/12_OFFLINE_DEPENDENCY_MANIFEST_TEMPLATE.md"
                },
+    "manifestGeneratedAt":  "2026-07-28T12:31:50.8659068Z",
     "application":  {
                         "name":  "SpecterStudio",
                         "version":  "0.1.0",
-                        "buildMode":  "production-offline",
-                        "builtAt":  "2026-07-27T13:16:24.1508575Z"
+                        "buildMode":  "production-offline"
                     },
     "offline":  {
                     "internetRequired":  false,
@@ -34,7 +34,24 @@
                          "included":  true,
                          "relativeExecutablePath":  "resources/browsers/chromium/chrome.exe",
                          "version":  "149.0.7827.55",
-                         "validated":  true
+                         "validated":  true,
+                         "payloadProvenance":  {
+                                                   "source":  "legacy staged payload; acquisition details unavailable",
+                                                   "requestedPlaywrightVersion":  "^1.49.1",
+                                                   "installedPlaywrightVersion":  "1.61.0",
+                                                   "stagedAt":  null,
+                                                   "sourceTimestamp":  "2026-06-17T20:40:25.2182236Z",
+                                                   "sourceTimestampBasis":  "chrome.exe LastWriteTimeUtc; payload source metadata, not manifest generation time",
+                                                   "hash":  {
+                                                                "algorithm":  "sha256-tree-v1",
+                                                                "sha256":  "a6e86ba2c9c514294e6fcb5e8702a47c0f00c918cf704444ba556a9f15582ce7",
+                                                                "fileCount":  308,
+                                                                "totalBytes":  435574347,
+                                                                "excludedRelativePaths":  [
+                                                                                              "debug.log"
+                                                                                          ]
+                                                            }
+                                               }
                      }
                  ],
     "paths":  {

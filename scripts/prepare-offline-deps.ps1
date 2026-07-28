@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $resourcesBrowserRoot = Join-Path $root "resources\browsers"
 $targetChromium = Join-Path $resourcesBrowserRoot "chromium"
+$targetProvenance = Join-Path $resourcesBrowserRoot "chromium-provenance.json"
 $vendorBrowserRoot = Join-Path $root "vendor\browsers"
 
 New-Item -ItemType Directory -Force -Path $resourcesBrowserRoot | Out-Null
@@ -43,10 +44,29 @@ if (Test-Path $targetChromium) {
 
 Copy-Item -LiteralPath $chromeRoot -Destination $targetChromium -Recurse -Force
 
+$packageJson = Get-Content -Raw (Join-Path $root "package.json") | ConvertFrom-Json
+$installedPlaywrightPackage = Join-Path $root "node_modules\playwright\package.json"
+$installedPlaywrightVersion = if (Test-Path -LiteralPath $installedPlaywrightPackage) {
+  [string]((Get-Content -Raw -LiteralPath $installedPlaywrightPackage | ConvertFrom-Json).version)
+} else {
+  "unavailable"
+}
+$cacheEntry = Split-Path (Split-Path $chromeRoot -Parent) -Leaf
+$provenance = [ordered]@{
+  source = "Playwright browser cache entry $cacheEntry"
+  requestedPlaywrightVersion = [string]$packageJson.dependencies.playwright
+  installedPlaywrightVersion = $installedPlaywrightVersion
+  stagedAt = (Get-Date).ToUniversalTime().ToString("o")
+  sourceExecutableLastWriteTimeUtc = $chrome.LastWriteTimeUtc.ToString("o")
+}
+$provenanceJson = $provenance | ConvertTo-Json -Depth 4
+[System.IO.File]::WriteAllText($targetProvenance, $provenanceJson, (New-Object System.Text.UTF8Encoding($false)))
+
 if (Test-Path (Join-Path $vendorBrowserRoot "chromium")) {
   Remove-Item -LiteralPath (Join-Path $vendorBrowserRoot "chromium") -Recurse -Force
 }
 Copy-Item -LiteralPath $targetChromium -Destination (Join-Path $vendorBrowserRoot "chromium") -Recurse -Force
+Copy-Item -LiteralPath $targetProvenance -Destination (Join-Path $vendorBrowserRoot "chromium-provenance.json") -Force
 
 Write-Host "Bundled Chromium copied from: $chromeRoot"
 Write-Host "Bundled Chromium copied to:   $targetChromium"

@@ -142,6 +142,12 @@ Get-AuthenticodeSignature ".\SpecterStudio Setup 0.1.0.exe" | Select-Object Stat
 Record computed hashes and signing status in §12. **Any hash mismatch aborts the run** — the artifact
 is not the validated build.
 
+Also retain the packaged `resources\dependency-manifest.json` Chromium
+`payloadProvenance` record with the accepted artifact. `manifestGeneratedAt` dates only the
+manifest; browser source age and content identity come from `sourceTimestamp`,
+`sourceTimestampBasis`, and the `sha256-tree-v1` hash. A whole-installer hash identifies that
+specific accepted build but is not evidence that two timestamped builds are reproducible.
+
 ---
 
 ## 3. Exact offline setup steps

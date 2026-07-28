@@ -8,9 +8,15 @@ names the exact input. The current payload passes the preflight plus normal and 
 validation; missing-file and empty-file mutations fail as intended.
 
 The bead remains open because the owner must choose the browser vendoring, version/hash provenance,
-and reproducibility policy. Do not guess that strategy. Continue Tranche 2 with `awkit-c0c`, then
-`awkit-60w`, `awkit-v4r`, and `awkit-4a6`. Dashboard counts remain
-**113 / 27 outstanding / 86 closed** and the validation ledger remains
+and reproducibility policy. Do not guess that strategy.
+
+`awkit-c0c` is closed. Manifest schema v2 separates top-level `manifestGeneratedAt` from Chromium's
+own source metadata and deterministic tree digest. Legacy acquisition details remain explicitly
+unknown; future staging writes a source sidecar. Strict validation recomputes the digest and a
+one-character mutation failed as intended.
+
+Continue Tranche 2 with `awkit-60w`, then `awkit-v4r` and `awkit-4a6`. Dashboard counts are
+**113 / 26 outstanding / 87 closed** and the validation ledger remains
 **61 PASS / 4 NOT RUN / 1 BLOCKED**.
 
 ## ACTIVE (2026-07-28, latest): dashboard backlog Tranche 1 complete; stop before Tranche 2

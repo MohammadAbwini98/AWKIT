@@ -1,16 +1,16 @@
 import { readFile } from "node:fs/promises";
 
 export interface DependencyManifest {
-  schema?: {
+  schema: {
     name: string;
     version: number;
     sourceTemplate: string;
   };
+  manifestGeneratedAt: string;
   application: {
     name: string;
     version: string;
     buildMode: string;
-    builtAt: string;
   };
   offline: {
     internetRequired: boolean;
@@ -37,6 +37,21 @@ export interface DependencyManifest {
     relativeExecutablePath: string;
     version: string;
     validated: boolean;
+    payloadProvenance: {
+      source: string;
+      requestedPlaywrightVersion: string;
+      installedPlaywrightVersion: string;
+      stagedAt: string | null;
+      sourceTimestamp: string;
+      sourceTimestampBasis: string;
+      hash: {
+        algorithm: "sha256-tree-v1";
+        sha256: string;
+        fileCount: number;
+        totalBytes: number;
+        excludedRelativePaths: string[];
+      };
+    } | null;
   }>;
   paths: Record<string, string>;
   validation: Record<string, boolean>;
@@ -58,7 +73,7 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
   if (!manifest) return ["Dependency manifest is missing or invalid JSON."];
 
   const issues: string[] = [];
-  const requiredTopLevelSections = ["application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies"];
+  const requiredTopLevelSections = ["schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies"];
   const requiredRuntimeFlags = ["electronIncluded", "nodeRuntimeIncluded", "productionNodeModulesIncluded", "nativeModulesIncluded"];
   const requiredValidationFlags = [
     "bundledBrowserExists",
@@ -77,7 +92,13 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
   if (manifest.application?.name !== "SpecterStudio") issues.push("Manifest application name must be SpecterStudio.");
   if (!manifest.application?.version) issues.push("Manifest application version is required.");
   if (!manifest.application?.buildMode) issues.push("Manifest build mode is required.");
-  if (!manifest.application?.builtAt) issues.push("Manifest build timestamp is required.");
+  if (!manifest.manifestGeneratedAt) issues.push("Manifest generation timestamp is required.");
+  if ((manifest.application as Record<string, unknown>)?.builtAt) {
+    issues.push("Manifest application.builtAt is ambiguous; use manifestGeneratedAt.");
+  }
+  if (!manifest.schema || manifest.schema.version < 2) {
+    issues.push("Manifest schema version 2 or newer is required for payload provenance.");
+  }
 
   if (manifest.offline?.internetRequired) issues.push("Manifest must not require internet access.");
   if (manifest.offline?.runtimeDownloadsAllowed) issues.push("Manifest must not allow runtime downloads.");
@@ -100,8 +121,29 @@ export function validateDependencyManifestPolicy(manifest: DependencyManifest | 
     issues.push("Manifest must confirm the sql.js runtime and its WASM asset are included.");
   }
 
-  if (!manifest.browsers?.some((browser) => browser.name === "chromium" && browser.relativeExecutablePath === "resources/browsers/chromium/chrome.exe")) {
+  const chromium = manifest.browsers?.find(
+    (browser) => browser.name === "chromium" && browser.relativeExecutablePath === "resources/browsers/chromium/chrome.exe"
+  );
+  if (!chromium) {
     issues.push("Manifest must include bundled Chromium at resources/browsers/chromium/chrome.exe.");
+  } else if (chromium.included) {
+    if (!chromium.payloadProvenance) {
+      issues.push("Manifest bundled Chromium entry must include payload provenance.");
+    } else {
+      if (!chromium.payloadProvenance.source) issues.push("Chromium payload provenance source is required.");
+      if (!chromium.payloadProvenance.requestedPlaywrightVersion) {
+        issues.push("Chromium payload provenance must record the requested Playwright version.");
+      }
+      if (!chromium.payloadProvenance.sourceTimestamp || !chromium.payloadProvenance.sourceTimestampBasis) {
+        issues.push("Chromium payload provenance must distinguish its source timestamp and basis.");
+      }
+      if (
+        chromium.payloadProvenance.hash.algorithm !== "sha256-tree-v1" ||
+        !/^[0-9a-f]{64}$/.test(chromium.payloadProvenance.hash.sha256)
+      ) {
+        issues.push("Chromium payload provenance must include a sha256-tree-v1 digest.");
+      }
+    }
   }
 
   for (const pathKey of requiredPaths) {

@@ -64,6 +64,46 @@ function Test-Property {
   return $null -ne $Object -and ($Object.PSObject.Properties.Name -contains $Name)
 }
 
+function Get-PayloadTreeDigest {
+  param([string]$Path)
+
+  $resolvedRoot = (Resolve-Path -LiteralPath $Path).Path.TrimEnd("\")
+  $excludedRelativePaths = @("debug.log")
+  $files = @(Get-ChildItem -LiteralPath $resolvedRoot -File -Recurse -Force |
+    Where-Object { $excludedRelativePaths -notcontains $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") } |
+    Sort-Object { $_.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/") })
+  $lines = New-Object System.Text.StringBuilder
+  [long]$totalBytes = 0
+
+  foreach ($file in $files) {
+    $relativePath = $file.FullName.Substring($resolvedRoot.Length + 1).Replace("\", "/")
+    $fileHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    [void]$lines.Append($relativePath)
+    [void]$lines.Append("`0")
+    [void]$lines.Append([string]$file.Length)
+    [void]$lines.Append("`0")
+    [void]$lines.Append($fileHash)
+    [void]$lines.Append("`n")
+    $totalBytes += $file.Length
+  }
+
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $digestBytes = $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($lines.ToString()))
+    $digest = -join ($digestBytes | ForEach-Object { $_.ToString("x2") })
+  } finally {
+    $sha256.Dispose()
+  }
+
+  return [ordered]@{
+    algorithm = "sha256-tree-v1"
+    sha256 = $digest
+    fileCount = $files.Count
+    totalBytes = $totalBytes
+    excludedRelativePaths = $excludedRelativePaths
+  }
+}
+
 function Require-Section {
   param([string]$Name)
 
@@ -85,7 +125,7 @@ function Require-Boolean {
   }
 }
 
-foreach ($section in @("application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies", "semanticNative")) {
+foreach ($section in @("schema", "manifestGeneratedAt", "application", "offline", "runtime", "browsers", "paths", "validation", "startupChecklist", "dependencies", "semanticNative")) {
   Require-Section $section
 }
 
@@ -123,9 +163,17 @@ if (Test-Property $manifestJson "application") {
   if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.buildMode)) {
     $failures.Add("Manifest build mode is required.")
   }
-  if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.builtAt)) {
-    $failures.Add("Manifest build timestamp is required.")
+  if (Test-Property $manifestJson.application "builtAt") {
+    $failures.Add("Manifest application.builtAt is ambiguous; use top-level manifestGeneratedAt.")
   }
+}
+
+if ([string]::IsNullOrWhiteSpace([string]$manifestJson.manifestGeneratedAt)) {
+  $failures.Add("Manifest generation timestamp is required: manifestGeneratedAt.")
+}
+
+if ($manifestJson.schema.version -lt 2) {
+  $failures.Add("Manifest schema version 2 or newer is required for payload provenance.")
 }
 
 if (Test-Property $manifestJson "offline") {
@@ -160,6 +208,36 @@ if (Test-Property $manifestJson "browsers") {
     }
     if ($Strict -and $chromiumManifest.validated -ne $true) {
       $failures.Add("Strict mode requires the bundled Chromium entry to be validated.")
+    }
+
+    if (Test-Path -LiteralPath $browser -PathType Leaf) {
+      $provenance = $chromiumManifest.payloadProvenance
+      if ($null -eq $provenance) {
+        $failures.Add("Manifest Chromium entry must include payloadProvenance.")
+      } else {
+        if ([string]::IsNullOrWhiteSpace([string]$provenance.source)) {
+          $failures.Add("Chromium payload provenance source is required.")
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$provenance.requestedPlaywrightVersion)) {
+          $failures.Add("Chromium payload provenance must record the requested Playwright version.")
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$provenance.sourceTimestamp) -or
+            [string]::IsNullOrWhiteSpace([string]$provenance.sourceTimestampBasis)) {
+          $failures.Add("Chromium payload provenance must distinguish its source timestamp and basis.")
+        }
+        if ($provenance.hash.algorithm -ne "sha256-tree-v1" -or
+            ([string]$provenance.hash.sha256) -notmatch "^[0-9a-f]{64}$") {
+          $failures.Add("Chromium payload provenance must include a sha256-tree-v1 digest.")
+        } else {
+          $actualDigest = Get-PayloadTreeDigest (Split-Path $browser -Parent)
+          if ($actualDigest.sha256 -ne $provenance.hash.sha256 -or
+              $actualDigest.fileCount -ne $provenance.hash.fileCount -or
+              $actualDigest.totalBytes -ne $provenance.hash.totalBytes -or
+              (Compare-Object @($actualDigest.excludedRelativePaths) @($provenance.hash.excludedRelativePaths))) {
+            $failures.Add("Chromium payload provenance digest does not match the staged payload.")
+          }
+        }
+      }
     }
   }
 }

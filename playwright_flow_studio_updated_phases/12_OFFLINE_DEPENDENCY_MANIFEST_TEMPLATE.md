@@ -14,11 +14,15 @@ resources/dependency-manifest.json
 
 ```json
 {
+  "schema": {
+    "name": "playwright-flow-studio-offline-dependency-manifest",
+    "version": 2
+  },
+  "manifestGeneratedAt": "2026-01-01T10:00:00Z",
   "application": {
-    "name": "Playwright Flow Studio",
+    "name": "SpecterStudio",
     "version": "1.0.0",
-    "buildMode": "production-offline",
-    "builtAt": "2026-01-01T10:00:00Z"
+    "buildMode": "production-offline"
   },
   "offline": {
     "internetRequired": false,
@@ -40,7 +44,22 @@ resources/dependency-manifest.json
       "included": true,
       "relativeExecutablePath": "resources/browsers/chromium/chrome.exe",
       "version": "bundled-version",
-      "validated": true
+      "validated": true,
+      "payloadProvenance": {
+        "source": "Playwright browser cache entry chromium-1234",
+        "requestedPlaywrightVersion": "1.61.0",
+        "installedPlaywrightVersion": "1.61.0",
+        "stagedAt": "2025-12-31T09:00:00Z",
+        "sourceTimestamp": "2025-12-20T08:00:00Z",
+        "sourceTimestampBasis": "chrome.exe LastWriteTimeUtc; payload source metadata, not manifest generation time",
+        "hash": {
+          "algorithm": "sha256-tree-v1",
+          "sha256": "64 lowercase hexadecimal characters",
+          "fileCount": 123,
+          "totalBytes": 456789,
+          "excludedRelativePaths": ["debug.log"]
+        }
+      }
     }
   ],
   "paths": {
@@ -71,6 +90,11 @@ resources/dependency-manifest.json
   }
 }
 ```
+
+`manifestGeneratedAt` dates only this JSON document. It does not date Chromium or another copied
+dependency. Browser age/source and content identity come only from `payloadProvenance`; a legacy
+payload whose acquisition was never captured must say that its acquisition details are unavailable
+rather than inheriting the manifest timestamp.
 
 ## Startup Validation Checklist
 
