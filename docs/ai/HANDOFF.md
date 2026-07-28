@@ -1,5 +1,22 @@
 # Agent Handoff
 
+## ACTIVE (2026-07-28, latest): `awkit-9yv` closed; reconcile ambiguous Zvec timeouts next
+
+The real shared semantic-store contract is green on staged, packaged, and freshly NSIS-installed
+host trees. The installed matrix now explicitly runs the native contract rather than relying on the
+manager/rebuild suites as indirect evidence. Current counts: native contract **22/22** with
+**68/68** shared assertions, real rebuild **23/23** with 62 assertions, installed manager **35/35**,
+installed rebuild **23/23**, and clean per-user uninstall.
+
+The exact-one installed-matrix sentinel failed **21/22** when its suite entry was removed, then
+passed **22/22** after restoration. `awkit-9yv` is closed. Dashboard counts are
+**113 / 22 outstanding / 91 closed**; validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+Continue Tranche 3 with `awkit-hzf`: preserve the specific ambiguous-timeout classification through
+the store adapter, never blind-replay a timed-out mutation, and prove reconciliation through the
+real utility host. Then reconcile `awkit-ttd`.
+
 ## ACTIVE (2026-07-28, latest): Tranche 2 complete; continue with Zvec Tranche 3
 
 `awkit-4a6` is closed. A second observation-only CDP session now follows each browser generation,

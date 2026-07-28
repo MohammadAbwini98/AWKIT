@@ -146,7 +146,7 @@ npm run verify:semantic-queue    # coalescing, ordering, overflow, no blind repl
 npm run verify:semantic-rebuild  # rebuild watermark + ordered delta replay vs in-memory stores and a
                             # generation-lifecycle stub (pure)
 npm run verify:semantic-zvec-filter # typed filter builder + the SAME expressions against the REAL binding
-npm run verify:semantic-zvec-native-contract # shared contract through the REAL path: store → host manager
+npm run verify:semantic-zvec-native-contract # shared contract through the REAL path + exact-one NSIS matrix sentinel (22 checks; shared suite 68/68)
                             # → utilityProcess → raw host → Zvec
 npm run verify:semantic-rebuild-live # the REBUILD lifecycle through the real generation runtime: real
                             # candidate build, activation, retarget, restart, rollback, host crash

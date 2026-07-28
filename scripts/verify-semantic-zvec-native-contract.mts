@@ -178,6 +178,18 @@ if (!tree) {
   process.exit(1);
 }
 
+const installedMatrixSource = fs.readFileSync(
+  path.join(ROOT, "scripts", "zvec-harness", "run-installed-live.ps1"),
+  "utf8"
+);
+const installedNativeContractEntries =
+  installedMatrixSource.match(/script\s*=\s*"scripts\/verify-semantic-zvec-native-contract\.mts"/g) ?? [];
+check(
+  "the NSIS-installed matrix runs this shared store contract exactly once",
+  installedNativeContractEntries.length === 1,
+  `found ${installedNativeContractEntries.length} entries`
+);
+
 console.log(`Semantic store contract against the REAL native host\n  host source: ${tree.source}\n  host: ${tree.hostPath}\n`);
 if (!tree.source.startsWith("packaged")) {
   console.log("  ! Not the packaged tree — the shipped layout is NOT verified by this run.\n");

@@ -243,6 +243,8 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
   `verify:semantic-zvec-native-contract` and `verify:semantic-rebuild-live`. Both refuse a host tree
   that is not byte-identical to `native-hosts/zvec/zvec-host.cjs` — a stale tree reports a confident
   PASS for code that was never built. Rebuild the portable/NSIS packages before claiming those layouts.
+  The installed-layout matrix must run the native contract, manager lifecycle, and rebuild suites;
+  the native-contract verifier guards its own matrix entry exactly once.
 - Always run `npm run build` before declaring done.
 
 ### An unexecuted verifier is not evidence

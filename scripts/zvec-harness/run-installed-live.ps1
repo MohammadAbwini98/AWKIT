@@ -51,11 +51,13 @@ Step "installedHostPresent" (Test-Path $installedHost) $installedHost
 Step "installedBindingOutsideAsar" (Test-Path (Join-Path $installDir "resources\native-hosts\zvec\node_modules\@zvec\bindings-win32-x64\zvec_node_binding.node")) "binding present in the installed tree"
 
 # ── live suites against the INSTALLED host ──
-# Two suites, because they prove different things. The manager suite covers host lifecycle, degraded
-# assets and the circuit breaker; the rebuild suite covers the generation runtime — real candidate
-# build, activation, retarget, restart and rollback. The installed tree is a DIFFERENT layout from
-# dist/win-unpacked, so neither result carries over from the packaged run.
+# Three suites, because they prove different things. The native-contract suite runs the shared
+# SemanticStore contract through the installed host; the manager suite covers host lifecycle,
+# degraded assets and the circuit breaker; the rebuild suite covers the generation runtime — real
+# candidate build, activation, retarget, restart and rollback. The installed tree is a DIFFERENT
+# layout from dist/win-unpacked, so none of those results carries over from the packaged run.
 $suites = @(
+  @{ name = "installedNativeContract"; script = "scripts/verify-semantic-zvec-native-contract.mts" },
   @{ name = "installedLiveSuite"; script = "scripts/verify-zvec-packaged-live.mts" },
   @{ name = "installedRebuildSuite"; script = "scripts/verify-semantic-rebuild-live.mts" }
 )

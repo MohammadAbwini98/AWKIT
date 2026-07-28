@@ -43,7 +43,7 @@ const legacy: WorkflowProfile = {
 const legacyScenario = workflowToScenarioProfile(legacy);
 check("legacy workflows without sentinels still load and convert unchanged", legacyScenario.flows.length === 1 && legacyScenario.flows[0].flowId === "flow-a");
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const errorsFor = (candidate: unknown): string[] => {
   const result = validateWorkflowProfile(candidate);
   return result.ok ? [] : result.errors;

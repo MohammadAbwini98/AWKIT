@@ -4,6 +4,24 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-9yv` real Zvec contract closed on every required layout (Codex)
+
+**Task:** reconcile the open real-host contract bead and prove the shared store contract plus
+generation lifecycle on staged, packaged, and NSIS-installed host trees.
+
+**Result:** the existing installed matrix covered manager lifecycle and rebuild but omitted the
+shared store contract. It now runs `verify:semantic-zvec-native-contract` explicitly and the
+verifier guards that entry exactly once. Staged, packaged, and a fresh unelevated per-user install
+all exercised the raw binding; the NSIS run then uninstalled with no host, registry, or directory
+residue. `awkit-9yv` is closed.
+
+**Verification:** staged/package native contract **22/22** with shared contract **68/68**; real
+rebuild **23/23** with 62 assertions; installed native contract **21/21**, manager **35/35**, and
+rebuild **23/23**. Mutation: deleting the installed-contract entry produced **21/22**, then was
+reverted. `typecheck:scripts` exposed and repaired an existing `.mts` generic-arrow parse error;
+`verify:workflow-sentinels` remains **12/12**. Dashboard counts move to
+**113 total / 22 outstanding / 91 closed**.
+
 ## 2026-07-28 (latest) - `awkit-4a6` passive CDP trace and Instance Monitor live view (Codex)
 
 **Task:** add a second observation-only CDP client, durable local run trace, and live browser view

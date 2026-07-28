@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 3 — real Zvec contract closed on all three layouts (2026-07-28, current)
+
+`awkit-9yv` is closed. The shared `SemanticStoreContract` and scale cases now run through the real
+`ZvecSemanticStore → ZvecUtilityHostManager → utilityProcess → raw host → Zvec` path on the staged
+tree, packaged `win-unpacked` tree, and a freshly installed per-user NSIS tree. The installed matrix
+had omitted the shared contract even though it ran lifecycle and rebuild checks; it now includes
+that suite explicitly and guards its presence with an exact-one sentinel.
+
+Current proof: staged and packaged native contract **22/22** with the shared contract **68/68**,
+including more than 1,500 documents, exact counts, pre-ranking filters, replacement, deletion, and
+clear. The real generation lifecycle is **23/23** with 62 internal assertions for active-generation
+queries, candidate validation, crash paths, pointer activation, restart persistence, rollback, and
+reconciliation. The NSIS cycle passed native contract **21/21**, manager lifecycle **35/35**, rebuild
+**23/23**, then removed the host, registry key, and installation directory cleanly.
+
+Removing the installed-contract matrix entry produced **21/22**; it was restored and the packaged
+gate returned to **22/22**. Dashboard source counts are **113 beads / 22 outstanding / 91 closed**.
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 2 complete — passive CDP observation and local trace (2026-07-28, current)
 
 `awkit-4a6` is closed, completing every authorized Tranche 2 engineering item. Each running browser
