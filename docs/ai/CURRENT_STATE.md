@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Offline packaging inputs are pinned, signed, and clean-clone reproducible (2026-07-28, current)
+
+`awkit-epz` is closed. Playwright is pinned to `1.61.0`; the approved Windows x64 Chrome for
+Testing payload is `149.0.7827.55` / revision `1228`. The exact archive URL, size, SHA-256,
+`chrome.exe` SHA-256, and deterministic 308-file tree digest live in
+`resources/offline-browser-policy.json`.
+
+Packaging now fails before or during the build if the pinned dependencies, archive, staged
+resources/vendor trees, signed dependency manifest, or production startup payload are invalid.
+`resources/dependency-manifest.json` has a detached Ed25519 signature; production startup verifies
+the signature, approval policy, and browser executable before opening the app. There is no runtime
+download fallback and no floating `npx playwright install`.
+
+Two developer-machine portable builds and a fresh local clone built from commit `09a6044`, using
+`npm ci` plus the approved offline archive, passed strict validation and produced semantically
+equivalent decompressed payloads: **571 entries, 0 differences** after excluding only the generated
+manifest/signature and normalizing Zvec's documented `builtAt` field. The current portable artifact
+is about **202.8 MiB**; the redundant packaged `vendor/browsers` mirror is excluded. Whole-EXE hashes
+remain artifact identifiers, not reproducible-build proof.
+
+Verification: `verify:offline-supply-chain` **22/0** · `validate:offline -Strict` PASS ·
+`package:portable` PASS in the primary checkout and fresh clone · clean-clone semantic comparison
+**571/571 equivalent** · tampered archive rejected before extraction · deterministic Oracle bridge
+hash stable across two builds · `verify:all-typecheck` PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 19 outstanding / 99 closed**.
+Clean-machine execution remains **NOT EXECUTED / owner-waived non-blocking**; these are
+developer-machine and clean-checkout packaging results, not clean-machine GUI evidence.
+
 ## Zvec Phase 2 tranche 4 — incremental indexing; the subsystem is feature-complete (2026-07-28, current)
 
 `awkit-thg`. Search results are no longer only as fresh as the last manual rebuild: each run is

@@ -4,6 +4,20 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-28 — The offline browser is an approved, signed release input
+
+- **Decision:** ship Chrome for Testing `149.0.7827.55` (revision `1228`) with Playwright `1.61.0`.
+  The in-repo policy pins the exact archive URL, size, archive hash, executable hash, and tree hash.
+- **Acquisition:** release preparation may use the exact verified archive or the exact matching
+  Playwright cache entry. It never chooses the newest cache directory and never performs a floating
+  browser install. Runtime downloads remain forbidden.
+- **Trust boundary:** release packaging signs the generated dependency manifest with Ed25519.
+  Production startup verifies that signature, the approved policy hash, and `chrome.exe` before
+  opening a window. The private key is release infrastructure and is never committed.
+- **Reproducibility:** compare decompressed path/size/CRC identities, excluding the freshly generated
+  signed manifest metadata and normalizing only documented volatile fields. Whole installer hashes
+  identify accepted artifacts but do not prove reproducible compilation.
+
 ### 2026-07-28 — An ambiguous semantic mutation is never replayed
 
 - **Decision:** when a dispatched Zvec mutation times out or the utility host exits before replying,

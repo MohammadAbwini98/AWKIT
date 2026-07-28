@@ -39,6 +39,46 @@ npm run typecheck:scripts # tsc -p tsconfig.scripts.json — type-checks the .mt
 npm run verify:all-typecheck # build + typecheck:scripts — the combined type gate.
 ```
 
+## Offline dependency supply chain / packaging
+
+```powershell
+# Stage only the exact approved Chrome for Testing archive. The command verifies archive size/hash,
+# browser version, chrome.exe hash and the complete payload tree before copying.
+npm run offline:prepare -- -ArchivePath "C:\release-inputs\chrome-win64.zip"
+
+# Use the exact matching Playwright cache entry when already provisioned. This never selects newest.
+npm run offline:prepare
+
+# Download the policy's immutable version-qualified URL, then verify it. Build-time network only.
+npm run offline:prepare -- -InstallChromium
+
+# Verify exact package pins, policy/payload hashes, detached Ed25519 signature, runtime tamper
+# detection, packaging order and resources/vendor staging.
+npm run verify:offline-supply-chain
+
+# Complete strict bundle validation. Packaging wrappers run this and now fail on every nonzero step.
+npm run validate:offline -- -Strict
+
+# Compare independently built artifacts by decompressed path/size/CRC identity. The report excludes
+# generated dependency-manifest signature metadata and normalizes documented volatile JSON fields.
+npm run offline:compare-payloads -- --left "<artifact-a>" --right "<artifact-b>" --report "<report.json>"
+
+npm run package:portable
+npm run package:nsis
+```
+
+Release signing requires the ignored private Ed25519 key at
+`.release-local/offline-manifest-private.pem`, or an explicit
+`AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY`. Generate a new key only for a deliberate trust-root setup:
+
+```powershell
+node scripts/offline-manifest-signature.mjs generate-key
+```
+
+Back up and protect the private key outside the repository. Packaging writes
+`dist/release-provenance.json` with the source commit, exact Electron/Playwright/browser inputs,
+manifest signing key id, final artifact size and final artifact SHA-256.
+
 ## Test / verify
 ```bash
 npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (4 checks)

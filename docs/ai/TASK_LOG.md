@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-epz` pinned offline supply chain (Codex)
+
+**Task:** close the P1 defect where a clean checkout could silently package without Chromium and
+browser acquisition floated to whichever Playwright cache happened to exist.
+
+**Result:** pinned Playwright `1.61.0` and Chrome for Testing `149.0.7827.55` / revision `1228`;
+added archive/executable/tree hashes, deterministic staging, Ed25519-signed manifest and production
+startup verification, artifact provenance, redistribution notices, fail-fast packaging, a semantic
+artifact comparator, and deterministic Oracle JAR generation. The redundant vendor browser mirror
+is verified before packaging but excluded from the shipped payload.
+
+**Evidence:** `verify:offline-supply-chain` 22/0; strict offline validation PASS; primary and fresh
+clone portable packages PASS from the exact offline archive; 571 decompressed entries equivalent
+with 0 differences; tampered archive rejected before extraction; Oracle JAR hash identical across
+two builds; combined typecheck PASS. Portable size measured at 212,699,971 bytes. Clean-machine GUI
+execution remains NOT EXECUTED / owner-waived non-blocking.
+
+**Commits:** `def092c`, `ff75ee5`, `09a6044`, plus the reconciliation commit containing this entry.
+
 ## 2026-07-28 (latest) - `awkit-thg` semantic incremental indexing (Claude)
 
 **Task:** make search results fresh without a manual rebuild — the last gap in the Zvec subsystem.

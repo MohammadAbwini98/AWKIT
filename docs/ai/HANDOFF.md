@@ -2,10 +2,9 @@
 
 ## TAKEOFF (2026-07-28) — consolidated handoff, read this first
 
-**Repository state:** working tree clean, `origin/main` in sync, Dolt data ref pushed. Nothing is
-half-committed and no branch or worktree is outstanding. The last **code-bearing** commit is
-`190565a`; anything after it on `main` is documentation, including this note — so `git log -1` will
-show a later sha, and that is expected rather than drift. AWKIT is single-branch
+**Repository state:** `main` contains the completed `awkit-epz` offline supply-chain work through
+`09a6044`; the final reconciliation commit follows it. No task branch or worktree is outstanding.
+AWKIT is single-branch
 (`docs/ai/BRANCH_AND_COMMIT_POLICY.md`); do not create branches or worktrees.
 
 **What the last five commits did** — three of feature work, then two of reconciliation that found
@@ -19,7 +18,8 @@ real defects:
 | `9d87715` | — | Restored the dashboard consistency banner. A new top section here had been written without the ledger tally, which silently dropped this file from the banner (`checked` 2 → 1) while the page still read "Sources agree". |
 | `190565a` | — | Removed a literal NUL byte from `TASK_LOG.md`, **extended `verify:source-hygiene` to Markdown under `docs/`**, and unbroke `typecheck:scripts`, which had been red on `main` since `ea90491`. |
 | `e29f5f2` | `awkit-0jp` | **Semantic Search page + Settings → Semantic Index panel** — the subsystem became reachable from the product. Added `REAUTH_REQUIRED` / `NOT_AUTHORIZED` reason codes, a reusable renderer query layer, and `SemanticKinds.ts` so the contract can be bundled into the renderer at all. |
-| (this one) | `awkit-thg` | **Incremental indexing.** Each run is indexed as it finishes, behind `semantic.autoIndex` (default ON). `ExecutionEngine` gained its first observer; the §14.3 guard lives in `RunCompletionObserver.ts` so a verifier can drive it. **The Zvec subsystem is now feature-complete.** |
+| `7eb3fe2` | `awkit-thg` | **Incremental indexing.** Each run is indexed as it finishes, behind `semantic.autoIndex` (default ON). `ExecutionEngine` gained its first observer; the §14.3 guard lives in `RunCompletionObserver.ts` so a verifier can drive it. **The Zvec subsystem is now feature-complete.** |
+| `def092c`..`09a6044` | `awkit-epz` | **Pinned and verifiable offline Chromium.** Exact CfT/Playwright policy and hashes, signed manifest/startup validation, fail-fast packaging, provenance, semantic artifact comparison, deterministic Oracle JAR, and a successful clean-clone offline package. |
 
 **Verification at the current tip** (all executed, not inferred): `npm run verify:all-typecheck`
 PASS (`build` + `typecheck:scripts`) · `verify:semantic-store` **261/0** · `verify:semantic-queue`
@@ -28,7 +28,9 @@ PASS (`build` + `typecheck:scripts`) · `verify:semantic-store` **261/0** · `ve
 `verify:semantic-policy` 141/0 · `verify:ipc-contract` 4/4 (213 handlers, 191 exposed — unmoved
 across three tranches, because no channel was added) · `verify:settings-e2e` 151/0 (real Electron) ·
 `verify:recorder` 110/0 · `verify:runner` 89/0 · `verify:security` 39/0 · `verify:source-hygiene` 9/0
-· `verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the
+· `verify:offline-supply-chain` **22/0** · strict offline validation PASS · portable packaging
+PASS in the primary checkout and a fresh clone · decompressed payload equivalence **571 entries,
+0 differences** · `verify:verifier-classification` reconciled · `verify:roadmap-dashboard` 135/135, with the
 consistency banner measured directly from `buildSnapshot()` as `agrees: true`, `checked: 2`,
 `staleClaims: 0` — not inferred from the check passing.
 
@@ -36,10 +38,10 @@ consistency banner measured directly from `buildSnapshot()` as `agrees: true`, `
 that matter most: letting an indexing throw escape into workflow execution, and the engine bypassing
 the guard that prevents it.
 
-**NOT run, and why:** packaging and offline gates (`validate:offline`, packaged-EXE, clean-machine)
-— none of this work touched a packaging or offline-runtime surface. No real-Electron end-to-end
-exercise of the semantic path itself exists; production registration is proven by source-scan guards
-plus the real-host suite. Treat those as open evidence gaps, not as passes.
+**NOT run:** clean-machine GUI execution remains **NOT EXECUTED / owner-waived non-blocking**.
+The fresh-clone package is developer-machine release-engineering evidence, not a qualifying clean
+machine. No real-Electron end-to-end exercise of the semantic path itself exists; production
+registration is proven by source-scan guards plus the real-host suite.
 
 ### Decisions encoded in code — do not change silently
 

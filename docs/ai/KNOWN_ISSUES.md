@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## Release operations: offline-manifest key custody and Authenticode remain external (2026-07-28)
+
+Offline dependency manifests are now Ed25519-signed, but the private key is intentionally local and
+ignored at `.release-local/offline-manifest-private.pem` (or supplied through
+`AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY`). Release owners must back it up in an approved secret store,
+control access, and define rotation/revocation. Losing it prevents packaging; exposing it invalidates
+the manifest trust boundary. The shipped public key id is recorded in artifact provenance.
+
+This signature authenticates AWKIT's dependency manifest; it is **not** Windows Authenticode.
+Current portable/NSIS artifacts remain unsigned and may trigger SmartScreen. Chrome for Testing and
+Playwright redistribution notices are staged in `resources/THIRD_PARTY_NOTICES.md`; final release
+legal review and code-signing certificate operations remain external release responsibilities.
+
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 

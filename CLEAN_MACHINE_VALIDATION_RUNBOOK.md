@@ -148,6 +148,25 @@ manifest; browser source age and content identity come from `sourceTimestamp`,
 `sourceTimestampBasis`, and the `sha256-tree-v1` hash. A whole-installer hash identifies that
 specific accepted build but is not evidence that two timestamped builds are reproducible.
 
+Retain these release records beside each accepted artifact as one set:
+
+- `dist\release-provenance.json` (source commit, exact dependency inputs, artifact hash);
+- packaged `resources\dependency-manifest.json` and `dependency-manifest.sig`;
+- packaged `resources\offline-browser-policy.json`;
+- packaged `resources\trust\offline-manifest-public.pem`;
+- `resources\THIRD_PARTY_NOTICES.md`.
+
+Before transferring an artifact, run `npm run verify:offline-supply-chain` and strict offline
+validation in the source checkout. For two independently built artifacts, also run:
+
+```powershell
+npm run offline:compare-payloads -- --left "<artifact-a>" --right "<artifact-b>" --report "<report.json>"
+```
+
+The comparison must report semantic equivalence. It compares decompressed paths, sizes and CRC32
+identities, excludes only freshly generated signed-manifest metadata, and normalizes only documented
+volatile fields. Do not substitute whole-installer hash equality for this result.
+
 ---
 
 ## 3. Exact offline setup steps

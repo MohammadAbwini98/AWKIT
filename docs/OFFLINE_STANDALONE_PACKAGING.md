@@ -20,7 +20,10 @@ runtime.
 | Compiled main / preload / renderer | `out/**` (inside `app.asar`) |
 | Production `node_modules` (incl. `playwright`, `playwright-core`) | auto-included by electron-builder; Playwright is `asarUnpack`-ed |
 | Bundled Chromium | `resources/browsers/chromium/chrome.exe` → packaged under `resources/` |
-| Dependency manifest | `resources/dependency-manifest.json` |
+| Signed dependency manifest | `resources/dependency-manifest.json` + `.sig` |
+| Browser approval policy | `resources/offline-browser-policy.json` |
+| Manifest trust root | `resources/trust/offline-manifest-public.pem` |
+| Third-party notices | `resources/THIRD_PARTY_NOTICES.md` |
 | Offline runtime descriptor | `resources/offline-runtime.json` |
 | Sample flows / scenarios / data / workflows | `resources/sample-*` |
 | App icon | `resources/icon.ico` |
@@ -34,35 +37,41 @@ explicit legacy/unknown marker), requested and installed Playwright versions, th
 source timestamp and basis, and a deterministic `sha256-tree-v1` digest with file count and total
 bytes. Do not use the manifest timestamp as the browser payload's age.
 
-## Build prerequisites (developer machine, online once)
+## Build prerequisites
 
 ```powershell
-node -v            # Node 18+ (project tooling pinned for 18)
-npm install        # install dependencies
-npx playwright install chromium   # download Chromium into the Playwright cache
+node -v
+npm ci
 ```
+
+Playwright is exactly `1.61.0`; Chrome for Testing is exactly `149.0.7827.55` / revision `1228`.
+The immutable archive URL, archive size/hash, executable hash, and full tree identity are declared in
+`resources/offline-browser-policy.json`. Do not run a bare Playwright browser install.
 
 ## How to prepare the offline runtime
 
-This installs Chromium (if missing), copies it into `resources/browsers/chromium`, mirrors
-it to `vendor/browsers`, and regenerates the dependency manifest:
+Provide the exact approved archive (the normal release path), use the exact matching cache entry, or
+explicitly download only the policy URL:
 
 ```powershell
-npm run prepare:offline
+npm run offline:prepare -- -ArchivePath "C:\release-inputs\chrome-win64.zip"
+npm run offline:prepare
+npm run offline:prepare -- -InstallChromium
 ```
 
 Equivalent lower-level commands:
 
 ```powershell
-npm run offline:prepare -- -InstallChromium   # copy without forcing reinstall: omit the flag
 npm run offline:manifest                       # regenerate resources/dependency-manifest.json
-npm run validate:offline                       # non-strict validation (warnings allowed)
+npm run verify:offline-supply-chain
+npm run validate:offline -- -Strict
 ```
 
-`prepare:offline` fails loudly if Chromium cannot be located, and writes a manifest marked
-`development-missing-browser` so the gap is visible. A successful staging run also writes
-`resources/browsers/chromium-provenance.json`; the generated dependency manifest folds that source
-record together with a digest of the actual copied tree.
+Preparation verifies the archive before extraction and verifies the source and both staged trees
+before manifest generation. It never falls back to a different revision. Manifest generation signs
+the exact bytes with Ed25519; the private key is local release infrastructure, while the public key
+ships with the app. A missing signing key, mismatched key, bad signature, dirty source in strict
+mode, or payload mismatch aborts packaging.
 
 ## How to package
 
@@ -84,12 +93,15 @@ Both targets at once:
 npm run package:offline
 ```
 
-Each packaging script runs: required-input preflight → `npm run build` → regenerate manifest
+Each packaging script runs: required-input preflight → `npm run build` → regenerate and sign manifest
 (`production-offline`) → **strict** offline validation → `electron-builder`. The preflight refuses
-before the build when `resources/browsers/chromium/chrome.exe` is missing or empty and names that
-exact input. Strict validation then verifies the complete generated offline bundle, so a broken
-offline bundle cannot ship.
+before the build when inputs are missing, unpinned, unsigned, or hash-inconsistent. Every native
+process exit code is checked explicitly; a failed gate cannot continue to electron-builder.
 Output is written to `dist/`.
+
+After a successful package, `dist/release-provenance.json` records the source commit/cleanliness,
+Electron and Playwright versions, Chrome version/revision/source date/archive hash/executable hash/
+tree identity, manifest signing key id, and the final artifact size/hash.
 
 ## Packaging configuration
 
@@ -101,13 +113,14 @@ Defined in [`electron-builder.json`](../electron-builder.json):
 - `win.target`: `portable` + `nsis`
 - `nsis`: `oneClick:false`, `perMachine:false`, `allowToChangeInstallationDirectory:true`
   (per-user install → **no admin rights required**)
-- `extraResources`: copies `resources/**` (minus the icon source PNGs) and `vendor/**`
+- `extraResources`: copies `resources/**`; the build-time `vendor/browsers` mirror and duplicate
+  signed metadata are excluded from the shipped vendor tree
 - `asarUnpack`: `playwright` and `playwright-core` (native launcher must live on disk)
 
 ## Bundled Playwright browser
 
-- **Browser:** Chromium (from the Playwright cache).
-- **Source path (dev):** `%LOCALAPPDATA%/ms-playwright/chromium-*/chrome-win`.
+- **Browser:** Chrome for Testing `149.0.7827.55`, revision `1228`.
+- **Source:** exact approved archive, or exact cache entry `chromium-1228`.
 - **Bundled path (repo):** `resources/browsers/chromium/chrome.exe`.
 - **Packaged path (runtime):** `<resources>/browsers/chromium/chrome.exe`, where
   `<resources>` is `process.resourcesPath/resources` when packaged and `./resources` in dev.
