@@ -141,7 +141,8 @@ npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-pr
 # stale tree reports a confident PASS for code that was never built.
 npm run prepare:zvec-host   # stage the raw host + binding into build/native-hosts/zvec
 npm run verify:semantic-policy   # projection/redaction/validator privacy pipeline (pure)
-npm run verify:semantic-store    # shared contract vs both stores + ambiguous mutation no-replay policy (153 checks)
+npm run verify:semantic-store    # shared contract vs both stores, ambiguous mutation no-replay policy,
+                                 # rebuild snapshot projection, and the production-registration guards (179 checks)
 npm run verify:semantic-queue    # coalescing, ordering, overflow, no blind replay (pure)
 npm run verify:semantic-rebuild  # rebuild watermark + ordered delta replay vs in-memory stores and a
                             # generation-lifecycle stub (pure)

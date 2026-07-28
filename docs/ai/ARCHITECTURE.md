@@ -520,7 +520,13 @@ src/semantic/           Framework-agnostic core (no Electron, no Zvec import).
                           transition between generations. Also framework-agnostic.
 app/main/semantic/
   ZvecUtilityHostManager.ts  utilityProcess lifetime, correlated requests + deadlines, restart policy.
-  semanticService.ts      Main-process owner: startup reconciliation, health, bounded shutdown.
+                          Structurally satisfies ZvecHostTransport, so it IS the runtime's transport.
+  semanticSnapshot.ts     The authoritative document set a rebuild is built from: flows + workflows
+                          projected through projectAndValidate. Stores are INJECTED (no Electron
+                          import) and resolved per rebuild, since their folders are user-configurable.
+                          An unreadable store throws rather than yielding a partial snapshot.
+  semanticService.ts      Main-process owner: startup reconciliation, runtime registration, health,
+                          bounded shutdown, and the open/rebuild entry points.
 ```
 
 **Transport:** the main process forks the host as an Electron `utilityProcess` and speaks correlated
@@ -546,8 +552,17 @@ expression from a field allowlist, duplicated deliberately so an IPC gap cannot 
 empty clause list is refused, so "delete where nothing" can never mean "delete everything". Identity
 is filtered through a derived fixed-alphabet `entityKey`, never a raw user string.
 
-**Reachable from no product surface yet** (by design): no semantic IPC, preload API, renderer surface
-or automatic indexing. Nothing registers a runtime via `setSemanticIndexRuntime`.
+**The runtime IS registered in production.** `initializeSemanticSubsystem()` calls
+`getSemanticHostManager()`, which constructs a `SemanticIndexRuntime` over the host manager and the
+flow/workflow snapshot and registers it via `setSemanticIndexRuntime`. Both constructors are inert, so
+this spawns no host — the host still starts on the first `ensureSemanticIndexOpen()`. Registration is
+what makes reported state real: while nothing registered a runtime, `semanticHealth()` derived
+`rebuildRequired` and `activeGenerationOpenFailed` from `null` and reported healthy unconditionally,
+and `disposeSemanticSubsystem` had nothing to drain so it recorded every session as a clean shutdown.
+
+**Still reachable from no product surface** (by design): no semantic IPC, preload API, renderer
+surface or automatic indexing. `ensureSemanticIndexOpen()` and `rebuildSemanticIndex()` are the
+entry points a later phase will call.
 
 ## Architectural constraints (Confirmed)
 

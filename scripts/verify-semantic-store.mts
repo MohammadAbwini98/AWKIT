@@ -19,6 +19,16 @@ import { SemanticStoreError } from "@src/semantic/SemanticStore";
 import { SemanticMutationQueue } from "@src/semantic/SemanticMutationQueue";
 import { ZvecSemanticStore, toZvecDocument, fromZvecDocument } from "@src/semantic/ZvecSemanticStore";
 import { FakeZvecHostTransport } from "@src/semantic/FakeZvecHostTransport";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import {
+  buildSemanticSnapshot,
+  createSemanticSnapshotProvider,
+  SemanticSnapshotError
+} from "@main/semantic/semanticSnapshot";
+import { projectAndValidate } from "@src/semantic/SemanticPolicyValidator";
+import type { FlowProfile } from "@src/profiles/FlowProfile";
+import { createBlankWorkflowProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 
 let passed = 0;
 let failed = 0;
@@ -191,6 +201,171 @@ console.log("\nRanking (deterministic and explainable):\n");
   const spam = await store.search({ text: "alpha" });
   check("term-frequency is capped so repetition cannot dominate a title match", spam.hits[0]?.entityId === "wf-real", JSON.stringify(spam.hits.map((h) => h.entityId)));
   await store.close();
+}
+
+console.log("\nRebuild snapshot (authoritative flow + workflow projection):\n");
+{
+  const flow = (over: Partial<FlowProfile> = {}): FlowProfile => ({
+    id: "flow-login",
+    name: "Login",
+    description: "Signs the user in",
+    version: 1,
+    nodes: [
+      { id: "s1", type: "goto", name: "Open the portal" },
+      { id: "s2", type: "fill", name: "Enter username", value: "hunter2" },
+      { id: "s3", type: "click", name: "Submit" }
+    ],
+    edges: [],
+    updatedAt: "2026-07-28T00:00:00.000Z",
+    ...over
+  });
+
+  const workflow = (over: Partial<WorkflowProfile> = {}): WorkflowProfile => {
+    const base = createBlankWorkflowProfile("Nightly regression");
+    return {
+      ...base,
+      id: "workflow-nightly",
+      nodes: [
+        ...base.nodes,
+        {
+          id: "n1",
+          type: "flowRef",
+          flowId: "flow-login",
+          alias: "Login step",
+          order: 2,
+          required: true,
+          inputBindings: {}
+        }
+      ],
+      updatedAt: "2026-07-28T00:00:00.000Z",
+      ...over
+    };
+  };
+
+  const sourcesOf = (flows: FlowProfile[], workflows: WorkflowProfile[]) => ({
+    flows: { list: async () => flows },
+    workflows: { list: async () => workflows }
+  });
+
+  // Cardinality, not `.every()`: a suite that only asserts "every document is valid" passes
+  // vacuously against an empty snapshot, which is precisely the regression that matters here.
+  const report = await buildSemanticSnapshot(sourcesOf([flow(), flow({ id: "flow-checkout", name: "Checkout" })], [workflow()]));
+  check("the snapshot reads every flow and workflow", report.read === 3, `read=${report.read}`);
+  check("the snapshot projects one document per entity", report.documents.length === 3, `${report.documents.length} documents`);
+  check("nothing is rejected for a well-formed corpus", report.rejected.length === 0, JSON.stringify(report.rejected));
+  check(
+    "both kinds are represented",
+    report.documents.filter((d) => d.kind === "flow").length === 2 &&
+      report.documents.filter((d) => d.kind === "workflow").length === 1,
+    JSON.stringify(report.documents.map((d) => d.kind))
+  );
+
+  const flowDoc = report.documents.find((d) => d.entityId === "flow-login");
+  check("a flow document indexes its step names", /Enter username/.test(flowDoc?.content ?? ""), flowDoc?.content);
+  // The single most important assertion in this section: `value` is a forbidden field, and the step
+  // that carries it is indexed by NAME. A recorded credential must not reach the index through the
+  // step it was typed into.
+  check("a recorded step value never reaches the index", !/hunter2/.test(JSON.stringify(report.documents)));
+
+  const workflowDoc = report.documents.find((d) => d.kind === "workflow");
+  check(
+    "a workflow document resolves referenced flow names",
+    /Login/.test(workflowDoc?.content ?? ""),
+    workflowDoc?.content
+  );
+
+  // One malformed entity must cost exactly itself, not the whole index.
+  const mixed = await buildSemanticSnapshot(
+    sourcesOf([flow(), flow({ id: "", name: "Nameless" })], [workflow()])
+  );
+  check("a malformed flow is dropped, not thrown", mixed.documents.length === 2, `${mixed.documents.length} documents`);
+  check("the dropped entity is reported", mixed.rejected.length === 1 && mixed.rejected[0]?.kind === "flow", JSON.stringify(mixed.rejected));
+  check(
+    "read minus rejected accounts for every document",
+    mixed.read - mixed.rejected.length === mixed.documents.length,
+    `${mixed.read} - ${mixed.rejected.length} != ${mixed.documents.length}`
+  );
+
+  // A forbidden field ANYWHERE in the source rejects the document rather than being dropped quietly.
+  const forbidden = projectAndValidate("flow", { flowId: "f1", name: "X", revision: "1", password: "s3cret" });
+  check("a forbidden source field rejects the document", !forbidden.ok);
+
+  // An unreadable source must NOT yield a partial snapshot: the orchestrator would validate it,
+  // activate it, and silently drop every flow from the index.
+  let threw = false;
+  try {
+    await buildSemanticSnapshot({
+      flows: { list: async () => { throw new Error("EPERM"); } },
+      workflows: { list: async () => [workflow()] }
+    });
+  } catch (error) {
+    threw = error instanceof SemanticSnapshotError && error.source === "flows";
+  }
+  check("an unreadable source throws instead of returning a partial snapshot", threw);
+
+  const empty = await buildSemanticSnapshot(sourcesOf([], []));
+  check("an empty corpus is a valid, empty snapshot", empty.documents.length === 0 && empty.read === 0);
+
+  const provider = createSemanticSnapshotProvider(() => sourcesOf([flow()], [workflow()]), () => {});
+  check("the provider adapts the report to the runtime's snapshot signature", (await provider()).length === 2);
+
+  // The sources are resolved per snapshot so a Settings path change is picked up. A provider that
+  // captured its stores once would keep returning the first corpus forever.
+  let resolutions = 0;
+  let corpus: FlowProfile[] = [flow()];
+  const relocating = createSemanticSnapshotProvider(() => {
+    resolutions += 1;
+    return sourcesOf(corpus, []);
+  });
+  check("the first snapshot reads the current corpus", (await relocating()).length === 1);
+  corpus = [flow(), flow({ id: "flow-second", name: "Second" })];
+  check("a later snapshot re-resolves the sources", (await relocating()).length === 2, `${resolutions} resolutions`);
+  check("the sources were resolved once per snapshot", resolutions === 2, `${resolutions} resolutions`);
+}
+
+console.log("\nProduction registration (the runtime must be reachable from the app):\n");
+{
+  // The regression this guards is "returns to zero callers". `setSemanticIndexRuntime` existed for a
+  // whole phase with none, which left semanticHealth() reporting healthy unconditionally and every
+  // shutdown recording clean. Capture permissively, then validate strictly.
+  const servicePath = fileURLToPath(new URL("../app/main/semantic/semanticService.ts", import.meta.url));
+  const source = readFileSync(servicePath, "utf8");
+  const constructions = source.match(/new\s+SemanticIndexRuntime\s*\(/g) ?? [];
+
+  check("the main process constructs a SemanticIndexRuntime", constructions.length >= 1, `${constructions.length} found`);
+
+  // Counting `setSemanticIndexRuntime(` call sites is NOT enough, and this check was written that way
+  // first: the degrade path calls `setSemanticIndexRuntime(null)`, so deleting the real registration
+  // still left a call behind and the guard passed against the exact defect it exists for. What has to
+  // be asserted is that the CONSTRUCTED runtime is the thing handed to the registrar.
+  check(
+    "the constructed runtime is the one registered",
+    /setSemanticIndexRuntime\s*\(\s*new\s+SemanticIndexRuntime\s*\(/.test(source),
+    "no setSemanticIndexRuntime(new SemanticIndexRuntime(...)) call site"
+  );
+  check(
+    "the not-in-this-build path still clears the registration",
+    /setSemanticIndexRuntime\s*\(\s*null\s*\)/.test(source)
+  );
+  check("a production rebuild entry point exists", /export async function rebuildSemanticIndex/.test(source));
+  check("the transport is the host manager, not a fake", /transport:\s*manager/.test(source));
+
+  // Registering inside a lazy getter is only real if something reaches the getter. `semanticHealth`,
+  // `getSemanticHostManager`, `ensureSemanticIndexOpen` and `rebuildSemanticIndex` all had zero
+  // callers in `app/`, so a registrar that nothing calls would have left the original defect intact
+  // while every check above still passed. Startup is the caller that closes that.
+  const startup = /export function initializeSemanticSubsystem[\s\S]*?\n}/.exec(source)?.[0] ?? "";
+  check("startup reaches the registrar", /getSemanticHostManager\(\)/.test(startup), "initializeSemanticSubsystem does not register");
+  check(
+    "startup registers only after reconciliation has repaired the pointer",
+    startup.indexOf("reconcileGenerations") < startup.indexOf("getSemanticHostManager()"),
+    "registration precedes reconciliation"
+  );
+
+  const mainPath = fileURLToPath(new URL("../app/main/main.ts", import.meta.url));
+  const mainSource = readFileSync(mainPath, "utf8");
+  check("the app calls startup initialization", /initializeSemanticSubsystem\(\)/.test(mainSource));
+  check("the app drains the subsystem on quit", /disposeSemanticSubsystem\(\)/.test(mainSource));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

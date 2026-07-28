@@ -239,6 +239,12 @@ npm run dev                  # open the app; the mock fixtures appear in the tab
   Feature Test Lab scenarios.
 - After offline/packaging changes, run `npm run validate:offline` (the package scripts run it in
   `-Strict` mode).
+- `verify:semantic-store` also owns the **production-registration guards**. They are source scans, and
+  the first version of one passed against the very defect it existed for: counting
+  `setSemanticIndexRuntime(` call sites was satisfied by the degrade path's
+  `setSemanticIndexRuntime(null)`. It now asserts the *constructed* runtime is the one registered, and
+  that `initializeSemanticSubsystem` reaches the registrar. If you move that wiring, fix the guard —
+  do not relax it.
 - After changing the semantic subsystem or the Zvec host, run `npm run prepare:zvec-host` FIRST, then
   `verify:semantic-zvec-native-contract` and `verify:semantic-rebuild-live`. Both refuse a host tree
   that is not byte-identical to `native-hosts/zvec/zvec-host.cjs` — a stale tree reports a confident

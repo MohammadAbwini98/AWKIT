@@ -25,7 +25,10 @@ import {
   type ReconciliationReport
 } from "@src/semantic/SemanticGenerationReconciler";
 import { resolveActiveIdentity, repairMetadataFromPointer, type MetadataRepairResult } from "@src/semantic/SemanticGenerationManager";
-import type { SemanticIndexRuntime } from "@src/semantic/SemanticIndexRuntime";
+import { SemanticIndexRuntime, type SemanticIndexRuntimeStatus } from "@src/semantic/SemanticIndexRuntime";
+import type { RebuildReport } from "@src/semantic/SemanticRebuildOrchestrator";
+import { createFlowProfileStore, createWorkflowProfileStore } from "../profileStores";
+import { createSemanticSnapshotProvider } from "./semanticSnapshot";
 import { ZvecUtilityHostManager } from "./ZvecUtilityHostManager";
 
 let manager: ZvecUtilityHostManager | null = null;
@@ -36,10 +39,13 @@ let indexRuntime: SemanticIndexRuntime | null = null;
 /**
  * Register the live index runtime so staged shutdown can drain it.
  *
- * Registered rather than constructed here because building one requires a `snapshot` over
- * authoritative sources, which is the indexing layer's job and does not exist yet. Until something
- * registers a runtime, shutdown simply has nothing to drain — which is the correct behaviour, not a
- * silent gap.
+ * `getSemanticHostManager()` is the production registrar. This setter stays exported so a test or a
+ * future alternate composition can substitute a runtime, and so `null` can be restored on dispose.
+ *
+ * A registered runtime is what makes the reported health real: `semanticHealth()` derives
+ * `rebuildRequired` and `activeGenerationOpenFailed` from `indexRuntime?.status()`, so while nothing
+ * was ever registered both read healthy unconditionally, and `disposeSemanticSubsystem` had nothing
+ * to drain and therefore recorded every shutdown as clean.
  */
 export function setSemanticIndexRuntime(runtime: SemanticIndexRuntime | null): void {
   indexRuntime = runtime;
@@ -100,6 +106,13 @@ export function initializeSemanticSubsystem(): ReconciliationReport | null {
       activeIdentity: resolveActiveIdentity(runtimeRoot())
     });
     markIndexOpen(runtimeRoot());
+    // Register the index runtime for this session, AFTER reconciliation has repaired the pointer it
+    // will later open. This spawns nothing: both `ZvecUtilityHostManager` and `SemanticIndexRuntime`
+    // have inert constructors, and the host is not contacted until `ensureSemanticIndexOpen()`. It
+    // must happen here rather than being left to the first semantic caller, because until a runtime
+    // is registered `semanticHealth()` reports healthy unconditionally and `disposeSemanticSubsystem`
+    // has nothing to drain, so every shutdown records as clean regardless of what was in flight.
+    getSemanticHostManager();
     return lastReconciliation;
   } catch {
     // Housekeeping must never take the application down.
@@ -107,13 +120,106 @@ export function initializeSemanticSubsystem(): ReconciliationReport | null {
   }
 }
 
-/** Lazily construct the manager. Returns null when the feature is not present in this build. */
+/**
+ * Lazily construct the manager and register the index runtime that rides on it. Returns null when
+ * the feature is not present in this build — the one case where a null runtime is correct.
+ *
+ * Constructing the runtime touches nothing: it builds a queue and an orchestrator over a store that
+ * refuses every operation until `open()` runs. Plan §16.1 requires normal startup to stay
+ * independent of Zvec, so neither this nor the snapshot provider contacts the host; the host starts
+ * on the first approved semantic operation, which is the first `ensureSemanticIndexOpen()` call.
+ *
+ * `ZvecUtilityHostManager` structurally satisfies `ZvecHostTransport` (`call(request, timeoutMs)`),
+ * so it is passed directly rather than through an adapter.
+ */
 export function getSemanticHostManager(): ZvecUtilityHostManager | null {
   if (manager) return manager;
   const hostPath = resolveHostPath();
   if (!hostPath) return null;
   manager = new ZvecUtilityHostManager({ hostPath, runtimeRoot: runtimeRoot() });
+  try {
+    setSemanticIndexRuntime(
+      new SemanticIndexRuntime({
+        runtimeRoot: runtimeRoot(),
+        transport: manager,
+        // Resolved per rebuild, not captured here: the flow and workflow folders are configurable in
+        // Settings, and a store pinned at startup would keep indexing the previous location.
+        snapshot: createSemanticSnapshotProvider(
+          () => ({ flows: createFlowProfileStore(), workflows: createWorkflowProfileStore() }),
+          logSemantic
+        ),
+        logger: logSemantic
+      })
+    );
+  } catch {
+    // The host manager is still usable without an index runtime, and semantic capability is
+    // optional. Degrade to the previous behaviour rather than failing the caller.
+    setSemanticIndexRuntime(null);
+  }
   return manager;
+}
+
+function logSemantic(level: "info" | "warn" | "error", message: string): void {
+  const line = `[semantic] ${message}`;
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+}
+
+/**
+ * Open the index onto the generation the active pointer names. Idempotent and non-throwing.
+ *
+ * This is the first approved semantic operation: it is what actually starts the host, so it must be
+ * called by a semantic entry point rather than by startup.
+ */
+export async function ensureSemanticIndexOpen(): Promise<SemanticIndexRuntimeStatus | null> {
+  getSemanticHostManager();
+  const runtime = indexRuntime;
+  if (!runtime) return null;
+  const current = runtime.status();
+  // Already open on a generation — reopening would close and rebuild a working store for nothing.
+  if (current.activeGeneration && current.block === null) return current;
+  try {
+    return await runtime.open();
+  } catch {
+    return runtime.status();
+  }
+}
+
+/**
+ * Production entry point for a full rebuild: build a candidate generation from the authoritative
+ * flow and workflow snapshot, validate it, and activate it by pointer swap.
+ *
+ * Returns null when the feature is not in this build. Never throws — a refused rebuild is reported
+ * in the `RebuildReport`, and a refusal allocates nothing and leaves the active pointer untouched.
+ *
+ * An unreadable snapshot is already the orchestrator's `SNAPSHOT_FAILED`, so the catch below is for
+ * something outside that taxonomy. It deliberately leaves `refusal` unset rather than borrowing a
+ * category it did not observe: a fabricated refusal reads as a diagnosed failure.
+ */
+export async function rebuildSemanticIndex(): Promise<RebuildReport | null> {
+  await ensureSemanticIndexOpen();
+  const runtime = indexRuntime;
+  if (!runtime) return null;
+  try {
+    return await runtime.rebuild();
+  } catch (error) {
+    logSemantic("error", `Semantic rebuild threw outside the refusal taxonomy: ${describeError(error)}`);
+    return {
+      ok: false,
+      reason: describeError(error),
+      populated: 0,
+      replayed: 0,
+      watermark: 0,
+      activated: false,
+      metadataRepairRequired: false
+    };
+  }
+}
+
+/** Never leaks a vendor message or a path — only a stable shape, as the semantic layer does. */
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.name : "UNKNOWN_ERROR";
 }
 
 /**

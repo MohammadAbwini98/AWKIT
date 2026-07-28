@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## Dashboard backlog Tranche 3 — semantic index runtime bound to production (2026-07-28, current)
+
+`awkit-ttd` is closed, and with it the last structural gap in Zvec Phase 1B. Two of the three items
+its note listed as outstanding were already done: the orchestrator has been bound to the real
+generation root through `rebuildIntoNewGeneration`, and `whenIdle()` has had a production shutdown
+caller via `SemanticIndexRuntime.shutdown()` ← `disposeSemanticSubsystem()`.
+
+The gap the note did not name was the real one. **`SemanticIndexRuntime` was never constructed or
+registered in the Electron main process** — `setSemanticIndexRuntime` had zero callers and
+`new SemanticIndexRuntime` appeared only in the verifier harness. Every consequence failed open:
+`semanticHealth()` derived `rebuildRequired` and `activeGenerationOpenFailed` from a null runtime
+and so reported healthy unconditionally, `disposeSemanticSubsystem` left `drained = true` because
+there was nothing to drain and therefore recorded **every** session as a clean shutdown, and
+`rebuild()` had no production entry point at all.
+
+`app/main/semantic/semanticSnapshot.ts` now supplies the authoritative flow + workflow snapshot
+through the existing `projectAndValidate` pipeline; `getSemanticHostManager()` registers the runtime
+with the host manager itself as the `ZvecHostTransport`; and `initializeSemanticSubsystem()` reaches
+that registrar after reconciliation. Both constructors are inert, so plan §16.1 still holds — startup
+spawns no host. `ensureSemanticIndexOpen()` and `rebuildSemanticIndex()` are the production open and
+rebuild entry points. Snapshot sources are resolved **per rebuild**, never captured at startup,
+because the flow and workflow folders are user-configurable in Settings. An unreadable store throws
+rather than returning a partial snapshot, which the orchestrator turns into `SNAPSHOT_FAILED` with
+nothing allocated and the active pointer untouched.
+
+Proof: `verify:semantic-store` **179/179** (was 153), `verify:semantic-rebuild` **64/64**,
+`verify:semantic-queue` **70/70**, real-host `verify:semantic-rebuild-live` **24/24** with 68
+assertions, `verify:verifier-classification` reconciled, and `npm run build` PASS. Four mutations
+were run and every one went red before revert: leaking a step value into `stepNames`, deleting the
+registration, degrading an unreadable source to a partial snapshot, and removing the startup
+registrar call. The registration guard **failed its own first mutation** — counting
+`setSemanticIndexRuntime(` call sites was satisfied by the degrade path's
+`setSemanticIndexRuntime(null)` — and was rewritten to assert that the *constructed* runtime is the
+one registered.
+
+Not covered: no product surface calls the new entry points yet, because there is still no semantic
+IPC, preload API or UI; that is the next phase. Production registration is proven by source-scan
+guards plus the real-host lifecycle suite, not by a real-Electron end-to-end run.
+
+Dashboard source counts are **113 beads / 20 outstanding / 93 closed**. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
 ## Dashboard backlog Tranche 3 — ambiguous Zvec mutation outcomes reconciled (2026-07-28, current)
 
 `awkit-hzf` is closed. A host deadline or exit after a mutation was dispatched is now preserved by

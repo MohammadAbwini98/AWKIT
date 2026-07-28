@@ -1,6 +1,32 @@
 # Agent Handoff
 
-## ACTIVE (2026-07-28, latest): `awkit-hzf` closed; reconcile generation activation bead
+## ACTIVE (2026-07-28, latest): `awkit-ttd` closed; Zvec Phase 1B structurally complete
+
+The semantic index runtime is now constructed and registered in the Electron main process.
+`initializeSemanticSubsystem()` reaches `getSemanticHostManager()`, which builds a
+`SemanticIndexRuntime` over the host manager as transport and an authoritative flow + workflow
+snapshot. Both constructors are inert, so startup still spawns no host (plan §16.1).
+`ensureSemanticIndexOpen()` and `rebuildSemanticIndex()` are the production entry points.
+
+Two of the bead's three outstanding items were already stale. The one that mattered was unnamed:
+nothing had ever registered a runtime, so `semanticHealth()` reported healthy unconditionally and
+every shutdown recorded as clean. Both now reflect real state.
+
+Proof: `verify:semantic-store` **179/179**, `verify:semantic-rebuild` **64/64**,
+`verify:semantic-queue` **70/70**, real-host `verify:semantic-rebuild-live` **24/24** with 68
+assertions, roadmap dashboard **135/135** with "Sources agree", build PASS. Four mutations went red
+before revert; one guard failed its own mutation first and was rewritten.
+
+**Next:** the semantic product surface — service → RBAC → preload → projections → UI. Nothing calls
+`ensureSemanticIndexOpen()` / `rebuildSemanticIndex()` yet, which is expected and is the only reason
+production registration rests on source-scan guards rather than a real-Electron end-to-end run. The
+remaining Tranche 2 item is the owner-reserved Chromium vendoring half of `awkit-epz`.
+
+Dashboard counts are **113 / 20 outstanding / 93 closed**; the validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**. Remember `bd export -o .beads/issues.jsonl` after closing a
+bead — `verify:roadmap-dashboard` parses that export, not the live DB.
+
+## ACTIVE (2026-07-28): `awkit-hzf` closed; reconcile generation activation bead
 
 Ambiguous Zvec mutation outcomes now survive the adapter boundary as `AMBIGUOUS_MUTATION`. The queue
 never retries them: it abandons the item, marks `rebuildRequired`, and leaves authoritative rebuild

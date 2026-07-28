@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-ttd` semantic index runtime bound to production (Claude)
+
+**Task:** reconcile the last Phase 1B bead — rebuild orchestration and generation activation — and
+close it only if the current state proves it.
+
+**Result:** two of its three outstanding items were already stale (orchestrator bound to the real
+generation root; `whenIdle()` had a production shutdown caller). The unnamed third was real:
+`SemanticIndexRuntime` was never constructed or registered in the main process, so `semanticHealth()`
+reported healthy unconditionally, every shutdown recorded as clean, and `rebuild()` had no production
+entry point. Added `app/main/semantic/semanticSnapshot.ts` (authoritative flow + workflow snapshot
+over `projectAndValidate`, sources injected and resolved per rebuild, unreadable store throws rather
+than yielding a partial snapshot), registered the runtime in `getSemanticHostManager()` with the host
+manager as transport, and had `initializeSemanticSubsystem()` reach that registrar after
+reconciliation. Constructors stay inert, so startup still spawns no host. `awkit-ttd` is closed.
+
+**Files:** `app/main/semantic/semanticSnapshot.ts` (new), `app/main/semantic/semanticService.ts`,
+`scripts/verify-semantic-store.mts`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/`, `docs/ai/`.
+
+**Verification:** semantic store **179/179** (was 153); semantic rebuild **64/64**; semantic queue
+**70/70**; real-host rebuild **24/24** with 68 assertions; verifier classification reconciled;
+roadmap dashboard **135/135**; build PASS. Four mutations all went red before revert. The
+registration guard failed its own first mutation — `setSemanticIndexRuntime(null)` in the degrade
+path satisfied a call-site count — and was rewritten to assert the constructed runtime is the one
+registered. **Not run:** packaging and offline gates (no packaging or offline surface touched), and
+no real-Electron end-to-end run of the registration. Dashboard counts move to
+**113 total / 20 outstanding / 93 closed**.
+
+**Gotcha:** `bd close` does not refresh `.beads/issues.jsonl`, which is what
+`verify:roadmap-dashboard` parses. The gate failed at 134/135 with stale counts until
+`bd export -o .beads/issues.jsonl` was run.
+
 ## 2026-07-28 (latest) - `awkit-hzf` ambiguous Zvec writes reconcile by rebuild (Codex)
 
 **Task:** define and prove the policy for a mutation whose real utility-host request times out and
