@@ -1,5 +1,15 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — signed machine licensing tracker reconciled
+
+`awkit-s05` is closed as already implemented. `src/licensing/**`, the offline issuer, trusted IPC,
+Licensing page, and execution run gate collectively satisfy the issue; no new licensing subsystem
+was created. Fresh evidence: licensing 56/56 and real Electron e2e licensing 22/22.
+
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 12 outstanding / 106 closed**. Hard-enforcement rollout (`awkit-1cc`) remains an
+owner policy decision; the global attention banner/revalidation task (`awkit-x13`) remains engineering.
+
 ## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 8 complete
 
 `awkit-wza.9` is complete. The seeded lifecycle campaign exhaustively covers 176 auth × authz ×

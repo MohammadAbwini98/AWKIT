@@ -1,5 +1,17 @@
 # CURRENT_STATE
 
+## Signed machine-licensing tracker reconciliation is complete (2026-07-29, current)
+
+`awkit-s05` is closed as an already-delivered tracker item. The repository contains the complete
+signed per-machine licensing boundary: multi-signal hashed fingerprinting, Ed25519 verification
+with issuer-only private keys, activation-request export, import/replace/revoke, tamper and
+clock-rollback detection, adaptive storage, Super-User RBAC/reauth/audit, and the trusted run gate.
+No duplicate implementation was added.
+
+Fresh verification: licensing domain/RBAC **56/56** and real Electron licensing GUI/run-gate
+behavior **22/22**. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 12 outstanding / 106 closed**.
+
 ## Randomized Test Lab Phase 8 lifecycle campaigns are complete (2026-07-29, current)
 
 `awkit-wza.9` is closed. `LifecycleCampaign` deterministically covers all **176** auth-state ×

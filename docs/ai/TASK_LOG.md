@@ -4,6 +4,16 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — signed machine-licensing tracker reconciliation
+
+- **Task:** reconcile open `awkit-s05` against the current repository.
+- **Finding:** the full Ed25519 per-machine licensing scope was already implemented and documented:
+  fingerprinting, issuer/client key separation, import/replace/revoke, tamper/clock detection,
+  trusted RBAC/reauth/audit, UI, and run gating.
+- **Checks:** licensing **56/56**; real Electron e2e licensing **22/22**.
+- **Result:** closed the stale tracker item without duplicating production code. Hard-enforcement
+  rollout and the app-wide status surface remain separate open issues.
+
 ## 2026-07-29 — Codex — Randomized Test Lab Phase 8: lifecycle campaigns
 
 - **Task:** complete `awkit-wza.9` with combinatorial auth/RBAC/licensing coverage that reuses
