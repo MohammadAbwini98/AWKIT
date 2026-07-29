@@ -246,7 +246,8 @@ export type WaitCondition =
    * terminal — either its status falls in `terminalStatusRange` (and is not `pollingStatus`), or a
    * JSON `responseField` (dot-path) equals one of `terminalValues`. A response with `pollingStatus`
    * (default 202) means "still processing → keep polling". Bounded by `maxAttempts` and `timeoutMs`.
-   * WebSocket/SSE lifecycle and CDP diagnostics are intentionally out of scope here (later phases).
+   * WebSocket/SSE lifecycle and CDP diagnostics use the separate observational `streamActivity`
+   * condition below; polling remains a completion gate.
    */
   | (WaitConditionBase & {
       type: "apiPolling";
@@ -263,6 +264,23 @@ export type WaitCondition =
       terminalValues?: string[];
       /** Max number of poll responses to observe before failing. Default 30. */
       maxAttempts?: number;
+    })
+  /**
+   * Non-gating WebSocket/SSE lifecycle observation (awkit-4km C2). The runner arms this before the
+   * action, records only redacted lifecycle/network metadata, and reports what it observed after the
+   * real completion waits resolve. It NEVER proves completion: configure a required UI outcome
+   * alongside it. Chromium uses CDP for richer request ids/timing/redirects when available; other
+   * engines fall back to Playwright events.
+   */
+  | (WaitConditionBase & {
+      type: "streamActivity";
+      transport: "websocket" | "sse" | "either";
+      /** Optional matcher used only in memory. Diagnostic output never includes the raw value. */
+      urlContains?: string;
+      /** Lifecycle event of interest for review/display. Observation remains non-gating. */
+      event?: "open" | "message" | "close";
+      /** Disable request-level diagnostics while retaining stream lifecycle observation. */
+      diagnostics?: "auto" | "none";
     });
 
 /**

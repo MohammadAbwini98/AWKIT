@@ -104,6 +104,15 @@ const WAIT_FIXTURES: Record<string, WaitCondition> = {
     timeoutMs: 45000,
     reason: "async job polling"
   },
+  // WebSocket/SSE lifecycle observation (awkit-4km C2): diagnostic-only fields survive unchanged.
+  streamActivity: {
+    type: "streamActivity",
+    transport: "either",
+    urlContains: "/api/events",
+    event: "open",
+    diagnostics: "auto",
+    reason: "correlate stream activity without replacing UI completion"
+  },
   // Grouped completion OR-group (awkit-y24): a required group whose branches are UI outcomes.
   anyOf: {
     type: "anyOf",

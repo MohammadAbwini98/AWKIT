@@ -26,6 +26,7 @@ import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityR
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
+import { armNetworkObservation, type ArmedNetworkObservation } from "./NetworkDiagnosticsObserver";
 
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
@@ -62,6 +63,11 @@ interface ArmedLoader {
 interface NetworkQuietObserver {
   lastRequestAt: () => number;
   dispose: () => void;
+}
+
+interface ArmedStreamObservation {
+  wait: Extract<WaitCondition, { type: "streamActivity" }>;
+  observer: ArmedNetworkObservation;
 }
 
 /** Runs a saved flow by id as a child of the current flow (used by Run Another Flow). */
@@ -478,6 +484,7 @@ export class StepExecutor {
       const mode: AsyncCompletionMode = step.completionMode ?? "allRequired";
       const armedResponses: ArmedResponse[] = [];
       const armedLoaders: ArmedLoader[] = [];
+      const armedStreams: ArmedStreamObservation[] = [];
       const deferred: WaitCondition[] = [];
       const quiet = mode === "quietPeriod" ? this.armNetworkQuietObserver() : undefined;
       for (const wait of afterWaits) {
@@ -490,20 +497,41 @@ export class StepExecutor {
           // Two-phase loader lifecycle: arm the appearance watch before the action.
           const grace = wait.appearanceGraceMs ?? StepExecutor.DEFAULT_APPEARANCE_GRACE_MS;
           armedLoaders.push({ wait, appearance: this.armLoaderAppearance(wait, grace), grace });
+        } else if (wait.type === "streamActivity") {
+          // Supporting evidence only: arm before the action, but never let stream activity replace
+          // the required UI outcome that proves the user-visible operation completed.
+          const observer = await armNetworkObservation(this.activePage, wait, {
+            captureDiagnostics: wait.diagnostics !== "none"
+          });
+          armedStreams.push({ wait, observer });
         } else {
           deferred.push(wait);
         }
       }
 
-      const result = await this.executeStep(step, outputs);
-
       try {
+        const result = await this.executeStep(step, outputs);
         await this.resolveAfterWaits(step, mode, armedResponses, armedLoaders, deferred, quiet);
+        return result;
       } finally {
         quiet?.dispose();
+        for (const armed of armedStreams) {
+          const summary = armed.observer.summary();
+          const events = summary.observedEvents.length ? summary.observedEvents.join("/") : "none";
+          const targetEvent = armed.wait.event ?? "open";
+          const targetObserved = summary.observedEvents.includes(targetEvent) ? "yes" : "no";
+          const sample = summary.samples[0];
+          const sampleDetail = sample
+            ? `; sample=${sample.method} ${sample.path}${sample.requestId ? ` id=${sample.requestId}` : ""}${sample.durationMs !== undefined ? ` ${sample.durationMs}ms` : ""}${sample.redirects?.length ? ` via ${sample.redirects.join(" > ")}` : ""}`
+            : "";
+          this.log(
+            "info",
+            step,
+            `Stream observation (${summary.transport}, ${summary.mode}): target=${targetEvent}; observed=${targetObserved}; events=${events}; requests=${summary.requestCount}; redirects=${summary.redirectCount}${sampleDetail}`
+          );
+          await armed.observer.dispose();
+        }
       }
-
-      return result;
     } finally {
       // Restore the active page unless this step explicitly and permanently changed it.
       // Reuse Session / Auto Secure Login swap the underlying browser runtime; restoring the
@@ -597,6 +625,10 @@ export class StepExecutor {
         case "apiPolling":
           // 202 → poll to terminal (awkit-4km C1). Observes the page's own status responses.
           await this.resolveApiPolling(wait, timeout);
+          return;
+        case "streamActivity":
+          // Top-level after-action stream observations are consumed above. If an old or hand-authored
+          // profile puts one elsewhere, keep it non-gating instead of treating activity as completion.
           return;
         case "anyOf": {
           // OR-group (awkit-y24): pass as soon as ANY child passes; fail only when every child fails.
@@ -1239,6 +1271,8 @@ export class StepExecutor {
         return `any of [${(wait.conditions ?? []).map((c) => StepExecutor.describeWaitCondition(c)).join(" | ")}]`;
       case "apiPolling":
         return `poll ${wait.method ?? "ANY"} ~"${wait.urlContains}" until terminal${wait.responseField ? ` (${wait.responseField} in ${(wait.terminalValues ?? []).join("/")})` : ` (${(wait.terminalStatusRange ?? [200, 299]).join("-")})`}, ≤${wait.maxAttempts ?? 30} polls`;
+      case "streamActivity":
+        return `${wait.transport} lifecycle observation (diagnostic only)`;
       default:
         return "unknown";
     }
@@ -1271,6 +1305,8 @@ export class StepExecutor {
         return "None of the OR-group branches were satisfied; confirm at least one alternative outcome actually occurs, or adjust the branches.";
       case "apiPolling":
         return "The job never reached a terminal state; confirm the page polls the status endpoint and that terminalStatusRange/responseField match the real 'done' signal; raise maxAttempts or timeoutMs.";
+      case "streamActivity":
+        return "Stream observation is diagnostic only; add or correct a required UI outcome to prove completion.";
       default:
         return "Review the wait condition.";
     }

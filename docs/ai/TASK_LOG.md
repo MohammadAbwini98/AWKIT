@@ -4,6 +4,23 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-28 (latest) - `awkit-4km` stream and CDP diagnostics closure (Codex)
+
+**Task:** close the remaining WebSocket/SSE lifecycle and advanced-network-diagnostics slice after
+the previously implemented `202` polling condition.
+
+**Result:** added one canonical non-gating `streamActivity` wait shared by profiles, the runner,
+review logic, and the Flow Designer. The observer arms before the action, records WebSocket/SSE
+lifecycle evidence, uses Chromium CDP for request IDs/timing/redirect chains when available, and
+falls back to Playwright events. Required UI outcomes remain the only completion proof. Diagnostic
+records are bounded and strip query/hash; no headers, bodies, or frame payloads are retained.
+Extended the offline mock site with a finite SSE scenario and verified persisted GUI configuration.
+
+**Evidence:** waits 72/72; Flow Designer 60/60 real Electron; mapping 103/103; async review 23/23;
+mock site 99/99; script typecheck PASS. Coverage includes absent-stream success with valid UI,
+stream-present failure with missing UI, WebSocket and SSE lifecycle, CDP capability fallback,
+request IDs/timing/redirects, and secret canaries absent from every summary/log.
+
 ## 2026-07-28 (latest) - `awkit-y24` grouped completion GUI closure (Codex)
 
 **Task:** close the remaining GUI 11.3 evidence gap for `API success AND (rows OR empty state)`.

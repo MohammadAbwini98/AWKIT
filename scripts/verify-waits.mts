@@ -9,12 +9,15 @@
  */
 import { chromium } from "playwright";
 import { mkdtemp } from "node:fs/promises";
+import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
+import { armNetworkObservation } from "@src/runner/NetworkDiagnosticsObserver";
+import { MemoryRunnerLogger } from "@src/runner/RunnerResult";
 import { CancellationTokenSource } from "@src/runner/concurrency/CancellationToken";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowStep } from "@src/profiles/FlowProfile";
@@ -60,13 +63,14 @@ async function main() {
   const page: Page = await context.newPage();
   const ctx = await makeContext();
 
-  async function run(html: string, step: FlowStep): Promise<{ status: string; error?: string; ms: number }> {
+  async function run(html: string, step: FlowStep): Promise<{ status: string; error?: string; ms: number; logs: string[] }> {
     await page.goto("about:blank");
     await page.setContent(html, { waitUntil: "load" });
-    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const logger = new MemoryRunnerLogger();
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx, undefined, logger);
     const start = Date.now();
     const result = await exec.execute(step);
-    return { status: result.status, error: result.error, ms: Date.now() - start };
+    return { status: result.status, error: result.error, ms: Date.now() - start, logs: logger.entries.map((entry) => entry.message) };
   }
 
   // Runs a step with a cancellation token that fires mid-wait, so we can prove Stop interrupts
@@ -571,6 +575,176 @@ async function main() {
   }
 
   // ── Cancellation interrupts every wait phase immediately (awkit-62o) ─────────
+  console.log("Stream lifecycle observation (awkit-4km C2) — UI remains primary:");
+  {
+    const tokenCanary = "STREAM_QUERY_SECRET_4KM";
+    const bodyCanary = "STREAM_BODY_SECRET_4KM";
+    await page.route("http://awtkit.test/api/events*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        headers: { "access-control-allow-origin": "*" },
+        body: `data: ${bodyCanary}\n\n`
+      })
+    );
+    const html = `<span id="done"></span><button id="b" onclick="
+      const es = new EventSource('http://awtkit.test/api/events?token=${tokenCanary}');
+      es.onmessage = () => { document.getElementById('done').textContent = 'SSE complete'; es.close(); };
+    ">SSE</button>`;
+    const { status, logs } = await run(html, {
+      id: "SSE1",
+      type: "click",
+      name: "SSE with UI outcome",
+      locator: { strategy: "id", value: "b" },
+      completionMode: "allRequired",
+      afterWaits: [
+        { type: "streamActivity", transport: "sse", urlContains: "/api/events", event: "open", diagnostics: "auto" },
+        { type: "textVisible", text: "SSE complete", timeoutMs: 3000 }
+      ]
+    });
+    const logText = logs.join("\n");
+    check("SSE lifecycle + required UI outcome passes", status === "passed", status);
+    check("SSE open is reported as diagnostic evidence", /Stream observation \(sse, cdp\): target=open; observed=yes; events=open/.test(logText), logText);
+    check("stream diagnostics strip query secrets and bodies", !logText.includes(tokenCanary) && !logText.includes(bodyCanary), logText);
+    await page.unroute("http://awtkit.test/api/events*");
+  }
+  {
+    await page.routeWebSocket("ws://awtkit.test/ws/activity*", (socket) => {
+      socket.onMessage(() => socket.send("server-frame-secret"));
+    });
+    const html = `<span id="done"></span><button id="b" onclick="
+      const ws = new WebSocket('ws://awtkit.test/ws/activity?token=WS_QUERY_SECRET_4KM');
+      ws.onopen = () => ws.send('client-frame-secret');
+      ws.onmessage = () => { document.getElementById('done').textContent = 'WS complete'; ws.close(); };
+    ">WS</button>`;
+    const { status, logs } = await run(html, {
+      id: "WS1",
+      type: "click",
+      name: "WebSocket with UI outcome",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [
+        { type: "streamActivity", transport: "websocket", urlContains: "/ws/activity", event: "message", diagnostics: "auto" },
+        { type: "textVisible", text: "WS complete", timeoutMs: 3000 }
+      ]
+    });
+    const logText = logs.join("\n");
+    check("WebSocket lifecycle + required UI outcome passes", status === "passed", status);
+    check("WebSocket diagnostics never include query/frame payloads", !logText.includes("frame-secret") && !logText.includes("WS_QUERY_SECRET_4KM"), logText);
+  }
+  {
+    // Playwright's routeWebSocket intentionally bypasses Page's real websocket event, so verify the
+    // observer's event wiring independently with EventEmitter-compatible Playwright shapes.
+    const fakePageEmitter = new EventEmitter();
+    const fakePage = fakePageEmitter as unknown as Page;
+    const observation = await armNetworkObservation(
+      fakePage,
+      { type: "streamActivity", transport: "websocket", urlContains: "/ws/activity", event: "message", diagnostics: "none" },
+      { enableCdp: false, captureDiagnostics: false }
+    );
+    const fakeSocket = new EventEmitter() as EventEmitter & { url: () => string };
+    fakeSocket.url = () => "ws://awtkit.test/ws/activity?token=FAKE_WS_SECRET";
+    fakePageEmitter.emit("websocket", fakeSocket);
+    fakeSocket.emit("framereceived", { payload: "FAKE_FRAME_SECRET" });
+    fakeSocket.emit("close");
+    const summary = observation.summary();
+    await observation.dispose();
+    check("WebSocket open/message/close lifecycle is captured", summary.observedEvents.join("/") === "open/message/close", JSON.stringify(summary));
+    check("WebSocket lifecycle summary stores no URL or frame payload", !JSON.stringify(summary).includes("FAKE_WS_SECRET") && !JSON.stringify(summary).includes("FAKE_FRAME_SECRET"), JSON.stringify(summary));
+  }
+  {
+    const html = `<button id="b" onclick="document.body.dataset.clicked='yes'">No stream needed</button><span id="done">UI complete</span>`;
+    const { status, logs } = await run(html, {
+      id: "STREAM2",
+      type: "click",
+      name: "No stream observed",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [
+        { type: "streamActivity", transport: "either", urlContains: "/never", event: "open", diagnostics: "auto" },
+        { type: "textVisible", text: "UI complete", timeoutMs: 1000 }
+      ]
+    });
+    check("missing stream does not block a valid UI outcome", status === "passed", status);
+    check("missing stream is reported honestly", logs.some((message) => message.includes("events=none")), logs.join("\n"));
+  }
+  {
+    await page.routeWebSocket("ws://awtkit.test/ws/not-completion*", (socket) => socket.send("activity"));
+    const html = `<button id="b" onclick="new WebSocket('ws://awtkit.test/ws/not-completion')">WS only</button>`;
+    const { status } = await run(html, {
+      id: "STREAM3",
+      type: "click",
+      name: "Stream cannot replace UI",
+      locator: { strategy: "id", value: "b" },
+      afterWaits: [
+        { type: "streamActivity", transport: "websocket", event: "open" },
+        { type: "textVisible", text: "Required UI outcome", timeoutMs: 400 }
+      ]
+    });
+    check("stream activity cannot override a missing required UI outcome", status === "failed", status);
+  }
+  {
+    await page.goto("about:blank");
+    await page.setContent("<div>fallback</div>");
+    await page.route("http://awtkit.test/fallback*", (route) =>
+      route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*" }, body: "" })
+    );
+    const observation = await armNetworkObservation(
+      page,
+      { type: "streamActivity", transport: "either", urlContains: "/fallback", diagnostics: "auto" },
+      { enableCdp: false }
+    );
+    await page.evaluate(() => fetch("http://awtkit.test/fallback?token=FALLBACK_SECRET", { mode: "cors" }));
+    await page.waitForTimeout(50);
+    const summary = observation.summary();
+    await observation.dispose();
+    check("Playwright-only diagnostics fallback remains available", summary.mode === "playwright" && summary.requestCount >= 1, JSON.stringify(summary));
+    check("fallback diagnostics strip query strings", summary.samples.every((sample) => !sample.path.includes("FALLBACK_SECRET") && !sample.path.includes("?")), JSON.stringify(summary));
+    await page.unroute("http://awtkit.test/fallback*");
+  }
+  {
+    await page.goto("about:blank");
+    await page.setContent("<div>cdp diagnostics</div>");
+    await page.route("**/redirect-start/**", (route) =>
+      route.fulfill({
+        status: 302,
+        headers: {
+          location: "http://awtkit.test/redirect-final/token/REDIRECT_PATH_SECRET?token=REDIRECT_TARGET_SECRET",
+          "access-control-allow-origin": "*"
+        }
+      })
+    );
+    await page.route("**/redirect-final/**", (route) =>
+      route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*" }, body: "" })
+    );
+    const observation = await armNetworkObservation(
+      page,
+      { type: "streamActivity", transport: "either", diagnostics: "auto" }
+    );
+    await page.evaluate(() =>
+      fetch("http://awtkit.test/redirect-start/token/REDIRECT_SOURCE_PATH_SECRET?token=REDIRECT_SOURCE_SECRET", { mode: "no-cors" }).catch(() => undefined)
+    );
+    await page.waitForTimeout(100);
+    const summary = observation.summary();
+    await observation.dispose();
+    check(
+      "Chromium CDP diagnostics capture request id, timing, and redirect chain",
+      summary.mode === "cdp" &&
+        summary.redirectCount >= 1 &&
+        summary.samples.some((sample) => Boolean(sample.requestId) && typeof sample.durationMs === "number" && Boolean(sample.redirects?.length)),
+      JSON.stringify(summary)
+    );
+    check(
+      "CDP diagnostics retain only sanitized origin/path metadata",
+      !JSON.stringify(summary).includes("REDIRECT_SOURCE_SECRET") &&
+        !JSON.stringify(summary).includes("REDIRECT_TARGET_SECRET") &&
+        !JSON.stringify(summary).includes("REDIRECT_SOURCE_PATH_SECRET") &&
+        !JSON.stringify(summary).includes("REDIRECT_PATH_SECRET") &&
+        summary.samples.every((sample) => !sample.path.includes("?") && (sample.redirects ?? []).every((path) => !path.includes("?"))),
+      JSON.stringify(summary)
+    );
+    await page.unroute("**/redirect-start/**");
+    await page.unroute("**/redirect-final/**");
+  }
+
   console.log("Cancellation interrupts waits:");
   // 28a. Cancel during a UI-outcome wait.
   {

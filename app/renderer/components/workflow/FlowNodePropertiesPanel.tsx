@@ -19,7 +19,7 @@ const COMPLETION_MODES: { id: AsyncCompletionMode; label: string }[] = [
 ];
 
 /** New-condition scaffolds for the Async Completion editor. */
-const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui" | "table" | "group" | "poll", () => WaitCondition> = {
+const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui" | "table" | "group" | "poll" | "stream", () => WaitCondition> = {
   api: () => ({ type: "response", method: "GET", urlContains: "", statusRange: [200, 299], armBeforeAction: true }),
   loader: () => ({ type: "loaderHidden", locator: { strategy: "css", value: "" }, appearanceGraceMs: 1500, mustAppear: false, completion: "hidden" }),
   ui: () => ({ type: "textVisible", text: "" }),
@@ -30,7 +30,9 @@ const WAIT_SCAFFOLDS: Record<"api" | "loader" | "ui" | "table" | "group" | "poll
     { type: "textVisible", text: "" }
   ] }),
   // 202 → poll-to-terminal (awkit-4km C1).
-  poll: () => ({ type: "apiPolling", urlContains: "", pollingStatus: 202, maxAttempts: 30 })
+  poll: () => ({ type: "apiPolling", urlContains: "", pollingStatus: 202, maxAttempts: 30 }),
+  // WebSocket/SSE lifecycle is diagnostic evidence; it never replaces a required UI outcome.
+  stream: () => ({ type: "streamActivity", transport: "either", event: "open", diagnostics: "auto" })
 };
 
 interface DataSourceOption {
@@ -280,6 +282,38 @@ export function FlowNodePropertiesPanel({
             </label>
           </>
         );
+      case "streamActivity":
+        return (
+          <>
+            <small className="form-message">Diagnostic only. Add a required UI outcome to prove completion.</small>
+            <div className="async-status-row">
+              <label>
+                Transport
+                <select value={wait.transport} onChange={(e) => update({ transport: e.target.value as typeof wait.transport })}>
+                  <option value="either">WebSocket or SSE</option>
+                  <option value="websocket">WebSocket</option>
+                  <option value="sse">SSE</option>
+                </select>
+              </label>
+              <label>
+                Observe
+                <select value={wait.event ?? "open"} onChange={(e) => update({ event: e.target.value as NonNullable<typeof wait.event> })}>
+                  <option value="open">Open</option>
+                  <option value="message">Message</option>
+                  <option value="close">Close</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              URL contains (optional)
+              <input value={wait.urlContains ?? ""} placeholder="/events or /ws" onChange={(e) => update({ urlContains: e.target.value || undefined })} />
+            </label>
+            <label className="inline-check">
+              <input type="checkbox" checked={wait.diagnostics !== "none"} onChange={(e) => update({ diagnostics: e.target.checked ? "auto" : "none" })} />
+              Capture redacted request IDs, timing, and redirect paths when supported
+            </label>
+          </>
+        );
       case "anyOf": {
         // OR-group branch editor (awkit-y24): passes when ANY branch matches. Keep the step on
         // "All required" so an armed API response AND this group both gate completion.
@@ -351,6 +385,9 @@ export function FlowNodePropertiesPanel({
           </button>
           <button className="toolbar-button" type="button" onClick={() => addWait(phase, "poll")} title="Add a 202 → poll-to-terminal condition">
             <Plus size={13} /> Poll
+          </button>
+          <button className="toolbar-button" type="button" onClick={() => addWait(phase, "stream")} title="Observe WebSocket/SSE lifecycle as non-gating diagnostics">
+            <Plus size={13} /> Stream
           </button>
         </div>
       </div>
@@ -1140,6 +1177,8 @@ function smartWaitTitle(wait: WaitCondition): string {
       return "Any of (OR)";
     case "apiPolling":
       return "Poll to terminal";
+    case "streamActivity":
+      return "Stream diagnostics";
   }
 }
 
@@ -1172,5 +1211,7 @@ function smartWaitDetail(wait: WaitCondition): string {
     }
     case "apiPolling":
       return `~${wait.urlContains || "(any)"} until ${wait.responseField ? `${wait.responseField} ∈ {${(wait.terminalValues ?? []).join(", ")}}` : (wait.terminalStatusRange ?? [200, 299]).join("-")}`;
+    case "streamActivity":
+      return `${wait.transport} ${wait.event ?? "open"} observation · does not gate completion`;
   }
 }

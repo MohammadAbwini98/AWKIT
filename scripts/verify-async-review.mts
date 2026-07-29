@@ -40,6 +40,22 @@ check("inverted status range → unsafe", reviewWait(response({ statusRange: [30
 }
 check("loader with specific css → reliable", reviewWait({ type: "loaderHidden", locator: { strategy: "css", value: ".order-spinner" } }).classification === "reliable");
 check("fixedDelay → needsReview", reviewWait({ type: "fixedDelay", delayMs: 500 }).classification === "needsReview");
+check(
+  "stream lifecycle → needsReview diagnostic",
+  reviewWait({ type: "streamActivity", transport: "either", event: "open" }).classification === "needsReview"
+);
+{
+  const r = reviewStepAsync({
+    id: "stream-only",
+    name: "Stream only",
+    afterWaits: [{ type: "streamActivity", transport: "websocket", event: "message" }]
+  });
+  check(
+    "stream-only completion is incomplete",
+    r?.classification === "incomplete" && r.warnings.some((warning) => warning.includes("No required completion signal")),
+    JSON.stringify(r)
+  );
+}
 {
   const r = reviewWait(response({ method: undefined, urlContains: undefined, optional: true }));
   check("optional unsafe response downgrades to needsReview", r.classification === "needsReview", JSON.stringify(r));

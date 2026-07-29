@@ -632,12 +632,22 @@ try {
   });
   await afterAction.locator(".smart-wait-list-heading").getByRole("button", { name: "API", exact: true }).click();
   await afterAction.locator(".smart-wait-list-heading").getByRole("button", { name: "OR group", exact: true }).click();
+  await afterAction.locator(".smart-wait-list-heading").getByRole("button", { name: "Stream", exact: true }).click();
 
   const apiCard = afterAction.locator(":scope > .smart-wait-card", { hasText: /^Response/ });
   await apiCard.locator('input[placeholder="/api/orders"]').fill("/api/results");
   const groupCard = afterAction.locator(":scope > .smart-wait-card", { has: win.locator(".anyof-group") });
   await groupCard.locator('input[placeholder="#results"]').fill("#resultsTable");
   await groupCard.locator('input[placeholder="Saved successfully"]').fill("No invoices match the current filter.");
+  const streamCard = afterAction.locator(":scope > .smart-wait-card", { hasText: /^Stream diagnostics/ });
+  await streamCard.getByLabel("Transport").selectOption("sse");
+  await streamCard.getByLabel("Observe").selectOption("open");
+  await streamCard.locator('input[placeholder="/events or /ws"]').fill("/api/events");
+  check(
+    "GUI 4km exposes stream observation as diagnostic-only supporting evidence",
+    ((await streamCard.textContent()) ?? "").includes("does not gate completion") &&
+      ((await streamCard.textContent()) ?? "").includes("Diagnostic only")
+  );
   const configuredGroup = await groupCard.evaluate((element) => ({
     branches: element.querySelectorAll(".anyof-branch").length,
     text: element.textContent ?? ""
@@ -659,6 +669,7 @@ try {
   const groupedStep = groupedFlow?.nodes?.find((node) => node.id === "click");
   const persistedApi = groupedStep?.afterWaits?.find((wait) => wait.type === "response");
   const persistedGroup = groupedStep?.afterWaits?.find((wait) => wait.type === "anyOf");
+  const persistedStream = groupedStep?.afterWaits?.find((wait) => wait.type === "streamActivity");
   check(
     "GUI 11.3 persists API AND (table rows OR empty-state text) without flattening",
     (groupedStep?.completionMode === undefined || groupedStep?.completionMode === "allRequired") &&
@@ -670,6 +681,14 @@ try {
       persistedGroup.conditions[1]?.type === "textVisible" &&
       persistedGroup.conditions[1]?.text === "No invoices match the current filter.",
     JSON.stringify(groupedStep?.afterWaits ?? null)
+  );
+  check(
+    "GUI 4km persists SSE observation without promoting it to a completion gate",
+    persistedStream?.transport === "sse" &&
+      persistedStream?.event === "open" &&
+      persistedStream?.urlContains === "/api/events" &&
+      persistedStream?.diagnostics === "auto",
+    JSON.stringify(persistedStream ?? null)
   );
   const collapseGroupedProperties = win.getByTitle("Collapse properties");
   if (await collapseGroupedProperties.isVisible().catch(() => false)) {

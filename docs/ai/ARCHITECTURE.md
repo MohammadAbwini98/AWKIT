@@ -57,6 +57,8 @@ src/                    framework-agnostic core (no Electron/React imports, exce
   runner/               PlaywrightRunner, FlowExecutor, StepExecutor, ExecutionEngine,
                         BrowserContextFactory, LocatorFactory, ValueResolver, ExpressionEvaluator,
                         ConnectorConditionEvaluator (structured conditional connectors),
+                        NetworkDiagnosticsObserver (non-gating WebSocket/SSE lifecycle plus sanitized
+                        CDP request-id/timing/redirect metadata with Playwright fallback),
                         ManualHandoffController, BrowserProcessManager, RunnerWorker(Host), RunnerResult,
                         ResourceRoutingPolicy (A9 request blocking), ChromiumHardening (no-egress args)
     browserProfile/     Browser Resource Optimization (per-instance Chromium cost): BrowserResourceProfile

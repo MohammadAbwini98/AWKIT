@@ -18,7 +18,7 @@ Update the **Status** column as each item lands. Legend: `[ ]` todo · `[~]` in 
 | 0b | Close AWKIT dev instance → rerun `verify:settings-persistence` | Cond. 5 | `verify:settings-persistence` green | [!] 4 Electron procs running — needs you to close AWKIT |
 | 1 | **awkit-cxa (P1):** designer preserves bare `FlowStep.value` losslessly | Cond. 3 / Finding 4 | `verify:flow-step-mapping` (pins inverted) + `tsc` | [x] |
 | 2 | **awkit-y24 (P2):** grouped completion `A AND (B OR C)` → GUI 11.3 PASS | Cond. 1 / Finding 3 | `verify:waits` + `verify:flow-step-mapping` + `verify:runner` + `verify:mock-site` | [x] GUI 11.3 automated and PASS (2026-07-28) |
-| 3 | **awkit-4km C1:** 202 → terminal-status polling (own commit) | Bead awkit-4km | `verify:waits` + `verify:mock-site` + round-trip | [x] (C1 only) |
+| 3 | **awkit-4km:** 202 polling + non-gating WebSocket/SSE + CDP diagnostics | Bead awkit-4km | `verify:waits` + `verify:mock-site` + round-trip + GUI | [x] closed 2026-07-28 |
 | 4 | Coverage-gap hardening (verifier breadth) | Section 8 | `verify:flow-step-mapping` | [x] (+ fixed generated/secret drop) |
 | 5a | Distributable installer on a host that clears `-mx=9` | Cond. 2 | `package:portable` exit 0 + artifact recorded | [!] |
 | 5b | Visual confirmation packaged renderer paints | Cond. 4 | screenshot of painted renderer | [!] |
@@ -44,11 +44,16 @@ Update the **Status** column as each item lands. Legend: `[ ]` todo · `[~]` in 
 |---|---|---|---|
 | `awkit-cxa` | P1 | Item 1 | ✅ fixed (uncommitted) |
 | `awkit-y24` | P2 | Item 2 | ✅ closed; GUI 11.3 58/58 real Electron |
-| `awkit-4km` | P2 | Item 3 (C1 only; WS/SSE + CDP stay deferred) | ⏳ C1 done (uncommitted); WS/SSE + CDP still open |
+| `awkit-4km` | P2 | Item 3 | ✅ closed; polling + stream lifecycle + sanitized CDP/fallback diagnostics |
 
 ---
 
 ## Notes / log
+
+- 2026-07-28 — **Item 3 / `awkit-4km` CLOSED.** `streamActivity` is non-gating and requires a
+  separate UI completion outcome. WebSocket/SSE lifecycle plus sanitized CDP request IDs, timing,
+  and redirect chains fall back to Playwright events without retaining queries, headers, bodies, or
+  frames. Waits 72/72; Flow Designer 60/60; mapping 103/103; async review 23/23; mock site 99/99.
 
 - 2026-07-28 — **Item 2 / `awkit-y24` CLOSED.** Real-Electron Flow Designer verification now
   creates the API + OR-group, edits both branches, saves, and confirms the stored profile retains

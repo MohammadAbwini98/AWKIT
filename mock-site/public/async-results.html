@@ -48,6 +48,13 @@
              failure, not a timeout.</p>
           <button id="loadError" data-testid="load-error" type="button">Trigger server error</button>
         </article>
+
+        <article data-testid="scenario-sse">
+          <h2>SSE lifecycle</h2>
+          <p>Expected: a local event stream opens and emits once, then the UI status becomes complete.
+             Stream activity is diagnostic evidence; the visible status is the completion outcome.</p>
+          <button id="startSse" data-testid="start-sse" type="button">Start SSE update</button>
+        </article>
       </section>
 
       <section aria-label="Result surface">
@@ -64,6 +71,7 @@
 
         <p id="emptyState" data-testid="empty-state" hidden>No invoices match the current filter.</p>
         <p id="errorBanner" data-testid="error-banner" role="alert" hidden>Request failed</p>
+        <p id="streamStatus" data-testid="stream-status">Stream idle</p>
       </section>
 
       <section aria-label="Event log">
@@ -94,6 +102,7 @@
         $("resultsLoading").hidden = true;
         $("resultsStatus").textContent = "No request yet";
         $("eventLog").innerHTML = "";
+        $("streamStatus").textContent = "Stream idle";
       };
 
       var renderRows = function (rows) {
@@ -149,6 +158,20 @@
             $("resultsStatus").textContent = "Request failed (HTTP " + res.status + ")";
             log("error banner shown: HTTP " + res.status);
           });
+      });
+      $("startSse").addEventListener("click", function () {
+        $("streamStatus").textContent = "Waiting for stream";
+        log("SSE opening");
+        var source = new EventSource("/api/events?ms=" + encodeURIComponent(delay()));
+        source.addEventListener("status", function (event) {
+          var data = JSON.parse(event.data);
+          $("streamStatus").textContent = data.state === "complete" ? "Stream update complete" : "Stream update unknown";
+          log("SSE UI outcome shown");
+          source.close();
+        });
+        source.onerror = function () {
+          source.close();
+        };
       });
       reset();
     </script>

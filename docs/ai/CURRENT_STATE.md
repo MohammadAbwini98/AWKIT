@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Stream diagnostics and async polling are closed (2026-07-28, current)
+
+`awkit-4km` is closed. Its earlier `apiPolling` condition already covered page-owned
+`202 Accepted` polling through a bounded terminal status or JSON field. The remaining slice adds the
+canonical `streamActivity` condition for WebSocket/SSE lifecycle observation. It arms before the
+action but is deliberately non-gating: a required UI outcome remains the primary completion proof,
+and a stream-only configuration is classified incomplete.
+
+`NetworkDiagnosticsObserver` uses Playwright page events across browser engines and attempts a
+Chromium CDP session for sanitized request IDs, timings, and redirect chains. CDP attachment is
+capability-checked and fail-open to the Playwright-only path. Diagnostics retain only origin + path
+and bounded numeric/opaque metadata; query strings, headers, bodies, and stream frame payloads are
+never stored or logged. The Flow Designer labels the condition diagnostic-only and persists its
+transport/event/matcher settings. The Feature Test Lab exposes a finite local SSE scenario at
+`/async-results` + `/api/events`.
+
+Verification: `verify:waits` **72/72** · `verify:flow-designer` **60/60 real Electron** ·
+`verify:flow-step-mapping` **103/103** · `verify:async-review` **23/23** ·
+`verify:mock-site` **99/99** · `typecheck:scripts` PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 17 outstanding / 101 closed**.
+
 ## Grouped async completion is closed with real GUI evidence (2026-07-28, current)
 
 `awkit-y24` is closed. A required `anyOf` wait expresses `A AND (B OR C)` under the existing
@@ -16,7 +37,7 @@ Verification: `verify:flow-designer` **58/58 real Electron** · `verify:waits` *
 `verify:flow-step-mapping` **102/0** · `verify:async-review` 21/0 · `verify:runner` 89/0 ·
 `verify:mock-site` 96/96 · `verify:all-typecheck` PASS. Screenshot:
 `test-artifacts/grouped-wait-gui/awkit-y24-configured.png`. The validation ledger remains
-**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 18 outstanding / 100 closed**.
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 17 outstanding / 101 closed**.
 
 ## Offline packaging inputs are pinned, signed, and clean-clone reproducible (2026-07-28, current)
 
@@ -42,7 +63,7 @@ Verification: `verify:offline-supply-chain` **22/0** · `validate:offline -Stric
 `package:portable` PASS in the primary checkout and fresh clone · clean-clone semantic comparison
 **571/571 equivalent** · tampered archive rejected before extraction · deterministic Oracle bridge
 hash stable across two builds · `verify:all-typecheck` PASS. The validation ledger remains
-**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 19 outstanding / 99 closed**.
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 17 outstanding / 101 closed**.
 Clean-machine execution remains **NOT EXECUTED / owner-waived non-blocking**; these are
 developer-machine and clean-checkout packaging results, not clean-machine GUI evidence.
 
@@ -2299,7 +2320,8 @@ the manual GUI walkthrough remains.
 observes the page's own repeated status responses (issues none itself) and completes on a terminal status
 range or a JSON `responseField`/`terminalValues`, bounded by `maxAttempts`. Designer editor + "Poll"
 scaffold; mock-site `/api/job` (deterministic 202×N → terminal, repeatable). `verify:waits` **56/0**,
-`verify:mock-site` **58/58**. WebSocket/SSE + CDP diagnostics remain deferred on awkit-4km.
+`verify:mock-site` **58/58**. The later WebSocket/SSE + CDP slice is now closed; see the current
+`awkit-4km` section at the top of this file.
 
 **Serialization round-trip hardening (2026-07-22):** `toFlowStep`/`fromFlowStep` (+ their `toNodeConfig`
 /`createValueSource` helpers) moved verbatim out of `pages/FlowChartDesigner.tsx` into

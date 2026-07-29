@@ -250,6 +250,12 @@ try {
   await page.getByTestId("reset-async-results").click();
   check("reset clears every outcome surface", await page.getByTestId("error-banner").isHidden() && await page.getByTestId("empty-state").isHidden() && await page.getByTestId("results-table").isHidden());
 
+  // SSE lifecycle: the stream event is supporting evidence; the visible UI status is the outcome.
+  await page.getByTestId("start-sse").click();
+  await page.getByText("Stream update complete").waitFor({ timeout: 2000 });
+  check("SSE fixture produces the required visible UI outcome", (await page.getByTestId("stream-status").textContent()) === "Stream update complete");
+  check("SSE fixture logs its lifecycle without exposing transport payload details", /SSE UI outcome shown/.test((await page.getByTestId("async-results-log").textContent()) ?? ""));
+
   console.log("Async status/result endpoints:");
   const err500 = await page.request.get(`${BASE}/api/status?code=500`);
   check("/api/status returns the requested error status", err500.status() === 500, `status=${err500.status()}`);
@@ -263,6 +269,8 @@ try {
   check("/api/results empty mode is a 200 with zero rows", emptyJson.ok === true && emptyJson.count === 0 && emptyJson.rows.length === 0);
   const fullJson = await (await page.request.get(`${BASE}/api/results?mode=populated&ms=0`)).json();
   check("/api/results populated mode returns three stable rows", fullJson.count === 3 && fullJson.rows[0].id === "INV-1001");
+  const sseText = await (await page.request.get(`${BASE}/api/events?ms=0`)).text();
+  check("/api/events emits a deterministic finite SSE status event", /event: status/.test(sseText) && /\"state\":\"complete\"/.test(sseText));
 
   // 202 → poll-to-terminal job (awkit-4km C1): first two polls are 202 "processing", third is a
   // terminal 200 "succeeded", then the counter resets so the scenario is repeatable.

@@ -384,6 +384,21 @@ const server = createServer(async (req, res) => {
     return sendJson(res, { ok: true, mode, count: rows.length, rows });
   }
 
+  // Finite SSE lifecycle fixture (awkit-4km C2). It emits one deterministic status event and ends;
+  // the UI outcome remains the completion signal while the stream is supporting diagnostic evidence.
+  if (req.method === "GET" && path === "/api/events") {
+    const requestedMs = Number(url.searchParams.get("ms") ?? 100);
+    const delayMs = Math.max(0, Math.min(Number.isFinite(requestedMs) ? requestedMs : 100, 3000));
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    });
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    res.end(`id: awkit-4km-1\nevent: status\ndata: ${JSON.stringify({ state: "complete" })}\n\n`);
+    return;
+  }
+
   // 202 → poll-to-terminal job (awkit-4km C1). Deterministic + repeatable: the first `after` polls
   // for an id return HTTP 202 `{status:"processing"}`; the next returns HTTP 200 `{status:"succeeded"}`
   // and resets the counter. Lets the runner prove it keeps polling past 202 and completes on the

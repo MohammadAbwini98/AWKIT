@@ -46,7 +46,7 @@ export interface StepAsyncReview {
 
 /** A `fixedDelay` is a timing fallback, never a concrete "the work finished" signal. */
 function isCompletionSignal(wait: WaitCondition): boolean {
-  return wait.type !== "fixedDelay";
+  return wait.type !== "fixedDelay" && wait.type !== "streamActivity";
 }
 
 /** Heuristic: a CSS locator with no id/attribute/class specificity is likely non-unique. */
@@ -118,6 +118,12 @@ export function reviewWait(wait: WaitCondition): WaitReview {
       if (!wait.urlContains) worsen("unsafe", "Polling condition has no URL pattern — it can match unrelated responses.");
       if (wait.responseField && !(wait.terminalValues && wait.terminalValues.length)) {
         worsen("needsReview", "A response field is set but no terminal values — the poll cannot recognize completion.");
+      }
+      break;
+    case "streamActivity":
+      worsen("needsReview", "Stream activity is diagnostic only and must be paired with a required UI outcome.");
+      if (wait.transport === "sse" && wait.event && wait.event !== "open") {
+        worsen("needsReview", "SSE lifecycle supports reliable open observation only; message/close details are best-effort.");
       }
       break;
     case "anyOf": {
