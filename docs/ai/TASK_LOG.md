@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 - Claude - clean-machine: Legacy grant lifecycle proven end to end (34 PASS / 0 FAIL)
+
+- **Task:** add a non-UI trigger for the inventory scan and finish runbook sections 5.2 onward.
+- **Product change:** "Re-scan Library" action in the Flow Library calls the already-gated
+  `validation:runInventoryScan`, which had no caller anywhere. Same WORKFLOW_EDIT permission; an
+  unauthenticated CLI trigger was rejected because the scan issues grants.
+- **New passes (8):** 5.5, 5.6, 5.7, 5.9, 8.3, 8.4, 8.5, 8.6 - the full grant lifecycle: issue
+  (sha256-bound, 30-day deadline), persist across restart, retain on description-only edit, void on
+  executable edit, and re-scan without extending/reviving/duplicating.
+- **Input breakthrough:** `vm-guest-click.ps1` clicks from INSIDE the guest via user32. Hyper-V's
+  Msvm_SyntheticMouse never moves the pointer on this host and a VMConnect console does not help.
+- **Near-miss:** the grant record is not stamped revoked on an executable edit; checking the UI
+  showed the flow blocks and the pill disappears, because `evaluateGrant` derives the `edited`
+  standing live. Nearly written up as a security defect.
+- **Anti-tamper evidence:** the migration-grace ProgramData mirror survived every per-user profile
+  wipe and kept the install classified `fresh + consumed` - the window did not reopen.
+- **Still NOT EXECUTED:** 3, 5.4, 5.8, 6.3, 8.1-8.2 (all need a run; licensing blocks every run on
+  this VM), 8.7-8.11 (migration ceremony UI).
+- **Files:** `app/renderer/pages/FlowLibrary.tsx`, `scripts/clean-machine/*`, runbook, results doc,
+  evidence, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tests run:** verify:clean-machine-policy 28/28, verify:roadmap-dashboard 135/135,
+  verify:ipc-contract 4/4, verify:authz 77/77, build + typecheck PASS.
+
+---
+
 ## 2026-07-29 - Claude - clean-machine sections 5/6 attempted; grant lifecycle still unexecuted
 
 - **Task:** run runbook sections 5, 6 and 8 against the offline VM.

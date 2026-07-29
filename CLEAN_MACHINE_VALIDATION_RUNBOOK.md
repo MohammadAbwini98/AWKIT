@@ -34,8 +34,8 @@ Blocking matrix (clean-machine disposition → does it block release promotion?)
 | OWNER WAIVED — NON-BLOCKING | No |
 
 **Current disposition: OWNER WAIVED — NON-BLOCKING** (execution status: **PARTIALLY EXECUTED,
-2026-07-29 — 26 PASS / 0 FAIL: §1, §2, §4 and §7 in full, plus §5.1-5.3, §6.1-6.2
-and §8.12; §3, §5.4-5.9, §6.3 and §8.1-8.11 NOT EXECUTED**).
+2026-07-29 — 34 PASS / 0 FAIL: §1, §2, §4 and §7 in full, plus §5.1-5.3, §5.5-5.7,
+§5.9, §6.1-6.2, §8.3-8.6 and §8.12; §3, §5.4, §5.8, §6.3, §8.1-8.2 and §8.7-8.11 NOT EXECUTED**).
 See [`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`](docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md)
 for the filled-in §12 record, the environment, and two recorded deviations (Generation 1 BIOS VM;
 Windows Setup hardware gate relaxed). The executed sections passed on a genuinely clean, offline

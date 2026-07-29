@@ -3,7 +3,8 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 26 PASS / 0 FAIL. Sections 3, most of 8, and 5.4-5.9 NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 34 PASS / 0 FAIL. Section 3, the run-based checks (5.4, 5.8,
+6.3, 8.1-8.2) and the migration ceremony (8.7-8.11) NOT EXECUTED.**
 
 Read that precisely. Sections 1, 2, 4 and 7 were executed in full and every check passed. Section 5
 was executed only as far as 5.1, section 6 as far as 6.1-6.2; sections 3 and 8 and the remainder of
@@ -232,6 +233,77 @@ by accident, on a clean machine, at a 24-file scale.
 `scripts/generate-dependency-manifest.ps1` carries the identical warning, for the identical reason.
 The seeder now writes UTF-8 without a BOM via `System.Text.UTF8Encoding($false)` and clears any
 leftover quarantine, so a re-run starts from an unambiguous state.
+
+---
+
+## Fourth sitting: the Legacy grant lifecycle, end to end
+
+Precise pointer control was finally achieved by issuing the click from **inside** the guest -
+`SetCursorPos` + `mouse_event` via user32, run as the logged-on standard user through a scheduled
+task (`vm-guest-click.ps1`). Hyper-V's own `Msvm_SyntheticMouse` is unusable on this host: it accepts
+`SetAbsolutePosition`, reports success, and never moves the pointer, so the following `ClickButton`
+fires wherever the real cursor sits. Measured at three different coordinates, all landing on the same
+wrong target, and **opening a VMConnect console did not change it**. The guest-side click reported
+its landing position back (`at:204,634`) and hit its target first time. It uses only PowerShell and
+user32 - both part of Windows - so nothing is installed and constraints 1.2-1.4 still hold.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 5.2 | Library shows Runnable / Not runnable / **Legacy** pill | **PASS** | all three states present; `seed-orphan-secondary` shows a dashed **Legacy - until 2…** pill |
+| 5.3 | Pre-hardening grant retired, not honoured; new grant `sha256:`-bound | **PASS** | primary: `revokedReason: "digestFormatRetired"`, **not** re-granted, shows *Not runnable*. secondary: new grant `sha256:1507327c…`, 30-day deadline |
+| 5.5 | Grant persists across restart with the same deadline | **PASS** | identical `contentHash` and `expiresAt` before and after a full app restart |
+| 5.6 | Executable edit voids the grant; flow blocks; pill gone | **PASS** | added a node -> digest recomputed to `sha256:5de90218…`, grant bound to `1507327c…` -> flow shows **Not runnable**, Legacy pill gone |
+| 5.7 | Description-only edit retains the grant | **PASS** | description changed, re-scanned, digest **unchanged**, grant intact with no revocation |
+| 5.9 | Re-scan extends nothing, revives nothing, duplicates nothing | **PASS** | 4 scan records; deadline byte-identical; retired record still `digestFormatRetired`; still exactly 2 grant files |
+| 8.3 | Grant issued (SHA-256 bound), Legacy pill with deadline | **PASS** | `grantsIssued: 1`, `sha256:1507327c…`, expires 2026-08-28 |
+| 8.4 | Grant persistence across restart | **PASS** | same as 5.5 |
+| 8.5 | Grant invalidation on executable edit | **PASS** | same as 5.6 |
+| 8.6 | Grant retention on description-only edit | **PASS** | same as 5.7 |
+| 8.12 | FNV-era retirement on upgrade | **PASS** | `grantsRetiredLegacyDigest: 1`, `grantsIssued: 0` on that flow |
+
+Scan classification after the fixtures were corrected: `valid=21, temporarily-compatible=2,
+immediately-blocked=1` - exactly the intended mix.
+
+### The grant record is not stamped "revoked" on edit, and that is correct
+
+Worth recording because it looks alarming at first. After the executable edit the grant file still
+holds the OLD hash with no `revokedAt`/`revokedReason`, and the scan entry still classifies the flow
+`temporarily-compatible`. That is not a stale record: `evaluateGrant` returns the standing
+**`edited`** whenever `grant.contentHash !== currentDigest`, so the standing is DERIVED live from the
+digest comparison rather than persisted. The user-visible result is correct - the flow blocks and the
+Legacy pill disappears - and deriving it is sounder than stamping a revocation, which would go stale
+if the edit were reverted. `temporarily-compatible` classifies the flow's *shape* (off-path-only, so
+grant-eligible); it is not a statement that a grant currently applies.
+
+### Why the run-based checks cannot be executed on this machine
+
+5.4, 5.8, 6.3, 8.1 and 8.2 all require starting a workflow run. On this VM every run is refused by
+**licensing**, not by validation, so asserting "blocked" would record a pass for the wrong reason and
+"runs" is impossible. The migration-grace anchor reads:
+
+```
+installationKind: "fresh", consumed: true, firstEnforcedLaunchUtc: 2026-07-29T17:32:24Z
+```
+
+That classification dates from the section 4 run, before the upgrade profile was ever seeded - and it
+**survived every wipe of the per-user profile**, because the per-profile-namespaced mirror under
+`%PROGRAMDATA%\SpecterStudio\Licensing\migration-grace-6ee2f5c5dab1ce70.json` restored it. That is
+the anti-tamper property working exactly as designed, demonstrated independently on a clean machine:
+**deleting the per-user copy did not restart or reopen the migration window.** The side effect is
+that this VM is permanently `fresh + consumed`, so it gets no grace, and unlicensed runs stay blocked.
+
+To execute those five checks, either import a real signed licence into the VM, or provision a fresh
+VM and seed the upgrade profile before its very first launch so it classifies as `upgraded`.
+
+### Still not executed
+
+| # | Why |
+|---|---|
+| 3 | Offline setup steps - subsumed by automated provisioning |
+| 5.4, 5.8, 8.1, 8.2 | Require a workflow run; licensing blocks all runs on this VM (above) |
+| 6.3 | Hard-kill mid-run needs a run in flight |
+| 8.7-8.11 | Migration preview / backup / apply / undo / undo-refusal - multi-step UI ceremony, not attempted |
+
 
 ## Machine-readable record
 

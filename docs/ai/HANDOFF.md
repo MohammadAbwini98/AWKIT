@@ -1,5 +1,33 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) - clean-machine 34 PASS / 0 FAIL; only run-based checks remain
+
+Sections 1, 2, 4, 7 in full, plus 5.1-5.3, 5.5-5.7, 5.9, 6.1-6.2, 8.3-8.6, 8.12. NOT EXECUTED:
+section 3, the run-based checks (5.4, 5.8, 6.3, 8.1-8.2) and the migration ceremony (8.7-8.11).
+See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook is still not claimed
+as PASSED.
+
+**Use vm-guest-click.ps1, not vm-click.ps1.** Hyper-V's synthetic mouse is unusable on this host - it
+accepts SetAbsolutePosition, reports success, never moves the pointer, and the click then lands
+wherever the real cursor sits. A VMConnect console does not fix it. `vm-guest-click.ps1` issues the
+click from inside the guest via user32 and reports its landing position back; it hit its target first
+time. Nothing is installed, so constraints 1.2-1.4 still hold.
+
+**The one blocker for the remaining five run-based checks is LICENSING, not validation.** This VM's
+grace anchor is permanently `installationKind: "fresh", consumed: true` - it dates from the section 4
+run and survived every profile wipe via the ProgramData mirror. So the VM gets no grace, is
+unlicensed, and every run is refused. To finish 5.4/5.8/6.3/8.1/8.2 either import a real signed
+licence into the VM, or provision a FRESH VM and seed the upgrade profile before its first launch so
+it classifies as `upgraded` and gets the 14-day window.
+
+**Always confirm a re-scan actually ran** before reading grant files. A scan only happens on the
+Flow Library's "Re-scan Library" action or a run request; check that the count of
+`validation\inventory-scans\*.json` increased. One earlier reading was taken after clicks that had
+gone to a sign-in screen, and briefly produced a wrong conclusion.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
 ## TAKEOFF (2026-07-29) - clean-machine 26 PASS / 0 FAIL; grant issuance still open
 
 Sections 1, 2, 4, 7 in full, plus 5.1-5.3, 6.1-6.2 and 8.12. NOT EXECUTED: 3, 5.4-5.9, 6.3,

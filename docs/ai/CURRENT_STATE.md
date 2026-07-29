@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Clean-machine 34 PASS / 0 FAIL; the Legacy grant lifecycle is proven end to end (2026-07-29, current)
+
+Clean-machine validation now stands at **34 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus
+**5.1-5.3, 5.5-5.7, 5.9, 6.1-6.2, 8.3-8.6 and 8.12**. Still NOT EXECUTED: section 3, the run-based
+checks (5.4, 5.8, 6.3, 8.1-8.2) and the migration ceremony (8.7-8.11). Record:
+`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+**The whole Legacy Compatibility lifecycle is now evidenced on a clean offline machine.** A
+pre-hardening FNV-era grant is retired (`digestFormatRetired`) and never re-granted; a newly eligible
+off-path-only flow receives a `sha256:`-bound grant with a 30-day deadline and a dashed
+**Legacy - until …** pill; the grant survives a full restart byte-identically; a description-only edit
+retains it; an executable edit voids it (flow blocks, pill gone); and re-scanning extends no deadline,
+revives no retired record and creates no duplicate grant files.
+
+**Precise input finally worked by clicking from INSIDE the guest** - `SetCursorPos` + `mouse_event`
+via user32, run as the logged-on standard user through a scheduled task (`vm-guest-click.ps1`).
+Hyper-V's `Msvm_SyntheticMouse` is unusable here: it accepts `SetAbsolutePosition`, reports success,
+and never moves the pointer, so the following `ClickButton` fires wherever the real cursor sits.
+Opening a VMConnect console did not change that. Nothing is installed in the guest - PowerShell and
+user32 are part of Windows - so constraints 1.2-1.4 still hold.
+
+**A near-miss worth keeping.** After the executable edit the grant file still held the OLD hash with
+no revocation stamp, which looked like a serious defect. It is not: `evaluateGrant` returns the
+standing `edited` whenever `contentHash !== currentDigest`, so the standing is DERIVED live rather
+than persisted, and the user-visible result (flow blocks, pill gone) is correct. Checking the UI
+before writing it up is what caught this.
+
+**The migration-grace anti-tamper property was demonstrated independently.** The VM's grace anchor
+still reads `installationKind: "fresh", consumed: true` from the section 4 run, and it survived every
+wipe of the per-user profile because the per-profile-namespaced `%PROGRAMDATA%` mirror restored it.
+Deleting the per-user copy did not reopen the window. The side effect: this VM is permanently
+`fresh + consumed`, so it gets no grace, is unlicensed, and every run is licence-blocked - which is
+precisely why 5.4, 5.8, 6.3, 8.1 and 8.2 cannot be executed here.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
 ## Clean-machine 26 PASS / 0 FAIL; FNV grant retirement proven on a clean machine (2026-07-29, current)
 
 Clean-machine validation now stands at **26 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus
