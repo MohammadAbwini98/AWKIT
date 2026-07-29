@@ -38,6 +38,19 @@ $stamp = "2026-01-15T09:00:00.000Z"
 $flows = @()
 $workflows = @()
 
+# A goto node carries `url` AND a `valueSource`; `config.url` alone fails the step-requirements
+# contract with missingRequiredValue on the active path, which blocks the whole flow. This is the
+# same contract that produced defect HARNESS-004.
+function New-GotoNode {
+  @{
+    id          = "goto"
+    type        = "goto"
+    name        = "Open page"
+    url         = "http://localhost:4321/login"
+    valueSource = @{ type = "static"; value = "http://localhost:4321/login" }
+  }
+}
+
 function New-Flow {
   param([string]$Id, [string]$Name, [string]$Kind)
   $nodes = @(
@@ -47,7 +60,7 @@ function New-Flow {
 
   switch ($Kind) {
     "valid" {
-      $nodes += @{ id = "goto"; type = "goto"; name = "Open page"; config = @{ url = "http://localhost:4321/login" } }
+      $nodes += (New-GotoNode)
       $nodes += @{ id = "end"; type = "end"; name = "End" }
       $edges += @{ id = "e0"; source = "start"; target = "goto"; type = "success" }
       $edges += @{ id = "e1"; source = "goto"; target = "end"; type = "success" }
@@ -55,9 +68,12 @@ function New-Flow {
     "orphan" {
       # Reachable graph PLUS an extra node with no incoming connector. Off-path only: the main path
       # is sound, so this is exactly the class a Legacy grant is meant to keep running.
-      $nodes += @{ id = "goto"; type = "goto"; name = "Open page"; config = @{ url = "http://localhost:4321/login" } }
+      $nodes += (New-GotoNode)
       $nodes += @{ id = "end"; type = "end"; name = "End" }
-      $nodes += @{ id = "orphanClick"; type = "click"; name = "Detached step"; config = @{} }
+      # The detached node must be VALID IN ITSELF, otherwise the flow is immediately-blocked rather
+      # than off-path-only and no Legacy grant is ever issued. A screenshot node needs no locator or
+      # value, so its only issue is being unreachable - which is exactly the off-path case.
+      $nodes += @{ id = "orphanShot"; type = "screenshot"; name = "Detached capture"; config = @{ fullPage = $true; screenshotName = "detached" } }
       $edges += @{ id = "e0"; source = "start"; target = "goto"; type = "success" }
       $edges += @{ id = "e1"; source = "goto"; target = "end"; type = "success" }
     }
@@ -70,7 +86,7 @@ function New-Flow {
     }
     "fixable" {
       # Conditional connector with a MIS-CASED operator ("NotEquals" instead of "notEquals").
-      $nodes += @{ id = "goto"; type = "goto"; name = "Open page"; config = @{ url = "http://localhost:4321/login" } }
+      $nodes += (New-GotoNode)
       $nodes += @{ id = "end"; type = "end"; name = "End" }
       $edges += @{ id = "e0"; source = "start"; target = "goto"; type = "success" }
       $edges += @{ id = "e1"; source = "goto"; target = "end"; type = "conditional"; condition = @{ source = "text"; operator = "NotEquals"; value = "x" } }

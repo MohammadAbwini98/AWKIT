@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) - clean-machine 26 PASS / 0 FAIL; grant issuance still open
+
+Sections 1, 2, 4, 7 in full, plus 5.1-5.3, 6.1-6.2 and 8.12. NOT EXECUTED: 3, 5.4-5.9, 6.3,
+8.1-8.11. See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook is still not
+claimed as PASSED.
+
+**What changed in the product.** A "Re-scan Library" action in the Flow Library now calls
+`validation:runInventoryScan`, which had existed and been `WORKFLOW_EDIT`-gated but had no caller.
+Authorization is unchanged. Do NOT replace this with an unauthenticated CLI trigger - the scan issues
+grants that permit otherwise blocked flows to run.
+
+**Where to resume.** The VM is seeded and signed in (`cleanadmin` / `CleanVM!Pass2026`). The seeded
+fixtures are now correct, but the scan has NOT been re-run since they were fixed, so no grant has
+been issued yet. Fire Re-scan once and 5.4-5.7 plus 8.3-8.6 become on-disk assertions:
+`validation\legacy-grants\` should gain a `sha256:`-bound grant for `seed-orphan-primary`.
+
+**The practical blocker is focus, not the product.** Reaching the Re-scan action by keyboard costs a
+screenshot per Tab and the count is unstable. Pointer input does not work headless on this host -
+`Msvm_SyntheticMouse` reports success but clicks land elsewhere; Hyper-V's absolute pointer needs an
+active console session. Options: open a VMConnect console so the pointer is honoured, or give the
+page a stable keyboard anchor.
+
+**Seeder gotchas already fixed, do not reintroduce:** `Set-Content -Encoding utf8` emits a BOM that
+Node rejects; a `goto` node needs `url` AND `valueSource`; an off-path-only flow's detached node must
+be valid in itself.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
 ## TAKEOFF (2026-07-29) - clean-machine at 23 PASS / 0 FAIL; grant lifecycle still open
 
 Sections 1, 2, 4 and 7 are executed in full, plus 5.1 and 6.1-6.2. Sections 3, 8, 5.2-5.9 and 6.3 are

@@ -21,7 +21,8 @@ param(
   [string] $VMName = "AWKIT-CleanMachine",
   [string] $Text,
   [string[]] $Keys,
-  [int] $DelayMs = 120
+  [int] $DelayMs = 120,
+  [switch] $Shift
 )
 
 $ErrorActionPreference = "Stop"
@@ -46,10 +47,19 @@ if ($Text) {
 }
 
 if ($Keys) {
-  foreach ($k in $Keys) {
-    $name = $k.ToUpperInvariant()
-    if (-not $codes.ContainsKey($name)) { throw ("unknown key: " + $k) }
-    Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]$codes[$name] } | Out-Null
-    Start-Sleep -Milliseconds $DelayMs
+  # Shift is held across the whole batch via PressKey/ReleaseKey. Walking focus BACKWARD is far more
+  # reliable than counting Tabs forward: the sidebar's focusable count varies with the signed-in
+  # principal's permissions, so a forward count calibrated once does not hold.
+  $VK_SHIFT = 0x10
+  if ($Shift) { Invoke-CimMethod -InputObject $kb -MethodName PressKey -Arguments @{ keyCode = [uint32]$VK_SHIFT } | Out-Null }
+  try {
+    foreach ($k in $Keys) {
+      $name = $k.ToUpperInvariant()
+      if (-not $codes.ContainsKey($name)) { throw ("unknown key: " + $k) }
+      Invoke-CimMethod -InputObject $kb -MethodName TypeKey -Arguments @{ keyCode = [uint32]$codes[$name] } | Out-Null
+      Start-Sleep -Milliseconds $DelayMs
+    }
+  } finally {
+    if ($Shift) { Invoke-CimMethod -InputObject $kb -MethodName ReleaseKey -Arguments @{ keyCode = [uint32]$VK_SHIFT } | Out-Null }
   }
 }

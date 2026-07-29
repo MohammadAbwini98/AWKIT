@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Clean-machine 26 PASS / 0 FAIL; FNV grant retirement proven on a clean machine (2026-07-29, current)
+
+Clean-machine validation now stands at **26 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus
+**5.1-5.3**, **6.1-6.2** and **8.12**. Sections 3, 5.4-5.9, 6.3 and 8.1-8.11 remain **NOT EXECUTED**.
+Record: `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+**New product capability.** `validation:runInventoryScan` had been permission-gated since the
+validation subsystem shipped but had **no caller anywhere** - the scan only ever happened as a side
+effect of a workflow run, so an operator on an upgraded install could not refresh Legacy
+Compatibility classification, and runbook 5.9 ("re-run the inventory scan") was not performable. A
+**Re-scan Library** action now carries the same `WORKFLOW_EDIT` permission the handler already
+enforces. This makes an already-gated capability reachable; it does not add a bypass. An
+unauthenticated CLI trigger was considered and rejected - the scan issues grants that let otherwise
+blocked flows run, so that would have been a real privilege hole.
+
+**Proven on the clean offline machine:** the seeded pre-hardening (FNV-era) grant is **retired, not
+honoured, and not re-granted** - the grant file now carries `revokedReason: "digestFormatRetired"`
+and the scan record reads `grantsRetiredLegacyDigest: 1`, `grantsIssued: 0`,
+`digestAlgorithm: "sha256"`. The Flow Library shows real per-flow status across all 24 seeded flows
+(**Runnable** vs **Not runnable**).
+
+**Two fixture defects, both caught by the product.** A `goto` node needs `url` AND a `valueSource`;
+`config.url` alone fails the step-requirements contract with `missingRequiredValue` on the active
+path - the same contract behind defect `HARNESS-004`. And an "off-path only" flow's detached node
+must be valid in itself, or the flow is blocked rather than off-path-only and no grant can ever
+issue. Both fixed in the seeder.
+
+**Why it stopped short.** Reaching the Re-scan action costs a screenshot round-trip per Tab and the
+count is unstable - the table scrolls as focus moves, each row has ~4 focusables, and the sidebar
+length varies with the principal's permissions. Pointer input is not usable on this host:
+`Msvm_SyntheticMouse` reports success but clicks do not land where the coordinates say, because
+Hyper-V's absolute pointer needs an active console session a headless driver does not have. The scan
+was fired once successfully; repeating it needs a stable focus anchor or working pointer input.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
 ## Clean-machine sections 5/6 attempted; grant lifecycle remains unexecuted (2026-07-29, current)
 
 Clean-machine validation now stands at **23 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus

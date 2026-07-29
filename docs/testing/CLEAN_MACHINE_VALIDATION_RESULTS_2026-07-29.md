@@ -3,7 +3,7 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 23 PASS / 0 FAIL. Sections 3, 8 and most of 5 NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 26 PASS / 0 FAIL. Sections 3, most of 8, and 5.4-5.9 NOT EXECUTED.**
 
 Read that precisely. Sections 1, 2, 4 and 7 were executed in full and every check passed. Section 5
 was executed only as far as 5.1, section 6 as far as 6.1-6.2; sections 3 and 8 and the remainder of
@@ -153,6 +153,51 @@ the whole first-run form, ticked the recovery-code box, signed in, and navigated
 reaching a Run control means traversing a long scrolling sidebar one Tab at a time with a screenshot
 round-trip per step, and it was not completed. This is a limitation of the driver, not a product
 finding.
+
+### Third sitting: the inventory scan was triggered, and 5.2 / 5.3 / 8.12 passed
+
+`validation:runInventoryScan` had existed and been permission-gated since the validation subsystem
+landed, but **nothing in the application had ever called it** - the scan happened only as a side
+effect of a workflow run. A "Re-scan Library" action was added to the Flow Library, carrying the same
+`WORKFLOW_EDIT` permission the handler already enforces. This deliberately makes an already-gated
+capability reachable rather than adding a bypass: the scan issues grants that let otherwise-blocked
+flows run, so an unauthenticated CLI trigger was rejected as a genuine privilege hole.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 5.2 | Library shows per-flow status | **PASS** | VALIDATION column reads **Runnable** for the valid flows and **Not runnable** for the broken and off-path ones, across all 24 |
+| 5.3 | Pre-hardening grant is RETIRED, not honoured | **PASS** | the seeded FNV grant now carries `revokedAt` and `revokedReason: "digestFormatRetired"` |
+| 8.12 | FNV-era retirement on upgrade | **PASS** | scan record: `grantsRetiredLegacyDigest: 1`, `grantsIssued: 0`, `digestAlgorithm: "sha256"` |
+
+The scan record is unambiguous - the pre-hardening grant was retired, **not** honoured, and **not**
+re-granted, which is exactly what section 5.3 demands.
+
+### Seed fixtures were wrong twice, and the product caught both
+
+The first scan classified all 24 flows `immediately-blocked` and issued no grants. Cause: a `goto`
+node needs `url` **and** a `valueSource`; `config.url` alone fails the step-requirements contract with
+`missingRequiredValue` **on the active path**, which blocks the whole flow. That is the same contract
+that produced defect `HARNESS-004`. Separately, the "off-path only" flows carried a detached `click`
+with no locator - itself an error, so those flows were blocked rather than off-path-only, and no
+Legacy grant could ever be issued for them. The detached node is now a `screenshot`, which is valid
+in itself and merely unreachable.
+
+After the fix the library classifies correctly (Runnable vs Not runnable, above), but the scan has
+**not** been re-run against the corrected fixtures, so no grant has yet been issued. Sections 5.4-5.9
+and 8.3-8.6 therefore remain NOT EXECUTED rather than failed - nothing is claimed about grant
+issuance, persistence or invalidation.
+
+### Why this stopped short
+
+Reaching the "Re-scan Library" action costs one screenshot round-trip per Tab, and the count is not
+stable: the table scrolls as focus moves, each row carries about four focusables, and the sidebar's
+length varies with the signed-in principal's permissions. The action was reached and fired once
+successfully; repeating it reliably needs either a stable focus anchor or working pointer input.
+
+Pointer input is not usable on this host. `Msvm_SyntheticMouse` accepts positions and reports success,
+but the clicks do not land where the coordinates say - a hover over a known button produced no hover
+state, and two stray clicks hid the application window. Hyper-V's absolute pointer appears to need an
+active console session to be honoured, which a headless host-side driver does not have.
 
 ### Host-side pointer input: two undocumented facts, both measured
 
