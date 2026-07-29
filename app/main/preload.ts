@@ -263,7 +263,13 @@ const api = {
       }>,
     applySafeFixes: (flowId: string) => ipcRenderer.invoke("validation:applySafeFixes", flowId) as Promise<{ record: { id: string; backupPath: string; fixes: unknown[] }; profile: FlowProfile }>,
     undoMigration: (flowId: string, migrationId: string) => ipcRenderer.invoke("validation:undoMigration", flowId, migrationId) as Promise<{ profile: FlowProfile }>,
-    migrations: (flowId: string) => ipcRenderer.invoke("validation:migrations", flowId) as Promise<{ id: string; at: string; fixes: unknown[]; undoneAt?: string }[]>
+    migrations: (flowId: string) =>
+      ipcRenderer.invoke("validation:migrations", flowId) as Promise<
+        // `backupPath` was omitted here while nothing read this channel; the handler has always
+        // returned the full MigrationRecord, and the designer needs it to re-offer undo after a
+        // restart.
+        { id: string; at: string; fixes: unknown[]; backupPath: string; undoneAt?: string }[]
+      >
   },
   workflows: {
     list: () => ipcRenderer.invoke("workflows:list") as Promise<WorkflowProfile[]>,

@@ -88,11 +88,19 @@ function New-Flow {
       $edges += @{ id = "e1"; source = "click"; target = "end"; type = "success" }
     }
     "fixable" {
-      # Conditional connector with a MIS-CASED operator ("NotEquals" instead of "notEquals").
+      # Conditional connector with a MIS-CASED operator ("NotEquals" instead of "notEquals"), which
+      # the validator reports as `unsupportedOperator` carrying a `normalizeEnumCasing` safeFix -
+      # the one class the migration ceremony (runbook 8.7-8.11) is meant to exercise.
+      #
+      # The field is `conditional`, NOT `condition`, and it needs `kind` + `sourceField`. An earlier
+      # seed wrote `condition = @{ source = ...; operator = ...; value = ... }`, which matches no
+      # part of ConditionalConnectorConfig, so the object was ignored entirely: the flow validated
+      # as fully Runnable with ZERO issues, no safe fix was offered, and 8.7-8.11 had nothing to
+      # act on. Verified against the real validator before being written here.
       $nodes += (New-GotoNode)
       $nodes += @{ id = "end"; type = "end"; name = "End" }
       $edges += @{ id = "e0"; source = "start"; target = "goto"; type = "success" }
-      $edges += @{ id = "e1"; source = "goto"; target = "end"; type = "conditional"; condition = @{ source = "text"; operator = "NotEquals"; value = "x" } }
+      $edges += @{ id = "e1"; source = "goto"; target = "end"; type = "conditional"; kind = "conditional"; conditional = @{ sourceField = "outcome"; operator = "NotEquals"; expectedValue = "x" } }
     }
   }
 

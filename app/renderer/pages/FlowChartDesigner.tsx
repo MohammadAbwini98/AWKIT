@@ -596,6 +596,18 @@ function FlowChartDesignerContent() {
           if (status && (status.errorCount > 0 || status.warningCount > 0)) setLoadBanner(status);
         })
         .catch(() => undefined);
+
+      // A migration's undo has to survive a restart, so it cannot live only in this component's
+      // state: re-offer the newest not-yet-undone migration from the durable record. Whether the
+      // undo is still SAFE is not decided here — main refuses it when the flow was edited after the
+      // migration, and that refusal (with the backup path) is the message the user should see.
+      window.playwrightFlowStudio.validation
+        .migrations(profile.id)
+        .then((records) => {
+          const newest = records.find((record) => !record.undoneAt);
+          if (newest) setLastMigration({ flowId: profile.id, migrationId: newest.id, backupPath: newest.backupPath });
+        })
+        .catch(() => undefined);
     },
     [setEdges, setNodes, armLayoutGlide]
   );
