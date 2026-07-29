@@ -1,5 +1,21 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 5 complete
+
+`awkit-wza.6` is complete. Generated linear and isolated-page `waitAll` topologies now run through
+the real `ExecutionEngine` and bundled Chromium against the local Mock Site. Concurrency is derived
+from the capacity planner plus live engine ceilings; completion is polled from execution-scoped
+instances; `labTimeout` remains a lab outcome and cancellation leaves a real product `cancelled`
+state. The invariant checker validates real report/resource/artifact evidence without inventing
+unobservable claims.
+
+Verification: random live 14/14, Runner 89/89, Mock Site 99/99, script typecheck PASS, classification
+148/148. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 15 outstanding / 103 closed**.
+
+Next Test Lab choices are Phase 6 campaign reporting (`awkit-wza.7`) and Phase 8 lifecycle campaigns
+(`awkit-wza.9`); Phase 7 UI and Phase 8’s dependent UI path still follow their recorded DAG.
+
 ## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 4 complete
 
 `awkit-wza.5` is complete and Phase 5 (`awkit-wza.6`) is now dependency-ready. Phase 4 added

@@ -292,6 +292,7 @@ npm run test:random:oracle                                    # mutations vs pro
 npm run test:random:roundtrip                                 # JSON + designer lossless gate (26)
 npm run test:random:reproduce -- --artifact "<failure.json>"  # exact category/signature reproduction
 npm run verify:random-failures                                # artifacts, reproducer, shrinker, CLI (17)
+npm run verify:random-live                                    # generated flows through real ExecutionEngine/Chromium (14)
 npx tsx scripts/verify-packaged-validation.mts # Tranche 2 hardening gate — run AFTER `npm run package:portable`.
                                              # Drives the REAL packaged EXE on a clean profile AND an upgrade
                                              # profile (FNV-era grant, old migration record, run history):

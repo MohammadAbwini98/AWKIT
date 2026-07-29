@@ -162,8 +162,16 @@ failure boundary under `src/testing/failures/`:
   and nodes before reducing concurrency and loop bounds; a candidate is committed only when it is
   structurally smaller and reproduces the same failure.
 - `scripts/random-test-lab.mts` owns the Windows-safe campaign/smoke/reproduce CLI. Phases 1-4 remain
-  browser-free; Phase 5 will bind generated definitions to the real execution engine and local mock
-  site.
+  browser-free.
+- `RandomTestRunner` is the Phase 5 live boundary. It builds a run profile from a generated workflow,
+  derives concurrency from `planCapacity()` plus the engine's live capacity snapshot, calls the real
+  `ExecutionEngine`, then polls execution-scoped instances rather than awaiting `startRun()` as
+  completion. Its `labTimeout` is deliberately outside `InstanceStatus`.
+- `RuntimeInvariantChecker` reads final instance state, the concurrent report, bounded progress, and
+  artifact text. It checks only decidable properties and compares browser/context/page counts with
+  the measured pre-run baseline. The existing Mock Site pages are sufficient; the live verifier
+  generates goto-only safe topologies over those registered pages, so Phase 5 adds no duplicate
+  fixture.
 
 ### When modifying features
 

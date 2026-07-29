@@ -14,7 +14,8 @@ vacuous** and **§7 Defects found**.
 | 2 validation oracle | **done; all validation gaps fixed** | `verify-random-oracle.mts` — **27 passed, 0 failed** |
 | 3 persistence round-trip | **done; all defects since FIXED (Tranche 1)** | `verify-random-roundtrip.mts` — **26 passed, 0 failed** (was 8/15; now a regression guard) |
 | 4 failure artifacts, shrinking, CLI | **done** | `verify:random-failures` **17/17**; campaign 25 workflows / 59 flows |
-| 5–8 | not started | — |
+| 5 live execution | **done** | `verify:random-live` **14/14** against the real engine/local Mock Site |
+| 6–8 | not started | — |
 
 > **Tranche 1 update (2026-07-21):** all 11 observed + 2 predicted round-trip defects (RT-01…RT-15) were
 > fixed in `flowProfileMapping.ts` and their catalog entries deleted. The round trip is lossless and the
@@ -281,6 +282,8 @@ oracle **27/27**, round-trip **26/26**.
 
 ## Phase 5 — Live execution *(browser; needs Phases 1–4 + Phase 0 fixtures)*
 
+**Completed 2026-07-29 (`awkit-wza.6`).**
+
 `RandomTestRunner.ts` drives the real `ExecutionEngine` against the local mock site.
 
 Constraints established by the audit:
@@ -294,6 +297,15 @@ Constraints established by the audit:
 (terminal state reached, no both-passed-and-failed, node order respects dependencies, `waitAll`
 waited, loop count ≤ configured max, cancelled runs stop scheduling, contexts/pages released to
 baseline, records persisted once, report totals match records, no secrets in artifacts).
+
+The live verifier uses deterministic goto-only generated definitions over the existing safe fixture
+pool, including a forced `isolatedPage`/`waitAll` topology that exercises the production
+`PlaywrightRunner` branch factory. A never-terminal engine double proves the deadline produces
+`labTimeout` and cancels the product instance without inventing a new product status. Verification:
+The same gate refuses unauthorized target hosts before dispatch and proves the documented upload
+fixture is materialized under the campaign root without mutating generated originals.
+Verification: `verify:random-live` **14/14**, `verify:runner` **89/89**,
+`verify:mock-site` **99/99**.
 
 ---
 

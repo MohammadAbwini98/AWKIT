@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Randomized Test Lab Phase 5 is complete (2026-07-29, current)
+
+`awkit-wza.6` is closed. `RandomTestRunner` drives generated workflows through the real
+`ExecutionEngine`, intersects the workflow request with `planCapacity()` and the live
+`getCapacitySnapshot()` ceilings, and polls execution-scoped instances to a bounded deadline.
+Because `startRun()` returns after dispatch begins, it is never treated as completion. A deadline
+produces the lab-owned `labTimeout` outcome and cancels active product instances; no nonexistent
+`timedOut` product status was added.
+
+`RuntimeInvariantChecker` evaluates only persisted/observable evidence: product terminal states,
+exclusive outcomes, dependency order, isolated `waitAll` coverage, loop bounds, cancellation
+settlement, browser resources returning to the measured baseline, one report record per instance,
+report-total parity, and secret-canary absence. The real live gate generates a linear topology and
+an `isolatedPage`/`waitAll` topology, runs both in bundled Chromium against the existing local Mock
+Site, and also uses a never-terminal engine double to prove the timeout boundary.
+Live preparation re-enforces the authorized-host allowlist before dispatch, materializes the
+documented upload fixture inside the campaign runtime root, rewrites only the execution clone, and
+leaves the deterministic generated originals unchanged.
+
+Verification: `verify:random-live` **14/14 real browser + safety contracts**; `verify:runner` **89/89**;
+`verify:mock-site` **99/99**; `typecheck:scripts` PASS; verifier classification **148/148**.
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 15 outstanding / 103 closed**. Test Lab Phases 6 and 8 are now dependency-ready.
+
 ## Randomized Test Lab Phase 4 is complete (2026-07-29, current)
 
 `awkit-wza.5` is closed. Randomized failures now produce unique, immutable bundles under

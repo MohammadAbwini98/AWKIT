@@ -101,6 +101,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:branding-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Workspace Logo card + sidebar/login custom-logo rendering." },
   "verify:semantic-ui-gui": { class: "real-browser", why: "Real-Electron walkthrough of the Semantic Search page + Settings › Semantic Index, including that a Viewer never sees the nav entry." },
   "verify:failure-evidence-live": { class: "real-browser", why: "Real Chromium + local HTTP server: FR-B2 evidence files are written, safely named, path-confined, and secret-masked; page-identity + dead-page paths." },
+  "verify:random-live": { class: "real-browser", why: "Runs deterministic generated linear and isolated-page waitAll topologies through the real ExecutionEngine and bundled Chromium against the local Mock Site, then checks persisted reports, resource release, and secret-safe artifacts." },
 
   // ── Integration (real SQLite/sql.js, real Java bridge, real fs locks/atomic writes, live DB) ──
   "verify:durable-store": { class: "integration", why: "Real SQLite file on disk; migrations + persistence across store restart." },

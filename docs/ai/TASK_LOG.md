@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — Randomized Test Lab Phase 5: real ExecutionEngine campaigns
+
+- **Task:** complete `awkit-wza.6`: generated definitions through the real execution engine and
+  local Mock Site, with capacity-derived concurrency, bounded completion polling, and decidable
+  runtime invariants.
+- **Implemented:** `RandomTestRunner` intersects requested concurrency with `planCapacity()` and a
+  live engine snapshot, starts real execution, polls execution-scoped instances, waits for report
+  and browser-resource settlement, and reports `labTimeout` outside the product status union.
+  `RuntimeInvariantChecker` checks terminal/exclusive state, dependency order, waitAll coverage,
+  loop bounds, cancelled settlement, baseline resource release, unique persisted records, report
+  totals, and secret canaries.
+- **Live proof:** generated linear and forced `isolatedPage`/`waitAll` topologies ran through the
+  production branch factory in bundled Chromium against the existing local Mock Site. A
+  never-terminal engine double proved timeout cancellation and capacity clamping.
+- **Files:** `src/testing/runtime/*`, `scripts/verify-random-live.mts`, package/verifier registry,
+  randomized-test plan, tracker/dashboard pins, and AI memory docs.
+- **Checks:** random live **14/14** (including unauthorized-target refusal, upload materialization,
+  and original immutability); Runner **89/89**; Mock Site **99/99**; script typecheck PASS;
+  verifier classification **148/148**.
+- **Result:** Phase 5 is closed; Phases 6 and 8 are dependency-ready. No Mock Site page was added
+  because the registered safe fixture pool already covers the generated live topologies.
+
 ## 2026-07-29 — Codex — Randomized Test Lab Phase 4: failure artifacts, shrinking, CLI
 
 - **Task:** complete `awkit-wza.5`, the dependency-ready Phase 4 boundary for durable randomized

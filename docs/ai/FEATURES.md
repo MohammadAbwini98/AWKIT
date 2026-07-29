@@ -10,8 +10,11 @@
   order; originals are deep-cloned and never overwritten.
 - Implemented: Windows-safe `npm run test:random*` CLI plus the classified
   `verify:random-failures` integration gate.
-- Planned: live browser execution, reporting, soak/fuzz campaigns, and the optional Super-User UI
-  remain Phases 5-8.
+- Implemented: capacity-planned live generated-flow execution through the real ExecutionEngine,
+  including isolated-page `waitAll`, bounded polling, distinct `labTimeout`, report/resource/secret
+  invariants, authorized-target enforcement, upload materialization, and a 14/14 live/safety gate.
+- Planned: campaign reporting, soak/fuzz campaigns, and the optional Super-User UI remain Phases
+  6-8.
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 
