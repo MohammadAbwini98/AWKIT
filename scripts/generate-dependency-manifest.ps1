@@ -258,7 +258,14 @@ New-Item -ItemType Directory -Force -Path $resourcesRoot | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $root "vendor") | Out-Null
 # Write UTF-8 WITHOUT a BOM. Windows PowerShell 5.1 `Set-Content -Encoding UTF8`
 # emits a BOM, which makes Node's JSON.parse throw when the app reads the manifest.
-$manifestJson = $manifest | ConvertTo-Json -Depth 8
+#
+# Newlines are normalised to LF, and that is load-bearing, not cosmetic. The signature below covers
+# the manifest's exact BYTES, while `.gitattributes` declares `*.json text eol=lf` — so a CRLF
+# manifest is signed over bytes git will never store or check out. The pair validates locally and is
+# broken the moment it round-trips through a commit, which is exactly how the committed manifest
+# came to disagree with its own signature at 4526244 and blocked every packaged gate. Signing LF
+# bytes makes generated == committed == checked-out on every platform.
+$manifestJson = ($manifest | ConvertTo-Json -Depth 8) -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText($manifestPath, $manifestJson, (New-Object System.Text.UTF8Encoding($false)))
 $signaturePath = Join-Path $resourcesRoot "dependency-manifest.sig"
 node (Join-Path $PSScriptRoot "offline-manifest-signature.mjs") sign --manifest $manifestPath --signature $signaturePath

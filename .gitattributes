@@ -43,3 +43,9 @@
 *.exe binary
 *.dll binary
 *.asar binary
+
+# Signed offline manifest + signature: signed over exact bytes, so git must never rewrite them.
+resources/dependency-manifest.json text eol=lf
+resources/dependency-manifest.sig  text eol=lf
+vendor/dependency-manifest.json    text eol=lf
+vendor/dependency-manifest.sig     text eol=lf
