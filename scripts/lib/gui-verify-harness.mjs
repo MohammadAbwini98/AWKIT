@@ -32,7 +32,12 @@ export const DEFAULT_CREDS = Object.freeze({
  */
 export function isolatedLaunchEnv(label = "awkit-gui", extraEnv = {}) {
   const dataRoot = mkdtempSync(path.join(tmpdir(), `${label}-`));
-  const env = { ...process.env, LOCALAPPDATA: dataRoot, ...extraEnv };
+  // AWKIT_TEST_LICENSE_BYPASS: licensing enforcement is ON by default since 2026-07-29 (awkit-1cc),
+  // and an isolated profile is by construction a FRESH install — which gets no migration window — so
+  // without this every GUI verifier that runs a real workflow would be refused at the run gate. The
+  // variable is read only when `app.isPackaged` is false, so it cannot weaken a shipped build.
+  // `extraEnv` is spread last so a suite that is testing licensing can delete or override it.
+  const env = { ...process.env, LOCALAPPDATA: dataRoot, AWKIT_TEST_LICENSE_BYPASS: "1", ...extraEnv };
   delete env.ELECTRON_RUN_AS_NODE; // GUI app, not plain Node
   return {
     env,
@@ -90,3 +95,4 @@ export async function signInFirstRun(win, creds = DEFAULT_CREDS) {
   await win.waitForSelector(".app-shell", { timeout: 25000 });
   return { recoveryCode };
 }
+

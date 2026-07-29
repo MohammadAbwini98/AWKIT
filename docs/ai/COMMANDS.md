@@ -274,7 +274,7 @@ npm run verify:e2e-auth     # full auth lifecycle: first-run, create/duplicate/d
 npm run verify:e2e-rbac     # per-role nav/route-guard/direct-IPC authorization; Viewer settings.update +
                             # real run now DENIED, footer nav filtered (awkit-b92 fixed) (49)
 npm run verify:e2e-licensing# Licensing page + activation-request privacy + forged import +
-                            # SPECTER_LICENSE_ENFORCE run-gate ON/OFF (22; seeds its own fixtures)
+                            # run gate: fresh-install block, test bypass, 14-day migration window (38)
 npm run verify:e2e-sweep    # all 30 nav routes render console-clean + screenshots, theme toggle,
                             # resize, keyboard/:focus-visible (13)
 npm run verify:e2e-reauth   # live ReauthDialog flow in the REAL Electron app (real-browser class): sensitive

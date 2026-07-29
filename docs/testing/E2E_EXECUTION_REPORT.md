@@ -31,7 +31,7 @@ and the `fullstack-webapp-testing` methodology for coverage/classification.
 |---|---|---|---|
 | `verify:e2e-auth` | `specs/e2e/E2E-AUTH.md` | **30/30** | first-run validation, weak/duplicate/double-click create, no user enumeration, forced change (mismatch/policy/success), old-password rejection, disable/enable, reset→forced-change, idle lock, 0 console errors |
 | `verify:e2e-rbac` | `specs/e2e/E2E-RBAC.md` | **42/42** | per-role nav sets, route-mount guard via restored `lastRouteId` ("direct URL"), direct preload-IPC denials all `NOT_AUTHORIZED` (admin + licensing, incl. Administrator), SU control pass, 2 documented gaps (awkit-b92) |
-| `verify:e2e-licensing` | `specs/e2e/E2E-LIC.md` | **22/22** | unlicensed page render, activation request privacy (no hostname/username/MAC), garbage + forged-signature imports rejected, enforcement default-OFF admits runs, `SPECTER_LICENSE_ENFORCE=true` → `licenseBlocked` with actionable message, dry-run ungated |
+| `verify:e2e-licensing` | `specs/e2e/E2E-LIC.md` | **38/38** | unlicensed page render, activation request privacy (no hostname/username/MAC), garbage + forged-signature imports rejected, default-ON gate → `licenseBlocked` on a fresh install with dry-run ungated, `AWKIT_TEST_LICENSE_BYPASS=1` admits the identical run, and an upgraded profile runs under a 14-day migration window with the deadline shown on the Licensing page |
 | `verify:e2e-sweep` | `specs/e2e/E2E-SWEEP.md` | **13/13** | 30 routes render console-clean (30 screenshots), tracked seeded-samples defect, dark/light toggle, 3-step resize no overflow, `:focus-visible` ring on real Tab, keyboard submit |
 
 - **Healed (test defects only, per policy):** `verify:auth-gui` (stale PR-#21 selectors) → **18/18**;

@@ -12,8 +12,19 @@ import { join } from "node:path";
 import {
   LICENSE_SCHEMA_VERSION,
   LicenseStatus,
+  OPERABLE_STATUSES,
   type LicenseDocument
 } from "../src/licensing/LicenseTypes";
+import { applyLicenseRunGatePolicy } from "../src/licensing/RunGatePolicy";
+import {
+  MIGRATION_GRACE_DAYS,
+  createMigrationGraceAnchor,
+  evaluateMigrationGrace,
+  graceDaysRemaining,
+  markGraceConsumed,
+  mergeGraceAnchors,
+  touchGraceClock
+} from "../src/licensing/MigrationGrace";
 import type { LicensePayload } from "../src/licensing/LicenseCanonical";
 import { signLicensePayload, verifyLicenseSignature } from "../src/licensing/crypto/LicenseSignature";
 import type { TrustedKey } from "../src/licensing/crypto/TrustedKeys";
@@ -311,6 +322,177 @@ check(
   true
 );
 check("background revalidation cadence is fifteen minutes", LICENSE_REVALIDATE_INTERVAL_MS, 15 * 60 * 1000);
+
+// ── Run-gate decision table + one-time migration grace (owner decision 2026-07-29, awkit-1cc) ────
+//
+// These drive the PURE policy directly. The Electron wiring is covered by verify:e2e-licensing; what
+// must be exhaustive here is the table itself, because every other surface reads it.
+console.log("\nRun gate — decision table:");
+
+const OPERABLE = [LicenseStatus.VALID, LicenseStatus.EXPIRING_SOON];
+const GRACEABLE = [LicenseStatus.NOT_ACTIVATED];
+const CANCEL_PENDING = [
+  LicenseStatus.INVALID_SIGNATURE,
+  LicenseStatus.MACHINE_MISMATCH,
+  LicenseStatus.CORRUPTED,
+  LicenseStatus.REVOKED,
+  LicenseStatus.NOT_YET_VALID,
+  LicenseStatus.UNSUPPORTED_VERSION,
+  LicenseStatus.CLOCK_INTEGRITY_WARNING
+];
+
+const gateFor = (status: LicenseStatus, inGrace = false) =>
+  applyLicenseRunGatePolicy({ status, operable: OPERABLE_STATUSES.has(status) }, true, { inGrace });
+
+// Enumerate the WHOLE enum rather than a hand-picked list, so a status added later cannot slip
+// through unclassified — the counts below are the cardinality guard on that enumeration.
+const ALL_STATUSES = Object.values(LicenseStatus);
+check("the enum under test is the full status list", ALL_STATUSES.length, 11);
+
+for (const status of ALL_STATUSES) {
+  const decision = gateFor(status);
+  const shouldAllow = OPERABLE.includes(status);
+  check(`${status}: new runs ${shouldAllow ? "allowed" : "blocked"}`, decision.allowed, shouldAllow);
+  check(`${status}: blockedByLicense`, decision.blockedByLicense, !shouldAllow);
+  check(
+    `${status}: active-run disposition`,
+    decision.activeRunDisposition,
+    CANCEL_PENDING.includes(status) ? "cancel-pending" : "allow-to-finish"
+  );
+}
+check("exactly two statuses admit runs", ALL_STATUSES.filter((s) => gateFor(s).allowed).length, 2);
+check(
+  "exactly seven statuses cancel pending work",
+  ALL_STATUSES.filter((s) => gateFor(s).activeRunDisposition === "cancel-pending").length,
+  7
+);
+
+// Grace rescues NOT_ACTIVATED and nothing else. Asserting BOTH directions is what stops a grace
+// implementation that simply allows everything from passing here.
+for (const status of ALL_STATUSES) {
+  const withGrace = gateFor(status, true);
+  const expected = OPERABLE.includes(status) || GRACEABLE.includes(status);
+  check(`${status}: with grace open, run ${expected ? "allowed" : "still blocked"}`, withGrace.allowed, expected);
+}
+check(
+  "grace rescues exactly one otherwise-blocked status",
+  ALL_STATUSES.filter((s) => !gateFor(s).allowed && gateFor(s, true).allowed).length,
+  1
+);
+check("grace admission is labelled as such", gateFor(LicenseStatus.NOT_ACTIVATED, true).reason, "MIGRATION_GRACE");
+check("grace admission sets graceApplied", gateFor(LicenseStatus.NOT_ACTIVATED, true).graceApplied, true);
+check("a licensed run is NOT labelled grace", gateFor(LicenseStatus.VALID, true).graceApplied, false);
+check("EXPIRED is never graced", gateFor(LicenseStatus.EXPIRED, true).allowed, false);
+check("CORRUPTED is never graced", gateFor(LicenseStatus.CORRUPTED, true).allowed, false);
+
+// Evaluation failure fails CLOSED — the pre-2026-07-29 behaviour failed open.
+const failedEval = applyLicenseRunGatePolicy(
+  { status: LicenseStatus.VALID, operable: true, evaluationFailed: true },
+  true,
+  { inGrace: true }
+);
+check("an evaluation fault blocks even a VALID+grace state", failedEval.allowed, false);
+check("an evaluation fault is labelled", failedEval.reason, "EVALUATION_FAILED");
+check("an evaluation fault does not kill running work", failedEval.activeRunDisposition, "allow-to-finish");
+
+// The bypass still works when explicitly disabled — otherwise dev/test could not drive either path.
+check(
+  "enforcement disabled admits an unlicensed run",
+  applyLicenseRunGatePolicy({ status: LicenseStatus.NOT_ACTIVATED, operable: false }, false).allowed,
+  true
+);
+check(
+  "enforcement disabled is labelled, not silently a licence",
+  applyLicenseRunGatePolicy({ status: LicenseStatus.NOT_ACTIVATED, operable: false }, false).reason,
+  "ENFORCEMENT_DISABLED"
+);
+
+console.log("\nMigration grace — one-time 14-day window:");
+
+const T0 = Date.parse("2026-07-29T00:00:00.000Z");
+
+check("the window is fourteen days", MIGRATION_GRACE_DAYS, 14);
+
+const upgraded = createMigrationGraceAnchor({ installationKind: "upgraded", nowMs: T0 });
+check("an upgraded install opens the window", evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 }).inGrace, true);
+check("day 13 is still inside", evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 + 13 * DAY }).inGrace, true);
+check("day 14 has closed", evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 + 14 * DAY }).inGrace, false);
+check(
+  "closing is reported as expiry",
+  evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 + 14 * DAY }).reason,
+  "GRACE_EXPIRED"
+);
+check(
+  "expiry asks the caller to burn the window",
+  evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 + 14 * DAY }).shouldMarkConsumed,
+  true
+);
+check(
+  "days remaining counts down",
+  graceDaysRemaining(evaluateMigrationGrace({ anchor: upgraded, nowMs: T0 + 10 * DAY })),
+  4
+);
+
+const fresh = createMigrationGraceAnchor({ installationKind: "fresh", nowMs: T0 });
+check("a FRESH install gets no window", evaluateMigrationGrace({ anchor: fresh, nowMs: T0 }).inGrace, false);
+check(
+  "a fresh install says why",
+  evaluateMigrationGrace({ anchor: fresh, nowMs: T0 }).reason,
+  "FRESH_INSTALL_NOT_ELIGIBLE"
+);
+check("a fresh anchor is born consumed", fresh.consumed, true);
+check("no anchor is not a window", evaluateMigrationGrace({ anchor: null, nowMs: T0 }).inGrace, false);
+
+// Tamper resistance. Each of these is a way someone could try to reopen or extend the window.
+const consumedAnchor = markGraceConsumed(upgraded);
+check("a consumed window never reopens", evaluateMigrationGrace({ anchor: consumedAnchor, nowMs: T0 }).inGrace, false);
+check(
+  "a consumed window says why",
+  evaluateMigrationGrace({ anchor: consumedAnchor, nowMs: T0 }).reason,
+  "GRACE_CONSUMED"
+);
+
+const advanced = touchGraceClock(upgraded, T0 + 5 * DAY);
+check("the clock high-water advances", Date.parse(advanced.clockHighWaterUtc), T0 + 5 * DAY);
+check("the clock high-water never moves backwards", touchGraceClock(advanced, T0).clockHighWaterUtc, advanced.clockHighWaterUtc);
+check("moving the clock back closes the window", evaluateMigrationGrace({ anchor: advanced, nowMs: T0 - DAY }).inGrace, false);
+check("a rolled-back clock is named", evaluateMigrationGrace({ anchor: advanced, nowMs: T0 - DAY }).reason, "CLOCK_ROLLBACK");
+check(
+  "a small backwards skew is tolerated, not treated as tampering",
+  evaluateMigrationGrace({ anchor: advanced, nowMs: T0 + 5 * DAY - 60_000 }).inGrace,
+  true
+);
+
+// Dual-location reconciliation: the earliest anchor and a sticky `consumed` both win.
+const later = createMigrationGraceAnchor({ installationKind: "upgraded", nowMs: T0 + 10 * DAY });
+check(
+  "merging keeps the EARLIEST first launch (deleting one copy cannot restart it)",
+  mergeGraceAnchors(later, upgraded)?.firstEnforcedLaunchUtc,
+  upgraded.firstEnforcedLaunchUtc
+);
+check(
+  "merging keeps the earliest regardless of argument order",
+  mergeGraceAnchors(upgraded, later)?.firstEnforcedLaunchUtc,
+  upgraded.firstEnforcedLaunchUtc
+);
+check("consumed is sticky across copies", mergeGraceAnchors(consumedAnchor, later)?.consumed, true);
+check("fresh wins a disagreement", mergeGraceAnchors(fresh, upgraded)?.installationKind, "fresh");
+check(
+  "merging takes the highest clock seen anywhere",
+  Date.parse(mergeGraceAnchors(upgraded, advanced)!.clockHighWaterUtc),
+  T0 + 5 * DAY
+);
+check(
+  "merging a missing copy returns the present one",
+  mergeGraceAnchors(null, upgraded)?.firstEnforcedLaunchUtc,
+  upgraded.firstEnforcedLaunchUtc
+);
+check("merging two missing copies is still nothing", mergeGraceAnchors(null, null), null);
+
+// A malformed anchor must fail closed, not act as an unbounded grace.
+const malformed = { ...upgraded, graceEndsAtUtc: "not-a-date" };
+check("a malformed anchor grants no window", evaluateMigrationGrace({ anchor: malformed, nowMs: T0 }).inGrace, false);
+check("a malformed anchor is burned", evaluateMigrationGrace({ anchor: malformed, nowMs: T0 }).shouldMarkConsumed, true);
 
 console.log(`\nlicensing: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

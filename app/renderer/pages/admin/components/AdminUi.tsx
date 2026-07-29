@@ -32,10 +32,11 @@ export function AdminPage({ banner, children }: { banner?: ReactNode; children: 
   );
 }
 
-/** A page-level notice (error / success / info) rendered above page content with the right ARIA role. */
-export function AdminBanner({ tone, children }: { tone: "error" | "success" | "info"; children: ReactNode }) {
+/** A page-level notice (error / warning / success / info) rendered above page content with the right ARIA role. */
+export function AdminBanner({ tone, children }: { tone: "error" | "warning" | "success" | "info"; children: ReactNode }) {
   const role = tone === "error" ? "alert" : "status";
-  const cls = tone === "info" ? "form-message" : `form-message ${tone}`;
+  // `warning` reuses the existing `.form-message.warn` styling rather than introducing a parallel class.
+  const cls = tone === "info" ? "form-message" : `form-message ${tone === "warning" ? "warn" : tone}`;
   return (
     <p className={cls} role={role}>
       {children}

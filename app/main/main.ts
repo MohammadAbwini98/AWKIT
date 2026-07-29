@@ -7,6 +7,7 @@ import { updateUiSettings, flushSettingsWrites } from "./uiSettings";
 import { disposeOracleServices } from "./oracleService";
 import { disposeSecurityKernel } from "./security/securityKernel";
 import { disposeSemanticSubsystem, initializeSemanticSubsystem } from "./semantic/semanticService";
+import { initializeLicensingRuntime } from "./licensing/licenseRuntime";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
 
 let mainWindow: BrowserWindow | null = null;
@@ -50,6 +51,12 @@ async function bootstrap(): Promise<void> {
     app.exit(1);
     return;
   }
+
+  // Establish the licensing migration-grace anchor BEFORE anything writes profile data. The anchor
+  // classifies this profile as upgraded-or-fresh by observing whether user data already exists, and
+  // the very next statement creates `ui-settings.json` — so running these in the other order would
+  // make every fresh install look like an upgrade and hand it a free 14-day window.
+  initializeLicensingRuntime();
 
   // Record this launch so the Settings screen can show the last-launched time.
   await updateUiSettings({ app: { lastLaunchedAt: new Date().toISOString() } }).catch(() => undefined);

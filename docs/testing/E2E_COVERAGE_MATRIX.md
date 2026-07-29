@@ -89,8 +89,9 @@ control) in one launch: SU provisions the three users → sign out → per-role 
 | Licensing page — unlicensed state | SU opens Licensing on fresh profile | NOT_FOUND-style status, machine code shown + copy, import affordance, no crash | E2E-LIC | NEW(E2E-LIC) |
 | Export activation request | SU exports request file | file written, contains machine hash, **no raw signals/secrets** | E2E-LIC | NEW(E2E-LIC) |
 | Import invalid/corrupted license | SU imports garbage file | safe error status, page stays usable | E2E-LIC | NEW(E2E-LIC) |
-| Enforcement default OFF | unlicensed profile, `SPECTER_LICENSE_ENFORCE` unset, run a workflow | run is **not** blocked | E2E-LIC | NEW(E2E-LIC) |
-| Enforcement ON gate | `SPECTER_LICENSE_ENFORCE=true`, unlicensed, `runWorkflow` | `status:"licenseBlocked"`, actionable message, no throw; dry-run still allowed | E2E-LIC | NEW(E2E-LIC) |
+| Enforcement default ON | unlicensed FRESH profile, default env, run a workflow | `status:"licenseBlocked"`, `reason:"NOT_LICENSED"` | E2E-LIC | NEW(E2E-LIC) |
+| Test bypass reachable | `AWKIT_TEST_LICENSE_BYPASS=1`, same unlicensed profile, `runWorkflow` | run admitted — negative control proving the block was the gate | E2E-LIC | NEW(E2E-LIC) |
+| Migration window | profile seeded BEFORE first launch (upgrade), unlicensed, `runWorkflow` | admitted under a 14-day window; Licensing page shows the deadline | E2E-LIC | NEW(E2E-LIC) |
 | Non-SU access | Administrator: nav, route, and direct `licensing.*` IPC | all denied (§2) | E2E-RBAC | NEW(E2E-RBAC) |
 | Real-key issue→import E2E | issuer keygen + issue on this machine | VALID here / MACHINE_MISMATCH elsewhere | prior session evidence (docs/LICENSING.md §6) | COVERED (2026-07-19) |
 

@@ -15,6 +15,7 @@ import { InstancePool } from "../instances/InstancePool";
 import { ConcurrentExecutionCoordinator } from "../orchestrator/ConcurrentExecutionCoordinator";
 import type { ConcurrentRunProfile } from "../instances/ConcurrentRunProfile";
 import type { InstanceRuntimeState } from "../instances/InstanceRuntimeState";
+import type { InstanceStatus } from "../instances/InstanceStatus";
 import { getAppMode, getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../../app/main/appPaths";
 import { getSessionService } from "../../app/main/ipc/session.ipc";
 import type { FlowProfile } from "../profiles/FlowProfile";
@@ -1939,6 +1940,26 @@ export class ExecutionEngine {
 
   public stopAll(): void {
     this.stopInstance("all");
+  }
+
+  /**
+   * Cancel only work that has NOT begun executing — `pending` and `queued` instances. Used by the
+   * licensing integrity gate (owner decision 2026-07-29): a forged, foreign or corrupt license must
+   * stop scheduled work "before execution starts", while instances already running are left alone,
+   * which is a strictly narrower action than `stopAll()`.
+   *
+   * Returns the ids actually cancelled, so the caller can report a real count instead of asserting
+   * that something happened.
+   */
+  public cancelPendingInstances(reason: string): string[] {
+    const notYetStarted: readonly InstanceStatus[] = ["pending", "queued"];
+    const cancelled: string[] = [];
+    for (const instance of this.pool.list()) {
+      if (!notYetStarted.includes(instance.status)) continue;
+      this.cancelOne(instance.instanceId, reason);
+      cancelled.push(instance.instanceId);
+    }
+    return cancelled;
   }
 
   /** Re-run a single finished instance using its original run context. */

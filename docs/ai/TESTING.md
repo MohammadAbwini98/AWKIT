@@ -89,7 +89,8 @@ remain structural and legacy workflows remain compatible.
   `verify:e2e-auth` (**30** — full auth lifecycle incl. enumeration + idle lock), `verify:e2e-rbac`
   (**51** — per-role nav/route-guard/direct-preload-IPC; a Viewer's `settings.update`/`execution:runWorkflow`
   are now DENIED and the footer nav is permission-filtered after the bd `awkit-b92` fix), `verify:e2e-licensing`
-  (**22** — activation-request privacy, forged-signature rejection, `SPECTER_LICENSE_ENFORCE` gate ON/OFF),
+  (**38** — activation-request privacy, forged-signature rejection, default-ON run gate blocking a fresh
+  install, the non-packaged test bypass admitting the identical run, and the one-time 14-day migration window),
   `verify:e2e-sweep` (**13** — 30 routes console-clean + screenshots, theme, resize, `:focus-visible`; the
   seeded-samples check now asserts empty states after the bd `awkit-64x` fix). Coverage matrix +
   reports: `docs/testing/E2E_{COVERAGE_MATRIX,EXECUTION_REPORT,DEFECTS}.md`; evidence:

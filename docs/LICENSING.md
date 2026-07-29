@@ -121,8 +121,11 @@ and every `licensing:*` handler re-checks permission and license state.
   the public entry).
 - **Adding entitlements:** extend the `Entitlement` union and check them in the trusted layer — no coupling
   to authentication/RBAC.
-- **Enforcement toggle:** `SPECTER_LICENSE_ENFORCE=true` turns on hard enforcement (default **off**).
-- **Test commands:** `npm run verify:licensing` (62 assertions — domain + RBAC + global-attention policy), `npm run verify:avatar`
+- **Enforcement:** ON by default since 2026-07-29 (`awkit-1cc`). There is no production toggle. A
+  packaged build has no bypass at all — `app.isPackaged` is checked first, so no environment variable,
+  flag, setting or IPC call can reach the bypass branch. Automated tests and development composition
+  roots use `AWKIT_TEST_LICENSE_BYPASS=1`, which is inert in a packaged application.
+- **Test commands:** `npm run verify:licensing` (147 assertions — domain, RBAC, global-attention policy, the full run-gate decision table, and the migration window), `npm run verify:avatar`
   (24), `npm run build` (tsc + bundles).
 
 ---
@@ -131,9 +134,26 @@ and every `licensing:*` handler re-checks permission and license state.
 
 - The old Licensing "planned for a later release" placeholder is removed; the route description no longer
   says "placeholder".
-- **Upgrade without an existing license:** status is `NOT_ACTIVATED`. With enforcement **off** (default)
-  the app runs exactly as before; with enforcement on, new licensed runs are blocked until a license is
-  imported. Existing users, roles, permissions, workflows, reports, and settings are untouched.
+- **Upgrade without an existing license:** status is `NOT_ACTIVATED`, and enforcement is on, so new
+  runs would be blocked — except that an installation which already held user data before its first
+  enforcing launch receives a **one-time 14-day migration window**. During it, saved workflows keep
+  executing and the Licensing page persistently shows the deadline plus the activation action. Existing
+  users, roles, permissions, workflows, reports, and settings are untouched.
+- **A fresh installation gets no window.** Grace exists to protect continuity, not to hand every new
+  install a free fortnight. The classification is made ONCE, from whether the profile already held
+  `ui-settings.json` or saved flows/workflows at the moment the anchor was written, and is never
+  recomputed.
+- **The window is never granted to an integrity failure.** `INVALID_SIGNATURE`, `MACHINE_MISMATCH`,
+  `CORRUPTED`, `REVOKED`, `NOT_YET_VALID`, `UNSUPPORTED_VERSION` and `CLOCK_INTEGRITY_WARNING` block
+  immediately and additionally cancel work that has not started executing. `EXPIRED` blocks new runs
+  but lets an in-flight run finish, and is not graced.
+- **Grace durability, stated honestly.** The anchor is written per-user and mirrored (best effort,
+  never elevated) to `%PROGRAMDATA%\SpecterStudio\Licensing`, namespaced per profile. The earliest
+  anchor wins, `consumed` is sticky, and the observed-clock high-water mark means moving the clock
+  backwards closes the window rather than extending it. That defeats casual tampering — deleting one
+  copy, or winding the clock — but **not** a user with full filesystem access who deletes every copy.
+  Offline, with no trusted time source, no construction can. Grace is a courtesy window; the security
+  control is the signed license itself.
 - Licensing storage is separate from the security DB, so a licensing failure or rollback cannot corrupt
   authentication/RBAC data.
 

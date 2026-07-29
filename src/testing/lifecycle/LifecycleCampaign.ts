@@ -141,8 +141,16 @@ async function evaluateAuthorization(
   scenario: LifecycleScenario
 ): Promise<{ allowed: boolean; reason?: string }> {
   const user = userFor(scenario);
+  // Every store method `AuthorizationService.effectivePermissions` reaches for must exist here.
+  // `listCustomRoles` / `getUserPermissionOverrides` arrived with RBAC v2 (2026-07-29); because this
+  // stub is cast through `unknown`, their absence type-checked cleanly and instead surfaced at run
+  // time as a TypeError, which the campaign recorded as an "UNKNOWN" authorization denial — i.e. the
+  // suite failed for a harness reason while looking like a product failure. The cast is the hazard:
+  // when AuthorizationService grows another store call, add it here too.
   const store = {
-    getUserById: (userId: string) => (userId === user.id ? user : undefined)
+    getUserById: (userId: string) => (userId === user.id ? user : undefined),
+    listCustomRoles: () => [],
+    getUserPermissionOverrides: () => ({ grants: [], denies: [] })
   } as unknown as SecurityStore;
   const sessions = {
     validate: async () =>
@@ -168,8 +176,11 @@ export async function evaluateLifecycleScenario(
   const expectedAuthorizationAllowed =
     scenario.authState === "active-session" && scenario.authzExpectation === "grant";
   const authorization = await evaluateAuthorization(scenario);
+  // No grace is supplied: the campaign's cells assert the licensed/unlicensed table itself. The
+  // migration window has its own deterministic scenario (verify:licensing) so it can never quietly
+  // widen the expectation here.
   const license = applyLicenseRunGatePolicy(
-    { operable: OPERABLE_STATUSES.has(scenario.licenseStatus) },
+    { status: scenario.licenseStatus, operable: OPERABLE_STATUSES.has(scenario.licenseStatus) },
     scenario.licenseEnforcementEnabled
   );
   const expectedLicenseAllowed =

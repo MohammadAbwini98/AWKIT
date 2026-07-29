@@ -32,6 +32,7 @@ import type { AdminRoleView } from "@src/security/admin/RoleAdminService";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
+import type { LicenseStatusView } from "./licensing/licenseRuntime";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CdpObservationSnapshot } from "@src/runner/observation/PassiveCdpTrace";
 import type { BrandingStateView } from "./ipc/branding.ipc";
@@ -176,9 +177,9 @@ const api = {
   },
   licensing: {
     getStatus: (sessionRef: string) =>
-      ipcRenderer.invoke("licensing:getStatus", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+      ipcRenderer.invoke("licensing:getStatus", sessionRef) as Promise<AdminResponse<LicenseStatusView>>,
     revalidate: (sessionRef: string) =>
-      ipcRenderer.invoke("licensing:revalidate", sessionRef) as Promise<AdminResponse<LicenseStatusReport>>,
+      ipcRenderer.invoke("licensing:revalidate", sessionRef) as Promise<AdminResponse<LicenseStatusView>>,
     exportRequest: (sessionRef: string) =>
       ipcRenderer.invoke("licensing:exportRequest", sessionRef) as Promise<AdminResponse<ActivationRequest>>,
     import: (input: { sessionRef: string; license: LicenseDocument }) =>

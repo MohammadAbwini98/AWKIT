@@ -14,7 +14,7 @@ import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import { Permission } from "@src/security/authz/Permissions";
 import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 import type { SecurityKernel } from "@src/security/SecurityKernel";
-import { getLicenseService } from "../licensing/licenseRuntime";
+import { getLicenseService, getLicenseStatusView } from "../licensing/licenseRuntime";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 
 type Result<T> = { ok: true; value: T } | { ok: false; reason: string };
@@ -73,13 +73,13 @@ function asLicenseDocument(value: unknown): LicenseDocument | null {
 export function registerLicensingIpc(): void {
   ipcMain.handle("licensing:getStatus", async (event, sessionRef: unknown) => {
     assertTrustedSender(event);
-    return licensingCall(sessionRef, Permission.LICENSE_VIEW, false, () => getLicenseService().getStatus());
+    return licensingCall(sessionRef, Permission.LICENSE_VIEW, false, () => getLicenseStatusView());
   });
 
   ipcMain.handle("licensing:revalidate", async (event, sessionRef: unknown) => {
     assertTrustedSender(event);
     return licensingCall(sessionRef, Permission.LICENSE_VIEW, false, async (actor, kernel) => {
-      const status = getLicenseService().getStatus();
+      const status = getLicenseStatusView();
       await auditLicense(kernel, actor, "LICENSE_VALIDATE", "success", status.reasonCode, { status: status.status });
       return status;
     });

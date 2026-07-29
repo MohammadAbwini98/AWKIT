@@ -241,6 +241,23 @@ async function validateWorkflow(workflowId: string) {
   };
 }
 
+/**
+ * A license integrity failure (forged / foreign / corrupt material) stops work that has not begun
+ * executing, per the run-gate table in `@src/licensing/RunGatePolicy`. Deliberately narrower than
+ * `stopAll()`: instances already running are left to finish, so this cannot be used as a remote kill
+ * switch for work in progress. Never throws — the gate's refusal is the outcome that matters.
+ */
+async function cancelPendingWorkForLicenseIntegrity(reason: string): Promise<void> {
+  try {
+    const cancelled = executionEngine.cancelPendingInstances(`license integrity failure: ${reason}`);
+    if (cancelled.length > 0) {
+      console.warn(`[license] cancelled ${cancelled.length} instance(s) that had not started: ${reason}`);
+    }
+  } catch (error) {
+    console.warn(`[license] could not cancel pending work: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function runWorkflow(request: RunWorkflowRequest) {
   const validation = await validateWorkflow(request.workflowId);
   if (!validation.workflow || !validation.scenario || !validation.plan) {
@@ -261,15 +278,27 @@ async function runWorkflow(request: RunWorkflowRequest) {
   }
 
   // Trusted per-machine license gate for a REAL run (validation/dry-run above stay available so diagnostics
-  // and reports work regardless of license state). Enforcement is opt-in (default OFF) — see licenseRuntime;
-  // with it off the gate always allows and this is a no-op. This is a machine/installation check, NOT a user
-  // authorization check — it is intentionally independent of authentication/RBAC.
+  // and reports work regardless of license state). Enforcement is ON by default since 2026-07-29 — see
+  // licenseRuntime and docs/LICENSING.md §5. This is a machine/installation check, NOT a user authorization
+  // check — it is intentionally independent of authentication/RBAC.
   const gate = evaluateRunGate();
   if (!gate.allowed) {
+    // An integrity failure (forged / foreign / corrupt license) must not leave earlier work draining:
+    // cancel everything still pending before returning. The two "not licensed yet" states deliberately
+    // let in-flight runs finish, so this only fires for the states the policy marks cancel-pending.
+    if (gate.activeRunDisposition === "cancel-pending") {
+      await cancelPendingWorkForLicenseIntegrity(gate.reason);
+    }
     return {
       status: "licenseBlocked",
       validation,
-      license: { status: gate.status.status, reasonCode: gate.status.reasonCode, userAction: gate.status.userAction },
+      license: {
+        status: gate.status.status,
+        reasonCode: gate.status.reasonCode,
+        userAction: gate.status.userAction,
+        reason: gate.reason,
+        activeRunDisposition: gate.activeRunDisposition
+      },
       error: gate.status.userAction
     };
   }

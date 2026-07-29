@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Copy, Download, KeyRound, RotateCw, ShieldX, Trash2, Upload } from "lucide-react";
-import type { LicenseStatusReport } from "@src/licensing/LicenseService";
+import type { LicenseStatusView } from "@main/licensing/licenseRuntime";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
@@ -38,7 +38,7 @@ function remaining(minutes?: number): string {
 export function LicensingPage() {
   const session = useSession();
   const sessionRef = session?.principal.sessionRef ?? "";
-  const [report, setReport] = useState<LicenseStatusReport | null>(null);
+  const [report, setReport] = useState<LicenseStatusView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -171,6 +171,20 @@ export function LicensingPage() {
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
           {notice ? <AdminBanner tone="success">{notice}</AdminBanner> : null}
+          {report?.enforcement?.inGrace ? (
+            <AdminBanner tone="warning">
+              This installation is running under a one-time {report.enforcement.graceDaysRemaining}-day
+              activation period, which ends on {localTime(report.enforcement.graceEndsAtUtc ?? undefined)}.
+              Saved workflows keep running until then. Export the activation request below and import your
+              license to keep running afterwards.
+            </AdminBanner>
+          ) : null}
+          {report?.enforcement && !report.enforcement.runsAllowed ? (
+            <AdminBanner tone="error">
+              Workflow execution is blocked on this machine until a valid license is activated. Editing,
+              exporting, reports and settings remain available.
+            </AdminBanner>
+          ) : null}
           {report?.conflict ? (
             <AdminBanner tone="info">
               Both a machine-wide (provisioned) and a per-user license are present. The provisioned license

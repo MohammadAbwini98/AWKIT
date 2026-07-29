@@ -227,7 +227,7 @@ queued items are here.
 |---|---|
 | `awkit-az7` | Reports is 14 PASS / 2 NOT RUN, and the bead itself says **"NO ENGINEERING REMAINS"** — both cases are owner-decision OS shell launches an agent cannot approve. |
 | `awkit-8ri` | Settings is 19 PASS / 2 NOT RUN. Neither case is ordinary engineering: an unavailable-secret-store variant and an OS folder launch. |
-| `awkit-1cc` | **Product decision** — when and how to enable hard licensing enforcement (currently opt-in via `SPECTER_LICENSE_ENFORCE=true`, default OFF), plus the grace/evaluation policy. |
+| `awkit-1cc` | **DECIDED 2026-07-29** — enforcement ON by default, no production toggle, one-time 14-day migration window for upgraded installs only. See `docs/ai/DECISIONS.md`. |
 | `awkit-cm8` | Oracle external gates: packaged EXE and clean-machine. The 2026-07-17 "4 gates" framing is stale — `docs/ai/ORACLE_JDBC_VALIDATION_GATES.md` is current. |
 | `awkit-7bu` | **Declared blocked.** Real Oracle 19c run — an authorized operator for SYSDBA provisioning plus an out-of-band ephemeral credential. **No agent may retrieve, reconstruct, print or persist that password.** |
 | `awkit-cey` | **Declared blocked.** REC-022 real-IdP Chrome handoff — an authorized operator with an approved test identity. Everything the offline mock can express is already automated at `verify:protected-login-recorder` 57/57. |
