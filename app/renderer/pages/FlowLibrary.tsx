@@ -58,6 +58,11 @@ export function FlowLibrary() {
   const { can } = usePermissions();
   const canCreate = can(Permission.WORKFLOW_CREATE);
   const canDelete = can(Permission.WORKFLOW_DELETE);
+  // Re-scanning issues Legacy Compatibility grants, so it carries the same permission the
+  // `validation:runInventoryScan` handler already enforces in main. This control does not widen
+  // authority; it makes an already-gated capability reachable.
+  const canRescan = can(Permission.WORKFLOW_EDIT);
+  const [rescanning, setRescanning] = useState(false);
   const [flows, setFlows] = useState<FlowProfile[]>([]);
   const [status, setStatus] = useState("Loading saved flows");
   const [namingFlow, setNamingFlow] = useState(false);
@@ -106,12 +111,43 @@ export function FlowLibrary() {
           onClick: () => setNamingFlow(true),
           title: canCreate ? "Create a new flow" : "Requires the Create Flows permission",
           disabled: !canCreate
+        },
+        {
+          id: "rescan",
+          label: rescanning ? "Re-scanning…" : "Re-scan Library",
+          onClick: () => void rescanLibrary(),
+          title: canRescan
+            ? "Re-classify every flow and refresh Legacy Compatibility grants"
+            : "Requires the Edit Flows permission",
+          disabled: !canRescan || rescanning
         }
       ],
       dirty: false
     },
-    [canCreate]
+    [canCreate, canRescan, rescanning]
   );
+
+  /**
+   * Run the inventory scan on demand. Until now `validation:runInventoryScan` had no caller anywhere
+   * in the app - the scan happened only as a side effect of a workflow run - so an operator on an
+   * upgraded install had no way to refresh Legacy Compatibility classification without starting a
+   * run. The clean-machine runbook asks for exactly this in section 5.9 ("re-run the inventory
+   * scan"). Authorization is unchanged: main still enforces WORKFLOW_EDIT and binds the sender.
+   */
+  const rescanLibrary = async () => {
+    setRescanning(true);
+    try {
+      await window.playwrightFlowStudio.validation.runInventoryScan();
+      setValidationStatus(null);
+      const statuses = await window.playwrightFlowStudio.validation.statusAll();
+      setValidationStatus(new Map(statuses.map((entry) => [entry.flowId, entry])));
+      setStatus(`${flows.length} saved flow${flows.length === 1 ? "" : "s"} · library re-scanned`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Inventory scan failed");
+    } finally {
+      setRescanning(false);
+    }
+  };
 
   const refreshFlows = () => {
     window.playwrightFlowStudio.flows
