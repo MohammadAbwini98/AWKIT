@@ -1,5 +1,38 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) - clean-machine gate executed for the first time
+
+Clean-machine validation went from **never executed** to **partially executed with no failures**:
+20 PASS / 0 FAIL across sections 1, 2, 4 and 7 on a real offline Windows 11 Pro VM; sections 3, 5, 6
+and 8 remain NOT EXECUTED. Record:
+`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook is **not** claimed as
+PASSED and the 2026-07-24 optional/non-blocking policy is unchanged.
+
+**Reusable tooling** is in `scripts/clean-machine/`: `provision-vm.ps1` (+ `autounattend.xml`) builds
+the VM unattended, `attach-artifacts.ps1` delivers the release artifacts as a read-only DVD, and
+`run-runbook.ps1` drives the checks over PowerShell Direct. `vm-screenshot.ps1` captures the guest
+console from the host, so no agent is ever installed in the machine being validated.
+
+**Before packaging anything, know this:** offline packaging was impossible from a clean checkout
+since `4526244`, because the dependency manifest was signed over CRLF bytes while `.gitattributes`
+stores `*.json` as LF. Fixed at the generator and pinned in `.gitattributes`. If you see
+"Dependency-manifest SHA-256 does not match its signature record", check line endings first. Also:
+`package:portable` does NOT rebuild the NSIS installer - run `package:installer` too, or section 7
+will validate a stale build.
+
+**Next increment** is sections 5, 6 and 8. The driver already has guest command execution,
+interactive GUI launch and host-side capture, so those mostly need fixture seeding plus assertions.
+
+The VM `AWKIT-CleanMachine` and its disks are at `C:\AWKIT-CleanMachineVM` on the dev host. Tear it
+down with `provision-vm.ps1 -Remove`.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**119 total / 5 outstanding / 114 closed**.
+
+`bd ready` is empty. The five outstanding items are all externally gated: two authorized-operator
+gates (`awkit-7bu` real Oracle 19c, `awkit-cey` real IdP), the Oracle external release gates
+(`awkit-cm8`), and two manual OS shell launches (`awkit-az7`, `awkit-hlp`).
+
 ## TAKEOFF (2026-07-29) — packaged licensing gates built and executed; no ready engineering
 
 `awkit-1cc` is closed. Both packaged gates are implemented and have been run against a freshly

@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 - Claude - clean-machine validation executed for the first time
+
+- **Task:** run CLEAN_MACHINE_VALIDATION_RUNBOOK.md, which had never been executed.
+- **Built:** `scripts/clean-machine/` - unattended Hyper-V VM provisioning (`provision-vm.ps1` +
+  `autounattend.xml`), read-only artifact DVD delivery (`attach-artifacts.ps1`), the runbook driver
+  (`run-runbook.ps1`), and agent-free host-side console capture (`vm-screenshot.ps1`).
+- **Result: 20 PASS / 0 FAIL** across sections 1, 2, 4 and 7 on Windows 11 Pro 10.0.26100 x64 with
+  zero network adapters and a standard non-administrator account. Sections 3, 5, 6, 8 NOT EXECUTED.
+  The runbook is NOT claimed as PASSED; disposition is "partially executed, no failures".
+- **Proved:** portable launches non-elevated and renders first-run setup with no SmartScreen block;
+  NSIS installs per-user with no UAC, launches, and uninstalls cleanly; both artifact hashes verify
+  on the test machine.
+- **Deviations recorded:** Generation 1 BIOS VM (Hyper-V's Gen 2 UEFI refuses this ISO's boot loader
+  with Secure Boot on and off, while the same ISO boots its BIOS entry first time and is provably
+  sound), and Windows Setup's hardware gate relaxed with LabConfig keys.
+- **Release-blocking defect fixed:** offline packaging had been impossible from a clean checkout
+  since `4526244` - the dependency manifest was signed over CRLF bytes while `.gitattributes` stores
+  `*.json` as LF. Fixed at the generator, pinned in `.gitattributes`. Runbook artifact hashes were
+  also a week stale, which would have manufactured a false FAIL at section 2.
+- **Files:** `scripts/clean-machine/*`, `scripts/generate-dependency-manifest.ps1`, `.gitattributes`,
+  `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`, `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`,
+  `docs/testing/clean-machine-evidence/*`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tests run:** the runbook itself (20/0/3), `verify:clean-machine-policy` 28/28.
+- **Result:** ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads 119 / 5 outstanding / 114 closed.
+
+---
+
 ## 2026-07-29 — Claude — packaged licensing gates: build + execute
 
 - **Task:** build the packaged-walkthrough license path left outstanding on `awkit-1cc`, plus the

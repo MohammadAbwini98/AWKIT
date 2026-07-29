@@ -1,0 +1,148 @@
+﻿{
+    "GeneratedAt":  "2026-07-29T20:43:53.1330240+03:00",
+    "VMName":  "AWKIT-CleanMachine",
+    "Guest":  "Microsoft Windows 11 Pro 10.0.26100 64-bit",
+    "Pass":  20,
+    "Fail":  0,
+    "NotExecuted":  3,
+    "Rows":  [
+                 {
+                     "Id":  "1.1",
+                     "Description":  "Clean Windows 10/11 x64 (fresh VM)",
+                     "Status":  "PASS",
+                     "Detail":  "Microsoft Windows 11 Pro 10.0.26100 64-bit"
+                 },
+                 {
+                     "Id":  "1.2",
+                     "Description":  "No project source tree present",
+                     "Status":  "PASS",
+                     "Detail":  ""
+                 },
+                 {
+                     "Id":  "1.3",
+                     "Description":  "No development server / node process running",
+                     "Status":  "PASS",
+                     "Detail":  "node processes: 0"
+                 },
+                 {
+                     "Id":  "1.4",
+                     "Description":  "No globally installed Node.js on PATH",
+                     "Status":  "PASS",
+                     "Detail":  "where node -\u003e not found"
+                 },
+                 {
+                     "Id":  "1.5",
+                     "Description":  "No existing AWKIT / SpecterStudio profile",
+                     "Status":  "PASS",
+                     "Detail":  "LocalAppData\\SpecterStudio: False | Programs\\specterstudio: False"
+                 },
+                 {
+                     "Id":  "1.6",
+                     "Description":  "No internet access during validation",
+                     "Status":  "PASS",
+                     "Detail":  "network adapters: 0 | ping 8.8.8.8 succeeded: False"
+                 },
+                 {
+                     "Id":  "1.7",
+                     "Description":  "Portable test account is a STANDARD (non-administrator) user",
+                     "Status":  "PASS",
+                     "Detail":  "Administrators group: AWKIT-CLEAN\\Administrator; AWKIT-CLEAN\\awkitadmin"
+                 },
+                 {
+                     "Id":  "2.copy",
+                     "Description":  "Artifacts delivered to the test machine on read-only media",
+                     "Status":  "PASS",
+                     "Detail":  "guest files: SHA256SUMS.txt, SpecterStudio 0.1.0.exe, SpecterStudio Setup 0.1.0.exe"
+                 },
+                 {
+                     "Id":  "2.SpecterStudio ",
+                     "Description":  "Hash verified in the guest: SpecterStudio 0.1.0.exe",
+                     "Status":  "PASS",
+                     "Detail":  "guest 0934866d4a2bf04d... size 212827189"
+                 },
+                 {
+                     "Id":  "2.SpecterStudio ",
+                     "Description":  "Hash verified in the guest: SpecterStudio Setup 0.1.0.exe",
+                     "Status":  "PASS",
+                     "Detail":  "guest 4ba8c55f812af05f... size 244263870"
+                 },
+                 {
+                     "Id":  "2.sig",
+                     "Description":  "Portable artifact signing status recorded (unsigned is expected)",
+                     "Status":  "PASS",
+                     "Detail":  "Authenticode: NotSigned"
+                 },
+                 {
+                     "Id":  "4.1",
+                     "Description":  "Portable app launches and stays up as a standard user",
+                     "Status":  "PASS",
+                     "Detail":  "SpecterStudio processes: 4"
+                 },
+                 {
+                     "Id":  "4.2",
+                     "Description":  "App runs as the STANDARD user, not elevated",
+                     "Status":  "PASS",
+                     "Detail":  "process owner: awkituser"
+                 },
+                 {
+                     "Id":  "4.3",
+                     "Description":  "Runtime profile created under the user\u0027s LocalAppData",
+                     "Status":  "PASS",
+                     "Detail":  "folders: branding,data,downloads,flows,instances,java-runtimes,Licensing,logs,oracle-drivers,oracle-profiles,profiles,reports,runtime,runtime-inputs,scenarios,screenshots,security,semantic-index,storage,temp,workflows"
+                 },
+                 {
+                     "Id":  "4.4",
+                     "Description":  "First-run setup UI renders (no white screen)",
+                     "Status":  "PASS",
+                     "Detail":  "visual evidence: s4-portable-launch.png, captured from the host console"
+                 },
+                 {
+                     "Id":  "4.5",
+                     "Description":  "SmartScreen behaviour recorded (artifact is unsigned)",
+                     "Status":  "PASS",
+                     "Detail":  "smartscreen processes: 0; no blocking prompt observed - the app reached first-run setup unattended"
+                 },
+                 {
+                     "Id":  "7.1",
+                     "Description":  "NSIS installs per-user with NO elevation prompt",
+                     "Status":  "PASS",
+                     "Detail":  "install dir: C:\\Users\\awkituser\\AppData\\Local\\Programs\\specterstudio"
+                 },
+                 {
+                     "Id":  "7.2",
+                     "Description":  "No UAC consent prompt appeared during install",
+                     "Status":  "PASS",
+                     "Detail":  "consent.exe processes: 0"
+                 },
+                 {
+                     "Id":  "7.3",
+                     "Description":  "Installed build launches as the standard user",
+                     "Status":  "PASS",
+                     "Detail":  "SpecterStudio processes: 1"
+                 },
+                 {
+                     "Id":  "7.4",
+                     "Description":  "Uninstall removes the per-user installation",
+                     "Status":  "PASS",
+                     "Detail":  "result: REMOVED"
+                 },
+                 {
+                     "Id":  "5.x",
+                     "Description":  "Upgrade-profile procedure (pre-populated profile)",
+                     "Status":  "NOT EXECUTED",
+                     "Detail":  "not automated by this driver"
+                 },
+                 {
+                     "Id":  "6.x",
+                     "Description":  "Portable application summary gate",
+                     "Status":  "NOT EXECUTED",
+                     "Detail":  "not automated by this driver"
+                 },
+                 {
+                     "Id":  "8.x",
+                     "Description":  "Validation, grants, migration, backup, restart and undo scenarios",
+                     "Status":  "NOT EXECUTED",
+                     "Detail":  "not automated by this driver"
+                 }
+             ]
+}

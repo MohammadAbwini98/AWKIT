@@ -1,5 +1,49 @@
 # CURRENT_STATE
 
+## Clean-machine validation EXECUTED for the first time (2026-07-29, current)
+
+The offline clean-machine gate has never been executed in this project's history. It now has been,
+partially: **20 PASS / 0 FAIL across sections 1, 2, 4 and 7**, with sections 3, 5, 6 and 8 **not
+executed**. Full record: `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+This does **not** mark the runbook as PASSED, and it does not change the 2026-07-24 owner policy that
+makes clean-machine validation optional and non-blocking. It replaces "never executed" with
+"partially executed, no failures".
+
+**What was proved.** A purpose-built Hyper-V VM running **Windows 11 Pro 10.0.26100 x64** with **no
+network adapter at all**, no source tree, no Node on PATH, no pre-existing profile, and a **standard
+non-administrator** auto-logged-on account:
+
+- the **portable** artifact launches, stays up as `awkituser` (not elevated), creates its 21-folder
+  runtime profile under LocalAppData, and renders the first-run setup UI with **no SmartScreen
+  blocking prompt**;
+- the **NSIS installer** installs per-user with **zero UAC prompts**, the installed build launches
+  and shows its branded splash, and uninstall removes the installation cleanly;
+- both artifacts' SHA-256 hashes verify **on the test machine**, delivered on read-only media.
+
+New tooling under `scripts/clean-machine/` makes this repeatable: unattended VM provisioning, a
+read-only artifact DVD, and a runbook driver. Evidence capture is host-side
+(`Msvm_VirtualSystemManagementService` thumbnails) precisely so that **nothing is installed in the
+guest to observe it** — an agent would have contaminated the cleanliness under test.
+
+**Two recorded deviations.** The VM is Hyper-V **Generation 1**, so no UEFI/Secure Boot/TPM, and
+Windows Setup's hardware gate was relaxed with `LabConfig` keys. Hyper-V's Gen 2 UEFI firmware
+refuses this ISO's boot loader with Secure Boot on *and* off, with the ISO local and uncontended,
+while the same ISO boots its BIOS entry first time and is provably sound (valid FAT12 UEFI image,
+correct `0x55AA`). Neither deviation touches constraints 1.2-1.8 or anything an offline Electron app
+depends on.
+
+**A release-blocking defect was fixed to get here.** Offline packaging had been impossible from a
+clean checkout since `4526244`: the dependency manifest was signed over CRLF bytes while
+`.gitattributes` stores `*.json` as LF, so the committed manifest never matched its own signature and
+`validate-offline-bundle.ps1` refused before the build. The runbook's recorded artifact hashes were
+also stale by a week, which would have manufactured a false FAIL at section 2 — and by the runbook's
+own blocking matrix a FAILED clean-machine run blocks release promotion. Both fixed; both artifacts
+rebuilt from one clean tree.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**119 total / 5 outstanding / 114 closed**.
+
 ## Packaged licensing gates built AND executed; offline packaging unblocked (2026-07-29, current)
 
 `awkit-1cc` is complete. The packaged half that was outstanding this morning is built and has now

@@ -33,8 +33,13 @@ Blocking matrix (clean-machine disposition → does it block release promotion?)
 | NOT EXECUTED — NON-BLOCKING | No |
 | OWNER WAIVED — NON-BLOCKING | No |
 
-**Current disposition: OWNER WAIVED — NON-BLOCKING** (execution status: **NOT EXECUTED**). Nothing
-below is recorded as passed. The runbook remains **fully usable** as the optional validation
+**Current disposition: OWNER WAIVED — NON-BLOCKING** (execution status: **PARTIALLY EXECUTED,
+2026-07-29 — 20 PASS / 0 FAIL across §1, §2, §4 and §7; §3, §5, §6 and §8 NOT EXECUTED**).
+See [`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`](docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md)
+for the filled-in §12 record, the environment, and two recorded deviations (Generation 1 BIOS VM;
+Windows Setup hardware gate relaxed). The executed sections passed on a genuinely clean, offline
+Windows 11 Pro VM with zero network adapters and a standard non-administrator account. Nothing
+below is individually marked passed, and the runbook as a whole is NOT claimed as PASSED. The runbook remains **fully usable** as the optional validation
 procedure; **if it is ever executed, a FAIL remains blocking** (see §9). The policy waives *execution*
 as a mandatory prerequisite — it does **not** turn a failed run into a non-blocking result, and it
 does **not** waive checksum, offline-bundle, packaged-startup, artifact-integrity,

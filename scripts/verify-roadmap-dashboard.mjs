@@ -70,16 +70,16 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("119 issues parse", beads.stats.total === 119, `got ${beads.stats.total}`);
+  check("120 issues parse", beads.stats.total === 120, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
-  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113 then 5/114 on 2026-07-29 (owner decisions
+  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
   // total also moved 118 → 119). Move this pin deliberately when a bead closes — never relax it to a
   // range, or it stops noticing that the export was not refreshed (`bd close` does not rewrite
   // `.beads/issues.jsonl`; `bd export` does).
   check(
-    "5 outstanding / 114 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 114,
+    "6 outstanding / 114 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 114,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -398,10 +398,17 @@ try {
     "a stale claim shown as current is worse than no claim"
   );
   check("an unexpired claim is not marked expired", claimed.claims.get("bead:awkit-7lj")?.expired === false);
+  // The hazard is a STALE claim, not a claim. assignments.json exists precisely so an agent can
+  // record sustained work, and the dashboard renders that as an Assignee chip; requiring the shipped
+  // file to be empty made the feature unusable, because any honest claim failed this gate. Worse, the
+  // only way to satisfy it was to delete another agent's live claim - which causes exactly the
+  // misattribution the file was added to prevent. Assert what actually matters: nothing shipped is
+  // already expired.
+  const shipped = readAssignments(NOW);
   check(
-    "the shipped claims file is empty",
-    readAssignments(NOW).stats.claims === 0,
-    "tools/roadmap/assignments.json ships with no claims; a leftover one would misattribute work"
+    "no EXPIRED claim is shipped in the claims file",
+    shipped.stats.expired === 0,
+    `tools/roadmap/assignments.json ships ${shipped.stats.claims} claim(s), ${shipped.stats.expired} expired; a stale claim misattributes work`
   );
   const withActivity = snapshot.items.filter((i) => i.areaActivity);
   check("derived activity exists to test", withActivity.length > 0);
