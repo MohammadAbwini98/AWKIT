@@ -70,14 +70,16 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("118 issues parse", beads.stats.total === 118, `got ${beads.stats.total}`);
+  check("119 issues parse", beads.stats.total === 119, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
-  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28. Move this pin
-  // deliberately when a bead closes — never relax it to a range, or it stops noticing that the
-  // export was not refreshed (`bd close` does not rewrite `.beads/issues.jsonl`; `bd export` does).
+  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113 on 2026-07-29 (owner decisions
+  // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
+  // total also moved 118 → 119). Move this pin deliberately when a bead closes — never relax it to a
+  // range, or it stops noticing that the export was not refreshed (`bd close` does not rewrite
+  // `.beads/issues.jsonl`; `bd export` does).
   check(
-    "8 outstanding / 110 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 110,
+    "6 outstanding / 113 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 113,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -118,8 +120,8 @@ try {
   );
   check("every status is in the allowed set", ledger.cases.every((c) => LEDGER_STATUSES.has(c.status)));
   check(
-    "tally is 61 PASS / 4 NOT RUN / 1 BLOCKED",
-    ledger.tally.pass === 61 && ledger.tally.notRun === 4 && ledger.tally.blocked === 1,
+    "tally is 62 PASS / 3 NOT RUN / 1 BLOCKED",
+    ledger.tally.pass === 62 && ledger.tally.notRun === 3 && ledger.tally.blocked === 1,
     `got ${ledger.tally.pass}/${ledger.tally.notRun}/${ledger.tally.blocked}`
   );
   check("statuses sum to the case count", ledger.tally.total === ledger.stats.cases);
@@ -270,15 +272,17 @@ try {
     order.ordered.filter((o) => o.declaredBlocked).every((o) => o.state === "blocked"),
     "awkit-7bu said BLOCKED in its title for a day while the queue ranked it startable"
   );
-  // Seven non-epic items today: two authorized-operator/external gates plus five owner/manual/
-  // environment decisions. (The blocked Test Lab epic itself is intentionally excluded from the
-  // runnable queue by order.mjs.) None can be represented by a normal `blocks` edge, hence declared
-  // status. The layer assertion is `.every()`, not `[0]`; the cardinality guard prevents vacuous
-  // success if blocked items disappear from parsing.
+  // Five today (2026-07-29, down from seven): the three owner-decision items were decided and built,
+  // so only externally-gated work remains — two authorized-operator gates (`awkit-7bu` real Oracle,
+  // `awkit-cey` real IdP), the Oracle external release gates, and two manual OS shell launches
+  // (`awkit-az7`, `awkit-hlp`). `awkit-1cc` is in_progress, not blocked: its packaged-licensing half
+  // is real remaining engineering. None of the five can be represented by a normal `blocks` edge,
+  // hence declared status. The layer assertion is `.every()`, not `[0]`; the cardinality guard
+  // prevents vacuous success if blocked items disappear from parsing.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 7 &&
-      order.externallyBlocked.length === 7 &&
+    order.stats.declaredBlocked === 5 &&
+      order.externallyBlocked.length === 5 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

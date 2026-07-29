@@ -38,6 +38,8 @@
     "verify:branding-gui": "node scripts/verify-branding-gui.mjs",
     "verify:custom-brand-logo": "tsx scripts/verify-custom-brand-logo.mts",
     "build:oracle-bridge": "node scripts/build-oracle-bridge.mjs",
+    "build:test-roots": "electron-vite build --config electron.vite.test-roots.config.ts && node scripts/write-test-root-manifest.mjs",
+    "verify:secret-storage-seam": "tsx scripts/verify-secret-storage-seam.mts",
     "prepare:oracle-runtime": "node scripts/prepare-oracle-runtime.mjs",
     "oracle:docker:pull": "node scripts/oracle/docker/oracle-docker.mjs pull",
     "oracle:docker:start": "node scripts/oracle/docker/oracle-docker.mjs start",

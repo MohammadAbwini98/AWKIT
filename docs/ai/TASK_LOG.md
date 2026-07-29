@@ -4,6 +4,42 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Claude — three owner decisions: licensing enforcement, Test Lab CLI-only, secret-store seam
+
+- **Task:** implement the owner's decisions on `awkit-1cc`, `awkit-wza.8` and `awkit-8ri`/SET-013.
+- **Licensing (`awkit-1cc`):** enforcement ON by default; `SPECTER_LICENSE_ENFORCE` removed as a
+  production opt-in. Full run-gate decision table incl. active-run disposition; integrity states
+  cancel not-yet-started work; evaluation faults now fail closed. One-time 14-day migration window for
+  upgraded installs only. No bypass in packaged builds (`app.isPackaged`, not `isProductionOffline`).
+- **Test Lab (`awkit-wza.8`):** CLI-only by architectural decision; Phase 7 closed as a decision.
+  New `verify:test-lab-cli-only` guards the boundary.
+- **Secret store (`awkit-8ri`/SET-013):** injectable `SecretStorageCapability` + a separate test
+  composition root built to `out/test-main/` and excluded from packaging. No env override.
+- **Defects found and fixed:** grace mirror was shared across profiles under `%PROGRAMDATA%`;
+  `verify:random-lifecycle` had been 10/3 since RBAC v2 (`316eff3`) due to an under-stubbed fake
+  `SecurityStore` hidden by an `as unknown as` cast.
+- **Files:** `src/licensing/{RunGatePolicy,MigrationGrace}.ts`,
+  `app/main/licensing/{licenseRuntime,migrationGraceStore}.ts`, `app/main/{main,preload,secretStore,
+  secretStorageCapability}.ts`, `app/main/testing/unavailableSecretStorageRoot.ts`,
+  `app/main/ipc/{execution,licensing,secrets}.ipc.ts`, `src/runner/ExecutionEngine.ts`,
+  `src/testing/lifecycle/LifecycleCampaign.ts`, `app/renderer/pages/admin/LicensingPage.tsx`,
+  `app/renderer/pages/admin/components/AdminUi.tsx`, `electron.vite.test-roots.config.ts`,
+  `electron-builder.json`, `scripts/{verify-test-lab-cli-only,verify-secret-storage-seam}.mts`,
+  `scripts/lib/{test-lab-packaging-policy,verifier-classification}.ts`,
+  `scripts/{verify-licensing.mts,verify-e2e-licensing-gui.mjs,write-test-root-manifest.mjs}`,
+  `scripts/lib/gui-verify-harness.mjs`, `docs/LICENSING.md`, `docs/ai/DECISIONS.md`,
+  `specs/e2e/E2E-LIC.md`, validation ledger.
+- **Tests run:** verify:licensing 147/147 · verify:e2e-licensing 38/38 · verify:secret-storage-seam
+  30/30 · verify:test-lab-cli-only 24/24 · verify:runner 89/89 · verify:reports-live-engine 21/21 ·
+  verify:random-lifecycle 13/13 · verify:authz 77/77 · verify:secrets 16/16 · verify:ipc-contract 4/4 ·
+  verify:verifier-classification reconciled 152 · build + typecheck:scripts PASS.
+- **Tests NOT run:** `verify:packaged-walkthrough` — it runs four real workflows in a packaged build
+  where the bypass is inert by design, and the issuer-minted-license path the owner specified is not
+  yet built; it would fail. Also not built: the packaged negative-case suite and the packaged
+  upgrade-grace scenario. `verify:settings-runner-behaviour` not re-run (known flaky, unrelated).
+- **Result:** ledger 62 PASS / 3 NOT RUN / 1 BLOCKED; beads 119 total / 6 outstanding / 113 closed.
+  Packaged licensing validation is the outstanding follow-up on `awkit-1cc`.
+
 ## 2026-07-29 — Codex — global license attention and background revalidation
 
 - **Task:** close `awkit-x13`.

@@ -974,11 +974,25 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   delete with cancel/confirm; restart; attempt duplicate/rapid submit.
 - **Expected:** Inline validation is accurate; value is never rendered after save; list shows name/date
   only; cancel preserves; confirm deletes; unavailable state disables storage safely.
-- **Status:** `NOT RUN` for the unavailable-store variant only. **Rapid submit is now executed** in
-  `verify:settings-e2e` (**128/128**): three Add clicks fired without awaiting produce **exactly one**
-  row and exactly one durable record — asserted as `=== 1` rather than `>= 1`, since `>= 1` is what a
-  duplicate-creating implementation would also satisfy. Real GUI add, update, masked-list,
-  cancel-delete, confirm-delete, restart persistence and no-plaintext evidence also pass.
+- **Status:** `PASS` — the unavailable-store variant is now executed. `npm run verify:secret-storage-seam`
+  (**30 PASS / 0 FAIL**) launches the SAME built application twice: once from the production entry
+  point, where the keystore reports available, and once from the test composition root
+  (`out/test-main`), which injects `isEncryptionAvailable: () => false`. The unavailable launch shows
+  the explanatory banner, withdraws the entry form and the Add/Update control, and — the assertion
+  that actually matters — a write driven through the same `secrets:set` IPC the card uses leaves the
+  list empty, so "refuses to store" means nothing was stored rather than merely that a control was
+  hidden. The available launch is the control: asserting only the unavailable side would be equally
+  satisfied by a Secrets card that is broken for everyone.
+  Reaching this required a dependency seam, not a test hook: an env-gated override inside
+  `secretStore.ts` was rejected by the owner (2026-07-29) as a runtime security bypass in a shipped
+  path. `configureSecretStorageCapability` throws in a packaged build, the test root is unreachable
+  from the production entry point, and `electron-builder.json` excludes `out/test-main/**` — all four
+  properties asserted separately, since any one alone could be undone by a plausible edit.
+  **Rapid submit** is executed in `verify:settings-e2e` (**128/128**): three Add clicks fired without
+  awaiting produce **exactly one** row and exactly one durable record — asserted as `=== 1` rather
+  than `>= 1`, since `>= 1` is what a duplicate-creating implementation would also satisfy. Real GUI
+  add, update, masked-list, cancel-delete, confirm-delete, restart persistence and no-plaintext
+  evidence also pass.
 
 ### SET-014 — Java Runtime and Oracle JDBC Driver settings
 
@@ -1126,7 +1140,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
     are counted separately now, which is why its headline moved from 158 to **155/0/3** without any
     check changing behaviour. Two of the three are proven by `verify:reports-live-engine` and say so
     in their own reason strings.
-- **Settings:** **19 PASS / 2 NOT RUN**, with `verify:settings-e2e` at **151/151**,
+- **Settings:** **20 PASS / 1 NOT RUN**, with `verify:settings-e2e` at **151/151**,
   `verify:settings-runner-behaviour` at **11/11** and `verify:recorder-gui` at **103/103** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
   including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,

@@ -182,6 +182,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   // ── Static source validation (parses source / packaging inputs; feature not executed) ────────
   "verify:verifier-classification": { class: "static-source-validation", why: "Reconciles this registry against package.json and reports per-class verifier counts (FR-I1)." },
   "verify:test-lab-cli-only": { class: "static-source-validation", why: "Proves the Randomized Test Lab harness is absent from app/** imports, the production bundles, and the route registration files (owner decision 2026-07-29, awkit-wza.8)." },
+  "verify:secret-storage-seam": { class: "real-browser", why: "Launches the real Electron app from the production entry point AND the test composition root to prove SET-013's unavailable-keystore behaviour, plus the source/packaging hygiene that keeps the substitution out of shipped builds (awkit-8ri)." },
   "verify:ipc-contract": { class: "static-source-validation", why: "Statically parses app/main/ipc + preload for channel-contract drift." },
   "verify:oracle-offline-bundle": { class: "static-source-validation", why: "Audits Oracle offline-bundle integrity over fixtures (no packaged app run)." },
   "verify:oracle-packaging": { class: "static-source-validation", why: "Checks Oracle packaging + path-resolution config." },

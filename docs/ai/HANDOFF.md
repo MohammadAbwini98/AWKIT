@@ -1,5 +1,50 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — three owner decisions implemented; packaged licensing path outstanding
+
+The owner decided `awkit-1cc`, `awkit-wza.8` and `awkit-8ri`/SET-013, and all three are implemented
+and green. See `docs/ai/CURRENT_STATE.md` for the full description and `docs/ai/DECISIONS.md` for the
+two new decision records.
+
+Licensing enforcement is ON by default with a one-time 14-day migration window for upgraded installs
+only; a packaged build has no bypass. The Test Lab stays CLI-only with a boundary verifier. The
+Secrets card's unavailable-keystore branch is now reachable through a dependency seam plus a separate
+test composition root, never an environment override.
+
+Two defects were found and fixed en route: the `%PROGRAMDATA%` grace mirror was shared across
+profiles (one profile's classification decided for every user; now namespaced per profile), and
+`verify:random-lifecycle` had been silently 10/3 since RBAC v2 (`316eff3`) because the campaign's
+fake `SecurityStore` — cast through `unknown` — never grew `listCustomRoles` /
+`getUserPermissionOverrides`.
+
+The validation ledger is now **62 PASS / 3 NOT RUN / 1 BLOCKED** (SET-013 moved to PASS); beads are
+**119 total / 6 outstanding / 113 closed**.
+
+**What the next agent must pick up — this is a real gap, not a formality.**
+`verify:packaged-walkthrough` performs four real `dryRun:false` runs inside a PACKAGED build, where
+the test bypass is inert by design. It has NOT been updated, so it would now fail at its first real
+run. The owner's required shape:
+
+1. Obtain the test machine's fingerprint through the app's real licensing IPC.
+2. Invoke `tools/license-issuer` **outside** the packaged application to mint a short-lived license
+   bound to that fingerprint, limited to the execution entitlement, traceable as verification-issued
+   without changing validation semantics.
+3. Import and activate it through the same IPC/UI path a real administrator uses.
+4. Run the four workflows and require genuine `completed` outcomes.
+5. Remove the license and every generated issuer artifact in teardown, then confirm execution returns
+   to `NOT_ACTIVATED`.
+
+Private-key boundary: never committed, never copied into resources/`app.asar`/installers/reports/test
+artifacts, never passed through an application environment variable, supplied only to the external
+issuer process via an explicitly configured local secret path or protected CI secret. **When the key
+is absent the gate must report BLOCKED — never skip, never pass.** Run it only on an authorized
+validation machine or CI runner; do not use the production release signing key on ordinary developer
+machines.
+
+Also still owed on `awkit-1cc`: a packaged negative-case suite covering `NOT_ACTIVATED`, `EXPIRED`,
+`INVALID`, `MISMATCH` and `CORRUPTED`, and a deterministic packaged upgrade-grace scenario. The grace
+path must NOT be the mechanism that grants the normal walkthrough its execution rights.
+
 ## TAKEOFF (2026-07-29) — no ready engineering; Oracle live-mode verifier path complete
 
 `bd ready` is empty. All 8 outstanding items are marked `blocked` according to their actual

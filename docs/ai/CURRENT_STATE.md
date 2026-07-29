@@ -1,5 +1,61 @@
 # CURRENT_STATE
 
+## Three owner decisions implemented: licensing enforced, Test Lab CLI-only, secret-store seam (2026-07-29, current)
+
+The owner decided all three items that were blocked on a product call, and all three are built.
+
+**Licensing is enforced by default** (`awkit-1cc`). `SPECTER_LICENSE_ENFORCE` is gone as a production
+opt-in. `RunGatePolicy` now carries the whole decision table: `VALID`/`EXPIRING_SOON` admit;
+`NOT_ACTIVATED` and `EXPIRED` block new runs but let in-flight work finish; the seven integrity
+states additionally cancel work that has not started executing (new
+`ExecutionEngine.cancelPendingInstances`, deliberately narrower than `stopAll`); and a licensing
+evaluation fault now fails CLOSED where it previously failed open. An installation that already held
+user data before its first enforcing launch gets one **14-day** migration window; a fresh install gets
+none. **A packaged build has no bypass at all** — `app.isPackaged` is consulted first and is not
+env-overridable.
+
+**The Randomized Test Lab is CLI-only by architectural decision** (`awkit-wza.8`). Phase 7 closes as a
+recorded decision, not an unbuilt feature. The boundary was already true but nothing kept it true;
+`verify:test-lab-cli-only` now proves no `app/**` module imports the harness, no production bundle
+contains its symbols, and no route registration file declares a Test Lab surface.
+
+**The Secrets card's unavailable-keystore state is a dependency seam, not a test hook**
+(`awkit-8ri` / SET-013). An env-gated override in `secretStore.ts` was rejected as a runtime security
+bypass in a shipped path. Production composes `ElectronSecretStorageCapability`; a separate test
+composition root built only to `out/test-main/` (excluded from packaging) composes an unavailable one.
+`configureSecretStorageCapability` throws in a packaged build, so the substitution is structurally
+impossible in a shipped application.
+
+**Two defects found on the way, both fixed.** The migration-grace mirror under `%PROGRAMDATA%` was
+initially a single shared filename, which let one profile's classification decide for every user on
+the machine (`fresh` wins a merge) — it is now namespaced per profile by a hash of the profile root.
+And `verify:random-lifecycle` had been **10/3 since RBAC v2 (`316eff3`)**: the campaign's fake
+`SecurityStore`, cast through `unknown`, never grew `listCustomRoles`/`getUserPermissionOverrides`, so
+a TypeError surfaced as an "UNKNOWN" authorization denial and the suite failed for a harness reason
+while looking like a product failure. Back to 13/13.
+
+Verification run: `verify:licensing` **147/147** (was 56; mutation-tested both ways),
+`verify:e2e-licensing` **38/38** real Electron across three launches, `verify:secret-storage-seam`
+**30/30** real Electron A/B, `verify:test-lab-cli-only` **24/24** (mutation-tested),
+`verify:runner` **89/89**, `verify:reports-live-engine` **21/21**, `verify:random-lifecycle` **13/13**,
+`verify:authz` **77/77**, `verify:secrets` **16/16**, `verify:ipc-contract` **4/4**,
+`verify:verifier-classification` reconciled (150 → **152**), `npm run build` and `typecheck:scripts`
+PASS.
+
+SET-013 moves `NOT RUN` → `PASS`, so the validation ledger is now
+**62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are **119 total / 6 outstanding / 113 closed**
+(SET-015 carved out of the closed `awkit-8ri` into its own bead `awkit-hlp` so it could not vanish
+into a close reason).
+
+**Not done, and outstanding.** `verify:packaged-walkthrough` still runs four real `dryRun:false`
+workflows in a PACKAGED build, where the test bypass is inert by design. Per the owner's instruction
+it must mint a short-lived, fingerprint-bound license through the external issuer at test time,
+import it via the real IPC, run, then remove it and confirm the state returns to blocked — and report
+BLOCKED, never skip or pass, when the issuer key is absent. That path is **not built**, so the
+packaged walkthrough would currently fail at its first real run. The packaged negative-case suite
+(`NOT_ACTIVATED`/`EXPIRED`/`INVALID`/`MISMATCH`/`CORRUPTED`) and the deterministic packaged
+upgrade-grace scenario are also not built. Tracked on `awkit-1cc`.
+
 ## No locally actionable tracker work remains; Oracle live-mode harness gap is fixed (2026-07-29, current)
 
 All **8 outstanding** beads are now truthfully `blocked`; `bd ready` returns no items. Five were
