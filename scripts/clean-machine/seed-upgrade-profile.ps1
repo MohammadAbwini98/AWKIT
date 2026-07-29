@@ -46,8 +46,11 @@ function New-GotoNode {
     id          = "goto"
     type        = "goto"
     name        = "Open page"
-    url         = "http://localhost:4321/login"
-    valueSource = @{ type = "static"; value = "http://localhost:4321/login" }
+    # about:blank, NOT the mock site. This VM has no network and no mock site, so a localhost URL
+    # would make every run fail at navigation for a reason that has nothing to do with what the
+    # runbook is checking. about:blank lets a run genuinely complete offline.
+    url         = "about:blank"
+    valueSource = @{ type = "static"; value = "about:blank" }
   }
 }
 
@@ -113,6 +116,29 @@ $flows += New-Flow -Id "seed-orphan-primary" -Name "Seeded Off-Path Flow (primar
 $flows += New-Flow -Id "seed-orphan-secondary" -Name "Seeded Off-Path Flow (secondary)" -Kind "orphan"
 $flows += New-Flow -Id "seed-broken-activepath" -Name "Seeded Active-Path-Broken Flow" -Kind "broken"
 $flows += New-Flow -Id "seed-fixable-operator" -Name "Seeded Fixable Flow (mis-cased operator)" -Kind "fixable"
+
+# Long-wait flow: the kill target for 6.3. Valid, so it runs; slow, so there is a window in which to
+# hard-kill the app and leave an orphaned run behind.
+$longFlow = [pscustomobject]@{
+  id          = "seed-long-wait"
+  name        = "Seeded Long Wait Flow"
+  description = "Valid flow that waits 120s - the hard-kill target for runbook 6.3."
+  version     = 1
+  createdAt   = $stamp
+  updatedAt   = $stamp
+  nodes       = @(
+    @{ id = "start"; type = "start"; name = "Start" },
+    (New-GotoNode),
+    @{ id = "wait"; type = "wait"; name = "Long wait"; value = "120000"; valueSource = @{ type = "static"; value = "120000" }; config = @{ waitType = "time" }; timeoutMs = 120000 },
+    @{ id = "end"; type = "end"; name = "End" }
+  )
+  edges       = @(
+    @{ id = "e0"; source = "start"; target = "goto"; type = "success" },
+    @{ id = "e1"; source = "goto"; target = "wait"; type = "success" },
+    @{ id = "e2"; source = "wait"; target = "end"; type = "success" }
+  )
+}
+$flows += $longFlow
 
 foreach ($f in $flows) {
   $workflows += [pscustomobject]@{

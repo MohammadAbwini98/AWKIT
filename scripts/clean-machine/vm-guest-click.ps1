@@ -27,14 +27,15 @@ param(
   [string] $GuestUser = "awkituser",
   [Parameter(Mandatory = $true)][int] $X,
   [Parameter(Mandatory = $true)][int] $Y,
-  [switch] $MoveOnly
+  [switch] $MoveOnly,
+  [int] $Scroll = 0
 )
 
 $ErrorActionPreference = "Stop"
 $cred = New-Object System.Management.Automation.PSCredential($GuestAdmin, (ConvertTo-SecureString $GuestPassword -AsPlainText -Force))
 
 $result = Invoke-Command -VMName $VMName -Credential $cred -ScriptBlock {
-  param($user, $px, $py, $moveOnly)
+  param($user, $px, $py, $moveOnly, $scroll)
 
   $snippet = @'
 Add-Type @"
@@ -47,20 +48,32 @@ public static class Ptr {
   public struct POINT { public int X; public int Y; }
   public const uint LEFTDOWN = 0x0002;
   public const uint LEFTUP   = 0x0004;
+  public const uint WHEEL    = 0x0800;
 }
 "@
 [Ptr]::SetCursorPos(__X__, __Y__) | Out-Null
 Start-Sleep -Milliseconds 200
 $p = New-Object Ptr+POINT
 [Ptr]::GetCursorPos([ref]$p) | Out-Null
-if (__CLICK__) {
+if (__SCROLL__ -ne 0) {
+  # One wheel notch is 120 units; positive scrolls up (away from the user).
+  #
+  # mouse_event takes dwData as a SIGNED delta but the P/Invoke signature is uint32, and
+  # [uint32](-120) THROWS in PowerShell ("Value was either too large or too small") - it does not
+  # wrap. That threw inside the scheduled task, so every scroll-down was silently a no-op: the task
+  # died before the marker file was written, yet the marker from the preceding move still existed,
+  # so the caller saw a plausible "at:x,y" and no error. Wrap to two's complement explicitly.
+  $delta = __SCROLL__ * 120
+  $dw = if ($delta -lt 0) { [uint32](4294967296 + $delta) } else { [uint32]$delta }
+  [Ptr]::mouse_event([Ptr]::WHEEL, 0, 0, $dw, [IntPtr]::Zero)
+} elseif (__CLICK__) {
   [Ptr]::mouse_event([Ptr]::LEFTDOWN, 0, 0, 0, [IntPtr]::Zero)
   Start-Sleep -Milliseconds 60
   [Ptr]::mouse_event([Ptr]::LEFTUP, 0, 0, 0, [IntPtr]::Zero)
 }
 "at:$($p.X),$($p.Y)" | Set-Content -Encoding ascii "$env:LOCALAPPDATA\awkit-click.txt"
 '@
-  $snippet = $snippet.Replace("__X__", "$px").Replace("__Y__", "$py").Replace("__CLICK__", $(if ($moveOnly) { '$false' } else { '$true' }))
+  $snippet = $snippet.Replace("__X__", "$px").Replace("__Y__", "$py").Replace("__SCROLL__", "$scroll").Replace("__CLICK__", $(if ($moveOnly) { '$false' } else { '$true' }))
 
   $path = "C:\Users\$user\AppData\Local\awkit-click.ps1"
   Set-Content -Path $path -Value $snippet -Encoding ascii
@@ -77,6 +90,6 @@ if (__CLICK__) {
     if (Test-Path $marker) { return (Get-Content $marker -Raw).Trim() }
   }
   return "no-result"
-} -ArgumentList @($GuestUser, $X, $Y, [bool]$MoveOnly)
+} -ArgumentList @($GuestUser, $X, $Y, [bool]$MoveOnly, $Scroll)
 
 Write-Output ("guest pointer " + $(if ($MoveOnly) { "moved" } else { "clicked" }) + " -> " + $result)

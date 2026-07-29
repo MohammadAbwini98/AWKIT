@@ -3,12 +3,13 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 34 PASS / 0 FAIL. Section 3, the run-based checks (5.4, 5.8,
-6.3, 8.1-8.2) and the migration ceremony (8.7-8.11) NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 39 PASS / 0 FAIL. Section 3 and the migration ceremony
+(8.7–8.11) NOT EXECUTED.**
 
-Read that precisely. Sections 1, 2, 4 and 7 were executed in full and every check passed. Section 5
-was executed only as far as 5.1, section 6 as far as 6.1-6.2; sections 3 and 8 and the remainder of
-5 and 6 were **not executed**. Per the runbook's own §9 a FAIL is blocking and there were none — but
+Read that precisely. Sections 1, 2, 4, 5, 6 and 7 were executed in full and every check passed, as
+was section 8 apart from 8.7–8.11. Section 3 and the migration ceremony were **not executed**. The
+run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a second, reprovisioned VM — see the
+fifth sitting. Per the runbook's own §9 a FAIL is blocking and there were none — but
 this record does **not** claim the runbook as a whole passed, and the gate's overall execution status
 is therefore not "PASSED". The 2026-07-24 owner policy already makes clean-machine validation
 optional and non-blocking; nothing here changes that policy, it only replaces "never executed" with
@@ -295,7 +296,7 @@ that this VM is permanently `fresh + consumed`, so it gets no grace, and unlicen
 To execute those five checks, either import a real signed licence into the VM, or provision a fresh
 VM and seed the upgrade profile before its very first launch so it classifies as `upgraded`.
 
-### Still not executed
+### Still not executed after the fourth sitting
 
 | # | Why |
 |---|---|
@@ -303,6 +304,86 @@ VM and seed the upgrade profile before its very first launch so it classifies as
 | 5.4, 5.8, 8.1, 8.2 | Require a workflow run; licensing blocks all runs on this VM (above) |
 | 6.3 | Hard-kill mid-run needs a run in flight |
 | 8.7-8.11 | Migration preview / backup / apply / undo / undo-refusal - multi-step UI ceremony, not attempted |
+
+All five run-based checks were executed on a **second VM** in the fifth sitting, below. 8.7-8.11
+remain not executed.
+
+---
+
+## Fifth sitting: the run-based checks, on a second VM (`AWKIT-CleanMachine`, reprovisioned)
+
+The previous VM was permanently `fresh + consumed`, so it could never admit a run. Rather than import
+a signing key into the lab, the VM was **torn down and reprovisioned**, and the upgrade profile was
+seeded **before the application's very first launch**. That is the whole trick: `detectInstallationKind()`
+looks for an existing profile, so seeding first is what makes the install classify as an upgrade.
+
+First launch wrote the anchor that made every later check possible:
+
+```json
+{ "installationKind": "upgraded", "consumed": false,
+  "firstEnforcedLaunchUtc": "2026-07-29T22:02:35.779Z",
+  "graceEndsAtUtc":        "2026-08-12T22:02:35.779Z" }
+```
+
+A 14-day migration window, open - so runs are admitted while the machine holds no licence. This is
+the owner-decided upgrade-grace path being exercised on a real clean machine for the first time, and
+it is exercised **as itself**: no licence was minted, so nothing here overlaps the packaged
+walkthrough's licensing gate.
+
+The 74 evidence files from the first VM were preserved to `dist/clean-machine-evidence-vm1` before
+teardown.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 5.4 | Granted off-path flow runs, and the run is attributed to Legacy Compatibility | **PASS** | run `245da2f4-3abb-4c65-8121-81814cf8424a` reached `status: "passed"`; the grant for `seed-orphan-secondary` went `runsUnderCompatibility` 0 -> 1 with `lastRunAt: 2026-07-29T22:18:11.326Z`, 14 ms before the run's own start stamp. The retired FNV grant was **not** used |
+| 5.8 | Active-path-broken flow is blocked, with a specific message | **PASS** | *"Seeded Active-Path-Broken Flow Workflow: Validation failed: Step Click with no locator (click) requires a locator."* - no instance started |
+| 8.2 | No grant may permit an active-path break | **PASS** | after the refusal: still exactly 2 grant files (both orphan flows), 1 report, 1 instance directory. The blocked attempt produced nothing |
+| 6.3 | Hard-kill mid-run; orphaned run surfaces as recoverable | **PASS** | killed all 4 processes with the 120 s wait in flight (`Flows 1/4`, `Pages 1`), no stranded Chromium. On relaunch the durable store held `orphaned` + *"Interrupted by app exit with no side-effect node in flight - safe to re-run"* and exactly one `startupRecovery` event; the UI showed **Recoverable 1 prior run(s)**, *"Interrupted prior runs - 1 found by startup recovery"*, and the panel row with **Re-run workflow / Open artifacts / Mark reviewed / Mark abandoned** |
+| 8.1 | Draft save of an active-path-invalid flow: saves as Draft, unchanged, not runnable | **PASS** | designer subtitle went *Loaded profile* -> **Saved draft**, Draft chip and *"Not runnable - 1 issue(s) block execution"* both persisted; library still shows **Not runnable** at version 1; no grant was created. See the note below on what the save did change |
+
+### 5.4's attribution lives on the grant, not in the run report
+
+The runbook says the run must be attributed to Legacy Compatibility. It is - but not where you would
+first look. `reports/<id>.json` and `reports/<id>/report.json` contain no `legacy`/`compatibility`/
+`grant` token at all; the attribution is the audit write in
+`flowValidationService.recordRunUnderCompatibility`, which increments `runsUnderCompatibility` and
+stamps `lastRunAt` on the grant. That is a durable, per-grant audit trail and it is sufficient to
+prove the run went through the grant, so 5.4 passes. But an operator reading a run report cannot
+tell that the run only executed because of a compatibility grant. Recorded as an observability gap,
+not a defect: the gate itself behaved correctly.
+
+### What the draft save changed, precisely
+
+8.1 says "unchanged", so the flow file was hashed before and after. The graph did change, and the
+change is worth stating exactly rather than waving at:
+
+```
+PRE   [{"name":"Start",...},{"config":{},"name":"Click with no locator",...},{"name":"End",...}]
+POST  [{"id":"start",...,"position":{"x":80,"y":80}},{"id":"click",...,"position":{"x":80,"y":232}},...]
+```
+
+Two differences: each node gained a default `position`, and the click node's empty `config: {}` was
+dropped. Both are attributable to the seed, which omitted canvas layout - a flow saved from the
+designer always carries positions. **The defect itself is untouched**: the click node still has no
+locator, the flow is still not runnable, and no grant was issued for it. Nothing was silently
+repaired, which is what 8.1 actually protects.
+
+### A scroll that could never have worked
+
+`vm-guest-click.ps1 -Scroll` had been a no-op for downward scrolls since it was written, and it
+failed *silently*. `mouse_event` takes `dwData` as a signed delta while the P/Invoke declares
+`uint32`, and PowerShell's `[uint32](-120)` **throws** rather than wrapping. The throw happened
+inside the scheduled task, so the caller saw no error - and because the marker file from the
+preceding pointer move still existed, it read back a perfectly plausible `at:x,y`. Fixed by wrapping
+to two's complement explicitly. This is the failure-open shape again: the observable signal came from
+a different step than the one that failed.
+
+### Still not executed
+
+| # | Why |
+|---|---|
+| 3 | Offline setup steps - subsumed by automated provisioning |
+| 8.7-8.11 | Migration preview / backup-before-change / apply+report / restart-then-undo / undo refusal - multi-step UI ceremony, not attempted |
 
 
 ## Machine-readable record

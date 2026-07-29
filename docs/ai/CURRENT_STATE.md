@@ -1,11 +1,28 @@
 # CURRENT_STATE
 
-## Clean-machine 34 PASS / 0 FAIL; the Legacy grant lifecycle is proven end to end (2026-07-29, current)
+## Clean-machine 39 PASS / 0 FAIL; the run-based checks are executed (2026-07-29, current)
 
-Clean-machine validation now stands at **34 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus
-**5.1-5.3, 5.5-5.7, 5.9, 6.1-6.2, 8.3-8.6 and 8.12**. Still NOT EXECUTED: section 3, the run-based
-checks (5.4, 5.8, 6.3, 8.1-8.2) and the migration ceremony (8.7-8.11). Record:
-`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+Clean-machine validation now stands at **39 PASS / 0 FAIL**: sections 1, 2, 4, 5, 6 and 7 in full,
+plus **8.1-8.6 and 8.12**. Still NOT EXECUTED: section 3 and the migration ceremony (8.7-8.11).
+Record: `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+**The five run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a SECOND VM.** The first VM
+was permanently `fresh + consumed` and could never admit a run. The second was seeded with the
+upgrade profile **before the app's first launch**, so `detectInstallationKind()` classified it
+`upgraded` and opened the 14-day migration grace - which admitted runs with no licence present. That
+is the owner-decided upgrade-grace path exercised on a real clean machine, as itself, with nothing
+minted.
+
+What the five checks establish: a granted off-path-only flow **runs**, and the grant records it
+(`runsUnderCompatibility` 0 -> 1, `lastRunAt` 14 ms before the run's own start stamp); an
+active-path-broken flow is **refused** with a specific message naming the step, and produces no
+grant, no report and no instance; a hard-kill with a run in flight leaves no stranded Chromium and
+resurfaces on relaunch as `orphaned` + *"safe to re-run"* with the full recovery panel; and saving an
+active-path-invalid flow yields a **Draft** that is still not runnable, with the defect untouched.
+
+**Observability gap, not a defect:** run reports carry no Legacy Compatibility attribution. 5.4's
+attribution lives only on the grant record (`recordRunUnderCompatibility`), so an operator reading a
+run report cannot tell the run only executed because of a compatibility grant.
 
 **The whole Legacy Compatibility lifecycle is now evidenced on a clean offline machine.** A
 pre-hardening FNV-era grant is retired (`digestFormatRetired`) and never re-granted; a newly eligible

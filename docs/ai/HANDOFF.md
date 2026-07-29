@@ -1,6 +1,30 @@
 # Agent Handoff
 
-## TAKEOFF (2026-07-29) - clean-machine 34 PASS / 0 FAIL; only run-based checks remain
+## TAKEOFF (2026-07-29) - clean-machine 39 PASS / 0 FAIL; only 8.7-8.11 remain
+
+Sections 1, 2, 4, 5, 6, 7 in full, plus 8.1-8.6 and 8.12. NOT EXECUTED: section 3 and the migration
+ceremony (8.7-8.11). See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook
+is still not claimed as PASSED.
+
+**How the licensing blocker was cleared, for whoever runs 8.7-8.11.** Do not try to unblock runs on
+an existing VM - a `fresh + consumed` grace anchor survives profile wipes via the ProgramData mirror,
+by design. Reprovision, and run `seed-upgrade-profile.ps1` **before the app's first launch**;
+`detectInstallationKind()` then classifies the install `upgraded` and opens the 14-day window, which
+admits runs with no licence. Verify by reading the anchor for `"installationKind": "upgraded",
+"consumed": false` before spending any time on UI.
+
+**Driving the VM.** `vm-guest-click.ps1` for clicks (see below) - it also does `-Scroll` now, though
+scroll targets whatever element is under the pointer, so put the pointer in the **outer** page column
+(x~1000) rather than over an inner scrollable grid. The left nav's lower groups (Run, Reports,
+Administration) are below the fold: collapse the "Build" group by clicking its chevron rather than
+fighting the scroll. Workflow cards on the Instances page reveal their Run button only on **hover** -
+`-MoveOnly` is enough.
+
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED** - clean-machine runbook
+checks are an external gate, not ledger cases. Beads remain
+**120 total / 6 outstanding / 114 closed**.
+
+## TAKEOFF (2026-07-29) - clean-machine 34 PASS / 0 FAIL; only run-based checks remain (superseded)
 
 Sections 1, 2, 4, 7 in full, plus 5.1-5.3, 5.5-5.7, 5.9, 6.1-6.2, 8.3-8.6, 8.12. NOT EXECUTED:
 section 3, the run-based checks (5.4, 5.8, 6.3, 8.1-8.2) and the migration ceremony (8.7-8.11).

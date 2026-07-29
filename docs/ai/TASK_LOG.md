@@ -4,6 +4,38 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 - Claude - clean-machine: the run-based checks executed on a second VM (39 PASS / 0 FAIL)
+
+- **Task:** provision a fresh VM and finish the run-based checks (5.4, 5.8, 6.3, 8.1, 8.2).
+- **Approach:** the first VM was permanently `fresh + consumed` so it could never admit a run.
+  Preserved its 74 evidence files to `dist/clean-machine-evidence-vm1`, tore it down, reprovisioned,
+  and seeded the upgrade profile **before first launch** - which made the install classify
+  `upgraded` and opened the 14-day migration grace. Anchor confirmed
+  `"installationKind": "upgraded", "consumed": false` before any UI work.
+- **Result: all five PASS.** 5.4 granted off-path flow ran (`status: "passed"`) and the grant
+  recorded it (`runsUnderCompatibility` 0->1, `lastRunAt` 14 ms before the run's start stamp), the
+  retired FNV grant unused. 5.8/8.2 broken flow refused - *"Step Click with no locator (click)
+  requires a locator"* - with no grant, no report, no instance produced. 6.3 hard-killed 4 processes
+  with a 120 s wait in flight, no stranded Chromium; relaunch classified it `orphaned` + *"safe to
+  re-run"*, one `startupRecovery` event, and rendered the recovery panel. 8.1 saved as **Draft**,
+  still not runnable, defect untouched.
+- **Files:** `scripts/clean-machine/seed-upgrade-profile.ps1` (about:blank so runs complete
+  networkless; added a 120 s `seed-long-wait` flow as the 6.3 kill target),
+  `scripts/clean-machine/vm-guest-click.ps1` (scroll fix), results doc, runbook disposition,
+  `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Two things recorded rather than glossed:** run reports carry **no** Legacy Compatibility
+  attribution (it lives only on the grant record) - an observability gap, not a defect; and the draft
+  save did alter the flow file (default `position` added, empty `config: {}` dropped) - attributable
+  to the seed omitting layout, with the defect itself untouched.
+- **Defect in my own tooling:** `vm-guest-click.ps1 -Scroll` had never worked downward and failed
+  *silently* - `[uint32](-120)` throws in PowerShell instead of wrapping, the throw happened inside
+  the scheduled task, and the stale marker file from the preceding move made the caller read back a
+  plausible `at:x,y`. Fixed with an explicit two's-complement wrap.
+- **Tests:** the five runbook checks above, executed on the VM. Not run: 8.7-8.11 (migration
+  ceremony) and section 3.
+
+---
+
 ## 2026-07-29 - Claude - clean-machine: Legacy grant lifecycle proven end to end (34 PASS / 0 FAIL)
 
 - **Task:** add a non-UI trigger for the inventory scan and finish runbook sections 5.2 onward.
