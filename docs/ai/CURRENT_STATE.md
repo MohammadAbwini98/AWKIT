@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## RBAC v2 custom roles and direct overrides are complete (2026-07-29, current)
+
+`awkit-gsf` is closed. Security-store migration v4 adds persisted custom roles, role-permission maps,
+and per-user grant/deny overrides. `effectivePermissions` unions built-in and custom-role grants,
+applies direct grants, then applies direct denies with final precedence. Unknown role/permission ids
+remain deny-by-default, while the protected Super User always retains the full registry.
+
+Custom-role create/update/delete and user override changes are sender-bound, permission-checked,
+fresh-reauth gated, audited, and schema validated. Permission changes take effect in the trusted
+`AuthorizationService` immediately and revoke affected sessions; deleting a role removes its user
+assignments. Built-in roles remain immutable. The Roles UI supports custom-role CRUD, the Permissions
+matrix includes custom roles, and the Users access editor supports Inherit/Grant/Deny overrides with
+Escape, focus trapping, and focus return.
+
+Verification: authz **77/77**; real Electron admin GUI **18/18**; real Electron RBAC **51/51**; auth
+**64/64**; IPC contract **4/4**; build and script typecheck PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 9 outstanding / 109 closed**.
+
 ## Super User one-time recovery is complete (2026-07-29, current)
 
 `awkit-aty` is closed. First-run Super User provisioning generates a 128-bit, ambiguity-free
@@ -2946,7 +2964,7 @@ On branch `feature/superuser-admin-rbac` (NOT committed to `main`).
   protection, disable/role-change/reset session revocation, reauth gating, audit) + new **`verify:admin-gui`
   10/10** (real Electron: SU sees admin nav, create user, Roles/Permissions/Audit/Licensing render, 0 console
   errors). `verify:auth` **49/49**, `npm run build` clean. Screenshot `reports/security-admin/`.
-- **Remaining (follow-ups):** per-user permission overrides + custom roles (v2); machine
+- **Remaining (follow-ups):** machine
   licensing (Phase 5); Active Directory provider; deeper per-action button gating on non-admin pages.
 
 

@@ -15,6 +15,7 @@ import { LocalVirtualUserProvider } from "@src/security/auth/LocalVirtualUserPro
 import { DEFAULT_SESSION_POLICY, SessionManager, type SessionPolicy } from "@src/security/session/SessionManager";
 import { AuthorizationService } from "@src/security/authz/AuthorizationService";
 import { UserAdminService } from "@src/security/admin/UserAdminService";
+import { RoleAdminService } from "@src/security/admin/RoleAdminService";
 import type { ProviderId } from "@src/security/auth/AuthTypes";
 
 export interface BootState {
@@ -37,6 +38,7 @@ export class SecurityKernel {
     readonly auth: AuthenticationService,
     readonly authz: AuthorizationService,
     readonly userAdmin: UserAdminService,
+    readonly roleAdmin: RoleAdminService,
     private readonly sessions: SessionManager
   ) {}
 
@@ -50,7 +52,8 @@ export class SecurityKernel {
     const auth = new AuthenticationService({ store, providers, sessions, lockout: options.lockout, now: options.now });
     const authz = new AuthorizationService(store, sessions, { reauthWindowMs: options.reauthWindowMs });
     const userAdmin = new UserAdminService(store, sessions, authz, options.now);
-    return new SecurityKernel(store, auth, authz, userAdmin, sessions);
+    const roleAdmin = new RoleAdminService(store, sessions, authz, options.now);
+    return new SecurityKernel(store, auth, authz, userAdmin, roleAdmin, sessions);
   }
 
   /** State the renderer's SecurityGate needs on boot: first-run vs login, and the idle-lock window. */

@@ -8210,3 +8210,19 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   PASS.
 - **Result:** `awkit-aty` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
   beads are **118 total / 10 outstanding / 108 closed**.
+
+## 2026-07-29 — Codex — RBAC v2 custom roles and per-user overrides
+
+- **Task:** complete `awkit-gsf`: admin-defined custom roles plus direct per-user permission grant/deny
+  overrides without weakening the trusted authorization boundary.
+- **Implemented:** security-store migration v4; custom role and permission persistence; role admin
+  service; create/update/delete IPC and preload APIs; custom-role-aware authorization/principal
+  snapshots; direct overrides with deny precedence; session revocation, reauth, audit, built-in-role
+  immutability, and protected-SU safeguards.
+- **UI:** Roles now supports custom-role CRUD, Permissions includes custom roles, and Users provides
+  a tri-state Inherit/Grant/Deny access editor. Custom role names replace opaque ids in user chips;
+  access/edit/delete dialogs support focus management and Escape.
+- **Checks:** authz **77/77** including persistence/reopen; admin GUI **18/18**; real Electron RBAC
+  **51/51**; auth **64/64**; IPC contract **4/4**; script typecheck and production build PASS.
+- **Result:** `awkit-gsf` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
+  beads are **118 total / 9 outstanding / 109 closed**.

@@ -61,8 +61,49 @@ try {
   // ── Roles / Permissions / Audit / Licensing ─────────────────────────────────
   await nav(win, "Roles");
   check("Roles page lists the Super User role", (await win.getByRole("heading", { name: "Super User" }).count()) >= 1);
+
+  const roleForm = win.locator(".settings-card", { has: win.getByRole("heading", { name: "Add a custom role" }) });
+  await roleForm.locator("input").first().fill("QA Runner");
+  await roleForm.locator("label", { hasText: "workflow.execute" }).locator('input[type="checkbox"]').check();
+  await roleForm.getByRole("button", { name: "Create role" }).click();
+  await win.getByRole("heading", { name: "QA Runner", exact: true }).waitFor({ timeout: 10000 });
+  check("custom role can be created from the Roles page", true);
+  const createdRoleCard = win.locator(".settings-card", { has: win.getByRole("heading", { name: "QA Runner", exact: true }) });
+  await createdRoleCard.getByRole("button", { name: "Edit" }).click();
+  const roleEditor = win.locator(".awkit-admin-role-modal");
+  await roleEditor.locator("label", { hasText: "workflow.stop" }).locator('input[type="checkbox"]').check();
+  await roleEditor.getByRole("button", { name: "Save role" }).click();
+  await win.waitForTimeout(900);
+  check("custom role permissions can be edited", (await createdRoleCard.getByText("workflow.stop", { exact: true }).count()) === 1);
+
   await nav(win, "Permissions");
   check("Permissions matrix renders", (await win.getByRole("heading", { name: "Permission matrix" }).count()) >= 1);
+  check("custom role appears in the permission matrix", (await win.getByRole("columnheader", { name: "QA Runner" }).count()) === 1);
+
+  await nav(win, "Users");
+  const viewerRow = win.locator("tr", { hasText: "@viewer1" }).first();
+  await viewerRow.getByRole("button", { name: "Roles" }).click();
+  const accessModal = win.locator(".awkit-admin-role-modal");
+  await accessModal.locator("label", { hasText: "QA Runner" }).locator('input[type="checkbox"]').check();
+  await accessModal.getByLabel("workflow.execute override").selectOption("deny");
+  await accessModal.getByRole("button", { name: "Save access" }).click();
+  await win.waitForTimeout(900);
+  check("custom role assignment appears on the user", (await viewerRow.getByText("QA Runner").count()) === 1);
+  await viewerRow.getByRole("button", { name: "Roles" }).click();
+  check(
+    "direct deny override persists in the access editor",
+    await win.locator(".awkit-admin-role-modal").getByLabel("workflow.execute override").inputValue() === "deny"
+  );
+  await win.keyboard.press("Escape");
+  check("access editor closes with Escape and returns focus", (await win.locator(".awkit-admin-role-modal").count()) === 0 && await viewerRow.getByRole("button", { name: "Roles" }).evaluate((button) => button === document.activeElement));
+
+  await nav(win, "Roles");
+  const customRoleCard = win.locator(".settings-card", { has: win.getByRole("heading", { name: "QA Runner", exact: true }) });
+  await customRoleCard.getByRole("button", { name: "Delete" }).click();
+  await win.getByRole("button", { name: "Delete role" }).click();
+  await win.waitForTimeout(900);
+  check("custom role can be deleted", (await win.getByRole("heading", { name: "QA Runner", exact: true }).count()) === 0);
+
   await nav(win, "Audit Log");
   await win.waitForTimeout(400);
   check("Audit Log shows the USER_CREATE event", (await win.getByText("USER_CREATE").count()) >= 1);

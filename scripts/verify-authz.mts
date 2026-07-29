@@ -39,7 +39,7 @@ async function freshKernel(clock: { now: () => number }) {
   const dir = mkdtempSync(join(tmpdir(), "awkit-authz-"));
   const dbPath = join(dir, SECURITY_DB_FILENAME);
   const kernel = await SecurityKernel.open(dbPath, new PassthroughColumnCrypto(), { now: clock.now });
-  return kernel;
+  return { kernel, dbPath };
 }
 
 /** Log a user in and return the opaque sessionRef (throws if the login fails). */
@@ -81,9 +81,17 @@ async function main(): Promise<void> {
   check("Viewer is view-only (no create)", viewer.has(Permission.WORKFLOW_VIEW) && !viewer.has(Permission.WORKFLOW_CREATE));
   check("unknown role ids contribute nothing (deny-by-default)", effectivePermissions({ roles: ["Nonsense"] }).size === 0);
   check("protected flag grants SuperUser even with empty roles", effectivePermissions({ roles: [], isProtectedSuperUser: true }).has(Permission.USER_MANAGE));
+  const customPermissions = effectivePermissions({
+    roles: ["custom:test"],
+    customRoles: new Map([["custom:test", [Permission.WORKFLOW_EXECUTE, "unknown.permission"]]]),
+    grants: [Permission.SETTINGS_EDIT],
+    denies: [Permission.WORKFLOW_EXECUTE]
+  });
+  check("custom roles contribute only registered permissions", customPermissions.has(Permission.SETTINGS_EDIT) && customPermissions.size === 1);
+  check("direct deny overrides role grants", !customPermissions.has(Permission.WORKFLOW_EXECUTE));
 
   const clock = makeClock(Date.parse("2026-07-19T00:00:00.000Z"));
-  const kernel = await freshKernel(clock);
+  const { kernel, dbPath } = await freshKernel(clock);
   await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD, displayName: "Super User" });
   const suSession = await loginSession(kernel, "superuser", SU_PASSWORD);
 
@@ -111,6 +119,75 @@ async function main(): Promise<void> {
     kernel.userAdmin.createUser(a, { username: "x_user", password: OP_PASSWORD, roles: ["Wizard"] })
   );
   check("unknown role is rejected", badRole.ok === true && badRole.value.ok === false && badRole.value.reason === AuthReason.INVALID_ROLE);
+
+  console.log("RBAC v2 custom roles + user overrides:");
+  const roleCreated = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.createRole(a, {
+      name: "Report Runner",
+      description: "Runs workflows and exports reports.",
+      permissions: [Permission.WORKFLOW_EXECUTE, Permission.REPORT_EXPORT]
+    })
+  );
+  const customRoleId = roleCreated.ok && roleCreated.value.ok ? roleCreated.value.value.id : "";
+  check("Super User creates an admin-defined custom role", customRoleId.startsWith("custom:"));
+  const duplicateRole = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.createRole(a, { name: "report runner", permissions: [] })
+  );
+  check("custom-role names are unique case-insensitively", duplicateRole.ok && !duplicateRole.value.ok && duplicateRole.value.reason === AuthReason.ROLE_NAME_TAKEN);
+
+  const customUserCreated = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.createUser(a, {
+      username: "customuser",
+      password: OP_PASSWORD,
+      roles: [customRoleId]
+    })
+  );
+  check("custom roles can be assigned through the existing user boundary", customUserCreated.ok && customUserCreated.value.ok);
+  const customUser = kernel.store.getUserByUsernameNorm("customuser")!;
+  await kernel.store.updateUser(customUser.id, { mustChangePassword: false });
+  const customSession = await loginSession(kernel, "customuser", OP_PASSWORD);
+  const customActor = await kernel.authz.resolveActor(customSession);
+  check("custom-role permissions are enforced by AuthorizationService", customActor.permissions.has(Permission.WORKFLOW_EXECUTE));
+
+  const overrides = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, customUser.id, {
+      permissionGrants: [Permission.SETTINGS_EDIT],
+      permissionDenies: [Permission.WORKFLOW_EXECUTE]
+    })
+  );
+  check("per-user grant/deny overrides are accepted", overrides.ok && overrides.value.ok);
+  check("override changes revoke the target session", !(await kernel.auth.validateSession(customSession)).valid);
+  const overriddenLogin = await kernel.auth.login({ providerId: "local", username: "customuser", password: OP_PASSWORD });
+  check(
+    "deny wins and direct grant reaches the principal snapshot",
+    overriddenLogin.ok &&
+      overriddenLogin.principal.permissions.includes(Permission.SETTINGS_EDIT) &&
+      !overriddenLogin.principal.permissions.includes(Permission.WORKFLOW_EXECUTE)
+  );
+  const invalidOverride = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, customUser.id, { permissionGrants: ["invented.permission"] })
+  );
+  check("unknown direct permissions fail closed", invalidOverride.ok && !invalidOverride.value.ok && invalidOverride.value.reason === AuthReason.INVALID_PERMISSION);
+
+  const activeCustomRef = overriddenLogin.ok ? overriddenLogin.principal.sessionRef : "";
+  const roleUpdated = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.updateRole(a, customRoleId, {
+      name: "Report Runner",
+      description: "Updated role.",
+      permissions: [Permission.WORKFLOW_EXECUTE, Permission.REPORT_EXPORT, Permission.WORKFLOW_STOP]
+    })
+  );
+  check("custom-role definitions can be updated", roleUpdated.ok && roleUpdated.value.ok);
+  check("role permission changes revoke every assigned user's session", !(await kernel.auth.validateSession(activeCustomRef)).valid);
+  const builtInEdit = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.updateRole(a, "Viewer", { name: "Changed", permissions: [] })
+  );
+  check("built-in roles remain immutable", builtInEdit.ok && !builtInEdit.value.ok && builtInEdit.value.reason === AuthReason.BUILT_IN_ROLE);
+  const deletedRole = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.deleteRole(a, customRoleId)
+  );
+  check("custom roles can be deleted", deletedRole.ok && deletedRole.value.ok && !kernel.store.getCustomRole(customRoleId));
+  check("deleting a custom role removes stale user assignments", !kernel.store.getUserById(customUser.id)!.roles.includes(customRoleId));
 
   // Clear mustChangePassword so the operator can hold a session for the enforcement tests.
   await kernel.store.updateUser(opUser.id, { mustChangePassword: false });
@@ -148,6 +225,10 @@ async function main(): Promise<void> {
     kernel.userAdmin.updateUser(a, suUser.id, { roles: ["Viewer"] })
   );
   check("protected SU cannot be demoted", demoteSelf.ok === true && demoteSelf.value.ok === false && demoteSelf.value.reason === AuthReason.PROTECTED_SUPER_USER);
+  const denyProtected = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, suUser.id, { permissionDenies: [Permission.USER_MANAGE] })
+  );
+  check("protected SU cannot receive a direct deny override", denyProtected.ok && !denyProtected.value.ok && denyProtected.value.reason === AuthReason.PROTECTED_SUPER_USER);
   // A SECOND (non-protected) Super User CAN be demoted while the protected SU remains.
   await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
     kernel.userAdmin.createUser(a, { username: "admin2", password: OP_PASSWORD, roles: ["SuperUser"] })
@@ -264,7 +345,32 @@ async function main(): Promise<void> {
   check("Administrator can reach Semantic Search", routeVisibleTo(adminPerms));
   check("SuperUser can reach Semantic Search", routeVisibleTo(superUserPerms));
 
+  console.log("\nRBAC v2 persistence:");
+  const persistedRole = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.roleAdmin.createRole(a, {
+      name: "Persistent Runner",
+      permissions: [Permission.WORKFLOW_EXECUTE]
+    })
+  );
+  const persistedRoleId = persistedRole.ok && persistedRole.value.ok ? persistedRole.value.value.id : "";
+  await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, opUser.id, {
+      roles: [persistedRoleId],
+      permissionGrants: [Permission.REPORT_EXPORT],
+      permissionDenies: [Permission.WORKFLOW_EXECUTE]
+    })
+  );
   await kernel.close();
+
+  const reopened = await SecurityKernel.open(dbPath, new PassthroughColumnCrypto(), { now: clock.now });
+  const reopenedUser = reopened.store.getUserById(opUser.id)!;
+  const reopenedPermissions = reopened.authz.permissionsFor(reopenedUser);
+  check("custom roles persist across security-store reopen", reopened.store.getCustomRole(persistedRoleId)?.name === "Persistent Runner");
+  check(
+    "user grant/deny overrides persist and remain authoritative after reopen",
+    reopenedPermissions.has(Permission.REPORT_EXPORT) && !reopenedPermissions.has(Permission.WORKFLOW_EXECUTE)
+  );
+  await reopened.close();
 
   console.log(`\nverify:authz — ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);

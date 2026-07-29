@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   console.log("First-run bootstrap:");
   {
     const { kernel, dbPath } = await freshKernel();
-    check("migrations applied through recovery schema (v3)", kernel.store.appliedMigrations().some((m) => m.version === 3));
+    check("migrations applied through RBAC v2 schema (v4)", kernel.store.appliedMigrations().some((m) => m.version === 4));
     check("boot state: not provisioned", kernel.getBootState().provisioned === false);
 
     const weak = await kernel.auth.bootstrapSuperUser({ username: "superuser", password: "weak" });

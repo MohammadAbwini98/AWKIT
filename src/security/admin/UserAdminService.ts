@@ -15,7 +15,7 @@ import { AuthReason, SecurityError, type AuthReasonCode } from "@src/security/er
 import { hashPassword } from "@src/security/crypto/PasswordHasher";
 import { validatePassword } from "@src/security/auth/PasswordPolicy";
 import { normalizeUsername, validateUsername } from "@src/security/auth/UsernameRules";
-import { Permission, SUPER_USER_ROLE, isRoleId, isSuperUser } from "@src/security/authz/Permissions";
+import { Permission, SUPER_USER_ROLE, isPermission, isRoleId, isSuperUser } from "@src/security/authz/Permissions";
 import type { AuthorizationService, AuthorizedActor } from "@src/security/authz/AuthorizationService";
 import type { SecurityStore } from "@src/security/store/SecurityStore";
 import type { SessionManager } from "@src/security/session/SessionManager";
@@ -28,6 +28,8 @@ export interface AdminUserView {
   status: UserStatus;
   isProtectedSuperUser: boolean;
   roles: string[];
+  permissionGrants: string[];
+  permissionDenies: string[];
   permissions: string[];
   mustChangePassword: boolean;
   failedLoginCount: number;
@@ -47,6 +49,8 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   displayName?: string;
   roles?: string[];
+  permissionGrants?: string[];
+  permissionDenies?: string[];
 }
 
 export type AdminResult<T = undefined> =
@@ -115,6 +119,7 @@ export class UserAdminService {
 
     const patch: Partial<UserRecord> = {};
     let rolesChanged = false;
+    let overridesChanged = false;
 
     if (input.displayName !== undefined) patch.displayName = input.displayName.trim();
 
@@ -134,15 +139,44 @@ export class UserAdminService {
       patch.roles = roles;
     }
 
-    if (Object.keys(patch).length === 0) return { ok: true, value: this.toView(target) };
+    const currentOverrides = this.store.getUserPermissionOverrides(userId);
+    const nextGrants = input.permissionGrants === undefined
+      ? currentOverrides.grants
+      : this.sanitizePermissions(input.permissionGrants);
+    const nextDenies = input.permissionDenies === undefined
+      ? currentOverrides.denies
+      : this.sanitizePermissions(input.permissionDenies);
+    if (!nextGrants || !nextDenies || nextGrants.some((permission) => nextDenies.includes(permission))) {
+      return { ok: false, reason: AuthReason.INVALID_PERMISSION };
+    }
+    overridesChanged =
+      JSON.stringify([...nextGrants].sort()) !== JSON.stringify([...currentOverrides.grants].sort()) ||
+      JSON.stringify([...nextDenies].sort()) !== JSON.stringify([...currentOverrides.denies].sort());
+    if (target.isProtectedSuperUser && overridesChanged) {
+      return { ok: false, reason: AuthReason.PROTECTED_SUPER_USER };
+    }
+    if (Object.keys(patch).length === 0 && !overridesChanged) {
+      return { ok: true, value: this.toView(target) };
+    }
 
     const nowIso = new Date(this.now()).toISOString();
-    patch.updatedAt = nowIso;
-    patch.updatedBy = actor.user.id;
-    await this.store.updateUser(userId, patch);
+    if (Object.keys(patch).length > 0) {
+      patch.updatedAt = nowIso;
+      patch.updatedBy = actor.user.id;
+      await this.store.updateUser(userId, patch);
+    }
+    if (overridesChanged) {
+      await this.store.setUserPermissionOverrides(userId, { grants: nextGrants, denies: nextDenies });
+    }
     // Security-sensitive permission change → invalidate the target's sessions so new authorization applies.
-    if (rolesChanged) await this.sessions.revokeAllForUser(userId);
-    await this.audit(actor, "USER_UPDATE", userId, "success", { rolesChanged, roles: patch.roles });
+    if (rolesChanged || overridesChanged) await this.sessions.revokeAllForUser(userId);
+    await this.audit(actor, "USER_UPDATE", userId, "success", {
+      rolesChanged,
+      overridesChanged,
+      roles: patch.roles,
+      permissionGrants: overridesChanged ? nextGrants : undefined,
+      permissionDenies: overridesChanged ? nextDenies : undefined
+    });
     return { ok: true, value: this.toView(this.store.getUserById(userId)!) };
   }
 
@@ -214,14 +248,25 @@ export class UserAdminService {
     if (!Array.isArray(roles)) return null;
     const out: string[] = [];
     for (const r of roles) {
-      if (!isRoleId(r)) return null;
+      if (!isRoleId(r) && !this.store.getCustomRole(r)) return null;
       if (!out.includes(r)) out.push(r);
+    }
+    return out;
+  }
+
+  private sanitizePermissions(permissions: string[]): string[] | null {
+    if (!Array.isArray(permissions)) return null;
+    const out: string[] = [];
+    for (const permission of permissions) {
+      if (!isPermission(permission)) return null;
+      if (!out.includes(permission)) out.push(permission);
     }
     return out;
   }
 
   private toView(user: UserRecord): AdminUserView {
     const roles = user.isProtectedSuperUser && !user.roles.includes(SUPER_USER_ROLE) ? [...user.roles, SUPER_USER_ROLE] : user.roles;
+    const overrides = this.store.getUserPermissionOverrides(user.id);
     return {
       id: user.id,
       username: user.username,
@@ -229,6 +274,8 @@ export class UserAdminService {
       status: user.status,
       isProtectedSuperUser: user.isProtectedSuperUser,
       roles,
+      permissionGrants: overrides.grants,
+      permissionDenies: overrides.denies,
       permissions: [...this.authz.permissionsFor(user)],
       mustChangePassword: user.mustChangePassword,
       failedLoginCount: user.failedLoginCount,

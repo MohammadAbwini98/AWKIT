@@ -39,7 +39,17 @@ export class AuthorizationService {
 
   /** Effective permission set for a user (union of role permissions; protected SU always full). */
   permissionsFor(user: UserRecord): Set<Permission> {
-    return effectivePermissions({ roles: user.roles, isProtectedSuperUser: user.isProtectedSuperUser });
+    const customRoles = new Map(
+      this.store.listCustomRoles().map((role) => [role.id, role.permissions] as const)
+    );
+    const overrides = this.store.getUserPermissionOverrides(user.id);
+    return effectivePermissions({
+      roles: user.roles,
+      isProtectedSuperUser: user.isProtectedSuperUser,
+      customRoles,
+      grants: overrides.grants,
+      denies: overrides.denies
+    });
   }
 
   can(user: UserRecord, permission: Permission): boolean {

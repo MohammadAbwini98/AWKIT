@@ -3,9 +3,9 @@
  * Pure and dependency-free so both the trusted main process (enforcement) and the renderer (UI hints)
  * import the same constants. No permission string is ever hardcoded in a component; import `Permission.*`.
  *
- * Design: docs/plans/SECURE_LOGIN_AUTHORIZATION_LICENSING_IMPLEMENTATION_PLAN.md §12. v1 ships immutable
- * built-in roles only (O-2); per-user permission overrides are deferred to v2 (O-4) but the effective-
- * permission computation is written so they can be layered in without changing callers.
+ * Design: docs/plans/SECURE_LOGIN_AUTHORIZATION_LICENSING_IMPLEMENTATION_PLAN.md §12. Built-in roles
+ * remain immutable; RBAC v2 layers persisted custom roles and direct grant/deny overrides into the
+ * same deny-by-default computation.
  */
 
 /** Every permission the app understands. Page permissions gate route access; the rest gate actions. */
@@ -60,6 +60,11 @@ export type Permission = (typeof Permission)[keyof typeof Permission];
 
 /** All permission values (used to grant the SuperUser role everything). */
 export const ALL_PERMISSIONS: readonly Permission[] = Object.freeze(Object.values(Permission));
+const PERMISSION_SET: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
+
+export function isPermission(value: unknown): value is Permission {
+  return typeof value === "string" && PERMISSION_SET.has(value);
+}
 
 /**
  * Sensitive actions that additionally require a fresh re-authentication (§11).
@@ -87,7 +92,7 @@ export interface RoleDefinition {
   id: RoleId;
   name: string;
   description: string;
-  /** Built-in roles are immutable in v1 (no custom-role creation). */
+  /** Built-in roles are immutable; custom roles are persisted separately. */
   builtIn: true;
   permissions: readonly Permission[];
 }
@@ -185,15 +190,26 @@ export function roleDefinition(id: RoleId): RoleDefinition {
 /**
  * Effective permission set for a set of assigned role ids: the union of each role's permissions.
  * A protected Super User is always treated as holding the SuperUser role even if its stored roles drift.
- * Unknown role ids are ignored (deny-by-default). Overrides (v2) would be applied here.
+ * Unknown role and permission ids are ignored (deny-by-default). Direct denies take final precedence.
  */
-export function effectivePermissions(input: { roles: readonly string[]; isProtectedSuperUser?: boolean }): Set<Permission> {
+export function effectivePermissions(input: {
+  roles: readonly string[];
+  isProtectedSuperUser?: boolean;
+  customRoles?: ReadonlyMap<string, readonly string[]>;
+  grants?: readonly string[];
+  denies?: readonly string[];
+}): Set<Permission> {
+  if (input.isProtectedSuperUser) return new Set(ALL_PERMISSIONS);
   const out = new Set<Permission>();
-  const roles = input.isProtectedSuperUser ? [...input.roles, SUPER_USER_ROLE] : input.roles;
-  for (const roleId of roles) {
-    if (!isRoleId(roleId)) continue;
-    for (const permission of BUILTIN_ROLES[roleId].permissions) out.add(permission);
+  for (const roleId of input.roles) {
+    const permissions = isRoleId(roleId) ? BUILTIN_ROLES[roleId].permissions : input.customRoles?.get(roleId);
+    if (!permissions) continue;
+    for (const permission of permissions) {
+      if (isPermission(permission)) out.add(permission);
+    }
   }
+  for (const permission of input.grants ?? []) if (isPermission(permission)) out.add(permission);
+  for (const permission of input.denies ?? []) if (isPermission(permission)) out.delete(permission);
   return out;
 }
 

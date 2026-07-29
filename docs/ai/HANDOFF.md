@@ -1,5 +1,17 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — RBAC v2 complete
+
+`awkit-gsf` is closed. Persisted custom roles and direct per-user grant/deny overrides now flow
+through the existing trusted permission boundary. Direct denies take final precedence; unknown ids
+fail closed; protected built-ins and the primary Super User cannot be weakened. Role/override
+changes revoke affected sessions, are reauth-gated and audited, and are fully operable from the
+Roles, Permissions, and Users admin pages.
+
+Verification: authz 77/77, real Electron admin GUI 18/18, real Electron RBAC 51/51, auth 64/64, IPC
+contract 4/4, build and script typecheck PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 9 outstanding / 109 closed**.
+
 ## TAKEOFF (2026-07-29) — Super User recovery complete
 
 `awkit-aty` is closed. First-run setup now presents a show-once recovery code before authentication;

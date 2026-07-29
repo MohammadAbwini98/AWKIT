@@ -19,16 +19,19 @@ import {
   parseSessionRef
 } from "@src/security/ipc/SecurityIpcSchema";
 import {
+  parseAdminCreateRole,
   parseAdminCreateUser,
+  parseAdminDeleteRole,
   parseAdminListAudit,
   parseAdminReauth,
   parseAdminResetPassword,
   parseAdminSetStatus,
+  parseAdminUpdateRole,
   parseAdminUpdateUser,
   parseAdminUserId,
   parseSessionField
 } from "@src/security/ipc/SecurityAdminIpcSchema";
-import { BUILTIN_ROLES, Permission, ROLE_IDS, type Permission as PermissionType } from "@src/security/authz/Permissions";
+import { Permission, type Permission as PermissionType } from "@src/security/authz/Permissions";
 import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 import type { SecurityKernel } from "@src/security/SecurityKernel";
 
@@ -210,7 +213,12 @@ export function registerSecurityIpc(): void {
     try {
       const p = parseAdminUpdateUser(input);
       return await adminCall(p.sessionRef, Permission.USER_MANAGE, true, (actor, kernel) =>
-        kernel.userAdmin.updateUser(actor, p.userId, { displayName: p.displayName, roles: p.roles })
+        kernel.userAdmin.updateUser(actor, p.userId, {
+          displayName: p.displayName,
+          roles: p.roles,
+          permissionGrants: p.permissionGrants,
+          permissionDenies: p.permissionDenies
+        })
       );
     } catch {
       return safeFailure();
@@ -257,16 +265,54 @@ export function registerSecurityIpc(): void {
     assertTrustedSender(event);
     try {
       const { sessionRef } = parseSessionField(input);
-      return await adminCall(sessionRef, Permission.ROLE_VIEW, false, () => ({
+      return await adminCall(sessionRef, Permission.ROLE_VIEW, false, (actor, kernel) => ({
         ok: true,
-        value: ROLE_IDS.map((id) => ({
-          id,
-          name: BUILTIN_ROLES[id].name,
-          description: BUILTIN_ROLES[id].description,
-          builtIn: true,
-          permissions: [...BUILTIN_ROLES[id].permissions]
-        }))
+        value: kernel.roleAdmin.listRoles(actor)
       }));
+    } catch {
+      return safeFailure();
+    }
+  });
+
+  ipcMain.handle("security:admin:createRole", async (event, input: unknown) => {
+    assertTrustedSender(event);
+    try {
+      const p = parseAdminCreateRole(input);
+      return await adminCall(p.sessionRef, Permission.USER_MANAGE, true, (actor, kernel) =>
+        kernel.roleAdmin.createRole(actor, {
+          name: p.name,
+          description: p.description,
+          permissions: p.permissions
+        })
+      );
+    } catch {
+      return safeFailure();
+    }
+  });
+
+  ipcMain.handle("security:admin:updateRole", async (event, input: unknown) => {
+    assertTrustedSender(event);
+    try {
+      const p = parseAdminUpdateRole(input);
+      return await adminCall(p.sessionRef, Permission.USER_MANAGE, true, (actor, kernel) =>
+        kernel.roleAdmin.updateRole(actor, p.roleId, {
+          name: p.name,
+          description: p.description,
+          permissions: p.permissions
+        })
+      );
+    } catch {
+      return safeFailure();
+    }
+  });
+
+  ipcMain.handle("security:admin:deleteRole", async (event, input: unknown) => {
+    assertTrustedSender(event);
+    try {
+      const p = parseAdminDeleteRole(input);
+      return await adminCall(p.sessionRef, Permission.USER_MANAGE, true, (actor, kernel) =>
+        kernel.roleAdmin.deleteRole(actor, p.roleId)
+      );
     } catch {
       return safeFailure();
     }

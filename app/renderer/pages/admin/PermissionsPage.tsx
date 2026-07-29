@@ -4,9 +4,9 @@ import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
 import { AdminBanner, AdminLoading, AdminPage } from "./components/AdminUi";
 
-interface RoleView { id: string; name: string; description: string; permissions: string[] }
+interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
 
-/** Permission → role matrix: which built-in roles grant each permission (deny-by-default reference). */
+/** Permission → role matrix across built-in and custom roles (deny-by-default reference). */
 export function PermissionsPage() {
   const sessionRef = useSession()?.principal.sessionRef ?? "";
   const [roles, setRoles] = useState<RoleView[]>([]);
@@ -30,7 +30,7 @@ export function PermissionsPage() {
     <AdminPage banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}>
       <section className="settings-card">
         <h2>Permission matrix</h2>
-        <p className="awkit-admin-muted">Every permission and the built-in roles that grant it. Enforced deny-by-default in the main process.</p>
+        <p className="awkit-admin-muted">Every permission and the roles that grant it. Enforced deny-by-default in the main process.</p>
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table awkit-admin-matrix">
             <thead><tr><th>Permission</th>{roles.map((r) => <th key={r.id}>{r.name}</th>)}</tr></thead>

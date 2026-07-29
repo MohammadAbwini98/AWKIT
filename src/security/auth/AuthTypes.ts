@@ -32,9 +32,9 @@ export interface PrincipalSnapshot {
   isProtectedSuperUser: boolean;
   mustChangePassword: boolean;
   sessionRef: string;
-  /** Assigned built-in role ids. UI hint only — authorization is re-checked in the trusted layer. */
+  /** Assigned built-in or custom role ids. UI hint only — authorization is re-checked in the trusted layer. */
   roles: string[];
-  /** Effective permission strings (union of role permissions). UI hint only; IPC re-checks each call. */
+  /** Effective role permissions with direct grant/deny overrides. UI hint only; IPC re-checks each call. */
   permissions: string[];
 }
 

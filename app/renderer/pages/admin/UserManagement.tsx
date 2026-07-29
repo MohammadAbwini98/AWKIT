@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ShieldAlert, UserPlus, Users as UsersIcon } from "lucide-react";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
+import { ALL_PERMISSIONS } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { ReauthDialog } from "./ReauthDialog";
@@ -8,7 +9,7 @@ import { adminReasonMessage } from "./adminMessages";
 import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge } from "./components/AdminUi";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
-interface RoleView { id: string; name: string; description: string; permissions: string[] }
+interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
 
 const security = () => window.playwrightFlowStudio.security;
 
@@ -86,7 +87,11 @@ export function UserManagement() {
                       {u.mustChangePassword ? <span className="awkit-admin-muted">must reset</span> : null}
                     </div>
                   </td>
-                  <td>{u.roles.length ? u.roles.map((r) => <span key={r} className="awkit-admin-role-chip">{r}</span>) : <span className="awkit-admin-muted">none</span>}</td>
+                  <td>{u.roles.length ? u.roles.map((roleId) => (
+                    <span key={roleId} className="awkit-admin-role-chip">
+                      {roles.find((role) => role.id === roleId)?.name ?? roleId}
+                    </span>
+                  )) : <span className="awkit-admin-muted">none</span>}</td>
                   <td>{u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}</td>
                   <td>
                     <div className="awkit-admin-row-actions">
@@ -114,7 +119,17 @@ export function UserManagement() {
           user={roleEditFor}
           roles={roles}
           onCancel={() => setRoleEditFor(null)}
-          onSave={(next) => { const u = roleEditFor; setRoleEditFor(null); void sensitive(() => security().admin.updateUser({ sessionRef, userId: u.id, roles: next })); }}
+          onSave={(next) => {
+            const u = roleEditFor;
+            setRoleEditFor(null);
+            void sensitive(() => security().admin.updateUser({
+              sessionRef,
+              userId: u.id,
+              roles: next.roles,
+              permissionGrants: next.permissionGrants,
+              permissionDenies: next.permissionDenies
+            }));
+          }}
         />
       ) : null}
 
@@ -179,17 +194,110 @@ function RolePicker({ roles, selected, onChange }: { roles: RoleView[]; selected
   );
 }
 
-function RoleEditModal({ user, roles, onCancel, onSave }: { user: AdminUserView; roles: RoleView[]; onCancel: () => void; onSave: (roles: string[]) => void }) {
+function RoleEditModal({
+  user,
+  roles,
+  onCancel,
+  onSave
+}: {
+  user: AdminUserView;
+  roles: RoleView[];
+  onCancel: () => void;
+  onSave: (next: { roles: string[]; permissionGrants: string[]; permissionDenies: string[] }) => void;
+}) {
   const [selected, setSelected] = useState<string[]>(user.roles);
+  const [grants, setGrants] = useState<string[]>(user.permissionGrants);
+  const [denies, setDenies] = useState<string[]>(user.permissionDenies);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(onCancel);
+  const returnFocusRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null
+  );
+  useEffect(() => {
+    cancelRef.current = onCancel;
+  }, [onCancel]);
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? [])];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus();
+    };
+  }, []);
+  const setOverride = (permission: string, effect: "inherit" | "grant" | "deny") => {
+    setGrants((current) => effect === "grant"
+      ? [...current.filter((item) => item !== permission), permission]
+      : current.filter((item) => item !== permission));
+    setDenies((current) => effect === "deny"
+      ? [...current.filter((item) => item !== permission), permission]
+      : current.filter((item) => item !== permission));
+  };
   return (
     <div className="awkit-admin-modal-backdrop" role="presentation" onClick={onCancel}>
-      <div className="awkit-admin-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <header className="awkit-admin-modal-head"><h2>Roles for {user.displayName}</h2></header>
+      <div
+        ref={dialogRef}
+        className="awkit-admin-modal awkit-admin-role-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="awkit-user-access-title"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="awkit-admin-modal-head"><h2 id="awkit-user-access-title">Roles for {user.displayName}</h2></header>
         {user.isProtectedSuperUser ? <p className="awkit-admin-muted">The primary Super User always keeps the Super User role.</p> : null}
         <RolePicker roles={roles} selected={selected} onChange={setSelected} />
+        {!user.isProtectedSuperUser ? (
+          <fieldset className="awkit-admin-override-list">
+            <legend>Direct permission overrides</legend>
+            <p className="awkit-admin-muted">Deny takes precedence over every assigned role.</p>
+            {ALL_PERMISSIONS.map((permission) => {
+              const effect = grants.includes(permission) ? "grant" : denies.includes(permission) ? "deny" : "inherit";
+              return (
+                <label key={permission} className="awkit-admin-override-row">
+                  <code>{permission}</code>
+                  <select
+                    value={effect}
+                    aria-label={`${permission} override`}
+                    onChange={(event) => setOverride(permission, event.target.value as "inherit" | "grant" | "deny")}
+                  >
+                    <option value="inherit">Inherit</option>
+                    <option value="grant">Grant</option>
+                    <option value="deny">Deny</option>
+                  </select>
+                </label>
+              );
+            })}
+          </fieldset>
+        ) : null}
         <div className="awkit-admin-modal-actions">
           <button className="toolbar-button" onClick={onCancel}>Cancel</button>
-          <button className="toolbar-button primary" onClick={() => onSave(selected)}>Save roles</button>
+          <button
+            className="toolbar-button primary"
+            onClick={() => onSave({ roles: selected, permissionGrants: grants, permissionDenies: denies })}
+          >
+            Save access
+          </button>
         </div>
       </div>
     </div>

@@ -20,7 +20,9 @@ import {
   SECURITY_STORE_MIGRATIONS,
   type AuditEvent,
   type AuditRecord,
+  type CustomRoleRecord,
   type SessionRecord,
+  type UserPermissionOverrides,
   type UserRecord,
   type UserStatus
 } from "./SecurityStoreSchema";
@@ -288,6 +290,157 @@ export class SecurityStore {
     await this.persist(true);
   }
 
+  // ── RBAC v2: custom roles and direct permission overrides ──────────────────
+
+  listCustomRoles(): CustomRoleRecord[] {
+    const stmt = this.db.prepare("SELECT * FROM security_custom_roles ORDER BY nameNorm");
+    const out: CustomRoleRecord[] = [];
+    try {
+      while (stmt.step()) out.push(this.mapCustomRole(stmt.getAsObject()));
+    } finally {
+      stmt.free();
+    }
+    return out;
+  }
+
+  getCustomRole(id: string): CustomRoleRecord | null {
+    const stmt = this.db.prepare("SELECT * FROM security_custom_roles WHERE id = ?");
+    try {
+      stmt.bind([id]);
+      return stmt.step() ? this.mapCustomRole(stmt.getAsObject()) : null;
+    } finally {
+      stmt.free();
+    }
+  }
+
+  customRoleNameTaken(nameNorm: string, exceptId?: string): boolean {
+    const stmt = this.db.prepare(
+      exceptId
+        ? "SELECT 1 FROM security_custom_roles WHERE nameNorm = ? AND id <> ? LIMIT 1"
+        : "SELECT 1 FROM security_custom_roles WHERE nameNorm = ? LIMIT 1"
+    );
+    try {
+      stmt.bind(exceptId ? [nameNorm, exceptId] : [nameNorm]);
+      return stmt.step();
+    } finally {
+      stmt.free();
+    }
+  }
+
+  async createCustomRole(record: CustomRoleRecord): Promise<void> {
+    this.db.run("BEGIN");
+    try {
+      this.db.run(
+        `INSERT INTO security_custom_roles
+           (id, name, nameNorm, description, createdAt, createdBy, updatedAt, updatedBy)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.id,
+          record.name,
+          record.nameNorm,
+          record.description,
+          record.createdAt,
+          record.createdBy,
+          record.updatedAt,
+          record.updatedBy
+        ]
+      );
+      for (const permission of record.permissions) {
+        this.db.run("INSERT INTO security_custom_role_permissions (roleId, permission) VALUES (?, ?)", [
+          record.id,
+          permission
+        ]);
+      }
+      this.db.run("COMMIT");
+    } catch (error) {
+      this.db.run("ROLLBACK");
+      throw error;
+    }
+    await this.persist(true);
+  }
+
+  async updateCustomRole(
+    id: string,
+    patch: Pick<CustomRoleRecord, "name" | "nameNorm" | "description" | "permissions" | "updatedAt" | "updatedBy">
+  ): Promise<void> {
+    this.db.run("BEGIN");
+    try {
+      this.db.run(
+        `UPDATE security_custom_roles
+         SET name = ?, nameNorm = ?, description = ?, updatedAt = ?, updatedBy = ?
+         WHERE id = ?`,
+        [patch.name, patch.nameNorm, patch.description, patch.updatedAt, patch.updatedBy, id]
+      );
+      this.db.run("DELETE FROM security_custom_role_permissions WHERE roleId = ?", [id]);
+      for (const permission of patch.permissions) {
+        this.db.run("INSERT INTO security_custom_role_permissions (roleId, permission) VALUES (?, ?)", [
+          id,
+          permission
+        ]);
+      }
+      this.db.run("COMMIT");
+    } catch (error) {
+      this.db.run("ROLLBACK");
+      throw error;
+    }
+    await this.persist(true);
+  }
+
+  async deleteCustomRole(id: string): Promise<void> {
+    this.db.run("BEGIN");
+    try {
+      this.db.run("DELETE FROM security_custom_role_permissions WHERE roleId = ?", [id]);
+      this.db.run("DELETE FROM security_custom_roles WHERE id = ?", [id]);
+      this.db.run("COMMIT");
+    } catch (error) {
+      this.db.run("ROLLBACK");
+      throw error;
+    }
+    await this.persist(true);
+  }
+
+  getUserPermissionOverrides(userId: string): UserPermissionOverrides {
+    const stmt = this.db.prepare(
+      "SELECT permission, effect FROM security_user_permission_overrides WHERE userId = ? ORDER BY permission"
+    );
+    const grants: string[] = [];
+    const denies: string[] = [];
+    try {
+      stmt.bind([userId]);
+      while (stmt.step()) {
+        const row = stmt.getAsObject();
+        (String(row.effect) === "grant" ? grants : denies).push(String(row.permission));
+      }
+    } finally {
+      stmt.free();
+    }
+    return { grants, denies };
+  }
+
+  async setUserPermissionOverrides(userId: string, overrides: UserPermissionOverrides): Promise<void> {
+    this.db.run("BEGIN");
+    try {
+      this.db.run("DELETE FROM security_user_permission_overrides WHERE userId = ?", [userId]);
+      for (const permission of overrides.grants) {
+        this.db.run(
+          "INSERT INTO security_user_permission_overrides (userId, permission, effect) VALUES (?, ?, 'grant')",
+          [userId, permission]
+        );
+      }
+      for (const permission of overrides.denies) {
+        this.db.run(
+          "INSERT INTO security_user_permission_overrides (userId, permission, effect) VALUES (?, ?, 'deny')",
+          [userId, permission]
+        );
+      }
+      this.db.run("COMMIT");
+    } catch (error) {
+      this.db.run("ROLLBACK");
+      throw error;
+    }
+    await this.persist(true);
+  }
+
   // ── Sessions ────────────────────────────────────────────────────────────────
 
   async insertSession(record: SessionRecord): Promise<SessionRecord> {
@@ -436,6 +589,31 @@ export class SecurityStore {
       passwordChangedAt: String(row.passwordChangedAt),
       isProtectedSuperUser: Number(row.isProtectedSuperUser) === 1,
       roles: parseRoles(row.roles),
+      createdAt: String(row.createdAt),
+      createdBy: String(row.createdBy),
+      updatedAt: String(row.updatedAt),
+      updatedBy: String(row.updatedBy)
+    };
+  }
+
+  private mapCustomRole(row: Record<string, unknown>): CustomRoleRecord {
+    const roleId = String(row.id);
+    const permissions: string[] = [];
+    const stmt = this.db.prepare(
+      "SELECT permission FROM security_custom_role_permissions WHERE roleId = ? ORDER BY permission"
+    );
+    try {
+      stmt.bind([roleId]);
+      while (stmt.step()) permissions.push(String(stmt.getAsObject().permission));
+    } finally {
+      stmt.free();
+    }
+    return {
+      id: roleId,
+      name: String(row.name),
+      nameNorm: String(row.nameNorm),
+      description: String(row.description),
+      permissions,
       createdAt: String(row.createdAt),
       createdBy: String(row.createdBy),
       updatedAt: String(row.updatedAt),

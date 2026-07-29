@@ -28,6 +28,7 @@ import type { DriverProbeResult } from "@src/oracle/OracleDriverBundleStore";
 import type { JavaRuntimeProfileView } from "@src/oracle/JavaRuntimeProfile";
 import type { LoginOption, LoginResult, ProviderId, SessionValidationResult } from "@src/security/auth/AuthTypes";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
+import type { AdminRoleView } from "@src/security/admin/RoleAdminService";
 import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
@@ -37,14 +38,6 @@ import type { BrandingStateView } from "./ipc/branding.ipc";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
-/** A built-in role as projected to the renderer's Roles view. */
-interface RoleView {
-  id: string;
-  name: string;
-  description: string;
-  builtIn: boolean;
-  permissions: string[];
-}
 import type { CapacityPreview } from "@src/runner/concurrency/CapacityContracts";
 import type { WorkloadClass } from "@src/runner/concurrency/CapacityPlanner";
 import type { DurableArtifactRecord, DurableAttemptRecord, DurableRunRecord } from "@src/runner/store/RuntimeStoreSchema";
@@ -154,7 +147,14 @@ const api = {
         ipcRenderer.invoke("security:admin:listUsers", { sessionRef }) as Promise<AdminResponse<AdminUserView[]>>,
       createUser: (input: { sessionRef: string; username: string; password: string; displayName?: string; roles: string[] }) =>
         ipcRenderer.invoke("security:admin:createUser", input) as Promise<AdminResponse<AdminUserView>>,
-      updateUser: (input: { sessionRef: string; userId: string; displayName?: string; roles?: string[] }) =>
+      updateUser: (input: {
+        sessionRef: string;
+        userId: string;
+        displayName?: string;
+        roles?: string[];
+        permissionGrants?: string[];
+        permissionDenies?: string[];
+      }) =>
         ipcRenderer.invoke("security:admin:updateUser", input) as Promise<AdminResponse<AdminUserView>>,
       setStatus: (input: { sessionRef: string; userId: string; status: "active" | "disabled" | "archived" }) =>
         ipcRenderer.invoke("security:admin:setStatus", input) as Promise<AdminResponse<AdminUserView>>,
@@ -163,7 +163,13 @@ const api = {
       revokeSessions: (input: { sessionRef: string; userId: string }) =>
         ipcRenderer.invoke("security:admin:revokeSessions", input) as Promise<AdminResponse<undefined>>,
       listRoles: (sessionRef: string) =>
-        ipcRenderer.invoke("security:admin:listRoles", { sessionRef }) as Promise<AdminResponse<RoleView[]>>,
+        ipcRenderer.invoke("security:admin:listRoles", { sessionRef }) as Promise<AdminResponse<AdminRoleView[]>>,
+      createRole: (input: { sessionRef: string; name: string; description?: string; permissions: string[] }) =>
+        ipcRenderer.invoke("security:admin:createRole", input) as Promise<AdminResponse<AdminRoleView>>,
+      updateRole: (input: { sessionRef: string; roleId: string; name: string; description?: string; permissions: string[] }) =>
+        ipcRenderer.invoke("security:admin:updateRole", input) as Promise<AdminResponse<AdminRoleView>>,
+      deleteRole: (input: { sessionRef: string; roleId: string }) =>
+        ipcRenderer.invoke("security:admin:deleteRole", input) as Promise<AdminResponse<undefined>>,
       listAudit: (input: { sessionRef: string; limit?: number; offset?: number }) =>
         ipcRenderer.invoke("security:admin:listAudit", input) as Promise<AdminResponse<AuditRecord[]>>
     }

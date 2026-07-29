@@ -1,5 +1,14 @@
 # FEATURES
 
+## RBAC v2 custom roles and per-user overrides (2026-07-29)
+
+- Implemented: persisted custom-role create/update/delete with protected immutable built-ins,
+  trusted validation, fresh re-authentication, audit events, and affected-session revocation.
+- Implemented: direct per-user Inherit/Grant/Deny overrides. Role permissions are unioned, direct
+  grants are added, and direct denies take final precedence; unknown ids fail closed.
+- Implemented: custom-role administration in Roles, custom columns in the Permissions matrix, and
+  role plus direct-override editing in Users with keyboard-safe modal behavior.
+
 ## Secure authentication and Super User recovery (2026-07-29)
 
 - Implemented: offline local virtual-user authentication with one-time Super User bootstrap,

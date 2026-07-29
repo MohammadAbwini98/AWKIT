@@ -10,8 +10,12 @@ const MAX_PASSWORD = 400;
 const MAX_DISPLAY_NAME = 128;
 const MAX_SESSION_REF = 256;
 const MAX_USER_ID = 64;
-const MAX_ROLE_ID = 32;
-const MAX_ROLES = 8;
+const MAX_ROLE_ID = 64;
+const MAX_ROLE_NAME = 64;
+const MAX_ROLE_DESCRIPTION = 256;
+const MAX_PERMISSION = 96;
+const MAX_ROLES = 32;
+const MAX_PERMISSIONS = 128;
 
 export class InvalidAdminPayloadError extends Error {
   constructor(message = "Invalid request payload.") {
@@ -42,6 +46,13 @@ function roleArray(value: unknown, field: string): string[] {
   return value.map((r) => str(r, MAX_ROLE_ID, `${field}[]`));
 }
 
+function permissionArray(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.length > MAX_PERMISSIONS) {
+    throw new InvalidAdminPayloadError(`Invalid "${field}".`);
+  }
+  return value.map((permission) => str(permission, MAX_PERMISSION, `${field}[]`));
+}
+
 export function parseSessionField(input: unknown): { sessionRef: string } {
   return { sessionRef: str(record(input).sessionRef, MAX_SESSION_REF, "sessionRef") };
 }
@@ -70,6 +81,8 @@ export interface AdminUpdateUserPayload {
   userId: string;
   displayName?: string;
   roles?: string[];
+  permissionGrants?: string[];
+  permissionDenies?: string[];
 }
 
 export function parseAdminUpdateUser(input: unknown): AdminUpdateUserPayload {
@@ -78,7 +91,48 @@ export function parseAdminUpdateUser(input: unknown): AdminUpdateUserPayload {
     sessionRef: str(obj.sessionRef, MAX_SESSION_REF, "sessionRef"),
     userId: str(obj.userId, MAX_USER_ID, "userId"),
     displayName: optStr(obj.displayName, MAX_DISPLAY_NAME, "displayName"),
-    roles: obj.roles === undefined ? undefined : roleArray(obj.roles, "roles")
+    roles: obj.roles === undefined ? undefined : roleArray(obj.roles, "roles"),
+    permissionGrants: obj.permissionGrants === undefined
+      ? undefined
+      : permissionArray(obj.permissionGrants, "permissionGrants"),
+    permissionDenies: obj.permissionDenies === undefined
+      ? undefined
+      : permissionArray(obj.permissionDenies, "permissionDenies")
+  };
+}
+
+export interface AdminRoleMutationPayload {
+  sessionRef: string;
+  roleId?: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+}
+
+function parseRoleMutation(input: unknown, requireRoleId: boolean): AdminRoleMutationPayload {
+  const obj = record(input);
+  return {
+    sessionRef: str(obj.sessionRef, MAX_SESSION_REF, "sessionRef"),
+    roleId: requireRoleId ? str(obj.roleId, MAX_ROLE_ID, "roleId") : undefined,
+    name: str(obj.name, MAX_ROLE_NAME, "name"),
+    description: optStr(obj.description, MAX_ROLE_DESCRIPTION, "description"),
+    permissions: permissionArray(obj.permissions, "permissions")
+  };
+}
+
+export function parseAdminCreateRole(input: unknown): AdminRoleMutationPayload {
+  return parseRoleMutation(input, false);
+}
+
+export function parseAdminUpdateRole(input: unknown): AdminRoleMutationPayload & { roleId: string } {
+  return parseRoleMutation(input, true) as AdminRoleMutationPayload & { roleId: string };
+}
+
+export function parseAdminDeleteRole(input: unknown): { sessionRef: string; roleId: string } {
+  const obj = record(input);
+  return {
+    sessionRef: str(obj.sessionRef, MAX_SESSION_REF, "sessionRef"),
+    roleId: str(obj.roleId, MAX_ROLE_ID, "roleId")
   };
 }
 

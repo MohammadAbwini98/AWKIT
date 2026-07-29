@@ -316,7 +316,17 @@ export class AuthenticationService {
   }
 
   private snapshot(user: UserRecord, sessionRef: string): PrincipalSnapshot {
-    const permissions = effectivePermissions({ roles: user.roles, isProtectedSuperUser: user.isProtectedSuperUser });
+    const customRoles = new Map(
+      this.store.listCustomRoles().map((role) => [role.id, role.permissions] as const)
+    );
+    const overrides = this.store.getUserPermissionOverrides(user.id);
+    const permissions = effectivePermissions({
+      roles: user.roles,
+      isProtectedSuperUser: user.isProtectedSuperUser,
+      customRoles,
+      grants: overrides.grants,
+      denies: overrides.denies
+    });
     return {
       userId: user.id,
       username: user.username,

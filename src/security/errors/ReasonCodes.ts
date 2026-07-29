@@ -47,8 +47,16 @@ export const AuthReason = {
   USERNAME_TAKEN: "USERNAME_TAKEN",
   /** The target user does not exist. */
   USER_NOT_FOUND: "USER_NOT_FOUND",
-  /** A supplied role id is not a known built-in role. */
+  /** A supplied role id is not a known built-in or custom role. */
   INVALID_ROLE: "INVALID_ROLE",
+  /** A supplied permission is not in the application permission registry. */
+  INVALID_PERMISSION: "INVALID_PERMISSION",
+  /** The requested custom-role name is already in use. */
+  ROLE_NAME_TAKEN: "ROLE_NAME_TAKEN",
+  /** The requested custom role does not exist. */
+  ROLE_NOT_FOUND: "ROLE_NOT_FOUND",
+  /** Built-in roles are protected and cannot be edited or deleted. */
+  BUILT_IN_ROLE: "BUILT_IN_ROLE",
   /** Generic catch-all; details only in the audit log. */
   UNKNOWN: "UNKNOWN"
 } as const;

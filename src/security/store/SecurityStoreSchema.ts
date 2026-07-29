@@ -94,6 +94,37 @@ export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
       `ALTER TABLE security_provisioning ADD COLUMN recoverySecret TEXT`,
       `ALTER TABLE security_provisioning ADD COLUMN recoveryUsedAt TEXT`
     ]
+  },
+  {
+    version: 4,
+    name: "rbac-v2-custom-roles-and-overrides",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS security_custom_roles (
+         id TEXT PRIMARY KEY,
+         name TEXT NOT NULL,
+         nameNorm TEXT NOT NULL UNIQUE,
+         description TEXT NOT NULL,
+         createdAt TEXT NOT NULL,
+         createdBy TEXT NOT NULL,
+         updatedAt TEXT NOT NULL,
+         updatedBy TEXT NOT NULL
+       )`,
+      `CREATE TABLE IF NOT EXISTS security_custom_role_permissions (
+         roleId TEXT NOT NULL,
+         permission TEXT NOT NULL,
+         PRIMARY KEY (roleId, permission)
+       )`,
+      `CREATE TABLE IF NOT EXISTS security_user_permission_overrides (
+         userId TEXT NOT NULL,
+         permission TEXT NOT NULL,
+         effect TEXT NOT NULL CHECK (effect IN ('grant', 'deny')),
+         PRIMARY KEY (userId, permission)
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_security_custom_role_permissions_role
+         ON security_custom_role_permissions (roleId)`,
+      `CREATE INDEX IF NOT EXISTS idx_security_user_permission_overrides_user
+         ON security_user_permission_overrides (userId)`
+    ]
   }
 ];
 
@@ -122,6 +153,23 @@ export interface UserRecord {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+}
+
+export interface CustomRoleRecord {
+  id: string;
+  name: string;
+  nameNorm: string;
+  description: string;
+  permissions: string[];
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface UserPermissionOverrides {
+  grants: string[];
+  denies: string[];
 }
 
 export interface SessionRecord {

@@ -16,6 +16,14 @@ export function adminReasonMessage(reason: string | undefined, errors?: string[]
         return "That user no longer exists.";
       case "INVALID_ROLE":
         return "Invalid role selection.";
+      case "INVALID_PERMISSION":
+        return "Invalid permission selection.";
+      case "ROLE_NAME_TAKEN":
+        return "That role name is already in use.";
+      case "ROLE_NOT_FOUND":
+        return "That custom role no longer exists.";
+      case "BUILT_IN_ROLE":
+        return "Built-in roles can't be changed.";
       case "PASSWORD_POLICY":
         return "That password doesn't meet the policy.";
       case "USERNAME_INVALID":
