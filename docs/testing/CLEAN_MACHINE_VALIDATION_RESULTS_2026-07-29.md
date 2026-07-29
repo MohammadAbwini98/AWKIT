@@ -154,6 +154,25 @@ reaching a Run control means traversing a long scrolling sidebar one Tab at a ti
 round-trip per step, and it was not completed. This is a limitation of the driver, not a product
 finding.
 
+### Host-side pointer input: two undocumented facts, both measured
+
+A second attempt added synthetic mouse control (`vm-click.ps1`) to replace Tab-counting, which is not
+viable here - the sidebar scrolls and its length depends on the signed-in principal's permissions, so
+a count calibrated on one screen overshoots on another. Two things about `Msvm_SyntheticMouse` are
+not evident from its MOF and cost real time:
+
+- **The absolute coordinate space is 0..32767, not 0..65535.** Any value above 32767 returns error
+  `32773`; 32767 and below return 0. The field is declared `uint16` but behaves as signed 16-bit.
+  Scaling to 65535 does not fail for small coordinates - it silently lands at roughly double the
+  intended position, which is why an early scroll aimed at the sidebar did nothing: the pointer was
+  over the content pane the whole time.
+- **`ClickButton`'s `ButtonIndex` is one-based.** Index 0 returns `32773`; 1 / 2 / 3 succeed as
+  left / right / middle.
+
+Both are now encoded in `vm-click.ps1`. Probing button indices blindly also fired clicks at whatever
+the pointer happened to be over, which shifted and then hid the application window - a reminder that
+this input path has no undo and should always be preceded by a screenshot.
+
 ### Two findings from the attempt
 
 **1. Unparseable profile JSON is quarantined, not lost - and that behaviour is now evidenced.**
