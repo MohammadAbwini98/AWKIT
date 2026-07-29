@@ -1,5 +1,17 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — global licensing attention complete
+
+`awkit-x13` is complete. The status bar shows licensing only when a permitted Super User needs to
+act; a healthy `VALID` license remains silent. It revalidates every 15 minutes and on focus/
+visibility return, and the status button navigates to Licensing. The e2e licensing seed path is now
+isolated and leaves tracked fixtures clean.
+
+Verification: licensing 62/62, real Electron licensing 23/23, build and script typecheck PASS. The
+validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 11 outstanding / 107 closed**. Hard-enforcement rollout (`awkit-1cc`) is still an
+owner policy decision rather than an implementation gap.
+
 ## TAKEOFF (2026-07-29) — signed machine licensing tracker reconciled
 
 `awkit-s05` is closed as already implemented. `src/licensing/**`, the offline issuer, trusted IPC,

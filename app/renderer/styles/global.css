@@ -2507,6 +2507,28 @@ table {
   color: var(--awkit-warning);
 }
 
+.status-chip.danger {
+  background: var(--awkit-danger-soft);
+  color: var(--awkit-danger);
+}
+
+.status-chip-action {
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.status-chip-action:focus-visible {
+  box-shadow: var(--awkit-focus-ring);
+  outline: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .status-chip-action:hover {
+    border-color: currentColor;
+  }
+}
+
 .state-pill.queued,
 .status-chip.neutral {
   background: var(--awkit-surface-inset);

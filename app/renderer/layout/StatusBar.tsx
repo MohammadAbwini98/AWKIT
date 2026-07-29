@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
+import {
+  LICENSE_REVALIDATE_INTERVAL_MS,
+  licenseAttentionFor,
+  type LicenseAttention
+} from "@src/licensing/LicenseAttention";
+import { Permission } from "@src/security/authz/Permissions";
+import { useSession } from "../security/SessionContext";
 
-export function StatusBar() {
+interface StatusBarProps {
+  readonly onOpenLicensing: () => void;
+}
+
+export function StatusBar({ onOpenLicensing }: StatusBarProps) {
+  const session = useSession();
   const [offlineReady, setOfflineReady] = useState("Checking");
   const [offlineTone, setOfflineTone] = useState<"ok" | "warn" | "neutral">("neutral");
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusSnapshot | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [licenseAttention, setLicenseAttention] = useState<(LicenseAttention & { detail: string }) | null>(null);
 
   useEffect(() => {
     window.playwrightFlowStudio.offlineRuntime
@@ -20,6 +33,55 @@ export function StatusBar() {
         setOfflineTone("warn");
       });
   }, []);
+
+  useEffect(() => {
+    const sessionRef = session?.principal.sessionRef;
+    const mayViewLicense = session?.principal.permissions.includes(Permission.LICENSE_VIEW);
+    if (!sessionRef || !mayViewLicense) {
+      setLicenseAttention(null);
+      return;
+    }
+
+    let active = true;
+    let busy = false;
+    const refresh = async (revalidate: boolean) => {
+      if (busy) return;
+      busy = true;
+      try {
+        const response = revalidate
+          ? await window.playwrightFlowStudio.licensing.revalidate(sessionRef)
+          : await window.playwrightFlowStudio.licensing.getStatus(sessionRef);
+        if (!active) return;
+        if (!response.ok || !response.value) {
+          setLicenseAttention(null);
+          return;
+        }
+        const attention = licenseAttentionFor(response.value.status);
+        setLicenseAttention(
+          attention ? { ...attention, detail: response.value.userAction } : null
+        );
+      } catch {
+        if (active) setLicenseAttention(null);
+      } finally {
+        busy = false;
+      }
+    };
+    const revalidate = () => void refresh(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") revalidate();
+    };
+
+    void refresh(false);
+    const timer = window.setInterval(revalidate, LICENSE_REVALIDATE_INTERVAL_MS);
+    window.addEventListener("focus", revalidate);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", revalidate);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [session?.principal.permissions, session?.principal.sessionRef]);
 
   useEffect(() => {
     let active = true;
@@ -62,6 +124,17 @@ export function StatusBar() {
       <span className={`status-chip ${runtimeTone}`} title={runtimeError ?? capacity?.blockedReason ?? runtimeStatus?.timestamp ?? undefined}>
         {runtimeLabel}
       </span>
+      {licenseAttention ? (
+        <button
+          type="button"
+          className={`status-chip status-chip-action ${licenseAttention.tone === "danger" ? "danger" : "warn"}`}
+          title={`${licenseAttention.detail} Open Licensing for details.`}
+          aria-label={`License attention: ${licenseAttention.label}. Open Licensing.`}
+          onClick={onOpenLicensing}
+        >
+          License: {licenseAttention.label}
+        </button>
+      ) : null}
     </footer>
   );
 }

@@ -86,6 +86,9 @@ and every `licensing:*` handler re-checks permission and license state.
    new machine.
 9. **What stays available when a license is invalid:** the app itself, the Licensing page, diagnostics,
    reports, and safe data export. Only **new licensed runs** are blocked (and only when enforcement is on).
+10. **Global attention:** permitted Super Users see a compact status-bar item only for states that need
+    action. A healthy `VALID` license stays silent. Status is revalidated every 15 minutes and when the
+    app regains focus/visibility; selecting the item opens Administration → Licensing.
 
 ### Storage locations (adaptive, admin-free)
 
@@ -119,7 +122,7 @@ and every `licensing:*` handler re-checks permission and license state.
 - **Adding entitlements:** extend the `Entitlement` union and check them in the trusted layer — no coupling
   to authentication/RBAC.
 - **Enforcement toggle:** `SPECTER_LICENSE_ENFORCE=true` turns on hard enforcement (default **off**).
-- **Test commands:** `npm run verify:licensing` (56 assertions — domain + RBAC), `npm run verify:avatar`
+- **Test commands:** `npm run verify:licensing` (62 assertions — domain + RBAC + global-attention policy), `npm run verify:avatar`
   (24), `npm run build` (tsc + bundles).
 
 ---

@@ -20,6 +20,10 @@ import type { TrustedKey } from "../src/licensing/crypto/TrustedKeys";
 import { validateLicense } from "../src/licensing/LicenseValidator";
 import { computeMachineFingerprint } from "../src/licensing/MachineFingerprint";
 import { LicenseService } from "../src/licensing/LicenseService";
+import {
+  LICENSE_REVALIDATE_INTERVAL_MS,
+  licenseAttentionFor
+} from "../src/licensing/LicenseAttention";
 import { LicenseStore, buildEnvelope, computeChecksum, type LicenseMeta } from "../src/licensing/store/LicenseStore";
 
 let passed = 0;
@@ -287,6 +291,26 @@ check("import is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICEN
 check("replace is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_REPLACE), true);
 check("revoke is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_REVOKE), true);
 check("view is NOT sensitive", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_VIEW), false);
+
+// ── Global attention policy + background cadence (awkit-x13) ─────────────────
+check("healthy VALID status stays globally silent", licenseAttentionFor(LicenseStatus.VALID), null);
+check("NOT_ACTIVATED surfaces warning attention", licenseAttentionFor(LicenseStatus.NOT_ACTIVATED)?.tone, "warning");
+check("EXPIRING_SOON surfaces warning attention", licenseAttentionFor(LicenseStatus.EXPIRING_SOON)?.tone, "warning");
+check(
+  "every non-healthy status has a global attention label",
+  Object.values(LicenseStatus)
+    .filter((status) => status !== LicenseStatus.VALID)
+    .every((status) => Boolean(licenseAttentionFor(status)?.label)),
+  true
+);
+check(
+  "invalid/mismatch/corrupted states use danger attention",
+  [LicenseStatus.INVALID_SIGNATURE, LicenseStatus.MACHINE_MISMATCH, LicenseStatus.CORRUPTED].every(
+    (status) => licenseAttentionFor(status)?.tone === "danger"
+  ),
+  true
+);
+check("background revalidation cadence is fifteen minutes", LICENSE_REVALIDATE_INTERVAL_MS, 15 * 60 * 1000);
 
 console.log(`\nlicensing: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

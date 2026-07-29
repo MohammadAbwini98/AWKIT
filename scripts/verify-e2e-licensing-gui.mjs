@@ -20,14 +20,16 @@ const { check, note, shotDir, summarize } = makeChecker("e2e-licensing");
 
 // One shared isolated profile for BOTH launches (launch B must see the same provisioned SU + fixtures).
 const dataRoot = mkdtempSync(path.join(tmpdir(), "awkit-e2e-lic-"));
-const baseEnv = { ...process.env, LOCALAPPDATA: dataRoot };
+const baseEnv = {
+  ...process.env,
+  LOCALAPPDATA: dataRoot,
+  MOCK_FIXTURES_WRITE_REPO: "false"
+};
 delete baseEnv.ELECTRON_RUN_AS_NODE;
 delete baseEnv.SPECTER_LICENSE_ENFORCE; // launch A must run with enforcement at its DEFAULT (unset)
 
 // Seed the mock workflows into the isolated profile before first launch (app IPC-compatible fixtures).
-// Side effect: seed-mock-fixtures.mjs ALSO rewrites the tracked repo copies under
-// resources/test-fixtures/mock-site/ (timestamp-only churn) — `git checkout -- resources/test-fixtures/`
-// after a run if you don't want that diff.
+// This verifier opts out of rewriting the tracked inspection copies.
 execFileSync(process.execPath, [path.join(repoRoot, "scripts", "seed-mock-fixtures.mjs")], {
   env: baseEnv,
   cwd: repoRoot,
@@ -46,6 +48,10 @@ const RUN_REQUEST = { workflowId: "mock-simple-workflow", dryRun: false, headles
     await win.waitForLoadState("domcontentloaded");
     await signInFirstRun(win);
     await win.waitForTimeout(400);
+
+    const globalAttention = win.getByRole("button", { name: /license attention: not activated/i });
+    await globalAttention.waitFor({ timeout: 10000 });
+    check("A0: global status bar surfaces an attention-only unlicensed state", (await globalAttention.count()) === 1);
 
     // A1 — unlicensed Licensing page renders real content (placeholder is gone).
     consoleWatch.setLabel("A1 page render");

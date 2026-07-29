@@ -4,6 +4,19 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — global license attention and background revalidation
+
+- **Task:** close `awkit-x13`.
+- **Implemented:** permission-aware status-bar polling; attention-only mapping for every non-healthy
+  license state; 15-minute and focus/visibility revalidation; keyboard-accessible navigation to
+  Licensing; and isolated fixture seeding for the real Electron verifier.
+- **Files:** `src/licensing/LicenseAttention.ts`, shell/status bar and token CSS, licensing
+  verifiers/fixture seeder, tracker/dashboard pins, licensing guide, and AI memory docs.
+- **Checks:** licensing **62/62**; real Electron licensing **23/23** across enforcement modes; build
+  and script typecheck PASS; verifier leaves tracked fixtures unchanged.
+- **Result:** closed. Healthy licenses add no shell noise; action-needed states are globally visible
+  only to principals who can view licensing.
+
 ## 2026-07-29 — Codex — signed machine-licensing tracker reconciliation
 
 - **Task:** reconcile open `awkit-s05` against the current repository.

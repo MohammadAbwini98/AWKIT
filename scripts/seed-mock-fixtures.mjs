@@ -310,10 +310,14 @@ const writeJson = (dir, name, value) => {
   fs.writeFileSync(path.join(dir, name), `${JSON.stringify(value, null, 2)}\n`, "utf8");
 };
 
-// 1) Inspectable fixtures under resources/test-fixtures/mock-site/
-for (const f of flows) writeJson(path.join(fixturesRoot, "flows"), `${f.id}.json`, f);
-for (const w of workflows) writeJson(path.join(fixturesRoot, "workflows"), `${w.id}.json`, w);
-writeJson(path.join(fixturesRoot, "data-sources"), "mock-users.json", mockUsers);
+// 1) Inspectable fixtures under resources/test-fixtures/mock-site/. Isolated verifiers opt out so
+// setup never dirties the tracked repository merely to seed a temporary runtime profile.
+const writeRepoFixtures = process.env.MOCK_FIXTURES_WRITE_REPO !== "false";
+if (writeRepoFixtures) {
+  for (const f of flows) writeJson(path.join(fixturesRoot, "flows"), `${f.id}.json`, f);
+  for (const w of workflows) writeJson(path.join(fixturesRoot, "workflows"), `${w.id}.json`, w);
+  writeJson(path.join(fixturesRoot, "data-sources"), "mock-users.json", mockUsers);
+}
 
 // 2) Seed into the runtime userData folders (explicit, dev-only)
 for (const f of flows) writeJson(flowsDir, `${f.id}.json`, f);
@@ -337,5 +341,5 @@ console.log(`Seeded ${flows.length} flows, ${workflows.length} workflows, 1 data
 console.log(`  flows      → ${flowsDir}`);
 console.log(`  workflows  → ${workflowsDir}`);
 console.log(`  data       → ${dataDir} (data file: ${mockUsersFile})`);
-console.log(`  fixtures   → ${fixturesRoot}`);
+console.log(`  fixtures   → ${writeRepoFixtures ? fixturesRoot : "skipped (MOCK_FIXTURES_WRITE_REPO=false)"}`);
 console.log(`Start the mock site first:  npm run mock-site  (default ${BASE})`);

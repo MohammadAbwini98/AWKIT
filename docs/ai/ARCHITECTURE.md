@@ -195,6 +195,10 @@ failure boundary under `src/testing/failures/`:
 
 ## Confirmed — process & data flow
 
+- **Global licensing attention:** `StatusBar` checks the session permission hint before calling the
+  sender-bound `licensing:getStatus`/`licensing:revalidate` IPC. It polls every 15 minutes and on
+  focus/visibility return. `LicenseAttention` maps only non-`VALID` states to warning/danger UI;
+  selecting the item routes to Administration → Licensing.
 - **Renderer ↔ main:** renderer calls `window.playwrightFlowStudio.<area>.<method>()` (preload
   contextBridge) → `ipcMain.handle` in `app/main/ipc/*` → profile stores / runner / settings.
   Data-source editor channels: `dataSources:readJson`, `dataSources:writeJson`,

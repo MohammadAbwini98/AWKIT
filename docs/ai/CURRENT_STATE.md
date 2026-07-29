@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Global license attention and background revalidation are complete (2026-07-29, current)
+
+`awkit-x13` is closed. For principals with `license.view`, the global status bar reads the trusted
+licensing API and renders a compact button only when the installation needs attention. `VALID`
+stays silent; not-activated/expiring/not-yet-valid states use warning tone, while expired,
+signature, machine, revoked, corrupted, clock, and unsupported states use danger tone. The button
+opens Administration → Licensing and exposes the trusted action text through its title/accessible
+name.
+
+The status refreshes every 15 minutes and immediately when the app regains focus or visibility.
+Calls remain sender-bound and permission-checked; users without licensing permission make no
+licensing status request. The Electron licensing verifier now seeds only its isolated profile and
+no longer rewrites tracked mock fixtures.
+
+Verification: licensing **62/62**; real Electron e2e licensing **23/23** in enforcement-off and
+enforcement-on modes; build and script typecheck PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 11 outstanding / 107 closed**.
+
 ## Signed machine-licensing tracker reconciliation is complete (2026-07-29, current)
 
 `awkit-s05` is closed as an already-delivered tracker item. The repository contains the complete

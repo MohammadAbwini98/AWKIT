@@ -52,7 +52,7 @@ export function AppShell({
           <main key={activeRouteId} className={animateContent ? "main-surface main-surface-animated" : "main-surface"}>
             {children}
           </main>
-          <StatusBar />
+          <StatusBar onOpenLicensing={() => onRouteChange("licensing")} />
         </div>
       </div>
     </div>
