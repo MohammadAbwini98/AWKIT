@@ -21,8 +21,9 @@ fighting the scroll. Workflow cards on the Instances page reveal their Run butto
 `-MoveOnly` is enough.
 
 The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED** - clean-machine runbook
-checks are an external gate, not ledger cases. Beads remain
-**120 total / 6 outstanding / 114 closed**.
+checks are an external gate, not ledger cases. Beads are now
+**122 total / 8 outstanding / 114 closed**: `awkit-vbj` (run reports omit Legacy Compatibility
+attribution) and `awkit-5ci` (runbook 8.7-8.11) were filed from this sitting.
 
 ## TAKEOFF (2026-07-29) - clean-machine 34 PASS / 0 FAIL; only run-based checks remain (superseded)
 

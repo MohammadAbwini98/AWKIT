@@ -70,16 +70,19 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("120 issues parse", beads.stats.total === 120, `got ${beads.stats.total}`);
+  check("122 issues parse", beads.stats.total === 122, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
-  // total also moved 118 → 119). Move this pin deliberately when a bead closes — never relax it to a
-  // range, or it stops noticing that the export was not refreshed (`bd close` does not rewrite
-  // `.beads/issues.jsonl`; `bd export` does).
+  // total also moved 118 → 119). Then 8/114 on 2026-07-29 when the clean-machine run-based checks
+  // filed `awkit-vbj` (run reports omit Legacy Compatibility attribution) and `awkit-5ci`
+  // (runbook 8.7-8.11), moving the total 120 → 122. Move this pin deliberately when a bead closes —
+  // never relax it to a range, or it stops noticing that the export was not refreshed
+  // (`bd close` does not rewrite `.beads/issues.jsonl`; `bd export -o .beads/issues.jsonl` does —
+  // plain `bd export` writes to STDOUT and leaves the file untouched).
   check(
-    "6 outstanding / 114 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 114,
+    "8 outstanding / 114 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 114,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
