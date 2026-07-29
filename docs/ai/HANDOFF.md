@@ -1,5 +1,18 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 8 complete
+
+`awkit-wza.9` is complete. The seeded lifecycle campaign exhaustively covers 176 auth × authz ×
+license × enforcement cells while randomizing the role subset and permission inside every cell.
+It drives the production `AuthorizationService` and the same pure run-gate policy now called by the
+Electron licensing runtime. Combined decisions fail closed, and corrupt generated expectations are
+reported as invariant failures.
+
+Verification: lifecycle 13/13; auth 49/49; authz 59/59; licensing 56/56; session context 11/11;
+script typecheck and verifier classification 150/150 PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 13 outstanding / 105 closed**.
+Phase 7 (`awkit-wza.8`) remains product-decision-gated.
+
 ## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 6 complete
 
 `awkit-wza.7` is complete. Campaign reports are versioned, non-overwriting JSON + Markdown. Duration

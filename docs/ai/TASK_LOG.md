@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — Randomized Test Lab Phase 8: lifecycle campaigns
+
+- **Task:** complete `awkit-wza.9` with combinatorial auth/RBAC/licensing coverage that reuses
+  production enforcement points.
+- **Implemented:** a deterministic 176-cell auth-state × grant/deny × license-status × enforcement
+  matrix with seeded role/permission assignments; production `AuthorizationService` evaluation;
+  a framework-agnostic license run-gate policy shared with Electron; and invariant reporting for
+  any expected/actual divergence.
+- **Files:** `src/testing/lifecycle/LifecycleCampaign.ts`, `src/licensing/RunGatePolicy.ts`,
+  `app/main/licensing/licenseRuntime.ts`, `scripts/verify-random-lifecycle.mts`, package/verifier
+  registry, tracker/dashboard pins, randomized-test plan, and AI memory docs.
+- **Checks:** lifecycle **13/13** across 176 scenarios; auth **49/49**; authz **59/59**; licensing
+  **56/56**; session context **11/11**; script typecheck PASS; classification **150/150**.
+- **Result:** Phase 8 is closed without adding duplicate auth/licensing assertions or changing
+  production licensing behavior.
+
 ## 2026-07-29 — Codex — Randomized Test Lab Phase 6: campaign reporting
 
 - **Task:** complete `awkit-wza.7` with truthful campaign JSON/Markdown reporting.

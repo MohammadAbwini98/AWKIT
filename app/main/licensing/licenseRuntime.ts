@@ -16,6 +16,7 @@ import { computeMachineFingerprint } from "@src/licensing/MachineFingerprint";
 import { LicenseService, type LicenseStatusReport } from "@src/licensing/LicenseService";
 import { LicenseStore } from "@src/licensing/store/LicenseStore";
 import { LicenseStatus } from "@src/licensing/LicenseTypes";
+import { applyLicenseRunGatePolicy } from "@src/licensing/RunGatePolicy";
 
 export const LICENSING_PRODUCT = "SpecterStudio";
 
@@ -86,8 +87,8 @@ export function evaluateRunGate(): RunGateDecision {
       availableSignals: []
     };
   }
-  if (!isLicenseEnforcementEnabled()) {
-    return { allowed: true, status, blockedByLicense: false };
-  }
-  return { allowed: status.operable, status, blockedByLicense: !status.operable };
+  return {
+    ...applyLicenseRunGatePolicy(status, isLicenseEnforcementEnabled()),
+    status
+  };
 }

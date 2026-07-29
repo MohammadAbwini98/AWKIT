@@ -128,6 +128,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:custom-brand-logo": { class: "integration", why: "Real BrandingLogoStore + BrandingValidation on a temp dir (signature/dimension/atomic/rollback/hash) mapped to the acceptance cases, plus structural source assertions; no browser." },
   "verify:random-failures": { class: "integration", why: "Writes immutable failure bundles to a real temporary filesystem, reloads them through the production reproducer, and verifies category-preserving shrink behavior plus Windows-safe CLI parsing." },
   "verify:random-reporting": { class: "integration", why: "Writes versioned campaign JSON and Markdown to a real temporary filesystem and verifies raw-sample percentiles, resource peaks, coverage/block reasons, failure categories, reproduction commands, non-overwrite behavior, and secret-canary refusal." },
+  "verify:random-lifecycle": { class: "unit", why: "Runs a seeded exhaustive auth × authz × license × enforcement matrix through the production AuthorizationService and pure production license run-gate policy using in-memory fakes only." },
 
   // ── Unit (pure in-process logic with fakes; no persistence/subprocess/browser) ───────────────
   "verify:canvas-layout": { class: "unit", why: "Pure graph-layout geometry over the real layout functions." },

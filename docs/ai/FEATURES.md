@@ -15,7 +15,9 @@
   invariants, authorized-target enforcement, upload materialization, and a 14/14 live/safety gate.
 - Implemented: versioned campaign JSON/Markdown with raw-sample duration percentiles, raw-capacity
   peaks, coverage/block reasons, outcomes, failure categories/signatures, and reproduction commands.
-- Planned: soak/fuzz campaigns and the optional Super-User UI remain Phases 7-8.
+- Implemented: deterministic 176-cell auth × authz × license × enforcement lifecycle campaigns
+  through the production authorization service and shared production license gate policy.
+- Planned: the optional Super-User Test Lab UI remains Phase 7 pending its recorded product decision.
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 

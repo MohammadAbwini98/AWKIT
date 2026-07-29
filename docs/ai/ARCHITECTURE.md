@@ -176,6 +176,12 @@ failure boundary under `src/testing/failures/`:
   `RandomTestRunResult[]`, per-dimension coverage, and failure/reproduction metadata; aggregated
   timing or capacity inputs have no place in its API. It computes percentiles and peaks once, then
   writes schema-versioned JSON and Markdown to a unique ignored campaign directory.
+- `LifecycleCampaign` is the Phase 8 combinatorial boundary. It deterministically enumerates the
+  complete auth state × authorization result × license status × enforcement-mode matrix, then uses
+  seeded role/permission assignments to drive `AuthorizationService.requirePermission()`.
+- `applyLicenseRunGatePolicy()` is the framework-agnostic allow/block rule shared by the lifecycle
+  campaign and `app/main/licensing/licenseRuntime.ts`; machine and file-system status discovery
+  remains in Electron, while the decision itself is pure and directly verifiable.
 
 ### When modifying features
 

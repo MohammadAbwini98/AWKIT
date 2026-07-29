@@ -28,6 +28,7 @@
     "verify:random-failures": "tsx scripts/verify-random-failures.mts",
     "verify:random-live": "node scripts/benchmark/run.mjs scripts/verify-random-live.mts",
     "verify:random-reporting": "tsx scripts/verify-random-reporting.mts",
+    "verify:random-lifecycle": "tsx scripts/verify-random-lifecycle.mts",
     "verify:comprehensive-e2e": "tsx scripts/verify-comprehensive-e2e.mts",
     "verify:accent-theme": "tsx scripts/verify-accent-theme.mts",
     "verify:accent-gui": "node scripts/verify-accent-gui.mjs",

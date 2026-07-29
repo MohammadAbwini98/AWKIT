@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Randomized Test Lab Phase 8 lifecycle campaigns are complete (2026-07-29, current)
+
+`awkit-wza.9` is closed. `LifecycleCampaign` deterministically covers all **176** auth-state ×
+authorization-expectation × license-status × enforcement-mode cells. Each cell uses a seeded,
+randomized built-in-role subset and permission while preserving complete matrix coverage. Unknown
+roles are injected in a bounded subset to exercise deny-by-default behavior.
+
+Campaign evaluation drives the real `AuthorizationService.requirePermission()` boundary with
+in-memory store/session adapters. The Electron execution gate now delegates its unchanged
+allow/block rule to the framework-agnostic `applyLicenseRunGatePolicy()`, which the campaign drives
+directly. Authentication failure, authorization denial, or enforced non-operable licensing each
+fail the combined decision closed; advisory licensing remains non-blocking.
+
+Verification: `verify:random-lifecycle` **13/13** over 176 scenarios; auth **49/49**; authz
+**59/59**; licensing **56/56**; session context **11/11**; script typecheck PASS; verifier
+classification **150/150**. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
+beads are **118 total / 13 outstanding / 105 closed**.
+
 ## Randomized Test Lab Phase 6 reporting is complete (2026-07-29, current)
 
 `awkit-wza.7` is closed. `RandomTestRunner` now returns the chronological raw engine capacity

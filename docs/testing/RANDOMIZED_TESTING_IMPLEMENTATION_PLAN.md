@@ -16,7 +16,8 @@ vacuous** and **§7 Defects found**.
 | 4 failure artifacts, shrinking, CLI | **done** | `verify:random-failures` **17/17**; campaign 25 workflows / 59 flows |
 | 5 live execution | **done** | `verify:random-live` **14/14** against the real engine/local Mock Site |
 | 6 campaign reporting | **done** | `verify:random-reporting` **13/13** |
-| 7–8 | not started | — |
+| 7 optional Super-User UI | decision required | owner must decide whether this surface ships |
+| 8 application-lifecycle campaigns | **done** | `verify:random-lifecycle` **13/13**, 176 matrix cells |
 
 > **Tranche 1 update (2026-07-21):** all 11 observed + 2 predicted round-trip defects (RT-01…RT-15) were
 > fixed in `flowProfileMapping.ts` and their catalog entries deleted. The round trip is lossless and the
@@ -345,6 +346,12 @@ request in the session summary.
 ---
 
 ## Phase 8 — Application-lifecycle campaigns *(auth / RBAC / licensing / reports / indicators)*
+
+**Implemented 2026-07-29.** `LifecycleCampaign` exhaustively emits the 176 auth-state ×
+authorization-result × license-status × enforcement-mode cells. Seeded role/permission selection
+varies the concrete assignment without creating coverage holes. Evaluation uses the production
+`AuthorizationService` and the license run-gate policy shared with Electron.
+`verify:random-lifecycle` passes **13/13**.
 
 Deliberately **last**, and deliberately thin: `verify:e2e-auth|rbac|licensing` plus
 `verify:auth|authz|licensing|session-context` already cover this ground with ~280 checks. The
