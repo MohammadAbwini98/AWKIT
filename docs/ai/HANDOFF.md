@@ -1,5 +1,21 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — no ready engineering; Oracle live-mode verifier path complete
+
+`bd ready` is empty. All 8 outstanding items are marked `blocked` according to their actual
+prerequisites instead of being offered as ready work: owner policy/product decisions, manual OS
+launches, clean-machine/soak environments, an authorized Oracle operator, or an approved real IdP.
+
+The one local gap embedded in blocked `awkit-7bu` is fixed. `verify-oracle-mock-ui-workflow` now has
+an explicit credential-gated real mode using the selected Java/JDBC runtime and the same persisted
+Data Source/flow/workflow, query service, production engine, and Chromium. Incomplete/invalid live
+configuration fails closed without mock fallback, and evidence redacts the supplied password.
+Default mode remains 7 PASS / 0 FAIL / 1 BLOCKED. A dummy localhost live request proved fail-closed
+selection and evidence redaction. Real Oracle execution still requires the authorized operator.
+
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads remain
+**118 total / 8 outstanding / 110 closed**.
+
 ## TAKEOFF (2026-07-29) — Active Directory provider complete
 
 `awkit-i3e` is closed. Trusted `AWKIT_AD_*` main-process configuration can now enable direct UPN
@@ -1000,8 +1016,9 @@ hand-edited.
   invariants as **NOT RUN** rather than passed. Verified with a 1-minute run that left the canonical
   artifact byte-identical.
 - **41 of 66** focused cases remain `NOT RUN` (Recorder 18, Reports 11, Settings 12).
-- **`ORA-LIVE-001`** (`awkit-7bu`) — blocked on an authorized operator *and* still has no real-mode
-  code path in `verify-oracle-mock-ui-workflow.mts`.
+- **Historical note, corrected 2026-07-29:** `ORA-LIVE-001` (`awkit-7bu`) was blocked on both an
+  authorized operator and a missing real-mode path. The path is now implemented; only the external
+  operator/credential lifecycle remains.
 - Clean/offline Windows VM walkthrough and protected-login manual handoffs remain external gates.
 
 ## PRIOR (2026-07-26): Settings 116/116; AWKIT-SET-001–004 resolved

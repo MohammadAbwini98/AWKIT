@@ -8248,3 +8248,23 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   environment interoperability is not claimed.
 - **Result:** `awkit-i3e` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
   beads are **118 total / 8 outstanding / 110 closed**.
+
+## 2026-07-29 — Codex — Oracle persisted-workflow real mode and blocker reconciliation
+
+- **Task:** remove the remaining local engineering gap from blocked `awkit-7bu`, then reconcile all
+  outstanding tracker states so owner/manual/external work is not advertised as ready engineering.
+- **Implemented:** `verify-oracle-mock-ui-workflow` now reads live configuration only when requested,
+  requires the complete credential set plus explicit non-production confirmation, resolves the
+  Settings-managed Java/driver path, requires real JDBC mode, and runs the same persisted Data Source,
+  flow, workflow, query service, production ExecutionEngine, and Chromium campaign.
+- **Fail-closed/security:** partial, invalid, missing-driver, incompatible-Java, bridge, or database
+  failure never falls back to the mock executor. The password is redacted from summary, runner,
+  bridge, service, and mock-site evidence; it is never printed.
+- **Checks:** default database-free campaign **7 PASS / 0 FAIL / 1 BLOCKED**; script typecheck PASS.
+  A complete dummy localhost live request failed as expected before execution, recorded real mode,
+  did not fall back, and persisted no password canary.
+- **Tracker:** the engineering-gap note on `awkit-7bu` is corrected; it remains blocked only on its
+  authorized operator/credential lifecycle. `awkit-1cc`, `awkit-8ri`, `awkit-az7`, `awkit-cm8`,
+  `awkit-wza.8`, and parent `awkit-wza` are now truthfully blocked instead of open/ready.
+- **Result:** `bd ready` is empty. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
+  beads remain **118 total / 8 outstanding / 110 closed**.

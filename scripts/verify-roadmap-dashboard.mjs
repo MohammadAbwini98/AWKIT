@@ -270,16 +270,15 @@ try {
     order.ordered.filter((o) => o.declaredBlocked).every((o) => o.state === "blocked"),
     "awkit-7bu said BLOCKED in its title for a day while the queue ranked it startable"
   );
-  // Two today: awkit-7bu (real Oracle 19c run) and awkit-cey (REC-022 real-IdP handoff). Both are
-  // held by an authorized operator plus an out-of-band prerequisite, which no `blocks` edge can
-  // express — hence the declared status. The layer assertion is `.every()`, not `[0]`: indexing the
-  // first element meant the second declared-blocked issue was never checked at all, which is exactly
-  // the hole that opened the moment this count went from 1 to 2. The count above it is the
-  // cardinality guard that keeps the `.every()` from passing vacuously.
+  // Seven non-epic items today: two authorized-operator/external gates plus five owner/manual/
+  // environment decisions. (The blocked Test Lab epic itself is intentionally excluded from the
+  // runnable queue by order.mjs.) None can be represented by a normal `blocks` edge, hence declared
+  // status. The layer assertion is `.every()`, not `[0]`; the cardinality guard prevents vacuous
+  // success if blocked items disappear from parsing.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 2 &&
-      order.externallyBlocked.length === 2 &&
+    order.stats.declaredBlocked === 7 &&
+      order.externallyBlocked.length === 7 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

@@ -1,18 +1,18 @@
 /**
  * End-to-end Oracle Data Source -> workflow -> current row -> real Chromium validation.
  *
- * This is intentionally database-free, but it does not stub AWKIT's integration boundaries:
- * it builds and spawns the real Java bridge in its explicit development mock mode, runs the
- * persisted read-only Oracle Data Source through OracleQueryService + DataSourceResolver, and
- * executes the persisted workflow/flow in real Chromium against the local Feature Test Lab.
+ * Default mode is database-free and drives the real Java bridge in its explicit development mock
+ * mode. When the complete AWKIT_ORACLE_LIVE_* authorization/config set is present, the same persisted
+ * Data Source, workflow, flow, OracleQueryService, ExecutionEngine, and real Chromium path instead run
+ * against the approved Oracle target. Live mode fails closed and never falls back to mock.
  *
- * The live Oracle 19c rerun is a separate credential-gated acceptance gate. This verifier never
- * reads, invents, prints, or persists a database password and never represents mock mode as live DB.
+ * The verifier never invents, prints, or persists a database password and never represents mock mode
+ * as live DB. The operator remains responsible for out-of-band credential mint/rotation/account lock.
  *
  * Run: `npm run verify:oracle-mock-ui-workflow`.
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
@@ -23,6 +23,8 @@ import type { ConcurrentRunProfile } from "@src/instances/ConcurrentRunProfile";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import type { StorageDirs } from "@src/instances/InstanceManager";
 import { OracleJdbcBridgeManager, type BridgeLaunchSpec } from "@src/oracle/OracleJdbcBridgeManager";
+import { OracleDriverBundleStore } from "@src/oracle/OracleDriverBundleStore";
+import { JavaRuntimeStore } from "@src/oracle/JavaRuntimeStore";
 import { OracleQueryService } from "@src/oracle/OracleQueryService";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -100,6 +102,16 @@ let serverLogs = "";
 let bridge: OracleJdbcBridgeManager | undefined;
 let directBrowser: Browser | undefined;
 let fatalError: string | undefined;
+let executionMode: "mock" | "live" = "mock";
+let liveRequested = false;
+let liveConfigError: string | undefined;
+let liveConfig: LiveOracleConfig | null = null;
+
+interface LiveOracleConfig {
+  url: string;
+  user: string;
+  password: string;
+}
 
 const instanceConfig: InstanceConfig = {
   id: "oracle-mock-ui-workflow",
@@ -113,6 +125,14 @@ const instanceConfig: InstanceConfig = {
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+function redactLivePassword(value: string): string {
+  return liveConfig?.password ? value.split(liveConfig.password).join("[REDACTED]") : value;
+}
+
+function safeJson(value: unknown): string {
+  return redactLivePassword(JSON.stringify(value, null, 2));
 }
 
 async function readJson<T>(path: string): Promise<T> {
@@ -174,38 +194,91 @@ async function runCase<T>(
   }
 }
 
-/**
- * ORA-LIVE-001 is BLOCKED for TWO independent reasons, and reporting only the first has already
- * understated the gap: (1) no authorized ephemeral credential is available, and (2) this verifier
- * has no real-mode code path at all — it always drives the explicit development mock bridge.
- * Supplying AWKIT_ORACLE_LIVE_* therefore does NOT make the case executable here. Say so, so an
- * operator who arrives with credentials is not left inferring that credentials alone would have
- * run it.
- */
-function addLiveOracleBlock(): void {
-  if (cases.some((item) => item.id === "ORA-LIVE-001")) return;
-  const liveEnvNames = ["AWKIT_ORACLE_LIVE_URL", "AWKIT_ORACLE_LIVE_USER", "AWKIT_ORACLE_LIVE_PASSWORD"];
-  // Presence only — a value is never read, printed, or persisted.
-  const livePresent = liveEnvNames.filter((name) => Boolean(process.env[name])).length;
-  const now = new Date().toISOString();
-  const details = livePresent
-    ? `AWKIT_ORACLE_LIVE_* is set (${livePresent}/${liveEnvNames.length} present), but this verifier has NO ` +
-      "real-mode path: it always drives the explicit development mock bridge. It did NOT connect to a database, " +
-      "and this run proves nothing about live Oracle. The generic live matrix is `npm run verify:oracle-live`; " +
-      "the exact persisted-workflow live rerun is still unimplemented."
-    : "Not executed: requires an authorized operator to unlock SPECTER_READER, mint an ephemeral password, " +
-      "supply AWKIT_ORACLE_LIVE_URL/AWKIT_ORACLE_LIVE_USER/AWKIT_ORACLE_LIVE_PASSWORD, run the gate, then rotate " +
-      "and lock the account. Credentials alone are NOT sufficient — this verifier has no real-mode path yet.";
-  if (livePresent) {
-    console.warn(
-      `\n[ORA-LIVE-001] WARNING: live Oracle environment variables are set (${livePresent}/${liveEnvNames.length}), ` +
-        "but this verifier only runs the development mock bridge. Nothing here was executed against a database."
-    );
+function resolveLiveConfig(): LiveOracleConfig | null {
+  const names = ["AWKIT_ORACLE_LIVE_URL", "AWKIT_ORACLE_LIVE_USER", "AWKIT_ORACLE_LIVE_PASSWORD"] as const;
+  const present = names.filter((name) => Boolean(process.env[name])).length;
+  liveRequested = present > 0 || process.env.AWKIT_ORACLE_LIVE_CONFIRM_NONPROD === "1";
+  if (!liveRequested) return null;
+  if (present !== names.length) {
+    throw new Error(`Live Oracle mode requires all three credential variables (${present}/${names.length} present).`);
   }
+  if (process.env.AWKIT_ORACLE_LIVE_CONFIRM_NONPROD !== "1") {
+    throw new Error("Live Oracle mode requires AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1.");
+  }
+  return {
+    url: process.env.AWKIT_ORACLE_LIVE_URL!,
+    user: process.env.AWKIT_ORACLE_LIVE_USER!,
+    password: process.env.AWKIT_ORACLE_LIVE_PASSWORD!
+  };
+}
+
+function resolveLiveLaunchSpec(): BridgeLaunchSpec {
+  const localData = join(process.env.LOCALAPPDATA ?? process.env.APPDATA ?? ROOT, "SpecterStudio");
+  const separator = process.platform === "win32" ? ";" : ":";
+  const bundleId = process.env.AWKIT_ORACLE_LIVE_DRIVER_BUNDLE_ID;
+  let driverJars: string[] = [];
+  let requiredJavaMajor: number | undefined;
+
+  if (bundleId) {
+    const store = new OracleDriverBundleStore({ folder: join(localData, "oracle-drivers") });
+    const bundle = store.get(bundleId);
+    if (!bundle) throw new Error("The selected Oracle driver bundle was not found.");
+    const integrity = store.revalidateChecksums(bundleId);
+    if (integrity === "checksum-failed" || integrity === "missing") {
+      throw new Error(`The selected Oracle driver bundle failed integrity validation (${integrity}).`);
+    }
+    requiredJavaMajor = bundle.requiredJavaMajor;
+    driverJars = [
+      join(bundle.managedDirectory, bundle.jdbcJar),
+      ...bundle.companionJars.map((item) => join(bundle.managedDirectory, item))
+    ];
+  } else {
+    const lib = join(ROOT, "resources", "oracle-jdbc", "lib");
+    driverJars = existsSync(lib)
+      ? readdirSync(lib).filter((name) => name.endsWith(".jar")).map((name) => join(lib, name))
+      : [];
+  }
+  if (!driverJars.length) throw new Error("Live Oracle mode requires an imported or vendored JDBC driver.");
+
+  process.env.AWKIT_ORACLE_BRIDGE_COMPILE_CLASSPATH = driverJars.join(separator);
+  const build = buildOracleBridge({ quiet: true });
+  if (!build.oracleCompiled) throw new Error("The Oracle bridge did not compile its real JDBC executor.");
+
+  let javaPath = build.jdk.java;
+  const javaProfileId = process.env.AWKIT_ORACLE_LIVE_JAVA_RUNTIME_PROFILE_ID;
+  if (javaProfileId) {
+    const runtime = new JavaRuntimeStore({ folder: join(localData, "java-runtimes") }).get(javaProfileId);
+    if (!runtime || runtime.status !== "valid" || !existsSync(runtime.javaExecutablePath)) {
+      throw new Error("The selected Java runtime is missing or not validated.");
+    }
+    if (requiredJavaMajor != null && runtime.javaMajorVersion < requiredJavaMajor) {
+      throw new Error(`The selected Java runtime is below the driver's required Java ${requiredJavaMajor}.`);
+    }
+    javaPath = runtime.javaExecutablePath;
+  }
+
+  return {
+    javaPath,
+    jarPath: build.jarPath,
+    classpath: [build.jarPath, ...driverJars].join(separator),
+    env: { AWKIT_ORACLE_REQUIRE_REAL: "1" }
+  };
+}
+
+function addLiveOracleResult(): void {
+  if (cases.some((item) => item.id === "ORA-LIVE-001")) return;
+  const now = new Date().toISOString();
+  const livePassed = executionMode === "live" && !fatalError && cases.every((item) => item.status === "PASS");
+  const status: Status = executionMode === "live" || liveRequested ? (livePassed ? "PASS" : "FAIL") : "BLOCKED";
+  const details = livePassed
+    ? "The exact persisted SPECTER_MOCKUI.MOCK_FORM_CASES Data Source, flow, and workflow ran through the real JDBC bridge, OracleQueryService, production ExecutionEngine, and Chromium. Operator credential rotation/account lock remains out-of-band."
+    : liveRequested
+      ? `Live mode was requested and failed closed${liveConfigError ? `: ${liveConfigError}` : "."}`
+      : "Not executed: the real-mode path is implemented, but an authorized operator must unlock SPECTER_READER, mint and supply an ephemeral password with the complete AWKIT_ORACLE_LIVE_* configuration, run this gate, then rotate the credential and lock the account.";
   cases.push({
     id: "ORA-LIVE-001",
     title: "Live Oracle 19c execution of the same persisted workflow",
-    status: "BLOCKED",
+    status,
     startedAt: now,
     endedAt: now,
     durationMs: 0,
@@ -669,7 +742,7 @@ async function runThroughExecutionEngine(
 }
 
 async function writeSummary(): Promise<void> {
-  addLiveOracleBlock();
+  addLiveOracleResult();
   const totals = {
     pass: cases.filter((item) => item.status === "PASS").length,
     fail: cases.filter((item) => item.status === "FAIL").length,
@@ -678,41 +751,45 @@ async function writeSummary(): Promise<void> {
   };
   await ensureDirs([ARTIFACT_ROOT]);
   await Promise.all([
-    writeFile(RUNNER_LOG_PATH, JSON.stringify(runnerLogs, null, 2), "utf8"),
-    writeFile(BRIDGE_LOG_PATH, `${bridgeLogs.join("\n")}${bridgeLogs.length ? "\n" : ""}`, "utf8"),
-    writeFile(SERVICE_LOG_PATH, `${serviceLogs.join("\n")}${serviceLogs.length ? "\n" : ""}`, "utf8"),
-    writeFile(join(ARTIFACT_ROOT, "mock-site.log"), serverLogs, "utf8")
+    writeFile(RUNNER_LOG_PATH, safeJson(runnerLogs), "utf8"),
+    writeFile(BRIDGE_LOG_PATH, redactLivePassword(`${bridgeLogs.join("\n")}${bridgeLogs.length ? "\n" : ""}`), "utf8"),
+    writeFile(SERVICE_LOG_PATH, redactLivePassword(`${serviceLogs.join("\n")}${serviceLogs.length ? "\n" : ""}`), "utf8"),
+    writeFile(join(ARTIFACT_ROOT, "mock-site.log"), redactLivePassword(serverLogs), "utf8")
   ]);
-  await writeFile(
-    RESULT_PATH,
-    JSON.stringify(
-      {
-        generatedAt: new Date().toISOString(),
-        mode: "database-free-real-bridge-real-browser",
-        liveOracleExecuted: false,
-        readiness:
-          totals.fail === 0
-            ? "DB-FREE ORACLE-TO-UI PATH READY; LIVE ORACLE ACCEPTANCE REQUIRES MANUAL CREDENTIAL HANDOFF"
-            : "NOT READY",
-        artifactRoot: ARTIFACT_ROOT,
-        fixtures: {
-          dataSource: DATA_SOURCE_PATH,
-          flow: FLOW_PATH,
-          workflow: WORKFLOW_PATH
-        },
-        totals,
-        cases,
-        fatalError
-      },
-      null,
-      2
-    ),
-    "utf8"
-  );
+  await writeFile(RESULT_PATH, safeJson({
+    generatedAt: new Date().toISOString(),
+    mode: executionMode === "live" ? "live-oracle-real-bridge-real-browser" : "database-free-real-bridge-real-browser",
+    liveOracleExecuted: executionMode === "live" && totals.fail === 0,
+    readiness:
+      totals.fail > 0
+        ? "NOT READY"
+        : executionMode === "live"
+          ? "LIVE PERSISTED ORACLE WORKFLOW PASSED; OPERATOR MUST ROTATE CREDENTIAL AND LOCK ACCOUNT"
+          : "DB-FREE ORACLE-TO-UI PATH READY; LIVE ORACLE ACCEPTANCE REQUIRES MANUAL CREDENTIAL HANDOFF",
+    artifactRoot: ARTIFACT_ROOT,
+    fixtures: {
+      dataSource: DATA_SOURCE_PATH,
+      flow: FLOW_PATH,
+      workflow: WORKFLOW_PATH
+    },
+    totals,
+    cases,
+    fatalError
+  }), "utf8");
 }
 
 async function main(): Promise<void> {
   await ensureDirs([ARTIFACT_ROOT]);
+  let liveModeEnabled: boolean;
+  try {
+    const resolvedLiveConfig = resolveLiveConfig();
+    liveConfig = resolvedLiveConfig;
+    liveModeEnabled = Boolean(resolvedLiveConfig);
+    executionMode = liveModeEnabled ? "live" : "mock";
+  } catch (error) {
+    liveConfigError = error instanceof Error ? error.message : "Invalid live Oracle configuration.";
+    throw new Error(liveConfigError);
+  }
   await ensureMockSite();
 
   const { flow, workflow, dataSourceProfile } = await runCase(
@@ -752,14 +829,17 @@ async function main(): Promise<void> {
     }
   );
 
-  const build = buildOracleBridge({ quiet: true });
-  const launchSpec: BridgeLaunchSpec = {
-    javaPath: build.jdk.java,
-    jarPath: build.jarPath,
-    env: { AWKIT_ORACLE_BRIDGE_MOCK: "1" }
-  };
+  const mockBuild = !liveModeEnabled ? buildOracleBridge({ quiet: true }) : null;
+  const launchSpec: BridgeLaunchSpec = liveModeEnabled
+    ? resolveLiveLaunchSpec()
+    : {
+        javaPath: mockBuild!.jdk.java,
+        jarPath: mockBuild!.jarPath,
+        env: { AWKIT_ORACLE_BRIDGE_MOCK: "1" }
+      };
   bridge = new OracleJdbcBridgeManager({
     resolveLaunchSpec: () => launchSpec,
+    requireRealDriver: liveModeEnabled,
     handshakeTimeoutMs: 20_000,
     onStderr: (line) => bridgeLogs.push(line),
     logger: (level, message) => bridgeLogs.push(`${level.toUpperCase()} ${message}`)
@@ -775,10 +855,20 @@ async function main(): Promise<void> {
 
   const queryService = new OracleQueryService({
     bridge,
-    resolveDescriptor: async () => ({
-      descriptor: { poolKey: "database-free-mock-form-fixture" },
-      redactedUrl: "mock://database-free-form-fixture"
-    }),
+    resolveDescriptor: async () => liveModeEnabled
+      ? {
+          descriptor: {
+            url: liveConfig!.url,
+            username: liveConfig!.user,
+            password: liveConfig!.password,
+            poolKey: "oracle-live-mock-ui-workflow"
+          },
+          redactedUrl: "oracle://configured-live-target"
+        }
+      : {
+          descriptor: { poolKey: "database-free-mock-form-fixture" },
+          redactedUrl: "mock://database-free-form-fixture"
+        },
     log: (level, message) => serviceLogs.push(`${level.toUpperCase()} ${message}`),
     maxConcurrency: 2
   });
@@ -818,13 +908,17 @@ async function main(): Promise<void> {
       const materializedRows = materialized[0] as OracleRow[];
       assert(materializedRows.length === 8, `Expected 8 rows, received ${materializedRows.length}.`);
       assert(materializedRows[0].CASE_LABEL === "happy-path-all-fields", "Bridge did not return the form fixture.");
-      assert(bridge?.helloInfo()?.executionMode === "mock", "Evidence did not identify the bridge as mock mode.");
+      assert(
+        bridge?.helloInfo()?.executionMode === (liveModeEnabled ? "real" : "mock"),
+        `Evidence did not identify the bridge as ${liveModeEnabled ? "real" : "mock"} mode.`
+      );
       assert(queryService.getMetrics().successes === 1, "OracleQueryService did not record one successful query.");
       return {
         value: { resolvedDataSource: resolved, rows: materializedRows },
-        details:
-          "Three concurrent consumers shared one real executeQuery RPC; the explicit mock bridge returned all 8 Oracle-shaped rows.",
-        evidence: [build.jarPath, BRIDGE_LOG_PATH, SERVICE_LOG_PATH]
+        details: liveModeEnabled
+          ? "Three concurrent consumers shared one real executeQuery RPC; the approved Oracle target returned all 8 persisted fixture rows."
+          : "Three concurrent consumers shared one real executeQuery RPC; the explicit mock bridge returned all 8 Oracle-shaped rows.",
+        evidence: [launchSpec.jarPath, BRIDGE_LOG_PATH, SERVICE_LOG_PATH]
       };
     }
   );

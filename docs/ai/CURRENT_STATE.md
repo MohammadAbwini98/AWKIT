@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## No locally actionable tracker work remains; Oracle live-mode harness gap is fixed (2026-07-29, current)
+
+All **8 outstanding** beads are now truthfully `blocked`; `bd ready` returns no items. Five were
+previously open despite explicitly requiring owner decisions or external/manual execution:
+licensing enforcement (`awkit-1cc`), Settings OS/secure-storage GUI evidence (`awkit-8ri`), Reports
+OS launches (`awkit-az7`), external Oracle release gates (`awkit-cm8`), and the Test Lab production
+UI decision (`awkit-wza.8`, with parent epic `awkit-wza`). The other two external gates remain
+real-IdP handoff (`awkit-cey`) and live Oracle workflow evidence (`awkit-7bu`).
+
+The actionable part hidden inside blocked `awkit-7bu` is complete:
+`verify-oracle-mock-ui-workflow.mts` now selects an explicit real mode only when the complete
+`AWKIT_ORACLE_LIVE_*` set and non-production confirmation are present. It then uses the Settings
+Java/driver selections, requires the real JDBC bridge, and runs the same persisted Data Source,
+flow, workflow, `OracleQueryService`, production `ExecutionEngine`, and Chromium campaign. Partial
+or invalid live configuration fails closed with no mock fallback; the password is redacted from
+all evidence. Default database-free evidence remains **7 PASS / 0 FAIL / 1 BLOCKED**. A dummy
+local-only live request produced the expected real-mode failure with no password persisted.
+
+`awkit-7bu` remains blocked solely on an authorized operator provisioning the fixture and supplying,
+rotating, then locking the ephemeral reader credential. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads remain **118 total / 8 outstanding / 110 closed**.
+
 ## Active Directory authentication provider is complete (2026-07-29, current)
 
 `awkit-i3e` is closed. `ActiveDirectoryProvider` now performs direct user binds through the pinned
@@ -781,8 +803,10 @@ code edit. Restart the server after changing the tool; changing a *source file* 
 `verify:roadmap-dashboard` is **119 PASS / 0 FAIL**. The bead's title had said `BLOCKED` since
 2026-07-26 while its status stayed `open`, so every ready-work view offered it as startable. It is
 not: it needs an authorized operator for SYSDBA provisioning *and* an out-of-band ephemeral
-credential, and `scripts/verify-oracle-mock-ui-workflow.mts` still has no real-mode code path at
-all. Neither is expressible as a dependency edge, which is why the status field is the right home.
+credential, and at that time `scripts/verify-oracle-mock-ui-workflow.mts` had no real-mode code
+path. **Correction 2026-07-29:** the verifier path is now implemented; only the authorized
+operator/credential lifecycle remains blocked. The external prerequisite is not expressible as a
+dependency edge, which is why the status field remains the right home.
 
 Fixing that exposed a **latent trap in the dashboard**: it accepted only `open`/`closed` of bd's
 seven statuses and mapped everything not-closed to `open`. `bd update <id> --claim` sets
@@ -1658,12 +1682,11 @@ Two long-standing "gates" turned out not to be defects:
   user-selected-driver layout (the validator *fails* if a JRE or `lib\*.jar` is found). Fixed by
   reporting KB below 1 MB; **no driver or JRE was vendored**.
 
-**ORA-LIVE-001 is blocked by two things, not one.**
-`scripts/verify-oracle-mock-ui-workflow.mts` has **no real-mode code path** — it reads no
-`AWKIT_ORACLE_LIVE_*` variable and blocks unconditionally, so credentials alone would not make it
-executable. Tracked on bead `awkit-7bu`. Interim mitigation: the `BLOCKED` entry now states both
-reasons and warns loudly when those variables are present that nothing ran against a database
-(presence only — no value is read, printed, or persisted).
+**Historical finding (corrected 2026-07-29): ORA-LIVE-001 was blocked by two things, not one.**
+At this point `scripts/verify-oracle-mock-ui-workflow.mts` had no real-mode code path. That
+engineering gap is now fixed; complete authorized configuration selects the real JDBC path and
+fails closed otherwise. Bead `awkit-7bu` remains blocked only on the operator-controlled database
+fixture and ephemeral credential lifecycle.
 
 ## AWKIT-E2E-001 fixed — comprehensive campaign is 9/9 (2026-07-26)
 

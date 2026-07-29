@@ -17,7 +17,7 @@ real-world soak beyond the 30-minute harness — both **external**, documented b
 | **Java runtime Settings** | add/validate/set-default/bridge-test/remove; `java -version` parse; compatibility | ✅ **Cleared** — `verify:oracle-java-runtime` **48/48** |
 | **Authorized real Oracle functional matrix** | connect, prepared binds, truncation, type conversion, read-only policy block, permission error, **cancellation** — all via the Settings Java+driver path | ✅ **Cleared** — `verify:oracle-live` **7/7** real mode vs local Oracle 19c |
 | **Mock-UI fixture (data-driven form)** | `SPECTER_MOCKUI.MOCK_FORM_CASES` ↔ database-free twin stay in parity; every fixture value is a real `/form` control/option; read-only policy + `maxRows` hold on the fixture path | ✅ **Cleared** — `verify:oracle-mock-ui` **36/36**, no database required |
-| **Persisted mock-UI workflow** | Real bridge protocol + OracleQueryService/DataSourceResolver single-flight; persisted Data Source/flow/workflow; all row values in live DOM; two-instance bound; production ExecutionEngine; success and native-validation block terminals; screenshots/logs/reports | ✅ **Database-free cleared** — `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**; only the same-workflow live-19c rerun is blocked |
+| **Persisted mock-UI workflow** | Real bridge protocol + OracleQueryService/DataSourceResolver single-flight; persisted Data Source/flow/workflow; all row values in live DOM; two-instance bound; production ExecutionEngine; success and native-validation block terminals; screenshots/logs/reports | ✅ **Database-free cleared** — `verify:oracle-mock-ui-workflow` **7 PASS / 0 FAIL / 1 BLOCKED**; explicit real mode is implemented and fail-closed, while the same-workflow live-19c execution remains operator-blocked |
 | **Settings GUI walkthrough** | both Database Drivers cards render; metadata; validate; **real bridge launch + real ojdbc load**; deletion guard; no secrets; reduced-motion; 0 console errors | ✅ **Cleared** — `verify:oracle-drivers-gui` **30/30** (real Electron) |
 | **Packaging (offline, selection model)** | only the bridge jar is bundled; JRE/driver rejected if present; checksums enforced; app starts without Java | ✅ **Cleared** — `verify:oracle-packaging` **23/23**, `verify:oracle-offline-bundle` **11/11**, `verify:oracle-runtime-prep` **14/14**, `validate:offline` clean |
 | **Regression (cross-cutting)** | IPC surface, settings schema, profile store, secrets, data sources, concurrency, cancellation unaffected | ✅ **Cleared** — ipc-contract 4/4, settings-persistence 3/3, profile-store 13/13, secrets 16/16, data-editor 27/27, concurrency 78/78, cancellation 12/12 |
@@ -69,11 +69,14 @@ Run the complete database-free workflow and evidence campaign with:
 npm run verify:oracle-mock-ui-workflow
 ```
 
-It uses the explicit development mock executor but the real bridge process, query service, data-source
-resolver, persisted profiles, real Chromium, and production `ExecutionEngine`. Current evidence:
-`test-artifacts/oracle-mock-ui-workflow/2026-07-25T22-36-01-353Z/`. This does not clear the real-DB
-variant: rerun the same workflow after the operator provisions the schema and supplies the ephemeral
-reader credential out of band.
+Without live environment variables it uses the explicit development mock executor but the real bridge
+process, query service, data-source resolver, persisted profiles, real Chromium, and production
+`ExecutionEngine`. With all of `AWKIT_ORACLE_LIVE_URL`, `_USER`, `_PASSWORD`, and
+`AWKIT_ORACLE_LIVE_CONFIRM_NONPROD=1`, it resolves the selected Java/driver runtime, requires the real
+JDBC bridge, and runs that exact campaign against Oracle—never falling back to mock. Partial or invalid
+live configuration fails closed. Evidence redacts the password. This does not clear the real-DB
+variant until an authorized operator provisions the schema, supplies the ephemeral reader credential
+out of band, runs the gate, then rotates and locks the account.
 
 ## Soak — how to reproduce
 
