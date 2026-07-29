@@ -162,6 +162,7 @@
     "verify:popup-mock-site": "tsx scripts/verify-popup-mock-site.mts",
     "verify:packaged-runtime": "tsx scripts/verify-packaged-runtime.mts",
     "verify:packaged-walkthrough": "tsx scripts/verify-packaged-walkthrough.mts",
+    "verify:packaged-licensing": "tsx scripts/verify-packaged-licensing.mts",
     "verify:chromium-hardening": "tsx scripts/verify-chromium-hardening.mts",
     "verify:soak:runtime": "tsx scripts/verify-soak-runtime.mts",
     "verify:stress:concurrency": "tsx scripts/verify-stress-concurrency.mts",

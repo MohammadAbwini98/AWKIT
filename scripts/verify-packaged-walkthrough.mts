@@ -41,6 +41,13 @@ import { fileURLToPath } from "node:url";
 import { _electron as electron, type ElectronApplication, type Page } from "playwright";
 import { loadSqlJs } from "@src/runner/store/SqlJsLoader";
 import { capturePackagedAppPids, ensurePackagedAppDead, type PackagedAppPids } from "./helpers/packaged-process-tree.mts";
+import {
+  ISSUER_KEY_ENV,
+  cleanupMintedArtifacts,
+  mintVerificationLicense,
+  resolveIssuerKey,
+  sanitizeAppEnv
+} from "./helpers/packaged-license.mts";
 
 const root = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
@@ -69,6 +76,15 @@ const WALKTHROUGH_ACCOUNT = {
 
 let passed = 0;
 let failed = 0;
+let blocked = 0;
+
+/**
+ * Thrown when the packaged app cannot be licensed, so the real-execution parts cannot even be
+ * attempted. It is NOT a failure and NOT a silent skip: the run records BLOCKED and makes no claim
+ * about packaged execution in either direction.
+ */
+class PackagedLicensingBlocked extends Error {}
+
 function check(label: string, condition: unknown, detail?: string): void {
   if (condition) {
     passed += 1;
@@ -345,7 +361,10 @@ const appEnv = (localAppData: string): Record<string, string> => {
   delete env.ELECTRON_RUN_AS_NODE;
   env.LOCALAPPDATA = localAppData;
   env.AWKIT_MAX_BROWSERS = "2";
-  return env as Record<string, string>;
+  // The packaged application must never observe the issuer key path, and must never be handed the
+  // (already inert) test bypass — leaving it set would make this gate's evidence ambiguous about why
+  // a run was admitted.
+  return sanitizeAppEnv(env) as Record<string, string>;
 };
 
 type Api = { win: Page };
@@ -368,6 +387,219 @@ const api = {
   recorderStatus: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.recorder.getStatus()),
   recorderCancel: (t: Api) => t.win.evaluate(() => (window as any).playwrightFlowStudio.recorder.cancel())
 };
+
+/** Licensing IPC needs a session ref and a FRESH re-auth for import/remove (both are sensitive). */
+async function packagedSession(win: Page): Promise<string> {
+  const res = (await win.evaluate(
+    async (creds) =>
+      (window as any).playwrightFlowStudio.security.login({
+        providerId: "local",
+        username: creds.username,
+        password: creds.password
+      }),
+    WALKTHROUGH_ACCOUNT
+  )) as any;
+  if (!res?.ok) throw new Error(`packaged login failed: ${res?.reason ?? "unknown"}`);
+  return res.principal.sessionRef as string;
+}
+
+async function freshReauth(win: Page, sessionRef: string): Promise<void> {
+  const res = (await win.evaluate(
+    async (input) => (window as any).playwrightFlowStudio.security.reauth(input),
+    { sessionRef, password: WALKTHROUGH_ACCOUNT.password }
+  )) as any;
+  if (!res?.ok) throw new Error(`re-auth failed: ${res?.reason ?? "unknown"}`);
+}
+
+const licensingApi = {
+  status: (win: Page, ref: string) =>
+    win.evaluate(async (r) => (window as any).playwrightFlowStudio.licensing.getStatus(r), ref),
+  exportRequest: (win: Page, ref: string) =>
+    win.evaluate(async (r) => (window as any).playwrightFlowStudio.licensing.exportRequest(r), ref),
+  import: (win: Page, ref: string, license: unknown) =>
+    win.evaluate(async (input) => (window as any).playwrightFlowStudio.licensing.import(input), {
+      sessionRef: ref,
+      license
+    }),
+  remove: (win: Page, ref: string) =>
+    win.evaluate(async (r) => (window as any).playwrightFlowStudio.licensing.remove(r), ref)
+};
+
+interface LicensedSession {
+  licensed: boolean;
+  reason?: string;
+  sessionRef?: string;
+  workDir?: string;
+  serialNumber?: string;
+}
+
+/**
+ * License the packaged machine the way a real administrator would: read the fingerprint through the
+ * app's own IPC, mint a short-lived license with the EXTERNAL issuer, import it through the same
+ * channel the Licensing page uses, and confirm the app now considers itself operable.
+ *
+ * Blocks (never skips, never passes) when no issuer key is configured for this machine.
+ */
+async function licensePackagedMachine(t: Api, _localAppData: string): Promise<LicensedSession> {
+  const win = t.win;
+  const sessionRef = await packagedSession(win);
+
+  // The walkthrough profile is a FRESH install, so the migration window must be shut. Asserting it
+  // here is what stops grace from quietly becoming the mechanism that grants this gate its execution
+  // rights — the license below has to do that work, or the gate proves nothing about licensing.
+  const before = (await licensingApi.status(win, sessionRef)) as any;
+  check(
+    "packaged fresh profile starts NOT_ACTIVATED",
+    before?.value?.status === "NOT_ACTIVATED",
+    JSON.stringify(before?.value?.status)
+  );
+  check(
+    "no migration grace on the walkthrough profile (grace is not what licenses this gate)",
+    before?.value?.enforcement?.inGrace === false,
+    JSON.stringify(before?.value?.enforcement)
+  );
+  check(
+    "enforcement is ON in the packaged build",
+    before?.value?.enforcement?.enforced === true,
+    JSON.stringify(before?.value?.enforcement)
+  );
+
+  // Unlicensed, a real run must be refused. This is the "before" half of the licensing proof.
+  const refused = (await api.runWorkflow(t, {
+    workflowId: "mock-simple-workflow",
+    headless: true,
+    dryRun: false
+  })) as any;
+  check(
+    "unlicensed packaged app REFUSES a real run",
+    refused?.status === "licenseBlocked",
+    JSON.stringify(refused?.status)
+  );
+
+  const key = resolveIssuerKey();
+  if (!key.available) return { licensed: false, reason: key.reason, sessionRef };
+
+  const activation = (await licensingApi.exportRequest(win, sessionRef)) as any;
+  if (!activation?.ok || !activation.value?.fingerprintHash) {
+    return { licensed: false, reason: "the packaged app did not return an activation request", sessionRef };
+  }
+
+  const workDir = join(baseDir, `license-${stamp}`);
+  let minted: Awaited<ReturnType<typeof mintVerificationLicense>>;
+  try {
+    minted = await mintVerificationLicense({
+      repoRoot: root,
+      keyPath: key.keyPath as string,
+      activationRequest: activation.value,
+      workDir,
+      expiresInMinutes: 45
+    });
+  } catch (error) {
+    cleanupMintedArtifacts(workDir);
+    return {
+      licensed: false,
+      reason: `the external issuer failed: ${error instanceof Error ? error.message : String(error)}`,
+      sessionRef
+    };
+  }
+
+  check(
+    "minted license is bound to THIS machine's fingerprint",
+    minted.license.machineFingerprintHash === activation.value.fingerprintHash
+  );
+  check("minted license is marked as verification-issued", minted.license.licenseType === "packaged-verification");
+  check(
+    "minted license carries only the execution entitlement",
+    Array.isArray(minted.license.entitlements) &&
+      minted.license.entitlements.length === 1 &&
+      minted.license.entitlements[0] === "workflow.execute",
+    JSON.stringify(minted.license.entitlements)
+  );
+  const mintedLifetimeMs = Date.parse(minted.license.expiresAtUtc) - Date.now();
+  check(
+    "minted license is short-lived (under two hours)",
+    mintedLifetimeMs > 0 && mintedLifetimeMs < 2 * 60 * 60_000,
+    `${Math.round(mintedLifetimeMs / 60000)} minutes`
+  );
+
+  await freshReauth(win, sessionRef);
+  const imported = (await licensingApi.import(win, sessionRef, minted.license)) as any;
+  check(
+    "license imported through the app's own administrator IPC",
+    imported?.ok === true && imported.value?.ok === true,
+    JSON.stringify(imported?.reason ?? imported?.value?.rejectedReason)
+  );
+
+  const after = (await licensingApi.status(win, sessionRef)) as any;
+  // A deliberately short-lived license validates as EXPIRING_SOON, not VALID — the "expiring soon"
+  // window is 7 days. Assert OPERABILITY, which is what the run gate actually consults.
+  check(
+    "packaged app reports an operable license after import",
+    after?.value?.operable === true,
+    `${after?.value?.status} / operable=${after?.value?.operable}`
+  );
+  check(
+    "the run gate now admits runs",
+    after?.value?.enforcement?.runsAllowed === true,
+    JSON.stringify(after?.value?.enforcement)
+  );
+  check(
+    "admission is attributed to the license, NOT to migration grace",
+    after?.value?.enforcement?.reason === "LICENSE_OPERABLE" && after?.value?.enforcement?.inGrace === false,
+    JSON.stringify(after?.value?.enforcement)
+  );
+
+  return {
+    licensed: after?.value?.operable === true,
+    sessionRef,
+    workDir,
+    serialNumber: minted.license.serialNumber,
+    reason: after?.value?.operable === true ? undefined : "import did not yield an operable license"
+  };
+}
+
+/**
+ * Teardown: remove the license through the app's own IPC, delete every artifact the issuer produced,
+ * and confirm the machine has genuinely returned to a blocked state. The last part matters — a gate
+ * that licenses a machine and leaves it licensed has changed the machine it was measuring.
+ */
+async function unlicensePackagedMachine(t: Api, session: LicensedSession): Promise<void> {
+  const win = t.win;
+  if (!session.sessionRef) return;
+  try {
+    await freshReauth(win, session.sessionRef);
+    const removed = (await licensingApi.remove(win, session.sessionRef)) as any;
+    check("verification license removed through the app's own IPC", removed?.ok === true, JSON.stringify(removed?.reason));
+
+    const afterRemoval = (await licensingApi.status(win, session.sessionRef)) as any;
+    check(
+      "packaged app returns to NOT_ACTIVATED after removal",
+      afterRemoval?.value?.status === "NOT_ACTIVATED",
+      JSON.stringify(afterRemoval?.value?.status)
+    );
+    check(
+      "execution is blocked again once the license is gone",
+      afterRemoval?.value?.enforcement?.runsAllowed === false,
+      JSON.stringify(afterRemoval?.value?.enforcement)
+    );
+
+    const refusedAgain = (await api.runWorkflow(t, {
+      workflowId: "mock-simple-workflow",
+      headless: true,
+      dryRun: false
+    })) as any;
+    check(
+      "a real run is refused again after teardown",
+      refusedAgain?.status === "licenseBlocked",
+      JSON.stringify(refusedAgain?.status)
+    );
+  } catch (error) {
+    check("license teardown completed", false, error instanceof Error ? error.message : String(error));
+  } finally {
+    if (session.workDir) cleanupMintedArtifacts(session.workDir);
+  }
+}
+
 
 async function findInstance(t: Api, executionId: string, index = 1): Promise<any | null> {
   // instance.executionId is the raw run UUID, but instanceId is prefixed with the engine's
@@ -520,6 +752,7 @@ async function main(): Promise<void> {
   let sessionC: ElectronApplication | null = null;
   let portableProc: ReturnType<typeof spawn> | null = null;
   let killedInstanceId = "";
+  let licensedSession: LicensedSession = { licensed: false };
   const summary: Record<string, unknown> = { freshRootA, freshRootB, mockBase: MOCK_BASE, startedAt: new Date().toISOString() };
 
   try {
@@ -586,6 +819,20 @@ async function main(): Promise<void> {
       afterImport.some((wf) => wf.id === "mock-simple-workflow") && afterImport.some((wf) => wf.id === longWorkflowId),
       afterImport.map((wf) => wf.id).join(", ")
     );
+
+    // ── D-LIC: license this machine for real, the way an administrator would ────────────────────
+    //
+    // Enforcement is ON by default and a packaged build has NO bypass, so every real run below is
+    // refused until this succeeds. That is the point: the gate now proves the packaged app's
+    // import → validate → run path, not just its engine.
+    licensedSession = await licensePackagedMachine(tA, freshRootA);
+    if (!licensedSession.licensed) {
+      blocked += 1;
+      console.log(`  ⊘ Parts D–G real execution — BLOCKED: ${licensedSession.reason}`);
+      console.log("    Reporting BLOCKED rather than skipping: the four real runs below cannot be");
+      console.log("    attempted, so no claim is made about packaged execution either way.");
+      throw new PackagedLicensingBlocked(licensedSession.reason ?? "licensing unavailable");
+    }
 
     const runD = (await api.runWorkflow(tA, { workflowId: "mock-simple-workflow", headless: true, dryRun: false })) as any;
     check("workflow run accepted by the packaged engine", runD?.status === "started", JSON.stringify(runD)?.slice(0, 200));
@@ -748,6 +995,12 @@ async function main(): Promise<void> {
       return status?.isRecording === false ? true : null;
     }, 15000, 1000);
     check("recorder cancelled cleanly (browser closed)", recStopped === true);
+
+    // D-LIC teardown: hand the machine back exactly as it was found. Runs while session A is still
+    // alive, because removal goes through the app's own administrator IPC.
+    console.log("\nPart G-LIC — remove the verification license and confirm execution is blocked again");
+    await unlicensePackagedMachine(tA, licensedSession);
+    licensedSession = { licensed: false };
 
     console.log("\nPart H — clean shutdown of session A");
     await sessionA.close();
@@ -939,6 +1192,11 @@ async function main(): Promise<void> {
       loopbackConnections: observer.loopbackConnections,
       nonLoopback: observer.nonLoopback
     };
+  } catch (error) {
+    // A BLOCKED licensing precondition is a recorded outcome, not a failure and not a crash: the
+    // real-execution parts were never attempted, so nothing is claimed about them either way.
+    if (!(error instanceof PackagedLicensingBlocked)) throw error;
+    summary.licensing = { blocked: true, reason: error.message };
   } finally {
     observer.stop();
     // Phase 5.1D: tree-kill the REAL Electron main (not just the launcher stub) for every
@@ -976,7 +1234,14 @@ async function main(): Promise<void> {
     await writeFile(join(evidenceDir, "walkthrough-summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8").catch(() => undefined);
   }
 
-  console.log(`\nResult: ${passed} passed, ${failed} failed.`);
+  console.log(`\nResult: ${passed} passed, ${failed} failed${blocked ? `, ${blocked} blocked` : ""}.`);
+  if (blocked > 0) {
+    console.log(
+      `BLOCKED: licensed packaged execution was not attempted. Set ${ISSUER_KEY_ENV} on an authorized\n` +
+        "validation machine or CI runner to run it. This is recorded as BLOCKED, not skipped and not passed —\n" +
+        "no claim is made about packaged execution in either direction."
+    );
+  }
   console.log(`Evidence: ${evidenceDir}`);
   console.log("REMINDER: this proves the packaged app on THIS machine with a fresh profile and loopback-only");
   console.log("traffic. The clean/offline Windows VM walkthrough (PHASE5_OFFLINE_VM_WALKTHROUGH.md) is a");
