@@ -17,5 +17,14 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": []
+  "claims": [
+    {
+      "itemId": "bead:awkit-f3l",
+      "agent": "Codex",
+      "state": "in-progress",
+      "claimedAt": "2026-07-29T15:45:55.0146013Z",
+      "expiresAt": "2026-07-30T15:45:55.0146013Z",
+      "note": "Fix licensing revalidation/dispatch synchronization and verification hardening findings."
+    }
+  ]
 }
