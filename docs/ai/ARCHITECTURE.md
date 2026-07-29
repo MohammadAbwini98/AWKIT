@@ -172,6 +172,10 @@ failure boundary under `src/testing/failures/`:
   the measured pre-run baseline. The existing Mock Site pages are sufficient; the live verifier
   generates goto-only safe topologies over those registered pages, so Phase 5 adds no duplicate
   fixture.
+- `CampaignReportWriter` is the Phase 6 persistence boundary. It accepts raw
+  `RandomTestRunResult[]`, per-dimension coverage, and failure/reproduction metadata; aggregated
+  timing or capacity inputs have no place in its API. It computes percentiles and peaks once, then
+  writes schema-versioned JSON and Markdown to a unique ignored campaign directory.
 
 ### When modifying features
 

@@ -46,6 +46,8 @@ export interface RandomTestRunResult {
   readonly selectedConcurrency: number;
   readonly baselineCapacity: CapacitySnapshot;
   readonly finalCapacity: CapacitySnapshot;
+  /** Raw, chronological engine snapshots. Reporting computes peaks from these, never aggregates. */
+  readonly capacitySamples: readonly CapacitySnapshot[];
   readonly instances: readonly InstanceRuntimeState[];
   readonly invariants: RuntimeInvariantResult;
 }
@@ -153,6 +155,7 @@ export class RandomTestRunner {
     const allowedHosts = request.allowedHosts ?? DEFAULT_ALLOWED_HOSTS;
     assertAllowedTarget(request.baseUrl, allowedHosts);
     const baselineCapacity = this.engine.getCapacitySnapshot();
+    const capacitySamples: CapacitySnapshot[] = [baselineCapacity];
     const workloadClass = request.workloadClass ?? "medium";
     const capacityPlan = planCapacity({
       capabilities: request.capabilities,
@@ -195,6 +198,7 @@ export class RandomTestRunner {
     let timedOut = false;
     while (this.now() < deadline) {
       instances = this.engine.getInstances().filter((instance) => instance.executionId === executionId);
+      capacitySamples.push(this.engine.getCapacitySnapshot());
       if (instances.length === instanceCount && instances.every((instance) => TERMINAL.has(instance.status))) break;
       await sleep(pollIntervalMs);
     }
@@ -217,7 +221,9 @@ export class RandomTestRunner {
     ) {
       await sleep(pollIntervalMs);
       finalCapacity = this.engine.getCapacitySnapshot();
+      capacitySamples.push(finalCapacity);
     }
+    capacitySamples.push(finalCapacity);
 
     instances = this.engine.getInstances().filter((instance) => instance.executionId === executionId);
     let report = await RuntimeInvariantChecker.readReport(request.dirs.reports, executionId);
@@ -254,6 +260,7 @@ export class RandomTestRunner {
       selectedConcurrency,
       baselineCapacity,
       finalCapacity,
+      capacitySamples: structuredClone(capacitySamples),
       instances,
       invariants
     };

@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Randomized Test Lab Phase 6 reporting is complete (2026-07-29, current)
+
+`awkit-wza.7` is closed. `RandomTestRunner` now returns the chronological raw engine capacity
+snapshots observed during each run. `CampaignReportWriter` accepts individual run results—not
+pre-aggregated summaries—and writes versioned JSON plus human-readable Markdown under unique
+non-overwriting `reports/random-tests/campaigns/` directories.
+
+Reports preserve raw duration samples and compute nearest-rank P50/P90/P95/P99 directly from them;
+peak browsers, contexts, pages, flows, queue depth, and process RSS come from raw capacity samples.
+Coverage is grouped by dimension/key with blocked reasons intact. Outcomes, failure categories,
+signatures, and deduplicated reproduction commands remain explicit. A secret canary aborts before
+the report directory is allocated.
+
+Every non-completed or invariant-failing run must have execution-linked failure metadata and a
+reproduction command; contradictory reports are rejected before persistence.
+
+Verification: `verify:random-reporting` **13/13**; `typecheck:scripts` PASS. The validation ledger
+remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 14 outstanding / 104 closed**. Phase 7 (`awkit-wza.8`) is now dependency-ready.
+
 ## Randomized Test Lab Phase 5 is complete (2026-07-29, current)
 
 `awkit-wza.6` is closed. `RandomTestRunner` drives generated workflows through the real

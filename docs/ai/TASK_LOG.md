@@ -4,6 +4,23 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — Randomized Test Lab Phase 6: campaign reporting
+
+- **Task:** complete `awkit-wza.7` with truthful campaign JSON/Markdown reporting.
+- **Implemented:** live results now retain chronological raw capacity snapshots.
+  `CampaignReportWriter` accepts raw runs, coverage, and failure metadata; computes nearest-rank
+  duration percentiles and resource peaks once; groups coverage with blocked reasons; aggregates
+  outcomes/failure identities/reproduction commands; and writes schema-versioned unique JSON and
+  Markdown bundles. Secret canaries abort before persistence.
+- **Files:** `src/testing/reporting/CampaignReportWriter.ts`,
+  `scripts/verify-random-reporting.mts`, Phase 5 raw sampling, package/verifier registry,
+  tracker/dashboard pins, randomized-test plan, and AI memory docs.
+- **Checks:** random reporting **13/13**, including fail-closed missing failure metadata; script
+  typecheck PASS.
+- **Result:** Phase 6 is closed and Phase 7 is dependency-ready. The report API cannot accept
+  pre-aggregated durations or resource peaks, preventing the documented aggregate-of-aggregates
+  error by construction.
+
 ## 2026-07-29 — Codex — Randomized Test Lab Phase 5: real ExecutionEngine campaigns
 
 - **Task:** complete `awkit-wza.6`: generated definitions through the real execution engine and

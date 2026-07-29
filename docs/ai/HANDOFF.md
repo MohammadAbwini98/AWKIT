@@ -1,5 +1,18 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 6 complete
+
+`awkit-wza.7` is complete. Campaign reports are versioned, non-overwriting JSON + Markdown. Duration
+percentiles are computed only from raw run durations, and resource peaks only from the raw
+chronological capacity snapshots now returned by `RandomTestRunner`. Coverage/block reasons,
+outcomes, failure category/signature, and reproduction commands are preserved; secret canaries fail
+before persistence.
+
+Verification: random reporting 13/13 and script typecheck PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 14 outstanding / 104 closed**.
+Phase 7 (`awkit-wza.8`) is dependency-ready but requires the recorded product decision about
+shipping a Super-User Test Lab surface.
+
 ## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 5 complete
 
 `awkit-wza.6` is complete. Generated linear and isolated-page `waitAll` topologies now run through

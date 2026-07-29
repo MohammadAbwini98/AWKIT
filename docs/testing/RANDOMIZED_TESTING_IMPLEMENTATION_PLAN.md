@@ -9,13 +9,14 @@ vacuous** and **§7 Defects found**.
 | Phase | State | Verification |
 |---|---|---|
 | 0.1 extract designer mapping | **done** | designer imports the shared mapping; regression guard active |
-| 0.2–0.6 verifier fix + mock fixtures | not started (all touch tracked files) | — |
+| 0.2–0.6 verifier fix + mock fixtures | **done** | safe fixture pool + `verify:mock-site` **99/99** |
 | 1 generation core | **done** | `verify-random-generator.mts` — 49 passed, 0 failed |
 | 2 validation oracle | **done; all validation gaps fixed** | `verify-random-oracle.mts` — **27 passed, 0 failed** |
 | 3 persistence round-trip | **done; all defects since FIXED (Tranche 1)** | `verify-random-roundtrip.mts` — **26 passed, 0 failed** (was 8/15; now a regression guard) |
 | 4 failure artifacts, shrinking, CLI | **done** | `verify:random-failures` **17/17**; campaign 25 workflows / 59 flows |
 | 5 live execution | **done** | `verify:random-live` **14/14** against the real engine/local Mock Site |
-| 6–8 | not started | — |
+| 6 campaign reporting | **done** | `verify:random-reporting` **13/13** |
+| 7–8 | not started | — |
 
 > **Tranche 1 update (2026-07-21):** all 11 observed + 2 predicted round-trip defects (RT-01…RT-15) were
 > fixed in `flowProfileMapping.ts` and their catalog entries deleted. The round trip is lossless and the
@@ -301,7 +302,7 @@ baseline, records persisted once, report totals match records, no secrets in art
 The live verifier uses deterministic goto-only generated definitions over the existing safe fixture
 pool, including a forced `isolatedPage`/`waitAll` topology that exercises the production
 `PlaywrightRunner` branch factory. A never-terminal engine double proves the deadline produces
-`labTimeout` and cancels the product instance without inventing a new product status. Verification:
+`labTimeout` and cancels the product instance without inventing a new product status.
 The same gate refuses unauthorized target hosts before dispatch and proves the documented upload
 fixture is materialized under the campaign root without mutating generated originals.
 Verification: `verify:random-live` **14/14**, `verify:runner` **89/89**,
@@ -311,10 +312,19 @@ Verification: `verify:random-live` **14/14**, `verify:runner` **89/89**,
 
 ## Phase 6 — Campaign reporting
 
+**Completed 2026-07-29 (`awkit-wza.7`).**
+
 Campaign JSON + Markdown: coverage per dimension, blocked entries with reasons, duration
 percentiles computed **from raw samples** (never from aggregates — the repo already has an
 aggregate-of-aggregates trap documented at `observabilityAggregation.ts:6-8`), peak resource
 counts, failure categories, reproduction commands.
+
+`RandomTestRunner` retains chronological raw capacity snapshots. `CampaignReportWriter` accepts raw
+run results only, computes nearest-rank duration percentiles and resource peaks once, preserves
+coverage/block/failure/reproduction detail, writes schema-versioned unique bundles, and refuses
+secret canaries before allocating a directory. Failed, timed-out, or invariant-failing runs must
+carry execution-linked failure metadata plus a reproduction command; omissions fail closed.
+Verification: `verify:random-reporting` **13/13**.
 
 ---
 

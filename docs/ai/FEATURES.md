@@ -13,8 +13,9 @@
 - Implemented: capacity-planned live generated-flow execution through the real ExecutionEngine,
   including isolated-page `waitAll`, bounded polling, distinct `labTimeout`, report/resource/secret
   invariants, authorized-target enforcement, upload materialization, and a 14/14 live/safety gate.
-- Planned: campaign reporting, soak/fuzz campaigns, and the optional Super-User UI remain Phases
-  6-8.
+- Implemented: versioned campaign JSON/Markdown with raw-sample duration percentiles, raw-capacity
+  peaks, coverage/block reasons, outcomes, failure categories/signatures, and reproduction commands.
+- Planned: soak/fuzz campaigns and the optional Super-User UI remain Phases 7-8.
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 
