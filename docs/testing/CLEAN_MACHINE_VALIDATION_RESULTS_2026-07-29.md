@@ -3,10 +3,11 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 20 PASS / 0 FAIL / 3 sections NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 23 PASS / 0 FAIL. Sections 3, 8 and most of 5 NOT EXECUTED.**
 
-Read that precisely. Sections 1, 2, 4 and 7 were executed and every check in them passed. Sections 5,
-6 and 8 were **not executed**. Per the runbook's own §9 a FAIL is blocking and there were none — but
+Read that precisely. Sections 1, 2, 4 and 7 were executed in full and every check passed. Section 5
+was executed only as far as 5.1, section 6 as far as 6.1-6.2; sections 3 and 8 and the remainder of
+5 and 6 were **not executed**. Per the runbook's own §9 a FAIL is blocking and there were none — but
 this record does **not** claim the runbook as a whole passed, and the gate's overall execution status
 is therefore not "PASSED". The 2026-07-24 owner policy already makes clean-machine validation
 optional and non-blocking; nothing here changes that policy, it only replaces "never executed" with
@@ -115,6 +116,58 @@ the VM had in fact been ready almost immediately. It cost nothing here because t
 confirmed directly instead, but anyone reusing the tooling would have read that timeout as a
 provisioning failure. The marker now writes into the user's own profile, and the script documents
 polling the logged-on user over PowerShell Direct, which is the check that actually worked.
+
+---
+
+## Section 5 / 6 attempt, 2026-07-29 (second sitting)
+
+The upgrade profile from section 5.1 was seeded **before first launch**, as required: 24 flows (20
+valid, 2 off-path-only, 1 active-path-broken, 1 fixable with a mis-cased `NotEquals` operator), 24
+matching workflows, the pre-hardening FNV-era grant (unprefixed 16-hex `contentHash`), and a
+historical migration record. Seeder: `scripts/clean-machine/seed-upgrade-profile.ps1`.
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 5.1 | Launch; the seeded library appears | **PASS** | Workflows page reports **24 saved workflows**, listing all four named test workflows (`s5-library.png`) |
+| 6.1 | No installation and no admin rights required | **PASS** | portable ran from a folder as `awkituser`; process owner confirmed |
+| 6.2 | Offline throughout; no network prompts or failures | **PASS** | 0 network adapters; library loads, shell fully functional, AD provider correctly reports "Not configured" |
+| 5.2-5.9 | Inventory scan, Legacy pill, grant lifecycle | **NOT EXECUTED** | see below |
+| 6.3 | Hard-kill mid-run, recovery panel | **NOT EXECUTED** | requires a run in flight |
+| 8.1-8.12 | Validation, grants, migration, backup, undo | **NOT EXECUTED** | see below |
+
+### Why 5.2-5.9 and 8.x are not executed
+
+`ensureInventoryScan()` is called from exactly one place - `app/main/ipc/execution.ipc.ts` during a
+run request. Launching the app does **not** trigger it, and the renderer never calls
+`validation:runInventoryScan`. So every remaining section 5 check, and the grant-related section 8
+checks, are gated behind starting a real workflow run in the UI.
+
+Measured directly at the end of the attempt: `validation\inventory-scans\` contains **0** records,
+the seeded FNV grant is still present, and it is **not** revoked - all consistent with no scan
+having run. Nothing about grant retirement is claimed either way.
+
+Driving the UI is done from the host with synthetic keyboard input plus console screenshots
+(`vm-send-keys.ps1`, `vm-focus-app.ps1`, `vm-screenshot.ps1`) - deliberately, because a UI-automation
+harness inside the guest needs Node and would violate constraints 1.2-1.4. That loop works: it typed
+the whole first-run form, ticked the recovery-code box, signed in, and navigated the left nav. But
+reaching a Run control means traversing a long scrolling sidebar one Tab at a time with a screenshot
+round-trip per step, and it was not completed. This is a limitation of the driver, not a product
+finding.
+
+### Two findings from the attempt
+
+**1. Unparseable profile JSON is quarantined, not lost - and that behaviour is now evidenced.**
+The first seed wrote its JSON with `Set-Content -Encoding utf8`, which in Windows PowerShell 5.1
+emits a UTF-8 BOM (`EF BB BF`). Node's `JSON.parse` rejects a leading BOM. The application moved all
+24 affected workflow files to `<name>.json.corrupt-<timestamp>` and logged the parse error, rather
+than deleting them or failing the page. That is `ProfileStore.quarantineCorrupt`, and the user's data
+survived a malformed-profile encounter intact. Worth recording as a genuine positive: it was observed
+by accident, on a clean machine, at a 24-file scale.
+
+**2. The BOM trap was self-inflicted and is already documented in this repository.**
+`scripts/generate-dependency-manifest.ps1` carries the identical warning, for the identical reason.
+The seeder now writes UTF-8 without a BOM via `System.Text.UTF8Encoding($false)` and clears any
+leftover quarantine, so a re-run starts from an unambiguous state.
 
 ## Machine-readable record
 

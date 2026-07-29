@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) - clean-machine at 23 PASS / 0 FAIL; grant lifecycle still open
+
+Sections 1, 2, 4 and 7 are executed in full, plus 5.1 and 6.1-6.2. Sections 3, 8, 5.2-5.9 and 6.3 are
+NOT EXECUTED. See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook is still
+not claimed as PASSED and the 2026-07-24 optional/non-blocking policy is unchanged.
+
+**The one thing blocking the rest.** `ensureInventoryScan()` has a single caller - a run request in
+`execution.ipc.ts`. No scan means no Legacy grant lifecycle, so 5.2-5.9 and the grant half of section
+8 cannot be observed until a workflow is actually started in the UI. The seeded upgrade profile is
+already in place and correct; only the trigger is missing.
+
+**Two ways forward for whoever picks this up.** Either extend the host-side keyboard driver to reach
+a Run control (the loop works - `vm-send-keys.ps1` + `vm-focus-app.ps1` + `vm-screenshot.ps1`
+completed first-run setup and sign-in unaided; the cost is one screenshot round-trip per Tab across a
+long scrolling sidebar), or add a supported non-UI trigger. Note that installing any UI-automation
+harness in the guest would need Node and would violate constraints 1.2-1.4, invalidating the gate.
+
+Re-seed with `scripts/clean-machine/seed-upgrade-profile.ps1` before first launch. It writes BOM-free
+UTF-8 - `Set-Content -Encoding utf8` on PowerShell 5.1 emits a BOM that Node's JSON.parse rejects,
+which caused the app to quarantine all 24 seeded workflows on the first attempt.
+
+The VM `AWKIT-CleanMachine` is at `C:\AWKIT-CleanMachineVM` on the dev host and is currently seeded
+and signed in. Tear down with `provision-vm.ps1 -Remove`.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
+`bd ready` is empty. Five items are externally gated; `awkit-f3l` is claimed by Codex.
+
 ## TAKEOFF (2026-07-29) - clean-machine gate executed for the first time
 
 Clean-machine validation went from **never executed** to **partially executed with no failures**:

@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## Clean-machine sections 5/6 attempted; grant lifecycle remains unexecuted (2026-07-29, current)
+
+Clean-machine validation now stands at **23 PASS / 0 FAIL**: sections 1, 2, 4 and 7 in full, plus
+**5.1** (seeded upgrade library appears) and **6.1-6.2** (no install/no admin; offline throughout).
+Sections 3, 8, 5.2-5.9 and 6.3 remain **NOT EXECUTED**. Record:
+`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+The section 5 upgrade profile was seeded before first launch exactly as 5.1 requires - 24 flows (20
+valid, 2 off-path-only, 1 active-path-broken, 1 fixable), 24 workflows, the pre-hardening FNV-era
+grant, and a historical migration record - and the app loaded all 24 workflows on a clean offline
+machine.
+
+**Why the rest is not executed, precisely.** `ensureInventoryScan()` has exactly one caller,
+`execution.ipc.ts` during a run request. Launching the app does not trigger it and the renderer never
+calls `validation:runInventoryScan`, so every remaining section 5 check and the grant-related section
+8 checks sit behind starting a real run in the UI. Measured at the end: `inventory-scans\` holds 0
+records and the seeded FNV grant is present and unrevoked - consistent with no scan. Nothing about
+grant retirement is claimed in either direction.
+
+UI is driven from the host with synthetic keyboard plus console screenshots, deliberately: a
+UI-automation harness inside the guest needs Node and would violate constraints 1.2-1.4. That loop
+demonstrably works - it completed first-run setup, sign-in and nav traversal - but reaching a Run
+control means walking a long scrolling sidebar one Tab per screenshot round-trip, and it was not
+completed. A driver limitation, not a product finding.
+
+**A genuine product positive, observed by accident at 24-file scale.** The first seed wrote JSON with
+`Set-Content -Encoding utf8`, which in PowerShell 5.1 emits a UTF-8 BOM that Node's `JSON.parse`
+rejects. The application moved all 24 affected workflows to `<name>.json.corrupt-<timestamp>` and
+logged the parse error rather than deleting them or failing the page
+(`ProfileStore.quarantineCorrupt`). User data survived a malformed-profile encounter intact. The BOM
+trap was self-inflicted and is already documented in `generate-dependency-manifest.ps1`; the seeder
+now writes BOM-free UTF-8 and clears stale quarantine.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**120 total / 6 outstanding / 114 closed**.
+
 ## Clean-machine validation EXECUTED for the first time (2026-07-29, current)
 
 The offline clean-machine gate has never been executed in this project's history. It now has been,

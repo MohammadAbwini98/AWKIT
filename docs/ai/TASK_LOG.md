@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 - Claude - clean-machine sections 5/6 attempted; grant lifecycle still unexecuted
+
+- **Task:** run runbook sections 5, 6 and 8 against the offline VM.
+- **Built:** `scripts/clean-machine/seed-upgrade-profile.ps1` (section 5.1 upgrade profile: 24 flows
+  across valid/off-path/broken/fixable, 24 workflows, pre-hardening FNV grant, historical migration
+  record), plus host-side UI driving - `vm-send-keys.ps1` and `vm-focus-app.ps1`.
+- **Result: 23 PASS / 0 FAIL overall** (up from 20). New: 5.1 seeded library appears (24 saved
+  workflows), 6.1 no install/no admin, 6.2 offline throughout.
+- **NOT EXECUTED: 5.2-5.9, 6.3, 8.1-8.12.** `ensureInventoryScan()` has one caller - a run request in
+  execution.ipc.ts - so the whole Legacy grant lifecycle is gated behind starting a real run in the
+  UI. Measured at the end: 0 inventory-scan records, seeded FNV grant present and unrevoked. No claim
+  made about grant retirement in either direction.
+- **Why not completed:** host-side keyboard driving works (it completed first-run setup, sign-in and
+  nav traversal unaided) but reaching a Run control costs one screenshot round-trip per Tab across a
+  long scrolling sidebar. A guest-side UI harness would need Node and would violate constraints
+  1.2-1.4, invalidating the gate.
+- **Product positive, observed at 24-file scale:** unparseable profile JSON is quarantined as
+  `<name>.json.corrupt-<ts>` with the parse error logged, not deleted
+  (`ProfileStore.quarantineCorrupt`). User data survived intact.
+- **Own bug:** the first seed used `Set-Content -Encoding utf8`, which on PowerShell 5.1 emits a BOM
+  that Node's JSON.parse rejects - the trap `generate-dependency-manifest.ps1` already warns about.
+  Seeder now writes BOM-free UTF-8 and clears stale quarantine.
+- **Files:** `scripts/clean-machine/{seed-upgrade-profile,vm-send-keys,vm-focus-app}.ps1`,
+  `CLEAN_MACHINE_VALIDATION_RUNBOOK.md`,
+  `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`,
+  `docs/testing/clean-machine-evidence/*`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tests run:** verify:clean-machine-policy 28/28, verify:roadmap-dashboard 135/135.
+- **Result:** ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads 120 / 6 outstanding / 114 closed.
+
+---
+
 ## 2026-07-29 - Claude - clean-machine validation executed for the first time
 
 - **Task:** run CLEAN_MACHINE_VALIDATION_RUNBOOK.md, which had never been executed.
