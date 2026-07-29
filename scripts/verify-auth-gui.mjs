@@ -4,7 +4,7 @@
 //   • no-flash: the protected app shell (.app-shell) is NEVER present before authentication;
 //   • first-run provisioning creates the Super User and signs straight in (app shell appears);
 //   • the title-bar session chip shows the user + a working Sign-out that returns to the login screen;
-//   • the login screen shows Active Directory as a disabled "Coming soon" tab;
+//   • the login screen shows Active Directory as disabled when trusted configuration is absent;
 //   • re-login with the created credentials reaches the app shell;
 //   • the theme is applied (data-theme) and there are zero renderer console errors;
 //   • the login screen renders correctly in DARK mode (prefers-color-scheme: dark → data-theme=dark);
@@ -103,11 +103,11 @@ try {
   check("sign-out returns to the login screen", (await win.locator(".awkit-login-card").count()) >= 1);
   check("app shell removed after sign-out", (await win.locator(".app-shell").count()) === 0);
 
-  // Active Directory disabled + "coming soon".
+  // Active Directory is implemented but remains disabled until trusted main-process config is present.
   const adTab = win.locator(".awkit-login-tab", { hasText: "Active Directory" });
   check("Active Directory tab present", (await adTab.count()) >= 1);
   check("Active Directory tab is disabled", await adTab.first().isDisabled());
-  check("Active Directory marked coming soon", (await win.getByText(/coming soon/i).count()) >= 1);
+  check("Active Directory marked not configured", (await win.getByText(/not configured/i).count()) >= 1);
   await win.screenshot({ path: path.join(shotDir, "login.png") }).catch(() => undefined);
 
   await win.getByRole("button", { name: "Recover Super User" }).click();

@@ -10,7 +10,12 @@
 import type { ColumnCrypto } from "@src/security/crypto/ColumnCrypto";
 import { SecurityStore } from "@src/security/store/SecurityStore";
 import { AuthenticationService, type LockoutPolicy } from "@src/security/auth/AuthenticationService";
-import { ActiveDirectoryProvider, type AuthenticationProvider } from "@src/security/auth/AuthenticationProvider";
+import type { AuthenticationProvider } from "@src/security/auth/AuthenticationProvider";
+import {
+  ActiveDirectoryProvider,
+  type ActiveDirectoryConfig,
+  type DirectoryClientFactory
+} from "@src/security/auth/ActiveDirectoryProvider";
 import { LocalVirtualUserProvider } from "@src/security/auth/LocalVirtualUserProvider";
 import { DEFAULT_SESSION_POLICY, SessionManager, type SessionPolicy } from "@src/security/session/SessionManager";
 import { AuthorizationService } from "@src/security/authz/AuthorizationService";
@@ -30,6 +35,10 @@ export interface SecurityKernelOptions {
   now?: () => number;
   /** Test/dev override for the sensitive-op re-auth window (ms); production uses the 5-minute default. */
   reauthWindowMs?: number;
+  /** Trusted main-process AD configuration. Omitted means disabled and causes zero directory traffic. */
+  activeDirectory?: ActiveDirectoryConfig;
+  /** Test seam for the LDAP transport; production uses ldapts. */
+  directoryClientFactory?: DirectoryClientFactory;
 }
 
 export class SecurityKernel {
@@ -46,7 +55,10 @@ export class SecurityKernel {
     const store = await SecurityStore.open(dbPath, crypto);
     const providers = new Map<ProviderId, AuthenticationProvider>();
     providers.set("local", new LocalVirtualUserProvider(store));
-    providers.set("activeDirectory", new ActiveDirectoryProvider());
+    providers.set(
+      "activeDirectory",
+      new ActiveDirectoryProvider(store, options.activeDirectory, options.directoryClientFactory)
+    );
 
     const sessions = new SessionManager(store, options.sessionPolicy ?? DEFAULT_SESSION_POLICY, options.now);
     const auth = new AuthenticationService({ store, providers, sessions, lockout: options.lockout, now: options.now });

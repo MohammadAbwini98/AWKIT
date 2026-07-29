@@ -30,8 +30,10 @@ export const AuthReason = {
   PASSWORD_POLICY: "PASSWORD_POLICY",
   /** Chosen username does not satisfy the username rules. */
   USERNAME_INVALID: "USERNAME_INVALID",
-  /** The selected authentication provider is disabled (e.g., Active Directory — coming soon). */
+  /** The selected authentication provider is disabled or not fully configured. */
   PROVIDER_DISABLED: "PROVIDER_DISABLED",
+  /** The configured external provider could not be reached or its secure connection failed. */
+  PROVIDER_UNAVAILABLE: "PROVIDER_UNAVAILABLE",
   /** Secure OS storage is unavailable, so credentials cannot be read/written safely. */
   STORAGE_UNAVAILABLE: "STORAGE_UNAVAILABLE",
   // ── Authorization / administration (Phase 3) ─────────────────────────────────

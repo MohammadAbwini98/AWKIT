@@ -8,6 +8,7 @@
  */
 import { randomBytes } from "node:crypto";
 import type { SecurityStore } from "@src/security/store/SecurityStore";
+import type { ProviderId } from "@src/security/auth/AuthTypes";
 
 export interface SessionPolicy {
   /** Idle timeout: revoke if inactive longer than this. */
@@ -22,7 +23,7 @@ export const DEFAULT_SESSION_POLICY: SessionPolicy = {
 };
 
 export type SessionResolution =
-  | { valid: true; userId: string }
+  | { valid: true; userId: string; providerId: ProviderId }
   | { valid: false };
 
 export class SessionManager {
@@ -38,12 +39,13 @@ export class SessionManager {
   }
 
   /** Create a new session bound to a user; returns the opaque session id. */
-  async create(userId: string): Promise<string> {
+  async create(userId: string, providerId: ProviderId = "local"): Promise<string> {
     const id = randomBytes(32).toString("base64url");
     const nowMs = this.now();
     await this.store.insertSession({
       id,
       userId,
+      authProvider: providerId,
       createdAt: new Date(nowMs).toISOString(),
       lastActivityAt: new Date(nowMs).toISOString(),
       absoluteExpiresAt: new Date(nowMs + this.policy.absoluteMs).toISOString(),
@@ -68,7 +70,7 @@ export class SessionManager {
       return { valid: false };
     }
     await this.store.touchSession(sessionId, new Date(nowMs).toISOString());
-    return { valid: true, userId: session.userId };
+    return { valid: true, userId: session.userId, providerId: session.authProvider ?? "local" };
   }
 
   async revoke(sessionId: string): Promise<void> {

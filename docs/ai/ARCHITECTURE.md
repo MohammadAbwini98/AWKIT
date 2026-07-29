@@ -1,5 +1,20 @@
 # ARCHITECTURE
 
+## Security authentication boundary
+
+- `src/security/auth/AuthenticationProvider.ts` defines the provider contract.
+  `LocalVirtualUserProvider` verifies the DPAPI-wrapped local scrypt credential;
+  `ActiveDirectoryProvider` performs a direct UPN bind over LDAPS or StartTLS and resolves only an
+  existing `SecurityStore` user. Provider code remains UI/Electron-independent.
+- `app/main/security/securityKernel.ts` is the trusted configuration boundary. AD is registered only
+  from explicit `AWKIT_AD_*` process configuration; the renderer can select an enabled provider but
+  cannot enable or redirect it.
+- `AuthenticationService` owns shared account-state policy, audit, and session creation. Migration v5
+  stores `authProvider` on `security_sessions`, allowing reauth to return to the original provider
+  while authorization continues through the existing local role/override model.
+- The only AD egress is a user-initiated login or sensitive-operation reauth to the configured DC.
+  Disabled/incomplete configuration and unknown local identities do not instantiate an LDAP client.
+
 ## Confirmed — folder/module map
 
 ```text

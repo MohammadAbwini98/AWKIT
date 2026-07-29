@@ -182,6 +182,17 @@ export class AuthenticationService {
         await this.audit({ eventType: "LOGIN_FAILURE", result: "failure", reasonCode: AuthReason.ACCOUNT_DISABLED, targetType: "user", targetId: result.subjectId });
         return { ok: false, reason: AuthReason.INVALID_CREDENTIALS };
       }
+      if (result.reason === AuthReason.PROVIDER_UNAVAILABLE) {
+        await this.audit({
+          eventType: "LOGIN_FAILURE",
+          result: "failure",
+          reasonCode: AuthReason.PROVIDER_UNAVAILABLE,
+          targetType: "user",
+          targetId: result.subjectId,
+          detail: { providerId: request.providerId }
+        });
+        return { ok: false, reason: AuthReason.PROVIDER_UNAVAILABLE };
+      }
       // Wrong password on a known account → count the failure, maybe lock.
       if (result.subjectId) {
         const locked = await this.registerFailedAttempt(result.subjectId);
@@ -207,16 +218,16 @@ export class AuthenticationService {
       updatedBy: user.id
     };
     // Opportunistic rehash if the stored cost is below the current target (we have the plaintext here).
-    if (needsRehash(user.passwordSecret)) {
+    if (request.providerId === "local" && needsRehash(user.passwordSecret)) {
       patch.passwordSecret = hashPassword(request.password);
       patch.passwordAlgo = "scrypt";
       patch.passwordChangedAt = user.passwordChangedAt; // credential unchanged; only cost upgraded
     }
     await this.store.updateUser(user.id, patch);
 
-    const sessionRef = await this.sessions.create(user.id);
-    await this.audit({ eventType: "LOGIN_SUCCESS", result: "success", actorUserId: user.id, actorName: user.username, sessionId: sessionRef });
-    return { ok: true, principal: this.snapshot(user, sessionRef) };
+    const sessionRef = await this.sessions.create(user.id, request.providerId);
+    await this.audit({ eventType: "LOGIN_SUCCESS", result: "success", actorUserId: user.id, actorName: user.username, sessionId: sessionRef, detail: { providerId: request.providerId } });
+    return { ok: true, principal: this.snapshot(user, sessionRef, request.providerId) };
   }
 
   // ── Session validation / logout ──────────────────────────────────────────────
@@ -230,7 +241,7 @@ export class AuthenticationService {
       await this.sessions.revoke(sessionRef);
       return { valid: false, reason: AuthReason.SESSION_EXPIRED };
     }
-    return { valid: true, principal: this.snapshot(user, sessionRef) };
+    return { valid: true, principal: this.snapshot(user, sessionRef, resolution.providerId) };
   }
 
   async logout(sessionRef: string): Promise<void> {
@@ -283,9 +294,26 @@ export class AuthenticationService {
     if (!resolution.valid) return { ok: false, reason: AuthReason.SESSION_EXPIRED };
     const user = this.store.getUserById(resolution.userId);
     if (!user || user.status !== "active") return { ok: false, reason: AuthReason.SESSION_EXPIRED };
-    if (!verifyPassword(password, user.passwordSecret)) {
-      await this.audit({ eventType: "REAUTH", result: "failure", reasonCode: AuthReason.INVALID_CREDENTIALS, actorUserId: user.id, sessionId: sessionRef });
-      return { ok: false, reason: AuthReason.INVALID_CREDENTIALS };
+    const provider = this.providers.get(resolution.providerId);
+    const providerResult = provider?.isEnabled()
+      ? await provider.authenticate({ username: user.username, password })
+      : { ok: false as const, reason: AuthReason.PROVIDER_DISABLED };
+    if (!providerResult.ok || providerResult.subjectId !== user.id) {
+      const reason = !providerResult.ok && providerResult.reason === AuthReason.PROVIDER_UNAVAILABLE
+        ? AuthReason.PROVIDER_UNAVAILABLE
+        : AuthReason.INVALID_CREDENTIALS;
+      await this.audit({
+        eventType: "REAUTH",
+        result: "failure",
+        reasonCode: reason,
+        actorUserId: user.id,
+        sessionId: sessionRef,
+        detail: { providerId: resolution.providerId }
+      });
+      return {
+        ok: false,
+        reason
+      };
     }
     await this.sessions.markReauthenticated(sessionRef);
     await this.audit({ eventType: "REAUTH", result: "success", actorUserId: user.id, sessionId: sessionRef });
@@ -315,7 +343,7 @@ export class AuthenticationService {
     return false;
   }
 
-  private snapshot(user: UserRecord, sessionRef: string): PrincipalSnapshot {
+  private snapshot(user: UserRecord, sessionRef: string, providerId: ProviderId = "local"): PrincipalSnapshot {
     const customRoles = new Map(
       this.store.listCustomRoles().map((role) => [role.id, role.permissions] as const)
     );
@@ -332,7 +360,8 @@ export class AuthenticationService {
       username: user.username,
       displayName: user.displayName,
       isProtectedSuperUser: user.isProtectedSuperUser,
-      mustChangePassword: user.mustChangePassword,
+      // Forced change applies to AWKIT's local credential, not a domain credential managed by AD.
+      mustChangePassword: providerId === "local" && user.mustChangePassword,
       sessionRef,
       roles: user.isProtectedSuperUser && !user.roles.includes(SUPER_USER_ROLE) ? [...user.roles, SUPER_USER_ROLE] : user.roles,
       permissions: [...permissions]

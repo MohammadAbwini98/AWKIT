@@ -17,6 +17,12 @@
 - Runtime config comes from `.env` files, runtime profiles, and the UI settings store.
 - `PRODUCTION_OFFLINE` / `ALLOW_RUNTIME_DOWNLOADS` env vars influence offline mode; default behavior
   derives offline mode from `app.isPackaged` (`isProductionOffline()`).
+- Active Directory sign-in is disabled unless trusted main-process config explicitly sets
+  `AWKIT_AD_ENABLED=true` plus `AWKIT_AD_URL` and `AWKIT_AD_DOMAIN`. Plain LDAP is rejected unless
+  `AWKIT_AD_START_TLS=true`; LDAPS/StartTLS require TLS 1.2+ and always validate certificates.
+  `AWKIT_AD_CA_FILE` may name a local PEM enterprise CA. Directory passwords are used only for the
+  bind, never persisted or logged. AD identities must be pre-provisioned as AWKIT users; roles and
+  direct overrides remain local administrator-owned authorization state.
 
 ## Safe automation (product-level, non-negotiable)
 - WebFlow Studio is for **authorized** web UI automation only. Do **not** implement behavior that
@@ -39,6 +45,9 @@
 - Production offline mode must not execute remote scripts, load remote renderer code, fetch CDN
   assets, or attempt network downloads. Use bundled local resources only.
 - No telemetry / online update checks.
+- AD causes no background traffic and no login traffic while disabled or incompletely configured.
+  When explicitly enabled, only a user-initiated AD login/reauth contacts the configured directory
+  endpoint; Virtual User sign-in remains the offline fallback.
 
 ## Files that should never contain secrets
 - Any file under `docs/`, `docs/ai/`, `resources/`, `vendor/`, sample data, manifests, or committed

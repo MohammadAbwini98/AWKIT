@@ -142,7 +142,10 @@ control) in one launch: SU provisions the three users → sign out → per-role 
 - **Firefox / WebKit / mobile-device projects** — N/A (Electron).
 - **Screen-reader (NVDA/JAWS) audits, OS reduce-motion, long-translated-text/RTL** — MANUAL-ONLY.
 - **Sustained multi-day soak with live browsers** — BLOCKED (needs dedicated machine; `awkit-cm8`).
-- **Active Directory login** — feature not implemented (tab is `Coming soon`); N/A.
+- **Active Directory login** — production LDAPS/StartTLS provider is implemented and headless-tested
+  with an injected transport, including zero-egress disabled state, bind identity, failure mapping,
+  session persistence, and AD reauth. Live enterprise AD/DC interoperability is not run in this
+  workspace; default real-Electron coverage verifies the unconfigured state.
 - **Destructive/load testing of shared infra** — none exists (offline app); N/A.
 
 ---

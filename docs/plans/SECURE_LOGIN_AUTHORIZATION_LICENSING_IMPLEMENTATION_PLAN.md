@@ -45,9 +45,9 @@ Key decisions (justified in later sections):
    `SqliteRuntimeStore`) holds users/roles/permissions/sessions/audit/license-metadata. Password
    hashes and the signed-license blob are additionally wrapped with **DPAPI** (`safeStorage`, already
    used by `app/main/secretStore.ts`) so a copied database file is not directly usable.
-7. **Active Directory** ships **visible-but-disabled** behind an `AuthenticationProvider` abstraction
-   (`LocalVirtualUserProvider` active; `ActiveDirectoryProvider` a documented future boundary). No mock
-   AD logic, no alternate path, not enable-able from the renderer.
+7. **Active Directory** is implemented behind the `AuthenticationProvider` abstraction and remains
+   disabled by default. Only complete trusted main-process configuration can enable it; the renderer
+   cannot configure or redirect the provider.
 
 **Realistic security boundary (stated plainly):** an offline client cannot be made mathematically
 unbreakable. A determined local attacker with the machine can, in principle, patch the binary. The
@@ -1105,15 +1105,19 @@ tools/private key out) · `scripts/validate-offline-bundle.ps1` (security-asset 
 
 ---
 
-## 30. Future Active Directory Integration (boundary only — not built)
+## 30. Active Directory Integration (implemented 2026-07-29)
 
-- `ActiveDirectoryProvider` implements `AuthenticationProvider`; enabled via trusted security config
-  (never renderer). Integration surface: LDAP/LDAPS bind or Windows SSPI/Kerberos for credential-less
-  SSO; map AD groups → AWKIT roles; optional periodic group refresh. Offline caveat: AD requires
-  network to the DC — so AD login is inherently online and must degrade gracefully (fall back to local
-  provider). No AD code, mocks, or config ship in this release; the disabled tab and the provider stub
-  are the only footprint. When implemented, no rewrite of AuthN/AuthZ/session is needed — only the
-  provider body + a config toggle + role-mapping table.
+- `ActiveDirectoryProvider` implements `AuthenticationProvider` and is enabled only by trusted
+  `AWKIT_AD_*` process configuration (never renderer state).
+- Authentication uses direct UPN bind through certificate-validated LDAPS or LDAP upgraded with
+  StartTLS. Plain LDAP, credential-bearing URLs, TLS bypass, background refresh, and automatic
+  account creation are rejected/not implemented.
+- AD identities map to pre-provisioned AWKIT users. AWKIT roles/custom roles/direct overrides remain
+  local administrator-owned state; directory group synchronization is deliberately outside this
+  provider boundary.
+- Migration v5 records the provider on each session, so sensitive-operation reauth returns to AD while
+  the local fallback password stays unchanged. Offline caveat: AD login inherently requires the
+  configured DC, degrades with a safe unavailable result, and always retains Virtual User fallback.
 
 ---
 

@@ -19,6 +19,11 @@ import { hashPassword, verifyPassword, needsRehash, DEFAULT_SCRYPT } from "../sr
 import { generateRecoveryCode, normalizeRecoveryCode } from "../src/security/auth/RecoveryCode";
 import { AuthReason } from "../src/security/errors/ReasonCodes";
 import { SECURITY_DB_FILENAME } from "../src/security/store/SecurityStoreSchema";
+import type {
+  ActiveDirectoryConfig,
+  DirectoryClient,
+  DirectoryClientFactory
+} from "../src/security/auth/ActiveDirectoryProvider";
 
 let passed = 0;
 let failed = 0;
@@ -97,7 +102,7 @@ async function main(): Promise<void> {
   console.log("First-run bootstrap:");
   {
     const { kernel, dbPath } = await freshKernel();
-    check("migrations applied through RBAC v2 schema (v4)", kernel.store.appliedMigrations().some((m) => m.version === 4));
+    check("migrations applied through session-provider schema (v5)", kernel.store.appliedMigrations().some((m) => m.version === 5));
     check("boot state: not provisioned", kernel.getBootState().provisioned === false);
 
     const weak = await kernel.auth.bootstrapSuperUser({ username: "superuser", password: "weak" });
@@ -185,6 +190,119 @@ async function main(): Promise<void> {
     check("login options expose Local as enabled", options.some((o) => o.id === "local" && o.enabled === true));
 
     await kernel.close();
+  }
+
+  // ── Active Directory provider ──────────────────────────────────────────────
+  console.log("Active Directory provider:");
+  {
+    const config: ActiveDirectoryConfig = {
+      url: "ldaps://dc.example.test:636",
+      domain: "example.test",
+      startTls: false,
+      connectTimeoutMs: 2_000,
+      operationTimeoutMs: 3_000
+    };
+    let mode: "success" | "invalid" | "unavailable" = "success";
+    let factoryCalls = 0;
+    let startTlsCalls = 0;
+    let unbindCalls = 0;
+    const binds: Array<{ identity: string; password: string }> = [];
+    const clientFactory: DirectoryClientFactory = () => {
+      factoryCalls += 1;
+      const client: DirectoryClient = {
+        startTLS: async () => {
+          startTlsCalls += 1;
+        },
+        bind: async (identity, password) => {
+          binds.push({ identity, password });
+          if (mode === "invalid") throw Object.assign(new Error("bind rejected"), { code: 49 });
+          if (mode === "unavailable") throw new Error("connection refused");
+        },
+        unbind: async () => {
+          unbindCalls += 1;
+        }
+      };
+      return client;
+    };
+    const kernel = await SecurityKernel.open(
+      join(mkdtempSync(join(tmpdir(), "awkit-auth-ad-")), SECURITY_DB_FILENAME),
+      new PassthroughColumnCrypto(),
+      { activeDirectory: config, directoryClientFactory: clientFactory }
+    );
+    await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD });
+    const userId = await addUser(kernel.store, Date.now, {
+      username: "domain.user",
+      password: "LocalFallback!42",
+      mustChange: true
+    });
+    const weakLocalSecret = "scrypt$1024$8$1$64$AAAA$BBBB";
+    await kernel.store.updateUser(userId, { passwordSecret: weakLocalSecret });
+
+    check("complete trusted AD config enables the login option", kernel.auth.getLoginOptions().some((o) => o.id === "activeDirectory" && o.enabled));
+    const unknown = await kernel.auth.login({ providerId: "activeDirectory", username: "missing.user", password: "Domain!Pass42" });
+    check("unknown AWKIT user is rejected before directory egress", !unknown.ok && factoryCalls === 0);
+
+    const login = await kernel.auth.login({ providerId: "activeDirectory", username: "Domain.User", password: "Domain!Pass42" });
+    check("LDAPS direct bind authenticates a pre-provisioned AWKIT user", login.ok);
+    check("AD bind uses normalized UPN identity", binds[0]?.identity === "domain.user@example.test");
+    check("LDAPS does not issue StartTLS", startTlsCalls === 0);
+    check("directory client is always unbound", unbindCalls === 1);
+    check("AD password never replaces the local fallback hash", kernel.store.getUserById(userId)?.passwordSecret === weakLocalSecret);
+    check("AD session bypasses local forced-password-change UI", login.ok && login.principal.mustChangePassword === false);
+
+    if (login.ok) {
+      const session = await kernel.auth.validateSession(login.principal.sessionRef);
+      check("session persists its AD provider identity", session.valid);
+      const reauth = await kernel.auth.reauthenticate(login.principal.sessionRef, "Domain!Pass42");
+      check("sensitive-operation reauth returns to the AD provider", reauth.ok && factoryCalls === 2);
+    }
+
+    mode = "invalid";
+    const invalid = await kernel.auth.login({ providerId: "activeDirectory", username: "domain.user", password: "Wrong!Pass42" });
+    check("AD invalid credentials stay non-enumerating", !invalid.ok && invalid.reason === AuthReason.INVALID_CREDENTIALS);
+
+    mode = "unavailable";
+    const unavailable = await kernel.auth.login({ providerId: "activeDirectory", username: "domain.user", password: "Domain!Pass42" });
+    check("directory outage is distinguished from a bad password", !unavailable.ok && unavailable.reason === AuthReason.PROVIDER_UNAVAILABLE);
+    await kernel.close();
+
+    let insecureFactoryCalls = 0;
+    const insecureKernel = await SecurityKernel.open(
+      join(mkdtempSync(join(tmpdir(), "awkit-auth-ad-disabled-")), SECURITY_DB_FILENAME),
+      new PassthroughColumnCrypto(),
+      {
+        activeDirectory: { ...config, url: "ldap://dc.example.test:389", startTls: false },
+        directoryClientFactory: () => {
+          insecureFactoryCalls += 1;
+          return clientFactory(config);
+        }
+      }
+    );
+    check("plaintext LDAP configuration stays disabled", insecureKernel.auth.getLoginOptions().some((o) => o.id === "activeDirectory" && !o.enabled));
+    const disabled = await insecureKernel.auth.login({ providerId: "activeDirectory", username: "domain.user", password: "Domain!Pass42" });
+    check("disabled LDAP config causes zero directory egress", !disabled.ok && disabled.reason === AuthReason.PROVIDER_DISABLED && insecureFactoryCalls === 0);
+    await insecureKernel.close();
+
+    let tlsStarted = false;
+    const startTlsKernel = await SecurityKernel.open(
+      join(mkdtempSync(join(tmpdir(), "awkit-auth-ad-starttls-")), SECURITY_DB_FILENAME),
+      new PassthroughColumnCrypto(),
+      {
+        activeDirectory: { ...config, url: "ldap://dc.example.test:389", startTls: true },
+        directoryClientFactory: () => ({
+          startTLS: async () => {
+            tlsStarted = true;
+          },
+          bind: async () => undefined,
+          unbind: async () => undefined
+        })
+      }
+    );
+    await startTlsKernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD });
+    await addUser(startTlsKernel.store, Date.now, { username: "tls.user", password: "LocalFallback!42" });
+    const tlsLogin = await startTlsKernel.auth.login({ providerId: "activeDirectory", username: "tls.user", password: "Domain!Pass42" });
+    check("LDAP bind is permitted only after StartTLS succeeds", tlsLogin.ok && tlsStarted);
+    await startTlsKernel.close();
   }
 
   // ── Lockout ────────────────────────────────────────────────────────────────

@@ -445,9 +445,9 @@ export class SecurityStore {
 
   async insertSession(record: SessionRecord): Promise<SessionRecord> {
     this.db.run(
-      `INSERT INTO security_sessions (id, userId, createdAt, lastActivityAt, absoluteExpiresAt, lastReauthAt, revokedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [record.id, record.userId, record.createdAt, record.lastActivityAt, record.absoluteExpiresAt, record.lastReauthAt, record.revokedAt]
+      `INSERT INTO security_sessions (id, userId, authProvider, createdAt, lastActivityAt, absoluteExpiresAt, lastReauthAt, revokedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [record.id, record.userId, record.authProvider ?? "local", record.createdAt, record.lastActivityAt, record.absoluteExpiresAt, record.lastReauthAt, record.revokedAt]
     );
     await this.persist();
     return record;
@@ -459,9 +459,11 @@ export class SecurityStore {
       stmt.bind([id]);
       if (!stmt.step()) return null;
       const row = stmt.getAsObject();
+      if (row.authProvider !== "local" && row.authProvider !== "activeDirectory") return null;
       return {
         id: String(row.id),
         userId: String(row.userId),
+        authProvider: row.authProvider,
         createdAt: String(row.createdAt),
         lastActivityAt: String(row.lastActivityAt),
         absoluteExpiresAt: String(row.absoluteExpiresAt),

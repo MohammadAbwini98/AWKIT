@@ -5,6 +5,7 @@
  * `app/main/secretStore.ts`.
  */
 import { safeStorage } from "electron";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getRuntimeDataRoot } from "../appPaths";
 import { SecurityKernel, type SecurityKernelOptions } from "@src/security/SecurityKernel";
@@ -33,6 +34,30 @@ function resolveKernelOptions(): SecurityKernelOptions {
   const reauthMs = reauthRaw ? Number(reauthRaw) : NaN;
   if (Number.isFinite(reauthMs) && reauthMs > 0) {
     options.reauthWindowMs = reauthMs;
+  }
+
+  // AD is opt-in trusted configuration. Merely supplying a URL is insufficient: the explicit enable
+  // flag, directory URL, and UPN domain must all be present. LDAP is accepted only with StartTLS;
+  // LDAPS and StartTLS both retain normal certificate validation (there is no bypass flag).
+  if (process.env.AWKIT_AD_ENABLED?.trim().toLowerCase() === "true") {
+    const url = process.env.AWKIT_AD_URL?.trim() ?? "";
+    const domain = process.env.AWKIT_AD_DOMAIN?.trim() ?? "";
+    const startTls = process.env.AWKIT_AD_START_TLS?.trim().toLowerCase() === "true";
+    const connectTimeoutRaw = Number(process.env.AWKIT_AD_CONNECT_TIMEOUT_MS ?? 5_000);
+    const operationTimeoutRaw = Number(process.env.AWKIT_AD_OPERATION_TIMEOUT_MS ?? 8_000);
+    try {
+      const caPath = process.env.AWKIT_AD_CA_FILE?.trim();
+      options.activeDirectory = {
+        url,
+        domain,
+        startTls,
+        connectTimeoutMs: Number.isInteger(connectTimeoutRaw) ? connectTimeoutRaw : 5_000,
+        operationTimeoutMs: Number.isInteger(operationTimeoutRaw) ? operationTimeoutRaw : 8_000,
+        ...(caPath ? { ca: readFileSync(caPath, "utf8") } : {})
+      };
+    } catch {
+      // A configured but unreadable CA must fail closed: omit the config so the provider stays disabled.
+    }
   }
 
   return options;

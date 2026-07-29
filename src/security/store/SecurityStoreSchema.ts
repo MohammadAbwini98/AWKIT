@@ -125,6 +125,14 @@ export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_security_user_permission_overrides_user
          ON security_user_permission_overrides (userId)`
     ]
+  },
+  {
+    version: 5,
+    name: "session-authentication-provider",
+    statements: [
+      `ALTER TABLE security_sessions ADD COLUMN authProvider TEXT NOT NULL DEFAULT 'local'
+         CHECK (authProvider IN ('local', 'activeDirectory'))`
+    ]
   }
 ];
 
@@ -175,6 +183,8 @@ export interface UserPermissionOverrides {
 export interface SessionRecord {
   id: string;
   userId: string;
+  /** Defaults to local when omitted by older callers or pre-v5 fixtures. */
+  authProvider?: "local" | "activeDirectory";
   createdAt: string;
   lastActivityAt: string;
   absoluteExpiresAt: string;

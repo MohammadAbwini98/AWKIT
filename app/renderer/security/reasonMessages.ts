@@ -12,7 +12,8 @@ const MESSAGES: Record<string, string> = {
   SESSION_EXPIRED: "Your session has expired. Please sign in again.",
   NOT_PROVISIONED: "This application has not been set up yet.",
   ALREADY_PROVISIONED: "This application has already been set up.",
-  PROVIDER_DISABLED: "That sign-in method isn't available yet.",
+  PROVIDER_DISABLED: "That sign-in method isn't configured.",
+  PROVIDER_UNAVAILABLE: "The directory service is unavailable. Check the connection or use Virtual User sign-in.",
   STORAGE_UNAVAILABLE: "Secure storage is unavailable on this system, so sign-in can't proceed.",
   PASSWORD_POLICY: "That password doesn't meet the requirements.",
   USERNAME_INVALID: "That username isn't allowed."

@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Active Directory authentication provider is complete (2026-07-29, current)
+
+`awkit-i3e` is closed. `ActiveDirectoryProvider` now performs direct user binds through the pinned
+`ldapts` client over certificate-validated LDAPS or LDAP upgraded with StartTLS. It is disabled by
+default and produces zero directory traffic unless complete trusted main-process configuration is
+present. AD identities must match pre-provisioned AWKIT users, preserving local roles, custom roles,
+and direct overrides without automatic account creation or group-driven privilege changes.
+
+Security-store migration v5 records the provider on each session. AD sessions reauthenticate
+sensitive operations through AD, never persist the domain password, never replace the local fallback
+hash, and do not enter the local forced-password-change screen. Directory outages return a safe
+provider-unavailable result with Virtual User sign-in retained as the offline fallback. The login UI
+now selects any enabled provider and truthfully labels disabled AD as `Not configured`.
+
+Verification: auth **79/79** (injected LDAPS/StartTLS transport, zero-egress, mapping, outage, password
+isolation, session/reauth); real Electron auth GUI **25/25**; real Electron authentication lifecycle
+**30/30**; authz **77/77**; IPC contract **4/4**; build, script typecheck, and offline validation PASS.
+A live enterprise AD/DC was not available, so real certificate/domain-policy interoperability remains
+an environment validation rather than a code-path claim. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 8 outstanding / 110 closed**.
+
 ## RBAC v2 custom roles and direct overrides are complete (2026-07-29, current)
 
 `awkit-gsf` is closed. Security-store migration v4 adds persisted custom roles, role-permission maps,

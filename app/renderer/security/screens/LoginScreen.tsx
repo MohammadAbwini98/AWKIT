@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Workflow, Loader2, Building2 } from "lucide-react";
 import type { LoginOption, ProviderId } from "@src/security/auth/AuthTypes";
 import { PasswordField } from "../components/PasswordField";
@@ -19,16 +19,17 @@ interface LoginScreenProps {
 }
 
 /**
- * Virtual-user sign-in. Active Directory is shown as a disabled "Coming Soon" tab that cannot be
- * selected or submitted, so a DOM-enabled control can't trigger an alternate login path (the trusted
- * layer also rejects any disabled provider). Errors are generic and never reveal whether a username
- * exists; the submit button is disabled while a request is in flight to prevent duplicate submissions.
+ * Provider-aware sign-in. Disabled providers cannot be selected or submitted, and the trusted layer
+ * independently rejects them. Errors remain non-enumerating; the submit button is disabled while a
+ * request is in flight to prevent duplicate submissions.
  */
 export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>("local");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tabRefs = useRef<Partial<Record<ProviderId, HTMLButtonElement>>>({});
   // Fall back to the built-in glyph if the packaged logo asset ever fails to load (offline-safe, no broken image).
   const [logoFailed, setLogoFailed] = useState(false);
   // The active custom workspace logo (a self-contained data: URL), resolved from the SAME open
@@ -49,7 +50,31 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
     };
   }, []);
 
+  useEffect(() => {
+    if (!options.some((option) => option.id === selectedProvider && option.enabled)) {
+      setSelectedProvider(options.find((option) => option.enabled)?.id ?? "local");
+    }
+  }, [options, selectedProvider]);
+
   const canSubmit = username.trim().length > 0 && password.length > 0 && !submitting;
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const enabled = options.filter((option) => option.enabled);
+    if (!enabled.length) return;
+    event.preventDefault();
+    const current = Math.max(0, enabled.findIndex((option) => option.id === selectedProvider));
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? enabled.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : -1) + enabled.length) % enabled.length;
+    const next = enabled[nextIndex];
+    setSelectedProvider(next.id);
+    setError(null);
+    setPassword("");
+    tabRefs.current[next.id]?.focus();
+  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -57,7 +82,7 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
     setSubmitting(true);
     setError(null);
     try {
-      const result = await onSubmit("local", username.trim(), password);
+      const result = await onSubmit(selectedProvider, username.trim(), password);
       if (!result.ok) {
         setError(messageForReason(result.reason));
         setPassword("");
@@ -104,21 +129,33 @@ export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScre
 
       <div className="awkit-login-tabs" role="tablist" aria-label="Sign-in method">
         {options.map((option) => {
-          const isLocal = option.id === "local";
+          const isSelected = option.id === selectedProvider;
           return (
             <button
               key={option.id}
               type="button"
               role="tab"
-              aria-selected={isLocal}
+              ref={(element) => {
+                tabRefs.current[option.id] = element ?? undefined;
+              }}
+              aria-selected={isSelected}
               aria-disabled={!option.enabled}
               disabled={!option.enabled}
-              className={`awkit-login-tab${isLocal ? " is-active" : ""}`}
-              title={option.enabled ? option.displayName : `${option.displayName} — coming soon`}
+              tabIndex={isSelected ? 0 : -1}
+              className={`awkit-login-tab${isSelected ? " is-active" : ""}`}
+              title={option.enabled ? option.displayName : `${option.displayName} — not configured`}
+              onClick={() => {
+                if (option.enabled) {
+                  setSelectedProvider(option.id);
+                  setError(null);
+                  setPassword("");
+                }
+              }}
+              onKeyDown={handleTabKeyDown}
             >
               {option.id === "activeDirectory" ? <Building2 size={15} /> : <Workflow size={15} />}
               <span>{option.displayName}</span>
-              {!option.enabled ? <em className="awkit-login-soon">Coming soon</em> : null}
+              {!option.enabled ? <em className="awkit-login-soon">Not configured</em> : null}
             </button>
           );
         })}

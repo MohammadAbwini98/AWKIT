@@ -8226,3 +8226,25 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   **51/51**; auth **64/64**; IPC contract **4/4**; script typecheck and production build PASS.
 - **Result:** `awkit-gsf` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
   beads are **118 total / 9 outstanding / 109 closed**.
+
+## 2026-07-29 — Codex — Active Directory authentication provider
+
+- **Task:** complete `awkit-i3e` by replacing the disabled AD stub with a secure, opt-in provider
+  behind the existing authentication abstraction while preserving offline-first behavior.
+- **Implemented:** pinned Node-18-compatible `ldapts` with the vulnerable transitive `uuid` patched by
+  a narrow override; trusted `AWKIT_AD_*` configuration; certificate-validated LDAPS/StartTLS direct
+  UPN bind; pre-provisioned AWKIT-user mapping; safe invalid/outage results; selectable provider UI.
+- **Session/auth protections:** migration v5 persists `authProvider`; AD sensitive-op reauth returns
+  to AD; domain passwords are not persisted/logged or substituted for the local fallback hash; local
+  forced-password-change remains local-provider-only; directory outages do not increment lockout.
+- **Offline/security:** disabled, incomplete, plaintext-LDAP, or malformed configuration creates no
+  LDAP client and causes no egress. There is no renderer configuration path, automatic account
+  creation, TLS bypass, background refresh, or directory-driven privilege assignment.
+- **Checks:** auth **79/79**; auth GUI **25/25**; e2e auth **30/30**; authz **77/77**; IPC contract
+  **4/4**; build, script typecheck, and `validate:offline` PASS. The initial parallel Electron attempt
+  collided with the intentional single-instance guard; serial reruns passed. `npm audit --omit=dev`
+  confirms the introduced LDAP/UUID findings are gone; three pre-existing Vite/PostCSS findings remain.
+- **Not run:** a live enterprise AD/DC with real certificates/domain policy was unavailable, so that
+  environment interoperability is not claimed.
+- **Result:** `awkit-i3e` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
+  beads are **118 total / 8 outstanding / 110 closed**.

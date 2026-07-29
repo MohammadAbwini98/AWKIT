@@ -1,5 +1,15 @@
 # FEATURES
 
+## Active Directory authentication (2026-07-29)
+
+- Implemented: opt-in trusted main-process configuration for certificate-validated LDAPS or LDAP
+  upgraded with StartTLS; disabled/incomplete configuration causes zero directory traffic.
+- Implemented: direct UPN bind mapped only to a pre-provisioned AWKIT user, retaining local RBAC,
+  custom roles, direct overrides, and the offline Virtual User fallback.
+- Implemented: provider-aware sessions and sensitive-operation reauthentication. Domain passwords
+  are neither persisted/logged nor substituted for the local fallback credential.
+- Environment validation remains: no live enterprise AD/DC was available in this workspace.
+
 ## RBAC v2 custom roles and per-user overrides (2026-07-29)
 
 - Implemented: persisted custom-role create/update/delete with protected immutable built-ins,

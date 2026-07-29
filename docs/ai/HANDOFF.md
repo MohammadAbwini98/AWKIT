@@ -1,5 +1,23 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Active Directory provider complete
+
+`awkit-i3e` is closed. Trusted `AWKIT_AD_*` main-process configuration can now enable direct UPN
+authentication over certificate-validated LDAPS or LDAP upgraded with StartTLS. AD users must be
+pre-provisioned in AWKIT, so roles and direct permission overrides remain locally administered.
+Disabled/incomplete config causes zero directory traffic and Virtual User remains the offline
+fallback.
+
+Session migration v5 retains the login provider. AD sessions use AD for sensitive-operation reauth,
+never persist/log the domain password, never overwrite the local fallback credential, and bypass only
+the local forced-password-change surface. Directory outages are surfaced safely without counting as
+bad-password lockout attempts.
+
+Verification: auth 79/79, real Electron auth GUI 25/25, real Electron auth lifecycle 30/30, authz
+77/77, IPC contract 4/4, build, script typecheck, and offline validation PASS. Live enterprise AD/DC
+interoperability was not available and is not claimed. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 8 outstanding / 110 closed**.
+
 ## TAKEOFF (2026-07-29) — RBAC v2 complete
 
 `awkit-gsf` is closed. Persisted custom roles and direct per-user grant/deny overrides now flow
