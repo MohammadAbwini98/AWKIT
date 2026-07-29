@@ -8,9 +8,11 @@ import { LockedShell } from "./LockedShell";
 import { LoginScreen, type LoginSubmitResult } from "./screens/LoginScreen";
 import { FirstRunSetup } from "./screens/FirstRunSetup";
 import { ForcedPasswordChange } from "./screens/ForcedPasswordChange";
+import { RecoveryCodeNotice } from "./screens/RecoveryCodeNotice";
+import { RecoveryPasswordReset } from "./screens/RecoveryPasswordReset";
 import { SecurityUnavailable } from "./screens/SecurityUnavailable";
 
-type GateState = "loading" | "unavailable" | "firstRun" | "login" | "forcedChange" | "authed";
+type GateState = "loading" | "unavailable" | "firstRun" | "recoveryCode" | "recovery" | "login" | "forcedChange" | "authed";
 
 /** Fallback idle window if the boot state doesn't report one (mirrors DEFAULT_SESSION_POLICY.idleMs). */
 const DEFAULT_IDLE_MS = 30 * 60 * 1000;
@@ -39,7 +41,9 @@ export function SecurityGate() {
   const [options, setOptions] = useState<LoginOption[]>([]);
   const [principal, setPrincipal] = useState<PrincipalSnapshot | null>(null);
   const [lockNotice, setLockNotice] = useState<string | null>(null);
+  const [recoveryCode, setRecoveryCode] = useState("");
   const sessionRef = useRef<string>("");
+  const pendingBootstrapRef = useRef<{ username: string; password: string } | null>(null);
   const idleTimeoutRef = useRef<number>(DEFAULT_IDLE_MS);
   const lastActivityRef = useRef<number>(Date.now());
   const lastValidateRef = useRef<number>(Date.now());
@@ -112,14 +116,43 @@ export function SecurityGate() {
     async (input: { username: string; password: string; displayName?: string }) => {
       const result = await window.playwrightFlowStudio.security.bootstrapSuperUser(input);
       if (result.ok) {
-        // Provisioned — sign the new Super User straight in for a smooth first run.
-        const login = await doLogin("local", input.username, input.password);
-        if (!login.ok) setState("login");
+        // Hand the one-time recovery code to the user before signing the new Super User in.
+        if (!result.recoveryCode) {
+          setState("login");
+          return { ok: false, reason: "UNAVAILABLE" };
+        }
+        pendingBootstrapRef.current = { username: input.username, password: input.password };
+        setRecoveryCode(result.recoveryCode);
+        setState("recoveryCode");
       }
       return result;
     },
-    [doLogin]
+    []
   );
+
+  const acknowledgeRecoveryCode = useCallback(async () => {
+    const credentials = pendingBootstrapRef.current;
+    pendingBootstrapRef.current = null;
+    setRecoveryCode("");
+    if (!credentials) {
+      setState("login");
+      return;
+    }
+    const login = await doLogin("local", credentials.username, credentials.password);
+    if (!login.ok) setState("login");
+  }, [doLogin]);
+
+  const handleRecovery = useCallback(async (code: string, newPassword: string) => {
+    const result = await window.playwrightFlowStudio.security.recoverSuperUser({
+      recoveryCode: code,
+      newPassword
+    });
+    if (result.ok) {
+      setLockNotice("Super User password reset. Sign in with your new password.");
+      setState("login");
+    }
+    return result;
+  }, []);
 
   const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const result = await window.playwrightFlowStudio.security.changePassword({
@@ -235,6 +268,22 @@ export function SecurityGate() {
     );
   }
 
+  if (state === "recoveryCode") {
+    return (
+      <LockedShell areaLabel="Save recovery code">
+        <RecoveryCodeNotice recoveryCode={recoveryCode} onContinue={() => void acknowledgeRecoveryCode()} />
+      </LockedShell>
+    );
+  }
+
+  if (state === "recovery") {
+    return (
+      <LockedShell areaLabel="Recover Super User">
+        <RecoveryPasswordReset onSubmit={handleRecovery} onCancel={() => setState("login")} />
+      </LockedShell>
+    );
+  }
+
   if (state === "forcedChange" && principal) {
     return (
       <LockedShell areaLabel="Update password">
@@ -245,7 +294,7 @@ export function SecurityGate() {
 
   return (
     <LockedShell areaLabel="Secure sign-in">
-      <LoginScreen options={options} onSubmit={doLogin} notice={lockNotice} />
+      <LoginScreen options={options} onSubmit={doLogin} onRecovery={() => setState("recovery")} notice={lockNotice} />
     </LockedShell>
   );
 }

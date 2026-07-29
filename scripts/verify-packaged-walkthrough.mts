@@ -125,6 +125,9 @@ async function ensureWalkthroughAuthenticated(win: Page): Promise<void> {
     await passwords.nth(0).fill(WALKTHROUGH_ACCOUNT.password);
     await passwords.nth(1).fill(WALKTHROUGH_ACCOUNT.password);
     await win.getByRole("button", { name: "Create account" }).click();
+    await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 30_000 });
+    await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+    await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
   } else {
     await win.fill("#awkit-login-username", WALKTHROUGH_ACCOUNT.username);
     await win.locator('.awkit-login-form input[type="password"]').first().fill(WALKTHROUGH_ACCOUNT.password);

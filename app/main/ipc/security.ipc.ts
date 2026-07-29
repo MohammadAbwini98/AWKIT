@@ -11,7 +11,13 @@ import { assertTrustedSender } from "./senderGuard";
 import { getSecurityKernel, isSecureStorageAvailable } from "../security/securityKernel";
 import { bindSession, unbindSession } from "../security/sessionContext";
 import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
-import { parseBootstrap, parseChangePassword, parseLoginRequest, parseSessionRef } from "@src/security/ipc/SecurityIpcSchema";
+import {
+  parseBootstrap,
+  parseChangePassword,
+  parseLoginRequest,
+  parseRecoverSuperUser,
+  parseSessionRef
+} from "@src/security/ipc/SecurityIpcSchema";
 import {
   parseAdminCreateUser,
   parseAdminListAudit,
@@ -102,6 +108,18 @@ export function registerSecurityIpc(): void {
       // (sessionContext) can derive the acting user from event.sender on every protected IPC call.
       if (result.ok) bindSession(event, result.principal.sessionRef);
       return result;
+    } catch {
+      return safeFailure();
+    }
+  });
+
+  ipcMain.handle("security:recoverSuperUser", async (event, input: unknown) => {
+    assertTrustedSender(event);
+    if (!isSecureStorageAvailable()) return { ok: false, reason: AuthReason.STORAGE_UNAVAILABLE };
+    try {
+      const payload = parseRecoverSuperUser(input);
+      const kernel = await getSecurityKernel();
+      return await kernel.auth.recoverSuperUser(payload.recoveryCode, payload.newPassword);
     } catch {
       return safeFailure();
     }

@@ -94,6 +94,9 @@ async function signInFirstRun(win: Page): Promise<void> {
   await pw.nth(0).fill(CREDS.password);
   await pw.nth(1).fill(CREDS.password);
   await win.getByRole("button", { name: "Create account" }).click();
+  await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 30_000 });
+  await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+  await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
   await win.waitForSelector(".app-shell", { timeout: 30_000 });
 }
 async function signInReturning(win: Page): Promise<void> {

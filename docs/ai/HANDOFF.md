@@ -1,5 +1,17 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Super User recovery complete
+
+`awkit-aty` is closed. First-run setup now presents a show-once recovery code before authentication;
+only its scrypt hash is retained through the DPAPI-backed security column wrapper. The login-screen
+recovery path atomically resets the protected Super User password, consumes the code, clears lockout,
+revokes existing sessions, and audits every outcome.
+
+Verification: auth 64/64, real Electron auth GUI 25/25, real Electron authentication lifecycle
+30/30, authz 59/59, session context 11/11, security 39/39, IPC contract 4/4, build and script
+typecheck PASS. The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 10 outstanding / 108 closed**.
+
 ## TAKEOFF (2026-07-29) — global licensing attention complete
 
 `awkit-x13` is complete. The status bar shows licensing only when a permitted Super User needs to

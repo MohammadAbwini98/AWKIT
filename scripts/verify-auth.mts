@@ -16,6 +16,7 @@ import { SecurityKernel } from "../src/security/SecurityKernel";
 import { SecurityStore } from "../src/security/store/SecurityStore";
 import { PassthroughColumnCrypto } from "../src/security/crypto/ColumnCrypto";
 import { hashPassword, verifyPassword, needsRehash, DEFAULT_SCRYPT } from "../src/security/crypto/PasswordHasher";
+import { generateRecoveryCode, normalizeRecoveryCode } from "../src/security/auth/RecoveryCode";
 import { AuthReason } from "../src/security/errors/ReasonCodes";
 import { SECURITY_DB_FILENAME } from "../src/security/store/SecurityStoreSchema";
 
@@ -88,12 +89,15 @@ async function main(): Promise<void> {
   check("record does not contain the plaintext", !rec.includes("Correct!Horse12"));
   check("needsRehash true for weaker params", needsRehash("scrypt$1024$8$1$64$AAAA$BBBB", DEFAULT_SCRYPT));
   check("needsRehash false for current params", !needsRehash(rec, DEFAULT_SCRYPT));
+  const deterministicRecovery = generateRecoveryCode(() => Buffer.alloc(16));
+  check("recovery code uses grouped ambiguity-free characters", /^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){5}-[A-HJ-NP-Z2-9]{2}$/.test(deterministicRecovery));
+  check("recovery-code normalization ignores case, spaces, and hyphens", normalizeRecoveryCode(" abcd- efgh ") === "ABCDEFGH");
 
   // ── Bootstrap (one-time) ───────────────────────────────────────────────────
   console.log("First-run bootstrap:");
   {
     const { kernel, dbPath } = await freshKernel();
-    check("migrations applied (v1)", kernel.store.appliedMigrations().some((m) => m.version === 1));
+    check("migrations applied through recovery schema (v3)", kernel.store.appliedMigrations().some((m) => m.version === 3));
     check("boot state: not provisioned", kernel.getBootState().provisioned === false);
 
     const weak = await kernel.auth.bootstrapSuperUser({ username: "superuser", password: "weak" });
@@ -104,6 +108,7 @@ async function main(): Promise<void> {
 
     const ok = await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD, displayName: "Super User" });
     check("bootstrap succeeds", ok.ok === true);
+    check("bootstrap returns a one-time recovery code", ok.ok && normalizeRecoveryCode(ok.recoveryCode).length === 26);
     check("boot state: provisioned after bootstrap", kernel.getBootState().provisioned === true);
 
     const again = await kernel.auth.bootstrapSuperUser({ username: "intruder", password: SU_PASSWORD });
@@ -112,8 +117,48 @@ async function main(): Promise<void> {
     // No-plaintext-on-disk invariant.
     const bytes = readFileSync(dbPath);
     check("password plaintext absent from DB file", bytes.indexOf(Buffer.from(SU_PASSWORD)) === -1);
+    check("recovery-code plaintext absent from DB file", !ok.ok || bytes.indexOf(Buffer.from(ok.recoveryCode)) === -1);
 
     await kernel.close();
+  }
+
+  // ── One-time Super User recovery ──────────────────────────────────────────
+  console.log("Super User recovery:");
+  {
+    const { kernel, dbPath } = await freshKernel();
+    const bootstrap = await kernel.auth.bootstrapSuperUser({ username: "superuser", password: SU_PASSWORD });
+    const code = bootstrap.ok ? bootstrap.recoveryCode : "";
+    const stored = kernel.store.getRecoverySecret();
+    check("recovery store contains only a password hash", !!stored && stored.secret !== normalizeRecoveryCode(code) && verifyPassword(normalizeRecoveryCode(code), stored.secret));
+
+    const active = await kernel.auth.login({ providerId: "local", username: "superuser", password: SU_PASSWORD });
+    const activeRef = active.ok ? active.principal.sessionRef : "";
+    const wrong = await kernel.auth.recoverSuperUser("AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-AA", "N3w!RecoveryPass");
+    check("wrong recovery code is rejected uniformly", !wrong.ok && wrong.reason === AuthReason.INVALID_CREDENTIALS);
+
+    const weak = await kernel.auth.recoverSuperUser(code, "weak");
+    check("weak replacement password is rejected without consuming code", !weak.ok && weak.reason === AuthReason.PASSWORD_POLICY && !kernel.store.getRecoverySecret()?.usedAt);
+
+    const recovered = await kernel.auth.recoverSuperUser(code.toLowerCase().replaceAll("-", " "), "N3w!RecoveryPass");
+    check("normalized recovery code resets the password", recovered.ok === true);
+    check("recovery consumes and removes the stored code hash", kernel.store.getRecoverySecret() === null);
+    const revoked = await kernel.auth.validateSession(activeRef);
+    check("recovery revokes every existing Super User session", !revoked.valid && revoked.reason === AuthReason.SESSION_EXPIRED);
+
+    const oldLogin = await kernel.auth.login({ providerId: "local", username: "superuser", password: SU_PASSWORD });
+    check("old Super User password no longer works", !oldLogin.ok);
+    const newLogin = await kernel.auth.login({ providerId: "local", username: "superuser", password: "N3w!RecoveryPass" });
+    check("new Super User password works", newLogin.ok === true);
+    const reused = await kernel.auth.recoverSuperUser(code, "An0ther!RecoveryPass");
+    check("recovery code cannot be reused", !reused.ok && reused.reason === AuthReason.INVALID_CREDENTIALS);
+
+    const recoveryAudit = kernel.store.listAudit().filter((event) => event.eventType === "SUPER_USER_RECOVERY");
+    check("recovery success and failures are audited", recoveryAudit.some((event) => event.result === "success") && recoveryAudit.some((event) => event.result === "failure"));
+    await kernel.close();
+
+    const reopened = await SecurityStore.open(dbPath, new PassthroughColumnCrypto());
+    check("consumed recovery state persists across reopen", reopened.getRecoverySecret() === null);
+    await reopened.close();
   }
 
   // ── Login success / uniform failure ────────────────────────────────────────

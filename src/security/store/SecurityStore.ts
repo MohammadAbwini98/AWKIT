@@ -122,12 +122,67 @@ export class SecurityStore {
     return false;
   }
 
-  async setProvisioned(at: string): Promise<void> {
+  async setProvisioned(at: string, recoverySecret: string): Promise<void> {
     this.db.run(
-      `INSERT INTO security_provisioning (id, provisioned, provisionedAt) VALUES (1, 1, ?)
-       ON CONFLICT(id) DO UPDATE SET provisioned = 1, provisionedAt = excluded.provisionedAt`,
-      [at]
+      `INSERT INTO security_provisioning
+         (id, provisioned, provisionedAt, recoverySecret, recoveryUsedAt)
+       VALUES (1, 1, ?, ?, NULL)
+       ON CONFLICT(id) DO UPDATE SET
+         provisioned = 1,
+         provisionedAt = excluded.provisionedAt,
+         recoverySecret = excluded.recoverySecret,
+         recoveryUsedAt = NULL`,
+      [at, this.crypto.wrap(recoverySecret)]
     );
+    await this.persist(true);
+  }
+
+  getRecoverySecret(): { secret: string; usedAt: string | null } | null {
+    const stmt = this.db.prepare(
+      "SELECT recoverySecret, recoveryUsedAt FROM security_provisioning WHERE id = 1"
+    );
+    try {
+      if (!stmt.step()) return null;
+      const row = stmt.getAsObject();
+      if (row.recoverySecret == null) return null;
+      return {
+        secret: this.crypto.unwrap(String(row.recoverySecret)),
+        usedAt: row.recoveryUsedAt == null ? null : String(row.recoveryUsedAt)
+      };
+    } finally {
+      stmt.free();
+    }
+  }
+
+  /** Atomically rotate the protected SU password, consume the recovery code, and revoke sessions. */
+  async completeSuperUserRecovery(
+    userId: string,
+    passwordSecret: string,
+    at: string
+  ): Promise<void> {
+    this.db.run("BEGIN");
+    try {
+      this.db.run(
+        `UPDATE security_users SET
+           passwordSecret = ?, passwordAlgo = 'scrypt', mustChangePassword = 0,
+           failedLoginCount = 0, lockedUntil = NULL, passwordChangedAt = ?,
+           updatedAt = ?, updatedBy = 'recovery'
+         WHERE id = ? AND isProtectedSuperUser = 1`,
+        [this.crypto.wrap(passwordSecret), at, at, userId]
+      );
+      this.db.run(
+        "UPDATE security_provisioning SET recoverySecret = NULL, recoveryUsedAt = ? WHERE id = 1",
+        [at]
+      );
+      this.db.run(
+        "UPDATE security_sessions SET revokedAt = ? WHERE userId = ? AND revokedAt IS NULL",
+        [at, userId]
+      );
+      this.db.run("COMMIT");
+    } catch (error) {
+      this.db.run("ROLLBACK");
+      throw error;
+    }
     await this.persist(true);
   }
 

@@ -1,5 +1,16 @@
 # FEATURES
 
+## Secure authentication and Super User recovery (2026-07-29)
+
+- Implemented: offline local virtual-user authentication with one-time Super User bootstrap,
+  scrypt password hashing, DPAPI-backed protected columns, lockout, idle/absolute session expiry,
+  forced password changes, and sender-bound authorization.
+- Implemented: bootstrap generates a 128-bit ambiguity-free recovery code, shows it once before the
+  protected shell mounts, and retains only its protected hash.
+- Implemented: the login-screen recovery form atomically resets the protected Super User password,
+  consumes the code, clears lockout, revokes all existing Super User sessions, and audits success,
+  invalid, policy-rejected, and reused attempts.
+
 ## Randomized Automation Test Lab (2026-07-29)
 
 - Implemented: deterministic generation, production validation oracle, and lossless designer/JSON

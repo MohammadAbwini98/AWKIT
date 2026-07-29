@@ -13,6 +13,7 @@ export interface LoginSubmitResult {
 interface LoginScreenProps {
   options: LoginOption[];
   onSubmit: (providerId: ProviderId, username: string, password: string) => Promise<LoginSubmitResult>;
+  onRecovery: () => void;
   /** Optional status note shown above the form, e.g. after a proactive inactivity lock. */
   notice?: string | null;
 }
@@ -23,7 +24,7 @@ interface LoginScreenProps {
  * layer also rejects any disabled provider). Errors are generic and never reveal whether a username
  * exists; the submit button is disabled while a request is in flight to prevent duplicate submissions.
  */
-export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
+export function LoginScreen({ options, onSubmit, onRecovery, notice }: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -154,6 +155,9 @@ export function LoginScreen({ options, onSubmit, notice }: LoginScreenProps) {
         ) : (
           "Sign in"
         )}
+      </button>
+      <button className="awkit-login-link" type="button" disabled={submitting} onClick={onRecovery}>
+        Recover Super User
       </button>
     </form>
   );

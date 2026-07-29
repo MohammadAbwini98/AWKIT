@@ -11,6 +11,7 @@ const MAX_USERNAME = 64;
 const MAX_PASSWORD = 400; // policy caps at 200; allow slack so over-long input is rejected, not truncated
 const MAX_DISPLAY_NAME = 128;
 const MAX_SESSION_REF = 256;
+const MAX_RECOVERY_CODE = 128;
 const PROVIDER_IDS: ProviderId[] = ["local", "activeDirectory"];
 
 export class InvalidPayloadError extends Error {
@@ -82,6 +83,19 @@ export function parseChangePassword(input: unknown): ChangePasswordPayload {
   return {
     sessionRef: str(obj.sessionRef, MAX_SESSION_REF, "sessionRef"),
     currentPassword: str(obj.currentPassword, MAX_PASSWORD, "currentPassword"),
+    newPassword: str(obj.newPassword, MAX_PASSWORD, "newPassword")
+  };
+}
+
+export interface RecoverSuperUserPayload {
+  recoveryCode: string;
+  newPassword: string;
+}
+
+export function parseRecoverSuperUser(input: unknown): RecoverSuperUserPayload {
+  const obj = record(input);
+  return {
+    recoveryCode: str(obj.recoveryCode, MAX_RECOVERY_CODE, "recoveryCode"),
     newPassword: str(obj.newPassword, MAX_PASSWORD, "newPassword")
   };
 }

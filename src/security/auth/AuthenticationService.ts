@@ -11,6 +11,7 @@ import { AuthReason, type AuthReasonCode } from "@src/security/errors/ReasonCode
 import { effectivePermissions, SUPER_USER_ROLE } from "@src/security/authz/Permissions";
 import { hashPassword, needsRehash, verifyPassword } from "@src/security/crypto/PasswordHasher";
 import { validatePassword } from "./PasswordPolicy";
+import { generateRecoveryCode, normalizeRecoveryCode } from "./RecoveryCode";
 import { normalizeUsername, validateUsername } from "./UsernameRules";
 import type { SecurityStore } from "@src/security/store/SecurityStore";
 import type { UserRecord } from "@src/security/store/SecurityStoreSchema";
@@ -80,7 +81,7 @@ export class AuthenticationService {
 
   // ── First-run bootstrap (one-time, irreversible) ─────────────────────────────
 
-  async bootstrapSuperUser(input: BootstrapInput): Promise<{ ok: true; userId: string } | { ok: false; reason: AuthReasonCode; errors?: string[] }> {
+  async bootstrapSuperUser(input: BootstrapInput): Promise<{ ok: true; userId: string; recoveryCode: string } | { ok: false; reason: AuthReasonCode; errors?: string[] }> {
     // One-time invariant: refuse once provisioned OR any user exists (defense in depth).
     if (this.store.isProvisioned() || this.store.userCount() > 0) {
       await this.audit({ eventType: "PROVISIONING", result: "failure", reasonCode: AuthReason.ALREADY_PROVISIONED });
@@ -113,10 +114,48 @@ export class AuthenticationService {
       updatedAt: nowIso,
       updatedBy: "bootstrap"
     };
+    const recoveryCode = generateRecoveryCode();
     await this.store.createUser(record);
-    await this.store.setProvisioned(nowIso);
+    await this.store.setProvisioned(nowIso, hashPassword(normalizeRecoveryCode(recoveryCode)));
     await this.audit({ eventType: "PROVISIONING", result: "success", actorUserId: record.id, actorName: record.username, targetType: "user", targetId: record.id });
-    return { ok: true, userId: record.id };
+    return { ok: true, userId: record.id, recoveryCode };
+  }
+
+  async recoverSuperUser(
+    recoveryCode: string,
+    newPassword: string
+  ): Promise<{ ok: true } | { ok: false; reason: AuthReasonCode; errors?: string[] }> {
+    const recovery = this.store.getRecoverySecret();
+    const protectedUser = this.store.listUsers().find((user) => user.isProtectedSuperUser);
+    const normalized = normalizeRecoveryCode(recoveryCode);
+    if (!recovery || recovery.usedAt || !protectedUser || !normalized || !verifyPassword(normalized, recovery.secret)) {
+      await this.audit({ eventType: "SUPER_USER_RECOVERY", result: "failure", reasonCode: AuthReason.INVALID_CREDENTIALS });
+      return { ok: false, reason: AuthReason.INVALID_CREDENTIALS };
+    }
+    const policy = validatePassword(newPassword, { username: protectedUser.username });
+    if (!policy.ok) {
+      await this.audit({
+        eventType: "SUPER_USER_RECOVERY",
+        result: "failure",
+        reasonCode: AuthReason.PASSWORD_POLICY,
+        actorUserId: protectedUser.id,
+        actorName: protectedUser.username,
+        targetType: "user",
+        targetId: protectedUser.id
+      });
+      return { ok: false, reason: AuthReason.PASSWORD_POLICY, errors: policy.errors };
+    }
+    const nowIso = new Date(this.now()).toISOString();
+    await this.store.completeSuperUserRecovery(protectedUser.id, hashPassword(newPassword), nowIso);
+    await this.audit({
+      eventType: "SUPER_USER_RECOVERY",
+      result: "success",
+      actorUserId: protectedUser.id,
+      actorName: protectedUser.username,
+      targetType: "user",
+      targetId: protectedUser.id
+    });
+    return { ok: true };
   }
 
   // ── Login ────────────────────────────────────────────────────────────────────

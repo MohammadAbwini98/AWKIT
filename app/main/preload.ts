@@ -137,9 +137,11 @@ const api = {
       }>,
     getLoginOptions: () => ipcRenderer.invoke("security:getLoginOptions") as Promise<LoginOption[]>,
     bootstrapSuperUser: (input: { username: string; password: string; displayName?: string }) =>
-      ipcRenderer.invoke("security:bootstrapSuperUser", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
+      ipcRenderer.invoke("security:bootstrapSuperUser", input) as Promise<{ ok: boolean; recoveryCode?: string; reason?: string; errors?: string[] }>,
     login: (request: { providerId: ProviderId; username: string; password: string }) =>
       ipcRenderer.invoke("security:login", request) as Promise<LoginResult>,
+    recoverSuperUser: (input: { recoveryCode: string; newPassword: string }) =>
+      ipcRenderer.invoke("security:recoverSuperUser", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
     validateSession: (sessionRef: string) =>
       ipcRenderer.invoke("security:validateSession", sessionRef) as Promise<SessionValidationResult>,
     logout: (sessionRef: string) => ipcRenderer.invoke("security:logout", sessionRef) as Promise<void>,

@@ -26,6 +26,7 @@ const env = { ...process.env, LOCALAPPDATA: dataRoot };
 delete env.ELECTRON_RUN_AS_NODE;
 
 const CREDS = { displayName: "Site Admin", username: "admin1", password: "Str0ng!Passw0rd" };
+const RECOVERED_PASSWORD = "Rec0vered!Pass42";
 const shotDir = path.join(root, "reports", "security-login");
 mkdirSync(shotDir, { recursive: true });
 
@@ -77,8 +78,16 @@ try {
   await setupPw.nth(1).fill(CREDS.password);
   await win.getByRole("button", { name: "Create account" }).click();
 
+  await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 20000 });
+  const recoveryCode = (await win.locator(".awkit-recovery-code code").innerText()).trim();
+  check("first-run displays a formatted one-time recovery code", /^[A-HJ-NP-Z2-9-]+$/.test(recoveryCode), recoveryCode);
+  check("protected app remains gated until the code is acknowledged", (await win.locator(".app-shell").count()) === 0);
+  const continueButton = win.getByRole("button", { name: "Continue to SpecterStudio" });
+  check("continue is disabled until the user confirms the code was saved", await continueButton.isDisabled());
+  await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+  await continueButton.click();
   await win.waitForSelector(".app-shell", { timeout: 25000 });
-  check("first-run provisioning signs into the app shell", true);
+  check("acknowledging the recovery code signs into the app shell", true);
   // PR #21 replaced the plain title-bar chip (.app-frame-user/.app-frame-logout) with the
   // AccountMenu (avatar trigger → popover with Sign out).
   const userChip = await win.locator(".awkit-account-name").innerText().catch(() => "");
@@ -101,6 +110,38 @@ try {
   check("Active Directory marked coming soon", (await win.getByText(/coming soon/i).count()) >= 1);
   await win.screenshot({ path: path.join(shotDir, "login.png") }).catch(() => undefined);
 
+  await win.getByRole("button", { name: "Recover Super User" }).click();
+  await win.getByRole("heading", { name: "Recover Super User" }).waitFor({ timeout: 10000 });
+  const recoveryPw = win.locator('.awkit-login-form input[type="password"]');
+  await win.fill("#awkit-recovery-code", "AAAA-BBBB-CCCC-DDDD-EEEE-FFFF-AA");
+  await recoveryPw.nth(0).fill(RECOVERED_PASSWORD);
+  await recoveryPw.nth(1).fill(RECOVERED_PASSWORD);
+  await win.getByRole("button", { name: "Reset password" }).click();
+  await win.waitForTimeout(700);
+  check("incorrect recovery code is rejected without leaving the reset screen", (await win.locator("#awkit-recovery-code").count()) === 1);
+
+  await win.fill("#awkit-recovery-code", recoveryCode.toLowerCase());
+  await win.getByRole("button", { name: "Reset password" }).click();
+  await win.waitForSelector("#awkit-login-username", { timeout: 15000 });
+  const recoveryNotice = await win.locator(".awkit-login-notice").innerText().catch(() => "");
+  check("valid recovery code resets the password and returns to sign-in", /password reset/i.test(recoveryNotice), recoveryNotice.trim());
+
+  await win.fill("#awkit-login-username", CREDS.username);
+  await win.locator('.awkit-login-form input[type="password"]').first().fill(CREDS.password);
+  await win.getByRole("button", { name: "Sign in" }).click();
+  await win.waitForTimeout(700);
+  check("old Super User password is rejected after recovery", (await win.locator(".form-message.error").count()) >= 1);
+
+  await win.getByRole("button", { name: "Recover Super User" }).click();
+  await win.fill("#awkit-recovery-code", recoveryCode);
+  const reusedPw = win.locator('.awkit-login-form input[type="password"]');
+  await reusedPw.nth(0).fill("An0ther!Recovery42");
+  await reusedPw.nth(1).fill("An0ther!Recovery42");
+  await win.getByRole("button", { name: "Reset password" }).click();
+  await win.waitForTimeout(700);
+  check("the recovery code cannot be reused", (await win.locator("#awkit-recovery-code").count()) === 1 && (await win.locator(".form-message.error").count()) >= 1);
+  await win.getByRole("button", { name: "Back" }).click();
+
   // ── Dark-mode visual pass of the login screen (bd awkit-l6h) ─────────────────
   // Simulate a user who selected the dark appearance: persist the preference and reload the pre-auth
   // login screen (a reload is safe here — there is no authenticated session to drop).
@@ -120,7 +161,7 @@ try {
 
   // ── Re-login with the created credentials ────────────────────────────────────
   await win.fill("#awkit-login-username", CREDS.username);
-  await win.locator('.awkit-login-form input[type="password"]').first().fill(CREDS.password);
+  await win.locator('.awkit-login-form input[type="password"]').first().fill(RECOVERED_PASSWORD);
   await win.getByRole("button", { name: "Sign in" }).click();
   await win.waitForSelector(".app-shell", { timeout: 20000 });
   check("re-login with created credentials reaches the app shell", true);
@@ -150,6 +191,9 @@ try {
     await pw.nth(0).fill(CREDS.password);
     await pw.nth(1).fill(CREDS.password);
     await win.getByRole("button", { name: "Create account" }).click();
+    await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 20000 });
+    await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+    await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
     await win.waitForSelector(".app-shell", { timeout: 25000 });
     check("idle-lock: first-run signs into the app shell", true);
 

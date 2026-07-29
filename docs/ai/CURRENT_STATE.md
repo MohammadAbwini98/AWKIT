@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Super User one-time recovery is complete (2026-07-29, current)
+
+`awkit-aty` is closed. First-run Super User provisioning generates a 128-bit, ambiguity-free
+recovery code and blocks entry to the protected shell until the user confirms it was saved. The
+plaintext code is shown only in transient renderer state; the security store retains only its
+scrypt hash inside the existing DPAPI-backed column wrapper.
+
+The login screen now offers a pre-auth recovery form. A valid unused code and policy-compliant new
+password atomically rotate the protected Super User credential, clear lockout state, consume the
+code, and revoke every existing Super User session. Invalid, policy-rejected, successful, and reused
+attempts are audited; responses remain enumeration-safe. Schema migration v3 adds the protected
+recovery fields without changing the preload API identifier or the offline trust boundary.
+
+Verification: auth **64/64**; real Electron auth GUI **25/25**; real Electron authentication
+lifecycle **30/30**; authz **59/59**; session context **11/11**; security **39/39**; IPC contract
+**4/4**; build and script typecheck PASS. The validation ledger remains
+**61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are **118 total / 10 outstanding / 108 closed**.
+
 ## Global license attention and background revalidation are complete (2026-07-29, current)
 
 `awkit-x13` is closed. For principals with `license.view`, the global status bar reads the trusted
@@ -2906,7 +2924,7 @@ On branch `feature/superuser-admin-rbac` (NOT committed to `main`).
 - **RBAC core (`src/security/authz/`):** `Permissions.ts` — the single permission registry + immutable
   built-in roles (**SuperUser / Administrator / Operator / Viewer**) + `effectivePermissions`. Decisions:
   scrypt (O-1), built-in roles only (O-2), roles-only v1 (O-4), fresh-login-after-restart (O-5);
-  recovery codes deferred.
+  recovery codes were deferred at this phase and are now complete under `awkit-aty` (2026-07-29).
 - **Enforcement (`AuthorizationService`) is the real boundary:** every mutating IPC handler calls
   `requirePermission(sessionRef, perm)` **after** session validation (deny-by-default); sensitive ops also
   require a fresh **re-auth within 5 min** (`requireFreshReauth`, `security:reauth`). Hiding a UI control is
@@ -2928,7 +2946,7 @@ On branch `feature/superuser-admin-rbac` (NOT committed to `main`).
   protection, disable/role-change/reset session revocation, reauth gating, audit) + new **`verify:admin-gui`
   10/10** (real Electron: SU sees admin nav, create user, Roles/Permissions/Audit/Licensing render, 0 console
   errors). `verify:auth` **49/49**, `npm run build` clean. Screenshot `reports/security-admin/`.
-- **Remaining (follow-ups):** SU recovery codes; per-user permission overrides + custom roles (v2); machine
+- **Remaining (follow-ups):** per-user permission overrides + custom roles (v2); machine
   licensing (Phase 5); Active Directory provider; deeper per-action button gating on non-admin pages.
 
 

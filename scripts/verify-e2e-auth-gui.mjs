@@ -69,8 +69,11 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     await setupPw.nth(0).fill(SU.password);
     await setupPw.nth(1).fill(SU.password);
     await createBtn.click();
+    await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 20000 });
+    await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+    await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
     await win.waitForSelector(".app-shell", { timeout: 25000 });
-    check("first-run: valid credentials auto sign in (shell mounts)", true);
+    check("first-run: code acknowledgment completes sign-in (shell mounts)", true);
     const avatarInitials = (await win.locator(".awkit-account-trigger").innerText().catch(() => "")).trim();
     check("account chip shows the signed-in identity", avatarInitials.includes(SU.display), avatarInitials);
     await win.screenshot({ path: path.join(shotDir, "01-su-shell.png") }).catch(() => undefined);
@@ -211,6 +214,9 @@ const loginError = async (win) => (await win.locator(".form-message.error").inne
     await pw.nth(0).fill(SU.password);
     await pw.nth(1).fill(SU.password);
     await win.getByRole("button", { name: "Create account" }).click();
+    await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 20000 });
+    await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+    await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
     await win.waitForSelector(".app-shell", { timeout: 25000 });
 
     // No input from here: the proactive lock must fire on its own.

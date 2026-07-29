@@ -86,6 +86,14 @@ export const SECURITY_STORE_MIGRATIONS: SecurityStoreMigration[] = [
       `ALTER TABLE security_users ADD COLUMN roles TEXT NOT NULL DEFAULT '[]'`,
       `UPDATE security_users SET roles = '["SuperUser"]' WHERE isProtectedSuperUser = 1`
     ]
+  },
+  {
+    version: 3,
+    name: "super-user-recovery-code",
+    statements: [
+      `ALTER TABLE security_provisioning ADD COLUMN recoverySecret TEXT`,
+      `ALTER TABLE security_provisioning ADD COLUMN recoveryUsedAt TEXT`
+    ]
   }
 ];
 

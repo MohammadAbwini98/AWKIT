@@ -5,6 +5,7 @@ import { messageForReason } from "../reasonMessages";
 
 export interface BootstrapResult {
   ok: boolean;
+  recoveryCode?: string;
   reason?: string;
   errors?: string[];
 }

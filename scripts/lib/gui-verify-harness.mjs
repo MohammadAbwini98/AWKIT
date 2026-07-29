@@ -69,7 +69,8 @@ export async function resolveMainWindow(app, timeoutMs = 40000) {
 
 /**
  * Drive the clean-machine first-run: SecurityGate shows FirstRunSetup on an empty profile; provision
- * the Super User (auto signs in) so the protected app shell becomes reachable. Assumes an isolated,
+ * the Super User, capture and acknowledge the one-time recovery code, then wait for the protected app
+ * shell. Assumes an isolated,
  * empty %LOCALAPPDATA% (see isolatedLaunchEnv) — on a profile that already has a user this would show
  * the login form instead and time out. Resolves once `.app-shell` has mounted.
  */
@@ -81,5 +82,11 @@ export async function signInFirstRun(win, creds = DEFAULT_CREDS) {
   await pw.nth(0).fill(creds.password);
   await pw.nth(1).fill(creds.password);
   await win.getByRole("button", { name: "Create account" }).click();
+  await win.getByRole("heading", { name: "Save your recovery code" }).waitFor({ timeout: 20000 });
+  const recoveryCode = (await win.locator(".awkit-recovery-code code").textContent())?.trim() ?? "";
+  if (!recoveryCode) throw new Error("first-run recovery code was not displayed");
+  await win.getByRole("checkbox", { name: "I saved this recovery code in a secure place." }).check();
+  await win.getByRole("button", { name: "Continue to SpecterStudio" }).click();
   await win.waitForSelector(".app-shell", { timeout: 25000 });
+  return { recoveryCode };
 }

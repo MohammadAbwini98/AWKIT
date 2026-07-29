@@ -8190,3 +8190,23 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   verifier literal and an early transient canvas sample; no product assertion was weakened.
 - **Result:** Phase E is **complete**; roadmap is 9 complete / 0 in progress / 2 partially completed
   (**82%**). Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**.
+
+## 2026-07-29 — Codex — One-time Super User recovery code
+
+- **Task:** complete `awkit-aty`: generate a show-once recovery code during first-run bootstrap and
+  provide an audited login-screen reset for the protected Super User.
+- **Implemented:** 128-bit ambiguity-free code generation and normalization; scrypt hashing inside
+  the existing DPAPI-backed column wrapper; security-store migration v3; trusted pre-auth IPC and
+  preload bridge; atomic password rotation, lockout clearing, code consumption, and full-session
+  revocation; one-time acknowledgment and recovery/reset renderer surfaces.
+- **Verifier compatibility:** every clean-profile GUI/package verifier now acknowledges the new
+  first-run gate. The focused real Electron auth walkthrough additionally proves the code is shown
+  before the shell, wrong/reused codes fail, reset succeeds, and the old password stops working.
+- **Files:** `src/security/{auth,ipc,store}/`, `app/main/{ipc/security.ipc.ts,preload.ts}`,
+  `app/renderer/security/`, `app/renderer/styles/global.css`, authentication/GUI/package verifier
+  scripts, roadmap assignment source, and AI memory docs.
+- **Checks:** auth **64/64**; auth GUI **25/25**; e2e auth **30/30**; authz **59/59**; session
+  context **11/11**; security **39/39**; IPC contract **4/4**; script typecheck and production build
+  PASS.
+- **Result:** `awkit-aty` closed. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
+  beads are **118 total / 10 outstanding / 108 closed**.
