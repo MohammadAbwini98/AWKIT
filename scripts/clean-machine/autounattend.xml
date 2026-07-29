@@ -153,7 +153,11 @@
         <SynchronousCommand wcm:action="add">
           <Order>1</Order>
           <Description>Mark the VM ready for the runbook</Description>
-          <CommandLine>cmd /c echo ready &gt; C:\awkit-vm-ready.txt</CommandLine>
+          <!-- Writes into the user's OWN profile. FirstLogonCommands runs as awkituser, a STANDARD
+               user, which cannot write to the root of C:\ - the first version of this marker
+               silently never appeared and a readiness poller waited 40 minutes for a file that was
+               never going to exist. -->
+          <CommandLine>cmd /c echo ready &gt; "%LOCALAPPDATA%\awkit-vm-ready.txt"</CommandLine>
         </SynchronousCommand>
       </FirstLogonCommands>
     </component>

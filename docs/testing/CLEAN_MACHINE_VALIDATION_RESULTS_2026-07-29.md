@@ -106,6 +106,16 @@ themselves rather than take it on trust.
 These are the obvious next increment: the driver already has guest command execution, interactive
 GUI launch and host-side capture, so §5 and §6 mostly need fixture seeding plus assertions.
 
+## Tooling defect found after the run
+
+The provisioner's documented readiness signal was wrong. `FirstLogonCommands` runs as the STANDARD
+user, which cannot write to the root of `C:\`, so the `C:\awkit-vm-ready.txt` marker never appeared
+and a readiness poller waited the full 40 minutes for a file that was never going to exist — while
+the VM had in fact been ready almost immediately. It cost nothing here because the VM state was
+confirmed directly instead, but anyone reusing the tooling would have read that timeout as a
+provisioning failure. The marker now writes into the user's own profile, and the script documents
+polling the logged-on user over PowerShell Direct, which is the check that actually worked.
+
 ## Machine-readable record
 
 `docs/testing/clean-machine-evidence/runbook-results.json` — every check with its status and detail,

@@ -166,5 +166,11 @@ Write-Output ""
 Write-Output ("VM '" + $VMName + "' is installing Windows unattended.")
 Write-Output ("  disks : " + $vmRoot)
 Write-Output ("  watch : Get-VM -Name " + $VMName + " | Select-Object Name,State,Uptime")
-Write-Output "  ready : the guest writes C:\awkit-vm-ready.txt at first logon"
+# Poll the logged-on user, NOT a file marker. FirstLogonCommands runs as the STANDARD user, which
+# cannot write to the root of C:\, so the original marker silently never appeared and a readiness
+# poller sat waiting for it for 40 minutes while the VM had in fact been ready the whole time.
+Write-Output "  ready : poll the logged-on user over PowerShell Direct (a C:\ file marker is NOT"
+Write-Output "          reliable - first-logon commands run as the standard user):"
+Write-Output "            Invoke-Command -VMName <vm> -Credential <admin> -ScriptBlock {"
+Write-Output "              (Get-CimInstance Win32_ComputerSystem).UserName }"
 Write-Output "  note  : PowerShell Direct works without any network; that is how the runbook drives it."
