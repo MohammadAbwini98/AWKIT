@@ -74,6 +74,7 @@
     "verify:failure-evidence": "tsx scripts/verify-failure-evidence.mts",
     "verify:failure-evidence-live": "tsx scripts/verify-failure-evidence-live.mts",
     "verify:verifier-classification": "tsx scripts/verify-verifier-classification.mts",
+    "verify:test-lab-cli-only": "tsx scripts/verify-test-lab-cli-only.mts",
     "verify:clean-machine-policy": "tsx scripts/verify-clean-machine-policy.mts",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
     "verify:licensing": "tsx scripts/verify-licensing.mts",

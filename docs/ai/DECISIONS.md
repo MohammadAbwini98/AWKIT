@@ -4,6 +4,44 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-07-29 — The Randomized Test Lab is CLI-only and never ships in the app
+
+- **Decision:** The Randomized Test Lab is CLI-only by architectural decision; its generation harness is never shipped inside the production application.
+- **Why:** the production app exists to execute user-authored authorized workflows. Embedding a
+  random/combinatorial generator would add production UI and IPC surface, packaged code and
+  dependencies, a standing risk of accidentally destructive generated workflows, authorization and
+  support ambiguity, and a permanent maintenance obligation unrelated to customer execution — plus
+  a real chance of confusing generated fixtures with the user's own data.
+- **Consequence:** Test Lab **Phase 7 (`awkit-wza.8`) is CLOSED as a recorded architecture
+  decision, not as an incomplete product feature.** Generation, mutation, orchestration and result
+  classification stay under `src/testing/**`, driven from developer tooling. The lab continues to
+  exercise the *real* Electron, IPC, runner, storage, mock-site, reporting and packaged layers — it
+  is not permitted to substitute synthetic engine-only fixtures for those. Generated artifacts may
+  be imported into a disposable test workspace when GUI validation is needed.
+- **Not this:** a future customer-facing template or workflow wizard is a separate feature with its
+  own product requirements. It must not be delivered by exposing the randomized Test Lab.
+- **Enforcement:** `scripts/lib/test-lab-packaging-policy.ts` is the canonical source;
+  `npm run verify:test-lab-cli-only` proves no `app/**` module imports the harness, no production
+  bundle contains its symbols, and no route registration file declares a Test Lab surface.
+
+### 2026-07-29 — Licensing is enforced by default; upgrades get one 14-day grace
+
+- **Decision:** hard enforcement is **on by default**. `SPECTER_LICENSE_ENFORCE` is removed as a
+  production opt-in. `VALID`/`EXPIRING_SOON` admit runs; `NOT_ACTIVATED`, `EXPIRED`, `INVALID`,
+  `MISMATCH`, `CORRUPTED` and any failure to evaluate licensing block new runs.
+- **Active runs:** `NOT_ACTIVATED` and `EXPIRED` let an already-started run finish; the integrity
+  states (`INVALID`, `MISMATCH`, `CORRUPTED`) cancel pending work before execution starts.
+- **Grace:** an installation upgraded from a pre-enforcement version gets a **one-time 14-day**
+  migration grace from first launch of the enforcing version. Fresh installations get none. During
+  grace, saved workflows stay executable and the UI persistently shows the deadline and the
+  activation action. Integrity states are never graced. Editing, exporting, reports, settings and
+  license recovery all remain available after execution is blocked.
+- **Bypass:** exists only for automated tests and development composition roots, and is compiled out
+  of packaged builds — a packaged application has no enforcement bypass at all, by any environment
+  variable, flag, setting or IPC call.
+- **Why:** optional enforcement is not enforcement. A bounded, one-time upgrade grace protects
+  existing users without weakening any integrity-related state.
+
 ### 2026-07-28 — The offline browser is an approved, signed release input
 
 - **Decision:** ship Chrome for Testing `149.0.7827.55` (revision `1228`) with Playwright `1.61.0`.
