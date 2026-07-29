@@ -109,25 +109,40 @@ itself a finding to record — it is not a failure of the app.
 
 ## 2. Portable and NSIS artifact hashes
 
+> **Refreshed 2026-07-29.** The hashes below belonged to the 2026-07-22 build and no longer matched
+> either artifact — a tester following the §2 verification step would have recorded a **FAIL**, and by
+> the blocking matrix above a FAILED clean-machine run **blocks release promotion**. Stale hashes here
+> therefore manufacture a false blocking failure, so they are release-critical, not cosmetic.
+>
+> Both artifacts were also rebuilt: `package:portable` does **not** rebuild the NSIS installer, so the
+> installer on disk was four days old and contained **no licensing enforcement at all**. §7 would have
+> exercised the wrong build and could have "passed" while proving nothing about the shipped code.
+> Both are now built from the same clean tree at `a44f75a`+, with `sourceTreeDirty: false` recorded in
+> the signed dependency manifest.
+>
+> Re-run `npm run package:portable && npm run package:installer` and refresh this section whenever the
+> artifacts change.
+
 Copy these two files to the test machine (e.g. via read-only USB or a mapped read-only share). **Do
 not** copy the source tree or `node_modules`. Verify the hashes **on the test machine** before use.
 
 ### Portable
 ```
 File    : SpecterStudio 0.1.0.exe
-Size    : 325,296,994 bytes  (310.2 MiB)
-Built   : 2026-07-22T00:32:12+03:00
-SHA-256 : 129833754870f5fa2663efa48b979aaecaf1532831f20805a5b3f6537264c1fb
+Size    : 212,827,189 bytes  (203.0 MiB)
+Built   : 2026-07-29T19:42:45+03:00
+SHA-256 : 0934866d4a2bf04d0a2ea36934f03341581be1906dc47adef701a3e93bb1800f
+SHA-512 : vJ0gLb9LnII8CtZ/TIvq34ogTfddIuaUcQd+lS1wLzsqW6hGuYfz736YvaBHeTP5aQTMDwyjPt2vEp9fYKsJfw==  (base64)
 Signing : NotSigned  (Authenticode status: NotSigned — do NOT claim signed)
 ```
 
 ### NSIS installer
 ```
 File    : SpecterStudio Setup 0.1.0.exe
-Size    : 373,904,285 bytes  (356.6 MiB)
-Built   : 2026-07-22T01:40:27+03:00
-SHA-256 : 74950020d105af9b5f188d09a467d1ad297fbfc064b12cabe9931f1c4e6e2a5a
-SHA-512 : IeuFo2FgJUPMUrVdB+KlqGyY6K9ZPgvDDU2vm+qvZyWiCFxdhMRAb8A4SLual4+t0SZsiEdRe8wXN98+4VRcvQ==  (base64; matches dist/latest.yml)
+Size    : 244,263,870 bytes  (232.9 MiB)
+Built   : 2026-07-29T19:37:55+03:00
+SHA-256 : 4ba8c55f812af05fba6270560234e6642171b12ae9e9b094fca1954562a39dfe
+SHA-512 : iGTa81i508AEiitMkXOtY0bdoBgb/okSDlwNTTDQvnZBaHUzFjDJnnhjDeMX6FLrOywAovh0Fr3oW1hDmgY6NA==  (base64; matches dist/latest.yml)
 Signing : NotSigned  (Authenticode status: NotSigned — do NOT claim signed)
 ```
 
