@@ -147,6 +147,24 @@ AWKIT feature, and stable selectors using role/name, labels, placeholders, and/o
 or scenarios must be covered by `npm run verify:mock-site` or another focused verifier, and their URLs
 must be documented in `mock-site/README.md` and AI memory files.
 
+## Randomized Automation Test Lab
+
+The framework-agnostic generation/oracle/round-trip core lives under `src/testing/`. Phase 4 adds a
+failure boundary under `src/testing/failures/`:
+
+- `FailureArtifactWriter` writes a new exclusive directory per failure under the ignored
+  `reports/random-tests/failures/` tree. The bundle contains immutable originals plus constraints,
+  coverage, a non-identifying machine snapshot, and exact reproduction metadata. It rejects
+  resolved secrets and sensitive query parameters before persistence.
+- `FailureReproducer` validates the artifact schema and `GENERATOR_VERSION`, deep-clones definitions
+  before evaluation, and requires category/signature identity.
+- `Shrinker` is evaluator-driven and never mutates the stored bundle. It removes flows, branches,
+  and nodes before reducing concurrency and loop bounds; a candidate is committed only when it is
+  structurally smaller and reproduces the same failure.
+- `scripts/random-test-lab.mts` owns the Windows-safe campaign/smoke/reproduce CLI. Phases 1-4 remain
+  browser-free; Phase 5 will bind generated definitions to the real execution engine and local mock
+  site.
+
 ### When modifying features
 
 1. Identify whether the feature needs a Mock Site scenario.

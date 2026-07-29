@@ -8,12 +8,13 @@ vacuous** and **§7 Defects found**.
 
 | Phase | State | Verification |
 |---|---|---|
-| 0.1 extract designer mapping | module created; designer edit pending | source-parity guard active |
+| 0.1 extract designer mapping | **done** | designer imports the shared mapping; regression guard active |
 | 0.2–0.6 verifier fix + mock fixtures | not started (all touch tracked files) | — |
 | 1 generation core | **done** | `verify-random-generator.mts` — 49 passed, 0 failed |
-| 2 validation oracle | **done** | `verify-random-oracle.mts` — 19 passed, **1 failed** (a real product defect) |
+| 2 validation oracle | **done; all validation gaps fixed** | `verify-random-oracle.mts` — **27 passed, 0 failed** |
 | 3 persistence round-trip | **done; all defects since FIXED (Tranche 1)** | `verify-random-roundtrip.mts` — **26 passed, 0 failed** (was 8/15; now a regression guard) |
-| 4–8 | not started | — |
+| 4 failure artifacts, shrinking, CLI | **done** | `verify:random-failures` **17/17**; campaign 25 workflows / 59 flows |
+| 5–8 | not started | — |
 
 > **Tranche 1 update (2026-07-21):** all 11 observed + 2 predicted round-trip defects (RT-01…RT-15) were
 > fixed in `flowProfileMapping.ts` and their catalog entries deleted. The round trip is lossless and the
@@ -259,6 +260,8 @@ issues.
 
 ## Phase 4 — Failure artifacts, shrinking, CLI
 
+**Completed 2026-07-29 (`awkit-wza.5`).**
+
 - `FailureArtifactWriter.ts` — seed, generator version, definitions, constraints, coverage, machine
   snapshot, failure category, reproduction command. Written under `reports/random-tests/`
   (already gitignored). Originals are never overwritten.
@@ -267,14 +270,12 @@ issues.
 - `npm run test:random`, `:smoke`, `:generator`, `:oracle`, `:roundtrip`, `:reproduce`
   (Windows-safe argument syntax).
 
-**Deferred:** `package.json` is a tracked file inside the in-flight checkpoint, so no script entries
-have been added. Until they are, invoke the verifiers directly — the commands are identical in
-effect:
-
-```bash
-npx tsx scripts/verify-random-generator.mts
-npx tsx scripts/verify-random-roundtrip.mts
-```
+Artifacts are schema/version checked, written to unique exclusive directories, and rejected before
+write if they contain a resolved secret or sensitive URL query parameter. Reproduction requires the
+same category and recorded signature. The shrinker deep-clones originals and accepts only a strictly
+smaller candidate that retains that identity. Verification: `verify:random-failures` **17/17**,
+smoke **2 workflows / 4 flows**, full campaign **25 workflows / 59 flows**, generator **49/49**,
+oracle **27/27**, round-trip **26/26**.
 
 ---
 

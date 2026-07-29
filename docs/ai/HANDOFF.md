@@ -1,5 +1,21 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — Randomized Test Lab Phase 4 complete
+
+`awkit-wza.5` is complete and Phase 5 (`awkit-wza.6`) is now dependency-ready. Phase 4 added
+secret-safe immutable failure bundles, generator/schema-checked exact reproduction,
+category-preserving shrinking, and all six `test:random*` CLI aliases. Focused verification is
+17/17; the full deterministic campaign generated 25 workflows / 59 flows; generator 49/49, oracle
+27/27, round-trip 26/26, and script typecheck/classification are green.
+
+Next implementation boundary: `RandomTestRunner` must drive the real `ExecutionEngine` against the
+local mock site, poll `getInstances()` to a terminal state with a lab-owned deadline, derive
+concurrency from the capacity planner, and distinguish `labTimeout` from product statuses. Do not
+hardcode machine concurrency or treat `startRun()` as awaitable.
+
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 16 outstanding / 102 closed**.
+
 ## TAKEOFF (2026-07-28) — consolidated handoff, read this first
 
 **Repository state:** `main` contains the completed `awkit-epz` offline supply-chain work,

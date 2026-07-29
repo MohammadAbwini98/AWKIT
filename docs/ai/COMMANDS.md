@@ -284,12 +284,14 @@ npm run seed:mock-fixtures  # node scripts/seed-mock-fixtures.mjs — import tes
 npm run ai:memory           # node scripts/ai-memory/check-memory.mjs — validate the AI memory files
 npm run ai:memory:check     # alias of ai:memory
 
-# Randomized Automation Test Lab (2026-07-21, epic awkit-wza — pure, no browser, no Electron).
-# NOTE: these have NO npm aliases yet — invoke them directly. Adding the `test:random:*` script
-# entries is plan task in docs/testing/RANDOMIZED_TESTING_IMPLEMENTATION_PLAN.md Phase 4.
-npx tsx scripts/verify-random-generator.mts  # seeded determinism, catalog<->registry parity, 225 generated
-                                             # flows through the real validateConnectorStructure, reachability,
-                                             # coverage accounting, no-secret/no-external-URL safety (49)
+# Randomized Automation Test Lab Phases 1-4 (pure, no browser, no Electron).
+npm run test:random -- --seed <seed> --workflow-count <count> # generation + validation + round-trip campaign
+npm run test:random:smoke -- --seed <seed>                    # bounded two-workflow campaign
+npm run test:random:generator                                 # generator/catalog/safety gate (49)
+npm run test:random:oracle                                    # mutations vs production validators (27)
+npm run test:random:roundtrip                                 # JSON + designer lossless gate (26)
+npm run test:random:reproduce -- --artifact "<failure.json>"  # exact category/signature reproduction
+npm run verify:random-failures                                # artifacts, reproducer, shrinker, CLI (17)
 npx tsx scripts/verify-packaged-validation.mts # Tranche 2 hardening gate — run AFTER `npm run package:portable`.
                                              # Drives the REAL packaged EXE on a clean profile AND an upgrade
                                              # profile (FNV-era grant, old migration record, run history):
@@ -317,16 +319,6 @@ npx tsx scripts/verify-validation.mts        # Flow Validation Engine (src/valid
                                              # parity, canonical 1000 loop-cap parity, and the Stage 2b run
                                              # gate (PreRunValidator delegation, blocking policy, scoping,
                                              # runFlow precedence) (124)
-npx tsx scripts/verify-random-oracle.mts     # 13 controlled mutations judged against the real validators.
-                                             # EXPECTED: 27/0 since Stage 2b — all rules detected AND
-                                             # production-enforced (run gate delegates to the engine;
-                                             # awkit-7fm + awkit-acw closed). KNOWN_VALIDATION_GAPS and
-                                             # PRODUCTION_UNENFORCED_RULES are empty regression guards.
-npx tsx scripts/verify-random-roundtrip.mts  # profile -> JSON -> profile and profile -> designer -> profile.
-                                             # EXPECTED: 17 passed / 12 FAILED BY DESIGN — a baseline
-                                             # discovery run over 11 catalogued product defects. Do NOT tune,
-                                             # skip or weaken its assertions to make it green; fix the defect
-                                             # and delete its catalog entry instead.
 # Both write deterministic reports to reports/random-tests/ (gitignored).
 ```
 - There is **no** `lint` script and **no** `test` npm script.

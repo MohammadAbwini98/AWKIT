@@ -125,6 +125,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-mock-ui": { class: "integration", why: "Builds the real Java mock bridge and proves SQL-fixture parity, UI compatibility, limits, and read-only policy without a database." },
   "verify:branding": { class: "integration", why: "Real BrandingLogoStore atomic publish/rollback + sha256 re-verify + corrupt/missing fallback on a temp dir; no browser." },
   "verify:custom-brand-logo": { class: "integration", why: "Real BrandingLogoStore + BrandingValidation on a temp dir (signature/dimension/atomic/rollback/hash) mapped to the acceptance cases, plus structural source assertions; no browser." },
+  "verify:random-failures": { class: "integration", why: "Writes immutable failure bundles to a real temporary filesystem, reloads them through the production reproducer, and verifies category-preserving shrink behavior plus Windows-safe CLI parsing." },
 
   // ── Unit (pure in-process logic with fakes; no persistence/subprocess/browser) ───────────────
   "verify:canvas-layout": { class: "unit", why: "Pure graph-layout geometry over the real layout functions." },

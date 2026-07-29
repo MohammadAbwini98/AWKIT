@@ -76,8 +76,8 @@ try {
   // deliberately when a bead closes — never relax it to a range, or it stops noticing that the
   // export was not refreshed (`bd close` does not rewrite `.beads/issues.jsonl`; `bd export` does).
   check(
-    "17 outstanding / 101 closed",
-    beads.stats.outstanding === 17 && beads.stats.closed === 101,
+    "16 outstanding / 102 closed",
+    beads.stats.outstanding === 16 && beads.stats.closed === 102,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

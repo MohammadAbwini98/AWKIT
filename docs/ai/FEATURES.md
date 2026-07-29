@@ -1,5 +1,18 @@
 # FEATURES
 
+## Randomized Automation Test Lab (2026-07-29)
+
+- Implemented: deterministic generation, production validation oracle, and lossless designer/JSON
+  round-trip.
+- Implemented: immutable, secret-safe failure bundles with exact category/signature reproduction
+  and generator-version compatibility checks.
+- Implemented: category-preserving shrinker in flows, branches, nodes, concurrency, loop-bounds
+  order; originals are deep-cloned and never overwritten.
+- Implemented: Windows-safe `npm run test:random*` CLI plus the classified
+  `verify:random-failures` integration gate.
+- Planned: live browser execution, reporting, soak/fuzz campaigns, and the optional Super-User UI
+  remain Phases 5-8.
+
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied
 
 ## Workflow-reference contextual editors (2026-07-11)

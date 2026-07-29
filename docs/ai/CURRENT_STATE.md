@@ -1,5 +1,28 @@
 # CURRENT_STATE
 
+## Randomized Test Lab Phase 4 is complete (2026-07-29, current)
+
+`awkit-wza.5` is closed. Randomized failures now produce unique, immutable bundles under
+`reports/random-tests/failures/` with the seed, generator version, original flow/workflow
+definitions, resolved constraints, coverage snapshot, non-identifying machine capacity, stable
+failure category/signature, and a quoted reproduction command. The writer refuses resolved secret
+values and sensitive URL query parameters before any file is created; opaque `secretName`
+references remain supported.
+
+`FailureReproducer` rejects schema or generator-version drift and reports success only when the same
+failure category and, when recorded, the same signature recur. `Shrinker` deep-clones the stored
+definitions and accepts only strictly smaller candidates that retain that identity, in the required
+order: unrelated flows, branches, nonessential nodes, concurrency, then loop bounds.
+
+The Windows-safe CLI is available as `test:random`, `test:random:smoke`,
+`test:random:generator`, `test:random:oracle`, `test:random:roundtrip`, and
+`test:random:reproduce`; `verify:random-failures` is classified as an integration verifier.
+Verification: failure infrastructure **17/17**, smoke **2 workflows / 4 flows**, full campaign
+**25 workflows / 59 flows**, generator **49/49**, oracle **27/27**, round-trip **26/26**, script
+typecheck PASS, verifier classification **147/147**. Phase 5 (`awkit-wza.6`) is now dependency-ready.
+The validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**; beads are
+**118 total / 16 outstanding / 102 closed**.
+
 ## Stream diagnostics and async polling are closed (2026-07-28, current)
 
 `awkit-4km` is closed. Its earlier `apiPolling` condition already covered page-owned

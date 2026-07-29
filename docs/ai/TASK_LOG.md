@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Codex — Randomized Test Lab Phase 4: failure artifacts, shrinking, CLI
+
+- **Task:** complete `awkit-wza.5`, the dependency-ready Phase 4 boundary for durable randomized
+  failure evidence, exact reproduction, category-preserving minimization, and npm CLI entry points.
+- **Implemented:** `FailureArtifactWriter` writes unique exclusive bundles with immutable originals,
+  constraints, coverage, non-identifying machine capacity, generator/schema identity, and a quoted
+  reproduce command. It rejects resolved secrets and sensitive URL query parameters before writing.
+  `FailureReproducer` deep-clones definitions and requires category/signature equality.
+  `Shrinker` accepts only strictly smaller candidates in the prescribed flows → branches → nodes →
+  concurrency → loop-bounds order. `random-test-lab.mts` provides campaign, smoke, and reproduce
+  modes with both `--key value` and `--key=value` parsing.
+- **Files:** `src/testing/failures/*`, `scripts/{random-test-lab,verify-random-failures}.mts`,
+  `package.json`, verifier classification, randomized-test plan, and AI memory/status docs.
+- **Checks:** `verify:random-failures` **17/17**; smoke **2 workflows / 4 flows**; full campaign
+  **25 workflows / 59 flows**; generator **49/49**; oracle **27/27**; round-trip **26/26**;
+  `typecheck:scripts` PASS; verifier classification **147/147**.
+- **Result:** Phase 4 is complete; `awkit-wza.6` is unblocked. No browser/runtime behavior or
+  packaging input changed, so live runner and offline-package gates were not required for this
+  focused phase.
+
 ## 2026-07-28 (latest) - `awkit-4km` stream and CDP diagnostics closure (Codex)
 
 **Task:** close the remaining WebSocket/SSE lifecycle and advanced-network-diagnostics slice after
