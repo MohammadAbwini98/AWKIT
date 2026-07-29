@@ -1,5 +1,36 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-29) — packaged licensing gates built and executed; no ready engineering
+
+`awkit-1cc` is closed. Both packaged gates are implemented and have been run against a freshly
+packaged build: `verify:packaged-walkthrough` **86/0** and `verify:packaged-licensing` **33/0** with
+the issuer key configured, and **1** / **2** BLOCKED respectively without it. See
+`docs/ai/CURRENT_STATE.md` for the full description.
+
+**Read this before packaging anything.** Offline packaging had been impossible from a clean checkout
+since `4526244`: the dependency manifest was signed over CRLF bytes while `.gitattributes` stores
+`*.json` as LF, so the committed manifest never matched its own signature and
+`validate-offline-bundle.ps1` refused before the build. Fixed at the generator (normalise to LF
+before signing) and pinned in `.gitattributes`. If you ever see "Dependency-manifest SHA-256 does not
+match its signature record", check line endings first.
+
+**Running the packaged gates.** Set `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` to the offline issuer key's
+path — and only on an authorized validation machine or CI runner. There is deliberately no fallback
+to the issuer's default discovery location, so a developer with a key lying around cannot silently
+sign with the production release key. Without it both gates record BLOCKED, never skipped and never
+passed. The key path is stripped from every packaged launch environment, and no key material ever
+transits an environment variable.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**119 total / 5 outstanding / 114 closed**.
+
+`bd ready` is empty. The five outstanding items are all externally gated: two authorized-operator
+gates (`awkit-7bu` real Oracle 19c, `awkit-cey` real IdP), the Oracle external release gates
+(`awkit-cm8`), and two manual OS shell launches (`awkit-az7`, `awkit-hlp`).
+
+The clean/offline Windows VM walkthrough remains a separate human gate. Nothing in this session
+claims it.
+
 ## TAKEOFF (2026-07-29) — three owner decisions implemented; packaged licensing path outstanding
 
 The owner decided `awkit-1cc`, `awkit-wza.8` and `awkit-8ri`/SET-013, and all three are implemented

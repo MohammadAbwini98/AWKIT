@@ -72,14 +72,14 @@ try {
   const beads = parseBeads();
   check("119 issues parse", beads.stats.total === 119, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
-  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113 on 2026-07-29 (owner decisions
+  // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113 then 5/114 on 2026-07-29 (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
   // total also moved 118 → 119). Move this pin deliberately when a bead closes — never relax it to a
   // range, or it stops noticing that the export was not refreshed (`bd close` does not rewrite
   // `.beads/issues.jsonl`; `bd export` does).
   check(
-    "6 outstanding / 113 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 113,
+    "5 outstanding / 114 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 114,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## Packaged licensing gates built AND executed; offline packaging unblocked (2026-07-29, current)
+
+`awkit-1cc` is complete. The packaged half that was outstanding this morning is built and has now
+been **run for real** against a freshly packaged build on this machine.
+
+`verify:packaged-walkthrough` no longer needs an exemption. It licenses the machine the way an
+administrator would: reads the fingerprint through the app's own licensing IPC, mints a short-lived
+license with the EXTERNAL issuer (spawned outside the packaged app, key path on argv only), imports
+it through the administrator IPC, runs the four workflows to genuine `completed`, then removes the
+license and confirms the machine is blocked again. Admission is asserted to be attributable to the
+license, never to migration grace — the walkthrough checks `inGrace === false` on its own profile for
+exactly that reason.
+
+New `verify:packaged-licensing` covers the negative matrix in the packaged build, where no bypass
+exists: `NOT_ACTIVATED`, `INVALID_SIGNATURE` and `CORRUPTED` need no key; `EXPIRED` and
+`MACHINE_MISMATCH` need a real signature (the validator checks the signature before the fingerprint
+and before expiry, so an unsigned attempt would collapse into `INVALID_SIGNATURE` and the matrix
+would silently test one state three times). It also carries the deterministic migration-grace
+scenario on its own pre-seeded upgraded profile.
+
+**Measured, not asserted:**
+
+| gate | with the issuer key | without it |
+|---|---|---|
+| `verify:packaged-walkthrough` | **86 PASS / 0 FAIL** | 25 PASS / 0 FAIL / **1 BLOCKED** |
+| `verify:packaged-licensing` | **33 PASS / 0 FAIL** | 24 PASS / 0 FAIL / **2 BLOCKED** |
+
+The BLOCKED path is real rather than theoretical: the issuer key IS present at its default location
+on this machine, and both gates still refused to use it without `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`
+set explicitly. Presence of a key is not authorization, and neither gate ever skips or passes when it
+cannot license.
+
+**Two defects found by running it, both fixed.**
+
+1. **Offline packaging had been impossible from a clean checkout since `4526244`.** `.gitattributes`
+   declares `*.json text eol=lf`, but `generate-dependency-manifest.ps1` wrote CRLF and signed those
+   bytes — so every regenerated manifest was valid locally and broken the moment it round-tripped
+   through a commit. `validate-offline-bundle.ps1` runs before the build and refused on the
+   mismatch, which is why `dist/win-unpacked` was stale. The generator now normalises to LF before
+   signing, and the manifest/signature paths are pinned in `.gitattributes` so git never rewrites
+   bytes a signature covers. Verified against the stored blob: committed bytes now hash to exactly
+   what the signature records.
+2. **The negative matrix would have been worthless.** Its fixture builder hashed `JSON.stringify`
+   while the store checksums `stableStringify`, so every hand-written envelope loaded as `CORRUPTED`
+   and three of five cases would have "passed" while testing one state repeatedly. It now calls the
+   production `buildEnvelope`, so the drift cannot recur. Caught by probing before running, not by
+   the suite going green.
+
+The validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**119 total / 5 outstanding / 114 closed**.
+
+**Still outstanding and unchanged:** the clean/offline Windows VM walkthrough remains a separate
+human gate and is NOT claimed by any of this — every number above was measured on the developer
+machine.
+
 ## Three owner decisions implemented: licensing enforced, Test Lab CLI-only, secret-store seam (2026-07-29, current)
 
 The owner decided all three items that were blocked on a product call, and all three are built.

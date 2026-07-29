@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-29 — Claude — packaged licensing gates: build + execute
+
+- **Task:** build the packaged-walkthrough license path left outstanding on `awkit-1cc`, plus the
+  packaged negative matrix and the packaged migration-grace scenario.
+- **Built:** `scripts/helpers/packaged-license.mts` (issuer-key resolution, external mint,
+  env sanitisation, store-envelope fixtures); licensing lifecycle wired into
+  `verify-packaged-walkthrough.mts`; new `verify:packaged-licensing`.
+- **Executed on a freshly packaged build:** walkthrough **86 PASS / 0 FAIL** with the issuer key and
+  25 PASS / 0 FAIL / **1 BLOCKED** without; packaged licensing **33 PASS / 0 FAIL** with the key and
+  24 PASS / 0 FAIL / **2 BLOCKED** without.
+- **Defects found and fixed:** (1) offline packaging impossible from a clean checkout since
+  `4526244` — manifest signed over CRLF bytes while `.gitattributes` stores `*.json` as LF;
+  (2) the negative-matrix fixture builder hashed `JSON.stringify` while the store checksums
+  `stableStringify`, which would have collapsed all five states into `CORRUPTED`.
+- **Ordering bugs found by running it:** teardown before Parts I-J left later sessions unlicensed
+  (9 cascading failures that looked like recovery bugs); teardown needs a fresh session ref after
+  two restarts; the seeded grace fixture needs `allowOverwrite`.
+- **Files:** `scripts/helpers/packaged-license.mts`, `scripts/verify-packaged-licensing.mts`,
+  `scripts/verify-packaged-walkthrough.mts`, `scripts/generate-dependency-manifest.ps1`,
+  `.gitattributes`, `resources/dependency-manifest.{json,sig}`, `package.json`,
+  `scripts/lib/verifier-classification.ts`, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Tests NOT run:** the clean/offline Windows VM walkthrough (separate human gate, unchanged).
+- **Result:** `awkit-1cc` closes. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads
+  119 total / 5 outstanding / 114 closed.
+
+---
+
 ## 2026-07-29 — Claude — three owner decisions: licensing enforcement, Test Lab CLI-only, secret-store seam
 
 - **Task:** implement the owner's decisions on `awkit-1cc`, `awkit-wza.8` and `awkit-8ri`/SET-013.
