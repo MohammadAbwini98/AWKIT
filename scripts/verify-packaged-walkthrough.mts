@@ -565,13 +565,16 @@ async function licensePackagedMachine(t: Api, _localAppData: string): Promise<Li
  */
 async function unlicensePackagedMachine(t: Api, session: LicensedSession): Promise<void> {
   const win = t.win;
-  if (!session.sessionRef) return;
+  if (!session.licensed) return;
   try {
-    await freshReauth(win, session.sessionRef);
-    const removed = (await licensingApi.remove(win, session.sessionRef)) as any;
+    // A fresh session ref, NOT the one from the licensing session: teardown runs in a later Electron
+    // instance (session C) after two restarts, where the original ref no longer resolves.
+    const sessionRef = await packagedSession(win);
+    await freshReauth(win, sessionRef);
+    const removed = (await licensingApi.remove(win, sessionRef)) as any;
     check("verification license removed through the app's own IPC", removed?.ok === true, JSON.stringify(removed?.reason));
 
-    const afterRemoval = (await licensingApi.status(win, session.sessionRef)) as any;
+    const afterRemoval = (await licensingApi.status(win, sessionRef)) as any;
     check(
       "packaged app returns to NOT_ACTIVATED after removal",
       afterRemoval?.value?.status === "NOT_ACTIVATED",
@@ -996,12 +999,6 @@ async function main(): Promise<void> {
     }, 15000, 1000);
     check("recorder cancelled cleanly (browser closed)", recStopped === true);
 
-    // D-LIC teardown: hand the machine back exactly as it was found. Runs while session A is still
-    // alive, because removal goes through the app's own administrator IPC.
-    console.log("\nPart G-LIC — remove the verification license and confirm execution is blocked again");
-    await unlicensePackagedMachine(tA, licensedSession);
-    licensedSession = { licensed: false };
-
     console.log("\nPart H — clean shutdown of session A");
     await sessionA.close();
     sessionA = null;
@@ -1108,6 +1105,15 @@ async function main(): Promise<void> {
       return runs.every((run) => run.instanceId !== killedInstanceId) ? true : null;
     }, 15000);
     check("reviewed run disappears from the recoverable list", clearedFromList === true);
+
+    // D-LIC teardown: hand the machine back exactly as it was found. Deliberately the LAST thing
+    // that touches licensing — sessions B and C run real workloads on this same profile, so removing
+    // the license any earlier (as a first attempt did) leaves them unlicensed and collapses Parts I-J
+    // into a cascade of failures that look like recovery bugs. It must also run BEFORE session C is
+    // closed, because removal goes through the app's own administrator IPC and needs a live window.
+    console.log("\nPart J-LIC — remove the verification license and confirm execution is blocked again");
+    await unlicensePackagedMachine(tC, licensedSession);
+    licensedSession = { licensed: false };
 
     await sessionC.close();
     sessionC = null;

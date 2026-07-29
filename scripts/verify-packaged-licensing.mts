@@ -156,13 +156,16 @@ const statusOf = (win: Page, ref: string) =>
   win.evaluate(async (r) => (window as any).playwrightFlowStudio.licensing.getStatus(r), ref) as Promise<any>;
 const attemptRun = (win: Page) =>
   win.evaluate(async (req) => (window as any).playwrightFlowStudio.executions.runWorkflow(req), RUN_REQUEST) as Promise<any>;
+// `allowOverwrite` matters for the grace profile: its workflow is SEEDED on disk before first launch
+// (that seeding is what classifies the install as an upgrade), so a plain import would collide with
+// the very fixture the scenario depends on.
 const importFixtures = async (win: Page): Promise<void> => {
   for (const id of ["mock-login-flow", "mock-fill-form-flow", "mock-screenshot-flow"]) {
     const flow = JSON.parse(readFileSync(join(fixturesRoot, "flows", `${id}.json`), "utf8"));
-    await win.evaluate(async (f) => (window as any).playwrightFlowStudio.flows.import(f), flow);
+    await win.evaluate(async (f) => (window as any).playwrightFlowStudio.flows.import(f, { allowOverwrite: true }), flow);
   }
   const wf = JSON.parse(readFileSync(join(fixturesRoot, "workflows", "mock-simple-workflow.json"), "utf8"));
-  await win.evaluate(async (w) => (window as any).playwrightFlowStudio.workflows.import(w), wf);
+  await win.evaluate(async (w) => (window as any).playwrightFlowStudio.workflows.import(w, { allowOverwrite: true }), wf);
 };
 
 async function main(): Promise<void> {
