@@ -145,3 +145,42 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 - Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
+
+## graphify — graph-first code retrieval
+
+AWKIT has a local knowledge graph of its **code** at `graphify-out/` (derived, gitignored; rebuild
+with `graphify update .`). It is a **retrieval accelerator, not an authority**. Full contract,
+coverage, exclusions and refresh procedure: **`docs/ai/GRAPHIFY.md`**.
+
+**Order of operations — do not reorder:**
+
+1. **Read AWKIT's mandatory documents first.** `AGENTS.md` and the required-reading order it lists
+   (`docs/ai/CURRENT_STATE.md`, `HANDOFF.md`, `RULES.md`, `ARCHITECTURE.md`, `COMMANDS.md`) are
+   authoritative and are **not in the graph** — the graph never substitutes for them.
+2. **Then query the graph before broad search.** Prefer `graphify query "<question>"` over
+   speculative `Glob`/`Grep` sweeps or repeated whole-file reads. Use `graphify explain "<Symbol>"`
+   for a symbol and its neighbours, and `graphify path "<A>" "<B>"` for dependency/impact tracing
+   (`graphify affected "<X>"` for reverse impact).
+3. **Then open the real files.** Graphify returns `source_file` + `source_location` — `Read` those
+   files before editing them or making any critical claim. Never cite the graph as evidence for a
+   claim you have not checked in source.
+
+**Fall back to native search** (`Grep`, `Glob`, `Read`, the Codebase Memory MCP) whenever the graph
+is stale, incomplete, unsupported for that file type, or simply does not answer the question. It is
+a shortcut, never a gate — a missing node means "not indexed", never "does not exist".
+
+**Evidence ranking, highest first:** source code → tests/verifiers → Git state → `docs/ai/` and
+`AGENTS.md` → the graph. An `INFERRED` graph edge is a hint; an `EXTRACTED` edge is still only an
+AST fact about imports and references, not proof of runtime behaviour.
+
+**Known coverage limits** (full accounting in `docs/ai/GRAPHIFY.md`): code and Markdown are indexed
+(Markdown **structurally only** — headings, links, containment; no semantic/LLM edges). **Not**
+indexed: all `.css` including `app/renderer/styles/global.css`, all 48 `mock-site/*.html` scenario
+pages, `.json` fixtures (parsed, zero nodes), and `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`
+(excluded on purpose — read them directly). **Use `Grep` for style tokens and mock-site scenarios.**
+`graphify path` traverses an **undirected** graph, so a returned path shows connectivity, not call
+direction.
+
+**Refresh** after changing code or docs: `graphify update .` (offline, no API key, no token cost).
+That is also the canonical **build** command — driving the skill's pipeline by hand without an LLM
+key produces a strictly smaller, code-only graph.

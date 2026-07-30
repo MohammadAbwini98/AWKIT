@@ -1,0 +1,143 @@
+# .graphifyignore — Graphify knowledge-graph exclusions for SpecterStudio (AWKIT)
+#
+# Graphify honors .gitignore first; this file is evaluated after it and adds the
+# TRACKED files that add no value to a code/architecture graph (large media, binary
+# assets, package-lock, tracker exports) plus a defence-in-depth repeat of the
+# sensitive patterns already in .gitignore.
+#
+# Uses .gitignore syntax. Top-level runtime dirs are ROOT-ANCHORED (leading "/")
+# because real SOURCE dirs share their names (src/reports/, src/profiles/,
+# src/storage/, src/data/, src/instances/, app/renderer/components/reports/).
+# Same rationale as .cbmignore — see docs/ai/CODEBASE-MEMORY-AND-BEADS.md.
+#
+# Refresh procedure and what IS indexed: docs/ai/GRAPHIFY.md.
+
+# --- Graphify's own output and vendored skill docs (never index the tool into the graph) ---
+# AWKIT's OWN skills under .claude/skills/ (git-full-cycle, mock-site-maintainer, …) ARE
+# authoritative project instructions and stay indexed — only graphify's vendored copy is excluded.
+/graphify-out/
+/.claude/skills/graphify/
+
+# --- Dependencies & package-manager metadata ---
+node_modules/
+.pnpm-store/
+.yarn/
+/package-lock.json
+
+# --- Build / bundle / packaging output ---
+/dist/
+/build/
+/out/
+/release/
+.vite/
+.cache/
+.temp/
+/electron-builder/
+*.asar
+# Generated timestamped electron-vite configs (source of truth is electron.vite.config.ts)
+electron.vite.config.*.mjs
+
+# --- Bundled offline runtime (large binaries: Chromium, native modules, JDBC jars) ---
+/vendor/
+/.release-local/
+resources/browsers/
+resources/oracle-jdbc/runtime/
+resources/oracle-jdbc/bridge/
+resources/oracle-jdbc/lib/
+# Compiled Java bridge artifacts (source under oracle-jdbc-bridge/src stays indexed)
+oracle-jdbc-bridge/target/
+
+# --- Runtime-generated dev workspace (production data lives in %LOCALAPPDATA%) ---
+/logs/
+/temp/
+/tmp/
+/screenshots/
+/downloads/
+/reports/
+/instances/
+/runtime-inputs/
+/storage/
+/data/
+/.benchmark-runtime/
+/.fixtures-observability/
+/test-artifacts/
+
+# --- Test / trace output ---
+/test-results/
+/playwright-report/
+/blob-report/
+playwright/.cache/
+/traces/
+/videos/
+/coverage/
+
+# --- Browser profiles / sessions / auth state (SENSITIVE — never index) ---
+storage-state.json
+auth-state.json
+*.storageState.json
+session-profiles.json
+/user-data-dir/
+/browser-profiles/
+/profiles/
+/sessions/
+/cookies/
+*.har
+
+# --- Secrets and cryptographic material (never index) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.sig
+
+# --- Local databases / logs / backups ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.bak
+package.json.bak.*
+
+# --- Beads tracker data (Dolt DB, JSONL exports, audit trail — not source) ---
+.beads/
+
+# --- Codebase Memory MCP's generated graph artifact ---
+/.codebase-memory/
+
+# --- Binary / media assets (no code or architecture content) ---
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.webp
+# Brand/logo vector assets only — indexing them costs a vision pass and yields no edges
+*.svg
+*.mp4
+*.mov
+*.woff
+*.woff2
+*.ttf
+*.eot
+/logos/
+UI Samples/
+/ui-mock.html
+/capture-dribbble.mjs
+/get-videos.mjs
+
+# --- Append-only session logs: chronological narrative, not architecture ---
+# These are authoritative HISTORY, not structure, and they churn on every task
+# (TASK_LOG.md ~660 KB, CURRENT_STATE.md ~490 KB, HANDOFF.md ~215 KB). Indexing
+# them would dominate extraction cost and force a graph rebuild after every commit
+# without adding a single structural edge. Agents must still READ them directly —
+# they are the required-reading files in AGENTS.md and are never superseded by the
+# graph. See docs/ai/GRAPHIFY.md § "What is intentionally excluded".
+docs/ai/TASK_LOG.md
+docs/ai/CURRENT_STATE.md
+docs/ai/HANDOFF.md

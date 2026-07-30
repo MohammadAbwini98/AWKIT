@@ -151,5 +151,13 @@ test-artifacts/
 # are committed; the Dolt store embeddeddolt/ is ignored).
 .codebase-memory/
 
+# Graphify: local knowledge-graph artifacts (same policy as .codebase-memory/ — derived, never
+# committed). graph.json is ~10 MB and rewrites on every code change, so committing it would churn
+# the tree and defeat prompt caching; cost.json is local token-cost data; .graphify_python and
+# .graphify_root hold machine-specific absolute paths; manifest.json holds local mtimes.
+# .graphifyignore itself IS tracked (it's index config, like .cbmignore).
+# Rebuild with `graphify update .` — see docs/ai/GRAPHIFY.md.
+graphify-out/
+
 # Machine-local Codex sandbox policy; never publish a workstation's access mode.
 .codex/config.toml
