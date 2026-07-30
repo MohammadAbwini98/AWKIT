@@ -85,9 +85,21 @@ if (__SCROLL__ -ne 0) {
   Register-ScheduledTask -TaskName "AwkitGuestClick" -Action $action -Principal $principal -Force | Out-Null
   Start-ScheduledTask -TaskName "AwkitGuestClick"
 
-  for ($i = 0; $i -lt 20; $i++) {
+  # The scheduled task may still hold the marker open when Test-Path first sees it, and a plain
+  # Get-Content then throws "because it is being used by another process" - which aborts the whole
+  # click even though the click itself already happened. Open it share-read and keep polling.
+  for ($i = 0; $i -lt 25; $i++) {
     Start-Sleep -Milliseconds 400
-    if (Test-Path $marker) { return (Get-Content $marker -Raw).Trim() }
+    if (-not (Test-Path $marker)) { continue }
+    try {
+      $fs = [System.IO.File]::Open($marker, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+      try {
+        $sr = New-Object System.IO.StreamReader($fs)
+        $text = $sr.ReadToEnd().Trim()
+        $sr.Dispose()
+      } finally { $fs.Dispose() }
+      if ($text) { return $text }
+    } catch { }
   }
   return "no-result"
 } -ArgumentList @($GuestUser, $X, $Y, [bool]$MoveOnly, $Scroll)

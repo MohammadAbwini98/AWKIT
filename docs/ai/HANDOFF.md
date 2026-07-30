@@ -1,5 +1,37 @@
 # Agent Handoff
 
+## TAKEOFF (2026-07-30) - full single-artifact gate run, Pass D unfinished (`awkit-3zr`)
+
+**The prior "44 PASS / sections in full" claim was wrong and is corrected.** Sections 4 and 7 had
+been written up with a bespoke 4.1-4.5 / 7.1-7.4 numbering against the runbook's real 4.1-**4.12**
+and 7.1.1-7.3.3, so partial coverage read as complete; the whole of §7.2 (upgrade over a previous
+build) had never been attempted. Do not trust a results table whose row ids do not match the runbook.
+
+**Done on ONE artifact** (`f442f2c3…`), fresh VM: §3 (first execution ever), §1, §2, §4 (all 12 rows),
+§6.1-6.2, §7 (all 14 rows). §5.1-5.4, §5.8, §8.2, §8.12.
+
+**Remaining on this artifact: §5.5, §5.6, §5.7, §5.9, §6.3, §8.1, §8.3-§8.11.** All previously passed
+on the earlier VM, so they are re-runs for single-artifact consistency, not unknowns.
+
+**The VM is left ready to continue.** Profile seeded and classified `upgraded`, grace open to
+2026-08-13, one scan recorded, both grants present. Snapshots `clean-before-validation` and
+`staged-artifacts-preseed` exist — restore the latter to restart any pass (it reverts the profile
+**and** the ProgramData licensing mirror, which is what makes a `fresh`/`upgraded` re-classification
+possible).
+
+**Three things that will bite you:**
+1. A clean unlicensed machine **cannot run anything** - `fresh` profile → grace born consumed →
+   `NOT_ACTIVATED`. §4.4/4.9 and half of 4.5 are permanently BLOCKED, by design, not fixable by retry.
+2. **Validation is evaluated before licensing**, so invalid flows still give their specific message.
+3. Fixed-coordinate clicks go stale after a run completes (a nav group re-expanded and sent a click
+   to Recorder). Screenshot before each click sequence that follows an async state change.
+
+Filed: `awkit-k2s` (Flow Library re-scan action renders in the portable build but not the installed
+one, same artifact, same Super User).
+
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**. Beads
+**125 total / 10 outstanding / 115 closed**.
+
 ## TAKEOFF (2026-07-30) - clean-machine 44 PASS / 0 FAIL; only section 3 remains
 
 Sections 1, 2, 4, 5, 6, 7 and 8 in full. NOT EXECUTED: section 3 only (manual offline-setup steps,

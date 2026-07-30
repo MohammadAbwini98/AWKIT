@@ -589,6 +589,46 @@ stayed absent across a navigate-away-and-back, so it is not a first-render race.
 therefore triggered by the runbook's other documented route, a run request, which worked. Flagged for
 investigation rather than diagnosed here; it did not block any §7 row.
 
+## §5 / §8 — upgrade-profile pass (Pass D), on the same artifact — **PARTIAL, in progress**
+
+Pass D restored `staged-artifacts-preseed`, seeded the upgrade profile **before first launch**, and
+got the precondition the whole of §5 depends on:
+
+```json
+{ "installationKind": "upgraded", "consumed": false,
+  "firstEnforcedLaunchUtc": "2026-07-30T08:53:45.492Z",
+  "graceEndsAtUtc":        "2026-08-13T08:53:45.492Z" }
+```
+
+| # | Result | Evidence |
+|---|---|---|
+| 5.1 | **PASS** | app loads; the seeded library appears — 25 saved flows |
+| 5.2 | **PASS** | all three states render: **Not runnable** (broken, fixable, orphan-primary), **Runnable** (long-wait), and the dashed **Legacy** pill (orphan-secondary) |
+| 5.3 | **PASS** | scan: `digestAlgorithm=sha256`, `grantsIssued=1`, `grantsRetiredLegacyDigest=1`. Seeded FNV grant → `revokedReason: "digestFormatRetired"`, **not** honoured, **not** re-granted; the live grant is `sha256:7243e924…` with a 30-day deadline (2026-08-29) |
+| 5.4 | **PASS** | granted off-path workflow **ran**, report `status: "passed"`; the grant recorded it — `runsUnderCompatibility` 0 → 1, `lastRunAt 2026-07-30T08:59:58.735Z` |
+| 5.8 | **PASS** | *"Seeded Active-Path-Broken Flow Workflow: Validation failed: Step Click with no locator (click) requires a locator."* — `Browsers 0/2`, `Flows 0/4`, no browser launched |
+| 8.2 | **PASS** | satisfied by 5.8: no grant permits an active-path break |
+| 8.12 | **PASS** | satisfied by 5.3: FNV-era retirement on upgrade |
+
+### Not yet executed on this artifact
+
+**5.5, 5.6, 5.7, 5.9, 6.3, 8.1, 8.3–8.11.** All of them were executed and passed on the previous
+VM during the fourth to sixth sittings — they are not unknowns — but they have not been re-run
+against this single artifact, which is the only thing this seventh sitting set out to add. The VM is
+left in exactly the right state to continue: profile seeded and classified `upgraded`, grace open
+until 2026-08-13, one scan recorded, both grants present, and snapshots
+`clean-before-validation` / `staged-artifacts-preseed` available to restart any pass.
+
+### Two harness defects fixed mid-run, both failure-open
+
+`vm-guest-click.ps1` read its result marker with a plain `Get-Content`, which throws
+*"because it is being used by another process"* when the scheduled task still holds the file. The
+click had already happened; only the confirmation read failed, and it aborted the caller. Now opened
+`FileShare.ReadWrite` with a retry loop. Separately, a **nav group silently re-expanded** after a
+run completed, so a later fixed-coordinate click landed on *Recorder* and the intended filter text
+was typed into the Recorder's Target URL field — a reminder that coordinates measured on one render
+are not valid after an async state change. Screenshot before every click sequence that follows a run.
+
 ## Machine-readable record
 
 `docs/testing/clean-machine-evidence/runbook-results.json` — every check with its status and detail,
