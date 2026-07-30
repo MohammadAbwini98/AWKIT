@@ -25,14 +25,6 @@
       "claimedAt": "2026-07-29T15:45:55.0146013Z",
       "expiresAt": "2026-07-30T15:45:55.0146013Z",
       "note": "Fix licensing revalidation/dispatch synchronization and verification hardening findings."
-    },
-    {
-      "itemId": "bead:awkit-3zr",
-      "agent": "Claude",
-      "state": "in-progress",
-      "claimedAt": "2026-07-30T08:00:00Z",
-      "expiresAt": "2026-07-31T08:00:00Z",
-      "note": "Full clean-machine gate on one artifact, one fresh VM (passes A-D via snapshot restores)."
     }
   ]
 }
