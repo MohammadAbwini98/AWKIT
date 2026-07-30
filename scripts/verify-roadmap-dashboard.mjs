@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("125 issues parse", beads.stats.total === 125, `got ${beads.stats.total}`);
+  check("126 issues parse", beads.stats.total === 126, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -84,9 +84,11 @@ try {
   // filed `awkit-x48` (undo-refusal toast leaks the IPC channel name).
   // Then 10/115 of 125 on 2026-07-30, from the full single-artifact gate run: `awkit-3zr` (the run
   // itself, in progress), `awkit-k2s` (Flow Library re-scan action absent in the installed app).
+  // Then 10/116 of 126 when the full single-artifact gate run finished: `awkit-3zr` closed,
+  // `awkit-o7r` filed (undo offered for records that cannot be undone).
   check(
-    "10 outstanding / 115 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 115,
+    "10 outstanding / 116 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 116,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

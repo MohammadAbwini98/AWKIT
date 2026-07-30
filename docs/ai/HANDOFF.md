@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## TAKEOFF (2026-07-30) - full single-artifact gate run, Pass D unfinished (`awkit-3zr`)
+## TAKEOFF (2026-07-30) - full single-artifact gate run COMPLETE (`awkit-3zr` closed)
+
+Every section 1-8 executed on ONE artifact (`f442f2c3…`), one fresh VM, against the runbook's own
+numbering. **0 FAIL.** §3 and §7.2 were executed for the first time ever. §5 (5.1-5.9), §6 and §8
+(8.1-8.12) are complete.
+
+**Five rows are permanently BLOCKED and no re-run changes that:** §4.4, §4.9 and the run half of
+§4.5 (a clean unlicensed machine is `fresh` → grace born consumed → `NOT_ACTIVATED` → every run
+refused, by the owner-decided table), and §4.6 (the Import Flow button is `disabled` in source -
+the feature does not exist). §6.2 and §7.1.8 are PARTIAL for the same licensing reason. **The runbook
+is therefore still not claimed as PASSED** - a BLOCKED row is not a passed row.
+
+**Open from this run:** `awkit-o7r` (P2) - `fa87fc8` offers "Undo migration" for records that cannot
+be undone (a historical record with no `afterHash` and a missing backup satisfies its
+`!undoneAt` filter). It fails safe, but points the user at a file that does not exist. Fix by
+deriving an `undoable` flag in main, not guessing in the renderer. Also `awkit-k2s` (P3),
+`awkit-vbj`, `awkit-x48`.
+
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+## TAKEOFF (2026-07-30) - full single-artifact gate run, Pass D unfinished (superseded)
 
 **The prior "44 PASS / sections in full" claim was wrong and is corrected.** Sections 4 and 7 had
 been written up with a bespoke 4.1-4.5 / 7.1-7.4 numbering against the runbook's real 4.1-**4.12**

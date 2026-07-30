@@ -3,8 +3,13 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 44 checks PASS / 0 FAIL, but sections 4 and 7 were covered only
-in part, and section 3 not at all.**
+**Disposition: FULLY EXECUTED on a single artifact, 2026-07-30 — every section 1-8 run against the
+runbook's own numbering. 0 FAIL. Five rows are BLOCKED for reasons that no re-run can change
+(§4.4, §4.9 and half of §4.5 by hard licensing on an unlicensed clean machine; §4.6 because the
+Import Flow feature does not exist), and §6.2 / §7.1.8 are PARTIAL for the same licensing reason.**
+
+The runbook as a whole is still **not claimed as PASSED**: a BLOCKED row is not a passed row, and
+§4 as written is not completable on a clean machine under the enforcement policy now in force.
 
 > **Correction (2026-07-30).** An earlier version of this line claimed sections 4 and 7 were
 > "executed in full". They were not. The §4 and §7 tables below use a **bespoke 4.1-4.5 / 7.1-7.4
@@ -589,7 +594,7 @@ stayed absent across a navigate-away-and-back, so it is not a first-render race.
 therefore triggered by the runbook's other documented route, a run request, which worked. Flagged for
 investigation rather than diagnosed here; it did not block any §7 row.
 
-## §5 / §8 — upgrade-profile pass (Pass D), on the same artifact — **PARTIAL, in progress**
+## §5 / §6.3 / §8 — upgrade-profile pass (Pass D), on the same artifact — **COMPLETE**
 
 Pass D restored `staged-artifacts-preseed`, seeded the upgrade profile **before first launch**, and
 got the precondition the whole of §5 depends on:
@@ -610,14 +615,41 @@ got the precondition the whole of §5 depends on:
 | 8.2 | **PASS** | satisfied by 5.8: no grant permits an active-path break |
 | 8.12 | **PASS** | satisfied by 5.3: FNV-era retirement on upgrade |
 
-### Not yet executed on this artifact
+### Pass D completed
 
-**5.5, 5.6, 5.7, 5.9, 6.3, 8.1, 8.3–8.11.** All of them were executed and passed on the previous
-VM during the fourth to sixth sittings — they are not unknowns — but they have not been re-run
-against this single artifact, which is the only thing this seventh sitting set out to add. The VM is
-left in exactly the right state to continue: profile seeded and classified `upgraded`, grace open
-until 2026-08-13, one scan recorded, both grants present, and snapshots
-`clean-before-validation` / `staged-artifacts-preseed` available to restart any pass.
+| # | Result | Evidence |
+|---|---|---|
+| 5.5 / 8.4 | **PASS** | grant **byte-identical** across a full restart, same `expiresAt` |
+| 5.7 / 8.6 | **PASS** | flow description changed → re-scan → grant hash **and** deadline unchanged, no revocation |
+| 5.6 / 8.5 | **PASS** | added a node → flow becomes 5 nodes/3 connectors and reads **Not runnable**; Legacy pill gone |
+| 5.9 | **PASS** | third scan: still exactly **2** grant files, deadline byte-identical, retired record not revived |
+| 8.1 | **PASS** | broken flow saves as **Draft**, still not runnable, **no locator added** |
+| 8.3 | **PASS** | = 5.3 (sha256-bound grant issued with deadline) |
+| 8.7 | **PASS** | preview lists `e1.conditional.operator: NotEquals → notEquals`, "Errors: 1 → 0"; **no backups dir existed** and only `old-record` was present afterwards |
+| 8.8 | **PASS** | backup id-bound to the record, holding the **broken** `NotEquals` while the live flow holds `notEquals` |
+| 8.9 | **PASS** | record with `beforeHash`/`afterHash`, errors 1 → 0, `skipped: 0`; seeded `old-record` preserved beside it |
+| 8.10 | **PASS** | after restart the undo was re-offered from the durable record; `undoneAt` stamped, backup **kept**, flow **byte-for-byte** identical to the backup, `NotEquals` restored |
+| 8.11 | **PASS** | after a later edit the undo is **refused** by name; record left un-undone, edit preserved, backup retained |
+| 6.3 | **PASS** | 4 processes killed with the run in flight, **no stranded Chromium**; relaunch classified it `orphaned` + *"Interrupted by app exit"*, one `startupRecovery` event, `NOT auto-resumable` absent; panel showed **Recoverable — safe to re-run** with Re-run / Open artifacts / Mark reviewed / Mark abandoned, and no ghost active instance |
+
+**§5 is complete (5.1–5.9). §8 is complete (8.1–8.12). §6 is complete.**
+
+### 8.7 found a regression in the fix this campaign shipped
+
+Opening the fixable flow offered **"Safe fixes applied … Undo migration"** in a session where no
+migration had been applied. `fa87fc8` re-offers the newest migration whose `undoneAt` is absent — and
+the seed's *historical* `old-record.json` satisfies that filter despite having **no `afterHash`** and
+a `backupPath` pointing at a file that has never existed.
+
+Clicking it **fails safe**: `undoMigration` compares the current digest against `record.afterHash`,
+which is `undefined`, so it refuses and nothing is destroyed. But the affordance is offered when it
+cannot work, and the refusal directs the user to *"Restore manually from
+validation\backups\seed-fixable-operator-20260201.json"* — a file that does not exist. Filed as
+**`awkit-o7r`** (P2): undoability must be derived in main (afterHash present **and** backup on disk
+**and** digest matches) and returned as a flag, not guessed in the renderer from the absence of
+`undoneAt`.
+
+That this surfaced at all is the gate doing its job on code written earlier in the same campaign.
 
 ### Two harness defects fixed mid-run, both failure-open
 
