@@ -1,12 +1,13 @@
 # CURRENT_STATE
 
-## Graphify code knowledge graph is live for agents (2026-07-30, current)
+## Graphify code knowledge graph extended to all three agents (2026-07-30, current)
 
 AWKIT now has a **second, complementary code graph** alongside the Codebase Memory MCP: Graphify
-(`graphifyy` 0.9.30, CLI `graphify`), installed user-scoped via `uv` and wired into Claude Code
-**for this project only**. Contract, coverage accounting and refresh procedure:
-**`docs/ai/GRAPHIFY.md`**; the retrieval rule agents follow is in `CLAUDE.md` › *graphify — graph-first
-code retrieval*.
+(`graphifyy` 0.9.31, CLI `graphify`), installed user-scoped via `uv` and wired into **all three
+agents — Claude Code, Codex, and Antigravity (Google)**. Contract, coverage accounting and refresh
+procedure: **`docs/ai/GRAPHIFY.md`**; the retrieval rule each agent follows is in its project
+instruction file (`CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` respectively), and in the Antigravity
+rule at `.agents/rules/graphify.md` (always-on) and skill at `.agents/skills/graphify/SKILL.md`.
 
 **The graph is a retrieval accelerator, never an authority.** The order is: required-reading docs
 first (they are **not** in the graph) → `graphify query/explain/path` before broad `Glob`/`Grep` →

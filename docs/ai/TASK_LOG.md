@@ -8576,3 +8576,49 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
   `awkit-wza.8`, and parent `awkit-wza` are now truthfully blocked instead of open/ready.
 - **Result:** `bd ready` is empty. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
   beads remain **118 total / 8 outstanding / 110 closed**.
+
+## 2026-07-30 — Antigravity — Extend Graphify graph-first retrieval to all three agents
+
+- **Task:** Configure the same Graphify knowledge graph for Claude Code (already done), Codex, and
+  Antigravity (Google Gemini). Reinstall the graphify tool venv (lost after prior install). All three
+  agents now use the shared graphify-out/graph.json before broad searches.
+- **Graphify version:** upgraded from 0.9.30 to 0.9.31 via uv tool install "graphifyy[sql]" --force.
+- **Install commands run:**
+  - graphify codex install — appended ## graphify section to AGENTS.md; created .codex/hooks.json.
+  - graphify antigravity install — created .agents/rules/graphify.md, .agents/workflows/graphify.md;
+    installed global skill at %USERPROFILE%\.gemini\config\skills\graphify\.
+  - graphify install --platform agents — installed cross-framework skill at %USERPROFILE%\.agents\skills\graphify\.
+- **Manual additions:**
+  - GEMINI.md — added ## graphify — graph-first code retrieval section (parallel to CLAUDE.md).
+  - .codex/config.toml — added graphify doc comment; multi_agent left commented out (Codex CLI not
+    installed locally; version cannot be confirmed).
+  - docs/ai/GRAPHIFY.md — updated version (0.9.31), project files table (all three agents), added §9
+    multi-agent integration section.
+  - docs/ai/CURRENT_STATE.md — updated graphify section header for multi-agent coverage.
+- **Graph rebuild:** graphify update . — 11356 nodes (+92), 23164 edges (+204), 611 communities (+6).
+  New nodes include the added Markdown instruction files and the new rule/workflow files.
+- **Checks run:**
+  - graphify --version ? 0.9.31 ?
+  - graphify query "How does AWKIT execute a workflow?" --budget 3000 ? 327 nodes, StepExecutor,
+    PlaywrightRunner.runFlowWithChildren(), FlowExecutor.executeWithRetry(), IPC contract docs ?
+  - graphify explain "window.playwrightFlowStudio" ? docs/ai/DECISIONS.md L337 ?
+  - graphify path "FlowProfile" "JsonProfileStore" ? 2-hop path via profileStores.ts ?
+  - git diff --check ? CRLF normalization warnings only (pre-existing .gitattributes behaviour) ?
+  - 
+pm run build ? bundles pass (pre-existing dynamic-import warning in vite, not this task) ?
+  - 
+pm run verify:source-hygiene ? 9/9 ?
+  - 
+pm run verify:verifier-classification ? classification reconciled ?
+  - 
+pm run validate:offline ? bundle validation pass (no new production deps) ?
+  - 
+pm run verify:roadmap-dashboard ? 135/135, banner reads "Sources agree" ?
+- **Not run:** 
+pm run verify:runner (runner/orchestrator not changed); 
+pm run verify:mock-site
+  (mock-site not changed).
+- **Boundaries confirmed:** no npm dependency added; no app or runner code imports graphify; no secrets
+  or mutable user data in graph; all existing agent instructions preserved (additive merges only).
+- **Result:** All three agents now have graph-first retrieval configured. Validation ledger unchanged
+  at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads unchanged.

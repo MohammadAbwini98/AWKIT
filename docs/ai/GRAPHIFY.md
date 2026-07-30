@@ -1,6 +1,6 @@
 # GRAPHIFY — code knowledge graph for AWKIT
 
-**Status (2026-07-30):** installed, built, verified.
+**Status (2026-07-30):** installed, built, verified for all three agents (Claude Code, Codex, Antigravity).
 **Authority:** this file documents the tool. It does **not** outrank `AGENTS.md`, `docs/ai/RULES.md`,
 or any other required-reading document, and the graph never outranks source code.
 
@@ -15,11 +15,13 @@ Beads, the roadmap sources, the validation ledger, the verifiers, and native rep
 | Thing | Value |
 |---|---|
 | PyPI package | `graphifyy` (double-y) — CLI command is `graphify` |
-| Version | 0.9.30, with the `[sql]` extra so `.sql` files extract |
-| Install method | `uv tool install "graphifyy[sql]"` — isolated user-scoped venv |
-| Tool venv | `%APPDATA%\uv\tools\graphifyy\` |
+| Version | **0.9.31**, with the `[sql]` extra so `.sql` files extract |
+| Install method | `uv tool install "graphifyy[sql]" --force` — isolated user-scoped venv |
+| Tool venv | `%LOCALAPPDATA%\uv\tools\graphifyy\` or `%APPDATA%\uv\tools\graphifyy\` (varies by uv version) |
 | Executables | `%USERPROFILE%\.local\bin\graphify.exe`, `graphify-mcp.exe` (on user `PATH`) |
-| Project files (tracked) | `.graphifyignore`, `.claude/skills/graphify/`, `.claude/CLAUDE.md`, the `## graphify` section of `CLAUDE.md`, the `PreToolUse` hooks in `.claude/settings.json` |
+| **Claude Code** project files | `.graphifyignore`, `.claude/skills/graphify/SKILL.md`, the `## graphify` section of `CLAUDE.md`, the `PreToolUse` hooks in `.claude/settings.json` |
+| **Codex** project files | `## graphify` section of `AGENTS.md`, `.codex/hooks.json` (PreToolUse no-op), `.codex/config.toml` (graphify doc comment) |
+| **Antigravity** project files | `.agents/rules/graphify.md` (always-on rule), `.agents/workflows/graphify.md`, global skill at `%USERPROFILE%\.gemini\config\skills\graphify\SKILL.md`, `## graphify` section of `GEMINI.md` |
 | Output (gitignored) | `graphify-out/` |
 
 **Graphify is a developer/AI tool only.** It is not an npm dependency, is never imported by app or
@@ -306,3 +308,58 @@ what makes a rebuild on another machine reproduce the same coverage.
 7. **Default `--budget` truncates** on a graph this size; raise it.
 8. **Nothing refreshes automatically.** No watcher, no git hook. A stale graph is silent — if a query
    result disagrees with the working tree, trust the tree and run `graphify update .`.
+
+---
+
+## 9. Multi-agent integration (2026-07-30)
+
+Graphify is configured for all three agents that work on this repository. All three use the same
+`graphify-out/graph.json` — no separate graphs per agent.
+
+### Install commands used
+
+```powershell
+# Reinstall (venv was lost after prior install; --force replaces the stubs)
+uv tool install "graphifyy[sql]" --force
+# → graphifyy 0.9.31 installed
+
+# Run from the AWKIT repository root:
+graphify codex install        # writes ## graphify to AGENTS.md + .codex/hooks.json
+graphify antigravity install  # writes .agents/rules/graphify.md, .agents/workflows/graphify.md,
+                               # and the global skill at %USERPROFILE%\.gemini\config\skills\graphify\
+graphify install --platform agents  # writes the cross-framework skill (same global location)
+```
+
+### What each integration owns
+
+| Agent | Mechanism | Files |
+|---|---|---|
+| **Claude Code** | Project instruction `CLAUDE.md` `## graphify` section + `PreToolUse` hooks | `CLAUDE.md`, `.claude/settings.json`, `.claude/skills/graphify/SKILL.md` |
+| **Codex** | `AGENTS.md` `## graphify` section (Codex reads `AGENTS.md` as its project instructions) + PreToolUse hook (intentional no-op — policy in `AGENTS.md`) | `AGENTS.md`, `.codex/hooks.json`, `.codex/config.toml` |
+| **Antigravity** | Always-on rule + workflow + global skill + `GEMINI.md` `## graphify` section | `.agents/rules/graphify.md`, `.agents/workflows/graphify.md`, `%USERPROFILE%\.gemini\config\skills\graphify\`, `GEMINI.md` |
+| **Cross-framework** | Cross-agent skill at global Antigravity location | `%USERPROFILE%\.agents\skills\graphify\SKILL.md` |
+
+### Shared graph
+
+All agents read `graphify-out/graph.json`. The graph is not committed (see §7). Rebuild with:
+
+```powershell
+graphify update .
+```
+
+### Codex `multi_agent` setting
+
+`.codex/config.toml` documents `multi_agent = true` as a **commented-out option**. Codex CLI is not
+installed locally on this machine, so the installed version and feature set cannot be verified. The
+setting must not be enabled until a Codex version that explicitly supports it is confirmed active for
+this project. If/when that is confirmed, remove the `#` comment from `.codex/config.toml` and
+document the Codex version here.
+
+### AWKIT boundaries confirmed
+
+- Graphify is developer/AI-only — not imported by any app or runner code.
+- No new npm dependency added.
+- No production or packaged build depends on Python, uv, or network access.
+- No secrets or mutable user data entered the graph (verified by path scan of `graph.json`).
+- Existing Claude, Codex, and Antigravity instructions continue working together (additive merges only).
+- Repository documents remain authoritative over Graphify output.
