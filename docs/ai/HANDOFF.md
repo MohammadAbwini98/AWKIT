@@ -1,6 +1,26 @@
 # Agent Handoff
 
-## TAKEOFF (2026-07-29) - clean-machine 39 PASS / 0 FAIL; only 8.7-8.11 remain
+## TAKEOFF (2026-07-30) - clean-machine 44 PASS / 0 FAIL; only section 3 remains
+
+Sections 1, 2, 4, 5, 6, 7 and 8 in full. NOT EXECUTED: section 3 only (manual offline-setup steps,
+subsumed by automated provisioning). See
+`docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook is still not claimed as
+PASSED, because §3 was never run and §8.10/§8.11 ran against a different (rebuilt, separately
+hash-verified) artifact from the rest.
+
+**If you re-run the gate, re-run it end to end on ONE artifact.** The only reason two binaries are
+in play is that 8.10 exposed a defect that had to be fixed to execute it (`fa87fc8` -
+`validation:migrations` had no renderer caller, so undo did not survive a restart). That fix is on
+`main`, so a single fresh build now covers every check.
+
+**Filed from this sitting:** `awkit-x48` - the undo-refusal toast surfaces the raw
+`Error invoking remote method 'validation:undoMigration': Error: …` wrapper instead of just the
+domain sentence. `awkit-5ci` (the ceremony itself) is closed.
+
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED** - clean-machine runbook
+checks are an external gate, not ledger cases. Beads are **123 total / 8 outstanding / 115 closed**.
+
+## TAKEOFF (2026-07-29) - clean-machine 39 PASS / 0 FAIL; only 8.7-8.11 remain (superseded)
 
 Sections 1, 2, 4, 5, 6, 7 in full, plus 8.1-8.6 and 8.12. NOT EXECUTED: section 3 and the migration
 ceremony (8.7-8.11). See `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`. The runbook

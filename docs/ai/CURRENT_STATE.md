@@ -1,10 +1,25 @@
 # CURRENT_STATE
 
-## Clean-machine 39 PASS / 0 FAIL; the run-based checks are executed (2026-07-29, current)
+## Clean-machine 44 PASS / 0 FAIL; only section 3 unexecuted (2026-07-30, current)
 
-Clean-machine validation now stands at **39 PASS / 0 FAIL**: sections 1, 2, 4, 5, 6 and 7 in full,
-plus **8.1-8.6 and 8.12**. Still NOT EXECUTED: section 3 and the migration ceremony (8.7-8.11).
-Record: `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+Clean-machine validation now stands at **44 PASS / 0 FAIL**: sections 1, 2, 4, 5, 6, 7 and 8 in
+full. Only **section 3** (manual offline-setup steps, subsumed by automated provisioning) is NOT
+EXECUTED. Record: `docs/testing/CLEAN_MACHINE_VALIDATION_RESULTS_2026-07-29.md`.
+
+**The migration ceremony (8.7-8.11) is proven end to end**: preview lists each schema change and
+writes nothing (no `validation\backups` directory existed until apply); the backup is written first
+and still holds the broken value while the live flow holds the fixed one; apply records
+`beforeHash`/`afterHash`/`skipped: []` and leaves the pre-existing migration record untouched; undo
+after a restart restores the flow **byte-for-byte** from the backup and keeps the backup; and undo
+after a later edit is refused with a message naming the flow, the reason and the backup path.
+
+**A real gap was found and fixed doing this** (`fa87fc8`): `validation:migrations` had **zero
+renderer callers**, so the "Undo migration" affordance lived only in component state and did not
+survive a restart - 8.10 was not executable against the shipped build at all. The designer now reads
+the durable record on load. Because of that, **8.10 and 8.11 ran against a rebuilt portable
+artifact** (`f442f2c3…`), hash-verified on the machine by §2's procedure; everything through 8.9
+pertains to the earlier artifact. That also made 8.10's restart an *upgrade* - the migration record
+and backup survived replacing the application itself.
 
 **The five run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a SECOND VM.** The first VM
 was permanently `fresh + consumed` and could never admit a run. The second was seeded with the

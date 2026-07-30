@@ -3,13 +3,14 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 39 PASS / 0 FAIL. Section 3 and the migration ceremony
-(8.7–8.11) NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 44 PASS / 0 FAIL. Only section 3 NOT EXECUTED.**
 
-Read that precisely. Sections 1, 2, 4, 5, 6 and 7 were executed in full and every check passed, as
-was section 8 apart from 8.7–8.11. Section 3 and the migration ceremony were **not executed**. The
-run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a second, reprovisioned VM — see the
-fifth sitting. Per the runbook's own §9 a FAIL is blocking and there were none — but
+Read that precisely. Sections 1, 2, 4, 5, 6, 7 and 8 were executed in full and every check passed.
+Only section 3 — the manual offline-setup steps, subsumed by automated provisioning — was **not
+executed**. The run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a second, reprovisioned
+VM (fifth sitting); the migration ceremony (8.7–8.11) followed in the sixth, with 8.10 and 8.11
+running against a rebuilt, separately hash-verified artifact for the reason recorded there. Per the
+runbook's own §9 a FAIL is blocking and there were none — but
 this record does **not** claim the runbook as a whole passed, and the gate's overall execution status
 is therefore not "PASSED". The 2026-07-24 owner policy already makes clean-machine validation
 optional and non-blocking; nothing here changes that policy, it only replaces "never executed" with
@@ -378,12 +379,75 @@ preceding pointer move still existed, it read back a perfectly plausible `at:x,y
 to two's complement explicitly. This is the failure-open shape again: the observable signal came from
 a different step than the one that failed.
 
-### Still not executed
+### Still not executed after the fifth sitting
 
 | # | Why |
 |---|---|
 | 3 | Offline setup steps - subsumed by automated provisioning |
 | 8.7-8.11 | Migration preview / backup-before-change / apply+report / restart-then-undo / undo refusal - multi-step UI ceremony, not attempted |
+
+8.7-8.11 were executed in the sixth sitting, below. Only section 3 remains.
+
+---
+
+## Sixth sitting: the migration ceremony (8.7-8.11)
+
+| # | Check | Result | Evidence |
+|---|---|---|---|
+| 8.7 | Migration preview lists each schema change; nothing written | **PASS** | dialog *"Apply 1 safe fix?"* listing `e1.conditional.operator : NotEquals -> notEquals` with its rationale and *"Errors: 1 -> 0"*. After opening it: flow hash unchanged, **no `validation\backups` directory existed at all**, migrations still only the seeded `old-record.json` |
+| 8.8 | Backup written first, untouched copy of the original | **PASS** (see caveat) | `backups\seed-fixable-operator.2026-07-29T22-58-40-081Z.json`, id-bound to the migration record. It still holds the **broken** `NotEquals` while the live flow holds the fixed `notEquals` |
+| 8.9 | Apply + report; old migration record preserved | **PASS** | record carries `beforeHash`, `afterHash`, the exact fix, `skipped: []`, `beforeErrorCount: 1 -> afterErrorCount: 0`; the seeded `old-record.json` sits alongside it untouched |
+| 8.10 | Restart, then undo; flow restored byte-for-byte | **PASS** | after a full app exit the banner was re-offered from the durable record, undo stamped `undoneAt: 2026-07-30T07:14:16.103Z`, and the flow became **byte-identical** to the backup - the original `NotEquals` restored and the *Not runnable* banner back. The backup was **kept**, not consumed |
+| 8.11 | Undo refused after a post-migration edit | **PASS** | *"Flow seed-fixable-operator was edited after this migration - undo would destroy those changes. Restore manually from …\backups\seed-fixable-operator.2026-07-30T07-15-33-415Z.json if intended."* Record left with no `undoneAt`, the later edit preserved, backup retained |
+
+### The seed's "fixable" fixture had never worked
+
+It set `condition = @{ source; operator; value }`, which matches no part of
+`ConditionalConnectorConfig` - the field is `conditional`, and it needs `kind` plus `sourceField`.
+The object was therefore ignored outright: the flow validated as fully **Runnable with zero issues**,
+no safe fix was ever offered, and 8.7-8.11 had nothing to act on. Rather than guess a third time the
+real shape was measured against the live validator before being written: `kind: "conditional"` +
+`conditional: { sourceField: "outcome", operator: "NotEquals", expectedValue: "x" }` yields
+`unsupportedOperator` carrying a `normalizeEnumCasing` safeFix. Third seed-fixture defect this
+campaign; the product caught all three.
+
+### 8.10 was not executable against the shipped build - a real gap, now fixed
+
+`validation:migrations` had **zero renderer callers**. The only thing that could populate the
+designer's "Undo migration" banner was `confirmApplyFixes` setting component state in the same
+session, and `loadProfile` clears it - so the undo was unreachable after a restart, or even after
+loading another flow, even though the record, the backup and the permission-gated
+`validation:undoMigration` handler all survived on disk. Fixed on `main` (`fa87fc8`): the designer
+reads the durable record on load and re-offers the newest not-yet-undone migration, deliberately
+leaving the *safety* decision to main so 8.11's refusal stays observable.
+
+**8.10 and 8.11 therefore ran against a REBUILT portable artifact**, sha256
+`f442f2c3b998fe033324c0b0d9336fddbba6f5cfc95e4f6ed4d58a3e231bca91`, delivered on a fresh read-only
+DVD and **hash-verified on the machine under test** by §2's own procedure before launch. Sections 1,
+2, 4, 7 and everything through 8.9 pertain to the earlier artifact
+(`4EBAC142CD2A0BE4…`); that is recorded rather than smoothed over, because introducing a new binary
+mid-gate means the earlier results do not describe the binary that ran the last two checks. The
+restart in 8.10 was consequently an **upgrade**, which is a stronger test than the runbook asks for:
+the migration record and its backup survived replacing the application itself.
+
+### Two caveats, neither a failure
+
+**"Byte-identical" does not hold literally for the backup (8.8).** The ceremony writes
+`JSON.stringify(flow, null, 2)` - a re-serialization of the parsed profile, not a byte copy - so
+indentation and key order can differ from whatever wrote the original file. The parsed content is
+identical and nothing is lost, and 8.10's restore *is* byte-for-byte against that backup. Read 8.8's
+wording as "an untouched copy of the original content".
+
+**The refusal toast leaks the IPC channel name.** 8.11's message is correct, specific and actionable,
+but it reaches the user wrapped as *"Error invoking remote method 'validation:undoMigration': Error:
+…"*. The domain sentence should be surfaced without the Electron remote-method preamble. Cosmetic;
+filed rather than fixed here.
+
+### Still not executed
+
+| # | Why |
+|---|---|
+| 3 | Offline setup steps - subsumed by automated provisioning |
 
 
 ## Machine-readable record

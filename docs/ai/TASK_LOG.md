@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-30 - Claude - clean-machine: the migration ceremony 8.7-8.11 (44 PASS / 0 FAIL)
+
+- **Task:** finish runbook sections 8.7 through 8.11.
+- **Result: all five PASS.** Preview lists `e1.conditional.operator: NotEquals -> notEquals` with
+  "Errors: 1 -> 0" and writes nothing (no `validation\backups` directory existed until apply); the
+  backup is written first and still holds the broken value while the live flow holds the fixed one;
+  apply records `beforeHash`/`afterHash`/`skipped: []` and leaves the seeded `old-record.json`
+  untouched; undo after a restart restores the flow **byte-for-byte** and keeps the backup; undo
+  after a later edit is refused, naming the flow, the reason and the backup path, with the record
+  left un-undone and the edit preserved.
+- **Product defect found and fixed (`fa87fc8`):** `validation:migrations` had **zero renderer
+  callers**, so "Undo migration" lived only in component state and did not survive a restart -
+  8.10 was not executable against the shipped build. The designer now reads the durable record on
+  load and re-offers the newest not-yet-undone migration, leaving the safety decision to main so
+  8.11's refusal stays observable. `preload.ts` also declared the channel's type without
+  `backupPath`, harmless only while nothing read it.
+- **Seed fixture was wrong a third time:** the "fixable" flow set `condition = @{ source; operator;
+  value }`, matching no part of `ConditionalConnectorConfig`, so it was ignored and the flow
+  validated as fully Runnable with zero issues - 8.7-8.11 had nothing to act on. Measured the real
+  shape against the live validator before writing it.
+- **Artifact note:** because the fix had to ship to test 8.10, **8.10 and 8.11 ran against a rebuilt
+  portable** (`f442f2c3…`), delivered on a fresh DVD and hash-verified on the machine by §2's own
+  procedure. Everything through 8.9 pertains to the earlier artifact. Recorded, not smoothed over.
+  Side benefit: 8.10's restart was an *upgrade*, so the record and backup survived replacing the app.
+- **Files:** `app/renderer/pages/FlowChartDesigner.tsx`, `app/main/preload.ts`,
+  `scripts/clean-machine/seed-upgrade-profile.ps1`, `scripts/clean-machine/attach-artifacts.ps1`
+  (eject-before-rewrite + reuse the existing DVD drive instead of adding a duplicate), results doc,
+  runbook disposition, `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`.
+- **Beads:** `awkit-5ci` closed; `awkit-x48` filed (refusal toast leaks the IPC channel name).
+- **Tests:** the five runbook checks on the VM; `npm run build` clean; `package:portable` succeeded
+  (it correctly refused first, on a dirty tree). Not run: section 3.
+
+---
+
 ## 2026-07-29 - Claude - clean-machine: the run-based checks executed on a second VM (39 PASS / 0 FAIL)
 
 - **Task:** provision a fresh VM and finish the run-based checks (5.4, 5.8, 6.3, 8.1, 8.2).
