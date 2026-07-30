@@ -478,6 +478,58 @@ console.log("\nFlowValidationService (real service, temp folders)");
   await service.undoMigration("s-fixable", second.record.id).catch(() => { refused = true; });
   check("undo REFUSES when the flow was edited after the migration", refused);
 
+  /* -- `undoable` must be DERIVED by the service, never inferred from `undoneAt` (awkit-o7r) --
+   *
+   * The designer used to re-offer the newest record without `undoneAt`, which is not the same
+   * question. Two real records satisfy that and can still never be undone; both are asserted here
+   * because each has its own failure mode, and a projection that only handled one of them would
+   * still ship the defect. */
+  const listAfterEdit = await service.migrationsForFlow("s-fixable");
+  const editedRecord = listAfterEdit.find((r) => r.id === second.record.id);
+  check("a record whose flow was edited afterwards reports undoable:false", editedRecord?.undoable === false, JSON.stringify(editedRecord?.undoable));
+  check("...and carries the reason, so the UI need not invent one", (editedRecord?.undoBlockedReason ?? "").includes("edited after this migration"));
+  check("an already-undone record reports undoable:false", listAfterEdit.find((r) => r.id === record.id)?.undoable === false);
+
+  // (a) a historical record with no verifiable post-fix digest — the shape the clean-machine seed
+  // carries, and the one that produced a live-looking Undo button pointing at a file never written.
+  const migrationsDir = join(root, "validation", "migrations");
+  await writeFile(
+    join(migrationsDir, "historic-no-afterhash.json"),
+    JSON.stringify({ id: "historic-no-afterhash", flowId: "s-fixable", at: "2026-02-01T12:00:00.000Z", fixes: [], backupPath: join(root, "validation", "backups", "gone.json") }),
+    "utf8"
+  );
+  // (b) a well-formed record whose backup has since been deleted. It needs a flow that actually HAS
+  // a safe fix — an earlier draft used `s-valid`, which has none, so `applySafeFixesToFlow` threw,
+  // the guard below was skipped, and two checks silently never ran.
+  await flowStore.create(fixableFlow("s-fixable-lostbackup"));
+  const orphanBackup = await service.applySafeFixesToFlow("s-fixable-lostbackup");
+
+  const historic = (await service.migrationsForFlow("s-fixable")).find((r) => r.id === "historic-no-afterhash");
+  check("a record with NO afterHash reports undoable:false", historic?.undoable === false, JSON.stringify(historic));
+  check("...and says so, rather than blaming the user for an edit", (historic?.undoBlockedReason ?? "").includes("predates the current migration-report format"));
+  let historicRejected = false;
+  await service.undoMigration("s-fixable", "historic-no-afterhash").catch(() => { historicRejected = true; });
+  check("...and undoing it is refused by the service too", historicRejected);
+
+  await rm(orphanBackup.record.backupPath, { force: true });
+  const missing = (await service.migrationsForFlow("s-fixable-lostbackup")).find((r) => r.id === orphanBackup.record.id);
+  check("the lost-backup record is present to judge", missing !== undefined);
+  check("a record whose backup file is gone reports undoable:false", missing?.undoable === false, JSON.stringify(missing?.undoBlockedReason));
+  check("...and names the missing backup", (missing?.undoBlockedReason ?? "").includes("backup for migration"));
+  let missingRejected = false;
+  await service.undoMigration("s-fixable-lostbackup", orphanBackup.record.id).catch(() => { missingRejected = true; });
+  check("...and undoing it is refused rather than throwing ENOENT mid-restore", missingRejected);
+
+  // The positive case must still hold, or every assertion above passes vacuously — and it needs a
+  // flow whose fixes have NOT already been consumed, which `s-fixable` no longer is.
+  await flowStore.create(fixableFlow("s-fixable-undoable"));
+  const fresh = await service.applySafeFixesToFlow("s-fixable-undoable");
+  const undoableNow = (await service.migrationsForFlow("s-fixable-undoable")).find((r) => r.id === fresh.record.id);
+  check("the freshly applied migration is present to judge", undoableNow !== undefined);
+  check("a freshly applied, unedited migration reports undoable:TRUE", undoableNow?.undoable === true, JSON.stringify(undoableNow?.undoBlockedReason));
+  check("...and carries no reason when it is undoable", undoableNow !== undefined && undoableNow.undoBlockedReason === undefined);
+  check("...and that undo actually succeeds", (await service.undoMigration("s-fixable-undoable", fresh.record.id).then(() => true).catch(() => false)));
+
   // A fix-less flow cannot be "migrated".
   let noFixRejected = false;
   await service.applySafeFixesToFlow("s-active").catch(() => { noFixRejected = true; });

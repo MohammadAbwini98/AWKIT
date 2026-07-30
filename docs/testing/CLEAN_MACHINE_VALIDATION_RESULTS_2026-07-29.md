@@ -651,6 +651,21 @@ validation\backups\seed-fixable-operator-20260201.json"* — a file that does no
 
 That this surfaced at all is the gate doing its job on code written earlier in the same campaign.
 
+**Fixed the same day (`awkit-o7r` closed).** Undoability is now decided by one predicate in main,
+`undoBlockedReason(record, current)`, used by **both** `undoMigration` (which throws that sentence)
+and `migrationsForFlow` (which reports it as `undoable` / `undoBlockedReason`) — so what a surface
+offers and what the operation permits cannot drift apart, which was the actual root cause rather
+than the missing `afterHash`. It blocks on: already undone, flow gone, `afterHash` not a current
+digest, digest mismatch, and **missing backup file** (previously an un-caught `ENOENT` mid-restore).
+The renderer filters on `record.undoable`.
+
+`verify-legacy-compat` went 138 → **152**. The new checks were mutation-tested: restoring the old
+`!undoneAt` rule fails **6** of them, including the exact reported case. Two of them were initially
+unreachable — their setup used a flow with no safe fixes, so the guard was skipped silently — and
+that conditional was removed so a setup failure is now a hard failure. **The packaged artifact does
+not contain this fix**; `verify-packaged-validation`'s freshness guard correctly flags it, so rebuild
+before any packaged re-verification.
+
 ### Two harness defects fixed mid-run, both failure-open
 
 `vm-guest-click.ps1` read its result marker with a plain `Get-Content`, which throws

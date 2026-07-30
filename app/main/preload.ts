@@ -268,7 +268,18 @@ const api = {
         // `backupPath` was omitted here while nothing read this channel; the handler has always
         // returned the full MigrationRecord, and the designer needs it to re-offer undo after a
         // restart.
-        { id: string; at: string; fixes: unknown[]; backupPath: string; undoneAt?: string }[]
+        //
+        // `undoable` is derived by main. Do NOT decide it here from `undoneAt` — that is exactly
+        // what offered an undo for a record with no verifiable digest and a missing backup.
+        {
+          id: string;
+          at: string;
+          fixes: unknown[];
+          backupPath: string;
+          undoneAt?: string;
+          undoable: boolean;
+          undoBlockedReason?: string;
+        }[]
       >
   },
   workflows: {

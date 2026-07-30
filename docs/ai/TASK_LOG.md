@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-30 - Claude - fix awkit-o7r: undo offered for records that cannot be undone
+
+- **Task:** fix the regression the full single-artifact gate found in this campaign's own `fa87fc8`.
+- **Root cause, stated precisely:** not the missing `afterHash`, but that **two places answered the
+  same question**. `undoMigration` decided undoability from the digest; the renderer decided it from
+  `!record.undoneAt`. They disagreed, so the UI offered an action main would always refuse.
+- **Fix:** one predicate in main, `undoBlockedReason(record, current)`, used by **both**
+  `undoMigration` (throws that sentence) and `migrationsForFlow` (reports `undoable` +
+  `undoBlockedReason`). Blocks on already-undone, flow gone, `afterHash` not a current digest,
+  digest mismatch, and **missing backup file** — the last previously surfaced as an uncaught
+  `ENOENT` part-way through a restore. Renderer filters on `record.undoable`; preload type widened.
+- **Files:** `app/main/validation/flowValidationService.ts`, `app/main/preload.ts`,
+  `app/renderer/pages/FlowChartDesigner.tsx`, `scripts/verify-legacy-compat.mts`.
+- **Tests:** `verify-legacy-compat` 138 -> **152/0**; `verify-validation` **125/0**; `npm run build`
+  clean. **Mutation-tested** - restoring the old `!undoneAt` rule fails **6** of the new checks,
+  including the exact reported case, so they are not vacuous.
+- **Caught while writing the checks:** two of them were unreachable because their setup used a flow
+  with no safe fixes, so `applySafeFixesToFlow` threw and an `if` silently skipped them (+10 checks
+  where I had written 12). The conditional is gone; setup failure is now a hard failure.
+- **Not run / not done:** the packaged artifact predates this fix, and
+  `verify-packaged-validation` fails only its freshness guard (86/1) for that reason. Rebuild before
+  any packaged re-verification. The clean-machine VM is still running the older build.
+
+---
+
 ## 2026-07-30 - Claude - clean-machine: the migration ceremony 8.7-8.11 (44 PASS / 0 FAIL)
 
 - **Task:** finish runbook sections 8.7 through 8.11.

@@ -85,10 +85,11 @@ try {
   // Then 10/115 of 125 on 2026-07-30, from the full single-artifact gate run: `awkit-3zr` (the run
   // itself, in progress), `awkit-k2s` (Flow Library re-scan action absent in the installed app).
   // Then 10/116 of 126 when the full single-artifact gate run finished: `awkit-3zr` closed,
-  // `awkit-o7r` filed (undo offered for records that cannot be undone).
+  // `awkit-o7r` filed (undo offered for records that cannot be undone) — then 9/117 when that fix
+  // landed and `awkit-o7r` closed.
   check(
-    "10 outstanding / 116 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 116,
+    "9 outstanding / 117 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 117,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

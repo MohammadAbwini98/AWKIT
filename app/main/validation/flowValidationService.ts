@@ -11,7 +11,7 @@
  * `applySafeFixes`' deterministic schema-migration set, writes an untouched backup FIRST, records
  * a migration report, and can be undone while the flow remains unedited.
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FlowProfile } from "@src/profiles/FlowProfile";
 import type { WorkflowProfile } from "@src/profiles/WorkflowProfile";
@@ -21,6 +21,7 @@ import {
   FLOW_VALIDATOR_VERSION,
   LEGACY_COMPATIBILITY_WINDOW_DAYS,
   classifyForInventory,
+  isCurrentDigest,
   planGrants,
   type CompatibilityGrant,
   type FlowContentDigest,
@@ -57,6 +58,20 @@ export interface MigrationRecord {
   beforeErrorCount: number;
   afterErrorCount: number;
   undoneAt?: string;
+}
+
+/**
+ * A migration record plus whether its undo can actually be performed **right now**.
+ *
+ * Callers must not re-derive this. A surface that decides for itself — as the designer did, by
+ * treating "no `undoneAt`" as "undoable" — will offer an undo that main then refuses, which is how
+ * a historical record with no `afterHash` and a long-deleted backup came to be presented as a live
+ * action pointing at a file that never existed.
+ */
+export interface UndoableMigrationRecord extends MigrationRecord {
+  undoable: boolean;
+  /** Why not, when `undoable` is false. Safe to show verbatim — it is the same sentence undo throws. */
+  undoBlockedReason?: string;
 }
 
 export interface FlowValidationServiceDeps {
@@ -337,13 +352,10 @@ export class FlowValidationService {
   async undoMigration(flowId: string, migrationId: string): Promise<{ profile: FlowProfile }> {
     const record = await this.migrationStore.get(migrationId);
     if (!record || record.flowId !== flowId) throw new Error(`No migration ${migrationId} for flow ${flowId}.`);
-    if (record.undoneAt) throw new Error(`Migration ${migrationId} was already undone.`);
 
-    const current = await this.deps.flowStore.get(flowId);
-    if (!current) throw new Error(`Flow ${flowId} no longer exists.`);
-    if (this.digestFor(current) !== record.afterHash) {
-      throw new Error(`Flow ${flowId} was edited after this migration — undo would destroy those changes. Restore manually from ${record.backupPath} if intended.`);
-    }
+    const current = (await this.deps.flowStore.get(flowId)) ?? null;
+    const blocked = await this.undoBlockedReason(record, current);
+    if (blocked) throw new Error(blocked);
 
     const backup = JSON.parse(await readFile(record.backupPath, "utf8")) as FlowProfile;
     const restored = await this.deps.flowStore.update(flowId, backup);
@@ -351,8 +363,57 @@ export class FlowValidationService {
     return { profile: restored };
   }
 
-  async migrationsForFlow(flowId: string): Promise<MigrationRecord[]> {
-    return (await this.migrationStore.list()).filter((record) => record.flowId === flowId).sort((a, b) => b.at.localeCompare(a.at));
+  /**
+   * Every migration for a flow, newest first, each carrying whether its undo can be performed now.
+   * One `flowStore.get` serves the whole list — the check is per-record, the flow is not.
+   */
+  async migrationsForFlow(flowId: string): Promise<UndoableMigrationRecord[]> {
+    const current = (await this.deps.flowStore.get(flowId)) ?? null;
+    const records = (await this.migrationStore.list())
+      .filter((record) => record.flowId === flowId)
+      .sort((a, b) => b.at.localeCompare(a.at));
+    return Promise.all(
+      records.map(async (record) => {
+        const undoBlockedReason = await this.undoBlockedReason(record, current);
+        return undoBlockedReason === null
+          ? { ...record, undoable: true }
+          : { ...record, undoable: false, undoBlockedReason };
+      })
+    );
+  }
+
+  /**
+   * Why `record`'s undo cannot proceed, or `null` when it can. The single authority for that
+   * question: `undoMigration` throws this sentence, and `migrationsForFlow` reports it, so what a
+   * surface offers and what the operation permits cannot drift apart.
+   *
+   * The `afterHash` guard is not defensive noise. `MigrationRecord` types it as required, but
+   * records written before the report format existed are real and on disk without it; comparing a
+   * digest against `undefined` merely *looked* like "the flow was edited", producing a refusal that
+   * blamed the user and pointed at a backup that was never written.
+   */
+  private async undoBlockedReason(record: MigrationRecord, current: FlowProfile | null): Promise<string | null> {
+    if (record.undoneAt) return `Migration ${record.id} was already undone.`;
+    if (!current) return `Flow ${record.flowId} no longer exists.`;
+    if (!isCurrentDigest(record.afterHash)) {
+      return `Migration ${record.id} predates the current migration-report format, so its result cannot be verified and it cannot be undone automatically. Restore manually from ${record.backupPath} if that file still exists.`;
+    }
+    if (this.digestFor(current) !== record.afterHash) {
+      return `Flow ${record.flowId} was edited after this migration — undo would destroy those changes. Restore manually from ${record.backupPath} if intended.`;
+    }
+    if (!(await this.fileExists(record.backupPath))) {
+      return `The backup for migration ${record.id} is missing (${record.backupPath}), so this migration can no longer be undone.`;
+    }
+    return null;
+  }
+
+  private async fileExists(path: string): Promise<boolean> {
+    try {
+      await access(path);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /* ── helpers ─────────────────────────────────────────────────────────────── */
