@@ -3,11 +3,21 @@
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 
-**Disposition: PARTIALLY EXECUTED — 44 PASS / 0 FAIL. Only section 3 NOT EXECUTED.**
+**Disposition: PARTIALLY EXECUTED — 44 checks PASS / 0 FAIL, but sections 4 and 7 were covered only
+in part, and section 3 not at all.**
 
-Read that precisely. Sections 1, 2, 4, 5, 6, 7 and 8 were executed in full and every check passed.
-Only section 3 — the manual offline-setup steps, subsumed by automated provisioning — was **not
-executed**. The run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a second, reprovisioned
+> **Correction (2026-07-30).** An earlier version of this line claimed sections 4 and 7 were
+> "executed in full". They were not. The §4 and §7 tables below use a **bespoke 4.1-4.5 / 7.1-7.4
+> numbering of their own**, which does not correspond to the runbook's §4 (rows 4.1-**4.12**) or §7
+> (rows 7.1.1-7.1.8, 7.2.1-7.2.3, 7.3.1-7.3.3). Concretely: this record's "4.4 first-run setup UI"
+> is not the runbook's 4.4 (bundled-Chromium run), and the whole of runbook §7.2 — upgrade over a
+> previous build, including the FNV-grant-across-upgrade check — was never attempted. The matching
+> numbers made partial coverage read as complete. A full single-artifact re-run is in progress
+> (`awkit-3zr`); this section will be replaced by its result.
+
+Sections 1, 2, 5, 6 and 8 were executed in full and every check passed. Sections 4 and 7 were
+partially covered as described above, and section 3 — the manual offline-setup steps, waved through
+as "subsumed by automated provisioning" — was **not executed**. The run-based checks (5.4, 5.8, 6.3, 8.1, 8.2) were executed on a second, reprovisioned
 VM (fifth sitting); the migration ceremony (8.7–8.11) followed in the sixth, with 8.10 and 8.11
 running against a rebuilt, separately hash-verified artifact for the reason recorded there. Per the
 runbook's own §9 a FAIL is blocking and there were none — but
@@ -449,6 +459,135 @@ filed rather than fixed here.
 |---|---|
 | 3 | Offline setup steps - subsumed by automated provisioning |
 
+
+---
+
+# Seventh sitting: full single-artifact gate run (`awkit-3zr`), 2026-07-30
+
+One freshly provisioned VM, **one** portable artifact
+(`f442f2c3b998fe033324c0b0d9336fddbba6f5cfc95e4f6ed4d58a3e231bca91`), executed section by section as
+written — including the runbook's own numbering, which the earlier sittings quietly replaced with
+tables of their own. That substitution is what let §4 and §7 read as complete when most of their rows
+had never run.
+
+Passes are separated by snapshot restores because the sections have mutually exclusive preconditions
+(§4 needs an empty profile, §7 needs no prior install, §5/§8 need a profile seeded *before* first
+launch).
+
+## §3 — Exact offline setup steps — **EXECUTED, all steps pass**
+
+| Step | Result | Evidence |
+|---|---|---|
+| 3.1 | **PASS** | snapshot `clean-before-validation`, id `3b53c9d7-24c3-4e84-a96a-dfc8b654bf99` |
+| 3.2 (§1) | **PASS** | 1.1 Windows 11 Pro 10.0.26100 x64 · 1.2 no `package.json` anywhere on `C:` · 1.3 no node/npm/electron processes · 1.4 `where node` not found · 1.5 no `SpecterStudio` profile, no `Programs\specterstudio`, **no ProgramData licensing mirror** · 1.7 `awkituser` **not** in Administrators |
+| 3.3 | **PASS** | 0 network adapters; `Test-Connection 8.8.8.8` false |
+| 3.4 | **PASS** | `Desktop\awkit-portable\` and `Desktop\awkit-installer\`, one artifact each |
+| 3.5 (§2) | **PASS** | verified **on the machine**: portable `f442f2c3…` 212,828,748 B; NSIS `4ba8c55f…` 244,263,870 B; both match the DVD manifest. Authenticode **NotSigned** (expected) |
+| 3.6 | **PASS** | second snapshot `staged-artifacts-preseed`, id `ff381a04-6a4f-438f-a854-2a755f9e0937` |
+
+**§3 step 1 had never been executable.** `provision-vm.ps1` created every lab VM with
+`-CheckpointType Disabled`, which forbids *manual* checkpoints, not just automatic ones — so the
+snapshot the step depends on could not be taken on any VM this lab has ever produced. Fixed to
+`Standard` (automatic checkpoints stay off, since an implicit checkpoint on every start would alter
+the machine under test).
+
+**§3's step order also contradicted §4, §7 and §11.** The snapshot sat at step 1, *before* the
+artifacts are staged at steps 4-5, yet §4 and §7 each say to restore that snapshot and then launch an
+artifact, and §11 says to run the two passes "from separate clean snapshots". Restoring a step-1
+snapshot discards the staged artifacts, leaving nothing to launch. §3 now takes a second snapshot
+after staging and hash-verification, and that is the one §4/§7 restore.
+
+`scripts/clean-machine/setup-offline.ps1` performs steps 1-6 and reports every measurement, so §3 is
+executed rather than waved through as "subsumed by provisioning".
+
+## §4 — Clean-profile portable pass, against the runbook's **actual** 12 rows
+
+| # | Result | Evidence |
+|---|---|---|
+| 4.1 | **PASS** | window renders fully, no white screen; **0** `consent.exe` — no elevation prompt |
+| 4.2 | **PASS** | account `cleanadmin` created (display name, ≥12-char password), recovery code shown, shell loads as Super User |
+| 4.3 | **PASS** | 21 runtime folders created under `%LOCALAPPDATA%\SpecterStudio` |
+| 4.4 | **BLOCKED (licensing)** | run refused: *"Clean Pass Workflow: Export an activation request and import a signed license to activate this machine."* 0 active / 0 completed, `Browsers 0/2`, **no Chromium process ever started** |
+| 4.5 | **PARTIAL** | create + save + reopen-from-library round-trip **PASS** (flow reappears under SAVED FLOWS and reloads as Runnable); the "run it" half **BLOCKED** by the same gate as 4.4 |
+| 4.6 | **BLOCKED (not implemented)** | the **Import Flow button is `disabled`**, titled *"Import from disk will use the import channel after file picker support is added."* Clicks are correctly ignored; there is no import path to exercise |
+| 4.7 | **PASS** | chip reads exactly **`Draft — not runnable (1)`**; on disk the click node still has **no** locator — nothing auto-fixed |
+| 4.8 | **PASS** | *"Validation failed: Step Click (click) requires a locator."* — a specific active-path message, no browser launched |
+| 4.9 | **BLOCKED** | depends on a real run; 0 reports, 0 instances, 0 logs, 0 screenshots (`runtime.sqlite` exists, created at startup rather than by a run) |
+| 4.10 | **PASS** | flow JSON holds only `id,name,description,version,nodes,edges,createdAt,updatedAt` — no `runnable`/`validated`/`validationStatus` verdict persisted |
+| 4.11 | **PASS** | after closing: 0 app processes, 0 Chromium, **0 `.tmp` anywhere in the profile** |
+| 4.12 | **PASS** | returning-user sign-in works; the flow and its Draft state persist |
+
+### A clean machine cannot run anything, by design — and §4 predates that
+
+4.4, 4.5's run half, and 4.9 are **not failures**. An empty profile classifies as `installationKind:
+"fresh"`, so its migration-grace anchor is born `consumed: true`, there is no grace, status is
+`NOT_ACTIVATED`, and the run gate refuses — exactly the owner-decided table. The refusal names the
+remedy, which is good behaviour. But it means **runbook §4 as written cannot be completed on a
+genuinely clean machine under hard enforcement**, and no amount of re-running will change that. Per
+the standing rule for the packaged walkthrough ("report BLOCKED, not silently skip or pass"), they
+are recorded blocked rather than dodged by pre-seeding a profile, which would no longer be §4.
+
+### Validation is evaluated *before* licensing
+
+Worth recording because I predicted the opposite. On a machine where every run is licence-blocked,
+running an **invalid** flow still produces the *validation* message ("Step Click (click) requires a
+locator"), not the licensing one. The specific, actionable defect wins over the generic gate, which
+is the better ordering and means 4.8 remains fully meaningful on an unlicensed machine.
+
+### §6.1 / §6.2 (portable summary gate)
+
+| # | Result | Evidence |
+|---|---|---|
+| 6.1 | **PASS** | ran from `Desktop\awkit-portable\` as a standard user, no install, no admin |
+| 6.2 | **PARTIAL** | offline throughout, no network prompts and no failure attributable to missing internet; "fully functional offline" cannot be claimed in full only because runs are licence-blocked, which is unrelated to connectivity |
+
+### SmartScreen did not appear, and the reason matters
+
+The artifact carries **no `Zone.Identifier` stream** — it arrived on read-only media, not a download —
+so Mark-of-the-Web is absent and SmartScreen has nothing to trigger on. The earlier record's "no
+blocking prompt — PASS" was true but read as though SmartScreen had assessed and allowed the binary.
+It never evaluated it at all.
+
+## §7 — NSIS per-user install / upgrade / uninstall, against the runbook's **actual** 14 rows
+
+Pass C began by restoring `staged-artifacts-preseed`. The restore itself is worth recording: the
+profile, **and the ProgramData licensing mirror**, were both gone, while the staged artifacts
+remained — exactly the precondition §7 asks for, and the first time the runbook's
+restore-between-passes mechanism has ever been exercised.
+
+| # | Result | Evidence |
+|---|---|---|
+| 7.1.1 | **PASS** | assisted UI ("Choose Installation Options"), **not** one-click; all-users option greyed out and labelled *(must run as admin)*; "Only for me (awkituser)" preselected; **0** `consent.exe` sightings over 60 s |
+| 7.1.2 | **PASS** | directory user-selectable with Browse; default `%LOCALAPPDATA%\Programs\SpecterStudio`; 576 files installed, no admin |
+| 7.1.3 | **PASS** | Start-menu **and** desktop shortcuts, both per-user |
+| 7.1.4 | **PASS** | `SpecterStudio 0.1.0` under `awkituser`'s hive, `UninstallString … /currentuser`; **nothing in HKLM**. *Minor:* `InstallLocation` and `Publisher` are empty, so Apps & Features shows neither |
+| 7.1.5 | **PASS** | launched from the Start-menu shortcut → `…\Programs\SpecterStudio\SpecterStudio.exe`; first-run account created; runtime data created under `%LOCALAPPDATA%\SpecterStudio` |
+| 7.1.6 | **PASS** | launched and functioned with 0 network adapters |
+| 7.1.7 | **PASS** | `resources\app.asar` present; bundled `chrome.exe` present; 576-file payload |
+| 7.1.8 | **PARTIAL** | the §5 validation scenarios reproduce **identically** in the installed app (scan, FNV retirement, sha256 grant issuance, per-flow classification); the run-based scenarios are blocked by the **same** licensing gate and with the same message as the portable pass — parity confirmed in both directions |
+| 7.2.1 | **PASS** | same installer re-run over the existing install; upgrade completed in place, **0** UAC prompts |
+| 7.2.2 | **PASS** | user data **byte-for-byte identical** across the upgrade — 25 flows, 25 workflows, 1 grant, 1 migration record, 1 backup, 1 report, verified by a per-file path+size fingerprint taken before and after |
+| 7.2.3 | **PASS** | after the upgrade the scan reported `digestAlgorithm=sha256`, `grantsIssued=1`, `grantsRetiredLegacyDigest=1`; the FNV-era grant carried across is **retired** (`revokedReason: "digestFormatRetired"`), not honoured and **not** re-granted |
+| 7.3.1 | **PASS** (with residue) | payload, Start-menu shortcut, desktop shortcut and the HKCU uninstall entry all removed, no elevation. **The install directory itself remains** — `%LOCALAPPDATA%\Programs\SpecterStudio`, **0 files and 0 subdirectories**. Cosmetic residue, not data |
+| 7.3.2 | **PASS** | user data **byte-for-byte preserved** (62 files). This matches the configured policy — see below |
+| 7.3.3 | **PASS** | 0 app processes, 0 Chromium, 0 services, 0 scheduled tasks matching `*Specter*` |
+
+### 7.3.2's "documented policy" is not documented anywhere
+
+The runbook requires the uninstall data policy to be **stated before testing**. There is no prose
+statement of it in `docs/`. The policy exists only implicitly: `electron-builder.json` does not set
+`deleteAppDataOnUninstall`, and electron-builder's default for it is `false`, so user data is
+preserved. Measured behaviour matches that default exactly. Recorded as a documentation gap — the
+check passes on behaviour, but the "state it first" precondition could not be satisfied from the
+repository.
+
+### The Flow Library's "Re-scan Library" action did not render in the installed app
+
+In Pass B (same artifact, portable, Super User) the action sat beside "New Flow". In Pass C
+(installed, also Super User) it was **absent** — "New Flow" had shifted right into its place, and it
+stayed absent across a navigate-away-and-back, so it is not a first-render race. The scan was
+therefore triggered by the runbook's other documented route, a run request, which worked. Flagged for
+investigation rather than diagnosed here; it did not block any §7 row.
 
 ## Machine-readable record
 

@@ -34,7 +34,11 @@ Blocking matrix (clean-machine disposition → does it block release promotion?)
 | OWNER WAIVED — NON-BLOCKING | No |
 
 **Current disposition: OWNER WAIVED — NON-BLOCKING** (execution status: **PARTIALLY EXECUTED,
-2026-07-30 — 44 PASS / 0 FAIL: §1, §2, §4, §5, §6, §7 and §8 in full; only §3 NOT EXECUTED**).
+2026-07-30 — 44 checks PASS / 0 FAIL: §1, §2, §5, §6 and §8 in full; §4 and §7 only in PART; §3 not
+at all.** A full single-artifact re-run is in progress under `awkit-3zr`. An earlier disposition
+claimed §4 and §7 "in full"; that was wrong — the results record numbered them 4.1-4.5 / 7.1-7.4 of
+its own devising against the runbook's 4.1-4.12 and 7.1.1-7.3.3, so partial coverage read as
+complete, and §7.2 (upgrade over a previous build) was never attempted).
 The five run-based checks (§5.4, §5.8, §6.3, §8.1, §8.2) were executed on a second VM seeded with an
 upgrade profile *before first launch*, so it classified as `upgraded` and its 14-day migration grace
 admitted runs without a licence. The migration ceremony (§8.7-8.11) followed; §8.10 and §8.11 ran
@@ -195,17 +199,25 @@ volatile fields. Do not substitute whole-installer hash equality for this result
 
 ## 3. Exact offline setup steps
 
-1. **Snapshot** the clean VM (so it can be restored between the portable and installer passes). Record
-   the snapshot id in §12.
+1. **Snapshot** the pristine VM. Record the snapshot id in §12.
 2. Confirm every §1 constraint. Record results.
 3. **Go offline** (§1.6) and confirm no connectivity. Keep offline until the run is complete.
 4. Create two working folders on the desktop of the standard user:
    - `C:\Users\<user>\Desktop\awkit-portable\` — copy the **portable** EXE here.
    - `C:\Users\<user>\Desktop\awkit-installer\` — copy the **NSIS** EXE here.
 5. Verify both hashes (§2). Record.
-6. Prepare the **upgrade-profile seed** (used in §5). On the test machine, create the folder tree and
+6. **Snapshot again**, now that the artifacts are staged and hash-verified and *before* anything is
+   launched or seeded. **This** is the snapshot §4 and §7 restore, and the one whose id matters most
+   in §12. The step-1 snapshot alone is not usable for that: restoring it would also discard steps
+   4–5, leaving §4 and §7 with no artifact to launch even though both say to restore and then run one.
+7. Prepare the **upgrade-profile seed** (used in §5). On the test machine, create the folder tree and
    copy in a realistic flow library plus the legacy fixtures described in §5.1. Do this **before**
-   first launch of the relevant pass.
+   first launch of the relevant pass — the app classifies an install as *fresh* or *upgraded* from
+   what is already on disk at first launch, and a profile seeded afterwards produces *fresh*, which
+   makes the §5 upgrade paths unexecutable.
+
+`scripts/clean-machine/setup-offline.ps1` performs steps 1–6 and reports each measurement;
+`seed-upgrade-profile.ps1` performs step 7.
 
 **Data locations the app uses** (all under the user profile; no admin, no `Program Files`):
 ```

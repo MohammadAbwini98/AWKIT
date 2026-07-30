@@ -133,8 +133,15 @@ Write-Step ("answer ISO: " + $answerIso + " (" + [math]::Round((Get-Item $answer
 Write-Step ("Creating VM " + $VMName)
 New-VHD -Path $vhdPath -SizeBytes $DiskBytes -Dynamic | Out-Null
 New-VM -Name $VMName -MemoryStartupBytes $MemoryBytes -Generation 1 -VHDPath $vhdPath | Out-Null
+# Automatic checkpoints stay OFF (an implicit checkpoint on every start would silently alter the
+# machine under test), but MANUAL checkpoints must be available: runbook section 3 step 1 requires
+# snapshotting the clean VM so it can be restored between the portable and installer passes.
+# `-CheckpointType Disabled` blocked manual checkpoints too, which is why that step had never been
+# executable. Standard, not Production: Production checkpoints go through VSS inside the guest, and
+# this guest has no network and a relaxed Windows 11 install; Standard captures exact machine state
+# with no guest cooperation.
 Set-VM -Name $VMName -ProcessorCount $CpuCount -AutomaticCheckpointsEnabled $false `
-       -CheckpointType Disabled -AutomaticStartAction Nothing -AutomaticStopAction ShutDown
+       -CheckpointType Standard -AutomaticStartAction Nothing -AutomaticStopAction ShutDown
 Set-VMMemory -VMName $VMName -DynamicMemoryEnabled $false
 
 # Generation 1 (BIOS), NOT Generation 2. Hyper-V's UEFI firmware rejects this ISO's boot loader
