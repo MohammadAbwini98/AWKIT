@@ -662,9 +662,29 @@ The renderer filters on `record.undoable`.
 `verify-legacy-compat` went 138 → **152**. The new checks were mutation-tested: restoring the old
 `!undoneAt` rule fails **6** of them, including the exact reported case. Two of them were initially
 unreachable — their setup used a flow with no safe fixes, so the guard was skipped silently — and
-that conditional was removed so a setup failure is now a hard failure. **The packaged artifact does
-not contain this fix**; `verify-packaged-validation`'s freshness guard correctly flags it, so rebuild
-before any packaged re-verification.
+that conditional was removed so a setup failure is now a hard failure.
+
+### Rebuilt and re-verified after the fix
+
+The portable was rebuilt from a clean tree at `53e3341` (which contains the fix) and is now
+`f12e84eae3ba163cdab597edb5d1e9277beb7ddde366765dbb9fc2113ce8b5ba`.
+
+- `verify-packaged-validation` **86/1 → 87/0** — the single prior failure was the artifact
+  **freshness guard**, and it now reads *"the portable EXE is freshly built (2 min old, < 180)"*.
+  That guard did exactly its job: it refused to let a stale binary be reported as verified.
+- `verify:packaged-walkthrough` **25 passed / 0 failed / 1 BLOCKED**. Parts A–C pass in full
+  (packaged payload newer than `src/` and `app/`, `appMode: "packaged"`, durable store on the fresh
+  root, no developer paths, no dev leftovers). Part D confirms the packaged fresh profile starts
+  `NOT_ACTIVATED`, carries **no** migration grace, has enforcement **ON**, and **refuses a real
+  run** — then records **BLOCKED** for the four licensed runs because
+  `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set on this machine. That is the owner-specified
+  outcome, not a shortfall: the issuer key is deliberately confined to an authorized validation
+  machine or CI runner, and the gate makes **no claim in either direction** about licensed packaged
+  execution rather than skipping or passing. Evidence in `dist/phase5-evidence`.
+
+**Scope note.** The single-artifact clean-machine gate above was executed against `f442f2c3…`, and
+that record stands as written. `f12e84ea…` is a *newer* build containing the `awkit-o7r` fix and has
+**not** been through the clean-machine gate; the lab VM is still running `f442f2c3…`.
 
 ### Two harness defects fixed mid-run, both failure-open
 

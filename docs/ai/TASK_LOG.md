@@ -23,9 +23,17 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Caught while writing the checks:** two of them were unreachable because their setup used a flow
   with no safe fixes, so `applySafeFixesToFlow` threw and an `if` silently skipped them (+10 checks
   where I had written 12). The conditional is gone; setup failure is now a hard failure.
-- **Not run / not done:** the packaged artifact predates this fix, and
-  `verify-packaged-validation` fails only its freshness guard (86/1) for that reason. Rebuild before
-  any packaged re-verification. The clean-machine VM is still running the older build.
+- **Rebuilt and re-verified (same session).** Portable rebuilt from a clean tree at `53e3341` →
+  `f12e84ea…`. `verify-packaged-validation` **86/1 → 87/0** (the prior failure was purely the
+  freshness guard, which now reads "2 min old"). `verify:packaged-walkthrough` **25 / 0 fail /
+  1 BLOCKED**: parts A–C pass in full, part D confirms the packaged fresh profile is
+  `NOT_ACTIVATED` with **no** grace, enforcement **ON**, and a real run **refused** — then records
+  BLOCKED for the four licensed runs because `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is not set here.
+  That is the owner-specified behaviour (key confined to an authorized validation machine or CI
+  runner); the gate makes no claim either way rather than skipping or passing.
+- **Scope kept honest:** the single-artifact clean-machine gate was run against `f442f2c3…` and that
+  record stands. `f12e84ea…` has **not** been through the clean-machine gate, and the lab VM still
+  runs the older build.
 
 ---
 
