@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("126 issues parse", beads.stats.total === 126, `got ${beads.stats.total}`);
+  check("127 issues parse", beads.stats.total === 127, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -87,9 +87,13 @@ try {
   // Then 10/116 of 126 when the full single-artifact gate run finished: `awkit-3zr` closed,
   // `awkit-o7r` filed (undo offered for records that cannot be undone) — then 9/117 when that fix
   // landed and `awkit-o7r` closed.
+  // Then 9/118 of 127 on 2026-07-30: `awkit-843` (Graphify code knowledge graph integration) filed
+  // and closed in the same session, so the total moved 126 → 127 and closed 117 → 118 while
+  // outstanding stayed put. This pin caught its own documented trap that session: `bd close`
+  // followed by a plain `bd export` left the export showing `awkit-843` still open.
   check(
-    "9 outstanding / 117 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 117,
+    "9 outstanding / 118 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 118,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

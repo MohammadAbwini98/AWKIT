@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## Graphify code knowledge graph is live for agents (2026-07-30, current)
+
+AWKIT now has a **second, complementary code graph** alongside the Codebase Memory MCP: Graphify
+(`graphifyy` 0.9.30, CLI `graphify`), installed user-scoped via `uv` and wired into Claude Code
+**for this project only**. Contract, coverage accounting and refresh procedure:
+**`docs/ai/GRAPHIFY.md`**; the retrieval rule agents follow is in `CLAUDE.md` › *graphify — graph-first
+code retrieval*.
+
+**The graph is a retrieval accelerator, never an authority.** The order is: required-reading docs
+first (they are **not** in the graph) → `graphify query/explain/path` before broad `Glob`/`Grep` →
+`Read` the returned source files before editing or asserting anything → fall back to native search
+whenever the graph is stale, incomplete or unsupported. Source code, tests, Git state and the
+`docs/ai/` documents all outrank any graph edge.
+
+**Current graph:** **11264 nodes, 22960 edges, 605 communities** over **985 source files** — 983 of
+the 1141 tracked files. 99% `EXTRACTED` (22747) / 1% `INFERRED` (213), built **offline with 0 token
+cost**, no API key. Refresh with `graphify update .` — **nothing refreshes it automatically**, and a
+stale graph is silent. `graphify update .` is also the canonical *build*: driving the skill's
+pipeline by hand without an LLM key yields a strictly smaller code-only graph (7817 nodes), because
+`update` additionally runs a structural Markdown pass.
+
+**Coverage gaps are recorded, not hidden** (`--allow-partial` was never used). All **158** tracked
+files absent from the graph are accounted for. Markdown is indexed **structurally only** — headings,
+links, containment; **no semantic/LLM extraction has been run** (it needs a Gemini key or ~13
+subagents; the spend was not authorised, so it is not claimed). Not indexed at all: **`.css`** —
+graphify has no support for it, so `app/renderer/styles/global.css` and the whole Hologram token
+system are invisible — and **all 48 `mock-site/*.html` scenario pages**, which yield zero nodes.
+**Use `Grep` for style-token and mock-site-scenario questions.** `.json` fixtures parse to zero
+nodes. `graphify path` traverses an **undirected** graph, so a path shows connectivity, not call
+direction.
+
+**Zero exclusion leaks, verified.** A path scan of every `source_file` in `graph.json` confirms
+nothing from `node_modules/`, `.beads/`, `logos/`, `vendor/`, build output or `graphify-out/` is
+present, and that the three big logs, `package-lock.json`, the signing `.pem` and `.npmrc` are all
+absent. No secret and no mutable user data entered the graph.
+
+**Nothing existing was replaced or weakened.** The `graphify install --project` merge was additive:
+the two new `PreToolUse` hook-guards sit beside the untouched `SessionStart` (`bd prime`) and `Stop`
+(`check-memory.mjs`) hooks, and were verified to exit `0` silently with and without a graph present.
+`--strict` was deliberately not used, because AWKIT's required-reading documents are not in the graph
+and must be read first. **No git hooks and no file watcher were installed.** Beads, the roadmap
+sources, the validation ledger, the verifiers and native search are unchanged.
+
+**Production is untouched.** Graphify is a developer/AI tool: not an npm dependency, never imported
+by app or runner code, and outside `electron-builder.json`'s packaging scope. The packaged app
+depends on no Python, no `uv`, no network and no global install. `graphify-out/` is gitignored
+(10 MB `graph.json`, local cost data, machine-specific absolute paths); `.graphifyignore` is tracked,
+exactly as `.cbmignore` is.
+
+Verified this task: `npm run build` clean, `git diff --check` clean, `verify:source-hygiene` 9/0,
+`verify:security` 39/0, `verify:verifier-classification` reconciled, `verify:offline-supply-chain`
+22/0, `verify:roadmap-dashboard` **135/135** with the live banner reading **"Sources agree"**. The
+validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are
+**127 total / 4 outstanding / 118 closed** (`awkit-843` closed).
+
 ## Clean-machine 44 PASS / 0 FAIL; only section 3 unexecuted (2026-07-30, current)
 
 Clean-machine validation now stands at **44 PASS / 0 FAIL**: sections 1, 2, 4, 5, 6, 7 and 8 in

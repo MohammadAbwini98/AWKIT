@@ -4,6 +4,69 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-30 - Claude - integrate Graphify as a project-scoped code knowledge graph (`awkit-843`)
+
+- **Task:** install Graphify user-scoped, wire the Claude Code project integration, build the AWKIT
+  graph, and add a graph-first retrieval rule that never outranks source or the required-reading docs.
+- **Install:** `graphifyy` 0.9.30 (PyPI, CLI `graphify`) + the `[sql]` extra, via
+  `uv tool install "graphifyy[sql]"` into an isolated user venv. `uv` itself installed with
+  `python -m pip install uv` into the existing per-user Python. **No admin rights, no npm dependency,
+  no change to the app runtime or packaging.** `electron-builder.json` packages only `out/**`,
+  `package.json`, `resources/`, `vendor/` and the zvec native host — graphify cannot reach the
+  packaged app.
+- **Integration merged additively.** `graphify install --project` (non-strict) appended two
+  `PreToolUse` hook-guards to `.claude/settings.json`; the existing `SessionStart` (`bd prime`) and
+  `Stop` (`check-memory.mjs`) hooks are byte-identical. Guards verified **exit 0, silent,
+  non-blocking** against `Grep`/`Read`/`Bash` payloads both **with and without** a graph present.
+  Rewrote graphify's absolute install path in the hook command to bare `graphify` so no
+  machine-specific private path is committed. `--strict` deliberately NOT used.
+- **Graph:** **11264 nodes, 22960 edges, 605 communities** over **985 source files (983 of the 1141
+  tracked)**, 99% `EXTRACTED` (22747) / 1% `INFERRED` (213), **0 tokens, fully offline**. Outputs:
+  `graph.json`, `GRAPH_REPORT.md`, `graph.html` (aggregated — 11264 > the 5000-node viz limit).
+- **`graphify update .` is the canonical BUILD, not just the refresh — and this was measured.**
+  Driving the skill's pipeline by hand with no LLM key runs the AST pass only and yields a strictly
+  smaller code-only graph: **7817 nodes / 19734 edges / 305 communities**. `graphify update .` adds a
+  **structural Markdown pass** (headings, links, containment) and produced 11264/22960/605 from the
+  same corpus with the same exclusions. Documented so nobody rebuilds the smaller graph by hand.
+- **Recorded gaps, not concealed** (`--allow-partial` never used). All **158** tracked files absent
+  from the graph are accounted for, bucket by bucket, in `GRAPHIFY.md`. Markdown is **structural
+  only** — no semantic/LLM extraction was run (needs a Gemini key or ~13 subagents; not authorised,
+  so not claimed). Not indexed at all: **`.css`** (unsupported by graphify — `global.css` and the
+  whole Hologram token system are invisible) and **all 48 `mock-site/*.html`** scenario pages (0
+  nodes). 41 `.json` fixtures parse to zero nodes. `graphify path` is **undirected**; ~1290 dangling
+  edges point at unindexed externals.
+- **Zero exclusion leaks, verified** by scanning every `source_file` in `graph.json`: nothing from
+  `node_modules/`, `.beads/`, `logos/`, `vendor/`, build output or `graphify-out/`; the three big
+  logs, `package-lock.json`, the signing `.pem` and `.npmrc` all absent.
+- **Three corrections made mid-task:** 4 `.sql` files silently contributed nothing until the `[sql]`
+  extra was installed; graphify's own vendored skill docs were being indexed into AWKIT's graph until
+  `.claude/skills/graphify/` was excluded (AWKIT's *own* skills stay indexed); and the first graph
+  was rebuilt via `graphify update .` once the hand-driven pipeline was found to under-index.
+- **`graphify explain "window.playwrightFlowStudio"` resolves** — to the ADR at
+  `docs/ai/DECISIONS.md:L337`. For the *code* contract use `graphify explain "PlaywrightFlowStudioApi"`
+  → `app/main/preload.ts:L510` + the renderer `Window` interface. (On the AST-only graph the first
+  form returned "No node matching"; the Markdown pass is what fixed it.)
+- **`bd export` trap hit and recorded:** `bd close` followed by a plain `bd export` (which writes to
+  STDOUT) left `.beads/issues.jsonl` showing `awkit-843` still open, and `verify:roadmap-dashboard`
+  caught it at 133/135. Fixed with `bd export -o .beads/issues.jsonl`; the verifier's count pin was
+  then moved 126 → 127 issues and 117 → 118 closed, with the reason recorded inline.
+- **Files:** added `.graphifyignore`, `docs/ai/GRAPHIFY.md`, `.claude/CLAUDE.md`,
+  `.claude/skills/graphify/`; modified `.claude/settings.json`, `CLAUDE.md`, `AGENTS.md`,
+  `.gitignore`, `docs/ai/COMMANDS.md`, `docs/ai/CODEBASE-MEMORY-AND-BEADS.md`,
+  `scripts/verify-roadmap-dashboard.mjs` (bead count pin).
+  `graphify-out/` is gitignored (10 MB `graph.json`, local cost data, machine-specific paths).
+- **Tests — all PASS:** `npm run build` clean; `git diff --check` clean;
+  `verify:source-hygiene` 9/0; `verify:security` 39/0; `verify:verifier-classification` reconciled
+  (153, no new script to register); `verify:offline-supply-chain` 22/0;
+  `verify:roadmap-dashboard` **135/135**, and the live dashboard banner reads **"Sources agree"**
+  (62 PASS / 3 NOT RUN / 1 BLOCKED, 13 sources, 0 stale claims).
+- **NOT RUN:** `validate:offline` (packaging untouched; no packaged artifact rebuilt this session),
+  `verify:runner` (no runner/orchestrator logic changed), `verify:mock-site` (no mock-site change).
+- **No git hooks and no file watcher installed** — `.git/hooks/` holds only samples, no merge driver
+  configured. Beads, the roadmap sources, the validation ledger and native search are all unchanged.
+
+---
+
 ## 2026-07-30 - Claude - fix awkit-o7r: undo offered for records that cannot be undone
 
 - **Task:** fix the regression the full single-artifact gate found in this campaign's own `fa87fc8`.

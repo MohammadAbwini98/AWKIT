@@ -192,6 +192,11 @@ is explicitly subordinate to repo/user/orchestrator instructions. Reconciliation
 - **`docs/ai/` (HANDOFF, CURRENT_STATE, TASK_LOG, DECISIONS)** = the existing narrative handoff/architecture
   record — kept as-is; historical, human-facing reference.
 - **`MEMORY.md` auto-memory + Stop hook** = unchanged; keep using it. Don't rip out either system.
+- **Graphify** (added 2026-07-30, `docs/ai/GRAPHIFY.md`) = a *second*, complementary code graph — a local
+  CLI (`graphify query|explain|path`) over `graphify-out/graph.json`, no MCP round-trip and no API key.
+  Codebase Memory keeps the richer typed queries (`trace_path`, `get_code_snippet`, Cypher) and its own
+  `.cbmignore`; graphify is the fast first probe. **Neither replaces the other, and neither outranks
+  source code.** Both are derived and must be refreshed after code changes.
 
 ## 16. Known limitations / remaining blockers
 

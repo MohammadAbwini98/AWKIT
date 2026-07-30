@@ -415,6 +415,25 @@ npm run icon:generate    # node scripts/generate-app-icon.mjs (build resources/i
 ## Database migrations
 `Unknown - verify before use` — the project uses JSON file storage, not a database; no migration command exists.
 
+## Graphify code knowledge graph (developer/AI tool — never part of the app or its build)
+```bash
+graphify update .                            # THE build/refresh command — offline, no API key, 0 tokens (code + structural Markdown)
+```
+```bash
+graphify query "How does AWKIT execute a workflow?" --budget 3000
+```
+```bash
+graphify explain "PlaywrightFlowStudioApi"   # a symbol and its neighbours (NOT "window.playwrightFlowStudio" — query by symbol)
+```
+```bash
+graphify path "FlowProfile" "JsonProfileStore"   # shortest connectivity path (undirected — not a call chain)
+```
+> Install (user-scoped, no admin): `uv tool install "graphifyy[sql]"` then `uv tool update-shell`.
+> Output lives in the gitignored `graphify-out/`; `.graphifyignore` is tracked index config.
+> **NOT indexed:** all `.css` (incl. `global.css`), all `mock-site/*.html`, `.json` fixtures, and
+> `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`. Markdown is structural only. Use `Grep` for those.
+> Contract, coverage accounting, exclusions, hooks and limits: `docs/ai/GRAPHIFY.md`.
+
 ## Notes
 - Bash tool note: this repo runs on Windows; prefer the npm scripts above. PowerShell is the shell
   for the `*.ps1` packaging/offline scripts.

@@ -54,6 +54,7 @@ Playwright, or admin rights required.
 | `docs/ai/SECURITY.md` | Secret handling, safe-automation rules |
 | `docs/ai/TESTING.md` | Test frameworks, how to verify |
 | `docs/ai/DEVELOPMENT_WORKFLOW.md` | How agents start/finish a task |
+| `docs/ai/GRAPHIFY.md` | Graphify code knowledge graph — coverage, refresh, graph-first retrieval rule |
 
 Project spec/history also lives in `playwright_flow_studio_updated_phases/` (master spec),
 `change_requests/` (historical change prompts), `IMPLEMENTATION_STATUS.md`, and
