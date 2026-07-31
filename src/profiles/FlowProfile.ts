@@ -82,7 +82,7 @@ export interface LocatorCandidate {
  * element at run time — `visibleOnly`/`hasText` disambiguate hidden templates and repeats.
  */
 export interface LocatorContainerContext extends LocatorCandidate {
-  type: "dialog" | "tableRow" | "card" | "listItem";
+  type: "dialog" | "tableRow" | "card" | "listItem" | "landmark";
   /** Narrow repeated containers (rows/cards) to the one whose text matches. */
   hasText?: string;
   /** Prefer the single *visible* container (hidden modal template + visible modal). */

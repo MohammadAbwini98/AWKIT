@@ -438,6 +438,23 @@ async function main() {
     check("repeated cards: clicked Beta's Add button", hit === "beta", hit ?? "null");
   }
 
+  // CR5. Landmark twins: two identical links distinguished only by their semantic landmark ancestor's accessible name.
+  // The recorder must discover a container strategy that scopes by landmark role+name.
+  {
+    const html = `
+      <nav aria-label="Side navigation"><a href="/s" class="twin" onclick="window.__hit='side'; return false;">Shorts</a></nav>
+      <nav aria-label="Footer navigation"><a href="/s" class="twin" onclick="window.__hit='footer'; return false;">Shorts</a></nav>
+    `;
+    const action = await capture(html, (p) => p.locator('nav[aria-label="Footer navigation"] a').click());
+    const quality = action?.locator?.quality;
+    check("landmark twins: unique locator generated", quality?.isUnique === true, JSON.stringify(action?.locator));
+    check("landmark twins: disambiguated by container or compound", quality?.disambiguation === "container" || quality?.disambiguation === "compound", JSON.stringify(quality));
+    
+    const { status, hit } = await run(html, { id: "cr5", type: "click", name: "Click Shorts", locator: action?.locator as unknown as FlowStep["locator"] });
+    check("landmark twins: recorded locator runs green", status === "passed", status);
+    check("landmark twins: clicked the link in footer", hit === "footer", hit ?? "null");
+  }
+
   // CR3. Runtime self-healing: a legacy non-unique step where two same-named buttons are visible but
   // only one is enabled → the runner clicks the actionable one instead of failing.
   {

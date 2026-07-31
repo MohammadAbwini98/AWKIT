@@ -110,6 +110,19 @@
         </div>
 
         <p>
+          Expected: two identical links (like YouTube's "Shorts") in different semantic landmarks.
+          The Recorder must disambiguate by scoping to the nearest landmark (e.g., <code>nav</code> vs <code>main</code>).
+        </p>
+        <div data-testid="landmark-twins" style="display: flex; gap: 2rem; border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem;">
+          <nav aria-label="Side navigation">
+            <ul><li><a href="/shorts" class="landmark-twin-link">Shorts</a></li></ul>
+          </nav>
+          <main>
+            <a href="/shorts" class="landmark-twin-link">Shorts</a>
+          </main>
+        </div>
+
+        <p>
           Expected: the customer table repeats an <em>Edit</em> button per row with no per-button
           id/testid/class distinguisher, so the Recorder must scope to the row (container) identified by
           its text.
@@ -217,6 +230,13 @@
           '<input id="' + id + '-note" data-testid="dynamic-note-input" placeholder="Stable placeholder" />' +
           '<button type="button" data-testid="dynamic-card-action">Approve dynamic card</button>' +
           '</article>';
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.landmark-twin-link'), function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          var landmark = btn.closest("nav") ? "nav" : "main";
+          $("duplicateResult").textContent = "Clicked Shorts in " + landmark;
+        });
       });
       Array.prototype.forEach.call(document.querySelectorAll('[data-testid="duplicate-controls"] .pkg-select'), function (btn) {
         btn.addEventListener("click", function () {

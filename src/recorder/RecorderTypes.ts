@@ -14,6 +14,13 @@ export interface RecordedActionLocator {
   alternatives?: LocatorCandidate[];
   /** Container/frame scoping (visible dialog, table row, card, iframe) detected at record time. */
   context?: LocatorContext;
+  /** Enrichment metadata captured from the raw event. */
+  interaction?: {
+    path?: string[];
+    x?: number;
+    y?: number;
+    matchIndex?: number;
+  };
 }
 
 export interface RecordedAction {

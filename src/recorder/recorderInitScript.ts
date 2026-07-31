@@ -545,7 +545,7 @@ export function installRecorderCapture(): void {
   }
 
   interface ContainerContext {
-    type: "dialog" | "tableRow" | "card" | "listItem";
+    type: "dialog" | "tableRow" | "card" | "listItem" | "landmark";
     strategy: string;
     value: string;
     name?: string;
@@ -564,6 +564,10 @@ export function installRecorderCapture(): void {
     const nm = accessibleName(node);
     if (role && nm && nm.length <= 80) return { type, strategy: "role", value: role.toLowerCase(), name: nm, exact: false };
     if (role) return { type, strategy: "css", value: '[role="' + esc(role.toLowerCase()) + '"]' };
+    const tag = tagOf(node);
+    if (["nav", "main", "header", "footer", "aside", "form", "section"].indexOf(tag) >= 0) return { type, strategy: "css", value: tag };
+    const href = attr(node, "href");
+    if (href) return { type, strategy: "css", value: tag + '[href="' + esc(href) + '"]' };
     return null;
   };
 
@@ -601,6 +605,18 @@ export function installRecorderCapture(): void {
       if (dtid) return { type, strategy: "testId", value: dtid, hasText: text };
       if (isListItem) return { type: "listItem", strategy: "role", value: "listitem", hasText: text };
       if (tagOf(card) === "article") return { type: "card", strategy: "role", value: "article", hasText: text };
+    }
+
+    const landmark = el.closest('nav, main, header, footer, aside, form, section, [role="navigation"], [role="main"], [role="banner"], [role="contentinfo"], [role="complementary"], [role="form"], [role="region"]');
+    if (landmark && landmark !== el) {
+      const base = describeContainer(landmark, "landmark");
+      if (base) return base;
+    }
+
+    const link = el.closest('a[href]');
+    if (link && link !== el) {
+      const href = attr(link, "href");
+      if (href) return { type: "landmark", strategy: "css", value: 'a[href="' + esc(href) + '"]' };
     }
 
     return null;
@@ -1095,6 +1111,39 @@ export function installRecorderCapture(): void {
     return SENSITIVE_FIELD_PATTERN.test(normalized);
   }
 
+  const captureInteraction = (event: Event, target: Element, g: { locator: Record<string, unknown>; quality: Quality }): Record<string, unknown> => {
+    const interaction: Record<string, unknown> = {};
+    if (event instanceof MouseEvent) {
+      interaction.x = Math.round(event.clientX);
+      interaction.y = Math.round(event.clientY);
+    }
+    if (event.composedPath) {
+      const path = event.composedPath();
+      const tags = [];
+      for (let i = 0; i < path.length; i++) {
+        const n = path[i] as Element;
+        if (n.nodeType === 1 && typeof n.tagName === "string") {
+          tags.push(n.tagName.toLowerCase());
+        }
+      }
+      interaction.path = tags;
+    }
+    if (!g.quality.isUnique && g.locator.strategy === "css" && typeof g.locator.value === "string") {
+      try {
+        const matches = document.querySelectorAll(g.locator.value);
+        for (let i = 0; i < matches.length; i++) {
+          if (matches[i] === target) {
+            interaction.matchIndex = i;
+            break;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return interaction;
+  };
+
   window.addEventListener(
     "click",
     (event) => {
@@ -1110,7 +1159,8 @@ export function installRecorderCapture(): void {
       }
       const g = generate(target);
       const label = g.accessibleName || tag || "element";
-      record({ type: "click", name: "Click " + label, locator: g.locator });
+      const interaction = captureInteraction(event, target, g);
+      record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction } });
     },
     true
   );
@@ -1125,23 +1175,25 @@ export function installRecorderCapture(): void {
 
       const g = generate(target);
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
+      const interaction = captureInteraction(event, target, g);
+      const locator = { ...g.locator, interaction };
 
       if (tag === "input") {
         const input = target as HTMLInputElement;
         const type = (input.type || "text").toLowerCase();
         if (type === "checkbox") {
-          record({ type: input.checked ? "check" : "uncheck", name: (input.checked ? "Check " : "Uncheck ") + label, locator: g.locator });
+          record({ type: input.checked ? "check" : "uncheck", name: (input.checked ? "Check " : "Uncheck ") + label, locator });
         } else if (type === "radio") {
-          if (input.checked) record({ type: "radio", name: "Select " + label, locator: g.locator });
+          if (input.checked) record({ type: "radio", name: "Select " + label, locator });
         } else {
           // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
           const value = shouldRedactValue(input, type) ? "" : input.value;
-          record({ type: "fill", name: "Fill " + label, locator: g.locator, valueSource: { type: "static", value } });
+          record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });
         }
       } else if (tag === "select") {
-        record({ type: "select", name: "Select " + label, locator: g.locator, valueSource: { type: "static", value: (target as HTMLSelectElement).value } });
+        record({ type: "select", name: "Select " + label, locator, valueSource: { type: "static", value: (target as HTMLSelectElement).value } });
       } else {
-        record({ type: "fill", name: "Fill " + label, locator: g.locator, valueSource: { type: "static", value: (target as HTMLTextAreaElement).value } });
+        record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value: (target as HTMLTextAreaElement).value } });
       }
     },
     true
@@ -1164,9 +1216,11 @@ export function installRecorderCapture(): void {
       if (type === "checkbox" || type === "radio") return;
       const g = generate(target);
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
+      const interaction = captureInteraction(event, target, g);
+      const locator = { ...g.locator, interaction };
       // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
       const value = shouldRedactValue(target, type) ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
-      record({ type: "fill", name: "Fill " + label, locator: g.locator, valueSource: { type: "static", value } });
+      record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });
     },
     true
   );
