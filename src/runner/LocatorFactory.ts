@@ -38,7 +38,7 @@ const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
 
 export interface LocatorRecoveryEvent {
-  type: "preferred-candidate" | "local-recovery" | "memory-error";
+  type: "preferred-candidate" | "local-recovery" | "memory-error" | "user-approved-fallback";
   stepId: string;
   message: string;
   score?: number;
@@ -218,6 +218,16 @@ export class LocatorFactory {
     let pass = await this.tryCandidates(root, ordered);
     if (pass.winner) {
       await this.rememberWinner(scopeKey, digest, pass.winner, step);
+      
+      const isPositional = step.locator?.quality?.strategy === "fallback" || step.locator?.quality?.disambiguation === "positional";
+      if (isPositional && step.locator?.resolution === "user-approved-fallback") {
+        this.emit({
+          type: "user-approved-fallback",
+          stepId: step.id,
+          message: `Using user-approved positional fallback locator (lower resilience) for "${step.name}".`
+        });
+      }
+      
       return pass.winner.locator;
     }
 

@@ -411,6 +411,15 @@ export class StepExecutor {
             `data-testid or unique accessible name before running. (locator: ${step.locator?.strategy}=${step.locator?.value})`
         );
       }
+      
+      // Increment 4: Explicit positional-fallback approval
+      if (step.locator?.resolution !== "user-approved-fallback") {
+        throw new Error(
+          `This step uses a positional fallback locator which requires explicit approval. ` +
+            `Please review and approve this step in the Flow Designer or re-record it. ` +
+            `(locator: ${step.locator?.strategy}=${step.locator?.value})`
+        );
+      }
     }
 
     if (!quality || quality.isUnique !== false) return;

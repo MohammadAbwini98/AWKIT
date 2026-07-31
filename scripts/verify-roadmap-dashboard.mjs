@@ -95,8 +95,8 @@ try {
   // recorded-flow replayability, AWKIT-REC-030) filed with 7 dependency-ordered children
   // (`awkit-aui.1`…`.6`, `.8`), adding 8 outstanding (total 127 → 135) and 7 edges (76 → 83).
   check(
-    "16 outstanding / 119 closed",
-    beads.stats.outstanding === 16 && beads.stats.closed === 119,
+    "15 outstanding / 120 closed",
+    beads.stats.outstanding === 15 && beads.stats.closed === 120,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

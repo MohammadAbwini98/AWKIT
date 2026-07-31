@@ -436,7 +436,16 @@ const api = {
     cancelHandoff: () => ipcRenderer.invoke("recorder:cancelHandoff") as Promise<{ success: boolean }>,
     // Session-level "Ignore and continue recording" for a false-positive protected detection.
     ignoreProtectedDetection: () =>
-      ipcRenderer.invoke("recorder:ignoreProtectedDetection") as Promise<RecorderStatus>
+      ipcRenderer.invoke("recorder:ignoreProtectedDetection") as Promise<RecorderStatus>,
+    // Ambiguity Resolution UX
+    getAmbiguityState: () => 
+      ipcRenderer.invoke("recorder:getAmbiguityState") as Promise<import("@src/recorder/RecorderTypes").AmbiguityState | null>,
+    resolveAmbiguity: (choice: import("@src/recorder/RecorderTypes").AmbiguityResolutionChoice, payload?: import("@src/recorder/RecorderTypes").AmbiguityResolutionPayload) =>
+      ipcRenderer.invoke("recorder:resolveAmbiguity", choice, payload) as Promise<{ success: boolean }>,
+    highlightCandidate: (selector: string, index?: number) =>
+      ipcRenderer.invoke("recorder:highlightCandidate", selector, index) as Promise<{ success: boolean }>,
+    clearHighlight: () =>
+      ipcRenderer.invoke("recorder:clearHighlight") as Promise<{ success: boolean }>
   },
   secrets: {
     // Manage operator secrets by NAME only. `set` sends a plaintext value to be encrypted in the

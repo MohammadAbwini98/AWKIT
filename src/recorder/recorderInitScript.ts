@@ -1224,6 +1224,38 @@ export function installRecorderCapture(): void {
     },
     true
   );
+
+  // ── Ambiguity Resolution UX ──────────────────────────────────────────────────
+
+  (window as any).__awtkit_highlight = (selector: string, index?: number) => {
+    (window as any).__awtkit_clearHighlight();
+    const elements = Array.from(document.querySelectorAll(selector));
+    const target = index !== undefined && index >= 0 && index < elements.length ? elements[index] : elements[0];
+    if (!target) return;
+
+    const rect = target.getBoundingClientRect();
+    const overlay = document.createElement("div");
+    overlay.id = "__awtkit_highlight_overlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = rect.top + "px";
+    overlay.style.left = rect.left + "px";
+    overlay.style.width = rect.width + "px";
+    overlay.style.height = rect.height + "px";
+    overlay.style.border = "3px solid #ff0055";
+    overlay.style.backgroundColor = "rgba(255, 0, 85, 0.15)";
+    overlay.style.zIndex = "2147483647"; // Max z-index
+    overlay.style.pointerEvents = "none";
+    overlay.style.transition = "all 0.15s ease-out";
+    overlay.style.boxSizing = "border-box";
+    document.body.appendChild(overlay);
+
+    target.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  };
+
+  (window as any).__awtkit_clearHighlight = () => {
+    const existing = document.getElementById("__awtkit_highlight_overlay");
+    if (existing) existing.remove();
+  };
 }
 
 /**

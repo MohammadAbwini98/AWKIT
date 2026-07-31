@@ -259,6 +259,64 @@ async function main() {
     check("strict-mode error translated to friendly message", /matched multiple elements/i.test(result.error ?? ""), result.error);
   }
 
+  // 9. Unapproved positional fallback fails (Increment 4).
+  {
+    await page.setContent(`<button class="flex">Go</button>`);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const step: FlowStep = {
+      id: "s3",
+      type: "click",
+      name: "Click Go",
+      locator: {
+        strategy: "css",
+        value: "button >> nth=0",
+        quality: { strategy: "fallback", isUnique: true, matchCount: 1, confidence: "low" }
+      }
+    };
+    const result = await exec.execute(step);
+    check("unapproved positional fallback fails", result.status === "failed", result.status);
+    check("unapproved positional fallback asks for explicit approval", /requires explicit approval/i.test(result.error ?? ""), result.error);
+  }
+
+  // 10. Approved positional fallback on non-dangerous step passes.
+  {
+    await page.setContent(`<button class="flex" onclick="window.__hit='pos'">Go</button>`);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const step: FlowStep = {
+      id: "s4",
+      type: "click",
+      name: "Click Go",
+      locator: {
+        strategy: "css",
+        value: "button.flex",
+        quality: { strategy: "fallback", isUnique: true, matchCount: 1, confidence: "low" },
+        resolution: "user-approved-fallback"
+      }
+    };
+    const result = await exec.execute(step);
+    check("approved positional fallback on non-dangerous step passes", result.status === "passed", result.error || result.status);
+  }
+
+  // 11. Approved positional fallback on dangerous step still fails (absolute guard).
+  {
+    await page.setContent(`<input type="text">`);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const step: FlowStep = {
+      id: "s5",
+      type: "click",
+      name: "Click Delete",
+      locator: {
+        strategy: "css",
+        value: "input",
+        quality: { strategy: "fallback", isUnique: true, matchCount: 1, confidence: "low" },
+        resolution: "user-approved-fallback"
+      }
+    };
+    const result = await exec.execute(step);
+    check("approved positional fallback on dangerous step still fails", result.status === "failed", result.status);
+    check("dangerous step error mentions sensitive action", /performs a sensitive action/i.test(result.error ?? ""), result.error);
+  }
+
   console.log("Part C — Runner fallback resolution (alternatives, visibility, context scoping)");
 
   // Run one step against `html` and return the execution result + the id of the element the

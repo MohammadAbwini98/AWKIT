@@ -3,7 +3,13 @@ import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCi
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
-import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "@src/recorder/RecorderTypes";
+import type { 
+  RecordedAction, 
+  RecordedUrl, 
+  RecorderHandoffInfo,
+  AmbiguityState,
+  AmbiguityResolutionChoice
+} from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 
 export function Recorder() {
@@ -23,6 +29,8 @@ export function Recorder() {
 
   const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
+  const [ambiguity, setAmbiguity] = useState<AmbiguityState | null>(null);
+  const [ambiguityBusy, setAmbiguityBusy] = useState(false);
   const [sessionNameInput, setSessionNameInput] = useState("");
   /** True while protected-login detection is being ignored (global setting or session override). */
   const [protectedDetectionIgnored, setProtectedDetectionIgnored] = useState(false);
@@ -117,6 +125,9 @@ export function Recorder() {
     const poll = () => {
       window.playwrightFlowStudio.recorder.getHandoff()
         .then(setHandoff)
+        .catch(() => undefined);
+      window.playwrightFlowStudio.recorder.getAmbiguityState()
+        .then(setAmbiguity)
         .catch(() => undefined);
       window.playwrightFlowStudio.recorder.getStatus()
         .then((status) => {
@@ -296,6 +307,30 @@ export function Recorder() {
       setStatusMsg(`Error: ${err?.message ?? err}`);
     } finally {
       setHandoffBusy(false);
+    }
+  };
+
+  const handleAmbiguityResolution = async (choice: AmbiguityResolutionChoice, candidateIndex?: number) => {
+    if (!ambiguity) return;
+    setAmbiguityBusy(true);
+    try {
+      if (choice !== "cancel") {
+        window.playwrightFlowStudio.recorder.clearHighlight().catch(() => undefined);
+      }
+      await window.playwrightFlowStudio.recorder.resolveAmbiguity(choice, { candidateIndex });
+      setAmbiguity(null);
+      if (choice === "cancel") {
+        setIsRecording(true);
+        setStatusMsg("Ambiguity resolution cancelled. Recording resumed.");
+      } else {
+        setIsRecording(true);
+        setStatusMsg("Ambiguity resolved. Recording resumed.");
+      }
+      window.playwrightFlowStudio.recorder.getActions().then(setActions).catch(() => undefined);
+    } catch (err: any) {
+      setStatusMsg(`Resolution failed: ${err?.message ?? err}`);
+    } finally {
+      setAmbiguityBusy(false);
     }
   };
 
@@ -582,6 +617,100 @@ export function Recorder() {
             >
               <XCircle size={16} />
               {handoff.phase === "detected" || handoff.phase === "error" ? "Cancel recording" : "Cancel"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {ambiguity ? (
+        <section
+          className="recorder-handoff-panel"
+          data-testid="ambiguity-resolution-panel"
+          role="alertdialog"
+          aria-label="Ambiguous action detected"
+        >
+          <div className="recorder-handoff-head">
+            <ShieldAlert size={20} />
+            <h3>Ambiguous Locator Detected</h3>
+          </div>
+
+          <p>
+            The action <strong>{ambiguity.action.name}</strong> has multiple possible matches on the page.
+            Please choose how you would like to resolve it.
+          </p>
+
+          <div className="recorder-handoff-meta" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {ambiguity.action.locator?.alternatives?.map((candidate, index) => (
+              <div 
+                key={index}
+                style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center",
+                  padding: "8px",
+                  background: "var(--awkit-color-bg-subtle)",
+                  borderRadius: "var(--awkit-radius-md)"
+                }}
+                onMouseEnter={() => void window.playwrightFlowStudio.recorder.highlightCandidate(candidate.strategy === "css" || candidate.strategy === "xpath" ? candidate.value : `[aria-label="${candidate.value}"]`, index)}
+                onMouseLeave={() => void window.playwrightFlowStudio.recorder.clearHighlight()}
+              >
+                <div>
+                  <div style={{ fontWeight: 600, color: "var(--awkit-color-text)" }}>{candidate.name || `Candidate ${index + 1}`}</div>
+                  <div style={{ fontSize: "0.85em", color: "var(--awkit-color-text-dim)" }}>
+                    <span className="locator-badge">{candidate.strategy}</span>
+                    <span className="locator-value">{candidate.value}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="toolbar-button recorder-button-success"
+                  disabled={ambiguityBusy}
+                  onClick={() => void handleAmbiguityResolution("selectCandidate", index)}
+                >
+                  Pick
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="recorder-handoff-actions" style={{ marginTop: "16px" }}>
+            {ambiguity.action.locator?.alternatives?.some(c => c.value.includes("nav") || c.value.includes("main") || c.value.includes("header") || c.value.includes("footer")) ? (
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={ambiguityBusy}
+                onClick={() => void handleAmbiguityResolution("scopeToAncestor")}
+                title="Scope to the nearest semantic landmark ancestor (nav, header, footer, etc.)"
+              >
+                Scope to Ancestor
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="toolbar-button"
+              disabled={ambiguityBusy}
+              onClick={() => void handleAmbiguityResolution("approveFallback")}
+              title="Allow the runner to use positional selectors (like nth-match) for this step"
+            >
+              Approve Positional Fallback
+            </button>
+            <button
+              type="button"
+              className="toolbar-button"
+              disabled={ambiguityBusy}
+              onClick={() => void handleAmbiguityResolution("defer")}
+              title="Leave it unresolved. It will be flagged for review in the Flow Designer."
+            >
+              Defer (Needs Review)
+            </button>
+            <button
+              type="button"
+              className="toolbar-button recorder-button-subtle"
+              disabled={ambiguityBusy}
+              onClick={() => void handleAmbiguityResolution("cancel")}
+            >
+              <XCircle size={16} />
+              Discard Action
             </button>
           </div>
         </section>

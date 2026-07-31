@@ -21,6 +21,8 @@ export interface RecordedActionLocator {
     y?: number;
     matchIndex?: number;
   };
+  resolution?: "needs-review" | "user-approved-fallback" | "resolved";
+  resolvedBy?: "user" | "recorder";
 }
 
 export interface RecordedAction {
@@ -143,3 +145,19 @@ export interface RecordedUrl {
   /** Recording session id (stable for one start→stop session). */
   sessionId?: string;
 }
+
+export type AmbiguityResolutionChoice = 
+  | "selectCandidate" 
+  | "scopeToAncestor" 
+  | "approveFallback" 
+  | "cancel" 
+  | "defer";
+
+export interface AmbiguityResolutionPayload {
+  candidateIndex?: number;
+}
+
+export interface AmbiguityState {
+  action: RecordedAction;
+}
+

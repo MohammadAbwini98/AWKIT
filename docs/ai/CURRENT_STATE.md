@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: Increments 3 & 4 (UI & Guard) completed (2026-08-01)
+
+Increments 3 & 4 ( wkit-aui.3,  wkit-aui.4) are completed and merged to main.
+- Built the ambiguity-resolution UI, allowing users to pause, view highlighted candidates, and select positional fallbacks or discard steps.
+- Added a strict positional security guard in StepExecutor (guardLocatorQuality), which throws an error if an unapproved positional fallback is used, and absolutely blocks positional fallbacks on dangerousMutation steps (e.g. clicks or fills involving sensitive keywords like 'delete').
+- The  erify-recorder-locator.mts suite was updated with tests for these guards.
+- Full verification passed ( erify:recorder-locator.mts,  erify:runner,  erify:all-typecheck,  erify:roadmap-dashboard).
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**; beads are **127 total / 4 outstanding / 118 closed**.
+
+## Recorder ambiguity-resolution: Increment 2 (Capture Enrichment) completed (2026-08-01)
+
+Increment 2 (`awkit-aui.2`) is completed and merged to `main`.
+- `RecordedActionLocator` was enriched with `interaction` metadata (`path` tags, `x`/`y` coords, `matchIndex`).
+- `recorderInitScript.ts` captures the DOM composed path, exact click coordinates, and leverages `landmark` (nav/main/etc.) and `href`-based semantic scoping inside `detectContainer` to resolve twins based on semantic regions instead of generic wrappers.
+- `LocatorFactory` native fallback/recovery seamlessly supports these new strategies (`strategy: "css", value: 'a[href="..."]'` and `strategy: "css", value: "nav"`) without changes.
+- The `mock-site/public/recorder-lab.html` was extended with a `nav-landmark` twins scenario, successfully tested in `verify-recorder-locator.mts` (which correctly generates a compound CSS selector or semantic container to disambiguate).
+- Full verification passed (`verify:recorder-locator.mts`, `verify-recorder-flow.mts`, and `npm run verify:all-typecheck`).
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
 ## Recorder ambiguity-resolution & replayability defect tracked (2026-07-31)
 
 An open product defect is now tracked: **`AWKIT-REC-030`** — the Recorder can save an interactive

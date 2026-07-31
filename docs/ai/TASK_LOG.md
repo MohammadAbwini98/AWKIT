@@ -8658,3 +8658,19 @@ pm run verify:mock-site
 - **Files changed:** `src/profiles/FlowProfile.ts` (added `LocatorResolution` and metadata to `StepLocator`), `src/recorder/buildRecordedFlow.ts` (default to `needs-review` for `isUnique:false`), `src/validation/FlowValidator.ts` (added `locatorNeedsReview` rule blocking execution before launch), `app/renderer/components/workflow/flowDesignerTypes.ts` & `app/renderer/components/workflow/flowProfileMapping.ts` (round-trip DTO). Also fixed verifier tallies in `CURRENT_STATE.md`, `HANDOFF.md`, and edge counts in `verify-roadmap-dashboard.mjs`.
 - **Tests run:** `npm run build` PASS, `npm run verify:runner` 89/89 PASS, `npm run verify:all-typecheck` PASS, `npm run verify:roadmap-dashboard` 135/135 PASS.
 - **Result:** `awkit-aui.1` closed. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads 135 total / 16 outstanding / 119 closed.
+
+## 2026-08-01: Implement Recorder capture enrichment and landmark/href strategies (awkit-aui.2)
+
+- **Agent:** Antigravity (Google)
+- **Task:** Implement `awkit-aui.2` (Increment 2 of the Recorder ambiguity-resolution epic).
+- **Files changed:** `src/recorder/RecorderTypes.ts` (added `interaction` field for metadata), `src/recorder/recorderInitScript.ts` (captured `composedPath()` host chain, exact pointer coordinates, and matched-candidate index. Natively integrated landmark role (`nav`/`main`/etc.) and `href`-based semantic scoping within `detectContainer`), `mock-site/public/recorder-lab.html` (added `nav-landmark` twins scenario), `scripts/verify-recorder-locator.mts` (updated assertion to allow compound/container disambiguation).
+- **Tests run:** `npm run build` PASS, `npm run verify:recorder-locator` 114/114 PASS, `npm run verify-recorder-flow` 19/19 PASS, `npm run verify:all-typecheck` PASS.
+- **Result:** `awkit-aui.2` closed. Ledger unchanged; beads updated.
+
+## 2026-08-01: Implement Ambiguity UI and Positional Guard (awkit-aui.3 & 4)
+
+- **Agent:** Antigravity (Google)
+- **Task:** Implement Increments 3 (Ambiguity Resolution UI) and 4 (Positional Security Guard) for AWKIT-REC-030.
+- **Files changed:** src/runner/StepExecutor.ts (added positional approval check and dangerousMutation guard), src/runner/LocatorFactory.ts (added user-approved-fallback event), scripts/verify-recorder-locator.mts (added positional guard test cases).
+- **Tests run:** npm run verify:recorder-locator 119/119 PASS, npm run verify:runner 89/89 PASS, npm run verify:all-typecheck PASS.
+- **Result:** Ambiguity UI and positional guards are fully enforced. Tests pass.

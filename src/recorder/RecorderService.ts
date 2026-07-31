@@ -2,7 +2,14 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { RecordedAction, RecordedUrl, RecorderHandoffInfo } from "./RecorderTypes";
+import type { 
+  RecordedAction, 
+  RecordedUrl, 
+  RecorderHandoffInfo, 
+  AmbiguityState, 
+  AmbiguityResolutionChoice, 
+  AmbiguityResolutionPayload 
+} from "./RecorderTypes";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
@@ -149,6 +156,8 @@ export class RecorderService {
   private sessionService: SessionCaptureService | null = null;
   /** Active protected-login handoff state (null when none). */
   private handoff: RecorderHandoffInfo | null = null;
+  /** Active ambiguity resolution state (null when none). */
+  private ambiguityState: AmbiguityState | null = null;
   /** The original recording target URL — the safe URL to resume recording at after capture. */
   private recordingTargetUrl = "";
   /** Bundled Chromium path (offline) so the post-handoff resume relaunch uses the same browser. */
@@ -1165,10 +1174,106 @@ export class RecorderService {
     if (pageAlias !== "main") taggedAction.pageAlias = pageAlias;
     // Track click timestamp for popup opener correlation.
     if (action.type === "click") this.lastClickAt = now;
+    
+    if (taggedAction.locator?.quality?.isUnique === false) {
+      // Ambiguous locator detected: pause recorder and request user resolution.
+      this.isRecording = false;
+      this.ambiguityState = { action: taggedAction };
+      return;
+    }
+
     this.actions.push(taggedAction);
     this.lastActionAt = now;
     this.scheduleDraftPersist();
   }
+
+  // ── Ambiguity Resolution UX ──────────────────────────────────────────────────
+
+  public getAmbiguityState(): AmbiguityState | null {
+    return this.ambiguityState;
+  }
+
+  public async resolveAmbiguity(choice: AmbiguityResolutionChoice, payload?: AmbiguityResolutionPayload): Promise<{ success: boolean }> {
+    if (!this.ambiguityState) return { success: false };
+
+    const action = this.ambiguityState.action;
+    
+    if (choice === "cancel") {
+      this.ambiguityState = null;
+      this.isRecording = true;
+      return { success: true };
+    }
+
+    if (choice === "defer") {
+      action.locator!.resolution = "needs-review";
+      action.locator!.resolvedBy = "recorder";
+    } else if (choice === "approveFallback") {
+      action.locator!.resolution = "user-approved-fallback";
+      action.locator!.resolvedBy = "user";
+      // The runner's StepExecutor will allow this positional locator because of this flag.
+    } else if (choice === "selectCandidate" && payload?.candidateIndex !== undefined) {
+      const candidate = action.locator!.alternatives?.[payload.candidateIndex];
+      if (candidate) {
+        action.locator!.strategy = candidate.strategy;
+        action.locator!.value = candidate.value;
+        if (candidate.name) action.locator!.name = candidate.name;
+        if (candidate.exact !== undefined) action.locator!.exact = candidate.exact;
+      }
+      action.locator!.resolution = "resolved";
+      action.locator!.resolvedBy = "user";
+    } else if (choice === "scopeToAncestor") {
+      // Look for a landmark candidate among alternatives
+      const landmark = action.locator!.alternatives?.find(c => c.value.includes("nav") || c.value.includes("main") || c.value.includes("header") || c.value.includes("footer"));
+      if (landmark) {
+        action.locator!.strategy = landmark.strategy;
+        action.locator!.value = landmark.value;
+        if (landmark.name) action.locator!.name = landmark.name;
+        if (landmark.exact !== undefined) action.locator!.exact = landmark.exact;
+      }
+      action.locator!.resolution = "resolved";
+      action.locator!.resolvedBy = "user";
+    }
+
+    this.actions.push(action);
+    this.lastActionAt = Date.now();
+    this.ambiguityState = null;
+    this.scheduleDraftPersist();
+    this.isRecording = true;
+
+    return { success: true };
+  }
+
+  public async highlightAmbiguityCandidate(selector: string, index?: number): Promise<{ success: boolean }> {
+    if (!this.page) return { success: false };
+    try {
+      await this.page.evaluate(
+        ([{ selector, index }]) => {
+          if (typeof (window as any).__awtkit_highlight === "function") {
+            (window as any).__awtkit_highlight(selector, index);
+          }
+        },
+        [{ selector, index }]
+      );
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  }
+
+  public async clearHighlight(): Promise<{ success: boolean }> {
+    if (!this.page) return { success: false };
+    try {
+      await this.page.evaluate(() => {
+        if (typeof (window as any).__awtkit_clearHighlight === "function") {
+          (window as any).__awtkit_clearHighlight();
+        }
+      });
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  }
 }
+
 
 export const recorderService = new RecorderService();

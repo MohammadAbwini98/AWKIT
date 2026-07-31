@@ -130,4 +130,28 @@ export function registerRecorderIpc(): void {
     await recorderService.discardDraft();
     return flowProfile;
   });
+
+  ipcMain.handle("recorder:getAmbiguityState", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    return recorderService.getAmbiguityState();
+  });
+
+  ipcMain.handle(
+    "recorder:resolveAmbiguity", 
+    async (event, choice: import("@src/recorder/RecorderTypes").AmbiguityResolutionChoice, payload?: import("@src/recorder/RecorderTypes").AmbiguityResolutionPayload) => {
+      await assertSenderPermission(event, Permission.PAGE_RECORDER);
+      return await recorderService.resolveAmbiguity(choice, payload);
+    }
+  );
+
+  ipcMain.handle("recorder:highlightCandidate", async (event, selector: string, index?: number) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    return await recorderService.highlightAmbiguityCandidate(selector, index);
+  });
+
+  ipcMain.handle("recorder:clearHighlight", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    return await recorderService.clearHighlight();
+  });
 }
+
