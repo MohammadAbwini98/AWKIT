@@ -87,6 +87,7 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
 
   // ---- interaction ----
   click: { type: "click", role: "action", requiresLocator: true, requiresValue: false, weight: 10 },
+  hover: { type: "hover", role: "action", requiresLocator: true, requiresValue: false, weight: 3 },
   scroll: { type: "scroll", role: "action", requiresLocator: false, requiresValue: true, weight: 3 },
 
   // ---- input ----

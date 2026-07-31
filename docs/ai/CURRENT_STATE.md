@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: Increment 5 (Hover-Dependency Capture) repaired + replay-verified (2026-08-01)
+
+Increment 5 (`awkit-aui.5`). **Correction:** the first cut shipped capture + flow-construction that
+PASSED but deterministic **replay FAILED** — a re-review found the generated `hover` step targeted the
+**hidden revealed surface** (`composedPath()[1]`, the dropdown) instead of the visible trigger, so a
+fresh-page `locator.hover()` timed out and the click never became actionable. The green verifier only
+asserted a selector substring, never replayed. Distinctions preserved: capture PASS, flow-construction
+PASS, deterministic replay was FAIL → now FIXED. See `AWKIT-REC-031` in `DEFECTS.md`.
+
+Repair:
+- `"hover"` is a core `StepType` in `FlowProfile.ts`; `StepSafetyPolicy.ts` already classifies it
+  (`UI_MUTATION_TYPES`) — it was **not** added by this increment (earlier claim corrected).
+- `recorderInitScript.ts` now attributes the reveal to the element the pointer actually hovered: a
+  trusted **pointer trail** (`pointerover`/`mouseover`/throttled `pointermove`), plus record-time
+  first-seen (rest) visibility recorded for interactive elements **and their ancestor chain**. The new
+  `resolveHoverTrigger` walks the click target's `composedPath()`, skips the contiguous run of
+  hidden-at-rest ancestors (the revealed surface), and picks the first ancestor that was visible at
+  rest, was on the pointer trail, is specific (not `html`/`body`/`main`, not a bare landmark), and
+  resolves to a unique locator. No unconditional immediate-parent fallback; no speculative re-hovering.
+- When a container was revealed on hover but no stable trigger can be attributed, the click is left
+  `needs-review` (`hoverUnresolved`) rather than emitting a hover step that cannot replay. A target that
+  toggles on its own (async self-reveal) produces no hover step.
+- `buildRecordedFlow` injects the explicit `hover` step (carrying the trigger's full locator +
+  alternatives + context, `resolution: "resolved"`) immediately before the click; `StepExecutor`
+  runs `"hover"` as `locator.hover()` (an explicit node, visible in run logs/reports).
+- `mock-site/public/recorder-lab.html` now has stable test ids for trigger / revealed surface /
+  control / post-click result, plus async-reveal and no-stable-trigger fixtures.
+- `verify:recorder-hover` was **registered in `package.json`** (previously classified + documented but
+  not runnable) and rewritten to drive the real `StepExecutor` + `LocatorFactory`: it records, builds,
+  and **replays Hover→Click on two fresh pages**, asserts the trigger identity, proves the old
+  hidden-surface locator fails, and covers the async / repeated / fast / needs-review cases.
+- Verification (re-run this session): `npm run build` PASS; `verify:recorder-hover` **34/34**;
+  `verify:recorder` **119/119**; `verify:runner` **89/89** (see TASK_LOG for the full suite).
+- Comprehensive validation ledger unchanged by this repair (verifier/docs work only, no ledger case
+  added): **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
 ## Recorder ambiguity-resolution: Increments 3 & 4 (UI & Guard) completed (2026-08-01)
 
 Increments 3 & 4 ( wkit-aui.3,  wkit-aui.4) are completed and merged to main.

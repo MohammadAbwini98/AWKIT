@@ -4,6 +4,46 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Claude - Repair Increment 5 hover replay (AWKIT-REC-031, `awkit-aui.5`)
+
+- **Task:** repair Increment 5 — the recorded `hover` step targeted the hidden revealed surface, so
+  hover-gated flows failed deterministic replay — and correct the tracking that called it complete.
+- **Root cause:** trigger selection fell back to `composedPath()[1]` (the immediate parent = the
+  revealed `display:none` surface) and a class heuristic never matched hyphenated names; the verifier
+  asserted a selector substring and never replayed. Fresh-page replay: `locator.hover` timed out.
+- **Fix (`recorderInitScript.ts`):** trusted **pointer trail** (`pointerover`/`mouseover`/throttled
+  `pointermove`) + record-time first-seen (rest) visibility for interactive elements **and their
+  ancestors**; new `resolveHoverTrigger` walks `composedPath()`, skips the hidden-at-rest revealed
+  surface, and picks the first visible-at-rest, on-pointer-path, specific (not `html`/`body`/`main`,
+  not a bare landmark), uniquely-resolvable ancestor. No immediate-parent fallback; no speculative
+  re-hover. Unattributable trigger → `hoverUnresolved`; async self-reveal → no hover step.
+- **Fix (`buildRecordedFlow.ts`):** inject the hover step from the trigger's full locator
+  (`resolution: "resolved"`); when `hoverUnresolved`, leave the click `needs-review` and emit no hover
+  step. `RecorderTypes.ts` gains `hoverUnresolved`. `StepSafetyPolicy.ts` was **not** touched — it
+  already classifies `"hover"` (correcting the earlier entry's claim).
+- **Verifier:** registered `verify:recorder-hover` in `package.json` (was classified + documented but
+  not runnable) and rewrote it to drive the real `StepExecutor`+`LocatorFactory`: record → build →
+  **replay Hover→Click on two fresh pages**, assert trigger identity, prove the old hidden-surface
+  locator fails, and cover async/repeated/fast/needs-review. Mock-site gains stable test ids + async
+  and no-stable-trigger fixtures.
+- **Tests run:** `build` PASS; `typecheck:scripts` PASS; `verify:recorder-hover` 34/34; `verify:recorder`
+  119/119; `verify:runner` 89/89 (full suite results in the session summary / CURRENT_STATE).
+- **Files:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `src/recorder/RecorderTypes.ts`, `scripts/verify-recorder-hover.mts`, `package.json`,
+  `mock-site/public/recorder-lab.html`, `docs/ai/*`, `docs/testing/comprehensive-validation/DEFECTS.md`.
+
+---
+
+## 2026-08-01 - Antigravity - Recorder hover-dependency capture and playback (superseded by AWKIT-REC-031 repair)
+
+- **Task:** Implemented hover-dependency recording (Increment 5) to allow capturing interactions gated by `visibilityState`.
+- **Finding:** Added `"hover"` as a valid StepType to `FlowProfile.ts`. Modified `recorderInitScript.ts` to detect elements that were originally hidden (via a first-seen `visibilityState` check) and only became visible during interaction, tagging them with `requiresHover: true` and a `hoverContainer` derived from `composedPath()`. (`StepSafetyPolicy.ts` already classified `"hover"`; it was **not** modified — original claim corrected.)
+- **Implementation:** `buildRecordedFlow` injects `"hover"` steps explicitly before `"click"` actions requiring it. The runner's `StepExecutor` translates `"hover"` into `locator.hover()`.
+- **Testing:** Added a hover-menu scenario to `mock-site/public/recorder-lab.html` and built `scripts/verify-recorder-hover.mts`. **Correction:** that verifier only confirmed capture + flow construction (8/8) and never replayed; a later re-review found the hover step targeted the hidden revealed surface and **failed deterministic replay** — see AWKIT-REC-031 above.
+- **Files:** `src/profiles/FlowProfile.ts`, `src/recorder/recorderInitScript.ts`, `src/recorder/RecorderTypes.ts`, `src/recorder/buildRecordedFlow.ts`, `src/runner/StepExecutor.ts`, `mock-site/public/recorder-lab.html`, `scripts/verify-recorder-hover.mts`, `app/renderer/components/workflow/flowNodeRegistry.ts`, `src/testing/random/NodeCatalog.ts`, `src/validation/StepRequirements.ts`.
+
+---
+
 ## 2026-07-31 - Claude - Recorder ambiguity/replayability defect + plan (AWKIT-REC-030, epic `awkit-aui`)
 
 - **Task:** ran a live `youtube.com → Shorts → scroll button` record→save→replay probe using the

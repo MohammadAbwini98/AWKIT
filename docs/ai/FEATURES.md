@@ -204,9 +204,22 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   tree** → anchored/positional fallback), **never** utility/layout-class selectors (`flex`,
   `items-center`, …), validates each against the live DOM, and saves the highest-priority candidate
   that resolves to exactly one element. Each saved step carries `LocatorQuality`
-  (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`) and
+  (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`/`requiresHover`/`hoverContainer`) and
   (for role/text) an `exact` flag. Steps get human-readable names ("Click Log in", "Fill Email").
   Password field values are never stored. Verified by `npm run verify:recorder`.
+- ✅ **Hover-dependency capture (replay-verified):** when a click target was hidden at rest and only
+  actionable after a hover, the recorder attributes the reveal to the element the pointer actually
+  hovered — a trusted pointer trail plus record-time first-seen (rest) visibility of interactive
+  elements and their ancestors. It walks the click target's `composedPath()`, skips the hidden-at-rest
+  revealed surface, and selects the first visible-at-rest, on-pointer-path, specific (never
+  `html`/`body`/`main` or a bare landmark), uniquely-resolvable ancestor as the `hoverContainer`
+  trigger — never the hidden surface, never an unconditional parent. `buildRecordedFlow` injects an
+  explicit `hover` step (the trigger's full locator, `resolution: "resolved"`) immediately before the
+  click; `StepExecutor` replays it as `locator.hover()`. When no stable trigger can be attributed the
+  click is left `needs-review` rather than fabricating an unreplayable hover step; a target that
+  toggles on its own (async) produces no hover step. Verified by `npm run verify:recorder-hover`, which
+  records, builds, and **replays Hover→Click on fresh pages** and guards against the hidden-surface
+  regression.
 - ✅ **Compound / tree locators for non-unique elements** (`recorderInitScript.ts`): when no single
   strategy is unique, the recorder combines the element's meaningful features (stable attributes +
   rare, non-utility classes) with the **fewest distinguishing ancestors** (descendant combinators,

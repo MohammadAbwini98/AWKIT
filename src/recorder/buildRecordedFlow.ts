@@ -20,7 +20,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
   let currentY = 100;
   const startStep: FlowStep = { id: "start", type: "start", name: "Start", position: { x: 300, y: currentY } };
 
-  const steps: FlowStep[] = actionSteps.map((action, index) => {
+  const steps: FlowStep[] = actionSteps.flatMap((action, index) => {
     currentY += 120;
     const step: FlowStep = {
       id: `step-${index + 1}`,
@@ -104,7 +104,35 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       step.config = { popupAlias: alias };
     }
 
-    return step;
+    if (action.locator?.interaction?.requiresHover && step.type === "click") {
+      const hc = action.locator.interaction.hoverContainer;
+      if (hc && typeof hc.strategy === "string" && typeof hc.value === "string") {
+        // A causal hover trigger was attributed at record time. Inject an explicit, pre-resolved
+        // hover step (carrying the trigger's full locator, alternatives and context) immediately
+        // before the click so replay hovers the trigger, then clicks the now-visible target.
+        const hoverStep: FlowStep = {
+          id: `step-${index + 1}-hover`,
+          type: "hover",
+          name: `Hover ${(hc.name as string) || "Trigger"}`,
+          position: { x: 300, y: currentY - 60 },
+          locator: {
+            ...(hc as Record<string, unknown>),
+            resolution: "resolved",
+            resolvedBy: "recorder"
+          } as unknown as NonNullable<FlowStep["locator"]>
+        };
+        return [hoverStep, step];
+      }
+      // Hover-gated but no stable trigger could be attributed (`hoverUnresolved`). Never fabricate a
+      // hover step from the hidden target; leave the click needs-review so preflight blocks it.
+      if (step.locator) {
+        step.locator.resolution = "needs-review";
+        step.locator.resolvedBy = "recorder";
+      }
+      return [step];
+    }
+
+    return [step];
   });
 
   currentY += 120;

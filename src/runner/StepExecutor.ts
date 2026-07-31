@@ -1510,6 +1510,11 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
+      case "hover": {
+        await (await this.locatorFactory.resolve(step)).hover({ timeout: step.timeoutMs ?? 10_000 });
+        return { status: "passed" };
+      }
+
       case "click": {
         // Arm popup capture BEFORE the click so a fast popup isn't missed.
         if (step.opensPopup && step.popupExpectation) {

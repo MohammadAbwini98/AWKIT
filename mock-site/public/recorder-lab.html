@@ -123,6 +123,74 @@
         </div>
 
         <p>
+          Expected (hover-dependency capture, awkit-aui.5): clicking a hover-gated control generates an
+          explicit <code>hover</code> step on the VISIBLE trigger the pointer hovered — never the hidden
+          surface that hover reveals — so replay hovers the trigger, the control becomes actionable, then
+          the click succeeds. Each role below carries a stable test id so a verifier can prove the
+          recorder chose the trigger and not the revealed surface.
+        </p>
+
+        <!-- Positive case: hover-gated dropdown.
+             hover-trigger          = the always-visible element under the pointer that reveals on hover
+             hover-revealed-surface = the container hidden at rest, exposed only while the trigger hovers
+             .hover-gated-btn       = the control that is actionable only after the reveal
+             hover-click-result     = observable post-click application state -->
+        <div data-testid="hover-trigger" class="hover-menu" style="display: inline-block; position: relative; border: 1px solid #ccc; padding: 1rem;">
+          Hover to open
+          <div data-testid="hover-revealed-surface" class="hover-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ccc; padding: 1rem; z-index: 5;">
+            <button type="button" class="hover-gated-btn">Click me</button>
+          </div>
+        </div>
+        <span data-testid="hover-click-result">idle</span>
+        <style>
+          [data-testid="hover-trigger"]:hover [data-testid="hover-revealed-surface"] {
+            display: block !important;
+          }
+        </style>
+        <br><br>
+
+        <!-- Negative case: async self-reveal. The control is hidden at rest and appears on a timer with
+             NO hover-gated ancestor container, so the recorder must NOT synthesize a hover step. -->
+        <div data-testid="async-host" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" data-testid="async-appear-btn" style="display: none;">Async Appears</button>
+        </div>
+        <span data-testid="async-click-result">idle</span>
+        <br><br>
+
+        <!-- Review case: a container revealed on hover of a LANDMARK the pointer never lands on exactly
+             (it enters via the inner label), and whose gated button has no unique locator, so no stable
+             specific trigger can be attributed — the recorder must leave the click needs-review rather
+             than fabricate a hover step. -->
+        <nav data-testid="review-landmark" aria-label="Review menu" style="display: inline-block; position: relative; border: 1px solid #ccc; padding: 1rem;">
+          <span class="review-label">Landmark region</span>
+          <div class="review-hidden" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ccc; padding: 1rem;">
+            <button type="button" class="review-gated-btn">Review Click</button>
+          </div>
+        </nav>
+        <style>
+          [data-testid="review-landmark"]:hover .review-hidden {
+            display: block !important;
+          }
+        </style>
+        <script>
+          (function () {
+            var hoverBtn = document.querySelector('.hover-gated-btn');
+            if (hoverBtn) hoverBtn.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="hover-click-result"]');
+              if (r) r.textContent = 'hover-click-ok';
+            });
+            var asyncBtn = document.querySelector('[data-testid="async-appear-btn"]');
+            if (asyncBtn) asyncBtn.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="async-click-result"]');
+              if (r) r.textContent = 'async-click-ok';
+            });
+            // Reveal the async control on a timer — deliberately not tied to any hover.
+            setTimeout(function () { if (asyncBtn) asyncBtn.style.display = 'inline-block'; }, 600);
+          })();
+        </script>
+        <br><br>
+
+        <p>
           Expected: the customer table repeats an <em>Edit</em> button per row with no per-button
           id/testid/class distinguisher, so the Recorder must scope to the row (container) identified by
           its text.

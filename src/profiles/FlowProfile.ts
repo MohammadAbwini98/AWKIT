@@ -8,6 +8,7 @@ export type StepType =
   | "uncheck"
   | "radio"
   | "scroll"
+  | "hover"
   | "wait"
   | "uploadFile"
   | "downloadFile"

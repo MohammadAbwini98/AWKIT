@@ -61,6 +61,7 @@ const META: Record<StepType, RegistryMeta> = {
   uncheck: { category: "input", sections: ["locator", "execution"], executable: true },
   radio: { category: "input", sections: ["locator", "value", "execution"], executable: true },
   scroll: { category: "interaction", sections: ["scroll", "execution"], executable: true },
+  hover: { category: "interaction", sections: ["locator", "execution"], executable: true },
   wait: {
     category: "control",
     sections: ["wait", "execution"],

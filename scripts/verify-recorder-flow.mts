@@ -97,6 +97,60 @@ check("loader lifecycle fields survive round-trip", lcLoader?.appearanceGraceMs 
 check("optional flag survives round-trip", lcResp?.optional === true);
 check("completionMode survives round-trip", lcRtStep?.completionMode === "networkThenUi");
 
+// ── Hover-dependency: an explicit hover step is injected before the gated click (awkit-aui.5) ──
+const hoverActions: RecordedAction[] = [
+  {
+    id: "h1",
+    type: "click",
+    name: "Click me",
+    locator: {
+      strategy: "role",
+      value: "button",
+      name: "Click me",
+      exact: true,
+      interaction: {
+        requiresHover: true,
+        hoverContainer: { strategy: "testId", value: "hover-trigger" }
+      }
+    }
+  }
+];
+const hoverFlow = buildRecordedFlow("Hover", hoverActions);
+const hIdx = hoverFlow.nodes.findIndex((n) => n.type === "hover");
+const cIdx = hoverFlow.nodes.findIndex((n) => n.type === "click");
+check("hover step is injected immediately before the gated click", hIdx >= 0 && hIdx === cIdx - 1);
+const hStep = hoverFlow.nodes[hIdx];
+check(
+  "hover step carries the trigger locator, marked resolved",
+  hStep?.locator?.strategy === "testId" && hStep?.locator?.value === "hover-trigger" && hStep?.locator?.resolution === "resolved"
+);
+check("hover step is NOT a copy of the click's own locator", hStep?.locator?.value !== "button");
+// Saving a flow is a full JSON serialize/deserialize — the injected hover node + its order must survive.
+const hoverRT = JSON.parse(JSON.stringify(hoverFlow));
+const hRtIdx = hoverRT.nodes.findIndex((n: { type: string }) => n.type === "hover");
+const cRtIdx = hoverRT.nodes.findIndex((n: { type: string }) => n.type === "click");
+check(
+  "injected hover step survives JSON round-trip, still before the click",
+  hRtIdx >= 0 && hRtIdx === cRtIdx - 1 && hoverRT.nodes[hRtIdx].locator.value === "hover-trigger"
+);
+
+// ── Hover-dependency: an unattributable trigger leaves the click needs-review, no fabricated step ──
+const unresolvedActions: RecordedAction[] = [
+  {
+    id: "u1",
+    type: "click",
+    name: "Ambiguous",
+    locator: { strategy: "role", value: "button", name: "Ambiguous", interaction: { requiresHover: true, hoverUnresolved: true } }
+  }
+];
+const unresolvedFlow = buildRecordedFlow("Unresolved", unresolvedActions);
+check("no hover step is fabricated when the trigger is unresolved", !unresolvedFlow.nodes.some((n) => n.type === "hover"));
+const uClick = unresolvedFlow.nodes.find((n) => n.type === "click");
+check("unresolved hover leaves the click needs-review", uClick?.locator?.resolution === "needs-review");
+const uRT = JSON.parse(JSON.stringify(unresolvedFlow));
+const uRtClick = uRT.nodes.find((n: { type: string }) => n.type === "click");
+check("needs-review survives JSON round-trip", uRtClick?.locator?.resolution === "needs-review");
+
 // ── Duplicate Start/End from the recording are dropped ───────────────────────
 const withDupes = buildRecordedFlow("Dupes", [
   { id: "s", type: "start", name: "Start" },

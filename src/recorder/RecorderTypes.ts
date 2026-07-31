@@ -20,6 +20,20 @@ export interface RecordedActionLocator {
     x?: number;
     y?: number;
     matchIndex?: number;
+    /** The target was hover-gated: hidden at rest and only actionable after a hover. */
+    requiresHover?: boolean;
+    /**
+     * Locator for the VISIBLE element the pointer actually hovered to reveal the target — the
+     * causal hover *trigger*, never the hidden revealed surface. Absent when `requiresHover` is set
+     * but no stable trigger could be attributed (see `hoverUnresolved`).
+     */
+    hoverContainer?: Record<string, unknown>;
+    /**
+     * Set with `requiresHover` when a container was revealed on hover but the recorder could not
+     * attribute a stable, unique, on-path trigger. The built click step is left `needs-review`
+     * rather than fabricating a hover step that cannot replay.
+     */
+    hoverUnresolved?: boolean;
   };
   resolution?: "needs-review" | "user-approved-fallback" | "resolved";
   resolvedBy?: "user" | "recorder";

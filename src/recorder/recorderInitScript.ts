@@ -817,12 +817,136 @@ export function installRecorderCapture(): void {
     return { locator, quality, accessibleName: accessibleName(el) };
   };
 
-  // Climb to the nearest meaningful interactive element for a raw click target.
   const interactiveTarget = (el: Element): Element => {
     const candidate = el.closest
       ? el.closest('a[href], button, input, select, textarea, label, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [onclick]')
       : null;
     return (candidate as Element) || el;
+  };
+
+  const isVisible = (el: Element): boolean => {
+    try {
+      const s = getComputedStyle(el as HTMLElement);
+      if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
+      const r = (el as HTMLElement).getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch {
+      return true;
+    }
+  };
+
+  const visibilityState = new WeakMap<Element, boolean>();
+
+  // ── Trusted pointer trail (hover-trigger attribution) ───────────────────────────────────────
+  // Record where the pointer has recently been so a hover-gated click can be attributed to the
+  // element the user actually hovered — never the hidden surface that hover revealed. Only trusted
+  // (real-input) events count; synthetic events must not fabricate a trigger.
+  interface PointerSample {
+    el: Element;
+    x: number;
+    y: number;
+    ts: number;
+  }
+  const pointerTrail: PointerSample[] = [];
+  const POINTER_TRAIL_MAX = 24;
+  const recordPointer = (event: Event): void => {
+    try {
+      if (!event.isTrusted) return;
+      const el = event.target as Element | null;
+      if (!el || el.nodeType !== 1) return;
+      const me = event as MouseEvent;
+      pointerTrail.push({ el, x: Math.round(me.clientX), y: Math.round(me.clientY), ts: Date.now() });
+      if (pointerTrail.length > POINTER_TRAIL_MAX) pointerTrail.shift();
+    } catch {
+      /* ignore */
+    }
+  };
+  try {
+    window.addEventListener("pointerover", recordPointer, true);
+    window.addEventListener("mouseover", recordPointer, true);
+    let lastMoveSampleTs = 0;
+    window.addEventListener(
+      "pointermove",
+      (event) => {
+        const now = Date.now();
+        if (now - lastMoveSampleTs < 60) return; // throttle continuous movement
+        lastMoveSampleTs = now;
+        recordPointer(event);
+      },
+      true
+    );
+  } catch {
+    /* ignore */
+  }
+
+  /** True when the pointer trail shows the pointer entered `el` (or an ancestor/descendant of it). */
+  const pointerVisited = (el: Element): boolean =>
+    pointerTrail.some((s) => s.el === el || el.contains(s.el) || s.el.contains(el));
+  /** Elements too broad to ever be a specific hover trigger. */
+  const isBroadTrigger = (el: Element): boolean => {
+    const t = tagOf(el);
+    return t === "html" || t === "body" || t === "main";
+  };
+  /** Landmark containers: only acceptable as a trigger when the pointer landed on them exactly. */
+  const isLandmark = (el: Element): boolean => {
+    const t = tagOf(el);
+    const role = attr(el, "role");
+    return (
+      t === "nav" ||
+      t === "header" ||
+      t === "footer" ||
+      t === "aside" ||
+      role === "navigation" ||
+      role === "menubar" ||
+      role === "banner" ||
+      role === "region"
+    );
+  };
+
+  // The result of attributing a hover-gated reveal to the element that caused it.
+  type HoverResolution =
+    | { kind: "trigger"; el: Element } // a stable, unique, on-path visible trigger was identified
+    | { kind: "review" } //   a container was revealed on hover but no stable trigger could be pinned
+    | { kind: "none" }; //     the target was not hover-gated by a revealed container (e.g. async self-toggle)
+
+  /**
+   * Identify the visible element the pointer hovered to reveal `target`. Never returns the hidden
+   * revealed surface (or its hidden descendants), never an unconditional immediate parent, and never
+   * a broad landmark unless the pointer landed on it exactly. Uses only observed pointer evidence and
+   * record-time first-seen (rest) visibility — no speculative re-hovering of the live page.
+   */
+  const resolveHoverTrigger = (target: Element, event: Event): HoverResolution => {
+    if (!event.composedPath) return { kind: "none" };
+    const path = (event.composedPath() as EventTarget[]).filter(
+      (n): n is Element => !!n && (n as Node).nodeType === 1
+    );
+    let ti = path.indexOf(target);
+    if (ti < 0) ti = 0;
+
+    // Skip the contiguous run of ancestors that were HIDDEN at rest — the surface hover revealed.
+    let revealedSurfaceCount = 0;
+    let i = ti + 1;
+    for (; i < path.length; i += 1) {
+      if (visibilityState.get(path[i]) === false) {
+        revealedSurfaceCount += 1;
+        continue;
+      }
+      break;
+    }
+    // No hidden ancestor container was revealed → the target toggled on its own (async/self-toggle),
+    // not a hover-gated container. Do not fabricate a hover step.
+    if (revealedSurfaceCount === 0) return { kind: "none" };
+    if (i >= path.length) return { kind: "review" };
+
+    const candidate = path[i];
+    // The trigger must be known-visible at rest (proves it existed before the reveal), on the pointer
+    // trail, specific (not a broad root / bare landmark), and resolvable to a unique locator.
+    if (visibilityState.get(candidate) !== true) return { kind: "review" };
+    if (isBroadTrigger(candidate)) return { kind: "review" };
+    if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) return { kind: "review" };
+    if (!pointerVisited(candidate)) return { kind: "review" };
+    if (!generate(candidate).quality.isUnique) return { kind: "review" };
+    return { kind: "trigger", el: candidate };
   };
 
   // ── Smart Wait observation (Phase 2) ────────────────────────────────────────────────────────
@@ -944,17 +1068,6 @@ export function installRecorderCapture(): void {
     ];
     const LOADER_SEL = LOADER_TOKENS.join(", ");
     const TOAST_SEL = '[role="alert"], [role="status"], .toast, .snackbar, .ant-message, .ant-notification, .MuiSnackbar-root, .Toastify__toast, .p-toast';
-
-    const isVisible = (el: Element): boolean => {
-      try {
-        const s = getComputedStyle(el as HTMLElement);
-        if (s.display === "none" || s.visibility === "hidden" || parseFloat(s.opacity || "1") === 0) return false;
-        const r = (el as HTMLElement).getBoundingClientRect();
-        return r.width > 0 && r.height > 0;
-      } catch {
-        return true;
-      }
-    };
     const loaderSelectorFor = (el: Element): string => {
       for (let i = 0; i < LOADER_TOKENS.length; i += 1) {
         try {
@@ -1012,13 +1125,28 @@ export function installRecorderCapture(): void {
         /* ignore */
       }
       try {
-        (Array.prototype.slice.call(document.querySelectorAll("button, input, select, textarea, [role=button]")) as Element[]).forEach((el) => {
-          const disabled = (el as HTMLInputElement).disabled === true || attr(el, "aria-disabled") === "true";
-          const was = disabledState.get(el);
-          if (!silent && was === true && !disabled) {
-            signal({ kind: "enabled", locator: waitLocatorFor(el), ts: now });
+        (Array.prototype.slice.call(document.querySelectorAll("a, button, input, select, textarea, [role=button], [role=menuitem]")) as Element[]).forEach((el) => {
+          if (!visibilityState.has(el)) {
+            visibilityState.set(el, isVisible(el));
           }
-          disabledState.set(el, disabled);
+          // Also record first-seen (rest) visibility of the element's ancestor chain, so a hover-gated
+          // reveal can distinguish the hidden surface it exposes from the always-visible trigger above
+          // it. Bounded, and stops at the first already-recorded ancestor (its chain is already done).
+          let anc = el.parentElement;
+          for (let d = 0; anc && d < 8; d += 1) {
+            if (visibilityState.has(anc)) break;
+            visibilityState.set(anc, isVisible(anc));
+            anc = anc.parentElement;
+          }
+
+          if (tagOf(el) !== "a" && attr(el, "role") !== "menuitem") {
+            const disabled = (el as HTMLInputElement).disabled === true || attr(el, "aria-disabled") === "true";
+            const was = disabledState.get(el);
+            if (!silent && was === true && !disabled) {
+              signal({ kind: "enabled", locator: waitLocatorFor(el), ts: now });
+            }
+            disabledState.set(el, disabled);
+          }
         });
       } catch {
         /* ignore */
@@ -1140,6 +1268,20 @@ export function installRecorderCapture(): void {
       } catch {
         /* ignore */
       }
+    }
+    if (visibilityState.get(target) === false) {
+      // Hidden at rest. Attribute the reveal to the element the pointer actually hovered.
+      const hover = resolveHoverTrigger(target, event);
+      if (hover.kind === "trigger") {
+        interaction.requiresHover = true;
+        interaction.hoverContainer = generate(hover.el).locator;
+      } else if (hover.kind === "review") {
+        // A container was revealed on hover, but no stable trigger could be pinned. Flag for review
+        // instead of emitting a hover step that cannot replay.
+        interaction.requiresHover = true;
+        interaction.hoverUnresolved = true;
+      }
+      // hover.kind === "none": target toggled independently of a hover trigger — no hover step.
     }
     return interaction;
   };

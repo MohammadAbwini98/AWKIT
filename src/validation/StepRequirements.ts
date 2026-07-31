@@ -37,6 +37,7 @@ export const STEP_REQUIREMENTS: Record<StepType, StepRequirement> = {
 
   // ---- interaction ----
   click: { requiresLocator: true, requiresValue: false },
+  hover: { requiresLocator: true, requiresValue: false },
   scroll: { requiresLocator: false, requiresValue: true },
 
   // ---- input ----

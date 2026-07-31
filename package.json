@@ -99,6 +99,7 @@
     "verify:reports-live-engine": "tsx scripts/verify-reports-live-engine.mts",
     "verify:settings-runner-behaviour": "tsx scripts/verify-settings-runner-behaviour.mts",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
+    "verify:recorder-hover": "tsx scripts/verify-recorder-hover.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",

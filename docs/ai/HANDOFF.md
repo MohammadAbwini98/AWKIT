@@ -1,5 +1,110 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-01, later) — Increment 5 hover REPLAY repaired + verified (`awkit-aui.5`)
+
+- **From:** Claude
+- **To:** next agent / human
+- **Branch:** `main` (single-branch policy)
+- **Working tree:** Increment 5 repair committed to `main` (see TASK_LOG for the commit).
+
+**What happened.** A re-review found the first cut of Increment 5 passed capture + flow-construction
+but **failed deterministic replay**: the generated `hover` step targeted the hidden revealed surface
+(`composedPath()[1]`), so a fresh-page `locator.hover()` timed out and the click never became
+actionable. The verifier was green only because it asserted a selector substring and never replayed.
+Fixed and proven — see `AWKIT-REC-031` in `DEFECTS.md` and the 2026-08-01 TASK_LOG entry.
+
+**Fix.** `recorderInitScript.ts` attributes the reveal to the element the pointer actually hovered — a
+trusted pointer trail plus record-time rest visibility of interactive elements and their ancestors;
+`resolveHoverTrigger` skips the hidden revealed surface and picks the first visible-at-rest,
+on-pointer-path, specific, uniquely-resolvable ancestor. Unattributable trigger → click left
+`needs-review`; async self-reveal → no hover step. `buildRecordedFlow` injects the trigger's full
+locator as a resolved hover step; `StepExecutor` runs it. `verify:recorder-hover` is now registered in
+`package.json` and replays Hover→Click on two fresh pages.
+
+**Verification (this session):** `build` PASS · `typecheck:scripts` PASS · `verify:recorder-hover`
+34/34 · `verify:recorder` 119/119 · `verify:runner` 89/89 · `verify:mock-site` 99/99 ·
+`verify:recorder-flow` 26/26 · `verify:verifier-classification` reconciled · `verify:source-hygiene`
+9/9 · `validate:offline` PASS · `verify:roadmap-dashboard` Sources agree. Comprehensive validation
+ledger unchanged by this repair: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Next:** Increment 7 (`awkit-aui.8`, the 9-point `verify:recorder-ambiguity` gate), then evaluate
+Increment 6 after confirming Increment 2's real state from code + git + bd.
+
+---
+
+## HANDOFF (2026-08-01) — Recorder hover-dependency capture (Increment 5, `awkit-aui.5`) — SUPERSEDED by the repair above
+
+- **From:** Antigravity
+- **To:** next agent / human
+- **Timestamp:** 2026-08-01T01:32 local
+- **Branch:** `main` (single-branch policy)
+- **Last commit:** `6421315 feat(recorder): implement ambiguity resolution UI and positional guards`
+- **Working tree:** 16 modified + 1 untracked (all Increment 5 hover-dependency work, uncommitted)
+
+### Active task — completed (NOTE: a replay defect was later found here and fixed; see the repair above)
+
+Increment 5 of the `awkit-aui` (Recorder Ambiguity-Resolution) epic: **hover-dependency capture**.
+The recorder now detects elements hidden on initial page scan that become visible only after a hover
+interaction. These are tagged with `requiresHover: true` and a `hoverContainer` locator derived from
+`composedPath()`. `buildRecordedFlow` injects explicit `"hover"` steps before the dependent `"click"`
+action. The runner executes `hover` via `locator.hover()`.
+
+### Files changed (uncommitted)
+
+| File | What changed |
+|---|---|
+| `src/profiles/FlowProfile.ts` | Added `"hover"` to `StepType` union |
+| `src/recorder/recorderInitScript.ts` | `isVisible` helper, `visibilityState` WeakMap with first-seen-only semantics, `hoverContainer` detection via `composedPath()` |
+| `src/recorder/RecorderTypes.ts` | `requiresHover` and `hoverContainer` on `RecordedActionLocator.interaction` |
+| `src/recorder/buildRecordedFlow.ts` | `flatMap` injection of `hover` step before `click` when `requiresHover` |
+| `src/runner/StepExecutor.ts` | `case "hover"` execution logic |
+| `app/renderer/components/workflow/flowNodeRegistry.ts` | `hover` registry entry (interaction category) |
+| `src/testing/random/NodeCatalog.ts` | `hover` generation spec |
+| `src/validation/StepRequirements.ts` | `hover` step requirements |
+| `mock-site/public/recorder-lab.html` | Hover-gated button test scenario |
+| `scripts/verify-recorder-hover.mts` | **[NEW]** 8-check live verifier |
+| `scripts/lib/verifier-classification.ts` | Registered `verify:recorder-hover` |
+| `docs/ai/COMMANDS.md` | Added `verify:recorder-hover` |
+| `docs/ai/CURRENT_STATE.md` | Increment 5 completion note |
+| `docs/ai/FEATURES.md` | Hover-dependency capture feature bullet |
+| `docs/ai/TASK_LOG.md` | Task entry |
+| `resources/dependency-manifest.{json,sig}` | Ambient regeneration (pre-existing, unstaged) |
+
+### Commands/tests run with results
+
+| Command | Result |
+|---|---|
+| `npm run build` | **PASS** (tsc --noEmit + electron-vite build) |
+| `npx tsx scripts/verify-recorder-hover.mts` | **8/8 PASS** |
+| `npx tsx scripts/verify-recorder-locator.mts` | **119/119 PASS** |
+| `npx tsx scripts/verify-runner.mts` | **89/89 PASS** |
+
+### Remaining work on `awkit-aui` epic
+
+1. **Increment 6 — Shadow-DOM capture** (`awkit-aui.6`): extend `composedPath()` traversal to handle closed shadow roots. NOT STARTED.
+2. **Increment 7 — Acceptance regression** (`awkit-aui.8`): wire `verify:recorder-ambiguity` into the verifier registry as an acceptance gate. NOT STARTED.
+3. **Commit the Increment 5 work.** All 16 modified files are uncommitted. The changes are build-verified and test-verified, ready to stage and commit with a message like `feat(recorder): hover-dependency capture (awkit-aui.5)`.
+
+### Risks / blockers
+
+- The `resources/dependency-manifest.{json,sig}` diff is an ambient regeneration unrelated to this work. The owner should decide whether to include it or revert it.
+- The `visibilityState` WeakMap uses a first-seen-only strategy (only records initial visibility, never overwrites). This is correct for detecting hover-gated elements but means dynamically toggled visibility after the initial scan is not tracked. This is acceptable for the current use case.
+- No `verify:recorder-ambiguity` acceptance regression suite exists yet (Increment 7).
+
+### Do-not-touch areas
+
+- `window.playwrightFlowStudio` preload API identifier
+- `native-hosts/zvec/zvec-host.cjs`
+- `tools/roadmap/` (derived — change the source, not the page)
+- `.app-shell` / `.app-main` grids in `global.css`
+
+### Recommended next step
+
+1. **Commit** the Increment 5 work to `main`.
+2. Pick up **Increment 6** (shadow-DOM) or **Increment 7** (acceptance regression), per the plan in `docs/recorder-ambiguity-resolution-plan.md`.
+
+The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
 ## HANDOFF (2026-07-31) - Recorder ambiguity/replayability defect diagnosed + planned (AWKIT-REC-030)
 
 A live `youtube.com → Shorts → scroll button` record→save→replay probe (run with the Recorder's real

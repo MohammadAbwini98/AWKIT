@@ -42,6 +42,39 @@ resolved below.
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-REC-031 — Recorder's hover step targeted the hidden revealed surface, so hover-gated flows failed replay
+
+- **Severity:** S2 / A recorded hover-gated flow predictably fails at replay (Increment 5 acceptance
+  gap under `AWKIT-REC-030` / epic `awkit-aui`, child `awkit-aui.5`)
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-01**
+- **Affected area:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `src/recorder/RecorderTypes.ts`, `mock-site/public/recorder-lab.html`,
+  `scripts/verify-recorder-hover.mts`, `package.json`
+- **Detected by:** fresh-page replay probe (record → `buildRecordedFlow` → replay the built
+  `hover`/`click` steps through the real `LocatorFactory`), 2026-08-01 re-review
+- **Evidence before fix:** the generated hover step was `css [data-testid="hover-menu"] div`, resolving
+  to the hidden `.hover-dropdown` (the surface the hover *reveals*, `display:none` at rest). Replaying
+  it on a fresh page: `locator.hover: Timeout 4000ms exceeded`; the button never became visible and the
+  subsequent click also timed out — **replay FAILED**. Root cause: trigger selection fell back to
+  `composedPath()[1]` (the immediate parent = the revealed surface), and a class heuristic
+  `/(^|\s)(menu|dropdown|popover|tooltip)(\s|$)/i` never matched hyphenated class names. The verifier
+  stayed green only because it asserted `value.includes("hover-menu")` and never replayed.
+- **Evidence after fix:** `verify:recorder-hover` **34/34** — records the hover-gated click, builds the
+  flow, and **replays Hover→Click successfully on two fresh pages** (post-click state `hover-click-ok`);
+  asserts the hover locator resolves to `data-testid=hover-trigger` (never the revealed surface); proves
+  the old hidden-surface locator still **fails** to replay (regression guard); and covers the negatives
+  (async self-reveal → no hover step; no-stable-trigger → `needs-review`; one hover step per click; fast
+  hover-and-click still detected). The standalone replay probe now **SUCCEEDS** (previously FAILED).
+
+The fix attributes the reveal to the element the pointer actually hovered — a trusted pointer trail plus
+record-time first-seen (rest) visibility for interactive elements and their ancestors — then walks the
+click target's `composedPath()`, skips the hidden-at-rest revealed surface, and selects the first
+visible-at-rest, on-pointer-path, specific, uniquely-resolvable ancestor. When no stable trigger can be
+attributed the click is left `needs-review` instead of fabricating an unreplayable hover step.
+
+---
+
 ### AWKIT-SET-006 — "Screenshot on failure" was a control that did nothing
 
 - **Severity:** S3 / An enabled control with no effect (RULES.md: no fake/no-op controls)
