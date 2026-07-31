@@ -1,5 +1,32 @@
 # Agent Handoff
 
+## HANDOFF (2026-07-31) - Recorder ambiguity/replayability defect diagnosed + planned (AWKIT-REC-030)
+
+A live `youtube.com → Shorts → scroll button` record→save→replay probe (run with the Recorder's real
+capture engine + the runner's real `LocatorFactory`, not a mock) showed AWKIT will **finish, save, and
+keep an interactive step it already knows is non-unique** (`Click Shorts` = `role=link "Shorts"`,
+`isUnique:false, matchCount:2`), which then **predictably fails at replay**. The safety mechanisms work
+(quality detection + strict-mode protection); the **feature** does not — ambiguity is enforced
+**runtime-only** (no preflight rule; `FlowValidator` only checks `missingRequiredLocator`), and there
+is **no ambiguity-resolution UX**. This is NOT an overall Recorder pass: recorded-flow replayability =
+FAIL, resolution UX + preflight = NOT IMPLEMENTED.
+
+**Filed (no product code changed — stopped for owner review):**
+- Plan: `docs/recorder-ambiguity-resolution-plan.md` (7 dependency-ordered increments, each with
+  files/migrations/IPC/UX/verifier/mock-site/acceptance/risks/rollback).
+- Defect: `AWKIT-REC-030` in `docs/testing/comprehensive-validation/DEFECTS.md`.
+- Epic `awkit-aui` + children `awkit-aui.1`…`.6`, `.8` with blocks edges.
+
+**Next step / READY work:** `awkit-aui.1` (Inc1 — add optional `StepLocator.resolution` state,
+default it from `quality.isUnique` in `buildRecordedFlow`, add a `locatorNeedsReview` error rule to
+`FlowValidator` so `runWorkflow` refuses **before** browser launch, and prove legacy/undefined flows
+still run + metadata round-trips). It is the only unblocked child and gates the rest.
+
+**Verification this session:** `npm run verify:roadmap-dashboard` 135/135 (Sources agree; snapshot
+pins bumped for the 8 new beads). `npm run build` NOT run (no TS product changes). `bd dolt push` NOT
+run. `resources/dependency-manifest.{json,sig}` show an ambient regeneration to current HEAD/version —
+left unstaged for the owner to keep or revert.
+
 ## TAKEOFF (2026-07-30) - full single-artifact gate run COMPLETE (`awkit-3zr` closed)
 
 Every section 1-8 executed on ONE artifact (`f442f2c3…`), one fresh VM, against the runbook's own

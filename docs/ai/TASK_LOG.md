@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-07-31 - Claude - Recorder ambiguity/replayability defect + plan (AWKIT-REC-030, epic `awkit-aui`)
+
+- **Task:** ran a live `youtube.com â†’ Shorts â†’ scroll button` recordâ†’saveâ†’replay probe using the
+  Recorder's real capture engine (`recorderInitScript.ts` + `buildRecordedFlow`) and the runner's
+  real `LocatorFactory.resolve`. Diagnosed a recording-to-execution reliability gap, then produced a
+  full implementation plan and filed it. **No product code changed** (stop-for-review gate).
+- **Finding:** the `Click Shorts` step recorded `role=link "Shorts"` with `isUnique:false,
+  matchCount:2` (YouTube renders the guide entry twice; no stable testid), **saved clean**, and
+  **failed at replay**. The scroll button (`role=button "Next video"`) recorded uniquely â€” so the gap
+  is the *resolution workflow*, not the locator engine. Verified: no preflight quality rule
+  (`FlowValidator` only has `missingRequiredLocator`, `:114`); ambiguity is enforced **runtime-only**
+  (`StepExecutor.guardLocatorQuality` `:397`, which defers to `LocatorFactory.resolve` when
+  alternatives exist); the recorder discards `composedPath()`/coords/chosen-candidate
+  (`recorderInitScript.ts:1098`); `detectContainer` has no `<nav>`/landmark scope.
+- **Classification (NOT an overall Recorder pass):** action capture / quality detection / strict-mode
+  protection = PASS; **recorded-flow replayability = FAIL; ambiguity-resolution UX + preflight = NOT
+  IMPLEMENTED**; hover = PARTIAL; shadow-DOM = PARTIAL.
+- **Filed:** plan `docs/recorder-ambiguity-resolution-plan.md`; defect `AWKIT-REC-030` in
+  `docs/testing/comprehensive-validation/DEFECTS.md`; `bd` epic `awkit-aui` + 7 dependency-ordered
+  children (`awkit-aui.1`â€¦`.6`, `.8`) with blocks edges â€” Inc1 (resolution-state schema + round-trips
+  + execution preflight) is the only READY item and blocks the rest.
+- **Verified:** `npm run verify:roadmap-dashboard` **135/135** (pins bumped 127â†’135 issues, 9â†’17
+  outstanding, 76â†’83 edges after `bd export`). `npm run build` **not run** (no TS product changes).
+- **Files:** `docs/recorder-ambiguity-resolution-plan.md` (new), `docs/testing/comprehensive-validation/DEFECTS.md`,
+  `scripts/verify-roadmap-dashboard.mjs` (snapshot pins), `.beads/issues.jsonl` (export), `docs/ai/TASK_LOG.md`.
+
+---
+
 ## 2026-07-30 - Claude - integrate Graphify as a project-scoped code knowledge graph (`awkit-843`)
 
 - **Task:** install Graphify user-scoped, wire the Claude Code project integration, build the AWKIT
@@ -8577,25 +8605,25 @@ all sound; probe is opt-in/zero-retention) then closed the remaining gaps.
 - **Result:** `bd ready` is empty. Validation ledger remains **61 PASS / 4 NOT RUN / 1 BLOCKED**;
   beads remain **118 total / 8 outstanding / 110 closed**.
 
-## 2026-07-30 — Antigravity — Extend Graphify graph-first retrieval to all three agents
+## 2026-07-30 ï¿½ Antigravity ï¿½ Extend Graphify graph-first retrieval to all three agents
 
 - **Task:** Configure the same Graphify knowledge graph for Claude Code (already done), Codex, and
   Antigravity (Google Gemini). Reinstall the graphify tool venv (lost after prior install). All three
   agents now use the shared graphify-out/graph.json before broad searches.
 - **Graphify version:** upgraded from 0.9.30 to 0.9.31 via uv tool install "graphifyy[sql]" --force.
 - **Install commands run:**
-  - graphify codex install — appended ## graphify section to AGENTS.md; created .codex/hooks.json.
-  - graphify antigravity install — created .agents/rules/graphify.md, .agents/workflows/graphify.md;
+  - graphify codex install ï¿½ appended ## graphify section to AGENTS.md; created .codex/hooks.json.
+  - graphify antigravity install ï¿½ created .agents/rules/graphify.md, .agents/workflows/graphify.md;
     installed global skill at %USERPROFILE%\.gemini\config\skills\graphify\.
-  - graphify install --platform agents — installed cross-framework skill at %USERPROFILE%\.agents\skills\graphify\.
+  - graphify install --platform agents ï¿½ installed cross-framework skill at %USERPROFILE%\.agents\skills\graphify\.
 - **Manual additions:**
-  - GEMINI.md — added ## graphify — graph-first code retrieval section (parallel to CLAUDE.md).
-  - .codex/config.toml — added graphify doc comment; multi_agent left commented out (Codex CLI not
+  - GEMINI.md ï¿½ added ## graphify ï¿½ graph-first code retrieval section (parallel to CLAUDE.md).
+  - .codex/config.toml ï¿½ added graphify doc comment; multi_agent left commented out (Codex CLI not
     installed locally; version cannot be confirmed).
-  - docs/ai/GRAPHIFY.md — updated version (0.9.31), project files table (all three agents), added §9
+  - docs/ai/GRAPHIFY.md ï¿½ updated version (0.9.31), project files table (all three agents), added ï¿½9
     multi-agent integration section.
-  - docs/ai/CURRENT_STATE.md — updated graphify section header for multi-agent coverage.
-- **Graph rebuild:** graphify update . — 11356 nodes (+92), 23164 edges (+204), 611 communities (+6).
+  - docs/ai/CURRENT_STATE.md ï¿½ updated graphify section header for multi-agent coverage.
+- **Graph rebuild:** graphify update . ï¿½ 11356 nodes (+92), 23164 edges (+204), 611 communities (+6).
   New nodes include the added Markdown instruction files and the new rule/workflow files.
 - **Checks run:**
   - graphify --version ? 0.9.31 ?

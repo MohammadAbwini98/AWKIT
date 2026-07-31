@@ -1,6 +1,22 @@
 # CURRENT_STATE
 
-## Graphify code knowledge graph extended to all three agents (2026-07-30, current)
+## Recorder ambiguity-resolution & replayability defect tracked (2026-07-31)
+
+An open product defect is now tracked: **`AWKIT-REC-030`** — the Recorder can save an interactive
+step whose locator it already recorded as non-unique (`quality.isUnique:false`), and the flow then
+fails at replay, with no supported way to resolve it. Ambiguity is enforced **runtime-only**
+(`StepExecutor`/`LocatorFactory`); there is **no preflight validation** (`FlowValidator` only checks
+`missingRequiredLocator`) and **no ambiguity-resolution UX**. Corrected verdict: action capture /
+quality detection / strict-mode protection = PASS, but **recorded-flow replayability = FAIL** and
+**ambiguity-resolution UX + preflight = NOT IMPLEMENTED** — the Recorder is **not** an overall pass.
+
+**Planned, not implemented** (no product code changed yet): plan at
+`docs/recorder-ambiguity-resolution-plan.md`; `bd` epic `awkit-aui` with 7 dependency-ordered children
+(`awkit-aui.1`…`.6`, `.8`). Inc1 (`awkit-aui.1`: resolution-state schema + round-trips + execution
+preflight) is READY and blocks the rest. Details: `docs/testing/comprehensive-validation/DEFECTS.md`
+and `docs/ai/HANDOFF.md`.
+
+## Graphify code knowledge graph extended to all three agents (2026-07-30)
 
 AWKIT now has a **second, complementary code graph** alongside the Codebase Memory MCP: Graphify
 (`graphifyy` 0.9.31, CLI `graphify`), installed user-scoped via `uv` and wired into **all three

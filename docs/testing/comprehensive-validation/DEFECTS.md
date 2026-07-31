@@ -2,7 +2,43 @@
 
 ## Open product defects
 
-None. `AWKIT-E2E-001` was the only confirmed open product defect and is resolved below.
+### AWKIT-REC-030 — Recorder saves an interactive step it knows cannot replay, with no resolution path
+
+- **Severity:** S2 / A recorded flow predictably fails at replay and the user is given no supported
+  way to fix it (recording-to-execution reliability gap)
+- **Priority recommendation:** P2
+- **Status:** **Open — planned.** Epic `awkit-aui` (children `awkit-aui.1`…`.6`, `.8`); plan
+  `docs/recorder-ambiguity-resolution-plan.md`
+- **Affected area:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `src/validation/FlowValidator.ts`, `src/runner/StepExecutor.ts`, `src/runner/LocatorFactory.ts`,
+  `app/main/ipc/{recorder,execution,validation}.ipc.ts`, `app/renderer/pages/Recorder.tsx`
+- **Detected by:** live `youtube.com → Shorts → scroll button` record→save→replay probe (session
+  diagnostic, not a committed verifier)
+- **Evidence:** the probe recorded `Click Shorts` as `role=link "Shorts"` with
+  `quality.isUnique=false, matchCount=2`; the flow **saved clean** (no preflight error) and then
+  **failed at replay** with `LocatorFactory` "…the saved locator matches 2 elements". The scroll
+  button (`role=button "Next video"`) recorded uniquely, proving the gap is the *resolution workflow*,
+  not the locator engine.
+
+The safety mechanisms work as designed — the Recorder correctly detected the ambiguity
+(`isUnique:false`), preserved the metadata instead of guessing, and `StepExecutor`/`LocatorFactory`
+refused to act on a multi-match locator (`src/runner/StepExecutor.ts:397-428`,
+`src/runner/LocatorFactory.ts:265`). **But the ambiguity is enforced runtime-only** — there is no
+preflight rule (`FlowValidator` only has `missingRequiredLocator`,
+`src/validation/FlowValidator.ts:114`), so a known-unrunnable flow saves and is only rejected *after*
+the browser launches. And there is **no ambiguity-resolution UX**: the recorder discards the
+interaction context (`composedPath()`, coordinates, which candidate was clicked —
+`src/recorder/recorderInitScript.ts:1098-1113`) that could disambiguate, and offers the user no way
+to pick a candidate, scope to a stable ancestor, or explicitly approve a positional fallback.
+
+**Not summarised as an overall Recorder pass:** ambiguity detection and strict-mode protection
+working does not make the feature complete. See the plan's corrected classification
+(Recorded-flow replayability = FAIL; Ambiguous-locator recovery UX = NOT IMPLEMENTED).
+
+---
+
+No other open product defects. `AWKIT-E2E-001` was the only other confirmed product defect and is
+resolved below.
 
 ## Resolved comprehensive-campaign defects
 

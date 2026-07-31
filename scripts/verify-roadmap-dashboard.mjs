@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("127 issues parse", beads.stats.total === 127, `got ${beads.stats.total}`);
+  check("135 issues parse", beads.stats.total === 135, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -91,9 +91,12 @@ try {
   // and closed in the same session, so the total moved 126 → 127 and closed 117 → 118 while
   // outstanding stayed put. This pin caught its own documented trap that session: `bd close`
   // followed by a plain `bd export` left the export showing `awkit-843` still open.
+  // Then 17/118 of 135 on 2026-07-31: epic `awkit-aui` (Recorder ambiguity-resolution &
+  // recorded-flow replayability, AWKIT-REC-030) filed with 7 dependency-ordered children
+  // (`awkit-aui.1`…`.6`, `.8`), adding 8 outstanding (total 127 → 135) and 7 edges (76 → 83).
   check(
-    "9 outstanding / 118 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 118,
+    "17 outstanding / 118 closed",
+    beads.stats.outstanding === 17 && beads.stats.closed === 118,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -109,8 +112,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "76 edges are present to classify",
-    beads.stats.edges === 76,
+    "83 edges are present to classify",
+    beads.stats.edges === 83,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
