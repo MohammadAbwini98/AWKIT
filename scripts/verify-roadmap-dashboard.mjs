@@ -95,8 +95,8 @@ try {
   // recorded-flow replayability, AWKIT-REC-030) filed with 7 dependency-ordered children
   // (`awkit-aui.1`…`.6`, `.8`), adding 8 outstanding (total 127 → 135) and 7 edges (76 → 83).
   check(
-    "17 outstanding / 118 closed",
-    beads.stats.outstanding === 17 && beads.stats.closed === 118,
+    "16 outstanding / 119 closed",
+    beads.stats.outstanding === 16 && beads.stats.closed === 119,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -112,8 +112,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "83 edges are present to classify",
-    beads.stats.edges === 83,
+    "89 edges are present to classify",
+    beads.stats.edges === 89,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

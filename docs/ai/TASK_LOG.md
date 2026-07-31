@@ -8650,3 +8650,11 @@ pm run verify:mock-site
   or mutable user data in graph; all existing agent instructions preserved (additive merges only).
 - **Result:** All three agents now have graph-first retrieval configured. Validation ledger unchanged
   at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads unchanged.
+
+## 2026-07-31: Implement Recorder ambiguity resolution schema + preflight (awkit-aui.1)
+
+- **Agent:** Antigravity (Google)
+- **Task:** Implement `awkit-aui.1` (Increment 1 of the Recorder ambiguity-resolution epic AWKIT-REC-030).
+- **Files changed:** `src/profiles/FlowProfile.ts` (added `LocatorResolution` and metadata to `StepLocator`), `src/recorder/buildRecordedFlow.ts` (default to `needs-review` for `isUnique:false`), `src/validation/FlowValidator.ts` (added `locatorNeedsReview` rule blocking execution before launch), `app/renderer/components/workflow/flowDesignerTypes.ts` & `app/renderer/components/workflow/flowProfileMapping.ts` (round-trip DTO). Also fixed verifier tallies in `CURRENT_STATE.md`, `HANDOFF.md`, and edge counts in `verify-roadmap-dashboard.mjs`.
+- **Tests run:** `npm run build` PASS, `npm run verify:runner` 89/89 PASS, `npm run verify:all-typecheck` PASS, `npm run verify:roadmap-dashboard` 135/135 PASS.
+- **Result:** `awkit-aui.1` closed. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED; beads 135 total / 16 outstanding / 119 closed.

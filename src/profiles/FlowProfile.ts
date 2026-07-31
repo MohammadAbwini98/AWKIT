@@ -100,6 +100,12 @@ export interface LocatorContext {
   container?: LocatorContainerContext;
 }
 
+export type LocatorResolution =
+  | "resolved"
+  | "needs-review"
+  | "user-approved-fallback"
+  | "invalid";
+
 /**
  * A recorded locator: the primary candidate plus optional runtime fallbacks, container/frame
  * scoping, and record-time quality metadata. Legacy steps only set the primary fields — the
@@ -112,6 +118,12 @@ export interface StepLocator extends LocatorCandidate {
   alternatives?: LocatorCandidate[];
   /** Container/frame scoping applied to the primary and every alternative. */
   context?: LocatorContext;
+  /** Resolution state of the locator. Absent means a legacy "resolved" step. */
+  resolution?: LocatorResolution;
+  /** Provenance of the resolution decision. */
+  resolvedBy?: "recorder" | "user";
+  /** Reason provided by the user when accepting a fallback locator. */
+  approvedFallbackReason?: string;
 }
 
 export type ValueSourceType =

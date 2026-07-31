@@ -25,7 +25,7 @@ still run + metadata round-trips). It is the only unblocked child and gates the 
 **Verification this session:** `npm run verify:roadmap-dashboard` 135/135 (Sources agree; snapshot
 pins bumped for the 8 new beads). `npm run build` NOT run (no TS product changes). `bd dolt push` NOT
 run. `resources/dependency-manifest.{json,sig}` show an ambient regeneration to current HEAD/version —
-left unstaged for the owner to keep or revert.
+left unstaged for the owner to keep or revert. The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
 ## TAKEOFF (2026-07-30) - full single-artifact gate run COMPLETE (`awkit-3zr` closed)
 

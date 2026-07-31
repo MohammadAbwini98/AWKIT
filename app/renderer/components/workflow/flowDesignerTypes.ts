@@ -21,6 +21,12 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorAlternatives?: LocatorCandidate[];
   /** Container/frame scoping applied to the primary and every alternative (from Recorder). */
   locatorContext?: LocatorContext;
+  /** Resolution state of the locator (from Recorder). */
+  locatorResolution?: "resolved" | "needs-review" | "user-approved-fallback" | "invalid";
+  /** Provenance of the resolution decision (from Recorder). */
+  locatorResolvedBy?: "recorder" | "user";
+  /** Reason provided by the user when accepting a fallback locator. */
+  locatorApprovedFallbackReason?: string;
   /**
    * Which value source drives this node. `"none"` is a designer-only sentinel meaning "a bare
    * `value` with no explicit source" (e.g. a condition expression); it round-trips as `value` alone
@@ -191,6 +197,9 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorQuality: undefined,
   locatorAlternatives: undefined,
   locatorContext: undefined,
+  locatorResolution: undefined,
+  locatorResolvedBy: undefined,
+  locatorApprovedFallbackReason: undefined,
   pageAlias: undefined,
   opensPopup: undefined,
   popupExpectation: undefined,

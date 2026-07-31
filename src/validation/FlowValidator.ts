@@ -86,7 +86,8 @@ export type FlowValidationCode =
   | "unsupportedConfiguration"
   | "connectorStructure"
   | "highTimeout"
-  | "largeLoopBounds";
+  | "largeLoopBounds"
+  | "locatorNeedsReview";
 
 interface RuleSpec {
   readonly severity: FlowValidationSeverity;
@@ -119,7 +120,8 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   unsupportedConfiguration: { severity: "error", summary: "A configuration literal is outside its permitted set." },
   connectorStructure: { severity: "error", summary: "Structural connector rule (wrapped validateConnectorStructure)." },
   highTimeout: { severity: "warning", summary: "Timeout is unusually high." },
-  largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." }
+  largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." },
+  locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." }
 };
 
 const RULE_ORDER: readonly FlowValidationCode[] = Object.keys(FLOW_VALIDATION_RULES) as FlowValidationCode[];
@@ -448,8 +450,12 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     }
     const requirement = stepRequirement(step.type);
 
-    if (requirement.requiresLocator && step.locator === undefined) {
-      collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step)} (${step.type}) requires a locator.`);
+    if (requirement.requiresLocator) {
+      if (step.locator === undefined) {
+        collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step)} (${step.type}) requires a locator.`);
+      } else if (step.locator.resolution === "needs-review" || step.locator.resolution === "invalid") {
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator: it requires review or fallback approval before execution.`);
+      }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {
       collect.node("missingRequiredValue", step.id, `Step ${labelFor(step)} (${step.type}) requires a value or value source.`);

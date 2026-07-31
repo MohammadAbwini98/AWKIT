@@ -155,7 +155,10 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         quality: data.locatorQuality,
         // Keep the Recorder's runtime fallbacks + container/frame scoping on save.
         alternatives: data.locatorAlternatives,
-        context: data.locatorContext
+        context: data.locatorContext,
+        resolution: data.locatorResolution,
+        resolvedBy: data.locatorResolvedBy,
+        approvedFallbackReason: data.locatorApprovedFallbackReason
       }
       : undefined,
     value: data.value || undefined,
@@ -306,6 +309,9 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     // Preserve Recorder runtime fallbacks/scoping through the designer round-trip (edit-safe).
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
+    locatorResolution: step.locator?.resolution,
+    locatorResolvedBy: step.locator?.resolvedBy,
+    locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     valueSourceType: valueSource?.type ?? "static",
     // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).
     valueSourceOriginal: valueSource,

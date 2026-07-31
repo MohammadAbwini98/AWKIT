@@ -14,7 +14,7 @@ quality detection / strict-mode protection = PASS, but **recorded-flow replayabi
 `docs/recorder-ambiguity-resolution-plan.md`; `bd` epic `awkit-aui` with 7 dependency-ordered children
 (`awkit-aui.1`…`.6`, `.8`). Inc1 (`awkit-aui.1`: resolution-state schema + round-trips + execution
 preflight) is READY and blocks the rest. Details: `docs/testing/comprehensive-validation/DEFECTS.md`
-and `docs/ai/HANDOFF.md`.
+and `docs/ai/HANDOFF.md`. The validation ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
 ## Graphify code knowledge graph extended to all three agents (2026-07-30)
 

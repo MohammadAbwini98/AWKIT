@@ -41,6 +41,15 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
         step.locator.alternatives = action.locator.alternatives;
       }
       if (action.locator.context) step.locator.context = action.locator.context;
+      
+      // Default resolution state: a non-unique locator requires review before execution.
+      if (action.locator.quality?.isUnique === false) {
+        step.locator.resolution = "needs-review";
+        step.locator.resolvedBy = "recorder";
+      } else {
+        step.locator.resolution = "resolved";
+        step.locator.resolvedBy = "recorder";
+      }
     }
 
     if (action.valueSource) {

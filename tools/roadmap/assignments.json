@@ -25,6 +25,14 @@
       "claimedAt": "2026-07-29T15:45:55.0146013Z",
       "expiresAt": "2026-07-30T15:45:55.0146013Z",
       "note": "Fix licensing revalidation/dispatch synchronization and verification hardening findings."
+    },
+    {
+      "itemId": "bead:awkit-aui.1",
+      "agent": "Antigravity",
+      "state": "in-progress",
+      "claimedAt": "2026-07-31T20:01:00.000Z",
+      "expiresAt": "2026-08-01T20:01:00.000Z",
+      "note": "Resolution-state schema + round-trips + execution preflight"
     }
   ]
 }
