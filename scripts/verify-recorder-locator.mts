@@ -789,25 +789,33 @@ async function main() {
     check("shadow frame: normal frame→host→target replay succeeds", replay.status === "passed" && frameHit === "frame-shadow", `${replay.status}/${frameHit}`);
   }
 
-  // F10. A child frame with no stable captured selector is honestly guarded by RecorderService.
+  // F10. A real cross-origin child frame is captured without parent DOM access and guarded by the
+  // production binding/RecorderService path, never retargeted against the main document.
   {
-    const service = new RecorderService() as any;
-    service.isRecording = true;
-    service.captureWaitTime = false;
-    service.captureSmartWaits = false;
-    service.actions = [];
-    service.lastActionAt = 0;
-    const mainFrame = {};
-    const fakePage = { mainFrame: () => mainFrame, url: () => "http://localhost:4321/recorder-lab" } as any;
-    const crossFrame = { url: () => "http://127.0.0.1:4321/shadow-frame-child", name: () => "" } as any;
-    service.recordActionFromPage(fakePage, {
-      type: "click",
-      name: "Click Frame shadow action",
-      locator: { strategy: "role", value: "button", name: "Frame shadow action", quality: { strategy: "role", isUnique: true, matchCount: 1, confidence: "high", candidateCount: 1 } }
-    }, crossFrame);
-    const guarded = service.getActions()[0] as any;
+    recorded.length = 0;
+    bindingRecorder.actions = [];
+    bindingRecorder.ambiguityState = null;
+    bindingRecorder.isRecording = true;
+    bindingRecorder.lastActionAt = 0;
+    bindingRecorder.lastActionPage = undefined;
+    await page.route("http://localhost:4321/**", (route) => route.fulfill({
+      contentType: "text/html",
+      body: '<iframe title="Cross-origin shadow frame" src="http://127.0.0.1:4321/shadow-child"></iframe>'
+    }));
+    await page.route("http://127.0.0.1:4321/**", (route) => route.fulfill({
+      contentType: "text/html",
+      body: `<x-cross-shadow data-testid="cross-host"></x-cross-shadow><script>
+        customElements.define('x-cross-shadow', class extends HTMLElement { connectedCallback(){ const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Frame shadow action</button>'; } });
+      </script>`
+    }));
+    await page.goto("http://localhost:4321/shadow-parent", { waitUntil: "load" });
+    await page.frameLocator('iframe[title="Cross-origin shadow frame"]').getByRole("button", { name: "Frame shadow action" }).click();
+    await page.waitForTimeout(120);
+    const guarded = recorded.at(-1) as any;
     check("shadow cross-origin frame: safe origin evidence is retained", guarded?.locator?.interaction?.frame?.state === "cross-origin" && guarded.locator.interaction.frame.origin === "http://127.0.0.1:4321", JSON.stringify(guarded));
     check("shadow cross-origin frame: action is review-required, never main-page executable", guarded?.locator?.resolution === "needs-review" && guarded.locator.reviewReason === "unsupported cross-origin frame" && !guarded.locator.context?.frame, JSON.stringify(guarded));
+    await page.unroute("http://localhost:4321/**");
+    await page.unroute("http://127.0.0.1:4321/**");
   }
 
   // F11. The traversal cap is fail-closed: bounded work must never become false uniqueness.
