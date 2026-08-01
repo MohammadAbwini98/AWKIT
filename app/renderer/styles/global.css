@@ -1894,6 +1894,53 @@ div.validation-issue-row {
   font-size: var(--text-2xs);
 }
 
+.locator-review-state {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.locator-review-state.ok {
+  background: var(--awkit-success-soft);
+  border-color: var(--awkit-success-muted);
+  color: var(--awkit-success);
+}
+
+.locator-review-state.approved,
+.locator-review-state.warn {
+  background: var(--awkit-warning-soft);
+  border-color: var(--awkit-warning-muted);
+  color: var(--awkit-warning);
+}
+
+.locator-alternative-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.locator-alternative-list code,
+.locator-context-code {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.locator-approval-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.locator-approval-form textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
 .form-message {
   color: var(--awkit-text-secondary);
   display: block;
@@ -7086,6 +7133,97 @@ table {
   gap: 12px;
 }
 
+.recorder-locator-review {
+  display: grid;
+  gap: var(--space-3);
+  max-height: min(88vh, 760px);
+  max-width: min(720px, calc(100vw - (2 * var(--space-4))));
+  overflow: auto;
+  width: 100%;
+}
+
+.recorder-locator-review p {
+  margin: 0;
+}
+
+.recorder-review-evidence {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.recorder-review-evidence span {
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-xs);
+  display: grid;
+  font-size: var(--text-xs);
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-2);
+}
+
+.recorder-review-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.recorder-review-candidate {
+  align-items: center;
+  background: var(--awkit-surface-soft);
+  border: 1px solid var(--awkit-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.recorder-review-candidate.is-primary {
+  border-color: var(--awkit-warning-muted);
+}
+
+.recorder-review-candidate > div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.recorder-review-candidate code {
+  color: var(--awkit-text-secondary);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.recorder-fallback-reason {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.recorder-fallback-reason textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.recorder-fallback-reason span,
+.recorder-review-blocking {
+  color: var(--awkit-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.recorder-review-blocking {
+  background: var(--awkit-warning-soft);
+  border: 1px solid var(--awkit-warning-muted);
+  border-radius: var(--radius-xs);
+  padding: var(--space-3);
+}
+
+.recorder-review-actions {
+  flex-wrap: wrap;
+}
+
 /* Compact non-blocking notice shown while protected-login detection is ignored. Never covers the
    Recorder controls; uses the warning-band tokens like the rest of the recorder surface. */
 .recorder-ignore-notice {
@@ -7475,6 +7613,15 @@ table {
     grid-column: 2;
     justify-self: start;
     max-width: 100%;
+  }
+
+  .recorder-review-evidence {
+    grid-template-columns: 1fr;
+  }
+
+  .recorder-review-candidate {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

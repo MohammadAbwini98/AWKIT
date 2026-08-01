@@ -3,6 +3,7 @@ import { getFlowNodeCatalogItem } from "./flowNodeCatalog";
 import type { CanvasEdge, CanvasNode } from "../canvas";
 import type { FlowConnectionData } from "./ConnectionPropertiesPanel";
 import type { FlowStep, NodeConfig, ValueSource } from "@src/profiles/FlowProfile";
+import { invalidateStaleLocatorApproval } from "@src/profiles/locatorApproval";
 
 /**
  * The Flow Designer's model <-> canvas-node conversion pair.
@@ -26,7 +27,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
   const next = edges.find((edge) => edge.source === node.id)?.target;
   const valueSource = createValueSource(data);
 
-  return {
+  const step: FlowStep = {
     id: node.id,
     type: data.stepType,
     name: data.name,
@@ -47,6 +48,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         resolution: data.locatorResolution,
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
+        approvedFallbackBinding: data.locatorApprovedFallbackBinding,
         reviewReason: data.locatorReviewReason
       }
       : undefined,
@@ -58,6 +60,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     pageAlias: data.pageAlias,
     opensPopup: data.opensPopup,
     popupExpectation: data.popupExpectation,
+    safety: data.safety,
     value: data.value || undefined,
     valueSource,
     url: data.stepType === "goto" ? data.value : undefined,
@@ -79,6 +82,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     size: { width: Math.round(data.width), height: Math.round(data.height) },
     config: toNodeConfig(data)
   };
+  return invalidateStaleLocatorApproval(step);
 }
 
 export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig {
@@ -171,12 +175,14 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorResolution: step.locator?.resolution,
     locatorResolvedBy: step.locator?.resolvedBy,
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
+    locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
     // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't
     // re-derive" (the rule established by awkit-cxa) — so an unrelated node edit cannot clear it.
     pageAlias: step.pageAlias,
     opensPopup: step.opensPopup,
     popupExpectation: step.popupExpectation,
+    safety: step.safety,
     // A step can carry a bare `value` (e.g. a condition expression) with no `valueSource`. Mark it
     // "none" so the save path re-serializes the value WITHOUT fabricating a static `valueSource`, and
     // read `step.value` last in the value chain so a bare value is never dropped on load (awkit-cxa).

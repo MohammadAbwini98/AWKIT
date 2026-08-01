@@ -237,6 +237,13 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   save/reload/edit/serialize/import-export/IPC/execution, and captures + replays hover prerequisites —
   each an independent, defect-sensitive check driving the real recorder → `buildRecordedFlow` →
   `FlowValidator` → `LocatorFactory` → `StepExecutor` path.
+- ✅ **Live ambiguity review and bound positional approval:** positional/unresolved capture pauses
+  before commit in an accessible, focus-contained Recorder review dialog. Candidate and captured-scope
+  choices are proven through `LocatorFactory` in the recorded frame/shadow/container context. A
+  positional exception requires a user reason plus `approvedFallbackBinding` over the exact locator,
+  action, context, and safety policy; material edits invalidate it, Flow Designer can revoke it, static
+  validation and runtime reject stale authority, and sensitive positional actions remain prohibited.
+  Approved non-dangerous execution emits a lower-resilience event retained in reports/history.
 - ✅ **Compound / tree locators for non-unique elements** (`recorderInitScript.ts`): when no single
   strategy is unique, the recorder combines the element's meaningful features (stable attributes +
   rare, non-utility classes) with the **fewest distinguishing ancestors** (descendant combinators,

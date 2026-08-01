@@ -4,6 +4,48 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Codex - COMPLETE Recorder ambiguity Increments 3/4 and epic closure
+
+- **Task:** resume the paused `awkit-aui.3` / `.4` reconciliation, close the remaining live-review and
+  positional-approval defects, run the complete gate set, and reconcile authoritative sources.
+- **Implementation:** live `LocatorFactory` candidate/context validation and highlighting; pause before
+  positional/unresolved commit; accessible Recorder review; reasoned exact approval binding; stale
+  action/locator/context/safety invalidation; Flow Designer approval/revocation; validator/runner
+  fail-closed guards; lower-resilience report/history diagnostics; Recorder Lab and GUI coverage.
+- **Takeoff additions:** fixed unchanged Flow Designer saves falsely revoking approval when omitted
+  `exact` normalized to `false`; preserved safety in the legacy mapping; added action/context/safety,
+  unknown-field store/IPC, and report disclosure controls; fixed a repeated Recorder GUI poll race by
+  waiting for the first rendered timeline before auditing its live region.
+- **Tests:** build PASS; scripts typecheck PASS; Recorder 171/171; ambiguity 62/62; recorder-flow
+  29/29; hover 34/34; runner 89/89; Mock Site 110/110; mapping 111/111; profile store 18/18; IPC 4/4;
+  draft 50/50; authz 50/50; Recorder E2E 61/61 (18/18, 100% fidelity); Flow Designer 69/69;
+  Recorder GUI 166/166; Reports live engine 21/21; Reports GUI 31/31; Reports/Settings a11y 14/0;
+  classification 155/155; source hygiene 9/9; offline PASS. The first dashboard run correctly failed
+  stale source counts before reconciliation; rerun recorded separately after source updates.
+- **Tracking:** closed `awkit-aui.3.1`, `.3`, `.4.1`, `.4`, and epic `awkit-aui`; AWKIT-REC-030/033/034
+  resolved. `awkit-vot`, `awkit-0vm`, and `awkit-hj8` remain separate. Dependency manifests untouched.
+
+---
+
+## 2026-08-01 - Codex - PAUSED handoff: reconcile Recorder ambiguity Increments 3/4
+
+- **Task:** reconcile `awkit-aui.3` and `.4` against product behavior, real UI, persistence, runner
+  policy, tests, Git, Beads, defects, and authoritative documentation.
+- **Findings:** filed `awkit-aui.3.1` / AWKIT-REC-033 (unvalidated review choices and positional capture
+  bypass) and `awkit-aui.4.1` / AWKIT-REC-034 (approval enum not bound to locator/context/action).
+- **Uncommitted repair:** live `LocatorFactory` validation/highlighting; positional capture review;
+  required approval reason; optional exact approval binding; stale-edit invalidation; validator/runtime
+  guards; Recorder and Flow Designer review/approve/revoke UI; gated Recorder Lab fixture and real GUI
+  lifecycle coverage.
+- **Final focused results:** build PASS; scripts typecheck PASS; Recorder 171/171; ambiguity 60/60;
+  Mock Site 110/110; Recorder GUI 166/166 with 0 NOT RUN; Flow Designer GUI 69/69; `git diff --check`
+  PASS. Earlier failing iterations were corrected and are documented in `HANDOFF.md`.
+- **Status:** paused before the remaining full gate set, final Graphify refresh, source reconciliation,
+  acceptance matrices, commits, push, and closure decision. Working tree intentionally dirty at
+  `57dfad2`; `main` and `origin/main` remain identical. Dependency manifests untouched.
+
+---
+
 ## 2026-08-01 - Codex - Increment 6 Shadow DOM capture/replay (`awkit-aui.6`)
 
 - **Task:** implement open/nested Shadow DOM capture and deterministic replay, honest closed-root and

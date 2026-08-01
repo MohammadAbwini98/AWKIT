@@ -2,12 +2,16 @@
 
 ## Open product defects
 
+None.
+
+## Resolved comprehensive-campaign defects
+
 ### AWKIT-REC-030 — Recorder saves an interactive step it knows cannot replay, with no resolution path
 
 - **Severity:** S2 / A recorded flow predictably fails at replay and the user is given no supported
   way to fix it (recording-to-execution reliability gap)
 - **Priority recommendation:** P2
-- **Status:** **Open — implementation substantially landed; reconciliation remains.** Epic `awkit-aui`
+- **Status:** **Resolved 2026-08-01.** Epic `awkit-aui`
   (children `awkit-aui.1`…`.6`, `.8`); plan
   `docs/recorder-ambiguity-resolution-plan.md`
 - **Affected area:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
@@ -42,15 +46,69 @@ stable ancestor/context scoping, hover prerequisite, and acceptance regression h
 Increment 6 (`awkit-aui.6`) adds actual `composedPath()` inner-target capture, bounded open-root match
 counting, ordered stable host scoping, nested/dynamic/slotted replay, known-closed-root review-required
 preflight, and an honest unsupported cross-origin-frame guard. `verify:recorder` is 171/171 and
-`verify:recorder-ambiguity` is 59/59. The parent defect remains open until Increments 3 and 4 are
-reconciled and the epic-level state is reviewed; this entry does not close them by inference.
+`verify:recorder-ambiguity` is 62/62. Increments 3 and 4 now add live-validated Recorder review,
+reasoned exact fallback binding, edit invalidation/revocation, report disclosure, and real GUI/
+persistence/runner negative controls. All seven epic increments are closed; the full gate set is green.
 
 ---
 
-No other open product defects. `AWKIT-E2E-001` was the only other confirmed product defect and is
-resolved below.
+### AWKIT-REC-033 (`awkit-aui.3.1`) — Recorder ambiguity review can resolve unvalidated or unreachable choices
 
-## Resolved comprehensive-campaign defects
+- **Severity:** S2 / The visible review surface can claim success without proving the saved locator
+  identifies one live target, while the normal positional-capture path bypasses review entirely
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-01**
+- **Affected area:** `src/recorder/RecorderService.ts`, `src/recorder/RecorderTypes.ts`,
+  `app/main/ipc/recorder.ipc.ts`, `app/main/preload.ts`, `app/renderer/pages/Recorder.tsx`,
+  `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, Recorder GUI verification
+- **Detected by:** Increment 3 code/test/GUI reconciliation (`awkit-aui.3`)
+
+Commit `6421315` added a panel, but `RecorderService` pauses only for
+`quality.isUnique === false`. The production capture engine normally ends with a unique structural
+positional fallback, so that fragile capture bypasses the panel and is later refused by
+`StepExecutor`. When the panel is reached, `selectCandidate` and `scopeToAncestor` stamp
+`resolution: "resolved"` even when the candidate/index/landmark is absent and without a live
+uniqueness check. Highlighting translates semantic locators into guessed document CSS, which does
+not represent role/name, frame, or Shadow DOM context. The Flow Designer exposes recorder quality
+as text but has no persisted resolution/revocation action. No real-Electron verifier exercises the
+panel, so the existing green gates do not prove the user workflow.
+
+**Resolution:** real positional/unresolved capture now pauses before commit. Candidate selection and
+captured scope are validated through `LocatorFactory` against the authorized page plus frame/shadow/
+container context; invalid choices fail, cancel discards, and defer remains blocking. The modal is
+focus-contained and exposes evidence, alternatives, context, and execution consequences. Recorder GUI
+166/166, Flow Designer 69/69, ambiguity 62/62, authz 50/50, and E2E 61/61 are green.
+
+---
+
+### AWKIT-REC-034 (`awkit-aui.4.1`) — Positional fallback approval is not bound to the approved locator
+
+- **Severity:** S1 / A stale approval can authorize a materially different locator or context
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-01**
+- **Affected area:** `src/profiles/FlowProfile.ts`, `src/recorder/RecorderService.ts`,
+  `src/validation/FlowValidator.ts`, `src/runner/StepExecutor.ts`, `src/runner/LocatorFactory.ts`,
+  Flow Designer mappings/properties, reports and Recorder verifiers
+- **Detected by:** Increment 4 policy/lifecycle reconciliation (`awkit-aui.4`)
+
+The current approval is only the enum value `resolution: "user-approved-fallback"`.
+`approvedFallbackReason` is optional and the Recorder does not set it. No fingerprint binds the
+approval to strategy, value/index, exact/name, container/frame/shadow context, or action type.
+Flow Designer locator edits clear quality only, leaving the approval enum intact, and
+`StepExecutor` authorizes based on that enum alone. Existing tests construct approval metadata
+directly; they do not prove real approval, edit invalidation, revocation, reload, or report output.
+
+**Resolution:** approval now requires a specific reason and `approvedFallbackBinding` over step
+type/name, exact primary locator, frame/shadow/container context, and safety policy. Static validation
+and execution reject missing/stale binding; Flow Designer edits invalidate authority and offers explicit
+revocation; sensitive actions stay absolutely blocked. Mapping 111/111, profile store 18/18, ambiguity
+62/62 (including report/history disclosure and future-field clone controls), Recorder GUI 166/166, and
+Flow Designer 69/69 are green.
+
+---
+
+No product defect remains open in this campaign section. The separate tracked hover limitations
+`awkit-vot` / `awkit-0vm` and manifest audit `awkit-hj8` remain outside this closure.
 
 ### AWKIT-REC-031 — Recorder's hover step targeted the hidden revealed surface, so hover-gated flows failed replay
 

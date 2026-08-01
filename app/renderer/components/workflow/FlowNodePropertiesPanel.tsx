@@ -9,6 +9,7 @@ import { OracleNodeSection } from "./OracleNodeSection";
 import { defaultOracleNodeConfig } from "./flowDesignerTypes";
 import type { AsyncCompletionMode, LoaderCompletion, OracleNodeConfig, WaitCondition, WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
+import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
 
 /** Completion-policy options for the Async Completion editor. */
 const COMPLETION_MODES: { id: AsyncCompletionMode; label: string }[] = [
@@ -63,7 +64,11 @@ export function FlowNodePropertiesPanel({
 }: FlowNodePropertiesPanelProps) {
   // Saved sessions for the Reuse Session node's dropdown (fetched from the Main process).
   const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string; targetUrl?: string }[]>([]);
+  const [fallbackReason, setFallbackReason] = useState("");
   const stepType = selectedNode?.data.stepType;
+  useEffect(() => {
+    setFallbackReason(selectedNode?.data.locatorApprovedFallbackReason ?? "");
+  }, [selectedNode?.id, selectedNode?.data.locatorApprovedFallbackReason]);
   useEffect(() => {
     if (stepType !== "reuseSession") return;
     let cancelled = false;
@@ -97,6 +102,23 @@ export function FlowNodePropertiesPanel({
   const has = (section: Parameters<NonNullable<typeof definition>["sections"]["includes"]>[0]) =>
     definition?.sections.includes(section) ?? false;
   const set = (patch: Partial<FlowDesignerNodeData>) => selectedNode && onUpdateNode(selectedNode.id, patch);
+  const editLocator = (patch: Partial<FlowDesignerNodeData>) => {
+    if (!data) return;
+    const invalidatesApproval = data.locatorResolution === "user-approved-fallback";
+    set({
+      ...patch,
+      locatorQuality: undefined,
+      ...(invalidatesApproval
+        ? {
+            locatorResolution: "needs-review" as const,
+            locatorResolvedBy: "user" as const,
+            locatorApprovedFallbackReason: undefined,
+            locatorApprovedFallbackBinding: undefined,
+            locatorReviewReason: "locator edited after fallback approval"
+          }
+        : {})
+    });
+  };
   const typeErrors = data && definition ? definition.validate(data) : [];
   // A recorded locator that resolves to multiple elements must not read as "valid".
   const locatorQualityErrors =
@@ -479,7 +501,21 @@ export function FlowNodePropertiesPanel({
             <section className="property-section">
               <label>
                 Name
-                <input value={data.name} onChange={(e) => set({ name: e.target.value })} />
+                <input
+                  value={data.name}
+                  onChange={(e) => set({
+                    name: e.target.value,
+                    ...(data.locatorResolution === "user-approved-fallback"
+                      ? {
+                          locatorResolution: "needs-review" as const,
+                          locatorResolvedBy: "user" as const,
+                          locatorApprovedFallbackReason: undefined,
+                          locatorApprovedFallbackBinding: undefined,
+                          locatorReviewReason: "action changed after fallback approval"
+                        }
+                      : {})
+                  })}
+                />
               </label>
               <label>
                 Description
@@ -508,7 +544,7 @@ export function FlowNodePropertiesPanel({
               <section className="property-section">
                 <label>
                   Strategy
-                  <select value={data.locatorStrategy} onChange={(e) => set({ locatorStrategy: e.target.value as FlowDesignerNodeData["locatorStrategy"], locatorQuality: undefined })}>
+                  <select value={data.locatorStrategy} onChange={(e) => editLocator({ locatorStrategy: e.target.value as FlowDesignerNodeData["locatorStrategy"] })}>
                     <option value="role">Role</option>
                     <option value="label">Label</option>
                     <option value="placeholder">Placeholder</option>
@@ -523,15 +559,15 @@ export function FlowNodePropertiesPanel({
                 <label>
                   Value
                   {/* Editing the value invalidates recorder uniqueness metadata. */}
-                  <input value={data.locatorValue} onChange={(e) => set({ locatorValue: e.target.value, locatorQuality: undefined })} />
+                  <input value={data.locatorValue} onChange={(e) => editLocator({ locatorValue: e.target.value })} />
                 </label>
                 <label>
                   Accessible Name
-                  <input value={data.locatorName} onChange={(e) => set({ locatorName: e.target.value, locatorQuality: undefined })} />
+                  <input value={data.locatorName} onChange={(e) => editLocator({ locatorName: e.target.value })} />
                 </label>
                 {data.locatorStrategy === "role" || data.locatorStrategy === "text" || data.locatorStrategy === "label" || data.locatorStrategy === "placeholder" ? (
                   <label className="inline-check">
-                    <input type="checkbox" checked={data.locatorExact} onChange={(e) => set({ locatorExact: e.target.checked })} />
+                    <input type="checkbox" checked={data.locatorExact} onChange={(e) => editLocator({ locatorExact: e.target.checked })} />
                     Match exactly
                   </label>
                 ) : null}
@@ -555,6 +591,122 @@ export function FlowNodePropertiesPanel({
                       Strategy: {data.locatorQuality.strategy}
                       {typeof data.locatorQuality.candidateCount === "number" ? ` · ${data.locatorQuality.candidateCount} candidates evaluated` : ""}
                     </span>
+                  </div>
+                ) : null}
+                {data.locatorResolution || isPositionalLocator({
+                  strategy: data.locatorStrategy,
+                  value: data.locatorValue,
+                  name: data.locatorName || undefined,
+                  exact: data.locatorExact || undefined,
+                  quality: data.locatorQuality,
+                  context: data.locatorContext
+                }) ? (
+                  <div
+                    className={`locator-review-state ${data.locatorResolution === "resolved" ? "ok" : data.locatorResolution === "user-approved-fallback" ? "approved" : "warn"}`}
+                    data-testid="locator-review-state"
+                    role={!data.locatorResolution || data.locatorResolution === "needs-review" || data.locatorResolution === "invalid" ? "alert" : "status"}
+                  >
+                    <strong>
+                      {data.locatorResolution === "resolved"
+                        ? "Resolved locator"
+                        : data.locatorResolution === "user-approved-fallback"
+                          ? "User-approved fallback (lower resilience)"
+                          : data.locatorResolution === "invalid"
+                            ? "Invalid locator — execution blocked"
+                            : "Needs locator review — execution blocked"}
+                    </strong>
+                    {data.locatorReviewReason ? <span>{data.locatorReviewReason}</span> : null}
+                    {data.locatorAlternatives?.length ? (
+                      <details>
+                        <summary>{data.locatorAlternatives.length} ranked alternative{data.locatorAlternatives.length === 1 ? "" : "s"}</summary>
+                        <ol className="locator-alternative-list">
+                          {data.locatorAlternatives.map((candidate, index) => (
+                            <li key={`${candidate.strategy}:${candidate.value}:${index}`}>
+                              <code>{candidate.strategy}: {candidate.value}{candidate.name ? ` (${candidate.name})` : ""}</code>
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                    {data.locatorContext ? (
+                      <details>
+                        <summary>Recorded context</summary>
+                        <code className="locator-context-code">{JSON.stringify(data.locatorContext)}</code>
+                      </details>
+                    ) : null}
+                    {data.locatorResolution === "user-approved-fallback" ? (
+                      <>
+                        <span>Reason: {data.locatorApprovedFallbackReason}</span>
+                        <button
+                          type="button"
+                          className="toolbar-button"
+                          data-testid="revoke-locator-fallback"
+                          onClick={() => set({
+                            locatorResolution: "needs-review",
+                            locatorResolvedBy: "user",
+                            locatorApprovedFallbackReason: undefined,
+                            locatorApprovedFallbackBinding: undefined,
+                            locatorReviewReason: "positional fallback approval revoked"
+                          })}
+                        >
+                          Revoke approval
+                        </button>
+                      </>
+                    ) : isPositionalLocator({
+                      strategy: data.locatorStrategy,
+                      value: data.locatorValue,
+                      name: data.locatorName || undefined,
+                      exact: data.locatorExact || undefined,
+                      quality: data.locatorQuality,
+                      context: data.locatorContext
+                    }) ? (
+                      <div className="locator-approval-form">
+                        <label>
+                          Approval reason
+                          <textarea
+                            value={fallbackReason}
+                            onChange={(event) => setFallbackReason(event.target.value)}
+                            aria-describedby="locator-approval-help"
+                          />
+                        </label>
+                        <span id="locator-approval-help">Explain why this exact positional target is acceptable. Sensitive actions remain prohibited.</span>
+                        <button
+                          type="button"
+                          className="toolbar-button"
+                          data-testid="approve-locator-fallback"
+                          disabled={fallbackReason.trim().length < 8}
+                          onClick={() => {
+                            const locator = {
+                              strategy: data.locatorStrategy,
+                              value: data.locatorValue,
+                              name: data.locatorName || undefined,
+                              exact: data.locatorExact || undefined,
+                              quality: data.locatorQuality,
+                              alternatives: data.locatorAlternatives,
+                              context: data.locatorContext,
+                              interaction: data.locatorInteraction,
+                              resolution: "user-approved-fallback" as const,
+                              resolvedBy: "user" as const,
+                              approvedFallbackReason: fallbackReason.trim()
+                            };
+                            set({
+                              locatorResolution: "user-approved-fallback",
+                              locatorResolvedBy: "user",
+                              locatorApprovedFallbackReason: fallbackReason.trim(),
+                              locatorApprovedFallbackBinding: createLocatorApprovalBinding({
+                                type: data.stepType,
+                                name: data.name,
+                                safety: data.safety,
+                                locator
+                              }),
+                              locatorReviewReason: undefined
+                            });
+                          }}
+                        >
+                          Approve this fallback
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </section>

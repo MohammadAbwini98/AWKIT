@@ -24,6 +24,7 @@ import type {
   ValueSource,
   ValueSourceType
 } from "@src/profiles/FlowProfile";
+import { invalidateStaleLocatorApproval } from "@src/profiles/locatorApproval";
 import type { CanvasEdge, CanvasNode } from "../canvas/types";
 import { buildConnectorVisual, hasCustomStyle } from "../shared/connectorStyle";
 import type { FlowConnectionData } from "./ConnectionPropertiesPanel";
@@ -134,7 +135,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
   // is always persisted.
   const omit = (field: (typeof OPTIONAL_STEP_FIELDS)[number], atDefault: boolean): boolean => wasAbsent(field) && atDefault;
 
-  return {
+  const step: FlowStep = {
     id: node.id,
     type: data.stepType,
     name: data.name,
@@ -160,6 +161,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         resolution: data.locatorResolution,
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
+        approvedFallbackBinding: data.locatorApprovedFallbackBinding,
         reviewReason: data.locatorReviewReason
       }
       : undefined,
@@ -190,6 +192,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     loop: data.loop,
     message: data.message
   };
+  return invalidateStaleLocatorApproval(step);
 }
 
 /**
@@ -315,6 +318,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorResolution: step.locator?.resolution,
     locatorResolvedBy: step.locator?.resolvedBy,
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
+    locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
     valueSourceType: valueSource?.type ?? "static",
     // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).

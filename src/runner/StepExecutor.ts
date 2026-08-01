@@ -22,6 +22,7 @@ import { CancelledError, type CancellationToken } from "./concurrency/Cancellati
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
+import { isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
@@ -396,12 +397,18 @@ export class StepExecutor {
    */
   private guardLocatorQuality(step: FlowStep): void {
     const quality = step.locator?.quality;
+    if (step.locator?.resolution === "user-approved-fallback" && !isValidLocatorFallbackApproval(step)) {
+      throw new Error(
+        `This step has stale or incomplete positional-fallback approval. Review and approve the exact ` +
+          `locator and context again before running. (locator: ${step.locator.strategy}=${step.locator.value})`
+      );
+    }
 
     // Integrity hardening (audit §16, "wrong privileged action"): a step that performs a sensitive
     // mutation must not rely on a fragile positional/index locator — it could target the wrong
     // Submit/Delete/Approve control. Fail early and ask for a stable locator, even when the resolver
     // could otherwise recover a match. Non-dangerous steps keep the lenient fallback behavior.
-    const positional = quality?.strategy === "fallback" || quality?.disambiguation === "positional";
+    const positional = isPositionalLocator(step.locator);
     if (positional) {
       const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
       if (sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit") {
@@ -413,7 +420,7 @@ export class StepExecutor {
       }
       
       // Increment 4: Explicit positional-fallback approval
-      if (step.locator?.resolution !== "user-approved-fallback") {
+      if (!isValidLocatorFallbackApproval(step)) {
         throw new Error(
           `This step uses a positional fallback locator which requires explicit approval. ` +
             `Please review and approve this step in the Flow Designer or re-record it. ` +

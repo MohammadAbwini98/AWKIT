@@ -17,6 +17,9 @@ import { buildChromiumHardeningArgs } from "../runner/ChromiumHardening";
 import type { SessionCaptureService } from "../session/SessionCaptureService";
 import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
+import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
+import type { FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
+import { LocatorFactory } from "../runner/LocatorFactory";
 import {
   buildBrowserContextOptions,
   describeCertificateError,
@@ -158,6 +161,8 @@ export class RecorderService {
   private handoff: RecorderHandoffInfo | null = null;
   /** Active ambiguity resolution state (null when none). */
   private ambiguityState: AmbiguityState | null = null;
+  /** Ephemeral authorized page for live review; never serialized or persisted. */
+  private ambiguityPage: Page | null = null;
   /** The original recording target URL — the safe URL to resume recording at after capture. */
   private recordingTargetUrl = "";
   /** Bundled Chromium path (offline) so the post-handoff resume relaunch uses the same browser. */
@@ -393,6 +398,8 @@ export class RecorderService {
       this.draftTimer = null;
     }
     this.actions = [];
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
     this.draftLoad = Promise.resolve(); // don't re-restore the just-cleared draft
     if (this.draftPath) {
       await rm(this.draftPath, { force: true }).catch(() => undefined);
@@ -495,6 +502,8 @@ export class RecorderService {
     }
 
     this.actions = [];
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
     this.urlSessionId = randomUUID();
     this.isRecording = true;
     this.lastActionPage = null;
@@ -1195,10 +1204,26 @@ export class RecorderService {
     // Track click timestamp for popup opener correlation.
     if (action.type === "click") this.lastClickAt = now;
     
-    if (taggedAction.locator?.quality?.isUnique === false) {
-      // Ambiguous locator detected: pause recorder and request user resolution.
+    const reviewLocator = taggedAction.locator;
+    const positional = isPositionalLocator(reviewLocator as FlowStep["locator"]);
+    const explicitlyUnresolved = reviewLocator?.resolution === "needs-review" || reviewLocator?.resolution === "invalid";
+    if (reviewLocator && (reviewLocator.quality?.isUnique === false || positional || explicitlyUnresolved)) {
+      // Ambiguous, unsupported, or fragile positional locator: pause before committing the action.
       this.isRecording = false;
-      this.ambiguityState = { action: taggedAction };
+      const unsupported = explicitlyUnresolved && reviewLocator.reviewReason !== undefined;
+      this.ambiguityState = {
+        action: taggedAction,
+        kind: unsupported ? "unsupported" : positional ? "positional" : "ambiguous",
+        reason:
+          reviewLocator.reviewReason ??
+          (positional
+            ? "The only unique locator is positional and requires explicit approval."
+            : `The recorded locator matches ${reviewLocator.quality?.matchCount ?? "multiple"} elements.`),
+        canSelectCandidates: !unsupported,
+        canApproveFallback: positional && !unsupported,
+        canScopeToCurrentContext: !unsupported && reviewLocator.context?.container !== undefined
+      };
+      this.ambiguityPage = sourcePage;
       return;
     }
 
@@ -1213,13 +1238,71 @@ export class RecorderService {
     return this.ambiguityState;
   }
 
-  public async resolveAmbiguity(choice: AmbiguityResolutionChoice, payload?: AmbiguityResolutionPayload): Promise<{ success: boolean }> {
-    if (!this.ambiguityState) return { success: false };
+  private ambiguityCandidates(action: RecordedAction): LocatorCandidate[] {
+    const locator = action.locator;
+    if (!locator) return [];
+    return [
+      { strategy: locator.strategy as LocatorCandidate["strategy"], value: locator.value, name: locator.name, exact: locator.exact },
+      ...((locator.alternatives ?? []) as LocatorCandidate[])
+    ];
+  }
 
-    const action = this.ambiguityState.action;
+  private async proveCandidateUnique(action: RecordedAction, candidate: LocatorCandidate): Promise<{ matchCount: number; visibleMatchCount: number }> {
+    if (!this.ambiguityPage || !action.locator) throw new Error("The recorded page is no longer available for live locator review.");
+    const locator = await new LocatorFactory(this.ambiguityPage).locateCandidate(candidate, action.locator.context);
+    const matchCount = await locator.count();
+    let visibleMatchCount = 0;
+    for (let index = 0; index < Math.min(matchCount, 100); index += 1) {
+      if (await locator.nth(index).isVisible().catch(() => false)) visibleMatchCount += 1;
+    }
+    if (matchCount !== 1 || visibleMatchCount !== 1) {
+      throw new Error(`The selected locator is not uniquely actionable (total matches: ${matchCount}, visible matches: ${visibleMatchCount}).`);
+    }
+    return { matchCount, visibleMatchCount };
+  }
+
+  private applyResolvedCandidate(action: RecordedAction, candidate: LocatorCandidate, evidence: { matchCount: number; visibleMatchCount: number }): void {
+    const locator = action.locator!;
+    locator.strategy = candidate.strategy;
+    locator.value = candidate.value;
+    locator.name = candidate.name;
+    locator.exact = candidate.exact;
+    locator.quality = {
+      strategy: candidate.strategy,
+      isUnique: true,
+      matchCount: evidence.matchCount,
+      visibleMatchCount: evidence.visibleMatchCount,
+      candidateCount: 1 + (locator.alternatives?.length ?? 0),
+      confidence: "medium"
+    };
+    locator.resolution = "resolved";
+    locator.resolvedBy = "user";
+    delete locator.approvedFallbackReason;
+    delete locator.approvedFallbackBinding;
+    delete locator.reviewReason;
+  }
+
+  private commitAmbiguityAction(action: RecordedAction): void {
+    this.actions.push(action);
+    this.lastActionAt = Date.now();
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
+    this.scheduleDraftPersist();
+    this.isRecording = true;
+  }
+
+  public async resolveAmbiguity(
+    choice: AmbiguityResolutionChoice,
+    payload?: AmbiguityResolutionPayload
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.ambiguityState) return { success: false, error: "No locator review is active." };
+
+    const state = this.ambiguityState;
+    const action = state.action;
     
     if (choice === "cancel") {
       this.ambiguityState = null;
+      this.ambiguityPage = null;
       this.isRecording = true;
       return { success: true };
     }
@@ -1227,53 +1310,82 @@ export class RecorderService {
     if (choice === "defer") {
       action.locator!.resolution = "needs-review";
       action.locator!.resolvedBy = "recorder";
+      this.commitAmbiguityAction(action);
+      return { success: true };
     } else if (choice === "approveFallback") {
+      const reason = payload?.approvalReason?.trim() ?? "";
+      if (!state.canApproveFallback || !isPositionalLocator(action.locator as FlowStep["locator"])) {
+        return { success: false, error: "This locator is not an approvable positional fallback." };
+      }
+      if (reason.length < 8) return { success: false, error: "Enter a specific approval reason (at least 8 characters)." };
       action.locator!.resolution = "user-approved-fallback";
       action.locator!.resolvedBy = "user";
-      // The runner's StepExecutor will allow this positional locator because of this flag.
+      action.locator!.approvedFallbackReason = reason;
+      action.locator!.approvedFallbackBinding = createLocatorApprovalBinding({
+        type: action.type as FlowStep["type"],
+        name: action.name,
+        locator: action.locator as FlowStep["locator"]
+      });
+      delete action.locator!.reviewReason;
+      this.commitAmbiguityAction(action);
+      return { success: true };
     } else if (choice === "selectCandidate" && payload?.candidateIndex !== undefined) {
-      const candidate = action.locator!.alternatives?.[payload.candidateIndex];
-      if (candidate) {
-        action.locator!.strategy = candidate.strategy;
-        action.locator!.value = candidate.value;
-        if (candidate.name) action.locator!.name = candidate.name;
-        if (candidate.exact !== undefined) action.locator!.exact = candidate.exact;
-      }
-      action.locator!.resolution = "resolved";
-      action.locator!.resolvedBy = "user";
+      if (!state.canSelectCandidates) return { success: false, error: "This boundary cannot be resolved by selecting a diagnostic host locator." };
+      const candidate = action.locator!.alternatives?.[payload.candidateIndex] as LocatorCandidate | undefined;
+      if (!candidate) return { success: false, error: "The selected locator alternative no longer exists." };
+      if (isPositionalCandidate(candidate)) return { success: false, error: "A positional alternative must use explicit fallback approval." };
+      const evidence = await this.proveCandidateUnique(action, candidate);
+      this.applyResolvedCandidate(action, candidate, evidence);
+      this.commitAmbiguityAction(action);
+      return { success: true };
     } else if (choice === "scopeToAncestor") {
-      // Look for a landmark candidate among alternatives
-      const landmark = action.locator!.alternatives?.find(c => c.value.includes("nav") || c.value.includes("main") || c.value.includes("header") || c.value.includes("footer"));
-      if (landmark) {
-        action.locator!.strategy = landmark.strategy;
-        action.locator!.value = landmark.value;
-        if (landmark.name) action.locator!.name = landmark.name;
-        if (landmark.exact !== undefined) action.locator!.exact = landmark.exact;
+      if (!state.canScopeToCurrentContext || !action.locator?.context?.container) {
+        return { success: false, error: "No stable captured ancestor scope is available for this action." };
       }
-      action.locator!.resolution = "resolved";
-      action.locator!.resolvedBy = "user";
+      for (const candidate of this.ambiguityCandidates(action)) {
+        if (isPositionalCandidate(candidate)) continue;
+        try {
+          const evidence = await this.proveCandidateUnique(action, candidate);
+          this.applyResolvedCandidate(action, candidate, evidence);
+          this.commitAmbiguityAction(action);
+          return { success: true };
+        } catch {
+          // Try the next ranked stable candidate under the same captured context.
+        }
+      }
+      return { success: false, error: "No non-positional locator resolves uniquely inside the captured ancestor scope." };
     }
 
-    this.actions.push(action);
-    this.lastActionAt = Date.now();
-    this.ambiguityState = null;
-    this.scheduleDraftPersist();
-    this.isRecording = true;
-
-    return { success: true };
+    return { success: false, error: "Choose a valid locator-review action." };
   }
 
-  public async highlightAmbiguityCandidate(selector: string, index?: number): Promise<{ success: boolean }> {
-    if (!this.page) return { success: false };
+  public async highlightAmbiguityCandidate(candidateIndex?: number): Promise<{ success: boolean }> {
+    const state = this.ambiguityState;
+    if (!state || !this.ambiguityPage || !state.action.locator) return { success: false };
     try {
-      await this.page.evaluate(
-        ([{ selector, index }]) => {
-          if (typeof (window as any).__awtkit_highlight === "function") {
-            (window as any).__awtkit_highlight(selector, index);
-          }
-        },
-        [{ selector, index }]
-      );
+      const candidate = candidateIndex === undefined
+        ? this.ambiguityCandidates(state.action)[0]
+        : (state.action.locator.alternatives?.[candidateIndex] as LocatorCandidate | undefined);
+      if (!candidate) return { success: false };
+      await this.clearHighlight();
+      const locator = await new LocatorFactory(this.ambiguityPage).locateCandidate(candidate, state.action.locator.context);
+      await locator.evaluateAll((elements) => {
+        for (const element of elements.slice(0, 20)) {
+          const rect = element.getBoundingClientRect();
+          const overlay = document.createElement("div");
+          overlay.dataset.awkitLocatorHighlight = "true";
+          overlay.style.position = "fixed";
+          overlay.style.inset = `${rect.top}px auto auto ${rect.left}px`;
+          overlay.style.width = `${rect.width}px`;
+          overlay.style.height = `${rect.height}px`;
+          overlay.style.border = "3px solid #ff0055";
+          overlay.style.background = "rgba(255, 0, 85, 0.15)";
+          overlay.style.zIndex = "2147483647";
+          overlay.style.pointerEvents = "none";
+          overlay.style.boxSizing = "border-box";
+          document.documentElement.appendChild(overlay);
+        }
+      });
       return { success: true };
     } catch {
       return { success: false };
@@ -1281,13 +1393,10 @@ export class RecorderService {
   }
 
   public async clearHighlight(): Promise<{ success: boolean }> {
-    if (!this.page) return { success: false };
+    const page = this.ambiguityPage;
+    if (!page) return { success: false };
     try {
-      await this.page.evaluate(() => {
-        if (typeof (window as any).__awtkit_clearHighlight === "function") {
-          (window as any).__awtkit_clearHighlight();
-        }
-      });
+      await page.evaluate(() => document.querySelectorAll('[data-awkit-locator-highlight="true"]').forEach((element) => element.remove()));
       return { success: true };
     } catch {
       return { success: false };

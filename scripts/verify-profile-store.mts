@@ -127,6 +127,56 @@ async function main() {
     await rm(folder, { recursive: true, force: true });
   }
 
+  // 6. Schema evolution: approval metadata and unknown future fields remain byte-for-byte intact.
+  // JsonProfileStore is deliberately field-agnostic; narrowing this path would silently strip
+  // evidence during save/reload even though the FlowProfile schema remains backward-compatible.
+  {
+    const folder = await mkdtemp(join(tmpdir(), "awtkit-ps-6-"));
+    const store = new JsonProfileStore<Record<string, unknown> & { id: string }>({ folder });
+    const flow = {
+      id: "approval-round-trip",
+      name: "Approval round trip",
+      version: 1,
+      futureProfileField: { retained: true },
+      nodes: [{
+        id: "choose-second",
+        type: "click",
+        name: "Choose second twin",
+        futureStepField: ["keep", "me"],
+        locator: {
+          strategy: "css",
+          value: ".pos-btn:nth-of-type(2)",
+          context: {
+            frame: { selector: "iframe#catalog" },
+            shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "product-host" }] }
+          },
+          resolution: "user-approved-fallback",
+          resolvedBy: "user",
+          approvedFallbackReason: "Reviewed: position is intentional in this fixture.",
+          approvedFallbackBinding: {
+            version: 1,
+            stepType: "click",
+            stepName: "Choose second twin",
+            locator: { strategy: "css", value: ".pos-btn:nth-of-type(2)" },
+            context: {
+              frame: { selector: "iframe#catalog" },
+              shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "product-host" }] }
+            },
+            futureBindingField: "preserve-fail-closed"
+          },
+          futureLocatorEvidence: { recorder: "next-version" }
+        }
+      }],
+      edges: []
+    };
+    await store.create(structuredClone(flow));
+    const readBack = await store.get(flow.id);
+    check("approval binding + unknown future fields survive profile-store create/get", JSON.stringify(readBack) === JSON.stringify(flow));
+    const updated = await store.update(flow.id, structuredClone(flow));
+    check("approval binding + unknown future fields survive profile-store update", JSON.stringify(updated) === JSON.stringify(flow));
+    await rm(folder, { recursive: true, force: true });
+  }
+
   const passed = results.filter((r) => r.pass).length;
   console.log(`\nProfile store: ${passed}/${results.length} checks passed`);
   process.exit(passed === results.length ? 0 : 1);

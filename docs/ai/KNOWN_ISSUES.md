@@ -1,5 +1,15 @@
 # KNOWN_ISSUES
 
+## RESOLVED verifier race: Recorder live-region check ran before the first polled action (2026-08-01)
+
+`verify:recorder-gui` twice reported only `REC-029 recording: the action timeline is a live region`
+as failed while the product still rendered `aria-live="polite"` on `.recorder-timeline`. The verifier
+waited for Recorder start but not for the renderer's polling loop to receive the initial navigation
+action; with no action yet, the conditional timeline did not exist. The check now waits up to 10 seconds
+for the timeline's real rendering precondition before auditing its live-region ancestor. The repaired
+full suite passed **166/166**. Do not weaken this into an unconditional source-text assertion.
+
+
 ## Release operations: offline-manifest key custody and Authenticode remain external (2026-07-28)
 
 Offline dependency manifests are now Ed25519-signed, but the private key is intentionally local and

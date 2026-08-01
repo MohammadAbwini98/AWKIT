@@ -1,7 +1,8 @@
 # Recorder Ambiguity-Resolution & Recorded-Flow Replayability — Implementation Plan
 
-**Status:** PLANNED — not implemented. No product code changed. This document + the linked `bd`
-epic are the definition of done. Stop-for-review gate applies before any product-code edit.
+**Status:** **COMPLETE 2026-08-01.** All seven increments and the linked `bd` epic are closed.
+The two reconciliation defects AWKIT-REC-033/034 are resolved; acceptance matrices and full gate
+results are recorded at the top of `docs/ai/CURRENT_STATE.md`.
 
 **Defect:** `AWKIT-REC-030` (see `docs/testing/comprehensive-validation/DEFECTS.md`).
 **Epic:** see `bd` epic *"Recorder ambiguity-resolution & recorded-flow replayability"*.
@@ -15,7 +16,7 @@ carried `role=link "Shorts"` with `quality.isUnique = false, matchCount = 2`. AW
 **finish, save, and keep** that step, then the flow **predictably failed at replay**. The safety
 *mechanisms* worked; the *feature* did not deliver a replayable flow or a way to fix it.
 
-### Corrected classification (do NOT summarise the Recorder as an overall pass)
+### Original defect classification (historical; resolved 2026-08-01)
 
 | Area | Verdict |
 |---|---|

@@ -1,5 +1,54 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: epic COMPLETE after Increments 3/4 reconciliation (2026-08-01)
+
+Reconciliation from checkpoint `57dfad2` found and repaired two contract defects in the earlier
+ambiguity UX: choices could be marked resolved without live responsible-layer validation
+(`awkit-aui.3.1` / AWKIT-REC-033), and positional approval was not bound to the approved locator,
+context, action, and safety (`awkit-aui.4.1` / AWKIT-REC-034). All seven `awkit-aui` increments, both
+defect children, and parent AWKIT-REC-030 are now closed with full regression evidence.
+
+Current behavior: real positional/unresolved capture pauses before commit; selection and captured
+scope are validated through `LocatorFactory` against frame/shadow/container context; approval requires
+a reason and exact `approvedFallbackBinding`; mapping/editor changes invalidate stale authority;
+preflight and runtime fail closed; non-dangerous approved use emits a reportable lower-resilience log;
+sensitive positional actions remain prohibited. Recorder and Flow Designer provide accessible review,
+approve, edit-invalidate, and revoke workflows.
+
+### Increment 3 acceptance matrix
+
+| Criterion | Evidence | Result |
+|---|---|---|
+| Pause before commit for real positional/unresolved capture | Recorder GUI real `?rec034=1` capture; pending action absent until decision | PASS |
+| Validate candidate/scope against the live authorized target | `RecorderService` uses `LocatorFactory.locateCandidate`; invalid and positional-alternative controls | PASS |
+| Cancel discards; defer remains blocked; approved/resolved persists | Recorder GUI cancel/defer/save/reload plus ambiguity preflight/replay | PASS |
+| Evidence, alternatives, context, and consequence are accessible | Focus-contained `alertdialog`; keyboard trap and evidence assertions | PASS |
+| Sender permission and single-active-recorder invariant remain intact | `verify:recorder-authz` 50/50 and Recorder GUI REC-025 | PASS |
+
+### Increment 4 acceptance matrix
+
+| Criterion | Evidence | Result |
+|---|---|---|
+| Approval requires a specific reason and exact binding | Recorder + Flow Designer GUI approval lifecycle | PASS |
+| Binding survives unchanged frame/shadow mapping and store/IPC round trips | mapping 111/111; profile store 18/18; ambiguity point 9 | PASS |
+| Locator, context, action-name, and safety edits invalidate authority | production mapping negative controls and GUI edit/reload | PASS |
+| Revocation stays blocking after reload | Flow Designer GUI approve/revoke/save/reload | PASS |
+| Approved non-dangerous fallback runs and is disclosed in reports/history | ambiguity point 5 + `ReportService` log assertion | PASS |
+| Unapproved, stale, and sensitive positional actions are refused | validator/runner negative controls | PASS |
+
+Full results: build PASS; scripts typecheck PASS; Recorder **171/171**; ambiguity **62/62**; Recorder
+flow **29/29**; hover **34/34**; runner **89/89**; Mock Site **110/110**; Flow Designer mapping
+**111/111**; profile store **18/18**; IPC **4/4**; draft **50/50**; authz **50/50**; Recorder E2E
+**61/61** with **18/18 (100%)** replay fidelity; Flow Designer GUI **69/69**; Recorder GUI **166/166**;
+Reports live engine **21/21**; Reports GUI **31/31**; Reports/Settings a11y **14 PASS / 0 FAIL**;
+classification **155/155** reconciled; source hygiene **9/9**; offline validation PASS.
+
+The comprehensive validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+Dependency manifests remain untouched; `awkit-vot`, `awkit-0vm`, and `awkit-hj8` stay separate.
+
+---
+
 ## Recorder ambiguity-resolution: Increment 6 Shadow DOM capture/replay COMPLETE (2026-08-01)
 
 Increment 6 (`awkit-aui.6`) now records the first usable `Element` from the actual

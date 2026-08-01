@@ -441,9 +441,9 @@ const api = {
     getAmbiguityState: () => 
       ipcRenderer.invoke("recorder:getAmbiguityState") as Promise<import("@src/recorder/RecorderTypes").AmbiguityState | null>,
     resolveAmbiguity: (choice: import("@src/recorder/RecorderTypes").AmbiguityResolutionChoice, payload?: import("@src/recorder/RecorderTypes").AmbiguityResolutionPayload) =>
-      ipcRenderer.invoke("recorder:resolveAmbiguity", choice, payload) as Promise<{ success: boolean }>,
-    highlightCandidate: (selector: string, index?: number) =>
-      ipcRenderer.invoke("recorder:highlightCandidate", selector, index) as Promise<{ success: boolean }>,
+      ipcRenderer.invoke("recorder:resolveAmbiguity", choice, payload) as Promise<{ success: boolean; error?: string }>,
+    highlightCandidate: (candidateIndex?: number) =>
+      ipcRenderer.invoke("recorder:highlightCandidate", candidateIndex) as Promise<{ success: boolean }>,
     clearHighlight: () =>
       ipcRenderer.invoke("recorder:clearHighlight") as Promise<{ success: boolean }>
   },

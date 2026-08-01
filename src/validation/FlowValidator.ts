@@ -44,6 +44,8 @@ import type {
   ParallelConnectorConfig
 } from "../profiles/FlowProfile";
 import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
+import { isPositionalLocator, isValidLocatorFallbackApproval } from "../profiles/locatorApproval";
+import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 
 /* ------------------------------------------------------------------ *
@@ -456,6 +458,15 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
       } else if (step.locator.resolution === "needs-review" || step.locator.resolution === "invalid") {
         const reason = step.locator.reviewReason ? ` (${step.locator.reviewReason})` : "";
         collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
+      } else if (step.locator.resolution === "user-approved-fallback" && !isValidLocatorFallbackApproval(step)) {
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has stale or incomplete positional-fallback approval: review and approve this exact locator and context again.`);
+      } else if (isPositionalLocator(step.locator) && step.locator.resolution !== "user-approved-fallback") {
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} uses a positional locator that has not been explicitly approved.`);
+      } else if (
+        isPositionalLocator(step.locator) &&
+        ["dangerousMutation", "externalCommit"].includes(resolveStepSafety(step).sideEffectLevel)
+      ) {
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} performs a sensitive action and cannot use a positional fallback even with approval.`);
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {

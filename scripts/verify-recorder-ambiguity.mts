@@ -21,7 +21,9 @@ import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { LocatorFactory, type LocatorRecoveryEvent } from "@src/runner/LocatorFactory";
+import { MemoryRunnerLogger } from "@src/runner/RunnerResult";
 import { ValueResolver } from "@src/runner/ValueResolver";
+import { ReportService } from "@src/reports/ReportService";
 import {
   validateFlowDefinition,
   hasActivePathError,
@@ -29,7 +31,8 @@ import {
   errorsOf
 } from "@src/validation/FlowValidator";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
-import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import type { FlowProfile, FlowStep, LocatorApprovalBinding } from "@src/profiles/FlowProfile";
+import { createLocatorApprovalBinding } from "@src/profiles/locatorApproval";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 
 const PORT = 4403;
@@ -70,6 +73,20 @@ async function makeContext(): Promise<InstanceExecutionContext> {
   };
 }
 
+function approveFallback(step: FlowStep, reason: string): FlowStep {
+  const approved: FlowStep = {
+    ...step,
+    locator: {
+      ...step.locator!,
+      resolution: "user-approved-fallback",
+      resolvedBy: "user",
+      approvedFallbackReason: reason
+    }
+  };
+  approved.locator!.approvedFallbackBinding = createLocatorApprovalBinding(approved);
+  return approved;
+}
+
 async function waitForServer() {
   for (let i = 0; i < 80; i += 1) {
     try {
@@ -107,9 +124,24 @@ async function freshExecutor(browser: Browser) {
   await page.goto(URL);
   const context = await makeContext();
   const events: LocatorRecoveryEvent[] = [];
-  const factory = new LocatorFactory(page, { onRecoveryEvent: (e) => events.push(e) });
-  const exec = new StepExecutor(page, factory, new ValueResolver(context), context);
-  return { page, exec, events, close: () => ctx.close() };
+  const logger = new MemoryRunnerLogger();
+  const factory = new LocatorFactory(page, {
+    onRecoveryEvent: (event) => {
+      events.push(event);
+      logger.log({
+        timestamp: new Date().toISOString(),
+        level: event.type === "local-recovery" || event.type === "memory-error" ? "warn" : "info",
+        message: `[locator:${event.type}] ${event.message}`,
+        executionId: context.executionId,
+        instanceId: context.instanceId,
+        scenarioId: context.scenarioId,
+        flowId: context.flowId,
+        stepId: event.stepId
+      });
+    }
+  });
+  const exec = new StepExecutor(page, factory, new ValueResolver(context), context, undefined, logger);
+  return { page, exec, events, logger, context, close: () => ctx.close() };
 }
 
 const clickStepNamed = (p: FlowProfile, name: string) => p.nodes.find((s) => s.type === "click" && s.locator?.name === name);
@@ -272,11 +304,8 @@ async function main() {
     }
     // Positive: an explicitly approved positional fallback executes, through the approved-fallback policy.
     {
-      const approved: FlowStep = {
-        ...posStep,
-        locator: { ...posStep.locator!, resolution: "user-approved-fallback", approvedFallbackReason: "Reviewed: only position distinguishes these identical controls." }
-      };
-      const { page, exec, events, close } = await freshExecutor(browser);
+      const approved = approveFallback(posStep, "Reviewed: only position distinguishes these identical controls.");
+      const { page, exec, events, logger, context, close } = await freshExecutor(browser);
       try {
         const r = await exec.execute(approved);
         check("[5] approved positional fallback executes (passed)", r.status === "passed", r.error);
@@ -286,17 +315,42 @@ async function main() {
           "[5] execution went through the approved-fallback resolver policy (emitted event)",
           events.some((e) => e.type === "user-approved-fallback")
         );
+        const scenarioResult = {
+          scenarioId: context.scenarioId,
+          executionId: context.executionId,
+          instanceId: context.instanceId,
+          status: "passed" as const,
+          startedAt: r.startedAt,
+          endedAt: r.endedAt,
+          durationMs: r.durationMs,
+          flows: [{
+            flowId: context.flowId ?? "flow-amb",
+            status: "passed" as const,
+            startedAt: r.startedAt,
+            endedAt: r.endedAt,
+            durationMs: r.durationMs,
+            steps: [r],
+            outputs: {}
+          }],
+          logs: logger.entries
+        };
+        const report = new ReportService(context.paths.reports).createInstanceReport(scenarioResult);
+        check(
+          "[5] approved-fallback execution is disclosed in report/history logs",
+          report.scenarioResult?.logs.some((entry) =>
+            entry.message.includes("[locator:user-approved-fallback]") && entry.message.includes("lower resilience")
+          )
+        );
       } finally {
         await close();
       }
     }
     // Negative: an approved positional fallback on a SENSITIVE step stays refused.
     {
-      const dangerous: FlowStep = {
-        ...posStep,
-        name: "Delete account",
-        locator: { ...posStep.locator!, resolution: "user-approved-fallback", approvedFallbackReason: "approved" }
-      };
+      const dangerous = approveFallback(
+        { ...posStep, name: "Delete account" },
+        "Reviewed: only position distinguishes these identical controls."
+      );
       const { exec, close } = await freshExecutor(browser);
       try {
         const r = await exec.execute({ ...dangerous, timeoutMs: 4000 });
@@ -428,7 +482,7 @@ async function main() {
     // ── [9] Every locator evidence field survives supported round trips ────────────────────────────
     console.log("\n[9] Alternatives/quality/warning/uniqueness/resolution/approval/evidence survive round trips:");
     {
-      const approved: FlowStep = {
+      const pendingApproval: FlowStep = {
         ...(posStep as FlowStep),
         locator: {
           ...posStep.locator!,
@@ -449,6 +503,12 @@ async function main() {
           approvedFallbackReason: "Reviewed: identical controls; positional accepted."
         }
       };
+      pendingApproval.locator!.approvedFallbackBinding = createLocatorApprovalBinding(pendingApproval);
+      const futureLocator = pendingApproval.locator as typeof pendingApproval.locator & { futureLocatorEvidence?: { source: string } };
+      futureLocator.futureLocatorEvidence = { source: "future-recorder" };
+      const futureBinding = pendingApproval.locator!.approvedFallbackBinding! as LocatorApprovalBinding & { futureBindingVersion?: number };
+      futureBinding.futureBindingVersion = 2;
+      const approved = pendingApproval;
       const rt = structuredClone(JSON.parse(JSON.stringify(approved))) as FlowStep; // save+reload then IPC clone
       const q = rt.locator?.quality;
       const oq = approved.locator?.quality;
@@ -459,6 +519,8 @@ async function main() {
       check("[9] full quality survives (deep equal)", JSON.stringify(q) === JSON.stringify(oq));
       check("[9] resolution survives", rt.locator?.resolution === "user-approved-fallback");
       check("[9] approval reason survives", rt.locator?.approvedFallbackReason === approved.locator?.approvedFallbackReason);
+      check("[9] exact approval binding survives", JSON.stringify(rt.locator?.approvedFallbackBinding) === JSON.stringify(approved.locator?.approvedFallbackBinding));
+      check("[9] unknown future locator/binding fields survive save/reload + IPC clone", JSON.stringify((rt.locator as typeof futureLocator)?.futureLocatorEvidence) === JSON.stringify(futureLocator.futureLocatorEvidence) && (rt.locator?.approvedFallbackBinding as typeof futureBinding)?.futureBindingVersion === 2);
       check("[9] recording evidence survives (interaction present + deep equal)", JSON.stringify((rt.locator as { interaction?: unknown }).interaction) === JSON.stringify((approved.locator as { interaction?: unknown }).interaction));
       check("[9] ordered Shadow DOM host context survives save/reload + IPC clone", JSON.stringify(rt.locator?.context?.shadow) === JSON.stringify(approved.locator?.context?.shadow));
     }

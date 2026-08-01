@@ -1,5 +1,124 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-01 20:01 Asia/Amman, latest) — Recorder ambiguity epic complete
+
+- **From:** OpenAI Codex
+- **To:** next coding agent / human
+- **Branch:** `main`; no branch or worktree created.
+- **Outcome:** `awkit-aui.3.1`, `.3`, `.4.1`, `.4`, and parent epic `awkit-aui` are closed.
+  AWKIT-REC-030/033/034 are resolved. All seven ambiguity/replayability increments are complete.
+- **Behavior:** real positional/unresolved capture pauses before commit; choices are validated through
+  `LocatorFactory` in frame/shadow/container context; approval requires a reason and exact
+  locator/context/action/safety binding; stale edits and revocation fail closed; sensitive positional
+  actions remain blocked; approved non-dangerous use is visible in reports/history.
+- **Takeoff finding fixed:** an unchanged Flow Designer cycle normalized omitted `exact` to `false` and
+  revoked valid approval. The shared binding now treats those semantically identical values alike.
+- **Verification:** build/typecheck PASS; Recorder 171/171; ambiguity 62/62; flow 29/29; hover 34/34;
+  runner 89/89; Mock Site 110/110; mapping 111/111; store 18/18; IPC 4/4; draft 50/50; authz 50/50;
+  E2E 61/61 at 100% fidelity; Flow Designer 69/69; Recorder GUI 166/166; Reports 21/21 + 31/31;
+  a11y 14/0; classification 155/155; source hygiene 9/9; offline PASS.
+- **Ledger:** unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+- **Boundaries:** dependency manifests are untouched. Preserve `awkit-vot`, `awkit-0vm`, and
+  `awkit-hj8` as separate open limitations/audit work.
+
+---
+
+## HANDOFF (2026-08-01 19:31 Asia/Amman, latest) — Increment 3/4 reconciliation paused after scoped repairs
+
+- **From:** OpenAI Codex
+- **To:** next coding agent / human
+- **Branch / checkpoint:** `main` at `57dfad2f79e6b2bf951b49a69d043e11897cf311`; `origin/main`
+  is the same commit (`0` ahead / `0` behind).
+- **Working tree:** intentionally dirty with the uncommitted Increment 3/4 repair described below.
+  No branch or worktree was created, and nothing was committed or pushed during this paused task.
+- **Active items:** `awkit-aui.3` and `awkit-aui.4` are claimed and `IN_PROGRESS`. Defects
+  `awkit-aui.3.1` / `AWKIT-REC-033` and `awkit-aui.4.1` / `AWKIT-REC-034` are open pending the full
+  acceptance and gate run.
+
+### What was found and repaired
+
+Commit `6421315` supplied the initial review UI and positional guard, but did not satisfy the complete
+product contract. `RecorderService` could mark missing or unvalidated choices resolved; normal
+unique-but-positional captures bypassed review; highlighting guessed document-only CSS. Positional
+approval was an unbound enum with no required reason, so locator/context/action edits could inherit
+stale authority. Flow Designer exposed evidence but had no approval/revocation lifecycle.
+
+The current uncommitted repair:
+
+- pauses real positional/unresolved capture before commit and retains the authorized page only as
+  ephemeral review state;
+- validates selected alternatives or captured scope through the real `LocatorFactory` frame/shadow/
+  container context before resolving;
+- highlights semantic candidates through `LocatorFactory`, without serializing handles;
+- requires an approval reason and stores optional `approvedFallbackBinding` metadata bound to the
+  step type/name, exact locator, locator context (including frame/shadow), and safety classification;
+- invalidates stale approval during Flow Designer edits and profile mappings;
+- makes `FlowValidator` and `StepExecutor` reject unapproved, stale/incomplete, or sensitive
+  positional fallback before/during execution;
+- adds visible, keyboard-contained Recorder review UI plus Flow Designer approve/revoke/edit UI;
+- adds a gated Recorder Lab `?rec034=1` fixture and real Electron verification for capture → review →
+  approval → save/reload, Escape-as-defer, Flow Designer edit invalidation, and revocation.
+
+Main implementation paths changed: `src/profiles/{FlowProfile,locatorApproval}.ts`,
+`src/recorder/{RecorderService,RecorderTypes,buildRecordedFlow,recorderInitScript}.ts`,
+`src/runner/{LocatorFactory,StepExecutor}.ts`, `src/validation/FlowValidator.ts`, Recorder IPC/preload,
+`Recorder.tsx`, `FlowNodePropertiesPanel.tsx`, Flow Designer mappings/types, `global.css`, Recorder Lab,
+and the Recorder/ambiguity/GUI/Flow Designer verifiers. Tracker export, assignments, and
+`DEFECTS.md` also contain the two open defect records.
+
+### Verification completed in this paused task
+
+- `npm run build` — **PASS**.
+- `npm run typecheck:scripts` — first run **FAIL** (one new verifier optional-window reference), fixed;
+  final run **PASS**.
+- `npm run verify:recorder` — **171/171 PASS**.
+- `npm run verify:recorder-ambiguity` — **60/60 PASS**.
+- `npm run verify:mock-site` — **110/110 PASS**.
+- `npm run verify:recorder-gui` — first run **80 PASS / 1 FAIL** because the new case did not confirm
+  the existing async-review save dialog; fixed; final run **166 PASS / 0 FAIL / 0 NOT RUN**.
+- `npm run verify:flow-designer` — three verifier-interaction iterations failed while the late-suite
+  node/control was obscured by existing overlays/footer; final keyboard-driven UI path
+  **69/69 PASS**.
+- `git diff --check` — **PASS** at handoff inspection.
+
+### Graphify evidence
+
+Graphify `0.9.31` was queried before broad searching. Codex used live `graphify query`, `graphify path`,
+and expansion against the current AWKIT graph (including `AmbiguityState`, `RecorderService`,
+`FlowNodePropertiesPanel`, `FlowValidator`, `LocatorFactory`, and `StepExecutor`). Claude Code was
+rerun from this terminal with `claude -p --permission-mode bypassPermissions` and performed a live
+`graphify query recorder` traversal. Google Antigravity remains owner-confirmed **manual live-tool
+evidence**; do not relabel it terminal-verified automation. A final `graphify update .` has **not** yet
+been run because the structural work is uncommitted and the task paused.
+
+### Remaining work before any completion/closure claim
+
+1. Inspect the complete diff and add focused negative controls for stale context/action approval and
+   report/history disclosure of approved-fallback execution if existing coverage is insufficient.
+2. Extend mapping/profile-store/IPC round-trip assertions for `approvedFallbackBinding` and unknown
+   field preservation; verify Increment 6 shadow/frame metadata remains intact through edit/approval.
+3. Run the still-required gates: recorder-flow, hover, E2E, draft, authz, runner, flow-step-mapping,
+   profile-store, IPC, report, accessibility, verifier classification, roadmap dashboard, source
+   hygiene, offline validation, plus a final build/typecheck/GUI rerun.
+4. Produce and record the two acceptance matrices. Reconcile `DEFECTS.md`, `KNOWN_ISSUES.md`, the
+   validation ledger, ambiguity plan, current state, commands if needed, Beads evidence/comments, and
+   roadmap sources. Close defects/items/epic only if every criterion is supported.
+5. Run `graphify update .`, export Beads with the documented command, remove completed assignments,
+   review staged paths, commit coherent changes directly to `main`, and push normally.
+
+### Risks and do-not-touch boundaries
+
+- The full required gate set has **not** run; do not infer epic completion from the focused green runs.
+- No final report-output assertion has yet been added for the approved-fallback diagnostic.
+- Preserve `awkit-vot`, `awkit-0vm`, and `awkit-hj8` as separate open limitations/audit items.
+- Do not modify, regenerate, revert, stage, or commit `resources/dependency-manifest.json` or
+  `resources/dependency-manifest.sig`; neither path is currently changed.
+- Preserve the existing dirty worktree. Recommended next step: review `src/profiles/locatorApproval.ts`
+  and the Flow Designer mapping diffs, add the remaining lifecycle/round-trip/report controls, then run
+  the complete required gate set before changing Beads closure state.
+
+---
+
 ## HANDOFF (2026-08-01, latest) — Increment 6 Shadow DOM capture/replay complete (`awkit-aui.6`)
 
 - **From:** Codex

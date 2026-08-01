@@ -53,6 +53,44 @@ function seedFlowFixture(localAppData) {
   };
   writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
 
+  const positionalFlow = {
+    id: "verify-positional-approval",
+    name: "Verify Positional Approval",
+    description: "Increment 3/4 locator approval lifecycle fixture.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "start", type: "start", name: "Start" },
+      {
+        id: "positional",
+        type: "click",
+        name: "Pick second option",
+        locator: {
+          strategy: "css",
+          value: ".pos-btn >> nth=1",
+          quality: {
+            strategy: "fallback",
+            isUnique: true,
+            matchCount: 1,
+            confidence: "low",
+            disambiguation: "positional",
+            warning: "Fragile positional fallback"
+          },
+          resolution: "needs-review",
+          resolvedBy: "recorder",
+          reviewReason: "only position distinguishes these controls"
+        }
+      },
+      { id: "end", type: "end", name: "End" }
+    ],
+    edges: [
+      { id: "e0", source: "start", target: "positional", type: "success" },
+      { id: "e1", source: "positional", target: "end", type: "success" }
+    ]
+  };
+  writeFileSync(path.join(flowsDir, `${positionalFlow.id}.json`), `${JSON.stringify(positionalFlow, null, 2)}\n`, "utf8");
+
   // Stage 2b fixtures: an INVALID draft flow (missing locator on the active path + an orphan
   // node off it) and two one-flow workflows, so the walkthrough can assert the draft-save model,
   // the derived library status and the run gate's blocking policy end-to-end.
@@ -917,6 +955,68 @@ try {
   const afterUndo = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-zc-fixable-flow"));
   const undoneEdge = (afterUndo?.edges ?? []).find((edge) => edge.id === "e-cond");
   check("Undo restores the original document", undoneEdge?.conditional?.operator === "NotEquals" && undoneEdge?.conditional?.sourceField === "Outcome", JSON.stringify(undoneEdge?.conditional));
+
+  // --- 10. Increment 3/4: the real properties UI persists, invalidates and revokes approval. ---
+  console.log("\nIncrements 3/4: Flow Designer locator approval lifecycle");
+  await win.click(".searchable-select-trigger");
+  await win.locator(".searchable-select-menu >> text=Verify Positional Approval").first().click();
+  await win.waitForTimeout(600);
+  await win.keyboard.press("Escape");
+  const positionalNode = win.locator('.awkit-flow-node[data-id="positional"]');
+  await positionalNode.dispatchEvent("pointerdown", { pointerId: 1, clientX: 1, clientY: 1 });
+  await positionalNode.dispatchEvent("pointerup", { pointerId: 1, clientX: 1, clientY: 1 });
+  await win.waitForTimeout(300);
+  const showLocatorProperties = win.getByTitle("Show Node Properties");
+  if (await showLocatorProperties.isVisible().catch(() => false)) {
+    await showLocatorProperties.click();
+    await win.waitForTimeout(320);
+  }
+  const locatorReview = win.getByTestId("locator-review-state");
+  check("Flow Designer displays the unresolved positional locator", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  const approveLocator = win.getByTestId("approve-locator-fallback");
+  check("Flow Designer requires a reason before approval", await approveLocator.isDisabled());
+  await locatorReview.getByLabel("Approval reason").fill("Reviewed: fixture is intentionally position-only.");
+  check("Flow Designer enables explicit approval after a reason", await approveLocator.isEnabled());
+  await approveLocator.focus();
+  await win.keyboard.press("Enter");
+  check("Flow Designer displays approved-fallback state", /User-approved fallback/.test((await locatorReview.textContent()) ?? ""));
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(700);
+  const approvedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
+  const approvedNode = approvedProfile?.nodes?.find((node) => node.id === "positional");
+  check(
+    "Flow Designer save persists approval reason and exact binding",
+    approvedNode?.locator?.resolution === "user-approved-fallback" &&
+      approvedNode?.locator?.approvedFallbackReason === "Reviewed: fixture is intentionally position-only." &&
+      approvedNode?.locator?.approvedFallbackBinding?.version === 1,
+    JSON.stringify(approvedNode?.locator)
+  );
+
+  await win.getByLabel("Value", { exact: true }).fill(".pos-btn >> nth=0");
+  check("Editing the locator immediately invalidates stale approval", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(700);
+  const editedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
+  const editedNode = editedProfile?.nodes?.find((node) => node.id === "positional");
+  check(
+    "The invalidated approval is absent after save/reload",
+    editedNode?.locator?.resolution === "needs-review" &&
+      !editedNode?.locator?.approvedFallbackReason &&
+      !editedNode?.locator?.approvedFallbackBinding,
+    JSON.stringify(editedNode?.locator)
+  );
+
+  await locatorReview.getByLabel("Approval reason").fill("Reviewed again after the locator edit.");
+  await win.getByTestId("approve-locator-fallback").focus();
+  await win.keyboard.press("Enter");
+  await win.getByTestId("revoke-locator-fallback").focus();
+  await win.keyboard.press("Enter");
+  check("Revoking approval returns the locator to review-required", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(700);
+  const revokedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
+  const revokedNode = revokedProfile?.nodes?.find((node) => node.id === "positional");
+  check("Revoked approval remains blocked after save/reload", revokedNode?.locator?.resolution === "needs-review" && !revokedNode?.locator?.approvedFallbackBinding, JSON.stringify(revokedNode?.locator));
 
   check("Flow Designer walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 

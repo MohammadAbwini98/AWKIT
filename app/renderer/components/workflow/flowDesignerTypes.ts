@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorCandidate, LocatorContext, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -29,6 +29,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorResolvedBy?: "recorder" | "user";
   /** Reason provided by the user when accepting a fallback locator. */
   locatorApprovedFallbackReason?: string;
+  /** Exact locator/context/action fields the fallback approval was granted for. */
+  locatorApprovedFallbackBinding?: LocatorApprovalBinding;
   /** Recorder explanation for a review-required locator boundary. */
   locatorReviewReason?: string;
   /**

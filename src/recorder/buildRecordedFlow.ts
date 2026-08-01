@@ -43,6 +43,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       if (action.locator.context) step.locator.context = action.locator.context;
       if (action.locator.interaction) step.locator.interaction = action.locator.interaction;
       if (action.locator.approvedFallbackReason) step.locator.approvedFallbackReason = action.locator.approvedFallbackReason;
+      if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
       
       // Preserve explicit recorder/user decisions. Only derive a default for legacy payloads.

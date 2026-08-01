@@ -1,6 +1,7 @@
 import type { Page, Locator } from "playwright";
 import { createHash } from "node:crypto";
 import type { FlowStep, LocatorCandidate, LocatorContext, LocatorShadowHost } from "@src/profiles/FlowProfile";
+import { isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import {
   locatorCandidatesDigest,
   type LocatorElementFingerprint,
@@ -177,6 +178,18 @@ export class LocatorFactory {
   }
 
   /**
+   * Build one diagnostic/live-review candidate through the same frame, shadow-host and container
+   * root used by normal replay. It deliberately does not choose a match; callers can count,
+   * highlight, or prove uniqueness without inventing a parallel selector implementation.
+   */
+  async locateCandidate(candidate: LocatorCandidate, context?: LocatorContext): Promise<Locator> {
+    if (context?.shadow?.boundary === "open" && candidate.strategy === "xpath") {
+      throw new Error("XPath cannot be used for a target inside open Shadow DOM.");
+    }
+    return this.buildOn(await this.buildRoot(context), candidate);
+  }
+
+  /**
    * Resolve a step's locator to a *single* element for an action, with fallback support:
    *  1. Apply container/frame context so candidates resolve inside the right subtree.
    *  2. Try the primary, then `alternatives` in order.
@@ -224,8 +237,7 @@ export class LocatorFactory {
     if (pass.winner) {
       await this.rememberWinner(scopeKey, digest, pass.winner, step);
       
-      const isPositional = step.locator?.quality?.strategy === "fallback" || step.locator?.quality?.disambiguation === "positional";
-      if (isPositional && step.locator?.resolution === "user-approved-fallback") {
+      if (isPositionalLocator(step.locator) && isValidLocatorFallbackApproval(step)) {
         this.emit({
           type: "user-approved-fallback",
           stepId: step.id,
@@ -514,8 +526,17 @@ export class LocatorFactory {
     if (container) {
       let containerLocator = this.buildOn(root, container);
       if (container.hasText) containerLocator = containerLocator.filter({ hasText: container.hasText });
-      const single = await LocatorFactory.pickSingle(containerLocator, container, []);
-      root = (single ?? containerLocator.first()) as unknown as LocatorRoot;
+      const diagnostics: CandidateDiagnostic[] = [];
+      const single = await LocatorFactory.pickSingle(containerLocator, container, diagnostics);
+      if (single) {
+        root = single as unknown as LocatorRoot;
+      } else if (diagnostics.every(({ count }) => count === 0)) {
+        // A not-yet-present container may still appear during the action's normal auto-wait window.
+        root = containerLocator.first() as unknown as LocatorRoot;
+      } else {
+        const detail = diagnostics.map((d) => `${d.strategy}=${d.value}: ${d.count}`).join(", ");
+        throw new Error(`Locator container did not resolve strictly (${detail}).`);
+      }
     }
 
     return root;

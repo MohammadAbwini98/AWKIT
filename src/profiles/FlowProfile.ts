@@ -142,6 +142,20 @@ export type LocatorResolution =
   | "invalid";
 
 /**
+ * Exact, optional binding for a user-approved positional fallback. It intentionally repeats only
+ * the fields whose mutation could retarget the action; comparing the object is collision-free and
+ * keeps stale approval detection deterministic in the browser, main process, validator, and runner.
+ */
+export interface LocatorApprovalBinding {
+  version: 1;
+  stepType: string;
+  stepName: string;
+  locator: LocatorCandidate;
+  context?: LocatorContext;
+  safety?: StepSafetyPolicy;
+}
+
+/**
  * A recorded locator: the primary candidate plus optional runtime fallbacks, container/frame
  * scoping, and record-time quality metadata. Legacy steps only set the primary fields — the
  * new `alternatives`/`context` fields are optional, so old saved flows deserialize unchanged.
@@ -161,6 +175,8 @@ export interface StepLocator extends LocatorCandidate {
   resolvedBy?: "recorder" | "user";
   /** Reason provided by the user when accepting a fallback locator. */
   approvedFallbackReason?: string;
+  /** Material locator/action fields the approval was granted for. */
+  approvedFallbackBinding?: LocatorApprovalBinding;
   /** Recorder-provided reason for an explicit review-required boundary. */
   reviewReason?: string;
 }

@@ -100,7 +100,7 @@ async function recorderState(win: Page) {
 async function focusInfo(target: Page) {
   return target.evaluate(() => {
     const el = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector('[data-testid="recorder-review-modal"]');
+    const dialog = document.querySelector('[data-testid="recorder-review-modal"], [data-testid="ambiguity-resolution-panel"]');
     return {
       tag: el?.tagName ?? "(none)",
       name: (el?.getAttribute("aria-label") || el?.textContent || "").trim().slice(0, 48),
@@ -609,6 +609,71 @@ try {
   }
 
   // ── REC-013 — async review modal ───────────────────────────────────────────
+  console.log("\nIncrements 3/4 - Locator review and positional approval lifecycle");
+  await win.evaluate(() =>
+    window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: false, captureWaitTime: true } }));
+  await startAndWaitRecording(win, `${labUrl}?rec034=1`);
+  const ambiguityPanel = win.getByTestId("ambiguity-resolution-panel");
+  await ambiguityPanel.waitFor({ state: "visible", timeout: 20_000 });
+  const liveAmbiguity = await win.evaluate(() => window.playwrightFlowStudio.recorder.getAmbiguityState());
+  check("Increment 3 a real captured positional action opens the review UI", liveAmbiguity?.kind === "positional", JSON.stringify(liveAmbiguity));
+  check("Increment 3 the review UI is a labelled modal alertdialog", (await ambiguityPanel.getAttribute("role")) === "alertdialog" && (await ambiguityPanel.getAttribute("aria-modal")) === "true");
+  const pendingActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+  check("Increment 3 the pending action is not committed before a decision", pendingActions.every((action) => action.name !== liveAmbiguity?.action.name));
+  const evidenceText = (await win.getByTestId("ambiguity-evidence").textContent()) ?? "";
+  check("Increment 3 the review exposes quality, match counts, and context", /Confidence/.test(evidenceText) && /Total matches/.test(evidenceText) && /Context/.test(evidenceText), evidenceText);
+  check("Increment 3 the primary locator and ranked alternatives are visible", (await win.getByTestId("ambiguity-primary-locator").count()) === 1 && (await ambiguityPanel.getByText(/Alternative 1/).count()) >= 1);
+  check("Increment 3 the blocked-execution consequence is explicit", ((await ambiguityPanel.textContent()) ?? "").includes("Execution is blocked"));
+  const ambiguityFocus = await focusInfo(win);
+  check("Increment 3 opening locator review moves focus into it", ambiguityFocus.insideDialog, JSON.stringify(ambiguityFocus));
+  const locatorForwardTrap: Awaited<ReturnType<typeof focusInfo>>[] = [];
+  for (let i = 0; i < 10; i += 1) {
+    await win.keyboard.press("Tab");
+    locatorForwardTrap.push(await focusInfo(win));
+  }
+  check("Increment 3 keyboard focus stays inside locator review", locatorForwardTrap.every((sample) => sample.insideDialog), JSON.stringify(locatorForwardTrap));
+
+  const approvalReason = win.getByTestId("ambiguity-approval-reason");
+  const approveButton = win.getByTestId("ambiguity-approve-fallback");
+  check("Increment 4 positional approval is disabled without a reason", await approveButton.isDisabled());
+  await approvalReason.fill("Reviewed: fixture controls are intentionally position-only.");
+  check("Increment 4 a specific reason enables explicit approval", await approveButton.isEnabled());
+  await approveButton.click();
+  await ambiguityPanel.waitFor({ state: "hidden", timeout: 10_000 });
+  const approvedActions = await poll("approved positional action committed", async () => {
+    const actions = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+    return actions.some((action) => action.locator?.resolution === "user-approved-fallback") ? actions : null;
+  });
+  const approvedAction = approvedActions.find((action) => action.locator?.resolution === "user-approved-fallback");
+  check("Increment 4 approval persists a reason", approvedAction?.locator?.approvedFallbackReason === "Reviewed: fixture controls are intentionally position-only.", approvedAction?.locator?.approvedFallbackReason);
+  check("Increment 4 approval persists an exact locator binding", approvedAction?.locator?.approvedFallbackBinding?.version === 1, JSON.stringify(approvedAction?.locator?.approvedFallbackBinding));
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+  await win.getByLabel("Flow Name").fill("Increment 3-4 Locator Review");
+  await win.getByRole("button", { name: "Save to Flow Library", exact: true }).click();
+  const asyncReview = win.getByTestId("recorder-review-modal");
+  if (await asyncReview.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await asyncReview.getByTestId("review-confirm-save").click();
+  }
+  await win.getByText(/Flow saved to library successfully/).first().waitFor({ timeout: 20_000 });
+  const savedReviewFlow = await win.evaluate(async () => {
+    const summary = (await window.playwrightFlowStudio.flows.list()).find((flow) => flow.name === "Increment 3-4 Locator Review");
+    return summary ? window.playwrightFlowStudio.flows.get(summary.id) : null;
+  });
+  const savedApprovedStep = savedReviewFlow?.nodes.find((node) => node.locator?.resolution === "user-approved-fallback");
+  check("Increment 3/4 save and reload retain the approved locator", savedApprovedStep?.locator?.approvedFallbackBinding?.version === 1, JSON.stringify(savedApprovedStep?.locator));
+
+  await startAndWaitRecording(win, `${labUrl}?rec034=1`);
+  await win.getByTestId("ambiguity-resolution-panel").waitFor({ state: "visible", timeout: 20_000 });
+  await win.keyboard.press("Escape");
+  await win.getByTestId("ambiguity-resolution-panel").waitFor({ state: "hidden", timeout: 10_000 });
+  const deferredActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+  check("Increment 3 dismissing review leaves the action unresolved", deferredActions.some((action) => action.locator?.resolution === "needs-review"));
+  await cancelButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
   // The precondition this case could never meet is a recording that contains review-worthy async
   // activity. `?rec013=1` on the Recorder Lab supplies it: two self-driven actions separated by a
   // deliberately QUIET 1.4 s. The settings below are load-bearing, not incidental — RecorderService
@@ -1211,6 +1276,10 @@ try {
     recordingInteractive.map((t) => `${t.tag}"${t.name}"`).join(" → ") || "nothing received focus"
   );
   // Recorded actions must be announced as they arrive, not only painted into the timeline.
+  // Recorder start resolves before the renderer's polling loop necessarily receives the initial
+  // navigation action. Wait for that responsible precondition so a slow poll cannot masquerade as
+  // a missing live-region contract.
+  await win.locator(".recorder-timeline").waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
   check(
     "REC-029 recording: the action timeline is a live region",
     await win.evaluate(() => {
@@ -1469,7 +1538,7 @@ const failed = results.filter((r) => r.status === "FAIL").length;
 const skipped = results.filter((r) => r.status === "NOT RUN").length;
 writeFileSync(
   join(evidenceDir, "execution-results.json"),
-  JSON.stringify({ runId: runStamp, cases: ["REC-001", "REC-002", "REC-003", "REC-004", "REC-013", "REC-019", "REC-021", "REC-024", "REC-025", "REC-029", "SET-004", "SET-005"], passed, failed, notRun: skipped, results, rendererErrors }, null, 2),
+  JSON.stringify({ runId: runStamp, cases: ["REC-001", "REC-002", "REC-003", "REC-004", "REC-013", "REC-019", "REC-021", "REC-024", "REC-025", "REC-029", "AWKIT-REC-033", "AWKIT-REC-034", "SET-004", "SET-005"], passed, failed, notRun: skipped, results, rendererErrors }, null, 2),
   "utf8"
 );
 console.log(`\nRecorder GUI: ${passed} PASS / ${failed} FAIL / ${skipped} NOT RUN`);

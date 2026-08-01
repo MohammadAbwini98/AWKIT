@@ -223,6 +223,12 @@
                 if (r) r.textContent = 'pos-clicked-' + pos.indexOf(b);
               });
             });
+            // Increment 3/4 GUI harness: only active while the Recorder binding is installed.
+            // During replay the binding is absent, so the fixture cannot satisfy its own result.
+            if (new URLSearchParams(window.location.search).get('rec034') === '1' &&
+                typeof window.__awtkit_recordAction === 'function') {
+              window.setTimeout(function () { pos[1].click(); }, 600);
+            }
           })();
         </script>
 

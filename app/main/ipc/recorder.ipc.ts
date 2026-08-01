@@ -144,9 +144,9 @@ export function registerRecorderIpc(): void {
     }
   );
 
-  ipcMain.handle("recorder:highlightCandidate", async (event, selector: string, index?: number) => {
+  ipcMain.handle("recorder:highlightCandidate", async (event, candidateIndex?: number) => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
-    return await recorderService.highlightAmbiguityCandidate(selector, index);
+    return await recorderService.highlightAmbiguityCandidate(candidateIndex);
   });
 
   ipcMain.handle("recorder:clearHighlight", async (event) => {
@@ -154,4 +154,3 @@ export function registerRecorderIpc(): void {
     return await recorderService.clearHighlight();
   });
 }
-

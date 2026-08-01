@@ -24,6 +24,7 @@ import { StepExecutor } from "@src/runner/StepExecutor";
 import { executionBlockingErrorsOf, hasActivePathError, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowStep } from "@src/profiles/FlowProfile";
+import { createLocatorApprovalBinding } from "@src/profiles/locatorApproval";
 
 let passed = 0;
 let failed = 0;
@@ -65,6 +66,20 @@ async function makeContext(): Promise<InstanceExecutionContext> {
       sessions: join(dir, "sessions")
     }
   };
+}
+
+function approveFallback(step: FlowStep, reason = "Reviewed in the locator verifier."): FlowStep {
+  const approved: FlowStep = {
+    ...step,
+    locator: {
+      ...step.locator!,
+      resolution: "user-approved-fallback",
+      resolvedBy: "user",
+      approvedFallbackReason: reason
+    }
+  };
+  approved.locator!.approvedFallbackBinding = createLocatorApprovalBinding(approved);
+  return approved;
 }
 
 const UTILITY_CLASS = /\.(flex|items-center|justify-center|relative|absolute|grid|block|hidden)\b/;
@@ -299,7 +314,7 @@ async function main() {
   {
     await page.setContent(`<button class="flex" onclick="window.__hit='pos'">Go</button>`);
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
-    const step: FlowStep = {
+    const step = approveFallback({
       id: "s4",
       type: "click",
       name: "Click Go",
@@ -307,9 +322,8 @@ async function main() {
         strategy: "css",
         value: "button.flex",
         quality: { strategy: "fallback", isUnique: true, matchCount: 1, confidence: "low" },
-        resolution: "user-approved-fallback"
       }
-    };
+    });
     const result = await exec.execute(step);
     check("approved positional fallback on non-dangerous step passes", result.status === "passed", result.error || result.status);
   }
@@ -318,7 +332,7 @@ async function main() {
   {
     await page.setContent(`<input type="text">`);
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
-    const step: FlowStep = {
+    const step = approveFallback({
       id: "s5",
       type: "click",
       name: "Click Delete",
@@ -326,9 +340,8 @@ async function main() {
         strategy: "css",
         value: "input",
         quality: { strategy: "fallback", isUnique: true, matchCount: 1, confidence: "low" },
-        resolution: "user-approved-fallback"
       }
-    };
+    });
     const result = await exec.execute(step);
     check("approved positional fallback on dangerous step still fails", result.status === "failed", result.status);
     check("dangerous step error mentions sensitive action", /performs a sensitive action/i.test(result.error ?? ""), result.error);

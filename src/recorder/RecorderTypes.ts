@@ -1,4 +1,4 @@
-import type { LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { LocatorApprovalBinding, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -41,9 +41,10 @@ export interface RecordedActionLocator {
       origin?: string;
     };
   };
-  resolution?: "needs-review" | "user-approved-fallback" | "resolved";
+  resolution?: "needs-review" | "user-approved-fallback" | "resolved" | "invalid";
   resolvedBy?: "user" | "recorder";
   approvedFallbackReason?: string;
+  approvedFallbackBinding?: LocatorApprovalBinding;
   reviewReason?: string;
 }
 
@@ -177,8 +178,14 @@ export type AmbiguityResolutionChoice =
 
 export interface AmbiguityResolutionPayload {
   candidateIndex?: number;
+  approvalReason?: string;
 }
 
 export interface AmbiguityState {
   action: RecordedAction;
+  kind: "ambiguous" | "positional" | "unsupported";
+  reason: string;
+  canSelectCandidates: boolean;
+  canApproveFallback: boolean;
+  canScopeToCurrentContext: boolean;
 }

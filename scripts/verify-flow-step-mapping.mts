@@ -15,8 +15,13 @@
  * timeouts recalculated on load, condition reordering, and legacy flows gaining incompatible fields.
  */
 import { fromFlowStep, toFlowStep, type FlowDesignerNode, type FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
+import {
+  fromFlowStep as fromProductionFlowStep,
+  toFlowStep as toProductionFlowStep
+} from "../app/renderer/components/workflow/flowProfileMapping";
 import { readFile } from "node:fs/promises";
 import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
+import { createLocatorApprovalBinding } from "../src/profiles/locatorApproval";
 
 let passed = 0;
 let failed = 0;
@@ -44,6 +49,17 @@ function nodeFor(step: FlowStep): FlowDesignerNode {
 /** One full model → designer → model cycle through the real converters. */
 function cycle(step: FlowStep): FlowStep {
   return toFlowStep(nodeFor(step), []);
+}
+
+/** One cycle through FlowChartDesigner's actual superset mapping module. */
+function productionCycle(step: FlowStep): FlowStep {
+  const node = {
+    id: step.id,
+    type: "action",
+    position: step.position ?? { x: 0, y: 0 },
+    data: fromProductionFlowStep(step)
+  } as FlowDesignerNode;
+  return toProductionFlowStep(node, []);
 }
 
 /** Run N cycles to expose gradual field loss that a single round trip would hide. */
@@ -418,6 +434,52 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
   check("locator.context (container + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
   check("locator Shadow DOM interaction evidence preserved", json(out.locator?.interaction) === json(locator.interaction), json(out.locator?.interaction));
   check("locator Shadow DOM resolution provenance preserved", out.locator?.resolution === "resolved" && out.locator?.resolvedBy === "recorder");
+}
+
+console.log("\nPositional-fallback approval binding lifecycle (awkit-aui.4):");
+{
+  const approved: FlowStep = baseStep({
+    type: "click",
+    name: "Choose second twin",
+    safety: { sideEffectLevel: "none", retryable: true },
+    locator: {
+      strategy: "css",
+      value: ".pos-btn:nth-of-type(2)",
+      context: {
+        frame: { selector: "iframe#catalog" },
+        shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "product-host" }] }
+      },
+      quality: { strategy: "fallback", disambiguation: "positional", isUnique: true, matchCount: 1, confidence: "low" },
+      resolution: "user-approved-fallback",
+      resolvedBy: "user",
+      approvedFallbackReason: "Reviewed: the fixture intentionally exposes position only."
+    }
+  });
+  approved.locator!.approvedFallbackBinding = createLocatorApprovalBinding(approved);
+
+  const roundTrip = cycle(approved);
+  check("approved binding survives designer save/load with frame + shadow context", json(roundTrip.locator?.approvedFallbackBinding) === json(approved.locator?.approvedFallbackBinding), json(roundTrip.locator));
+  check("approved resolution remains valid across an unchanged designer cycle", roundTrip.locator?.resolution === "user-approved-fallback" && roundTrip.locator?.approvedFallbackReason === approved.locator?.approvedFallbackReason);
+  const productionRoundTrip = productionCycle(approved);
+  check("approved binding survives FlowChartDesigner's production mapping", json(productionRoundTrip.locator?.approvedFallbackBinding) === json(approved.locator?.approvedFallbackBinding) && productionRoundTrip.locator?.resolution === "user-approved-fallback", json(productionRoundTrip.locator));
+
+  const renamedNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  renamedNode.data.name = "Choose a different twin";
+  const renamed = toProductionFlowStep(renamedNode, []);
+  check("action-name edit invalidates approval and removes stale authority", renamed.locator?.resolution === "needs-review" && renamed.locator?.approvedFallbackBinding === undefined && renamed.locator?.approvedFallbackReason === undefined, json(renamed.locator));
+
+  const contextNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  contextNode.data.locatorContext = {
+    ...contextNode.data.locatorContext,
+    frame: { selector: "iframe#other-catalog" }
+  };
+  const recontextualized = toProductionFlowStep(contextNode, []);
+  check("frame/context edit invalidates approval and removes stale authority", recontextualized.locator?.resolution === "needs-review" && recontextualized.locator?.approvedFallbackBinding === undefined && recontextualized.locator?.approvedFallbackReason === undefined, json(recontextualized.locator));
+
+  const safetyNode = { ...nodeFor(approved), data: fromProductionFlowStep(approved) } as FlowDesignerNode;
+  safetyNode.data.safety = { sideEffectLevel: "dangerousMutation", retryable: false };
+  const resafed = toProductionFlowStep(safetyNode, []);
+  check("safety/action-policy edit invalidates approval and removes stale authority", resafed.locator?.resolution === "needs-review" && resafed.locator?.approvedFallbackBinding === undefined && resafed.locator?.approvedFallbackReason === undefined, json(resafed.locator));
 }
 
 console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");
