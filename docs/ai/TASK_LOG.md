@@ -9015,3 +9015,30 @@ pm run verify:mock-site
   private key material was read, copied, or recorded.
 - **Result:** Owed packaged run discharged as far as this machine permits. Ledger unchanged at
   62 PASS / 3 NOT RUN / 1 BLOCKED. Beads unchanged.
+
+## 2026-08-02: Restore the dependency manifest to the committed baseline
+
+- **Agent:** coding agent (Claude Code)
+- **Task:** Resolve the manifest pair left dirty by the packaging run in the entry above. Owner chose
+  restore-to-baseline over committing the regenerated pair.
+- **Action:** `git checkout -- resources/dependency-manifest.json resources/dependency-manifest.sig`,
+  taken only after explicit owner instruction (the standing note forbids revert as well as commit) and
+  after confirming those two paths were the ONLY dirty entries. The regenerated pair was copied to the
+  session scratchpad first, so the restore is reversible without another full packaging run.
+- **Post-restore verification:**
+  - working tree **clean**; `git diff HEAD -- resources/` empty (byte-identical to committed)
+  - `node scripts/offline-manifest-signature.mjs verify` → **exit 0**
+  - file SHA-256 `76281176af…` equals `manifestSha256` recorded in the `.sig`
+  - restored values: version `0.1.2`, `sourceCommit fb29217…`, generated `2026-07-31T17:51:40Z`
+- **Repo and artifact now differ, correctly.** `dist/win-unpacked/resources/resources/dependency-manifest.json`
+  still records `sourceCommit 549a9ff` — the built EXE was not touched by the restore, so the
+  walkthrough result above remains valid and re-runnable against that artifact. The artifact describes
+  the source it was built from; the repo holds the last committed baseline. This is the expected steady
+  state, not drift.
+- **Consequence to remember:** with the baseline restored, `validate:offline -Strict` will again fail
+  its release-current provenance assertion, because `sourceCommit fb29217` is not HEAD. That is the
+  designed behavior — a release build regenerates the manifest at the release commit, which every
+  packaging script already does, as demonstrated by the passing `-Strict` run recorded above.
+- **Files changed:** `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`. No private key material was
+  read, copied, or recorded at any point.
+- **Result:** Manifest disposition resolved. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.

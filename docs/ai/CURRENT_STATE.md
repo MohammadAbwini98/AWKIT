@@ -38,7 +38,13 @@ sites fails or reports INCONCLUSIVE rather than passing. Floor measured against 
 processes on the development machine. Part M's egress checks were already protected by
 `observer.samples >= 5`, which is the pattern the rest of the file now follows.
 
-The committed `resources/dependency-manifest.{json,sig}` pair remains byte-untouched. It is valid and
+The committed `resources/dependency-manifest.{json,sig}` pair remains byte-untouched. Packaging on
+2026-08-02 necessarily regenerated and re-signed it at HEAD; on owner instruction it was **restored to
+the committed baseline afterwards** (byte-identical to HEAD, signature re-verified, SHA-256 matching
+the `.sig`), following the precedent that a packaging regeneration is not committed alongside
+unrelated work. The built artifact under `dist/win-unpacked/` keeps its **own** copy recording
+`sourceCommit 549a9ff` — repo and artifact differing here is correct, not drift: the artifact
+describes the source it was built from, the repo holds the last committed baseline. It is valid and
 self-consistent, but it is **not release-current** because `application.sourceCommit` does not equal
 the current Git HEAD. Ordinary `validate:offline` continues to verify integrity; `-Strict` is the
 release-only gate and additionally requires manifest app version to equal `package.json` and
