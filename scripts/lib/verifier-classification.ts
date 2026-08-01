@@ -73,6 +73,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:recorder-e2e": { class: "real-browser", why: "REC-018 + awkit-60w — drives the real Recorder UI, saves/restarts, then measures matched production-replay steps across baseline and two live DOM-drift profiles in bundled Chromium." },
   "verify:recorder": { class: "real-browser", why: "Records inside a real Chromium page and asserts unique semantic locators." },
   "verify:recorder-hover": { class: "real-browser", why: "Live verification of Recorder's hover-dependency capture feature using real Chromium." },
+  "verify:recorder-ambiguity": { class: "real-browser", why: "awkit-aui.8 nine-point acceptance gate — records ambiguous/duplicate/hover controls in real Chromium, then drives buildRecordedFlow, FlowValidator preflight, LocatorFactory and StepExecutor to prove capture, ancestor scoping, deterministic replay, review-required state, approved positional fallback, zero-launch preflight, round-trip integrity and hover replay, with negative controls." },
   "verify:waits": { class: "real-browser", why: "Live Smart Wait checks against real Chromium." },
   "verify:concurrency": { class: "real-browser", why: "BrowserContextFactory profile-lock + cleanup with real Chromium." },
   "verify:capacity-settings-gui": { class: "real-browser", why: "Real-Electron check of the Runtime Concurrency settings UI." },

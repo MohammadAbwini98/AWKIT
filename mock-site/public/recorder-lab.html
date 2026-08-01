@@ -203,6 +203,29 @@
           </tbody>
         </table>
 
+        <!-- Recorder ambiguity gate (awkit-aui.8). Two identical "Approve" controls distinguished only
+             by position under a stable-testid wrapper -> the recorder yields a positional fallback that
+             replays only through explicit user approval. Two identical "Ghost" controls with no stable
+             containing scope -> the recorder cannot uniquely locate them. Neither button carries a
+             per-element distinguisher; the click handler reports the clicked index by DOM position so a
+             verifier can prove replay hit the same candidate without leaking a locator hint. -->
+        <div data-testid="pos-twins" class="pos-twins">
+          <div class="pos-slot"><button type="button" class="pos-btn">Pick option</button></div>
+          <div class="pos-slot"><button type="button" class="pos-btn">Pick option</button></div>
+        </div>
+        <span data-testid="pos-twin-result">idle</span>
+        <script>
+          (function () {
+            var pos = Array.prototype.slice.call(document.querySelectorAll('.pos-btn'));
+            pos.forEach(function (b) {
+              b.addEventListener('click', function () {
+                var r = document.querySelector('[data-testid="pos-twin-result"]');
+                if (r) r.textContent = 'pos-clicked-' + pos.indexOf(b);
+              });
+            });
+          })();
+        </script>
+
         <p id="duplicateResult" data-testid="duplicate-result" role="status">No duplicate-control action yet</p>
       </section>
     </main>

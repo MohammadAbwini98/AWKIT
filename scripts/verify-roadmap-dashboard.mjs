@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("135 issues parse", beads.stats.total === 135, `got ${beads.stats.total}`);
+  check("139 issues parse", beads.stats.total === 139, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -94,9 +94,13 @@ try {
   // Then 17/118 of 135 on 2026-07-31: epic `awkit-aui` (Recorder ambiguity-resolution &
   // recorded-flow replayability, AWKIT-REC-030) filed with 7 dependency-ordered children
   // (`awkit-aui.1`…`.6`, `.8`), adding 8 outstanding (total 127 → 135) and 7 edges (76 → 83).
+  // Then 18/121 of 139 on 2026-08-01: `awkit-aui.5` (Inc5 hover-replay repair, AWKIT-REC-031) and
+  // `awkit-aui.8` (Inc7 nine-point ambiguity gate) closed; four follow-ups filed OPEN — `awkit-bw9`
+  // (table-row container-name replay gap), `awkit-vot` + `awkit-0vm` (Inc5 hover residuals), and
+  // `awkit-hj8` (dependency-manifest audit). Net: total 135 → 139, closed 120 → 121, outstanding 15 → 18.
   check(
-    "15 outstanding / 120 closed",
-    beads.stats.outstanding === 15 && beads.stats.closed === 120,
+    "18 outstanding / 121 closed",
+    beads.stats.outstanding === 18 && beads.stats.closed === 121,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

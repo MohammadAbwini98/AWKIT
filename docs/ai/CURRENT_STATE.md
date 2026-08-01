@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: Increment 7 — nine-point acceptance gate landed (2026-08-01)
+
+Increment 7 (`awkit-aui.8`) is complete. New `verify:recorder-ambiguity` (registered in `package.json`,
+`scripts/lib/verifier-classification.ts` as real-browser, and `docs/ai/COMMANDS.md`) is the durable
+nine-point Recorder ambiguity/replayability gate. It drives the **real** responsible layers — records
+duplicate/ambiguous/hover controls in bundled Chromium, then exercises `recorderInitScript` capture +
+candidate/locator generation, `buildRecordedFlow`, `FlowValidator` preflight, `LocatorFactory` and
+`StepExecutor`, plus plain-JSON/`structuredClone` round trips and the import re-validation contract.
+
+- Nine points, each an independent, defect-sensitive check: (1) records the actual selected candidate;
+  (2) attempts stable ancestor/context scoping first; (3) deterministic replay to the same candidate;
+  (4) no-unique-locator → `needs-review`; (5) approved positional fallback executes only through the
+  approved-fallback policy (unapproved refused; sensitive-step positional refused even when approved);
+  (6) unresolved ambiguity fails preflight with **zero browser launches** (real launch counter + control);
+  (7) resolved locator survives save/reload/edit/serialize/import-export/IPC/execution; (8) hover
+  prerequisite captured + replays from a fresh page; (9) alternatives/quality/warning/uniqueness/
+  resolution/approval/evidence survive round trips. Plus negative controls (unscoped 2-match refused,
+  wrong-candidate rejected, hidden-surface hover fails, click-without-hover fails).
+- **Result: 55/55.** Mutation-tested: breaking `buildRecordedFlow`'s `needs-review` default makes
+  points 4 and 6 fail (needs-review lost → preflight passes → a browser launches), proving the suite is
+  not vacuous.
+- Mock-site `/recorder-lab` gained a `pos-twins` positional-approval fixture (two identical `.pos-btn`
+  controls distinguished only by position; index reported via `pos-twin-result`).
+- Tracked limitations recorded in `KNOWN_ISSUES.md` + `bd`: hover sibling/self-toggle (`awkit-vot`) and
+  hover-inserted controls (`awkit-0vm`) residuals; a genuine table-row container-name replay gap found
+  while building the gate (`awkit-bw9`, P2). Dependency-manifest audit opened as `awkit-hj8`.
+- Verification (re-run this session): `npm run build` PASS; `typecheck:scripts` PASS;
+  `verify:recorder-ambiguity` **55/55**; `verify:recorder-hover` **34/34**; `verify:recorder`
+  **119/119**; `verify:recorder-flow` **26/26**; `verify:runner` **89/89**; `verify:mock-site`
+  **99/99**; `verify:verifier-classification` reconciled; `verify:source-hygiene` **9/9**;
+  `validate:offline` PASS; `verify:roadmap-dashboard` Sources agree. Comprehensive validation ledger
+  unchanged by this increment: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
 ## Recorder ambiguity-resolution: Increment 5 (Hover-Dependency Capture) repaired + replay-verified (2026-08-01)
 
 Increment 5 (`awkit-aui.5`). **Correction:** the first cut shipped capture + flow-construction that

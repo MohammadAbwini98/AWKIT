@@ -155,6 +155,11 @@ npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — record
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the trigger (not the hidden revealed surface), guards the old-locator regression,
                             # and covers async/needs-review negatives. (34/34)
+npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
+                            # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
+                            # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,
+                            # ancestor scoping, deterministic replay, review-required state, approved positional fallback,
+                            # round-trip integrity and hover replay, with negative controls.
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library
                             # → production replay → Flow Designer save → two DOM-drift replays. Reports

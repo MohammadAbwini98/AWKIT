@@ -220,6 +220,15 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   toggles on its own (async) produces no hover step. Verified by `npm run verify:recorder-hover`, which
   records, builds, and **replays Hover→Click on fresh pages** and guards against the hidden-surface
   regression.
+- ✅ **Ambiguity/replayability acceptance gate** (`npm run verify:recorder-ambiguity`): the durable
+  nine-point regression for the whole Recorder ambiguity story — records the actual selected candidate,
+  prefers stable ancestor/context scoping, replays deterministically to the same candidate, marks
+  no-unique-locator steps `needs-review`, executes approved positional fallbacks only through the
+  approved-fallback policy (refusing unapproved and sensitive-step positionals), **fails preflight with
+  zero browser launches** on unresolved ambiguity, preserves locator evidence across
+  save/reload/edit/serialize/import-export/IPC/execution, and captures + replays hover prerequisites —
+  each an independent, defect-sensitive check driving the real recorder → `buildRecordedFlow` →
+  `FlowValidator` → `LocatorFactory` → `StepExecutor` path.
 - ✅ **Compound / tree locators for non-unique elements** (`recorderInitScript.ts`): when no single
   strategy is unique, the recorder combines the element's meaningful features (stable attributes +
   rare, non-utility classes) with the **fewest distinguishing ancestors** (descendant combinators,

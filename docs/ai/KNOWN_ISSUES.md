@@ -16,6 +16,31 @@ legal review and code-signing certificate operations remain external release res
 > **Workflow (2026-07-25):** AWKIT develops on `main` only; commits are never withheld because an
 > issue below is open. Authority: `docs/ai/BRANCH_AND_COMMIT_POLICY.md`.
 
+## Recorder ambiguity/replayability — tracked limitations (2026-08-01, epic `awkit-aui`)
+
+These are deliberate scope boundaries of the ambiguity/hover work (Increments 5 & 7), not regressions.
+They are tracked in `bd`; none are "supported behavior".
+
+- **Hover: sibling/self-toggle triggers not attributed** (`awkit-vot`). Increment 5 attributes a
+  hover reveal only when the click target has a hidden-at-rest *ancestor container*. A sibling/self
+  trigger (`.trigger:hover + .target`) with no hidden ancestor is classified "none" (no hover step)
+  rather than fabricating a trigger — so such a recorded click can still fail replay.
+- **Hover: controls inserted only after hover** (`awkit-0vm`). First-seen (rest) visibility is recorded
+  at the baseline scan; a control inserted into the DOM only after a hover is never seen hidden-at-rest,
+  so no hover prerequisite is produced.
+- **Live needs-review is not reproducible in the mock** (context for `awkit-aui.8`). The recorder
+  anchors a positional fallback at the nearest stable ancestor, and the whole `/recorder-lab` section
+  carries `data-testid="duplicate-controls"`, so no in-page element yields `quality.isUnique === false`.
+  The genuine "no unique locator" case (the YouTube twin-"Shorts" case) is therefore exercised at the
+  `buildRecordedFlow` layer — the responsible code that maps `isUnique === false` to `needs-review` —
+  inside `verify:recorder-ambiguity` point 4.
+- **Table-row container name captured without cell spacing** (`awkit-bw9`, P2 bug — genuine
+  replayability gap). Container-scoping a duplicate table button by the concatenated row accessible
+  name (`"Customer BetaEdit"`) fails `getByRole('row',{name})` replay, because the platform accessible
+  name is space-joined (`"Customer Beta Edit"`). Compound and single-control role+name scoping replay
+  fine; only the concatenated-row-name path is affected. `verify:recorder-ambiguity` uses the reliable
+  package-card compound case for its replay-determinism point.
+
 ## FLAKY: `verify:settings-runner-behaviour` — the hover-reveal Run button (2026-07-27)
 
 **Measured on identical code, no rebuild between runs: FAIL, FAIL, FAIL, PASS.**

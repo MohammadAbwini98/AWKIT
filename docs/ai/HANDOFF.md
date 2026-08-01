@@ -1,5 +1,37 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-01, latest) — Increment 7 nine-point ambiguity gate landed (`awkit-aui.8`)
+
+- **From:** Claude
+- **To:** next agent / human
+- **Branch:** `main` (single-branch policy)
+
+**What landed.** `verify:recorder-ambiguity` — the durable nine-point Recorder ambiguity/replayability
+acceptance gate — drives the real responsible layers (recorderInitScript capture + locator generation,
+buildRecordedFlow, FlowValidator preflight, LocatorFactory, StepExecutor, JSON/structuredClone round
+trips, import re-validation). Registered in `package.json` + `verifier-classification.ts` (real-browser)
++ `COMMANDS.md`. **55/55**, and mutation-tested (breaking the `needs-review` default fails points 4 & 6,
+so the suite is not vacuous). Point 6 proves a zero-launch preflight with a real `chromium.launch`
+counter. Mock-site gained a `pos-twins` positional-approval fixture.
+
+**Verification (this session):** build PASS · typecheck:scripts PASS · verify:recorder-ambiguity 55/55 ·
+verify:recorder-hover 34/34 · verify:recorder 119/119 · verify:recorder-flow 26/26 · verify:runner
+89/89 · verify:mock-site 99/99 · verify:verifier-classification reconciled · verify:source-hygiene 9/9 ·
+validate:offline PASS · verify:roadmap-dashboard Sources agree. Comprehensive validation ledger
+unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Tracking.** Increment 5 residuals `awkit-vot` (sibling/self-toggle hover) + `awkit-0vm`
+(hover-inserted controls); genuine finding `awkit-bw9` (P2, table-row container name captured without
+cell spacing fails `getByRole` replay); dependency-manifest audit `awkit-hj8` (manifest NOT modified).
+All in `KNOWN_ISSUES.md`.
+
+**Next / readiness for Increment 6.** Before starting Increment 6 (shadow-DOM via composedPath),
+confirm Increment 2's real state from code + git + `bd` (bd is known-stale): whether landmark/href
+candidate scoping is fully implemented and verified. Inc6 also needs open/closed shadow mock-site
+fixtures and `verify:recorder-locator` shadow cases. Do not start it yet.
+
+---
+
 ## HANDOFF (2026-08-01, later) — Increment 5 hover REPLAY repaired + verified (`awkit-aui.5`)
 
 - **From:** Claude

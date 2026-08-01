@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Claude - Increment 7: nine-point ambiguity acceptance gate (`awkit-aui.8`)
+
+- **Task:** implement `verify:recorder-ambiguity`, the durable nine-point Recorder ambiguity/
+  replayability acceptance gate, driving the real responsible layers (not fixture text).
+- **Verifier:** new `scripts/verify-recorder-ambiguity.mts` — records duplicate/ambiguous/hover
+  controls in bundled Chromium, then exercises `recorderInitScript` capture + locator generation,
+  `buildRecordedFlow`, `FlowValidator` preflight (`validateFlowDefinition`/`hasActivePathError`/
+  `executionBlockingErrorsOf`), `LocatorFactory` (approved-fallback recovery event) and `StepExecutor`,
+  plus JSON/`structuredClone` round trips and the import re-validation contract. Registered in
+  `package.json`, `scripts/lib/verifier-classification.ts` (real-browser) and `docs/ai/COMMANDS.md`.
+- **Point 6 (zero-launch):** real `chromium.launch` counter + control — the unresolved flow's static
+  preflight blocks (`locatorNeedsReview`, active-path) and 0 browsers launch; a resolved flow passes and
+  launches exactly once. Mirrors the `execution.ipc.ts:267` gate with the real validator.
+- **Mock-site:** added a `pos-twins` positional-approval fixture to `/recorder-lab`; relabelled its
+  buttons to a benign "Pick option" (the guard treats "approve" as a dangerous keyword). README updated.
+- **Result:** `verify:recorder-ambiguity` **55/55**. Mutation-tested: forcing `buildRecordedFlow` to
+  drop the `needs-review` default makes points 4 and 6 fail — the suite is defect-sensitive, not vacuous.
+- **Findings/tracking:** filed `awkit-bw9` (table-row container name captured without cell spacing fails
+  `getByRole` replay — genuine, out-of-scope gap); Increment 5 residuals `awkit-vot`/`awkit-0vm`;
+  dependency-manifest audit `awkit-hj8` (manifest NOT modified this increment). All in `KNOWN_ISSUES.md`.
+- **Tests run:** build PASS; typecheck:scripts PASS; verify:recorder-ambiguity 55/55; verify:recorder-hover
+  34/34; verify:recorder 119/119; verify:recorder-flow 26/26; verify:runner 89/89; verify:mock-site 99/99;
+  verify:verifier-classification reconciled; verify:source-hygiene 9/9; validate:offline PASS;
+  verify:roadmap-dashboard Sources agree (full results in the session summary).
+- **Files:** `scripts/verify-recorder-ambiguity.mts`, `package.json`, `scripts/lib/verifier-classification.ts`,
+  `mock-site/public/recorder-lab.html`, `mock-site/README.md`, `scripts/verify-recorder-flow.mts` (no
+  change this increment), `docs/ai/*`, `docs/testing/comprehensive-validation/DEFECTS.md` (unchanged).
+
+---
+
 ## 2026-08-01 - Claude - Repair Increment 5 hover replay (AWKIT-REC-031, `awkit-aui.5`)
 
 - **Task:** repair Increment 5 — the recorded `hover` step targeted the hidden revealed surface, so
