@@ -123,6 +123,28 @@ try {
   check("container-scoped checkbox targets the Basic card", ((await page.getByTestId("duplicate-result").textContent()) ?? "").includes("package-basic"));
   check("customer table repeats Edit per row", (await page.locator("[data-testid='duplicate-customer-table'] .row-edit").count()) === 2);
 
+  // Increment 6 Shadow DOM lab: Playwright's normal locators pierce open roots, while fixture
+  // status nodes prove the intended host/control handled the action.
+  check("open-shadow unique role control exists", (await page.getByRole("button", { name: "Unique shadow action" }).count()) === 1);
+  check("duplicate open-shadow controls are globally ambiguous", (await page.getByRole("button", { name: "Select", exact: true }).count()) === 2);
+  await page.getByTestId("shadow-card-b").getByRole("button", { name: "Select" }).click();
+  check("host-scoped shadow action targets the second host", (await page.getByTestId("shadow-card-b-result").textContent()) === "clicked");
+  check("host-scoped shadow action leaves the first host unchanged", (await page.getByTestId("shadow-card-a-result").textContent()) === "idle");
+  await page.getByRole("button", { name: "Nested shadow action" }).click();
+  check("nested open-shadow control is actionable", (await page.getByTestId("shadow-nested-result").textContent()) === "nested-clicked");
+  await page.getByTestId("shadow-internal-testid").click();
+  check("open-shadow test-id control is actionable", (await page.getByTestId("shadow-testid-result").textContent()) === "testid-clicked");
+  await page.getByTestId("attach-dynamic-shadow").click();
+  await page.getByRole("button", { name: "Dynamic shadow action" }).click();
+  check("dynamically attached open root is actionable", (await page.getByTestId("shadow-dynamic-result").textContent()) === "clicked");
+  await page.getByTestId("shadow-slotted-control").click();
+  check("slotted light-DOM control is actionable", (await page.getByTestId("shadow-slotted-result").textContent()) === "slotted-clicked");
+  check("known closed-root host exists without exposing internals", (await page.getByTestId("shadow-closed-host").count()) === 1 && (await page.getByRole("button", { name: "Closed internal action" }).count()) === 0);
+  const sameOriginFrame = page.frameLocator('[data-testid="shadow-same-origin-frame"]');
+  await sameOriginFrame.getByRole("button", { name: "Frame shadow action" }).click();
+  check("same-origin frame open-shadow control is actionable", (await sameOriginFrame.getByTestId("frame-shadow-result").textContent()) === "frame-shadow-clicked");
+  check("cross-origin shadow frame fixture loads from 127.0.0.1", /127\.0\.0\.1/.test(await page.getByTestId("shadow-cross-origin-frame").getAttribute("src")));
+
   // REC-018 capture harness. Both gates must hold, and the SECOND one is what keeps the REC-018
   // replay assertion honest: with ?rec018=1 but no Recorder attached the harness must stay inert,
   // so a production replay of the saved flow can only fill the form via the replayed steps.

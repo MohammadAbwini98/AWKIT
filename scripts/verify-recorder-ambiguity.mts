@@ -432,6 +432,18 @@ async function main() {
         ...(posStep as FlowStep),
         locator: {
           ...posStep.locator!,
+          context: {
+            ...posStep.locator!.context,
+            shadow: {
+              boundary: "open",
+              hosts: [{ strategy: "testId", value: "shadow-host-b" }]
+            }
+          },
+          interaction: {
+            ...posStep.locator!.interaction,
+            shadowBoundary: "open",
+            path: ["button", "x-shadow-card"]
+          },
           resolution: "user-approved-fallback",
           resolvedBy: "user",
           approvedFallbackReason: "Reviewed: identical controls; positional accepted."
@@ -448,6 +460,7 @@ async function main() {
       check("[9] resolution survives", rt.locator?.resolution === "user-approved-fallback");
       check("[9] approval reason survives", rt.locator?.approvedFallbackReason === approved.locator?.approvedFallbackReason);
       check("[9] recording evidence survives (interaction present + deep equal)", JSON.stringify((rt.locator as { interaction?: unknown }).interaction) === JSON.stringify((approved.locator as { interaction?: unknown }).interaction));
+      check("[9] ordered Shadow DOM host context survives save/reload + IPC clone", JSON.stringify(rt.locator?.context?.shadow) === JSON.stringify(approved.locator?.context?.shadow));
     }
 
     // ── Extra negative control: an unscoped locator matching two visible elements is refused ───────

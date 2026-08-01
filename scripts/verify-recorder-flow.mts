@@ -151,6 +151,46 @@ const uRT = JSON.parse(JSON.stringify(unresolvedFlow));
 const uRtClick = uRT.nodes.find((n: { type: string }) => n.type === "click");
 check("needs-review survives JSON round-trip", uRtClick?.locator?.resolution === "needs-review");
 
+// ── Shadow context: explicit review/resolution and evidence survive build + JSON round-trip ──
+const shadowActions: RecordedAction[] = [
+  {
+    id: "sh1",
+    type: "click",
+    name: "Click Select",
+    locator: {
+      strategy: "role",
+      value: "button",
+      name: "Select",
+      quality: { strategy: "role", isUnique: true, matchCount: 1, visibleMatchCount: 1, confidence: "high", disambiguation: "shadow" },
+      context: { shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "product-card-2" }] } },
+      interaction: { path: ["button", "product-card"], shadowBoundary: "open" },
+      resolution: "resolved",
+      resolvedBy: "recorder"
+    }
+  },
+  {
+    id: "sh2",
+    type: "click",
+    name: "Review closed host",
+    locator: {
+      strategy: "testId",
+      value: "closed-host",
+      context: { shadow: { boundary: "closed", hosts: [{ strategy: "testId", value: "closed-host" }] } },
+      interaction: { path: ["closed-widget"], shadowBoundary: "closed" },
+      resolution: "needs-review",
+      resolvedBy: "recorder",
+      reviewReason: "closed shadow root"
+    }
+  }
+];
+const shadowFlow = buildRecordedFlow("Shadow", shadowActions);
+const shadowRT = JSON.parse(JSON.stringify(shadowFlow));
+const openShadow = shadowRT.nodes.find((n: { name: string }) => n.name === "Click Select");
+const closedShadow = shadowRT.nodes.find((n: { name: string }) => n.name === "Review closed host");
+check("open shadow host chain survives build + JSON round-trip", openShadow?.locator?.context?.shadow?.hosts?.[0]?.value === "product-card-2");
+check("shadow interaction evidence survives build + JSON round-trip", openShadow?.locator?.interaction?.shadowBoundary === "open" && openShadow?.locator?.interaction?.path?.[0] === "button");
+check("explicit closed-shadow review state is not overwritten by buildRecordedFlow", closedShadow?.locator?.resolution === "needs-review" && closedShadow?.locator?.reviewReason === "closed shadow root");
+
 // ── Duplicate Start/End from the recording are dropped ───────────────────────
 const withDupes = buildRecordedFlow("Dupes", [
   { id: "s", type: "start", name: "Start" },

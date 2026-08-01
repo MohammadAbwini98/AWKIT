@@ -228,6 +228,143 @@
 
         <p id="duplicateResult" data-testid="duplicate-result" role="status">No duplicate-control action yet</p>
       </section>
+
+      <section data-testid="shadow-dom-capture">
+        <h2>Open and closed Shadow DOM capture</h2>
+        <p>
+          Expected: open-root controls record their real semantic target and ordered host scope;
+          closed-root and unsupported cross-origin-frame interactions require review.
+        </p>
+        <awkit-shadow-box data-testid="shadow-unique-host" label="Unique shadow action" result="shadow-unique-result"></awkit-shadow-box>
+        <span data-testid="shadow-unique-result">idle</span>
+
+        <awkit-shadow-box data-testid="shadow-card-a" label="Select" result="shadow-card-a-result"></awkit-shadow-box>
+        <span data-testid="shadow-card-a-result">idle</span>
+        <awkit-shadow-box data-testid="shadow-card-b" label="Select" result="shadow-card-b-result"></awkit-shadow-box>
+        <span data-testid="shadow-card-b-result">idle</span>
+
+        <awkit-nested-outer data-testid="shadow-nested-outer"></awkit-nested-outer>
+        <span data-testid="shadow-nested-result">idle</span>
+
+        <awkit-shadow-testid data-testid="shadow-testid-host"></awkit-shadow-testid>
+        <span data-testid="shadow-testid-result">idle</span>
+
+        <button type="button" data-testid="attach-dynamic-shadow">Attach dynamic shadow root</button>
+        <div data-testid="dynamic-shadow-mount"></div>
+        <span data-testid="shadow-dynamic-result">idle</span>
+
+        <awkit-slot-box data-testid="shadow-slot-host">
+          <button type="button" slot="control" data-testid="shadow-slotted-control">Slotted light control</button>
+        </awkit-slot-box>
+        <span data-testid="shadow-slotted-result">idle</span>
+
+        <awkit-closed-box data-testid="shadow-closed-host"></awkit-closed-box>
+        <span data-testid="shadow-closed-result">idle</span>
+
+        <div data-testid="ambiguous-shadow-hosts">
+          <awkit-ambiguous-host class="ambiguous-shadow-host"></awkit-ambiguous-host>
+          <awkit-ambiguous-host class="ambiguous-shadow-host"></awkit-ambiguous-host>
+        </div>
+        <span data-testid="shadow-ambiguous-result">idle</span>
+
+        <iframe data-testid="shadow-same-origin-frame" title="Same-origin shadow frame" src="/shadow-frame-child"></iframe>
+        <iframe data-testid="shadow-cross-origin-frame" title="Cross-origin shadow frame"></iframe>
+
+        <script>
+          (function () {
+            var setResult = function (id, value) {
+              var target = document.querySelector('[data-testid="' + id + '"]');
+              if (target) target.textContent = value;
+            };
+            class ShadowBox extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                var root = this.attachShadow({ mode: 'open' });
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = this.getAttribute('label') || 'Shadow action';
+                button.addEventListener('click', () => setResult(this.getAttribute('result'), 'clicked'));
+                root.appendChild(button);
+              }
+            }
+            class NestedInner extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                var root = this.attachShadow({ mode: 'open' });
+                root.innerHTML = '<button type="button">Nested shadow action</button>';
+                root.querySelector('button').addEventListener('click', function () { setResult('shadow-nested-result', 'nested-clicked'); });
+              }
+            }
+            class NestedOuter extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                var root = this.attachShadow({ mode: 'open' });
+                root.innerHTML = '<awkit-nested-inner data-testid="shadow-nested-inner"></awkit-nested-inner>';
+              }
+            }
+            class ShadowTestId extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                var root = this.attachShadow({ mode: 'open' });
+                root.innerHTML = '<button type="button" data-testid="shadow-internal-testid">Test ID shadow action</button>';
+                root.querySelector('button').addEventListener('click', function () { setResult('shadow-testid-result', 'testid-clicked'); });
+              }
+            }
+            class SlotBox extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                this.attachShadow({ mode: 'open' }).innerHTML = '<slot name="control"></slot>';
+              }
+            }
+            class ClosedBox extends HTMLElement {
+              connectedCallback() {
+                if (this.__ready) return;
+                this.__ready = true;
+                var root = this.attachShadow({ mode: 'closed' });
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Closed internal action';
+                button.addEventListener('click', function () { setResult('shadow-closed-result', 'closed-clicked'); });
+                root.appendChild(button);
+                this.triggerInternal = function () { button.click(); };
+              }
+            }
+            class AmbiguousHost extends HTMLElement {
+              connectedCallback() {
+                if (this.shadowRoot) return;
+                var root = this.attachShadow({ mode: 'open' });
+                root.innerHTML = '<button type="button">Ambiguous inner action</button>';
+                root.querySelector('button').addEventListener('click', () => {
+                  var hosts = Array.prototype.slice.call(document.querySelectorAll('awkit-ambiguous-host'));
+                  setResult('shadow-ambiguous-result', 'ambiguous-' + hosts.indexOf(this));
+                });
+              }
+            }
+            customElements.define('awkit-shadow-box', ShadowBox);
+            customElements.define('awkit-nested-inner', NestedInner);
+            customElements.define('awkit-nested-outer', NestedOuter);
+            customElements.define('awkit-shadow-testid', ShadowTestId);
+            customElements.define('awkit-slot-box', SlotBox);
+            customElements.define('awkit-closed-box', ClosedBox);
+            customElements.define('awkit-ambiguous-host', AmbiguousHost);
+
+            document.querySelector('[data-testid="attach-dynamic-shadow"]').addEventListener('click', function () {
+              var mount = document.querySelector('[data-testid="dynamic-shadow-mount"]');
+              if (mount.querySelector('awkit-shadow-box')) return;
+              var host = document.createElement('awkit-shadow-box');
+              host.setAttribute('data-testid', 'shadow-dynamic-host');
+              host.setAttribute('label', 'Dynamic shadow action');
+              host.setAttribute('result', 'shadow-dynamic-result');
+              mount.appendChild(host);
+            });
+            document.querySelector('[data-testid="shadow-slotted-control"]').addEventListener('click', function () {
+              setResult('shadow-slotted-result', 'slotted-clicked');
+            });
+            document.querySelector('[data-testid="shadow-cross-origin-frame"]').src =
+              location.protocol + '//127.0.0.1:' + location.port + '/shadow-frame-child';
+          })();
+        </script>
+      </section>
     </main>
 
     <script>

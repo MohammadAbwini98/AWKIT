@@ -399,12 +399,25 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
     ],
     context: {
       container: { type: "tableRow" as const, strategy: "css" as const, value: "tr.selected", hasText: "Acme", visibleOnly: true },
-      frame: { selector: "iframe#app" }
-    }
+      frame: { selector: "iframe#app" },
+      shadow: {
+        boundary: "open" as const,
+        hosts: [
+          { strategy: "testId" as const, value: "product-card-2", alternatives: [{ strategy: "id" as const, value: "card-two" }] },
+          { strategy: "testId" as const, value: "nested-picker" }
+        ]
+      }
+    },
+    interaction: { path: ["button", "product-picker", "product-card"], shadowBoundary: "open" as const },
+    resolution: "resolved" as const,
+    resolvedBy: "recorder" as const,
+    reviewReason: undefined
   };
   const out = cycle(baseStep({ type: "click", name: "Save", locator }));
   check("locator.alternatives preserved (compound self-heal payload)", json(out.locator?.alternatives) === json(locator.alternatives), json(out.locator?.alternatives));
   check("locator.context (container + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
+  check("locator Shadow DOM interaction evidence preserved", json(out.locator?.interaction) === json(locator.interaction), json(out.locator?.interaction));
+  check("locator Shadow DOM resolution provenance preserved", out.locator?.resolution === "resolved" && out.locator?.resolvedBy === "recorder");
 }
 
 console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");

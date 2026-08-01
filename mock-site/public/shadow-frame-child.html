@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Shadow frame child</title></head>
+  <body>
+    <awkit-frame-shadow data-testid="frame-shadow-host"></awkit-frame-shadow>
+    <p data-testid="frame-shadow-result">idle</p>
+    <script>
+      customElements.define('awkit-frame-shadow', class extends HTMLElement {
+        connectedCallback() {
+          if (this.shadowRoot) return;
+          var root = this.attachShadow({ mode: 'open' });
+          root.innerHTML = '<button type="button">Frame shadow action</button>';
+          root.querySelector('button').addEventListener('click', function () {
+            document.querySelector('[data-testid="frame-shadow-result"]').textContent = 'frame-shadow-clicked';
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

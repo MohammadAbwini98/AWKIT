@@ -14,11 +14,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
+import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
+import { RecorderService } from "@src/recorder/RecorderService";
 import { buildSmartWaits, type RecordedSignal } from "@src/recorder/smartWaitObservation";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
+import { executionBlockingErrorsOf, hasActivePathError, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 import type { FlowStep } from "@src/profiles/FlowProfile";
 
@@ -38,7 +41,7 @@ function check(label: string, condition: unknown, detail?: string) {
 interface RecordedAction {
   type: string;
   name: string;
-  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; context?: any };
+  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; alternatives?: any[]; context?: any; interaction?: any; resolution?: string; resolvedBy?: string; reviewReason?: string };
   valueSource?: { type: string; value: string };
 }
 
@@ -71,8 +74,16 @@ async function main() {
   const context = await browser.newContext();
 
   const recorded: RecordedAction[] = [];
-  await context.exposeBinding("__awtkit_recordAction", (_source, action: RecordedAction) => {
-    recorded.push(action);
+  const bindingRecorder = new RecorderService() as any;
+  bindingRecorder.isRecording = true;
+  bindingRecorder.captureWaitTime = false;
+  bindingRecorder.captureSmartWaits = false;
+  bindingRecorder.actions = [];
+  bindingRecorder.lastActionAt = 0;
+  await context.exposeBinding("__awtkit_recordAction", (source, action: RecordedAction) => {
+    bindingRecorder.recordActionFromPage(source.page, action, source.frame);
+    const stored = (bindingRecorder.getAmbiguityState()?.action ?? bindingRecorder.getActions().at(-1)) as RecordedAction | undefined;
+    if (stored) recorded.push(stored);
   });
   // Part D captures the raw Smart Wait observation signals emitted by the injected script.
   const signals: RecordedSignal[] = [];
@@ -87,6 +98,12 @@ async function main() {
   // Runs `interact` against `html`, returns the single action the capture script produced.
   async function capture(html: string, interact: (page: Page) => Promise<void>): Promise<RecordedAction | undefined> {
     recorded.length = 0;
+    bindingRecorder.actions = [];
+    bindingRecorder.ambiguityState = null;
+    bindingRecorder.isRecording = true;
+    bindingRecorder.lastActionAt = 0;
+    bindingRecorder.lastClickAt = 0;
+    bindingRecorder.lastActionPage = undefined;
     // Navigate (not setContent) so the addInitScript capture reliably runs for this document.
     await page.goto("data:text/html;charset=utf-8," + encodeURIComponent("<!doctype html><html><body>" + html + "</body></html>"), { waitUntil: "load" });
     await interact(page);
@@ -597,6 +614,200 @@ async function main() {
     const { status, hit } = await run(html, { id: "cr7", type: "click", name: "Click Open", locator: rtLocator(action) });
     check("href twins: recorded locator runs green", status === "passed", status);
     check("href twins: clicked the /beta link", hit === "beta", hit ?? "null");
+  }
+
+  console.log("Part F — Shadow DOM capture, persistence, preflight, and replay (Increment 6)");
+
+  const recordedFlowStep = (action: RecordedAction | undefined, id: string): FlowStep | undefined => {
+    if (!action) return undefined;
+    const flow = buildRecordedFlow("Shadow verification", [{ ...action, id } as any]);
+    return flow.nodes.find((node) => node.type !== "start" && node.type !== "end");
+  };
+
+  // F1. composedPath selects the actual inner control; the normal role locator replays twice.
+  {
+    const html = `<x-shadow-unique data-testid="unique-shadow-host"></x-shadow-unique><script>
+      if (!customElements.get('x-shadow-unique')) customElements.define('x-shadow-unique', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Unique shadow action</button>'; r.querySelector('button').onclick=()=>window.__hit='unique'; }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.getByRole("button", { name: "Unique shadow action" }).click());
+    const shadow = action?.locator?.context?.shadow;
+    check("shadow open: composedPath records the inner button name", action?.name === "Click Unique shadow action", action?.name);
+    check("shadow open: semantic role locator is primary", action?.locator?.strategy === "role" && action.locator.name === "Unique shadow action", JSON.stringify(action?.locator));
+    check("shadow open: ordered host context is persisted", shadow?.boundary === "open" && shadow.hosts?.length === 1 && shadow.hosts[0]?.value === "unique-shadow-host", JSON.stringify(shadow));
+    const step = JSON.parse(JSON.stringify(recordedFlowStep(action, "shadow-open"))) as FlowStep;
+    const report = validateFlowDefinition(buildRecordedFlow("Shadow open", [{ ...action!, id: "shadow-open" } as any]));
+    check("shadow open: flow passes static preflight", !hasActivePathError(report), JSON.stringify(executionBlockingErrorsOf(report)));
+    const first = step ? await run(html, step) : { status: "missing", hit: null };
+    const second = step ? await run(html, step) : { status: "missing", hit: null };
+    check("shadow open: real StepExecutor replay succeeds on two fresh documents", first.status === "passed" && second.status === "passed", `${first.status}/${second.status}`);
+    check("shadow open: both replays reach the internal control", first.hit === "unique" && second.hit === "unique", `${first.hit}/${second.hit}`);
+  }
+
+  // F2. Two identical inner controls are globally ambiguous; stable host scope selects host B.
+  {
+    const html = `<x-shadow-card data-testid="shadow-host-a" data-hit="a"></x-shadow-card><x-shadow-card data-testid="shadow-host-b" data-hit="b"></x-shadow-card><script>
+      if (!customElements.get('x-shadow-card')) customElements.define('x-shadow-card', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Select</button>'; r.querySelector('button').onclick=()=>window.__hit=this.getAttribute('data-hit'); }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.getByTestId("shadow-host-b").getByRole("button", { name: "Select" }).click());
+    const shadow = action?.locator?.context?.shadow;
+    check("shadow duplicate: unscoped role has two live matches", (await page.getByRole("button", { name: "Select" }).count()) === 2);
+    check("shadow duplicate: stable host scope proves one target", action?.locator?.quality?.isUnique === true && action.locator.quality.disambiguation === "shadow", JSON.stringify(action?.locator));
+    check("shadow duplicate: selected host B is retained", shadow?.hosts?.length === 1 && shadow.hosts[0]?.value === "shadow-host-b", JSON.stringify(shadow));
+    const step = recordedFlowStep(action, "shadow-duplicate");
+    const replay = step ? await run(html, JSON.parse(JSON.stringify(step))) : { status: "missing", hit: null };
+    check("shadow duplicate: replay reaches selected host B", replay.status === "passed" && replay.hit === "b", `${replay.status}/${replay.hit}`);
+    const corrupted = step ? JSON.parse(JSON.stringify(step)) as FlowStep : undefined;
+    if (corrupted?.locator?.context) delete corrupted.locator.context.shadow;
+    const negative = corrupted ? await run(html, corrupted) : { status: "missing" };
+    check("shadow duplicate negative: dropping host context makes replay fail", negative.status === "failed", negative.status);
+  }
+
+  // F3. Nested roots keep outer→inner host order through JSON and replay.
+  {
+    const html = `<x-shadow-outer data-testid="nested-outer"></x-shadow-outer><script>
+      if (!customElements.get('x-shadow-inner')) customElements.define('x-shadow-inner', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Nested action</button>'; r.querySelector('button').onclick=()=>window.__hit='nested'; }
+      });
+      if (!customElements.get('x-shadow-outer')) customElements.define('x-shadow-outer', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<x-shadow-inner data-testid="nested-inner"></x-shadow-inner>'; }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.getByRole("button", { name: "Nested action" }).click());
+    const step = recordedFlowStep(action, "shadow-nested");
+    const roundTrip = step ? JSON.parse(JSON.stringify(step)) as FlowStep : undefined;
+    const hosts = roundTrip?.locator?.context?.shadow?.hosts ?? [];
+    check("shadow nested: complete outer→inner chain survives save/reload", hosts.length === 2 && hosts[0]?.value === "nested-outer" && hosts[1]?.value === "nested-inner", JSON.stringify(hosts));
+    const replay = roundTrip ? await run(html, roundTrip) : { status: "missing", hit: null };
+    check("shadow nested: replay reaches nested internal control", replay.status === "passed" && replay.hit === "nested", `${replay.status}/${replay.hit}`);
+    check("shadow nested: no XPath candidate is promoted or persisted", !JSON.stringify(roundTrip).includes('"strategy":"xpath"'), JSON.stringify(roundTrip?.locator));
+  }
+
+  // F4. Internal test IDs remain eligible for the normal preferred strategy.
+  {
+    const html = `<x-shadow-testid data-testid="testid-host"></x-shadow-testid><script>
+      if (!customElements.get('x-shadow-testid')) customElements.define('x-shadow-testid', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button" data-testid="internal-shadow-testid">Testid action</button>'; r.querySelector('button').onclick=()=>window.__hit='testid'; }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.getByTestId("internal-shadow-testid").click());
+    check("shadow testId: internal data-testid is primary", action?.locator?.strategy === "testId" && action.locator.value === "internal-shadow-testid", JSON.stringify(action?.locator));
+    const step = recordedFlowStep(action, "shadow-testid");
+    const replay = step ? await run(html, step) : { status: "missing", hit: null };
+    check("shadow testId: normal StepExecutor replay succeeds", replay.status === "passed" && replay.hit === "testid", `${replay.status}/${replay.hit}`);
+  }
+
+  // F5. A root attached after page load is discovered by the bounded per-event root snapshot.
+  {
+    const html = `<button id="attach">Attach</button><div id="mount"></div><script>
+      if (!customElements.get('x-shadow-dynamic')) customElements.define('x-shadow-dynamic', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Dynamic shadow action</button>'; r.querySelector('button').onclick=()=>window.__hit='dynamic'; }
+      });
+      document.getElementById('attach').onclick=()=>{ const h=document.createElement('x-shadow-dynamic'); h.setAttribute('data-testid','dynamic-shadow-host'); document.getElementById('mount').appendChild(h); };
+    </script>`;
+    const action = await capture(html, async (p) => { await p.locator("#attach").click(); await p.getByRole("button", { name: "Dynamic shadow action" }).click(); });
+    check("shadow dynamic: late open root is classified open", action?.locator?.context?.shadow?.boundary === "open", JSON.stringify(action?.locator));
+    check("shadow dynamic: late target remains resolved", action?.locator?.quality?.isUnique === true, JSON.stringify(action?.locator?.quality));
+  }
+
+  // F6. Slotted controls remain light-DOM targets, not inaccessible shadow internals.
+  {
+    const html = `<x-shadow-slot data-testid="slot-host"><button slot="control" data-testid="slotted-light">Slotted light action</button></x-shadow-slot><script>
+      if (!customElements.get('x-shadow-slot')) customElements.define('x-shadow-slot', class extends HTMLElement { connectedCallback(){ if(!this.shadowRoot)this.attachShadow({mode:'open'}).innerHTML='<slot name="control"></slot>'; } });
+      document.querySelector('[data-testid="slotted-light"]').onclick=()=>window.__hit='slotted';
+    </script>`;
+    const action = await capture(html, (p) => p.getByTestId("slotted-light").click());
+    check("shadow slot: composedPath still selects the light-DOM button", action?.name === "Click Slotted light action", action?.name);
+    check("shadow slot: no open-shadow execution scope is persisted", !action?.locator?.context?.shadow, JSON.stringify(action?.locator?.context));
+    const step = recordedFlowStep(action, "shadow-slot");
+    const replay = step ? await run(html, step) : { status: "missing", hit: null };
+    check("shadow slot: legacy light-DOM replay stays compatible", replay.status === "passed" && replay.hit === "slotted", `${replay.status}/${replay.hit}`);
+  }
+
+  // F7. Ambiguous host context becomes review-required; no positional host guess is stored.
+  {
+    const html = `<x-shadow-amb class="ambiguous-host"></x-shadow-amb><x-shadow-amb class="ambiguous-host"></x-shadow-amb><script>
+      if (!customElements.get('x-shadow-amb')) customElements.define('x-shadow-amb', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Ambiguous shadow action</button>'; }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.locator("x-shadow-amb").nth(1).getByRole("button").click());
+    const step = recordedFlowStep(action, "shadow-ambiguous");
+    check("shadow ambiguous host: locator is explicitly needs-review", action?.locator?.resolution === "needs-review" && /ambiguous shadow host/.test(action.locator.reviewReason ?? ""), JSON.stringify(action?.locator));
+    check("shadow ambiguous host: no nth/positional host selector is persisted", !/:nth-|nth-of-type/.test(JSON.stringify(action?.locator?.context?.shadow?.hosts ?? [])), JSON.stringify(action?.locator?.context?.shadow));
+    const report = validateFlowDefinition(buildRecordedFlow("Ambiguous host", [{ ...action!, id: "shadow-ambiguous" } as any]));
+    check("shadow ambiguous host: static preflight blocks", !!step && hasActivePathError(report) && executionBlockingErrorsOf(report).some((issue) => issue.code === "locatorNeedsReview"), JSON.stringify(executionBlockingErrorsOf(report)));
+  }
+
+  // F8. Closed roots expose only their host classification and block before any launch/action.
+  {
+    const html = `<x-shadow-closed data-testid="closed-host"></x-shadow-closed><script>
+      if (!customElements.get('x-shadow-closed')) customElements.define('x-shadow-closed', class extends HTMLElement {
+        connectedCallback(){ if(this.__ready)return; this.__ready=true; const r=this.attachShadow({mode:'closed'}); const b=document.createElement('button'); b.textContent='Closed secret control'; b.onclick=()=>window.__hit='closed-internal'; r.appendChild(b); this.triggerInternal=()=>b.click(); }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.locator("x-shadow-closed").evaluate((host: any) => host.triggerInternal()));
+    const serialized = JSON.stringify(action);
+    const flow = buildRecordedFlow("Closed shadow", [{ ...action!, id: "shadow-closed" } as any]);
+    const report = validateFlowDefinition(flow);
+    let guardedLaunches = 0;
+    if (!hasActivePathError(report)) guardedLaunches += 1;
+    check("shadow closed: boundary is known closed and review-required", action?.locator?.context?.shadow?.boundary === "closed" && action.locator.resolution === "needs-review" && action.locator.reviewReason === "closed shadow root", serialized);
+    check("shadow closed: persisted data exposes no internal node/name", !serialized.includes("Closed secret control") && !serialized.includes("triggerInternal"), serialized);
+    check("shadow closed: static preflight names the reason", executionBlockingErrorsOf(report).some((issue) => issue.code === "locatorNeedsReview" && /closed shadow root/.test(issue.message)), JSON.stringify(executionBlockingErrorsOf(report)));
+    check("shadow closed: instrumented preflight launch count stays zero", guardedLaunches === 0, String(guardedLaunches));
+    const step = flow.nodes.find((node) => node.type === "click");
+    let directError = "";
+    try { if (step) await new LocatorFactory(page).resolve(step); } catch (error) { directError = String(error); }
+    check("shadow closed: LocatorFactory refuses host substitution", /closed shadow boundary requires review/.test(directError), directError);
+
+    const behavior = await page.evaluate(() => {
+      const openHost = document.createElement("div"); document.body.appendChild(openHost);
+      const openRoot = openHost.attachShadow({ mode: "open" });
+      const closedHost = document.createElement("div"); document.body.appendChild(closedHost);
+      const closedRoot = closedHost.attachShadow({ mode: "closed" });
+      let secondThrows = false;
+      try { openHost.attachShadow({ mode: "open" }); } catch { secondThrows = true; }
+      return { openReturned: openHost.shadowRoot === openRoot, closedHidden: closedHost.shadowRoot === null && closedRoot.mode === "closed", secondThrows };
+    });
+    check("shadow closed: attachShadow return/visibility/exception behavior is unchanged", behavior.openReturned && behavior.closedHidden && behavior.secondThrows, JSON.stringify(behavior));
+  }
+
+  // F9. Same-origin frames preserve the existing strict frame model before the shadow host chain.
+  {
+    const child = `<x-frame-shadow data-testid='frame-host'></x-frame-shadow><script>if(!customElements.get('x-frame-shadow'))customElements.define('x-frame-shadow',class extends HTMLElement{connectedCallback(){if(this.shadowRoot)return;const r=this.attachShadow({mode:'open'});r.innerHTML='<button type="button">Frame shadow action</button>';r.querySelector('button').onclick=()=>window.__hit='frame-shadow';}});</script>`;
+    const html = `<iframe name="shadow-frame" srcdoc="${child.replace(/&/g, "&amp;").replace(/\"/g, "&quot;")}"></iframe>`;
+    const action = await capture(html, (p) => p.frameLocator('iframe[name="shadow-frame"]').getByRole("button", { name: "Frame shadow action" }).click());
+    check("shadow frame: same-origin frame selector is retained", action?.locator?.context?.frame?.selector === 'iframe[name="shadow-frame"]', JSON.stringify(action?.locator?.context));
+    check("shadow frame: open host chain is also retained", action?.locator?.context?.shadow?.hosts?.length === 1, JSON.stringify(action?.locator?.context));
+    const step = recordedFlowStep(action, "shadow-frame");
+    const replay = step ? await run(html, step) : { status: "missing" };
+    const frameHit = await page.frameLocator('iframe[name="shadow-frame"]').locator("body").evaluate(() => (window as any).__hit ?? null).catch(() => null);
+    check("shadow frame: normal frame→host→target replay succeeds", replay.status === "passed" && frameHit === "frame-shadow", `${replay.status}/${frameHit}`);
+  }
+
+  // F10. A child frame with no stable captured selector is honestly guarded by RecorderService.
+  {
+    const service = new RecorderService() as any;
+    service.isRecording = true;
+    service.captureWaitTime = false;
+    service.captureSmartWaits = false;
+    service.actions = [];
+    service.lastActionAt = 0;
+    const mainFrame = {};
+    const fakePage = { mainFrame: () => mainFrame, url: () => "http://localhost:4321/recorder-lab" } as any;
+    const crossFrame = { url: () => "http://127.0.0.1:4321/shadow-frame-child", name: () => "" } as any;
+    service.recordActionFromPage(fakePage, {
+      type: "click",
+      name: "Click Frame shadow action",
+      locator: { strategy: "role", value: "button", name: "Frame shadow action", quality: { strategy: "role", isUnique: true, matchCount: 1, confidence: "high", candidateCount: 1 } }
+    }, crossFrame);
+    const guarded = service.getActions()[0] as any;
+    check("shadow cross-origin frame: safe origin evidence is retained", guarded?.locator?.interaction?.frame?.state === "cross-origin" && guarded.locator.interaction.frame.origin === "http://127.0.0.1:4321", JSON.stringify(guarded));
+    check("shadow cross-origin frame: action is review-required, never main-page executable", guarded?.locator?.resolution === "needs-review" && guarded.locator.reviewReason === "unsupported cross-origin frame" && !guarded.locator.context?.frame, JSON.stringify(guarded));
   }
 
   // CR3. Runtime self-healing: a legacy non-unique step where two same-named buttons are visible but
