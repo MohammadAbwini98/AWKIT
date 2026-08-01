@@ -22,6 +22,22 @@ broken walk would otherwise report "no shell interpretation anywhere" while read
 (150) was measured against 224 real files; raise it as the tree grows, never lower it to match a
 failure. Mutation-tested: forcing the floor high produces `1 failed` and exit 1.
 
+A sweep for the same vacuity shape in the other two BLOCKED verifiers (2026-08-02) found
+`verify:packaged-licensing` **clean** — its `block()` calls sit in an `if/else` on key availability
+and it holds no collection whose emptiness is asserted. `verify:packaged-walkthrough` had **three**
+instances, all now fixed. `sampleSystem()` runs PowerShell under `$ErrorActionPreference=
+'SilentlyContinue'` and returns `null` on failure, and `bundledChromeNow()` converted that `null`
+into `[]` — so "no bundled-Chromium left after clean exit" (Part H), the orphan-observation poll
+(Part I) and the final "teardown left no zombie processes" assertion all **passed when the probe was
+blind**, the last one being the gate's closing claim. The orphan poll was worst: it resolved `true`
+on its first blind poll and printed "orphaned processes self-exited" as a positive finding derived
+from a measurement that never happened. `bundledChromeNow()` now returns `null` for an unreadable
+process table (matching the `-1` sentinel discipline `chromeRootsNow` already used), an
+`isLiveSample()` floor of **50 processes** rejects implausibly small samples, and each of the three
+sites fails or reports INCONCLUSIVE rather than passing. Floor measured against **291** live
+processes on the development machine. Part M's egress checks were already protected by
+`observer.samples >= 5`, which is the pattern the rest of the file now follows.
+
 The committed `resources/dependency-manifest.{json,sig}` pair remains byte-untouched. It is valid and
 self-consistent, but it is **not release-current** because `application.sourceCommit` does not equal
 the current Git HEAD. Ordinary `validate:offline` continues to verify integrity; `-Strict` is the
@@ -34,7 +50,15 @@ runner **89/89** in the final isolated run; CLI-only **24/24**; IPC **4/4**; sou
 verifier classification **156/156**; ordinary offline validation PASS. Strict offline validation
 failed at the intended release-current provenance assertion. Packaged licensing/walkthrough suites
 were not run because the available EXE predates this source; live Electron timer/focus/bootstrap
-behavior was not manually exercised. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1
+behavior was not manually exercised.
+
+**OWED — `verify:packaged-walkthrough` has not been executed since the 2026-08-02 liveness fix.**
+The change is typechecked and its predicates were exercised in isolation (11/11, covering blind,
+implausible, clean and dirty samples), but the suite itself is `packaged-application` class and needs
+a rebuilt EXE. It also adds one assertion ("the orphan probe could read the process table"), so the
+next real run's total will be one higher than the last recorded figure — do not treat that delta as a
+regression. Run `npm run package:portable` followed by `npm run verify:packaged-walkthrough` before
+citing any packaged result, and record the observed count rather than carrying an older one forward. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1
 BLOCKED**. Recorder residuals `awkit-vot` and `awkit-0vm` remain open; AWKIT-REC-030 remains resolved.
 
 ---

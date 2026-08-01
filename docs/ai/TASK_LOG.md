@@ -8940,3 +8940,41 @@ pm run verify:mock-site
   live Electron timer/focus/bootstrap behavior remains manual.
 - **Result:** No behavioral change to the application — verifier hardening only. Ledger unchanged at
   62 PASS / 3 NOT RUN / 1 BLOCKED. `awkit-f3l` and `awkit-hj8` remain closed; `awkit-2l1` remains open.
+
+## 2026-08-02: Sweep the other two BLOCKED verifiers for the same vacuity shape
+
+- **Agent:** coding agent (Claude Code)
+- **Task:** After hardening the dispatch-gate shell scan, check whether `verify:packaged-licensing`
+  and `verify:packaged-walkthrough` share the "empty collection reads as clean" gap.
+- **`verify:packaged-licensing` — CLEAN, no change.** Exit fix correct at `:376`. Its two `block()`
+  calls sit in an `if/else` on issuer-key availability, so nothing is skipped past a
+  collection-populating step, and the file contains zero `.every(`, `length === 0`, or
+  `=== undefined ?` assertions.
+- **`verify:packaged-walkthrough` — three instances found and fixed.** `sampleSystem()` (`:217`) runs
+  PowerShell under `$ErrorActionPreference='SilentlyContinue'` and returns `null` on failure;
+  `bundledChromeNow()` converted that `null` to `[]`, and the final sweep used
+  `postSweep ? filter : []`. Affected: Part H "no bundled-Chromium processes left after clean app
+  exit"; the Part I orphan-observation poll; and the closing "teardown left no zombie app or
+  bundled-Chromium processes". All three passed when the process probe was blind. The orphan poll was
+  the worst — it resolved `true` on the first blind poll and printed "orphaned processes self-exited"
+  as a positive finding from a measurement that never happened.
+- **Fix:** added `isLiveSample()` with a `SAMPLE_MIN_PROCESSES = 50` floor; `bundledChromeNow()` now
+  returns `null` for an unreadable process table, matching the `-1` sentinel discipline
+  `chromeRootsNow` already used; the orphan poll refuses to resolve while blind and reports
+  INCONCLUSIVE; the teardown assertion requires a visible sample. Part M was already correct via
+  `observer.samples >= 5` — that guard is what the rest of the file now matches.
+- **Files changed:** `scripts/verify-packaged-walkthrough.mts` (+38/-10), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`.
+- **Threshold provenance:** floor of 50 measured against **291** live processes
+  (`Get-CimInstance Win32_Process | Measure-Object`) on the development machine — ~5.8x margin.
+- **Tests run:** `typecheck:scripts` PASS. Guard predicates exercised in isolation against blind,
+  implausible-sample, clean and dirty inputs — **11/11**, confirming the blind cases now FAIL where
+  they previously passed *and* that genuinely-clean cases still PASS (i.e. the guard was hardened, not
+  made unconditionally red).
+- **NOT RUN — OWED:** `npm run verify:packaged-walkthrough` itself. It is `packaged-application` class
+  and the available EXE predates this source. The suite gains one assertion ("the orphan probe could
+  read the process table"), so the next real run's total will be one higher than the last recorded
+  figure; that delta is expected, not a regression. Rebuild with `npm run package:portable` and run
+  the suite before citing any packaged result.
+- **Result:** Verifier hardening only; no product change. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED. Beads unchanged.

@@ -226,6 +226,18 @@ async function sampleSystem(): Promise<SystemSample | null> {
   return { procs: arr(raw.procs), conns: arr(raw.conns) };
 }
 
+/**
+ * A running Windows machine always has well over a hundred processes, so a null or implausibly small
+ * sample means the enumeration FAILED, not that nothing is running. That distinction is the whole
+ * point here: `sampleSystem` runs PowerShell under `$ErrorActionPreference='SilentlyContinue'`, so a
+ * broken probe returns quietly — and every "no leftover process" assertion below would then read
+ * "I could not look" as "I looked and found nothing", passing precisely when it is blind.
+ */
+const SAMPLE_MIN_PROCESSES = 50;
+function isLiveSample(sample: SystemSample | null): sample is SystemSample {
+  return sample !== null && sample.procs.length >= SAMPLE_MIN_PROCESSES;
+}
+
 function isLoopback(address: string): boolean {
   return (
     address === "127.0.0.1" ||
@@ -316,12 +328,13 @@ class NetworkObserver {
 /** Direct one-shot probe — never contends with the observer's interval sampler. */
 async function chromeRootsNow(appPids: Set<number>): Promise<number> {
   const sample = await sampleSystem();
-  return sample ? chromeRoots(sample, appPids).length : -1;
+  return isLiveSample(sample) ? chromeRoots(sample, appPids).length : -1;
 }
 
-async function bundledChromeNow(): Promise<PsProcess[]> {
+/** `null` means the probe could not see the process table — NEVER conflate it with an empty result. */
+async function bundledChromeNow(): Promise<PsProcess[] | null> {
   const sample = await sampleSystem();
-  return sample ? bundledChromeAll(sample) : [];
+  return isLiveSample(sample) ? bundledChromeAll(sample) : null;
 }
 
 function taskkill(pid: number, tree: boolean): Promise<void> {
@@ -1006,8 +1019,8 @@ async function main(): Promise<void> {
     const afterA = await bundledChromeNow();
     check(
       "no bundled-Chromium processes left after clean app exit",
-      afterA.length === 0,
-      afterA.map((proc) => proc.ProcessId).join(",")
+      afterA !== null && afterA.length === 0,
+      afterA === null ? "process enumeration failed — cannot claim the tree is clean" : afterA.map((proc) => proc.ProcessId).join(",")
     );
     check("ui settings persisted under the fresh profile", existsSync(join(appRoot, "storage", "ui-settings.json")));
 
@@ -1036,12 +1049,24 @@ async function main(): Promise<void> {
     check("hard kill actually terminated the app main process", rootDead === true, `pid ${pidB}`);
     // Observe (without intervening) whether the orphaned browser tree self-exits.
     let leakedChrome: PsProcess[] = [];
+    let leakProbeBlind = false;
     const selfExited = await pollUntil(async () => {
-      leakedChrome = await bundledChromeNow();
+      const observed = await bundledChromeNow();
+      // A failed probe must not resolve the poll: returning true here would print "self-exited"
+      // as a positive finding derived from a measurement that never happened.
+      if (observed === null) {
+        leakProbeBlind = true;
+        return null;
+      }
+      leakProbeBlind = false;
+      leakedChrome = observed;
       return leakedChrome.length === 0 ? true : null;
     }, 20000, 2500);
+    check("the orphan probe could read the process table", !leakProbeBlind);
     console.log(
-      selfExited
+      leakProbeBlind
+        ? "  (orphan observation is INCONCLUSIVE — the process table could not be read)"
+        : selfExited
         ? "  (orphaned bundled-Chromium processes self-exited after the app died)"
         : `  (observed ${leakedChrome.length} orphaned bundled-Chromium process(es) still alive 20s after the kill — swept)`
     );
@@ -1227,13 +1252,16 @@ async function main(): Promise<void> {
     }
     // Final no-zombie verification: after teardown NOTHING app-owned may remain.
     const postSweep = await sampleSystem();
-    const zombies = postSweep
+    const sweepVisible = isLiveSample(postSweep);
+    const zombies = sweepVisible
       ? postSweep.procs.filter((p) => isAppProcess(p) && ["specterstudio.exe", "webflow studio.exe", "chrome.exe"].includes(p.Name.toLowerCase()))
       : [];
     check(
       "teardown left no zombie app or bundled-Chromium processes",
-      teardownLeftovers.length === 0 && zombies.length === 0,
-      `leftover pids: ${teardownLeftovers.join(",") || "-"}; zombies: ${zombies.map((p) => `${p.Name}(${p.ProcessId})`).join(",") || "-"}`
+      sweepVisible && teardownLeftovers.length === 0 && zombies.length === 0,
+      sweepVisible
+        ? `leftover pids: ${teardownLeftovers.join(",") || "-"}; zombies: ${zombies.map((p) => `${p.Name}(${p.ProcessId})`).join(",") || "-"}`
+        : "post-sweep process enumeration failed — no no-zombie claim can be made"
     );
     summary.teardown = { leftovers: teardownLeftovers, zombies: zombies.map((p) => ({ pid: p.ProcessId, name: p.Name })) };
     summary.finishedAt = new Date().toISOString();
