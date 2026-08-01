@@ -4,6 +4,23 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Codex - COMPLETE Recorder hover action-owner repair (`awkit-3vh`)
+
+- **Task:** take over Claude's uncommitted hover-trigger repair, reproduce its failing verifier, and
+  finish the P1 action-owner/positional-locator fix without reopening the completed ambiguity epic.
+- **Implementation:** promote visibility-selected wrappers to the nearest actionable owner; cover
+  native controls, generic roles, labelled/tabbable/contenteditable elements, and custom-element
+  hosts; generate hover triggers with positional candidates disabled; leave positional-only cases
+  review-required. Extended `/recorder-lab` with positive `role=tab` owner and negative no-owner
+  fixtures, plus real capture/fresh-page replay assertions. Removed the temporary debug script.
+- **Tests:** initial inherited hover verifier reproduced **41 PASS / 7 FAIL**; corrected result
+  **48/48**. Recorder locator **171/171**; ambiguity **62/62**; Mock Site **110/110**; build PASS;
+  scripts typecheck PASS; `git diff --check` PASS.
+- **Result:** `awkit-3vh` resolved. `awkit-vot`, `awkit-0vm`, and the separate open Flow Designer
+  catalog defect `awkit-8lz` remain out of scope. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-01 - Codex - COMPLETE licensing enforcement and manifest provenance
 
 - **Task:** close `awkit-f3l`, then `awkit-hj8`, without changing the committed dependency-manifest

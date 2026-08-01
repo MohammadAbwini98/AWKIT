@@ -951,12 +951,40 @@ export function installRecorderCapture(): void {
     return { locator, quality, accessibleName: accessibleName(el), traversalComplete };
   };
 
+  /**
+   * The element that OWNS the action, not the pixel the pointer happened to hit. A control is
+   * routinely authored as `<button aria-label="Next"><div><svg/></div></button>`, so the composed-path
+   * leaf is an unlabelled wrapper while the accessible name lives on an ancestor. Climbing first is
+   * what lets the semantic strategies produce anything at all.
+   *
+   * The generic `[role]` and `[tabindex]` entries matter: without them `role="tab"`, `"menuitem"`,
+   * `"option"`, `"switch"`, `"slider"` and `"treeitem"` never climbed, so a click inside any of them
+   * generated candidates from the inner span and fell through to positional CSS.
+   */
+  const ACTION_OWNER_SELECTOR =
+    'a[href], button, input, select, textarea, label, summary, [role], [aria-label], [onclick], [tabindex]:not([tabindex="-1"]), [contenteditable="true"], [contenteditable=""]';
+
   const interactiveTarget = (el: Element): Element => {
-    const candidate = el.closest
-      ? el.closest('a[href], button, input, select, textarea, label, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [onclick]')
-      : null;
-    return (candidate as Element) || el;
+    let candidate: Element | null = el;
+    while (candidate) {
+      const tag = tagOf(candidate);
+      if (candidate.matches?.(ACTION_OWNER_SELECTOR) || tag.indexOf("-") > 0) return candidate;
+      candidate = candidate.parentElement;
+    }
+    return el;
   };
+
+  /**
+   * The bar a locator must clear to be PERSISTED as a trigger, matching `hostDescriptor` below.
+   * `isUnique` alone is not enough: a positional selector resolves to exactly one element today and
+   * breaks on the next layout change, which is precisely how a fragile `nth-child` chain came to be
+   * saved as a hover trigger.
+   */
+  const isStableGenerated = (generated: ReturnType<typeof generate>): boolean =>
+    generated.quality.isUnique &&
+    generated.traversalComplete &&
+    generated.quality.strategy !== "fallback" &&
+    generated.locator.strategy !== "xpath";
 
   interface ShadowCapture {
     boundary: "none" | "open" | "closed" | "unknown";
@@ -1204,14 +1232,25 @@ export function installRecorderCapture(): void {
     if (revealedSurfaceCount === 0) return { kind: "none" };
     if (i >= path.length) return { kind: "review" };
 
-    const candidate = path[i];
+    const pathCandidate = path[i];
+
+    // The path candidate is chosen by VISIBILITY topology — the first ancestor visible at rest above
+    // the revealed run — which says nothing about whether it is the element that owns the hover.
+    // Promote it to its nearest actionable ancestor, because that is where an accessible name lives.
+    // The action owner is authoritative. Comparing it with the wrapper's default `generate()` result
+    // is unsafe because `scopedSelector()` can make an `:nth-of-type(...)` wrapper unique and label
+    // that compound CSS as medium-confidence. That is still positional and is rejected by the runner.
+    const candidate = interactiveTarget(pathCandidate);
+
     // The trigger must be known-visible at rest (proves it existed before the reveal), on the pointer
-    // trail, specific (not a broad root / bare landmark), and resolvable to a unique locator.
+    // trail, specific (not a broad root / bare landmark), and resolvable to a STABLE locator.
     if (visibilityState.get(candidate) !== true) return { kind: "review" };
     if (isBroadTrigger(candidate)) return { kind: "review" };
     if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) return { kind: "review" };
     if (!pointerVisited(candidate)) return { kind: "review" };
-    if (!generate(candidate).quality.isUnique) return { kind: "review" };
+    // Uniqueness alone would admit a positional `nth-child` chain that breaks on the next layout
+    // change. A trigger we cannot pin semantically is a review item, not a saved fragile locator.
+    if (!isStableGenerated(generate(candidate, { allowPositional: false }))) return { kind: "review" };
     return { kind: "trigger", el: candidate };
   };
 

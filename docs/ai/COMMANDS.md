@@ -153,8 +153,8 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, Smart Wait signals/correlation, and Increment 6 open/nested/duplicate/slotted/closed/frame/cap Shadow DOM capture→persistence→preflight→LocatorFactory→StepExecutor coverage (171/171)
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
-                            # asserts the trigger (not the hidden revealed surface), guards the old-locator regression,
-                            # and covers async/needs-review negatives. (34/34)
+                            # asserts the actionable owner (not a wrapper or hidden revealed surface), refuses positional-only
+                            # triggers, guards the old-locator regression, and covers async/needs-review negatives. (48/48)
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,

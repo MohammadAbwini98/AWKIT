@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Recorder hover action-owner promotion fixed (`awkit-3vh`, 2026-08-02)
+
+Hover-gated capture now promotes the first visible-at-rest wrapper to its nearest actionable owner
+before generating the prerequisite hover locator. The owner search covers native controls, generic
+interactive roles, labelled/tabbable/contenteditable elements, and custom-element hosts. Trigger
+generation disables positional candidates entirely: uniqueness through `:nth-child`/
+`:nth-of-type` is not treated as stable, and a positional-only trigger leaves the click
+`needs-review` rather than persisting a fragile hover step.
+
+The Recorder Lab now proves both sides with a `role=tab` action owner above an unlabelled wrapper and
+a no-owner positional negative. The real capture → `buildRecordedFlow` → `LocatorFactory`/
+`StepExecutor` replay gate is **48/48**; Recorder locator **171/171**, ambiguity **62/62**, Mock Site
+**110/110**, build, and scripts typecheck also pass. The separate sibling/self-toggle and
+hover-inserted-control limitations `awkit-vot` / `awkit-0vm` remain open. The comprehensive ledger
+remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Licensing enforcement and dependency-manifest audit complete (2026-08-01)
 
 `awkit-f3l` and `awkit-hj8` are **CLOSED**. Main-process licensing now evaluates the run gate at

@@ -226,14 +226,16 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   hovered — a trusted pointer trail plus record-time first-seen (rest) visibility of interactive
   elements and their ancestors. It walks the click target's `composedPath()`, skips the hidden-at-rest
   revealed surface, and selects the first visible-at-rest, on-pointer-path, specific (never
-  `html`/`body`/`main` or a bare landmark), uniquely-resolvable ancestor as the `hoverContainer`
-  trigger — never the hidden surface, never an unconditional parent. `buildRecordedFlow` injects an
+  `html`/`body`/`main` or a bare landmark), uniquely-resolvable ancestor as the `hoverContainer`.
+  Visibility-selected wrappers are promoted to their actionable owner, and positional candidates are
+  disabled for prerequisite triggers — never the hidden surface, never an unconditional parent.
+  `buildRecordedFlow` injects an
   explicit `hover` step (the trigger's full locator, `resolution: "resolved"`) immediately before the
   click; `StepExecutor` replays it as `locator.hover()`. When no stable trigger can be attributed the
   click is left `needs-review` rather than fabricating an unreplayable hover step; a target that
   toggles on its own (async) produces no hover step. Verified by `npm run verify:recorder-hover`, which
-  records, builds, and **replays Hover→Click on fresh pages** and guards against the hidden-surface
-  regression.
+  records, builds, and **replays Hover→Click on fresh pages** and guards against hidden-surface,
+  wrapper-owner, and positional-trigger regressions (48/48).
 - ✅ **Ambiguity/replayability acceptance gate** (`npm run verify:recorder-ambiguity`): the durable
   nine-point regression for the whole Recorder ambiguity story — records the actual selected candidate,
   prefers stable ancestor/context scoping, replays deterministically to the same candidate, marks

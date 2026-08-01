@@ -46,6 +46,10 @@ legal review and code-signing certificate operations remain external release res
 These are deliberate scope boundaries of the ambiguity/hover work (Increments 5 & 7), not regressions.
 They are tracked in `bd`; none are "supported behavior".
 
+The related action-owner defect `awkit-3vh` is resolved: hover prerequisites now promote wrappers to
+an actionable owner and refuse positional-only trigger locators. That guard does not infer sibling or
+late-inserted triggers, so it deliberately does not close either limitation below.
+
 - **Closed Shadow DOM is diagnostic-only by platform boundary.** Increment 6 records a known
   closed-mode host without retaining the root or exposing internal content, then marks the action
   `needs-review` with reason `closed shadow root`. Playwright cannot durably traverse the internal

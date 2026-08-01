@@ -150,7 +150,7 @@ No product defect remains open in this campaign section. The separate tracked ho
   `composedPath()[1]` (the immediate parent = the revealed surface), and a class heuristic
   `/(^|\s)(menu|dropdown|popover|tooltip)(\s|$)/i` never matched hyphenated class names. The verifier
   stayed green only because it asserted `value.includes("hover-menu")` and never replayed.
-- **Evidence after fix:** `verify:recorder-hover` **34/34** — records the hover-gated click, builds the
+- **Evidence after fix:** `verify:recorder-hover` **48/48** (expanded by AWKIT-REC-035) — records the hover-gated click, builds the
   flow, and **replays Hover→Click successfully on two fresh pages** (post-click state `hover-click-ok`);
   asserts the hover locator resolves to `data-testid=hover-trigger` (never the revealed surface); proves
   the old hidden-surface locator still **fails** to replay (regression guard); and covers the negatives
@@ -162,6 +162,35 @@ record-time first-seen (rest) visibility for interactive elements and their ance
 click target's `composedPath()`, skips the hidden-at-rest revealed surface, and selects the first
 visible-at-rest, on-pointer-path, specific, uniquely-resolvable ancestor. When no stable trigger can be
 attributed the click is left `needs-review` instead of fabricating an unreplayable hover step.
+
+---
+
+### AWKIT-REC-035 (`awkit-3vh`) — Hover trigger capture persists a wrapper instead of its actionable owner
+
+- **Severity:** S2 / The generated prerequisite can require positional approval or fail replay even
+  though a stable semantic action owner is present directly above the selected wrapper
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-02**
+- **Affected area:** `src/recorder/recorderInitScript.ts`, `mock-site/public/recorder-lab.html`,
+  `scripts/verify-recorder-hover.mts`
+- **Evidence before fix:** the action-owner Recorder Lab case persisted
+  `css=[data-testid="duplicate-controls"] div:nth-of-type(8)` as its hover prerequisite. It resolved
+  to the unlabelled wrapper, was classified as positional by `StepExecutor`, failed the hover action,
+  left the gated target hidden, and caused the click to time out. The inherited verifier reproduced
+  **41 PASS / 7 FAIL**.
+- **Root cause:** `resolveHoverTrigger` chose by visibility topology and never applied
+  `interactiveTarget`; its uniqueness gate also allowed positional generation. A scoped
+  `:nth-of-type` selector could therefore look unique/medium-confidence while still being a fragile
+  positional locator that the runner correctly refuses.
+- **Evidence after fix:** the trigger is promoted to the `role=tab` owner named
+  `Open shorts actions`; positional generation is disabled for hover prerequisites; fresh-page
+  `LocatorFactory` resolution identifies that exact owner; real Hover→Click replay exposes and clicks
+  the target. A no-owner fixture proves positional-only evidence remains `needs-review` with no
+  fabricated hover step. `verify:recorder-hover` **48/48**, Recorder **171/171**, ambiguity **62/62**,
+  and Mock Site **110/110** pass.
+
+The separate sibling/self-toggle (`awkit-vot`) and hover-inserted-control (`awkit-0vm`) limitations
+remain open; this fix deliberately does not infer either trigger class.
 
 ---
 

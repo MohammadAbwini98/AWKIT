@@ -189,6 +189,110 @@ async function main() {
       }
     }
 
+    // ── [4b] Action owner: the trigger is promoted past an unlabelled wrapper (awkit-3vh) ─────
+    //
+    // The first ancestor VISIBLE AT REST above the revealed surface is `.ao-wrap-h7k2n9` — an
+    // unlabelled div whose only class is hash-suffixed, so it is resolvable ONLY positionally. The
+    // element that owns the hover is the role=tab above it — a generic interactive role the old
+    // `interactiveTarget` selector did not recognize. Before the fix, `resolveHoverTrigger`
+    // took the wrapper straight from the composed path and admitted it because `isUnique` alone was
+    // the bar, persisting an `nth-child` chain exactly like the reported YouTube capture.
+    console.log("\n[4b] Hover trigger is promoted to the action owner, not the wrapper:");
+    {
+      const aoActions = await recordActions(browser, async (p) => {
+        await p.hover(".ao-owner-q7m2x8");
+        await p.click(".ao-gated-p9x3k7");
+      });
+      const aoProfile = buildRecordedFlow("Hover Action Owner", aoActions);
+      const aoHover = hoverStepOf(aoProfile);
+      const aoClick = aoProfile.nodes.find((s) => s.type === "click");
+
+      check("a hover step was generated for the action-owner fixture", !!aoHover);
+      check("action-owner hover step is 'resolved' (not review)", aoHover?.locator?.resolution === "resolved", aoHover?.locator?.resolution);
+
+      // (b) A semantic ancestor outranks a positional descendant.
+      check(
+        "trigger locator is semantic, not a positional fallback",
+        aoHover?.locator?.strategy === "role",
+        `strategy=${aoHover?.locator?.strategy} value=${aoHover?.locator?.value}`
+      );
+      // (d) The assertion that would have caught the defect: no positional chain survived.
+      // Requires a PRESENT value — testing an absent value is vacuously clean when no hover step
+      // was produced at all, which is exactly how this check passed under mutation on first writing.
+      const aoTriggerValue = aoHover?.locator?.value;
+      check(
+        "trigger locator is present and contains no positional nth selector",
+        typeof aoTriggerValue === "string" &&
+          aoTriggerValue.length > 0 &&
+          !/:nth-(?:child|of-type)\s*\(/.test(aoTriggerValue),
+        String(aoTriggerValue)
+      );
+      check(
+        "trigger locator carries the owner's accessible name",
+        aoHover?.locator?.name === "Open shorts actions",
+        String(aoHover?.locator?.name)
+      );
+
+      // (c) The final locator resolves to the SAME actionable control.
+      // Guarded: without a hover step the replay block would throw inside LocatorFactory and abort
+      // every later section, turning a clean FAIL into a crash that hides the remaining results.
+      if (!aoHover || !aoClick) {
+        check("action-owner replay could be attempted (hover + click steps exist)", false, "no hover/click step to replay");
+      } else {
+        const { page, exec, close } = await freshExecutor(browser);
+        try {
+          const factory = new LocatorFactory(page);
+          const resolved = await factory.resolve(aoHover as FlowStep);
+          const label = await resolved.getAttribute("aria-label");
+          const role = await resolved.getAttribute("role");
+          check("trigger resolves to the role=tab action owner", role === "tab" && label === "Open shorts actions", `role=${role} label=${label}`);
+
+          // End-to-end: the promoted trigger still actually reveals and the click still lands.
+          const hiddenBefore = !(await page.locator(".ao-gated-p9x3k7").isVisible());
+          check("action-owner target hidden before hover", hiddenBefore);
+          const hr = await exec.execute(aoHover as FlowStep);
+          check("action-owner hover step executed", hr.status === "passed", hr.error);
+          check("action-owner target visible after hover", await page.locator(".ao-gated-p9x3k7").isVisible());
+          const cr = await exec.execute(aoClick as FlowStep);
+          check("action-owner click step executed", cr.status === "passed", cr.error);
+          const result = (await page.getByTestId("ao-click-result").textContent()) ?? "";
+          check("post-click state is 'ao-click-ok'", result.includes("ao-click-ok"), result);
+        } finally {
+          await close();
+        }
+      }
+    }
+
+    // ── [4c] Gate: a positional-only trigger is reviewed, never persisted (awkit-3vh) ─────────
+    //
+    // Same reveal shape, but the visible-at-rest ancestor has no actionable ancestor to promote to
+    // and resolves only positionally. `isUnique` alone would admit it — that is precisely the bar
+    // that let an `nth-child` chain be saved as a trigger. It must be a review item instead.
+    // This section is what fails when the gate is weakened back to `quality.isUnique`; the [4b]
+    // fixture cannot catch that, because there promotion always yields a semantic locator.
+    console.log("\n[4c] A positional-only trigger is reviewed, not persisted:");
+    {
+      const npActions = await recordActions(browser, async (p) => {
+        await p.hover(".np-outer-m4x8k2");
+        await p.click(".np-gated-w2q9d5");
+      });
+      const npProfile = buildRecordedFlow("Hover No Owner", npActions);
+      const npHover = hoverStepOf(npProfile);
+      const npClick = npProfile.nodes.find((s) => s.type === "click");
+
+      check("the no-owner click was captured at all (fixture is live)", !!npClick, "no click step recorded");
+      check(
+        "no hover step is fabricated from a positional-only trigger",
+        !npHover,
+        `strategy=${npHover?.locator?.strategy} value=${npHover?.locator?.value}`
+      );
+      check(
+        "the no-owner click is left needing review",
+        npClick?.locator?.resolution === "needs-review",
+        String(npClick?.locator?.resolution)
+      );
+    }
+
     // ── [5] Negative: without the hover step, the click fails (actionability) ─────────────────
     console.log("\n[5] Removing the hover step makes the click fail:");
     {
