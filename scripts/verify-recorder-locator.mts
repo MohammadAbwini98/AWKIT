@@ -38,7 +38,7 @@ function check(label: string, condition: unknown, detail?: string) {
 interface RecordedAction {
   type: string;
   name: string;
-  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any };
+  locator?: { strategy: string; value: string; name?: string; exact?: boolean; quality?: any; context?: any };
   valueSource?: { type: string; value: string };
 }
 
@@ -511,6 +511,92 @@ async function main() {
     const { status, hit } = await run(html, { id: "cr5", type: "click", name: "Click Shorts", locator: action?.locator as unknown as FlowStep["locator"] });
     check("landmark twins: recorded locator runs green", status === "passed", status);
     check("landmark twins: clicked the link in footer", hit === "footer", hit ?? "null");
+  }
+
+  // CR6. Table-row container name (awkit-bw9). The recorder must CAPTURE a row-scoped locator that
+  // REPLAYS. Raw `row.textContent` concatenates adjacent cells with no separator ("Customer BetaEdit"),
+  // which never matches `getByRole('row',{name})` (accessible name "Customer Beta Edit"). Each case
+  // captures the click, saves/reloads (JSON), and replays on a fresh page.
+  const rtLocator = (a: RecordedAction | undefined) => JSON.parse(JSON.stringify(a?.locator ?? null)) as unknown as FlowStep["locator"];
+  // CR6a. Adjacent cells (no source whitespace) + a row containing an interactive child.
+  {
+    const html = `<table><tbody>` +
+      `<tr><td>Customer Alpha</td><td><button onclick="window.__hit='alpha'">Edit</button></td></tr>` +
+      `<tr><td>Customer Beta</td><td><button onclick="window.__hit='beta'">Edit</button></td></tr>` +
+      `</tbody></table>`;
+    const action = await capture(html, (p) => p.getByRole("row", { name: /Customer Beta/ }).getByRole("button", { name: "Edit" }).click());
+    const container = (action?.locator?.context as { container?: { type?: string; name?: string } } | undefined)?.container;
+    check("bw9: captured a tableRow container context", container?.type === "tableRow", JSON.stringify(action?.locator?.context));
+    check(
+      "bw9: adjacent cells are separated in the captured row name (not 'BetaEdit')",
+      typeof container?.name === "string" && !/BetaEdit/.test(container.name) && /Beta\s+Edit/.test(container.name),
+      container?.name
+    );
+    const { status, hit } = await run(html, { id: "cr6a", type: "click", name: "Click Edit", locator: rtLocator(action) });
+    check("bw9: captured row-scoped locator replays green (save/reload)", status === "passed", status);
+    check("bw9: replay selected the intended (Beta) row", hit === "beta", hit ?? "null");
+    // Negative control: the OLD no-space serialized row name must FAIL to replay.
+    const broken: FlowStep = {
+      id: "cr6a-neg",
+      type: "click",
+      name: "Click Edit",
+      timeoutMs: 2500,
+      locator: { strategy: "role", value: "button", name: "Edit", exact: true, context: { container: { type: "tableRow", strategy: "role", value: "row", name: "Customer BetaEdit", exact: false } } }
+    };
+    const negRes = await run(html, broken);
+    check("bw9 negative: the old no-space row name FAILS to replay", negRes.status !== "passed", negRes.status);
+  }
+  // CR6b. Extra whitespace / line breaks in cells → normalized to single spaces, still replays.
+  {
+    const html = `<table><tbody>` +
+      `<tr><td>  Order\n  1001  </td><td><button onclick="window.__hit='o1001'">Edit</button></td></tr>` +
+      `<tr><td>  Order\n  1002  </td><td><button onclick="window.__hit='o1002'">Edit</button></td></tr>` +
+      `</tbody></table>`;
+    const action = await capture(html, (p) => p.getByRole("row", { name: /Order\s+1002/ }).getByRole("button", { name: "Edit" }).click());
+    const name = (action?.locator?.context as { container?: { name?: string } } | undefined)?.container?.name ?? "";
+    check("bw9: whitespace/newlines normalized to single spaces", !/\s{2,}|\n/.test(name) && /Order 1002/.test(name), JSON.stringify(name));
+    const { status, hit } = await run(html, { id: "cr6b", type: "click", name: "Click Edit", locator: rtLocator(action) });
+    check("bw9: whitespace-normalized row replays green", status === "passed", status);
+    check("bw9: whitespace case selected the 1002 row", hit === "o1002", hit ?? "null");
+  }
+  // CR6c. Two rows with partially overlapping text (one name is a prefix of the other).
+  {
+    const html = `<table><tbody>` +
+      `<tr><td>Customer Beta</td><td><button onclick="window.__hit='beta'">Edit</button></td></tr>` +
+      `<tr><td>Customer Beta Prime</td><td><button onclick="window.__hit='beta-prime'">Edit</button></td></tr>` +
+      `</tbody></table>`;
+    const action = await capture(html, (p) => p.getByRole("button", { name: "Edit" }).first().click());
+    const { status, hit } = await run(html, { id: "cr6c", type: "click", name: "Click Edit", locator: rtLocator(action) });
+    check("bw9: partial-overlap row replays green", status === "passed", status);
+    check("bw9: selected exact Beta row, not Beta Prime", hit === "beta", hit ?? "null");
+  }
+  // CR6d. role=row / role=cell markup (not <table>) with an interactive child alongside a link.
+  {
+    const html = `<div role="table">` +
+      `<div role="row"><div role="cell">Ticket 7</div><div role="cell"><a href="/t7">view</a></div><div role="cell"><button onclick="window.__hit='t7'">Edit</button></div></div>` +
+      `<div role="row"><div role="cell">Ticket 8</div><div role="cell"><a href="/t8">view</a></div><div role="cell"><button onclick="window.__hit='t8'">Edit</button></div></div>` +
+      `</div>`;
+    const action = await capture(html, (p) => p.getByRole("row", { name: /Ticket 8/ }).getByRole("button", { name: "Edit" }).click());
+    const { status, hit } = await run(html, { id: "cr6d", type: "click", name: "Click Edit", locator: rtLocator(action) });
+    check("bw9: ARIA role=row with interactive children replays green", status === "passed", status);
+    check("bw9: selected the Ticket 8 row", hit === "t8", hit ?? "null");
+  }
+
+  // CR7. href discrimination (Inc2 href-scoped strategy): two same-text links with different hrefs.
+  {
+    const html = `` +
+      `<div><a href="/alpha" onclick="window.__hit='alpha'; return false;">Open</a></div>` +
+      `<div><a href="/beta" onclick="window.__hit='beta'; return false;">Open</a></div>`;
+    const action = await capture(html, (p) => p.locator('a[href="/beta"]').click());
+    check("href twins: unique locator generated", action?.locator?.quality?.isUnique === true, JSON.stringify(action?.locator));
+    check(
+      "href twins: locator discriminates by href",
+      /\/beta/.test(action?.locator?.value ?? "") || /\/beta/.test(JSON.stringify(action?.locator?.context ?? {})),
+      JSON.stringify(action?.locator)
+    );
+    const { status, hit } = await run(html, { id: "cr7", type: "click", name: "Click Open", locator: rtLocator(action) });
+    check("href twins: recorded locator runs green", status === "passed", status);
+    check("href twins: clicked the /beta link", hit === "beta", hit ?? "null");
   }
 
   // CR3. Runtime self-healing: a legacy non-unique step where two same-named buttons are visible but

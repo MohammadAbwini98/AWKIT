@@ -211,6 +211,25 @@ async function main() {
       }
     }
 
+    // ── [3b] Container-scoped table-row replay (awkit-bw9 fixed) ──────────────────────────────────
+    // The captured row name now separates adjacent cells, so getByRole('row',{name}) matches the
+    // platform accessible name on a fresh page. Stronger real-layer evidence for points 2/3.
+    console.log("\n[3b] Container-scoped table-row replay (awkit-bw9):");
+    {
+      const step = anyClickStep(buildRecordedFlow("Edit", editActions));
+      const container = (editClickRec?.locator as { context?: { container?: { name?: string } } } | undefined)?.context?.container;
+      check("[3b] captured row name separates adjacent cells (not 'BetaEdit')", typeof container?.name === "string" && !/BetaEdit/.test(container.name), container?.name);
+      const { page, exec, close } = await freshExecutor(browser);
+      try {
+        const r = await exec.execute(step as FlowStep);
+        check("[3b] container-scoped Edit replays on a fresh page (passed)", r.status === "passed", r.error);
+        const result = (await page.getByTestId("duplicate-result").textContent()) ?? "";
+        check("[3b] replay selected Customer Beta's row (not Alpha)", result.includes("Beta") && !result.includes("Alpha"), result);
+      } finally {
+        await close();
+      }
+    }
+
     // ── [4] No stable unique locator → explicit review-required resolution state ──────────────────
     console.log("\n[4] No stable unique locator → needs-review (buildRecordedFlow default):");
     // The recorder anchors a positional fallback at the nearest stable ancestor, so a live isUnique=false
