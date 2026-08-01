@@ -118,10 +118,20 @@ function expectedSubmission(state) {
 }
 
 function recorderMetadataFromAction(action) {
+  // buildRecordedFlow materializes the backward-compatible default resolution state even when the
+  // raw page payload predates that field. Compare against the persisted canonical shape rather than
+  // falsely treating this intentional normalization as metadata loss.
+  const locator = action.locator
+    ? {
+      ...action.locator,
+      resolution: action.locator.resolution ?? (action.locator.quality?.isUnique === false ? "needs-review" : "resolved"),
+      resolvedBy: action.locator.resolvedBy ?? "recorder"
+    }
+    : undefined;
   return {
     type: action.type,
     name: action.name,
-    locator: action.locator,
+    locator,
     valueSource: action.valueSource,
     beforeWaits: action.beforeWaits,
     afterWaits: action.afterWaits,

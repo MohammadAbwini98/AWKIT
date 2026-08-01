@@ -24,7 +24,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Fixtures/tests:** Recorder Lab now covers unique/duplicate/nested/test-ID/dynamic/slotted/closed/
   ambiguous-host/same-origin-frame/cross-origin/traversal-cap cases. `verify:recorder` 171/171; ambiguity 59/59;
   recorder-flow 29/29; hover 34/34; runner 89/89; mock-site 110/110; mapping 105/105;
-  profile-store 16/16; IPC 4/4; build/typecheck/offline/source-hygiene/classification PASS.
+  profile-store 16/16; IPC 4/4; recorder-draft 50/50; recorder-authz 50/50; Recorder E2E
+  61/61 with 18/18 (100%) production replay fidelity; Recorder GUI 152/152;
+  build/typecheck/offline/source-hygiene/classification PASS.
 - **Graphify:** Codex and Claude live CLI proofs queried the current 0.9.31 graph (456-node scoped
   traversal); Antigravity is recorded as owner-confirmed manual live-tool evidence.
 - **Manifest:** dependency manifest JSON/signature untouched; `awkit-hj8` remains open.

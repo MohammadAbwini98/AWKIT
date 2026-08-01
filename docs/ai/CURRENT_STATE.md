@@ -29,7 +29,9 @@ manual live-tool evidence.
   `verify:recorder-ambiguity` **59/59**; `verify:recorder-flow` **29/29**;
   `verify:recorder-hover` **34/34**; `verify:runner` **89/89**; `verify:mock-site` **110/110**;
   `verify:flow-step-mapping` **105/105**; `verify:profile-store` **16/16**;
-  `verify:ipc-contract` **4/4**; verifier classification **155/155 reconciled**;
+  `verify:ipc-contract` **4/4**; `verify:recorder-draft` **50/50**;
+  `verify:recorder-authz` **50/50**; `verify:recorder-e2e` **61/61** (18/18 replay fidelity,
+  100%); `verify:recorder-gui` **152/152**; verifier classification **155/155 reconciled**;
   source hygiene **9/9**; `validate:offline` PASS.
 - Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 - `resources/dependency-manifest.json` and `.sig` remain untouched; audit `awkit-hj8` stays separate.

@@ -12,6 +12,12 @@ Flow Designer mapping **105/105**, profile store **16/16**, and IPC contract **4
 focused ledger status is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED** because no new ledger case
 or status transition was introduced.
 
+Broader non-shadow compatibility also passed: Recorder draft/service **50/50**, Recorder IPC
+authorization **50/50**, REC-018 full record→save→restart→Designer→three production replays **61/61**
+with **18/18 (100%)** aggregate fidelity, and Recorder Electron GUI/accessibility **152/152**. REC-018's
+metadata comparison now canonicalizes the intentional legacy-absent → `resolved`/`recorder`
+normalization performed by `buildRecordedFlow`, while still comparing the full locator payload.
+
 ## Executive ledger
 
 | Area | Status | Result |

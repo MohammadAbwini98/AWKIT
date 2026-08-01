@@ -33,7 +33,9 @@ origin/name metadata and is never resolved against the main page.
 **Verification.** build PASS · typecheck:scripts PASS · recorder 171/171 · ambiguity 59/59 ·
 recorder-flow 29/29 · recorder-hover 34/34 · runner 89/89 · mock-site 110/110 · mapping 105/105 ·
 profile-store 16/16 · IPC 4/4 · verifier classification 155/155 reconciled · source hygiene 9/9 ·
-offline validation PASS. Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+recorder-draft 50/50 · recorder-authz 50/50 · Recorder E2E 61/61 with 18/18 (100%) production
+replay fidelity · Recorder GUI 152/152 · offline validation PASS. Comprehensive validation ledger
+unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
 **Scope/next.** Stop at Increment 6. Preserve `awkit-vot`/`awkit-0vm` as hover limitations and
 `awkit-hj8` as the separate dependency-manifest audit. Do not close `awkit-aui.3`, `.4`, or the epic
