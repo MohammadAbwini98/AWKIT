@@ -8978,3 +8978,40 @@ pm run verify:mock-site
   the suite before citing any packaged result.
 - **Result:** Verifier hardening only; no product change. Ledger unchanged at
   62 PASS / 3 NOT RUN / 1 BLOCKED. Beads unchanged.
+
+## 2026-08-02: Rebuild the portable and run the packaged walkthrough
+
+- **Agent:** coding agent (Claude Code)
+- **Task:** Discharge the owed packaged run for the 2026-08-02 process-probe liveness fix.
+- **`npm run package:portable` — PASS.** Produced `dist/SpecterStudio 0.1.2.exe` (212,841,782 bytes)
+  and `dist/win-unpacked/`. Zvec host staged (17 files, 37.6 MB); Oracle bundle 41.9 KB (bridge jar
+  only, expected); manifest re-signed with `ed25519:68931c5d…`; artifact provenance recorded.
+- **First real execution of the `awkit-hj8` provenance gate — PASSED.** The chain's `-Strict` step
+  ran after the manifest was regenerated at HEAD: `application.version` `0.1.2` == `package.json`,
+  `application.sourceCommit` `549a9fff9691ecfc97f72bdf91d6d38a84edc53e` == HEAD, `sourceTreeDirty`
+  false. The gate has now been seen rejecting a non-release-current manifest AND admitting a
+  release-current one — both directions, not just the failing one.
+- **`npm run verify:packaged-walkthrough` — 25 PASS / 0 FAIL / 1 BLOCKED, exit 1.** Matches the
+  previously recorded blocked-run baseline exactly, so the liveness fix altered no existing outcome.
+  Part A confirmed "packaged payload is at least as new as src/ and app/". No stray SpecterStudio or
+  bundled-Chromium processes remained afterwards; evidence written to `dist/phase5-evidence/`.
+- **What the run actually exercised of the liveness fix:** the Part N teardown assertion ("teardown
+  left no zombie app or bundled-Chromium processes") lives in the `finally` block, so it ran on the
+  blocked path and **passed with a live sample** — confirming `isLiveSample()` accepts a real process
+  table rather than being too strict. Part H and Part I sit after the Part D licensing throw and were
+  **skipped**; their fixes remain unexercised on a real run.
+- **BLOCKED cause (expected, not a defect):** `AWKIT_PACKAGED_LICENSE_ISSUER_KEY` is unset.
+  `resolveIssuerKey()` deliberately refuses to fall back to the key present at the issuer's default
+  location — "do not sign with the production release key on an ordinary developer machine". The env
+  var was NOT set; that is an authorized-machine decision and is entangled with open P1 `awkit-2l1`
+  (key custody). Licensed packaged execution therefore remains unclaimed in either direction.
+- **This run is direct evidence the BLOCKED-exit fix works:** before `d2df8e3` this same state exited
+  **0**, i.e. a release gate that could not attempt licensed execution reported success.
+- **Files changed:** `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`.
+- **UNRESOLVED — `resources/dependency-manifest.{json,sig}` are dirty.** Packaging necessarily
+  regenerated and re-signed them (now at HEAD `549a9ff`, vs the committed `fb29217`). The standing
+  instruction forbids modify, regenerate, revert, AND commit; packaging forced the first two, so both
+  remaining actions are prohibited and neither was taken. Left dirty for an owner decision. No
+  private key material was read, copied, or recorded.
+- **Result:** Owed packaged run discharged as far as this machine permits. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED. Beads unchanged.

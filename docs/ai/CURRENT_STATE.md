@@ -52,13 +52,33 @@ failed at the intended release-current provenance assertion. Packaged licensing/
 were not run because the available EXE predates this source; live Electron timer/focus/bootstrap
 behavior was not manually exercised.
 
-**OWED — `verify:packaged-walkthrough` has not been executed since the 2026-08-02 liveness fix.**
-The change is typechecked and its predicates were exercised in isolation (11/11, covering blind,
-implausible, clean and dirty samples), but the suite itself is `packaged-application` class and needs
-a rebuilt EXE. It also adds one assertion ("the orphan probe could read the process table"), so the
-next real run's total will be one higher than the last recorded figure — do not treat that delta as a
-regression. Run `npm run package:portable` followed by `npm run verify:packaged-walkthrough` before
-citing any packaged result, and record the observed count rather than carrying an older one forward. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1
+**Portable rebuilt and the walkthrough re-run against it (2026-08-02).** `npm run package:portable`
+**succeeded**, producing `dist/SpecterStudio 0.1.2.exe` (212.8 MB) with `app.asar` newer than the
+newest `src/`/`app/` source. The packaging chain's **`-Strict` step passed**, which is the first real
+execution of the `awkit-hj8` provenance gate: the manifest was regenerated at HEAD, so
+`application.version` (`0.1.2`) equalled `package.json` and `application.sourceCommit`
+(`549a9ff…`) equalled HEAD, with `sourceTreeDirty: false`. That gate has now been observed in **both**
+directions — rejecting the non-release-current manifest, and admitting a genuinely release-current
+one.
+
+`npm run verify:packaged-walkthrough` returned **25 PASS / 0 FAIL / 1 BLOCKED, exit 1** — identical to
+the previously recorded blocked-run baseline, so the liveness fix changed no existing outcome. Two
+things it confirms directly:
+
+- **The BLOCKED-exits-nonzero fix works end to end.** Before it, this exact state exited **0**; a
+  release gate that could not attempt licensed execution reported success. It now exits 1.
+- **The teardown liveness guard ran and passed** — "teardown left no zombie app or bundled-Chromium
+  processes" is in the `finally` block, so it executes even on the blocked path. It passed *because*
+  `isLiveSample()` saw a real process table; a broken probe would now fail it instead of passing.
+
+**Still owed:** Parts D–G/H/I never execute without `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`, which
+`resolveIssuerKey()` deliberately refuses to infer from the key at the default location ("do not sign
+with the production release key on an ordinary developer machine"). So the Part H
+"no bundled-Chromium after clean exit" and Part I orphan-poll liveness fixes remain **unexercised on a
+real run**, as does packaged licensed execution generally. Those need an authorized validation machine
+or CI runner. A full run there will also report **one assertion more** than a pre-2026-08-02 full run,
+because Part I gained "the orphan probe could read the process table" — that delta is expected, not a
+regression. The clean/offline VM walkthrough remains a separate human gate and is not claimed here. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1
 BLOCKED**. Recorder residuals `awkit-vot` and `awkit-0vm` remain open; AWKIT-REC-030 remains resolved.
 
 ---
