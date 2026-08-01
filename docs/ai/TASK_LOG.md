@@ -8913,3 +8913,30 @@ pm run verify:mock-site
   `awkit-hj8` stays open with its audit questions answered and a corrective action decided
   (document the policy + add a release-mode provenance gate; do not touch the committed pair).
   Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED. Nothing committed or pushed.
+
+## 2026-08-02: Add a liveness floor to the dispatch-gate shell scan
+
+- **Agent:** coding agent (Claude Code)
+- **Task:** Post-merge review of `d2df8e3` (`awkit-f3l`) found one residual vacuity hole in the new
+  `verify:license-dispatch-gate` verifier.
+- **Finding:** `scripts/verify-license-dispatch-gate.mts` asserted `shellTrue.length === 0` over
+  `walkScripts(join(root, "scripts"))` with **no cardinality guard on the scan list**. If the walk ever
+  returned empty — moved directory, changed extension filter, read error — the `shell: true` guard would
+  report "no shell interpretation anywhere" while reading nothing. The sibling `appSources` scan in the
+  same file is protected by accident, because its `setterOccurrences === 1` assertion fails on an empty
+  list; the scripts scan had no such backstop. `scripts/verify-test-lab-cli-only.mts:81-94` already
+  demonstrates the liveness pattern this was missing.
+- **Files changed:** `scripts/verify-license-dispatch-gate.mts` (+8), `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`.
+- **Threshold provenance:** floor of 150 derived from a measured 224 files under `scripts/` on
+  2026-08-02, recorded in the code comment so the next person raises it rather than lowering it to
+  match a failure.
+- **Tests run:** `verify:license-dispatch-gate` **34/34** (was 33/33); `typecheck:scripts` PASS;
+  `verify:verifier-classification` reconciled (156); `verify:source-hygiene` **9/9**;
+  `verify:roadmap-dashboard` **135/135**, banner "Sources agree".
+- **Mutation test:** forcing the floor to `>= 99999` produced `33 passed, 1 failed` and **exit 1**,
+  confirming the guard reports failure rather than decorating the summary. Reverted.
+- **Not run:** packaged licensing/walkthrough suites (available EXE still predates this source);
+  live Electron timer/focus/bootstrap behavior remains manual.
+- **Result:** No behavioral change to the application — verifier hardening only. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED. `awkit-f3l` and `awkit-hj8` remain closed; `awkit-2l1` remains open.

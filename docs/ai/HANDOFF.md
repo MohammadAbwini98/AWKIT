@@ -27,7 +27,7 @@
 
 ### Verification and remaining manual evidence
 
-- PASS: build; scripts typecheck; licensing 167/167; dispatch gate 33/33; final isolated runner 89/89;
+- PASS: build; scripts typecheck; licensing 167/167; dispatch gate 34/34; final isolated runner 89/89;
   CLI-only 24/24; IPC 4/4; source hygiene 9/9; classification 156/156; ordinary offline validation.
 - Expected negative proof: strict offline validation exits nonzero because the untouched manifest's
   source commit is not current HEAD.

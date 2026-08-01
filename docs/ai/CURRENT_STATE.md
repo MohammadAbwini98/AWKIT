@@ -15,7 +15,12 @@ between event-driven checks.
 Verifier failure semantics are hardened: CLI-only inspection refuses to assert success when any
 artifact was not inspected or is empty, and all three packaged/CLI verifiers now exit nonzero for
 BLOCKED as well as failed assertions. Signing-key and sibling TSX launches use direct local runtime
-argv with no command shell; `scripts/dev.mjs` remains the intentional `.cmd` shim exception.
+argv with no command shell; `scripts/dev.mjs` remains the intentional `.cmd` shim exception. The
+dispatch-gate verifier's `shell: true` scan additionally asserts a **liveness floor** on the file list
+it walks (2026-08-02), because `shellTrue.length === 0` is vacuously true over an empty scan — a
+broken walk would otherwise report "no shell interpretation anywhere" while reading nothing. The floor
+(150) was measured against 224 real files; raise it as the tree grows, never lower it to match a
+failure. Mutation-tested: forcing the floor high produces `1 failed` and exit 1.
 
 The committed `resources/dependency-manifest.{json,sig}` pair remains byte-untouched. It is valid and
 self-consistent, but it is **not release-current** because `application.sourceCommit` does not equal
@@ -24,7 +29,7 @@ release-only gate and additionally requires manifest app version to equal `packa
 `sourceCommit` to equal release HEAD. Key custody relocation/rotation outside the OneDrive-synced
 workspace is tracked separately as open P1 `awkit-2l1`; no private key material was recorded.
 
-Verification: build PASS; scripts typecheck PASS; licensing **167/167**; dispatch-gate **33/33**;
+Verification: build PASS; scripts typecheck PASS; licensing **167/167**; dispatch-gate **34/34**;
 runner **89/89** in the final isolated run; CLI-only **24/24**; IPC **4/4**; source hygiene **9/9**;
 verifier classification **156/156**; ordinary offline validation PASS. Strict offline validation
 failed at the intended release-current provenance assertion. Packaged licensing/walkthrough suites

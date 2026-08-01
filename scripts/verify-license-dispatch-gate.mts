@@ -235,6 +235,14 @@ try {
   );
 
   const scriptFiles = walkScripts(join(root, "scripts"));
+  // Liveness before the verdict: `shellTrue.length === 0` is vacuously true over an empty scan, so a
+  // broken walk would report "no shell:true anywhere" while reading nothing. Floor measured at 224
+  // files on 2026-08-02 — raise it if the tree grows, never lower it to match a failure.
+  check(
+    `the shell scan has script files to read (found ${scriptFiles.length})`,
+    scriptFiles.length >= 150,
+    `${scriptFiles.length} files under scripts/`
+  );
   const shellTrue = scriptFiles
     .filter((file) => {
       const rel = relative(root, file).split(sep).join("/");
