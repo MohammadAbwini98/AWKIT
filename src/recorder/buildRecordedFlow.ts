@@ -41,9 +41,15 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
         step.locator.alternatives = action.locator.alternatives;
       }
       if (action.locator.context) step.locator.context = action.locator.context;
+      if (action.locator.interaction) step.locator.interaction = action.locator.interaction;
+      if (action.locator.approvedFallbackReason) step.locator.approvedFallbackReason = action.locator.approvedFallbackReason;
+      if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
       
-      // Default resolution state: a non-unique locator requires review before execution.
-      if (action.locator.quality?.isUnique === false) {
+      // Preserve explicit recorder/user decisions. Only derive a default for legacy payloads.
+      if (action.locator.resolution) {
+        step.locator.resolution = action.locator.resolution;
+        step.locator.resolvedBy = action.locator.resolvedBy ?? "recorder";
+      } else if (action.locator.quality?.isUnique === false) {
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
       } else {

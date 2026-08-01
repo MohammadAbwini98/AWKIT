@@ -20,6 +20,16 @@ export function installRecorderCapture(): void {
   if (w.__awtkitCaptureInstalled) return;
   w.__awtkitCaptureInstalled = true;
 
+  // Closed roots cannot be traversed by Playwright or exposed by document-level composedPath().
+  // Record only which host requested mode:"closed"; never retain or expose the returned root.
+  const closedShadowHosts = new WeakSet<Element>();
+  const nativeAttachShadow = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = function (init: ShadowRootInit): ShadowRoot {
+    const root = nativeAttachShadow.call(this, init);
+    if (init?.mode === "closed") closedShadowHosts.add(this);
+    return root;
+  };
+
   const record = (action: unknown): void => {
     const fn = (window as unknown as { __awtkit_recordAction?: (a: unknown) => void }).__awtkit_recordAction;
     if (typeof fn === "function") {
@@ -69,7 +79,7 @@ export function installRecorderCapture(): void {
   // Count matches for a CSS selector; a broken selector counts as "many" so it loses.
   const q = (selector: string): number => {
     try {
-      return document.querySelectorAll(selector).length;
+      return queryAll(selector).length;
     } catch {
       return 999;
     }
@@ -91,6 +101,49 @@ export function installRecorderCapture(): void {
   const attr = (el: Element, name: string): string => {
     const v = el.getAttribute ? el.getAttribute(name) : null;
     return v && v.trim() ? v.trim() : "";
+  };
+
+  const OPEN_ROOT_CAP = 128;
+  const OPEN_ROOT_ELEMENT_CAP = 10_000;
+  let activeQueryRoots: ParentNode[] = [document];
+
+  /** A bounded, per-generation snapshot of the document and recursively reachable open roots. */
+  const collectOpenRoots = (start: ParentNode): ParentNode[] => {
+    const roots: ParentNode[] = [];
+    const pending: ParentNode[] = [start];
+    const seen = new WeakSet<object>();
+    let inspected = 0;
+    while (pending.length && roots.length < OPEN_ROOT_CAP && inspected < OPEN_ROOT_ELEMENT_CAP) {
+      const root = pending.shift()!;
+      if (seen.has(root as object)) continue;
+      seen.add(root as object);
+      roots.push(root);
+      let elements: Element[] = [];
+      try {
+        elements = Array.prototype.slice.call(root.querySelectorAll("*"));
+      } catch {
+        continue;
+      }
+      for (let index = 0; index < elements.length && inspected < OPEN_ROOT_ELEMENT_CAP; index += 1) {
+        inspected += 1;
+        const shadow = (elements[index] as HTMLElement).shadowRoot;
+        if (shadow?.mode === "open" && !seen.has(shadow)) pending.push(shadow);
+      }
+    }
+    return roots;
+  };
+
+  const queryAll = (selector: string, roots: ParentNode[] = activeQueryRoots): Element[] => {
+    const out: Element[] = [];
+    for (let index = 0; index < roots.length; index += 1) {
+      try {
+        const matches = roots[index].querySelectorAll(selector);
+        for (let match = 0; match < matches.length; match += 1) out.push(matches[match]);
+      } catch {
+        return [];
+      }
+    }
+    return out;
   };
 
   // Best-effort ARIA role from an explicit role attribute or the element's tag.
@@ -124,7 +177,8 @@ export function installRecorderCapture(): void {
     const id = (el as HTMLElement).id;
     if (id) {
       try {
-        const lab = document.querySelector('label[for="' + esc(id) + '"]');
+        const root = el.getRootNode() as ParentNode;
+        const lab = root.querySelector('label[for="' + esc(id) + '"]');
         if (lab) {
           const t = norm(lab.textContent);
           if (t) return t;
@@ -144,7 +198,8 @@ export function installRecorderCapture(): void {
     if (labelledby) {
       let text = "";
       labelledby.split(/\s+/).forEach((id) => {
-        const ref = document.getElementById(id);
+        const root = el.getRootNode() as Document | ShadowRoot;
+        const ref = typeof root.getElementById === "function" ? root.getElementById(id) : null;
         if (ref) text += " " + ref.textContent;
       });
       if (norm(text)) return norm(text);
@@ -194,7 +249,13 @@ export function installRecorderCapture(): void {
   };
 
   // Elements that plausibly expose the given ARIA role (used to count role matches).
-  const elementsForRole = (role: string): Element[] => elementsForRoleIn(document, role);
+  const elementsForRole = (role: string): Element[] => {
+    const out: Element[] = [];
+    for (let index = 0; index < activeQueryRoots.length; index += 1) {
+      out.push(...elementsForRoleIn(activeQueryRoots[index], role));
+    }
+    return out;
+  };
 
   const countRoleName = (role: string, name: string): number => {
     let count = 0;
@@ -212,7 +273,7 @@ export function installRecorderCapture(): void {
     let count = 0;
     let controls: Element[] = [];
     try {
-      controls = Array.prototype.slice.call(document.querySelectorAll("input, select, textarea, [role=textbox], [role=combobox]"));
+      controls = queryAll("input, select, textarea, [role=textbox], [role=combobox]");
     } catch {
       return 999;
     }
@@ -230,9 +291,9 @@ export function installRecorderCapture(): void {
 
   const countExactText = (text: string): number => {
     let count = 0;
-    let all: NodeListOf<Element>;
+    let all: Element[];
     try {
-      all = document.querySelectorAll("body *");
+      all = queryAll("*");
     } catch {
       return 999;
     }
@@ -298,7 +359,7 @@ export function installRecorderCapture(): void {
       let count = q(selector);
       if (count > 1) {
         try {
-          const list = Array.prototype.slice.call(document.querySelectorAll(selector));
+          const list = queryAll(selector);
           const idx = list.indexOf(el);
           if (idx >= 0) {
             selector = base + " " + tag + ":nth-of-type(" + (idx + 1) + ")";
@@ -352,7 +413,7 @@ export function installRecorderCapture(): void {
       .map((c) => {
         let freq = 999;
         try {
-          freq = document.getElementsByClassName(c).length || 999;
+          freq = queryAll("." + ident(c)).length || 999;
         } catch {
           freq = 999;
         }
@@ -463,7 +524,7 @@ export function installRecorderCapture(): void {
   }
 
   // Ordered candidate locators — semantic/stable first, positional fallback last.
-  const buildCandidates = (el: Element): Candidate[] => {
+  const buildCandidates = (el: Element, allowPositional = true): Candidate[] => {
     const out: Candidate[] = [];
     const tag = tagOf(el);
     const role = roleOf(el);
@@ -508,7 +569,9 @@ export function installRecorderCapture(): void {
     if (id && !looksGeneratedId(id)) out.push({ strategy: "id", value: id, count: q("#" + ident(id)) });
 
     const scoped = scopedSelector(el);
-    if (scoped) out.push({ strategy: "css", value: scoped.value, count: scoped.count });
+    if (scoped && (allowPositional || scoped.value.indexOf(":nth-") < 0)) {
+      out.push({ strategy: "css", value: scoped.value, count: scoped.count });
+    }
 
     // Compound "tree": meaningful features across the element + fewest distinguishing ancestors.
     // Non-fallback only when it reached a single match via features (so it wins over positional).
@@ -516,10 +579,10 @@ export function installRecorderCapture(): void {
     if (compound) out.push({ strategy: "css", value: compound.value, count: compound.count, fallback: compound.count !== 1 || compound.positional });
 
     // Guaranteed-unique hybrid anchored at the nearest stable ancestor.
-    const anchored = anchoredStructural(el);
+    const anchored = allowPositional ? anchoredStructural(el) : null;
     if (anchored) out.push({ strategy: "css", value: anchored.value, count: anchored.count, fallback: true });
 
-    const structural = structuralSelector(el);
+    const structural = allowPositional ? structuralSelector(el) : "";
     if (structural) out.push({ strategy: "css", value: structural, count: q(structural), fallback: true });
 
     // De-duplicate by (strategy|value|name) so candidateCount reflects distinct options and the
@@ -537,6 +600,7 @@ export function installRecorderCapture(): void {
     strategy: string;
     isUnique: boolean;
     matchCount: number;
+    visibleMatchCount?: number;
     confidence: string;
     warning?: string;
     candidateCount: number;
@@ -707,6 +771,32 @@ export function installRecorderCapture(): void {
     return [];
   };
 
+  /** Match one recorder candidate inside one concrete root using the same normalization policy. */
+  const candidateElementsIn = (root: ParentNode, cand: { strategy: string; value: string; name?: string }): Element[] => {
+    if (cand.strategy === "role" || cand.strategy === "label" || cand.strategy === "placeholder" || cand.strategy === "text") {
+      return semanticElementsIn(root, { ...cand, count: 0 });
+    }
+    try {
+      if (cand.strategy === "testId") return Array.prototype.slice.call(root.querySelectorAll('[data-testid="' + esc(cand.value) + '"]'));
+      if (cand.strategy === "id") return Array.prototype.slice.call(root.querySelectorAll("#" + ident(cand.value)));
+      if (cand.strategy === "css" || cand.strategy === "tagName") return Array.prototype.slice.call(root.querySelectorAll(cand.value));
+    } catch {
+      return [];
+    }
+    return [];
+  };
+
+  const isVisibleMatch = (element: Element): boolean => {
+    try {
+      const style = window.getComputedStyle(element);
+      if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    } catch {
+      return false;
+    }
+  };
+
   // Re-find the container node the same way detectContainer derived it, so verification runs against
   // the actual ancestor of the target element.
   const closestContainerNode = (el: Element, container: ContainerContext): Element | null => {
@@ -758,8 +848,15 @@ export function installRecorderCapture(): void {
     return out;
   };
 
-  const generate = (el: Element): { locator: Record<string, unknown>; quality: Quality; accessibleName: string } => {
-    const candidates = buildCandidates(el);
+  interface GenerateOptions {
+    root?: ParentNode;
+    allowPositional?: boolean;
+    includeContext?: boolean;
+  }
+
+  const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string } => {
+    activeQueryRoots = collectOpenRoots(options.root ?? document);
+    const candidates = buildCandidates(el, options.allowPositional !== false);
 
     let chosen: Candidate | undefined;
     // Prefer the first UNIQUE non-fallback candidate (highest-priority strategy wins).
@@ -819,6 +916,9 @@ export function installRecorderCapture(): void {
       strategy: positional ? "fallback" : chosen.strategy,
       isUnique,
       matchCount: containerScoped ? 1 : chosen.count,
+      visibleMatchCount: containerScoped
+        ? 1
+        : activeQueryRoots.reduce((count, root) => count + candidateElementsIn(root, chosen!).filter(isVisibleMatch).length, 0),
       confidence,
       candidateCount: candidates.length
     };
@@ -836,7 +936,7 @@ export function installRecorderCapture(): void {
     const alternatives = buildAlternatives(candidates, chosen);
     if (alternatives.length) locator.alternatives = alternatives;
 
-    const context = detectContext(el, chosen.count);
+    const context = options.includeContext === false ? undefined : detectContext(el, chosen.count);
     if (context) locator.context = context;
 
     return { locator, quality, accessibleName: accessibleName(el) };
@@ -847,6 +947,133 @@ export function installRecorderCapture(): void {
       ? el.closest('a[href], button, input, select, textarea, label, summary, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [onclick]')
       : null;
     return (candidate as Element) || el;
+  };
+
+  interface ShadowCapture {
+    boundary: "none" | "open" | "closed" | "unknown";
+    hosts: Array<Record<string, unknown>>;
+    innermostRoot?: ShadowRoot;
+    valid: boolean;
+    reason?: string;
+  }
+
+  const firstPathElement = (event: Event): Element | null => {
+    if (typeof event.composedPath === "function") {
+      const path = event.composedPath();
+      for (let index = 0; index < path.length; index += 1) {
+        const item = path[index] as Node;
+        if (item && item.nodeType === 1) return item as Element;
+      }
+    }
+    const target = event.target as Node | null;
+    return target?.nodeType === 1 ? (target as Element) : null;
+  };
+
+  const hostDescriptor = (host: Element, parentRoot: ParentNode): { descriptor: Record<string, unknown>; valid: boolean } => {
+    const generated = generate(host, { root: parentRoot, allowPositional: false, includeContext: false });
+    const locator = generated.locator;
+    const descriptor: Record<string, unknown> = {
+      strategy: locator.strategy,
+      value: locator.value,
+      quality: generated.quality
+    };
+    if (locator.name) descriptor.name = locator.name;
+    if (locator.exact) descriptor.exact = locator.exact;
+    if (locator.alternatives) descriptor.alternatives = locator.alternatives;
+    const valid =
+      generated.quality.isUnique &&
+      generated.quality.strategy !== "fallback" &&
+      locator.strategy !== "xpath";
+    return { descriptor, valid };
+  };
+
+  const captureShadow = (event: Event, target: Element): ShadowCapture => {
+    const pathTarget = firstPathElement(event);
+    if (pathTarget && closedShadowHosts.has(pathTarget)) {
+      const parentRoot = pathTarget.getRootNode() as ParentNode;
+      const host = hostDescriptor(pathTarget, parentRoot);
+      return {
+        boundary: "closed",
+        hosts: host.valid ? [host.descriptor] : [],
+        valid: false,
+        reason: "closed shadow root"
+      };
+    }
+
+    const innerToOuter: Array<{ root: ShadowRoot; host: Element }> = [];
+    let node: Element = target;
+    while (true) {
+      const root = node.getRootNode();
+      if (!(root instanceof ShadowRoot) || root.mode !== "open") break;
+      innerToOuter.push({ root, host: root.host });
+      node = root.host;
+    }
+    if (!innerToOuter.length) return { boundary: "none", hosts: [], valid: true };
+
+    const hosts: Array<Record<string, unknown>> = [];
+    let valid = true;
+    const outerToInner = innerToOuter.slice().reverse();
+    for (let index = 0; index < outerToInner.length; index += 1) {
+      const boundary = outerToInner[index];
+      const described = hostDescriptor(boundary.host, boundary.host.getRootNode() as ParentNode);
+      hosts.push(described.descriptor);
+      if (!described.valid) valid = false;
+    }
+    return {
+      boundary: "open",
+      hosts,
+      innermostRoot: innerToOuter[0].root,
+      valid,
+      reason: valid ? undefined : "ambiguous shadow host context"
+    };
+  };
+
+  const generateForEvent = (event: Event, interactive: boolean): { target: Element; generated: ReturnType<typeof generate>; shadow: ShadowCapture } | null => {
+    const raw = firstPathElement(event);
+    if (!raw) return null;
+    const target = interactive ? interactiveTarget(raw) : raw;
+    const targetRoot = target.getRootNode();
+    const isOpenInternal = targetRoot instanceof ShadowRoot && targetRoot.mode === "open";
+    const generated = generate(target, { allowPositional: !isOpenInternal && !closedShadowHosts.has(raw) });
+    const shadow = captureShadow(event, target);
+    if (shadow.boundary !== "none") {
+      const existingContext = (generated.locator.context as Record<string, unknown> | undefined) ?? {};
+      generated.locator.context = {
+        ...existingContext,
+        shadow: { boundary: shadow.boundary, hosts: shadow.hosts }
+      };
+    }
+    if (shadow.boundary === "open") {
+      const candidate = {
+        strategy: String(generated.locator.strategy || ""),
+        value: String(generated.locator.value || ""),
+        name: typeof generated.locator.name === "string" ? generated.locator.name : undefined
+      };
+      const local = shadow.innermostRoot ? candidateElementsIn(shadow.innermostRoot, candidate) : [];
+      const targetIsUnique = local.length === 1 && local[0] === target;
+      if (shadow.valid && targetIsUnique && candidate.strategy !== "xpath") {
+        generated.quality.isUnique = true;
+        generated.quality.matchCount = 1;
+        generated.quality.visibleMatchCount = 1;
+        generated.quality.disambiguation = "shadow";
+        generated.quality.warning = undefined;
+        generated.locator.resolution = "resolved";
+        generated.locator.resolvedBy = "recorder";
+      } else {
+        generated.quality.isUnique = false;
+        generated.quality.warning = "The shadow-host chain or target locator is not unique. Review is required before replay.";
+        generated.locator.resolution = "needs-review";
+        generated.locator.resolvedBy = "recorder";
+        generated.locator.reviewReason = shadow.reason ?? "ambiguous shadow target";
+      }
+    } else if (shadow.boundary === "closed") {
+      generated.locator.resolution = "needs-review";
+      generated.locator.resolvedBy = "recorder";
+      generated.locator.reviewReason = "closed shadow root";
+      generated.quality.warning = "The interaction originated inside a closed shadow root and cannot be replayed automatically.";
+    }
+    activeQueryRoots = collectOpenRoots(document);
+    return { target, generated, shadow };
   };
 
   const isVisible = (el: Element): boolean => {
@@ -1264,7 +1491,12 @@ export function installRecorderCapture(): void {
     return SENSITIVE_FIELD_PATTERN.test(normalized);
   }
 
-  const captureInteraction = (event: Event, target: Element, g: { locator: Record<string, unknown>; quality: Quality }): Record<string, unknown> => {
+  const captureInteraction = (
+    event: Event,
+    target: Element,
+    g: { locator: Record<string, unknown>; quality: Quality },
+    shadow?: ShadowCapture
+  ): Record<string, unknown> => {
     const interaction: Record<string, unknown> = {};
     if (event instanceof MouseEvent) {
       interaction.x = Math.round(event.clientX);
@@ -1281,9 +1513,10 @@ export function installRecorderCapture(): void {
       }
       interaction.path = tags;
     }
+    if (shadow && shadow.boundary !== "none") interaction.shadowBoundary = shadow.boundary;
     if (!g.quality.isUnique && g.locator.strategy === "css" && typeof g.locator.value === "string") {
       try {
-        const matches = document.querySelectorAll(g.locator.value);
+        const matches = queryAll(g.locator.value);
         for (let i = 0; i < matches.length; i++) {
           if (matches[i] === target) {
             interaction.matchIndex = i;
@@ -1314,9 +1547,9 @@ export function installRecorderCapture(): void {
   window.addEventListener(
     "click",
     (event) => {
-      const raw = event.target as Element | null;
-      if (!raw || raw.nodeType !== 1) return;
-      const target = interactiveTarget(raw);
+      const captured = generateForEvent(event, true);
+      if (!captured) return;
+      const { target, generated: g, shadow } = captured;
       const tag = tagOf(target);
       // Selects/textareas and interactive inputs are recorded by the 'change' handler.
       if (tag === "select" || tag === "textarea") return;
@@ -1324,9 +1557,8 @@ export function installRecorderCapture(): void {
         const type = ((target as HTMLInputElement).type || "text").toLowerCase();
         if (["checkbox", "radio", "text", "password", "email", "search", "tel", "url", "number", "date"].indexOf(type) >= 0) return;
       }
-      const g = generate(target);
       const label = g.accessibleName || tag || "element";
-      const interaction = captureInteraction(event, target, g);
+      const interaction = captureInteraction(event, target, g, shadow);
       record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction } });
     },
     true
@@ -1335,14 +1567,14 @@ export function installRecorderCapture(): void {
   window.addEventListener(
     "change",
     (event) => {
-      const target = event.target as Element | null;
-      if (!target) return;
+      const captured = generateForEvent(event, false);
+      if (!captured) return;
+      const { target, generated: g, shadow } = captured;
       const tag = tagOf(target);
       if (tag !== "input" && tag !== "select" && tag !== "textarea") return;
 
-      const g = generate(target);
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
-      const interaction = captureInteraction(event, target, g);
+      const interaction = captureInteraction(event, target, g, shadow);
       const locator = { ...g.locator, interaction };
 
       if (tag === "input") {
@@ -1374,16 +1606,16 @@ export function installRecorderCapture(): void {
   window.addEventListener(
     "input",
     (event) => {
-      const target = event.target as Element | null;
-      if (!target) return;
+      const captured = generateForEvent(event, false);
+      if (!captured) return;
+      const { target, generated: g, shadow } = captured;
       const tag = tagOf(target);
       if (tag !== "input" && tag !== "textarea") return;
       const type = tag === "input" ? ((target as HTMLInputElement).type || "text").toLowerCase() : "";
       // checkbox/radio fire 'input' too but are recorded as check/uncheck/radio by 'change'.
       if (type === "checkbox" || type === "radio") return;
-      const g = generate(target);
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
-      const interaction = captureInteraction(event, target, g);
+      const interaction = captureInteraction(event, target, g, shadow);
       const locator = { ...g.locator, interaction };
       // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
       const value = shouldRedactValue(target, type) ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
@@ -1396,7 +1628,7 @@ export function installRecorderCapture(): void {
 
   (window as any).__awtkit_highlight = (selector: string, index?: number) => {
     (window as any).__awtkit_clearHighlight();
-    const elements = Array.from(document.querySelectorAll(selector));
+    const elements = queryAll(selector);
     const target = index !== undefined && index >= 0 && index < elements.length ? elements[index] : elements[0];
     if (!target) return;
 

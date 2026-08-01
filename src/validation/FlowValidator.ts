@@ -454,7 +454,8 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
       if (step.locator === undefined) {
         collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step)} (${step.type}) requires a locator.`);
       } else if (step.locator.resolution === "needs-review" || step.locator.resolution === "invalid") {
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator: it requires review or fallback approval before execution.`);
+        const reason = step.locator.reviewReason ? ` (${step.locator.reviewReason})` : "";
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {

@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
+import { chromium, type Browser, type BrowserContext, type Frame, type Page } from "playwright";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -664,7 +664,7 @@ export class RecorderService {
     });
 
     await context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
-      this.recordActionFromPage(source.page, action);
+      this.recordActionFromPage(source.page, action, source.frame);
     });
 
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
@@ -1121,7 +1121,7 @@ export class RecorderService {
    * consecutive-fill compaction, think-time capture, route-change insertion and page-alias tagging —
    * can be exercised without launching a browser. The binding is now a one-line adapter.
    */
-  private recordActionFromPage(sourcePage: Page, action: Omit<RecordedAction, "id">): void {
+  private recordActionFromPage(sourcePage: Page, action: Omit<RecordedAction, "id">, sourceFrame?: Frame): void {
     // Never capture while paused (e.g. a protected-detection handoff is showing). Defense-in-depth:
     // the automation browser may stay open during the "detected" phase, so the guard — not just a
     // closed browser — is what guarantees nothing on a protected page is ever recorded.
@@ -1172,6 +1172,26 @@ export class RecorderService {
     // Tag the action with its page alias (omit 'main' to keep legacy flows clean).
     const taggedAction: RecordedAction = { ...action, id: randomUUID() };
     if (pageAlias !== "main") taggedAction.pageAlias = pageAlias;
+    if (sourceFrame && sourceFrame !== sourcePage.mainFrame() && taggedAction.locator && !taggedAction.locator.context?.frame?.selector) {
+      const safeOrigin = (value: string): string | undefined => {
+        try {
+          const parsed = new URL(value);
+          return parsed.origin === "null" ? undefined : parsed.origin;
+        } catch {
+          return undefined;
+        }
+      };
+      const childOrigin = safeOrigin(sourceFrame.url());
+      const pageOrigin = safeOrigin(sourcePage.url());
+      const state = childOrigin && pageOrigin ? (childOrigin === pageOrigin ? "same-origin" : "cross-origin") : "unknown";
+      taggedAction.locator.interaction = {
+        ...taggedAction.locator.interaction,
+        frame: { state, name: sourceFrame.name() || undefined, origin: childOrigin }
+      };
+      taggedAction.locator.resolution = "needs-review";
+      taggedAction.locator.resolvedBy = "recorder";
+      taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
+    }
     // Track click timestamp for popup opener correlation.
     if (action.type === "click") this.lastClickAt = now;
     

@@ -51,6 +51,8 @@ export interface LocatorQuality {
   isUnique: boolean;
   /** Number of elements the locator matched at generation time. */
   matchCount: number;
+  /** Number of those matches that were visible under the Recorder's live-DOM policy. */
+  visibleMatchCount?: number;
   confidence: "high" | "medium" | "low";
   /** Human-readable reason the locator is fragile/non-unique (shown in the UI). */
   warning?: string;
@@ -61,7 +63,7 @@ export interface LocatorQuality {
    * `compound` = combined features/ancestors into one CSS selector; `container` = a readable
    * semantic locator scoped to a stable container; `positional` = a fragile index-based fallback.
    */
-  disambiguation?: "compound" | "container" | "positional";
+  disambiguation?: "compound" | "container" | "shadow" | "positional";
 }
 
 /**
@@ -96,9 +98,41 @@ export interface LocatorFrameContext {
   selector: string;
 }
 
+export type ShadowBoundaryState = "none" | "open" | "closed" | "unknown";
+
+/** A stable locator for one host in an outer-to-inner open-shadow chain. */
+export interface LocatorShadowHost extends LocatorCandidate {
+  quality?: LocatorQuality;
+  alternatives?: LocatorCandidate[];
+}
+
+/** Optional Shadow DOM scope captured by the Recorder. */
+export interface LocatorShadowContext {
+  boundary: ShadowBoundaryState;
+  hosts?: LocatorShadowHost[];
+}
+
 export interface LocatorContext {
   frame?: LocatorFrameContext;
+  shadow?: LocatorShadowContext;
   container?: LocatorContainerContext;
+}
+
+/** Stable, serializable event evidence; never contains DOM handles or page object references. */
+export interface LocatorInteractionEvidence {
+  path?: string[];
+  x?: number;
+  y?: number;
+  matchIndex?: number;
+  requiresHover?: boolean;
+  hoverContainer?: Record<string, unknown>;
+  hoverUnresolved?: boolean;
+  shadowBoundary?: ShadowBoundaryState;
+  frame?: {
+    state: "same-origin" | "cross-origin" | "unknown";
+    name?: string;
+    origin?: string;
+  };
 }
 
 export type LocatorResolution =
@@ -119,12 +153,16 @@ export interface StepLocator extends LocatorCandidate {
   alternatives?: LocatorCandidate[];
   /** Container/frame scoping applied to the primary and every alternative. */
   context?: LocatorContext;
+  /** Compact capture evidence retained for diagnostics and compatible round trips. */
+  interaction?: LocatorInteractionEvidence;
   /** Resolution state of the locator. Absent means a legacy "resolved" step. */
   resolution?: LocatorResolution;
   /** Provenance of the resolution decision. */
   resolvedBy?: "recorder" | "user";
   /** Reason provided by the user when accepting a fallback locator. */
   approvedFallbackReason?: string;
+  /** Recorder-provided reason for an explicit review-required boundary. */
+  reviewReason?: string;
 }
 
 export type ValueSourceType =

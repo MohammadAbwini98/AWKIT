@@ -42,7 +42,12 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         quality: data.locatorQuality,
         // Keep the Recorder's runtime fallbacks + container/frame scoping on save.
         alternatives: data.locatorAlternatives,
-        context: data.locatorContext
+        context: data.locatorContext,
+        interaction: data.locatorInteraction,
+        resolution: data.locatorResolution,
+        resolvedBy: data.locatorResolvedBy,
+        approvedFallbackReason: data.locatorApprovedFallbackReason,
+        reviewReason: data.locatorReviewReason
       }
       : undefined,
     // Recorder popup/window metadata (awkit-4t9). Mapped EXPLICITLY, not spread, so the schema stays
@@ -162,6 +167,11 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     // Preserve Recorder runtime fallbacks/scoping through the designer round-trip (edit-safe).
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
+    locatorInteraction: step.locator?.interaction,
+    locatorResolution: step.locator?.resolution,
+    locatorResolvedBy: step.locator?.resolvedBy,
+    locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
+    locatorReviewReason: step.locator?.reviewReason,
     // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't
     // re-derive" (the rule established by awkit-cxa) — so an unrelated node edit cannot clear it.
     pageAlias: step.pageAlias,

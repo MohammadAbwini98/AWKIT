@@ -34,9 +34,17 @@ export interface RecordedActionLocator {
      * rather than fabricating a hover step that cannot replay.
      */
     hoverUnresolved?: boolean;
+    shadowBoundary?: "none" | "open" | "closed" | "unknown";
+    frame?: {
+      state: "same-origin" | "cross-origin" | "unknown";
+      name?: string;
+      origin?: string;
+    };
   };
   resolution?: "needs-review" | "user-approved-fallback" | "resolved";
   resolvedBy?: "user" | "recorder";
+  approvedFallbackReason?: string;
+  reviewReason?: string;
 }
 
 export interface RecordedAction {
@@ -174,4 +182,3 @@ export interface AmbiguityResolutionPayload {
 export interface AmbiguityState {
   action: RecordedAction;
 }
-

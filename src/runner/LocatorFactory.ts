@@ -1,6 +1,6 @@
 import type { Page, Locator } from "playwright";
 import { createHash } from "node:crypto";
-import type { FlowStep, LocatorCandidate, LocatorContext } from "@src/profiles/FlowProfile";
+import type { FlowStep, LocatorCandidate, LocatorContext, LocatorShadowHost } from "@src/profiles/FlowProfile";
 import {
   locatorCandidatesDigest,
   type LocatorElementFingerprint,
@@ -190,6 +190,11 @@ export class LocatorFactory {
     const spec = step.locator;
     if (!spec) {
       throw new Error("Locator is required for this step.");
+    }
+
+    if (spec.context?.shadow?.boundary === "open") {
+      const hasXPath = spec.strategy === "xpath" || spec.alternatives?.some((candidate) => candidate.strategy === "xpath");
+      if (hasXPath) throw new Error(`Shadow DOM step "${step.name}" cannot use XPath across a shadow boundary.`);
     }
 
     const root = await this.buildRoot(spec.context);
@@ -494,6 +499,17 @@ export class LocatorFactory {
       root = this.page.frameLocator(context.frame.selector) as unknown as LocatorRoot;
     }
 
+    const shadow = context?.shadow;
+    if (shadow?.boundary === "closed" || shadow?.boundary === "unknown") {
+      throw new Error(`This locator cannot execute because its ${shadow.boundary} shadow boundary requires review.`);
+    }
+    if (shadow?.boundary === "open") {
+      if (!shadow.hosts?.length) throw new Error("Open Shadow DOM locator context is missing its host chain.");
+      for (let index = 0; index < shadow.hosts.length; index += 1) {
+        root = await this.resolveShadowHost(root, shadow.hosts[index], index);
+      }
+    }
+
     const container = context?.container;
     if (container) {
       let containerLocator = this.buildOn(root, container);
@@ -503,6 +519,29 @@ export class LocatorFactory {
     }
 
     return root;
+  }
+
+  /** Resolve one host strictly, then use it as the root for the next host or final target. */
+  private async resolveShadowHost(root: LocatorRoot, host: LocatorShadowHost, index: number): Promise<LocatorRoot> {
+    const candidates: LocatorCandidate[] = [
+      { strategy: host.strategy, value: host.value, name: host.name, exact: host.exact },
+      ...(host.alternatives ?? [])
+    ];
+    const diagnostics: CandidateDiagnostic[] = [];
+    let primary: Locator | undefined;
+    for (const candidate of candidates) {
+      if (candidate.strategy === "xpath") continue;
+      const locator = this.buildOn(root, candidate);
+      primary ??= locator;
+      const single = await LocatorFactory.pickSingle(locator, candidate, diagnostics);
+      if (single) return single as unknown as LocatorRoot;
+    }
+    if (primary && diagnostics.length > 0 && diagnostics.every(({ count }) => count === 0)) {
+      // Preserve Playwright auto-waiting for a dynamically attached open root/host.
+      return primary as unknown as LocatorRoot;
+    }
+    const detail = diagnostics.map((d) => `${d.strategy}=${d.value}: ${d.count}`).join(", ");
+    throw new Error(`Shadow host ${index + 1} did not resolve strictly (${detail || "no supported candidates"}).`);
   }
 
   /** Build one Playwright locator for `candidate` against an arbitrary root. */
@@ -645,6 +684,10 @@ export class LocatorFactory {
       scope.push(`container: ${c.type} (${c.strategy}=${c.value})`);
     }
     if (spec?.context?.frame) scope.push(`frame: ${spec.context.frame.selector}`);
+    if (spec?.context?.shadow) {
+      const shadow = spec.context.shadow;
+      scope.push(`shadow: ${shadow.boundary}${shadow.hosts?.length ? ` (${shadow.hosts.length} host(s))` : ""}`);
+    }
     const scopeLine = scope.length ? `\nContext: ${scope.join("; ")}` : "";
 
     return [
