@@ -3,7 +3,7 @@
 ## Increment 6 Shadow DOM evidence — 2026-08-01
 
 `awkit-aui.6` was exercised through the production capture/build/validate/resolve/execute layers.
-`verify:recorder` passed **170/170**: actual `composedPath()` inner targets; document + reachable-open-root
+`verify:recorder` passed **171/171**: actual `composedPath()` inner targets; document + reachable-open-root
 match counts; stable duplicate-host and nested-host replay; role/test-ID/dynamic/slotted cases; XPath,
 dropped-host, retargeted-host, and closed-host-substitution negatives; known-closed-root privacy and
 zero-launch preflight; same-origin-frame replay and cross-origin review guard. Supporting results:

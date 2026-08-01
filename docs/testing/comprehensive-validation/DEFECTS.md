@@ -41,7 +41,7 @@ defect evidence, not current behavior. The resolution model, preflight gate, evi
 stable ancestor/context scoping, hover prerequisite, and acceptance regression have since landed.
 Increment 6 (`awkit-aui.6`) adds actual `composedPath()` inner-target capture, bounded open-root match
 counting, ordered stable host scoping, nested/dynamic/slotted replay, known-closed-root review-required
-preflight, and an honest unsupported cross-origin-frame guard. `verify:recorder` is 170/170 and
+preflight, and an honest unsupported cross-origin-frame guard. `verify:recorder` is 171/171 and
 `verify:recorder-ambiguity` is 59/59. The parent defect remains open until Increments 3 and 4 are
 reconciled and the epic-level state is reviewed; this entry does not close them by inference.
 

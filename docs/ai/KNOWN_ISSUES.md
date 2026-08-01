@@ -30,6 +30,10 @@ They are tracked in `bd`; none are "supported behavior".
   existing selector model replay normally. When the injected frame cannot provide that strict model,
   `RecorderService` retains safe frame evidence; cross-origin cases are labelled explicitly and never
   fall back to the main document. Full new frame automation remains outside Increment 6.
+- **Shadow-aware enumeration is deliberately bounded.** A capture scans at most 128 roots and 10,000
+  elements per generation. Reaching either limit is not treated as uniqueness: the locator is marked
+  review-required with reason `shadow traversal limit reached`. This keeps large component pages
+  bounded without silently ignoring duplicates beyond the scan boundary.
 
 - **Hover: sibling/self-toggle triggers not attributed** (`awkit-vot`). Increment 5 attributes a
   hover reveal only when the click target has a hidden-at-rest *ancestor container*. A sibling/self

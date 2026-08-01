@@ -25,7 +25,7 @@ the fields; legacy locators remain executable. Graphify was independently proven
 with live CLI queries against the current graph; Antigravity proof is recorded as owner-confirmed
 manual live-tool evidence.
 
-- Verification: build PASS; `typecheck:scripts` PASS; `verify:recorder` **170/170**;
+- Verification: build PASS; `typecheck:scripts` PASS; `verify:recorder` **171/171**;
   `verify:recorder-ambiguity` **59/59**; `verify:recorder-flow` **29/29**;
   `verify:recorder-hover` **34/34**; `verify:runner` **89/89**; `verify:mock-site` **110/110**;
   `verify:flow-step-mapping` **105/105**; `verify:profile-store` **16/16**;

@@ -22,7 +22,7 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Compatibility:** optional shadow/evidence/review fields survive build, JSON, Flow Designer,
   structured clone/IPC, and profile storage; legacy locators remain executable.
 - **Fixtures/tests:** Recorder Lab now covers unique/duplicate/nested/test-ID/dynamic/slotted/closed/
-  ambiguous-host/same-origin-frame/cross-origin cases. `verify:recorder` 170/170; ambiguity 59/59;
+  ambiguous-host/same-origin-frame/cross-origin/traversal-cap cases. `verify:recorder` 171/171; ambiguity 59/59;
   recorder-flow 29/29; hover 34/34; runner 89/89; mock-site 110/110; mapping 105/105;
   profile-store 16/16; IPC 4/4; build/typecheck/offline/source-hygiene/classification PASS.
 - **Graphify:** Codex and Claude live CLI proofs queried the current 0.9.31 graph (456-node scoped

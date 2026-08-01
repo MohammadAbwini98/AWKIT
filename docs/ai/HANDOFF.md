@@ -30,7 +30,7 @@ origin/name metadata and is never resolved against the main page.
 | Claude Code | Terminal rerun with authenticated `claude -p` session; Claude invoked Graphify against the current graph | PASS — exit 0, BFS depth 2 / 456 nodes; cited `FlowProfile.ts:94`, `RecorderTypes.ts:42`, `LocatorFactory.ts:17`, and the Increment 6 plan. |
 | Google Antigravity | Owner-confirmed manual live-tool query with actual Graphify invocation evidence and AWKIT-specific traversal output | PASS (manual live-tool evidence) — accepted as the independent Antigravity proof; not represented as a local CLI transcript. |
 
-**Verification.** build PASS · typecheck:scripts PASS · recorder 170/170 · ambiguity 59/59 ·
+**Verification.** build PASS · typecheck:scripts PASS · recorder 171/171 · ambiguity 59/59 ·
 recorder-flow 29/29 · recorder-hover 34/34 · runner 89/89 · mock-site 110/110 · mapping 105/105 ·
 profile-store 16/16 · IPC 4/4 · verifier classification 155/155 reconciled · source hygiene 9/9 ·
 offline validation PASS. Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.

@@ -106,6 +106,7 @@ export function installRecorderCapture(): void {
   const OPEN_ROOT_CAP = 128;
   const OPEN_ROOT_ELEMENT_CAP = 10_000;
   let activeQueryRoots: ParentNode[] = [document];
+  let activeQueryTruncated = false;
 
   /** A bounded, per-generation snapshot of the document and recursively reachable open roots. */
   const collectOpenRoots = (start: ParentNode): ParentNode[] => {
@@ -130,6 +131,9 @@ export function installRecorderCapture(): void {
         if (shadow?.mode === "open" && !seen.has(shadow)) pending.push(shadow);
       }
     }
+    // Conservative by design: reaching either cap means uniqueness was not proven over the whole
+    // reachable tree, even when the final inspected root happened to end exactly at the limit.
+    activeQueryTruncated = pending.length > 0 || roots.length >= OPEN_ROOT_CAP || inspected >= OPEN_ROOT_ELEMENT_CAP;
     return roots;
   };
 
@@ -854,8 +858,9 @@ export function installRecorderCapture(): void {
     includeContext?: boolean;
   }
 
-  const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string } => {
+  const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string; traversalComplete: boolean } => {
     activeQueryRoots = collectOpenRoots(options.root ?? document);
+    const traversalComplete = !activeQueryTruncated;
     const candidates = buildCandidates(el, options.allowPositional !== false);
 
     let chosen: Candidate | undefined;
@@ -922,6 +927,10 @@ export function installRecorderCapture(): void {
       confidence,
       candidateCount: candidates.length
     };
+    if (!traversalComplete) {
+      quality.isUnique = false;
+      quality.warning = "Shadow-aware locator matching reached its bounded traversal limit. Review is required before replay.";
+    }
     if (disambiguation) quality.disambiguation = disambiguation;
     if (!isUnique) {
       quality.warning = "This locator matches " + chosen.count + " elements. The recorder could not find a unique locator — this step may fail in Playwright strict mode. Re-record or refine it.";
@@ -939,7 +948,7 @@ export function installRecorderCapture(): void {
     const context = options.includeContext === false ? undefined : detectContext(el, chosen.count);
     if (context) locator.context = context;
 
-    return { locator, quality, accessibleName: accessibleName(el) };
+    return { locator, quality, accessibleName: accessibleName(el), traversalComplete };
   };
 
   const interactiveTarget = (el: Element): Element => {
@@ -969,7 +978,7 @@ export function installRecorderCapture(): void {
     return target?.nodeType === 1 ? (target as Element) : null;
   };
 
-  const hostDescriptor = (host: Element, parentRoot: ParentNode): { descriptor: Record<string, unknown>; valid: boolean } => {
+  const hostDescriptor = (host: Element, parentRoot: ParentNode): { descriptor: Record<string, unknown>; valid: boolean; traversalComplete: boolean } => {
     const generated = generate(host, { root: parentRoot, allowPositional: false, includeContext: false });
     const locator = generated.locator;
     const descriptor: Record<string, unknown> = {
@@ -982,9 +991,10 @@ export function installRecorderCapture(): void {
     if (locator.alternatives) descriptor.alternatives = locator.alternatives;
     const valid =
       generated.quality.isUnique &&
+      generated.traversalComplete &&
       generated.quality.strategy !== "fallback" &&
       locator.strategy !== "xpath";
-    return { descriptor, valid };
+    return { descriptor, valid, traversalComplete: generated.traversalComplete };
   };
 
   const captureShadow = (event: Event, target: Element): ShadowCapture => {
@@ -1012,19 +1022,21 @@ export function installRecorderCapture(): void {
 
     const hosts: Array<Record<string, unknown>> = [];
     let valid = true;
+    let traversalComplete = true;
     const outerToInner = innerToOuter.slice().reverse();
     for (let index = 0; index < outerToInner.length; index += 1) {
       const boundary = outerToInner[index];
       const described = hostDescriptor(boundary.host, boundary.host.getRootNode() as ParentNode);
       hosts.push(described.descriptor);
       if (!described.valid) valid = false;
+      if (!described.traversalComplete) traversalComplete = false;
     }
     return {
       boundary: "open",
       hosts,
       innermostRoot: innerToOuter[0].root,
       valid,
-      reason: valid ? undefined : "ambiguous shadow host context"
+      reason: valid ? undefined : (traversalComplete ? "ambiguous shadow host context" : "shadow traversal limit reached")
     };
   };
 
@@ -1051,7 +1063,7 @@ export function installRecorderCapture(): void {
       };
       const local = shadow.innermostRoot ? candidateElementsIn(shadow.innermostRoot, candidate) : [];
       const targetIsUnique = local.length === 1 && local[0] === target;
-      if (shadow.valid && targetIsUnique && candidate.strategy !== "xpath") {
+      if (shadow.valid && generated.traversalComplete && targetIsUnique && candidate.strategy !== "xpath") {
         generated.quality.isUnique = true;
         generated.quality.matchCount = 1;
         generated.quality.visibleMatchCount = 1;
@@ -1064,7 +1076,9 @@ export function installRecorderCapture(): void {
         generated.quality.warning = "The shadow-host chain or target locator is not unique. Review is required before replay.";
         generated.locator.resolution = "needs-review";
         generated.locator.resolvedBy = "recorder";
-        generated.locator.reviewReason = shadow.reason ?? "ambiguous shadow target";
+        generated.locator.reviewReason = !generated.traversalComplete
+          ? "shadow traversal limit reached"
+          : (shadow.reason ?? "ambiguous shadow target");
       }
     } else if (shadow.boundary === "closed") {
       generated.locator.resolution = "needs-review";

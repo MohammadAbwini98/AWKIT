@@ -810,6 +810,22 @@ async function main() {
     check("shadow cross-origin frame: action is review-required, never main-page executable", guarded?.locator?.resolution === "needs-review" && guarded.locator.reviewReason === "unsupported cross-origin frame" && !guarded.locator.context?.frame, JSON.stringify(guarded));
   }
 
+  // F11. The traversal cap is fail-closed: bounded work must never become false uniqueness.
+  {
+    const hosts = Array.from({ length: 130 }, (_, index) => `<x-shadow-cap data-testid="cap-host-${index}" data-index="${index}"></x-shadow-cap>`).join("");
+    const html = `${hosts}<script>
+      if (!customElements.get('x-shadow-cap')) customElements.define('x-shadow-cap', class extends HTMLElement {
+        connectedCallback(){ if(this.shadowRoot)return; const r=this.attachShadow({mode:'open'}); r.innerHTML='<button type="button">Cap action '+this.getAttribute('data-index')+'</button>'; }
+      });
+    </script>`;
+    const action = await capture(html, (p) => p.getByTestId("cap-host-0").getByRole("button").click());
+    check(
+      "shadow traversal cap: incomplete enumeration is review-required, never falsely unique",
+      action?.locator?.resolution === "needs-review" && action.locator.reviewReason === "shadow traversal limit reached",
+      JSON.stringify(action?.locator)
+    );
+  }
+
   // CR3. Runtime self-healing: a legacy non-unique step where two same-named buttons are visible but
   // only one is enabled → the runner clicks the actionable one instead of failing.
   {

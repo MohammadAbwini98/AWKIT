@@ -101,7 +101,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   and uncheck a checkbox; choose a radio; stop without blurring the last text input.
 - **Expected:** Actions are `click`, `fill`, `select`, `check`, `uncheck`, and `radio` as appropriate;
   locators are usable; the final focused input value is captured.
-- **Status:** `PASS` — `npm run verify:recorder`, **170/170**. Increment 6 adds real-browser
+- **Status:** `PASS` — `npm run verify:recorder`, **171/171**. Increment 6 adds real-browser
   open/nested/dynamic Shadow DOM capture and `LocatorFactory`/`StepExecutor` replay, duplicate-host
   disambiguation, slotted light-DOM classification, known-closed-root zero-launch preflight, and honest
   cross-origin-frame review-required evidence while preserving the existing non-shadow assertions.
