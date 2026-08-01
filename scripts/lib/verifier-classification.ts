@@ -140,6 +140,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:failure-evidence": { class: "unit", why: "Per-attempt failure-evidence ordering/accumulation (FR-B2) over the real FlowExecutor.executeWithRetry with a stub StepExecutor; no browser." },
   "verify:avatar": { class: "unit", why: "Pure initials/palette derivation." },
   "verify:licensing": { class: "unit", why: "Pure licensing domain + RBAC (no packaged app)." },
+  "verify:license-dispatch-gate": { class: "unit", why: "Real ExecutionEngine queue loop with maxConcurrentInstances=0 plus static production-wiring assertions; no browser or Electron process." },
   "verify:write-queue": { class: "unit", why: "Deterministic serial write-queue logic." },
   "verify:security": { class: "unit", why: "Pure security logic; no Electron/Chromium." },
   "verify:auth": { class: "unit", why: "Trusted-core auth logic, headless." },

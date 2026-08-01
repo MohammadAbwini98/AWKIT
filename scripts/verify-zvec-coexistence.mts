@@ -70,7 +70,11 @@ function runWorkflow(logFile: string): Promise<{ code: number | null; durationMs
   return new Promise((resolve) => {
     const started = Date.now();
     const out = fs.createWriteStream(logFile);
-    const child = spawn("npx", ["tsx", "scripts/verify-runner.mts"], { cwd: ROOT, shell: true });
+    const child = spawn(
+      process.execPath,
+      [path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"), "scripts/verify-runner.mts"],
+      { cwd: ROOT }
+    );
     child.stdout.pipe(out);
     child.stderr.pipe(out);
     child.on("close", (code) => {

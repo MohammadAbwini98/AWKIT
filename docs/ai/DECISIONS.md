@@ -4,6 +4,23 @@ Important decisions visible in the repository / made during development. Newest 
 
 ---
 
+### 2026-08-01 — The signed dependency manifest is committed but must be release-current at promotion
+
+- **Decision:** `resources/dependency-manifest.json` plus `.sig` are committed release artifacts so a
+  clean checkout can package. Ordinary development commits do not regenerate them, and their
+  `application.sourceCommit` is expected to be historical between releases.
+- **Release rule:** a release build must regenerate and re-sign the pair from the release commit.
+  Strict offline validation requires the manifest version to equal `package.json` and its
+  `sourceCommit` to equal `HEAD`; signature, clean-tree, browser-validation, and launch checks remain
+  mandatory.
+- **Reason:** signature validity proves integrity of the recorded bytes, not that those bytes describe
+  the commit being released. Keeping provenance checks release-only avoids making every ordinary code
+  commit fail while preventing a stale, self-consistent manifest from being promoted.
+- **Security boundary:** only the public trust root is tracked. Private signing material stays outside
+  Git and requires owner-controlled custody; `awkit-2l1` tracks removal from a synced workspace.
+
+---
+
 ### 2026-07-29 — The Randomized Test Lab is CLI-only and never ships in the app
 
 - **Decision:** The Randomized Test Lab is CLI-only by architectural decision; its generation harness is never shipped inside the production application.

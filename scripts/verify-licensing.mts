@@ -15,7 +15,13 @@ import {
   OPERABLE_STATUSES,
   type LicenseDocument
 } from "../src/licensing/LicenseTypes";
-import { applyLicenseRunGatePolicy } from "../src/licensing/RunGatePolicy";
+import { applyLicenseRunGatePolicy, INTEGRITY_FAILURE_STATUSES } from "../src/licensing/RunGatePolicy";
+import {
+  CLEARED_ENFORCEMENT_STATE,
+  ENFORCEMENT_TRIGGERS,
+  nextEnforcementState,
+  type EnforcementLatchState
+} from "../src/licensing/RunGateEnforcement";
 import {
   MIGRATION_GRACE_DAYS,
   createMigrationGraceAnchor,
@@ -366,6 +372,90 @@ check(
   ALL_STATUSES.filter((s) => gateFor(s).activeRunDisposition === "cancel-pending").length,
   7
 );
+
+console.log("\nRun gate — enforcement latch:");
+const LATCH_T0 = Date.parse("2026-07-29T00:00:00.000Z");
+check("integrity-failure set has exactly seven statuses", INTEGRITY_FAILURE_STATUSES.size, 7);
+check("all statuses classify exactly seven integrity failures", ALL_STATUSES.filter((s) => INTEGRITY_FAILURE_STATUSES.has(s)).length, 7);
+check("the enforcement trigger list has seven entries", ENFORCEMENT_TRIGGERS.length, 7);
+check("every enforcement trigger is distinct", new Set(ENFORCEMENT_TRIGGERS).size, 7);
+
+for (const status of ALL_STATUSES) {
+  if (!INTEGRITY_FAILURE_STATUSES.has(status)) continue;
+  const decision = gateFor(status);
+  const transition = nextEnforcementState(
+    CLEARED_ENFORCEMENT_STATE,
+    { activeRunDisposition: decision.activeRunDisposition, reason: decision.reason, status },
+    LATCH_T0
+  );
+  check(`${status}: every blocking evaluation requests a pending sweep`, transition.shouldCancelPending, true);
+}
+
+let folded: EnforcementLatchState = CLEARED_ENFORCEMENT_STATE;
+let auditCount = 0;
+let sweepCount = 0;
+for (let i = 0; i < 24; i += 1) {
+  const decision = gateFor(LicenseStatus.INVALID_SIGNATURE);
+  const transition = nextEnforcementState(
+    folded,
+    { activeRunDisposition: decision.activeRunDisposition, reason: decision.reason, status: LicenseStatus.INVALID_SIGNATURE },
+    LATCH_T0 + i
+  );
+  folded = transition.next;
+  if (transition.shouldAudit) auditCount += 1;
+  if (transition.shouldCancelPending) sweepCount += 1;
+}
+check("24 repeated blocking passes audit only the engagement", auditCount, 1);
+check("24 repeated blocking passes still sweep 24 times", sweepCount, 24);
+
+folded = CLEARED_ENFORCEMENT_STATE;
+auditCount = 0;
+for (let i = 0; i < 10; i += 1) {
+  const status = i < 5 ? LicenseStatus.INVALID_SIGNATURE : LicenseStatus.MACHINE_MISMATCH;
+  const decision = gateFor(status);
+  const transition = nextEnforcementState(
+    folded,
+    { activeRunDisposition: decision.activeRunDisposition, reason: decision.reason, status },
+    LATCH_T0 + i
+  );
+  folded = transition.next;
+  if (transition.shouldAudit) auditCount += 1;
+}
+check("a blocking status change is audited as a new cause", auditCount, 2);
+
+const validDecision = gateFor(LicenseStatus.VALID);
+const recovery = nextEnforcementState(
+  folded,
+  { activeRunDisposition: validDecision.activeRunDisposition, reason: validDecision.reason, status: LicenseStatus.VALID },
+  LATCH_T0 + 20
+);
+check("recovery emits the cleared event", recovery.auditEvent, "LICENSE_ENFORCEMENT_CLEARED");
+check("recovery clears the latch", recovery.next.blocking, false);
+check("recovery does not sweep pending work", recovery.shouldCancelPending, false);
+
+const reblockDecision = gateFor(LicenseStatus.CORRUPTED);
+const reblock = nextEnforcementState(
+  recovery.next,
+  { activeRunDisposition: reblockDecision.activeRunDisposition, reason: reblockDecision.reason, status: LicenseStatus.CORRUPTED },
+  LATCH_T0 + 21
+);
+check("blocking again after recovery re-engages audit", reblock.auditEvent, "LICENSE_ENFORCEMENT_ENGAGED");
+
+folded = recovery.next;
+auditCount = 0;
+sweepCount = 0;
+for (let i = 0; i < 24; i += 1) {
+  const transition = nextEnforcementState(
+    folded,
+    { activeRunDisposition: validDecision.activeRunDisposition, reason: validDecision.reason, status: LicenseStatus.VALID },
+    LATCH_T0 + 30 + i
+  );
+  folded = transition.next;
+  if (transition.shouldAudit) auditCount += 1;
+  if (transition.shouldCancelPending) sweepCount += 1;
+}
+check("24 valid passes from cleared do not audit", auditCount, 0);
+check("24 valid passes from cleared do not sweep", sweepCount, 0);
 
 // Grace rescues NOT_ACTIVATED and nothing else. Asserting BOTH directions is what stops a grace
 // implementation that simply allows everything from passing here.

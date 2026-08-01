@@ -25,7 +25,8 @@ import { Permission } from "@src/security/authz/Permissions";
 import { getSecretStore } from "../secretStore";
 import { getOracleNodeRunner, runOracleDataSourceQuery } from "../oracleService";
 import { indexCompletedRun } from "../semantic/semanticService";
-import { evaluateRunGate } from "../licensing/licenseRuntime";
+import type { RunGateDecision } from "../licensing/licenseRuntime";
+import { applyRunGateEnforcement, licenseDispatchGate } from "../licensing/licenseEnforcementService";
 import {
   CERTIFICATE_BYPASS_LOG_MESSAGE,
   explainIgnoreHttpsErrors,
@@ -54,6 +55,7 @@ export interface RunWorkflowRequest {
 }
 
 export function registerExecutionIpc(): void {
+  executionEngine.setDispatchGate(licenseDispatchGate);
   // Let the runner resolve `type:"secret"` value sources from the encrypted secret store at run time
   // (audit §15). Values live only in the main process; they never enter workflow JSON or the renderer.
   executionEngine.setSecretResolver((name) => getSecretStore().get(name));
@@ -117,6 +119,8 @@ export function registerExecutionIpc(): void {
   ipcMain.handle("execution:repeatInstance", async (event, instanceId: string) => {
     await assertSenderPermission(event, Permission.WORKFLOW_EXECUTE);
     try {
+      const gate = applyRunGateEnforcement("run-request").decision;
+      if (!gate.allowed) return { success: false, error: gate.status.userAction };
       executionEngine.repeatInstance(instanceId);
       return { success: true };
     } catch (e: any) {
@@ -241,21 +245,19 @@ async function validateWorkflow(workflowId: string) {
   };
 }
 
-/**
- * A license integrity failure (forged / foreign / corrupt material) stops work that has not begun
- * executing, per the run-gate table in `@src/licensing/RunGatePolicy`. Deliberately narrower than
- * `stopAll()`: instances already running are left to finish, so this cannot be used as a remote kill
- * switch for work in progress. Never throws — the gate's refusal is the outcome that matters.
- */
-async function cancelPendingWorkForLicenseIntegrity(reason: string): Promise<void> {
-  try {
-    const cancelled = executionEngine.cancelPendingInstances(`license integrity failure: ${reason}`);
-    if (cancelled.length > 0) {
-      console.warn(`[license] cancelled ${cancelled.length} instance(s) that had not started: ${reason}`);
-    }
-  } catch (error) {
-    console.warn(`[license] could not cancel pending work: ${error instanceof Error ? error.message : String(error)}`);
-  }
+function licenseBlockedResult(decision: RunGateDecision, validation: Awaited<ReturnType<typeof validateWorkflow>>) {
+  return {
+    status: "licenseBlocked",
+    validation,
+    license: {
+      status: decision.status.status,
+      reasonCode: decision.status.reasonCode,
+      userAction: decision.status.userAction,
+      reason: decision.reason,
+      activeRunDisposition: decision.activeRunDisposition
+    },
+    error: decision.status.userAction
+  };
 }
 
 async function runWorkflow(request: RunWorkflowRequest) {
@@ -281,26 +283,9 @@ async function runWorkflow(request: RunWorkflowRequest) {
   // and reports work regardless of license state). Enforcement is ON by default since 2026-07-29 — see
   // licenseRuntime and docs/LICENSING.md §5. This is a machine/installation check, NOT a user authorization
   // check — it is intentionally independent of authentication/RBAC.
-  const gate = evaluateRunGate();
+  const gate = applyRunGateEnforcement("run-request").decision;
   if (!gate.allowed) {
-    // An integrity failure (forged / foreign / corrupt license) must not leave earlier work draining:
-    // cancel everything still pending before returning. The two "not licensed yet" states deliberately
-    // let in-flight runs finish, so this only fires for the states the policy marks cancel-pending.
-    if (gate.activeRunDisposition === "cancel-pending") {
-      await cancelPendingWorkForLicenseIntegrity(gate.reason);
-    }
-    return {
-      status: "licenseBlocked",
-      validation,
-      license: {
-        status: gate.status.status,
-        reasonCode: gate.status.reasonCode,
-        userAction: gate.status.userAction,
-        reason: gate.reason,
-        activeRunDisposition: gate.activeRunDisposition
-      },
-      error: gate.status.userAction
-    };
+    return licenseBlockedResult(gate, validation);
   }
 
   // Audit (Stage 2c): a REAL run proceeding under Legacy Compatibility is recorded on the grant,
@@ -358,6 +343,8 @@ async function runWorkflow(request: RunWorkflowRequest) {
   const dirs = resolveStorageDirs();
 
   // Fire and forget, but wait for initial pool registration to complete synchronously
+  const preRunGate = applyRunGateEnforcement("pre-run").decision;
+  if (!preRunGate.allowed) return licenseBlockedResult(preRunGate, validation);
   await executionEngine.startRun(
     executionId,
     profile,

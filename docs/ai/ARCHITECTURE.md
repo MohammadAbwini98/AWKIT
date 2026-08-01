@@ -30,6 +30,8 @@ app/
     writeQueue.ts       createSerialQueue() — FIFO async queue (failure-isolated, flush()) used by uiSettings
     storagePaths.ts     getConfiguredPaths() — resolves user Settings paths w/ fallback
     offlineRuntimeValidator.ts
+    licensing/            licenseRuntime + licenseEnforcementService (main-process latch/watcher,
+                          synchronous queued-work sweep, injected ExecutionEngine dispatch gate)
     profileStores.ts    JSON profile stores (flows/workflows/dataSources/reports/...)
     ipc/                IPC handlers: flow, scenario(workflow), execution, instance,
                         dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime,
@@ -210,10 +212,13 @@ failure boundary under `src/testing/failures/`:
 
 ## Confirmed — process & data flow
 
-- **Global licensing attention:** `StatusBar` checks the session permission hint before calling the
-  sender-bound `licensing:getStatus`/`licensing:revalidate` IPC. It polls every 15 minutes and on
-  focus/visibility return. `LicenseAttention` maps only non-`VALID` states to warning/danger UI;
-  selecting the item routes to Administration → Licensing.
+- **License enforcement and attention:** `licenseEnforcementService` evaluates immediately at startup,
+  every 15 minutes, on main-process `browser-window-focus`, renderer revalidation, license mutation,
+  run request, and pre-run. It synchronously updates a latch and re-sweeps queued/pending work on every
+  integrity-blocking pass; only engagement/cause-change/recovery emits a system audit row. The injected
+  synchronous dispatch gate is checked before queue promotion, before the running transition, and by
+  `repeatInstance`, with a 30-second maximum cache age. `StatusBar` remains the permission-scoped UI
+  attention surface; it does not own enforcement.
 - **Renderer ↔ main:** renderer calls `window.playwrightFlowStudio.<area>.<method>()` (preload
   contextBridge) → `ipcMain.handle` in `app/main/ipc/*` → profile stores / runner / settings.
   Data-source editor channels: `dataSources:readJson`, `dataSources:writeJson`,
@@ -244,6 +249,8 @@ failure boundary under `src/testing/failures/`:
   `RunContext` so `repeatInstance(instanceId)` (IPC `execution:repeatInstance`) can re-run one finished
   instance. The `InstancePool` keys by `instanceId`, so `InstanceManager` mints globally-unique ids
   (`${executionId}-i${n}`) — this is what lets multiple workflows run concurrently without colliding.
+  Application bootstrap requires `executionEngine.dispatchGateRegistered`; bare verifier/benchmark
+  engines retain a fail-open default solely because they have no Electron licensing composition root.
   Per-card run parameters (`isolationMode`, `stopOnError`) flow through `RunWorkflowRequest` into the
   `ConcurrentRunProfile`. The cards' non-DOM logic lives in `src/instances/instanceCardLogic.ts`
   (filter / responsive visible-count / validation / name-resolve), unit-verified by

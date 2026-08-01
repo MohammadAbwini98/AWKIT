@@ -146,11 +146,29 @@ if (Test-Property $manifestJson "application") {
   if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.version)) {
     $failures.Add("Manifest application version is required.")
   }
+  if ($Strict) {
+    try {
+      $packageJson = Get-Content -Raw (Join-Path $root "package.json") | ConvertFrom-Json
+      if ([string]$manifestJson.application.version -ne [string]$packageJson.version) {
+        $failures.Add("Strict mode requires manifest application.version to match package.json version.")
+      }
+    } catch {
+      $failures.Add("Strict mode could not read package.json version: $($_.Exception.Message)")
+    }
+  }
   if ([string]::IsNullOrWhiteSpace([string]$manifestJson.application.buildMode)) {
     $failures.Add("Manifest build mode is required.")
   }
   if ([string]$manifestJson.application.sourceCommit -notmatch "^[0-9a-f]{40}$") {
     $failures.Add("Manifest sourceCommit must be an exact Git commit.")
+  }
+  if ($Strict) {
+    $headCommit = (& git -C $root rev-parse HEAD 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $headCommit -notmatch "^[0-9a-f]{40}$") {
+      $failures.Add("Strict mode could not resolve the release source commit from Git HEAD.")
+    } elseif ([string]$manifestJson.application.sourceCommit -ne $headCommit) {
+      $failures.Add("Strict mode requires manifest application.sourceCommit to equal the release Git HEAD ($headCommit).")
+    }
   }
   if ($Strict -and $manifestJson.application.sourceTreeDirty -ne $false) {
     $failures.Add("Strict mode requires the dependency manifest to come from a clean source tree.")

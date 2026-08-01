@@ -275,7 +275,8 @@ npm run verify:session-context # tsx scripts/verify-session-context.mts — main
 npm run verify:admin-gui    # node scripts/verify-admin-gui.mjs — REAL Electron Super User admin area incl.
                             # real Licensing page (11; needs build)
 npm run verify:avatar       # tsx scripts/verify-avatar-initials.mts — initials + palette (24)
-npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain + IPC RBAC (56)
+npm run verify:licensing    # tsx scripts/verify-licensing.mts — licensing domain/RBAC/gate latch (167)
+npm run verify:license-dispatch-gate # real ExecutionEngine queue at zero concurrency + production wiring/shell guard
 # E2E QA suites (2026-07-19 assessment — specs/e2e/*, report docs/testing/; all REAL Electron, isolated
 # fresh %LOCALAPPDATA% profiles, run AFTER `npm run build`):
 npm run verify:e2e-auth     # full auth lifecycle: first-run, create/duplicate/double-click, enumeration,
@@ -353,6 +354,7 @@ npm run prepare:offline  # prepare-offline-deps.ps1 -InstallChromium (installs+c
 npm run offline:prepare  # prepare-offline-deps.ps1 (copy cached Chromium, no install)
 npm run offline:manifest # generate-dependency-manifest.ps1
 npm run validate:offline # validate-offline-bundle.ps1 (add -Strict for the release gate;
+                         # Strict also requires manifest version==package.json and sourceCommit==HEAD;
                          # -PackagingInputsOnly is the pre-build Chromium presence/completeness gate)
 npm run package:portable # preflight required inputs + build + manifest + strict validate + electron-builder --win portable
 npm run package:nsis     # per-user NSIS installer (alias of package:installer)

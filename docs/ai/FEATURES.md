@@ -49,12 +49,18 @@
   through the production authorization service and shared production license gate policy.
 - Planned: the optional Super-User Test Lab UI remains Phase 7 pending its recorded product decision.
 
-## Signed machine licensing (2026-07-29)
+## Signed machine licensing (updated 2026-08-01)
 
 - Implemented: offline Ed25519 per-machine licensing, hashed multi-signal fingerprint, activation
   request, import/replace/revoke, tamper/clock checks, Super-User RBAC/reauth/audit, and trusted run gate.
 - Implemented: attention-only global status-bar surface for permitted users. Healthy licenses stay
   silent; attention states navigate to Licensing and revalidate every 15 minutes plus focus/visibility.
+- Implemented: permission-independent main-process startup/interval/focus revalidation, immediate
+  mutation/run-request enforcement, a required fail-closed queue dispatch latch, guarded repeat runs,
+  idempotent pending cancellation, and system audit events for enforcement transitions.
+- Implemented: signature-valid committed dependency manifests remain usable during ordinary
+  development, while strict release validation requires manifest version and source commit to match
+  the release package and Git HEAD.
 - Decision required: hard-enforcement rollout and upgrade/grace policy remain `awkit-1cc`.
 
 Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implied

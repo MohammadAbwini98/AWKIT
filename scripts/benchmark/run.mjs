@@ -14,6 +14,7 @@
  * - TSX_TSCONFIG_PATH               → maps the bare `electron` specifier to the benchmark stub.
  */
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const target = process.argv[2];
 if (!target) {
@@ -30,6 +31,7 @@ const env = {
   TSX_TSCONFIG_PATH: process.env.TSX_TSCONFIG_PATH ?? "scripts/benchmark/tsconfig.bench.json"
 };
 
-const child = spawn("npx", ["tsx", target, ...process.argv.slice(3)], { stdio: "inherit", env, shell: true });
+const tsxCli = fileURLToPath(new URL("../../node_modules/tsx/dist/cli.mjs", import.meta.url));
+const child = spawn(process.execPath, [tsxCli, target, ...process.argv.slice(3)], { stdio: "inherit", env });
 child.on("exit", (code) => process.exit(code ?? 0));
 child.on("error", (err) => { console.error(err); process.exit(1); });

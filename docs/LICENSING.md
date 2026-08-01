@@ -125,7 +125,18 @@ and every `licensing:*` handler re-checks permission and license state.
   packaged build has no bypass at all — `app.isPackaged` is checked first, so no environment variable,
   flag, setting or IPC call can reach the bypass branch. Automated tests and development composition
   roots use `AWKIT_TEST_LICENSE_BYPASS=1`, which is inert in a packaged application.
-- **Test commands:** `npm run verify:licensing` (147 assertions — domain, RBAC, global-attention policy, the full run-gate decision table, and the migration window), `npm run verify:avatar`
+- **Main-process enforcement cadence:** startup evaluates immediately; the main process then
+  revalidates every 15 minutes and on `browser-window-focus`, independently of renderer permissions.
+  Renderer-triggered revalidation and every license mutation use the same synchronous enforcer.
+- **Latch and dispatch semantics:** every `cancel-pending` evaluation re-sweeps queued/pending work,
+  while audit rows are transition-gated (`LICENSE_ENFORCEMENT_ENGAGED` / `_CLEARED`) with a null actor
+  and the trigger in structured detail. `ExecutionEngine` consults the injected latch before queue
+  promotion, immediately before the running transition, and before `repeatInstance`; a throwing gate
+  fails closed. The cache refreshes after at most 30 seconds. Bare non-Electron harnesses default to
+  admission, but application bootstrap refuses to start unless the named gate was registered.
+- **Test commands:** `npm run verify:licensing` (167 assertions — domain, RBAC, attention, full
+  run-gate table, enforcement-latch transitions, and migration grace),
+  `npm run verify:license-dispatch-gate` (real queue loop without Chromium plus production wiring), `npm run verify:avatar`
   (24), `npm run build` (tsc + bundles).
 
 ---

@@ -143,9 +143,8 @@ export async function mintVerificationLicense(input: {
     input.expiresAtOverrideIso ??
     new Date(Date.now() + (input.expiresInMinutes ?? 30) * 60_000).toISOString();
 
-  const args = [
-    "tsx",
-    join(input.repoRoot, "tools", "license-issuer", "issue-license.mts"),
+  const issuerScript = join(input.repoRoot, "tools", "license-issuer", "issue-license.mts");
+  const issuerArgs = [
     "--request",
     requestPath,
     "--key",
@@ -163,7 +162,11 @@ export async function mintVerificationLicense(input: {
   // The key path travels on argv to the issuer only. The issuer's own environment is the parent's,
   // which is fine — it is the process that is *supposed* to read the key — but the packaged app is
   // launched with `sanitizeAppEnv`, so it never inherits it.
-  await execFileAsync("npx", args, { cwd: input.repoRoot, windowsHide: true, shell: true });
+  await execFileAsync(
+    process.execPath,
+    [join(input.repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), issuerScript, ...issuerArgs],
+    { cwd: input.repoRoot, windowsHide: true }
+  );
 
   if (!existsSync(licensePath)) throw new Error(`Issuer did not produce a license at ${licensePath}`);
   const license = JSON.parse(readFileSync(licensePath, "utf8")) as LicenseDocument;

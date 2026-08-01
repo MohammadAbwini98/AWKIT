@@ -8,7 +8,9 @@ import { disposeOracleServices } from "./oracleService";
 import { disposeSecurityKernel } from "./security/securityKernel";
 import { disposeSemanticSubsystem, initializeSemanticSubsystem } from "./semantic/semanticService";
 import { initializeLicensingRuntime } from "./licensing/licenseRuntime";
+import { startLicenseEnforcementWatcher, stopLicenseEnforcementWatcher } from "./licensing/licenseEnforcementService";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
+import { executionEngine } from "@src/runner/ExecutionEngine";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -62,6 +64,17 @@ async function bootstrap(): Promise<void> {
   await updateUiSettings({ app: { lastLaunchedAt: new Date().toISOString() } }).catch(() => undefined);
 
   registerIpcHandlers();
+  if (!executionEngine.dispatchGateRegistered) {
+    dialog.showMessageBoxSync({
+      type: "error",
+      title: "SpecterStudio",
+      message: "SpecterStudio cannot start because license dispatch enforcement is unavailable.",
+      buttons: ["Exit"]
+    });
+    app.exit(1);
+    return;
+  }
+  startLicenseEnforcementWatcher();
 
   // Optional semantic index: reclaim generations orphaned by an unclean shutdown and mark the
   // index open. Non-blocking and non-throwing — it never starts the native host (that stays lazy),
@@ -156,6 +169,7 @@ if (!gotSingleInstanceLock) {
   app.on("before-quit", (event) => {
     if (settingsFlushed) return;
     event.preventDefault();
+    stopLicenseEnforcementWatcher();
 
     // Staged shutdown (plan §12). Stage 1 closes the semantic host on its OWN bounded budget so a
     // native close can never eat into the existing 2s envelope that settings/Oracle/security

@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Codex - COMPLETE licensing enforcement and manifest provenance
+
+- **Task:** close `awkit-f3l`, then `awkit-hj8`, without changing the committed dependency-manifest
+  pair; preserve the separate Recorder residuals.
+- **Implementation:** main-process startup/interval/focus/mutation/run-request enforcement; required
+  synchronous fail-closed queue/repeat gate; transition-idempotent pending sweep and system audit;
+  strict bootstrap registration; complete license status projection; BLOCKED/empty artifact verifier
+  hardening; shell-free issuer and sibling TSX launches; release-only manifest version/HEAD provenance
+  checks; documented committed release-artifact policy.
+- **Tests:** build PASS; scripts typecheck PASS; licensing 167/167; dispatch gate 33/33; runner 89/89
+  on the final isolated run; CLI-only 24/24; IPC 4/4; source hygiene 9/9; classification 156/156;
+  ordinary offline validation PASS. One overlapping runner attempt lost the shared mock-site server;
+  the isolated rerun passed. Strict offline validation failed exactly at the expected stale
+  `sourceCommit != HEAD` release assertion.
+- **Not run:** packaged licensing/walkthrough because the existing EXE predates the implementation;
+  live Electron startup/timer/focus behavior was not manually exercised.
+- **Tracking/result:** closed `awkit-f3l` and `awkit-hj8`; filed P1 `awkit-2l1` for owner-controlled
+  signing-key relocation/rotation without recording key material. `awkit-vot` and `awkit-0vm` remain
+  open; AWKIT-REC-030 remains resolved. Manifest JSON/signature bytes are unchanged. Ledger remains
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-01 - Codex - COMPLETE Recorder ambiguity Increments 3/4 and epic closure
 
 - **Task:** resume the paused `awkit-aui.3` / `.4` reconciliation, close the remaining live-review and
@@ -8848,3 +8871,45 @@ pm run verify:mock-site
 - **Files changed:** src/runner/StepExecutor.ts (added positional approval check and dangerousMutation guard), src/runner/LocatorFactory.ts (added user-approved-fallback event), scripts/verify-recorder-locator.mts (added positional guard test cases).
 - **Tests run:** npm run verify:recorder-locator 119/119 PASS, npm run verify:runner 89/89 PASS, npm run verify:all-typecheck PASS.
 - **Result:** Ambiguity UI and positional guards are fully enforced. Tests pass.
+
+## 2026-08-01: Plan and start awkit-f3l; answer the awkit-hj8 manifest audit
+
+- **Agent:** coding agent (Claude Code)
+- **Task:** Resume `awkit-f3l` (licensing revalidation dispositions + verification hardening) and
+  prepare `awkit-hj8` (dependency-manifest provenance audit). Planning and audit completed;
+  implementation started.
+- **Findings (all confirmed in source, not inferred):**
+  - `cancel-pending` is discarded on revalidation — `licensing.ipc.ts:79-86` returns
+    `getLicenseStatusView()`, whose `LicenseEnforcementView` (`licenseRuntime.ts:132-140`) has no
+    `activeRunDisposition`. The disposition is acted on only at `execution.ipc.ts:289`, i.e. only on a
+    new run request.
+  - Revalidation is renderer-only (`StatusBar.tsx:75-77`) and gated on `LICENSE_VIEW`
+    (`StatusBar.tsx:38-43`), so Operator/Viewer sessions never revalidate. `app/main/**` has no
+    `setInterval` and no `browser-window-focus` handler.
+  - `ExecutionEngine.processQueue` (`:1051-1207`) never consults licensing; `promoteQueued` (`:1098`)
+    and `startPending` (`:1148`) keep advancing queued→pending→running, and `cancelPendingInstances`
+    (`:1955`) deliberately will not touch a `running` instance — so a one-shot sweep cannot hold.
+  - **New:** `repeatInstance` bypasses licensing entirely — `execution.ipc.ts:117-125` has no gate and
+    `ExecutionEngine.ts:1991` calls `runInstance` directly, "bypassing the queue".
+  - **New:** `verify-test-lab-cli-only.mts` not only exits 0 on BLOCKED (`:215`) but asserts the
+    boundary holds (`:206`) from an artifact scan that never ran, and misses 0-byte file targets. The
+    same exit defect exists at `verify-packaged-licensing.mts:350` and
+    `verify-packaged-walkthrough.mts:1255`.
+  - `packaged-license.mts:166` passes an env-supplied key path through `cmd.exe` via `shell: true`.
+    Three sibling `npx tsx` sites share the pattern.
+  - `awkit-hj8`: the committed manifest **verifies** (Ed25519, `node scripts/offline-manifest-signature.mjs verify`
+    exits 0); `validate:offline` genuinely runs that check (`validate-offline-bundle.ps1:61-64`); no
+    private key is tracked on any ref; `sourceCommit` is 17 commits behind HEAD and **nothing compares
+    it to HEAD**; and **no written policy exists** for whether the pair should be committed.
+- **Files changed:** `src/licensing/RunGateEnforcement.ts` (new — pure enforcement latch),
+  `src/runner/DispatchGate.ts` (new — injected dispatch-veto contract), `docs/ai/HANDOFF.md`,
+  `docs/ai/TASK_LOG.md`. Both new modules are inert; nothing calls them yet.
+- **Tests run:** `npm run build` **PASS** (typecheck + bundles);
+  `node scripts/offline-manifest-signature.mjs verify` **exit 0**.
+- **Not run:** every verifier suite. No behavioral change has landed, so there is nothing for them to
+  cover; `verify:licensing`, `verify:runner`, `verify:test-lab-cli-only`,
+  `verify:verifier-classification`, `verify:roadmap-dashboard` and `validate:offline` remain owed.
+- **Result:** `awkit-f3l` stays `IN_PROGRESS` with an approved plan recorded in `HANDOFF.md`;
+  `awkit-hj8` stays open with its audit questions answered and a corrective action decided
+  (document the policy + add a release-mode provenance gate; do not touch the committed pair).
+  Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED. Nothing committed or pushed.

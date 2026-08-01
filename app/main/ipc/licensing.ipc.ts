@@ -14,7 +14,8 @@ import { AuthReason, SecurityError } from "@src/security/errors/ReasonCodes";
 import { Permission } from "@src/security/authz/Permissions";
 import type { AuthorizedActor } from "@src/security/authz/AuthorizationService";
 import type { SecurityKernel } from "@src/security/SecurityKernel";
-import { getLicenseService, getLicenseStatusView } from "../licensing/licenseRuntime";
+import { getLicenseService, getLicenseStatusView, projectLicenseStatusView } from "../licensing/licenseRuntime";
+import { applyRunGateEnforcement } from "../licensing/licenseEnforcementService";
 import type { LicenseDocument } from "@src/licensing/LicenseTypes";
 
 type Result<T> = { ok: true; value: T } | { ok: false; reason: string };
@@ -79,8 +80,12 @@ export function registerLicensingIpc(): void {
   ipcMain.handle("licensing:revalidate", async (event, sessionRef: unknown) => {
     assertTrustedSender(event);
     return licensingCall(sessionRef, Permission.LICENSE_VIEW, false, async (actor, kernel) => {
-      const status = getLicenseStatusView();
-      await auditLicense(kernel, actor, "LICENSE_VALIDATE", "success", status.reasonCode, { status: status.status });
+      const application = applyRunGateEnforcement("revalidate-ipc");
+      const status = projectLicenseStatusView(application.decision);
+      await auditLicense(kernel, actor, "LICENSE_VALIDATE", "success", status.reasonCode, {
+        status: status.status,
+        cancelledPending: application.cancelledPending.length
+      });
       return status;
     });
   });
@@ -107,6 +112,7 @@ export function registerLicensingIpc(): void {
         return { ok: false, rejectedReason: "CORRUPTED" as const, status: getLicenseService().getStatus() };
       }
       const outcome = getLicenseService().importLicense(doc);
+      applyRunGateEnforcement("license-changed");
       await auditLicense(
         kernel,
         actor,
@@ -130,6 +136,7 @@ export function registerLicensingIpc(): void {
         return { ok: false, rejectedReason: "CORRUPTED" as const, status: getLicenseService().getStatus() };
       }
       const outcome = getLicenseService().importLicense(doc);
+      applyRunGateEnforcement("license-changed");
       await auditLicense(
         kernel,
         actor,
@@ -146,6 +153,7 @@ export function registerLicensingIpc(): void {
     assertTrustedSender(event);
     return licensingCall(sessionRef, Permission.LICENSE_REVOKE, true, async (actor, kernel) => {
       const outcome = getLicenseService().revokeLocal();
+      applyRunGateEnforcement("license-changed");
       await auditLicense(kernel, actor, "LICENSE_REVOKE", outcome.ok ? "success" : "failure", outcome.reason ?? null, {});
       return outcome;
     });
@@ -155,6 +163,7 @@ export function registerLicensingIpc(): void {
     assertTrustedSender(event);
     return licensingCall(sessionRef, Permission.LICENSE_REVOKE, true, async (actor, kernel) => {
       const outcome = getLicenseService().removeLocal();
+      applyRunGateEnforcement("license-changed");
       await auditLicense(kernel, actor, "LICENSE_REMOVE", "success", outcome.status.reasonCode, {});
       return outcome;
     });

@@ -1,6 +1,260 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-01 20:01 Asia/Amman, latest) — Recorder ambiguity epic complete
+## HANDOFF (2026-08-01, latest) — `awkit-f3l` and `awkit-hj8` complete
+
+- **Branch:** `main`; this handoff is included with the final implementation checkpoint.
+- **Closed:** `awkit-f3l` (licensing enforcement/verifier hardening) and `awkit-hj8`
+  (dependency-manifest provenance policy and release gate).
+- **Open follow-up:** P1 `awkit-2l1` relocates/rotates offline-manifest key custody outside the
+  OneDrive-synced workspace. Recorder residuals `awkit-vot` and `awkit-0vm` remain separate and open;
+  AWKIT-REC-030 remains resolved.
+
+### Delivered behavior
+
+- Main-process enforcement runs at startup, every 15 minutes, on browser-window focus, on licensing
+  revalidation/mutations, and before new/repeated runs. It no longer depends on renderer permission.
+- A required synchronous fail-closed dispatch latch blocks queue promotion before pending state and
+  again after resource acquisition; repeat requests apply the full new-run policy. Registration is a
+  bootstrap invariant. Invalid transitions sweep queued/pending work once and emit one system audit
+  record with null actor/session identifiers. Valid revalidation clears the latch immediately; the
+  maximum time-only refresh delay is 30 seconds.
+- CLI-only artifact inspection cannot pass after incomplete/empty inspection. Packaged verifiers exit
+  nonzero when BLOCKED. Signing-key and sibling TSX subprocesses use direct local-runtime argv without
+  a shell; only the development `.cmd` shim retains `shell: true`.
+- The committed dependency manifest/signature remain byte-untouched. They are signature-valid and
+  self-consistent but not release-current. Ordinary offline validation proves integrity; release-mode
+  `-Strict` additionally requires manifest app version == `package.json` and source commit == Git HEAD.
+
+### Verification and remaining manual evidence
+
+- PASS: build; scripts typecheck; licensing 167/167; dispatch gate 33/33; final isolated runner 89/89;
+  CLI-only 24/24; IPC 4/4; source hygiene 9/9; classification 156/156; ordinary offline validation.
+- Expected negative proof: strict offline validation exits nonzero because the untouched manifest's
+  source commit is not current HEAD.
+- Not run: packaged licensing/walkthrough, because the available EXE predates this source. Live
+  Electron timer/focus/bootstrap behavior was not manually exercised; static wiring and build pass.
+- One overlapping runner attempt lost its shared mock-site server and reported connection refused;
+  the clean isolated rerun completed 89/89.
+- Comprehensive validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
+## HANDOFF (2026-08-01, latest) — `awkit-f3l` planned and started; `awkit-hj8` audit answered
+
+- **From:** previous coding agent
+- **To:** next coding agent / human
+- **Branch:** `main` at `1bb88926c54847de951dec5a8f425853e27cc228`; `origin/main` is the same commit
+  (0 ahead / 0 behind). No branch or worktree created.
+- **Working tree:** two **untracked, uncommitted** new files (below). No tracked file is modified.
+  Nothing was committed or pushed.
+- **Timestamp note:** the machine clock read `2026-08-01 21:13 JST` when this entry was written.
+  Earlier entries are labelled Asia/Amman and do not reconcile with that clock, so ordering here is
+  established by commit (`1bb8892` is the commit the previous handoff produced), not by wall time.
+
+### Current task
+
+Resume and complete **`awkit-f3l`** (P1, `IN_PROGRESS`) — licensing revalidation dispositions and
+verification hardening — then resolve **`awkit-hj8`** (P2, dependency-manifest provenance audit)
+before any release-approval discussion. `awkit-vot` and `awkit-0vm` remain separate open Recorder
+hover limitations and are explicitly **not** in scope; the completed `awkit-aui` epic is not reopened.
+
+### Completed in this task
+
+**1. All four `awkit-f3l` defects re-verified in source** (the bead described three; each was
+confirmed at an exact location, and two further holes were found that make the named fixes
+incomplete on their own):
+
+| Defect | Confirmed location |
+|---|---|
+| `cancel-pending` never applied on revalidation | `app/main/ipc/licensing.ipc.ts:79-86` calls `getLicenseStatusView()`; `LicenseEnforcementView` (`app/main/licensing/licenseRuntime.ts:132-140`) has no `activeRunDisposition` field, so the value computed at `licenseRuntime.ts:201` is discarded. The disposition is acted on in exactly one place — `app/main/ipc/execution.ipc.ts:289` — i.e. only when a **new run is requested**. |
+| Revalidation is renderer-only and permission-gated | `app/renderer/layout/StatusBar.tsx:75-77` is the only timer/focus/visibility trigger, gated at `StatusBar.tsx:38-43` on `Permission.LICENSE_VIEW`. An Operator or Viewer session therefore never revalidates at all. `app/main/**` contains **no** `setInterval` and **no** `browser-window-focus` handler. |
+| Dispatch race | Gate at `execution.ipc.ts:284`, `startRun` at `execution.ipc.ts:361`, with awaits at `:312 :315 :316 :320 :342` between them. More seriously, `ExecutionEngine.processQueue` (`src/runner/ExecutionEngine.ts:1051-1207`) **never consults licensing**: `promoteQueued` (`:1098`) and `startPending` (`:1148`) keep advancing queued→pending→running every 500 ms, and once `running` the sweep deliberately will not touch it (`notYetStarted = ["pending","queued"]`, `:1955`). A one-shot sweep therefore cannot hold. |
+| **NEW — `repeatInstance` bypasses licensing entirely** | `app/main/ipc/execution.ipc.ts:117-125` performs no `evaluateRunGate()`, and `ExecutionEngine.repeatInstance` calls `runInstance` directly at `src/runner/ExecutionEngine.ts:1991` — the comment at `:1977` says "bypassing the queue". A gate placed only in `processQueue` would not cover this path. |
+| `verify:test-lab-cli-only` exits 0 when BLOCKED | `scripts/verify-test-lab-cli-only.mts:215` is `if (failed > 0)`; `blocked` only decorates the summary string. **NEW, worse:** the three `continue`s at `:143 :150 :157` leave `bundleSymbols` empty, so `:206` asserts "the repository satisfies the CLI-only boundary" from an artifact scan that never ran. A third quiet hole: a 0-byte file target is not detected as empty (`files = [target]` at `:145-147` makes `files.length` always 1), so it scores a PASS. |
+| Issuer invoked through a shell | `scripts/helpers/packaged-license.mts:166` — `execFileAsync("npx", args, { …, shell: true })`. On win32 Node joins argv with spaces into `cmd.exe /d /s /c "…"` with no quoting; `input.keyPath` originates from `AWKIT_PACKAGED_LICENSE_ISSUER_KEY`, so any space breaks the call and any `& \| ^ > < ( ) %VAR%` is interpreted — in the one process that reads the production signing key. |
+
+The same BLOCKED-exits-0 defect exists byte-identically at
+`scripts/verify-packaged-licensing.mts:350` and `scripts/verify-packaged-walkthrough.mts:1255`,
+contradicting the contract stated in `scripts/helpers/packaged-license.mts:31-32` ("callers must
+record **BLOCKED**, never skip and never pass"). Three further `npx tsx` + `shell: true` sites share
+the issuer's pattern: `scripts/verify-zvec-generation-concurrency.mts:47`,
+`scripts/verify-zvec-coexistence.mts:73`, `scripts/benchmark/run.mjs:33`. `scripts/dev.mjs:17` also
+uses `shell: true` but spawns the `electron-vite` `.cmd` shim and is the intended sole exception.
+
+**2. `awkit-hj8` audit questions answered** (evidence gathered; no corrective change made yet):
+
+| Question | Finding |
+|---|---|
+| Which command generated the pair | `scripts/generate-dependency-manifest.ps1`, invoked by a **packaging** wrapper — the committed `buildMode` is `production-offline`, which a bare `npm run offline:manifest` never writes (it defaults to `development-offline-prep`). |
+| Which key signed it | Ed25519, key id `ed25519:68931c5d…c993`. Private key expected at `.release-local/offline-manifest-private.pem`, which is git-ignored (`.gitignore:36`) and **never tracked on any ref** (`git log --all -- .release-local/` is empty). The repo ships only `resources/trust/offline-manifest-public.pem`. |
+| Does the signature verify | **Yes.** `node scripts/offline-manifest-signature.mjs verify` exits 0 against the committed bytes. `validate:offline` genuinely runs that same Ed25519 verification (`scripts/validate-offline-bundle.ps1:61-64`) — it is not an existence check — and packaged startup re-verifies through `src/offline/SupplyChainIntegrity.ts`. |
+| Committed contents | version `0.1.2`, `sourceCommit fb29217456bb20deb4385d435311df355bff5d57`, `manifestGeneratedAt 2026-07-31T17:51:40Z`. The bead's description is exact. |
+| Staleness | `sourceCommit` is **17 commits behind** current HEAD. **No check anywhere compares it to HEAD**, to `package.json`'s version, or to `package-lock.json` — only a `^[0-9a-f]{40}$` format regex (`src/offline/DependencyManifest.ts:114-116`, `validate-offline-bundle.ps1:152-154`). It is therefore semantically stale after every ordinary commit and mechanically stale never. |
+| Policy | **No written policy exists.** `.gitattributes:47-51` assumes the pair is committed and pins `eol=lf`; `resources/` is not gitignored; packaging requires the file present in a clean checkout. What commit `1ea208c` breached was a **handoff instruction** (this file, "Increment 5" section) and the precedent recorded in `CURRENT_STATE.md`, not a documented rule. |
+| Sensitive exposure | **None in the repository** — the manifest contains hashes, versions and paths only. One machine-hygiene finding worth its own bead: the live private signing key sits inside a OneDrive-synced directory on the development machine. |
+
+**3. Implementation started** — two new pure modules written (see below). Nothing is wired to them
+yet; they are inert additions that compile but have no callers.
+
+### Files changed
+
+Both are **new and untracked**; no tracked file has been modified.
+
+| File | Purpose |
+|---|---|
+| `src/licensing/RunGateEnforcement.ts` | Pure, Electron-free, clock-free enforcement latch. Exports `EnforcementTrigger` + `ENFORCEMENT_TRIGGERS`, `EnforcementLatchState` + `CLEARED_ENFORCEMENT_STATE`, `EnforcementInput`, `EnforcementTransition`, `nextEnforcementState(previous, decision, nowMs)`, `DISPATCH_LATCH_MAX_AGE_MS`, `isEnforcementStateStale()`. Encodes the rule that `shouldCancelPending` is true on **every** blocking pass (instances can be queued between passes) while `shouldAudit` is transition-gated. |
+| `src/runner/DispatchGate.ts` | The injected-veto contract for the runner. Exports `DispatchGateVerdict`, `DispatchGate`, `DISPATCH_GATE_UNREGISTERED` (fail-open, no gate installed), `DISPATCH_GATE_FAULT` (fail-closed, gate threw). Synchronous by contract. |
+
+### Commands run
+
+- `npm run build` — **PASS** (`tsc --noEmit` + all three bundles). The `securityKernel.ts`
+  dynamic-import warning is pre-existing and unrelated.
+- `git status --short --branch`, `git diff --stat`, `git diff --cached --stat` — clean apart from the
+  two untracked files.
+- `node scripts/offline-manifest-signature.mjs verify` — **exit 0** (read-only; the write path is the
+  `sign` subcommand).
+- `graphify explain` / `graphify query` — run before source reading, per the repository rule.
+
+**Not run** (and why): no verifier suite was executed, because no behavioral change has landed yet —
+the two new modules have no callers. `verify:licensing`, `verify:runner`,
+`verify:test-lab-cli-only`, `verify:verifier-classification`, `verify:roadmap-dashboard`,
+`validate:offline` and the packaged suites all remain **owed** by the plan below.
+
+### Remaining work — approved plan
+
+The plan was reviewed and approved before implementation began. It is summarised here because the
+plan file lives outside the repository and is not available to the next agent.
+
+**Owner decisions already taken:** fix the `repeatInstance` bypass inside `awkit-f3l`; harden the
+three sibling `npx tsx` shell sites alongside the issuer; fix all three BLOCKED-exits-0 verifiers;
+for `awkit-hj8` document the policy and add a release gate **without** touching the committed
+manifest pair.
+
+1. **Enforcement on revalidation.** New `app/main/licensing/licenseEnforcementService.ts` as the
+   single implementation, exporting `applyRunGateEnforcement(trigger)` (synchronous),
+   `currentEnforcementState()`, `licenseDispatchGate` (a **named const**, so wiring is assertable by
+   identifier rather than by call count), `startLicenseEnforcementWatcher()` /
+   `stopLicenseEnforcementWatcher()`. Body order is the correctness argument: evaluate → fold latch →
+   assign latch → sweep — all **before any `await`** — then warn only if something was cancelled,
+   then audit last as fire-and-forget. Audit from a timer needs **no schema change**: `AuditEvent`
+   already declares `actorUserId`/`actorName`/`sessionId` as optional-nullable and `appendAudit`
+   coalesces each with `?? null`, so a **sibling** function writes honest nulls with provenance in
+   `detail.trigger`. Do **not** loosen `auditLicense` (`licensing.ipc.ts:44`) to accept "no actor" —
+   that would weaken the RBAC-bound path. Watcher: immediate `"startup"` pass, then `setInterval` on
+   `LICENSE_REVALIDATE_INTERVAL_MS` (`src/licensing/LicenseAttention.ts:11` — the same constant
+   `verify-licensing.mts:324` already pins, so main and renderer cadences cannot drift), `.unref()`,
+   plus `app.on("browser-window-focus", …)` throttled to ≤1 pass / 2 s.
+   Edits: extract `projectLicenseStatusView(gate)` in `licenseRuntime.ts:146` (leave
+   `LicenseEnforcementView` **without** `activeRunDisposition` — the disposition belongs to the
+   enforcer, not the renderer); `licensing.ipc.ts:79-86` calls `applyRunGateEnforcement("revalidate-ipc")`;
+   `licensing.ipc.ts:109/132/148/157` call `applyRunGateEnforcement("license-changed")` after each
+   mutation so import/replace of a good licence clears the latch immediately.
+2. **Dispatch synchronization.** Add to `ExecutionEngine` (~`:501`) a `dispatchGate` field,
+   `setDispatchGate(gate)` (non-nullable, no un-setter), a `dispatchGateRegistered` getter that
+   **must** use `typeof === "function"` (with `!== undefined`, `setDispatchGate(null as never)` passes
+   the guard and silently disables enforcement — this is the single most security-critical line in
+   the change), and a private `evaluateDispatchGate()` that fails **closed** on a throwing gate.
+   Three consult points: top of every `processQueue` tick, inserted after the `allTerminal` block at
+   `:1096` and **before** `promoteQueued`; immediately before the `running` transition at `:1195`,
+   releasing both the browser slot **and** the resource-lock claims before `break`; and
+   `repeatInstance` after the still-active guard at `:1969-1971`.
+   In `execution.ipc.ts`: register `setDispatchGate(licenseDispatchGate)` as the first statement of
+   `registerExecutionIpc`; **delete** `cancelPendingWorkForLicenseIntegrity` (`:250-259`) so its
+   absence is itself a checkable signal; replace `:284-304` with `applyRunGateEnforcement("run-request")`
+   plus an extracted `licenseBlockedResult()` keeping the payload byte-identical; add a `"pre-run"`
+   re-check immediately before `startRun` at `:359`. Both the pre-`startRun` check **and** the
+   per-tick consult are required — `startRun` awaits `ensureDurableRuntime` at `:978` *after*
+   `pool.add` at `:968-970`, so instances briefly exist un-gated and only the first tick sweeps them.
+   The gate reads the **latch**, not the licence store, refreshing on `DISPATCH_LATCH_MAX_AGE_MS`.
+   `app/main/main.ts`: after `registerIpcHandlers()` (`:64`) and before the windows (`:76-77`), refuse
+   to start when `dispatchGateRegistered` is false, then start the watcher; stop it in the
+   `before-quit` block at `:167`.
+3. **Verifier exit-code hardening.** `verify-test-lab-cli-only.mts` — `:215` becomes
+   `if (failed > 0 || blocked > 0)`; the live assertion at `:206` must be **blocked**, not passed,
+   when any target was blocked; treat zero-length file targets as empty. Apply the same exit fix to
+   `verify-packaged-licensing.mts:350` and `verify-packaged-walkthrough.mts:1255`.
+4. **Remove shell interpretation.** Replace `packaged-license.mts:166` with
+   `execFileAsync(process.execPath, [join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs"), issuerScript, …args], { cwd, windowsHide: true })`
+   — no shell, no platform branch, mirroring `scripts/verify-offline-supply-chain.mts:59-63`
+   (`node_modules/tsx/dist/cli.mjs` confirmed present). Convert the three sibling `npx tsx` sites
+   identically so the new guard carries exactly one documented exception (`scripts/dev.mjs`).
+5. **Regression coverage that cannot pass vacuously.** Extend `verify-licensing.mts` with pure-latch
+   assertions (all 7 integrity statuses sweep; 24 folded repeat ticks give `auditCount === 1` **and**
+   `sweepCount === 24`; a reason change mid-block re-audits; recovery clears; re-block re-engages; 24
+   `VALID` passes audit nothing; cardinality guards on both the status set and `ENFORCEMENT_TRIGGERS`).
+   New `scripts/verify-license-dispatch-gate.mts` (npm `verify:license-dispatch-gate`, registered in
+   `scripts/lib/verifier-classification.ts` or `verify:verifier-classification` fails) drives the
+   **real** `processQueue` with **no Chromium** by setting `profile.maxConcurrentInstances = 0`, so
+   every instance stays `queued`, nothing is promoted, the loop still ticks, and `durableStore`
+   defaults to `NullRuntimeStore`. Prove the disposition *reaches* the sweep by subclassing and
+   asserting the **reason string content**; assert the instrument worked (history sizes) *before*
+   asserting what it observed; assert `setDispatchGate(null as never)` still reads **unregistered**;
+   assert a throwing gate fails closed; add static wiring assertions by **call with arguments**, never
+   by name existence. Extend `verify-packaged-licensing.mts` with the end-to-end recovery case.
+   **Verifiers must land in the same commit as the fix** — a verifier committed first would pass in
+   the failure state.
+6. **`awkit-hj8` corrective action.** Leave the committed manifest pair untouched. Write the missing
+   policy into `docs/ai/DECISIONS.md` and `docs/OFFLINE_STANDALONE_PACKAGING.md`: the manifest is a
+   release artifact committed so a clean checkout can package; every packaging script regenerates it;
+   `sourceCommit` records the commit it was generated *from* and is **not** expected to equal HEAD; a
+   manifest whose `sourceCommit` is not the release commit is **not release-suitable**. Add a
+   **release-mode-only** provenance check (`application.version` vs `package.json`,
+   `application.sourceCommit` vs HEAD) — either folded into `validate:offline -Strict`, which already
+   carries release-only assertions, or as a new registered verifier. It **must** be release-mode only;
+   unconditionally it would fail on every ordinary commit. File a separate bead for the
+   OneDrive-synced signing key; do not relocate release signing material without owner action.
+7. **Close-out.** `npm run build`; `verify:licensing`, `verify:license-dispatch-gate`,
+   `verify:verifier-classification`, `verify:test-lab-cli-only`, `verify:ipc-contract`,
+   `verify:source-hygiene`, `verify:runner` (engine touched), `validate:offline`. Packaged suites need
+   a current packaged EXE — run if one exists, otherwise report BLOCKED and not run (after step 3 they
+   will exit nonzero rather than pass silently). Add a `DEFECTS.md` record for the `repeatInstance`
+   bypass. Update `CURRENT_STATE.md`, `TASK_LOG.md`, `KNOWN_ISSUES.md` (residual latch-staleness
+   window), `docs/LICENSING.md`. Then `bd close` → **`bd export`** (`bd close` does not refresh
+   `.beads/issues.jsonl`, which the dashboard parses) → refresh `tools/roadmap/assignments.json` →
+   `npm run verify:roadmap-dashboard` and confirm the Overview reads "Sources agree".
+
+### Risks and blockers
+
+- **The fail-open dispatch default is the residual hole.** It is forced: ten benchmark/verifier
+  scripts construct `ExecutionEngine` bare outside Electron (`benchmark-engine-abcd.mts:152,173`,
+  `-soak.mts:80`, `verify-durable-accuracy.mts:147`, `verify-oracle-mock-ui-workflow.mts:665`, and
+  others), and a fail-closed default deadlocks every one at zero dispatched instances. Security comes
+  instead from the `typeof === "function"` registration check, the non-nullable setter, the `main.ts`
+  exit-on-missing-gate guard, and the static wiring assertions. Weakening any one of those silently
+  disables the whole layer.
+- **Startup ordering is currently correct only by statement order** — the gate installs in
+  `registerIpcHandlers()` before any window exists. The bootstrap guard converts that accident into an
+  invariant; do not drop it.
+- **The new verifier's no-Chromium trick depends on `maxConcurrentInstances: 0`** behaviour in
+  `src/instances/InstanceManager.ts:36` and the coordinator's slot math. Pair it with a cardinality
+  assertion and an "all queued at submit" assertion so a future change fails loudly instead of quietly
+  launching browsers.
+- **`browser-window-focus` fires for the splash window too**, so the first focus pass can precede
+  `ready-to-show`. Harmless (idempotent and throttled) — recorded so it is not mistaken for a bug.
+- No behavioral change has landed, so **no verifier evidence exists for any of the above**. Do not
+  infer progress from the passing build; it only proves the two new modules typecheck.
+
+### Do-not-touch boundaries
+
+- Do **not** modify, regenerate, revert, stage, or commit `resources/dependency-manifest.json` or
+  `resources/dependency-manifest.sig`. Neither path is currently changed, and `awkit-hj8` explicitly
+  forbids it. The corrective action is documentation plus a release-mode gate.
+- Preserve `awkit-vot` and `awkit-0vm` as separate open Recorder hover limitations. They are
+  deliberate "do not fabricate a trigger" trade-offs and do **not** justify reopening the completed
+  `awkit-aui` epic.
+- Do not create branches or worktrees; `main` is the single continuing development branch.
+- Do not rename `window.playwrightFlowStudio`.
+
+### Recommended next step
+
+Continue at plan step 1: write `app/main/licensing/licenseEnforcementService.ts` against the two
+modules already present, then wire `licensing.ipc.ts` and `main.ts`. Keep the runner changes (step 2)
+in the same commit as their verifier (step 5) so nothing is ever committed in a state where the new
+checks would pass against the unfixed code.
+
+---
+
+## HANDOFF (2026-08-01 20:01 Asia/Amman) — Recorder ambiguity epic complete
 
 - **From:** OpenAI Codex
 - **To:** next coding agent / human

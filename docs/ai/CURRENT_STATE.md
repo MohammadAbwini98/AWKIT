@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Licensing enforcement and dependency-manifest audit complete (2026-08-01)
+
+`awkit-f3l` and `awkit-hj8` are **CLOSED**. Main-process licensing now evaluates the run gate at
+startup, every 15 minutes, on browser-window focus, on licensing mutations/revalidation, and before
+new or repeated runs. A synchronous fail-closed dispatch latch is registered before the enforcement
+watcher starts; startup exits visibly if registration is missing. Queue promotion checks the latch
+before `queued -> pending` and again after resource acquisition, while repeat requests apply the full
+new-run policy. A `cancel-pending` transition sweeps all queued/pending instances exactly once and
+writes one system audit event with null actor/session identifiers; a valid revalidation immediately
+clears the latch. Dispatch may retain a newly invalid state for at most the 30-second refresh ceiling
+between event-driven checks.
+
+Verifier failure semantics are hardened: CLI-only inspection refuses to assert success when any
+artifact was not inspected or is empty, and all three packaged/CLI verifiers now exit nonzero for
+BLOCKED as well as failed assertions. Signing-key and sibling TSX launches use direct local runtime
+argv with no command shell; `scripts/dev.mjs` remains the intentional `.cmd` shim exception.
+
+The committed `resources/dependency-manifest.{json,sig}` pair remains byte-untouched. It is valid and
+self-consistent, but it is **not release-current** because `application.sourceCommit` does not equal
+the current Git HEAD. Ordinary `validate:offline` continues to verify integrity; `-Strict` is the
+release-only gate and additionally requires manifest app version to equal `package.json` and
+`sourceCommit` to equal release HEAD. Key custody relocation/rotation outside the OneDrive-synced
+workspace is tracked separately as open P1 `awkit-2l1`; no private key material was recorded.
+
+Verification: build PASS; scripts typecheck PASS; licensing **167/167**; dispatch-gate **33/33**;
+runner **89/89** in the final isolated run; CLI-only **24/24**; IPC **4/4**; source hygiene **9/9**;
+verifier classification **156/156**; ordinary offline validation PASS. Strict offline validation
+failed at the intended release-current provenance assertion. Packaged licensing/walkthrough suites
+were not run because the available EXE predates this source; live Electron timer/focus/bootstrap
+behavior was not manually exercised. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1
+BLOCKED**. Recorder residuals `awkit-vot` and `awkit-0vm` remain open; AWKIT-REC-030 remains resolved.
+
+---
+
 ## Recorder ambiguity-resolution: epic COMPLETE after Increments 3/4 reconciliation (2026-08-01)
 
 Reconciliation from checkpoint `57dfad2` found and repaired two contract defects in the earlier

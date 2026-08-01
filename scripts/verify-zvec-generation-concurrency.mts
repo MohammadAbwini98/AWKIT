@@ -45,9 +45,16 @@ interface WorkerResult {
 function runWorker(runtimeRoot: string, count: number, barrier: string, readyDir: string): Promise<WorkerResult | null> {
   return new Promise((resolve) => {
     const child = spawn(
-      "npx",
-      ["tsx", path.join("scripts", "zvec-harness", "allocGenerationWorker.mts"), runtimeRoot, String(count), barrier, readyDir],
-      { cwd: ROOT, shell: true }
+      process.execPath,
+      [
+        path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"),
+        path.join("scripts", "zvec-harness", "allocGenerationWorker.mts"),
+        runtimeRoot,
+        String(count),
+        barrier,
+        readyDir
+      ],
+      { cwd: ROOT }
     );
     let stdout = "";
     let stderr = "";

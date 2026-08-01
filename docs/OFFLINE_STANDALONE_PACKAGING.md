@@ -37,6 +37,22 @@ explicit legacy/unknown marker), requested and installed Playwright versions, th
 source timestamp and basis, and a deterministic `sha256-tree-v1` digest with file count and total
 bytes. Do not use the manifest timestamp as the browser payload's age.
 
+### Dependency-manifest release-artifact policy
+
+`resources/dependency-manifest.json` and `resources/dependency-manifest.sig` are committed release
+artifacts so a clean checkout contains the complete signed packaging input. Ordinary development
+commits do not regenerate them. `application.sourceCommit` identifies the commit from which that
+manifest was generated; it is intentionally historical between releases and is not expected to equal
+the current `HEAD` during normal development.
+
+Release suitability is stricter: the manifest pair is release-current only when its signature is
+valid, `application.version` equals `package.json`, and `application.sourceCommit` equals the release
+commit. `npm run validate:offline -- -Strict` enforces those provenance checks in addition to the
+existing clean-tree/browser assertions. Every packaging wrapper regenerates and re-signs the pair as
+`production-offline` before strict validation, so a stale committed development pair cannot be
+promoted accidentally. Private signing material remains external, local release infrastructure and
+must never be committed.
+
 ## Build prerequisites
 
 ```powershell

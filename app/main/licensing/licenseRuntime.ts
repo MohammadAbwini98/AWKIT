@@ -143,8 +143,7 @@ export interface LicenseEnforcementView {
 export type LicenseStatusView = LicenseStatusReport & { readonly enforcement: LicenseEnforcementView };
 
 /** Compose the status the renderer receives. Never throws — a gate fault reads as "runs blocked". */
-export function getLicenseStatusView(): LicenseStatusView {
-  const gate = evaluateRunGate();
+export function projectLicenseStatusView(gate: RunGateDecision): LicenseStatusView {
   return {
     ...gate.status,
     enforcement: {
@@ -156,6 +155,11 @@ export function getLicenseStatusView(): LicenseStatusView {
       graceDaysRemaining: gate.grace.daysRemaining
     }
   };
+}
+
+/** Compose the status the renderer receives. Never throws — a gate fault reads as "runs blocked". */
+export function getLicenseStatusView(): LicenseStatusView {
+  return projectLicenseStatusView(evaluateRunGate());
 }
 
 function unevaluableStatus(): LicenseStatusReport {

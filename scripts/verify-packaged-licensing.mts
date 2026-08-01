@@ -250,6 +250,32 @@ async function main(): Promise<void> {
         ref
       )) as any;
 
+      // Recovery must clear the main-process latch immediately; waiting for the next 15-minute pass
+      // would make a valid replacement appear unusable even though the store is healthy again.
+      writeStoredLicenseEnvelope({ localAppData: negativeRoot, license: forgeUnsignedLicense(fingerprint) });
+      await expectBlocked("INVALID_SIGNATURE recovery baseline", "INVALID_SIGNATURE");
+      const validLicense = (
+        await mintVerificationLicense({
+          repoRoot: root,
+          keyPath: key.keyPath as string,
+          activationRequest: activation.value,
+          workDir,
+          expiresInMinutes: 45
+        })
+      ).license;
+      const reauth = (await win.evaluate(
+        async (input) => (window as any).playwrightFlowStudio.security.reauth(input),
+        { sessionRef: ref, password: ACCOUNT.password }
+      )) as any;
+      check("valid-recovery import re-authenticates", reauth?.ok === true, JSON.stringify(reauth));
+      const imported = (await win.evaluate(
+        async (input) => (window as any).playwrightFlowStudio.licensing.import(input),
+        { sessionRef: ref, license: validLicense }
+      )) as any;
+      check("a valid license imports after an integrity failure", imported?.ok === true && imported?.value?.ok === true, JSON.stringify(imported));
+      const recoveredRun = await attemptRun(win);
+      check("the next run starts immediately after valid recovery", recoveredRun?.status === "started", JSON.stringify(recoveredRun?.status));
+
       const expiredLicense = (
         await mintVerificationLicense({
           repoRoot: root,
@@ -347,7 +373,7 @@ async function main(): Promise<void> {
         "validation machine or CI runner. Recorded as BLOCKED, not skipped and not passed."
     );
   }
-  if (failed > 0) process.exitCode = 1;
+  if (failed > 0 || blocked > 0) process.exitCode = 1;
 }
 
 main().catch((error) => {

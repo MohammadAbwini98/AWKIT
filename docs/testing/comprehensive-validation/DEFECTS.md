@@ -6,6 +6,28 @@ None.
 
 ## Resolved comprehensive-campaign defects
 
+### AWKIT-LIC-001 (`awkit-f3l`) — Repeat bypass and queue dispatch could outrun license enforcement
+
+- **Severity:** S1 / Work could begin after an integrity-blocking license transition
+- **Priority recommendation:** P1
+- **Status:** **Resolved 2026-08-01**
+- **Affected area:** `app/main/licensing`, licensing/execution IPC, `src/runner/ExecutionEngine.ts`
+- **Detected by:** source-level licensing enforcement audit while closing `awkit-f3l`
+
+`execution:repeatInstance` called `runInstance` directly without any license gate, and the normal
+queue consulted licensing only at the original IPC run request. Revalidation discarded
+`activeRunDisposition`, renderer permissions controlled the only timer/focus trigger, and queued work
+could continue promoting after a one-shot sweep.
+
+**Resolution:** a main-process watcher and synchronous enforcement latch now own all revalidation and
+pending sweeps. The runner receives one named dispatch gate, checks it before promotion, immediately
+before the running transition (releasing both browser slot and resource claims on refusal), and before
+repeat. Gate faults fail closed; valid recovery clears the latch immediately. `verify:licensing` is
+167/167 and `verify:license-dispatch-gate` exercises the real queue plus the repeat/fault/wiring
+negative controls.
+
+---
+
 ### AWKIT-REC-030 — Recorder saves an interactive step it knows cannot replay, with no resolution path
 
 - **Severity:** S2 / A recorded flow predictably fails at replay and the user is given no supported
@@ -108,7 +130,7 @@ Flow Designer 69/69 are green.
 ---
 
 No product defect remains open in this campaign section. The separate tracked hover limitations
-`awkit-vot` / `awkit-0vm` and manifest audit `awkit-hj8` remain outside this closure.
+`awkit-vot` / `awkit-0vm` remain outside this closure; manifest audit `awkit-hj8` is closed.
 
 ### AWKIT-REC-031 — Recorder's hover step targeted the hidden revealed surface, so hover-gated flows failed replay
 

@@ -1252,7 +1252,7 @@ async function main(): Promise<void> {
   console.log("REMINDER: this proves the packaged app on THIS machine with a fresh profile and loopback-only");
   console.log("traffic. The clean/offline Windows VM walkthrough (PHASE5_OFFLINE_VM_WALKTHROUGH.md) is a");
   console.log("separate human gate and is NOT claimed by this script.");
-  if (failed > 0) process.exitCode = 1;
+  if (failed > 0 || blocked > 0) process.exitCode = 1;
 }
 
 main().catch((error) => {

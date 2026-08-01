@@ -1,5 +1,20 @@
 # KNOWN_ISSUES
 
+## Licensing dispatch latch has a deliberate 30-second maximum staleness window (2026-08-01)
+
+`ExecutionEngine` consults an in-memory licensing latch at least every 500 ms instead of reading and
+fingerprinting the license store on every dispatch tick. Startup, the 15-minute main-process watcher,
+window focus, renderer revalidation, license mutation, run request, and pre-run all refresh it; an
+otherwise untouched latch self-refreshes after 30 seconds. Therefore an externally changed license
+file can take up to 30 seconds to stop queued promotion. This is an explicit cost/failure-surface
+trade-off, not a renderer dependency. Do not remove the max-age refresh or weaken the bootstrap gate.
+
+The current development machine's private offline-manifest key is also within a OneDrive-synced
+workspace. No private material is tracked in Git; owner-controlled relocation/rotation is tracked as
+`awkit-2l1` and must not be automated by a coding agent.
+
+---
+
 ## RESOLVED verifier race: Recorder live-region check ran before the first polled action (2026-08-01)
 
 `verify:recorder-gui` twice reported only `REC-029 recording: the action timeline is a live region`

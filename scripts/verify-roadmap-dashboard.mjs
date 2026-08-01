@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("141 issues parse", beads.stats.total === 141, `got ${beads.stats.total}`);
+  check("142 issues parse", beads.stats.total === 142, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -103,9 +103,11 @@ try {
   // then closed: 16 → 15 outstanding, total unchanged at 139.
   // Reconciliation filed two defect children (`awkit-aui.3.1` / `.4.1`), raising total/edges to
   // 141/91, then closed both children, Increments 3/4, and parent epic: 12 outstanding / 129 closed.
+  // The licensing/manifest closure filed key-custody follow-up `awkit-2l1` (one issue and one edge),
+  // then closed `awkit-f3l` and `awkit-hj8`: 142/92, 11 outstanding / 131 closed.
   check(
-    "12 outstanding / 129 closed",
-    beads.stats.outstanding === 12 && beads.stats.closed === 129,
+    "11 outstanding / 131 closed",
+    beads.stats.outstanding === 11 && beads.stats.closed === 131,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -121,8 +123,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "91 edges are present to classify",
-    beads.stats.edges === 91,
+    "92 edges are present to classify",
+    beads.stats.edges === 92,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

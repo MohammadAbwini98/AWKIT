@@ -125,6 +125,12 @@ import {
   type RunCompletionEvent,
   type RunCompletionObserver
 } from "./RunCompletionObserver";
+import {
+  DISPATCH_GATE_FAULT,
+  DISPATCH_GATE_UNREGISTERED,
+  type DispatchGate,
+  type DispatchGateVerdict
+} from "./DispatchGate";
 
 export type { RunCompletionEvent } from "./RunCompletionObserver";
 
@@ -143,6 +149,7 @@ export class ExecutionEngine {
   public readonly pool = new InstancePool();
   private readonly coordinator = new ConcurrentExecutionCoordinator();
   private readonly manager = new InstanceManager();
+  private dispatchGate?: DispatchGate;
 
   private readonly activeRuns = new Map<string, Promise<void>>();
   private readonly runReports = new Map<string, InstanceReport[]>();
@@ -281,6 +288,23 @@ export class ExecutionEngine {
 
   public getInstances(): InstanceRuntimeState[] {
     return this.pool.list();
+  }
+
+  public setDispatchGate(gate: DispatchGate): void {
+    this.dispatchGate = gate;
+  }
+
+  public get dispatchGateRegistered(): boolean {
+    return typeof this.dispatchGate === "function";
+  }
+
+  private evaluateDispatchGate(): DispatchGateVerdict {
+    if (typeof this.dispatchGate !== "function") return DISPATCH_GATE_UNREGISTERED;
+    try {
+      return this.dispatchGate();
+    } catch {
+      return DISPATCH_GATE_FAULT;
+    }
   }
 
   /**
@@ -1095,6 +1119,21 @@ export class ExecutionEngine {
         break;
       }
 
+      const dispatchGate = this.evaluateDispatchGate();
+      if (!dispatchGate.admit) {
+        const reason = `license integrity failure: ${dispatchGate.reason}`;
+        const cancelled = this.cancelPendingInstances(reason);
+        if (cancelled.length > 0) {
+          console.warn(`[license] cancelled ${cancelled.length} queued instance(s): ${dispatchGate.reason}`);
+        }
+        if (reason !== this.lastThrottleReason) {
+          this.lastThrottleReason = reason;
+          this.recordAdmissionDelay(reason);
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+
       const promoted = this.coordinator.promoteQueued(currentList, profile.maxConcurrentInstances);
       promoted.forEach(i => {
         if (i.status === "pending" && this.pool.get(i.instanceId)?.status === "queued") {
@@ -1190,6 +1229,13 @@ export class ExecutionEngine {
             this.recordAdmissionDelay(reason);
           }
           continue;
+        }
+
+        const finalDispatchGate = this.evaluateDispatchGate();
+        if (!finalDispatchGate.admit) {
+          this.browserPool.releaseSlot(slot);
+          globalResourceLocks.releaseMany(claimTokens);
+          break;
         }
 
         this.pool.update(instance.instanceId, {
@@ -1968,6 +2014,10 @@ export class ExecutionEngine {
     if (!instance) throw new Error(`Instance ${instanceId} not found.`);
     if (["starting", "running", "paused", "pending", "queued"].includes(instance.status)) {
       throw new Error(`Cannot repeat instance ${instanceId} because it is still active.`);
+    }
+    const dispatchGate = this.evaluateDispatchGate();
+    if (!dispatchGate.admit) {
+      throw new Error(`Cannot repeat instance ${instanceId}: license integrity failure: ${dispatchGate.reason}`);
     }
     const context = this.runContexts.get(instance.executionId);
     if (!context) {

@@ -132,6 +132,7 @@ check(
 // ── Built artifacts: the harness is absent from every production bundle ──────────────────────────
 console.log("\nProduction bundles:");
 const bundleSymbols: Array<readonly [string, string]> = [];
+let inspectedBundleTargets = 0;
 const newestSource = Math.max(
   ...[...harnessFiles, ...appFiles].map((rel) => statSync(join(root, rel)).mtimeMs)
 );
@@ -149,6 +150,10 @@ for (const target of PRODUCTION_BUNDLE_GLOBS) {
     block(`${target} scanned for harness symbols`, "build directory contains no JavaScript");
     continue;
   }
+  if (files.some((rel) => statSync(join(root, rel)).size === 0)) {
+    block(`${target} scanned for harness symbols`, "bundle contains an empty JavaScript file");
+    continue;
+  }
   // A stale bundle is a sound check applied to the wrong artifact: it would clear a harness that the
   // current sources do wire in. Refuse rather than report a pass against yesterday's output.
   const oldest = Math.min(...files.map((rel) => statSync(join(root, rel)).mtimeMs));
@@ -156,6 +161,7 @@ for (const target of PRODUCTION_BUNDLE_GLOBS) {
     block(`${target} scanned for harness symbols`, "bundle is older than its sources — rebuild first");
     continue;
   }
+  inspectedBundleTargets += 1;
   const text = files.map((rel) => read(rel)).join("\n");
   for (const symbol of TEST_LAB_HARNESS_SYMBOLS) {
     if (new RegExp(`\\b${symbol}\\b`).test(text)) bundleSymbols.push([target, symbol] as const);
@@ -203,13 +209,20 @@ check("DECISIONS.md quotes the canonical decision sentence verbatim", decisions.
 
 // ── Live result must agree with the pure evaluator ──────────────────────────────────────────────
 const live = evaluateTestLabPackaging({ appImports, bundleSymbols, routeTokens });
-check(
-  "the repository satisfies the CLI-only boundary",
-  live.ok,
-  live.violations.map((v) => `${v.location}: ${v.detail}`).join("; ")
-);
+if (inspectedBundleTargets !== PRODUCTION_BUNDLE_GLOBS.length) {
+  block(
+    "the repository satisfies the CLI-only boundary",
+    `only ${inspectedBundleTargets}/${PRODUCTION_BUNDLE_GLOBS.length} production bundle targets were inspected`
+  );
+} else {
+  check(
+    "the repository satisfies the CLI-only boundary",
+    live.ok,
+    live.violations.map((v) => `${v.location}: ${v.detail}`).join("; ")
+  );
+}
 
 console.log(
   `\n${passed} PASS / ${failed} FAIL${blocked ? ` / ${blocked} BLOCKED` : ""} — Test Lab CLI-only boundary`
 );
-if (failed > 0) process.exitCode = 1;
+if (failed > 0 || blocked > 0) process.exitCode = 1;
