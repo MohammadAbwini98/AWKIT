@@ -1,5 +1,50 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-01, latest) — Increment 6 Shadow DOM capture/replay complete (`awkit-aui.6`)
+
+- **From:** Codex
+- **To:** next agent / human
+- **Branch:** `main` (single-branch policy; started from clean `064c33a`)
+
+**Architecture.** Recorder capture now selects the first usable element from `event.composedPath()`.
+A bounded per-action traversal counts matches across the document and recursively reachable open
+roots. Persisted `LocatorContext.shadow.hosts` stores the stable outer-to-inner host chain; at replay
+`LocatorFactory` resolves frame → hosts → optional container → target, then `StepExecutor` performs the
+real action. XPath, positional host selection, element handles, forced actions, and synthetic replay
+are not used. Nested roots, duplicate controls, dynamic roots, semantic/test-ID targets, and slotted
+light-DOM controls are covered by real-browser regression checks and Recorder Lab fixtures.
+
+**Closed/frame boundaries.** An early `attachShadow` wrapper calls the native method exactly once and
+records only closed-mode hosts in a `WeakSet`; it never retains/exposes the root or internal nodes.
+Known closed-root interactions are `needs-review` with reason `closed shadow root`, preserve only a
+stable host diagnostic where possible, and fail static preflight with zero launch. A child-frame action
+without a strict existing frame selector is review-required; cross-origin evidence is limited to safe
+origin/name metadata and is never resolved against the main page.
+
+**Three-agent Graphify proof (required infrastructure).** Graphify `0.9.31` and
+`graphify-out/graph.json` were verified before implementation.
+
+| Agent | Proof | Result |
+|---|---|---|
+| OpenAI Codex | Live `graphify query "recorder recorded locator shadow composed event path frame context flow executor step" --budget 2200` | PASS — exit 0, BFS 456 nodes; returned AWKIT nodes including `LocatorFrameContext`, Increment 6 plan, `RecordedAction`, `buildRecordedFlow`, `LocatorFactory`, and `StepExecutor`. |
+| Claude Code | Terminal rerun with authenticated `claude -p` session; Claude invoked Graphify against the current graph | PASS — exit 0, BFS depth 2 / 456 nodes; cited `FlowProfile.ts:94`, `RecorderTypes.ts:42`, `LocatorFactory.ts:17`, and the Increment 6 plan. |
+| Google Antigravity | Owner-confirmed manual live-tool query with actual Graphify invocation evidence and AWKIT-specific traversal output | PASS (manual live-tool evidence) — accepted as the independent Antigravity proof; not represented as a local CLI transcript. |
+
+**Verification.** build PASS · typecheck:scripts PASS · recorder 170/170 · ambiguity 59/59 ·
+recorder-flow 29/29 · recorder-hover 34/34 · runner 89/89 · mock-site 110/110 · mapping 105/105 ·
+profile-store 16/16 · IPC 4/4 · verifier classification 155/155 reconciled · source hygiene 9/9 ·
+offline validation PASS. Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Scope/next.** Stop at Increment 6. Preserve `awkit-vot`/`awkit-0vm` as hover limitations and
+`awkit-hj8` as the separate dependency-manifest audit. Do not close `awkit-aui.3`, `.4`, or the epic
+from documentation alone; the next action is reconciliation of Increments 3 and 4 against code,
+tracking, and acceptance evidence.
+
+**Manifest.** `resources/dependency-manifest.json` and
+`resources/dependency-manifest.sig` were not modified.
+
+---
+
 ## HANDOFF (2026-08-01, latest) — Increment 2 reconciled COMPLETE + awkit-bw9 fixed (`awkit-aui.2`)
 
 - **From:** Claude

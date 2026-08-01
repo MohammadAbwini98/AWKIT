@@ -445,9 +445,13 @@ failure boundary under `src/testing/failures/`:
   (`getRecorderInitScriptContent()` serializes `installRecorderCapture` and shims esbuild's `__name`
   helper, then injects it via `context.addInitScript({ content })`). In the page DOM the script builds
   ranked candidate locators (role/label/placeholder/text/testId → stable attributes → id → scoped →
-  positional fallback; utility/layout classes are never used), counts each against the live DOM, and
+  positional fallback; utility/layout classes are never used), counts each against the live DOM plus
+  a bounded snapshot of recursively reachable open shadow roots, and
   reports the best `count === 1` candidate plus `LocatorQuality`, **up to 3 ranked `alternatives`**, and a
-  **`context`** (nearest visible dialog / table row / card-listItem / same-origin iframe). The Node binding
+  **`context`** (nearest visible dialog / table row / card-listItem / same-origin iframe / ordered
+  open-shadow host chain). `event.composedPath()` supplies the actual inner interaction target. A
+  native-preserving early `attachShadow` wrapper stores only known closed-mode hosts in a `WeakSet`,
+  allowing an honest review-required state without inspecting or retaining closed-root content. The Node binding
   (`__awtkit_recordAction`) stores the action verbatim; `buildRecordedFlow`/`recorder:saveFlow` copy
   `exact`/`quality`/`alternatives`/`context` onto `FlowStep.locator` (a structured `StepLocator`).
 - **Smart Wait recorder observation (Phase 2):** the injected script also watches the DOM/network
@@ -465,7 +469,8 @@ failure boundary under `src/testing/failures/`:
 - **Locator resolution (runtime):** `LocatorFactory` builds a Playwright locator from a `StepLocator`.
   `create()` (page-rooted, no fallback) is used where multiple/absent matches are expected (count
   assertions, element loops, `waitFor`). `resolve(step)` (async) is used for single-target actions: it
-  scopes by `context` (iframe `frameLocator` → container resolved to its single/visible match), tries the
+  scopes by `context` (iframe `frameLocator` → ordered open-shadow host locators → container resolved
+  to its single/visible match), tries the
   primary then `alternatives`, and returns exactly one element per candidate — a unique match, else the
   single *visible* match when several exist (**visibility disambiguation** for hidden-template/duplicate
   modals). It auto-waits on the primary when nothing is present yet, and throws a per-candidate diagnostic

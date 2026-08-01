@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: Increment 6 Shadow DOM capture/replay COMPLETE (2026-08-01)
+
+Increment 6 (`awkit-aui.6`) now records the first usable `Element` from the actual
+`event.composedPath()`, so controls inside reachable open shadow roots retain their inner semantic
+target instead of the retargeted custom-element host. Candidate counts traverse the document plus a
+bounded snapshot of recursively reachable open roots. Duplicate inner controls are scoped by the
+smallest stable outer-to-inner host chain and replay through the normal
+`LocatorFactory` → `StepExecutor` path. Nested open roots, role/test-ID targets, dynamically attached
+roots, slotted light-DOM controls, and existing frame context are covered in the Recorder Lab.
+
+Known closed roots are classified by a pre-page-script `attachShadow` wrapper that calls the native
+method once, returns its result unchanged, and stores only the host in a `WeakSet`; no closed-root
+content or object handle is retained. Their actions persist diagnostic host context plus
+`resolution: "needs-review"` / `reviewReason: "closed shadow root"`, and static `FlowValidator`
+preflight blocks before browser launch. Child-frame captures without a strict existing frame selector
+are likewise review-required; cross-origin captures retain only safe origin/name evidence and cannot
+fall through to the main document.
+
+The schema additions are optional (`LocatorContext.shadow`, ordered shadow hosts,
+`LocatorQuality.visibleMatchCount`, shadow/frame interaction evidence, and `reviewReason`). JSON,
+Flow Designer, profile-store, import/export-style JSON/`structuredClone`, and IPC clone paths preserve
+the fields; legacy locators remain executable. Graphify was independently proven for Codex and Claude
+with live CLI queries against the current graph; Antigravity proof is recorded as owner-confirmed
+manual live-tool evidence.
+
+- Verification: build PASS; `typecheck:scripts` PASS; `verify:recorder` **170/170**;
+  `verify:recorder-ambiguity` **59/59**; `verify:recorder-flow` **29/29**;
+  `verify:recorder-hover` **34/34**; `verify:runner` **89/89**; `verify:mock-site` **110/110**;
+  `verify:flow-step-mapping` **105/105**; `verify:profile-store` **16/16**;
+  `verify:ipc-contract` **4/4**; verifier classification **155/155 reconciled**;
+  source hygiene **9/9**; `validate:offline` PASS.
+- Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+- `resources/dependency-manifest.json` and `.sig` remain untouched; audit `awkit-hj8` stays separate.
+
 ## Recorder ambiguity-resolution: Increment 2 reconciled COMPLETE + awkit-bw9 fixed (2026-08-01)
 
 Increment 2 (`awkit-aui.2`, capture enrichment + landmark/href locator strategies) was implemented in

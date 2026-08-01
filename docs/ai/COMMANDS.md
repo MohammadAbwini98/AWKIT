@@ -150,7 +150,7 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
                             # default, and that the RUNNER honours screenshot-on-failure — driven by
                             # real runs started from the card's Run button, ON/OFF/ON. Spawns the mock
                             # site; needs `npm run build` first. (11/11)
-npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, and Smart Wait signals/correlation (119/119)
+npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, Smart Wait signals/correlation, and Increment 6 open/nested/duplicate/slotted/closed/frame Shadow DOM capture→persistence→preflight→LocatorFactory→StepExecutor coverage (170/170)
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the trigger (not the hidden revealed surface), guards the old-locator regression,

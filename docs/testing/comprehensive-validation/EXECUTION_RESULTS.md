@@ -1,5 +1,17 @@
 # AWKIT Comprehensive Validation Execution Results
 
+## Increment 6 Shadow DOM evidence — 2026-08-01
+
+`awkit-aui.6` was exercised through the production capture/build/validate/resolve/execute layers.
+`verify:recorder` passed **170/170**: actual `composedPath()` inner targets; document + reachable-open-root
+match counts; stable duplicate-host and nested-host replay; role/test-ID/dynamic/slotted cases; XPath,
+dropped-host, retargeted-host, and closed-host-substitution negatives; known-closed-root privacy and
+zero-launch preflight; same-origin-frame replay and cross-origin review guard. Supporting results:
+ambiguity **59/59**, recorder-flow **29/29**, hover **34/34**, runner **89/89**, Mock Site **110/110**,
+Flow Designer mapping **105/105**, profile store **16/16**, and IPC contract **4/4**. The 66-case
+focused ledger status is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED** because no new ledger case
+or status transition was introduced.
+
 ## Executive ledger
 
 | Area | Status | Result |

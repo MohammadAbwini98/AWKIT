@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Codex - Increment 6 Shadow DOM capture/replay (`awkit-aui.6`)
+
+- **Task:** implement open/nested Shadow DOM capture and deterministic replay, honest closed-root and
+  unsupported-frame review states, backward-compatible persistence, Recorder Lab scenarios, and
+  mutation-sensitive real-browser verification.
+- **Capture:** uses the first usable element from `event.composedPath()`; candidate uniqueness scans a
+  bounded snapshot of all reachable open roots; nested stable hosts persist outer-to-inner. Shadow
+  targets forbid XPath and positional fallbacks. Dynamic open roots and slotted light-DOM controls are
+  classified correctly.
+- **Replay:** `LocatorFactory` extends its normal context root as frame → shadow host(s) → container →
+  target. `StepExecutor` remains the only action executor. Duplicate `Select` buttons replay against
+  the recorded host; removing the host chain is a failing negative control.
+- **Closed/frame guards:** a native-preserving `attachShadow` wrapper records closed hosts only in a
+  `WeakSet`. Known closed-root and unsupported child-frame actions are review-required; preflight
+  names the reason and blocks execution. Cross-origin evidence is origin/name only.
+- **Compatibility:** optional shadow/evidence/review fields survive build, JSON, Flow Designer,
+  structured clone/IPC, and profile storage; legacy locators remain executable.
+- **Fixtures/tests:** Recorder Lab now covers unique/duplicate/nested/test-ID/dynamic/slotted/closed/
+  ambiguous-host/same-origin-frame/cross-origin cases. `verify:recorder` 170/170; ambiguity 59/59;
+  recorder-flow 29/29; hover 34/34; runner 89/89; mock-site 110/110; mapping 105/105;
+  profile-store 16/16; IPC 4/4; build/typecheck/offline/source-hygiene/classification PASS.
+- **Graphify:** Codex and Claude live CLI proofs queried the current 0.9.31 graph (456-node scoped
+  traversal); Antigravity is recorded as owner-confirmed manual live-tool evidence.
+- **Manifest:** dependency manifest JSON/signature untouched; `awkit-hj8` remains open.
+
 ## 2026-08-01 - Claude - Increment 2 reconciliation + awkit-bw9 fix (`awkit-aui.2`, AWKIT-REC-032)
 
 - **Task:** determine the real state of `awkit-aui.2` (capture enrichment + landmark/href locator

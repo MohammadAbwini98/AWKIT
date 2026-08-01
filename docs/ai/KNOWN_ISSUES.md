@@ -21,6 +21,16 @@ legal review and code-signing certificate operations remain external release res
 These are deliberate scope boundaries of the ambiguity/hover work (Increments 5 & 7), not regressions.
 They are tracked in `bd`; none are "supported behavior".
 
+- **Closed Shadow DOM is diagnostic-only by platform boundary.** Increment 6 records a known
+  closed-mode host without retaining the root or exposing internal content, then marks the action
+  `needs-review` with reason `closed shadow root`. Playwright cannot durably traverse the internal
+  control, so execution is deliberately blocked before launch; the host is never clicked as a
+  substitute.
+- **Child frames without a strict captured selector are review-required.** Same-origin frames with the
+  existing selector model replay normally. When the injected frame cannot provide that strict model,
+  `RecorderService` retains safe frame evidence; cross-origin cases are labelled explicitly and never
+  fall back to the main document. Full new frame automation remains outside Increment 6.
+
 - **Hover: sibling/self-toggle triggers not attributed** (`awkit-vot`). Increment 5 attributes a
   hover reveal only when the click target has a hidden-at-rest *ancestor container*. A sibling/self
   trigger (`.trigger:hover + .target`) with no hidden ancestor is classified "none" (no hover step)

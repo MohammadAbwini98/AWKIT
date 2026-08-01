@@ -7,7 +7,8 @@
 - **Severity:** S2 / A recorded flow predictably fails at replay and the user is given no supported
   way to fix it (recording-to-execution reliability gap)
 - **Priority recommendation:** P2
-- **Status:** **Open — planned.** Epic `awkit-aui` (children `awkit-aui.1`…`.6`, `.8`); plan
+- **Status:** **Open — implementation substantially landed; reconciliation remains.** Epic `awkit-aui`
+  (children `awkit-aui.1`…`.6`, `.8`); plan
   `docs/recorder-ambiguity-resolution-plan.md`
 - **Affected area:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
   `src/validation/FlowValidator.ts`, `src/runner/StepExecutor.ts`, `src/runner/LocatorFactory.ts`,
@@ -34,6 +35,15 @@ to pick a candidate, scope to a stable ancestor, or explicitly approve a positio
 **Not summarised as an overall Recorder pass:** ambiguity detection and strict-mode protection
 working does not make the feature complete. See the plan's corrected classification
 (Recorded-flow replayability = FAIL; Ambiguous-locator recovery UX = NOT IMPLEMENTED).
+
+**Current correction (2026-08-01):** the runtime-only/no-context description above is the original
+defect evidence, not current behavior. The resolution model, preflight gate, evidence persistence,
+stable ancestor/context scoping, hover prerequisite, and acceptance regression have since landed.
+Increment 6 (`awkit-aui.6`) adds actual `composedPath()` inner-target capture, bounded open-root match
+counting, ordered stable host scoping, nested/dynamic/slotted replay, known-closed-root review-required
+preflight, and an honest unsupported cross-origin-frame guard. `verify:recorder` is 170/170 and
+`verify:recorder-ambiguity` is 59/59. The parent defect remains open until Increments 3 and 4 are
+reconciled and the epic-level state is reviewed; this entry does not close them by inference.
 
 ---
 

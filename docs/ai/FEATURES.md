@@ -207,6 +207,14 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`/`requiresHover`/`hoverContainer`) and
   (for role/text) an `exact` flag. Steps get human-readable names ("Click Log in", "Fill Email").
   Password field values are never stored. Verified by `npm run verify:recorder`.
+- ✅ **Open Shadow DOM capture and replay:** capture selects the actual inner control from
+  `event.composedPath()`, counts semantic/CSS matches across a bounded traversal of every reachable
+  open root, and persists the smallest stable outer-to-inner host chain when global semantics are
+  ambiguous. `LocatorFactory` resolves frame → host(s) → target through normal Playwright locator
+  chaining and `StepExecutor`; nested/dynamic roots, duplicate hosts, role/test-ID targets, and
+  slotted light-DOM controls are covered. Known closed roots and unsupported child-frame contexts are
+  explicit review-required states and are rejected by static preflight rather than clicking a host or
+  resolving against the main document. Verified by `npm run verify:recorder` Part F.
 - ✅ **Hover-dependency capture (replay-verified):** when a click target was hidden at rest and only
   actionable after a hover, the recorder attributes the reveal to the element the pointer actually
   hovered — a trusted pointer trail plus record-time first-seen (rest) visibility of interactive

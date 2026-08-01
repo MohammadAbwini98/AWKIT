@@ -231,6 +231,9 @@ export interface StepLocator extends LocatorCandidate {
 - **Rollback boundary:** independent; revert leaves other increments intact.
 
 ### Increment 6 — Shadow-DOM capture via composedPath
+- **Status (2026-08-01): COMPLETE** — implemented under `awkit-aui.6`; open/nested roots replay
+  through stable host context, known closed roots and unsupported cross-origin frames are blocked as
+  review-required, and `verify:recorder` Part F provides mutation-sensitive coverage.
 - **Goal:** honest, Playwright-compatible locators across open shadow roots; explicit unsupported
   state for closed roots.
 - **Files:** `src/recorder/recorderInitScript.ts` (use `event.composedPath()` to walk host
