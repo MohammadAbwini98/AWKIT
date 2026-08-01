@@ -571,6 +571,31 @@ export function installRecorderCapture(): void {
     return null;
   };
 
+  // The accessible name of a `role=row` is the ACCESSIBLE NAMES of its cells joined by a SPACE
+  // (ARIA name-from-content). Raw `row.textContent` concatenates adjacent cells with NO separator
+  // ("Customer Beta" + "Edit" → "Customer BetaEdit"), which never matches `getByRole('row', {name})`
+  // on replay — the platform computes "Customer Beta Edit". Join the row's direct-child cells with a
+  // space so the captured row name matches the name the runner searches by. (Cards use `hasText`,
+  // which matches `textContent` against `textContent`, so they are already self-consistent and are
+  // deliberately left alone.)
+  const rowAccessibleName = (row: Element): string => {
+    let cells: Element[] = [];
+    try {
+      cells = Array.prototype.slice.call(
+        row.querySelectorAll(':scope > td, :scope > th, :scope > [role="cell"], :scope > [role="gridcell"], :scope > [role="columnheader"], :scope > [role="rowheader"]')
+      );
+    } catch {
+      cells = [];
+    }
+    if (!cells.length) return norm(row.textContent);
+    const parts: string[] = [];
+    for (let i = 0; i < cells.length; i += 1) {
+      const t = norm(cells[i].textContent);
+      if (t) parts.push(t);
+    }
+    return norm(parts.join(" "));
+  };
+
   // Detect the nearest stable container so a repeated control targets the right subtree.
   // `chosenCount` is the primary locator's match count: when it is already globally unique we
   // only scope for dialogs (to survive a hidden modal twin), never for rows/cards.
@@ -592,8 +617,8 @@ export function installRecorderCapture(): void {
 
     const row = el.closest('tr, [role="row"]');
     if (row && row !== el) {
-      const text = norm(row.textContent).slice(0, 80);
-      if (text) return { type: "tableRow", strategy: "role", value: "row", name: text, exact: false };
+      const name = rowAccessibleName(row).slice(0, 80);
+      if (name) return { type: "tableRow", strategy: "role", value: "row", name, exact: false };
     }
 
     const card = el.closest('[data-testid], [role="listitem"], article, li');
