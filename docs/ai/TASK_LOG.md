@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-01 - Claude - Increment 2 reconciliation + awkit-bw9 fix (`awkit-aui.2`, AWKIT-REC-032)
+
+- **Task:** determine the real state of `awkit-aui.2` (capture enrichment + landmark/href locator
+  strategies), reconcile code/git/tests/bd, and fix the related P2 defect `awkit-bw9`.
+- **Finding:** Increment 2 was implemented in commit `88ee9b0` but its bd item was left `in-progress`.
+  Reconciled complete: capture enrichment (`interaction.path`/`x`/`y`/`matchIndex`), landmark scoping
+  (`detectContainer`/`describeContainer`, verified by `verify:recorder` CR5), href scoping
+  (`buildCandidates`/`detectContainer`, new CR7), and capture→replay (ambiguity gate 1/2/3/3b). Closed
+  `awkit-aui.2` (unblocks `awkit-aui.3`, `awkit-aui.6`).
+- **Root cause (bw9):** `detectContainer` set the tableRow container name from `norm(row.textContent)`,
+  concatenating adjacent cells without a separator (`"Customer BetaEdit"`); `LocatorFactory` replays via
+  `getByRole('row',{name})`, which matches the space-joined platform accessible name (`"Customer Beta
+  Edit"`) → never resolves → timeout. The existing C3 test masked it by hand-building a partial name.
+- **Fix:** new `rowAccessibleName` joins the row's direct-child cells (`td/th/[role=cell]/[role=gridcell]/
+  [role=columnheader]/[role=rowheader]`) with a space (ARIA name-from-content), normalizing repeated
+  whitespace. Card `hasText` scoping matches `textContent`↔`textContent` and was already self-consistent,
+  so it was left unchanged (minimal diff).
+- **Tests:** `verify:recorder` gains CR6 (capture → save/reload → fresh-page replay; whitespace/newline
+  normalization; partial-overlap row names; ARIA `role=row` with interactive children; old no-space name
+  as a failing negative control) and CR7 (href discrimination) → **135/135**. `verify:recorder-ambiguity`
+  gains **[3b]** (live customer-table row replay) → **58/58** (existing 55 preserved, mutation-sensitivity
+  intact).
+- **Section-4 note:** a live capture with `isUnique===false` is not honestly reproducible (structural
+  fallback is serial-unique); the `needs-review` mapping stays verified at the `buildRecordedFlow` layer.
+- **Tests run:** build PASS; typecheck:scripts PASS; verify:recorder 135/135; verify:recorder-ambiguity
+  58/58; verify:recorder-flow 26/26; verify:recorder-hover 34/34; verify:runner 89/89; verify:mock-site
+  99/99; verify:verifier-classification reconciled; verify:source-hygiene 9/9; validate:offline PASS;
+  verify:roadmap-dashboard Sources agree.
+- **Manifest:** `resources/dependency-manifest.{json,sig}` untouched (audit `awkit-hj8` still open).
+- **Files:** `src/recorder/recorderInitScript.ts`, `scripts/verify-recorder-locator.mts`,
+  `scripts/verify-recorder-ambiguity.mts`, `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/*`,
+  `docs/testing/comprehensive-validation/DEFECTS.md`.
+
+---
+
 ## 2026-08-01 - Claude - Increment 7: nine-point ambiguity acceptance gate (`awkit-aui.8`)
 
 - **Task:** implement `verify:recorder-ambiguity`, the durable nine-point Recorder ambiguity/

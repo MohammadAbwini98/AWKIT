@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## Recorder ambiguity-resolution: Increment 2 reconciled COMPLETE + awkit-bw9 fixed (2026-08-01)
+
+Increment 2 (`awkit-aui.2`, capture enrichment + landmark/href locator strategies) was implemented in
+commit `88ee9b0` but its bd item was still `in-progress`. Reconciled against code/git/tests/bd and
+found **complete**; closed `awkit-aui.2` (unblocks `awkit-aui.3` and `awkit-aui.6`). Evidence:
+- **Capture enrichment** — `captureInteraction` records `interaction.path` (composedPath host tags),
+  `x`/`y` coords, and `matchIndex`.
+- **Landmark scoping** — `detectContainer` scopes to the nearest landmark (`nav`/`main`/… or role) via
+  `describeContainer` (role + accessible name). Verified by `verify:recorder` **CR5** (two `<nav>`s with
+  distinct aria-labels → container-scoped unique locator, replay hits the footer link).
+- **href scoping** — `buildCandidates` emits `tag[href="…"]` and `detectContainer` scopes links by href.
+  Verified by new `verify:recorder` **CR7** (two same-text links, different hrefs → href-discriminated).
+- Compound/container scoping for duplicates, candidate ranking/alternatives, uniqueness metadata,
+  `buildRecordedFlow` preservation, and `LocatorFactory`/`StepExecutor` replay are all covered by the
+  `verify:recorder-ambiguity` gate (points 1/2/3/3b) and `verify:recorder`.
+- Note: the recorder-lab `landmark-twins` **fixture** (nav + a NESTED `<main>`) falls to a positional
+  fallback because `getByRole('main')` is non-unique on the page; the landmark *behaviour* is verified
+  by CR5's inline fixture, so this is a fixture-illustration weakness, not a code gap.
+
+**`awkit-bw9` fixed (AWKIT-REC-032).** The tableRow container name came from `norm(row.textContent)`,
+which concatenates adjacent cells with no separator (`"Customer BetaEdit"`); replay via
+`getByRole('row',{name})` matches the space-joined platform accessible name (`"Customer Beta Edit"`) and
+never resolved → timeout. Fixed with `rowAccessibleName` (join the row's direct-child cells with a
+space, ARIA name-from-content; normalize whitespace). Card `hasText` scoping matches `textContent`
+against `textContent` and was already self-consistent — deliberately unchanged. Verified by
+`verify:recorder` **CR6** (capture → save/reload → fresh-page replay; whitespace/newline normalization;
+partial-overlap row names; ARIA `role=row`; **old no-space name as a failing negative control**) and
+`verify:recorder-ambiguity` **[3b]** (live customer-table row replay).
+
+- Section-4 finding: a live capture with `quality.isUnique === false` is **not honestly reproducible**
+  in a mock — the recorder's `structuralSelector` yields a unique positional for any resolvable DOM
+  (CR4b made it serial-unique). The `needs-review` mapping stays verified at the `buildRecordedFlow`
+  layer (`verify:recorder-ambiguity` point 4). See `KNOWN_ISSUES.md`.
+- Verification (re-run this session): `npm run build` PASS; `typecheck:scripts` PASS; `verify:recorder`
+  **135/135**; `verify:recorder-ambiguity` **58/58**; `verify:recorder-flow` **26/26**;
+  `verify:recorder-hover` **34/34**; `verify:runner` **89/89**; `verify:mock-site` **99/99**;
+  `verify:verifier-classification` reconciled; `verify:source-hygiene` **9/9**; `validate:offline` PASS;
+  `verify:roadmap-dashboard` Sources agree. Comprehensive validation ledger unchanged: **62 PASS /
+  3 NOT RUN / 1 BLOCKED**.
+
 ## Recorder ambiguity-resolution: Increment 7 — nine-point acceptance gate landed (2026-08-01)
 
 Increment 7 (`awkit-aui.8`) is complete. New `verify:recorder-ambiguity` (registered in `package.json`,

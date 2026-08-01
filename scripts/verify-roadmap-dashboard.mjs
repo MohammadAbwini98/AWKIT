@@ -98,9 +98,12 @@ try {
   // `awkit-aui.8` (Inc7 nine-point ambiguity gate) closed; four follow-ups filed OPEN — `awkit-bw9`
   // (table-row container-name replay gap), `awkit-vot` + `awkit-0vm` (Inc5 hover residuals), and
   // `awkit-hj8` (dependency-manifest audit). Net: total 135 → 139, closed 120 → 121, outstanding 15 → 18.
+  // Then 16/123 of 139 on 2026-08-01: `awkit-aui.2` (Inc2 reconciled complete) and `awkit-bw9` (table-row
+  // container-name replay fix, AWKIT-REC-032) closed; no new issues. Net: closed 121 → 123, outstanding
+  // 18 → 16, total unchanged at 139.
   check(
-    "18 outstanding / 121 closed",
-    beads.stats.outstanding === 18 && beads.stats.closed === 121,
+    "16 outstanding / 123 closed",
+    beads.stats.outstanding === 16 && beads.stats.closed === 123,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

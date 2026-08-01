@@ -75,6 +75,31 @@ attributed the click is left `needs-review` instead of fabricating an unreplayab
 
 ---
 
+### AWKIT-REC-032 (`awkit-bw9`) — Table-row container name captured without cell spacing fails replay
+
+- **Severity:** S2 / A recorded flow scoped to a table row predictably fails at replay (Increment 2
+  capture defect under `AWKIT-REC-030` / epic `awkit-aui`, child `awkit-aui.2`)
+- **Priority recommendation:** P2
+- **Status:** **Resolved 2026-08-01**
+- **Affected area:** `src/recorder/recorderInitScript.ts` (`detectContainer` tableRow branch)
+- **Detected by:** building `verify:recorder-ambiguity` (`awkit-aui.8`), 2026-08-01
+- **Evidence before fix:** clicking a duplicate customer-table `Edit` button recorded a container
+  context `{type:tableRow, strategy:role, value:row, name:"Customer BetaEdit", exact:false}`. On replay
+  `LocatorFactory` builds `getByRole('row',{name:'Customer BetaEdit'})`; the row's platform accessible
+  name is the space-joined `"Customer Beta Edit"`, so the no-space name is not a substring match — the
+  container never resolves and `locator.click` times out. Root cause: the row name came from
+  `norm(row.textContent)`, which concatenates adjacent cells with no separator.
+- **Evidence after fix:** `verify:recorder` **135/135** incl. CR6 — captures the row click, saves/
+  reloads (JSON), and **replays on a fresh page** selecting the intended row; covers whitespace/newline
+  normalization, partial-overlap row names, and ARIA `role=row`/`role=cell` markup; the **old no-space
+  name is a failing negative control**. `verify:recorder-ambiguity` **[3b]** replays the live
+  recorder-lab customer-table row. Fix: `rowAccessibleName` joins the row's direct-child cells
+  (`td/th/[role=cell]/[role=gridcell]/[role=columnheader]/[role=rowheader]`) with a space (ARIA
+  name-from-content), normalizing repeated whitespace. Card `hasText` scoping matches `textContent`
+  against `textContent` and was already self-consistent, so it was deliberately left unchanged.
+
+---
+
 ### AWKIT-SET-006 — "Screenshot on failure" was a control that did nothing
 
 - **Severity:** S3 / An enabled control with no effect (RULES.md: no fake/no-op controls)

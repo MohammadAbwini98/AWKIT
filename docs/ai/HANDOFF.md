@@ -1,6 +1,39 @@
 # Agent Handoff
 
-## HANDOFF (2026-08-01, latest) — Increment 7 nine-point ambiguity gate landed (`awkit-aui.8`)
+## HANDOFF (2026-08-01, latest) — Increment 2 reconciled COMPLETE + awkit-bw9 fixed (`awkit-aui.2`)
+
+- **From:** Claude
+- **To:** next agent / human
+- **Branch:** `main` (single-branch policy)
+
+**What happened.** Reconciled `awkit-aui.2` (capture enrichment + landmark/href locator strategies)
+against code/git/tests/bd. It was implemented in `88ee9b0` but left `in-progress`. Confirmed **complete**
+and closed it (unblocks `awkit-aui.3`, `awkit-aui.6`). Landmark scoping is verified by `verify:recorder`
+CR5, href scoping by the new CR7, and capture/replay by the ambiguity gate (points 1/2/3/3b).
+
+**Fixed `awkit-bw9` (AWKIT-REC-032).** Table-row container name was `norm(row.textContent)`
+(`"Customer BetaEdit"`) which never matched `getByRole('row',{name})` (accessible name is space-joined).
+New `rowAccessibleName` joins the row's direct-child cells with a space. Verified by `verify:recorder`
+CR6 (capture → save/reload → fresh-page replay, whitespace, partial overlap, ARIA `role=row`, old
+no-space name as a failing negative control) and `verify:recorder-ambiguity` [3b].
+
+**Verification (this session):** build PASS · typecheck:scripts PASS · verify:recorder 135/135 ·
+verify:recorder-ambiguity 58/58 · verify:recorder-flow 26/26 · verify:recorder-hover 34/34 ·
+verify:runner 89/89 · verify:mock-site 99/99 · verify:verifier-classification reconciled ·
+verify:source-hygiene 9/9 · validate:offline PASS · verify:roadmap-dashboard Sources agree.
+Comprehensive validation ledger unchanged: **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Increment 6 readiness: READY.** Inc2 (the only prerequisite `awkit-aui.6` depends on) is complete and
+verified. Inc6 (shadow-DOM via `composedPath`) will need open/closed shadow-root mock-site fixtures and
+`verify:recorder-locator` shadow cases; closed roots must degrade to `resolution:"needs-review"` reason
+"closed shadow root", with cross-origin-frame guards (plan §4 Inc6). Not started this task.
+
+**Manifest boundary.** `resources/dependency-manifest.{json,sig}` untouched; audit remains open in
+`awkit-hj8`.
+
+---
+
+## HANDOFF (2026-08-01) — Increment 7 nine-point ambiguity gate landed (`awkit-aui.8`)
 
 - **From:** Claude
 - **To:** next agent / human

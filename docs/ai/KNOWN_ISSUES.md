@@ -28,18 +28,23 @@ They are tracked in `bd`; none are "supported behavior".
 - **Hover: controls inserted only after hover** (`awkit-0vm`). First-seen (rest) visibility is recorded
   at the baseline scan; a control inserted into the DOM only after a hover is never seen hidden-at-rest,
   so no hover prerequisite is produced.
-- **Live needs-review is not reproducible in the mock** (context for `awkit-aui.8`). The recorder
-  anchors a positional fallback at the nearest stable ancestor, and the whole `/recorder-lab` section
-  carries `data-testid="duplicate-controls"`, so no in-page element yields `quality.isUnique === false`.
-  The genuine "no unique locator" case (the YouTube twin-"Shorts" case) is therefore exercised at the
-  `buildRecordedFlow` layer — the responsible code that maps `isUnique === false` to `needs-review` —
-  inside `verify:recorder-ambiguity` point 4.
-- **Table-row container name captured without cell spacing** (`awkit-bw9`, P2 bug — genuine
-  replayability gap). Container-scoping a duplicate table button by the concatenated row accessible
-  name (`"Customer BetaEdit"`) fails `getByRole('row',{name})` replay, because the platform accessible
-  name is space-joined (`"Customer Beta Edit"`). Compound and single-control role+name scoping replay
-  fine; only the concatenated-row-name path is affected. `verify:recorder-ambiguity` uses the reliable
-  package-card compound case for its replay-determinism point.
+- **Live needs-review is not reproducible in the mock** (context for `awkit-aui.8`). The recorder's
+  candidate chain always ends in a `structuralSelector` that yields a UNIQUE positional path for any
+  resolvable DOM (the CR4b regression made the structural fallback serial-unique), so an in-page
+  capture effectively never yields `quality.isUnique === false`. A genuine "no unique locator" case (the
+  YouTube twin-"Shorts" case, where even the structural path collides) cannot be contrived in a mock
+  without an artificial pathological structure. Per `awkit-aui.8` §4, the `isUnique === false →
+  needs-review` mapping is therefore exercised at the responsible `buildRecordedFlow` layer inside
+  `verify:recorder-ambiguity` point 4 (with the exact shape the recorder emits when structural fails),
+  and a live layer is deliberately not fabricated.
+- **RESOLVED 2026-08-01 — Table-row container name captured without cell spacing** (`awkit-bw9`, P2).
+  Was: container-scoping a duplicate table button by the concatenated row name (`"Customer BetaEdit"`)
+  failed `getByRole('row',{name})` replay because the platform accessible name is space-joined. Fixed
+  in `recorderInitScript.ts` (`rowAccessibleName` joins the row's direct-child cells with a space, ARIA
+  name-from-content style; card `hasText` scoping was already self-consistent and untouched). Verified
+  by `verify:recorder` CR6 (capture → save/reload → fresh-page replay; whitespace/newlines; partial
+  overlap; ARIA `role=row`; old no-space name as a failing negative control) and
+  `verify:recorder-ambiguity` [3b].
 
 ## FLAKY: `verify:settings-runner-behaviour` — the hover-reveal Run button (2026-07-27)
 
