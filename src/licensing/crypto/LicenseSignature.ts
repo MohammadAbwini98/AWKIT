@@ -1,9 +1,9 @@
 /**
  * License signature verification (and an issuer-side signing helper).
  *
- * The app uses ONLY `verifyLicenseSignature`, which needs public keys alone. `signLicensePayload` is used
- * exclusively by the offline issuer, which supplies its own private key — it is never called from the
- * packaged app runtime, and no private key is imported here.
+ * Normal app operation uses `verifyLicenseSignature`, which needs public keys alone. `signLicensePayload`
+ * is restricted to offline issuer flows (the separate CLI and the trusted main-process Issuer console),
+ * both of which receive an external private key. No private key is imported or embedded here.
  */
 import { createPublicKey, createPrivateKey, sign as cryptoSign, verify as cryptoVerify, type KeyObject } from "node:crypto";
 import { canonicalPayloadBytes, type LicensePayload } from "../LicenseCanonical";
@@ -57,8 +57,9 @@ export function verifyLicenseSignature(
 }
 
 /**
- * Issuer-only: sign a payload with a private key (PKCS8 DER, base64). NOT used by the app runtime.
- * Kept here so the canonical-bytes function is shared between signing and verifying (one source of truth).
+ * Issuer-only: sign a payload with a private key (PKCS8 DER, base64). The renderer never calls this;
+ * only trusted offline issuer code may supply the external key. Kept here so signing and verification
+ * share exactly one canonical-byte implementation.
  */
 export function signLicensePayload(payload: LicensePayload, privateKeyPkcs8B64: string): string {
   const privateKey = createPrivateKey({

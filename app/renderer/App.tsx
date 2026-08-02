@@ -10,7 +10,7 @@ import { applyAccent, readCachedAccent, writeAccentCache } from "./state/accentT
 import { normalizeAccentSettings, type AccentSettings } from "@src/theme/accentColor";
 import { BrandingContext, DEFAULT_BRANDING_STATE, type BrandingState } from "./state/branding";
 import { usePermissions } from "./security/usePermissions";
-import { RoutePermissions } from "./security/routePermissions";
+import { RouteExclusiveRoles, RoutePermissions } from "./security/routePermissions";
 import { NotAuthorized } from "./security/NotAuthorized";
 
 const emptyChrome: PageChrome = { actions: [], dirty: false };
@@ -118,9 +118,19 @@ export function App() {
     [activeRouteId]
   );
   const ActivePage = activeRoute.component;
-  const { can } = usePermissions();
+  const { can, isIssuer } = usePermissions();
   const routeRequires = RoutePermissions[activeRouteId];
-  const routeAuthorized = !routeRequires || can(routeRequires);
+  const routeExclusiveRole = RouteExclusiveRoles[activeRouteId];
+  const routeAuthorized = (!routeRequires || can(routeRequires)) && (!routeExclusiveRole || isIssuer);
+
+  // The Issuer account intentionally has no general workspace access. Land it on its one operational
+  // page instead of showing an avoidable Not Authorized screen at the shared dashboard default.
+  useEffect(() => {
+    if (isIssuer && !routeAuthorized && activeRouteId !== "licenseIssuer") {
+      setActiveRouteId("licenseIssuer");
+      window.playwrightFlowStudio.settings.update({ lastRouteId: "licenseIssuer" }).catch(() => undefined);
+    }
+  }, [activeRouteId, isIssuer, routeAuthorized]);
 
   // Resolve the unsaved-changes dialog with the user's choice. "save" awaits the
   // page's registered Save action before allowing navigation to proceed.

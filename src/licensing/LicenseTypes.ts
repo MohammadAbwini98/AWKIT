@@ -7,7 +7,8 @@
  *
  * Trust boundaries:
  * - The app ships ONLY public verification keys (see crypto/TrustedKeys.ts). Private signing keys live in
- *   the separate offline issuer (tools/license-issuer), never in the packaged app / source control / .env.
+ *   external issuer-workstation storage, never in the package / source control / resources / SQLite.
+ *   The trusted main-process Issuer console can read that external key only for the exclusive Issuer role.
  * - Machine identity is a normalised, hashed fingerprint (MachineFingerprint.ts) — never an IP address,
  *   never a hostname alone, never a MAC alone, and raw signals are never persisted or displayed.
  */

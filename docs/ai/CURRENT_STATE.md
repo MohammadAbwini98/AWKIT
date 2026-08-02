@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## Singleton Issuer role and offline issuance console complete (`awkit-0tn`, 2026-08-02)
+
+SpecterStudio now has one built-in `Issuer` role that is both exclusive (it cannot be combined with
+another role) and singleton (only one stored user may hold it). The Super User can provision or
+reassign that account but does not inherit its page or signing permission. The renderer route/nav and
+the trusted main-process IPC independently require the exact Issuer role, so direct grants, custom
+roles, DevTools calls, and Super User's normal authority cannot cross the signing-key boundary.
+
+The new **Administration → License Issuer** page accepts the privacy-safe activation-request JSON,
+shows the target request, lets the Issuer select type/duration/entitlements, requires fresh password
+confirmation, and automatically saves the signed `.dat` under
+`%LOCALAPPDATA%\SpecterStudio\issuer-output\`. The private Ed25519 key remains external under the issuer
+workstation's `issuer-keys` directory (or the explicit key-path environment variable), is validated
+against the shipped public key before use, never reaches the renderer, and is never written to audit or
+history. Requests are bounded/strictly validated, output is atomic, and secret-free issuance history is
+kept beside the external key.
+
+The app remains offline: issuing for another machine automates validation/signing/output, but the `.dat`
+must still be transferred back and imported on that machine. Automatic remote installation would require
+a separately authorised transport/service and was not invented here.
+
+Verification: build and script typecheck pass; `verify:authz` **92/92**; `verify:licensing` **183/183**;
+random lifecycle **13/13**; IPC contract **4/4**; Super User Admin GUI **18/18**; real Electron RBAC
+**70/70** (including the Issuer page, role isolation, exact-role IPC, missing-key fail-safe, and Super User
+denial); real Electron licensing **38/38**; source hygiene **9/9**; secrets **16/16**; verifier
+classification reconciles all **158** scripts; ordinary offline validation passes. Real-Electron signing
+with a provisioned production private key was not run because that key is deliberately unavailable to
+this task; the domain issuance path used an ephemeral Ed25519 key and verified the written signature.
+The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Release signing key: custody gate shipped; the move itself is OWNER ACTION (`awkit-2l1`, 2026-08-02)
 
 **`awkit-2l1` remains OPEN (in progress).** The tooling half is done; the custody change is not, and

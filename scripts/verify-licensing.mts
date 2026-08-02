@@ -5,7 +5,7 @@
  * Uses an EPHEMERAL Ed25519 key pair injected as a trusted key, so no production private key is needed.
  */
 import { generateKeyPairSync } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -42,6 +42,8 @@ import {
   licenseAttentionFor
 } from "../src/licensing/LicenseAttention";
 import { LicenseStore, buildEnvelope, computeChecksum, type LicenseMeta } from "../src/licensing/store/LicenseStore";
+import { LicenseIssuerError, LicenseIssuerService } from "../src/licensing/issuer/LicenseIssuerService";
+import type { IssueLicenseInput } from "../src/licensing/issuer/LicenseIssuerContracts";
 
 let passed = 0;
 let failed = 0;
@@ -279,6 +281,91 @@ try {
   rmSync(tmpRoot, { recursive: true, force: true });
 }
 
+// ── Trusted offline issuer service ────────────────────────────────────────────
+console.log("\nOffline issuer service:");
+const issuerRoot = mkdtempSync(join(tmpdir(), "specter-issuer-"));
+try {
+  const keyDirectory = join(issuerRoot, "keys");
+  const keyPath = join(keyDirectory, `${KEY_ID}.ed25519.pkcs8.b64`);
+  const outputDirectory = join(issuerRoot, "output");
+  mkdirSync(keyDirectory, { recursive: true });
+  writeFileSync(keyPath, PRIV_B64, "utf8");
+  const fixedNow = Date.parse("2026-08-02T15:20:45.000Z");
+  const issuerService = new LicenseIssuerService({
+    keyId: KEY_ID,
+    keyPath,
+    outputDirectory,
+    product: "SpecterStudio",
+    trustedKeys: KEYS,
+    now: () => fixedNow,
+    idFactory: () => "11111111-2222-4333-8444-555555555555"
+  });
+  const activationRequest = {
+    schemaVersion: LICENSE_SCHEMA_VERSION,
+    product: "SpecterStudio",
+    appVersion: "0.1.2",
+    fingerprintAlgorithmVersion: 1,
+    fingerprintHash: "a".repeat(64),
+    availableSignals: ["machineGuid", "cpuModel"],
+    confidenceLevel: "high" as const,
+    requestId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    generatedAtUtc: "2026-08-02T15:00:00.000Z"
+  };
+  const issueInput: IssueLicenseInput = {
+    activationRequest,
+    licenseType: "standard",
+    validityDays: 365,
+    entitlements: ["workflow.execute", "workflow.concurrent", "automation.browser"]
+  };
+
+  const ready = await issuerService.readiness();
+  check("issuer readiness validates the external private key against the trusted public key", ready.ready, true);
+  const issued = await issuerService.issue(issueInput);
+  check("issuer saves the signed .dat automatically in its confined output folder", issued.outputPath, join(outputDirectory, issued.fileName));
+  const issuedDocument = JSON.parse(readFileSync(issued.outputPath, "utf8")) as LicenseDocument;
+  check("issued document is signed by the selected trusted key", verifyLicenseSignature(issuedDocument, KEYS).ok, true);
+  check("issued document is bound to the request fingerprint", issuedDocument.machineFingerprintHash, activationRequest.fingerprintHash);
+  check("issuer writes minute-precision validity", issuedDocument.validFromUtc, "2026-08-02T15:20:00.000Z");
+  check("issuer applies the requested duration", issuedDocument.expiresAtUtc, "2027-08-02T15:20:00.000Z");
+  check("no temporary license file remains after the atomic write", readdirSync(outputDirectory).some((name) => name.endsWith(".tmp")), false);
+  const history = readFileSync(join(keyDirectory, "issuance-history.jsonl"), "utf8");
+  check("issuance history records the request and license IDs", history.includes(activationRequest.requestId) && history.includes(issued.licenseId), true);
+  check("issuance history never contains private key material", history.includes(PRIV_B64), false);
+
+  let invalidRequestReason: string | null = null;
+  try {
+    await issuerService.issue({
+      ...issueInput,
+      activationRequest: { ...activationRequest, fingerprintHash: "not-a-hash" }
+    });
+  } catch (error) {
+    invalidRequestReason = error instanceof LicenseIssuerError ? error.reason : null;
+  }
+  check("malformed activation requests fail closed before signing", invalidRequestReason, "ACTIVATION_REQUEST_INVALID");
+
+  const { privateKey: wrongPrivateKey } = generateKeyPairSync("ed25519");
+  const wrongKeyPath = join(keyDirectory, "wrong.pkcs8.b64");
+  writeFileSync(wrongKeyPath, wrongPrivateKey.export({ type: "pkcs8", format: "der" }).toString("base64"), "utf8");
+  const wrongKeyReadiness = await new LicenseIssuerService({
+    keyId: KEY_ID,
+    keyPath: wrongKeyPath,
+    outputDirectory,
+    product: "SpecterStudio",
+    trustedKeys: KEYS
+  }).readiness();
+  check("a private key that does not match the shipped public key fails closed", wrongKeyReadiness.reason, "ISSUER_KEY_MISMATCH");
+  const missingKeyReadiness = await new LicenseIssuerService({
+    keyId: KEY_ID,
+    keyPath: join(keyDirectory, "missing.pkcs8.b64"),
+    outputDirectory,
+    product: "SpecterStudio",
+    trustedKeys: KEYS
+  }).readiness();
+  check("a missing external private key is reported without creating one", missingKeyReadiness.reason, "ISSUER_KEY_MISSING");
+} finally {
+  rmSync(issuerRoot, { recursive: true, force: true });
+}
+
 // ── RBAC integration (Phase 5 permission mapping) ────────────────────────────
 import { Permission, SENSITIVE_PERMISSIONS, effectivePermissions } from "../src/security/authz/Permissions";
 
@@ -294,6 +381,7 @@ const LICENSE_PERMS = [
 
 const superUser = effectivePermissions({ roles: ["SuperUser"], isProtectedSuperUser: true });
 check("Super User has every licensing permission", LICENSE_PERMS.every((p) => superUser.has(p)), true);
+check("Super User cannot cross the exclusive issuer permission boundary", superUser.has(Permission.LICENSE_ISSUE), false);
 
 const admin = effectivePermissions({ roles: ["Administrator"] });
 check("Administrator has NO licensing permission", LICENSE_PERMS.some((p) => admin.has(p)), false);
@@ -307,7 +395,12 @@ check("Viewer has NO licensing permission", LICENSE_PERMS.some((p) => viewer.has
 check("import is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_IMPORT), true);
 check("replace is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_REPLACE), true);
 check("revoke is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_REVOKE), true);
+check("issue is sensitive (reauth)", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_ISSUE), true);
 check("view is NOT sensitive", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_VIEW), false);
+
+const issuerPermissions = effectivePermissions({ roles: ["Issuer"] });
+check("Issuer has the signing permission", issuerPermissions.has(Permission.LICENSE_ISSUE), true);
+check("Issuer cannot import an installed license", issuerPermissions.has(Permission.LICENSE_IMPORT), false);
 
 // ── Global attention policy + background cadence (awkit-x13) ─────────────────
 check("healthy VALID status stays globally silent", licenseAttentionFor(LicenseStatus.VALID), null);

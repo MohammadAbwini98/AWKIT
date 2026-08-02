@@ -17,6 +17,7 @@ import { registerSecretsIpc } from "./secrets.ipc";
 import { registerOracleIpc } from "./oracle.ipc";
 import { registerSecurityIpc } from "./security.ipc";
 import { registerLicensingIpc } from "./licensing.ipc";
+import { registerIssuerIpc } from "./issuer.ipc";
 import { registerBrandingIpc } from "./branding.ipc";
 import { registerValidationIpc } from "./validation.ipc";
 import { registerSemanticIpc } from "./semantic.ipc";
@@ -64,6 +65,7 @@ export function registerIpcHandlers(): void {
   registerOracleIpc();
   registerSecurityIpc();
   registerLicensingIpc();
+  registerIssuerIpc();
   registerBrandingIpc();
   registerValidationIpc();
   registerSemanticIpc();

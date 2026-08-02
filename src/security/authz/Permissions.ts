@@ -21,6 +21,7 @@ export const Permission = {
   PAGE_SETTINGS: "page.settings",
   PAGE_ADMIN: "page.admin", // Super User Administration area
   PAGE_LICENSE: "page.license",
+  PAGE_LICENSE_ISSUER: "page.licenseIssuer",
   // ── Workflow / flow actions ────────────────────────────────────────────────
   WORKFLOW_VIEW: "workflow.view",
   WORKFLOW_CREATE: "workflow.create",
@@ -48,6 +49,7 @@ export const Permission = {
   LICENSE_REPLACE: "license.replace",
   LICENSE_REVOKE: "license.revoke",
   LICENSE_AUDIT_VIEW: "license.audit.view",
+  LICENSE_ISSUE: "license.issue",
   // ── Semantic index (Zvec) — plan §10 ────────────────────────────────────────
   SEMANTIC_SEARCH: "semantic.search",
   SEMANTIC_VIEW_FAILURE_SIMILARITY: "semantic.viewFailureSimilarity",
@@ -58,7 +60,7 @@ export const Permission = {
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
-/** All permission values (used to grant the SuperUser role everything). */
+/** All registered permission values. Exclusive-role permissions may be withheld from Super User. */
 export const ALL_PERMISSIONS: readonly Permission[] = Object.freeze(Object.values(Permission));
 const PERMISSION_SET: ReadonlySet<string> = new Set(ALL_PERMISSIONS);
 
@@ -80,13 +82,14 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.LICENSE_IMPORT,
   Permission.LICENSE_REPLACE,
   Permission.LICENSE_REVOKE,
+  Permission.LICENSE_ISSUE,
   Permission.SETTINGS_EDIT,
   Permission.SETTINGS_BRANDING_MANAGE,
   Permission.SEMANTIC_MANAGE_INDEX,
   Permission.SEMANTIC_MANAGE_EMBEDDINGS
 ]);
 
-export type RoleId = "SuperUser" | "Administrator" | "Operator" | "Viewer";
+export type RoleId = "SuperUser" | "Issuer" | "Administrator" | "Operator" | "Viewer";
 
 export interface RoleDefinition {
   id: RoleId;
@@ -138,8 +141,23 @@ const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
   (p) =>
     p !== Permission.USER_MANAGE &&
     p !== Permission.PAGE_LICENSE &&
+    p !== Permission.PAGE_LICENSE_ISSUER &&
     p !== Permission.SETTINGS_BRANDING_MANAGE &&
     !p.startsWith("license.")
+);
+
+/**
+ * Issuer is deliberately narrow and exclusive. Permission checks remain necessary, but the issuer IPC
+ * additionally requires this exact role so a direct grant or the Super User's broad permission set can
+ * never become a signing-key boundary bypass.
+ */
+const ISSUER_PERMISSIONS: readonly Permission[] = [
+  Permission.PAGE_LICENSE_ISSUER,
+  Permission.LICENSE_ISSUE
+];
+
+const SUPER_USER_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
+  (permission) => !ISSUER_PERMISSIONS.includes(permission)
 );
 
 /** Immutable built-in roles. Order = privilege rank (index 0 = highest). */
@@ -147,9 +165,9 @@ export const BUILTIN_ROLES: Readonly<Record<RoleId, RoleDefinition>> = Object.fr
   SuperUser: {
     id: "SuperUser",
     name: "Super User",
-    description: "Full control of every system component, users, roles, and licensing.",
+    description: "Full control of system components, users, roles, and installed licensing.",
     builtIn: true,
-    permissions: ALL_PERMISSIONS
+    permissions: SUPER_USER_PERMISSIONS
   },
   Administrator: {
     id: "Administrator",
@@ -171,6 +189,13 @@ export const BUILTIN_ROLES: Readonly<Record<RoleId, RoleDefinition>> = Object.fr
     description: "Read-only access to the main workspaces.",
     builtIn: true,
     permissions: VIEWER_PERMISSIONS
+  },
+  Issuer: {
+    id: "Issuer",
+    name: "Issuer",
+    description: "Issue signed, machine-bound licenses from offline activation requests.",
+    builtIn: true,
+    permissions: ISSUER_PERMISSIONS
   }
 });
 
@@ -178,6 +203,7 @@ export const ROLE_IDS: readonly RoleId[] = Object.freeze(Object.keys(BUILTIN_ROL
 
 /** Only the SuperUser role may manage users and licensing — used for privilege-escalation guards. */
 export const SUPER_USER_ROLE: RoleId = "SuperUser";
+export const ISSUER_ROLE: RoleId = "Issuer";
 
 export function isRoleId(value: unknown): value is RoleId {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(BUILTIN_ROLES, value);
@@ -199,7 +225,7 @@ export function effectivePermissions(input: {
   grants?: readonly string[];
   denies?: readonly string[];
 }): Set<Permission> {
-  if (input.isProtectedSuperUser) return new Set(ALL_PERMISSIONS);
+  if (input.isProtectedSuperUser) return new Set(BUILTIN_ROLES.SuperUser.permissions);
   const out = new Set<Permission>();
   for (const roleId of input.roles) {
     const permissions = isRoleId(roleId) ? BUILTIN_ROLES[roleId].permissions : input.customRoles?.get(roleId);
@@ -216,4 +242,9 @@ export function effectivePermissions(input: {
 /** True if the assigned roles include the Super User role (or the protected flag is set). */
 export function isSuperUser(input: { roles: readonly string[]; isProtectedSuperUser?: boolean }): boolean {
   return Boolean(input.isProtectedSuperUser) || input.roles.includes(SUPER_USER_ROLE);
+}
+
+/** True only for the dedicated, non-Super-User account whose sole assigned role is Issuer. */
+export function isIssuer(input: { roles: readonly string[]; isProtectedSuperUser?: boolean }): boolean {
+  return !input.isProtectedSuperUser && input.roles.length === 1 && input.roles[0] === ISSUER_ROLE;
 }

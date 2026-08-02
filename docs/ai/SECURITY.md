@@ -53,6 +53,18 @@
 - Any file under `docs/`, `docs/ai/`, `resources/`, `vendor/`, sample data, manifests, or committed
   config. Secrets belong only in a local, git-ignored `.env`.
 
+## License issuance key boundary
+- The package contains the Issuer UI and trusted signing logic but never a private signing key. The key is
+  provisioned separately under `%LOCALAPPDATA%\SpecterStudio\issuer-keys\` on the issuer workstation (or
+  selected by the `SPECTER_ISSUER_KEY` path variable), and only the Electron main process reads it.
+- Issuance requires the built-in `Issuer` role as the account's sole role, only one stored user may hold
+  it, and every signing call requires fresh reauthentication. A permission grant or Super User session is
+  insufficient at the IPC boundary.
+- Activation requests are bounded and validated before signing; generated files are confined to
+  `%LOCALAPPDATA%\SpecterStudio\issuer-output\`, written atomically, and recorded without key material.
+- There is no online activation service. A license for another offline machine must still be transferred
+  back and imported there; silently adding a network transport would change the offline/security model.
+
 ## Unknown / Needs Verification
 - Whether any sample data under `resources/sample-*` contains realistic-but-fake credentials —
   review before distributing; ensure they are clearly non-production.

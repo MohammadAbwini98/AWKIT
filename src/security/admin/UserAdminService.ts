@@ -15,7 +15,14 @@ import { AuthReason, SecurityError, type AuthReasonCode } from "@src/security/er
 import { hashPassword } from "@src/security/crypto/PasswordHasher";
 import { validatePassword } from "@src/security/auth/PasswordPolicy";
 import { normalizeUsername, validateUsername } from "@src/security/auth/UsernameRules";
-import { Permission, SUPER_USER_ROLE, isPermission, isRoleId, isSuperUser } from "@src/security/authz/Permissions";
+import {
+  ISSUER_ROLE,
+  Permission,
+  SUPER_USER_ROLE,
+  isPermission,
+  isRoleId,
+  isSuperUser
+} from "@src/security/authz/Permissions";
 import type { AuthorizationService, AuthorizedActor } from "@src/security/authz/AuthorizationService";
 import type { SecurityStore } from "@src/security/store/SecurityStore";
 import type { SessionManager } from "@src/security/session/SessionManager";
@@ -82,6 +89,8 @@ export class UserAdminService {
     if (!password.ok) return { ok: false, reason: AuthReason.PASSWORD_POLICY, errors: password.errors };
     const roles = this.sanitizeRoles(input.roles);
     if (!roles) return { ok: false, reason: AuthReason.INVALID_ROLE };
+    const issuerRoleError = this.issuerRoleError(roles);
+    if (issuerRoleError) return { ok: false, reason: issuerRoleError };
 
     const norm = normalizeUsername(input.username);
     if (this.store.getUserByUsernameNorm(norm)) return { ok: false, reason: AuthReason.USERNAME_TAKEN };
@@ -126,6 +135,8 @@ export class UserAdminService {
     if (input.roles !== undefined) {
       const roles = this.sanitizeRoles(input.roles);
       if (!roles) return { ok: false, reason: AuthReason.INVALID_ROLE };
+      const issuerRoleError = this.issuerRoleError(roles, target.id);
+      if (issuerRoleError) return { ok: false, reason: issuerRoleError };
       // The protected Super User must always retain the SuperUser role (cannot be demoted).
       if (target.isProtectedSuperUser && !roles.includes(SUPER_USER_ROLE)) {
         return { ok: false, reason: AuthReason.PROTECTED_SUPER_USER };
@@ -262,6 +273,16 @@ export class UserAdminService {
       if (!out.includes(permission)) out.push(permission);
     }
     return out;
+  }
+
+  /** The signing role is exclusive and singleton, independent of user status. */
+  private issuerRoleError(roles: readonly string[], targetUserId?: string): AuthReasonCode | null {
+    if (!roles.includes(ISSUER_ROLE)) return null;
+    if (roles.length !== 1) return AuthReason.ISSUER_ROLE_EXCLUSIVE;
+    const alreadyAssigned = this.store
+      .listUsers()
+      .some((user) => user.id !== targetUserId && user.roles.includes(ISSUER_ROLE));
+    return alreadyAssigned ? AuthReason.ISSUER_ROLE_ASSIGNED : null;
   }
 
   private toView(user: UserRecord): AdminUserView {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ShieldAlert, UserPlus, Users as UsersIcon } from "lucide-react";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
-import { ALL_PERMISSIONS } from "@src/security/authz/Permissions";
+import { ALL_PERMISSIONS, ISSUER_ROLE } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { ReauthDialog } from "./ReauthDialog";
@@ -181,7 +181,14 @@ function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (inp
 }
 
 function RolePicker({ roles, selected, onChange }: { roles: RoleView[]; selected: string[]; onChange: (next: string[]) => void }) {
-  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((r) => r !== id) : [...selected, id]);
+  const toggle = (id: string) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((roleId) => roleId !== id));
+      return;
+    }
+    // Issuer is a singleton security boundary and must be the account's only role.
+    onChange(id === ISSUER_ROLE ? [ISSUER_ROLE] : [...selected.filter((roleId) => roleId !== ISSUER_ROLE), id]);
+  };
   return (
     <fieldset className="awkit-admin-roles">
       <legend>Roles</legend>

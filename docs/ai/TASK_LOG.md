@@ -4,6 +4,37 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02: Add singleton Issuer role and in-app offline license issuance (`awkit-0tn`)
+
+- **Agent:** Codex
+- **Task:** Add a page accessible only to one user with the `Issuer` role, consume exported activation
+  JSON, and remove the command-line/manual issuance step while preserving offline private-key custody.
+- **Behavior:** added the exclusive singleton built-in Issuer role; Super User provisioning/reassignment
+  guards; exact-role renderer and trusted IPC gates; fresh-reauth issuance; strict request/key validation;
+  automatic atomic `.dat` output; secret-free issuance history; and an Issuer-only responsive admin page.
+- **Security:** the package contains signing logic but no private key. The external key must match the
+  shipped public key, is read only by the main process, and is never returned/logged. Other roles,
+  direct grants, and Super User are denied by the issuer IPC. Remote cross-machine installation remains
+  a documented transfer/import step because the app has no authorised online transport.
+- **Files:** `.beads/{interactions,issues}.jsonl`;
+  `src/security/{authz/Permissions.ts,admin/UserAdminService.ts,errors/ReasonCodes.ts}`;
+  `src/licensing/{LicenseTypes.ts,crypto/LicenseSignature.ts,issuer/**}`;
+  `app/main/{licensing/issuerRuntime.ts,ipc/{issuer,index}.ts,preload.ts}`;
+  `app/renderer/{App.tsx,routes.tsx,layout/LeftNavigation.tsx,security/{routePermissions,usePermissions}.ts,pages/admin/{LicenseIssuerPage.tsx,UserManagement.tsx,adminMessages.ts}}`;
+  `scripts/verify-{authz,licensing}.mts`; `scripts/verify-e2e-rbac-gui.mjs`; licensing/AI-memory docs;
+  `tools/license-issuer/README.md`.
+- **Verification passed:** `npm run build`; `npm run typecheck:scripts`; `verify:authz` **92/92**;
+  `verify:licensing` **183/183**; `verify:random-lifecycle` **13/13**; `verify:ipc-contract` **4/4**;
+  `verify:admin-gui` **18/18**; `verify:e2e-rbac` **70/70**; `verify:e2e-licensing` **38/38**;
+  `verify:source-hygiene` **9/9**; `verify:secrets` **16/16**; verifier classification **158/158**;
+  `validate:offline` PASS.
+- **Not run:** real-Electron issuance with a provisioned production private key and rebuilt packaged
+  issuer workflow; the task intentionally had no access to production signing material. Domain issuance
+  used an ephemeral key and cryptographically verified the generated file.
+- **Result:** feature complete; bead closed. Ledger unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## 2026-08-02 - Claude Code - Release signing-key custody gate (`awkit-2l1`, still OPEN)
 
 - **Task:** the offline-manifest private key sits in the repo's git-ignored `.release-local/`, but

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSession } from "./SessionContext";
-import { Permission } from "@src/security/authz/Permissions";
+import { Permission, isIssuer } from "@src/security/authz/Permissions";
 
 /**
  * Renderer permission helper — reads the authenticated principal's effective permissions (a UI hint from
@@ -11,13 +11,15 @@ import { Permission } from "@src/security/authz/Permissions";
 export function usePermissions() {
   const session = useSession();
   const permissionList = session?.principal.permissions;
+  const roles = session?.principal.roles;
   const isProtectedSuperUser = session?.principal.isProtectedSuperUser ?? false;
   return useMemo(() => {
     const set = new Set<string>(permissionList ?? []);
     return {
       permissions: set,
       isSuperUser: isProtectedSuperUser || set.has(Permission.USER_MANAGE),
+      isIssuer: isIssuer({ roles: roles ?? [], isProtectedSuperUser }),
       can: (permission: Permission | string) => set.has(permission)
     };
-  }, [permissionList, isProtectedSuperUser]);
+  }, [permissionList, roles, isProtectedSuperUser]);
 }

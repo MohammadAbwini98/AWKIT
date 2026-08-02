@@ -31,11 +31,13 @@ app/
     storagePaths.ts     getConfiguredPaths() — resolves user Settings paths w/ fallback
     offlineRuntimeValidator.ts
     licensing/            licenseRuntime + licenseEnforcementService (main-process latch/watcher,
-                          synchronous queued-work sweep, injected ExecutionEngine dispatch gate)
+                          synchronous queued-work sweep, injected ExecutionEngine dispatch gate) plus
+                          issuerRuntime (external key + confined output composition root)
     profileStores.ts    JSON profile stores (flows/workflows/dataSources/reports/...)
     ipc/                IPC handlers: flow, scenario(workflow), execution, instance,
                         dataSource, runtimeInput, report, recorder, settings, system, offlineRuntime,
-                        oracle
+                        oracle, licensing, issuer (issuer requires license.issue plus the exact
+                        singleton Issuer role; renderer permission hints are not trusted)
                         Flow-library reads (`flows:list/get/export` and legacy `flow:list`) are
                         sender-bound to `Permission.PAGE_FLOWS`; mutations use their create/edit/delete
                         permissions. The Viewer role intentionally has read-only flow-page permission,

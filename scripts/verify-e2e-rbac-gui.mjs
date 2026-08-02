@@ -1,5 +1,5 @@
 // E2E-RBAC — per-role authorization in the REAL Electron app (specs/e2e/E2E-RBAC.md, bd awkit-xyo).
-// One launch: the Super User provisions Administrator / Operator / Viewer accounts, then each role
+// One launch: the Super User provisions Administrator / Operator / Viewer / Issuer accounts, then each role
 // signs in (completing its forced password change) and is checked on three surfaces:
 //   1. nav visibility (permission-filtered groups),
 //   2. the route-mount guard via a restored `lastRouteId` pointing at an unpermitted route — the
@@ -37,19 +37,25 @@ const ROLES = [
     role: "Administrator",
     username: "adminuser",
     presentNav: ["Dashboard", "Recorder", "Roadmap", "Roles", "Permissions", "Audit Log", "Help Center"],
-    absentNav: ["Users", "Licensing"]
+    absentNav: ["Users", "Licensing", "License Issuer"]
   },
   {
     role: "Operator",
     username: "opuser2",
     presentNav: ["Dashboard", "Recorder", "Workflows", "Instances", "Help Center"],
-    absentNav: ["Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing"]
+    absentNav: ["Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
   },
   {
     role: "Viewer",
     username: "viewuser",
     presentNav: ["Dashboard", "Workflows", "Flows", "Data Sources", "Instances", "Reports", "Help Center"],
-    absentNav: ["Recorder", "Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing"]
+    absentNav: ["Recorder", "Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
+  },
+  {
+    role: "Issuer",
+    username: "issueruser",
+    presentNav: ["License Issuer", "Help Center"],
+    absentNav: ["Dashboard", "Workflows", "Flows", "Data Sources", "Instances", "Reports", "Recorder", "Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "Settings"]
   }
 ].map((r) => ({ ...r, temp: genPassword(`T${r.role[0]}`), final: genPassword(`F${r.role[0]}`) }));
 
@@ -84,15 +90,21 @@ try {
     await win.waitForSelector(".app-shell", { timeout: 20000 });
 
     // 2 — route-mount guard: the unpermitted restored route renders NotAuthorized, not the page.
-    check(
-      `${r.role}: restored unpermitted route mounts NotAuthorized (route guard)`,
-      (await win.locator(".awkit-not-authorized").count()) === 1 &&
-        (await win.getByRole("heading", { name: "Add a user" }).count()) === 0
-    );
-    await win.screenshot({ path: path.join(shotDir, `not-authorized-${r.role}.png`) }).catch(() => undefined);
-    await win.getByRole("button", { name: "Go to Dashboard" }).click();
-    await win.waitForTimeout(500);
-    check(`${r.role}: Go to Dashboard recovers from NotAuthorized`, (await win.locator(".awkit-not-authorized").count()) === 0);
+    if (r.role === "Issuer") {
+      await win.getByRole("heading", { name: "Signing readiness" }).waitFor({ timeout: 10000 });
+      check("Issuer: shared unpermitted default redirects to its exclusive operational page", (await win.locator(".awkit-not-authorized").count()) === 0);
+      check("Issuer: signing readiness fails safely when no external key is provisioned", (await win.getByText("Key unavailable").count()) >= 1);
+    } else {
+      check(
+        `${r.role}: restored unpermitted route mounts NotAuthorized (route guard)`,
+        (await win.locator(".awkit-not-authorized").count()) === 1 &&
+          (await win.getByRole("heading", { name: "Add a user" }).count()) === 0
+      );
+      await win.screenshot({ path: path.join(shotDir, `not-authorized-${r.role}.png`) }).catch(() => undefined);
+      await win.getByRole("button", { name: "Go to Dashboard" }).click();
+      await win.waitForTimeout(500);
+      check(`${r.role}: Go to Dashboard recovers from NotAuthorized`, (await win.locator(".awkit-not-authorized").count()) === 0);
+    }
 
     // 1 — nav visibility matches the role's permissions exactly on the sentinel items.
     const labels = await navLabels(win);
@@ -124,11 +136,13 @@ try {
         const create = await api.security.admin.createUser({ sessionRef: ref, username: sneak, password: pw, roles: ["Viewer"] });
         const licStatus = await api.licensing.getStatus(ref);
         const licImport = await api.licensing.import({ sessionRef: ref, license: {} });
+        const issuerReadiness = await api.issuer.getReadiness(ref);
         return {
           listUsers: { ok: listUsers.ok, reason: listUsers.reason, gotData: Array.isArray(listUsers.value) },
           create: { ok: create.ok, reason: create.reason },
           licStatus: { ok: licStatus.ok, reason: licStatus.reason },
-          licImport: { ok: licImport.ok, reason: licImport.reason }
+          licImport: { ok: licImport.ok, reason: licImport.reason },
+          issuerReadiness: { ok: issuerReadiness.ok, reason: issuerReadiness.reason, ready: issuerReadiness.value?.ready }
         };
       }, { ref: direct.sessionRef, sneak: `sneak-${r.username}`, pw: genPassword("Sn") });
 
@@ -136,6 +150,11 @@ try {
       check(`${r.role}: direct admin.createUser denied`, !ipc.create.ok, ipc.create.reason);
       check(`${r.role}: direct licensing.getStatus denied (SU-only)`, !ipc.licStatus.ok, ipc.licStatus.reason);
       check(`${r.role}: direct licensing.import denied before validation`, !ipc.licImport.ok, ipc.licImport.reason);
+      if (r.role === "Issuer") {
+        check("Issuer: direct issuer readiness IPC succeeds without exposing a key", ipc.issuerReadiness.ok && ipc.issuerReadiness.ready === false, ipc.issuerReadiness.reason);
+      } else {
+        check(`${r.role}: direct issuer IPC is denied`, !ipc.issuerReadiness.ok, ipc.issuerReadiness.reason);
+      }
 
       if (r.role === "Viewer") {
         // awkit-b92 FIXED: the sender-bound authorization boundary now enforces non-admin IPC. The window
@@ -223,17 +242,20 @@ try {
       const api = window.playwrightFlowStudio;
       const listUsers = await api.security.admin.listUsers(ref);
       const licStatus = await api.licensing.getStatus(ref);
+      const issuerReadiness = await api.issuer.getReadiness(ref);
       const usernames = (listUsers.value ?? []).map((u) => u.username);
       return {
         listOk: listUsers.ok,
         usernames,
         licOk: licStatus.ok,
-        licStatusValue: licStatus.value?.status
+        licStatusValue: licStatus.value?.status,
+        issuerOk: issuerReadiness.ok,
+        issuerReason: issuerReadiness.reason
       };
     }, su.sessionRef);
     check("SU control: admin.listUsers succeeds", control.listOk === true);
     check(
-      "SU control: all three role accounts exist",
+      "SU control: all four role accounts exist",
       ROLES.every((r) => control.usernames.includes(r.username))
     );
     check(
@@ -246,6 +268,7 @@ try {
       control.licOk === true && typeof control.licStatusValue === "string",
       `status=${control.licStatusValue}`
     );
+    check("SU control: exclusive issuer IPC remains denied", control.issuerOk === false, control.issuerReason);
     await directLogout(win, su.sessionRef);
   } else {
     check("SU control: direct login", false, su.reason);
@@ -254,7 +277,7 @@ try {
 
   note("OBS-002 reauth override landed: AWKIT_REAUTH_WINDOW_MS shrinks the sensitive-op reauth window for");
   note("tests (mirrors AWKIT_SESSION_IDLE_MS). The REAUTH_REQUIRED → retry-after-reauth contract is covered");
-  note("deterministically by verify:authz (40/40); the live ReauthDialog GUI flow (spec step 10, awkit-2d8)");
+  note("deterministically by verify:authz (92/92); the live ReauthDialog GUI flow (spec step 10, awkit-2d8)");
   note("now runs as its own launch — npm run verify:e2e-reauth — kept separate so a globally-short reauth");
   note("window never destabilizes this multi-user seeding run.");
 } finally {

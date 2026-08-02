@@ -60,6 +60,7 @@ import { RolesPage } from "./pages/admin/RolesPage";
 import { PermissionsPage } from "./pages/admin/PermissionsPage";
 import { AuditLogPage } from "./pages/admin/AuditLogPage";
 import { LicensingPage } from "./pages/admin/LicensingPage";
+import { LicenseIssuerPage } from "./pages/admin/LicenseIssuerPage";
 
 export type RouteId =
   | "dashboard"
@@ -93,7 +94,8 @@ export type RouteId =
   | "roles"
   | "permissionsMatrix"
   | "auditLog"
-  | "licensing";
+  | "licensing"
+  | "licenseIssuer";
 
 export interface AppRoute {
   id: RouteId;
@@ -327,5 +329,12 @@ export const routes: AppRoute[] = [
     description: "Per-machine offline license: status, activation, import, and revocation.",
     icon: KeyRound,
     component: LicensingPage
+  },
+  {
+    id: "licenseIssuer",
+    label: "License Issuer",
+    description: "Create signed machine licenses from offline activation requests.",
+    icon: ShieldCheck,
+    component: LicenseIssuerPage
   }
 ];

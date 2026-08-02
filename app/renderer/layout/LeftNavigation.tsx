@@ -4,7 +4,7 @@ import { routes, type RouteId } from "../routes";
 import { useTheme } from "../state/theme";
 import { useBranding } from "../state/branding";
 import { usePermissions } from "../security/usePermissions";
-import { RoutePermissions } from "../security/routePermissions";
+import { RouteExclusiveRoles, RoutePermissions } from "../security/routePermissions";
 import { Permission } from "@src/security/authz/Permissions";
 
 /**
@@ -66,7 +66,7 @@ const routeGroups = [
   {
     // Super User Administration — hidden entirely for users without the relevant permissions.
     label: "Administration",
-    routes: ["userManagement", "roles", "permissionsMatrix", "auditLog", "licensing"] satisfies RouteId[]
+    routes: ["userManagement", "roles", "permissionsMatrix", "auditLog", "licensing", "licenseIssuer"] satisfies RouteId[]
   }
 ];
 
@@ -80,7 +80,7 @@ interface LeftNavigationProps {
 export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onToggle }: LeftNavigationProps) {
   const { resolvedTheme, setAppearance } = useTheme();
   const branding = useBranding();
-  const { can } = usePermissions();
+  const { can, isIssuer } = usePermissions();
   const isDark = resolvedTheme === "dark";
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(routeGroups.map((group) => [group.label, true])));
   // Filter each group's routes by the signed-in principal's permissions; drop empty groups (UI hint only —
@@ -88,9 +88,16 @@ export function LeftNavigation({ activeRouteId, collapsed, onRouteChange, onTogg
   const visibleGroups = useMemo(
     () =>
       routeGroups
-        .map((group) => ({ ...group, routes: group.routes.filter((id) => { const perm = RoutePermissions[id]; return !perm || can(perm); }) }))
+        .map((group) => ({
+          ...group,
+          routes: group.routes.filter((id) => {
+            const permission = RoutePermissions[id];
+            const exclusiveRole = RouteExclusiveRoles[id];
+            return (!permission || can(permission)) && (!exclusiveRole || isIssuer);
+          })
+        }))
         .filter((group) => group.routes.length > 0),
-    [can]
+    [can, isIssuer]
   );
   return (
     <nav className={collapsed ? "left-navigation collapsed" : "left-navigation"} aria-label="Primary">

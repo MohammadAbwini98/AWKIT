@@ -33,6 +33,11 @@ import type { AuditRecord } from "@src/security/store/SecurityStoreSchema";
 import type { ActivationRequest, LicenseDocument } from "@src/licensing/LicenseTypes";
 import type { LicenseStatusReport, ImportOutcome } from "@src/licensing/LicenseService";
 import type { LicenseStatusView } from "./licensing/licenseRuntime";
+import type {
+  IssueLicenseInput,
+  IssuedLicenseResult,
+  IssuerReadiness
+} from "@src/licensing/issuer/LicenseIssuerContracts";
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CdpObservationSnapshot } from "@src/runner/observation/PassiveCdpTrace";
 import type { BrandingStateView } from "./ipc/branding.ipc";
@@ -190,6 +195,14 @@ const api = {
       ipcRenderer.invoke("licensing:revoke", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport; reason?: string }>>,
     remove: (sessionRef: string) =>
       ipcRenderer.invoke("licensing:remove", sessionRef) as Promise<AdminResponse<{ ok: boolean; status: LicenseStatusReport }>>
+  },
+  issuer: {
+    getReadiness: (sessionRef: string) =>
+      ipcRenderer.invoke("issuer:getReadiness", sessionRef) as Promise<AdminResponse<IssuerReadiness>>,
+    issue: (input: { sessionRef: string; request: IssueLicenseInput }) =>
+      ipcRenderer.invoke("issuer:issue", input) as Promise<AdminResponse<IssuedLicenseResult>>,
+    openOutputFolder: (sessionRef: string) =>
+      ipcRenderer.invoke("issuer:openOutputFolder", sessionRef) as Promise<AdminResponse<string>>
   },
   settings: {
     get: () => ipcRenderer.invoke("settings:get") as Promise<UiSettings>,

@@ -1,4 +1,4 @@
-import { Permission } from "@src/security/authz/Permissions";
+import { ISSUER_ROLE, Permission, type RoleId } from "@src/security/authz/Permissions";
 import type { RouteId } from "../routes";
 
 /**
@@ -45,5 +45,11 @@ export const RoutePermissions: Partial<Record<RouteId, Permission>> = {
   roles: Permission.ROLE_VIEW,
   permissionsMatrix: Permission.ROLE_VIEW,
   auditLog: Permission.AUDIT_VIEW,
-  licensing: Permission.PAGE_LICENSE
+  licensing: Permission.PAGE_LICENSE,
+  licenseIssuer: Permission.PAGE_LICENSE_ISSUER
+};
+
+/** Routes whose permission is necessary but not sufficient because the role itself is a trust boundary. */
+export const RouteExclusiveRoles: Partial<Record<RouteId, RoleId>> = {
+  licenseIssuer: ISSUER_ROLE
 };

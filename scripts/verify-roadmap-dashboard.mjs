@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("146 issues parse", beads.stats.total === 146, `got ${beads.stats.total}`);
+  check("147 issues parse", beads.stats.total === 147, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -119,9 +119,11 @@ try {
   // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
   // Then 9/137 of 146 on 2026-08-02: `awkit-a7k` closed (recorder baselines the loaded page; the
   // verifiers now install at document start like production). No new issues or edges.
+  // Then 9/138 of 147 on 2026-08-02: `awkit-0tn` was filed and closed (singleton Issuer role and
+  // in-app offline license issuance). No new edges.
   check(
-    "9 outstanding / 137 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 137,
+    "9 outstanding / 138 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 138,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

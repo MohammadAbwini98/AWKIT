@@ -51,6 +51,10 @@ export const AuthReason = {
   USER_NOT_FOUND: "USER_NOT_FOUND",
   /** A supplied role id is not a known built-in or custom role. */
   INVALID_ROLE: "INVALID_ROLE",
+  /** The Issuer role must be the account's only assigned role. */
+  ISSUER_ROLE_EXCLUSIVE: "ISSUER_ROLE_EXCLUSIVE",
+  /** A different stored user already owns the singleton Issuer role. */
+  ISSUER_ROLE_ASSIGNED: "ISSUER_ROLE_ASSIGNED",
   /** A supplied permission is not in the application permission registry. */
   INVALID_PERMISSION: "INVALID_PERMISSION",
   /** The requested custom-role name is already in use. */

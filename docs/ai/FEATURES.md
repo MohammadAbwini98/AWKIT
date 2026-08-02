@@ -53,6 +53,9 @@
 
 - Implemented: offline Ed25519 per-machine licensing, hashed multi-signal fingerprint, activation
   request, import/replace/revoke, tamper/clock checks, Super-User RBAC/reauth/audit, and trusted run gate.
+- Implemented: one exclusive singleton `Issuer` role and an exact-role, reauth-gated in-app issuer page.
+  It validates exported activation JSON and an externally provisioned private key, then atomically saves
+  the signed `.dat` plus secret-free history without exposing key material to the renderer.
 - Implemented: attention-only global status-bar surface for permitted users. Healthy licenses stay
   silent; attention states navigate to Licensing and revalidate every 15 minutes plus focus/visibility.
 - Implemented: permission-independent main-process startup/interval/focus revalidation, immediate

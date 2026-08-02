@@ -16,6 +16,10 @@ export function adminReasonMessage(reason: string | undefined, errors?: string[]
         return "That user no longer exists.";
       case "INVALID_ROLE":
         return "Invalid role selection.";
+      case "ISSUER_ROLE_EXCLUSIVE":
+        return "Issuer must be the user's only role.";
+      case "ISSUER_ROLE_ASSIGNED":
+        return "The Issuer role is already assigned to another user.";
       case "INVALID_PERMISSION":
         return "Invalid permission selection.";
       case "ROLE_NAME_TAKEN":

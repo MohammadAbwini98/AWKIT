@@ -1,9 +1,14 @@
-# SpecterStudio License Issuer (offline, separate from the app)
+# SpecterStudio License Issuer CLI (offline)
 
-This is the **authorized offline issuer**. It is intentionally **not part of the SpecterStudio
-application** and is never bundled into the packaged app (`app/**` + `out/**` are the app; this
-`tools/**` directory is not shipped). It holds the **private** signing key; the app holds only the
-matching **public** verification key (`src/licensing/crypto/TrustedKeys.ts`).
+This is the command-line alternative to the in-app **License Issuer** page. The CLI itself is
+intentionally not bundled (`tools/**` is not shipped). Both workflows use the same trust model: the
+private signing key stays in external issuer-workstation storage, while the package contains only the
+matching public verification key (`src/licensing/crypto/TrustedKeys.ts`).
+
+For the UI workflow, a Super User creates the one allowed `Issuer` account. That user signs in, opens
+**Administration → License Issuer**, selects an activation-request JSON, and chooses **Issue and save
+license**. The generated `.dat` is written automatically to
+`%LOCALAPPDATA%\SpecterStudio\issuer-output\`.
 
 ## Key custody (do NOT violate)
 

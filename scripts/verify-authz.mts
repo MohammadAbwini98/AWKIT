@@ -14,10 +14,16 @@ import { SecurityKernel } from "../src/security/SecurityKernel";
 import { PassthroughColumnCrypto } from "../src/security/crypto/ColumnCrypto";
 import { AuthReason, SecurityError } from "../src/security/errors/ReasonCodes";
 import { SECURITY_DB_FILENAME } from "../src/security/store/SecurityStoreSchema";
-import { BUILTIN_ROLES, Permission, SENSITIVE_PERMISSIONS, effectivePermissions } from "../src/security/authz/Permissions";
+import {
+  BUILTIN_ROLES,
+  Permission,
+  SENSITIVE_PERMISSIONS,
+  effectivePermissions,
+  isIssuer
+} from "../src/security/authz/Permissions";
 import type { Permission as Perm } from "../src/security/authz/Permissions";
 // Type-only import of `RouteId` inside this module, so no React component is pulled in.
-import { RoutePermissions } from "../app/renderer/security/routePermissions";
+import { RouteExclusiveRoles, RoutePermissions } from "../app/renderer/security/routePermissions";
 
 let passed = 0;
 let failed = 0;
@@ -73,14 +79,25 @@ async function main(): Promise<void> {
   const admin = effectivePermissions({ roles: ["Administrator"] });
   const op = effectivePermissions({ roles: ["Operator"] });
   const viewer = effectivePermissions({ roles: ["Viewer"] });
+  const issuer = effectivePermissions({ roles: ["Issuer"] });
   check("SuperUser holds USER_MANAGE + LICENSE_MANAGE", su.has(Permission.USER_MANAGE) && su.has(Permission.LICENSE_MANAGE));
   check("Administrator lacks USER_MANAGE + LICENSE_MANAGE", !admin.has(Permission.USER_MANAGE) && !admin.has(Permission.LICENSE_MANAGE));
   check("Administrator can edit settings + manage data sources", admin.has(Permission.SETTINGS_EDIT) && admin.has(Permission.DATASOURCE_MANAGE));
   check("Operator can execute but not delete workflows", op.has(Permission.WORKFLOW_EXECUTE) && !op.has(Permission.WORKFLOW_DELETE));
   check("Operator has no admin page access", !op.has(Permission.PAGE_ADMIN) && !op.has(Permission.USER_MANAGE));
   check("Viewer is view-only (no create)", viewer.has(Permission.WORKFLOW_VIEW) && !viewer.has(Permission.WORKFLOW_CREATE));
+  check(
+    "Issuer has only the issuer page and signing capability",
+    issuer.size === 2 && issuer.has(Permission.PAGE_LICENSE_ISSUER) && issuer.has(Permission.LICENSE_ISSUE)
+  );
+  check("Issuer cannot manage or import installed licenses", !issuer.has(Permission.LICENSE_IMPORT) && !issuer.has(Permission.PAGE_LICENSE));
+  check("Issuer cannot access the general dashboard", !issuer.has(Permission.PAGE_DASHBOARD));
+  check("the exact sole Issuer role satisfies the role boundary", isIssuer({ roles: ["Issuer"] }));
+  check("Issuer mixed with another role fails the exact role boundary", !isIssuer({ roles: ["Issuer", "Viewer"] }));
+  check("protected Super User never satisfies the issuer role boundary", !isIssuer({ roles: ["Issuer"], isProtectedSuperUser: true }));
   check("unknown role ids contribute nothing (deny-by-default)", effectivePermissions({ roles: ["Nonsense"] }).size === 0);
   check("protected flag grants SuperUser even with empty roles", effectivePermissions({ roles: [], isProtectedSuperUser: true }).has(Permission.USER_MANAGE));
+  check("SuperUser does not inherit the exclusive issuer capability", !su.has(Permission.LICENSE_ISSUE) && !su.has(Permission.PAGE_LICENSE_ISSUER));
   const customPermissions = effectivePermissions({
     roles: ["custom:test"],
     customRoles: new Map([["custom:test", [Permission.WORKFLOW_EXECUTE, "unknown.permission"]]]),
@@ -119,6 +136,43 @@ async function main(): Promise<void> {
     kernel.userAdmin.createUser(a, { username: "x_user", password: OP_PASSWORD, roles: ["Wizard"] })
   );
   check("unknown role is rejected", badRole.ok === true && badRole.value.ok === false && badRole.value.reason === AuthReason.INVALID_ROLE);
+
+  const issuerCreated = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.createUser(a, { username: "issuer", password: OP_PASSWORD, roles: ["Issuer"] })
+  );
+  check("SU creates the singleton Issuer account", issuerCreated.ok && issuerCreated.value.ok);
+  const duplicateIssuer = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.createUser(a, { username: "issuer2", password: OP_PASSWORD, roles: ["Issuer"] })
+  );
+  check(
+    "a second stored Issuer assignment is rejected",
+    duplicateIssuer.ok && !duplicateIssuer.value.ok && duplicateIssuer.value.reason === AuthReason.ISSUER_ROLE_ASSIGNED
+  );
+  const mixedIssuer = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.createUser(a, { username: "issuer3", password: OP_PASSWORD, roles: ["Issuer", "Viewer"] })
+  );
+  check(
+    "Issuer cannot be combined with another role",
+    mixedIssuer.ok && !mixedIssuer.value.ok && mixedIssuer.value.reason === AuthReason.ISSUER_ROLE_EXCLUSIVE
+  );
+  const issuerUser = kernel.store.getUserByUsernameNorm("issuer")!;
+  const assignedIssuerUpdate = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, opUser.id, { roles: ["Issuer"] })
+  );
+  check(
+    "singleton enforcement also covers user updates",
+    assignedIssuerUpdate.ok && !assignedIssuerUpdate.value.ok && assignedIssuerUpdate.value.reason === AuthReason.ISSUER_ROLE_ASSIGNED
+  );
+  await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, issuerUser.id, { roles: ["Viewer"] })
+  );
+  const reassignedIssuer = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, opUser.id, { roles: ["Issuer"] })
+  );
+  check("Issuer can be reassigned after the prior owner releases it", reassignedIssuer.ok && reassignedIssuer.value.ok);
+  await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
+    kernel.userAdmin.updateUser(a, opUser.id, { roles: ["Operator"] })
+  );
 
   console.log("RBAC v2 custom roles + user overrides:");
   const roleCreated = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
@@ -329,6 +383,7 @@ async function main(): Promise<void> {
   check("index management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_INDEX));
   check("embedding management requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_MANAGE_EMBEDDINGS));
   check("search does NOT require re-auth (it would prompt on every query)", !SENSITIVE_PERMISSIONS.has(Permission.SEMANTIC_SEARCH));
+  check("issuing a license requires fresh re-auth", SENSITIVE_PERMISSIONS.has(Permission.LICENSE_ISSUE));
 
   // The Semantic Search route (awkit-0jp). `RoutePermissions` treats an ABSENT route as visible to
   // every signed-in user, so an unregistered route is not a locked door — it is an open one. That is
@@ -344,6 +399,10 @@ async function main(): Promise<void> {
   check("Operator can reach Semantic Search", routeVisibleTo(operatorPerms));
   check("Administrator can reach Semantic Search", routeVisibleTo(adminPerms));
   check("SuperUser can reach Semantic Search", routeVisibleTo(superUserPerms));
+
+  console.log("\nIssuer route gating:");
+  check("the licenseIssuer route requires PAGE_LICENSE_ISSUER", RoutePermissions.licenseIssuer === Permission.PAGE_LICENSE_ISSUER);
+  check("the licenseIssuer route also requires the exact Issuer role", RouteExclusiveRoles.licenseIssuer === "Issuer");
 
   console.log("\nRBAC v2 persistence:");
   const persistedRole = await adminCall(kernel, suSession, Permission.USER_MANAGE, true, (a) =>
