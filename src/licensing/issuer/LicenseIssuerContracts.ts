@@ -13,6 +13,8 @@ export type IssuerReasonCode =
   | "ACTIVATION_REQUEST_INVALID"
   | "ISSUER_OPTIONS_INVALID"
   | "ISSUER_KEY_MISSING"
+  /** The key is in a cloud-synced folder, so its custody cannot be assured (awkit-5ea). */
+  | "ISSUER_KEY_UNSAFE_LOCATION"
   | "ISSUER_KEY_INVALID"
   | "ISSUER_KEY_MISMATCH"
   | "ISSUER_KEY_RETIRED"

@@ -1,7 +1,17 @@
-# Release signing-key custody
+# Signing-key custody
 
-Applies to the **offline dependency-manifest signing key** (Ed25519) used by
-`scripts/offline-manifest-signature.mjs`. Tracked by `awkit-2l1`.
+Applies to **both** private keys this project signs with:
+
+| Key | Used by | Default location | Override |
+|---|---|---|---|
+| Offline dependency-manifest (Ed25519) | `scripts/offline-manifest-signature.mjs` | `%LOCALAPPDATA%\SpecterStudio\release-keys\` | `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY` |
+| Licence issuer (Ed25519) | the Administration → License Issuer console | `%LOCALAPPDATA%\SpecterStudio\issuer-keys\` | `SPECTER_ISSUER_KEY` |
+
+Tracked by `awkit-2l1` (manifest key, owner action outstanding) and `awkit-5ea` (issuer key).
+
+The issuer key matters more, not less: it signs licences for **other machines**. Issuance fails
+closed with `ISSUER_KEY_UNSAFE_LOCATION` when its key resolves inside a synced tree, and the check
+runs **before** the key file is opened — a key we must not use is not one we should read.
 
 ## The rule
 

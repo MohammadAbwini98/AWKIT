@@ -16,6 +16,7 @@ import {
 } from "../LicenseTypes";
 import { signLicensePayload } from "../crypto/LicenseSignature";
 import { findTrustedKey, TRUSTED_KEYS, type TrustedKey } from "../crypto/TrustedKeys";
+import { evaluateKeyCustody } from "../../security/keyCustody";
 import {
   ISSUER_ENTITLEMENTS,
   ISSUER_LICENSE_TYPES,
@@ -207,6 +208,14 @@ export class LicenseIssuerService {
     const trusted = findTrustedKey(this.options.keyId, this.trustedKeys);
     if (!trusted) throw new LicenseIssuerError("ISSUER_KEY_MISMATCH");
     if (trusted.retired) throw new LicenseIssuerError("ISSUER_KEY_RETIRED");
+
+    // Custody BEFORE the read (awkit-5ea). `SPECTER_ISSUER_KEY` can point anywhere, and a key in a
+    // cloud-synced folder is continuously copied to an account outside the offline boundary — worse
+    // here than for the release manifest, because this key signs licences for other machines.
+    // Checked ahead of `readFile` on purpose: a key we must not use is not one we should open.
+    // Every path into signing funnels through here, so `readiness()` reports it too.
+    const custody = evaluateKeyCustody(this.options.keyPath);
+    if (!custody.allowed) throw new LicenseIssuerError("ISSUER_KEY_UNSAFE_LOCATION");
 
     let encoded: string;
     try {

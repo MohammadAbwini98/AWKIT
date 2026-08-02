@@ -31,6 +31,8 @@ function issuerReasonMessage(reason?: string): string {
       return "Choose a valid license type, duration, and at least one entitlement.";
     case "ISSUER_KEY_MISSING":
       return "The external signing key was not found on this issuer workstation.";
+    case "ISSUER_KEY_UNSAFE_LOCATION":
+      return "The external signing key is in a cloud-synced folder. Move it to a non-synced location on this workstation before issuing.";
     case "ISSUER_KEY_INVALID":
       return "The external signing key is unreadable or malformed.";
     case "ISSUER_KEY_MISMATCH":

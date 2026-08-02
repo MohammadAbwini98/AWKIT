@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Issuer key custody (`awkit-5ea`)
+
+- **Task:** the custody rule shipped for the dependency-manifest key did not cover the issuer key.
+  Its default under `%LOCALAPPDATA%` is fine, but `SPECTER_ISSUER_KEY` could point at a synced folder
+  and nothing checked — and this key signs licences for other machines.
+- **Implementation:** new canonical `src/security/keyCustody.ts` (whole-segment detection for seven
+  providers + sync-client env vars, fail-closed `evaluateKeyCustody`, `redactKeyPath`, same exact-`1`
+  override). `LicenseIssuerService.loadSigningKey` evaluates custody **before** `readFile` and throws
+  the new `ISSUER_KEY_UNSAFE_LOCATION`; it is the single funnel, so `readiness()` and `issue()` are
+  both covered. Renderer maps the reason to a specific, actionable message.
+- **Why two implementations, and how they are held together:** the packaging signer runs under plain
+  `node` (no TypeScript) and `allowJs` is false (so the app cannot import the `.mjs`). Sharing a
+  runtime module is impossible, so `verify:release-key-custody` became `.mts` (plus a `.d.mts` for
+  the script-side module), imports **both**, and drives one fixture table through them — identical
+  verdicts, identical redaction, same provider list, same override variable.
+- **Mutations (each applied, run, reverted):** issuer check removed → **2 fail**; custody moved after
+  the read → **2 fail** (ordering assertion, and readiness reporting `ISSUER_KEY_MISSING` instead);
+  app-side table drops a provider the script keeps → **2 fail** (the parity check); app-side override
+  accepts any truthy value → **1 fail**.
+- **No key material touched.** The issuer cases use non-existent paths and a placeholder trust root;
+  nothing was created, read, moved or rotated.
+- **Tests:** release-key-custody **58/58** (was 39/39); licensing **183/183**; authz **92/92**;
+  admin-gui **18/18**; e2e-licensing **38/38**; ipc-contract **5/5**; ipc-error-message **22/22**;
+  build; `typecheck:scripts`; source-hygiene **9/9**; verifier-classification reconciled; roadmap
+  dashboard **135/135**; `validate:offline`; `git diff --check` clean. The `awkit-2l1` release-key
+  gate still refuses, as designed.
+- **Repeat of a known trap:** a Python heredoc turned `\release-keys` into a carriage return in
+  `docs/security/RELEASE_KEY_CUSTODY.md` — the same mistake as two tasks ago. Caught by the
+  pre-commit control-character scan and repaired with `String.fromCharCode`. Use `node` with
+  explicit char codes, not Python heredocs, for text containing Windows paths.
+- **Result:** `awkit-5ea` closed. Beads **9 outstanding / 140 closed** of 149. `awkit-2l1` unchanged
+  and still owner-blocked. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - IPC toast no longer leaks the channel name (`awkit-x48`)
 
 - **Task:** an unsafe-undo refusal reached the user wrapped in Electron's

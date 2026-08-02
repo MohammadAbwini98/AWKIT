@@ -125,9 +125,10 @@ try {
   // name), and two filed during the same session - `awkit-5ea` (issuer key has no synced-folder
   // custody check, found reviewing the issuer console) and `awkit-73s` (an intermittent geometry
   // check in the Flow Designer GUI gate). Net: total +2, closed +1, outstanding 9 -> 10.
+  // Then 9/140 of 149 on 2026-08-02: `awkit-5ea` closed (issuer key custody). No new issues.
   check(
-    "10 outstanding / 139 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 139,
+    "9 outstanding / 140 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 140,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

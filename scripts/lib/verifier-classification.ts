@@ -154,7 +154,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   },
   "verify:release-key-custody": {
     class: "unit",
-    why: "Pure path/env reasoning over the real custody module; reads no key and launches nothing."
+    why: "Pure path/env reasoning over both custody modules and the issuer service; reads no key."
   },
   "verify:flow-node-catalog-parity": {
     class: "unit",

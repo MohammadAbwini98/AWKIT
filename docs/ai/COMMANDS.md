@@ -82,12 +82,15 @@ Approved default: `%LOCALAPPDATA%\SpecterStudio\release-keys\offline-manifest-pr
 never automated — is in `docs/security/RELEASE_KEY_CUSTODY.md`.
 
 ```bash
-npm run verify:release-key-custody # node scripts/verify-release-key-custody.mjs — pure path/env checks
+npm run verify:release-key-custody # tsx scripts/verify-release-key-custody.mts — pure path/env checks
                             # over the real custody module: sync detection (whole-segment, so
                             # `onedriveclone` is not refused), key-path resolution order, the
                             # fail-closed gate and its exact-"1" override, path redaction, and source
-                            # guards that both key-using commands are gated and `verify` is not. Reads
-                            # no key and launches nothing. (39/39)
+                            # guards that both key-using commands are gated and `verify` is not.
+                            # Also covers the ISSUER key (awkit-5ea): app<->packaging-script parity
+                            # over one fixture table, and that LicenseIssuerService refuses a synced
+                            # SPECTER_ISSUER_KEY with ISSUER_KEY_UNSAFE_LOCATION *before* reading it.
+                            # Reads no key and launches nothing. (58/58)
 ```
 
 Back up and protect the private key outside the repository. Packaging writes

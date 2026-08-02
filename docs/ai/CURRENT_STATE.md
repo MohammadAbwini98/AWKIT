@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## Issuer signing key is covered by the custody rule (`awkit-5ea`, 2026-08-02)
+
+The rule shipped for the dependency-manifest key (`awkit-2l1`) did not cover the **issuer** key — the
+one that signs licences for *other* machines. Its default under `%LOCALAPPDATA%` was fine, but
+`SPECTER_ISSUER_KEY` could point anywhere, including a OneDrive folder, and nothing checked.
+
+`src/security/keyCustody.ts` is now the canonical statement of the rule: whole-path-segment detection
+for seven providers plus the sync clients' own environment variables, `evaluateKeyCustody` failing
+closed, `redactKeyPath` so no account name reaches a log, and the same exact-`1`
+`AWKIT_ALLOW_SYNCED_SIGNING_KEY` override. `LicenseIssuerService.loadSigningKey` evaluates it
+**before** `readFile` and throws the new `ISSUER_KEY_UNSAFE_LOCATION` — a key we must not use is not
+one we should open. That method is the single funnel, so `readiness()` reports it as well as
+`issue()`, and the Issuer page shows a specific, actionable message rather than a fallback.
+
+**Two implementations remain, and that is now enforced rather than hoped.** The packaging signer runs
+under plain `node` and cannot import TypeScript; `allowJs` is false, so the app cannot import the
+`.mjs`. `verify:release-key-custody` therefore moved to `.mts` (with a `.d.mts` for the script-side
+module), imports **both**, and drives one fixture table through them — asserting identical verdicts,
+identical redaction, the same provider list and the same override variable. Drift fails loudly.
+
+`verify:release-key-custody` is **58/58** (was 39/39). Four mutations produce focused failures: the
+issuer check removed; custody moved *after* the read (caught by the ordering assertion *and* by
+readiness reporting `ISSUER_KEY_MISSING`); the app-side provider table dropping an entry the script
+still has; the override accepting any truthy value. The issuer cases use paths that do not exist and
+a placeholder trust root — **no key material was created, read, moved or rotated**.
+
+Also green: build, `typecheck:scripts`, licensing **183/183**, authz **92/92**, admin GUI **18/18**,
+e2e-licensing **38/38**, ipc-contract **5/5**, ipc-error-message **22/22**, source-hygiene **9/9**,
+roadmap dashboard **135/135**, `validate:offline`; and the `awkit-2l1` release-key gate still refuses
+as designed. Beads are **9 outstanding / 140 closed** of 149, and the comprehensive ledger remains
+**62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+`awkit-2l1` is unchanged and still needs owner action: the manifest key has not moved.
+
+---
+
 ## IPC rejections no longer leak the channel name into toasts (`awkit-x48`, 2026-08-02)
 
 Refusing an unsafe undo showed the user
