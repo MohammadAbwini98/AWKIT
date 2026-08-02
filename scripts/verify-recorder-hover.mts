@@ -571,6 +571,436 @@ async function main() {
       const coStep = clickStepOf(coProfile, "Timer sibling");
       check("timer-revealed click is not forced to needs-review", coStep?.locator?.resolution !== "needs-review", coStep?.locator?.resolution);
     }
+    // ═══ Hover-INSERTED controls (awkit-0vm) ══════════════════════════════════════════════════
+    //
+    // Everything above depends on a hidden-at-rest visibility record. A control that does not exist
+    // at the baseline scan has no such record, and ABSENCE IS NOT HIDDENNESS — `visibilityState.get`
+    // returns undefined, the hover branch is never entered, and the click is saved with no
+    // prerequisite. These sections drive the insertion-evidence path instead: the recorder's own
+    // MutationObserver seeing the node arrive, plus where the pointer was and WHEN IT GOT THERE.
+
+    // ── [14] Hover inserts an adjacent sibling control ────────────────────────────────────────
+    console.log("\n[14] Hover-inserted sibling control is attributed and replays:");
+    let insSibHover: FlowStep | undefined;
+    let insSibClick: FlowStep | undefined;
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-sib-trigger-r4k8");
+        await p.locator(".ins-sib-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-sib-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Inserted sibling");
+      check("recorded the click on the hover-inserted control", !!click);
+      check("inserted click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
+      check(
+        "prerequisite is marked as INSERTION evidence, not hidden-at-rest",
+        click?.locator?.interaction?.hoverInserted === true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      check("inserted click is not left unresolved", click?.locator?.interaction?.hoverUnresolved !== true);
+
+      const profile = buildRecordedFlow("Inserted Sibling", acts);
+      insSibHover = hoverStepOf(profile);
+      insSibClick = clickStepOf(profile, "Inserted sibling");
+      check("a hover step was generated for the insertion", !!insSibHover);
+      check("inserted hover step is 'resolved'", insSibHover?.locator?.resolution === "resolved", insSibHover?.locator?.resolution);
+      check(
+        "trigger carries the inserting trigger's accessible name",
+        insSibHover?.locator?.name === "Insert sibling action",
+        String(insSibHover?.locator?.name)
+      );
+      const triggerValue = insSibHover?.locator?.value;
+      check(
+        "trigger locator is present and carries no positional nth selector",
+        typeof triggerValue === "string" && triggerValue.length > 0 && !/:nth-(?:child|of-type)\s*\(/.test(triggerValue),
+        String(triggerValue)
+      );
+      check(
+        "trigger is not the inserted control itself",
+        !(typeof triggerValue === "string" && triggerValue.includes("ins-sib-gated")),
+        String(triggerValue)
+      );
+      if (insSibHover && insSibClick) {
+        const hi = profile.nodes.findIndex((s) => s.id === insSibHover!.id);
+        const ci = profile.nodes.findIndex((s) => s.id === insSibClick!.id);
+        check("hover step is immediately before the click step", hi === ci - 1, `hover@${hi} click@${ci}`);
+      }
+      check("exactly one hover step for one inserted click", profile.nodes.filter((s) => s.type === "hover").length === 1);
+
+      // Behaviour 12 — the built profile survives a save/reload round trip with its evidence intact,
+      // and the ROUND-TRIPPED steps (not the originals) are what gets replayed below.
+      const roundTripped = JSON.parse(JSON.stringify(profile)) as FlowProfile;
+      const rtHover = hoverStepOf(roundTripped);
+      const rtClick = clickStepOf(roundTripped, "Inserted sibling");
+      check("hover step survives a profile JSON round trip", !!rtHover && rtHover.type === "hover");
+      check(
+        "insertion evidence survives the round trip",
+        rtClick?.locator?.interaction?.hoverInserted === true && rtClick?.locator?.interaction?.requiresHover === true,
+        JSON.stringify(rtClick?.locator?.interaction)
+      );
+      check(
+        "round-tripped hover keeps the trigger locator",
+        rtHover?.locator?.value === insSibHover?.locator?.value && rtHover?.locator?.name === insSibHover?.locator?.name
+      );
+
+      if (!rtHover || !rtClick) {
+        check("inserted replay could run (hover + click present)", false, "missing step — replay skipped");
+      } else {
+        // Behaviour 13 — two fresh pages, replayed from the round-tripped profile.
+        for (let run = 1; run <= 2; run += 1) {
+          const { page, exec, close } = await freshExecutor(browser);
+          try {
+            check(`run ${run}: inserted control does not exist before the hover`, (await page.locator(".ins-sib-gated-r4k8").count()) === 0);
+            const hr = await exec.execute(rtHover);
+            check(`run ${run}: hover step executed`, hr.status === "passed", hr.error);
+            check(`run ${run}: control was inserted by the hover`, (await page.locator(".ins-sib-gated-r4k8").count()) === 1);
+            const cr = await exec.execute(rtClick);
+            check(`run ${run}: click step executed`, cr.status === "passed", cr.error);
+            const result = (await page.getByTestId("ins-sib-result").textContent()) ?? "";
+            check(`run ${run}: post-click state is 'ins-sib-ok'`, result.includes("ins-sib-ok"), result);
+          } finally {
+            await close();
+          }
+        }
+        // …and the hover step is load-bearing: the control never exists without it.
+        const { exec, close } = await freshExecutor(browser);
+        try {
+          const cr = await exec.execute({ ...rtClick, timeoutMs: 3500 });
+          check("click alone fails without the hover step", cr.status === "failed", `status=${cr.status}`);
+        } finally {
+          await close();
+        }
+      }
+    }
+
+    // ── [15] Hover inserts a CONTAINER holding the eventual click target ──────────────────────
+    console.log("\n[15] Hover-inserted container holding the click target:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-menu-trigger-r4k8");
+        await p.locator(".ins-menu-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-menu-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Menu item");
+      check("recorded the click inside the inserted container", !!click);
+      check("menu click flagged requiresHover + hoverInserted", click?.locator?.interaction?.requiresHover === true && click?.locator?.interaction?.hoverInserted === true);
+      const profile = buildRecordedFlow("Inserted Menu", acts);
+      const hover = hoverStepOf(profile);
+      const clickStep = clickStepOf(profile, "Menu item");
+      check("a hover step was generated for the inserted container", !!hover);
+      check("trigger is the menu's inserting trigger", hover?.locator?.name === "Insert descendant menu", String(hover?.locator?.name));
+      if (hover && clickStep) {
+        const { page, exec, close } = await freshExecutor(browser);
+        try {
+          const hr = await exec.execute(hover);
+          check("menu hover step executed", hr.status === "passed", hr.error);
+          const cr = await exec.execute(clickStep);
+          check("menu click step executed", cr.status === "passed", cr.error);
+          const result = (await page.getByTestId("ins-menu-result").textContent()) ?? "";
+          check("post-click state is 'ins-menu-ok'", result.includes("ins-menu-ok"), result);
+        } finally {
+          await close();
+        }
+      } else {
+        check("menu replay could run", false, "missing step");
+      }
+    }
+
+    // ── [16] One hover inserts THREE controls; the intended click maps to the same trigger ────
+    console.log("\n[16] Multiple nodes from one hover → one trigger, one hover step:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-multi-trigger-r4k8");
+        await p.locator(".ins-multi-b-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-multi-b-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Multi second");
+      check("recorded the click on the second inserted control", !!click);
+      check("multi click flagged hoverInserted", click?.locator?.interaction?.hoverInserted === true);
+      const profile = buildRecordedFlow("Inserted Multi", acts);
+      const hover = hoverStepOf(profile);
+      check("the intended click maps to the inserting trigger", hover?.locator?.name === "Insert three actions", String(hover?.locator?.name));
+      check("three insertions produce exactly one hover step", profile.nodes.filter((s) => s.type === "hover").length === 1);
+      const clickStep = clickStepOf(profile, "Multi second");
+      if (hover && clickStep) {
+        const { page, exec, close } = await freshExecutor(browser);
+        try {
+          await exec.execute(hover);
+          const cr = await exec.execute(clickStep);
+          check("multi click step executed after hover", cr.status === "passed", cr.error);
+          const result = (await page.getByTestId("ins-multi-result").textContent()) ?? "";
+          check("the SECOND control was the one clicked", result.includes("ins-multi-b"), result);
+        } finally {
+          await close();
+        }
+      } else {
+        check("multi replay could run", false, "missing step");
+      }
+    }
+
+    // ── [16b] Repeated mutation of the SAME control keeps the first, causal evidence ──────────
+    //
+    // The control is removed and re-added while the pointer is already on it. A later observation
+    // therefore has a witness INSIDE the inserted surface; if it were allowed to overwrite the first,
+    // attribution would collapse to "pointer was inside the inserted surface" and the click would be
+    // refused. First observation wins, and repeated mutations still yield exactly one prerequisite.
+    console.log("\n[16b] Re-inserted control keeps its original attribution (dedup):");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-redo-trigger-r4k8");
+        await p.locator(".ins-redo-gated-r4k8").waitFor({ state: "visible" });
+        await p.hover(".ins-redo-gated-r4k8"); // provokes remove + re-add under the pointer
+        await p.waitForTimeout(150);
+        await p.locator(".ins-redo-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Re-added action");
+      check("recorded the click on the re-added control", !!click);
+      check(
+        "re-observation did not overwrite the causal evidence",
+        click?.locator?.interaction?.requiresHover === true && click?.locator?.interaction?.hoverUnresolved !== true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      const profile = buildRecordedFlow("Re-added", acts);
+      const hover = hoverStepOf(profile);
+      check("attribution still names the original trigger", hover?.locator?.name === "Insert re-added action", String(hover?.locator?.name));
+      check("repeated mutations still produce exactly one hover step", profile.nodes.filter((s) => s.type === "hover").length === 1);
+    }
+
+    // ── [17] Insertion inside an OPEN shadow root ─────────────────────────────────────────────
+    //
+    // A document-level MutationObserver cannot see a childList change inside a shadow root, so
+    // without the bounded per-root observers this insertion leaves no evidence whatsoever.
+    console.log("\n[17] Insertion inside an open shadow root is observed and attributed:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-shadow-trigger-r4k8"); // Playwright pierces open roots with plain CSS
+        await p.locator(".ins-shadow-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-shadow-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Shadow inserted");
+      check("recorded the click on the shadow-inserted control", !!click);
+      // The insertion happened inside the shadow root, so ONLY a per-root observer can have seen it.
+      // `hoverInserted` is therefore the proof that the bounded shadow observers are wired: without
+      // them there is no record, `resolveInsertedHoverTrigger` returns null, and nothing is flagged.
+      check(
+        "the shadow-root insertion was OBSERVED (per-root observer is wired)",
+        click?.locator?.interaction?.hoverInserted === true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      check("shadow insertion click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
+      check(
+        "the open shadow boundary is recorded",
+        click?.locator?.interaction?.shadowBoundary === "open",
+        String(click?.locator?.interaction?.shadowBoundary)
+      );
+      // Attribution is REFUSED, deliberately: a shadow-internal trigger currently generates as a
+      // positional selector on its host (`… div:nth-of-type(21)`), which is not replayable. Observed
+      // but unattributable is a review item — never a persisted positional trigger.
+      const profile = buildRecordedFlow("Inserted Shadow", acts);
+      const hover = hoverStepOf(profile);
+      const clickStep = clickStepOf(profile, "Shadow inserted");
+      check("a hover step was generated for the shadow insertion", !!hover);
+      // The generator cannot express a shadow-piercing path, so the trigger resolves to its HOST.
+      // That is acceptable only because it is a real, stable, non-positional element whose hover
+      // reproduces the insertion — which the replay below proves rather than assumes.
+      const shadowTriggerValue = hover?.locator?.value;
+      check(
+        "shadow trigger locator is present and non-positional",
+        typeof shadowTriggerValue === "string" &&
+          shadowTriggerValue.length > 0 &&
+          !/:nth-(?:child|of-type)\s*\(/.test(shadowTriggerValue),
+        String(shadowTriggerValue)
+      );
+      if (hover && clickStep) {
+        const { page, exec, close } = await freshExecutor(browser);
+        try {
+          check("shadow control does not exist before the hover", (await page.locator(".ins-shadow-gated-r4k8").count()) === 0);
+          const hr = await exec.execute(hover);
+          check("shadow hover step executed", hr.status === "passed", hr.error);
+          check("shadow control was inserted by the hover", (await page.locator(".ins-shadow-gated-r4k8").count()) === 1);
+          const cr = await exec.execute(clickStep);
+          check("shadow click step executed", cr.status === "passed", cr.error);
+          const result = (await page.getByTestId("ins-shadow-result").textContent()) ?? "";
+          check("post-click state is 'ins-shadow-ok'", result.includes("ins-shadow-ok"), result);
+        } finally {
+          await close();
+        }
+      } else {
+        check("shadow replay could run", false, "missing step");
+      }
+    }
+
+    // ── [18] NEGATIVE: a timer inserts the control while the pointer is parked nearby ─────────
+    console.log("\n[18] Timer insertion while the pointer is parked → no attribution:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-timer-other-r4k8");
+        await p.waitForTimeout(700); // past the causal window between pointer ARRIVAL and insertion
+        await p.locator(".ins-timer-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-timer-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Timer inserted");
+      check("recorded the timer-inserted click", !!click);
+      check(
+        "timer insertion is NOT flagged requiresHover",
+        click?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      check("no hover step fabricated for the timer insertion", !hoverStepOf(buildRecordedFlow("Timer Ins", acts)));
+    }
+
+    // ── [18b] NEGATIVE: nothing was under the pointer when the node arrived ───────────────────
+    //
+    // Same timer insertion, but the mouse is not moved at all until AFTER the control exists, so the
+    // recorder has no pointer witness for the insertion. The pointer then arrives on a stable named
+    // neighbour before the click — everything a trail-based attribution would need. The distinction
+    // is that the trail describes where the pointer went afterwards; only the witness says where it
+    // was when the node actually appeared, and here the answer is "nowhere".
+    console.log("\n[18b] No pointer witness at insertion time → no attribution:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.locator(".ins-timer-gated-r4k8").waitFor({ state: "visible" }); // no pointer events yet
+        await p.hover(".ins-timer-other-r4k8"); // pointer arrives only now, after the insertion
+        await p.locator(".ins-timer-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Timer inserted");
+      check("recorded the click after a witness-less insertion", !!click);
+      check(
+        "an insertion with no pointer witness is NOT attributed",
+        click?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(click?.locator?.interaction?.hoverContainer)
+      );
+      check("no hover step from a later pointer arrival", !hoverStepOf(buildRecordedFlow("No Witness", acts)));
+    }
+
+    // ── [19] NEGATIVE: an unrelated subtree insertion must not attach to another click ────────
+    console.log("\n[19] Unrelated subtree insertion → no attribution on a normal click:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-unrelated-trigger-r4k8");
+        await p.locator(".ins-unrelated-noise-r4k8").waitFor({ state: "attached" });
+        await p.locator(".ins-unrelated-plain-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Plain control");
+      check("recorded the plain click", !!click);
+      check(
+        "an unrelated insertion does not flag the plain click",
+        click?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      check("no hover step from unrelated churn", !hoverStepOf(buildRecordedFlow("Unrelated Ins", acts)));
+    }
+
+    // ── [20] NEGATIVE: a CLICK inserted the control — no hover prerequisite exists ────────────
+    console.log("\n[20] Click-driven insertion → no hover attribution and no false review:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.click(".ins-click-trigger-r4k8");
+        await p.locator(".ins-click-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-click-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Click inserted");
+      check("recorded the click-inserted click", !!click);
+      check(
+        "a click-caused insertion is NOT flagged requiresHover",
+        click?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(click?.locator?.interaction)
+      );
+      const profile = buildRecordedFlow("Click Ins", acts);
+      check("no hover step for a click-caused insertion", !hoverStepOf(profile));
+      const step = clickStepOf(profile, "Click inserted");
+      check(
+        "a click-caused insertion is not falsely sent to review",
+        step?.locator?.resolution !== "needs-review",
+        step?.locator?.resolution
+      );
+    }
+
+    // ── [21] NEGATIVE: positional-only inserting trigger → review with a reason ───────────────
+    console.log("\n[21] Positional-only inserting trigger → needs-review:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-pos-trigger-k7x2m9");
+        await p.locator(".ins-pos-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-pos-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Positional inserted");
+      check("recorded the positional-trigger click", !!click);
+      check("positional-trigger click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
+      check("positional-trigger click flagged hoverUnresolved", click?.locator?.interaction?.hoverUnresolved === true);
+      check(
+        "the refusal names the stable-locator requirement",
+        typeof click?.locator?.interaction?.hoverReviewReason === "string" &&
+          click.locator.interaction.hoverReviewReason.includes("stable"),
+        String(click?.locator?.interaction?.hoverReviewReason)
+      );
+      const profile = buildRecordedFlow("Positional Ins", acts);
+      check("no positional trigger persisted as a hover step", !hoverStepOf(profile));
+      const step = clickStepOf(profile, "Positional inserted");
+      check("positional-trigger click left needs-review", step?.locator?.resolution === "needs-review", step?.locator?.resolution);
+      check(
+        "the review reason reaches the built step",
+        typeof step?.locator?.reviewReason === "string" && step.locator.reviewReason.length > 0,
+        String(step?.locator?.reviewReason)
+      );
+    }
+
+    // ── [22] NEGATIVE: the trigger disappears before the click → review with a reason ─────────
+    console.log("\n[22] Trigger removed before the click → needs-review:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-vanish-trigger-r4k8");
+        await p.locator(".ins-vanish-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-vanish-trigger-r4k8").waitFor({ state: "detached" });
+        await p.locator(".ins-vanish-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Vanish inserted");
+      check("recorded the vanishing-trigger click", !!click);
+      check("vanishing-trigger click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
+      check("vanishing-trigger click flagged hoverUnresolved", click?.locator?.interaction?.hoverUnresolved === true);
+      check(
+        "the refusal says the trigger left the page",
+        typeof click?.locator?.interaction?.hoverReviewReason === "string" &&
+          click.locator.interaction.hoverReviewReason.includes("left the page"),
+        String(click?.locator?.interaction?.hoverReviewReason)
+      );
+      const profile = buildRecordedFlow("Vanishing Ins", acts);
+      check("no hover step for a trigger that no longer exists", !hoverStepOf(profile));
+      check(
+        "vanishing-trigger click left needs-review",
+        clickStepOf(profile, "Vanish inserted")?.locator?.resolution === "needs-review"
+      );
+    }
+
+    // ── [23] FAIL-CLOSED: insertion tracking saturated → review, never a silent save ──────────
+    //
+    // One hover inserts far more nodes than the recorder's insertion-record bound, and the intended
+    // control arrives LAST, so it gets no record of its own. The recorder cannot then prove the click
+    // is free of a hover dependency, and an unprovable click must not be saved as if it were clean.
+    console.log("\n[23] Insertion tracking saturated → fail closed:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-flood-trigger-r4k8");
+        await p.locator(".ins-flood-gated-r4k8").waitFor({ state: "visible" });
+        await p.locator(".ins-flood-gated-r4k8").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Flood target");
+      check("recorded the click after saturation", !!click);
+      check("saturated click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
+      check("saturated click flagged hoverUnresolved", click?.locator?.interaction?.hoverUnresolved === true);
+      check(
+        "the refusal names saturation",
+        typeof click?.locator?.interaction?.hoverReviewReason === "string" &&
+          click.locator.interaction.hoverReviewReason.includes("saturated"),
+        String(click?.locator?.interaction?.hoverReviewReason)
+      );
+      const profile = buildRecordedFlow("Flood Ins", acts);
+      check("no trigger guessed at the bound", !hoverStepOf(profile));
+      check(
+        "saturated click left needs-review",
+        clickStepOf(profile, "Flood target")?.locator?.resolution === "needs-review"
+      );
+    }
   } finally {
     await browser.close();
     server.kill();

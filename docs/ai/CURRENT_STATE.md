@@ -1,5 +1,57 @@
 # CURRENT_STATE
 
+## Hover-INSERTED controls are attributed (`awkit-0vm`, 2026-08-02)
+
+A control that does not exist at the baseline scan has no hidden-at-rest visibility record, and
+**absence is not hiddenness** — `visibilityState.get(el) === false` is simply false for it, so the
+hover paths never considered it and the click was saved with no prerequisite. Hover-inserted controls
+now carry their own evidence.
+
+New bounded subsystem in `recorderInitScript.ts`:
+
+- **Insertion records** (`WeakMap`, cap 600 elements, 64 descendants per inserted root) written from
+  the recorder's own MutationObserver — the document observer plus **bounded per-open-shadow-root
+  observers** (cap 32), since a document-level observer cannot see a childList change inside a
+  shadow root. Roots existing at install are found by the bounded open-root walk; later ones are
+  queued by the `attachShadow` wrapper. First observation wins, so re-inserting the same node does
+  not overwrite the causal evidence.
+- **Pointer residence** — the element the pointer is on and *when it arrived*, which is the causal
+  clock. Movement within one subtree continues the same residence.
+- **`absentAtBaseline`** — controls first seen after the baseline scan, recorded as their own fact
+  rather than inferred from a missing record.
+- **Competing-cause clocks** for navigation, trusted click and focus.
+
+`resolveInsertedHoverTrigger` runs *before* the hidden-at-rest paths and requires jointly: an
+observed insertion; `cause === "pointer"`; a concrete witness; the pointer's **arrival** within 600ms
+of the insertion (dwell length is not evidence — a parked pointer when a timer fires satisfies
+"nearby" perfectly); the witness outside the inserted surface; still connected; still the pointer
+owner as the click lands; and a stable, non-positional locator. Anything short of that is
+`needs-review` carrying a **`hoverReviewReason`**, which `buildRecordedFlow` copies into the step's
+`reviewReason`. Reaching the record bound **fails closed** to review rather than clearing the click.
+A navigation/click/focus-caused insertion is left alone entirely — it has no hover prerequisite, so
+reviewing it would be a false alarm. New optional evidence fields `hoverInserted` and
+`hoverReviewReason` on the recorder interaction and `LocatorInteractionEvidence`.
+
+Two real defects surfaced while building the fixtures and are fixed: a compound
+`:nth-of-type(...)` trigger passed `isStableGenerated` (now `isStableTriggerLocator`, applied to all
+three hover paths), and `hoverContainer` persisted a **different** generation from the one the
+stability guard had validated — the guard proved nothing about the saved locator.
+
+`verify:recorder-hover` is **166/166** (was 81/81), covering inserted sibling / container /
+multi-node / re-inserted / open-shadow positives with two-fresh-page replay and a profile JSON round
+trip, and negatives for timer, witness-less, unrelated-subtree, click-driven, positional-only and
+vanishing triggers plus the fail-closed bound. All six required mutations produce focused failures.
+Recorder locator **171/171**, ambiguity **62/62**, recorder-flow **29/29**, runner **89/89**, Mock
+Site **110/110**, flow-step-mapping **111/0**, profile-store **18/18**, IPC contract **4/4**,
+Recorder GUI **166 PASS**, Flow Designer GUI **69/69**, catalog parity **39/39**, source-hygiene
+**9/9**, roadmap dashboard **135/135**; build, `typecheck:scripts` and `validate:offline` pass.
+Beads are **10 outstanding / 135 closed** of 145. Ledger unchanged at **62 PASS / 3 NOT RUN /
+1 BLOCKED**.
+
+**Known boundary (unchanged):** remote, non-adjacent hover triggers stay unattributed — `awkit-hmt`.
+
+---
+
 ## Adjacent-sibling hover triggers are attributed (`awkit-vot`, 2026-08-02)
 
 Hover-dependency capture no longer requires the trigger to be an ANCESTOR of what it reveals.

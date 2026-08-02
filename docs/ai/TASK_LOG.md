@@ -4,6 +4,45 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Hover-inserted control attribution (`awkit-0vm`)
+
+- **Task:** a control inserted only after a hover has no hidden-at-rest record, so the hover paths
+  never saw it and the click was saved with no prerequisite. Absence is not hiddenness.
+- **Implementation:** bounded insertion-evidence subsystem in `recorderInitScript.ts` — insertion
+  records from the recorder's own MutationObserver (document + per-open-shadow-root observers, caps
+  600 records / 64 descendants / 32 roots), pointer residence (owner + arrival time),
+  `absentAtBaseline`, and navigation/click/focus competing-cause clocks. `resolveInsertedHoverTrigger`
+  runs before the hidden-at-rest paths and requires observed insertion + `cause === "pointer"` + a
+  concrete witness + pointer ARRIVAL within 600ms of the insertion + witness outside the inserted
+  surface + still connected + still the pointer owner + a stable non-positional locator. Otherwise
+  `needs-review` with a `hoverReviewReason`; the record bound fails closed to review. New optional
+  `hoverInserted` / `hoverReviewReason` evidence on `RecorderTypes` and `LocatorInteractionEvidence`;
+  `buildRecordedFlow` carries the reason into the step's `reviewReason`.
+- **Two real defects found by the fixtures, both fixed:** a compound `:nth-of-type(...)` trigger
+  passed `isStableGenerated` (new `isStableTriggerLocator`, now used by all three hover paths), and
+  `hoverContainer` persisted a different generation from the one the guard validated.
+- **Fixtures:** eleven new Recorder Lab scenarios (`ins-*`) — inserted sibling, inserted container,
+  three-from-one-hover, re-inserted same node, open-shadow insertion; negatives for timer,
+  witness-less, unrelated subtree, click-driven, positional-only and vanishing trigger; plus a flood
+  that exhausts the insertion-record bound.
+- **Mutations (all six required, each applied, run, reverted):** observed-insertion requirement
+  removed → fails; pointer-witness removed → **4 fail**; causal window removed → **2 fail**;
+  stable-locator guard removed → **5 fail**; dedup removed → **3 fail**; unrelated-mutation filtering
+  removed → **2 fail**. The witness mutation survived its first two formulations (subsumed by the
+  temporal checks) until section `[18b]` was added, and the dedup mutation was inert until the
+  fixture re-inserted the SAME node rather than a replacement.
+- **Tests:** `verify:recorder-hover` **166/166** (baseline 81/81) incl. two-fresh-page replay and a
+  profile JSON round trip; recorder **171/171**; ambiguity **62/62**; recorder-flow **29/29**; runner
+  **89/89**; mock-site **110/110**; flow-step-mapping **111/0**; profile-store **18/18**; IPC contract
+  **4/4**; Recorder GUI **166 PASS / 0 FAIL**; Flow Designer GUI **69/69**; catalog parity **39/39**;
+  verifier-classification reconciled; source-hygiene **9/9**; roadmap dashboard **135/135**; build,
+  `typecheck:scripts`, `validate:offline`, `git diff --check` all pass. No BLOCKED, NOT RUN or
+  INCONCLUSIVE results.
+- **Result:** `awkit-0vm` closed. Beads **10 outstanding / 135 closed** of 145. `awkit-hmt` (remote
+  non-adjacent triggers) deliberately untouched. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Adjacent-sibling hover trigger attribution (`awkit-vot`)
 
 - **Task:** `.trigger:hover + .target` reveals were classified `none` — the trigger is not an ancestor

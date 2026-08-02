@@ -34,6 +34,18 @@ export interface RecordedActionLocator {
      * rather than fabricating a hover step that cannot replay.
      */
     hoverUnresolved?: boolean;
+    /**
+     * Set with `requiresHover` when the prerequisite was derived from INSERTION evidence — the target
+     * (or its container) did not exist at the baseline scan and was observed arriving under the
+     * pointer. Distinct from the hidden-at-rest case: absence is not hiddenness, and the two are
+     * proved by different observations.
+     */
+    hoverInserted?: boolean;
+    /**
+     * Why attribution was refused, when `hoverUnresolved` is set. Carried into the built step's
+     * `reviewReason` so a review is actionable instead of just a flag.
+     */
+    hoverReviewReason?: string;
     shadowBoundary?: "none" | "open" | "closed" | "unknown";
     frame?: {
       state: "same-origin" | "cross-origin" | "unknown";

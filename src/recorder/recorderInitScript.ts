@@ -23,10 +23,16 @@ export function installRecorderCapture(): void {
   // Closed roots cannot be traversed by Playwright or exposed by document-level composedPath().
   // Record only which host requested mode:"closed"; never retain or expose the returned root.
   const closedShadowHosts = new WeakSet<Element>();
+  // Open roots created after install are queued here for the insertion observer (awkit-0vm); a
+  // childList mutation inside a shadow root is invisible to a document-level observer. Bounded when
+  // drained, and holding a root that already exists on the page adds no new retention.
+  const queuedShadowRoots: ShadowRoot[] = [];
+  w.__awtkitPendingShadowRoots = queuedShadowRoots;
   const nativeAttachShadow = Element.prototype.attachShadow;
   Element.prototype.attachShadow = function (init: ShadowRootInit): ShadowRoot {
     const root = nativeAttachShadow.call(this, init);
     if (init?.mode === "closed") closedShadowHosts.add(this);
+    else if (queuedShadowRoots.length < 256) queuedShadowRoots.push(root);
     return root;
   };
 
@@ -1140,6 +1146,18 @@ export function installRecorderCapture(): void {
    * an unrelated timer fires satisfies both. Only the reveal moment answers "did the hover do this?".
    */
   const revealWitness = new WeakMap<Element, Element | null>();
+
+  /**
+   * Controls first seen AFTER the baseline scan — i.e. absent from the observed DOM at rest.
+   *
+   * This is the second, independent reading of "was not there before", alongside the MutationObserver
+   * insertion record. It exists because the two can disagree: a node can arrive while insertion
+   * tracking is saturated, or inside a boundary no observer reached. Keeping them separate is the
+   * point — absence is a fact about the baseline, insertion is a fact about an observation, and
+   * neither is hiddenness.
+   */
+  const absentAtBaseline = new WeakSet<Element>();
+  let baselineScanDone = false;
   /**
    * How fresh the pointer evidence must be at the reveal moment. A CSS `:hover` reveal changes no
    * attribute, so it is caught by the 150ms sweep rather than the MutationObserver — the sample that
@@ -1160,18 +1178,56 @@ export function installRecorderCapture(): void {
   }
   const pointerTrail: PointerSample[] = [];
   const POINTER_TRAIL_MAX = 24;
+  /**
+   * Pointer RESIDENCE — the element the pointer is currently over, and when it arrived.
+   *
+   * The trail answers "where has the pointer been"; residence answers "where is it now, and since
+   * when". Insertion attribution (`awkit-0vm`) needs the second: a node that appears 80ms after the
+   * pointer arrives somewhere is explained by that arrival, while the same node appearing two seconds
+   * into a stationary dwell is not. Moving within one subtree continues the same residence, so
+   * crossing between a control and its label does not reset the clock.
+   */
+  let pointerOwner: Element | null = null;
+  let pointerOwnerSince = 0;
   const recordPointer = (event: Event): void => {
     try {
       if (!event.isTrusted) return;
       const el = event.target as Element | null;
       if (!el || el.nodeType !== 1) return;
       const me = event as MouseEvent;
-      pointerTrail.push({ el, x: Math.round(me.clientX), y: Math.round(me.clientY), ts: Date.now() });
+      const now = Date.now();
+      pointerTrail.push({ el, x: Math.round(me.clientX), y: Math.round(me.clientY), ts: now });
       if (pointerTrail.length > POINTER_TRAIL_MAX) pointerTrail.shift();
+      const sameResidence =
+        pointerOwner === el || (!!pointerOwner && (pointerOwner.contains(el) || el.contains(pointerOwner)));
+      if (!sameResidence) pointerOwnerSince = now;
+      pointerOwner = el;
     } catch {
       /* ignore */
     }
   };
+  try {
+    // Competing-cause clocks for insertion attribution. These run BEFORE the capture listeners below
+    // in document order but on the same capture phase, so a click's own timestamp is set before the
+    // interaction that reads it is built — which is why the window is checked against the INSERTION
+    // time, recorded earlier, and never against the click being captured now.
+    window.addEventListener(
+      "click",
+      (event) => {
+        if (event.isTrusted) lastTrustedClickAt = Date.now();
+      },
+      true
+    );
+    window.addEventListener(
+      "focusin",
+      (event) => {
+        if (event.isTrusted) lastFocusChangeAt = Date.now();
+      },
+      true
+    );
+  } catch {
+    /* ignore */
+  }
   try {
     window.addEventListener("pointerover", recordPointer, true);
     window.addEventListener("mouseover", recordPointer, true);
@@ -1193,6 +1249,32 @@ export function installRecorderCapture(): void {
   /** True when the pointer trail shows the pointer entered `el` (or an ancestor/descendant of it). */
   const pointerVisited = (el: Element): boolean =>
     pointerTrail.some((s) => s.el === el || el.contains(s.el) || s.el.contains(el));
+  /**
+   * The most recent pointer sample OUTSIDE `el` — the last place the pointer was before it entered.
+   * Samples inside a revealed or inserted surface are where the pointer went afterwards, so they are
+   * an effect of the interaction and can never be evidence of what caused it.
+   */
+  const lastPointerOutside = (el: Element): PointerSample | null => {
+    for (let i = pointerTrail.length - 1; i >= 0; i -= 1) {
+      if (!el.contains(pointerTrail[i].el)) return pointerTrail[i];
+    }
+    return null;
+  };
+  /**
+   * The bar a HOVER TRIGGER must clear. `isStableGenerated` is necessary but not sufficient here:
+   * `scopedSelector()` can make an `:nth-of-type(...)` chain unique and label the result a
+   * medium-confidence compound CSS selector, which passes every field that function inspects while
+   * still being positional — and positional is exactly what breaks on the next layout change. This
+   * was found by the open-shadow insertion fixture, where the trigger generated as
+   * `[data-testid="…"] div:nth-of-type(21)` and would have been persisted.
+   */
+  const isStableTriggerLocator = (el: Element): boolean => {
+    const generated = generate(el, { allowPositional: false });
+    if (!isStableGenerated(generated)) return false;
+    const value = generated.locator?.value;
+    return !(typeof value === "string" && /:nth-(?:child|of-type)\s*\(/.test(value));
+  };
+
   /** Elements too broad to ever be a specific hover trigger. */
   const isBroadTrigger = (el: Element): boolean => {
     const t = tagOf(el);
@@ -1216,9 +1298,145 @@ export function installRecorderCapture(): void {
 
   // The result of attributing a hover-gated reveal to the element that caused it.
   type HoverResolution =
-    | { kind: "trigger"; el: Element } // a stable, unique, on-path visible trigger was identified
-    | { kind: "review" } //   a container was revealed on hover but no stable trigger could be pinned
+    | { kind: "trigger"; el: Element; inserted?: boolean } // a stable, unique, on-path visible trigger
+    | { kind: "review"; reason?: string; inserted?: boolean } // hover-gated, but no stable trigger pinned
     | { kind: "none" }; //     the target was not hover-gated by a revealed container (e.g. async self-toggle)
+
+  // ── Insertion evidence (hover-INSERTED controls, awkit-0vm) ─────────────────────────────────
+  //
+  // A control that did not exist at the baseline scan has no hidden-at-rest record, and ABSENCE IS
+  // NOT HIDDENNESS: `visibilityState.get(el) === false` is simply false for it, so the hover paths
+  // above never even look at it. Such a click is saved with no prerequisite and fails replay.
+  //
+  // The fix is to record what the recorder actually OBSERVED: that the node was not in the DOM, that
+  // our own MutationObserver saw it arrive, and where the pointer was — and had been — at that
+  // moment. Everything here is bounded and evidence-only; when a bound is reached the recorder fails
+  // CLOSED (refuses attribution and marks the click for review) rather than guessing.
+
+  /** What best explains an insertion. Anything other than `pointer` blocks hover attribution. */
+  type InsertionCause = "pointer" | "navigation" | "click" | "focus" | "unattributed";
+
+  interface InsertionRecord {
+    /** When the recorder observed the node enter the DOM. */
+    at: number;
+    /** The element the pointer was resident on at that moment (never retained beyond the WeakMap). */
+    witness: Element | null;
+    /** When the pointer arrived at that element — the causal clock, not the dwell length. */
+    witnessSince: number;
+    cause: InsertionCause;
+    /** The inserted root this node arrived as part of. */
+    root: Element;
+    /** True when the insertion happened inside an open shadow root. */
+    shadow: boolean;
+  }
+
+  const insertionRecord = new WeakMap<Element, InsertionRecord>();
+  /** Bounds. Reaching any of them degrades to fail-closed, never to a guess. */
+  const INSERTION_RECORD_CAP = 600;
+  const INSERTION_NODES_PER_BATCH = 64;
+  const INSERTION_ANCESTOR_WALK = 8;
+  const SHADOW_OBSERVER_CAP = 32;
+  /**
+   * How soon after the pointer ARRIVES an insertion must appear to be explained by that arrival.
+   * This is the causal signal. Dwell length is not: a pointer parked somewhere for two seconds when
+   * a timer fires satisfies "the pointer was nearby" perfectly, which is exactly the coincidence
+   * that must not become an attribution.
+   */
+  const INSERTION_CAUSAL_WINDOW_MS = 600;
+  /** How long insertion evidence stays usable for a later click. */
+  const INSERTION_CLICK_WINDOW_MS = 15_000;
+  /** A navigation / click / focus this recently before an insertion outranks the pointer. */
+  const COMPETING_CAUSE_WINDOW_MS = 400;
+
+  let insertionRecordCount = 0;
+  let insertionSaturatedAt = 0;
+  let lastNavigationAt = 0;
+  let lastTrustedClickAt = 0;
+  let lastFocusChangeAt = 0;
+
+  /** Open shadow roots created after install, queued by the `attachShadow` wrapper. */
+  const pendingShadowRoots = (w.__awtkitPendingShadowRoots as ShadowRoot[]) || [];
+  const observedShadowRoots = new WeakSet<ShadowRoot>();
+  let observedShadowRootCount = 0;
+
+  /** Which competing explanation, if any, outranks the pointer for an insertion at `at`. */
+  const competingCauseAt = (at: number): InsertionCause => {
+    if (at - lastNavigationAt >= 0 && at - lastNavigationAt <= COMPETING_CAUSE_WINDOW_MS) return "navigation";
+    if (at - lastTrustedClickAt >= 0 && at - lastTrustedClickAt <= COMPETING_CAUSE_WINDOW_MS) return "click";
+    if (at - lastFocusChangeAt >= 0 && at - lastFocusChangeAt <= COMPETING_CAUSE_WINDOW_MS) return "focus";
+    return "pointer";
+  };
+
+  /**
+   * Record one inserted subtree. Bounded in breadth (`INSERTION_NODES_PER_BATCH` descendants) and in
+   * total (`INSERTION_RECORD_CAP` elements); the root is always recorded first so a flood of siblings
+   * cannot starve the node that matters. Only elements are held, and only in a WeakMap.
+   */
+  const noteInsertion = (root: Element, at: number, shadow: boolean): void => {
+    try {
+      if (insertionRecordCount >= INSERTION_RECORD_CAP) {
+        if (!insertionSaturatedAt) insertionSaturatedAt = at;
+        return;
+      }
+      const witness = pointerOwner && pointerOwner.isConnected ? pointerOwner : null;
+      const shared: Omit<InsertionRecord, "root"> = {
+        at,
+        witness,
+        witnessSince: pointerOwnerSince,
+        cause: competingCauseAt(at),
+        shadow
+      };
+      const stamp = (el: Element): boolean => {
+        if (insertionRecordCount >= INSERTION_RECORD_CAP) {
+          if (!insertionSaturatedAt) insertionSaturatedAt = at;
+          return false;
+        }
+        if (insertionRecord.has(el)) return true; // first observation wins — re-insertion is not new evidence
+        insertionRecord.set(el, { ...shared, root });
+        insertionRecordCount += 1;
+        return true;
+      };
+      if (!stamp(root)) return;
+      let descendants: Element[] = [];
+      try {
+        descendants = Array.prototype.slice.call(root.querySelectorAll("*"), 0, INSERTION_NODES_PER_BATCH);
+      } catch {
+        descendants = [];
+      }
+      for (let index = 0; index < descendants.length; index += 1) {
+        if (!stamp(descendants[index])) return;
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  /** Drain childList additions from one MutationObserver batch. */
+  const noteMutations = (records: MutationRecord[], shadow: boolean): void => {
+    const at = Date.now();
+    for (let r = 0; r < records.length; r += 1) {
+      const added = records[r].addedNodes;
+      if (!added || !added.length) continue;
+      for (let n = 0; n < added.length; n += 1) {
+        const node = added[n];
+        if (node && node.nodeType === 1) noteInsertion(node as Element, at, shadow);
+      }
+    }
+  };
+
+  /**
+   * The insertion record covering `el` — itself or the nearest recorded ancestor within a bounded
+   * walk, so a click on a button inside a hover-inserted menu resolves to the menu's insertion.
+   */
+  const nearestInsertion = (el: Element): InsertionRecord | null => {
+    let node: Element | null = el;
+    for (let depth = 0; node && depth < INSERTION_ANCESTOR_WALK; depth += 1) {
+      const found = insertionRecord.get(node);
+      if (found) return found;
+      node = node.parentElement;
+    }
+    return null;
+  };
 
   /**
    * How recently the pointer must have rested on an adjacent sibling for that sibling to be accepted
@@ -1257,12 +1475,7 @@ export function installRecorderCapture(): void {
 
     // The most recent pointer sample OUTSIDE the revealed surface. Samples inside it are where the
     // pointer went after the reveal — an effect of the hover, never its cause.
-    let sample: PointerSample | null = null;
-    for (let i = pointerTrail.length - 1; i >= 0; i -= 1) {
-      if (revealedRoot.contains(pointerTrail[i].el)) continue;
-      sample = pointerTrail[i];
-      break;
-    }
+    const sample = lastPointerOutside(revealedRoot);
     if (!sample) return null;
     if (Date.now() - sample.ts > SIBLING_HOVER_RECENCY_MS) return null;
 
@@ -1284,8 +1497,81 @@ export function installRecorderCapture(): void {
     if (visibilityState.get(candidate) !== true) return { kind: "review" };
     if (isBroadTrigger(candidate)) return { kind: "review" };
     if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) return { kind: "review" };
-    if (!isStableGenerated(generate(candidate, { allowPositional: false }))) return { kind: "review" };
+    if (!isStableTriggerLocator(candidate)) return { kind: "review" };
     return { kind: "trigger", el: candidate };
+  };
+
+  /**
+   * Attribute a click on a control that was INSERTED after the baseline scan (`awkit-0vm`).
+   *
+   * Returns `null` when there is no insertion evidence at all, so the caller falls through to the
+   * hidden-at-rest paths and ordinary clicks are untouched. Every other outcome is stated: a trigger,
+   * or a review carrying the reason attribution was refused. It never returns `none` from a position
+   * of knowledge — if the recorder saw the target arrive under the pointer, the click is either
+   * explained or flagged.
+   *
+   * The joint evidence required, in order of what each rules out:
+   *   - an insertion record          → the node was absent, and OUR observer saw it arrive
+   *   - `cause === "pointer"`        → no navigation / click / focus better explains it
+   *   - a concrete witness           → the pointer was somewhere real at that moment
+   *   - arrival inside the window    → the pointer's ARRIVAL explains it, not a coincident timer
+   *   - witness outside the surface  → the trigger is not part of what appeared
+   *   - witness still connected      → the trigger survived to be replayed
+   *   - witness still pointer owner  → the pointer did not move on to something else meanwhile
+   *   - stable, non-positional       → the trigger can actually be found again
+   */
+  const resolveInsertedHoverTrigger = (target: Element): HoverResolution | null => {
+    const record = nearestInsertion(target);
+    if (!record) {
+      // Fail closed: once insertion tracking has overflowed, an unrecorded control of unknown
+      // provenance clicked while the pointer was resident ELSEWHERE cannot be cleared of a hover
+      // dependency. Bounded to the window after saturation so a degraded page does not flag forever.
+      const before = lastPointerOutside(target);
+      if (
+        insertionSaturatedAt &&
+        Date.now() - insertionSaturatedAt <= INSERTION_CLICK_WINDOW_MS &&
+        (absentAtBaseline.has(target) || !visibilityState.has(target)) &&
+        before
+      ) {
+        return { kind: "review", reason: "insertion tracking saturated — provenance unknown", inserted: true };
+      }
+      return null;
+    }
+
+    // A navigation / click / focus explains the insertion better than the pointer did. The control
+    // does not depend on a hover, so there is no omitted prerequisite and nothing to review — making
+    // a review item here would be a false alarm, not caution.
+    if (record.cause !== "pointer") return null;
+    if (!record.witness) return null; // nothing was under the pointer — an independent update
+    if (record.witnessSince > record.at) return null; // the pointer arrived after the node did
+    if (record.at - record.witnessSince > INSERTION_CAUSAL_WINDOW_MS) return null; // parked, not causing
+    if (Date.now() - record.at > INSERTION_CLICK_WINDOW_MS) {
+      return { kind: "review", reason: "insertion evidence expired before the click", inserted: true };
+    }
+
+    const surface = record.root;
+    if (surface.contains(record.witness)) {
+      return { kind: "review", reason: "pointer was inside the inserted surface", inserted: true };
+    }
+
+    const candidate = interactiveTarget(record.witness);
+    if (surface.contains(candidate)) return { kind: "review", reason: "trigger resolves inside the inserted surface", inserted: true };
+    if (!candidate.isConnected) return { kind: "review", reason: "trigger left the page before the click", inserted: true };
+    if (isBroadTrigger(candidate)) return { kind: "review", reason: "trigger is too broad to replay", inserted: true };
+    if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) {
+      return { kind: "review", reason: "trigger is a landmark the pointer never landed on", inserted: true };
+    }
+    // The pointer must still belong to the trigger as the click lands — the last place it was before
+    // entering what appeared. Otherwise it moved on, and the transition has a gap in it.
+    const outside = lastPointerOutside(surface);
+    const lastOutside = outside ? outside.el : null;
+    if (!lastOutside || !(lastOutside === candidate || candidate.contains(lastOutside))) {
+      return { kind: "review", reason: "pointer moved off the trigger before the click", inserted: true };
+    }
+    if (!isStableTriggerLocator(candidate)) {
+      return { kind: "review", reason: "trigger has no stable, non-positional locator", inserted: true };
+    }
+    return { kind: "trigger", el: candidate, inserted: true };
   };
 
   /**
@@ -1352,7 +1638,7 @@ export function installRecorderCapture(): void {
     if (!pointerVisited(candidate)) return reviewOrSibling();
     // Uniqueness alone would admit a positional `nth-child` chain that breaks on the next layout
     // change. A trigger we cannot pin semantically is a review item, not a saved fragile locator.
-    if (!isStableGenerated(generate(candidate, { allowPositional: false }))) return reviewOrSibling();
+    if (!isStableTriggerLocator(candidate)) return reviewOrSibling();
     return { kind: "trigger", el: candidate };
   };
 
@@ -1442,7 +1728,12 @@ export function installRecorderCapture(): void {
 
     // URL changes — patch history + listen to popstate/hashchange.
     try {
-      const emitUrl = (): void => signal({ kind: "url", url: location.href, ts: Date.now() });
+      const emitUrl = (): void => {
+        // Also the navigation clock for insertion attribution: content that arrives right after a
+        // route change is explained by the navigation, not by whatever the pointer was resting on.
+        lastNavigationAt = Date.now();
+        signal({ kind: "url", url: location.href, ts: lastNavigationAt });
+      };
       const h = history as unknown as { __awtkitPatched?: boolean; pushState: (...a: unknown[]) => unknown; replaceState: (...a: unknown[]) => unknown };
       if (!h.__awtkitPatched) {
         const push = h.pushState;
@@ -1534,6 +1825,9 @@ export function installRecorderCapture(): void {
       try {
         (Array.prototype.slice.call(document.querySelectorAll("a, button, input, select, textarea, [role=button], [role=menuitem]")) as Element[]).forEach((el) => {
           if (!visibilityState.has(el)) {
+            // First sighting. After the baseline this control was not in the observed DOM at rest —
+            // record that as its own fact, distinct from being present and hidden.
+            if (baselineScanDone) absentAtBaseline.add(el);
             visibilityState.set(el, isVisible(el));
           } else if (visibilityState.get(el) === false && !revealWitness.has(el) && isVisible(el)) {
             // First time this hidden-at-rest control has been seen visible: record where the pointer
@@ -1593,8 +1887,54 @@ export function installRecorderCapture(): void {
     } catch {
       /* ignore */
     }
+    // Everything recorded above is the at-rest DOM; anything first seen from here is not.
+    baselineScanDone = true;
+    /**
+     * Observe open shadow roots for insertions. A document-level observer cannot see a childList
+     * change inside a shadow root, so a control inserted there on hover would have no evidence at
+     * all. Bounded to `SHADOW_OBSERVER_CAP` roots; beyond that the recorder simply has no insertion
+     * evidence for further roots, which the resolver treats as "no claim", never as "not inserted".
+     */
+    const observeShadowRoots = (): void => {
+      try {
+        while (pendingShadowRoots.length) {
+          const root = pendingShadowRoots.shift();
+          if (!root || observedShadowRoots.has(root)) continue;
+          if (observedShadowRootCount >= SHADOW_OBSERVER_CAP) return;
+          observedShadowRoots.add(root);
+          observedShadowRootCount += 1;
+          try {
+            new MutationObserver((records) => noteMutations(records, true)).observe(root, {
+              subtree: true,
+              childList: true
+            });
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    };
     try {
-      const obs = new MutationObserver(() => {
+      // Roots that already existed when the recorder installed (bounded traversal).
+      const existing = collectOpenRoots(document);
+      for (let index = 0; index < existing.length; index += 1) {
+        const root = existing[index] as ShadowRoot;
+        if (root && (root as ShadowRoot).host) pendingShadowRoots.push(root);
+      }
+      observeShadowRoots();
+    } catch {
+      /* ignore */
+    }
+    try {
+      const obs = new MutationObserver((records) => {
+        try {
+          noteMutations(records, false);
+          observeShadowRoots();
+        } catch {
+          /* ignore */
+        }
         try {
           scanAll(false);
         } catch {
@@ -1612,6 +1952,11 @@ export function installRecorderCapture(): void {
     }
     try {
       setInterval(() => {
+        try {
+          observeShadowRoots(); // roots attached since the last sweep
+        } catch {
+          /* ignore */
+        }
         try {
           scanAll(false);
         } catch {
@@ -1687,17 +2032,30 @@ export function installRecorderCapture(): void {
         /* ignore */
       }
     }
-    if (visibilityState.get(target) === false) {
-      // Hidden at rest. Attribute the reveal to the element the pointer actually hovered.
-      const hover = resolveHoverTrigger(target, event);
+    // Insertion evidence first: a control that did not exist at the baseline scan has no
+    // hidden-at-rest record at all, so the visibility branch below would never consider it. Absence
+    // is not hiddenness, and the two are answered by different evidence.
+    const inserted = resolveInsertedHoverTrigger(target);
+    const hover: HoverResolution | null =
+      inserted ?? (visibilityState.get(target) === false ? resolveHoverTrigger(target, event) : null);
+    if (hover) {
       if (hover.kind === "trigger") {
         interaction.requiresHover = true;
-        interaction.hoverContainer = generate(hover.el).locator;
+        // Persist the SAME generation the stability guard accepted. Using the default options here
+        // let a positional locator through a gate that had approved a different, non-positional one —
+        // the guard and the payload must be the same object, or the guard proves nothing.
+        interaction.hoverContainer = generate(hover.el, { allowPositional: false }).locator;
+        if (hover.inserted) interaction.hoverInserted = true;
       } else if (hover.kind === "review") {
-        // A container was revealed on hover, but no stable trigger could be pinned. Flag for review
-        // instead of emitting a hover step that cannot replay.
+        // Hover-gated, but no stable trigger could be pinned. Flag for review instead of emitting a
+        // hover step that cannot replay — and say WHY, so the review is actionable.
         interaction.requiresHover = true;
         interaction.hoverUnresolved = true;
+        if (hover.reason) interaction.hoverReviewReason = hover.reason;
+        // A refusal still states its evidence source: the recorder OBSERVED the node arrive, it just
+        // could not pin the trigger. Without this a refused insertion is indistinguishable from one
+        // that was never seen at all.
+        if (hover.inserted) interaction.hoverInserted = true;
       }
       // hover.kind === "none": target toggled independently of a hover trigger — no hover step.
     }

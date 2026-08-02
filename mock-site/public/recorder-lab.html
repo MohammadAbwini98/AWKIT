@@ -281,6 +281,108 @@
         </div>
         <br><br>
 
+        <!-- ── Hover-INSERTED controls (awkit-0vm) ────────────────────────────────────────────────
+             Everything above is present at load and hidden; everything here does not exist until a
+             hover happens. A newly inserted control has no hidden-at-rest visibility record at all,
+             so absence must be proved by its own evidence (the recorder's MutationObserver seeing it
+             arrive, plus where the pointer was and when it got there) rather than inferred from a
+             missing one. Each fixture's driver classes are hash-suffixed so they can never be chosen
+             as production locators; only the intended triggers carry accessible names. -->
+
+        <!-- [1] Hover inserts an adjacent sibling control. -->
+        <div class="ins-sib-wrap-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="ins-sib-trigger-r4k8" aria-label="Insert sibling action">Insert sibling</button>
+        </div>
+        <span data-testid="ins-sib-result">idle</span>
+        <br><br>
+
+        <!-- [2+3] Hover inserts a descendant menu CONTAINER; the eventual click target is inside it. -->
+        <div class="ins-menu-wrap-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="ins-menu-trigger-r4k8" aria-label="Insert descendant menu">Insert menu</button>
+        </div>
+        <span data-testid="ins-menu-result">idle</span>
+        <br><br>
+
+        <!-- [5+6] One hover inserts THREE controls; the intended click maps to the same trigger, and
+             the repeated mutations must still yield exactly one hover prerequisite. -->
+        <div class="ins-multi-wrap-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="ins-multi-trigger-r4k8" aria-label="Insert three actions">Insert three</button>
+        </div>
+        <span data-testid="ins-multi-result">idle</span>
+        <br><br>
+
+        <!-- [6] REPEATED MUTATION — the control is removed and re-added while the pointer is already
+             ON IT, so a recorder that lets a later observation overwrite the first would end up with
+             a witness INSIDE the inserted surface and refuse the click. The first observation is the
+             causal one; re-observation of the same element is not new evidence. -->
+        <div class="ins-redo-wrap-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="ins-redo-trigger-r4k8" aria-label="Insert re-added action">Insert re-added</button>
+        </div>
+        <span data-testid="ins-redo-result">idle</span>
+        <br><br>
+
+        <!-- [4] Insertion inside an OPEN shadow root. The host's root is attached by this page's own
+             script, so at recorder-install time it already exists and is picked up by the bounded
+             open-root walk; a root attached later is queued by the attachShadow wrapper instead. -->
+        <div class="ins-shadow-host-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;"></div>
+        <span data-testid="ins-shadow-result">idle</span>
+        <br><br>
+
+        <!-- [9] NEGATIVE — a timer inserts the control while the pointer is parked on a neighbour.
+             Adjacency, recency and a concrete pointer witness are all satisfied; only the interval
+             between the pointer's ARRIVAL and the insertion separates this from fixture [1]. -->
+        <div class="ins-timer-wrap-r4k8" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="ins-timer-other-r4k8" aria-label="Timer neighbour">Timer neighbour</button>
+        </div>
+        <span data-testid="ins-timer-result">idle</span>
+        <br><br>
+
+        <!-- [10] NEGATIVE — hovering this trigger inserts a node in an UNRELATED subtree. Clicking the
+             pre-existing control below must not acquire a hover prerequisite from that churn. -->
+        <div class="ins-unrelated-wrap-r4k8" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="ins-unrelated-trigger-r4k8" aria-label="Insert elsewhere">Insert elsewhere</button>
+          <button type="button" class="ins-unrelated-plain-r4k8" aria-label="Plain control">Plain control</button>
+        </div>
+        <div class="ins-unrelated-sink-r4k8" style="display: inline-block; border: 1px dotted #ccc; padding: 0.5rem;"></div>
+        <span data-testid="ins-unrelated-result">idle</span>
+        <br><br>
+
+        <!-- [11] NEGATIVE — a CLICK inserts the control. The insertion is explained by the click, so
+             there is no omitted hover prerequisite and nothing to attribute or review. -->
+        <div class="ins-click-wrap-r4k8" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="ins-click-trigger-r4k8" aria-label="Click to insert">Click to insert</button>
+        </div>
+        <span data-testid="ins-click-result">idle</span>
+        <br><br>
+
+        <!-- [7] NEGATIVE — the inserting trigger has no accessible name and only a hash-suffixed
+             class, so it resolves positionally only. Review, never a saved nth-child trigger. -->
+        <div class="ins-pos-wrap-r4k8" style="display: inline-block; position: relative; width: 220px; height: 48px; border: 1px dotted #ccc; padding: 1rem;">
+          <button type="button" class="ins-pos-trigger-k7x2m9"></button>
+        </div>
+        <span data-testid="ins-pos-result">idle</span>
+        <br><br>
+
+        <!-- [8] NEGATIVE — the trigger inserts the control and then removes ITSELF, so by the time the
+             click lands the attributed trigger no longer exists and cannot be replayed. -->
+        <div class="ins-vanish-wrap-r4k8" style="display: inline-block; border: 1px dotted #ccc; padding: 1rem;">
+          <button type="button" class="ins-vanish-trigger-r4k8" aria-label="Vanishing trigger">Vanishing trigger</button>
+        </div>
+        <span data-testid="ins-vanish-result">idle</span>
+        <br><br>
+
+        <!-- FAIL-CLOSED — one hover inserts far more nodes than the recorder's insertion-record bound,
+             then inserts the intended control last, so the control itself gets no record. With
+             insertion tracking saturated the recorder cannot clear the click of a hover dependency,
+             so it must review it rather than save it silently. -->
+        <div class="ins-flood-wrap-r4k8" style="display: inline-block; border: 1px dotted #ccc; padding: 1rem;">
+          <button type="button" class="ins-flood-trigger-r4k8" aria-label="Flood insert">Flood insert</button>
+        </div>
+        <div class="ins-flood-sink-r4k8" style="display: none;"></div>
+        <div class="ins-flood-target-host-r4k8" style="display: inline-block;"></div>
+        <span data-testid="ins-flood-result">idle</span>
+        <br><br>
+
         <!-- Review case: a container revealed on hover of a LANDMARK the pointer never lands on exactly
              (it enters via the inner label), and whose gated button has no unique locator, so no stable
              specific trigger can be attributed — the recorder must leave the click needs-review rather
@@ -322,6 +424,149 @@
               var t = document.querySelector('.sibasync-gated-v6r4');
               if (t) t.style.display = 'inline-block';
             }, 1500);
+            // ── Hover-INSERTED controls (awkit-0vm) ───────────────────────────────────────────
+            // Helper: build a labelled button that reports into a result span when clicked.
+            function insBtn(cls, label, resultId, resultText) {
+              var b = document.createElement('button');
+              b.type = 'button';
+              b.className = cls;
+              b.textContent = label;
+              b.addEventListener('click', function () {
+                var r = document.querySelector('[data-testid="' + resultId + '"]');
+                if (r) r.textContent = resultText;
+              });
+              return b;
+            }
+            function onHover(sel, fn) {
+              var el = document.querySelector(sel);
+              if (el) el.addEventListener('mouseenter', fn);
+            }
+
+            // [1] hover inserts an adjacent sibling control
+            onHover('.ins-sib-trigger-r4k8', function () {
+              var wrap = document.querySelector('.ins-sib-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-sib-gated-r4k8')) return;
+              wrap.appendChild(insBtn('ins-sib-gated-r4k8', 'Inserted sibling', 'ins-sib-result', 'ins-sib-ok'));
+            });
+
+            // [2+3] hover inserts a descendant menu container holding the click target
+            onHover('.ins-menu-trigger-r4k8', function () {
+              var wrap = document.querySelector('.ins-menu-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-menu-panel-r4k8')) return;
+              var panel = document.createElement('div');
+              panel.className = 'ins-menu-panel-r4k8';
+              panel.appendChild(insBtn('ins-menu-gated-r4k8', 'Menu item', 'ins-menu-result', 'ins-menu-ok'));
+              wrap.appendChild(panel);
+            });
+
+            // [5+6] one hover inserts three controls
+            onHover('.ins-multi-trigger-r4k8', function () {
+              var wrap = document.querySelector('.ins-multi-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-multi-a-r4k8')) return;
+              wrap.appendChild(insBtn('ins-multi-a-r4k8', 'Multi first', 'ins-multi-result', 'ins-multi-a'));
+              wrap.appendChild(insBtn('ins-multi-b-r4k8', 'Multi second', 'ins-multi-result', 'ins-multi-b'));
+              wrap.appendChild(insBtn('ins-multi-c-r4k8', 'Multi third', 'ins-multi-result', 'ins-multi-c'));
+            });
+
+            // [6] repeated mutation: detach and re-attach THE SAME control while the pointer is on it
+            var redoCount = 0;
+            onHover('.ins-redo-trigger-r4k8', function () {
+              var wrap = document.querySelector('.ins-redo-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-redo-gated-r4k8')) return;
+              var b = insBtn('ins-redo-gated-r4k8', 'Re-added action', 'ins-redo-result', 'ins-redo-ok');
+              wrap.appendChild(b);
+              b.addEventListener('mouseenter', function () {
+                if (redoCount >= 2) return;
+                redoCount += 1;
+                wrap.removeChild(b);
+                wrap.appendChild(b); // same node, observed arriving a second time
+              });
+            });
+
+            // [4] open shadow root: trigger inside it inserts a control into the same root
+            var shadowHost = document.querySelector('.ins-shadow-host-r4k8');
+            if (shadowHost && shadowHost.attachShadow) {
+              var insRoot = shadowHost.attachShadow({ mode: 'open' });
+              var shadowTrigger = document.createElement('button');
+              shadowTrigger.type = 'button';
+              shadowTrigger.className = 'ins-shadow-trigger-r4k8';
+              shadowTrigger.setAttribute('aria-label', 'Insert in shadow');
+              shadowTrigger.textContent = 'Shadow trigger';
+              insRoot.appendChild(shadowTrigger);
+              shadowTrigger.addEventListener('mouseenter', function () {
+                if (insRoot.querySelector('.ins-shadow-gated-r4k8')) return;
+                insRoot.appendChild(insBtn('ins-shadow-gated-r4k8', 'Shadow inserted', 'ins-shadow-result', 'ins-shadow-ok'));
+              });
+            }
+
+            // [9] NEGATIVE: a page-load timer inserts the control, unrelated to any hover
+            setTimeout(function () {
+              var wrap = document.querySelector('.ins-timer-wrap-r4k8');
+              if (wrap && !wrap.querySelector('.ins-timer-gated-r4k8')) {
+                wrap.appendChild(insBtn('ins-timer-gated-r4k8', 'Timer inserted', 'ins-timer-result', 'ins-timer-ok'));
+              }
+            }, 1500);
+
+            // [10] NEGATIVE: hover inserts into an unrelated subtree
+            onHover('.ins-unrelated-trigger-r4k8', function () {
+              var sink = document.querySelector('.ins-unrelated-sink-r4k8');
+              if (!sink || sink.querySelector('.ins-unrelated-noise-r4k8')) return;
+              var noise = document.createElement('span');
+              noise.className = 'ins-unrelated-noise-r4k8';
+              noise.textContent = 'noise';
+              sink.appendChild(noise);
+            });
+            var plain = document.querySelector('.ins-unrelated-plain-r4k8');
+            if (plain) plain.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="ins-unrelated-result"]');
+              if (r) r.textContent = 'ins-plain-ok';
+            });
+
+            // [11] NEGATIVE: a CLICK inserts the control
+            var clickIns = document.querySelector('.ins-click-trigger-r4k8');
+            if (clickIns) clickIns.addEventListener('click', function () {
+              var wrap = document.querySelector('.ins-click-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-click-gated-r4k8')) return;
+              wrap.appendChild(insBtn('ins-click-gated-r4k8', 'Click inserted', 'ins-click-result', 'ins-click-ok'));
+            });
+
+            // [7] NEGATIVE: positional-only trigger inserts a control
+            onHover('.ins-pos-trigger-k7x2m9', function () {
+              var wrap = document.querySelector('.ins-pos-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-pos-gated-r4k8')) return;
+              var b = insBtn('ins-pos-gated-r4k8', 'Positional inserted', 'ins-pos-result', 'ins-pos-ok');
+              b.style.position = 'absolute';
+              b.style.left = '0';
+              b.style.top = '100%';
+              wrap.appendChild(b);
+            });
+
+            // [8] NEGATIVE: the trigger inserts the control, then removes itself shortly after, so the
+            // insertion is observed while it still exists but it is gone by the time the click lands.
+            onHover('.ins-vanish-trigger-r4k8', function () {
+              var wrap = document.querySelector('.ins-vanish-wrap-r4k8');
+              if (!wrap || wrap.querySelector('.ins-vanish-gated-r4k8')) return;
+              wrap.appendChild(insBtn('ins-vanish-gated-r4k8', 'Vanish inserted', 'ins-vanish-result', 'ins-vanish-ok'));
+              setTimeout(function () {
+                var t = document.querySelector('.ins-vanish-trigger-r4k8');
+                if (t && t.parentNode) t.parentNode.removeChild(t);
+              }, 60);
+            });
+
+            // FAIL-CLOSED: flood the recorder's insertion-record bound, then insert the real target
+            // last so it gets no record of its own.
+            onHover('.ins-flood-trigger-r4k8', function () {
+              var sink = document.querySelector('.ins-flood-sink-r4k8');
+              var host = document.querySelector('.ins-flood-target-host-r4k8');
+              if (!sink || !host || host.querySelector('.ins-flood-gated-r4k8')) return;
+              for (var i = 0; i < 700; i += 1) {
+                var filler = document.createElement('span');
+                filler.className = 'ins-flood-filler-r4k8';
+                sink.appendChild(filler);
+              }
+              host.appendChild(insBtn('ins-flood-gated-r4k8', 'Flood target', 'ins-flood-result', 'ins-flood-ok'));
+            });
+
             // Remote (non-adjacent) hover reveal (awkit-vot boundary). Stays visible once shown so the
             // click can land after the pointer has left the trigger.
             var remoteTrigger = document.querySelector('.remote-trigger-j5w1');

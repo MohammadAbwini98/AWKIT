@@ -127,6 +127,10 @@ export interface LocatorInteractionEvidence {
   requiresHover?: boolean;
   hoverContainer?: Record<string, unknown>;
   hoverUnresolved?: boolean;
+  /** The hover prerequisite came from insertion evidence rather than hidden-at-rest visibility. */
+  hoverInserted?: boolean;
+  /** Why hover attribution was refused, when `hoverUnresolved` is set. */
+  hoverReviewReason?: string;
   shadowBoundary?: ShadowBoundaryState;
   frame?: {
     state: "same-origin" | "cross-origin" | "unknown";

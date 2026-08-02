@@ -112,9 +112,11 @@ try {
   // Then 11/134 of 145 on 2026-08-02: `awkit-vot` closed (adjacent-sibling hover attribution) and
   // `awkit-hmt` filed for the remote non-adjacent boundary it deliberately leaves open — one issue in,
   // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
+  // Then 10/135 of 145 on 2026-08-02: `awkit-0vm` closed (hover-inserted control attribution); no new
+  // issues or edges filed — the remote-trigger boundary stays on `awkit-hmt`.
   check(
-    "11 outstanding / 134 closed",
-    beads.stats.outstanding === 11 && beads.stats.closed === 134,
+    "10 outstanding / 135 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 135,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

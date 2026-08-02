@@ -135,6 +135,9 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       if (step.locator) {
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
+        // Carry the recorder's diagnosis so the review says why, not just that.
+        const why = action.locator.interaction.hoverReviewReason;
+        if (typeof why === "string" && why) step.locator.reviewReason = why;
       }
       return [step];
     }

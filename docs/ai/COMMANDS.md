@@ -164,7 +164,12 @@ npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — record
                             # triggers, guards the old-locator regression, and covers async/needs-review negatives.
                             # Also covers adjacent-sibling triggers (`.trigger:hover + .target`, awkit-vot) — attribution
                             # + replay, plus four negatives: unnamed trigger, positional-only trigger, a timer reveal
-                            # beside a hovered sibling, and the remote (non-adjacent) boundary. (81/81)
+                            # beside a hovered sibling, and the remote (non-adjacent) boundary.
+                            # Also covers hover-INSERTED controls (awkit-0vm): sibling / container /
+                            # multi-node / re-inserted / open-shadow positives with fresh-page replay and a
+                            # profile round trip, plus negatives for timer, witness-less, unrelated-subtree,
+                            # click-driven, positional-only and vanishing triggers, and the fail-closed
+                            # saturation bound. (166/166)
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,
