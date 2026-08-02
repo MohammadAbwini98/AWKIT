@@ -1,5 +1,89 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-02 18:53 +03:00) — Issuer console complete (`awkit-0tn`)
+
+- **From:** Codex
+- **To:** next coding agent or human operator
+- **Branch/commit:** `main` at `9f391c953312c6e0e7037d153519198cea2a3b6a`;
+  `origin/main` matches exactly and the working tree was clean when this handoff began.
+- **Active task:** none. `awkit-0tn` is closed and its implementation is pushed.
+
+### Completed work
+
+- Added the built-in `Issuer` role. It is exclusive (cannot be combined with another role) and
+  singleton (only one stored user can hold it). Super User may provision or reassign that account,
+  but does not inherit Issuer permissions.
+- Added the **Administration → License Issuer** page and Issuer-only landing/navigation behavior.
+  Renderer guards and trusted main-process IPC both require the exact sole Issuer role; direct grants,
+  custom-role grants, Admin, and Super User are denied.
+- Added fresh-password reauthentication for issuance, strict/bounded activation-request validation,
+  externally held Ed25519 key validation against the shipped public key, atomic `.dat` output, and
+  secret-free issuance history. The private key never enters the renderer or application logs.
+- The uploaded activation JSON is converted to a signed `.dat` without the command-line workflow.
+  Output defaults to `%LOCALAPPDATA%\SpecterStudio\issuer-output\`.
+- Updated licensing/security/architecture/current-state documentation, RBAC/licensing/Electron
+  verifiers, Beads (`147` total, `138` closed), and the roadmap verifier baseline. The derived Program
+  Status dashboard passes **135/135** and its consistency path reports sources agree.
+
+### Principal files
+
+- `src/security/authz/Permissions.ts`, `src/security/admin/UserAdminService.ts`
+- `src/licensing/issuer/LicenseIssuerContracts.ts`, `LicenseIssuerService.ts`
+- `app/main/licensing/issuerRuntime.ts`, `app/main/ipc/issuer.ipc.ts`, `app/main/preload.ts`
+- `app/renderer/pages/admin/LicenseIssuerPage.tsx`, `UserManagement.tsx`
+- `app/renderer/App.tsx`, `routes.tsx`, `layout/LeftNavigation.tsx`, renderer permission guards
+- `scripts/verify-authz.mts`, `scripts/verify-licensing.mts`, `scripts/verify-e2e-rbac-gui.mjs`
+- `docs/LICENSING.md` and `docs/ai/{CURRENT_STATE,ARCHITECTURE,FEATURES,SECURITY,TASK_LOG}.md`
+
+### Verification at the implementation commit
+
+- `npm run build` — PASS (typecheck and all bundles; only the known `securityKernel.ts`
+  static/dynamic-import bundler warning).
+- `npm run typecheck:scripts` — PASS.
+- `npm run verify:authz` — **92/92**.
+- `npm run verify:licensing` — **183/183**.
+- `npm run verify:random-lifecycle` — **13/13**.
+- `npm run verify:ipc-contract` — **4/4**.
+- `npm run verify:admin-gui` — **18/18**.
+- `npm run verify:e2e-rbac` — **70/70**.
+- `npm run verify:e2e-licensing` — **38/38**.
+- `npm run verify:source-hygiene` — **9/9**; `npm run verify:secrets` — **16/16**.
+- Verifier classification reconciled all **158** scripts; `npm run validate:offline` passed.
+- `node scripts/ai-memory/check-memory.mjs` passed; roadmap dashboard verifier passed **135/135**.
+- Comprehensive validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+### Remaining work and operator steps
+
+1. On the dedicated Issuer workstation, provision the external private key at the configured issuer
+   key location (default `%LOCALAPPDATA%\SpecterStudio\issuer-keys\key1.ed25519.pkcs8.b64`) and ensure
+   it matches the shipped public trust key. Do not bundle, commit, paste, or log this key.
+2. Perform the not-yet-run real-Electron issuance walkthrough with that provisioned production key,
+   then perform a rebuilt packaged NSIS/portable issuer walkthrough on an authorized machine.
+3. SpecterStudio is offline and has no trusted cross-machine transport. Issuance automatically creates
+   the `.dat`, but a remote customer's file must still be transferred through an authorized channel
+   and imported on that machine. Do not invent a network service or silently bypass this boundary.
+4. Project-wide open work is separate: owner-controlled release-key custody `awkit-2l1` is in progress;
+   `awkit-k2s`, `awkit-vbj`, and `awkit-x48` remain open.
+
+### Risks and do-not-touch areas
+
+- **Do not read, move, copy, rotate, commit, or delete private signing keys.** `awkit-2l1` explicitly
+  reserves the release-key custody operation for the owner.
+- Do not modify/regenerate the committed dependency-manifest/signature pair merely to make it current;
+  follow the documented release ceremony and owner custody gate.
+- Do not broaden Issuer access to Super User, Admin, custom roles, or direct permission grants. The
+  exact sole-role check in both renderer and main process is the intended security boundary.
+- Do not claim cross-machine automatic installation until an explicit authenticated transport design
+  is authorized and implemented.
+
+### Recommended next step
+
+Have the owner provision the matching external Issuer key on an authorized, non-synced workstation and
+run one real issuance/import ceremony. If that external step is unavailable, pick the next ready Bead
+from the Program Status dashboard without altering the completed Issuer boundary.
+
+---
+
 ## HANDOFF (2026-08-01, latest) — `awkit-f3l` and `awkit-hj8` complete
 
 - **Branch:** `main`; this handoff is included with the final implementation checkpoint.

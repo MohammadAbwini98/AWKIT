@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02: Hand off completed Issuer console work (`awkit-0tn`)
+
+- **Agent:** Codex
+- **Task:** Prepare the active repository handoff for the next coding agent or human operator.
+- **State recorded:** `main` and `origin/main` matched at implementation commit `9f391c9`; the working
+  tree was clean before the handoff note. `awkit-0tn` is closed; Beads are 147 total / 138 closed.
+- **Handoff:** recorded delivered role/route/IPC/signing behavior, principal files, exact verifier
+  results, the external Issuer-key provisioning and real-Electron walkthrough still owed, the offline
+  cross-machine transfer boundary, remaining open Beads, and signing-key/manifest do-not-touch rules.
+- **Files:** `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`.
+- **Verification:** `node scripts/ai-memory/check-memory.mjs` PASS; Program Status dashboard verifier
+  **135/135**, including source agreement and ledger **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+- **Result:** transfer note ready; no source behavior or project status changed.
+
+---
+
 ## 2026-08-02: Add singleton Issuer role and in-app offline license issuance (`awkit-0tn`)
 
 - **Agent:** Codex
