@@ -1,5 +1,45 @@
 # CURRENT_STATE
 
+## Recorder baselines the loaded page, and the verifiers test the shipped install order (`awkit-a7k`, 2026-08-02)
+
+The recorder took its at-rest baseline the instant the script ran. Production injects with
+`context.addInitScript`, so that instant is **document start** — before the page's own markup is
+parsed. The baseline was therefore taken against an empty document, with three consequences that
+only appeared under the real install order:
+
+- `absentAtBaseline` was true for every element on the page, so "was not there at rest" meant
+  nothing;
+- the entire initial parse was recorded as a stream of insertions with null witnesses, burning up to
+  `INSERTION_RECORD_CAP` records before the user did anything;
+- `nearestInsertion` found one of those witness-less parse records on an ancestor of almost any
+  target, short-circuiting insertion attribution and making the fail-closed saturation guard
+  **unreachable**.
+
+`startObservation` now runs on `DOMContentLoaded` (or immediately if the document is already parsed),
+so "at rest" means the loaded page under either install order. Positives were never affected — a
+target's own record is checked before any ancestor — which is why this survived three tasks of green
+runs.
+
+The harness gap that hid it is closed too: `verify-recorder-hover` and `verify-recorder-ambiguity`
+now install via `context.addInitScript` like the product (`verify-recorder-locator` already did), and
+a new source guard in section `[0]` asserts across every recorder verifier that none injects with
+`page.evaluate` after load and all use `addInitScript` — with a cardinality check first, since an
+empty scan would satisfy it perfectly.
+
+Both fixes are mutation-proven: undoing the deferral makes the saturation section fail (4 checks),
+and reverting one verifier to post-load injection makes the source guard name that file.
+
+`verify:recorder-hover` is **214/214** (was 211/211, +3 source-guard checks, now under the production
+install order). Recorder locator **171/171**, ambiguity **62/62**, recorder-flow **29/29**,
+recorder-draft **50/50**, recorder-redaction **15 PASS**, REC-018 e2e **61 PASS**, Recorder GUI
+**166 PASS**, runner **89/89**, Mock Site **110/110**, flow-step-mapping **111/0**, profile-store
+**18/18**, IPC contract **4/4**, Flow Designer GUI **69/69**, catalog parity **39/39**,
+source-hygiene **9/9**, roadmap dashboard **135/135**; build, `typecheck:scripts` and
+`validate:offline` pass. Beads are **9 outstanding / 137 closed** of 146, and the comprehensive
+ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Remote (non-adjacent) hover triggers are attributed (`awkit-hmt`, 2026-08-02)
 
 A hover trigger in a different subtree from what it reveals — neither ancestor nor sibling — is now

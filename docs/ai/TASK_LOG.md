@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Recorder baselines the loaded page; verifiers test the shipped install order (`awkit-a7k`)
+
+- **Task:** the recorder verifiers injected the init script with `page.evaluate` after `goto`, while
+  production uses `context.addInitScript` (document start). The harness was testing an order the
+  product never uses.
+- **Product fix (the substantive half):** the at-rest baseline ran the instant the script executed,
+  which under the real install order is before the page's markup is parsed. `startObservation` now
+  runs on `DOMContentLoaded` (or immediately if already parsed). Before this, on every production
+  recording: `absentAtBaseline` was true for the whole page, the initial parse was recorded as
+  insertions with null witnesses (burning up to `INSERTION_RECORD_CAP` records at load), and
+  `nearestInsertion` hit one of those on an ancestor of nearly any target — making the fail-closed
+  saturation guard unreachable. Positives were unaffected because a target's own record is checked
+  before any ancestor, which is why three tasks of green runs never showed it.
+- **Harness fix:** `verify-recorder-hover` and `verify-recorder-ambiguity` switched to
+  `context.addInitScript` (`verify-recorder-locator` already used it). New source guard `[0]` asserts
+  across every recorder verifier that none injects via `page.evaluate` and all use `addInitScript`,
+  with a cardinality check first so an empty scan cannot satisfy it.
+- **Mutations:** deferral undone → **4 fail** (the saturation section, exactly as predicted when the
+  bead was filed); one verifier reverted to post-load injection → **1 fail** naming that file.
+- **Two self-inflicted defects caught in passing:** a Python heredoc mangled an escape into a literal
+  control character in the new verifier source (caught by re-scanning before commit — this is what
+  `verify:source-hygiene` exists for), and `new URL(...)` failed to compile because the file declares
+  its own `URL` constant; switched to `fileURLToPath`.
+- **Tests:** `verify:recorder-hover` **214/214** (211 + 3 source-guard, now production order);
+  recorder **171/171**; ambiguity **62/62**; recorder-flow **29/29**; recorder-draft **50/50**;
+  recorder-redaction **15 PASS / 0 FAIL**; REC-018 e2e **61 PASS / 0 FAIL**; Recorder GUI **166 PASS
+  / 0 FAIL**; runner **89/89**; mock-site **110/110**; flow-step-mapping **111/0**; profile-store
+  **18/18**; ipc-contract **4/4**; Flow Designer GUI **69/69**; catalog parity **39/39**;
+  verifier-classification reconciled; source-hygiene **9/9**; roadmap dashboard **135/135**; build,
+  `typecheck:scripts`, `validate:offline`, `git diff --check` pass.
+- **Result:** `awkit-a7k` closed. Beads **9 outstanding / 137 closed** of 146. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Remote (non-adjacent) hover trigger attribution (`awkit-hmt`)
 
 - **Task:** a hover trigger in a different subtree from what it reveals was classified `none` — no

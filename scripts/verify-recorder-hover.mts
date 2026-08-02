@@ -11,9 +11,11 @@
  */
 import { chromium } from "playwright";
 import { spawn } from "node:child_process";
+import { readFileSync, readdirSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
@@ -80,14 +82,17 @@ let recorderScript: string;
 /** Record a fresh session: inject the recorder, run `interact`, return the captured actions. */
 async function recordActions(browser: Browser, interact: (page: Page) => Promise<void>): Promise<RecordedAction[]> {
   const ctx = await browser.newContext();
+  // Install the way PRODUCTION does — context.addInitScript, i.e. at document start, before the
+  // page's own scripts. Injecting with page.evaluate after `goto` tested an order the product never
+  // uses, and hid that the recorder baselined an empty document under the real one (`awkit-a7k`).
+  await ctx.addInitScript({ content: recorderScript });
   const page = await ctx.newPage();
-  await page.goto(URL);
   const actions: RecordedAction[] = [];
   await page.exposeBinding("__awtkit_recordAction", (_s, a) => {
     actions.push(a as RecordedAction);
   });
   await page.exposeBinding("__awtkit_recordSignal", () => {});
-  await page.evaluate(recorderScript);
+  await page.goto(URL);
   await page.waitForTimeout(500); // let the silent baseline scan record rest-state visibility
   await interact(page);
   await page.waitForTimeout(300);
@@ -118,6 +123,37 @@ async function main() {
   const browser = await chromium.launch();
 
   try {
+    // ── [0] Install order: every recorder verifier must test the order the PRODUCT uses ──────
+    //
+    // RecorderService injects with `context.addInitScript`, so the recorder runs at document start,
+    // before the page's own scripts. Two verifiers used to inject with `page.evaluate` after `goto`,
+    // which is a different order with different semantics — it hid that the recorder baselined an
+    // empty document, and made the fail-closed saturation guard untestable (`awkit-a7k`). A source
+    // guard, because no runtime assertion can notice a harness testing the wrong thing.
+    console.log("\n[0] Recorder verifiers install the script the way production does:");
+    {
+      // NB: this file declares its own `URL` constant, so the global URL constructor is shadowed.
+      const dir = dirname(fileURLToPath(import.meta.url));
+      const injectors = readdirSync(dir)
+        .filter((f) => f.startsWith("verify-recorder") && f.endsWith(".mts"))
+        .map((f) => ({ file: f, text: readFileSync(`${dir}/${f}`, "utf8") }))
+        .filter((f) => f.text.includes("getRecorderInitScriptContent"));
+      // Cardinality first: an empty or truncated scan would satisfy every `.every()` below.
+      check("found the recorder verifiers that inject the init script", injectors.length >= 3, `found ${injectors.length}`);
+      const evaluators = injectors.filter((f) => /[.]evaluate[(]\s*(recorderScript|initScript|script)\s*[)]/.test(f.text));
+      check(
+        "none injects the recorder with page.evaluate after load",
+        evaluators.length === 0,
+        evaluators.map((f) => f.file).join(", ")
+      );
+      const initScripted = injectors.filter((f) => f.text.includes("addInitScript"));
+      check(
+        "every one installs via addInitScript (document start)",
+        initScripted.length === injectors.length,
+        injectors.filter((f) => !f.text.includes("addInitScript")).map((f) => f.file).join(", ")
+      );
+    }
+
     // ── [1] Positive: capture the hover-gated click ──────────────────────────────────────────
     console.log("\n[1] Capture hover-gated click:");
     const actions = await recordActions(browser, async (p) => {

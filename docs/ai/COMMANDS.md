@@ -175,7 +175,9 @@ npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — record
                             # degrades to needs-review with no host fallback. Remote (non-adjacent)
                             # triggers are attributed and replayed too (awkit-hmt), gated on the
                             # pointer's ARRIVAL rather than its presence, with a densely-jiggled
-                            # remote-timer negative isolating that window. (211/211)
+                            # remote-timer negative isolating that window. Installs the recorder the way
+                            # production does (context.addInitScript, document start) and guards that
+                            # order at source across every recorder verifier. (214/214)
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,

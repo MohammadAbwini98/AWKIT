@@ -2019,89 +2019,116 @@ export function installRecorderCapture(): void {
       }
     };
 
-    try {
-      scanAll(true); // silent baseline — don't emit for pre-existing content
-    } catch {
-      /* ignore */
-    }
-    // Everything recorded above is the at-rest DOM; anything first seen from here is not.
-    baselineScanDone = true;
     /**
-     * Observe open shadow roots for insertions. A document-level observer cannot see a childList
-     * change inside a shadow root, so a control inserted there on hover would have no evidence at
-     * all. Bounded to `SHADOW_OBSERVER_CAP` roots; beyond that the recorder simply has no insertion
-     * evidence for further roots, which the resolver treats as "no claim", never as "not inserted".
+     * Take the at-rest baseline and start observing.
+     *
+     * This MUST NOT run at document start. Production injects the recorder with
+     * `context.addInitScript` (`RecorderService`), so this file executes before the page's own
+     * markup is parsed. Baselining an empty document would make every element on the page look
+     * absent-at-rest and would record the entire initial parse as a stream of "insertions" — which
+     * is exactly what it used to do: `absentAtBaseline` was true for everything, up to
+     * `INSERTION_RECORD_CAP` records were burned before the user did anything, and
+     * `nearestInsertion` found a witness-less parse record on some ancestor of almost any target,
+     * short-circuiting insertion attribution and making the fail-closed saturation guard
+     * unreachable. Deferring to DOMContentLoaded makes "at rest" mean the loaded page under either
+     * install order (`awkit-a7k`).
      */
-    const observeShadowRoots = (): void => {
+    const startObservation = (): void => {
       try {
-        while (pendingShadowRoots.length) {
-          const root = pendingShadowRoots.shift();
-          if (!root || observedShadowRoots.has(root)) continue;
-          if (observedShadowRootCount >= SHADOW_OBSERVER_CAP) return;
-          observedShadowRoots.add(root);
-          observedShadowRootCount += 1;
+        scanAll(true); // silent baseline — don't emit for pre-existing content
+      } catch {
+        /* ignore */
+      }
+      // Everything recorded above is the at-rest DOM; anything first seen from here is not.
+      baselineScanDone = true;
+      /**
+       * Observe open shadow roots for insertions. A document-level observer cannot see a childList
+       * change inside a shadow root, so a control inserted there on hover would have no evidence at
+       * all. Bounded to `SHADOW_OBSERVER_CAP` roots; beyond that the recorder simply has no insertion
+       * evidence for further roots, which the resolver treats as "no claim", never as "not inserted".
+       */
+      const observeShadowRoots = (): void => {
+        try {
+          while (pendingShadowRoots.length) {
+            const root = pendingShadowRoots.shift();
+            if (!root || observedShadowRoots.has(root)) continue;
+            if (observedShadowRootCount >= SHADOW_OBSERVER_CAP) return;
+            observedShadowRoots.add(root);
+            observedShadowRootCount += 1;
+            try {
+              new MutationObserver((records) => noteMutations(records, true)).observe(root, {
+                subtree: true,
+                childList: true
+              });
+            } catch {
+              /* ignore */
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      try {
+        // Roots that already existed when the recorder installed (bounded traversal).
+        const existing = collectOpenRoots(document);
+        for (let index = 0; index < existing.length; index += 1) {
+          const root = existing[index] as ShadowRoot;
+          if (root && (root as ShadowRoot).host) pendingShadowRoots.push(root);
+        }
+        observeShadowRoots();
+      } catch {
+        /* ignore */
+      }
+      try {
+        const obs = new MutationObserver((records) => {
           try {
-            new MutationObserver((records) => noteMutations(records, true)).observe(root, {
-              subtree: true,
-              childList: true
-            });
+            noteMutations(records, false);
+            observeShadowRoots();
           } catch {
             /* ignore */
           }
-        }
+          try {
+            scanAll(false);
+          } catch {
+            /* ignore */
+          }
+        });
+        obs.observe(document.documentElement || document, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ["class", "style", "hidden", "disabled", "aria-busy", "aria-disabled"]
+        });
+      } catch {
+        /* ignore */
+      }
+      try {
+        setInterval(() => {
+          try {
+            observeShadowRoots(); // roots attached since the last sweep
+          } catch {
+            /* ignore */
+          }
+          try {
+            scanAll(false);
+          } catch {
+            /* ignore */
+          }
+        }, 150);
       } catch {
         /* ignore */
       }
     };
+
     try {
-      // Roots that already existed when the recorder installed (bounded traversal).
-      const existing = collectOpenRoots(document);
-      for (let index = 0; index < existing.length; index += 1) {
-        const root = existing[index] as ShadowRoot;
-        if (root && (root as ShadowRoot).host) pendingShadowRoots.push(root);
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => startObservation(), { once: true });
+      } else {
+        startObservation();
       }
-      observeShadowRoots();
     } catch {
-      /* ignore */
-    }
-    try {
-      const obs = new MutationObserver((records) => {
-        try {
-          noteMutations(records, false);
-          observeShadowRoots();
-        } catch {
-          /* ignore */
-        }
-        try {
-          scanAll(false);
-        } catch {
-          /* ignore */
-        }
-      });
-      obs.observe(document.documentElement || document, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ["class", "style", "hidden", "disabled", "aria-busy", "aria-disabled"]
-      });
-    } catch {
-      /* ignore */
-    }
-    try {
-      setInterval(() => {
-        try {
-          observeShadowRoots(); // roots attached since the last sweep
-        } catch {
-          /* ignore */
-        }
-        try {
-          scanAll(false);
-        } catch {
-          /* ignore */
-        }
-      }, 150);
-    } catch {
-      /* ignore */
+      // If the readyState check itself fails, observe now rather than never.
+      startObservation();
     }
   })();
 

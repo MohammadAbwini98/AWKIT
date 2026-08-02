@@ -117,9 +117,11 @@ try {
   // Then 10/136 of 146 on 2026-08-02: `awkit-hmt` closed (remote hover attribution) and `awkit-a7k`
   // filed (the verifier harness installs the init script after load, not at document start) — one in,
   // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
+  // Then 9/137 of 146 on 2026-08-02: `awkit-a7k` closed (recorder baselines the loaded page; the
+  // verifiers now install at document start like production). No new issues or edges.
   check(
-    "10 outstanding / 136 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 136,
+    "9 outstanding / 137 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 137,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

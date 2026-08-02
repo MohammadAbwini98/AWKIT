@@ -104,12 +104,13 @@ let recorderScript: string;
 /** Record one fresh session; return the captured actions. */
 async function recordActions(browser: Browser, interact: (p: Page) => Promise<void>): Promise<RecordedAction[]> {
   const ctx = await browser.newContext();
+  // Production install order: context.addInitScript (document start), matching RecorderService.
+  await ctx.addInitScript({ content: recorderScript });
   const page = await ctx.newPage();
-  await page.goto(URL);
   const actions: RecordedAction[] = [];
   await page.exposeBinding("__awtkit_recordAction", (_s, a) => actions.push(a as RecordedAction));
   await page.exposeBinding("__awtkit_recordSignal", () => {});
-  await page.evaluate(recorderScript);
+  await page.goto(URL);
   await page.waitForTimeout(450);
   await interact(page);
   await page.waitForTimeout(250);
