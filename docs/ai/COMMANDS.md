@@ -103,6 +103,13 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
                             # append + / edge-insert +), kebab loop add/remove (self-loop edge), and the
                             # Saved Flow dropdown closing on an outside canvas click.
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
+npm run verify:flow-node-catalog-parity # tsx scripts/verify-flow-node-catalog-parity.mts — reconciles
+                            # flowNodeCatalog ↔ flowNodeRegistry in BOTH directions (plus the StepType
+                            # union parsed from FlowProfile.ts), guarded by cardinality/non-empty checks
+                            # so it cannot pass over an empty scan. Also pins awkit-8lz: hover renders as
+                            # Hover (not Start), start is unchanged, an unknown type renders explicitly as
+                            # Unknown, and the `?? flowNodeCatalog[0]` fallback stays out of the source.
+                            # No browser launched. (39/39)
 npm run verify:workflow-builder # node scripts/verify-workflow-builder-gui.mjs — same real-Electron GUI
                             # walkthrough for the Workflow Builder (.scenario-flow-node) canvas on the engine:
                             # engine cards/edges, kebab loop toggle, new Start→End scaffold, contextual

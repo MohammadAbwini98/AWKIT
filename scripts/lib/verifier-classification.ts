@@ -148,6 +148,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:workflow-sentinels": { class: "unit", why: "Pure Start/End sentinel + workflow→scenario conversion logic." },
   "verify:async-review": { class: "unit", why: "Pure async completion review/classification." },
   "verify:flow-step-mapping": { class: "unit", why: "Pure model↔node-data round-trip converters." },
+  "verify:flow-node-catalog-parity": {
+    class: "unit",
+    why: "Reconciles the real node catalog/registry modules in-process; parses the StepType union from source."
+  },
   "verify:machine-capabilities": { class: "unit", why: "Pure capability detection; no real host assumptions." },
   "verify:capacity-planner": { class: "unit", why: "Pure capacity planning." },
   "verify:capacity-modes": { class: "unit", why: "Pure mode→limits resolver." },

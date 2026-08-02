@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Flow Designer node catalog parity fixed (`awkit-8lz`, 2026-08-02)
+
+`hover` now has its own Flow Designer catalog entry (`MousePointer2`, "Hover", "Hover over an
+element", locator-required) and appears in the Node Palette. It previously rendered as a
+"Start / Flow entry point" card with the Play icon, because `getFlowNodeCatalogItem` fell back to
+`flowNodeCatalog[0]` for any type the catalog did not know and `hover` was registered in
+`flowNodeRegistry.ts` only. That fallback is gone: an unrecognized step type now resolves to an
+explicit **Unknown Step** item (`HelpCircle`, description naming the offending type) and is reported
+to the console, so an unknown type can never impersonate a structural Start node. Execution was
+never affected — the runner reads the registry, not the catalog.
+
+`npm run verify:flow-node-catalog-parity` (**39/39**) locks the contract: catalog↔registry in both
+directions, plus the `StepType` union parsed from `FlowProfile.ts`, with cardinality/non-empty guards
+evaluated first so no set comparison can pass over an empty scan, and a source guard against the
+entry-zero fallback returning. It was mutation-tested against all four regressions it exists for
+(hover entry deleted, registry-only type, catalog-only type, fallback restored) and fails on each.
+
+Flow Designer GUI is **69/69**, Recorder GUI **166 PASS / 0 FAIL**, flow-step-mapping **111/0**,
+recorder-flow **29/29**, source-hygiene **9/9**, roadmap dashboard **135/135**; build,
+`typecheck:scripts` and `validate:offline` pass. Beads are **11 outstanding / 133 closed** of 144.
+The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Recorder hover action-owner promotion fixed (`awkit-3vh`, 2026-08-02)
 
 Hover-gated capture now promotes the first visible-at-rest wrapper to its nearest actionable owner

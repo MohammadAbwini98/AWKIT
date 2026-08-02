@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Flow Designer hover catalog entry + Unknown-step rendering (`awkit-8lz`)
+
+- **Task:** hover steps rendered on the canvas as "Start / Flow entry point" with the Play icon,
+  because `getFlowNodeCatalogItem` returned `flowNodeCatalog[0]` for any type without a catalog
+  entry and `hover` was registered in the registry only.
+- **Implementation:** added the `hover` catalog entry (`MousePointer2`, "Hover", "Hover over an
+  element", `requiresLocator`); replaced the entry-zero fallback with an explicit
+  `unknownFlowNodeCatalogItem` (`HelpCircle`, "Unknown Step", description naming the offending type)
+  plus a `console.error`, so an unrecognized type is visible as unknown instead of impersonating a
+  structural Start node; exported `registeredStepTypes` from the registry as the parity counterpart.
+- **New verifier:** `npm run verify:flow-node-catalog-parity` (**39/39**) — catalog↔registry in both
+  directions plus the `StepType` union parsed from `FlowProfile.ts`, with cardinality/non-empty
+  guards first so no set comparison can pass over an empty scan, and a source guard against the
+  `?? flowNodeCatalog[0]` fallback returning. Registered in `package.json`,
+  `scripts/lib/verifier-classification.ts` (class `unit`) and `docs/ai/COMMANDS.md`.
+- **Negative controls (mutation-tested, all reverted):** hover catalog entry deleted → **7 fail**;
+  registry-only type → **2 fail**; catalog-only type → **3 fail**; entry-zero fallback restored →
+  **8 fail** (including "an unknown type is labelled Unknown Step — label=Start", the original defect).
+- **Tests:** build PASS; `typecheck:scripts` PASS; catalog parity **39/39**; flow-step-mapping
+  **111/0**; recorder-flow **29/29**; Flow Designer GUI **69/69**; Recorder GUI **166 PASS / 0 FAIL**;
+  verifier-classification reconciled (**157** scripts); source-hygiene **9/9**; roadmap dashboard
+  **135/135** ("Sources agree"); `validate:offline` PASS; `git diff --check` clean.
+- **Observed once, not reproduced:** one Flow Designer GUI run reported 68/69; the failing check name
+  was not captured, and five further runs (three post-change, two on a stashed pre-change rebuild)
+  were all 69/69. Recorded as an unidentified intermittent, not attributed to this change.
+- **Result:** `awkit-8lz` closed; beads **11 outstanding / 133 closed** of 144 (dashboard pin
+  updated). `awkit-vot` and `awkit-0vm` left open. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Codex - COMPLETE Recorder hover action-owner repair (`awkit-3vh`)
 
 - **Task:** take over Claude's uncommitted hover-trigger repair, reproduce its failing verifier, and

@@ -237,5 +237,12 @@ export function hasSection(type: StepType, section: PropertySection): boolean {
   return (META[type]?.sections ?? []).includes(section);
 }
 
+/**
+ * Every step type the registry carries metadata for. `META` is a total `Record<StepType, …>`, so
+ * this is the compile-time-exhaustive list of node types — the side of the parity contract that
+ * `scripts/verify-flow-node-catalog-parity.mts` reconciles against `flowNodeCatalog`.
+ */
+export const registeredStepTypes = Object.keys(META) as StepType[];
+
 /** Full registry (one definition per catalog entry). */
 export const nodeRegistry: NodeTypeDefinition[] = flowNodeCatalog.map((item) => getNodeDefinition(item.type));

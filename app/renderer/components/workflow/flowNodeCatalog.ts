@@ -12,11 +12,13 @@ import {
   FileUp,
   GitBranch,
   Hand,
+  HelpCircle,
   History,
   KeyRound,
   Layers,
   Link,
   ListChecks,
+  MousePointer2,
   MousePointerClick,
   Play,
   Radio,
@@ -52,6 +54,7 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "uncheck", label: "Uncheck Checkbox", description: "Uncheck a box", icon: Square, requiresLocator: true },
   { type: "radio", label: "Select Radio", description: "Select a radio option", icon: Radio, requiresLocator: true, requiresValue: true },
   { type: "scroll", label: "Scroll", description: "Scroll the page", icon: ScrollText, requiresValue: true },
+  { type: "hover", label: "Hover", description: "Hover over an element", icon: MousePointer2, requiresLocator: true },
   { type: "wait", label: "Wait", description: "Pause execution", icon: Timer, requiresValue: true },
   { type: "uploadFile", label: "Upload File", description: "Upload a file", icon: FileUp, requiresLocator: true, requiresValue: true },
   { type: "downloadFile", label: "Download File", description: "Capture a download", icon: FileDown, requiresLocator: true },
@@ -76,6 +79,32 @@ export const flowNodeCatalog: FlowNodeCatalogItem[] = [
   { type: "end", label: "End", description: "Flow exit point", icon: Download }
 ];
 
+/** Label rendered for a step type that has no catalog entry. Never a real node label. */
+export const UNKNOWN_FLOW_NODE_LABEL = "Unknown Step";
+
+/**
+ * Explicit representation for a step type the catalog does not know.
+ *
+ * The previous fallback returned `flowNodeCatalog[0]` — the `start` entry — so an unregistered type
+ * rendered as a valid "Start / Flow entry point" node with the Play icon. That is the silent-
+ * degradation shape this project keeps hitting: a lookup keyed by a developer-supplied literal that
+ * renders something PLAUSIBLE for an unknown key instead of showing the key is unknown. An unknown
+ * type must be visible as unknown, and must never impersonate a structural Start node.
+ */
+export function unknownFlowNodeCatalogItem(type: StepType): FlowNodeCatalogItem {
+  return {
+    type,
+    label: UNKNOWN_FLOW_NODE_LABEL,
+    description: `Unrecognized step type "${String(type)}" — no catalog entry is registered for it.`,
+    icon: HelpCircle
+  };
+}
+
 export function getFlowNodeCatalogItem(type: StepType): FlowNodeCatalogItem {
-  return flowNodeCatalog.find((item) => item.type === type) ?? flowNodeCatalog[0];
+  const item = flowNodeCatalog.find((entry) => entry.type === type);
+  if (item) return item;
+  // A missing entry is a registry/catalog parity defect, not user data — surface it loudly rather
+  // than throwing, so one bad step cannot take the whole canvas down.
+  console.error(`[flowNodeCatalog] No catalog entry for step type "${String(type)}" — rendering it as Unknown.`);
+  return unknownFlowNodeCatalogItem(type);
 }

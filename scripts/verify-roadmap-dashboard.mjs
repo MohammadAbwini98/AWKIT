@@ -107,9 +107,11 @@ try {
   // then closed `awkit-f3l` and `awkit-hj8`: 142/92, 11 outstanding / 131 closed.
   // Recorder hover review filed `awkit-3vh` and the separate catalog defect `awkit-8lz`, then closed
   // `awkit-3vh`: total 144, edges unchanged at 92, 12 outstanding / 132 closed.
+  // Then 11/133 of 144 on 2026-08-02: `awkit-8lz` closed (hover catalog entry + explicit Unknown-step
+  // rendering + `verify:flow-node-catalog-parity`); no new issues or edges filed.
   check(
-    "12 outstanding / 132 closed",
-    beads.stats.outstanding === 12 && beads.stats.closed === 132,
+    "11 outstanding / 133 closed",
+    beads.stats.outstanding === 11 && beads.stats.closed === 133,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
