@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## Open-shadow hover triggers persist the INTERNAL control (`awkit-0vm` follow-up, 2026-08-02)
+
+The insertion work in `db0babd` persisted the outer **host** as the hover trigger whenever the
+observed pointer witness was inside an open shadow root. That was wrong, and a passing fixture had
+hidden it: hovering a host picks an action point at the host's centre, which need not lie on the
+internal control, and a listener bound to that control does not fire for a hover that never enters
+it. The fixture only passed because its host was the same size as its trigger.
+
+`buildTriggerLocator` now describes a shadow-internal trigger with the **Increment 6 model** — an
+ordered outer-to-inner host chain in `context.shadow.hosts` plus a semantic locator generated against
+the innermost root, strictly unique within it and non-positional — which the existing
+`LocatorFactory` already walks. No new executor and no custom piercing selector. **A host locator is
+persisted only when the host itself was the observed pointer witness**, never as a stand-in for an
+internal trigger; when the inner trigger cannot be represented the step is `needs-review` with
+`hover trigger inside open shadow root could not be represented safely` and **no executable
+fallback**.
+
+Root cause of the wrong witness: `event.target` is **retargeted to the host** on a window-level
+capture listener, so the pointer trail recorded hosts instead of internal controls. `recordPointer`
+now uses the composed path (which stops at the host for a closed root, correctly).
+
+The regression fixture makes host substitution provably wrong: nested open roots where both hosts are
+far larger than the trigger, the trigger is pinned to a corner, and the `mouseenter` listener is on
+the trigger — so hovering either host's action point inserts nothing. A light-DOM decoy shares the
+trigger's accessible name, so the ordered host chain is load-bearing rather than decorative.
+
+`verify:recorder-hover` is **191/191** (was 166/166). Recorder locator **171/171**, ambiguity
+**62/62**, recorder-flow **29/29**, runner **89/89**, Mock Site **110/110**, flow-step-mapping
+**111/0**, profile-store **18/18**, IPC contract **4/4**, Recorder GUI **166 PASS**, Flow Designer
+GUI **69/69**, catalog parity **39/39**, source-hygiene **9/9**, roadmap dashboard **135/135**;
+build, `typecheck:scripts` and `validate:offline` pass. Beads are **10 outstanding / 135 closed** of
+145, and the comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Mutation coverage, stated exactly:** inner-witness→host, shadow-context dropped, host ordering
+reversed and strict inner uniqueness removed each produce focused failures. The `:nth-*` regex on the
+inner locator is **defence-in-depth only and not independently observable** — with
+`allowPositional: false` the generator marks an unresolvable inner target `quality.strategy ===
+"fallback"` (value `button`) rather than emitting an `nth` chain, so the fallback guard always
+decides first. It is kept deliberately, not claimed as covered.
+
+---
+
 ## Hover-INSERTED controls are attributed (`awkit-0vm`, 2026-08-02)
 
 A control that does not exist at the baseline scan has no hidden-at-rest visibility record, and

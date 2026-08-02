@@ -4,6 +4,48 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Open-shadow hover triggers persist the internal control (`awkit-0vm` reopened)
+
+- **Task:** owner rejected the host-substitution behaviour shipped in `db0babd`. A successful fixture
+  replay does not make host substitution safe: a host's action point need not lie on the internal
+  control, and a listener bound to that control does not fire for a hover that never enters it.
+- **Root cause of the wrong witness:** `event.target` is retargeted to the host on a window-level
+  capture listener, so the pointer trail recorded hosts, not internal controls. `recordPointer` now
+  uses the composed path (which correctly stops at the host for a closed root).
+- **Implementation:** `buildTriggerLocator` builds the persisted trigger locator and its verdict as
+  ONE object (used for both the guard and the payload). For a shadow-internal trigger it emits the
+  Increment 6 shape — ordered outer-to-inner `context.shadow.hosts` + a semantic locator generated
+  against the innermost root, strictly unique within it, non-positional, no XPath — resolved by the
+  existing `LocatorFactory`. No new executor, no piercing selector. A host is persisted only when the
+  host itself was the observed witness; otherwise unrepresentable → `needs-review` with
+  `hover trigger inside open shadow root could not be represented safely` and no fallback.
+- **Fixture:** nested open roots (420x180 outer, 400x160 inner) with a 90x26 trigger pinned to the
+  corner and the `mouseenter` listener on the trigger, so hovering either host's action point inserts
+  nothing; plus `.ins-shadow-decoy-r4k8` sharing the trigger's accessible name so the host chain is
+  load-bearing, and `.insu-shadow-host-r4k8` (two nameless twins) for the unrepresentable case.
+- **Proved:** capture selects the inner trigger; ordered context survives profile JSON + structured
+  clone (IPC) round trips; Hover→Click succeeds on two fresh pages from the round-tripped profile;
+  the primary locator is ambiguous without its host chain and resolves with it; hovering the host
+  inserts nothing (the old behaviour fails); unrepresentable → needs-review with the reason on the
+  step.
+- **Mutations:** inner witness→host → **7 fail**; shadow context dropped → **5 fail**; host order
+  reversed → **7 fail**; strict inner uniqueness removed → **5 fail** (layered behind the fallback
+  guard: removing fallback alone still refuses, which is the point of the layer). The `:nth-*` regex
+  on the inner locator is **NOT independently observable** — with `allowPositional: false` the
+  generator marks an unresolvable inner target `quality.strategy === "fallback"` (value `button`)
+  instead of emitting an `nth` chain, so the fallback guard always decides first. Kept as
+  defence-in-depth and reported as uncovered rather than claimed.
+- **Tests:** `verify:recorder-hover` **191/191** (was 166/166); recorder **171/171**; ambiguity
+  **62/62**; recorder-flow **29/29**; runner **89/89**; mock-site **110/110**; flow-step-mapping
+  **111/0**; profile-store **18/18**; ipc-contract **4/4**; Recorder GUI **166 PASS / 0 FAIL**; Flow
+  Designer GUI **69/69**; catalog parity **39/39**; verifier-classification reconciled;
+  source-hygiene **9/9**; roadmap dashboard **135/135**; build, `typecheck:scripts`,
+  `validate:offline`, `git diff --check` pass. No BLOCKED or NOT RUN.
+- **Result:** `awkit-0vm` closed again. Beads unchanged at **10 outstanding / 135 closed** of 145.
+  `awkit-hmt` untouched. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Hover-inserted control attribution (`awkit-0vm`)
 
 - **Task:** a control inserted only after a hover has no hidden-at-rest record, so the hover paths

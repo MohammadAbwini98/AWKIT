@@ -766,11 +766,17 @@ async function main() {
       check("repeated mutations still produce exactly one hover step", profile.nodes.filter((s) => s.type === "hover").length === 1);
     }
 
-    // ── [17] Insertion inside an OPEN shadow root ─────────────────────────────────────────────
+    // ── [17] Insertion inside NESTED OPEN shadow roots — the INTERNAL trigger is persisted ────
     //
-    // A document-level MutationObserver cannot see a childList change inside a shadow root, so
-    // without the bounded per-root observers this insertion leaves no evidence whatsoever.
-    console.log("\n[17] Insertion inside an open shadow root is observed and attributed:");
+    // Two things are proved here. First, that the insertion is observed at all: a document-level
+    // MutationObserver cannot see a childList change inside a shadow root, so without the bounded
+    // per-root observers there is no evidence whatsoever. Second, and the point of this section, that
+    // the trigger persisted is the actual shadow-internal control the pointer was on — described
+    // through the Increment 6 model (ordered outer-to-inner hosts + a semantic inner locator) — and
+    // NOT its host. The fixture geometry makes the difference material: both hosts' action points
+    // miss the trigger, and the mouseenter listener is bound to the trigger, so a host locator
+    // replays a hover that inserts nothing.
+    console.log("\n[17] Nested open-shadow insertion persists the INTERNAL trigger:");
     {
       const acts = await recordActions(browser, async (p) => {
         await p.hover(".ins-shadow-trigger-r4k8"); // Playwright pierces open roots with plain CSS
@@ -779,13 +785,10 @@ async function main() {
       });
       const click = acts.find((a) => a.type === "click" && a.locator?.name === "Shadow inserted");
       check("recorded the click on the shadow-inserted control", !!click);
-      // The insertion happened inside the shadow root, so ONLY a per-root observer can have seen it.
-      // `hoverInserted` is therefore the proof that the bounded shadow observers are wired: without
-      // them there is no record, `resolveInsertedHoverTrigger` returns null, and nothing is flagged.
       check(
         "the shadow-root insertion was OBSERVED (per-root observer is wired)",
         click?.locator?.interaction?.hoverInserted === true,
-        JSON.stringify(click?.locator?.interaction)
+        JSON.stringify(click?.locator?.interaction?.hoverReviewReason ?? click?.locator?.interaction)
       );
       check("shadow insertion click flagged requiresHover", click?.locator?.interaction?.requiresHover === true);
       check(
@@ -793,41 +796,174 @@ async function main() {
         click?.locator?.interaction?.shadowBoundary === "open",
         String(click?.locator?.interaction?.shadowBoundary)
       );
-      // Attribution is REFUSED, deliberately: a shadow-internal trigger currently generates as a
-      // positional selector on its host (`… div:nth-of-type(21)`), which is not replayable. Observed
-      // but unattributable is a review item — never a persisted positional trigger.
+
       const profile = buildRecordedFlow("Inserted Shadow", acts);
       const hover = hoverStepOf(profile);
       const clickStep = clickStepOf(profile, "Shadow inserted");
       check("a hover step was generated for the shadow insertion", !!hover);
-      // The generator cannot express a shadow-piercing path, so the trigger resolves to its HOST.
-      // That is acceptable only because it is a real, stable, non-positional element whose hover
-      // reproduces the insertion — which the replay below proves rather than assumes.
-      const shadowTriggerValue = hover?.locator?.value;
+      check("shadow hover step is 'resolved', not review", hover?.locator?.resolution === "resolved", hover?.locator?.resolution);
+
+      // (a) Capture selected the INNER trigger, not a host.
       check(
-        "shadow trigger locator is present and non-positional",
-        typeof shadowTriggerValue === "string" &&
-          shadowTriggerValue.length > 0 &&
-          !/:nth-(?:child|of-type)\s*\(/.test(shadowTriggerValue),
-        String(shadowTriggerValue)
+        "trigger is the internal control, carrying its accessible name",
+        hover?.locator?.name === "Insert in shadow",
+        `${hover?.locator?.strategy}=${hover?.locator?.value} name=${hover?.locator?.name}`
       );
-      if (hover && clickStep) {
-        const { page, exec, close } = await freshExecutor(browser);
-        try {
-          check("shadow control does not exist before the hover", (await page.locator(".ins-shadow-gated-r4k8").count()) === 0);
-          const hr = await exec.execute(hover);
-          check("shadow hover step executed", hr.status === "passed", hr.error);
-          check("shadow control was inserted by the hover", (await page.locator(".ins-shadow-gated-r4k8").count()) === 1);
-          const cr = await exec.execute(clickStep);
-          check("shadow click step executed", cr.status === "passed", cr.error);
-          const result = (await page.getByTestId("ins-shadow-result").textContent()) ?? "";
-          check("post-click state is 'ins-shadow-ok'", result.includes("ins-shadow-ok"), result);
-        } finally {
-          await close();
-        }
+      check(
+        "trigger locator is not a host selector",
+        !(typeof hover?.locator?.value === "string" && hover.locator.value.includes("ins-shadow-host")),
+        String(hover?.locator?.value)
+      );
+      check(
+        "trigger locator is non-positional",
+        typeof hover?.locator?.value === "string" && !/:nth-(?:child|of-type)\s*\(/.test(hover.locator.value),
+        String(hover?.locator?.value)
+      );
+
+      // (b) Ordered outer-to-inner shadow context is present and correctly ordered.
+      const shadowCtx = hover?.locator?.context?.shadow;
+      check("hover locator carries open-shadow context", shadowCtx?.boundary === "open", JSON.stringify(shadowCtx));
+      check("the host chain has both nested hosts", shadowCtx?.hosts?.length === 2, `hosts=${shadowCtx?.hosts?.length}`);
+      check(
+        "hosts are ordered OUTER first, then inner",
+        typeof shadowCtx?.hosts?.[0]?.value === "string" &&
+          shadowCtx.hosts[0].value.includes("ins-shadow-host-r4k8") &&
+          typeof shadowCtx?.hosts?.[1]?.value === "string" &&
+          shadowCtx.hosts[1].value.includes("ins-shadow-inner-host-r4k8"),
+        JSON.stringify(shadowCtx?.hosts?.map((h) => h.value))
+      );
+
+      // (c) The ordered context survives profile persistence AND an IPC-shaped structured clone.
+      const persisted = JSON.parse(JSON.stringify(profile)) as FlowProfile;
+      const ipc = structuredClone(persisted) as FlowProfile;
+      const rtHover = hoverStepOf(ipc);
+      const rtClick = clickStepOf(ipc, "Shadow inserted");
+      check(
+        "shadow context survives profile + IPC round trips, still ordered",
+        rtHover?.locator?.context?.shadow?.hosts?.length === 2 &&
+          rtHover.locator.context.shadow.hosts[0].value === shadowCtx?.hosts?.[0]?.value &&
+          rtHover.locator.context.shadow.hosts[1].value === shadowCtx?.hosts?.[1]?.value,
+        JSON.stringify(rtHover?.locator?.context?.shadow)
+      );
+      check("round-tripped hover still names the internal trigger", rtHover?.locator?.name === "Insert in shadow");
+
+      if (!rtHover || !rtClick) {
+        check("shadow replay could run", false, "missing step — replay skipped");
       } else {
-        check("shadow replay could run", false, "missing step");
+        // (d) Hover → Click succeeds on TWO fresh pages, replayed from the round-tripped profile.
+        for (let run = 1; run <= 2; run += 1) {
+          const { page, exec, close } = await freshExecutor(browser);
+          try {
+            check(`run ${run}: shadow control does not exist before the hover`, (await page.locator(".ins-shadow-gated-r4k8").count()) === 0);
+            const hr = await exec.execute(rtHover);
+            check(`run ${run}: shadow hover step executed`, hr.status === "passed", hr.error);
+            check(`run ${run}: hovering the INTERNAL trigger inserted the control`, (await page.locator(".ins-shadow-gated-r4k8").count()) === 1);
+            const cr = await exec.execute(rtClick);
+            check(`run ${run}: shadow click step executed`, cr.status === "passed", cr.error);
+            const result = (await page.getByTestId("ins-shadow-result").textContent()) ?? "";
+            check(`run ${run}: post-click state is 'ins-shadow-ok'`, result.includes("ins-shadow-ok"), result);
+          } finally {
+            await close();
+          }
+        }
+
+        // (e) The ordered host chain is load-bearing. A light-DOM decoy shares the internal trigger's
+        // accessible name, and Playwright's role engine pierces open roots, so from the document root
+        // the trigger locator matches TWO elements and cannot identify the control. Alternatives are
+        // stripped alongside the context here on purpose: the recorder's alternative CSS candidate is
+        // independently unique and would otherwise recover the element, hiding what is being tested.
+        {
+          const { exec, close } = await freshExecutor(browser);
+          try {
+            const stripped = JSON.parse(JSON.stringify(rtHover)) as FlowStep;
+            if (stripped.locator?.context) delete stripped.locator.context.shadow;
+            if (stripped.locator) delete stripped.locator.alternatives;
+            stripped.timeoutMs = 3500;
+            const hr = await exec.execute(stripped);
+            check(
+              "the primary trigger locator is AMBIGUOUS without its host chain",
+              hr.status === "failed",
+              `status=${hr.status}`
+            );
+          } finally {
+            await close();
+          }
+        }
+        // …and with the chain restored it is unambiguous again (so (e) is about the chain, not the
+        // missing alternatives).
+        {
+          const { exec, close } = await freshExecutor(browser);
+          try {
+            const noAlternatives = JSON.parse(JSON.stringify(rtHover)) as FlowStep;
+            if (noAlternatives.locator) delete noAlternatives.locator.alternatives;
+            noAlternatives.timeoutMs = 3500;
+            const hr = await exec.execute(noAlternatives);
+            check("the same locator WITH its host chain resolves", hr.status === "passed", hr.error);
+          } finally {
+            await close();
+          }
+        }
+
+        // (f) THE REGRESSION THIS SECTION EXISTS FOR: substituting the host is not equivalent.
+        // Hovering the host's action point succeeds as an action and inserts NOTHING.
+        {
+          const { page, exec, close } = await freshExecutor(browser);
+          try {
+            const hostHover: FlowStep = {
+              id: "host-substitution",
+              type: "hover",
+              name: "Hover the outer host (substitution)",
+              timeoutMs: 3500,
+              locator: { strategy: "css", value: "div.ins-shadow-host-r4k8", resolution: "resolved" }
+            };
+            const hr = await exec.execute(hostHover);
+            check("host hover itself is actionable (so the failure is not a locator error)", hr.status === "passed", hr.error);
+            check(
+              "hovering the HOST inserts nothing — host substitution is not equivalent",
+              (await page.locator(".ins-shadow-gated-r4k8").count()) === 0
+            );
+          } finally {
+            await close();
+          }
+        }
       }
+    }
+
+    // ── [17b] An open-shadow trigger that cannot be represented degrades to needs-review ──────
+    //
+    // Two identical nameless buttons in one root: the semantic locator is ambiguous and the only
+    // classes are hash-suffixed, so no safe inner locator exists. The refusal must be explicit, and
+    // must NOT fall back to the host — which would replay a different interaction entirely.
+    console.log("\n[17b] Unrepresentable open-shadow trigger → needs-review, no host fallback:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".insu-trigger-q8w3n7");
+        await p.locator(".insu-gated-q8w3n7").waitFor({ state: "visible" });
+        await p.locator(".insu-gated-q8w3n7").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Unsafe shadow inserted");
+      check("recorded the click on the unsafe shadow insertion", !!click);
+      check("unsafe shadow insertion was observed", click?.locator?.interaction?.hoverInserted === true);
+      check("unsafe shadow trigger is refused", click?.locator?.interaction?.hoverUnresolved === true);
+      check(
+        "the refusal names the shadow representation problem",
+        click?.locator?.interaction?.hoverReviewReason === "hover trigger inside open shadow root could not be represented safely",
+        String(click?.locator?.interaction?.hoverReviewReason)
+      );
+      check(
+        "no host locator was persisted as a fallback",
+        click?.locator?.interaction?.hoverContainer === undefined,
+        JSON.stringify(click?.locator?.interaction?.hoverContainer)
+      );
+      const profile = buildRecordedFlow("Unsafe Shadow", acts);
+      check("no hover step fabricated from the host", !hoverStepOf(profile));
+      const step = clickStepOf(profile, "Unsafe shadow inserted");
+      check("unsafe shadow click left needs-review", step?.locator?.resolution === "needs-review", step?.locator?.resolution);
+      check(
+        "the review reason reaches the built step",
+        step?.locator?.reviewReason === "hover trigger inside open shadow root could not be represented safely",
+        String(step?.locator?.reviewReason)
+      );
     }
 
     // ── [18] NEGATIVE: a timer inserts the control while the pointer is parked nearby ─────────

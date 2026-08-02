@@ -321,11 +321,32 @@
         <span data-testid="ins-redo-result">idle</span>
         <br><br>
 
-        <!-- [4] Insertion inside an OPEN shadow root. The host's root is attached by this page's own
-             script, so at recorder-install time it already exists and is picked up by the bounded
-             open-root walk; a root attached later is queued by the attachShadow wrapper instead. -->
-        <div class="ins-shadow-host-r4k8" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;"></div>
+        <!-- [4] Insertion inside NESTED OPEN shadow roots, with geometry that makes host substitution
+             provably wrong. The outer host is 420x180 and the inner host fills most of it, but the
+             trigger is a small control pinned to the top-left corner, and the mouseenter listener that
+             inserts the control is bound to THAT control. Hovering either host's normal action point
+             (its centre) lands on neither the trigger nor its listener, so nothing is inserted — which
+             is exactly why a host may not be persisted in place of an observed internal trigger. The
+             roots are attached by this page's own script, so at recorder-install time they already
+             exist and are found by the bounded open-root walk; a root attached later is queued by the
+             attachShadow wrapper instead. -->
+        <div class="ins-shadow-host-r4k8" style="display: inline-block; position: relative; width: 420px; height: 180px; border: 1px solid #ccc;"></div>
+        <!-- Light-DOM decoy sharing the internal trigger's accessible name AND class. Playwright's role
+             and CSS engines both pierce open shadow roots, so without this a context-free locator would
+             still find the inner control and the host chain would look optional. With it, dropping
+             context makes the role locator ambiguous — which is what makes the ordered chain
+             load-bearing. Its own class differs so fixture drivers stay unambiguous, and it has no
+             listener: hovering it inserts nothing. -->
+        <button type="button" class="ins-shadow-decoy-r4k8" aria-label="Insert in shadow">Decoy</button>
         <span data-testid="ins-shadow-result">idle</span>
+        <br><br>
+
+        <!-- [4b] Open-shadow trigger that CANNOT be represented safely: two identical nameless buttons
+             in the same root, so the semantic locator is ambiguous and the only classes are
+             hash-suffixed. The recorder must refuse with needs-review rather than fall back to the
+             host, which would silently replay a different interaction. -->
+        <div class="insu-shadow-host-r4k8" style="display: inline-block; position: relative; width: 320px; height: 140px; border: 1px dotted #ccc;"></div>
+        <span data-testid="insu-shadow-result">idle</span>
         <br><br>
 
         <!-- [9] NEGATIVE — a timer inserts the control while the pointer is parked on a neighbour.
@@ -483,19 +504,58 @@
               });
             });
 
-            // [4] open shadow root: trigger inside it inserts a control into the same root
+            // [4] NESTED open shadow roots. The trigger sits in the INNER root, off both hosts'
+            // centres, and owns the mouseenter listener that inserts the control.
             var shadowHost = document.querySelector('.ins-shadow-host-r4k8');
             if (shadowHost && shadowHost.attachShadow) {
-              var insRoot = shadowHost.attachShadow({ mode: 'open' });
+              var outerRoot = shadowHost.attachShadow({ mode: 'open' });
+              var outerStyle = document.createElement('style');
+              outerStyle.textContent =
+                '.ins-shadow-inner-host-r4k8 { position: absolute; left: 8px; top: 8px; width: 400px; height: 160px; border: 1px dashed #bbb; }';
+              outerRoot.appendChild(outerStyle);
+              var innerHost = document.createElement('div');
+              innerHost.className = 'ins-shadow-inner-host-r4k8';
+              outerRoot.appendChild(innerHost);
+
+              var innerRoot = innerHost.attachShadow({ mode: 'open' });
+              var innerStyle = document.createElement('style');
+              innerStyle.textContent =
+                '.ins-shadow-trigger-r4k8 { position: absolute; left: 4px; top: 4px; width: 90px; height: 26px; }' +
+                '.ins-shadow-gated-r4k8 { position: absolute; left: 4px; top: 36px; }';
+              innerRoot.appendChild(innerStyle);
               var shadowTrigger = document.createElement('button');
               shadowTrigger.type = 'button';
               shadowTrigger.className = 'ins-shadow-trigger-r4k8';
               shadowTrigger.setAttribute('aria-label', 'Insert in shadow');
-              shadowTrigger.textContent = 'Shadow trigger';
-              insRoot.appendChild(shadowTrigger);
+              innerRoot.appendChild(shadowTrigger);
               shadowTrigger.addEventListener('mouseenter', function () {
-                if (insRoot.querySelector('.ins-shadow-gated-r4k8')) return;
-                insRoot.appendChild(insBtn('ins-shadow-gated-r4k8', 'Shadow inserted', 'ins-shadow-result', 'ins-shadow-ok'));
+                if (innerRoot.querySelector('.ins-shadow-gated-r4k8')) return;
+                innerRoot.appendChild(insBtn('ins-shadow-gated-r4k8', 'Shadow inserted', 'ins-shadow-result', 'ins-shadow-ok'));
+              });
+            }
+
+            // [4b] open shadow root whose trigger cannot be represented: two identical nameless
+            // buttons, hash-suffixed classes only.
+            var unsafeHost = document.querySelector('.insu-shadow-host-r4k8');
+            if (unsafeHost && unsafeHost.attachShadow) {
+              var unsafeRoot = unsafeHost.attachShadow({ mode: 'open' });
+              var unsafeStyle = document.createElement('style');
+              unsafeStyle.textContent =
+                '.insu-trigger-q8w3n7 { position: absolute; left: 4px; top: 4px; width: 70px; height: 24px; }' +
+                '.insu-twin-q8w3n7 { position: absolute; left: 84px; top: 4px; width: 70px; height: 24px; }' +
+                '.insu-gated-q8w3n7 { position: absolute; left: 4px; top: 36px; }';
+              unsafeRoot.appendChild(unsafeStyle);
+              var unsafeTrigger = document.createElement('button');
+              unsafeTrigger.type = 'button';
+              unsafeTrigger.className = 'insu-trigger-q8w3n7';
+              var unsafeTwin = document.createElement('button');
+              unsafeTwin.type = 'button';
+              unsafeTwin.className = 'insu-twin-q8w3n7';
+              unsafeRoot.appendChild(unsafeTrigger);
+              unsafeRoot.appendChild(unsafeTwin);
+              unsafeTrigger.addEventListener('mouseenter', function () {
+                if (unsafeRoot.querySelector('.insu-gated-q8w3n7')) return;
+                unsafeRoot.appendChild(insBtn('insu-gated-q8w3n7', 'Unsafe shadow inserted', 'insu-shadow-result', 'insu-shadow-ok'));
               });
             }
 

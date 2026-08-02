@@ -1192,7 +1192,11 @@ export function installRecorderCapture(): void {
   const recordPointer = (event: Event): void => {
     try {
       if (!event.isTrusted) return;
-      const el = event.target as Element | null;
+      // `event.target` is RETARGETED to the shadow host on a window-level listener, so using it
+      // would record the host as the pointer owner and make every shadow-internal trigger look like
+      // its host. The composed path gives the element actually under the pointer; for a CLOSED root
+      // it stops at the host, which is the correct answer there.
+      const el = firstPathElement(event);
       if (!el || el.nodeType !== 1) return;
       const me = event as MouseEvent;
       const now = Date.now();
@@ -1261,18 +1265,79 @@ export function installRecorderCapture(): void {
     return null;
   };
   /**
-   * The bar a HOVER TRIGGER must clear. `isStableGenerated` is necessary but not sufficient here:
-   * `scopedSelector()` can make an `:nth-of-type(...)` chain unique and label the result a
-   * medium-confidence compound CSS selector, which passes every field that function inspects while
-   * still being positional — and positional is exactly what breaks on the next layout change. This
-   * was found by the open-shadow insertion fixture, where the trigger generated as
-   * `[data-testid="…"] div:nth-of-type(21)` and would have been persisted.
+   * Build the locator that will be PERSISTED for a hover trigger, and say whether it is safe.
+   *
+   * The caller must use this one object for both the decision and the payload. Generating the
+   * locator a second time at persist time is how a positional selector once reached a saved step
+   * through a gate that had approved a different, non-positional one.
+   *
+   * A trigger inside an open shadow root is described with the Increment 6 model — an ordered
+   * outer-to-inner host chain in `context.shadow.hosts` plus a semantic locator scoped to the
+   * innermost root — which `LocatorFactory` already knows how to walk. THE HOST IS NEVER
+   * SUBSTITUTED FOR THE INTERNAL TRIGGER: hovering a host picks an action point at the host's
+   * centre, which need not lie on the internal control, and a listener bound to that control does
+   * not fire for a hover that never enters it. A host locator is only ever persisted when the host
+   * itself was the observed pointer witness. When the internal trigger cannot be represented, the
+   * answer is review — never an executable fallback that happens to work on one fixture.
    */
-  const isStableTriggerLocator = (el: Element): boolean => {
-    const generated = generate(el, { allowPositional: false });
-    if (!isStableGenerated(generated)) return false;
-    const value = generated.locator?.value;
-    return !(typeof value === "string" && /:nth-(?:child|of-type)\s*\(/.test(value));
+  const buildTriggerLocator = (el: Element): { locator: Record<string, unknown>; ok: boolean; reason?: string } => {
+    const positional = (value: unknown): boolean => typeof value === "string" && /:nth-(?:child|of-type)\s*\(/.test(value);
+
+    // Walk inner → outer to find any open-shadow chain above this element.
+    const innerToOuter: Array<{ root: ShadowRoot; host: Element }> = [];
+    let node: Element = el;
+    for (let depth = 0; depth < OPEN_ROOT_CAP; depth += 1) {
+      const root = node.getRootNode();
+      if (!(root instanceof ShadowRoot)) break;
+      if (root.mode !== "open") {
+        return {
+          locator: {},
+          ok: false,
+          reason: "hover trigger inside a closed shadow root cannot be represented safely"
+        };
+      }
+      innerToOuter.push({ root, host: root.host });
+      node = root.host;
+    }
+
+    if (!innerToOuter.length) {
+      const generated = generate(el, { allowPositional: false });
+      const ok = isStableGenerated(generated) && !positional(generated.locator.value);
+      return { locator: generated.locator, ok, reason: ok ? undefined : "trigger has no stable, non-positional locator" };
+    }
+
+    const unsafe = { locator: {}, ok: false, reason: "hover trigger inside open shadow root could not be represented safely" };
+    const innermostRoot = innerToOuter[0].root;
+    const outerToInner = innerToOuter.slice().reverse();
+    const hosts: Array<Record<string, unknown>> = [];
+    for (let index = 0; index < outerToInner.length; index += 1) {
+      const boundary = outerToInner[index];
+      const described = hostDescriptor(boundary.host, boundary.host.getRootNode() as ParentNode);
+      // Every host must be independently resolvable, or the chain cannot be walked at replay.
+      if (!described.valid || positional(described.descriptor.value)) return unsafe;
+      hosts.push(described.descriptor);
+    }
+
+    // The inner locator is generated against the innermost root, so it describes the control itself
+    // rather than anything about its host.
+    const generated = generate(el, { root: innermostRoot, allowPositional: false, includeContext: false });
+    if (!generated.traversalComplete) return unsafe;
+    if (generated.quality.strategy === "fallback") return unsafe;
+    if (generated.locator.strategy === "xpath") return unsafe;
+    if (positional(generated.locator.value)) return unsafe;
+
+    // Strict uniqueness WITHIN that root: exactly one match, and it is this element.
+    const candidate = {
+      strategy: String(generated.locator.strategy || ""),
+      value: String(generated.locator.value || ""),
+      name: typeof generated.locator.name === "string" ? generated.locator.name : undefined
+    };
+    const local = candidateElementsIn(innermostRoot, candidate);
+    if (local.length !== 1 || local[0] !== el) return unsafe;
+
+    const existingContext = (generated.locator.context as Record<string, unknown> | undefined) ?? {};
+    generated.locator.context = { ...existingContext, shadow: { boundary: "open", hosts } };
+    return { locator: generated.locator, ok: true };
   };
 
   /** Elements too broad to ever be a specific hover trigger. */
@@ -1298,7 +1363,7 @@ export function installRecorderCapture(): void {
 
   // The result of attributing a hover-gated reveal to the element that caused it.
   type HoverResolution =
-    | { kind: "trigger"; el: Element; inserted?: boolean } // a stable, unique, on-path visible trigger
+    | { kind: "trigger"; el: Element; locator: Record<string, unknown>; inserted?: boolean }
     | { kind: "review"; reason?: string; inserted?: boolean } // hover-gated, but no stable trigger pinned
     | { kind: "none" }; //     the target was not hover-gated by a revealed container (e.g. async self-toggle)
 
@@ -1497,8 +1562,9 @@ export function installRecorderCapture(): void {
     if (visibilityState.get(candidate) !== true) return { kind: "review" };
     if (isBroadTrigger(candidate)) return { kind: "review" };
     if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) return { kind: "review" };
-    if (!isStableTriggerLocator(candidate)) return { kind: "review" };
-    return { kind: "trigger", el: candidate };
+    const builtSibling = buildTriggerLocator(candidate);
+    if (!builtSibling.ok) return { kind: "review", reason: builtSibling.reason };
+    return { kind: "trigger", el: candidate, locator: builtSibling.locator };
   };
 
   /**
@@ -1568,10 +1634,11 @@ export function installRecorderCapture(): void {
     if (!lastOutside || !(lastOutside === candidate || candidate.contains(lastOutside))) {
       return { kind: "review", reason: "pointer moved off the trigger before the click", inserted: true };
     }
-    if (!isStableTriggerLocator(candidate)) {
-      return { kind: "review", reason: "trigger has no stable, non-positional locator", inserted: true };
+    const built = buildTriggerLocator(candidate);
+    if (!built.ok) {
+      return { kind: "review", reason: built.reason ?? "trigger has no stable, non-positional locator", inserted: true };
     }
-    return { kind: "trigger", el: candidate, inserted: true };
+    return { kind: "trigger", el: candidate, locator: built.locator, inserted: true };
   };
 
   /**
@@ -1638,8 +1705,9 @@ export function installRecorderCapture(): void {
     if (!pointerVisited(candidate)) return reviewOrSibling();
     // Uniqueness alone would admit a positional `nth-child` chain that breaks on the next layout
     // change. A trigger we cannot pin semantically is a review item, not a saved fragile locator.
-    if (!isStableTriggerLocator(candidate)) return reviewOrSibling();
-    return { kind: "trigger", el: candidate };
+    const builtAncestor = buildTriggerLocator(candidate);
+    if (!builtAncestor.ok) return reviewOrSibling();
+    return { kind: "trigger", el: candidate, locator: builtAncestor.locator };
   };
 
   // ── Smart Wait observation (Phase 2) ────────────────────────────────────────────────────────
@@ -2041,10 +2109,9 @@ export function installRecorderCapture(): void {
     if (hover) {
       if (hover.kind === "trigger") {
         interaction.requiresHover = true;
-        // Persist the SAME generation the stability guard accepted. Using the default options here
-        // let a positional locator through a gate that had approved a different, non-positional one —
-        // the guard and the payload must be the same object, or the guard proves nothing.
-        interaction.hoverContainer = generate(hover.el, { allowPositional: false }).locator;
+        // Literally the object the guard accepted — not a re-generation of it. A second call let a
+        // positional locator through a gate that had approved a different, non-positional one.
+        interaction.hoverContainer = hover.locator;
         if (hover.inserted) interaction.hoverInserted = true;
       } else if (hover.kind === "review") {
         // Hover-gated, but no stable trigger could be pinned. Flag for review instead of emitting a
