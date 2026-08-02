@@ -1,5 +1,52 @@
 # CURRENT_STATE
 
+## Remote (non-adjacent) hover triggers are attributed (`awkit-hmt`, 2026-08-02)
+
+A hover trigger in a different subtree from what it reveals — neither ancestor nor sibling — is now
+attributed and replayed. CSS cannot express that relationship, so these are always JS-driven.
+
+What changed is not a new signal but the removal of an **inconsistency**: a remote hover that
+*inserts* a control has been attributed since `awkit-0vm`, because the insertion resolver never
+required adjacency, while a remote hover that merely *unhides* an existing control was refused —
+same interaction, same evidence, opposite verdicts. `resolveRemoteHoverTrigger` gives the reveal path
+the discriminator the insertion path already used: the pointer's **arrival**, not its presence. A
+reveal that follows the pointer landing on the trigger within `INSERTION_CAUSAL_WINDOW_MS` is
+explained by that landing; one that happens while the pointer has been sitting there is not.
+`revealWitness` now records `{el, since, at, cause}` instead of a bare element, so the arrival time
+and competing causes (navigation / click / focus) are available at the reveal moment.
+
+Adjacency is still tried first — the sibling path is unchanged and short-circuits — so every existing
+verdict is preserved; remote is a fallback that can only turn `none` into `trigger` or `review`.
+
+`verify:recorder-hover` is **211/211** (was 191/191). The remote positive replays Hover → Click on
+two fresh pages and proves the click alone fails. Recorder locator **171/171**, ambiguity **62/62**,
+recorder-flow **29/29**, runner **89/89**, Mock Site **110/110**, flow-step-mapping **111/0**,
+profile-store **18/18**, IPC contract **4/4**, Recorder GUI **166 PASS**, Flow Designer GUI
+**69/69**, catalog parity **39/39**, source-hygiene **9/9**, roadmap dashboard **135/135**; build,
+`typecheck:scripts` and `validate:offline` pass. Beads are **10 outstanding / 136 closed** of 146,
+and the comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Mutation coverage, stated exactly.** Remote attribution disabled, reveal-witness requirement
+removed, and the arrival window removed each produce focused failures. The arrival-window mutation
+survived three times before it was real: the negative fixture first refused on witness *freshness*,
+then on a pointer sampling gap, then because raw `mouse.move` to a control below the viewport
+produced no pointer events at all. The **competing-cause filter and the "witness outside the revealed
+surface" check are not covered on the remote path** (both are covered on the insertion path, which
+has fixtures for them); the shared `buildTriggerLocator` / broad / landmark guards are covered by the
+sibling and insertion sections that exercise the same functions.
+
+**Also found, not fixed here — `awkit-a7k` (P2).** The recorder verifiers install the init script
+with `page.evaluate` *after* load, but production uses `context.addInitScript` (document start). All
+211 checks therefore exercise an install order the product never uses. Measured: ordinary clicks are
+unaffected under either order (282-element and synthetic 1807-element pages, controls before and
+after the bulk — the per-root descendant cap prevents parse-time saturation, so the `db0babd`
+fail-closed guard does **not** regress real recordings). Switching the harness gives 187/191: only
+the saturation section fails, because at document start every element gets a witness-less parse
+record and `nearestInsertion` finds one on an ancestor — which means that guard is largely **inert in
+production**.
+
+---
+
 ## Open-shadow hover triggers persist the INTERNAL control (`awkit-0vm` follow-up, 2026-08-02)
 
 The insertion work in `db0babd` persisted the outer **host** as the hover trigger whenever the

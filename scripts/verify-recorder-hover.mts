@@ -518,15 +518,17 @@ async function main() {
       check("positional-sibling click left needs-review", posStep?.locator?.resolution === "needs-review", posStep?.locator?.resolution);
     }
 
-    // ── [12c] Boundary: a REMOTE (non-adjacent) hover reveal is deliberately not attributed ─────
+    // ── [12c] REMOTE (non-adjacent) hover trigger is attributed and replays (awkit-hmt) ───────
     //
-    // The pointer is on the trigger at the exact moment the reveal happens, so reveal-moment evidence
-    // is satisfied in full — only the adjacency requirement stops this being attributed. Without that
-    // requirement the recorder would pin a trigger from nothing more than "a hover coincided with a
-    // reveal somewhere on the page", which is the fabrication the whole path is built to avoid. This
-    // is a KNOWN LIMITATION pinned as behaviour, not an endorsement: a genuine remote hover
-    // dependency is left for the user to add, and is tracked separately.
-    console.log("\n[12c] Remote (non-adjacent) hover reveal stays unattributed (documented boundary):");
+    // The trigger is in a different subtree from what it reveals — neither ancestor nor sibling — a
+    // relationship CSS cannot express, so it is always JS-driven. `awkit-vot` refused these because
+    // reveal-moment evidence then meant only "the pointer was somewhere when this appeared", which
+    // any hover coinciding with any reveal satisfies. The discriminator is the pointer's ARRIVAL,
+    // already used by the insertion path: the reveal must follow the pointer landing on the trigger
+    // inside the causal window. That also closes an asymmetry — a remote hover that INSERTED a
+    // control has been attributed since awkit-0vm, while one that merely unhid an existing control
+    // was not, on identical evidence.
+    console.log("\n[12c] Remote (non-adjacent) hover trigger is attributed:");
     {
       const remoteActions = await recordActions(browser, async (p) => {
         await p.hover(".remote-trigger-j5w1");
@@ -536,11 +538,67 @@ async function main() {
       const remoteClick = remoteActions.find((a) => a.type === "click" && a.locator?.name === "Remote target");
       check("recorded the remote-revealed click", !!remoteClick);
       check(
-        "remote reveal is NOT attributed to the distant trigger",
-        remoteClick?.locator?.interaction?.requiresHover !== true,
-        JSON.stringify(remoteClick?.locator?.interaction?.hoverContainer)
+        "remote reveal is attributed to the distant trigger",
+        remoteClick?.locator?.interaction?.requiresHover === true,
+        JSON.stringify(remoteClick?.locator?.interaction)
       );
-      check("no hover step fabricated for the remote reveal", !hoverStepOf(buildRecordedFlow("Remote", remoteActions)));
+      check("remote attribution is not left unresolved", remoteClick?.locator?.interaction?.hoverUnresolved !== true);
+
+      const remoteProfile = buildRecordedFlow("Remote", remoteActions);
+      const remoteHover = hoverStepOf(remoteProfile);
+      const remoteStep = clickStepOf(remoteProfile, "Remote target");
+      check("a hover step was generated for the remote reveal", !!remoteHover);
+      check("remote hover step is 'resolved'", remoteHover?.locator?.resolution === "resolved", remoteHover?.locator?.resolution);
+      check(
+        "remote trigger carries the trigger's accessible name",
+        remoteHover?.locator?.name === "Remote reveal trigger",
+        String(remoteHover?.locator?.name)
+      );
+      // Non-vacuity: the defect this pins is a MISSING step, so an absent locator would satisfy a
+      // bare "contains no nth" assertion perfectly.
+      const remoteValue = remoteHover?.locator?.value;
+      check(
+        "remote trigger locator is present and non-positional",
+        typeof remoteValue === "string" && remoteValue.length > 0 && !/:nth-(?:child|of-type)\s*\(/.test(remoteValue),
+        String(remoteValue)
+      );
+      check(
+        "remote trigger is not the revealed control itself",
+        !(typeof remoteValue === "string" && remoteValue.includes("remote-gated")),
+        String(remoteValue)
+      );
+      if (remoteHover && remoteStep) {
+        const hi = remoteProfile.nodes.findIndex((s) => s.id === remoteHover.id);
+        const ci = remoteProfile.nodes.findIndex((s) => s.id === remoteStep.id);
+        check("remote hover step is immediately before the click step", hi === ci - 1, `hover@${hi} click@${ci}`);
+      }
+
+      if (!remoteHover || !remoteStep) {
+        check("remote replay could run (hover + click present)", false, "missing step — replay skipped");
+      } else {
+        for (let run = 1; run <= 2; run += 1) {
+          const { page, exec, close } = await freshExecutor(browser);
+          try {
+            check(`run ${run}: remote target hidden before the hover`, !(await page.locator(".remote-gated-j5w1").isVisible()));
+            const hr = await exec.execute(remoteHover);
+            check(`run ${run}: remote hover step executed`, hr.status === "passed", hr.error);
+            check(`run ${run}: the distant trigger revealed the control`, await page.locator(".remote-gated-j5w1").isVisible());
+            const cr = await exec.execute(remoteStep);
+            check(`run ${run}: remote click step executed`, cr.status === "passed", cr.error);
+            const result = (await page.getByTestId("remote-click-result").textContent()) ?? "";
+            check(`run ${run}: post-click state is 'remote-click-ok'`, result.includes("remote-click-ok"), result);
+          } finally {
+            await close();
+          }
+        }
+        const { exec, close } = await freshExecutor(browser);
+        try {
+          const cr = await exec.execute({ ...remoteStep, timeoutMs: 3500 });
+          check("remote click alone fails without the hover step", cr.status === "failed", `status=${cr.status}`);
+        } finally {
+          await close();
+        }
+      }
     }
 
     // ── [13] Adjacency is not causality: a timer reveal beside a hovered sibling stays unattributed ──
@@ -578,6 +636,50 @@ async function main() {
     // returns undefined, the hover branch is never entered, and the click is saved with no
     // prerequisite. These sections drive the insertion-evidence path instead: the recorder's own
     // MutationObserver seeing the node arrive, plus where the pointer was and WHEN IT GOT THERE.
+
+    // ── [13b] A remote TIMER reveal under an idly-moving pointer stays unattributed ───────────
+    //
+    // This isolates the discriminator that justifies attributing remote reveals at all. The pointer
+    // keeps MOVING over an unrelated named button, so it keeps producing fresh samples and the
+    // reveal-witness freshness gate is satisfied in full — "the pointer was somewhere real when this
+    // appeared" is true. What is not true is that the pointer's ARRIVAL explains the reveal: it
+    // landed there ~1.6s earlier and a timer did the work. Without the arrival window this section
+    // attributes `Idle hover area` as a hover prerequisite for a control it has nothing to do with.
+    console.log("\n[13b] Remote timer reveal under a moving pointer → no attribution:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        // The lab page is long, so the trigger's document coordinates can sit below the viewport.
+        // Raw mouse.move to an off-screen point produces no pointer events at all — which silently
+        // turns this into a "no witness" case and stops it testing the arrival window.
+        await p.locator(".rtimer-trigger-p2q6").scrollIntoViewIfNeeded();
+        const box = await p.locator(".rtimer-trigger-p2q6").boundingBox();
+        if (!box) throw new Error("rtimer trigger has no box");
+        await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        // Keep the pointer DENSELY alive over the same control until the timer fires at ~2.2s. The
+        // sampling has to be tight enough that the last sample is always fresh at the reveal moment,
+        // otherwise the witness freshness gate refuses this first and the arrival window — the thing
+        // under test — never gets a say. (A 100ms loop was not dense enough: round-trip latency
+        // pushed some gaps past the freshness window and this section passed for the wrong reason.)
+        const deadline = Date.now() + 6000;
+        let jiggle = 0;
+        while (Date.now() < deadline) {
+          jiggle += 1;
+          await p.mouse.move(box.x + box.width / 2 + (jiggle % 3), box.y + box.height / 2 + (jiggle % 2));
+          if (await p.locator(".rtimer-gated-p2q6").isVisible()) break;
+          await p.waitForTimeout(40);
+        }
+        await p.locator(".rtimer-gated-p2q6").waitFor({ state: "visible" });
+        await p.locator(".rtimer-gated-p2q6").click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Timer remote target");
+      check("recorded the remote timer click", !!click);
+      check(
+        "a remote timer reveal is NOT attributed to the idly-hovered control",
+        click?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(click?.locator?.interaction?.hoverContainer)
+      );
+      check("no hover step fabricated for the remote timer reveal", !hoverStepOf(buildRecordedFlow("Remote Timer", acts)));
+    }
 
     // ── [14] Hover inserts an adjacent sibling control ────────────────────────────────────────
     console.log("\n[14] Hover-inserted sibling control is attributed and replays:");

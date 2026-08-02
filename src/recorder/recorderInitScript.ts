@@ -1145,7 +1145,17 @@ export function installRecorderCapture(): void {
    * parked nearby. Adjacency and recency alone are correlation: a pointer resting on a sibling when
    * an unrelated timer fires satisfies both. Only the reveal moment answers "did the hover do this?".
    */
-  const revealWitness = new WeakMap<Element, Element | null>();
+  interface RevealWitness {
+    /** The element the pointer was resident on, or null when it was nowhere recent. */
+    el: Element | null;
+    /** When the pointer ARRIVED there — the causal clock, not how long it stayed. */
+    since: number;
+    /** When the reveal was first observed. */
+    at: number;
+    /** Whether anything outranks the pointer as the explanation. Filled in at observation time. */
+    cause: "pointer" | "navigation" | "click" | "focus" | "unattributed";
+  }
+  const revealWitness = new WeakMap<Element, RevealWitness>();
 
   /**
    * Controls first seen AFTER the baseline scan — i.e. absent from the observed DOM at rest.
@@ -1532,7 +1542,8 @@ export function installRecorderCapture(): void {
 
     // Was the pointer anywhere when this actually became visible? Only scanned controls carry a
     // witness, so fall back to the clicked control when the revealed root is a plain container.
-    const witness = revealWitness.has(revealedRoot) ? revealWitness.get(revealedRoot) : revealWitness.get(target);
+    const witnessRecord = revealWitness.has(revealedRoot) ? revealWitness.get(revealedRoot) : revealWitness.get(target);
+    const witness = witnessRecord?.el ?? null;
     // No witness recorded means the reveal was never observed happening (it predates the baseline
     // scan); a null witness means the pointer was nowhere near it at the time. Neither is evidence
     // of a hover, and inventing a trigger from a coincidence is the failure mode this guards.
@@ -1565,6 +1576,50 @@ export function installRecorderCapture(): void {
     const builtSibling = buildTriggerLocator(candidate);
     if (!builtSibling.ok) return { kind: "review", reason: builtSibling.reason };
     return { kind: "trigger", el: candidate, locator: builtSibling.locator };
+  };
+
+  /**
+   * Attribute a REVEAL whose trigger is in a different subtree entirely — neither an ancestor nor a
+   * sibling of what it shows (`awkit-hmt`). CSS cannot express that relationship, so these are always
+   * JS-driven: a `mouseenter` handler somewhere that unhides something somewhere else.
+   *
+   * `awkit-vot` refused these because reveal-moment pointer evidence, as recorded then, was only
+   * "the pointer was somewhere when this appeared" — satisfied by any hover coinciding with any
+   * reveal. What makes them attributable now is the discriminator the INSERTION path already relies
+   * on and which the reveal path did not have: the pointer's ARRIVAL, not its presence. A reveal that
+   * follows the pointer landing somewhere by less than `INSERTION_CAUSAL_WINDOW_MS` is explained by
+   * that landing; one that happens while the pointer has been parked is not. Competing causes
+   * (navigation, click, focus) are filtered the same way too.
+   *
+   * Note the asymmetry this removes: a remote hover that INSERTS a control has been attributed since
+   * `awkit-0vm`, because the insertion resolver never required adjacency. A remote hover that merely
+   * UNHIDES an existing control was refused. Same interaction, same evidence, opposite verdicts —
+   * that inconsistency, not a new signal, is what this closes.
+   */
+  const resolveRemoteHoverTrigger = (revealedRoot: Element, target: Element): HoverResolution | null => {
+    const record = revealWitness.has(revealedRoot) ? revealWitness.get(revealedRoot) : revealWitness.get(target);
+    if (!record || !record.el) return null; // nothing was under the pointer when it appeared
+    if (record.cause !== "pointer") return null; // a navigation / click / focus explains it better
+    if (record.since > record.at) return null; // the pointer arrived after the reveal
+    if (record.at - record.since > INSERTION_CAUSAL_WINDOW_MS) return null; // parked, not causing
+
+    const surface = revealedRoot;
+    if (surface.contains(record.el)) return { kind: "review", reason: "pointer was inside the revealed surface" };
+    const candidate = interactiveTarget(record.el);
+    if (surface.contains(candidate)) return { kind: "review", reason: "trigger resolves inside the revealed surface" };
+    if (!candidate.isConnected) return { kind: "review", reason: "trigger left the page before the click" };
+    if (isBroadTrigger(candidate)) return { kind: "review", reason: "trigger is too broad to replay" };
+    if (isLandmark(candidate) && !pointerTrail.some((s) => s.el === candidate)) {
+      return { kind: "review", reason: "trigger is a landmark the pointer never landed on" };
+    }
+    // The pointer must still belong to the trigger as the click lands.
+    const outside = lastPointerOutside(surface);
+    if (!outside || !(outside.el === candidate || candidate.contains(outside.el))) {
+      return { kind: "review", reason: "pointer moved off the trigger before the click" };
+    }
+    const built = buildTriggerLocator(candidate);
+    if (!built.ok) return { kind: "review", reason: built.reason ?? "trigger has no stable, non-positional locator" };
+    return { kind: "trigger", el: candidate, locator: built.locator };
   };
 
   /**
@@ -1672,7 +1727,13 @@ export function installRecorderCapture(): void {
     // No hidden ancestor container was revealed. Either an adjacent-sibling reveal
     // (`.trigger:hover + .target`, where the revealed surface IS the control) or the target toggled
     // on its own (async self-reveal). Only the first is attributable; the second must stay silent.
-    if (revealedSurfaceCount === 0) return resolveSiblingHoverTrigger(revealedRoot, target) ?? { kind: "none" };
+    if (revealedSurfaceCount === 0) {
+      return (
+        resolveSiblingHoverTrigger(revealedRoot, target) ??
+        resolveRemoteHoverTrigger(revealedRoot, target) ??
+        { kind: "none" }
+      );
+    }
 
     /**
      * The ancestor walk could not pin a trigger. Before settling for review, check whether the
@@ -1682,7 +1743,9 @@ export function installRecorderCapture(): void {
      */
     const reviewOrSibling = (): HoverResolution => {
       const sibling = resolveSiblingHoverTrigger(revealedRoot, target);
-      return sibling && sibling.kind === "trigger" ? sibling : { kind: "review" };
+      if (sibling && sibling.kind === "trigger") return sibling;
+      const remote = resolveRemoteHoverTrigger(revealedRoot, target);
+      return remote && remote.kind === "trigger" ? remote : { kind: "review" };
     };
 
     if (i >= path.length) return reviewOrSibling();
@@ -1901,7 +1964,13 @@ export function installRecorderCapture(): void {
             // First time this hidden-at-rest control has been seen visible: record where the pointer
             // was, so a sibling reveal can be attributed to the hover that caused it (`awkit-vot`).
             const last = pointerTrail.length ? pointerTrail[pointerTrail.length - 1] : null;
-            revealWitness.set(el, last && now - last.ts <= REVEAL_POINTER_WINDOW_MS ? last.el : null);
+            const fresh = !!last && now - last.ts <= REVEAL_POINTER_WINDOW_MS;
+            revealWitness.set(el, {
+              el: fresh && pointerOwner && pointerOwner.isConnected ? pointerOwner : null,
+              since: pointerOwnerSince,
+              at: now,
+              cause: competingCauseAt(now)
+            });
           }
           // Also record first-seen (rest) visibility of the element's ancestor chain, so a hover-gated
           // reveal can distinguish the hidden surface it exposes from the always-visible trigger above

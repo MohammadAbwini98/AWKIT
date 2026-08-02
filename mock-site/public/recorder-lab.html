@@ -235,18 +235,34 @@
         </style>
         <br><br>
 
-        <!-- REMOTE (non-adjacent) hover reveal — the documented boundary of awkit-vot. Hovering the
-             trigger in one wrapper reveals a control in a different wrapper, so the trigger is neither
-             an ancestor nor a sibling of what it reveals. Reveal-moment pointer evidence alone would
-             happily attribute this, but on its own that evidence is weak: ANY hover that coincides with
-             ANY reveal anywhere on the page satisfies it. Attribution is therefore deliberately limited
-             to the adjacency the CSS encodes, and this case stays unattributed (tracked separately). -->
+        <!-- REMOTE TIMER fixture (awkit-hmt, causality half). A timer reveals a control in a different
+             subtree while the pointer is IDLY MOVING over an unrelated named button. Because the
+             pointer keeps producing samples, "the pointer was somewhere fresh when this appeared" is
+             fully satisfied — the only thing separating this from the remote positive is that the
+             pointer ARRIVED long before the reveal rather than just before it. -->
+        <div class="rtimer-src-p2q6" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="rtimer-trigger-p2q6" aria-label="Idle hover area" style="width: 160px; height: 40px;">Idle hover area</button>
+        </div>
+        <div class="rtimer-dst-p2q6" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="rtimer-gated-p2q6" style="display: none;">Timer remote target</button>
+        </div>
+        <br><br>
+
+        <!-- REMOTE (non-adjacent) hover reveal (awkit-hmt). Hovering the trigger in one wrapper reveals
+             a control in a different wrapper, so the trigger is neither an ancestor nor a sibling of
+             what it reveals — a relationship CSS cannot express, so it is always JS-driven. This was
+             refused under awkit-vot because reveal-moment evidence then meant only "the pointer was
+             somewhere when this appeared". It is attributable now on the pointer's ARRIVAL: the reveal
+             follows the pointer landing on the trigger inside the causal window, which a parked pointer
+             coinciding with a timer does not satisfy (see the timer fixtures). remote-click-result is
+             the observable post-click state that makes replay provable. -->
         <div class="remote-src-j5w1" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
           <button type="button" class="remote-trigger-j5w1" aria-label="Remote reveal trigger">Remote trigger</button>
         </div>
         <div class="remote-dst-j5w1" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
           <button type="button" class="remote-gated-j5w1" style="display: none;">Remote target</button>
         </div>
+        <span data-testid="remote-click-result">idle</span>
         <br><br>
 
         <!-- Adjacent-sibling POSITIONAL-ONLY fixture (awkit-vot, stability half). The trigger is a real
@@ -627,12 +643,23 @@
               host.appendChild(insBtn('ins-flood-gated-r4k8', 'Flood target', 'ins-flood-result', 'ins-flood-ok'));
             });
 
+            // Remote TIMER reveal (awkit-hmt causality half): nothing to do with any hover.
+            setTimeout(function () {
+              var t = document.querySelector('.rtimer-gated-p2q6');
+              if (t) t.style.display = 'inline-block';
+            }, 2200);
+
             // Remote (non-adjacent) hover reveal (awkit-vot boundary). Stays visible once shown so the
             // click can land after the pointer has left the trigger.
             var remoteTrigger = document.querySelector('.remote-trigger-j5w1');
             if (remoteTrigger) remoteTrigger.addEventListener('mouseenter', function () {
               var t = document.querySelector('.remote-gated-j5w1');
               if (t) t.style.display = 'inline-block';
+            });
+            var remoteGated = document.querySelector('.remote-gated-j5w1');
+            if (remoteGated) remoteGated.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="remote-click-result"]');
+              if (r) r.textContent = 'remote-click-ok';
             });
             // Adjacent-sibling hover fixture (awkit-vot).
             var sibBtn = document.querySelector('.sib-gated-h3k9');

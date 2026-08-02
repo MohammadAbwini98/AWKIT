@@ -4,6 +4,48 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Remote (non-adjacent) hover trigger attribution (`awkit-hmt`)
+
+- **Task:** a hover trigger in a different subtree from what it reveals was classified `none` — no
+  hover step, and a click that fails replay.
+- **Finding that shaped the fix:** a remote hover that INSERTS a control has been attributed since
+  `awkit-0vm` (the insertion resolver never required adjacency); only a remote hover that UNHIDES an
+  existing control was refused. Same interaction, same evidence, opposite verdicts. The fix removes
+  that inconsistency rather than inventing a signal.
+- **Implementation:** `revealWitness` now stores `{el, since, at, cause}` instead of a bare element,
+  so the reveal path has the pointer's ARRIVAL time and competing causes. New
+  `resolveRemoteHoverTrigger` requires a concrete witness, `cause === "pointer"`, arrival within
+  `INSERTION_CAUSAL_WINDOW_MS` of the reveal, the witness outside the revealed surface, still
+  connected, still the pointer owner at click time, and a stable locator via the shared
+  `buildTriggerLocator`. Chained AFTER the sibling path in both reveal shapes, so it can only turn
+  `none` into `trigger`/`review` and every existing verdict is preserved.
+- **Fixtures:** `.remote-trigger-j5w1` gained an observable result (`remote-click-result`) so replay
+  is provable; new `.rtimer-*` negative where a timer reveals a remote control while the pointer is
+  idly MOVING over an unrelated named button.
+- **Mutations:** remote attribution disabled → **6 fail**; reveal-witness requirement removed →
+  **2 fail**; arrival window removed → **2 fail** (attributes `Idle hover area` to a timer reveal).
+  The arrival-window mutation SURVIVED THREE TIMES before the fixture was honest: the negative first
+  refused on witness freshness, then on a sampling gap at 100ms intervals, then because raw
+  `mouse.move` to a control below the viewport produced no pointer events at all (`since=0`).
+  Diagnosed by instrumenting the resolver's null paths, not by guessing. NOT COVERED on the remote
+  path: the competing-cause filter and the "witness outside the revealed surface" check (both have
+  fixtures on the insertion path).
+- **Tests:** `verify:recorder-hover` **211/211** (was 191/191) incl. two-fresh-page replay and
+  click-alone-fails; recorder **171/171**; ambiguity **62/62**; recorder-flow **29/29**; runner
+  **89/89**; mock-site **110/110**; flow-step-mapping **111/0**; profile-store **18/18**;
+  ipc-contract **4/4**; Recorder GUI **166 PASS / 0 FAIL**; Flow Designer GUI **69/69**; catalog
+  parity **39/39**; verifier-classification reconciled; source-hygiene **9/9**; roadmap dashboard
+  **135/135**; build, `typecheck:scripts`, `validate:offline`, `git diff --check` pass.
+- **Filed `awkit-a7k` (P2):** the recorder verifiers install via `page.evaluate` after load while
+  production uses `context.addInitScript` at document start. Probed both orders — ordinary clicks are
+  unaffected on 282- and 1807-element pages (no parse-time saturation, so `db0babd`'s fail-closed
+  guard does not regress real recordings), but the harness switch gives 187/191 and shows that guard
+  is largely inert in production. Not fixed here; it is a harness change, not this bead.
+- **Result:** `awkit-hmt` closed. Beads **10 outstanding / 136 closed** of 146. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Open-shadow hover triggers persist the internal control (`awkit-0vm` reopened)
 
 - **Task:** owner rejected the host-substitution behaviour shipped in `db0babd`. A successful fixture

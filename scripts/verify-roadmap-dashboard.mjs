@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("145 issues parse", beads.stats.total === 145, `got ${beads.stats.total}`);
+  check("146 issues parse", beads.stats.total === 146, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -114,9 +114,12 @@ try {
   // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
   // Then 10/135 of 145 on 2026-08-02: `awkit-0vm` closed (hover-inserted control attribution); no new
   // issues or edges filed — the remote-trigger boundary stays on `awkit-hmt`.
+  // Then 10/136 of 146 on 2026-08-02: `awkit-hmt` closed (remote hover attribution) and `awkit-a7k`
+  // filed (the verifier harness installs the init script after load, not at document start) — one in,
+  // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
   check(
-    "10 outstanding / 135 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 135,
+    "10 outstanding / 136 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 136,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -172,7 +172,10 @@ npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — record
                             # saturation bound. Nested open-shadow insertion persists the INTERNAL trigger
                             # via the Increment 6 ordered host chain (never the host), proved by a fixture
                             # whose hosts' action points miss the trigger; an unrepresentable inner trigger
-                            # degrades to needs-review with no host fallback. (191/191)
+                            # degrades to needs-review with no host fallback. Remote (non-adjacent)
+                            # triggers are attributed and replayed too (awkit-hmt), gated on the
+                            # pointer's ARRIVAL rather than its presence, with a densely-jiggled
+                            # remote-timer negative isolating that window. (211/211)
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,
