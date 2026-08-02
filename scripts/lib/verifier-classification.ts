@@ -148,6 +148,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:workflow-sentinels": { class: "unit", why: "Pure Start/End sentinel + workflow→scenario conversion logic." },
   "verify:async-review": { class: "unit", why: "Pure async completion review/classification." },
   "verify:flow-step-mapping": { class: "unit", why: "Pure model↔node-data round-trip converters." },
+  "verify:release-key-custody": {
+    class: "unit",
+    why: "Pure path/env reasoning over the real custody module; reads no key and launches nothing."
+  },
   "verify:flow-node-catalog-parity": {
     class: "unit",
     why: "Reconciles the real node catalog/registry modules in-process; parses the StepType union from source."

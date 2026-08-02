@@ -4,6 +4,44 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Release signing-key custody gate (`awkit-2l1`, still OPEN)
+
+- **Task:** the offline-manifest private key sits in the repo's git-ignored `.release-local/`, but
+  the repo lives under OneDrive, so custody extends into a cloud account. Bead is explicit: **owner
+  action required; do not move or rotate signing material automatically.**
+- **Scope taken:** the tooling half only. The key was **not** moved, rotated, read or copied at any
+  point; its presence was confirmed by `statSync` (size/mtime) alone.
+- **Implementation:** new `scripts/lib/release-key-custody.mjs` — resolution order (flag →
+  `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY` → `%LOCALAPPDATA%\SpecterStudio\release-keys` → legacy
+  in-repo path, kept resolvable so its use produces a precise refusal rather than "key is missing"),
+  whole-path-segment sync detection for seven providers plus the sync clients' own env vars, a
+  fail-closed `assertKeyCustody`, and `redactPath` so no account name reaches a log. Wired into
+  `offline-manifest-signature.mjs` for `sign` and `generate-key` only — `verify` never reads the
+  private key and is untouched.
+- **Deliberate consequence:** packaging now fails at the manifest-signing step on this machine until
+  the owner moves the key. `verify` exits 0; `validate:offline` passes.
+- **Docs:** `docs/security/RELEASE_KEY_CUSTODY.md` (owner runbook: provision-or-rotate, secure
+  removal including OneDrive recycle bin and version history, re-verify, run the guard) and a
+  COMMANDS.md section.
+- **New verifier:** `npm run verify:release-key-custody` **39/39** — pure path/env reasoning, reads
+  no key, launches nothing; registered in `verifier-classification.ts` (class `unit`, 158 scripts).
+- **Mutations (each applied, run, reverted):** gate downgraded to always-allow → **5 fail**;
+  substring instead of whole-segment matching → **3 fail** (false refusals for `onedriveclone`,
+  `boxes`, `dropboxed`); approved location no longer preferred → **2 fail**; override accepting any
+  truthy value → **1 fail**.
+- **Self-inflicted defect caught:** a Python heredoc turned `\release-keys` into a literal carriage
+  return inside `COMMANDS.md`, a file the roadmap dashboard parses. Found by scanning every touched
+  file for control characters before commit and repaired with `String.fromCharCode`; re-scan clean.
+- **Tests:** custody **39/39**; build; `typecheck:scripts`; source-hygiene **9/9**;
+  verifier-classification reconciled; roadmap dashboard **135/135**; `validate:offline`;
+  `node scripts/offline-manifest-signature.mjs verify` **exit 0**; `git diff --check` clean.
+- **Result:** `awkit-2l1` **stays OPEN (in progress)** — three acceptance criteria are owner-only:
+  provision/rotate into the approved location, securely remove the synced copy, re-verify the trust
+  root. Progress and the exact remaining steps are recorded on the bead. Beads unchanged at
+  **9 outstanding / 137 closed** of 146. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Recorder baselines the loaded page; verifiers test the shipped install order (`awkit-a7k`)
 
 - **Task:** the recorder verifiers injected the init script with `page.evaluate` after `goto`, while

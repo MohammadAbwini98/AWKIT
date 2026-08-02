@@ -107,6 +107,7 @@
     "verify:async-review": "tsx scripts/verify-async-review.mts",
     "verify:flow-step-mapping": "tsx scripts/verify-flow-step-mapping.mts",
     "verify:flow-node-catalog-parity": "tsx scripts/verify-flow-node-catalog-parity.mts",
+    "verify:release-key-custody": "node scripts/verify-release-key-custody.mjs",
     "verify:concurrency": "tsx scripts/verify-concurrency.mts",
     "verify:machine-capabilities": "tsx scripts/verify-machine-capabilities.mts",
     "verify:capacity-planner": "tsx scripts/verify-capacity-planner.mts",

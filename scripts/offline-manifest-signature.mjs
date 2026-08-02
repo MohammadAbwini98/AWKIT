@@ -11,8 +11,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { assertKeyCustody, redactPath, resolvePrivateKeyLocation } from "./lib/release-key-custody.mjs";
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_PRIVATE_KEY = resolve(ROOT, ".release-local", "offline-manifest-private.pem");
 const DEFAULT_PUBLIC_KEY = resolve(ROOT, "resources", "trust", "offline-manifest-public.pem");
 const DEFAULT_MANIFEST = resolve(ROOT, "resources", "dependency-manifest.json");
 const DEFAULT_SIGNATURE = resolve(ROOT, "resources", "dependency-manifest.sig");
@@ -38,14 +39,15 @@ async function generateKeys(privateKeyPath, publicKeyPath) {
   await writeFile(privateKeyPath, privatePem, { encoding: "utf8", mode: 0o600 });
   await writeFile(publicKeyPath, publicPem, "utf8");
   process.stdout.write(`Generated offline-manifest signing key ${keyId(pair.publicKey)}.\n`);
-  process.stdout.write(`Private key: ${privateKeyPath} (local, ignored; back it up securely)\n`);
-  process.stdout.write(`Public key:  ${publicKeyPath} (ship with the application)\n`);
+  // Paths are redacted so a release log never carries an account name (awkit-2l1 acceptance).
+  process.stdout.write(`Private key: ${redactPath(privateKeyPath)} (never commit; back up offline)\n`);
+  process.stdout.write(`Public key:  ${redactPath(publicKeyPath)} (ship with the application)\n`);
 }
 
 async function signManifest(manifestPath, signaturePath, privateKeyPath, publicKeyPath) {
   if (!existsSync(privateKeyPath)) {
     throw new Error(
-      `Offline-manifest private key is missing: ${privateKeyPath}. ` +
+      `Offline-manifest private key is missing: ${redactPath(privateKeyPath)}. ` +
       "Generate or provision the release key before packaging."
     );
   }
@@ -119,19 +121,27 @@ async function main() {
     const index = args.indexOf(name);
     return index >= 0 ? resolve(args[index + 1]) : fallback;
   };
-  const privateKeyPath = option(
-    "--private-key",
-    process.env.AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY
-      ? resolve(process.env.AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY)
-      : DEFAULT_PRIVATE_KEY
-  );
+  // Where the private key lives, and whether that location is acceptable custody. `verify` never
+  // reads it, so the custody gate below is applied only to the commands that actually do.
+  const explicitKeyIndex = args.indexOf("--private-key");
+  const keyLocation = resolvePrivateKeyLocation({
+    explicit: explicitKeyIndex >= 0 ? args[explicitKeyIndex + 1] : null,
+    repoRoot: ROOT,
+    exists: existsSync
+  });
+  const privateKeyPath = keyLocation.path;
   const publicKeyPath = option("--public-key", DEFAULT_PUBLIC_KEY);
   const manifestPath = option("--manifest", DEFAULT_MANIFEST);
   const signaturePath = option("--signature", DEFAULT_SIGNATURE);
 
   if (command === "generate-key") {
+    assertKeyCustody(keyLocation);
     await generateKeys(privateKeyPath, publicKeyPath);
   } else if (command === "sign") {
+    const custody = assertKeyCustody(keyLocation);
+    if (custody.overridden) {
+      process.stderr.write("WARNING: signing with a cloud-synced private key (AWKIT_ALLOW_SYNCED_SIGNING_KEY=1).\n");
+    }
     await signManifest(manifestPath, signaturePath, privateKeyPath, publicKeyPath);
   } else if (command === "verify") {
     const record = await verifyManifestSignature({ manifestPath, signaturePath, publicKeyPath });

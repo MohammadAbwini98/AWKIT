@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## Release signing key: custody gate shipped; the move itself is OWNER ACTION (`awkit-2l1`, 2026-08-02)
+
+**`awkit-2l1` remains OPEN (in progress).** The tooling half is done; the custody change is not, and
+by the bead's own terms must not be automated.
+
+The offline-manifest private key is resolved by a new `scripts/lib/release-key-custody.mjs`:
+explicit `--private-key` → `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY` →
+`%LOCALAPPDATA%\SpecterStudio\release-keys\offline-manifest-private.pem` (the approved default) →
+the legacy in-repo `.release-local` path. Any resolution landing inside a cloud-synced tree
+(OneDrive, Dropbox, Google Drive, iCloud Drive, Box, pCloud, Creative Cloud) is **refused**, matched
+on whole path segments plus the sync clients' own environment variables — so `C:\work\onedriveclone`
+is not mistaken for OneDrive. The gate covers `sign` and `generate-key` only; `verify` is read-only,
+never touches the private key, and is unaffected. Messages redact `%LOCALAPPDATA%` / `%USERPROFILE%`
+/ `$HOME`, so no account name reaches a release log. `AWKIT_ALLOW_SYNCED_SIGNING_KEY=1` (exact `1`)
+is a deliberate, stderr-warned exception.
+
+**State on this machine, unchanged by me:** the key is still at
+`<repo>\.release-local\offline-manifest-private.pem`, inside the OneDrive tree. It was not moved,
+rotated, read or copied. **Consequence: packaging now fails at the manifest-signing step until the
+owner acts** — deliberate, because the alternative is quietly shipping releases signed from a cloud
+folder. `verify` exits 0 and `validate:offline` still passes.
+
+Owner procedure (four steps: provision or rotate → securely remove the synced copy including
+OneDrive recycle bin and version history → re-verify → run the guard) is in
+`docs/security/RELEASE_KEY_CUSTODY.md`.
+
+New `npm run verify:release-key-custody` is **39/39** — pure path/env reasoning over the real module,
+reading no key and launching nothing. Four mutations produce focused failures: the gate downgraded to
+always-allow, substring instead of whole-segment sync matching, the approved location no longer
+preferred, and the override accepting any truthy value. Build, `typecheck:scripts`, source-hygiene
+**9/9**, verifier-classification (**158** scripts), roadmap dashboard **135/135**,
+`validate:offline`, and `offline-manifest-signature verify` all pass. Beads are **9 outstanding /
+137 closed** of 146, and the comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Recorder baselines the loaded page, and the verifiers test the shipped install order (`awkit-a7k`, 2026-08-02)
 
 The recorder took its at-rest baseline the instant the script ran. Production injects with
