@@ -199,6 +199,88 @@
         </style>
         <br><br>
 
+        <!-- Adjacent-sibling hover fixture (awkit-vot). The trigger is NOT an ancestor of what it
+             reveals: `.sib-trigger-h3k9:hover + .sib-gated-h3k9` shows the control itself, so there is
+             no hidden ancestor container for the ancestor walk to find. Before the fix the recorder
+             classified this 'none' and emitted no hover step, and the recorded click failed replay
+             because the button is hidden until the sibling is hovered. The trigger is a real button
+             with an accessible name, so a stable role=button locator is available; the `:hover` rule on
+             the revealed button keeps it open while the pointer crosses onto it.
+             sib-click-result = observable post-click application state -->
+        <div class="sib-wrap-h3k9" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="sib-trigger-h3k9" aria-label="Show sibling action">Sibling trigger</button><button type="button" class="sib-gated-h3k9" style="display: none;">Sibling action</button>
+        </div>
+        <span data-testid="sib-click-result">idle</span>
+        <style>
+          .sib-trigger-h3k9:hover + .sib-gated-h3k9,
+          .sib-gated-h3k9:hover {
+            display: inline-block !important;
+          }
+        </style>
+        <br><br>
+
+        <!-- Adjacent-sibling gate half (awkit-vot). Same sibling reveal shape, but the trigger is an
+             unlabelled span with only a hash-suffixed class: no accessible name, no test id, and it is
+             not one of the controls whose rest visibility the recorder scans. Pointer evidence proves
+             the click is hover-gated, but nothing there resolves to a stable trigger, so the recorder
+             must leave the click needs-review rather than persist a positional sibling locator. -->
+        <div class="sibnp-wrap-w8q2" style="display: inline-block; border: 1px dotted #ccc; padding: 1rem;">
+          <span class="sibnp-trigger-w8q2">Unnamed sibling</span><button type="button" class="sibnp-gated-w8q2" style="display: none;">Sibling no-owner</button>
+        </div>
+        <style>
+          .sibnp-trigger-w8q2:hover + .sibnp-gated-w8q2,
+          .sibnp-gated-w8q2:hover {
+            display: inline-block !important;
+          }
+        </style>
+        <br><br>
+
+        <!-- REMOTE (non-adjacent) hover reveal — the documented boundary of awkit-vot. Hovering the
+             trigger in one wrapper reveals a control in a different wrapper, so the trigger is neither
+             an ancestor nor a sibling of what it reveals. Reveal-moment pointer evidence alone would
+             happily attribute this, but on its own that evidence is weak: ANY hover that coincides with
+             ANY reveal anywhere on the page satisfies it. Attribution is therefore deliberately limited
+             to the adjacency the CSS encodes, and this case stays unattributed (tracked separately). -->
+        <div class="remote-src-j5w1" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="remote-trigger-j5w1" aria-label="Remote reveal trigger">Remote trigger</button>
+        </div>
+        <div class="remote-dst-j5w1" style="display: inline-block; border: 1px solid #ccc; padding: 1rem;">
+          <button type="button" class="remote-gated-j5w1" style="display: none;">Remote target</button>
+        </div>
+        <br><br>
+
+        <!-- Adjacent-sibling POSITIONAL-ONLY fixture (awkit-vot, stability half). The trigger is a real
+             button, so unlike the unnamed span above the recorder DOES record its rest visibility and
+             the attribution reaches the stability guard. It has no text, no accessible name, no id and
+             no test id, and its only class is hash-suffixed — so the sole locator that resolves it is a
+             positional chain. Uniqueness is not a licence to save one: the recorder must leave the
+             click needing review rather than persist an nth-child sibling trigger. -->
+        <div class="sibpos-wrap-t4n8" style="display: inline-block; position: relative; width: 220px; height: 48px; border: 1px dotted #ccc; padding: 1rem;">
+          <button type="button" class="sibpos-trigger-q3v7m2"></button><button type="button" class="sibpos-gated-q3v7m2">Positional sibling</button>
+        </div>
+        <style>
+          /* Fixed geometry: the reveal must not reflow the trigger, or hovering it never settles. */
+          .sibpos-trigger-q3v7m2 { display: inline-block; width: 90px; height: 32px; border: 1px solid #999; }
+          .sibpos-gated-q3v7m2 { display: none; position: absolute; left: 0; top: 100%; z-index: 5; background: white; border: 1px solid #ccc; }
+          .sibpos-trigger-q3v7m2:hover + .sibpos-gated-q3v7m2,
+          .sibpos-gated-q3v7m2:hover {
+            display: inline-block;
+          }
+        </style>
+        <br><br>
+
+        <!-- Adjacent-sibling COINCIDENCE fixture (awkit-vot, causality half). Structurally identical to
+             the positive fixture above — a named, stable, visible-at-rest button sibling next to a
+             control that is hidden at rest — except nothing links them: the control is revealed by a
+             timer, not by hovering the sibling. Adjacency and recency alone cannot tell the two apart,
+             so a recorder that attributes on proximity fabricates a hover step here. Only the reveal
+             moment separates them: the pointer must have been on the sibling WHEN the control became
+             visible, not merely parked nearby beforehand. -->
+        <div class="sibasync-wrap-v6r4" style="display: inline-block; border: 1px dashed #ccc; padding: 1rem;">
+          <button type="button" class="sibasync-other-v6r4" aria-label="Unrelated sibling">Unrelated sibling</button><button type="button" class="sibasync-gated-v6r4" style="display: none;">Timer sibling</button>
+        </div>
+        <br><br>
+
         <!-- Review case: a container revealed on hover of a LANDMARK the pointer never lands on exactly
              (it enters via the inner label), and whose gated button has no unique locator, so no stable
              specific trigger can be attributed — the recorder must leave the click needs-review rather
@@ -233,6 +315,25 @@
             if (aoBtn) aoBtn.addEventListener('click', function () {
               var r = document.querySelector('[data-testid="ao-click-result"]');
               if (r) r.textContent = 'ao-click-ok';
+            });
+            // Adjacent-sibling coincidence fixture (awkit-vot): revealed by a timer, not by the
+            // sibling's hover. Deliberately later than the positive fixture's interaction window.
+            setTimeout(function () {
+              var t = document.querySelector('.sibasync-gated-v6r4');
+              if (t) t.style.display = 'inline-block';
+            }, 1500);
+            // Remote (non-adjacent) hover reveal (awkit-vot boundary). Stays visible once shown so the
+            // click can land after the pointer has left the trigger.
+            var remoteTrigger = document.querySelector('.remote-trigger-j5w1');
+            if (remoteTrigger) remoteTrigger.addEventListener('mouseenter', function () {
+              var t = document.querySelector('.remote-gated-j5w1');
+              if (t) t.style.display = 'inline-block';
+            });
+            // Adjacent-sibling hover fixture (awkit-vot).
+            var sibBtn = document.querySelector('.sib-gated-h3k9');
+            if (sibBtn) sibBtn.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="sib-click-result"]');
+              if (r) r.textContent = 'sib-click-ok';
             });
           })();
         </script>

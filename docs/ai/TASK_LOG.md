@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - Adjacent-sibling hover trigger attribution (`awkit-vot`)
+
+- **Task:** `.trigger:hover + .target` reveals were classified `none` — the trigger is not an ancestor
+  of what it reveals, so the composed-path walk found no hidden ancestor run and emitted no hover
+  step. The recorded click then failed replay because the control is hidden until the sibling is
+  hovered.
+- **Implementation:** new `resolveSiblingHoverTrigger` in `recorderInitScript.ts`, used when the
+  ancestor walk finds no hidden run and as a fallback wherever it would return `review`. Attribution
+  needs four pieces of evidence: the last pointer sample OUTSIDE the revealed surface; that sample in
+  a sibling subtree of the revealed root (with action-owner promotion not escaping it); a new
+  `revealWitness` map recording where the pointer was when a hidden-at-rest control was first observed
+  visible (300ms window — this is what makes it causal rather than correlational); and the existing
+  non-positional stability bar. No sibling evidence → previous verdict unchanged, so async
+  self-reveals stay unflagged and `awkit-0vm` is untouched.
+- **Fixtures:** five new Recorder Lab scenarios — positive `.sib-trigger-h3k9`; negatives for an
+  unnamed span trigger, a nameless hash-class button (positional-only), and a timer reveal beside a
+  hovered sibling; plus `.remote-trigger-j5w1` pinning the non-adjacent boundary.
+- **Negative controls (each applied, run, reverted):** sibling attribution disabled → **9 fail**;
+  reveal-witness guard removed → **2 fail** (recorder fabricates `hover "Unrelated sibling"` for a
+  timer reveal); positional locators allowed → **3 fail** (an `nth-child` chain persisted as a
+  trigger); adjacency requirement dropped → **2 fail** (a distant trigger attributed).
+  Two of these survived the first time and drove new fixtures: `[12]`'s unnamed span is rejected
+  before the stability guard is reached, and no fixture exercised adjacency at all. Both guards were
+  passing vacuously until `[12b]` and `[12c]` were added.
+- **Tests:** `verify:recorder-hover` **81/81** (baseline 48/48, +33 checks) incl. real-StepExecutor
+  replay; recorder locator **171/171**; ambiguity **62/62**; recorder-flow **29/29**; Mock Site
+  **110/110**; source-hygiene **9/9**; catalog parity **39/39**; roadmap dashboard **135/135**
+  ("Sources agree"); build PASS; `typecheck:scripts` PASS; `validate:offline` PASS;
+  `git diff --check` clean.
+- **Result:** `awkit-vot` closed; `awkit-hmt` filed for remote (non-adjacent) triggers, the boundary
+  this deliberately leaves open. Beads **11 outstanding / 134 closed** of 145 (dashboard total and
+  tally pins updated). `awkit-0vm` left open. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Flow Designer hover catalog entry + Unknown-step rendering (`awkit-8lz`)
 
 - **Task:** hover steps rendered on the canvas as "Start / Flow entry point" with the Play icon,

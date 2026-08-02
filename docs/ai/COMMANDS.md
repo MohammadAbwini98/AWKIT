@@ -161,7 +161,10 @@ npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live u
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the actionable owner (not a wrapper or hidden revealed surface), refuses positional-only
-                            # triggers, guards the old-locator regression, and covers async/needs-review negatives. (48/48)
+                            # triggers, guards the old-locator regression, and covers async/needs-review negatives.
+                            # Also covers adjacent-sibling triggers (`.trigger:hover + .target`, awkit-vot) — attribution
+                            # + replay, plus four negatives: unnamed trigger, positional-only trigger, a timer reveal
+                            # beside a hovered sibling, and the remote (non-adjacent) boundary. (81/81)
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,

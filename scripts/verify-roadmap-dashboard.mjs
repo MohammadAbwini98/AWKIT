@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("144 issues parse", beads.stats.total === 144, `got ${beads.stats.total}`);
+  check("145 issues parse", beads.stats.total === 145, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -109,9 +109,12 @@ try {
   // `awkit-3vh`: total 144, edges unchanged at 92, 12 outstanding / 132 closed.
   // Then 11/133 of 144 on 2026-08-02: `awkit-8lz` closed (hover catalog entry + explicit Unknown-step
   // rendering + `verify:flow-node-catalog-parity`); no new issues or edges filed.
+  // Then 11/134 of 145 on 2026-08-02: `awkit-vot` closed (adjacent-sibling hover attribution) and
+  // `awkit-hmt` filed for the remote non-adjacent boundary it deliberately leaves open — one issue in,
+  // one out, so outstanding held while total and closed each rose by one. Edges unchanged at 92.
   check(
-    "11 outstanding / 133 closed",
-    beads.stats.outstanding === 11 && beads.stats.closed === 133,
+    "11 outstanding / 134 closed",
+    beads.stats.outstanding === 11 && beads.stats.closed === 134,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

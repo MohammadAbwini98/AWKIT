@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## Adjacent-sibling hover triggers are attributed (`awkit-vot`, 2026-08-02)
+
+Hover-dependency capture no longer requires the trigger to be an ANCESTOR of what it reveals.
+`.trigger:hover + .target { display: block }` — where the revealed surface is the control itself, so
+the composed-path walk finds no hidden ancestor run at all — was classified `none`: no hover step,
+and a recorded click that silently failed replay. A new `resolveSiblingHoverTrigger` attributes these
+from pointer evidence, and also runs as a fallback wherever the ancestor walk would have returned
+`review`, so a sibling-driven reveal inside a wrapper that is not stably locatable is now pinned to
+the real trigger instead.
+
+Attribution requires four independent pieces of evidence, all mutation-proven load-bearing:
+
+1. **The last pointer sample outside the revealed surface** — samples inside it are where the pointer
+   went after the reveal, an effect rather than a cause.
+2. **Adjacency** — that sample must sit in a sibling subtree of the revealed root, and promotion to
+   an action owner must not escape it (walking out to the shared wrapper is the container guess this
+   path exists to avoid).
+3. **A reveal witness** — a new `revealWitness` map records where the pointer was when a
+   hidden-at-rest control was *first observed visible* (the existing MutationObserver + 150ms sweep
+   already runs at that moment). This is what separates a hover-caused reveal from one that merely
+   happened while the pointer was parked nearby; without it the recorder attributes a timer reveal to
+   an unrelated neighbouring button, which is exactly what the mutation shows.
+4. **The existing non-positional stability bar** — a trigger that resolves only to an `nth-child`
+   chain is a review item, never a saved locator.
+
+Anything that satisfies the pointer evidence but fails a guard yields `needs-review`; anything with
+no sibling evidence at all keeps its previous verdict, so async self-reveals stay unflagged and
+`awkit-0vm` is untouched. **Known boundary:** a REMOTE reveal — trigger and target in different
+subtrees — is still unattributed, because reveal-moment evidence on its own is satisfied by any hover
+that coincides with any reveal anywhere on the page. That boundary is now pinned as behaviour by a
+fixture and tracked as `awkit-hmt`.
+
+`verify:recorder-hover` is **81/81** (was 48/48), including replay of the sibling hover→click through
+the real `StepExecutor`/`LocatorFactory` on a fresh page and proof that the click alone fails without
+the hover step. Five new Recorder Lab fixtures cover the positive, three negatives and the boundary.
+Recorder locator **171/171**, ambiguity **62/62**, recorder-flow **29/29**, Mock Site **110/110**,
+source-hygiene **9/9**, catalog parity **39/39**, roadmap dashboard **135/135**; build,
+`typecheck:scripts` and `validate:offline` pass. Beads are **11 outstanding / 134 closed** of 145.
+The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Flow Designer node catalog parity fixed (`awkit-8lz`, 2026-08-02)
 
 `hover` now has its own Flow Designer catalog entry (`MousePointer2`, "Hover", "Hover over an

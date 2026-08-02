@@ -386,6 +386,191 @@ async function main() {
       const rc = clickStepOf(reviewProfile, "Review Click");
       check("review click step left needs-review", rc?.locator?.resolution === "needs-review", rc?.locator?.resolution);
     }
+
+    // ── [11] Adjacent-sibling trigger: `.trigger:hover + .target` (awkit-vot) ─────────────────
+    //
+    // The trigger is NOT an ancestor of what it reveals, and the revealed surface IS the control, so
+    // the composed-path walk finds no hidden ancestor run at all. That case used to return `none`:
+    // no hover step, and a recorded click that silently fails replay because the button is hidden
+    // until its sibling is hovered. Attribution now comes from the last place the pointer rested
+    // before entering the revealed surface.
+    console.log("\n[11] Adjacent-sibling hover trigger is attributed:");
+    {
+      const sibActions = await recordActions(browser, async (p) => {
+        await p.hover(".sib-trigger-h3k9");
+        await p.waitForTimeout(250);
+        await p.locator(".sib-gated-h3k9").click();
+      });
+      const sibClick = sibActions.find((a) => a.type === "click" && a.locator?.name === "Sibling action");
+      check("recorded the sibling-gated click", !!sibClick);
+      check("sibling click flagged requiresHover", sibClick?.locator?.interaction?.requiresHover === true);
+      check("sibling click is NOT left hoverUnresolved", sibClick?.locator?.interaction?.hoverUnresolved !== true);
+
+      const sibProfile = buildRecordedFlow("Sibling Positive", sibActions);
+      const sibHover = hoverStepOf(sibProfile);
+      const sibClickStep = clickStepOf(sibProfile, "Sibling action");
+      check("a hover step was generated for the sibling reveal", !!sibHover);
+      check("sibling hover step is 'resolved' (not review)", sibHover?.locator?.resolution === "resolved", sibHover?.locator?.resolution);
+      check(
+        "sibling trigger carries the trigger's accessible name",
+        sibHover?.locator?.name === "Show sibling action",
+        String(sibHover?.locator?.name)
+      );
+      // The defect this pins is a MISSING step, so every assertion above must also be proved
+      // non-vacuous: an absent hover step satisfies "contains no nth selector" perfectly.
+      const sibTriggerValue = sibHover?.locator?.value;
+      check(
+        "sibling trigger locator is present and carries no positional nth selector",
+        typeof sibTriggerValue === "string" && sibTriggerValue.length > 0 && !/:nth-(?:child|of-type)\s*\(/.test(sibTriggerValue),
+        String(sibTriggerValue)
+      );
+      check(
+        "sibling trigger is not the shared wrapper",
+        !(typeof sibTriggerValue === "string" && sibTriggerValue.includes("sib-wrap-h3k9")),
+        String(sibTriggerValue)
+      );
+      check(
+        "sibling trigger is not the hidden revealed control itself",
+        !(typeof sibTriggerValue === "string" && sibTriggerValue.includes("sib-gated-h3k9")),
+        String(sibTriggerValue)
+      );
+      if (sibHover && sibClickStep) {
+        const hi = sibProfile.nodes.findIndex((s) => s.id === sibHover.id);
+        const ci = sibProfile.nodes.findIndex((s) => s.id === sibClickStep.id);
+        check("sibling hover step is immediately before the click step", hi === ci - 1, `hover@${hi} click@${ci}`);
+      }
+
+      // Replay through the real StepExecutor on a fresh page — capture correctness is only half of it.
+      if (!sibHover || !sibClickStep) {
+        check("sibling replay could run (hover + click steps present)", false, "missing step — replay skipped");
+      } else {
+        const { page, exec, close } = await freshExecutor(browser);
+        try {
+          check("sibling target is hidden before the hover", !(await page.locator(".sib-gated-h3k9").isVisible()));
+          const hr = await exec.execute(sibHover);
+          check("sibling hover step executed", hr.status === "passed", hr.error);
+          check("sibling target became visible after the hover", await page.locator(".sib-gated-h3k9").isVisible());
+          const cr = await exec.execute(sibClickStep);
+          check("sibling click step executed", cr.status === "passed", cr.error);
+          const result = (await page.getByTestId("sib-click-result").textContent()) ?? "";
+          check("post-click state is 'sib-click-ok'", result.includes("sib-click-ok"), result);
+        } finally {
+          await close();
+        }
+      }
+
+      // The hover step must be load-bearing: without it the click cannot succeed.
+      {
+        const { exec, close } = await freshExecutor(browser);
+        try {
+          const clickOnly = { ...(sibClickStep as FlowStep), timeoutMs: 3500 };
+          const cr = await exec.execute(clickOnly);
+          check("sibling click alone fails without the hover step", cr.status === "failed", `status=${cr.status}`);
+        } finally {
+          await close();
+        }
+      }
+    }
+
+    // ── [12] Adjacent sibling with no stable trigger → needs-review, never a positional locator ──
+    console.log("\n[12] Unnamed adjacent sibling → needs-review, no fabricated trigger:");
+    {
+      const sibNpActions = await recordActions(browser, async (p) => {
+        await p.hover(".sibnp-trigger-w8q2");
+        await p.waitForTimeout(250);
+        await p.locator(".sibnp-gated-w8q2").click();
+      });
+      const npClick = sibNpActions.find((a) => a.type === "click" && a.locator?.name === "Sibling no-owner");
+      check("recorded the unnamed-sibling click", !!npClick);
+      check("unnamed-sibling click flagged requiresHover", npClick?.locator?.interaction?.requiresHover === true);
+      check("unnamed-sibling click flagged hoverUnresolved", npClick?.locator?.interaction?.hoverUnresolved === true);
+      const npProfile = buildRecordedFlow("Sibling No Owner", sibNpActions);
+      check("no hover step fabricated for the unnamed sibling", !hoverStepOf(npProfile));
+      const npStep = clickStepOf(npProfile, "Sibling no-owner");
+      check("unnamed-sibling click left needs-review", npStep?.locator?.resolution === "needs-review", npStep?.locator?.resolution);
+    }
+
+    // ── [12b] Sibling trigger resolvable only positionally → review, never a saved nth-child chain ──
+    //
+    // [12]'s unnamed span is rejected before the stability guard is ever reached (a span carries no
+    // recorded rest visibility), so it cannot prove that guard exists — the suite passed with the
+    // sibling path accepting positional locators until this case was added. The trigger here is a
+    // real button, so rest visibility IS recorded and attribution reaches the stability check with
+    // nothing but a positional chain to offer.
+    console.log("\n[12b] Positional-only sibling trigger → needs-review:");
+    {
+      const posActions = await recordActions(browser, async (p) => {
+        await p.hover(".sibpos-trigger-q3v7m2");
+        await p.waitForTimeout(250);
+        await p.locator(".sibpos-gated-q3v7m2").click();
+      });
+      const posClick = posActions.find((a) => a.type === "click" && a.locator?.name === "Positional sibling");
+      check("recorded the positional-sibling click", !!posClick);
+      check("positional-sibling click flagged requiresHover", posClick?.locator?.interaction?.requiresHover === true);
+      check(
+        "positional-sibling click flagged hoverUnresolved",
+        posClick?.locator?.interaction?.hoverUnresolved === true,
+        JSON.stringify(posClick?.locator?.interaction?.hoverContainer)
+      );
+      const posProfile = buildRecordedFlow("Sibling Positional", posActions);
+      check("no positional sibling trigger was persisted as a hover step", !hoverStepOf(posProfile));
+      const posStep = clickStepOf(posProfile, "Positional sibling");
+      check("positional-sibling click left needs-review", posStep?.locator?.resolution === "needs-review", posStep?.locator?.resolution);
+    }
+
+    // ── [12c] Boundary: a REMOTE (non-adjacent) hover reveal is deliberately not attributed ─────
+    //
+    // The pointer is on the trigger at the exact moment the reveal happens, so reveal-moment evidence
+    // is satisfied in full — only the adjacency requirement stops this being attributed. Without that
+    // requirement the recorder would pin a trigger from nothing more than "a hover coincided with a
+    // reveal somewhere on the page", which is the fabrication the whole path is built to avoid. This
+    // is a KNOWN LIMITATION pinned as behaviour, not an endorsement: a genuine remote hover
+    // dependency is left for the user to add, and is tracked separately.
+    console.log("\n[12c] Remote (non-adjacent) hover reveal stays unattributed (documented boundary):");
+    {
+      const remoteActions = await recordActions(browser, async (p) => {
+        await p.hover(".remote-trigger-j5w1");
+        await p.locator(".remote-gated-j5w1").waitFor({ state: "visible" });
+        await p.locator(".remote-gated-j5w1").click();
+      });
+      const remoteClick = remoteActions.find((a) => a.type === "click" && a.locator?.name === "Remote target");
+      check("recorded the remote-revealed click", !!remoteClick);
+      check(
+        "remote reveal is NOT attributed to the distant trigger",
+        remoteClick?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(remoteClick?.locator?.interaction?.hoverContainer)
+      );
+      check("no hover step fabricated for the remote reveal", !hoverStepOf(buildRecordedFlow("Remote", remoteActions)));
+    }
+
+    // ── [13] Adjacency is not causality: a timer reveal beside a hovered sibling stays unattributed ──
+    //
+    // Structurally identical to [11] — a named, stable, visible-at-rest sibling next to a control
+    // hidden at rest — but the reveal comes from a timer. Attribution on adjacency + recency alone
+    // cannot tell this apart from [11] and would fabricate a hover step. The pointer is deliberately
+    // parked on the sibling well before the reveal (>300ms, the reveal-witness window) and the click
+    // still lands inside the 2s sibling-recency window, so ONLY the reveal-moment evidence separates
+    // them: this section fails if that evidence is removed.
+    console.log("\n[13] A timer reveal next to a hovered sibling is NOT attributed:");
+    {
+      const coincidence = await recordActions(browser, async (p) => {
+        await p.hover(".sibasync-other-v6r4");
+        await p.waitForTimeout(500); // park the pointer past the reveal-witness window
+        await p.locator(".sibasync-gated-v6r4").waitFor({ state: "visible" });
+        await p.locator(".sibasync-gated-v6r4").click();
+      });
+      const coClick = coincidence.find((a) => a.type === "click" && a.locator?.name === "Timer sibling");
+      check("recorded the timer-revealed sibling click", !!coClick);
+      check(
+        "timer-revealed click is NOT flagged requiresHover",
+        coClick?.locator?.interaction?.requiresHover !== true,
+        JSON.stringify(coClick?.locator?.interaction)
+      );
+      const coProfile = buildRecordedFlow("Sibling Coincidence", coincidence);
+      check("no hover step fabricated for the timer reveal", !hoverStepOf(coProfile));
+      const coStep = clickStepOf(coProfile, "Timer sibling");
+      check("timer-revealed click is not forced to needs-review", coStep?.locator?.resolution !== "needs-review", coStep?.locator?.resolution);
+    }
   } finally {
     await browser.close();
     server.kill();
