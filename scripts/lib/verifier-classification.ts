@@ -148,6 +148,10 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:workflow-sentinels": { class: "unit", why: "Pure Start/End sentinel + workflow→scenario conversion logic." },
   "verify:async-review": { class: "unit", why: "Pure async completion review/classification." },
   "verify:flow-step-mapping": { class: "unit", why: "Pure model↔node-data round-trip converters." },
+  "verify:ipc-error-message": {
+    class: "unit",
+    why: "Pure string reasoning over the real preload unwrapper, plus a source guard on the boundary."
+  },
   "verify:release-key-custody": {
     class: "unit",
     why: "Pure path/env reasoning over the real custody module; reads no key and launches nothing."

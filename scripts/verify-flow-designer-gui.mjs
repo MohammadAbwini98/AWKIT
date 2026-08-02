@@ -1018,6 +1018,33 @@ try {
   const revokedNode = revokedProfile?.nodes?.find((node) => node.id === "positional");
   check("Revoked approval remains blocked after save/reload", revokedNode?.locator?.resolution === "needs-review" && !revokedNode?.locator?.approvedFallbackBinding, JSON.stringify(revokedNode?.locator));
 
+  // awkit-x48: a rejected IPC call must reach the renderer as the handler's own sentence, not
+  // wrapped in Electron's `Error invoking remote method '<channel>': ` preamble. Unit coverage lives
+  // in verify:ipc-error-message; this proves the preload boundary is actually wired in the REAL app,
+  // over the very channel that reported the defect. Undoing a migration that does not exist is a
+  // pure refusal — it touches no stored flow.
+  const ipcRejection = await win.evaluate(async () => {
+    try {
+      await window.playwrightFlowStudio.validation.undoMigration("awkit-x48-no-such-flow", "no-such-migration");
+      return { rejected: false, message: "" };
+    } catch (error) {
+      return { rejected: true, message: error instanceof Error ? error.message : String(error) };
+    }
+  });
+  check("A failing IPC call still rejects in the real app", ipcRejection.rejected, JSON.stringify(ipcRejection));
+  check(
+    "The rejection message does not leak the IPC channel name",
+    ipcRejection.rejected &&
+      !ipcRejection.message.includes("Error invoking remote method") &&
+      !ipcRejection.message.includes("validation:undoMigration"),
+    ipcRejection.message
+  );
+  check(
+    "The rejection still carries a non-empty domain message",
+    ipcRejection.message.trim().length > 0,
+    ipcRejection.message
+  );
+
   check("Flow Designer walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 
   const passed = results.filter((r) => r.pass).length;

@@ -4,6 +4,47 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-02 - Claude Code - IPC toast no longer leaks the channel name (`awkit-x48`)
+
+- **Task:** an unsafe-undo refusal reached the user wrapped in Electron's
+  `Error invoking remote method '<channel>': ` preamble. Cosmetic, but it puts an internal channel
+  name in front of an operator.
+- **Implementation:** fixed at the single renderer-facing boundary, not per toast. New
+  `app/main/ipcErrorMessage.ts` (anchored preamble strip, bounded unwrap for the nested case, then
+  only the GENERIC `Error: ` name — `TypeError:` and friends are kept because they mean a bug, not a
+  refusal; empty/non-Error input falls back). `preload.ts` gained an `invoke()` wrapper that routes
+  rejections through it and keeps the original as `cause`; all **202** call sites now use it and the
+  wrapper is the only remaining direct `ipcRenderer.invoke`. No renderer change was needed.
+- **Placement note:** the helper started in `src/ipc/` and the preload bundle failed to resolve
+  `@src` — `electron.vite.config.ts` gives `main` and `renderer` an alias block but `preload` none,
+  because preload had only ever used type-only imports from there. Rather than change build config,
+  the helper moved to `app/main/`, which is also where an Electron-transport detail belongs.
+- **Real-app proof:** `verify:flow-designer` now drives a rejected `validation:undoMigration` through
+  the built app and asserts the renderer sees `No migration … for flow …` with no channel name and a
+  non-empty message. **72/72** (was 69/69).
+- **New verifier:** `verify:ipc-error-message` **22/22** (class `unit`). Mutations with focused
+  failures: preamble not stripped; any `*Error:` name stripped; unanchored match; one call site
+  bypassing the wrapper.
+- **Collateral damage caught by running the gates:** the rename broke `verify:ipc-contract`, whose
+  preload parser matched `ipcRenderer.invoke("channel")` — it reported **`0 exposed, 224
+  backend-only`** and would have described an empty contract as merely "backend-only". Fixed to
+  accept both spellings **and** carry a cardinality floor so a dead pattern fails loudly. **5/5, 202
+  exposed.**
+- **Intermittent, investigated not shrugged at:** one `verify:flow-designer` run failed the
+  compact-viewport Node Properties geometry check. Two re-runs of the same tree were 72/72 and clean
+  HEAD was 69/69, so it is not attributable to this change. Filed as `awkit-73s` (P4).
+- **Also filed:** `awkit-5ea` (P2) — the issuer console's `SPECTER_ISSUER_KEY` override has no
+  synced-folder custody check, so the rule shipped for the release-manifest key does not cover the
+  key that signs customer licences. Found while reviewing `awkit-0tn` during TAKEOFF.
+- **Tests:** ipc-error-message **22/22**; ipc-contract **5/5**; flow-designer **72/72**; auth-gui
+  **25/25**; admin-gui **18/18**; build; `typecheck:scripts`; source-hygiene **9/9**;
+  verifier-classification reconciled (160); roadmap dashboard **135/135**; `validate:offline`;
+  `git diff --check` clean.
+- **Result:** `awkit-x48` closed. Beads **10 outstanding / 139 closed** of 149. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02: Hand off completed Issuer console work (`awkit-0tn`)
 
 - **Agent:** Codex

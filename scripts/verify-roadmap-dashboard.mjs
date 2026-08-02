@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("147 issues parse", beads.stats.total === 147, `got ${beads.stats.total}`);
+  check("149 issues parse", beads.stats.total === 149, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -121,9 +121,13 @@ try {
   // verifiers now install at document start like production). No new issues or edges.
   // Then 9/138 of 147 on 2026-08-02: `awkit-0tn` was filed and closed (singleton Issuer role and
   // in-app offline license issuance). No new edges.
+  // Then 10/139 of 149 on 2026-08-02: `awkit-x48` closed (IPC toast no longer leaks the channel
+  // name), and two filed during the same session - `awkit-5ea` (issuer key has no synced-folder
+  // custody check, found reviewing the issuer console) and `awkit-73s` (an intermittent geometry
+  // check in the Flow Designer GUI gate). Net: total +2, closed +1, outstanding 9 -> 10.
   check(
-    "9 outstanding / 138 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 138,
+    "10 outstanding / 139 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 139,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

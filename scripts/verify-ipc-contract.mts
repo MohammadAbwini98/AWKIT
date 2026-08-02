@@ -74,9 +74,20 @@ for (const file of readdirSync(IPC_DIR).filter((f) => f.endsWith(".ts"))) {
 }
 
 // Collect channels the preload actually invokes.
+//
+// Call sites go through preload's own `invoke(...)` wrapper (awkit-x48), which strips Electron's
+// remote-method preamble off rejections; the wrapper itself is the one remaining
+// `ipcRenderer.invoke(...)`. Both spellings are collected, so this keeps reading the real contract
+// whichever side of that boundary a channel is called from. A cardinality floor below turns a
+// pattern that silently stops matching into a failure instead of "0 exposed, all backend-only".
 const preloadSrc = readFileSync(PRELOAD, "utf8");
 const invoked = new Set<string>();
-for (const m of preloadSrc.matchAll(/ipcRenderer\.invoke\(\s*"([^"]+)"/g)) invoked.add(m[1]);
+for (const m of preloadSrc.matchAll(/(?:^|[^.\w])(?:ipcRenderer\.)?invoke\(\s*"([^"]+)"/gm)) invoked.add(m[1]);
+check(
+  "the preload scan found the exposed surface (pattern still matches)",
+  invoked.size >= 150,
+  `${invoked.size} channels matched — the preload invoke pattern may have changed`
+);
 
 // Check 1 — no preload invoke without a handler.
 const missingHandlers = [...invoked].filter((c) => !registered.has(c)).sort();

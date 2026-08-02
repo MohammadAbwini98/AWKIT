@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## IPC rejections no longer leak the channel name into toasts (`awkit-x48`, 2026-08-02)
+
+Refusing an unsafe undo showed the user
+`Error invoking remote method 'validation:undoMigration': Error: Flow … was edited after this
+migration …` — the domain sentence was right, the transport wrapper around it was not.
+
+Fixed once at the **single renderer-facing IPC boundary** rather than per toast. New
+`app/main/ipcErrorMessage.ts` strips the preamble (anchored, so a domain sentence that quotes it is
+untouched; bounded unwrapping for the nested case) and then only the **generic** `Error: ` name —
+`TypeError:` and friends are preserved, because they signal a bug rather than a considered refusal.
+Empty or non-`Error` rejections fall back instead of producing a blank toast. `preload.ts` gained an
+`invoke()` wrapper that routes every rejection through it and keeps the original as `cause`, so the
+failing channel is still available for diagnostics; all **202** call sites use it and the wrapper is
+the only remaining direct `ipcRenderer.invoke`. No renderer change was needed — every invoke-backed
+toast is fixed at the same time.
+
+**Proved in the real app, not only in a unit:** `verify:flow-designer` now drives a rejected
+`validation:undoMigration` through the built Electron app and asserts the renderer receives
+`No migration no-such-migration for flow awkit-x48-no-such-flow.` — no channel name, non-empty
+message. **72/72** (was 69/69).
+
+New `npm run verify:ipc-error-message` is **22/22** (class `unit`). Four mutations produce focused
+failures: preamble not stripped, any `*Error:` name stripped, unanchored match, and a call site
+bypassing the wrapper.
+
+**Collateral damage found and repaired:** the rename broke `verify:ipc-contract`, which parsed
+preload for `ipcRenderer.invoke("channel")` and silently reported **`0 exposed, 224 backend-only`**.
+It now accepts both spellings *and* carries a cardinality floor, so a pattern that stops matching
+fails loudly instead of describing an empty contract. **5/5, 202 exposed.**
+
+Also green: build, `typecheck:scripts`, `verify:auth-gui` **25/25**, `verify:admin-gui` **18/18**,
+source-hygiene **9/9**, verifier-classification (**160** scripts), roadmap dashboard **135/135**,
+`validate:offline`, `git diff --check`. Beads are **10 outstanding / 139 closed** of 149, and the
+comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**Filed during this session:** `awkit-5ea` (P2 — the issuer console's `SPECTER_ISSUER_KEY` override
+has no synced-folder custody check, so the rule shipped for the release key does not cover the key
+that signs customer licences) and `awkit-73s` (P4 — an intermittent compact-viewport geometry check
+in the Flow Designer gate: failed once, not reproduced in two re-runs, and clean HEAD passed).
+
+---
+
 ## Singleton Issuer role and offline issuance console complete (`awkit-0tn`, 2026-08-02)
 
 SpecterStudio now has one built-in `Issuer` role that is both exclusive (it cannot be combined with

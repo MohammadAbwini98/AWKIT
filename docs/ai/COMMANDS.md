@@ -138,6 +138,13 @@ npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Elect
                             # Structural, not timing. Requires build. (13/13)
 npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
 npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
+npm run verify:ipc-error-message # tsx scripts/verify-ipc-error-message.mts - IPC rejections reach the
+                            # UI as the handler's own sentence, not wrapped in Electron's
+                            # "Error invoking remote method '<channel>': " preamble (awkit-x48).
+                            # Anchored strip, generic "Error:" only (TypeError et al. preserved),
+                            # fallback for empty/non-Error input, `cause` retained, plus a source
+                            # guard that exactly one direct ipcRenderer.invoke remains in preload.
+                            # Pure; no Electron. (22/22)
 npm run verify:ipc-contract  # tsx scripts/verify-ipc-contract.mts — renderer↔main IPC contract guard (no broken/duplicate/undocumented channels)
                             # (FIFO, failure-isolation, flush drains + never rejects). No Electron. (7/7)
 npm run verify:settings-persistence # node scripts/verify-settings-persistence.mjs — real-Electron: 40
