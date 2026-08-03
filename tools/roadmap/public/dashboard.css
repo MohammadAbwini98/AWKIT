@@ -216,6 +216,46 @@ body,
   color: var(--awkit-accent-hover);
 }
 
+.rm-button:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.rm-button-primary {
+  background: var(--awkit-accent);
+  border-color: var(--awkit-accent);
+  color: var(--awkit-accent-contrast);
+}
+
+.rm-button-primary:hover:not(:disabled) {
+  background: var(--awkit-accent-hover);
+  color: var(--awkit-accent-contrast);
+}
+
+.rm-package-button {
+  width: 100%;
+}
+
+.rm-build-status {
+  color: var(--awkit-text-muted);
+  display: block;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-2xs);
+  padding: 0 var(--space-2);
+}
+
+.rm-build-status[data-state="running"] {
+  color: var(--awkit-warning);
+}
+
+.rm-build-status[data-state="succeeded"] {
+  color: var(--awkit-success);
+}
+
+.rm-build-status[data-state="failed"] {
+  color: var(--awkit-danger);
+}
+
 /* ==========================================================================
    Page surface
    ========================================================================== */

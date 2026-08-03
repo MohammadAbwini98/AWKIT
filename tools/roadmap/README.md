@@ -143,7 +143,15 @@ Node 18.16 is the dev runtime, so no `Object.groupBy`, no RegExp `/v`, no type s
   unfixed security findings, such as `awkit-7lj` *"flows:list/get/export are unauthenticated reads"*.
 - **Routes are an explicit allowlist.** No path is ever joined from request input, so traversal is
   impossible by construction rather than by validation.
-- **Read-only.** Nothing here writes to the repository.
+- **Repository status remains read-only.** The one explicit action, **Generate portable EXE**, starts
+  the existing `scripts/package-portable.ps1` pipeline. The browser cannot provide a command,
+  arguments, environment, or output path. The packaging script itself may refresh the dependency
+  manifest and replace the prior portable artifact, so the UI requires confirmation first.
+- **Build starts are CSRF-resistant.** `POST /api/package-portable` requires a custom action header
+  and rejects a foreign `Origin`. A hostile webpage cannot submit that header with a plain form,
+  while a cross-origin fetch is preflighted and receives no CORS permission.
+- **One build at a time.** A concurrent start receives `409`; `GET /api/package-portable` exposes
+  only state/timestamps/exit code and a repo-relative artifact name, never command output or paths.
 - **`textContent` everywhere, `innerHTML` never.** Bead descriptions and defect bodies are arbitrary
   Markdown containing backticks and angle brackets. This is a correctness guard as much as a
   security one, and the verifier asserts no asset contains an `innerHTML` assignment.
@@ -190,8 +198,9 @@ the fingerprint-unchanged path, and `POST /api/refresh` backs the Refresh button
 npm run verify:roadmap-dashboard
 ```
 
-105 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
+150 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
 recovery, a negative case proving a mangled phase literal is rejected, ordering invariants, a
 **synthetic 2-cycle** proving the cycle branch fires (there are no real cycles today), byte-identical
 determinism, the provenance rules driven against a claims fixture, server routes including 304 and
-404, the offline rules, and the borrowed class names.
+404, the guarded portable-build lifecycle (with a non-packaging test child), the offline rules, and
+the borrowed class names.

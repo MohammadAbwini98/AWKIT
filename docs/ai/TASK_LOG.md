@@ -4,6 +4,32 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Generate portable EXE from the roadmap dashboard
+
+- **Task:** add a roadmap-dashboard button that generates a new portable project EXE.
+- **Implementation:** persistent sidebar action with an explicit replacement/manifest confirmation;
+  fixed `POST /api/package-portable` server action for `scripts/package-portable.ps1`; same-origin
+  custom-header guard; `shell: false`; one-build-at-a-time `409`; reconnectable
+  idle/running/succeeded/failed status; repo-relative artifact result only.
+- **Security:** the browser cannot provide a command, arguments, environment, path, or output name.
+  Cross-origin forms cannot supply the required header and cross-origin fetches receive no CORS grant.
+  Terminal output is not returned through HTTP.
+- **Verification:** `npm run build` PASS; Node syntax checks PASS; all new portable-action checks pass,
+  including unauthorized/foreign-origin rejection, concurrent rejection, retry, success, failure,
+  exit-code reporting, artifact redaction, and fixed-command source guards. The exact candidate diff
+  passes `verify:roadmap-dashboard` **150/150** in an isolated clean copy. The live dirty checkout is
+  **148/150** only because its pre-existing uncommitted Beads export contains one additional open issue.
+- **Not run:** real `npm run package:portable`. The checkout already had an unrelated modified
+  `resources/dependency-manifest.json`, and `awkit-2l1` still reserves release-key custody for the owner;
+  this task did not touch, stage, regenerate, or revert that file.
+- **External validation failure:** `npm run validate:offline` exits 1 with
+  `Dependency-manifest SHA-256 does not match its signature record` because that pre-existing modified
+  manifest no longer matches the untouched signature. Source hygiene **9/9** and AI-memory checks pass.
+- **Pre-existing user work preserved:** `.beads/issues.jsonl` and
+  `resources/dependency-manifest.json` remain outside this task and outside its commit.
+
+---
+
 ## 2026-08-03 - Claude Code - Legacy Compatibility attribution in run reports (`awkit-vbj`)
 
 - **Task:** a run admitted only because a flow held a grant reported `passed` with no indication

@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## Roadmap dashboard can generate a portable EXE (2026-08-03)
+
+The local Program Status dashboard now has a persistent **Generate portable EXE** button in its
+sidebar footer. After an explicit confirmation it starts the repository's existing
+`scripts/package-portable.ps1` pipeline, disables duplicate starts, and reports running, success, or
+failure state. A successful response names only the repo-relative `dist/SpecterStudio <version>.exe`
+artifact; command output and absolute paths stay in the terminal that launched the dashboard.
+
+The action is deliberately narrow. `POST /api/package-portable` accepts no browser-provided command,
+arguments, environment, or output path; the server invokes one fixed script with `shell: false`.
+Starts require a custom action header and a same-origin request, so a foreign webpage cannot submit a
+plain form to trigger a build. Only one build may run at once, while the read-only status endpoint lets
+the page reconnect to an in-progress build.
+
+Verification exercises both successful and failed child-process lifecycles without running packaging.
+`npm run build` and Node syntax checks pass. The new dashboard action checks all pass; a clean-candidate
+dashboard run is recorded in the task log. A real portable package was intentionally **not** generated:
+the working tree already contains an unrelated modified dependency manifest that must not be overwritten,
+and owner-controlled release-key custody `awkit-2l1` remains the real packaging gate.
+`npm run validate:offline` currently fails with
+`Dependency-manifest SHA-256 does not match its signature record` against that pre-existing dirty pair;
+this task did not modify, sign, regenerate, stage, or revert either file.
+The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Runs admitted under Legacy Compatibility are attributed in the report (`awkit-vbj`, 2026-08-03)
 
 A workflow run that executed **only** because a flow holds a Legacy Compatibility grant reported

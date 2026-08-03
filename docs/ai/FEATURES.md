@@ -1,5 +1,14 @@
 # FEATURES
 
+## Program Status portable packaging action (2026-08-03)
+
+- Implemented: the local roadmap dashboard can start the existing portable packaging pipeline from a
+  confirmed sidebar action and display idle/running/succeeded/failed state across page refreshes.
+- Implemented: fixed server-side command/arguments, `shell: false`, same-origin custom-header guard,
+  single-flight conflict handling, and status responses that omit command output and absolute paths.
+- Environment gate remains: packaging still requires the approved offline inputs and release signing-key
+  custody; the dashboard does not bypass or weaken any packaging validation.
+
 ## Active Directory authentication (2026-07-29)
 
 - Implemented: opt-in trusted main-process configuration for certificate-validated LDAPS or LDAP

@@ -25,6 +25,8 @@ const dom = {
   subtitle: document.getElementById("rm-subtitle"),
   filter: document.getElementById("rm-filter"),
   freshness: document.getElementById("rm-freshness"),
+  packagePortable: document.getElementById("rm-package-portable"),
+  buildStatus: document.getElementById("rm-build-status"),
   refresh: document.getElementById("rm-refresh"),
   status: document.getElementById("rm-status"),
   live: document.getElementById("rm-live"),
@@ -45,7 +47,10 @@ const state = {
   /** @type {Array<() => void>} */
   disposers: [],
   /** @type {Array<() => void>} */
-  mounters: []
+  mounters: [],
+  /** @type {Record<string, any>|null} */
+  portableBuild: null,
+  portablePoll: 0
 };
 
 /* ==========================================================================
@@ -124,6 +129,73 @@ dom.refresh.addEventListener("click", async () => {
     dom.refresh.disabled = false;
   }
 });
+
+dom.packagePortable.addEventListener("click", async () => {
+  const confirmed = window.confirm(
+    "Generate a new portable EXE now?\n\n" +
+      "This runs the repository's full portable packaging pipeline. It can refresh the dependency manifest " +
+      "and replace the existing portable artifact under dist/. Offline inputs and approved signing-key " +
+      "custody must already be available."
+  );
+  if (!confirmed) return;
+
+  dom.packagePortable.disabled = true;
+  try {
+    const response = await fetch("/api/package-portable", {
+      method: "POST",
+      headers: { "X-AWKIT-Roadmap-Action": "package-portable" }
+    });
+    const payload = await response.json();
+    if (!response.ok && response.status !== 409) throw new Error(payload.error ?? `HTTP ${response.status}`);
+    state.portableBuild = payload.build;
+    renderPortableBuild();
+    schedulePortablePoll();
+  } catch (error) {
+    dom.buildStatus.dataset.state = "failed";
+    dom.buildStatus.textContent = error instanceof Error ? error.message : String(error);
+    dom.packagePortable.disabled = false;
+  }
+});
+
+async function loadPortableBuild() {
+  try {
+    const response = await fetch("/api/package-portable");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    state.portableBuild = await response.json();
+    renderPortableBuild();
+    schedulePortablePoll();
+  } catch {
+    dom.buildStatus.dataset.state = "failed";
+    dom.buildStatus.textContent = "Build status unavailable";
+  }
+}
+
+function schedulePortablePoll() {
+  window.clearTimeout(state.portablePoll);
+  if (state.portableBuild?.state !== "running") return;
+  state.portablePoll = window.setTimeout(loadPortableBuild, 1000);
+}
+
+function renderPortableBuild() {
+  const build = state.portableBuild;
+  const running = build?.state === "running";
+  dom.packagePortable.disabled = running;
+  dom.packagePortable.textContent = running ? "Building portable EXE…" : "Generate portable EXE";
+  dom.buildStatus.dataset.state = build?.state ?? "idle";
+  dom.buildStatus.title = "";
+
+  if (!build || build.state === "idle") {
+    dom.buildStatus.textContent = "";
+  } else if (running) {
+    dom.buildStatus.textContent = "Packaging in progress";
+  } else if (build.state === "succeeded") {
+    dom.buildStatus.textContent = "Portable EXE ready";
+    dom.buildStatus.title = build.artifact ?? "dist/";
+  } else {
+    dom.buildStatus.textContent = build.errorCode === "SPAWN_FAILED" ? "Could not start packaging" : "Portable build failed";
+    dom.buildStatus.title = build.exitCode === null ? "" : `Exit code ${build.exitCode}`;
+  }
+}
 
 /* ==========================================================================
    Data
@@ -258,4 +330,4 @@ function render() {
 
 renderNav();
 setLive("connecting", "Connecting…");
-load().then(connect);
+Promise.all([load(), loadPortableBuild()]).then(connect);

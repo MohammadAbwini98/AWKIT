@@ -19,6 +19,7 @@
  */
 
 import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -533,7 +534,16 @@ try {
      ====================================================================== */
   console.log("Server:");
   process.env.ROADMAP_PORT = "0"; // ephemeral: never collide with a dashboard the owner is running
-  const { server } = await import("../tools/roadmap/server.mjs");
+  const { server, setPortableBuildProcessFactoryForTests } = await import("../tools/roadmap/server.mjs");
+  let portableInvocation = 0;
+  setPortableBuildProcessFactoryForTests(() => {
+    portableInvocation += 1;
+    const exitCode = portableInvocation === 1 ? 0 : 7;
+    return spawn(process.execPath, ["-e", `setTimeout(() => process.exit(${exitCode}), 80)`], {
+      shell: false,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+  });
   await new Promise((resolve) => (server.listening ? resolve() : server.once("listening", resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
 
@@ -573,6 +583,71 @@ try {
   const notAllowed = await fetch(`${base}/api/refresh`);
   check("GET /api/refresh is rejected", notAllowed.status === 405, `got ${notAllowed.status}`);
 
+  const initialBuildRes = await fetch(`${base}/api/package-portable`);
+  const initialBuild = await initialBuildRes.json();
+  check("portable build status starts idle", initialBuildRes.status === 200 && initialBuild.state === "idle");
+
+  const unauthorizedBuild = await fetch(`${base}/api/package-portable`, { method: "POST" });
+  check("portable build rejects a form-compatible POST", unauthorizedBuild.status === 403, `got ${unauthorizedBuild.status}`);
+
+  const foreignOriginBuild = await fetch(`${base}/api/package-portable`, {
+    method: "POST",
+    headers: {
+      Origin: "https://example.invalid",
+      "X-AWKIT-Roadmap-Action": "package-portable"
+    }
+  });
+  check("portable build rejects a foreign Origin", foreignOriginBuild.status === 403, `got ${foreignOriginBuild.status}`);
+
+  const actionHeaders = { "X-AWKIT-Roadmap-Action": "package-portable" };
+  const startedBuildRes = await fetch(`${base}/api/package-portable`, { method: "POST", headers: actionHeaders });
+  const startedBuild = await startedBuildRes.json();
+  check(
+    "portable build starts through the fixed action",
+    startedBuildRes.status === 202 && startedBuild.build?.state === "running",
+    `status ${startedBuildRes.status}, state ${startedBuild.build?.state}`
+  );
+
+  const duplicateBuild = await fetch(`${base}/api/package-portable`, { method: "POST", headers: actionHeaders });
+  check("a concurrent portable build is rejected", duplicateBuild.status === 409, `got ${duplicateBuild.status}`);
+
+  let finalBuild = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const response = await fetch(`${base}/api/package-portable`);
+    finalBuild = await response.json();
+    if (finalBuild.state !== "running") break;
+  }
+  check("portable build completion is observable", finalBuild?.state === "succeeded", finalBuild?.state ?? "none");
+  check(
+    "portable build exposes only a repo-relative EXE result",
+    /^dist\/[^/\\]+\.exe$/.test(finalBuild?.artifact ?? ""),
+    finalBuild?.artifact ?? "none"
+  );
+  check(
+    "portable build status does not expose command details",
+    !["command", "args", "cwd", "environment", "output"].some((key) => key in (finalBuild ?? {}))
+  );
+
+  const failedBuildStart = await fetch(`${base}/api/package-portable`, { method: "POST", headers: actionHeaders });
+  check("a completed build can be retried", failedBuildStart.status === 202, `got ${failedBuildStart.status}`);
+  let failedBuild = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const response = await fetch(`${base}/api/package-portable`);
+    failedBuild = await response.json();
+    if (failedBuild.state !== "running") break;
+  }
+  check(
+    "portable build failure is observable with its exit code",
+    failedBuild?.state === "failed" && failedBuild.exitCode === 7,
+    `${failedBuild?.state ?? "none"}/${failedBuild?.exitCode ?? "none"}`
+  );
+  check("a failed build never claims an artifact", failedBuild?.artifact === null, String(failedBuild?.artifact));
+
+  const unsupportedBuildMethod = await fetch(`${base}/api/package-portable`, { method: "PUT" });
+  check("unsupported portable build methods are rejected", unsupportedBuildMethod.status === 405);
+
   server.close();
 
   /* ======================================================================
@@ -591,6 +666,24 @@ try {
     check(`${file} has no remote URL`, !/https?:\/\//.test(text.replace(NAMESPACE_URIS, "")));
     check(`${file} has no @import url(`, !/@import\s+url\(/.test(text));
   }
+  const indexSrc = readFileSync(join(publicDir, "index.html"), "utf8");
+  const dashboardSrc = readFileSync(join(publicDir, "dashboard.js"), "utf8");
+  const serverSrc = readFileSync(join(ROADMAP_ROOT, "server.mjs"), "utf8");
+  check(
+    "the portable packaging action is visible in the dashboard shell",
+    indexSrc.includes('id="rm-package-portable"') && indexSrc.includes("Generate portable EXE")
+  );
+  check(
+    "the portable action confirms and sends the CSRF-resistant header",
+    dashboardSrc.includes("window.confirm(") &&
+      dashboardSrc.includes('"X-AWKIT-Roadmap-Action": "package-portable"')
+  );
+  check(
+    "the server fixes the packaging script and disables shell interpretation",
+    serverSrc.includes('const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "package-portable.ps1")') &&
+      serverSrc.includes("shell: false") &&
+      !serverSrc.includes("url.searchParams")
+  );
   // icon() falls back to ICON_NODES.circle for a name it does not know, so a typo or a status added
   // without its icon renders a plain circle and nothing fails. Resolve every referenced name here.
   const viewsSrc = readFileSync(join(publicDir, "views.js"), "utf8");

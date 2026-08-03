@@ -15,6 +15,21 @@
 - The only AD egress is a user-initiated login or sensitive-operation reauth to the configured DC.
   Disabled/incomplete configuration and unknown local identities do not instantiate an LDAP client.
 
+## Developer Program Status dashboard boundary
+
+- `tools/roadmap/server.mjs` is a loopback-only, zero-dependency `node:http` developer tool and is not
+  included in the Electron application or package. Repository status remains derived from the registered
+  sources; the dashboard never edits those sources to record progress.
+- The only imperative route is `POST /api/package-portable`. It invokes the fixed
+  `scripts/package-portable.ps1` path from `REPO_ROOT` with fixed PowerShell arguments and
+  `shell: false`; request data cannot select a command, path, environment, or artifact.
+- The server owns an in-memory single-flight build state. `GET /api/package-portable` exposes only
+  state, timestamps, exit code, sanitized error code, and the repo-relative artifact name. Child output
+  stays attached to the dashboard terminal.
+- The renderer confirms the potentially replacing operation, sends a custom same-origin action header,
+  disables duplicate starts, and polls while running. The endpoint returns `409` for concurrent starts
+  and grants no CORS permission, preserving the loopback/CSRF boundary.
+
 ## Confirmed — folder/module map
 
 ```text
