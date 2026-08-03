@@ -16,8 +16,12 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   generated manifest cleanup on package failure; unexpected concurrent changes refused.
 - **Live-run correction:** Windows PowerShell 5.1 could not `ConvertFrom-Json` npm's empty-string lock
   root key. The failed uncommitted bump was restored; version parity is now read through bundled Node.
+- **Released:** `SpecterStudio 0.1.3.exe`, 212,848,404 bytes, SHA-256
+  `EA9BC94B12475537A93384E24DC96972FBD384700B0B16291E8A76F5EE81F77F`; all filename, Windows,
+  package, lockfile, and signed-manifest version identities are `0.1.3`.
 - **Verification:** PowerShell parser PASS; dirty-tree refusal PASS without file mutation; Node syntax
-  PASS; `npm run verify:all-typecheck` PASS; roadmap dashboard **155/155**.
+  PASS; `npm run verify:all-typecheck` PASS; roadmap dashboard **155/155**; offline validation PASS;
+  packaged runtime **25/25**.
 
 ---
 

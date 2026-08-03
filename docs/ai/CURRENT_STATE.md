@@ -25,6 +25,13 @@ two version edits were restored. The wrapper now reads the three version values 
 and feeds only a simple key/value object back to PowerShell, preserving lock/package synchronization
 without asking PowerShell to parse the lock structure.
 
+The corrected live release then completed: `package.json`, both package-lock version fields, Windows
+`FileVersion`/`ProductVersion`, and the signed dependency manifest all report **0.1.3**. The distinct
+`dist/SpecterStudio 0.1.3.exe` is **212,848,404 bytes**, SHA-256
+`EA9BC94B12475537A93384E24DC96972FBD384700B0B16291E8A76F5EE81F77F`. Strict packaging passed,
+the manifest signature verifies, and `verify:packaged-runtime` passes **25/25**, including launching
+the packaged app and confirming `appMode: "packaged"` plus the writable durable SQLite runtime.
+
 ---
 
 ## Portable EXE generated after release-key custody repair (2026-08-03)

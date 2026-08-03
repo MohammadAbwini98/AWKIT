@@ -5,14 +5,19 @@
 - **Root cause fixed:** the dashboard used `package-portable.ps1`, so every click rebuilt the current
   `0.1.2` version and replaced the same artifact name.
 - **New behavior:** **Generate next portable EXE** uses a fixed patch-release wrapper; the next clean
-  run bumps `0.1.2` to `0.1.3`, synchronizes both package metadata files, commits the bounded release
-  inputs, packages, signs, and commits the release manifest pair.
+  run increments the current patch version, synchronizes both package metadata files, commits the
+  bounded release inputs, packages, signs, and commits the release manifest pair.
+- **Completed proof:** the first corrected run released `SpecterStudio 0.1.3.exe` (212,848,404 bytes,
+  SHA-256 `EA9BC94B12475537A93384E24DC96972FBD384700B0B16291E8A76F5EE81F77F`). Filename,
+  Windows FileVersion/ProductVersion, package, lockfile, and signed manifest all report `0.1.3`;
+  packaged-runtime verification passes **25/25**.
 - **Safety:** clean `main` required; no browser-provided arguments; no `git add -A`; no `--no-verify`;
   unexpected changes are refused; the canonical package pipeline still owns every offline gate.
 - **Version-skew:** GET status must report `versionPolicy: "patch"`; otherwise the live client asks for
   `npm run roadmap` restart instead of silently calling an old same-route server.
 - **Verification:** PowerShell parse PASS; dirty-tree refusal PASS; all application/script typechecks
-  PASS; roadmap dashboard **155/155**; validation ledger **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+  PASS; roadmap dashboard **155/155**; offline validation PASS; packaged runtime **25/25**;
+  validation ledger **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
 ---
 
