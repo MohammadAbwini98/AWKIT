@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - Flow Designer geometry checks: fixed-delay race, not a flake (`awkit-73s`)
+
+- **Task:** the compact-viewport Node Properties geometry check in `verify:flow-designer` had failed
+  intermittently. Prior investigation found the root cause but landed no fix, pending an owner
+  decision on the actual design (overlay vs inset).
+- **Decision (owner):** inset is correct — the drawer must reduce usable canvas width and shift the
+  workflow left; it must never cover nodes or connections.
+- **Root cause, confirmed live:** two independent async mechanisms move this layout on open/resize —
+  a CSS transition on `.flow-designer-body`'s `padding-right` (declared 240ms, measured only ~87%
+  complete at 500ms) and a `ResizeObserver`-driven `--awkit-action-bar-h` update (not a CSS
+  animation, invisible to `getAnimations()`). The SAME code intermittently sampled a mid-transition
+  frame (looking like the old "overlay" model) or the settled frame (inset,
+  `canvasEngineRight === panelLeft` exactly at all 3 tested viewports) — not two different designs
+  for resize vs non-resize, just a race that could land either way.
+- **Fix:** new `waitForDrawerSettled()` awaits `Animation.finished` on the drawer subtree (covers the
+  transition and the panel's own `awkit-config-drawer-in` keyframe), then polls geometry for two
+  identical consecutive reads to catch the `ResizeObserver` settle too — safe here because nothing
+  holds a frozen pre-transition frame, unlike an `animation-fill-mode:both` keyframe. All three
+  overlay-shaped assertions (default open, 1936×1290, 1024×768) rewritten to the inset invariant.
+  Stale "floating overlay" comments corrected in the script and in `CURRENT_STATE.md`, which now
+  explicitly supersedes the `awkit-9p6` (2026-07-18) entry that first introduced the overlay model.
+- **Mutation-tested the fix itself:** injected `padding-right: 0 !important` via `addStyleTag` to
+  simulate a regression back to overlay — all three new assertions correctly failed (69/72); removed
+  the injection, back to 72/72.
+- **Tests:** `verify:flow-designer` **72/72** across 4 consecutive runs (was flaking 70–71/72);
+  source-hygiene 9/9; roadmap dashboard 156/156 (after adding the ledger tally to the new
+  `CURRENT_STATE.md` section — same "newest section must quote the tally" trap as before);
+  `git diff --check` clean.
+- **Out of scope, left alone:** the SSE completion-gate intermittent in the same verifier (different
+  check, different root cause) and `awkit-9p6`'s closed record (historical, not rewritten).
+- **Result:** `awkit-73s` closed. Beads **8 outstanding / 143 closed** of 151. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-03 - Claude Code - Register three invisible verifiers + filesystem reconciliation (`awkit-iu7`)
 
 - **Task:** three runnable `scripts/verify-*.mts` files (legacy-compat 152, validation 125,

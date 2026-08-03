@@ -119,7 +119,12 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
                             # connector paths render, edges flow top→bottom (source-bottom → target-top),
                             # dotted background + zoom control, the contextual Node Palette (right-click /
                             # append + / edge-insert +), kebab loop add/remove (self-loop edge), and the
-                            # Saved Flow dropdown closing on an outside canvas click.
+                            # Saved Flow dropdown closing on an outside canvas click. Node Properties
+                            # geometry checks (default open, 1936x1290, 1024x768) assert that the open
+                            # drawer INSETS the canvas — engine right edge flush against the drawer's
+                            # left edge, never covering nodes/connections (awkit-73s) — and wait for the
+                            # drawer's actual open/resize animations to finish (`Animation.finished` +
+                            # geometry-stability polling) rather than a fixed delay. (72/72)
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
 npm run verify:flow-node-catalog-parity # tsx scripts/verify-flow-node-catalog-parity.mts — reconciles
                             # flowNodeCatalog ↔ flowNodeRegistry in BOTH directions (plus the StepType

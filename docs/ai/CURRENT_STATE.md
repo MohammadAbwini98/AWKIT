@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Flow Designer's Node Properties drawer insets the canvas — corrected from `awkit-9p6` (`awkit-73s`, 2026-08-03)
+
+**Supersedes the "floating-overlay" claim recorded under `awkit-9p6` below** (measured
+"~1.8px right overhang", "flow engine keeps the full canvas width"). That was never the settled
+state; it was a stale read of the layout mid-transition. Confirmed by owner decision + a live
+measurement: the drawer **insets** the canvas — `.react-flow-shell`'s usable width shrinks via
+`padding-right` on `.flow-designer-body`, the workflow area shifts left, and the engine's right
+edge sits flush against the drawer's left edge (`canvasEngineRight == panelLeft`, measured exactly
+equal at three viewports) rather than running underneath it. This is the required behavior: the
+drawer must reduce usable canvas width, not cover nodes or connections.
+
+Root cause of the stale reading: `scripts/verify-flow-designer-gui.mjs` sampled geometry after a
+**fixed delay** (360ms / 180ms) following the open/resize. Two independent async mechanisms move
+this layout — the `.flow-designer-body` `padding-right` + `.designer-right-drawer-slot` `width` CSS
+transitions (declared 240ms, but measured only ~87% complete at 500ms) and the action bar's
+`ResizeObserver`-driven `--awkit-action-bar-h` (not a CSS animation, invisible to
+`getAnimations()`). A fixed wait could read either a mid-transition frame (looking like "overlay")
+or the settled frame (inset), which is why the compact-viewport check was reported flaky rather
+than a clean fail. All three overlay-shaped assertions in `verify:flow-designer` (default open, the 1936×1290 wide
+viewport, and the compact 1024×768 viewport) now wait for `Animation.finished` on the drawer
+subtree, then poll geometry to a stable read, and assert the inset invariant instead. Confirmed the
+new checks actually catch the regression they exist for: injecting `padding-right: 0 !important` to
+simulate a return to overlay makes all three fail as designed; removing the injection restores
+**72/72**, stable across four consecutive runs. The comprehensive validation ledger is unchanged at
+**62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Portable releases now enforce a fresh first-run database (`2026-08-03`)
 
 The roadmap's **Generate next portable EXE** action still packages the latest clean `main` commit as

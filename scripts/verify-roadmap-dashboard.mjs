@@ -135,9 +135,12 @@ try {
   // absent from package.json and therefore invisible to the classified project gates.
   // Then 9/142 of 151 on 2026-08-03: `awkit-iu7` closed — the three verifiers registered + classified
   // + documented, and a filesystem→package.json reconciliation direction added. No new issues.
+  // Then 8/143 of 151 on 2026-08-03: `awkit-73s` closed — corrected the Flow Designer geometry
+  // assertions to the settled inset design and replaced the fixed-delay wait with
+  // Animation.finished + geometry-stability polling. No new issues.
   check(
-    "9 outstanding / 142 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 142,
+    "8 outstanding / 143 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 143,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
