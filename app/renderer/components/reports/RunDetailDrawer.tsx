@@ -18,6 +18,21 @@ function parentFolder(path: string): string {
   return idx > 0 ? path.slice(0, idx) : path;
 }
 
+interface LegacyCompatibilityAttribution {
+  flows: Array<{ flowId: string; flowName?: string; expiresAt?: string }>;
+}
+
+/** Parse the durable row's JSON snapshot (awkit-5dn). Malformed/absent JSON reads as "no grant". */
+function parseLegacyCompatibility(json: string | undefined): LegacyCompatibilityAttribution | undefined {
+  if (!json) return undefined;
+  try {
+    const parsed = JSON.parse(json) as LegacyCompatibilityAttribution;
+    return Array.isArray(parsed?.flows) && parsed.flows.length > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Right-side drawer showing one run's metadata, node attempts, and artifact links. */
 export function RunDetailDrawer({ instanceId, onClose }: RunDetailDrawerProps) {
   const { data, loading, error } = useTelemetryQuery<RunDetail>(
@@ -138,6 +153,24 @@ export function RunDetailDrawer({ instanceId, onClose }: RunDetailDrawerProps) {
                 </div>
               </dl>
               {data.run.error ? <p className="awkit-detail-error">{data.run.error}</p> : null}
+              {(() => {
+                const legacyCompatibility = parseLegacyCompatibility(data.run.legacyCompatibilityJson);
+                if (!legacyCompatibility) return null;
+                const names = legacyCompatibility.flows.map((flow) => flow.flowName ?? flow.flowId).join(", ");
+                const earliestExpiry = legacyCompatibility.flows
+                  .map((flow) => flow.expiresAt)
+                  .filter((value): value is string => Boolean(value))
+                  .sort()[0];
+                return (
+                  <span
+                    className="state-pill pill-legacy"
+                    data-validation="legacy-compatibility"
+                    title={`This run was admitted because ${names} held a Legacy Compatibility grant${earliestExpiry ? `, earliest expiring ${earliestExpiry.slice(0, 10)}` : ""}.`}
+                  >
+                    Admitted under Legacy Compatibility: {names}
+                  </span>
+                );
+              })()}
             </section>
 
             <section className="awkit-detail-section">

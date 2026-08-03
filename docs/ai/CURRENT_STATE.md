@@ -1,5 +1,37 @@
 # CURRENT_STATE
 
+## Run Detail drawer now shows Legacy Compatibility attribution (`awkit-5dn`, 2026-08-03)
+
+Follow-up to `awkit-vbj`, which added `legacyCompatibility` to the persisted JSON execution report
+but deliberately did not touch the durable SQLite store — `RunDetailDrawer.tsx` reads
+`window.playwrightFlowStudio.telemetry.runDetail`, served by `ExecutionEngine.getTelemetryRunDetail`
+from that store, not from the report file, so an operator reading the drawer still could not tell a
+run was admitted under a grant.
+
+**Migration v5** (`legacy-compatibility-attribution`, additive-only, `RuntimeStoreSchema.ts`) adds
+`runtime_runs.legacyCompatibilityJson` — a JSON-encoded snapshot of
+`ConcurrentRunProfile["legacyCompatibility"]`, written once at dispatch by `ExecutionEngine`
+(`runInstanceInner`, reading `this.runContexts.get(instance.executionId)?.profile.legacyCompatibility`,
+the same run context `startRun` already populates) and never re-derived later — grants expire and get
+revoked, so a live join against the current grants table would misreport historical runs. `RunDetail`
+already exposes the raw `DurableRunRecord`, so no IPC contract change was needed; `RunDetailDrawer.tsx`
+parses the JSON and renders it with the same `.state-pill.pill-legacy` marker Flow Library already
+uses for grant-tolerated flows.
+
+Verified: `npm run build` clean; `npm run verify:telemetry` **66/66** (extended with the v5 migration
+assertion, a pre-v5 row reading the new column as `undefined`, and a full round-trip proving the
+snapshot survives a close/reopen and is not wiped by a later upsert that omits it — mutation-tested by
+nulling the SQL bind and confirming the round-trip check fails, then reverted); `npm run
+verify:run-report-compatibility` **27/27** (extended with source guards proving the engine reads the
+same snapshot the report uses and writes it to the durable store, mutation-tested by changing the
+conditional-spread shape and confirming the guard fails, then reverted); `npm run verify:runner`
+**89/89** (unaffected — confirms the `ExecutionEngine.ts` dispatch-path edit didn't regress runner
+behavior); `verify:verifier-classification` 165 verifiers reconciled (no new script, no change);
+`verify:roadmap-dashboard` 156/156. Comprehensive validation ledger unchanged at **62 PASS / 3 NOT
+RUN / 1 BLOCKED**.
+
+---
+
 ## `awkit-k2s` defensive hardening implemented + verified; installed-artifact acceptance still BLOCKED (2026-08-03)
 
 Two distinct, separate facts — do not collapse them:

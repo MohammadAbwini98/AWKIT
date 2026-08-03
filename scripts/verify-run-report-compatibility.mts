@@ -142,5 +142,34 @@ console.log("\nThe chain from admission to report is wired (source guards):");
   check("the grant snapshot is taken before the run profile is built", grantsAt > 0 && profileAt > grantsAt, `grants@${grantsAt} profile@${profileAt}`);
 }
 
+console.log("\nThe attribution ALSO reaches the durable store the Run Detail drawer actually reads (awkit-5dn):");
+{
+  // awkit-5dn: the JSON report carries legacyCompatibility (proven above), but RunDetailDrawer.tsx
+  // reads window.playwrightFlowStudio.telemetry.runDetail, served from the durable SQLite store, not
+  // the report file. Prior to this bead the run gate's snapshot never reached that store, so an
+  // operator reading the drawer could not tell a run was admitted under a grant. These guards prove
+  // the SEPARATE wiring the report-level checks above cannot see.
+  const engineSource = readFileSync(resolve(ROOT, "src/runner/ExecutionEngine.ts"), "utf8");
+  const schemaSource = readFileSync(resolve(ROOT, "src/runner/store/RuntimeStoreSchema.ts"), "utf8");
+  const sqliteStoreSource = readFileSync(resolve(ROOT, "src/runner/store/SqliteRuntimeStore.ts"), "utf8");
+  const drawerSource = readFileSync(resolve(ROOT, "app/renderer/components/reports/RunDetailDrawer.tsx"), "utf8");
+
+  check("the durable schema has a migration for the attribution column", /legacyCompatibilityJson/.test(schemaSource));
+  check(
+    "the engine reads the SAME profile.legacyCompatibility the report uses, at dispatch, not re-derived later",
+    /this\.runContexts\.get\(instance\.executionId\)\?\.profile\.legacyCompatibility/.test(engineSource)
+  );
+  check(
+    "the engine's upsertRun call is conditioned on that snapshot actually being present",
+    /legacyCompatibility\s*\?\s*\{\s*legacyCompatibilityJson:\s*JSON\.stringify\(legacyCompatibility\)\s*\}\s*:\s*\{\}/.test(engineSource)
+  );
+  check(
+    "the SQL write actually binds the column (not just declares it) — mutation-tested manually by nulling the bind and confirming the telemetry round-trip check fails",
+    /legacyCompatibilityJson,\s*updatedAt\)/.test(sqliteStoreSource) && /merged\.legacyCompatibilityJson\s*\?\?\s*null,/.test(sqliteStoreSource)
+  );
+  check("the drawer parses the durable row's JSON snapshot rather than trusting it blindly", /JSON\.parse\(json\)/.test(drawerSource));
+  check("the drawer renders the attribution using the same Legacy Compatibility marker style as Flow Library", /pill-legacy/.test(drawerSource));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

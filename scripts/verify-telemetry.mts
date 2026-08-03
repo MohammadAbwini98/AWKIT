@@ -62,19 +62,26 @@ async function main(): Promise<void> {
   const upgraded = await SqliteRuntimeStore.open(upgradePath, () => undefined);
   const migrations = upgraded.appliedMigrations();
   check(
-    "v2 + v3 + v4 migrations applied on top of a v1-only database",
-    migrations.length === 4 &&
+    "v2 + v3 + v4 + v5 migrations applied on top of a v1-only database",
+    migrations.length === 5 &&
       migrations[1].version === 2 &&
       migrations[2].version === 3 &&
       migrations[2].name === "machine-run-context" &&
       migrations[3].version === 4 &&
-      migrations[3].name === "observability-analytics",
+      migrations[3].name === "observability-analytics" &&
+      migrations[4].version === 5 &&
+      migrations[4].name === "legacy-compatibility-attribution",
     JSON.stringify(migrations)
   );
   const legacy = upgraded.listRuns(10).find((run) => run.instanceId === "legacy-1");
   check("pre-v2 run row survives the upgrade", legacy?.status === "completed", JSON.stringify(legacy));
   check("pre-v2 row reads new columns as undefined (Unavailable)", legacy !== undefined && legacy.reportCategory === undefined && legacy.durationMs === undefined);
   check("pre-v3 row reads machine columns as undefined (Unknown)", legacy !== undefined && legacy.machineId === undefined && legacy.observedPeakConcurrency === undefined);
+  check(
+    "pre-v5 row reads legacyCompatibilityJson as undefined (no grant, not merely blank)",
+    legacy !== undefined && legacy.legacyCompatibilityJson === undefined,
+    JSON.stringify(legacy)
+  );
 
   console.log("\nPart B — reporting run-summary fields round-trip");
   upgraded.upsertRun({
@@ -103,6 +110,51 @@ async function main(): Promise<void> {
   const rep = reopened.listRuns(10).find((run) => run.instanceId === "rep-1");
   check("scenarioName/queueWait preserved through a later upsert (not wiped by REPLACE)", rep?.scenarioName === "Mock — Reporting" && rep?.queueWaitMs === 1200, JSON.stringify(rep));
   check("end-of-run reporting fields persisted", rep?.durationMs === 20000 && rep?.retryCount === 2 && rep?.reportCategory === "timeout", JSON.stringify(rep));
+  check("a run admitted WITHOUT a grant has no legacyCompatibilityJson (never a stray 'null' string)", rep?.legacyCompatibilityJson === undefined, JSON.stringify(rep?.legacyCompatibilityJson));
+
+  console.log("\nPart B.1 — Legacy Compatibility attribution round-trip (awkit-5dn)");
+  const legacySnapshot = JSON.stringify({
+    flows: [
+      { flowId: "flow-legacy-1", flowName: "Checkout (legacy)", expiresAt: "2026-09-01T00:00:00.000Z" },
+      { flowId: "flow-legacy-2", expiresAt: "2026-09-15T00:00:00.000Z" }
+    ]
+  });
+  reopened.upsertRun({
+    instanceId: "grant-1",
+    executionId: "grant-e",
+    scenarioId: "s-grant",
+    scenarioName: "Mock — Grant Admitted",
+    status: "running",
+    startedAt: "2026-07-08T10:00:00.000Z",
+    legacyCompatibilityJson: legacySnapshot
+  });
+  await reopened.persistNow();
+  const reopened2 = await SqliteRuntimeStore.open(upgradePath, () => undefined);
+  const grantRun = reopened2.listRuns(10).find((run) => run.instanceId === "grant-1");
+  check(
+    "legacyCompatibilityJson round-trips byte-for-byte through a close/reopen",
+    grantRun?.legacyCompatibilityJson === legacySnapshot,
+    JSON.stringify(grantRun?.legacyCompatibilityJson)
+  );
+  const parsedGrant = grantRun?.legacyCompatibilityJson ? JSON.parse(grantRun.legacyCompatibilityJson) : undefined;
+  check(
+    "the round-tripped snapshot preserves both grant entries, one with and one without flowName",
+    parsedGrant?.flows?.length === 2 && parsedGrant.flows[0].flowName === "Checkout (legacy)" && parsedGrant.flows[1].flowName === undefined,
+    JSON.stringify(parsedGrant)
+  );
+  // A later upsert that omits the field entirely must not wipe the earlier snapshot (same merge
+  // contract the reporting fields already rely on — `stripUndefined` before the REPLACE).
+  reopened2.upsertRun({ instanceId: "grant-1", executionId: "grant-e", status: "completed", endedAt: "2026-07-08T10:00:05.000Z" });
+  await reopened2.persistNow();
+  const reopened3 = await SqliteRuntimeStore.open(upgradePath, () => undefined);
+  const grantRunAfterUpdate = reopened3.listRuns(10).find((run) => run.instanceId === "grant-1");
+  check(
+    "a later upsert that omits legacyCompatibilityJson does not wipe the admission-time snapshot",
+    grantRunAfterUpdate?.legacyCompatibilityJson === legacySnapshot && grantRunAfterUpdate?.status === "completed",
+    JSON.stringify(grantRunAfterUpdate)
+  );
+  await reopened3.close();
+  await reopened2.close();
   await reopened.close();
 
   console.log("\nPart C — process samples write/read + empty-DB safety");

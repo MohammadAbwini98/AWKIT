@@ -180,9 +180,10 @@ export class SqliteRuntimeStore implements RuntimeStore {
           configuredConcurrency, observedPeakConcurrency, workloadClass, capacityRecommendationAtRun,
           headed, resourceProfile, isolationClass, workloadWeight, dispatchLatencyMs, pressureStateAtRun,
           obsSampleCount, obsSystemCpuMean, obsSystemCpuP95, obsSystemMemoryMean, obsSystemMemoryP95,
-          obsChromiumRssMeanMb, obsChromiumRssP95Mb, obsAwkitRssMeanMb, obsAwkitRssP95Mb, updatedAt)
+          obsChromiumRssMeanMb, obsChromiumRssP95Mb, obsAwkitRssMeanMb, obsAwkitRssP95Mb,
+          legacyCompatibilityJson, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           merged.instanceId,
           merged.executionId,
@@ -231,6 +232,7 @@ export class SqliteRuntimeStore implements RuntimeStore {
           merged.obsChromiumRssP95Mb ?? null,
           merged.obsAwkitRssMeanMb ?? null,
           merged.obsAwkitRssP95Mb ?? null,
+          merged.legacyCompatibilityJson ?? null,
           merged.updatedAt
         ]
       );

@@ -143,9 +143,11 @@ try {
   // fixed as part of this bead). `awkit-k2s` itself stays open/in-progress — hardening implemented,
   // installed-artifact acceptance still pending a signed NSIS artifact. Total/outstanding +1, closed
   // unchanged.
+  // Then 8/144 of 152 on 2026-08-03: `awkit-5dn` closed (Run Detail drawer now shows Legacy
+  // Compatibility attribution via a durable-store v5 migration). No new issues.
   check(
-    "9 outstanding / 143 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 143,
+    "8 outstanding / 144 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 144,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

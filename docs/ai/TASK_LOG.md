@@ -4,6 +4,45 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - Run Detail drawer shows Legacy Compatibility attribution (`awkit-5dn`)
+
+- **Task:** follow-up to `awkit-vbj`. The JSON execution report already carries
+  `legacyCompatibility`, but `RunDetailDrawer.tsx` reads the durable SQLite store
+  (`ExecutionEngine.getTelemetryRunDetail`), not the report file, so the drawer had no way to show
+  it. Needed a v5 store migration (deliberately not bundled into `awkit-vbj`, per that bead's note).
+- **Schema:** `src/runner/store/RuntimeStoreSchema.ts` — migration v5
+  (`legacy-compatibility-attribution`), additive `runtime_runs.legacyCompatibilityJson TEXT`, plus
+  the field on `DurableRunRecord`.
+- **Write path:** `src/runner/store/SqliteRuntimeStore.ts` — `upsertRun` binds the new column.
+  `src/runner/ExecutionEngine.ts` — `runInstanceInner` reads
+  `this.runContexts.get(instance.executionId)?.profile.legacyCompatibility` (the same run context
+  `startRun` already populates; no new parameter threading needed) and passes
+  `legacyCompatibilityJson: JSON.stringify(...)` into the existing dispatch-time `upsertRun` call.
+  Snapshotted once at dispatch, never re-derived — grants expire/get revoked, so a live join would
+  misreport historical runs.
+- **Read path:** no IPC contract change — `RunDetail.run` already exposes the raw
+  `DurableRunRecord` directly. `app/renderer/components/reports/RunDetailDrawer.tsx` parses the
+  JSON and renders it with the same `.state-pill.pill-legacy` marker Flow Library uses for
+  grant-tolerated flows.
+- **Regression coverage:** extended `scripts/verify-telemetry.mts` (v5 migration assertion, pre-v5
+  row reads the column as `undefined`, and a full round-trip: survives close/reopen, preserves
+  multiple grant entries with/without `flowName`, and is not wiped by a later upsert that omits it)
+  — now **66/66**. Extended `scripts/verify-run-report-compatibility.mts` with source guards proving
+  the engine reads the same snapshot the report uses and writes it to the durable store, and that the
+  drawer parses/renders it — now **27/27**. Both sets of new assertions mutation-tested (nulled the
+  SQL bind; changed the conditional-spread shape) and confirmed to fail, then reverted.
+- **Verified:** `npm run build` clean; `verify:telemetry` 66/66; `verify:run-report-compatibility`
+  27/27; `verify:runner` 89/89 (confirms the `ExecutionEngine.ts` edit didn't regress runner
+  behavior); `verify:verifier-classification` 165 reconciled (no new script); `verify:roadmap-dashboard`
+  156/156. Comprehensive validation ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+- **Files:** `src/runner/store/RuntimeStoreSchema.ts`, `src/runner/store/SqliteRuntimeStore.ts`,
+  `src/runner/ExecutionEngine.ts`, `app/renderer/components/reports/RunDetailDrawer.tsx`,
+  `scripts/verify-telemetry.mts`, `scripts/verify-run-report-compatibility.mts`,
+  `docs/ai/COMMANDS.md`, `docs/ai/CURRENT_STATE.md`.
+- **Status:** `awkit-5dn` closing.
+
+---
+
 ## 2026-08-03 - Claude Code - `awkit-k2s` defensive hardening: capability vs permission, installed-artifact acceptance still BLOCKED
 
 - **Task:** per explicit owner instruction, implement source-level hardening for the Flow Library

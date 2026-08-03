@@ -285,6 +285,19 @@ export const RUNTIME_STORE_MIGRATIONS: RuntimeStoreMigration[] = [
       `CREATE INDEX IF NOT EXISTS idx_anomalies_workflow ON runtime_anomalies (workflowId, detectedAt)`,
       `CREATE INDEX IF NOT EXISTS idx_anomalies_detected ON runtime_anomalies (detectedAt)`
     ]
+  },
+  {
+    version: 5,
+    name: "legacy-compatibility-attribution",
+    // Additive only (awkit-5dn). The run gate snapshots which Legacy Compatibility grants admitted a
+    // run onto ConcurrentRunProfile.legacyCompatibility at admission time (awkit-vbj), and that
+    // snapshot already reaches the JSON execution report — but the Run Detail drawer reads the
+    // durable SQLite store, not the report, so it had no way to show it. Stored as JSON (not
+    // relational columns) because it is a fixed snapshot, never queried or filtered on — the exact
+    // reasoning is deliberately admission-time, not live-joined against the current grants table,
+    // since grants expire/get revoked and a live join would misreport historical runs. v1-v4
+    // databases upgrade in place; readers treat NULL as "no grant was involved".
+    statements: [`ALTER TABLE runtime_runs ADD COLUMN legacyCompatibilityJson TEXT`]
   }
 ];
 
@@ -345,6 +358,14 @@ export interface DurableRunRecord {
   obsChromiumRssP95Mb?: number;
   obsAwkitRssMeanMb?: number;
   obsAwkitRssP95Mb?: number;
+  /**
+   * Legacy Compatibility attribution (migration v5; awkit-5dn), snapshotted at admission by the run
+   * gate — never re-derived from the live grants table (grants expire/get revoked, so live joins
+   * would misreport historical runs). JSON-encoded `ConcurrentRunProfile["legacyCompatibility"]`
+   * (`{ flows: Array<{ flowId, flowName?, expiresAt? }> }`); undefined/null when no grant was
+   * involved or the row predates this migration.
+   */
+  legacyCompatibilityJson?: string;
   updatedAt: string;
 }
 

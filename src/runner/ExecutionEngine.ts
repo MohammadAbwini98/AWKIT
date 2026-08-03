@@ -1377,6 +1377,11 @@ export class ExecutionEngine {
     const runStartedAtIso = new Date().toISOString();
     const enqueuedAtIso = this.runStartTimes.get(instance.executionId);
     const queueWaitMs = enqueuedAtIso ? Math.max(0, Date.parse(runStartedAtIso) - Date.parse(enqueuedAtIso)) : undefined;
+    // Attribution for a run the validator only admitted because a flow holds a Legacy Compatibility
+    // grant (awkit-vbj, surfaced in the Run Detail drawer via awkit-5dn). Read from runContexts
+    // (set once in startRun) rather than threaded as a parameter, and snapshotted here at dispatch —
+    // never re-derived from the live grants table, since grants expire/get revoked.
+    const legacyCompatibility = this.runContexts.get(instance.executionId)?.profile.legacyCompatibility;
     this.durableStore.upsertRun({
       instanceId: instance.instanceId,
       executionId: instance.executionId,
@@ -1390,7 +1395,8 @@ export class ExecutionEngine {
       // Observability: pressure state at dispatch (failure-at-pressure correlation, Phase 05).
       pressureStateAtRun: this.adaptive.currentState,
       // Phase B1: stamp the run with its machine context so reports can filter/compare by machine.
-      ...this.buildRunMachineContext()
+      ...this.buildRunMachineContext(),
+      ...(legacyCompatibility ? { legacyCompatibilityJson: JSON.stringify(legacyCompatibility) } : {})
     });
     runLogger.log({
       runId: instance.executionId,

@@ -165,7 +165,12 @@ npm run verify:run-report-compatibility # tsx scripts/verify-run-report-compatib
                             # report (awkit-vbj): the block names each admitted flow and its grant
                             # deadline, is ABSENT on ordinary runs (its presence is the signal), and
                             # source guards cover the chain admission -> run profile -> engine ->
-                            # report. Pure; no browser. (21/21)
+                            # report. Also covers the SEPARATE durable-store wiring (awkit-5dn): the
+                            # engine reads the same profile.legacyCompatibility at dispatch (not
+                            # re-derived later) and writes it to the durable store as
+                            # legacyCompatibilityJson, and RunDetailDrawer.tsx parses + renders it —
+                            # since the Run Detail drawer reads the SQLite store, not the report file,
+                            # and previously had no way to show this. Pure; no browser. (27/27)
 npm run verify:validation   # tsx scripts/verify-validation.mts - rule-by-rule Flow Validation Engine
                             # checks over pure validator logic; no persistence or browser. (125/125)
 npm run verify:legacy-compat # tsx scripts/verify-legacy-compat.mts - Legacy Compatibility + suggested-fix
@@ -262,7 +267,7 @@ npm run verify:watchdog     # tsx scripts/verify-watchdog.mts — stale-heartbea
 npm run verify:artifacts    # tsx scripts/verify-artifacts.mts — JSONL/failure/state artifacts + passive second-client CDP trace, redaction, caps, retention (23 live checks)
 npm run verify:runtime-status # tsx scripts/verify-runtime-status.mts — dispatch claims, lock debug snapshot, capacity counts, aggregated runtime status
 npm run verify:durable-store  # tsx scripts/verify-durable-store.mts — SQLite runtime store (sql.js): migrations, run/attempt persistence across restart
-npm run verify:telemetry      # tsx scripts/verify-telemetry.mts — reporting read-model: v1→v2→v3→v4 in-place migration, run-summary + process samples, retention, ReportCategories, ProcessTreeSampler
+npm run verify:telemetry      # tsx scripts/verify-telemetry.mts — reporting read-model: v1→v2→v3→v4→v5 in-place migration (v5 = Legacy Compatibility attribution, awkit-5dn), run-summary + process samples, retention, ReportCategories, ProcessTreeSampler
 npm run verify:observability  # tsx scripts/verify-observability.mts — Runtime Observability & Historical Analytics: migration v4, admission-reason normalization, RuntimeObservationCollector, per-workflow + capacity aggregation, anomaly/regression rules, store round-trip, per-table retention
 npm run verify:browser-resource-profile # tsx scripts/verify-browser-resource-profile.mts — Browser Resource
                             # Optimization resolver (pure): balanced == today invariant, capability relaxations,
