@@ -147,12 +147,15 @@ try {
     npm version $nextVersion --no-git-tag-version
     if ($LASTEXITCODE -ne 0) { throw "npm version failed (exit $LASTEXITCODE)" }
 } finally { Pop-Location }
-$updatedPackage = Get-Content -Raw $PackageJson | ConvertFrom-Json
-$updatedLock = Get-Content -Raw $PackageLock | ConvertFrom-Json
-$updatedLockRootVersion = $updatedLock.packages.PSObject.Properties[""].Value.version
-if ($updatedPackage.version -ne $nextVersion -or
-    $updatedLock.version -ne $nextVersion -or
-    $updatedLockRootVersion -ne $nextVersion) {
+$versionStateJson = & node -e "const fs=require('node:fs'); const pkg=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const lock=JSON.parse(fs.readFileSync(process.argv[2],'utf8')); process.stdout.write(JSON.stringify({packageVersion:pkg.version,lockVersion:lock.version,lockRootVersion:lock.packages[''].version}));" $PackageJson $PackageLock
+if ($LASTEXITCODE -ne 0) {
+    & git -C $RepoRoot restore -- "package.json" "package-lock.json"
+    throw "Could not verify synchronized package versions."
+}
+$versionState = $versionStateJson | ConvertFrom-Json
+if ($versionState.packageVersion -ne $nextVersion -or
+    $versionState.lockVersion -ne $nextVersion -or
+    $versionState.lockRootVersion -ne $nextVersion) {
     & git -C $RepoRoot restore -- "package.json" "package-lock.json"
     throw "npm version did not synchronize package.json and package-lock.json."
 }

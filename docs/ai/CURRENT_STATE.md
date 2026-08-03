@@ -19,6 +19,12 @@ reporting reads the post-release version instead of caching the server-start ver
 dirty-tree refusal, Node syntax, `npm run verify:all-typecheck`, and roadmap dashboard **155/155** pass.
 The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
+The first live bump also exposed a Windows PowerShell 5.1 limitation: `ConvertFrom-Json` rejects the
+empty-string root key in npm's `package-lock.json`. That attempt stopped before commit/build and its
+two version edits were restored. The wrapper now reads the three version values through bundled Node
+and feeds only a simple key/value object back to PowerShell, preserving lock/package synchronization
+without asking PowerShell to parse the lock structure.
+
 ---
 
 ## Portable EXE generated after release-key custody repair (2026-08-03)

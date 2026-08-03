@@ -14,6 +14,8 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Release-wrapper hardening:** clean `main` guard; `npm version` synchronizes package and lock files;
   explicit bounded staging/commits; canonical package script reuse; no `git add -A` or `--no-verify`;
   generated manifest cleanup on package failure; unexpected concurrent changes refused.
+- **Live-run correction:** Windows PowerShell 5.1 could not `ConvertFrom-Json` npm's empty-string lock
+  root key. The failed uncommitted bump was restored; version parity is now read through bundled Node.
 - **Verification:** PowerShell parser PASS; dirty-tree refusal PASS without file mutation; Node syntax
   PASS; `npm run verify:all-typecheck` PASS; roadmap dashboard **155/155**.
 
