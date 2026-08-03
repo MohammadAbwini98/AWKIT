@@ -1,7 +1,7 @@
 {
   "name": "specterstudio",
   "productName": "SpecterStudio",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Offline-capable Windows desktop studio for visual Playwright automation.",
   "private": true,
   "type": "module",
