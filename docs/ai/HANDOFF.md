@@ -1,5 +1,24 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-03) — portable package completed; cloud-history cleanup remains
+
+- **Branch:** `main`; the portable package was generated from clean source commit `d646cc8`.
+- **Artifact:** `dist/SpecterStudio 0.1.2.exe`, 212,847,833 bytes, SHA-256
+  `95265B8907CE7FD0E4C29CB91DCE0725A938A4BFC2FFCFE54D03864C98C8C782`.
+- **Custody:** owner-authorized move completed from the legacy OneDrive repository location to the
+  approved `%LOCALAPPDATA%\SpecterStudio\release-keys\` directory. The key was not read or logged;
+  the directory ACL is restricted to the current Windows account.
+- **Verification:** package input preflight PASS; build PASS; manifest signing/verification PASS;
+  strict offline validation PASS; Zvec **17/17**; release-key custody **58/58**; roadmap dashboard
+  **153/153**; all application/script typechecks PASS.
+- **Remaining owner action:** clear the old key from OneDrive's online recycle bins and version
+  history, then confirm completion. Keep `awkit-2l1` in progress until that external step is done.
+- **Release note:** the portable EXE has no Windows Authenticode publisher signature because no
+  certificate is configured. The internal Ed25519 dependency-manifest signature is valid.
+- **Validation ledger:** **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## HANDOFF (2026-08-02 18:53 +03:00) — Issuer console complete (`awkit-0tn`)
 
 - **From:** Codex

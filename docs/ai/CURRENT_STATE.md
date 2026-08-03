@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## Portable EXE generated after release-key custody repair (2026-08-03)
+
+The owner authorized moving the offline dependency-manifest private key from the legacy repository
+location inside OneDrive to the approved non-synced
+`%LOCALAPPDATA%\SpecterStudio\release-keys\offline-manifest-private.pem` location. The move was
+performed without reading or logging key contents, and the destination directory was restricted to
+the current Windows account. `verify:release-key-custody` passes **58/58** and the manifest signature
+verifies against the existing public trust root. `awkit-2l1` remains in progress only because the
+owner must still remove the historical synced copy from OneDrive's online recycle bins/version
+history; local tooling cannot verify that external cleanup.
+
+`npm run package:portable` now completes from clean source commit `d646cc8`. The packaging pipeline
+passed its input preflight, application build, Zvec staging (**17/17** assets checksum-verified),
+manifest regeneration/signing, strict offline validation, and Electron Builder. It produced
+`dist/SpecterStudio 0.1.2.exe` (**212,847,833 bytes**) with SHA-256
+`95265B8907CE7FD0E4C29CB91DCE0725A938A4BFC2FFCFE54D03864C98C8C782`; artifact provenance is in
+`dist/release-provenance.json`. The dependency manifest/signature pair was regenerated as the
+documented committed release artifact. Windows Authenticode remains unconfigured and Electron
+Builder explicitly skipped publisher signing; that is separate from the valid internal Ed25519
+manifest signature.
+
+Roadmap verification passes **153/153**, `npm run verify:all-typecheck` passes, and the comprehensive
+ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**. Beads are **10 outstanding / 141 closed** of 151.
+
+---
+
 ## Roadmap dashboard can generate a portable EXE (2026-08-03)
 
 The local Program Status dashboard now has a persistent **Generate portable EXE** button in its

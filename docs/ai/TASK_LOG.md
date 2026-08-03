@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Repair release-key custody and generate portable EXE
+
+- **Trigger:** roadmap packaging first failed because a locally regenerated dependency manifest no
+  longer matched its committed signature, then correctly refused the legacy signing key inside the
+  OneDrive-synced repository.
+- **Repair:** restored the signed manifest baseline, then moved the private key with explicit owner
+  authorization to `%LOCALAPPDATA%\SpecterStudio\release-keys\` without reading/logging it; restricted
+  the destination directory ACL to the current Windows account. OneDrive online recycle-bin/version
+  cleanup remains an external owner step, so `awkit-2l1` remains in progress.
+- **Clean-source checkpoint:** preserved the pre-existing Beads update, recorded custody progress,
+  updated the roadmap's explicit Beads totals to 151 issues / 10 outstanding / 141 closed, and
+  committed the clean packaging source as `d646cc8`.
+- **Artifact:** `dist/SpecterStudio 0.1.2.exe`, 212,847,833 bytes, SHA-256
+  `95265B8907CE7FD0E4C29CB91DCE0725A938A4BFC2FFCFE54D03864C98C8C782`.
+- **Verification:** release-key custody **58/58**; roadmap dashboard **153/153**;
+  `npm run verify:all-typecheck` PASS; packaging input preflight PASS; application build PASS; Zvec
+  **17/17**; manifest signing/verification PASS; strict offline validation PASS; portable packaging
+  exit 0. Windows Authenticode was skipped because no publisher certificate is configured.
+- **Release artifacts:** regenerated signed `resources/dependency-manifest.{json,sig}` and
+  `dist/release-provenance.json`; the EXE and `dist/` outputs remain untracked build artifacts.
+
+---
+
 ## 2026-08-03 - Codex - Handle stale roadmap server responses for portable packaging
 
 - **Symptom:** clicking **Generate portable EXE** displayed

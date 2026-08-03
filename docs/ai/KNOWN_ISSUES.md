@@ -25,9 +25,11 @@ otherwise untouched latch self-refreshes after 30 seconds. Therefore an external
 file can take up to 30 seconds to stop queued promotion. This is an explicit cost/failure-surface
 trade-off, not a renderer dependency. Do not remove the max-age refresh or weaken the bootstrap gate.
 
-The current development machine's private offline-manifest key is also within a OneDrive-synced
-workspace. No private material is tracked in Git; owner-controlled relocation/rotation is tracked as
-`awkit-2l1` and must not be automated by a coding agent.
+The current development machine's private offline-manifest key was moved with explicit owner
+authorization from the OneDrive-synced repository to the approved `%LOCALAPPDATA%` release-key
+directory on 2026-08-03. No private material is tracked in Git or was read/logged during the move.
+`awkit-2l1` remains in progress until the owner clears the historical copy from OneDrive's online
+recycle bins and version history, which local tooling cannot verify.
 
 ---
 
@@ -44,7 +46,7 @@ full suite passed **166/166**. Do not weaken this into an unconditional source-t
 ## Release operations: offline-manifest key custody and Authenticode remain external (2026-07-28)
 
 Offline dependency manifests are now Ed25519-signed, but the private key is intentionally local and
-ignored at `.release-local/offline-manifest-private.pem` (or supplied through
+held outside the repository at `%LOCALAPPDATA%\SpecterStudio\release-keys\` (or supplied through
 `AWKIT_OFFLINE_MANIFEST_PRIVATE_KEY`). Release owners must back it up in an approved secret store,
 control access, and define rotation/revocation. Losing it prevents packaging; exposing it invalidates
 the manifest trust boundary. The shipped public key id is recorded in artifact provenance.
