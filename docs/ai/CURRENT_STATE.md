@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Release-signing key rotated; `awkit-a6a` + `awkit-2l1` closed (2026-08-03)
+
+The prior offline-manifest release-signing private key was confirmed absent from both custody
+locations with no recoverable backup (`awkit-a6a`). Owner decision: generate a fresh key rather than
+continue searching. A new Ed25519 keypair was generated directly at the approved custody path
+(`%LOCALAPPDATA%\SpecterStudio\release-keys\offline-manifest-private.pem`) — never at any point in
+the OneDrive-synced repo tree, which also resolves `awkit-2l1` (there is nothing left to move; the
+new key never existed in the synced location).
+
+The public half was rotated in `resources/trust/offline-manifest-public.pem` — the exact path
+`src/offline/SupplyChainIntegrity.ts` reads at runtime to verify the bundled manifest — and
+`resources/dependency-manifest.json` was re-signed and verified against it (new key id
+`ed25519:aa5b9dd8...`). `npm run verify:release-key-custody` 58/58; `npm run validate:offline` clean.
+Commits `c4491ca` (rotation) plus the bead closures.
+
+**This unblocks `awkit-k2s`'s remaining installed-artifact gate** — a signed NSIS build is now
+possible again. Not yet attempted; see the `awkit-k2s` entry below for what full closure still
+requires (fresh signed artifact, clean-machine install, Super User confirmation of both actions).
+
+---
+
 ## Run Detail drawer now shows Legacy Compatibility attribution (`awkit-5dn`, 2026-08-03)
 
 Follow-up to `awkit-vbj`, which added `legacyCompatibility` to the persisted JSON execution report

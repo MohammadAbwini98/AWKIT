@@ -145,9 +145,12 @@ try {
   // unchanged.
   // Then 8/144 of 152 on 2026-08-03: `awkit-5dn` closed (Run Detail drawer now shows Legacy
   // Compatibility attribution via a durable-store v5 migration). No new issues.
+  // Then 6/146 of 152 on 2026-08-03: `awkit-a6a` and `awkit-2l1` both closed — the owner generated a
+  // fresh Ed25519 offline-manifest signing key directly at the approved LOCALAPPDATA custody path
+  // (never touching the OneDrive-synced tree), rotated the public key, and re-signed the manifest.
   check(
-    "8 outstanding / 144 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 144,
+    "6 outstanding / 146 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 146,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

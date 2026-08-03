@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - Release-signing key rotated (`awkit-a6a`, `awkit-2l1`)
+
+- **Task:** the offline-manifest release-signing private key was confirmed absent from both custody
+  locations (`awkit-a6a`), with no backup found after further owner search. Owner decision: generate
+  a fresh keypair rather than keep searching.
+- **Action:** generated a new Ed25519 keypair via `scripts/offline-manifest-signature.mjs
+  generate-key`, invoked with an explicit `--private-key` pointing directly at the approved custody
+  path (`%LOCALAPPDATA%\SpecterStudio\release-keys\`) so it never touched the OneDrive-synced repo
+  tree. Generation was blocked once by the agent-harness permission classifier (expected — it's a
+  consequential security action) and completed by the owner directly. Rotated the public key into
+  `resources/trust/offline-manifest-public.pem` (the exact path
+  `src/offline/SupplyChainIntegrity.ts` reads at runtime; the `vendor/trust/` copy is gitignored and
+  unreferenced by any code, kept in sync only for tidiness). Re-signed
+  `resources/dependency-manifest.json` and verified.
+- **Verified:** `npm run verify:release-key-custody` 58/58; `npm run validate:offline` clean.
+- **Beads:** closed `awkit-a6a` (incident resolved by rotation) and `awkit-2l1` (nothing left to
+  move — the new key never existed in the synced tree).
+- **Files:** `resources/dependency-manifest.sig`, `resources/trust/offline-manifest-public.pem`.
+  Private key material was never written to, read from, or referenced within the repository tree.
+- **Next:** `awkit-k2s`'s installed-artifact gate is now unblocked (a signed NSIS build is possible
+  again) but not yet attempted — needs a fresh signed artifact, a clean/reprovisioned Windows install,
+  and Super User confirmation that both "New Flow" and "Re-scan Library" render.
+
+---
+
 ## 2026-08-03 - Claude Code - Run Detail drawer shows Legacy Compatibility attribution (`awkit-5dn`)
 
 - **Task:** follow-up to `awkit-vbj`. The JSON execution report already carries
