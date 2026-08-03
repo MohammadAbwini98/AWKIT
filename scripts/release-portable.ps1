@@ -3,9 +3,10 @@
     Build a portable SpecterStudio .exe with automatic version increment.
 
 .DESCRIPTION
-    Reads the current version from package.json, bumps the chosen semver
-    segment, writes it back, runs the full portable packaging chain, and
-    reports the output artifact path.
+    Requires a clean main branch, bumps package.json and package-lock.json
+    together, commits only those version files, runs the guarded portable
+    packaging chain, commits the signed release manifest pair, and reports
+    the output artifact path.
 
     Version bump strategy (choose one via -BumpType):
       patch  -- 1.0.0 -> 1.0.1  (default)
@@ -54,13 +55,31 @@ function Write-Ok    ([string]$msg) { Write-Host "[OK]    $msg" -ForegroundColor
 function Write-Warn  ([string]$msg) { Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
 function Write-Fail  ([string]$msg) { Write-Host "[FAIL]  $msg" -ForegroundColor Red    }
 
-# UTF-8 without BOM (Vite's PostCSS JSON loader chokes on the BOM byte)
-$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-
 # ---- paths ------------------------------------------------------------------
 $RepoRoot    = Resolve-Path (Join-Path $PSScriptRoot "..")
 $PackageJson = Join-Path $RepoRoot "package.json"
+$PackageLock = Join-Path $RepoRoot "package-lock.json"
 $ScriptsDir  = $PSScriptRoot
+
+function Restore-GeneratedReleaseFiles {
+    & git -C $RepoRoot restore -- "resources/dependency-manifest.json" "resources/dependency-manifest.sig"
+    if ($LASTEXITCODE -ne 0) { throw "Could not restore generated release files after a failed package." }
+}
+
+# ---- 0. release workspace guard --------------------------------------------
+Write-Step "Checking clean main-branch release workspace"
+$branch = (& git -C $RepoRoot branch --show-current).Trim()
+if ($LASTEXITCODE -ne 0 -or $branch -ne "main") {
+    Write-Fail "Portable releases must run from the main branch."
+    exit 1
+}
+$initialChanges = @(& git -C $RepoRoot status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect the release workspace." }
+if ($initialChanges.Count -gt 0) {
+    Write-Fail "Portable release requires a clean working tree; no files were changed."
+    $initialChanges | ForEach-Object { Write-Host "  $_" }
+    exit 1
+}
 
 # ---- 1. read current version ------------------------------------------------
 Write-Step "Reading current version from package.json"
@@ -107,90 +126,90 @@ if (-not $Force) {
     }
 }
 
-# ---- 5. write new version to package.json -----------------------------------
-Write-Step "Bumping package.json to $nextVersion"
-$raw = Get-Content -Raw $PackageJson
-$raw = $raw -replace '"version"\s*:\s*"[^"]*"', ('"version": "' + $nextVersion + '"')
-[System.IO.File]::WriteAllText($PackageJson, $raw, $Utf8NoBom)
-Write-Ok "package.json updated to $nextVersion"
-
-# ---- 6. offline pre-flight ---------------------------------------------------
+# ---- 5. offline pre-flight ---------------------------------------------------
 if (-not $SkipOfflineValidation) {
     Write-Step "Running offline packaging pre-flight"
     & powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "validate-offline-bundle.ps1") -PackagingInputsOnly
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "Offline pre-flight failed (exit $LASTEXITCODE)."
         Write-Warn "Tip: run  npm run offline:prepare  then retry."
-        # roll back
-        $rollback = $raw -replace '"version"\s*:\s*"[^"]*"', ('"version": "' + $currentVersion + '"')
-        [System.IO.File]::WriteAllText($PackageJson, $rollback, $Utf8NoBom)
-        Write-Warn "Rolled package.json back to $currentVersion."
         exit 1
     }
     Write-Ok "Pre-flight passed."
 } else {
-    Write-Warn "Skipping offline validation."
+    Write-Warn "Skipping the early pre-flight; package-portable.ps1 still enforces its release gates."
 }
 
-# ---- 7. TypeScript build -----------------------------------------------------
-Write-Step "Running npm run build (tsc + electron-vite)"
+# ---- 6. bump both package metadata files ------------------------------------
+Write-Step "Bumping package.json and package-lock.json to $nextVersion"
 Push-Location $RepoRoot
 try {
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed (exit $LASTEXITCODE)" }
+    npm version $nextVersion --no-git-tag-version
+    if ($LASTEXITCODE -ne 0) { throw "npm version failed (exit $LASTEXITCODE)" }
 } finally { Pop-Location }
-Write-Ok "Build succeeded."
+$updatedPackage = Get-Content -Raw $PackageJson | ConvertFrom-Json
+$updatedLock = Get-Content -Raw $PackageLock | ConvertFrom-Json
+$updatedLockRootVersion = $updatedLock.packages.PSObject.Properties[""].Value.version
+if ($updatedPackage.version -ne $nextVersion -or
+    $updatedLock.version -ne $nextVersion -or
+    $updatedLockRootVersion -ne $nextVersion) {
+    & git -C $RepoRoot restore -- "package.json" "package-lock.json"
+    throw "npm version did not synchronize package.json and package-lock.json."
+}
+Write-Ok "Package metadata updated to $nextVersion."
 
-# ---- 8. stage Zvec native host -----------------------------------------------
-Write-Step "Staging Zvec native host"
-node (Join-Path $ScriptsDir "prepare-zvec-native-host.mjs")
-if ($LASTEXITCODE -ne 0) { throw "prepare-zvec-native-host failed (exit $LASTEXITCODE)" }
-Write-Ok "Zvec host staged."
-
-# ---- 9. commit all changes (clean tree for manifest) ------------------------
-#    The manifest generator runs `git status --porcelain` and records
-#    sourceTreeDirty; strict mode rejects dirty trees. We must commit
-#    everything (version bump + this script + any other changes).
-Write-Step "Committing all changes so the source tree is clean"
+# ---- 7. commit only the version files ---------------------------------------
+Write-Step "Committing the release version"
 Push-Location $RepoRoot
 try {
-    git add -A 2>&1 | Out-Null
-    git commit -m "build: release v$nextVersion" --no-verify 2>&1 | Out-Null
+    git add -- package.json package-lock.json
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage release version files." }
+    git commit -m "build(release): bump version to $nextVersion"
     if ($LASTEXITCODE -ne 0) {
-        Write-Warn "git commit exited $LASTEXITCODE - tree may already be clean."
-    } else {
-        Write-Ok "Committed all changes."
+        throw "Could not commit release version $nextVersion."
     }
 } finally { Pop-Location }
+Write-Ok "Committed the release version."
 
-# ---- 10. generate dependency manifest ----------------------------------------
-Write-Step "Generating offline dependency manifest"
-& powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "generate-dependency-manifest.ps1") -BuildMode "production-offline"
-if ($LASTEXITCODE -ne 0) { throw "Manifest generation failed (exit $LASTEXITCODE)" }
-Write-Ok "Manifest generated."
+$postVersionChanges = @(& git -C $RepoRoot status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0) { throw "Could not verify the version checkpoint." }
+if ($postVersionChanges.Count -gt 0) {
+    throw "Version checkpoint is not clean; refusing to generate a release manifest."
+}
 
-# ---- 11. strict offline validation -------------------------------------------
-Write-Step "Running strict offline bundle validation"
-& powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "validate-offline-bundle.ps1") -Strict
-if ($LASTEXITCODE -ne 0) { throw "Strict offline validation failed (exit $LASTEXITCODE)" }
-Write-Ok "Strict validation passed."
+# ---- 8. run the canonical guarded packaging pipeline ------------------------
+Write-Step "Running the guarded portable packaging pipeline"
+& powershell -ExecutionPolicy Bypass -File (Join-Path $ScriptsDir "package-portable.ps1")
+if ($LASTEXITCODE -ne 0) {
+    Restore-GeneratedReleaseFiles
+    throw "Portable packaging failed (exit $LASTEXITCODE). Version $nextVersion remains committed for diagnosis."
+}
+Write-Ok "Portable packaging completed."
 
-# ---- 12. electron-builder portable -------------------------------------------
-Write-Step "Running electron-builder (portable)"
+# ---- 9. commit only the signed release manifest -----------------------------
+$releaseChanges = @(& git -C $RepoRoot status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect generated release files." }
+$unexpectedChanges = @($releaseChanges | Where-Object {
+    $_ -notmatch '^ M resources/dependency-manifest\.(json|sig)$'
+})
+if ($unexpectedChanges.Count -gt 0) {
+    throw "Unexpected files changed during packaging; refusing to stage them."
+}
+if ($releaseChanges.Count -ne 2) {
+    throw "Packaging did not produce the expected signed manifest pair."
+}
+
+Write-Step "Committing the signed release manifest"
 Push-Location $RepoRoot
 try {
-    npx electron-builder --win portable --config electron-builder.json
-    if ($LASTEXITCODE -ne 0) { throw "electron-builder failed (exit $LASTEXITCODE)" }
+    git add -- resources/dependency-manifest.json resources/dependency-manifest.sig
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage the signed release manifest." }
+    git commit -m "build(release): record portable v$nextVersion manifest"
+    if ($LASTEXITCODE -ne 0) { throw "Could not commit the signed release manifest." }
 } finally { Pop-Location }
-Write-Ok "electron-builder finished."
+Write-Ok "Committed the signed release manifest."
 
-# ---- 13. artifact provenance -------------------------------------------------
-Write-Step "Writing artifact provenance"
-node (Join-Path $ScriptsDir "write-artifact-provenance.mjs") --artifact $artifactPath --kind portable
-if ($LASTEXITCODE -ne 0) { throw "Artifact provenance failed (exit $LASTEXITCODE)" }
-Write-Ok "Provenance written."
-
-# ---- 14. summary -------------------------------------------------------------
+# ---- 10. summary -------------------------------------------------------------
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Cyan
 Write-Ok   "Portable EXE released successfully!"

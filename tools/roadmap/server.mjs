@@ -33,9 +33,8 @@ const HOST = "127.0.0.1";
 const POLL_MS = Number(process.env.ROADMAP_POLL_MS ?? 1500);
 const KEEPALIVE_MS = 20_000;
 const PORTABLE_ACTION_HEADER = "package-portable";
-const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "package-portable.ps1");
-const PACKAGE_VERSION = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).version;
-const PORTABLE_ARTIFACT = `dist/SpecterStudio ${PACKAGE_VERSION}.exe`;
+const RELEASE_VERSION_POLICY = "patch";
+const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "release-portable.ps1");
 
 /** Static files this server will serve, by exact request path. */
 const STATIC_ROUTES = new Map([
@@ -67,9 +66,10 @@ const HOT_SOURCES = ["beads", "ledger"];
 let cached = null;
 /** @type {Set<import("node:http").ServerResponse>} */
 const sseClients = new Set();
-/** @type {{state: "idle"|"running"|"succeeded"|"failed", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null}} */
+/** @type {{state: "idle"|"running"|"succeeded"|"failed", versionPolicy: "patch", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null}} */
 let portableBuild = {
   state: "idle",
+  versionPolicy: RELEASE_VERSION_POLICY,
   startedAt: null,
   finishedAt: null,
   exitCode: null,
@@ -80,7 +80,18 @@ let portableBuild = {
 let spawnPortableProcess = () =>
   spawn(
     "powershell.exe",
-    ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", PACKAGE_SCRIPT],
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      PACKAGE_SCRIPT,
+      "-BumpType",
+      RELEASE_VERSION_POLICY,
+      "-Force"
+    ],
     {
       cwd: REPO_ROOT,
       env: process.env,
@@ -201,6 +212,7 @@ function handlePortableBuild(req, res) {
 
   portableBuild = {
     state: "running",
+    versionPolicy: RELEASE_VERSION_POLICY,
     startedAt: new Date().toISOString(),
     finishedAt: null,
     exitCode: null,
@@ -233,9 +245,14 @@ function finishPortableBuild(exitCode, errorCode) {
     state: succeeded ? "succeeded" : "failed",
     finishedAt: new Date().toISOString(),
     exitCode,
-    artifact: succeeded ? PORTABLE_ARTIFACT : null,
+    artifact: succeeded ? currentPortableArtifact() : null,
     errorCode
   };
+}
+
+function currentPortableArtifact() {
+  const version = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).version;
+  return `dist/SpecterStudio ${version}.exe`;
 }
 
 /**

@@ -33,7 +33,7 @@ import { parseNarrative } from "../tools/roadmap/lib/parse-narrative.mjs";
 import { EXPECTED_PHASE_IDS, extractPhases } from "../tools/roadmap/lib/parse-roadmap-phases.mjs";
 import { TRACE_STATUSES, parseTraceability } from "../tools/roadmap/lib/parse-traceability.mjs";
 import { readSource } from "../tools/roadmap/lib/read-cache.mjs";
-import { ROADMAP_ROOT, SOURCES, sourcePath } from "../tools/roadmap/lib/sources.mjs";
+import { REPO_ROOT, ROADMAP_ROOT, SOURCES, sourcePath } from "../tools/roadmap/lib/sources.mjs";
 import { readApiPayload, ROADMAP_SERVER_RESTART_MESSAGE } from "../tools/roadmap/public/dom.js";
 
 let passed = 0;
@@ -588,7 +588,10 @@ try {
 
   const initialBuildRes = await fetch(`${base}/api/package-portable`);
   const initialBuild = await initialBuildRes.json();
-  check("portable build status starts idle", initialBuildRes.status === 200 && initialBuild.state === "idle");
+  check(
+    "portable build status starts idle with patch-release policy",
+    initialBuildRes.status === 200 && initialBuild.state === "idle" && initialBuild.versionPolicy === "patch"
+  );
 
   const unauthorizedBuild = await fetch(`${base}/api/package-portable`, { method: "POST" });
   check("portable build rejects a form-compatible POST", unauthorizedBuild.status === 403, `got ${unauthorizedBuild.status}`);
@@ -672,20 +675,39 @@ try {
   const indexSrc = readFileSync(join(publicDir, "index.html"), "utf8");
   const dashboardSrc = readFileSync(join(publicDir, "dashboard.js"), "utf8");
   const serverSrc = readFileSync(join(ROADMAP_ROOT, "server.mjs"), "utf8");
+  const releaseScriptSrc = readFileSync(join(REPO_ROOT, "scripts", "release-portable.ps1"), "utf8");
   check(
-    "the portable packaging action is visible in the dashboard shell",
-    indexSrc.includes('id="rm-package-portable"') && indexSrc.includes("Generate portable EXE")
+    "the next-version portable action is visible in the dashboard shell",
+    indexSrc.includes('id="rm-package-portable"') && indexSrc.includes("Generate next portable EXE")
   );
   check(
-    "the portable action confirms and sends the CSRF-resistant header",
+    "the portable action discloses the patch bump and sends the CSRF-resistant header",
     dashboardSrc.includes("window.confirm(") &&
+      dashboardSrc.includes("increments the patch version") &&
       dashboardSrc.includes('"X-AWKIT-Roadmap-Action": "package-portable"')
   );
   check(
-    "the server fixes the packaging script and disables shell interpretation",
-    serverSrc.includes('const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "package-portable.ps1")') &&
+    "the server fixes the patch-release script and disables shell interpretation",
+    serverSrc.includes('const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "release-portable.ps1")') &&
+      serverSrc.includes('const RELEASE_VERSION_POLICY = "patch"') &&
+      serverSrc.includes('"-BumpType"') &&
+      serverSrc.includes('"-Force"') &&
       serverSrc.includes("shell: false") &&
       !serverSrc.includes("url.searchParams")
+  );
+  check(
+    "the release wrapper refuses dirty work and never stages unrelated files or skips hooks",
+    releaseScriptSrc.includes("status --porcelain --untracked-files=all") &&
+      releaseScriptSrc.includes("git add -- package.json package-lock.json") &&
+      releaseScriptSrc.includes("git add -- resources/dependency-manifest.json resources/dependency-manifest.sig") &&
+      releaseScriptSrc.includes('Join-Path $ScriptsDir "package-portable.ps1"') &&
+      !releaseScriptSrc.includes("git add -A") &&
+      !releaseScriptSrc.includes("--no-verify")
+  );
+  check(
+    "a stale same-route server is rejected when it lacks patch-release capability",
+    dashboardSrc.includes('build?.versionPolicy !== "patch"') &&
+      dashboardSrc.includes("ROADMAP_SERVER_RESTART_MESSAGE")
   );
   check(
     "the API decoder preserves valid JSON",

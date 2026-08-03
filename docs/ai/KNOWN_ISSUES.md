@@ -1,5 +1,16 @@
 # KNOWN_ISSUES
 
+## RESOLVED: dashboard portable builds reused the current semantic version (2026-08-03)
+
+The original dashboard action invoked `package-portable.ps1`. That script is intentionally a rebuild
+pipeline, not a versioning workflow, so repeated clicks regenerated and replaced the same
+`SpecterStudio 0.1.2.exe` artifact. The action now invokes the hardened `release-portable.ps1` with a
+fixed patch bump and reports the version read after success. Keep rebuild-only and next-release actions
+distinct: a future change must not point the dashboard back at `package-portable.ps1` unless the UI is
+also renamed to say it rebuilds the current version.
+
+---
+
 ## RESOLVED: roadmap assets could outrun the module-cached server route table (2026-08-03)
 
 The roadmap server reads public assets from disk per request but loads `server.mjs` once. After adding

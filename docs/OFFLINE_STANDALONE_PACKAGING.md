@@ -97,6 +97,17 @@ Portable single-exe build:
 npm run package:portable
 ```
 
+Create the next patch release (the roadmap dashboard uses this fixed mode):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/release-portable.ps1 -BumpType patch -Force
+```
+
+The release wrapper requires clean `main`, updates `package.json` and `package-lock.json` together,
+commits only those files, delegates to `package-portable.ps1`, and then commits only the regenerated
+signed manifest pair. Use `package:portable` directly when intentionally rebuilding the current
+version; use the release wrapper when a distinct semantic version and artifact name are required.
+
 Per-user installer (NSIS, no admin required):
 
 ```powershell

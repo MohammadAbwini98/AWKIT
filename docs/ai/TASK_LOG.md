@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Make roadmap packaging create the next version
+
+- **Symptom:** a fresh dashboard build still appeared as `SpecterStudio 0.1.2.exe` and replaced the
+  prior file because the guarded action invoked the non-versioning `package-portable.ps1` pipeline.
+- **Fix:** route the action to the existing release wrapper with a server-fixed patch bump; dynamically
+  report the post-release artifact version; disclose version/commit behavior in the confirmation; add
+  a `versionPolicy: "patch"` capability so live assets reject an older same-route server.
+- **Release-wrapper hardening:** clean `main` guard; `npm version` synchronizes package and lock files;
+  explicit bounded staging/commits; canonical package script reuse; no `git add -A` or `--no-verify`;
+  generated manifest cleanup on package failure; unexpected concurrent changes refused.
+- **Verification:** PowerShell parser PASS; dirty-tree refusal PASS without file mutation; Node syntax
+  PASS; `npm run verify:all-typecheck` PASS; roadmap dashboard **155/155**.
+
+---
+
 ## 2026-08-03 - Codex - Repair release-key custody and generate portable EXE
 
 - **Trigger:** roadmap packaging first failed because a locally regenerated dependency manifest no

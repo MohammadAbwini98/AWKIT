@@ -411,6 +411,9 @@ npm run validate:offline # validate-offline-bundle.ps1 (add -Strict for the rele
                          # Strict also requires manifest version==package.json and sourceCommit==HEAD;
                          # -PackagingInputsOnly is the pre-build Chromium presence/completeness gate)
 npm run package:portable # preflight required inputs + build + manifest + strict validate + electron-builder --win portable
+powershell -ExecutionPolicy Bypass -File scripts/release-portable.ps1 -BumpType patch -Force
+                         # clean-main next-release wrapper: sync package+lock version, commit bounded
+                         # metadata, run package:portable, then commit the signed manifest pair
 npm run package:nsis     # per-user NSIS installer (alias of package:installer)
 npm run package:installer# same preflight-first chain via package-per-user-installer.ps1
 npm run package:offline  # package:portable && package:installer

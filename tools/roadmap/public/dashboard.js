@@ -11,7 +11,7 @@
  * rather than leaving the page silently frozen on stale data.
  */
 
-import { clear, el, formatClock, plural, readApiPayload } from "./dom.js";
+import { ROADMAP_SERVER_RESTART_MESSAGE, clear, el, formatClock, plural, readApiPayload } from "./dom.js";
 import { icon } from "./icons.js";
 import { VIEWS } from "./views.js";
 
@@ -132,10 +132,10 @@ dom.refresh.addEventListener("click", async () => {
 
 dom.packagePortable.addEventListener("click", async () => {
   const confirmed = window.confirm(
-    "Generate a new portable EXE now?\n\n" +
-      "This runs the repository's full portable packaging pipeline. It can refresh the dependency manifest " +
-      "and replace the existing portable artifact under dist/. Offline inputs and approved signing-key " +
-      "custody must already be available."
+    "Generate the next portable EXE version now?\n\n" +
+      "This increments the patch version (for example, 0.1.2 to 0.1.3), commits the version and signed " +
+      "release manifest on main, then creates a distinct artifact under dist/. The repository must be clean, " +
+      "and approved offline inputs and signing-key custody must already be available."
   );
   if (!confirmed) return;
 
@@ -147,7 +147,7 @@ dom.packagePortable.addEventListener("click", async () => {
     });
     const payload = await readApiPayload(response);
     if (!response.ok && response.status !== 409) throw new Error(payload.error ?? `HTTP ${response.status}`);
-    state.portableBuild = payload.build;
+    state.portableBuild = requirePatchRelease(payload.build);
     renderPortableBuild();
     schedulePortablePoll();
   } catch (error) {
@@ -162,7 +162,7 @@ async function loadPortableBuild() {
     const response = await fetch("/api/package-portable");
     const payload = await readApiPayload(response);
     if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
-    state.portableBuild = payload;
+    state.portableBuild = requirePatchRelease(payload);
     renderPortableBuild();
     schedulePortablePoll();
   } catch (error) {
@@ -179,11 +179,16 @@ function schedulePortablePoll() {
   state.portablePoll = window.setTimeout(loadPortableBuild, 1000);
 }
 
+function requirePatchRelease(build) {
+  if (build?.versionPolicy !== "patch") throw new Error(ROADMAP_SERVER_RESTART_MESSAGE);
+  return build;
+}
+
 function renderPortableBuild() {
   const build = state.portableBuild;
   const running = build?.state === "running";
   dom.packagePortable.disabled = running;
-  dom.packagePortable.textContent = running ? "Building portable EXE…" : "Generate portable EXE";
+  dom.packagePortable.textContent = running ? "Releasing next portable EXE…" : "Generate next portable EXE";
   dom.buildStatus.dataset.state = build?.state ?? "idle";
   dom.buildStatus.title = "";
 

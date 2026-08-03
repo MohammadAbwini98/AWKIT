@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Roadmap portable action now releases the next patch version (2026-08-03)
+
+The dashboard action previously called the lower-level `package-portable.ps1`, which correctly rebuilt
+the current source but deliberately retained `package.json` version `0.1.2`. Repeated clicks therefore
+replaced `dist/SpecterStudio 0.1.2.exe`, making a fresh build appear to be the old release.
+
+**Generate next portable EXE** now invokes the fixed `release-portable.ps1 -BumpType patch -Force`
+workflow. It requires a clean `main`, synchronizes `package.json` and `package-lock.json`, commits only
+those version files, delegates all build/sign/strict-validation work to the canonical
+`package-portable.ps1`, then commits only the signed dependency-manifest pair. It no longer uses
+`git add -A` or `--no-verify`, and an unexpected concurrent file change is refused rather than staged.
+The browser still cannot provide a command, bump type, arguments, environment, or output path.
+
+The status API advertises `versionPolicy: "patch"`, and live dashboard assets disable the action with
+the restart instruction when an older same-route server lacks that capability. Successful artifact
+reporting reads the post-release version instead of caching the server-start version. PowerShell parse,
+dirty-tree refusal, Node syntax, `npm run verify:all-typecheck`, and roadmap dashboard **155/155** pass.
+The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Portable EXE generated after release-key custody repair (2026-08-03)
 
 The owner authorized moving the offline dependency-manifest private key from the legacy repository

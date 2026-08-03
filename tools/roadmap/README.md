@@ -143,10 +143,12 @@ Node 18.16 is the dev runtime, so no `Object.groupBy`, no RegExp `/v`, no type s
   unfixed security findings, such as `awkit-7lj` *"flows:list/get/export are unauthenticated reads"*.
 - **Routes are an explicit allowlist.** No path is ever joined from request input, so traversal is
   impossible by construction rather than by validation.
-- **Repository status remains read-only.** The one explicit action, **Generate portable EXE**, starts
-  the existing `scripts/package-portable.ps1` pipeline. The browser cannot provide a command,
-  arguments, environment, or output path. The packaging script itself may refresh the dependency
-  manifest and replace the prior portable artifact, so the UI requires confirmation first.
+- **Repository mutation is fixed and bounded.** The one explicit action, **Generate next portable
+  EXE**, invokes `scripts/release-portable.ps1` with a fixed patch bump and confirmation. The wrapper
+  requires a clean `main`, synchronizes `package.json` and `package-lock.json`, commits only those
+  version files, runs the canonical guarded `package-portable.ps1` pipeline, then commits only the
+  signed manifest pair. The browser cannot provide a command, bump type, arguments, environment, or
+  output path, and the UI states the commit behavior before starting.
 - **Build starts are CSRF-resistant.** `POST /api/package-portable` requires a custom action header
   and rejects a foreign `Origin`. A hostile webpage cannot submit that header with a plain form,
   while a cross-origin fetch is preflighted and receives no CORS permission.
