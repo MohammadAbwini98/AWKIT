@@ -18,6 +18,7 @@ Commits `c4491ca` (rotation) plus the bead closures.
 **This unblocks `awkit-k2s`'s remaining installed-artifact gate** — a signed NSIS build is now
 possible again. Not yet attempted; see the `awkit-k2s` entry below for what full closure still
 requires (fresh signed artifact, clean-machine install, Super User confirmation of both actions).
+The comprehensive validation ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 
 ---
 

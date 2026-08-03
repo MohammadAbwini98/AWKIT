@@ -4,6 +4,21 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Completed interrupted release/`awkit-k2s` handoff
+
+- **Task:** finish the `/HANDOFF` request that the previous session could not complete after reaching
+  its session limit.
+- **Result:** inspected clean synchronized `main` at `e0f8773`, reconciled the tracker and current
+  repository memory, and added a current generic transfer note covering the completed release-key
+  rotation and the exact remaining `awkit-k2s` installed-artifact acceptance.
+- **Files:** `docs/ai/HANDOFF.md`, `docs/ai/TASK_LOG.md`, and a ledger-tally formatting correction
+  in `docs/ai/CURRENT_STATE.md` required by the roadmap narrative parser.
+- **Next:** build a fresh NSIS installer through the canonical packaging command, then exercise that
+  exact installed artifact in a clean/reprovisioned Windows environment. Keep `awkit-k2s` open unless
+  both Flow Library actions render and Re-scan produces observable refresh evidence.
+
+---
+
 ## 2026-08-03 - Claude Code - Release-signing key rotated (`awkit-a6a`, `awkit-2l1`)
 
 - **Task:** the offline-manifest release-signing private key was confirmed absent from both custody

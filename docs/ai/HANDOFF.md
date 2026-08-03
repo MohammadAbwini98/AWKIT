@@ -1,5 +1,63 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-03 23:28 +03:00) — release-key rotation complete; `awkit-k2s` installer gate next
+
+- **From:** previous coding session
+- **To:** next coding agent or human operator
+- **Branch/commit:** `main` at `e0f8773`; `origin/main` matches and the working tree was clean at
+  handoff preparation.
+- **Active task:** `awkit-k2s` remains `IN_PROGRESS`. Its source-level defensive hardening is complete;
+  the fresh NSIS installed-artifact acceptance is the only remaining scope.
+- **Validation ledger:** **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+### Completed work
+
+- Rotated the offline-manifest Ed25519 trust root after the prior private key was confirmed
+  unrecoverable. The new private key was generated directly under the approved local custody path,
+  never in the OneDrive-synced repository. Do not record or inspect its contents.
+- Updated `resources/trust/offline-manifest-public.pem` and re-signed
+  `resources/dependency-manifest.json`; commit `c4491ca` contains the bounded public/signature change.
+- Closed `awkit-a6a` and `awkit-2l1`; commit `e0f8773` records their tracker and AI-memory updates.
+- The rotation unblocked `awkit-k2s`: a fresh signed NSIS package can now be produced.
+- `awkit-k2s` source hardening already exists in `e9d8d9f`: the Re-scan Library action remains
+  rendered with explicit capability/permission/in-progress/error reasons, errors stay visible, and
+  the renderer-to-header action chain is unfiltered.
+
+### Verification already run
+
+- `npm run verify:release-key-custody` — **58/58 passed**.
+- `npm run validate:offline` — passed; Zvec packaged assets **17/17**.
+- `npm run verify:roadmap-dashboard` — **156/156 passed** after tracker/source reconciliation.
+- Earlier `awkit-k2s` source verification: `npm run build` passed; `npm run verify:flow-library`
+  **19/19**; verifier classification reconciled **165** scripts; source hygiene **9/9**.
+
+### Remaining work
+
+1. Run the current packaging preflight and build a fresh NSIS installer with `npm run package:nsis`.
+2. Record the artifact name, version, size, checksum, and package/manifest verification results.
+3. Install that exact artifact on a clean or reprovisioned Windows environment, sign in as the
+   first-run Super User, and confirm both **New Flow** and **Re-scan Library** render.
+4. Invoke **Re-scan Library** and capture observable evidence that the library refresh completes.
+5. Run the relevant packaged/offline, Flow Library, roadmap, source-hygiene, and AI-memory checks;
+   then update/close `awkit-k2s` only if the installed-artifact acceptance genuinely passes.
+
+### Risks and do-not-touch areas
+
+- Never read, paste, log, commit, move, rotate, or delete private key material. Packaging may use the
+  configured custody path through the existing release scripts only.
+- Do not claim the original NSIS-only absence is fixed from source verification alone. The exact
+  fresh installed artifact must be exercised; if a clean environment is unavailable, report that
+  portion as `NOT RUN` or environmentally blocked and keep `awkit-k2s` open.
+- Do not hand-edit generated `dist/` contents or the derived roadmap dashboard to manufacture a pass.
+- Dependency manifests may change only through the canonical signing/packaging workflow.
+
+### Recommended next step
+
+Run `npm run package:nsis` from clean `main`, then validate and install the resulting installer in a
+clean Windows profile before exercising the two Flow Library actions.
+
+---
+
 ## HANDOFF (2026-08-03 15:46 +03:00) — portable `0.1.4` complete; Super User recovery boundary confirmed
 
 - **From:** Codex
