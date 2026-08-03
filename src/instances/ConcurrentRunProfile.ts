@@ -18,6 +18,15 @@ export interface ConcurrentRunProfile {
     headless: boolean;
     isolationMode: InstanceIsolationMode;
   };
+  /**
+   * Legacy Compatibility grants that admitted this run, snapshotted by the run gate at admission
+   * (awkit-vbj). Run-level rather than per-instance: the exemption applies to the workflow's flows,
+   * not to a browser context. Carried so the execution report can attribute the run; absent when no
+   * grant was involved.
+   */
+  legacyCompatibility?: {
+    flows: Array<{ flowId: string; flowName?: string; expiresAt?: string }>;
+  };
   resourceControls: {
     maxBrowserContextsPerProcess: number;
     delayBetweenInstanceStartsMs: number;

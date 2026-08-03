@@ -70,7 +70,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("149 issues parse", beads.stats.total === 149, `got ${beads.stats.total}`);
+  check("150 issues parse", beads.stats.total === 150, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -126,9 +126,12 @@ try {
   // custody check, found reviewing the issuer console) and `awkit-73s` (an intermittent geometry
   // check in the Flow Designer GUI gate). Net: total +2, closed +1, outstanding 9 -> 10.
   // Then 9/140 of 149 on 2026-08-02: `awkit-5ea` closed (issuer key custody). No new issues.
+  // Then 9/141 of 150 on 2026-08-03: `awkit-vbj` closed (Legacy Compatibility attribution in the
+  // execution report) and `awkit-5dn` filed for the run-detail drawer, which needs a durable-store
+  // migration — one in, one out, so outstanding held while total and closed each rose by one.
   check(
-    "9 outstanding / 140 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 140,
+    "9 outstanding / 141 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 141,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

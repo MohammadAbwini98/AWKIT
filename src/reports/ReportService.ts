@@ -44,6 +44,7 @@ export class ReportService {
       endedAt: string;
       runtimeInputs: Record<string, unknown>;
       security?: ConcurrentRunReport["security"];
+      legacyCompatibility?: ConcurrentRunReport["legacyCompatibility"];
     }
   ): ConcurrentRunReport {
     const failed = instances.some((instance) => instance.status === "failed");
@@ -68,7 +69,12 @@ export class ReportService {
       ),
       instances,
       runtimeInputs: this.masker.maskRecord(options.runtimeInputs),
-      security: options.security
+      security: options.security,
+      // Only present when a grant actually admitted the run, so the field's presence is itself the
+      // attribution; an empty list would read as "considered and found none".
+      ...(options.legacyCompatibility && options.legacyCompatibility.flows.length > 0
+        ? { legacyCompatibility: options.legacyCompatibility }
+        : {})
     };
   }
 

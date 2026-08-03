@@ -1106,7 +1106,10 @@ export class ExecutionEngine {
           security: {
             ignoreHttpsErrors: profile.instanceTemplate.ignoreHttpsErrors ?? false,
             ignoreHttpsErrorsSource: profile.instanceTemplate.ignoreHttpsErrorsSource ?? "default"
-          }
+          },
+          // Attribution for a run the validator only admitted because a flow holds a Legacy
+          // Compatibility grant (awkit-vbj). Snapshotted by the run gate at admission.
+          legacyCompatibility: profile.legacyCompatibility
         });
         
         await reportService.writeReport(finalReport);

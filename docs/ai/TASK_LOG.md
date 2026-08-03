@@ -4,6 +4,39 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - Legacy Compatibility attribution in run reports (`awkit-vbj`)
+
+- **Task:** a run admitted only because a flow held a grant reported `passed` with no indication
+  anywhere; the clean-machine check found no `legacy`/`compatib`/`grant` token in `reports/*.json`.
+- **Implementation:** new optional `ConcurrentRunReport.legacyCompatibility` naming each admitted
+  flow with its grant deadline, modelled on the existing `security` block. Absent on ordinary runs,
+  so its presence is the attribution; an empty list is omitted rather than written as an empty block.
+  Snapshotted at admission (`execution.ipc.ts` already derived the flow ids there; it now also reads
+  `grantsMap()` for deadlines) → `ConcurrentRunProfile.legacyCompatibility` → `ExecutionEngine` →
+  `ReportService`. Not re-derived at read time, because grants expire and are revoked.
+- **New verifier:** `verify:run-report-compatibility` **21/21** (class `unit`). Asserts at the level
+  the defect was found — a token scan over the *serialized* report — plus source guards on the whole
+  chain.
+- **Mutations (each applied, run, reverted):** report drops the block → **5 fail**; engine stops
+  passing it → **1**; block written unconditionally → **1**; admission stops snapshotting grants →
+  **2**. The last one initially SURVIVED: my guard matched `/grantsMap\(\)/` anywhere, and an
+  unrelated call at line 223 of the same file satisfied it. Tightened to the specific
+  `grantSnapshot = await …grantsMap()` assignment, and the ordering check with it.
+- **Scope held deliberately:** the Reports run-detail drawer reads `telemetry.runDetail` from the
+  durable SQLite store, not the report JSON, so it needs a v5 migration. Filed as `awkit-5dn` (P3)
+  rather than bundled.
+- **Noticed:** `scripts/verify-legacy-compat.mts` has **no npm script** — I ran it directly (152/152).
+  `verify:verifier-classification` reconciles package.json against the registry, so it cannot see a
+  verifier file that was never registered.
+- **Tests:** run-report-compatibility **21/21**; legacy-compat **152/152** (direct); telemetry
+  **61/61**; runner **89/89**; Reports GUI **31/31**; ipc-contract **5/5**; build;
+  `typecheck:scripts`; source-hygiene **9/9**; verifier-classification reconciled; roadmap dashboard
+  **135/135**; `git diff --check` clean.
+- **Result:** `awkit-vbj` closed. Beads **9 outstanding / 141 closed** of 150. Ledger unchanged at
+  62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-02 - Claude Code - Issuer key custody (`awkit-5ea`)
 
 - **Task:** the custody rule shipped for the dependency-manifest key did not cover the issuer key.

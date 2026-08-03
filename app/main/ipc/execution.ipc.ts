@@ -293,11 +293,33 @@ async function runWorkflow(request: RunWorkflowRequest) {
   const compatibilityFlowIds = validation.issues
     .filter((issue) => issue.key.startsWith("legacyCompatibility.") && issue.flowId)
     .map((issue) => issue.flowId as string);
+  // Attribution for the execution report (awkit-vbj). The counter on the grant answers "how many
+  // runs did this exemption allow"; it does not help someone reading one report. Snapshot the grant
+  // deadlines HERE, at admission, rather than re-deriving at read time — grants expire and are
+  // revoked, and a historical report must keep saying what was true when the run started.
+  let legacyCompatibility: ConcurrentRunProfile["legacyCompatibility"];
+  let grantSnapshot: Map<string, CompatibilityGrant> | undefined;
   if (compatibilityFlowIds.length > 0) {
-    await getFlowValidationService().recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);
+    const service = getFlowValidationService();
+    await service.recordRunUnderCompatibility(compatibilityFlowIds).catch(() => undefined);
+    grantSnapshot = await service.grantsMap().catch(() => new Map());
   }
 
   const flows = await createFlowProfileStore().list();
+  if (grantSnapshot) {
+    const byId = new Map(flows.map((flow) => [flow.id, flow]));
+    legacyCompatibility = {
+      flows: Array.from(new Set(compatibilityFlowIds)).map((flowId) => {
+        const grant = grantSnapshot?.get(flowId);
+        const flowName = byId.get(flowId)?.name;
+        return {
+          flowId,
+          ...(flowName ? { flowName } : {}),
+          ...(grant?.expiresAt ? { expiresAt: grant.expiresAt } : {})
+        };
+      })
+    };
+  }
   const { workflowDataSource, dataSources } = await resolveWorkflowDataSources(validation.workflow);
 
   // Ensure this run honours the latest Settings-configured host caps (idempotent; the browser-slot
@@ -324,6 +346,7 @@ async function runWorkflow(request: RunWorkflowRequest) {
       rowCount: workflowDataSource.rows.length,
       sampleRow: workflowDataSource.rows[0]
     } : { id: "", name: "", type: "jsonArray", file: "", path: "$", rowCount: 0, sampleRow: {} },
+    ...(legacyCompatibility ? { legacyCompatibility } : {}),
     instanceTemplate: await resolveInstanceTemplate(request, headless, validation.workflow),
     resourceControls: {
       maxBrowserContextsPerProcess: 5,

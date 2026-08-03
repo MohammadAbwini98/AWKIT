@@ -141,6 +141,12 @@ npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Elect
                             # Structural, not timing. Requires build. (13/13)
 npm run verify:write-queue  # tsx scripts/verify-write-queue.mts — unit checks for the serial write queue
 npm run verify:profile-store  # tsx scripts/verify-profile-store.mts — atomic write / corrupt-quarantine / id-rename durability for the JSON profile store
+npm run verify:run-report-compatibility # tsx scripts/verify-run-report-compatibility.mts - a run
+                            # admitted under a Legacy Compatibility grant says so in its execution
+                            # report (awkit-vbj): the block names each admitted flow and its grant
+                            # deadline, is ABSENT on ordinary runs (its presence is the signal), and
+                            # source guards cover the chain admission -> run profile -> engine ->
+                            # report. Pure; no browser. (21/21)
 npm run verify:ipc-error-message # tsx scripts/verify-ipc-error-message.mts - IPC rejections reach the
                             # UI as the handler's own sentence, not wrapped in Electron's
                             # "Error invoking remote method '<channel>': " preamble (awkit-x48).

@@ -85,6 +85,7 @@
     "verify:profile-store": "tsx scripts/verify-profile-store.mts",
     "verify:ipc-contract": "tsx scripts/verify-ipc-contract.mts",
     "verify:ipc-error-message": "tsx scripts/verify-ipc-error-message.mts",
+    "verify:run-report-compatibility": "tsx scripts/verify-run-report-compatibility.mts",
     "verify:security": "tsx scripts/verify-security.mts",
     "verify:auth": "tsx scripts/verify-auth.mts",
     "verify:auth-gui": "node scripts/verify-auth-gui.mjs",

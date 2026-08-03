@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Runs admitted under Legacy Compatibility are attributed in the report (`awkit-vbj`, 2026-08-03)
+
+A workflow run that executed **only** because a flow holds a Legacy Compatibility grant reported
+`passed` with nothing to say so — a clean-machine check found no `legacy`, `compatib` or `grant`
+token anywhere in `reports/*.json`. The audit trail existed on the grant record, which answers "how
+many runs did this exemption allow" but does not help someone reading one report.
+
+`ConcurrentRunReport.legacyCompatibility` now names each admitted flow with its **grant deadline**.
+It follows the existing `security` block, which exists for the same reason: a run admitted by an
+exemption must not look identical to one that passed the validator outright. The block is **absent**
+on ordinary runs, so its presence is itself the attribution, and an empty grant list is omitted
+rather than written as an empty block.
+
+It is snapshotted **at admission**, not re-derived at read time. The run gate already derived the
+admitted flow ids from the validation issues; it now also reads `grantsMap()` there for the
+deadlines and puts the result on `ConcurrentRunProfile.legacyCompatibility`, which `ExecutionEngine`
+passes into `ReportService`. Grants expire and are revoked — a historical report has to keep saying
+what was true when the run started.
+
+New `npm run verify:run-report-compatibility` is **21/21**. It asserts at the level the defect was
+found: a token scan over the *serialized* report, which a field that exists but does not survive
+serialization would not satisfy. Four mutations produce focused failures — report drops the block,
+engine stops passing it, block written unconditionally, admission stops snapshotting grants. That
+last guard first passed for the wrong reason (an unqualified `grantsMap()` match was satisfied by an
+unrelated call in the same file) and was tightened to the specific assignment.
+
+**Not covered, filed as `awkit-5dn` (P3):** the Reports run-detail drawer. It reads
+`telemetry.runDetail` from the durable SQLite store rather than the report JSON, so surfacing the
+attribution there needs a v5 schema migration — a different kind of change, reviewed separately.
+
+Also green: build, `typecheck:scripts`, legacy-compat **152/152**, telemetry **61/61**, runner
+**89/89**, Reports GUI **31/31**, ipc-contract **5/5**, source-hygiene **9/9**, roadmap dashboard
+**135/135**. Beads are **9 outstanding / 141 closed** of 150, and the comprehensive ledger remains
+**62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Issuer signing key is covered by the custody rule (`awkit-5ea`, 2026-08-02)
 
 The rule shipped for the dependency-manifest key (`awkit-2l1`) did not cover the **issuer** key — the
