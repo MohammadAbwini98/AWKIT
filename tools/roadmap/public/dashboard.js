@@ -11,7 +11,7 @@
  * rather than leaving the page silently frozen on stale data.
  */
 
-import { clear, el, formatClock, plural } from "./dom.js";
+import { clear, el, formatClock, plural, readApiPayload } from "./dom.js";
 import { icon } from "./icons.js";
 import { VIEWS } from "./views.js";
 
@@ -145,7 +145,7 @@ dom.packagePortable.addEventListener("click", async () => {
       method: "POST",
       headers: { "X-AWKIT-Roadmap-Action": "package-portable" }
     });
-    const payload = await response.json();
+    const payload = await readApiPayload(response);
     if (!response.ok && response.status !== 409) throw new Error(payload.error ?? `HTTP ${response.status}`);
     state.portableBuild = payload.build;
     renderPortableBuild();
@@ -153,20 +153,23 @@ dom.packagePortable.addEventListener("click", async () => {
   } catch (error) {
     dom.buildStatus.dataset.state = "failed";
     dom.buildStatus.textContent = error instanceof Error ? error.message : String(error);
-    dom.packagePortable.disabled = false;
+    dom.packagePortable.disabled = true;
   }
 });
 
 async function loadPortableBuild() {
   try {
     const response = await fetch("/api/package-portable");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    state.portableBuild = await response.json();
+    const payload = await readApiPayload(response);
+    if (!response.ok) throw new Error(payload.error ?? `HTTP ${response.status}`);
+    state.portableBuild = payload;
     renderPortableBuild();
     schedulePortablePoll();
-  } catch {
+  } catch (error) {
+    state.portableBuild = null;
     dom.buildStatus.dataset.state = "failed";
-    dom.buildStatus.textContent = "Build status unavailable";
+    dom.buildStatus.textContent = error instanceof Error ? error.message : "Build status unavailable";
+    dom.packagePortable.disabled = true;
   }
 }
 
@@ -234,7 +237,10 @@ function connect() {
   const source = new EventSource("/api/events");
   // Re-fetch on open as well as on push: a change that landed while the connection was down would
   // otherwise never be noticed, leaving a page that claims to be live but is not.
-  source.addEventListener("open", () => load());
+  source.addEventListener("open", () => {
+    load();
+    loadPortableBuild();
+  });
   source.addEventListener("snapshot", () => load());
   source.addEventListener("error", () => setLive("stale", "Reconnecting…"));
 }

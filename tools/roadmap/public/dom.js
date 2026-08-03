@@ -10,6 +10,31 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+export const ROADMAP_SERVER_RESTART_MESSAGE =
+  "Restart the roadmap server (npm run roadmap) to enable portable packaging.";
+
+/**
+ * Decode an API response without assuming an error body is JSON. This matters when public assets
+ * update while an older server process is still running: the old explicit route allowlist returns
+ * plain-text `Not found` for a newly added API route.
+ * @param {Response} response
+ * @returns {Promise<Record<string, any>>}
+ */
+export async function readApiPayload(response) {
+  const body = await response.text();
+  if (!body) return {};
+  try {
+    return JSON.parse(body);
+  } catch {
+    return {
+      error:
+        response.status === 404
+          ? ROADMAP_SERVER_RESTART_MESSAGE
+          : `Request failed (HTTP ${response.status}).`
+    };
+  }
+}
+
 /**
  * @param {string} tag
  * @param {Record<string, unknown>} [props] `class` / `text` / `on` / `data` are special-cased;

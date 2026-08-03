@@ -34,6 +34,7 @@ import { EXPECTED_PHASE_IDS, extractPhases } from "../tools/roadmap/lib/parse-ro
 import { TRACE_STATUSES, parseTraceability } from "../tools/roadmap/lib/parse-traceability.mjs";
 import { readSource } from "../tools/roadmap/lib/read-cache.mjs";
 import { ROADMAP_ROOT, SOURCES, sourcePath } from "../tools/roadmap/lib/sources.mjs";
+import { readApiPayload, ROADMAP_SERVER_RESTART_MESSAGE } from "../tools/roadmap/public/dom.js";
 
 let passed = 0;
 let failed = 0;
@@ -683,6 +684,19 @@ try {
     serverSrc.includes('const PACKAGE_SCRIPT = join(REPO_ROOT, "scripts", "package-portable.ps1")') &&
       serverSrc.includes("shell: false") &&
       !serverSrc.includes("url.searchParams")
+  );
+  check(
+    "the API decoder preserves valid JSON",
+    JSON.stringify(await readApiPayload(new Response('{"ok":true}'))) === '{"ok":true}'
+  );
+  check(
+    "a stale server's plain-text 404 becomes an actionable restart message",
+    (await readApiPayload(new Response("Not found", { status: 404 }))).error === ROADMAP_SERVER_RESTART_MESSAGE
+  );
+  check(
+    "a non-JSON server error does not expose its raw body",
+    (await readApiPayload(new Response("Internal error: C:\\private\\path", { status: 500 }))).error ===
+      "Request failed (HTTP 500)."
   );
   // icon() falls back to ICON_NODES.circle for a name it does not know, so a typo or a status added
   // without its icon renders a plain circle and nothing fails. Resolve every referenced name here.

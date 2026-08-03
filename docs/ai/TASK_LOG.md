@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Handle stale roadmap server responses for portable packaging
+
+- **Symptom:** clicking **Generate portable EXE** displayed
+  `Unexpected token 'N', "Not found" is not valid JSON`.
+- **Root cause:** public assets are read live from disk, but the already-running Node process retained
+  the pre-feature route allowlist and returned a plain-text 404 for `/api/package-portable`.
+- **Fix:** reusable response decoder in the already-allowlisted `dom.js`; actionable restart message for
+  stale 404s; raw non-JSON internal errors reduced to HTTP status; unavailable action disabled; SSE open
+  rechecks build capability so a restarted server recovers without another code change.
+- **Regression coverage:** real decoder preserves valid JSON, maps `Not found`/404 to the restart message,
+  and does not reflect a raw internal-error body. Expanded roadmap verifier: **153 checks** in a clean
+  committed snapshot; the dirty live checkout still carries the separately owned extra Bead line.
+- **Files:** `tools/roadmap/public/{dom,dashboard}.js`, `tools/roadmap/README.md`,
+  `scripts/verify-roadmap-dashboard.mjs`, AI-memory docs.
+- **Packaging:** not run; this fix does not touch the pre-existing dirty manifest/signature state or
+  owner-controlled signing-key custody.
+
+---
+
 ## 2026-08-03 - Codex - Generate portable EXE from the roadmap dashboard
 
 - **Task:** add a roadmap-dashboard button that generates a new portable project EXE.

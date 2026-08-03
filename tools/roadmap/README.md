@@ -198,9 +198,17 @@ the fingerprint-unchanged path, and `POST /api/refresh` backs the Refresh button
 npm run verify:roadmap-dashboard
 ```
 
-150 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
+153 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
 recovery, a negative case proving a mangled phase literal is rejected, ordering invariants, a
 **synthetic 2-cycle** proving the cycle branch fires (there are no real cycles today), byte-identical
 determinism, the provenance rules driven against a claims fixture, server routes including 304 and
 404, the guarded portable-build lifecycle (with a non-packaging test child), the offline rules, and
 the borrowed class names.
+
+### Updating a running dashboard
+
+Public assets are read from disk on each request, but the Node route table is loaded once. After a
+dashboard server/API change, restart `npm run roadmap`. If a tab receives new assets from an older
+server process, it now disables the packaging action and shows the restart instruction instead of
+trying to parse the old server's plain-text `Not found` response as JSON. SSE reconnect rechecks the
+capability after the restarted server comes online.

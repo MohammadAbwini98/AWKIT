@@ -1,5 +1,21 @@
 # KNOWN_ISSUES
 
+## RESOLVED: roadmap assets could outrun the module-cached server route table (2026-08-03)
+
+The roadmap server reads public assets from disk per request but loads `server.mjs` once. After adding
+the portable-build route, an old running process could therefore serve the new button/client while still
+returning plain-text `Not found` for `/api/package-portable`. The client assumed JSON and displayed
+`Unexpected token 'N'`.
+
+`dom.js` now decodes API bodies without assuming JSON. A plain-text 404 maps to “Restart the roadmap
+server (npm run roadmap) to enable portable packaging,” the button stays disabled until the capability
+exists, and SSE reconnect rechecks it after restart. Other non-JSON error bodies are reduced to the HTTP
+status rather than reflected. Regression coverage imports the real decoder and drives valid JSON, stale
+404, and internal-error controls. Future server/API changes still require a process restart; never assume
+live public assets imply live server modules.
+
+---
+
 ## Licensing dispatch latch has a deliberate 30-second maximum staleness window (2026-08-01)
 
 `ExecutionEngine` consults an in-memory licensing latch at least every 500 ms instead of reading and

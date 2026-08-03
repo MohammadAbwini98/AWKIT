@@ -14,7 +14,15 @@ Starts require a custom action header and a same-origin request, so a foreign we
 plain form to trigger a build. Only one build may run at once, while the read-only status endpoint lets
 the page reconnect to an in-progress build.
 
-Verification exercises both successful and failed child-process lifecycles without running packaging.
+The version-skew failure shown after this feature first landed is fixed. Public dashboard assets update
+immediately from disk, while an already-running Node process keeps its old route table; that combination
+returned plain-text `Not found` from the new endpoint and the client surfaced a JSON parser exception.
+Portable API responses now decode safely, a stale server shows the actionable restart instruction and
+disables the button, and the SSE reconnect path rechecks the capability after `npm run roadmap` restarts.
+Raw non-JSON server errors are never reflected into the page.
+
+Verification exercises both successful and failed child-process lifecycles plus stale-server plain-text
+responses without running packaging.
 `npm run build` and Node syntax checks pass. The new dashboard action checks all pass; a clean-candidate
 dashboard run is recorded in the task log. A real portable package was intentionally **not** generated:
 the working tree already contains an unrelated modified dependency manifest that must not be overwritten,
