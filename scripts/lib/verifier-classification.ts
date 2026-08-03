@@ -148,6 +148,18 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:workflow-sentinels": { class: "unit", why: "Pure Start/End sentinel + workflow→scenario conversion logic." },
   "verify:async-review": { class: "unit", why: "Pure async completion review/classification." },
   "verify:flow-step-mapping": { class: "unit", why: "Pure model↔node-data round-trip converters." },
+  "verify:validation": {
+    class: "unit",
+    why: "Rule-by-rule Flow Validation Engine checks over pure validator logic; no persistence or browser."
+  },
+  "verify:legacy-compat": {
+    class: "integration",
+    why: "Drives FlowValidationService against a real JSON profile store on a temp dir (atomic writes, grant persistence); no browser."
+  },
+  "verify:packaged-validation": {
+    class: "packaged-application",
+    why: "Launches the built Electron app (Playwright _electron) to walk the validation subsystem; requires package:portable first."
+  },
   "verify:run-report-compatibility": {
     class: "unit",
     why: "Builds reports through the real ReportService with fixtures; source guards cover the wiring."

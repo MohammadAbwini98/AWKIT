@@ -147,6 +147,17 @@ npm run verify:run-report-compatibility # tsx scripts/verify-run-report-compatib
                             # deadline, is ABSENT on ordinary runs (its presence is the signal), and
                             # source guards cover the chain admission -> run profile -> engine ->
                             # report. Pure; no browser. (21/21)
+npm run verify:validation   # tsx scripts/verify-validation.mts - rule-by-rule Flow Validation Engine
+                            # checks over pure validator logic; no persistence or browser. (125/125)
+npm run verify:legacy-compat # tsx scripts/verify-legacy-compat.mts - Legacy Compatibility + suggested-fix
+                            # migration, driving FlowValidationService against a real JSON profile store
+                            # on a temp dir (atomic writes, grant persistence); no browser. (152/152)
+npm run verify:packaged-validation # tsx scripts/verify-packaged-validation.mts - launches the BUILT
+                            # Electron app (Playwright _electron) to walk the validation subsystem on a
+                            # clean + upgrade profile. packaged-application: requires a FRESH
+                            # dist/win-unpacked (build the package first) and fails a freshness guard on a
+                            # stale artifact. Registered by awkit-iu7; all three above were runnable but
+                            # invisible to gates before it.
 npm run verify:ipc-error-message # tsx scripts/verify-ipc-error-message.mts - IPC rejections reach the
                             # UI as the handler's own sentence, not wrapped in Electron's
                             # "Error invoking remote method '<channel>': " preamble (awkit-x48).

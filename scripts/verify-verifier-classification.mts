@@ -13,7 +13,7 @@
  *
  * Run: npx tsx scripts/verify-verifier-classification.mts
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { VERIFIER_CLASSES, VERIFIER_CLASSIFICATION, type VerifierClass } from "./lib/verifier-classification";
@@ -21,6 +21,14 @@ import { VERIFIER_CLASSES, VERIFIER_CLASSIFICATION, type VerifierClass } from ".
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as { scripts: Record<string, string> };
 const scripts = Object.keys(pkg.scripts).filter((s) => /^(verify|validate):/.test(s));
+
+/**
+ * Runnable `scripts/verify-*.{mjs,mts,js,ts}` files that are deliberately NOT npm commands, each with
+ * the reason why. This is the ONLY exemption from the filesystem→package.json reconciliation below;
+ * it is a justification list, not a dumping ground — every entry needs a real reason, and a stale
+ * entry (a file that is registered, or no longer exists) fails the gate. Empty is the healthy state.
+ */
+const UNREGISTERED_VERIFIER_ALLOWLIST: Record<string, string> = {};
 
 let failed = 0;
 const fail = (msg: string): void => {
@@ -47,6 +55,32 @@ const taxonomy = new Set<string>(VERIFIER_CLASSES);
 const badClass = Object.entries(VERIFIER_CLASSIFICATION).filter(([, v]) => !taxonomy.has(v.class));
 if (badClass.length) fail(`entries with a non-taxonomy class: ${badClass.map(([k]) => k).join(", ")}`);
 else pass("every entry uses a taxonomy class");
+
+// Third reconciliation direction (awkit-iu7): FILESYSTEM → package.json. The two checks above are
+// both about the registry vs package.json, so a runnable verifier that was never turned into an npm
+// script is invisible to them — which is exactly how ~300 real assertions (verify-legacy-compat,
+// verify-validation, verify-packaged-validation) sat unexercised by any gate. Every
+// `scripts/verify-*.{mjs,mts,js,ts}` file must be referenced by some npm command, or be an explicitly
+// justified non-command helper.
+const verifierFiles = readdirSync(here).filter((f) => /^verify-.*\.(mjs|mts|js|ts)$/.test(f));
+const allCommandText = Object.values(pkg.scripts).join("\n");
+const unreferenced = verifierFiles.filter(
+  (f) => !allCommandText.includes(`scripts/${f}`) && !(f in UNREGISTERED_VERIFIER_ALLOWLIST)
+);
+if (unreferenced.length) {
+  fail(
+    `runnable verifier files not referenced by any npm script (register them, or justify in the allowlist): ${unreferenced.join(", ")}`
+  );
+} else {
+  pass(`all ${verifierFiles.length} scripts/verify-* files are referenced by an npm script or justified`);
+}
+// The allowlist itself must stay honest: no entry without a reason, none that is actually registered,
+// none pointing at a file that no longer exists.
+const staleAllowlist = Object.keys(UNREGISTERED_VERIFIER_ALLOWLIST).filter(
+  (f) => !UNREGISTERED_VERIFIER_ALLOWLIST[f]?.trim() || allCommandText.includes(`scripts/${f}`) || !verifierFiles.includes(f)
+);
+if (staleAllowlist.length) fail(`stale/unjustified allowlist entries: ${staleAllowlist.join(", ")}`);
+else pass("the non-command-helper allowlist is justified and current");
 
 // I1.3 — per-class counts over the scripts that actually exist. Never a single total alone.
 const counts = new Map<VerifierClass, number>(VERIFIER_CLASSES.map((c) => [c, 0]));

@@ -133,9 +133,11 @@ try {
   // migration — one in, one out, so outstanding held while total and closed each rose by one.
   // Then 10/141 of 151 on 2026-08-03: `awkit-iu7` filed for three runnable verifier files that are
   // absent from package.json and therefore invisible to the classified project gates.
+  // Then 9/142 of 151 on 2026-08-03: `awkit-iu7` closed — the three verifiers registered + classified
+  // + documented, and a filesystem→package.json reconciliation direction added. No new issues.
   check(
-    "10 outstanding / 141 closed",
-    beads.stats.outstanding === 10 && beads.stats.closed === 141,
+    "9 outstanding / 142 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 142,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

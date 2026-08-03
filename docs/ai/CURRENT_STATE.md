@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## Three runnable verifiers are now registered and gate-visible (`awkit-iu7`, 2026-08-03)
+
+`scripts/verify-legacy-compat.mts` (152 assertions), `verify-validation.mts` (125) and
+`verify-packaged-validation.mts` (86) were runnable but had **no npm script**, so no gate ran them —
+~300 assertions covering the validation engine and Legacy Compatibility, invisible to the project.
+
+The reason they stayed invisible: `verify:verifier-classification` reconciled the registry against
+`package.json` in both directions, but neither direction looked at the filesystem, so a verifier file
+that was never registered could not be noticed. All three are now registered
+(`verify:validation` = unit, `verify:legacy-compat` = integration, `verify:packaged-validation` =
+packaged-application), classified, and documented in `COMMANDS.md`, and a **third reconciliation
+direction** — filesystem → package.json — now fails the gate on any unreferenced
+`scripts/verify-*.{mjs,mts,js,ts}`, with an empty, justification-only allowlist. Mutation-proven:
+unregistering one fails both the stale-entry and the new filesystem check.
+
+`verify:validation` **125/125** and `verify:legacy-compat` **152/152** pass via npm (direct
+`npx tsx` still works). `verify:packaged-validation` is registered and runs (86 pass) but reports one
+FAIL — a **freshness guard**: `dist/win-unpacked` is ~4 days stale. That is the honest
+packaged-application state; making it green needs a fresh package (release work), not done here.
+
+Verifier-classification now reconciles **163** scripts across all 162 `scripts/verify-*` files.
+Roadmap dashboard **155/155**, source-hygiene **9/9**, `typecheck:scripts`, `validate:offline` and
+ai-memory all pass. Beads **9 outstanding / 142 closed** of 151; ledger unchanged at **62 PASS /
+3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Roadmap portable action now releases the next patch version (2026-08-03)
 
 The dashboard action previously called the lower-level `package-portable.ps1`, which correctly rebuilt

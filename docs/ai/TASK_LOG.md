@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - Register three invisible verifiers + filesystem reconciliation (`awkit-iu7`)
+
+- **Task:** three runnable `scripts/verify-*.mts` files (legacy-compat 152, validation 125,
+  packaged-validation 86) had no npm script, so no gate ran ~300 real assertions.
+- **Implementation:** registered `verify:validation` (unit), `verify:legacy-compat` (integration) and
+  `verify:packaged-validation` (packaged-application) in `package.json`,
+  `scripts/lib/verifier-classification.ts` and `docs/ai/COMMANDS.md`. Added a third reconciliation
+  direction to `verify:verifier-classification` — filesystem → package.json — that fails on any
+  unreferenced `scripts/verify-*.{mjs,mts,js,ts}`, guarded by an empty `UNREGISTERED_VERIFIER_ALLOWLIST`
+  whose entries each need a reason and whose stale/registered/missing entries fail the gate.
+- **Why the gap existed:** the reconciler only compared the registry to package.json in both
+  directions; neither looked at the filesystem, so an unregistered file was invisible by construction.
+- **Mutation:** unregistering `verify:validation` fails both the stale-entry check and the new
+  filesystem check (2 fails). Reverted.
+- **Honest state of the three:** validation 125/125 and legacy-compat 152/152 pass via npm and direct
+  run. packaged-validation runs (86 pass, 1 fail) — a freshness guard, because `dist/win-unpacked` is
+  ~4 days stale. That is the correct packaged-application signal; a fresh package (release work) was
+  NOT built here, and no artifact was regenerated or signed.
+- **Tests:** verifier-classification reconciled (163 scripts, +filesystem direction); verify:validation
+  125/125; verify:legacy-compat 152/152; roadmap dashboard 155/155; source-hygiene 9/9;
+  typecheck:scripts PASS; validate:offline PASS; ai-memory PASS; git diff --check clean.
+- **Result:** `awkit-iu7` closed. Beads **9 outstanding / 142 closed** of 151. Ledger unchanged.
+
+---
+
 ## 2026-08-03 - Codex - Hand off portable release and Super User recovery state
 
 - **Repository state:** confirmed a clean `main` at `6dc113f`, two commits ahead of `origin/main`, after
