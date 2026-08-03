@@ -686,6 +686,8 @@ try {
     "the portable action discloses the patch bump and sends the CSRF-resistant header",
     dashboardSrc.includes("window.confirm(") &&
       dashboardSrc.includes("increments the patch version") &&
+      dashboardSrc.includes("latest clean main commit") &&
+      dashboardSrc.includes("without predefined users") &&
       dashboardSrc.includes('"X-AWKIT-Roadmap-Action": "package-portable"')
   );
   check(
@@ -705,6 +707,12 @@ try {
       releaseScriptSrc.includes('Join-Path $ScriptsDir "package-portable.ps1"') &&
       !releaseScriptSrc.includes("git add -A") &&
       !releaseScriptSrc.includes("--no-verify")
+  );
+  const packageScriptSrc = readFileSync(join(REPO_ROOT, "scripts", "package-portable.ps1"), "utf8");
+  check(
+    "the dashboard release pipeline rejects bundled databases and proves first-run Super User setup",
+    packageScriptSrc.includes("npm run verify:portable-fresh-state") &&
+      packageScriptSrc.indexOf("npm run verify:portable-fresh-state") < packageScriptSrc.indexOf("generate-dependency-manifest.ps1")
   );
   check(
     "a stale same-route server is rejected when it lacks patch-release capability",

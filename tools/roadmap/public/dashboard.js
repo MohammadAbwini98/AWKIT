@@ -134,8 +134,9 @@ dom.packagePortable.addEventListener("click", async () => {
   const confirmed = window.confirm(
     "Generate the next portable EXE version now?\n\n" +
       "This increments the patch version (for example, 0.1.2 to 0.1.3), commits the version and signed " +
-      "release manifest on main, then creates a distinct artifact under dist/. The repository must be clean, " +
-      "and approved offline inputs and signing-key custody must already be available."
+      "release manifest on main, then packages the latest clean main commit under dist/. A release gate rejects " +
+      "any bundled application database, so first launch starts without predefined users and asks the owner to " +
+      "create the Super User. Approved offline inputs and signing-key custody must already be available."
   );
   if (!confirmed) return;
 

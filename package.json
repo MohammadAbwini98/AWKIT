@@ -91,6 +91,7 @@
     "verify:packaged-validation": "tsx scripts/verify-packaged-validation.mts",
     "verify:security": "tsx scripts/verify-security.mts",
     "verify:auth": "tsx scripts/verify-auth.mts",
+    "verify:portable-fresh-state": "tsx scripts/verify-portable-fresh-state.mts",
     "verify:auth-gui": "node scripts/verify-auth-gui.mjs",
     "verify:secrets": "tsx scripts/verify-secrets.mts",
     "verify:settings-persistence": "node scripts/verify-settings-persistence.mjs",

@@ -29,6 +29,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Enforce a fresh database in dashboard portable releases
+
+- **Requirement:** the roadmap button must package the latest clean codebase without a predefined
+  Super User or copied application database; the owner creates the Super User on first launch.
+- **Implementation:** added `verify:portable-fresh-state` as a mandatory post-build/pre-manifest gate
+  in `package-portable.ps1`. It rejects SQLite/database artifacts in packaged input trees, checks the
+  explicit builder allowlist and mutable runtime routing, and exercises the normal bootstrap service
+  against a real temporary empty security store.
+- **Dashboard UX:** the confirmation now states that it packages the latest clean `main`, rejects
+  bundled databases, and produces an owner-provisioned first run.
+- **Verification:** fresh-state gate **10/10**; authentication **79/79**; roadmap dashboard **156/156**;
+  all application/script typechecks, offline validation, source hygiene **9/9**, verifier classification
+  (**164** commands / **163** verifier files), AI memory, and graph refresh PASS.
+
+---
+
 ## 2026-08-03 - Codex - Hand off portable release and Super User recovery state
 
 - **Repository state:** confirmed a clean `main` at `6dc113f`, two commits ahead of `origin/main`, after

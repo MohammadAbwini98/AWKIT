@@ -108,6 +108,12 @@ commits only those files, delegates to `package-portable.ps1`, and then commits 
 signed manifest pair. Use `package:portable` directly when intentionally rebuilding the current
 version; use the release wrapper when a distinct semantic version and artifact name are required.
 
+Before manifest generation, the portable pipeline runs `npm run verify:portable-fresh-state`. It
+refuses any mutable SQLite/database artifact under the exact app and `extraResources` input trees,
+then opens a real temporary empty security store and proves that it contains no user and accepts the
+normal one-time owner-created Super User bootstrap. Runtime databases are created only under the
+new machine's `%LOCALAPPDATA%/SpecterStudio/`; they are never copied from the build machine.
+
 Per-user installer (NSIS, no admin required):
 
 ```powershell

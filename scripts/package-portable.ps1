@@ -8,6 +8,10 @@ if ($LASTEXITCODE -ne 0) { throw "build failed with exit code $LASTEXITCODE" }
 # describe the exact tree electron-builder will ship via extraResources.
 node (Join-Path $PSScriptRoot "prepare-zvec-native-host.mjs")
 if ($LASTEXITCODE -ne 0) { throw "prepare-zvec-native-host failed with exit code $LASTEXITCODE" }
+# A portable release must never inherit the developer's application/security database. Run after
+# staging so the gate inspects the exact app + extraResources input trees that will be signed.
+npm run verify:portable-fresh-state
+if ($LASTEXITCODE -ne 0) { throw "portable fresh-state gate failed with exit code $LASTEXITCODE" }
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "generate-dependency-manifest.ps1") -BuildMode "production-offline"
 if ($LASTEXITCODE -ne 0) { throw "dependency manifest generation failed with exit code $LASTEXITCODE" }
 powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "validate-offline-bundle.ps1") -Strict

@@ -6,6 +6,9 @@
   confirmed sidebar action and display idle/running/succeeded/failed state across page refreshes.
 - Implemented: fixed server-side command/arguments, `shell: false`, same-origin custom-header guard,
   single-flight conflict handling, and status responses that omit command output and absolute paths.
+- Implemented: the portable pipeline rejects mutable database files in every packaged input tree and
+  exercises a real empty security store to prove first launch has no predefined user and permits the
+  owner to perform the one-time protected Super User bootstrap.
 - Environment gate remains: packaging still requires the approved offline inputs and release signing-key
   custody; the dashboard does not bypass or weaken any packaging validation.
 

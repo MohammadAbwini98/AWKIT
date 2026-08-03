@@ -332,6 +332,9 @@ npm run verify:stress:artifacts   # tsx scripts/verify-stress-artifacts.mts — 
 # Security / RBAC / licensing verifiers (added 2026-07-18/19):
 npm run verify:security     # tsx scripts/verify-security.mts — sender guard, IPC hardening (39)
 npm run verify:auth         # tsx scripts/verify-auth.mts — auth domain: policy, sessions, rotation (49)
+npm run verify:portable-fresh-state # tsx scripts/verify-portable-fresh-state.mts — release input audit
+                            # plus real temporary SQLite proof: zero predefined users, first-run owner
+                            # can create the protected Super User exactly once (10)
 npm run verify:auth-gui     # node scripts/verify-auth-gui.mjs — REAL Electron sign-in walkthrough incl.
                             # AccountMenu sign-out, dark login, proactive idle lock (18; needs build)
 npm run verify:authz        # tsx scripts/verify-authz.mts — RBAC deny-by-default, reauth, escalation guards (40)
@@ -421,7 +424,7 @@ npm run offline:manifest # generate-dependency-manifest.ps1
 npm run validate:offline # validate-offline-bundle.ps1 (add -Strict for the release gate;
                          # Strict also requires manifest version==package.json and sourceCommit==HEAD;
                          # -PackagingInputsOnly is the pre-build Chromium presence/completeness gate)
-npm run package:portable # preflight required inputs + build + manifest + strict validate + electron-builder --win portable
+npm run package:portable # preflight + build + fresh-state/database gate + manifest + strict validate + electron-builder --win portable
 powershell -ExecutionPolicy Bypass -File scripts/release-portable.ps1 -BumpType patch -Force
                          # clean-main next-release wrapper: sync package+lock version, commit bounded
                          # metadata, run package:portable, then commit the signed manifest pair

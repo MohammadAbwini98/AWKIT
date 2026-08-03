@@ -144,6 +144,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:write-queue": { class: "unit", why: "Deterministic serial write-queue logic." },
   "verify:security": { class: "unit", why: "Pure security logic; no Electron/Chromium." },
   "verify:auth": { class: "unit", why: "Trusted-core auth logic, headless." },
+  "verify:portable-fresh-state": { class: "integration", why: "Audits packaged input trees for mutable databases and exercises first-run Super User bootstrap against a real temporary SQLite store." },
   "verify:secrets": { class: "unit", why: "Secret-store hardening with a fake crypto backend." },
   "verify:workflow-sentinels": { class: "unit", why: "Pure Start/End sentinel + workflow→scenario conversion logic." },
   "verify:async-review": { class: "unit", why: "Pure async completion review/classification." },

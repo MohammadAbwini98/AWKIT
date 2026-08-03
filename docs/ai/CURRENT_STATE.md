@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Portable releases now enforce a fresh first-run database (`2026-08-03`)
+
+The roadmap's **Generate next portable EXE** action still packages the latest clean `main` commit as
+the next patch version, but the canonical portable pipeline now runs
+`verify:portable-fresh-state` after the production build and before manifest generation/signing.
+The gate fails if any `.sqlite`, `.sqlite3`, `.db`, or related journal file appears in an app or
+`extraResources` input tree. It also checks the builder's explicit allowlist, the writable
+`%LOCALAPPDATA%/SpecterStudio` routing, and a real temporary security SQLite store.
+
+The real-store proof starts with zero users and `provisioned=false`, creates exactly one protected
+Super User through the normal bootstrap service, then proves a second bootstrap is refused. Therefore
+the generated EXE contains no predefined account or application database: first launch creates a new
+local database and shows owner-driven Super User setup. `verify:portable-fresh-state` passes **10/10**;
+all application/script typechecks pass; verifier classification reconciles **164** registered commands
+across **163** verifier files; roadmap dashboard passes **156/156**; authentication passes **79/79**;
+offline validation passes. The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Three runnable verifiers are now registered and gate-visible (`awkit-iu7`, 2026-08-03)
 
 `scripts/verify-legacy-compat.mts` (152 assertions), `verify-validation.mts` (125) and
