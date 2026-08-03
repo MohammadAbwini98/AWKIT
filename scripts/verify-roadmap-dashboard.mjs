@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("150 issues parse", beads.stats.total === 150, `got ${beads.stats.total}`);
+  check("151 issues parse", beads.stats.total === 151, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -131,9 +131,11 @@ try {
   // Then 9/141 of 150 on 2026-08-03: `awkit-vbj` closed (Legacy Compatibility attribution in the
   // execution report) and `awkit-5dn` filed for the run-detail drawer, which needs a durable-store
   // migration — one in, one out, so outstanding held while total and closed each rose by one.
+  // Then 10/141 of 151 on 2026-08-03: `awkit-iu7` filed for three runnable verifier files that are
+  // absent from package.json and therefore invisible to the classified project gates.
   check(
-    "9 outstanding / 141 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 141,
+    "10 outstanding / 141 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 141,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
