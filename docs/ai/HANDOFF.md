@@ -1,5 +1,55 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-03 15:46 +03:00) — portable `0.1.4` complete; Super User recovery boundary confirmed
+
+- **From:** Codex
+- **To:** next coding agent or human operator
+- **Branch/commit at handoff start:** `main` at `6dc113f`; working tree clean; local `main` was
+  two release commits ahead of `origin/main` before this handoff commit and push.
+- **Active task:** none. The latest user question was answered by source inspection; no credential,
+  recovery-code, database, or account mutation was performed.
+
+### Completed state
+
+- The roadmap dashboard's corrected patch-release action has now completed a second live run:
+  `SpecterStudio 0.1.4.exe` (212,854,182 bytes, SHA-256
+  `3A6C90B68E26BF7429FFBCF578F305209395EF358211FE907F5FB68ED730FFD2`). Package metadata is
+  `0.1.4`; commits `b5496a8` and `6dc113f` record the bounded version and signed-manifest changes.
+- The previous `0.1.3` artifact remains in `dist/`; `dist/` artifacts are intentionally untracked.
+- Super User recovery is implemented in the login UI: choose **Recover Super User**, enter the
+  one-time bootstrap recovery code, then set and confirm a policy-compliant new password. A successful
+  reset consumes the recovery code, clears lockout state, revokes active Super User sessions, and is
+  audited.
+- Recovery-code entry is case/space/hyphen insensitive. Only its protected scrypt hash is stored; the
+  plaintext code is shown only during bootstrap and must never be copied into source, logs, or handoffs.
+- If both the password and one-time code are lost, the current product has no implemented support-token
+  or CLI backdoor. The only available fallback is an explicitly owner-authorized, backup-first
+  re-provision of `%LOCALAPPDATA%\SpecterStudio\security\security.sqlite`; that removes local security
+  identities, roles, overrides, sessions, and security-audit history, so it must not be attempted from
+  this handoff alone.
+
+### Verification and remaining operator work
+
+- Latest release verification before this handoff: application/script typechecks PASS, roadmap
+  dashboard **155/155**, strict offline validation PASS, packaged runtime **25/25**, and validation
+  ledger **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+- Restart any roadmap server that was launched before the patch-release change; a current server reports
+  `versionPolicy: "patch"` and the next dashboard action will create `0.1.5`.
+- Owner still needs to remove the historical release-key copy from OneDrive online recycle bins/version
+  history and confirm completion; keep `awkit-2l1` in progress until then.
+- Windows Authenticode publisher signing remains unconfigured. The internal Ed25519 dependency-manifest
+  signature is valid.
+
+### Do not touch / recommended next step
+
+- Do not read, log, transmit, or invent a Super User recovery code or release private key. Do not edit
+  `security.sqlite` manually, and do not describe the planned support reset token as implemented.
+- For account recovery, first use the supported UI with the saved one-time code. If the owner confirms
+  that code is also lost, obtain explicit approval for the destructive security-store re-provision,
+  make and verify a backup, then document exactly what security data will be reset.
+
+---
+
 ## HANDOFF (2026-08-03) — dashboard now creates the next patch release
 
 - **Root cause fixed:** the dashboard used `package-portable.ps1`, so every click rebuilt the current

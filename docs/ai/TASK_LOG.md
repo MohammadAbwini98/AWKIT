@@ -4,6 +4,23 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Hand off portable release and Super User recovery state
+
+- **Repository state:** confirmed a clean `main` at `6dc113f`, two commits ahead of `origin/main`, after
+  the dashboard successfully generated and recorded portable version `0.1.4`.
+- **Artifact:** `dist/SpecterStudio 0.1.4.exe`, 212,854,182 bytes, SHA-256
+  `3A6C90B68E26BF7429FFBCF578F305209395EF358211FE907F5FB68ED730FFD2`.
+- **Recovery finding:** documented the supported one-time-code flow and confirmed there is no implemented
+  support-token or CLI backdoor when both the Super User password and recovery code are lost. No account
+  or security-store mutation was performed.
+- **Safety boundary:** any fallback re-provision of the local security database requires explicit owner
+  authorization and a verified backup because it removes local security identities, roles, overrides,
+  sessions, and audit history.
+- **Handoff:** updated `docs/ai/HANDOFF.md` with current release state, remaining OneDrive key-history
+  cleanup, Authenticode limitation, and the recommended recovery next step.
+
+---
+
 ## 2026-08-03 - Codex - Make roadmap packaging create the next version
 
 - **Symptom:** a fresh dashboard build still appeared as `SpecterStudio 0.1.2.exe` and replaced the
