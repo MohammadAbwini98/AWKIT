@@ -1,5 +1,25 @@
 # Clean-machine validation — execution record, 2026-07-29
 
+## Focused fresh-NSIS Flow Library acceptance (`awkit-k2s`, 2026-08-03)
+
+This focused follow-up used `SpecterStudio Setup 0.1.5.exe` (244,286,446 bytes; SHA-256
+`9CE2860E3AF33BC29E606008DCD2C551F61E5B721C1551BB8A00B5E39080E2EA`) on the restored
+`AWKIT-CleanMachine` guest. The guest verified that exact hash before launch. The assisted per-user
+installer completed with no UAC consent process, installed 576 files, and launched ProductVersion
+`0.1.5.0`.
+
+The first-run Super User opened Flow Library and saw **New Flow** and **Re-scan Library** together;
+the prior installed-only absence did not reproduce. Invoking Re-scan increased inventory-scan JSON
+records from 0 to 1 and the page reported `library re-scanned`. `awkit-k2s` therefore passes and is
+closed. Evidence screenshots are retained in the ignored `dist/awkit-k2s-evidence/` directory. The
+VM was restored to `staged-artifacts-preseed` and powered off after the proof.
+
+Separate finding: `/S` launch of the same verified installer crashed in NSIS temporary `System.dll`
+with `0xC0000005`; assisted installation succeeded. This is tracked as `awkit-9yc` and does not
+change the focused assisted-install result above.
+
+---
+
 Results of running `CLEAN_MACHINE_VALIDATION_RUNBOOK.md` against a purpose-built, offline Windows 11
 VM. This is the runbook's §12 result template, filled in.
 

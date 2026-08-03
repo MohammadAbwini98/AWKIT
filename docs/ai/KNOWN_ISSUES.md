@@ -1,5 +1,18 @@
 # KNOWN_ISSUES
 
+## NSIS `/S` install crashes in temporary `System.dll`; assisted install succeeds (`awkit-9yc`, 2026-08-03)
+
+On the clean Windows 11 Hyper-V guest, the hash-verified `SpecterStudio Setup 0.1.5.exe` exits with
+`0xC0000005` when a standard interactive user launches it with `/S`; Application Error 1000 identifies
+the NSIS temporary `System.dll`. The same exact bytes launch and complete through the assisted
+per-user installer with no UAC prompt, then run normally. This matters because
+`scripts/zvec-harness/run-installed-live.ps1` and the older clean-machine automation rely on `/S`.
+Do not interpret a silent-install crash as a corrupt artifact without comparing the guest hash, and
+do not substitute a silent pass for the assisted UI acceptance. Track the harness/product fix under
+`awkit-9yc`.
+
+---
+
 ## RESOLVED: dashboard portable builds reused the current semantic version (2026-08-03)
 
 The original dashboard action invoked `package-portable.ps1`. That script is intentionally a rebuild

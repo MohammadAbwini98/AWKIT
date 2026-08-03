@@ -1,5 +1,38 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-03) — `awkit-k2s` complete; silent NSIS follow-up filed
+
+- **Branch:** `main`; the final closeout commit follows the clean source checkpoint `8f0275b` used
+  to generate the fresh installer.
+- **Completed:** `awkit-k2s` is closed. The exact `0.1.5` NSIS installer was hash-verified inside the
+  clean Hyper-V guest, installed through the assisted per-user UI, and launched as ProductVersion
+  `0.1.5.0`. Flow Library rendered both **New Flow** and **Re-scan Library** for the first-run Super
+  User; invoking Re-scan created the first inventory-scan record (0 → 1) and surfaced
+  `library re-scanned` in the UI.
+- **Artifact:** `dist/SpecterStudio Setup 0.1.5.exe`, 244,286,446 bytes, SHA-256
+  `9CE2860E3AF33BC29E606008DCD2C551F61E5B721C1551BB8A00B5E39080E2EA`. It is not Authenticode
+  signed; its packaged offline manifest is internally Ed25519-signed and strict validation passes.
+- **Evidence:** ignored screenshots under `dist/awkit-k2s-evidence/`; the dedicated guest was restored
+  to `staged-artifacts-preseed` and powered off after validation.
+- **Verification:** build PASS; Flow Library **19/19**; release-key custody **58/58**; strict offline
+  validation PASS (Zvec **17/17**); packaged runtime **25/25**; offline supply chain **22/22**;
+  source hygiene **9/9**; verifier classification **165**; roadmap dashboard **156/156**; AI memory
+  PASS. Graphify refreshed to 11,728 nodes / 24,049 edges / 610 communities; it warned that 42
+  non-code/config sources produced zero nodes and that saved community labels need refresh.
+- **New follow-up:** `awkit-9yc` (P2) tracks the verified installer's `/S`-only crash in temporary
+  NSIS `System.dll` (`0xC0000005`). The assisted installer succeeds, but installed-layout automation
+  currently relies on `/S` and needs a deterministic supported path.
+- **Do not touch:** never inspect or record private release-key material or one-time recovery codes;
+  do not claim Windows publisher signing is configured.
+- **Validation ledger:** **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+### Recommended next step
+
+Fix `awkit-9yc` by reproducing the `/S` crash with the installed-layout harness and either repairing
+silent installation or replacing that harness path with deterministic assisted-installer automation.
+
+---
+
 ## HANDOFF (2026-08-03 23:28 +03:00) — release-key rotation complete; `awkit-k2s` installer gate next
 
 - **From:** previous coding session

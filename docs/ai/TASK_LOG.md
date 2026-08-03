@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Codex - Closed `awkit-k2s` with fresh installed NSIS proof
+
+- **Artifact:** built `SpecterStudio Setup 0.1.5.exe` from source commit `8f0275b`; 244,286,446
+  bytes; SHA-256 `9CE2860E3AF33BC29E606008DCD2C551F61E5B721C1551BB8A00B5E39080E2EA`. The initial wrapper run
+  stopped during electron-builder; the exact builder retry succeeded and artifact provenance was
+  written. The committed manifest/signature pair was refreshed through the canonical release scripts.
+- **Clean-machine proof:** restored `AWKIT-CleanMachine` from `staged-artifacts-preseed`, mounted a
+  read-only ISO, verified the exact installer hash in the guest, completed the assisted unelevated
+  per-user install, and launched ProductVersion `0.1.5.0` (576 installed files, no consent process).
+  First-run Super User Flow Library showed both required actions; Re-scan increased scan records 0→1.
+- **Tracking:** closed `awkit-k2s`; removed its dashboard claim. Filed `awkit-9yc` for the separate
+  `/S` NSIS `System.dll` crash observed with the same verified installer while assisted install works.
+- **Verified:** build PASS; Flow Library 19/19 after one transient Electron-launch retry; release-key
+  custody 58/58; strict offline validation PASS with Zvec 17/17; packaged runtime 25/25; offline
+  supply chain 22/22; source hygiene 9/9; all 165 verifiers classified; roadmap dashboard 156/156;
+  AI memory PASS. Updated the roadmap verifier's non-vacuity baselines for the new bead/edge.
+- **Graphify:** incremental refresh completed at 11,728 nodes / 24,049 edges / 610 communities; it
+  reported 42 zero-node sources and stale community labels as non-blocking follow-up warnings.
+- **Cleanup:** retained ignored screenshots under `dist/awkit-k2s-evidence/`, restored the VM to its
+  staged checkpoint, and powered it off. No credential or recovery-code value was copied to docs.
+
+---
+
+---
+
 ## 2026-08-03 - Codex - Completed interrupted release/`awkit-k2s` handoff
 
 - **Task:** finish the `/HANDOFF` request that the previous session could not complete after reaching

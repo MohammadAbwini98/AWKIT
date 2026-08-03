@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("152 issues parse", beads.stats.total === 152, `got ${beads.stats.total}`);
+  check("153 issues parse", beads.stats.total === 153, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -149,8 +149,8 @@ try {
   // fresh Ed25519 offline-manifest signing key directly at the approved LOCALAPPDATA custody path
   // (never touching the OneDrive-synced tree), rotated the public key, and re-signed the manifest.
   check(
-    "6 outstanding / 146 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 146,
+    "7 outstanding / 146 closed",
+    beads.stats.outstanding === 7 && beads.stats.closed === 146,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -166,8 +166,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "92 edges are present to classify",
-    beads.stats.edges === 92,
+    "93 edges are present to classify",
+    beads.stats.edges === 93,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(

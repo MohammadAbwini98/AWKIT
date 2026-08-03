@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## `awkit-k2s` closed after fresh NSIS installed-artifact acceptance (2026-08-03)
+
+A fresh internally signed NSIS artifact was built from clean `main` at `8f0275b`:
+`dist/SpecterStudio Setup 0.1.5.exe`, **244,286,446 bytes**, SHA-256
+`9CE2860E3AF33BC29E606008DCD2C551F61E5B721C1551BB8A00B5E39080E2EA`. The first full packaging
+attempt reached electron-builder but produced no installer; rerunning the exact failed
+`electron-builder --win nsis` step completed, and the canonical provenance writer recorded the
+artifact. Windows Authenticode remains unconfigured/NotSigned; the offline dependency manifest is
+Ed25519-signed and strict validation passes.
+
+The dedicated `AWKIT-CleanMachine` Hyper-V guest was restored from `staged-artifacts-preseed`, kept
+offline, and verified the installer hash before use. The assisted per-user installer completed with
+no UAC consent process, installed 576 files, and launched installed ProductVersion `0.1.5.0`. After
+first-run Super User setup, Flow Library visibly rendered **New Flow** and **Re-scan Library** side by
+side. Invoking **Re-scan Library** increased
+`validation/inventory-scans/*.json` from **0 to 1**, and the UI reported `library re-scanned`.
+`awkit-k2s` is closed. Ignored screenshots are retained under `dist/awkit-k2s-evidence/`; the guest
+was restored to the staged checkpoint and powered off afterward.
+
+A separate defect was discovered: launching the same verified installer with `/S` from the standard
+user's scheduled task crashes in the NSIS temporary `System.dll` with `0xC0000005`, while the
+assisted installer succeeds. This is tracked independently as `awkit-9yc` because the existing
+installed-layout harnesses rely on `/S`; it does not invalidate the assisted installed-artifact
+acceptance that `awkit-k2s` required.
+
+Verified: `npm run build` passed; `npm run verify:flow-library` **19/19** (one transient Electron
+attach failure, clean retry passed); `npm run verify:release-key-custody` **58/58**; strict offline
+validation passed with Zvec **17/17**; `npm run verify:packaged-runtime` **25/25**. The comprehensive
+offline supply-chain verifier passed **22/22**; source hygiene **9/9**; verifier classification
+reconciled all **165** commands; roadmap dashboard **156/156** with **153 issues / 7 outstanding /
+146 closed / 93 edges** and Sources agree; AI-memory checks passed. The comprehensive validation
+ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## Release-signing key rotated; `awkit-a6a` + `awkit-2l1` closed (2026-08-03)
 
 The prior offline-manifest release-signing private key was confirmed absent from both custody
