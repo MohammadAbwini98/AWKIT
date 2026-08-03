@@ -53,6 +53,22 @@ const flowFilterFields: FilterFieldDef[] = [
  */
 type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.statusAll>>[number];
 
+/**
+ * The accessible explanation for the Re-scan Library action's current state (awkit-k2s).
+ *
+ * One truthful reason at a time, in a fixed priority: a build that cannot re-scan at all outranks a
+ * user who is not allowed to, which outranks a scan already running, which outranks a scan that
+ * failed last time. Never a generic "disabled" with no reason — a reader must be able to tell WHY
+ * without opening a console.
+ */
+export function rescanTitle(state: { rescanCapable: boolean; canRescan: boolean; rescanning: boolean; rescanError: string | null }): string {
+  if (!state.rescanCapable) return "Re-scan is unavailable in this installation.";
+  if (!state.canRescan) return "Requires the Edit Flows permission";
+  if (state.rescanning) return "Re-scan in progress…";
+  if (state.rescanError) return `Last re-scan failed: ${state.rescanError}`;
+  return "Re-classify every flow and refresh Legacy Compatibility grants";
+}
+
 export function FlowLibrary() {
   const { navigateTo } = useNavigation();
   const { can } = usePermissions();
@@ -62,7 +78,17 @@ export function FlowLibrary() {
   // `validation:runInventoryScan` handler already enforces in main. This control does not widen
   // authority; it makes an already-gated capability reachable.
   const canRescan = can(Permission.WORKFLOW_EDIT);
+  // Capability check, distinct from permission (awkit-k2s). If the preload bridge in THIS build does
+  // not expose the method — e.g. a renderer bundle built against an older/newer preload contract —
+  // the action must degrade to an explained, disabled control, never to silently vanishing or to a
+  // click that throws with no visible outcome. This is deliberately a static presence check, not a
+  // liveness probe: it answers "does this build know how to re-scan" before the user ever clicks.
+  const rescanCapable = typeof window.playwrightFlowStudio?.validation?.runInventoryScan === "function";
   const [rescanning, setRescanning] = useState(false);
+  // Set only when a re-scan attempt fails; cleared on the next successful attempt. Kept separate
+  // from `status` (which also carries routine load messages) so the header action can be told
+  // "the last attempt failed" without re-parsing free text.
+  const [rescanError, setRescanError] = useState<string | null>(null);
   const [flows, setFlows] = useState<FlowProfile[]>([]);
   const [status, setStatus] = useState("Loading saved flows");
   const [namingFlow, setNamingFlow] = useState(false);
@@ -114,17 +140,18 @@ export function FlowLibrary() {
         },
         {
           id: "rescan",
+          // Always present (awkit-k2s): the action must never be silently removed from the header
+          // for any of {permission denied, capability unavailable, mid-scan, prior failure}. Only
+          // its label/title/disabled state changes, so an operator always has something to read.
           label: rescanning ? "Re-scanning…" : "Re-scan Library",
           onClick: () => void rescanLibrary(),
-          title: canRescan
-            ? "Re-classify every flow and refresh Legacy Compatibility grants"
-            : "Requires the Edit Flows permission",
-          disabled: !canRescan || rescanning
+          title: rescanTitle({ rescanCapable, canRescan, rescanning, rescanError }),
+          disabled: !rescanCapable || !canRescan || rescanning
         }
       ],
       dirty: false
     },
-    [canCreate, canRescan, rescanning]
+    [canCreate, canRescan, rescanCapable, rescanning, rescanError]
   );
 
   /**
@@ -136,6 +163,7 @@ export function FlowLibrary() {
    */
   const rescanLibrary = async () => {
     setRescanning(true);
+    setRescanError(null);
     try {
       await window.playwrightFlowStudio.validation.runInventoryScan();
       setValidationStatus(null);
@@ -143,7 +171,13 @@ export function FlowLibrary() {
       setValidationStatus(new Map(statuses.map((entry) => [entry.flowId, entry])));
       setStatus(`${flows.length} saved flow${flows.length === 1 ? "" : "s"} · library re-scanned`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Inventory scan failed");
+      // Visible in two places on purpose: the page-level status line (glanceable while the header
+      // is out of view) and the action's own title (rescanTitle), so the failure is legible whether
+      // the operator is looking at the page or just re-hovering the button. The action stays
+      // rendered and re-enabled — an operational failure must never look like the control vanished.
+      const message = error instanceof Error ? error.message : "Inventory scan failed";
+      setRescanError(message);
+      setStatus(message);
     } finally {
       setRescanning(false);
     }

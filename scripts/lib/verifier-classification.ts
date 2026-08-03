@@ -56,6 +56,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-mock-ui-workflow": { class: "real-browser", why: "Runs a persisted Oracle Data Source and row-driven workflow through the real Java mock bridge, OracleQueryService, PlaywrightRunner, and real Chromium against the local form." },
   "verify:mock-site": { class: "real-browser", why: "Starts the mock site and checks pages/selectors via a real browser context." },
   "verify:flow-designer": { class: "real-browser", why: "Launches the built Electron app and drives the Flow Designer canvas." },
+  "verify:flow-library": { class: "real-browser", why: "awkit-k2s hardening: unit-tests the rescanTitle() reason priority, drives the real Electron Flow Library as Super User and a denied Viewer role to prove Re-scan Library is always rendered (never absent, only disabled with a truthful reason) and that main enforces WORKFLOW_EDIT independent of the renderer, plus static guards that no layer in FlowLibrary->pageChrome->App->AppShell->TopHeader filters the actions array." },
   "verify:workflow-builder": { class: "real-browser", why: "Launches the built Electron app and drives the Workflow Builder canvas." },
   "verify:canvas-perf": { class: "real-browser", why: "Real-Electron render-count regression probe on a seeded canvas." },
   "verify:auth-gui": { class: "real-browser", why: "Real-Electron walkthrough of the SecurityGate sign-in UI." },

@@ -34,6 +34,7 @@ export function TopHeader({ activeRoute, actions, canGoBack, dirty, onBack }: To
           <button
             key={action.id}
             className={action.variant === "primary" ? "toolbar-button primary" : "toolbar-button"}
+            data-testid={`page-action-${action.id}`}
             disabled={action.disabled}
             onClick={action.onClick}
             title={action.title ?? action.label}

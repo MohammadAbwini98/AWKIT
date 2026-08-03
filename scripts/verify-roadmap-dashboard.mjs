@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("151 issues parse", beads.stats.total === 151, `got ${beads.stats.total}`);
+  check("152 issues parse", beads.stats.total === 152, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -138,9 +138,14 @@ try {
   // Then 8/143 of 151 on 2026-08-03: `awkit-73s` closed — corrected the Flow Designer geometry
   // assertions to the settled inset design and replaced the fixed-delay wait with
   // Animation.finished + geometry-stability polling. No new issues.
+  // Then 9/143 of 152 on 2026-08-03: `awkit-k2s` defensive hardening filed `awkit-a6a` (release-
+  // custody incident: signing key absent from both approved locations, P1, OPEN, deliberately not
+  // fixed as part of this bead). `awkit-k2s` itself stays open/in-progress — hardening implemented,
+  // installed-artifact acceptance still pending a signed NSIS artifact. Total/outstanding +1, closed
+  // unchanged.
   check(
-    "8 outstanding / 143 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 143,
+    "9 outstanding / 143 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 143,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

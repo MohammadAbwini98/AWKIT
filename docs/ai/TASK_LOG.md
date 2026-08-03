@@ -4,6 +4,52 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-03 - Claude Code - `awkit-k2s` defensive hardening: capability vs permission, installed-artifact acceptance still BLOCKED
+
+- **Task:** per explicit owner instruction, implement source-level hardening for the Flow Library
+  "Re-scan Library" action while keeping `awkit-k2s` open and NOT attempting any NSIS build, since
+  the release-signing key is currently absent from both custody locations (tracked separately as
+  `awkit-a6a`, P1, OPEN — never to be "fixed" as part of this bead, key material never searched for,
+  restored, copied, regenerated, inspected, or relocated).
+- **Product change:** `app/renderer/pages/FlowLibrary.tsx` — added `rescanCapable` (preload method
+  presence) distinct from `canRescan` (WORKFLOW_EDIT), exported `rescanTitle()` picking one truthful
+  reason at a fixed priority (capability > permission > in-progress > prior failure > success), and a
+  `rescanError` state so operational failures surface in both the action title and page status line
+  while the action stays rendered and re-enabled. `app/renderer/layout/TopHeader.tsx` — added
+  `data-testid="page-action-${id}"` for deterministic test selection.
+- **Regression coverage:** new `scripts/verify-flow-library-gui.mts` (`npm run verify:flow-library`,
+  real-browser class, registered in `scripts/lib/verifier-classification.ts` and `COMMANDS.md`) —
+  19/19, confirmed deterministic across repeated runs. Unit-tests `rescanTitle()` directly (imported
+  from the component module); drives the real Electron build as Super User (renders, enabled, real
+  invocation succeeds) and as a denied Viewer (renders, disabled, permission reason, and a direct IPC
+  probe proves **main** refuses the channel, not just the renderer); static guards confirm no layer
+  in `FlowLibrary -> pageChrome -> App -> AppShell -> TopHeader` filters the actions array. Mutation-
+  tested three of the new assertions (rescanTitle priority swap, catch-block wiring, an injected
+  `actions.filter()` in TopHeader) — each independently made its assertion fail, then reverted.
+- **Finding:** Electron's `contextBridge` deep-freezes the exposed API graph, so a page script cannot
+  rewrite its own bridge surface even for testing (`delete` and reassignment both silently no-op).
+  The capability-unavailable branch is proven at the unit level instead of by live tampering — the
+  right outcome, since defeating that hardening to pass a test would model a security hole.
+- **Diagnostic finding (bears on the original defect):** the full FlowLibrary -> pageChrome -> App ->
+  AppShell -> TopHeader chain is a plain, unconditional pass-through with no `.filter()` anywhere —
+  permission alone cannot explain "absent" (vs. disabled) under current source. Either the original
+  observation used a build that has since changed, or something outside this chain (a stale/divergent
+  compiled bundle) was responsible — that question needs a fresh signed NSIS artifact to answer.
+- **Verified:** `npm run build` clean; `npm run verify:flow-library` 19/19 (repeat run + mutation
+  tests); `npm run verify:verifier-classification` reconciles 165 verifiers; `npm run
+  verify:source-hygiene` 9/9. Comprehensive validation ledger unchanged at **62 PASS / 3 NOT RUN /
+  1 BLOCKED**.
+- **NOT RUN / BLOCKED (reported as such, never PASS):** NSIS packaging, installed-artifact install,
+  clean-machine validation — blocked on `awkit-a6a` (signing key absent from both custody locations).
+- **Status:** `awkit-k2s` stays **open/in-progress** — hardening implemented, installed-artifact
+  acceptance still pending a fresh signed NSIS artifact once `awkit-a6a` is resolved by the key's
+  owner-controlled custody process.
+- **Files:** `app/renderer/pages/FlowLibrary.tsx`, `app/renderer/layout/TopHeader.tsx`,
+  `scripts/verify-flow-library-gui.mts` (new), `package.json`,
+  `scripts/lib/verifier-classification.ts`, `docs/ai/COMMANDS.md`, `docs/ai/CURRENT_STATE.md`.
+
+---
+
 ## 2026-08-03 - Claude Code - Flow Designer geometry checks: fixed-delay race, not a flake (`awkit-73s`)
 
 - **Task:** the compact-viewport Node Properties geometry check in `verify:flow-designer` had failed

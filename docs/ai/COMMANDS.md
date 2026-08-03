@@ -126,6 +126,20 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
                             # drawer's actual open/resize animations to finish (`Animation.finished` +
                             # geometry-stability polling) rather than a fixed delay. (72/72)
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
+npm run verify:flow-library # tsx scripts/verify-flow-library-gui.mts — awkit-k2s defensive hardening.
+                            # Unit-tests rescanTitle()'s reason priority (capability > permission >
+                            # in-progress > prior failure > success), then launches the REAL built
+                            # Electron app: Super User sees Re-scan Library enabled with the real
+                            # title and can invoke it; a Viewer (WORKFLOW_VIEW, not WORKFLOW_EDIT)
+                            # still sees it rendered-but-disabled with the permission reason, and a
+                            # direct IPC probe proves main refuses the channel regardless of what the
+                            # renderer showed. Static guards confirm no layer in
+                            # FlowLibrary->pageChrome->App->AppShell->TopHeader filters the actions
+                            # array. Does NOT simulate "capability unavailable" live — Electron's
+                            # contextBridge deep-freezes the exposed API surface by design, so a page
+                            # script cannot rewrite its own bridge even to test with; that branch is
+                            # covered by the rescanTitle unit case plus a static wiring guard on
+                            # rescanLibrary's catch block instead. Requires `npm run build` first. (19/19)
 npm run verify:flow-node-catalog-parity # tsx scripts/verify-flow-node-catalog-parity.mts — reconciles
                             # flowNodeCatalog ↔ flowNodeRegistry in BOTH directions (plus the StepType
                             # union parsed from FlowProfile.ts), guarded by cardinality/non-empty checks

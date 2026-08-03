@@ -68,6 +68,7 @@
     "benchmark:oracle-jdbc": "tsx scripts/benchmark-oracle-jdbc.mts",
     "verify:mock-site": "node scripts/verify-mock-site.mjs",
     "verify:flow-designer": "node scripts/verify-flow-designer-gui.mjs",
+    "verify:flow-library": "tsx scripts/verify-flow-library-gui.mts",
     "verify:workflow-builder": "node scripts/verify-workflow-builder-gui.mjs",
     "verify:canvas-perf": "node scripts/verify-canvas-perf.mjs",
     "verify:canvas-layout": "tsx scripts/verify-canvas-layout.mts",

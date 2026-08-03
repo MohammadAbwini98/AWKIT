@@ -1,5 +1,47 @@
 # CURRENT_STATE
 
+## `awkit-k2s` defensive hardening implemented + verified; installed-artifact acceptance still BLOCKED (2026-08-03)
+
+Two distinct, separate facts — do not collapse them:
+
+**1. Source-level hardening is implemented and verified.** `FlowLibrary.tsx` now separates
+`rescanCapable` (does this build's preload expose `runInventoryScan` at all) from `canRescan`
+(does this user hold `WORKFLOW_EDIT`), and a new `rescanTitle()` picks one truthful reason at a
+fixed priority — capability > permission > in-progress > prior failure > success — so the action is
+never disabled without an explanation. Operational failures now set a `rescanError` surfaced both
+in the action's title and the page status line, and the action stays rendered and re-enabled
+(`finally { setRescanning(false) }`), never removed. `TopHeader.tsx` gained
+`data-testid="page-action-${id}"` for deterministic selection. New verifier
+`npm run verify:flow-library` (`scripts/verify-flow-library-gui.mts`, real-browser, **19/19**,
+confirmed deterministic across repeated runs and mutation-tested: swapping the `rescanTitle`
+priority order, stripping the catch block's own-message wiring, and injecting an `actions.filter()`
+into `TopHeader` each independently made the corresponding assertion fail, then were reverted)
+proves: the action always renders for both an allowed Super User and a denied Viewer
+(`WORKFLOW_VIEW`, not `WORKFLOW_EDIT`); a denied Viewer sees it disabled with the permission reason
+while a direct IPC probe proves **main**, not just the renderer, refuses the channel
+(`SecurityError: NOT_AUTHORIZED`); and static guards confirm no layer in
+`FlowLibrary -> pageChrome -> App -> AppShell -> TopHeader` filters the `actions` array (all four are
+unconditional pass-throughs — this is also the diagnostic finding that permission alone cannot
+explain "absent" under current source). The capability-unavailable branch is proven at the unit
+level (`rescanTitle` imported directly) rather than by live bridge tampering: Electron's
+`contextBridge` deep-freezes the exposed API graph by design, so a page script cannot rewrite its
+own bridge surface even to test with — confirmed by two failed attempts (`delete` and reassignment
+both silently no-op). `npm run build` passes; `verify:verifier-classification` reconciles
+**165** registered verifiers; `verify:source-hygiene` passes 9/9. The comprehensive validation
+ledger is unchanged at **62 PASS / 3 NOT RUN / 1 BLOCKED**.
+
+**2. Installed-artifact acceptance remains pending — report as BLOCKED, not PASS.** The original
+clean-machine observation (NSIS-installed build missing "Re-scan Library" while portable showed it)
+is **not disproven** by this source-level work; source inspection cannot substitute for NSIS
+evidence. Producing a fresh signed NSIS artifact is blocked: the release-signing key is currently
+absent from both the approved and legacy custody locations — tracked separately as `awkit-a6a`
+(release-custody incident, P1, OPEN), which is NOT a task this session or any agent should "fix" as
+part of `awkit-k2s`. No `AWKIT_ALLOW_SYNCED_SIGNING_KEY` bypass, temporary key, or replacement
+signing was used or will be. `awkit-k2s` stays **open/in-progress**; NSIS build, installed-artifact
+install, and clean-machine validation are **NOT RUN** pending `awkit-a6a` resolution — never PASS.
+
+---
+
 ## Flow Designer's Node Properties drawer insets the canvas — corrected from `awkit-9p6` (`awkit-73s`, 2026-08-03)
 
 **Supersedes the "floating-overlay" claim recorded under `awkit-9p6` below** (measured
