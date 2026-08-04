@@ -354,6 +354,10 @@ async function main() {
   // click/check landed on (candidate elements set `window.__hit` via onclick).
   async function run(html: string, step: FlowStep): Promise<{ status: string; error?: string; hit: string | null }> {
     await page.setContent(html);
+    // setContent rewrites the document but keeps the SAME window, so `__hit` survives between
+    // cases. Without this reset a step that never fires its handler reads the previous case's
+    // value and the assertion passes on stale state.
+    await page.evaluate(() => { delete (window as unknown as { __hit?: string }).__hit; });
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
     const result = await exec.execute(step);
     const hit = (await page.evaluate(() => (window as unknown as { __hit?: string }).__hit ?? null)) as string | null;
@@ -552,6 +556,104 @@ async function main() {
     };
     const boundResult = await run(html, overBound);
     check("nested containers: runtime rejects a chain longer than three", boundResult.status !== "passed" && /3-segment bound/.test(boundResult.error ?? ""), boundResult.error);
+
+    // CR1e. The SAME recorded chain must survive the sections being reordered in the DOM. A chain
+    // that quietly depended on document order would still pass CR1b and fail only here.
+    const reordered = `
+      <section data-testid="nested-scope-b">
+        <div data-testid="nested-action-card">Secondary <button onclick="window.__hit='b-secondary'">Confirm</button></div>
+        <div data-testid="nested-action-card">Primary <button onclick="window.__hit='b-primary'">Confirm</button></div>
+      </section>
+      <section data-testid="nested-scope-a">
+        <div data-testid="nested-action-card">Primary <button onclick="window.__hit='a-primary'">Confirm</button></div>
+        <div data-testid="nested-action-card">Secondary <button onclick="window.__hit='a-secondary'">Confirm</button></div>
+      </section>`;
+    const reorderedReplay = await run(reordered, { ...step, id: "cr1e" });
+    check("nested containers: the chain replays green after a DOM reorder", reorderedReplay.status === "passed", reorderedReplay.error ?? reorderedReplay.status);
+    check("nested containers: the reordered replay still hits the original element", reorderedReplay.hit === "b-primary", reorderedReplay.hit ?? "null");
+  }
+
+  // CR1f. Frame + nested chain: buildRoot must enter the frame FIRST, then fold the chain inside it.
+  // Decoy twins outside the frame prove the frame segment is load-bearing.
+  {
+    // The handlers write to parent.__hit: the button lives in the iframe, so `window.__hit` there
+    // would be the FRAME's window and the top-level assertion would never see it.
+    const inner = "<section data-testid='f-region'><div data-testid='f-card'>Primary <button onclick=\"parent.__hit='frame-primary'\">Approve</button></div><div data-testid='f-card'>Secondary <button onclick=\"parent.__hit='frame-secondary'\">Approve</button></div></section>";
+    const html = `
+      <section data-testid="f-region"><div data-testid="f-card">Primary <button onclick="window.__hit='outer-decoy'">Approve</button></div></section>
+      <iframe name="scoped" srcdoc="${inner.replace(/"/g, "&quot;")}"></iframe>`;
+    const step: FlowStep = {
+      id: "cr1f",
+      type: "click",
+      name: "Approve",
+      locator: {
+        strategy: "role",
+        value: "button",
+        name: "Approve",
+        exact: false,
+        context: {
+          frame: { selector: 'iframe[name="scoped"]' },
+          containers: [
+            { type: "section", strategy: "testId", value: "f-region" },
+            { type: "card", strategy: "testId", value: "f-card", hasText: "Primary" }
+          ]
+        }
+      }
+    };
+    const result = await run(html, step);
+    check("frame + chain: replays green", result.status === "passed", result.error ?? result.status);
+    check("frame + chain: resolves inside the frame, not the outer decoy", result.hit === "frame-primary", result.hit ?? "null");
+
+    const withoutFrame = await run(html, { ...step, id: "cr1f-neg", locator: { ...step.locator!, context: { containers: step.locator!.context!.containers } } });
+    check("frame + chain negative: dropping the frame segment stops resolving the framed element", withoutFrame.hit !== "frame-primary", withoutFrame.hit ?? withoutFrame.status);
+  }
+
+  // CR1g. Open shadow host chain + nested container chain inside the shadow root.
+  {
+    const html = `
+      <script>
+        if(!customElements.get('x-scope-host')) customElements.define('x-scope-host', class extends HTMLElement {
+          connectedCallback(){ if(this.shadowRoot) return; const r=this.attachShadow({mode:'open'});
+            r.innerHTML = "<section data-testid='s-region'><div data-testid='s-card'>Primary <button type='button'>Approve</button></div><div data-testid='s-card'>Secondary <button type='button'>Approve</button></div></section>";
+            var host = this.getAttribute('data-testid');
+            r.querySelectorAll('[data-testid=s-card]').forEach(function(card){ card.querySelector('button').onclick = function(){ window.__hit = host + '-' + card.textContent.trim().split(' ')[0].toLowerCase(); }; });
+          }
+        });
+      </script>
+      <section data-testid="s-region"><div data-testid="s-card">Primary <button type="button" onclick="window.__hit='light-decoy'">Approve</button></div></section>
+      <x-scope-host data-testid="scope-host-a"></x-scope-host>
+      <x-scope-host data-testid="scope-host-b"></x-scope-host>`;
+    const step: FlowStep = {
+      id: "cr1g",
+      type: "click",
+      name: "Approve",
+      locator: {
+        strategy: "role",
+        value: "button",
+        name: "Approve",
+        exact: false,
+        context: {
+          shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "scope-host-b" }] },
+          containers: [
+            { type: "section", strategy: "testId", value: "s-region" },
+            { type: "card", strategy: "testId", value: "s-card", hasText: "Primary" }
+          ]
+        }
+      }
+    };
+    const result = await run(html, step);
+    check("shadow + chain: replays green", result.status === "passed", result.error ?? result.status);
+    check("shadow + chain: resolves inside the named host, not the light-DOM decoy", result.hit === "scope-host-b-primary", result.hit ?? "null");
+
+    // Playwright's locators PIERCE open shadow roots, so omitting the host chain does not stop
+    // resolution — the honest proof that the host segment is applied is that naming a different
+    // host selects a different element, with the chain held constant.
+    const otherHost = await run(html, {
+      ...step,
+      id: "cr1g-alt",
+      locator: { ...step.locator!, context: { ...step.locator!.context!, shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "scope-host-a" }] } } }
+    });
+    check("shadow + chain: naming the other host selects that host's element", otherHost.hit === "scope-host-a-primary", otherHost.hit ?? otherHost.status);
   }
 
   // CR2. Repeated cards distinguished only by a meaningful per-card class (no id/testid/role
