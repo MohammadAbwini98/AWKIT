@@ -17,14 +17,5 @@
     "    \"claimedAt\": \"2026-07-27T10:00:00Z\", \"expiresAt\": \"2026-07-28T10:00:00Z\",",
     "    \"note\": \"IPC authz sweep\" }"
   ],
-  "claims": [
-    {
-      "itemId": "bead:awkit-9yc",
-      "agent": "Codex",
-      "state": "in-progress",
-      "claimedAt": "2026-08-04T09:03:42Z",
-      "expiresAt": "2026-08-05T09:03:42Z",
-      "note": "Reproduce and repair deterministic per-user NSIS installer automation"
-    }
-  ]
+  "claims": []
 }

@@ -6,9 +6,9 @@
   install per-user (no elevation), run the manager-based live suite against the installed host,
   then uninstall and confirm the tree is gone.
 
-  `/S` selects the installer's own silent per-user mode. No security prompt is bypassed,
-  suppressed, or auto-answered; if Windows demanded elevation the install would fail here and that
-  failure is the reportable result.
+  `/currentuser /S` explicitly selects the installer's supported silent per-user mode. No security
+  prompt is bypassed, suppressed, or auto-answered; if Windows demanded elevation the install would
+  fail here and that failure is the reportable result.
 #>
 param(
   [string]$Installer = "dist\SpecterStudio Setup 0.1.0.exe"
@@ -17,6 +17,7 @@ param(
 $ErrorActionPreference = "Continue"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $root
+. (Join-Path $root "scripts\lib\nsis-per-user-install.ps1")
 
 $steps = @()
 function Step($name, $ok, $detail) {
@@ -41,11 +42,14 @@ Write-Host "=== Zvec live verification in the INSTALLED layout ==="
 Step "runningUnelevated" (-not (Elevated)) "elevated=$(Elevated)"
 
 # ── install ──
-$proc = Start-Process -FilePath $Installer -ArgumentList "/S" -PassThru -Wait
-Step "installerExitCode" ($proc.ExitCode -eq 0) "exit=$($proc.ExitCode)"
+$installArguments = Get-AwkitNsisPerUserSilentArguments
+$proc = Start-Process -FilePath $Installer -ArgumentList $installArguments -PassThru -Wait
 
 $installDir = Join-Path $env:LOCALAPPDATA "Programs\SpecterStudio"
 $installedHost = Join-Path $installDir "resources\native-hosts\zvec\zvec-host.cjs"
+$installOutcome = Test-AwkitNsisInstallOutcome -ExitCode $proc.ExitCode -Installed (Test-Path $installedHost)
+Step "installerExitCode" $installOutcome.Success ("exit=" + $installOutcome.ExitCodeHex + "; installed=" + $installOutcome.Installed)
+Step "installerNoSystemDllCrash" (-not $installOutcome.SystemDllCrash) ("exit=" + $installOutcome.ExitCodeHex + "; 0xC0000005 is the observed NSIS System.dll crash")
 Step "installedPerUser" ($installDir -like "$env:LOCALAPPDATA*") $installDir
 Step "installedHostPresent" (Test-Path $installedHost) $installedHost
 Step "installedBindingOutsideAsar" (Test-Path (Join-Path $installDir "resources\native-hosts\zvec\node_modules\@zvec\bindings-win32-x64\zvec_node_binding.node")) "binding present in the installed tree"

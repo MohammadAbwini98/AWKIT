@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## `awkit-9yc` repaired: explicit current-user NSIS silent mode (2026-08-04)
+
+The installed-layout drivers no longer invoke the assisted NSIS installer with ambiguous bare `/S`.
+Both now use the canonical `/currentuser /S` sequence from
+`scripts/lib/nsis-per-user-install.ps1`, preserving unelevated per-user installation while selecting
+the install mode before silent execution. The helper also normalizes signed/unsigned process results
+and treats success as exit zero **plus** an installed executable; `0xC0000005` is reported explicitly
+as the observed NSIS `System.dll` access-violation regression.
+
+Clean-VM A/B proof used the same restored Windows 11 snapshot and the same guest-hash-verified
+`SpecterStudio Setup 0.1.5.exe` bytes (SHA-256
+`9CE2860E3AF33BC29E606008DCD2C551F61E5B721C1551BB8A00B5E39080E2EA`). Bare `/S` reproduced
+`0xC0000005`, created no installation, and emitted a fresh `System.dll` Application Error.
+`/currentuser /S` exited zero, installed 576 files under the standard user's LocalAppData, created
+the HKCU uninstall entry, launched ProductVersion `0.1.5.0` as `awkituser`, produced no UAC consent
+process, and emitted no `System.dll` crash event. The VM was restored and powered off afterward.
+
+`npm run verify:nsis-per-user-install` provides the exact `0xC0000005` synthetic negative control
+and source guards for both drivers. The verifier passes **12/12**; script typecheck passes; all
+**166** verifier commands reconcile. `awkit-9yc` is closed; Beads now records **153 issues / 5
+outstanding / 148 closed / 93 edges**. The comprehensive validation ledger remains **62 PASS / 3
+NOT RUN / 1 BLOCKED**.
+
+---
+
 ## `awkit-k2s` closed after fresh NSIS installed-artifact acceptance (2026-08-03)
 
 A fresh internally signed NSIS artifact was built from clean `main` at `8f0275b`:
@@ -19,11 +44,9 @@ side. Invoking **Re-scan Library** increased
 `awkit-k2s` is closed. Ignored screenshots are retained under `dist/awkit-k2s-evidence/`; the guest
 was restored to the staged checkpoint and powered off afterward.
 
-A separate defect was discovered: launching the same verified installer with `/S` from the standard
-user's scheduled task crashes in the NSIS temporary `System.dll` with `0xC0000005`, while the
-assisted installer succeeds. This is tracked independently as `awkit-9yc` because the existing
-installed-layout harnesses rely on `/S`; it does not invalidate the assisted installed-artifact
-acceptance that `awkit-k2s` required.
+A separate defect was discovered during this acceptance: bare `/S` crashed in the NSIS temporary
+`System.dll`. It was subsequently repaired under `awkit-9yc` with explicit `/currentuser /S`; the
+assisted installed-artifact acceptance that `awkit-k2s` required remains valid.
 
 Verified: `npm run build` passed; `npm run verify:flow-library` **19/19** (one transient Electron
 attach failure, clean retry passed); `npm run verify:release-key-custody` **58/58**; strict offline
@@ -302,7 +325,7 @@ The comprehensive ledger remains **62 PASS / 3 NOT RUN / 1 BLOCKED**.
 ## Runs admitted under Legacy Compatibility are attributed in the report (`awkit-vbj`, 2026-08-03)
 
 A workflow run that executed **only** because a flow holds a Legacy Compatibility grant reported
-`passed` with nothing to say so — a clean-machine check found no `legacy`, `compatib` or `grant`
+`passed` with nothing to say so — an offline VM check found no `legacy`, `compatib` or `grant`
 token anywhere in `reports/*.json`. The audit trail existed on the grant record, which answers "how
 many runs did this exemption allow" but does not help someone reading one report.
 

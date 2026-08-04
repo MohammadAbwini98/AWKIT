@@ -27,6 +27,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $PSCommandPath
+. (Join-Path $here "..\lib\nsis-per-user-install.ps1")
 
 $script:pass = 0
 $script:fail = 0
@@ -232,25 +233,41 @@ Write-Host "Section 7 - NSIS per-user install, launch and uninstall (no elevatio
 # single-instance lock would make the installed copy hand focus to the portable and quit.
 Guest { Get-Process -Name "SpecterStudio*" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 3 }
 
+$installArguments = Get-AwkitNsisPerUserSilentArguments -AsString
 $install = Guest -Script {
-  param($setup, $user)
-  $action = New-ScheduledTaskAction -Execute $setup -Argument "/S"
+  param($setup, $user, $arguments)
+  $action = New-ScheduledTaskAction -Execute $setup -Argument $arguments
   $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
   Register-ScheduledTask -TaskName "AwkitNsisInstall" -Action $action -Principal $principal -Force | Out-Null
   Start-ScheduledTask -TaskName "AwkitNsisInstall"
   "started"
-} -ArgumentList @("C:\awkit-artifacts\$setupName", $GuestUser)
+} -ArgumentList @("C:\awkit-artifacts\$setupName", $GuestUser, $installArguments)
 
 $installDir = "C:\Users\awkituser\AppData\Local\Programs\specterstudio"
 $deadline = (Get-Date).AddMinutes(5)
-$installed = $false
+$installState = $null
 while ((Get-Date) -lt $deadline) {
-  Start-Sleep -Seconds 15
-  $installed = Guest -Script { param($d) Test-Path (Join-Path $d "SpecterStudio.exe") } -ArgumentList @($installDir)
-  if ($installed) { break }
+  Start-Sleep -Seconds 5
+  $installState = Guest -Script {
+    param($d)
+    $task = Get-ScheduledTask -TaskName "AwkitNsisInstall"
+    $info = Get-ScheduledTaskInfo -TaskName "AwkitNsisInstall"
+    @{
+      State = $task.State.ToString()
+      LastTaskResult = [uint32]$info.LastTaskResult
+      Installed = (Test-Path (Join-Path $d "SpecterStudio.exe"))
+    }
+  } -ArgumentList @($installDir)
+  if ($installState.State -eq "Ready") { break }
 }
+$installed = [bool]$installState.Installed
+$installOutcome = Test-AwkitNsisInstallOutcome -ExitCode $installState.LastTaskResult -Installed $installed
 Record "7.1" "NSIS installs per-user with NO elevation prompt" `
-  $(if ($installed) { "PASS" } else { "FAIL" }) ("install dir: " + $installDir)
+  $(if ($installOutcome.Success) { "PASS" } else { "FAIL" }) `
+  ("install dir: " + $installDir + " | exit: " + $installOutcome.ExitCodeHex)
+Record "7.1.crash" "NSIS installer does not terminate with the observed System.dll access violation" `
+  $(if (-not $installOutcome.SystemDllCrash) { "PASS" } else { "FAIL" }) `
+  ("exit: " + $installOutcome.ExitCodeHex + " | regression sentinel: 0xC0000005")
 
 $uacPrompt = Guest { @(Get-Process -Name "consent" -ErrorAction SilentlyContinue).Count }
 Record "7.2" "No UAC consent prompt appeared during install" `
@@ -284,7 +301,7 @@ if ($installed) {
     param($d, $user)
     $un = Join-Path $d "Uninstall SpecterStudio.exe"
     if (-not (Test-Path $un)) { return "NO_UNINSTALLER" }
-    $action = New-ScheduledTaskAction -Execute $un -Argument "/S"
+    $action = New-ScheduledTaskAction -Execute $un -Argument "/currentuser /S"
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     Register-ScheduledTask -TaskName "AwkitNsisUninstall" -Action $action -Principal $principal -Force | Out-Null
     Start-ScheduledTask -TaskName "AwkitNsisUninstall"

@@ -148,9 +148,11 @@ try {
   // Then 6/146 of 152 on 2026-08-03: `awkit-a6a` and `awkit-2l1` both closed — the owner generated a
   // fresh Ed25519 offline-manifest signing key directly at the approved LOCALAPPDATA custody path
   // (never touching the OneDrive-synced tree), rotated the public key, and re-signed the manifest.
+  // Then `awkit-k2s` closed and `awkit-9yc` was filed: 6/147 of 153. `awkit-9yc` then closed after
+  // explicit `/currentuser /S` passed the clean-VM A/B install control: 5/148 of 153, edges 93.
   check(
-    "7 outstanding / 146 closed",
-    beads.stats.outstanding === 7 && beads.stats.closed === 146,
+    "5 outstanding / 148 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 148,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

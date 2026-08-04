@@ -300,8 +300,11 @@ npm run verify:zvec-packaged-live        # live manager against the PACKAGED hos
 npm run verify:zvec-coexistence          # Playwright workflow pass count is unchanged under Zvec load
 # Point any live verifier at another layout (the NSIS matrix uses this):
 #   $env:AWKIT_ZVEC_LIVE_HOST_PATH = "<...>/resources/native-hosts/zvec/zvec-host.cjs"
-# Installed (NSIS) layout end-to-end — installs per-user unelevated, runs, uninstalls, verifies clean:
+# Installed (NSIS) layout end-to-end — explicitly uses /currentuser /S, installs per-user
+# unelevated, rejects the known 0xC0000005 System.dll crash, runs, uninstalls, verifies clean:
 #   powershell -ExecutionPolicy Bypass -File scripts/zvec-harness/run-installed-live.ps1
+# Fast argument/outcome regression check (includes exact 0xC0000005 negative control):
+npm run verify:nsis-per-user-install
 
 # Browser Resource Optimization benchmarks (headed Windows; write reports/browser-performance/*.json):
 npm run benchmark:browser-resource # simple Balanced-vs-Low-Resource per-instance run (blank/nav/idle/form)

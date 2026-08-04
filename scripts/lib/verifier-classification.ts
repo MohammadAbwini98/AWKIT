@@ -211,6 +211,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
 
   // ── Documentation consistency (asserts docs/spec text agrees with code/config) ────────────────
   "verify:clean-machine-policy": { class: "documentation-consistency", why: "Asserts the clean-machine validation policy docs agree with the canonical policy source (blocking matrix + wording), protected gates stay mandatory, and historical NOT EXECUTED evidence is unchanged." },
+  "verify:nsis-per-user-install": { class: "unit", why: "Exercises the canonical PowerShell argument/outcome helper with the exact 0xC0000005 NSIS System.dll negative control, then guards both installed-layout drivers against returning to bare /S." },
 
   // ── Static source validation (parses source / packaging inputs; feature not executed) ────────
   "verify:verifier-classification": { class: "static-source-validation", why: "Reconciles this registry against package.json and reports per-class verifier counts (FR-I1)." },

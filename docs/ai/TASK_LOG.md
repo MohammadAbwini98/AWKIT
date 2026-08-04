@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Codex - Repaired NSIS silent per-user install automation (`awkit-9yc`)
+
+- **Reproduced:** on the restored offline Windows 11 clean VM, bare `/S` against the exact
+  hash-verified 0.1.5 installer returned `0xC0000005`, installed nothing, and produced a fresh NSIS
+  `System.dll` Application Error.
+- **A/B proof:** changing only the arguments to `/currentuser /S` returned zero, installed 576 files
+  to the standard user's LocalAppData, created the HKCU uninstall entry, launched ProductVersion
+  `0.1.5.0` as `awkituser`, produced no UAC consent process, and emitted no crash event. The VM was
+  restored to its clean snapshot and powered off afterward.
+- **Fix:** added `scripts/lib/nsis-per-user-install.ps1` as the canonical argument and outcome helper;
+  both installed-layout drivers now use it, require exit zero plus the installed executable, and
+  report `0xC0000005` explicitly. Uninstall also selects `/currentuser` explicitly.
+- **Regression coverage:** added and registered `npm run verify:nsis-per-user-install`; **12/12** pass,
+  including unsigned and signed forms of the exact access violation, exit-zero/missing-install, the
+  success case, ordered arguments, driver integration, and bare-`/S` source guards.
+- **Safety:** installation remained unelevated and per-user; no UAC bypass was introduced; no
+  credential value was printed or copied to repository documentation.
+- **Tracking:** closed `awkit-9yc`, removed its dashboard claim, and updated the non-vacuity baseline
+  to **153 issues / 5 outstanding / 148 closed / 93 edges**.
+- **Verified:** build PASS; offline validation PASS with Zvec 17/17; NSIS regression **12/12**;
+  clean-machine policy **28/28**; source hygiene **9/9**; secrets **16/16**; script typecheck PASS;
+  PowerShell parser PASS for all four touched/new scripts; all **166** verifiers classified; roadmap
+  dashboard **156/156** with Sources agree; AI-memory PASS; `git diff --check` clean.
+- **Graphify:** incremental refresh completed at 11,734 nodes / 24,053 edges / 610 communities; the
+  existing zero-node-source and stale-community-label warnings remain non-blocking.
+
+---
+
 ## 2026-08-03 - Codex - Closed `awkit-k2s` with fresh installed NSIS proof
 
 - **Artifact:** built `SpecterStudio Setup 0.1.5.exe` from source commit `8f0275b`; 244,286,446

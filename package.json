@@ -79,6 +79,7 @@
     "verify:verifier-classification": "tsx scripts/verify-verifier-classification.mts",
     "verify:test-lab-cli-only": "tsx scripts/verify-test-lab-cli-only.mts",
     "verify:clean-machine-policy": "tsx scripts/verify-clean-machine-policy.mts",
+    "verify:nsis-per-user-install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-nsis-per-user-install.ps1",
     "verify:avatar": "tsx scripts/verify-avatar-initials.mts",
     "verify:licensing": "tsx scripts/verify-licensing.mts",
     "verify:license-dispatch-gate": "node scripts/benchmark/run.mjs scripts/verify-license-dispatch-gate.mts",
