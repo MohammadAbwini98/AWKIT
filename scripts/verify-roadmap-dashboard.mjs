@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("155 issues parse", beads.stats.total === 155, `got ${beads.stats.total}`);
+  check("158 issues parse", beads.stats.total === 158, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -155,10 +155,14 @@ try {
   // Then 2026-08-04: `awkit-wmq` filed AND closed (Recorder nested container chains + causal popup
   // URL/context capture), and `awkit-f2q` filed for the outstanding mock-site popup fixtures:
   // 5/150 of 155, edges 93. `awkit-f2q` then closed once Scenario J landed as real Feature Test Lab
-  // pages: 4/151 of 155, edges 93. The four remaining outstanding items are all `blocked`.
+  // pages: 4/151 of 155, edges 93. Then the awkit-wmq review residuals were filed and closed the
+  // same day — `awkit-45d` (popup identity locked to a client-side redirect hop, which also
+  // uncovered opener-attribution theft and action reordering), `awkit-tir` (setTimeout(0) yield +
+  // chain-cap source guard) and `awkit-y53` (frame/shadow/reorder chain coverage): 4/154 of 158,
+  // edges 93. The four remaining outstanding items are all `blocked` on the owner.
   check(
-    "4 outstanding / 151 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 151,
+    "4 outstanding / 154 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 154,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

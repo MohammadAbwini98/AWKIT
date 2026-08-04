@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Recorder review residuals (`awkit-45d`, `awkit-tir`, `awkit-y53`)
+
+- **One test found three defects.** Writing a failing case for the client-side-redirect identity bug
+  (`awkit-45d`) surfaced two more that no existing gate could see: opener attribution could be stolen
+  by a click made while registration was in flight, and recorded actions could be REORDERED because
+  each binding awaited only its own page's registration.
+- **Fixes:** identity now settles on the last URL unchallenged for a 250ms quiet period (a 302 never
+  commits a document, which is exactly why the existing redirect coverage passed while
+  `location.replace` broke it); attribution uses a per-popup slot reserved synchronously and indexed
+  under the opener as soon as it is known, consumed on first claim; all actions pass through one
+  ordered pipeline. The `setTimeout(0)` yield was removed as a consequence, not as a patch.
+- **Ordering discovery worth keeping:** `context.on("page")` fires BEFORE `page.on("popup")`, so the
+  opener is unknown on the first `registerPopup` call — the dedupe early-return then skipped the
+  reservation entirely. And the capture binding can commit either side of the popup events in either
+  order, so no single direction is reliable; both are handled.
+- **Coverage (`awkit-y53`):** chain-inside-iframe with an outer decoy + frame-dropping negative;
+  shadow host chain + nested containers where naming the other host selects that host's element; and
+  a DOM-reordered replay. Playwright PIERCES open shadow roots, so "dropping the host chain stops
+  resolution" was a false assumption — corrected rather than asserted.
+- **Harness gap fixed:** `run()` never reset `window.__hit` and `setContent` keeps the same window,
+  so a step that never fired its handler read the previous case's value.
+- **Guard (`awkit-tir`):** Part Q asserts the capture and runtime container-chain caps agree; the
+  capture script is stringified for the browser and cannot import the shared constant.
+- **Verified:** build PASS; recorder **206/0**; ambiguity **68/0**; runner **89/0**; hover **214/0**;
+  popup **12/12**; popup-identity **44/44**; popup-mock-site **15/15**; protected-login **57/57**;
+  redaction **15/0**; draft **50/50**; recorder-flow **29/29**; flow-step-mapping **111/0**;
+  roundtrip **27/0**; source-hygiene **9/0**; `git diff --check` clean.
+- **Mutation-tested:** quiet period 0 restores first-commit-wins; drifting a chain cap fails the
+  guard; folding only the first container segment fails 10 checks including all three new cases.
+- **Tracking:** closed `awkit-45d`, `awkit-tir`, `awkit-y53`. Beads **158 issues / 4 outstanding /
+  154 closed / 93 edges**; all four outstanding are owner-blocked with no engineering remaining.
+
+---
+
 ## 2026-08-04 - Claude - Mock-site Scenario J: popup URL lifecycle (`awkit-f2q`)
 
 - **Implementation:** promoted the four popup URL-lifecycle cases from verifier-local fixtures into

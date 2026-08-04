@@ -1,5 +1,59 @@
 # CURRENT_STATE
 
+## Recorder review residuals closed: popup identity, ordering, chain coverage (2026-08-04)
+
+Three follow-ups from the `awkit-wmq` review. Writing **one** failing test for the first uncovered
+two further defects that no existing gate could see.
+
+**`awkit-45d` — identity locked to a client-side redirect.** `popupIdentityUrl` resolved on the
+first meaningful commit. A server `302` never commits a document, so Scenario J2 and Part P both
+passed — but `location.replace` / meta refresh **do** commit, so the alias,
+`popupExpectation.urlContains` and the captured URL all took the intermediate hop. It now accepts the
+**last** URL that stands unchallenged for a 250 ms quiet period, inside the existing 2 s budget.
+
+That change then exposed two more:
+
+- **Opener attribution could be stolen.** It read "the opener's latest click" *after* the identity
+  wait, so a click made while registration was in flight won instead. Playwright fires the popup
+  event during the click's default action, and the capture binding is an async round trip, so it can
+  commit either side of the popup events **in either order** — neither direction alone is reliable.
+  A slot is now reserved per popup and indexed under the opener as soon as the opener is known (not
+  necessarily the first event: `context.on("page")` fires before `page.on("popup")`), filled by
+  whichever click qualifies, and consumed on first claim. Which **page** opened the popup stays
+  causal; which **click** on it is time-bounded, now explicitly and narrowly.
+- **Recorded actions could be reordered.** Each binding awaited only its *own* page's registration,
+  so an action on an unblocked page overtook a popup action still waiting. All actions now pass
+  through one ordered pipeline — what the design called for.
+
+**`awkit-tir`** — the `setTimeout(0)` ordering yield is gone (correctness now comes from the
+reservation, not a delay), and Part Q asserts the two container-chain caps agree. The capture script
+is stringified for the browser so it cannot import the shared constant; the cap exists as two
+literals that can silently drift.
+
+**`awkit-y53`** — the three missing combined-context cases: a chain inside a same-origin iframe with
+an outer decoy and a frame-dropping negative; an open shadow host chain plus nested containers, where
+naming the *other* host selects that host's element; and a DOM-reordered replay proving the chain is
+semantic, not position-dependent. Note Playwright **pierces open shadow roots**, so omitting the host
+chain does not stop resolution — that assumption was corrected rather than asserted. Fixing these
+also closed a real hygiene gap: `run()` never reset `window.__hit`, and `setContent` keeps the same
+window, so a step that never fired its handler read the previous case's value.
+
+**Verified.** build PASS; `verify:recorder` **206/0**; `verify:recorder-ambiguity` **68/0**;
+`verify:runner` **89/0**; `verify:recorder-hover` **214/0**; `verify:popup` **12/12**;
+`verify:popup-identity` **44/44**; `verify:popup-mock-site` **15/15**;
+`verify:protected-login-recorder` **57/57**; `verify:recorder-redaction` **15/0**;
+`verify:recorder-draft` **50/50**; `verify:recorder-flow` **29/29**; `verify:flow-step-mapping`
+**111/0**; `test:random:roundtrip` **27/0**; `verify:source-hygiene` **9/0**. Mutation-tested:
+quiet period 0 restores first-commit-wins; drifting a chain cap fails the guard; folding only the
+first container segment fails 10 checks including all three new combined-context cases.
+
+No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Beads records **158 issues / 4 outstanding / 154 closed / 93 edges**; all four outstanding items are
+`blocked` on the owner (real-IdP handoff, live Oracle, packaged/clean-machine gates, OS-shell
+launches) with no engineering remaining.
+
+---
+
 ## Mock-site Scenario J: popup URL lifecycle (`awkit-f2q`, 2026-08-04)
 
 The four popup URL-lifecycle cases that `awkit-wmq` left as verifier-local fixtures are now real
