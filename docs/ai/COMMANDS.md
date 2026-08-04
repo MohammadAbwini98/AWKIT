@@ -201,6 +201,8 @@ npm run verify:settings-e2e # tsx scripts/verify-settings-e2e.mts — timestampe
                             # export/import/reset/restart; offline validation and core accessibility.
                             # Writes screenshots, export and machine-readable ledger under
                             # test-artifacts/settings-e2e/<timestamp>/. Requires build. (116/116)
+# Owner-approved SET-015 real Windows Explorer check (never enabled by default):
+$env:AWKIT_ALLOW_OS_SHELL_LAUNCH="1"; npm run verify:settings-e2e
 # (report tool, not a gate) node scripts/measure-large-graphs.mjs — seeds 40/100/200/500-node flows and
 #   prints load/zoom/drag/save/heap metrics + an in-session navigation leak check. Requires build.
 npm run verify:reports      # node scripts/verify-reports-gui.mjs — real-Electron smoke of the Reports

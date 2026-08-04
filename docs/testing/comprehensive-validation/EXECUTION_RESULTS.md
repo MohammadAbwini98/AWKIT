@@ -1,5 +1,20 @@
 # AWKIT Comprehensive Validation Execution Results
 
+## SET-015 real runtime-folder launch — 2026-08-04
+
+The owner-approved opt-in Settings gate passed **154 PASS / 0 FAIL** with
+`AWKIT_ALLOW_OS_SHELL_LAUNCH=1`. The verifier proved its unique isolated runtime root was not
+already open, clicked the rendered **Open Runtime Folder** action, and observed a real Windows
+Explorer window at that exact configured path. It then closed only the test-created exact-path
+window and verified cleanup. The default verifier remains non-launching when the opt-in is absent.
+
+SET-015 therefore moves from `NOT RUN` to `PASS`. The focused 66-case ledger is now
+**63 PASS / 2 NOT RUN / 1 BLOCKED**; Settings is **21 PASS / 0 NOT RUN**. The remaining two
+`NOT RUN` cases are Reports OS-shell launches, and the remaining `BLOCKED` case is the protected
+login human-handoff completion.
+
+---
+
 ## Increment 6 Shadow DOM evidence — 2026-08-01
 
 `awkit-aui.6` was exercised through the production capture/build/validate/resolve/execute layers.

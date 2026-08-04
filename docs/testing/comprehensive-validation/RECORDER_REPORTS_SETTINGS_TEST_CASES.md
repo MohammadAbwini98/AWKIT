@@ -1015,9 +1015,13 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   store temporarily unreadable.
 - **Expected:** Counts match stores and refresh; open folder is the configured runtime root only;
   unreadable store reports safe zero/error according to contract without crashing.
-- **Status:** `NOT RUN` for the real OS folder launch only, which is a recorded manual check by the
-  same owner decision as SYS-REP-008. **Unreadable-store recovery is now executed** in
-  `verify:settings-e2e` (**139/139**): the flows store has its read ACL revoked (with unreadability
+- **Status:** `PASS` — the owner-approved, opt-in real OS launch check passed in
+  `verify:settings-e2e` (**154 PASS / 0 FAIL**). With `AWKIT_ALLOW_OS_SHELL_LAUNCH=1`, the verifier
+  first proved that its unique isolated runtime root was not already open, clicked the rendered
+  **Open Runtime Folder** button, and observed a real Windows Explorer window whose resolved path
+  exactly matched that configured root. It then closed only that test-created exact-path window and
+  verified cleanup. Ordinary verifier runs remain non-launching unless the opt-in is explicit.
+  **Unreadable-store recovery is also executed**: the flows store has its read ACL revoked (with unreadability
   asserted as a precondition), after which the flows count degrades to `0` **while the other three
   stores keep reporting truthfully** — a handler that let the rejection escape would have taken all
   four down together. Restoring access returns the count to `3`, so the `0` is demonstrably a
@@ -1132,9 +1136,9 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   comparison limit, multi-range capacity, recovered anomalies, storage sizing/denial/cache fault
   injection, export/path security, authorization, the accessibility audit, and now the **live**
   queued/running distribution and backpressure lifecycle are green.
-  - **No engineering remains in Reports.** Both open cases are the same owner-decision manual step —
-    SYS-REP-008's real Explorer launch and SYS-REP-006's artifact launch — the class SET-015 also
-    belongs to. An agent cannot approve an OS shell launch on the owner's behalf.
+  - **No engineering remains in Reports.** Both open cases are owner-decision OS shell launches —
+    SYS-REP-008's real Explorer launch and SYS-REP-006's artifact launch. SET-015's equivalent
+    runtime-folder launch is now separately approved and passed.
   - SYS-REP-006's drawer branch stays defensive and unreachable in one session (retention sweeps only
     at engine startup, and every drawer entry point re-reads the same store); its telemetry contract
     half is `PASS`, and the "needs a contract change" note recorded against it was **wrong** — see
@@ -1143,7 +1147,8 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
     are counted separately now, which is why its headline moved from 158 to **155/0/3** without any
     check changing behaviour. Two of the three are proven by `verify:reports-live-engine` and say so
     in their own reason strings.
-- **Settings:** **20 PASS / 1 NOT RUN**, with `verify:settings-e2e` at **151/151**,
+- **Settings:** **21 PASS / 0 NOT RUN**, with the owner-approved opt-in `verify:settings-e2e` run at
+  **154 PASS / 0 FAIL**,
   `verify:settings-runner-behaviour` at **11/11** and `verify:recorder-gui` at **103/103** — page/IPC
   authorization, every section, direct validation *and its valid boundary edges*, path truth
   including the folder picker and a genuinely ACL-denied directory, Secrets CRUD and rapid submit,
@@ -1155,16 +1160,7 @@ Execution date: 2026-07-26 (Asia/Amman). Baseline commit: `cfe4594`.
   controls, rather than by duplicating that infrastructure into the Settings gate.
   SET-008 and SET-009 closed on 2026-07-27 via `verify:settings-runner-behaviour`, which found and
   fixed `AWKIT-SET-006` (screenshot-on-failure was a control that did nothing).
-  The two remaining cases are open for a *named* residual subcase each, and **neither is ordinary
-  engineering work**:
-  - **SET-013** — the unavailable-secret-store variant. The *contract* is already proven at the layer
-    that decides it: `verify:secrets` drives a real `SecretStore` with an injected
-    `isAvailable: () => false` and asserts it refuses to store and returns nothing. What is missing is
-    the **GUI** half, which needs `safeStorage.isEncryptionAvailable()` to return false inside the
-    running app. There is no seam, and adding an env-gated override to `app/main/secretStore.ts` would
-    put a test hook in a shipped security path — the same class of thing that was deliberately removed
-    from the Zvec host (`__testAbort`). **That is an owner decision, not an agent one.**
-  - **SET-015** — the real OS folder launch, a recorded manual check by the same owner decision as
-    SYS-REP-008 and SYS-REP-006's artifact launch.
+  SET-013's unavailable-secret-store GUI seam and SET-015's exact-path real Explorer launch are both
+  now executed, so no Settings cases remain `NOT RUN`.
 
 No defect is inferred from a `NOT RUN` or `BLOCKED` result.

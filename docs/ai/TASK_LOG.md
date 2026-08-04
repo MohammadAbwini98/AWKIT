@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Codex - Executed SET-015 real runtime-folder launch (`awkit-hlp`)
+
+- **Implementation:** added a fail-closed `AWKIT_ALLOW_OS_SHELL_LAUNCH=1` path to
+  `verify:settings-e2e`. It requires a unique isolated root that is not already open, clicks the
+  rendered Settings action, resolves live Explorer `LocationURL` values, and requires an exact path
+  match. Default runs remain non-launching.
+- **Cleanup:** the verifier records the exact test-created Explorer window, closes only that window,
+  and asserts it is gone. The first run passed the launch itself but found a PowerShell separator bug
+  in this cleanup helper; the helper was corrected, the leftover exact-path window was closed, and a
+  clean full rerun passed.
+- **Result:** owner-approved opt-in `verify:settings-e2e` **154 PASS / 0 FAIL**. SET-015 moved from
+  `NOT RUN` to `PASS`; Settings is **21 PASS / 0 NOT RUN** and the focused ledger is
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracking:** closed `awkit-hlp`, removed its dashboard claim, and updated non-vacuity baselines to
+  **153 issues / 4 outstanding / 149 closed / 93 edges**.
+- **Verified:** owner-approved Settings E2E **154/154**; build PASS; script typecheck PASS; all
+  **166** verifier commands classified; source hygiene **9/9**; roadmap dashboard **156/156** with
+  Sources agree; AI-memory PASS; `git diff --check` clean.
+- **Graphify:** incremental refresh completed at **11,739 nodes / 24,058 edges / 615 communities**;
+  existing zero-node-source and stale-community-label warnings remain non-blocking.
+
+---
+
 ## 2026-08-04 - Codex - Repaired NSIS silent per-user install automation (`awkit-9yc`)
 
 - **Reproduced:** on the restored offline Windows 11 clean VM, bare `/S` against the exact

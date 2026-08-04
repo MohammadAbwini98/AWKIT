@@ -149,10 +149,12 @@ try {
   // fresh Ed25519 offline-manifest signing key directly at the approved LOCALAPPDATA custody path
   // (never touching the OneDrive-synced tree), rotated the public key, and re-signed the manifest.
   // Then `awkit-k2s` closed and `awkit-9yc` was filed: 6/147 of 153. `awkit-9yc` then closed after
-  // explicit `/currentuser /S` passed the clean-VM A/B install control: 5/148 of 153, edges 93.
+  // explicit `/currentuser /S` passed the clean-VM A/B install control: 5/148 of 153. Then
+  // `awkit-hlp` closed after the owner-approved SET-015 exact-path Explorer check passed:
+  // 4/149 of 153, edges 93.
   check(
-    "5 outstanding / 148 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 148,
+    "4 outstanding / 149 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 149,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -193,8 +195,8 @@ try {
   );
   check("every status is in the allowed set", ledger.cases.every((c) => LEDGER_STATUSES.has(c.status)));
   check(
-    "tally is 62 PASS / 3 NOT RUN / 1 BLOCKED",
-    ledger.tally.pass === 62 && ledger.tally.notRun === 3 && ledger.tally.blocked === 1,
+    "tally is 63 PASS / 2 NOT RUN / 1 BLOCKED",
+    ledger.tally.pass === 63 && ledger.tally.notRun === 2 && ledger.tally.blocked === 1,
     `got ${ledger.tally.pass}/${ledger.tally.notRun}/${ledger.tally.blocked}`
   );
   check("statuses sum to the case count", ledger.tally.total === ledger.stats.cases);
@@ -219,8 +221,8 @@ try {
   const trace = parseTraceability();
   check("101 rows", trace.stats.rows === 101, `got ${trace.stats.rows}`);
   check(
-    "84 PASS / 14 NOT RUN / 3 BLOCKED",
-    trace.stats.pass === 84 && trace.stats.notRun === 14 && trace.stats.blocked === 3,
+    "86 PASS / 12 NOT RUN / 3 BLOCKED",
+    trace.stats.pass === 86 && trace.stats.notRun === 12 && trace.stats.blocked === 3,
     `got ${trace.stats.pass}/${trace.stats.notRun}/${trace.stats.blocked}`
   );
   check("every status is allowed", trace.rows.every((r) => TRACE_STATUSES.has(r.status)));
@@ -347,15 +349,14 @@ try {
   );
   // Five today (2026-07-29, down from seven): the three owner-decision items were decided and built,
   // so only externally-gated work remains — two authorized-operator gates (`awkit-7bu` real Oracle,
-  // `awkit-cey` real IdP), the Oracle external release gates, and two manual OS shell launches
-  // (`awkit-az7`, `awkit-hlp`). `awkit-1cc` is in_progress, not blocked: its packaged-licensing half
-  // is real remaining engineering. None of the five can be represented by a normal `blocks` edge,
+  // `awkit-cey` real IdP), the Oracle external release gates (`awkit-cm8`), and the two Reports OS
+  // shell launches grouped under `awkit-az7`. None of the four can be represented by a normal `blocks` edge,
   // hence declared status. The layer assertion is `.every()`, not `[0]`; the cardinality guard
   // prevents vacuous success if blocked items disappear from parsing.
   check(
     "every declared-blocked issue is present and out of the layers",
-    order.stats.declaredBlocked === 5 &&
-      order.externallyBlocked.length === 5 &&
+    order.stats.declaredBlocked === 4 &&
+      order.externallyBlocked.length === 4 &&
       order.externallyBlocked.every((id) => order.ordered.find((o) => o.id === id)?.layer === null),
     `declaredBlocked ${order.stats.declaredBlocked}, externallyBlocked ${order.externallyBlocked.length}`
   );

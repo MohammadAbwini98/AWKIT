@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## SET-015 real runtime-folder launch passed; `awkit-hlp` closed (2026-08-04)
+
+The Settings E2E gate now has an explicit, fail-closed OS-shell opt-in:
+`AWKIT_ALLOW_OS_SHELL_LAUNCH=1`. Without it, normal verifier runs remain non-launching. With owner
+approval, the verifier creates a unique isolated runtime root, proves that path is not already open,
+clicks the actual rendered **Open Runtime Folder** button, and resolves Windows Explorer's live
+`LocationURL` back to a filesystem path. The gate passes only when an Explorer window appears at
+the exact configured runtime root; cleanup closes only that test-created exact-path window and is
+also asserted.
+
+The final owner-approved run passed **154 PASS / 0 FAIL**. An initial run passed the substantive
+launch check but exposed a PowerShell statement-separator defect in the verifier's cleanup helper;
+that helper was corrected, the leftover exact-path window was closed and verified absent, and the
+full gate then passed cleanly. SET-015 moves to `PASS`, so Settings is now **21 PASS / 0 NOT RUN**
+and the focused validation ledger is **63 PASS / 2 NOT RUN / 1 BLOCKED**. `awkit-hlp` is closed;
+Beads records **153 issues / 4 outstanding / 149 closed / 93 edges**.
+
+---
+
 ## `awkit-9yc` repaired: explicit current-user NSIS silent mode (2026-08-04)
 
 The installed-layout drivers no longer invoke the assisted NSIS installer with ambiguous bare `/S`.

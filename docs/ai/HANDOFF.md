@@ -1,5 +1,25 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-04) — SET-015 complete; four external/manual items remain
+
+- **Branch:** `main`.
+- **Completed:** `awkit-hlp` is closed. The owner-approved opt-in Settings E2E gate clicked the real
+  rendered **Open Runtime Folder** action and observed Windows Explorer at the exact configured,
+  isolated runtime root. It also closed only the test-created exact-path window and verified cleanup.
+- **Safety:** `verify:settings-e2e` remains non-launching by default. Real OS UI is enabled only when
+  `AWKIT_ALLOW_OS_SHELL_LAUNCH=1` is explicitly set.
+- **Verification:** final opt-in Settings E2E **154 PASS / 0 FAIL**; build PASS; script typecheck
+  PASS; all **166** verifier commands classified; source hygiene **9/9**; roadmap dashboard
+  **156/156** with Sources agree; AI-memory PASS.
+- **Tracking:** Beads **153 total / 4 outstanding / 149 closed / 93 edges**. Focused validation
+  ledger **63 PASS / 2 NOT RUN / 1 BLOCKED**; Settings **21 PASS / 0 NOT RUN**.
+- **Remaining:** `awkit-az7` owns the two Reports OS-shell launches and is the closest analogous next
+  item if the owner authorizes those exact actions. `awkit-cey` requires a real approved IdP,
+  `awkit-7bu` requires approved Oracle credentials/operator access, and `awkit-cm8` depends on the
+  external Oracle gates. No ready engineering item remains.
+
+---
+
 ## HANDOFF (2026-08-03) — `awkit-k2s` complete; silent NSIS follow-up filed
 
 - **Branch:** `main`; the final closeout commit follows the clean source checkpoint `8f0275b` used

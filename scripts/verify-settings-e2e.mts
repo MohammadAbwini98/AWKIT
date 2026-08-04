@@ -45,6 +45,7 @@ const DELETE_SECRET = "settings_delete_me";
 const SECRET_VALUE_1 = `SYNTHETIC-SETTINGS-${randomBytes(12).toString("hex")}`;
 const SECRET_VALUE_2 = `UPDATED-SETTINGS-${randomBytes(12).toString("hex")}`;
 const MAX_IMPORT_BYTES = 1_048_576;
+const ALLOW_OS_SHELL_LAUNCH = process.env.AWKIT_ALLOW_OS_SHELL_LAUNCH === "1";
 
 const seeded = {
   flows: ["settings-flow-1", "settings-flow-2"],
@@ -242,8 +243,55 @@ function directoryIsReadable(dir: string): boolean {
     return false;
   }
 }
+
+type ExplorerFolderWindow = { hwnd: string; path: string };
+
+/**
+ * Enumerate real Windows Explorer folder windows through the shell COM API. This runs only for the
+ * explicit SET-015 owner-approved opt-in; the normal Settings gate never launches or inspects OS UI.
+ */
+function explorerFolderWindows(): ExplorerFolderWindow[] {
+  if (process.platform !== "win32") return [];
+  const command = [
+    "$shell = New-Object -ComObject Shell.Application",
+    "$items = @($shell.Windows() | ForEach-Object { [pscustomobject]@{ hwnd = [string]$_.HWND; locationUrl = [string]$_.LocationURL } })",
+    "$items | ConvertTo-Json -Compress"
+  ].join("; ");
+  const output = execFileSync("powershell", ["-NoProfile", "-Command", command], {
+    encoding: "utf8",
+    windowsHide: true
+  }).trim();
+  if (!output) return [];
+  const decoded = JSON.parse(output) as
+    | { hwnd?: string; locationUrl?: string }
+    | Array<{ hwnd?: string; locationUrl?: string }>;
+  return (Array.isArray(decoded) ? decoded : [decoded]).flatMap((item) => {
+    if (!item.locationUrl?.startsWith("file:")) return [];
+    try {
+      return [{ hwnd: item.hwnd ?? "", path: resolve(fileURLToPath(item.locationUrl)) }];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function sameWindowsPath(left: string, right: string): boolean {
+  return resolve(left).toLowerCase() === resolve(right).toLowerCase();
+}
+
+function closeExplorerFolderWindow(path: string): void {
+  if (process.platform !== "win32") return;
+  const encodedPath = Buffer.from(resolve(path), "utf8").toString("base64");
+  const command = [
+    `$target = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encodedPath}'))`,
+    "$shell = New-Object -ComObject Shell.Application",
+    "$shell.Windows() | ForEach-Object { if ($_.LocationURL -and ([Uri]::UnescapeDataString(([Uri]$_.LocationURL).LocalPath) -ieq $target)) { $_.Quit() } }"
+  ].join("; ");
+  execFileSync("powershell", ["-NoProfile", "-Command", command], { stdio: "ignore", windowsHide: true });
+}
 /** Paths denied during the run, restored in `finally` so the evidence tree stays deletable. */
 const deniedPaths: Array<{ dir: string; kind: "read" | "write" }> = [];
+let openedRuntimeFolderWindow = false;
 
 type Result = { name: string; pass: boolean; detail?: string };
 const results: Result[] = [];
@@ -788,6 +836,31 @@ try {
   check("SET-015 Refresh Counts observes a newly added profile", refreshedCounts.Flows === "3", JSON.stringify(refreshedCounts));
   const runtimeFolderButton = win.getByRole("button", { name: "Open Runtime Folder" });
   check("SET-015 runtime-folder action is rendered", await runtimeFolderButton.isVisible());
+  if (ALLOW_OS_SHELL_LAUNCH) {
+    const target = resolve(runtimeRoot);
+    const before = explorerFolderWindows();
+    check(
+      "SET-015 isolated runtime folder was not already open in Explorer (precondition)",
+      !before.some((item) => sameWindowsPath(item.path, target)),
+      target.replace(root, "<repo>")
+    );
+    await runtimeFolderButton.click();
+    const deadline = Date.now() + 15_000;
+    let match: ExplorerFolderWindow | undefined;
+    while (Date.now() < deadline) {
+      match = explorerFolderWindows().find((item) => sameWindowsPath(item.path, target));
+      if (match) break;
+      await win.waitForTimeout(250);
+    }
+    openedRuntimeFolderWindow = Boolean(match);
+    check(
+      "SET-015 Open Runtime Folder launches Explorer at the exact configured runtime root",
+      Boolean(match),
+      match ? match.path.replace(root, "<repo>") : "No matching Explorer folder window appeared."
+    );
+  } else {
+    console.log("  ~ SET-015 real Explorer launch NOT RUN (set AWKIT_ALLOW_OS_SHELL_LAUNCH=1 with owner approval)");
+  }
 
   // SET-015 — an unreadable store must degrade, not crash the whole card. `countSafe` catches per
   // store, so the flows count should fall back to 0 while every OTHER count stays truthful; a
@@ -1290,6 +1363,21 @@ try {
   check("Settings journeys emitted no renderer errors", rendererErrors.length === 0, rendererErrors.slice(0, 4).join(" | "));
 } finally {
   if (app) await app.close().catch(() => undefined);
+  if (openedRuntimeFolderWindow) {
+    try {
+      closeExplorerFolderWindow(runtimeRoot);
+      check(
+        "fixture cleanup: the SET-015 Explorer window was closed",
+        !explorerFolderWindows().some((item) => sameWindowsPath(item.path, runtimeRoot))
+      );
+    } catch (error) {
+      check(
+        "fixture cleanup: the SET-015 Explorer window was closed",
+        false,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
   // Any ACL denial still standing is restored here, or the evidence tree becomes undeletable.
   // Reported as a check so a silent failure to restore cannot pass unnoticed.
   for (const { dir, kind } of deniedPaths.splice(0)) {
