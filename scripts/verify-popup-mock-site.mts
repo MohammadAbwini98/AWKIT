@@ -27,6 +27,14 @@ async function startServer(port: number): Promise<() => void> {
     const url = new URL(req.url ?? "/", `http://localhost:${port}`);
     const path = url.pathname;
     
+    // Mirrors the fixed 302 in mock-site/server.mjs so Scenario J2 behaves identically here. The
+    // destination is a constant — nothing from the request reaches `Location`.
+    if (path === "/popup/redirect-entry.html" || path === "/mock/popup/redirect-entry.html") {
+      res.writeHead(302, { Location: "/popup/redirect-final.html" });
+      res.end();
+      return;
+    }
+
     let file = "";
     if (path.startsWith("/mock/popup")) {
       let suffix = path.slice("/mock/popup".length);
@@ -304,6 +312,85 @@ async function main() {
       for (const popup of popups) await popup.waitForLoadState("domcontentloaded");
       const [first, second] = popups.map((p) => new URL(p.url()).pathname);
       assert(first === second, `ambiguity fixture must open the same path twice: ${first} vs ${second}`);
+      await resetPopups();
+    });
+
+    // ── Scenario J — popup URL lifecycle ─────────────────────────────────────
+    // Each case exists because the popup's URL AT CREATION is not the URL that identifies it.
+
+    // 14. about:blank first, real URL later
+    await test("14. J1 popup exists at about:blank before it navigates", async () => {
+      await resetPopups(); // independent of any earlier test that threw before its own reset
+      await page.goto(`${BASE}/mock/popup/url-lifecycle`);
+      await page.getByTestId("open-blank-then-navigate").click();
+      await page.waitForTimeout(60);
+      assert(popups.length === 1, `expected 1 popup, got ${popups.length}`);
+      // The whole point of the fixture: read too early and you get about:blank, not the identity.
+      assert(
+        popups[0].url() === "about:blank",
+        `fixture must be provisional at first — got ${popups[0].url()}`
+      );
+      await popups[0].waitForURL("**/blank-then-navigate-popup.html", { timeout: 5_000 });
+      assert(
+        await popups[0].getByTestId("blank-then-navigate-marker").isVisible(),
+        "navigated popup did not render its marker"
+      );
+      await resetPopups();
+    });
+
+    // 15. Redirect resolves to the FINAL url before the user can interact
+    await test("15. J2 popup redirects to its final identity before interaction", async () => {
+      await resetPopups(); // independent of any earlier test that threw before its own reset
+      await page.goto(`${BASE}/mock/popup/url-lifecycle`);
+      await page.getByTestId("open-redirecting-popup").click();
+      await page.waitForTimeout(800);
+      assert(popups.length === 1, `expected 1 popup, got ${popups.length}`);
+      await popups[0].waitForLoadState("domcontentloaded");
+      const path = new URL(popups[0].url()).pathname;
+      assert(path.endsWith("/popup/redirect-final.html"), `expected the final URL, got ${path}`);
+      assert(!path.includes("redirect-entry"), `intermediate hop must not be the identity: ${path}`);
+      assert(
+        await popups[0].getByTestId("redirect-final-marker").isVisible(),
+        "final popup did not render its marker"
+      );
+      await resetPopups();
+    });
+
+    // 16. Same-document URL changes belong to the popup, not the opener
+    await test("16. J3 popup changes its own URL via pushState and hash", async () => {
+      await resetPopups(); // independent of any earlier test that threw before its own reset
+      await page.goto(`${BASE}/mock/popup/url-lifecycle`);
+      const openerUrl = page.url();
+      await page.getByTestId("open-history-popup").click();
+      await page.waitForTimeout(600);
+      assert(popups.length === 1, `expected 1 popup, got ${popups.length}`);
+      const popup = popups[0];
+      await popup.waitForLoadState("domcontentloaded");
+      await popup.getByTestId("history-push").click();
+      assert(
+        new URL(popup.url()).pathname.endsWith("/detail"),
+        `pushState did not change the popup path: ${popup.url()}`
+      );
+      await popup.getByTestId("history-hash").click();
+      assert(new URL(popup.url()).hash === "#section-2", `hash change missing: ${popup.url()}`);
+      // The opener must be untouched by everything the popup did to its own URL.
+      assert(page.url() === openerUrl, `opener URL changed to ${page.url()}`);
+      await resetPopups();
+    });
+
+    // 17. Identical titles, different paths
+    await test("17. J4 two popups share a title but keep distinct paths", async () => {
+      await resetPopups(); // independent of any earlier test that threw before its own reset
+      await page.goto(`${BASE}/mock/popup/url-lifecycle`);
+      await page.getByTestId("open-same-title-pair").click();
+      await page.waitForTimeout(800);
+      assert(popups.length === 2, `expected 2 popups, got ${popups.length}`);
+      for (const popup of popups) await popup.waitForLoadState("domcontentloaded");
+      const titles = await Promise.all(popups.map((p) => p.title()));
+      const paths = popups.map((p) => new URL(p.url()).pathname);
+      assert(titles[0] === titles[1], `fixture must reuse one title: ${titles.join(" vs ")}`);
+      assert(titles[0] === "Shared report title", `unexpected shared title: ${titles[0]}`);
+      assert(paths[0] !== paths[1], `paths must differ: ${paths.join(" vs ")}`);
       await resetPopups();
     });
 
