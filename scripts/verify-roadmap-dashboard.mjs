@@ -167,9 +167,11 @@ try {
   // instrumented closed-shadow), all OPEN: 8/154 of 162, edges 93 (epic↔task edges not added — a task
   // cannot block an epic). Phases 0/A/B of the epic landed as code (main @ ecb72d2) and are recorded in
   // TASK_LOG, not as separate beads.
+  // Then `awkit-y1p` (C1) closed once the cross-origin frame-chain resolver landed (main @ 8fc9d32,
+  // verify:frame-chain 25/0): 7/155 of 162, edges 93. `awkit-3zf` (C2) remains OPEN.
   check(
-    "8 outstanding / 154 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 154,
+    "7 outstanding / 155 closed",
+    beads.stats.outstanding === 7 && beads.stats.closed === 155,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

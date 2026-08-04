@@ -4,6 +4,35 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Cross-origin frame-chain resolver (epic `awkit-65g` Phase C1 / `awkit-y1p`)
+
+- **Task:** C1 of the guaranteed-unique-locator epic — resolve a target inside one or more iframes
+  (cross-origin + nested) automatically instead of leaving it review-required.
+- **Capture** (`src/recorder/frameChainCapture.ts`, new; shared by RecorderService's binding and the
+  verifier): walk the target Frame up Playwright's Frame graph; `frameElement()` gives the hosting
+  `<iframe>` handle in the PARENT frame (cross-origin safe; child never scripted); derive a resilient
+  selector + parent-side identity (name/title/src) + index by evaluating on that handle. Persist the
+  ordered `LocatorContext.frameChain`. The evaluate body has NO named inner functions (esbuild `__name`
+  gotcha — cost a debugging cycle).
+- **Runtime** (`LocatorFactory.resolveFrameChain`): resolve each segment in its parent frame, pick by
+  unique selector or recorded index, verify the iframe element's identity (name/title stable across the
+  child's own navigation), then descend; innermost Frame becomes the scoped root. Missing/ambiguous/
+  identity-changed → `FRAME_IDENTITY_CHANGED`, never a sibling frame. Legacy single `frame` unchanged.
+- **Files:** `src/profiles/FlowProfile.ts` (LocatorFrameContext identity+index), `src/recorder/frameChainCapture.ts`
+  (new), `src/recorder/RecorderService.ts`, `src/runner/LocatorFactory.ts`, `scripts/verify-frame-chain.mts`
+  (new), `scripts/lib/verifier-classification.ts`, `package.json`, `mock-site/server.mjs`,
+  `mock-site/public/iframe-nested{,-mid,-leaf}.html` (new), `mock-site/README.md`.
+- **Verified:** build; new `verify:frame-chain` **25/0** (single & nested cross-origin, same-origin,
+  duplicate-by-name, navigate-after-attach, dropped/reordered chain fails, removed/changed frame →
+  FRAME_IDENTITY_CHANGED, round-trip, mock-site nested) — MUTATION-TESTED the identity check (disabling
+  it fails only the identity-refusal assertions). No regressions: `verify:recorder` 206/0,
+  `verify:recorder-ambiguity` 69/0, `verify:runner` 89/0, `verify:locator-guard` 25/0, `verify:mock-site`
+  114/114, `verify:flow-step-mapping` 111/0, `verify:source-hygiene` 9/0, classification reconciled.
+- **Committed + pushed:** `8fc9d32` (code). Ledger unchanged: **63 PASS / 2 NOT RUN / 1 BLOCKED**. Beads
+  **162 / 7 outstanding / 155 closed / 93 edges** (`awkit-y1p` closed). Next: C2 (`awkit-3zf`, closed-shadow).
+
+---
+
 ## 2026-08-04 - Claude - Recorder guarantees unique resolved locators (epic `awkit-65g` Phases 0/A/B)
 
 - **Task:** Owner directive — "recorder should completely resolve unique locator by building nested

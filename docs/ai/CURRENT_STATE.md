@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## Cross-origin frame-chain resolver — epic `awkit-65g` Phase C1 (2026-08-04)
+
+A target inside one or more iframes (cross-origin and nested) is now captured and replayed
+automatically. **Capture** walks the target Frame up Playwright's Frame graph (`frameElement()` is
+cross-origin safe; the child document is never scripted) and persists the ordered
+`LocatorContext.frameChain` with a resilient per-segment selector + parent-side identity (name/title/src).
+**Runtime** (`LocatorFactory.resolveFrameChain`) resolves each boundary in its parent frame, verifies the
+iframe element's identity, and descends — aborting with **`FRAME_IDENTITY_CHANGED`** (never entering a
+sibling frame) if a segment is missing, ambiguous, or its identity changed. A legacy single `frame` keeps
+the `frameLocator` path. The capture (`src/recorder/frameChainCapture.ts`) is shared by the RecorderService
+binding and the verifier; its in-page evaluate has **no named inner functions** (esbuild `__name` gotcha).
+
+Mock site: `/iframe-nested` (main → `#frame-outer` → `#frame-inner` → leaf) for the Feature Test Lab; the
+cross-origin / duplicate / navigate / identity-change cases are the self-contained `verify:frame-chain`
+(two mutually cross-origin `127.0.0.1` ports).
+
+**Verified.** build PASS; new `verify:frame-chain` **25/0** — MUTATION-TESTED the frame identity check
+(disabling it fails only the identity-refusal assertions). No regressions: `verify:recorder` 206/0,
+`verify:recorder-ambiguity` 69/0, `verify:runner` 89/0, `verify:locator-guard` 25/0, `verify:mock-site`
+114/114, `verify:flow-step-mapping` 111/0, `verify:source-hygiene` 9/0, classification reconciled.
+
+Committed + pushed: `8fc9d32`. Remaining epic child: **`awkit-3zf` (C2 instrumented closed-shadow)**, OPEN.
+No validation-ledger case changed — focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. Beads
+records **162 issues / 7 outstanding / 155 closed / 93 edges** (`awkit-y1p` closed).
+
+---
+
 ## Recorder guarantees unique resolved locators — epic `awkit-65g` Phases 0/A/B (2026-08-04)
 
 The Recorder now **builds nested selectors until the locator is unique and adopts a positional last-resort

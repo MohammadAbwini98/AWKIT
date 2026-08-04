@@ -1,5 +1,47 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-04) — Frame-chain resolver shipped (epic `awkit-65g` Phase C1 done; only C2 remains)
+
+- **Branch:** `main`, working tree clean. **Commits pushed to `origin/main`:** `8fc9d32` (C1 code); the
+  four earlier epic commits (`813f46e`/`fae1af9`/`ecb72d2`/`c268cb8`) were pushed at the start of this session.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged). **Beads:** **162 / 7 outstanding
+  / 155 closed / 93 edges** (`awkit-y1p` closed).
+
+### C1 shipped
+
+Cross-origin + nested iframe targets now capture an ordered `LocatorContext.frameChain` (via the shared
+`src/recorder/frameChainCapture.ts`, using Playwright's Frame graph) and replay through
+`LocatorFactory.resolveFrameChain` with per-segment identity verification, aborting with
+`FRAME_IDENTITY_CHANGED` rather than entering a sibling frame. Gate: `verify:frame-chain` **25/0**
+(mutation-tested). No regressions across the recorder/runner/mock-site suite.
+
+### The ONE remaining item — C2 (`awkit-3zf`, instrumented closed-shadow)
+
+- Retain closed `ShadowRoot`s in a private in-page registry via the existing `attachShadow` bridge (recorder
+  + runner install the same `addInitScript`); persist an `instrumented-shadow` strategy (NOT plain CSS);
+  resolve host→closed root→target via an **ElementHandle-based action path** (the main architectural
+  addition to `StepExecutor`); optional CDP `DOM.getDocument({pierce:true})` investigation for
+  pre-instrumentation roots; deterministic unsupported error only when both paths fail.
+- **HARD security boundary:** never automate CAPTCHA / MFA / OTP / passkeys / protected-login / anti-bot —
+  the existing protected-login detector takes precedence. Mandatory `/security-review`. Schema markers
+  (`shadow.instrumented` / `shadow.target`) already landed in Phase 0.
+- New `verify:closed-shadow` + mock-site fixtures. `awkit-871` stays open until C2 lands.
+
+### Design notes (carried forward)
+
+- Recorder capture only installs on a REAL navigation, not `setContent`; serve fixtures over HTTP (see
+  `verify-frame-chain.mts` / `verify-locator-guard.mts`).
+- Any in-page `evaluate` body must avoid named inner functions (esbuild `__name` → undefined in page).
+- `buildRecordedFlow` is the single finalizer (the test harness binds a plain `__awtkit_recordAction`,
+  bypassing `RecorderService.recordActionFromPage`).
+
+### Do not touch
+
+- Do not weaken the protected-login/MFA/OTP/CAPTCHA handoff; keep the bare-positional refusal for
+  dangerous/externalCommit absolute. Push only on the owner's instruction (already granted this session).
+
+---
+
 ## HANDOFF (2026-08-04) — Recorder guarantees unique resolved locators (epic `awkit-65g` Phases 0/A/B done; C1/C2 remain)
 
 - **Branch:** `main`. Working tree clean after the commits below.
