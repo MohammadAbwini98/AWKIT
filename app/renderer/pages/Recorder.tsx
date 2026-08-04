@@ -11,12 +11,14 @@ import type {
   AmbiguityResolutionChoice
 } from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
+import { locatorContainerChain } from "@src/profiles/FlowProfile";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
   const [isRecording, setIsRecording] = useState(false);
   const [captureWaitTime, setCaptureWaitTime] = useState(false);
   const [captureSmartWaits, setCaptureSmartWaits] = useState(true);
+  const [instrumentationError, setInstrumentationError] = useState("");
   /** True while the live Recorder session is running with HTTPS certificate validation disabled. */
   const [ignoreHttpsErrors, setIgnoreHttpsErrors] = useState(false);
   const [actions, setActions] = useState<RecordedAction[]>([]);
@@ -182,6 +184,7 @@ export function Recorder() {
           // Reflects the LIVE session's effective value (read from Settings at launch), not the
           // current Settings value — a mid-session Settings change must not change the indicator.
           setIgnoreHttpsErrors(status.ignoreHttpsErrors ?? false);
+          setInstrumentationError(status.instrumentationError ?? "");
         })
         .catch(() => undefined);
     };
@@ -830,6 +833,10 @@ export function Recorder() {
             {isRecording ? <span className="recorder-recording-dot" title="Recording" /> : null}
           </header>
 
+          {instrumentationError ? (
+            <div className="recorder-instrumentation-error" role="alert">{instrumentationError}</div>
+          ) : null}
+
           {actions.length === 0 ? (
             <div className="recorder-empty">
               <Video size={40} />
@@ -858,9 +865,14 @@ export function Recorder() {
                           {actionBadge ? <span className="recorder-action-badge">{actionBadge}</span> : null}
                         </div>
                         {action.locator ? (
-                          <code className="recorder-locator-code">
-                            {action.locator.strategy}: {action.locator.value}
-                          </code>
+                          <>
+                            <code className="recorder-locator-code">
+                              {action.locator.strategy}: {action.locator.value}
+                            </code>
+                            {locatorContainerChain(action.locator.context).length ? (
+                              <span className="recorder-locator-scope">{formatLocatorScope(action)}</span>
+                            ) : null}
+                          </>
                         ) : null}
                         {waitTypes.length > 0 ? (
                           <span className="recorder-wait-note">Smart waits: {waitTypes.join(", ")}</span>
@@ -1128,6 +1140,13 @@ function recorderActionBadge(action: RecordedAction): string | null {
   return null;
 }
 
+function formatLocatorScope(action: RecordedAction): string {
+  const chain = locatorContainerChain(action.locator?.context);
+  if (!chain.length) return "";
+  const quality = action.locator?.quality?.isUnique ? "Unique · " : "";
+  return `${quality}scoped · ${chain.length} container${chain.length === 1 ? "" : "s"}: ${chain.map((entry) => entry.type).join(" → ")}`;
+}
+
 function formatLocatorContext(action: RecordedAction): string {
   const context = action.locator?.context;
   const parts: string[] = [];
@@ -1135,7 +1154,8 @@ function formatLocatorContext(action: RecordedAction): string {
   if (context?.shadow?.boundary && context.shadow.boundary !== "none") {
     parts.push(`${context.shadow.boundary} shadow${context.shadow.hosts?.length ? ` · ${context.shadow.hosts.length} host(s)` : ""}`);
   }
-  if (context?.container) parts.push(`${context.container.type} ${context.container.strategy}:${context.container.value}`);
+  const chain = locatorContainerChain(context);
+  if (chain.length) parts.push(chain.map((entry) => `${entry.type} ${entry.strategy}:${entry.value}`).join(" → "));
   return parts.length ? parts.join(" → ") : "page root";
 }
 

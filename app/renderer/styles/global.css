@@ -1931,6 +1931,22 @@ div.validation-issue-row {
   white-space: pre-wrap;
 }
 
+.locator-context-chain {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.locator-context-chain li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.locator-context-chain code {
+  overflow-wrap: anywhere;
+}
+
 .locator-approval-form {
   display: grid;
   gap: var(--space-2);
@@ -7238,6 +7254,15 @@ table {
   padding: 10px 14px;
 }
 
+.recorder-instrumentation-error {
+  background: var(--awkit-danger-soft);
+  border: 1px solid var(--awkit-danger-muted);
+  border-radius: var(--awkit-radius-panel);
+  color: var(--awkit-danger);
+  margin: var(--space-3);
+  padding: var(--space-3);
+}
+
 .recorder-handoff-panel.is-error {
   background: var(--awkit-danger-soft);
   border-color: var(--awkit-danger-muted);
@@ -7488,6 +7513,13 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.recorder-locator-scope {
+  color: var(--awkit-text-secondary);
+  display: block;
+  font-size: var(--text-xs);
+  margin-top: var(--space-1);
 }
 
 .recorder-wait-note {
