@@ -84,6 +84,8 @@ type RecorderStatus = {
   protectedDetectionIgnored: boolean;
   /** True when the LIVE session's browser contexts were created with certificate validation off. */
   ignoreHttpsErrors: boolean;
+  /** Non-secret popup capture initialization failure, when one occurred. */
+  instrumentationError?: string;
 };
 
 /**

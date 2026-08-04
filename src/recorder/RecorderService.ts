@@ -20,6 +20,7 @@ import { normalizeOrigin } from "../session/sessionMatch";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
 import type { FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
 import { LocatorFactory } from "../runner/LocatorFactory";
+import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
   buildBrowserContextOptions,
   describeCertificateError,
@@ -149,11 +150,16 @@ export class RecorderService {
   private popupCounter = 0;
   /** Active popup pages keyed by their assigned alias. */
   private popupPages = new Map<string, Page>();
-  /**
-   * Timestamp (ms) of the last `click` action recorded. Used to correlate a new popup with
-   * the click that opened it (within a 3-second window).
-   */
-  private lastClickAt = 0;
+  /** Exactly one asynchronous registration pipeline per popup page. */
+  private popupRegistrations = new Map<Page, Promise<string>>();
+  /** Direct Playwright `page.popup` attribution, populated even when the context event wins first. */
+  private popupOpeners = new Map<Page, Page>();
+  /** Last committed click per page; only the direct opener page may claim it. */
+  private lastClickByPage = new Map<Page, { action: RecordedAction; at: number }>();
+  /** Pages already carrying the direct causal popup listener. */
+  private popupSources = new WeakSet<Page>();
+  /** Non-secret instrumentation failure surfaced through Recorder status instead of swallowed. */
+  private instrumentationError: string | undefined;
   // ── Protected login / popup manual handoff ───────────────────────────────────
   /** Injected real-Chrome session capture service (from the main process). */
   private sessionService: SessionCaptureService | null = null;
@@ -479,7 +485,11 @@ export class RecorderService {
     this.lastActionPage = null;
     this.popupCounter = 0;
     this.popupPages.clear();
-    this.lastClickAt = 0;
+    this.popupRegistrations.clear();
+    this.popupOpeners.clear();
+    this.lastClickByPage.clear();
+    this.popupSources = new WeakSet<Page>();
+    this.instrumentationError = undefined;
     await this.closeBrowser();
   }
 
@@ -509,7 +519,11 @@ export class RecorderService {
     this.lastActionPage = null;
     this.popupCounter = 0;
     this.popupPages = new Map<string, Page>();
-    this.lastClickAt = 0;
+    this.popupRegistrations = new Map<Page, Promise<string>>();
+    this.popupOpeners = new Map<Page, Page>();
+    this.lastClickByPage = new Map<Page, { action: RecordedAction; at: number }>();
+    this.popupSources = new WeakSet<Page>();
+    this.instrumentationError = undefined;
     this.captureWaitTime = options.captureWaitTime ?? false;
     this.captureSmartWaits = options.captureSmartWaits ?? true;
     this.asyncAwareness = {
@@ -603,76 +617,13 @@ export class RecorderService {
     // inject the locator capture script, attach URL capture + protected detection, and optionally
     // correlate it with the last click so the opener action is marked `opensPopup = true`.
     context.on("page", (opened) => {
-      this.attachUrlCapture(opened);
-      if (!this.isRecording) return;
-
-      this.popupCounter += 1;
-      const alias = `popup-${this.popupCounter}`;
-      this.popupPages.set(alias, opened);
-
-      // Attach the locator capture + signal bindings to the new page so in-popup interactions
-      // are recorded with proper locators and Smart Wait signals.
-      void opened.addInitScript({ content: getRecorderInitScriptContent() }).catch(() => undefined);
-      // A protected login can appear inside the popup (external IdP, bank approval, OTP, CAPTCHA).
-      this.attachProtectedDetection(opened, alias);
-
-      // Capture the popup URL immediately and best-effort its title.
-      const popupUrl = opened.url();
-      if (popupUrl && popupUrl !== "about:blank") this.captureUrl(opened, popupUrl);
-
-      // Correlate with the last click: if a click was recorded within 3 s, tag it as
-      // the popup opener and attach the popup expectation with URL/title hints.
-      const now = Date.now();
-      const POPUP_CORRELATION_WINDOW_MS = 3000;
-      if (this.lastClickAt > 0 && now - this.lastClickAt <= POPUP_CORRELATION_WINDOW_MS) {
-        const openerAction = this.actions[this.actions.length - 1];
-        if (openerAction && openerAction.type === "click") {
-          openerAction.opensPopup = true;
-          // Build URL hint from the popup's URL (masked + origin only, no sensitive paths).
-          let urlContains: string | undefined;
-          try {
-            const parsed = new URL(popupUrl || "about:blank");
-            if (parsed.protocol !== "about:") urlContains = parsed.origin;
-          } catch { /* ignore */ }
-
-          openerAction.popupExpectation = {
-            popupAlias: alias,
-            urlContains,
-            waitUntil: "domcontentloaded"
-          };
-        }
-      } else {
-        // No recent click: insert an explicit switchToPopup action so the flow captures
-        // the context switch (e.g. popup triggered by setTimeout/auto-open).
-        this.actions.push({
-          id: randomUUID(),
-          type: "switchToPopup",
-          name: `Switch to popup: ${alias}`,
-          popupExpectation: {
-            popupAlias: alias,
-            waitUntil: "domcontentloaded"
-          }
-        });
-      }
-
-      // When the popup closes, record a closePopup action and remove it from the registry.
-      opened.on("close", () => {
-        this.popupPages.delete(alias);
-        if (!this.isRecording) return;
-        this.actions.push({
-          id: randomUUID(),
-          type: "closePopup",
-          name: `Popup closed: ${alias}`,
-          pageAlias: alias,
-          config: { popupAlias: alias }
-        });
-        this.scheduleDraftPersist();
-      });
-
-      this.scheduleDraftPersist();
+      void this.registerPopup(opened).catch((error) => this.noteInstrumentationError(error));
     });
 
-    await context.exposeBinding("__awtkit_recordAction", (source, action: Omit<RecordedAction, "id">) => {
+    await context.exposeBinding("__awtkit_recordAction", async (source, action: Omit<RecordedAction, "id">) => {
+      // A popup may emit its first interaction immediately after navigation. Await the one shared
+      // registration pipeline so the action can never be mis-tagged as `main`.
+      await this.popupRegistrations.get(source.page)?.catch((error) => this.noteInstrumentationError(error));
       this.recordActionFromPage(source.page, action, source.frame);
     });
 
@@ -689,6 +640,130 @@ export class RecorderService {
     // locators in the page DOM (semantic first; utility-class selectors never) so the
     // recorder saves Playwright-safe locators instead of generic CSS class selectors.
     await context.addInitScript({ content: getRecorderInitScriptContent() });
+    for (const page of context.pages()) this.attachPopupSource(page);
+  }
+
+  /** Attach the strongest causal popup signal to each page exactly once. */
+  private attachPopupSource(page: Page): void {
+    if (this.popupSources.has(page)) return;
+    this.popupSources.add(page);
+    page.on("popup", (opened) => {
+      this.popupOpeners.set(opened, page);
+      void this.registerPopup(opened, page).catch((error) => this.noteInstrumentationError(error));
+    });
+  }
+
+  /** Origin + pathname only: stable enough for identity/replay and structurally query/fragment-free. */
+  private static safePopupUrl(raw: string): URL | undefined {
+    if (!raw || raw === "about:blank") return undefined;
+    try {
+      const parsed = new URL(raw);
+      if (["about:", "data:", "blob:", "chrome:", "devtools:"].includes(parsed.protocol)) return undefined;
+      return new URL(parsed.pathname || "/", parsed.origin);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Wait briefly for an about:blank popup's first identity-bearing main-frame navigation. */
+  private async popupIdentityUrl(page: Page): Promise<URL | undefined> {
+    const immediate = RecorderService.safePopupUrl(page.url());
+    if (immediate) return immediate;
+    return await new Promise<URL | undefined>((resolve) => {
+      let settled = false;
+      const finish = (value?: URL): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        page.off("framenavigated", onNavigated);
+        page.off("close", onClose);
+        resolve(value);
+      };
+      const onNavigated = (frame: Frame): void => {
+        if (frame !== page.mainFrame()) return;
+        const value = RecorderService.safePopupUrl(page.url());
+        if (value) finish(value);
+      };
+      const onClose = (): void => finish();
+      const timer = setTimeout(() => finish(), 2_000);
+      page.on("framenavigated", onNavigated);
+      page.on("close", onClose);
+    });
+  }
+
+  /** Register, instrument, attribute, and close-track one popup through one deduplicated pipeline. */
+  private registerPopup(opened: Page, opener?: Page): Promise<string> {
+    if (opener) this.popupOpeners.set(opened, opener);
+    const existing = this.popupRegistrations.get(opened);
+    if (existing) return existing;
+
+    const registration = (async (): Promise<string> => {
+      this.attachUrlCapture(opened);
+      this.attachPopupSource(opened);
+      const identityUrl = await this.popupIdentityUrl(opened);
+      // Identity-derived alias first; arrival order only as the documented last-resort fallback.
+      // Two live popups CAN legitimately share one origin+path — falling back keeps both pages
+      // registered and correctly attributed instead of leaving the loser tagged as `main`.
+      let alias = identityUrl ? derivePopupAlias(identityUrl) : `popup-${++this.popupCounter}`;
+      const stillHeld = (candidate: string): boolean => {
+        const holder = this.popupPages.get(candidate);
+        return !!holder && holder !== opened && !holder.isClosed();
+      };
+      if (stillHeld(alias)) {
+        const base = alias;
+        do {
+          alias = `${base}#${++this.popupCounter}`;
+        } while (stillHeld(alias));
+      }
+      this.popupPages.set(alias, opened);
+      this.attachProtectedDetection(opened, alias);
+      if (identityUrl) this.captureUrl(opened, identityUrl.toString());
+
+      // Context init scripts already cover future popup documents. Verify the marker after the
+      // first meaningful navigation and use an idempotent live fallback for unusual blank-document
+      // lifecycles; any failure becomes visible in Recorder status.
+      if (!opened.isClosed()) {
+        const installed = await opened.evaluate(() => Boolean((window as unknown as { __awtkitCaptureInstalled?: boolean }).__awtkitCaptureInstalled)).catch(() => false);
+        if (!installed) await opened.evaluate(getRecorderInitScriptContent());
+      }
+
+      // Let an action binding already in flight commit its click before causal attribution.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      const causalOpener = this.popupOpeners.get(opened);
+      const click = causalOpener ? this.lastClickByPage.get(causalOpener) : undefined;
+      if (click && Date.now() - click.at <= 3_000) {
+        click.action.opensPopup = true;
+        click.action.popupExpectation = {
+          popupAlias: alias,
+          urlContains: identityUrl?.toString(),
+          waitUntil: "domcontentloaded"
+        };
+      }
+
+      opened.on("close", () => {
+        if (this.popupPages.get(alias) === opened) this.popupPages.delete(alias);
+        this.popupOpeners.delete(opened);
+        this.popupRegistrations.delete(opened);
+        if (!this.isRecording) return;
+        this.actions.push({
+          id: randomUUID(),
+          type: "closePopup",
+          name: `Popup closed: ${alias}`,
+          pageAlias: alias,
+          config: { popupAlias: alias }
+        });
+        this.scheduleDraftPersist();
+      });
+      this.scheduleDraftPersist();
+      return alias;
+    })();
+    this.popupRegistrations.set(opened, registration);
+    return registration;
+  }
+
+  private noteInstrumentationError(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.instrumentationError = `Popup recording could not be initialized: ${message}`;
   }
 
   // ── Protected login / popup manual handoff ───────────────────────────────────
@@ -976,7 +1051,11 @@ export class RecorderService {
     this.isRecording = true;
     this.popupCounter = 0;
     this.popupPages.clear();
-    this.lastClickAt = 0;
+    this.popupRegistrations.clear();
+    this.popupOpeners.clear();
+    this.lastClickByPage.clear();
+    this.popupSources = new WeakSet<Page>();
+    this.instrumentationError = undefined;
     this.signals = [];
 
     this.attachUrlCapture(this.page);
@@ -1072,7 +1151,8 @@ export class RecorderService {
       /** True when protected-login detection is being ignored (global setting or session override). */
       protectedDetectionIgnored: this.ignoreProtectedDetectionGlobal || this.ignoreProtectedDetectionSession,
       // Drives the Recorder's non-blocking "certificate validation is disabled" indicator.
-      ignoreHttpsErrors: this.ignoreHttpsErrors
+      ignoreHttpsErrors: this.ignoreHttpsErrors,
+      instrumentationError: this.instrumentationError
     };
   }
 
@@ -1165,17 +1245,31 @@ export class RecorderService {
     this.attachSmartWaits(now);
     // Optionally record the user's think-time before this action as a fixed-time wait (Task 1).
     this.maybeInsertWait(now);
-    // If the interaction happened in a different tab/page than the last recorded
-    // action, insert a Route Change action so the saved flow switches context first.
-    // Skip this for popup pages — they are already handled by the popup event above.
-    if (this.lastActionPage && sourcePage !== this.lastActionPage && pageAlias === "main") {
-      const targetUrl = sourcePage.url();
-      this.actions.push({
-        id: randomUUID(),
-        type: "routeChange",
-        name: `Switch to tab: ${targetUrl}`,
-        valueSource: { type: "static", value: targetUrl }
-      });
+    // If the interaction happened in a different tab/page than the last recorded action, insert the
+    // context switch first, in BOTH directions: a popup target replays through `switchToPopup`
+    // (which reuses an already-open popup by alias), a main-page target through `routeChange`.
+    // Inserting it here — lazily, at the first action on the new page — is what keeps it idempotent
+    // against the several browser events that can announce one transition.
+    if (this.lastActionPage && sourcePage !== this.lastActionPage) {
+      if (pageAlias === "main") {
+        // The step replays via `switchToLatestTab`; the URL is only a `contains` hint. So an
+        // unsafe/blank URL must still emit the switch — dropping it would silently replay the
+        // next action against the wrong page — it simply carries no hint.
+        const safeTarget = RecorderService.safePopupUrl(sourcePage.url())?.toString();
+        this.actions.push({
+          id: randomUUID(),
+          type: "routeChange",
+          name: safeTarget ? `Switch to tab: ${safeTarget}` : "Switch to previous tab",
+          ...(safeTarget ? { valueSource: { type: "static", value: safeTarget } } : {})
+        });
+      } else {
+        this.actions.push({
+          id: randomUUID(),
+          type: "switchToPopup",
+          name: `Switch to popup: ${pageAlias}`,
+          popupExpectation: { popupAlias: pageAlias, waitUntil: "domcontentloaded" }
+        });
+      }
     }
     this.lastActionPage = sourcePage;
     // Tag the action with its page alias (omit 'main' to keep legacy flows clean).
@@ -1201,9 +1295,6 @@ export class RecorderService {
       taggedAction.locator.resolvedBy = "recorder";
       taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
     }
-    // Track click timestamp for popup opener correlation.
-    if (action.type === "click") this.lastClickAt = now;
-    
     const reviewLocator = taggedAction.locator;
     const positional = isPositionalLocator(reviewLocator as FlowStep["locator"]);
     const explicitlyUnresolved = reviewLocator?.resolution === "needs-review" || reviewLocator?.resolution === "invalid";
@@ -1221,13 +1312,19 @@ export class RecorderService {
             : `The recorded locator matches ${reviewLocator.quality?.matchCount ?? "multiple"} elements.`),
         canSelectCandidates: !unsupported,
         canApproveFallback: positional && !unsupported,
-        canScopeToCurrentContext: !unsupported && reviewLocator.context?.container !== undefined
+        canScopeToCurrentContext: !unsupported && (
+          reviewLocator.context?.container !== undefined ||
+          (reviewLocator.context?.containers?.length ?? 0) > 0
+        )
       };
       this.ambiguityPage = sourcePage;
       return;
     }
 
     this.actions.push(taggedAction);
+    if (action.type === "click") {
+      this.lastClickByPage.set(sourcePage, { action: taggedAction, at: now });
+    }
     this.lastActionAt = now;
     this.scheduleDraftPersist();
   }
