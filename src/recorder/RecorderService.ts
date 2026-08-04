@@ -20,6 +20,7 @@ import { normalizeOrigin } from "../session/sessionMatch";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
 import type { FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
 import { LocatorFactory } from "../runner/LocatorFactory";
+import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
   buildBrowserContextOptions,
@@ -1392,30 +1393,40 @@ export class RecorderService {
       taggedAction.locator.resolvedBy = "recorder";
       taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
     }
-    const reviewLocator = taggedAction.locator;
-    const positional = isPositionalLocator(reviewLocator as FlowStep["locator"]);
-    const explicitlyUnresolved = reviewLocator?.resolution === "needs-review" || reviewLocator?.resolution === "invalid";
-    if (reviewLocator && (reviewLocator.quality?.isUnique === false || positional || explicitlyUnresolved)) {
-      // Ambiguous, unsupported, or fragile positional locator: pause before committing the action.
-      this.isRecording = false;
-      const unsupported = explicitlyUnresolved && reviewLocator.reviewReason !== undefined;
-      this.ambiguityState = {
-        action: taggedAction,
-        kind: unsupported ? "unsupported" : positional ? "positional" : "ambiguous",
-        reason:
-          reviewLocator.reviewReason ??
-          (positional
-            ? "The only unique locator is positional and requires explicit approval."
-            : `The recorded locator matches ${reviewLocator.quality?.matchCount ?? "multiple"} elements.`),
-        canSelectCandidates: !unsupported,
-        canApproveFallback: positional && !unsupported,
-        canScopeToCurrentContext: !unsupported && (
-          reviewLocator.context?.container !== undefined ||
-          (reviewLocator.context?.containers?.length ?? 0) > 0
-        )
-      };
-      this.ambiguityPage = sourcePage;
-      return;
+    // The Recorder builds nested selectors until the locator is unique, so a positional last-resort
+    // locator is a RESOLVED locator — not a review prompt or an approval request. Recording is never
+    // paused for ambiguity: ordinary steps auto-resolve; a SENSITIVE step whose only unique locator is
+    // positional is flagged for a runtime identity guard (attached in Phase B) rather than run on a bare
+    // index; and a genuinely unrepresentable target (closed shadow root / cross-origin frame / non-unique
+    // shadow chain — already carrying resolution "needs-review") stays flagged for the dedicated
+    // resolvers. None of these interrupt the recording session.
+    const finalized = taggedAction.locator;
+    if (finalized) {
+      const explicitlyUnresolved = finalized.resolution === "needs-review" || finalized.resolution === "invalid";
+      const positional = isPositionalLocator(finalized as FlowStep["locator"]);
+      if (!explicitlyUnresolved && positional) {
+        const level = resolveStepSafety({
+          type: taggedAction.type,
+          name: taggedAction.name,
+          value: taggedAction.valueSource?.type === "static" ? taggedAction.valueSource.value : undefined
+        }).sideEffectLevel;
+        if (level === "dangerousMutation" || level === "externalCommit") {
+          // Phase B attaches the runtime identity guard here. Until then, flag for review (blocks at
+          // validation) rather than auto-running a fragile positional locator on a sensitive action.
+          finalized.resolution = "needs-review";
+          finalized.resolvedBy = "recorder";
+          finalized.reviewReason = finalized.reviewReason ?? "sensitive action needs a stable or guarded locator";
+        } else {
+          finalized.resolution = "resolved";
+          finalized.resolvedBy = "recorder";
+        }
+      } else if (!explicitlyUnresolved && finalized.quality?.isUnique === false) {
+        // No unique locator and no positional fallback available (e.g. a bounded shadow traversal):
+        // flag for review rather than committing an ambiguous step.
+        finalized.resolution = "needs-review";
+        finalized.resolvedBy = "recorder";
+        finalized.reviewReason = finalized.reviewReason ?? "the recorder could not build a unique locator";
+      }
     }
 
     this.actions.push(taggedAction);

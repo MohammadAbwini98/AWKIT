@@ -22,7 +22,7 @@ import { CancelledError, type CancellationToken } from "./concurrency/Cancellati
 import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
-import { isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
+import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
@@ -405,26 +405,25 @@ export class StepExecutor {
     }
 
     // Integrity hardening (audit §16, "wrong privileged action"): a step that performs a sensitive
-    // mutation must not rely on a fragile positional/index locator — it could target the wrong
-    // Submit/Delete/Approve control. Fail early and ask for a stable locator, even when the resolver
-    // could otherwise recover a match. Non-dangerous steps keep the lenient fallback behavior.
+    // mutation must not ride a bare positional/index locator — it could target the wrong Submit/Delete/
+    // Approve control after a layout change. The Recorder now builds nested selectors until unique and
+    // adopts a last-resort positional locator as RESOLVED, so ordinary steps run without approval; a
+    // SENSITIVE step (dangerousMutation/externalCommit) instead requires a runtime identity guard whose
+    // identity PROOF (recompute the target fingerprint; abort with SENSITIVE_TARGET_IDENTITY_CHANGED on
+    // mismatch) is enforced in LocatorFactory.resolve. Fail early here when neither a guard nor a valid
+    // legacy approval is present.
     const positional = isPositionalLocator(step.locator);
     if (positional) {
       const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
-      if (sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit") {
+      if (
+        (sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit") &&
+        !hasPositionalIdentityGuard(step)
+      ) {
         throw new Error(
           `This step performs a sensitive action (${sideEffectLevel}) but its locator is a fragile ` +
-            `positional/index fallback that could target the wrong element. Re-record it or add a stable ` +
-            `data-testid or unique accessible name before running. (locator: ${step.locator?.strategy}=${step.locator?.value})`
-        );
-      }
-      
-      // Increment 4: Explicit positional-fallback approval
-      if (!isValidLocatorFallbackApproval(step)) {
-        throw new Error(
-          `This step uses a positional fallback locator which requires explicit approval. ` +
-            `Please review and approve this step in the Flow Designer or re-record it. ` +
-            `(locator: ${step.locator?.strategy}=${step.locator?.value})`
+            `positional/index fallback with no runtime identity guard that could target the wrong element. ` +
+            `Re-record it so the recorder captures an identity guard, or add a stable data-testid or unique ` +
+            `accessible name before running. (locator: ${step.locator?.strategy}=${step.locator?.value})`
         );
       }
     }

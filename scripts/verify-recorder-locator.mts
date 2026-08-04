@@ -292,9 +292,12 @@ async function main() {
     check("strict-mode error translated to friendly message", /matched multiple elements/i.test(result.error ?? ""), result.error);
   }
 
-  // 9. Unapproved positional fallback fails (Increment 4).
+  // 9. Unapproved positional fallback now EXECUTES for a NON-sensitive step: the recorder builds nested
+  //    selectors until unique, so a last-resort positional locator is resolved, not an approval prompt.
+  //    (Sensitive steps stay gated without an identity guard — covered by the recorder-ambiguity verifier.)
   {
-    await page.setContent(`<button class="flex">Go</button>`);
+    await page.setContent(`<button class="flex" onclick="window.__hit='pos-go'">Go</button>`);
+    await page.evaluate(() => { (window as unknown as { __hit?: string }).__hit = ""; });
     const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
     const step: FlowStep = {
       id: "s3",
@@ -307,8 +310,8 @@ async function main() {
       }
     };
     const result = await exec.execute(step);
-    check("unapproved positional fallback fails", result.status === "failed", result.status);
-    check("unapproved positional fallback asks for explicit approval", /requires explicit approval/i.test(result.error ?? ""), result.error);
+    check("unapproved positional fallback (non-sensitive) executes without approval", result.status === "passed", result.error || result.status);
+    check("unapproved positional fallback actually clicked the target", (await page.evaluate(() => (window as unknown as { __hit?: string }).__hit)) === "pos-go");
   }
 
   // 10. Approved positional fallback on non-dangerous step passes.

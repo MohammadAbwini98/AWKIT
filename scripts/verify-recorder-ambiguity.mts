@@ -347,20 +347,26 @@ async function main() {
     check("[4] a non-unique locator becomes resolution 'needs-review'", ambStep?.locator?.resolution === "needs-review", ambStep?.locator?.resolution);
     check("[4] negative: a unique locator is NOT needs-review", clickStepNamed(buildRecordedFlow("Pro", proActions), proClickRec?.locator?.name ?? "")?.locator?.resolution !== "needs-review" && anyClickStep(buildRecordedFlow("Pro", proActions))?.locator?.resolution === "resolved");
 
-    // ── [5] User-approved positional fallback: explicit + executes only through approved policy ────
-    console.log("\n[5] Positional fallback executes only with explicit approval:");
+    // ── [5] Positional fallback: ordinary steps auto-resolve (no approval); sensitive steps stay gated ─
+    console.log("\n[5] Positional locator auto-resolves for ordinary steps; sensitive still gated:");
     const posStep = anyClickStep(buildRecordedFlow("Pos", posActions)) as FlowStep;
     check(
       "[5] recorded positional locator is flagged positional with a warning",
       posStep.locator?.quality?.disambiguation === "positional" && !!posStep.locator?.quality?.warning
     );
-    // Negative: unapproved positional is refused at execution.
+    check(
+      "[5] the recorder ADOPTED the positional locator as resolved (no review, no approval)",
+      posStep.locator?.resolution === "resolved" && posStep.locator?.resolvedBy === "recorder"
+    );
+    // The unapproved positional locator now EXECUTES for an ordinary (non-sensitive) step: the recorder
+    // built a unique last-resort selector, so there is nothing to approve.
     {
-      const { exec, close } = await freshExecutor(browser);
+      const { page, exec, close } = await freshExecutor(browser);
       try {
         const r = await exec.execute({ ...posStep, timeoutMs: 4000 });
-        check("[5] negative: unapproved positional fallback is REFUSED at execution", r.status === "failed", `status=${r.status}`);
-        check("[5] negative: refusal names the approval requirement", (r.error ?? "").toLowerCase().includes("approval"), r.error);
+        check("[5] unapproved positional (non-sensitive) EXECUTES as recorder-resolved", r.status === "passed", r.error ?? `status=${r.status}`);
+        const result = (await page.getByTestId("pos-twin-result").textContent()) ?? "";
+        check("[5] the auto-resolved positional hit the recorded candidate", result === "pos-clicked-1", result);
       } finally {
         await close();
       }

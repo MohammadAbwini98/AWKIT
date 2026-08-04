@@ -44,7 +44,7 @@ import type {
   ParallelConnectorConfig
 } from "../profiles/FlowProfile";
 import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
-import { isPositionalLocator, isValidLocatorFallbackApproval } from "../profiles/locatorApproval";
+import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "../profiles/locatorApproval";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 
@@ -460,13 +460,17 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
         collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
       } else if (step.locator.resolution === "user-approved-fallback" && !isValidLocatorFallbackApproval(step)) {
         collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has stale or incomplete positional-fallback approval: review and approve this exact locator and context again.`);
-      } else if (isPositionalLocator(step.locator) && step.locator.resolution !== "user-approved-fallback") {
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} uses a positional locator that has not been explicitly approved.`);
       } else if (
         isPositionalLocator(step.locator) &&
-        ["dangerousMutation", "externalCommit"].includes(resolveStepSafety(step).sideEffectLevel)
+        ["dangerousMutation", "externalCommit"].includes(resolveStepSafety(step).sideEffectLevel) &&
+        !hasPositionalIdentityGuard(step)
       ) {
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} performs a sensitive action and cannot use a positional fallback even with approval.`);
+        // The Recorder builds nested selectors until unique and adopts a last-resort positional locator
+        // as RESOLVED — ordinary steps need no approval. A SENSITIVE action (dangerousMutation /
+        // externalCommit) is the sole exception: a bare positional index could misfire the wrong
+        // Delete/Submit/Pay control after a layout change, so it must carry a runtime identity guard
+        // that re-proves the target before acting (guarded-positional).
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} performs a sensitive action but its locator is a positional fallback with no runtime identity guard. Re-record it so the recorder captures an identity guard, or add a stable data-testid or unique accessible name.`);
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {
