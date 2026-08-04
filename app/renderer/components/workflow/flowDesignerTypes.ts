@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -33,6 +33,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorApprovedFallbackBinding?: LocatorApprovalBinding;
   /** Recorder explanation for a review-required locator boundary. */
   locatorReviewReason?: string;
+  /** Runtime identity guard for a guarded-positional locator on a sensitive step (from Recorder). */
+  locatorGuard?: LocatorGuard;
   /**
    * Which value source drives this node. `"none"` is a designer-only sentinel meaning "a bare
    * `value` with no explicit source" (e.g. a condition expression); it round-trips as `value` alone
@@ -208,6 +210,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorResolvedBy: undefined,
   locatorApprovedFallbackReason: undefined,
   locatorReviewReason: undefined,
+  locatorGuard: undefined,
   pageAlias: undefined,
   opensPopup: undefined,
   popupExpectation: undefined,

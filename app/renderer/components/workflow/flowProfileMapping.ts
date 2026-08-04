@@ -162,7 +162,8 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
         approvedFallbackBinding: data.locatorApprovedFallbackBinding,
-        reviewReason: data.locatorReviewReason
+        reviewReason: data.locatorReviewReason,
+        guard: data.locatorGuard
       }
       : undefined,
     value: data.value || undefined,
@@ -320,6 +321,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
+    locatorGuard: step.locator?.guard,
     valueSourceType: valueSource?.type ?? "static",
     // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).
     valueSourceOriginal: valueSource,

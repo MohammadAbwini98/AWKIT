@@ -110,10 +110,25 @@ export interface LocatorShadowHost extends LocatorCandidate {
 export interface LocatorShadowContext {
   boundary: ShadowBoundaryState;
   hosts?: LocatorShadowHost[];
+  /**
+   * A closed root was captured through the runner's instrumentation bridge, not ordinary CSS
+   * piercing. When true, the runner resolves this chain via the closed-shadow resolver and MUST NOT
+   * hand `target`/host values to `page.locator()` as plain selectors.
+   */
+  instrumented?: boolean;
+  /** Resilient signature for the target inside the innermost (closed) root; used by the bridge resolver. */
+  target?: LocatorCandidate;
 }
 
 export interface LocatorContext {
   frame?: LocatorFrameContext;
+  /**
+   * Ordered outer→inner iframe chain for a target that may live several frames deep (including
+   * cross-origin). When present and non-empty it is authoritative; otherwise the single legacy
+   * `frame` is read as a one-segment chain. Each segment's `selector` is resolved in its parent
+   * frame's context via `frameLocator`.
+   */
+  frameChain?: LocatorFrameContext[];
   shadow?: LocatorShadowContext;
   /**
    * Ordered outer-to-inner semantic scopes. When present and non-empty this is authoritative;
@@ -130,6 +145,12 @@ export const MAX_LOCATOR_CONTAINER_CHAIN = 3;
 export function locatorContainerChain(context?: LocatorContext): LocatorContainerContext[] {
   if (context?.containers?.length) return context.containers.slice();
   return context?.container ? [context.container] : [];
+}
+
+/** Authoritative backward-compatible interpretation of locator frame scope (outer→inner). */
+export function locatorFrameChain(context?: LocatorContext): LocatorFrameContext[] {
+  if (context?.frameChain?.length) return context.frameChain.slice();
+  return context?.frame ? [context.frame] : [];
 }
 
 /** Stable, serializable event evidence; never contains DOM handles or page object references. */
@@ -151,6 +172,55 @@ export interface LocatorInteractionEvidence {
     name?: string;
     origin?: string;
   };
+}
+
+/**
+ * Hashed, privacy-preserving identity fingerprint of a target element. Every token is a SHA-256
+ * hash (see the runner's `hashFingerprint`), never raw page text/labels/attribute values — so it is
+ * safe to persist inside a saved flow. The shape lives here (not in the runner) because it is now
+ * saved schema via {@link LocatorGuard}; the runner owns the computation.
+ */
+export interface LocatorElementFingerprint {
+  tag: string;
+  role: string;
+  name: string;
+  text: string;
+  attributes: Record<string, string>;
+  ancestry: string[];
+}
+
+/**
+ * A semantic check evaluated immediately before a sensitive guarded action (e.g. the dialog title,
+ * the button's accessible name, an expected record id or amount). `expected` is a non-secret hashed
+ * token under the same policy as {@link LocatorElementFingerprint} — it never stores raw secrets.
+ */
+export interface SemanticPrecondition {
+  kind: "accessibleName" | "dialogTitle" | "buttonName" | "recordId" | "amount" | "selectedCount" | "url";
+  expected: string;
+}
+
+/**
+ * Runtime identity guard for a *positional* locator on a SENSITIVE step (`dangerousMutation` /
+ * `externalCommit`). Its presence marks the locator "guarded-positional": before acting, the runner
+ * resolves `container`, re-selects candidate `index`, recomputes the target's fingerprint and proves
+ * it still matches `fingerprint` (and every `preconditions` check, and that `siblingCount` and the
+ * container/role/name/context are unchanged). Any mismatch aborts with `SENSITIVE_TARGET_IDENTITY_CHANGED`
+ * BEFORE the interaction. It never falls back to another sibling or acts on position alone. This keeps
+ * the wrong-privileged-action safety property without an interactive approval prompt.
+ */
+export interface LocatorGuard {
+  /** Stable container chain (outer→inner) the positional index is resolved inside. */
+  container?: LocatorContainerContext[];
+  /** Hashed identity fingerprint of the recorded target. */
+  fingerprint: LocatorElementFingerprint;
+  /** Candidate count inside the container at record time. */
+  siblingCount: number;
+  /** Zero-based index of the recorded target among those candidates. */
+  index: number;
+  /** Required match strength before a sensitive action may proceed. */
+  confidence: "exact" | "high";
+  /** Semantic checks evaluated immediately before the action. */
+  preconditions?: SemanticPrecondition[];
 }
 
 export type LocatorResolution =
@@ -197,6 +267,12 @@ export interface StepLocator extends LocatorCandidate {
   approvedFallbackBinding?: LocatorApprovalBinding;
   /** Recorder-provided reason for an explicit review-required boundary. */
   reviewReason?: string;
+  /**
+   * Runtime identity guard for a positional locator on a sensitive step. Present ⇒ "guarded-positional":
+   * the runner re-proves the target's identity before acting (see {@link LocatorGuard}). Absent on every
+   * non-sensitive and non-positional locator, so legacy and ordinary flows are unaffected.
+   */
+  guard?: LocatorGuard;
 }
 
 export type ValueSourceType =

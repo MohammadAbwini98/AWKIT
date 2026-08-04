@@ -1,15 +1,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 
-export interface LocatorElementFingerprint {
-  tag: string;
-  role: string;
-  name: string;
-  text: string;
-  attributes: Record<string, string>;
-  ancestry: string[];
-}
+// The fingerprint shape now lives with the flow schema (it is persisted inside `LocatorGuard`).
+// Re-exported here so existing runner imports (`from "./LocatorRecoveryStore"`) keep resolving.
+export type { LocatorElementFingerprint };
 
 export interface LocatorRecoveryRecord {
   version: 1;

@@ -49,7 +49,8 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
         approvedFallbackBinding: data.locatorApprovedFallbackBinding,
-        reviewReason: data.locatorReviewReason
+        reviewReason: data.locatorReviewReason,
+        guard: data.locatorGuard
       }
       : undefined,
     // Recorder popup/window metadata (awkit-4t9). Mapped EXPLICITLY, not spread, so the schema stays
@@ -177,6 +178,7 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
+    locatorGuard: step.locator?.guard,
     // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't
     // re-derive" (the rule established by awkit-cxa) — so an unrelated node edit cannot clear it.
     pageAlias: step.pageAlias,

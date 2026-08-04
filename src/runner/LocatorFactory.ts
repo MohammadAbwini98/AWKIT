@@ -1,5 +1,5 @@
 import type { Page, Locator } from "playwright";
-import { createHash } from "node:crypto";
+import { createPageFingerprint, hashFingerprint, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   MAX_LOCATOR_CONTAINER_CHAIN,
@@ -85,80 +85,6 @@ interface CandidatePass {
 interface FingerprintAt {
   index: number;
   fingerprint: LocatorElementFingerprint;
-}
-
-/** Browser-evaluated and intentionally self-contained: Playwright serializes this function body. */
-function createPageFingerprint(element: Element): LocatorElementFingerprint {
-  const tag = element.tagName.toLocaleLowerCase();
-  const type = (element.getAttribute("type") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
-  const explicitRole = (element.getAttribute("role") || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLocaleLowerCase()
-    .slice(0, 160);
-  const implicitRole =
-    tag === "button"
-      ? "button"
-      : tag === "a" && element.hasAttribute("href")
-        ? "link"
-        : tag === "select"
-          ? "combobox"
-          : tag === "textarea"
-            ? "textbox"
-            : tag === "input" && ["button", "submit", "reset"].includes(type)
-              ? "button"
-              : tag === "input" && type === "checkbox"
-                ? "checkbox"
-                : tag === "input" && type === "radio"
-                  ? "radio"
-                  : tag === "input"
-                    ? "textbox"
-                    : "";
-  let controlLabels = "";
-  if ("labels" in element) {
-    const labels = (element as HTMLInputElement).labels;
-    if (labels) {
-      for (let index = 0; index < labels.length; index += 1) {
-        controlLabels += ` ${labels[index].textContent || ""}`;
-      }
-    }
-  }
-  const text = (element.textContent || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
-  const rawName =
-    element.getAttribute("aria-label") ||
-    controlLabels ||
-    element.getAttribute("alt") ||
-    element.getAttribute("placeholder") ||
-    element.getAttribute("title") ||
-    text;
-  const name = rawName.replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
-  const attributes: Record<string, string> = {};
-  for (const key of ["id", "name", "type", "placeholder", "data-testid", "aria-label"]) {
-    const value = (element.getAttribute(key) || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLocaleLowerCase()
-      .slice(0, 160);
-    if (value) attributes[key] = value;
-  }
-  const ancestry: string[] = [];
-  let parent = element.parentElement;
-  while (parent && ancestry.length < 3) {
-    let ancestor = parent.tagName.toLocaleLowerCase();
-    const parentRole = (parent.getAttribute("role") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
-    const parentId = (parent.getAttribute("id") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
-    const parentTestId = (parent.getAttribute("data-testid") || "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLocaleLowerCase()
-      .slice(0, 160);
-    if (parentRole) ancestor += `|${parentRole}`;
-    if (parentId) ancestor += `|${parentId}`;
-    if (parentTestId) ancestor += `|${parentTestId}`;
-    ancestry.push(ancestor);
-    parent = parent.parentElement;
-  }
-  return { tag, role: explicitRole || implicitRole, name, text, attributes, ancestry };
 }
 
 export class LocatorFactory {
@@ -371,7 +297,7 @@ export class LocatorFactory {
     const visible = root.locator("*:visible");
     const fingerprints = await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP);
     const ranked = fingerprints
-      .map(({ fingerprint, index }) => ({ fingerprint, index, score: LocatorFactory.similarity(expected, fingerprint) }))
+      .map(({ fingerprint, index }) => ({ fingerprint, index, score: similarity(expected, fingerprint) }))
       .filter(({ fingerprint }) => LocatorFactory.isCompatible(step, fingerprint))
       .sort((a, b) => b.score - a.score);
     const best = ranked[0];
@@ -427,32 +353,10 @@ export class LocatorFactory {
 
   private static async fingerprintOne(locator: Locator): Promise<LocatorElementFingerprint | undefined> {
     try {
-      return LocatorFactory.hashFingerprint(await locator.evaluate(createPageFingerprint));
+      return hashFingerprint(await locator.evaluate(createPageFingerprint));
     } catch {
       return undefined;
     }
-  }
-
-  /**
-   * Persist equality-preserving token hashes instead of page text/labels/attribute values. This
-   * keeps lexical overlap useful for local similarity without turning locator memory into a second
-   * store of customer-visible business data.
-   */
-  private static hashFingerprint(fingerprint: LocatorElementFingerprint): LocatorElementFingerprint {
-    const hash = (value: string): string =>
-      createHash("sha256").update(value).digest("hex").slice(0, 20);
-    const hashTokens = (value: string): string =>
-      [...new Set(value.split(/\s+/).filter(Boolean).map(hash))].sort().join(" ");
-    return {
-      tag: fingerprint.tag,
-      role: fingerprint.role,
-      name: hashTokens(fingerprint.name),
-      text: hashTokens(fingerprint.text),
-      attributes: Object.fromEntries(
-        Object.entries(fingerprint.attributes).map(([key, value]) => [key, hash(value)])
-      ),
-      ancestry: fingerprint.ancestry.map(hash)
-    };
   }
 
   private static async fingerprintMany(locator: Locator, cap: number): Promise<FingerprintAt[]> {
@@ -463,35 +367,6 @@ export class LocatorFactory {
       if (fingerprint) result.push({ index, fingerprint });
     }
     return result;
-  }
-
-  private static similarity(a: LocatorElementFingerprint, b: LocatorElementFingerprint): number {
-    const textScore = (left: string, right: string): number => {
-      if (!left || !right) return 0;
-      if (left === right) return 1;
-      const leftTokens = new Set(left.split(/\s+/).filter(Boolean));
-      const rightTokens = new Set(right.split(/\s+/).filter(Boolean));
-      const common = [...leftTokens].filter((token) => rightTokens.has(token)).length;
-      return common / Math.max(leftTokens.size, rightTokens.size, 1);
-    };
-    const attributeKeys = new Set([...Object.keys(a.attributes), ...Object.keys(b.attributes)]);
-    const attributeScore = attributeKeys.size
-      ? [...attributeKeys].filter((key) => a.attributes[key] && a.attributes[key] === b.attributes[key]).length /
-        attributeKeys.size
-      : 0;
-    const ancestryScore =
-      Math.max(a.ancestry.length, b.ancestry.length) > 0
-        ? a.ancestry.filter((value, index) => value === b.ancestry[index]).length /
-          Math.max(a.ancestry.length, b.ancestry.length)
-        : 0;
-    return (
-      (a.tag === b.tag ? 0.12 : 0) +
-      (a.role && a.role === b.role ? 0.18 : 0) +
-      textScore(a.name, b.name) * 0.32 +
-      textScore(a.text, b.text) * 0.18 +
-      attributeScore * 0.1 +
-      ancestryScore * 0.1
-    );
   }
 
   private static isCompatible(step: FlowStep, fingerprint: LocatorElementFingerprint): boolean {
