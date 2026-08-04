@@ -85,7 +85,7 @@ export interface LocatorCandidate {
  * element at run time — `visibleOnly`/`hasText` disambiguate hidden templates and repeats.
  */
 export interface LocatorContainerContext extends LocatorCandidate {
-  type: "dialog" | "tableRow" | "card" | "listItem" | "landmark";
+  type: "dialog" | "tableRow" | "card" | "listItem" | "landmark" | "form" | "section";
   /** Narrow repeated containers (rows/cards) to the one whose text matches. */
   hasText?: string;
   /** Prefer the single *visible* container (hidden modal template + visible modal). */
@@ -115,7 +115,21 @@ export interface LocatorShadowContext {
 export interface LocatorContext {
   frame?: LocatorFrameContext;
   shadow?: LocatorShadowContext;
+  /**
+   * Ordered outer-to-inner semantic scopes. When present and non-empty this is authoritative;
+   * otherwise legacy `container` is interpreted as a one-segment chain.
+   */
+  containers?: LocatorContainerContext[];
+  /** Legacy one-segment container scope; retained for saved-flow compatibility. */
   container?: LocatorContainerContext;
+}
+
+export const MAX_LOCATOR_CONTAINER_CHAIN = 3;
+
+/** Authoritative backward-compatible interpretation of locator container scope. */
+export function locatorContainerChain(context?: LocatorContext): LocatorContainerContext[] {
+  if (context?.containers?.length) return context.containers.slice();
+  return context?.container ? [context.container] : [];
 }
 
 /** Stable, serializable event evidence; never contains DOM handles or page object references. */

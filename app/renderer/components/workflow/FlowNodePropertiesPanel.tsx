@@ -7,7 +7,7 @@ import { getNodeDefinition } from "./flowNodeRegistry";
 import { SearchableSelect } from "../shared/SearchableSelect";
 import { OracleNodeSection } from "./OracleNodeSection";
 import { defaultOracleNodeConfig } from "./flowDesignerTypes";
-import type { AsyncCompletionMode, LoaderCompletion, OracleNodeConfig, WaitCondition, WaitHttpMethod } from "@src/profiles/FlowProfile";
+import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion, type OracleNodeConfig, type WaitCondition, type WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
 
@@ -577,7 +577,7 @@ export function FlowNodePropertiesPanel({
                       {data.locatorQuality.isUnique
                         ? `Locator quality: Unique · ${data.locatorQuality.confidence} confidence${
                             data.locatorQuality.disambiguation === "container"
-                              ? " · scoped to container"
+                              ? ` · scoped · ${locatorContainerChain(data.locatorContext).length} container${locatorContainerChain(data.locatorContext).length === 1 ? "" : "s"}`
                               : data.locatorQuality.disambiguation === "compound"
                                 ? " · compound selector"
                                 : data.locatorQuality.disambiguation === "positional"
@@ -628,10 +628,17 @@ export function FlowNodePropertiesPanel({
                         </ol>
                       </details>
                     ) : null}
-                    {data.locatorContext ? (
+                    {locatorContainerChain(data.locatorContext).length ? (
                       <details>
-                        <summary>Recorded context</summary>
-                        <code className="locator-context-code">{JSON.stringify(data.locatorContext)}</code>
+                        <summary>Recorded container chain</summary>
+                        <ol className="locator-context-chain">
+                          {locatorContainerChain(data.locatorContext).map((container, index) => (
+                            <li key={`${container.strategy}:${container.value}:${index}`}>
+                              <strong>{index + 1}. {container.type}</strong>
+                              <code>{container.strategy}: {container.value}{container.name ? ` (${container.name})` : ""}</code>
+                            </li>
+                          ))}
+                        </ol>
                       </details>
                     ) : null}
                     {data.locatorResolution === "user-approved-fallback" ? (

@@ -1,6 +1,13 @@
 import type { Page, Locator } from "playwright";
 import { createHash } from "node:crypto";
-import type { FlowStep, LocatorCandidate, LocatorContext, LocatorShadowHost } from "@src/profiles/FlowProfile";
+import {
+  locatorContainerChain,
+  MAX_LOCATOR_CONTAINER_CHAIN,
+  type FlowStep,
+  type LocatorCandidate,
+  type LocatorContext,
+  type LocatorShadowHost
+} from "@src/profiles/FlowProfile";
 import { isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import {
   locatorCandidatesDigest,
@@ -503,7 +510,7 @@ export class LocatorFactory {
     }
   }
 
-  /** Build a scoped root from container/frame context, resolving the container to one element. */
+  /** Build a scoped root from frame/shadow/container context, resolving each segment strictly. */
   private async buildRoot(context?: LocatorContext): Promise<LocatorRoot> {
     let root: LocatorRoot = this.page;
 
@@ -522,8 +529,12 @@ export class LocatorFactory {
       }
     }
 
-    const container = context?.container;
-    if (container) {
+    const containers = locatorContainerChain(context);
+    if (containers.length > MAX_LOCATOR_CONTAINER_CHAIN) {
+      throw new Error(`Locator container chain exceeds the supported ${MAX_LOCATOR_CONTAINER_CHAIN}-segment bound.`);
+    }
+    for (let index = 0; index < containers.length; index += 1) {
+      const container = containers[index];
       let containerLocator = this.buildOn(root, container);
       if (container.hasText) containerLocator = containerLocator.filter({ hasText: container.hasText });
       const diagnostics: CandidateDiagnostic[] = [];
@@ -534,8 +545,8 @@ export class LocatorFactory {
         // A not-yet-present container may still appear during the action's normal auto-wait window.
         root = containerLocator.first() as unknown as LocatorRoot;
       } else {
-        const detail = diagnostics.map((d) => `${d.strategy}=${d.value}: ${d.count}`).join(", ");
-        throw new Error(`Locator container did not resolve strictly (${detail}).`);
+        const detail = diagnostics.map((d) => `${d.strategy}: ${d.count} match(es)`).join(", ");
+        throw new Error(`Locator container chain segment ${index + 1} did not resolve strictly (${detail}).`);
       }
     }
 
@@ -700,9 +711,9 @@ export class LocatorFactory {
       : "  • (no candidates matched any element)";
 
     const scope: string[] = [];
-    if (spec?.context?.container) {
-      const c = spec.context.container;
-      scope.push(`container: ${c.type} (${c.strategy}=${c.value})`);
+    const containers = locatorContainerChain(spec?.context);
+    if (containers.length) {
+      scope.push(`containers: ${containers.map((c, index) => `${index + 1}:${c.type}/${c.strategy}`).join(" > ")}`);
     }
     if (spec?.context?.frame) scope.push(`frame: ${spec.context.frame.selector}`);
     if (spec?.context?.shadow) {

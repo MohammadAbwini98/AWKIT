@@ -245,7 +245,10 @@ export function installRecorderCapture(): void {
     radio: "input[type=radio], [role=radio]",
     combobox: "select, [role=combobox]",
     heading: "h1,h2,h3,h4,h5,h6,[role=heading]",
-    img: "img[alt], [role=img]"
+    img: "img[alt], [role=img]",
+    row: "tr, [role=row]",
+    listitem: "li, [role=listitem]",
+    article: "article, [role=article]"
   };
 
   // Elements plausibly exposing `role` within an arbitrary root (whole page or a container subtree).
@@ -619,7 +622,7 @@ export function installRecorderCapture(): void {
   }
 
   interface ContainerContext {
-    type: "dialog" | "tableRow" | "card" | "listItem" | "landmark";
+    type: "dialog" | "tableRow" | "card" | "listItem" | "landmark" | "form" | "section";
     strategy: string;
     value: string;
     name?: string;
@@ -627,6 +630,21 @@ export function installRecorderCapture(): void {
     hasText?: string;
     visibleOnly?: boolean;
   }
+
+  interface ContainerCandidate {
+    node: Element;
+    context: ContainerContext;
+  }
+
+  const MAX_CONTAINER_CHAIN_LENGTH = 3;
+  const MAX_CONTAINER_ANCESTOR_DEPTH = 16;
+  /**
+   * Hard ceiling on chain validations per capture. The nested search is combinatorial in the
+   * ancestor count and each validation issues DOM queries, so an unbounded search would stall the
+   * click handler on deeply nested pages. Exhausting the budget is safe: no chain is adopted and
+   * the step falls through to the existing review-required path rather than guessing.
+   */
+  const MAX_CONTAINER_CHAIN_EVALUATIONS = 240;
 
   // Describe a container element as a stable, Playwright-buildable locator (id → testId → role).
   const describeContainer = (node: Element, type: ContainerContext["type"]): ContainerContext | null => {
@@ -668,6 +686,53 @@ export function installRecorderCapture(): void {
       if (t) parts.push(t);
     }
     return norm(parts.join(" "));
+  };
+
+  /** Describe one semantic ancestor without inventing a positional or full-DOM-path selector. */
+  const describeContainerAncestor = (node: Element): ContainerContext | null => {
+    const tag = tagOf(node);
+    const role = attr(node, "role").toLowerCase();
+    if (node.matches('[role="dialog"], [role="alertdialog"], dialog, .modal, [class*="modal"], .mat-dialog-container, .ant-modal, .MuiDialog-root, .MuiDialog-container')) {
+      const context = describeContainer(node, "dialog");
+      if (context) context.visibleOnly = true;
+      return context;
+    }
+    if (tag === "tr" || role === "row") {
+      const name = rowAccessibleName(node).slice(0, 80);
+      return name ? { type: "tableRow", strategy: "role", value: "row", name, exact: false } : null;
+    }
+    if (tag === "form" || role === "form") return describeContainer(node, "form");
+    if (tag === "section" || role === "region") return describeContainer(node, "section");
+    if (tag === "li" || role === "listitem") {
+      const text = norm(node.textContent).slice(0, 80) || undefined;
+      const dtid = attr(node, "data-testid");
+      if (dtid) return { type: "listItem", strategy: "testId", value: dtid, hasText: text };
+      return { type: "listItem", strategy: "role", value: "listitem", hasText: text };
+    }
+    if (tag === "article" || attr(node, "data-testid")) {
+      const context = describeContainer(node, "card");
+      if (context) context.hasText = norm(node.textContent).slice(0, 80) || undefined;
+      return context;
+    }
+    if (["nav", "main", "header", "footer", "aside"].indexOf(tag) >= 0 ||
+        ["navigation", "main", "banner", "contentinfo", "complementary"].indexOf(role) >= 0) {
+      return describeContainer(node, "landmark");
+    }
+    return null;
+  };
+
+  /** Stable semantic ancestors, nearest first, bounded independently of the persisted chain cap. */
+  const containerCandidates = (el: Element): ContainerCandidate[] => {
+    const found: ContainerCandidate[] = [];
+    let current = el.parentElement;
+    let depth = 0;
+    while (current && depth < MAX_CONTAINER_ANCESTOR_DEPTH) {
+      const context = describeContainerAncestor(current);
+      if (context) found.push({ node: current, context });
+      current = current.parentElement;
+      depth += 1;
+    }
+    return found;
   };
 
   // Detect the nearest stable container so a repeated control targets the right subtree.
@@ -722,7 +787,11 @@ export function installRecorderCapture(): void {
   };
 
   // Full context: iframe (when the capture runs inside a same-origin frame) + container.
-  const detectContext = (el: Element, chosenCount: number): Record<string, unknown> | undefined => {
+  const detectContext = (
+    el: Element,
+    chosenCount: number,
+    selectedContainers?: ContainerContext[]
+  ): Record<string, unknown> | undefined => {
     const context: Record<string, unknown> = {};
 
     try {
@@ -743,10 +812,15 @@ export function installRecorderCapture(): void {
       /* cross-origin frame — frameElement is inaccessible; skip frame context */
     }
 
-    const container = detectContainer(el, chosenCount);
-    if (container) context.container = container;
+    if (selectedContainers?.length) {
+      if (selectedContainers.length === 1) context.container = selectedContainers[0];
+      else context.containers = selectedContainers.slice(0, MAX_CONTAINER_CHAIN_LENGTH);
+    } else {
+      const container = detectContainer(el, chosenCount);
+      if (container) context.container = container;
+    }
 
-    return context.frame || context.container ? context : undefined;
+    return context.frame || context.container || context.containers ? context : undefined;
   };
 
   // ── Semantic container scoping (Phase 2a) ────────────────────────────────────────────────────
@@ -760,7 +834,11 @@ export function installRecorderCapture(): void {
   const semanticElementsIn = (root: ParentNode, cand: Candidate): Element[] => {
     try {
       if (cand.strategy === "role") {
-        return elementsForRoleIn(root, cand.value).filter((e) => accessibleName(e) === cand.name);
+        return elementsForRoleIn(root, cand.value).filter((e) => {
+          const actual = cand.value === "row" ? rowAccessibleName(e) : accessibleName(e);
+          const expected = cand.name || "";
+          return cand.exact ? actual === expected : actual.toLowerCase().indexOf(expected.toLowerCase()) >= 0;
+        });
       }
       if (cand.strategy === "placeholder") {
         return Array.prototype.slice.call(root.querySelectorAll('[placeholder="' + esc(cand.value) + '"]'));
@@ -807,35 +885,33 @@ export function installRecorderCapture(): void {
     }
   };
 
-  // Re-find the container node the same way detectContainer derived it, so verification runs against
-  // the actual ancestor of the target element.
-  const closestContainerNode = (el: Element, container: ContainerContext): Element | null => {
-    if (!el.closest) return null;
-    try {
-      if (container.type === "dialog") {
-        return el.closest('[role="dialog"], [role="alertdialog"], dialog, .modal, [class*="modal"], .mat-dialog-container, .ant-modal, .MuiDialog-root, .MuiDialog-container');
-      }
-      if (container.strategy === "id") return el.closest("#" + ident(container.value));
-      if (container.strategy === "testId") return el.closest('[data-testid="' + esc(container.value) + '"]');
-      if (container.strategy === "css") return el.closest(container.value);
-      if (container.strategy === "role") {
-        if (container.value === "row") return el.closest('tr, [role="row"]');
-        if (container.value === "listitem") return el.closest('li, [role="listitem"]');
-        if (container.value === "article") return el.closest("article");
-        return el.closest('[role="' + esc(container.value) + '"]');
-      }
-    } catch {
-      return null;
-    }
-    return null;
+  const containerMatchesIn = (root: ParentNode, container: ContainerContext): Element[] => {
+    let matches = candidateElementsIn(root, container);
+    if (container.hasText) matches = matches.filter((node) => norm(node.textContent).indexOf(norm(container.hasText)) >= 0);
+    if (container.visibleOnly) matches = matches.filter(isVisibleMatch);
+    return matches;
   };
 
-  // True when `container` scopes semantic candidate `cand` to exactly the target element `el`.
-  const containerIsolatesSemantic = (el: Element, cand: Candidate, container: ContainerContext): boolean => {
-    const node = closestContainerNode(el, container);
-    if (!node) return false;
-    const matches = semanticElementsIn(node, cand);
-    return matches.length === 1 && matches[0] === el;
+  /**
+   * Prove the serialized chain itself is load-bearing: every outer-to-inner segment must resolve to
+   * the concrete ancestor under the previous scope, and the target must be the exact clicked node.
+   */
+  const containerChainIsolatesSemantic = (
+    root: ParentNode,
+    el: Element,
+    cand: Candidate,
+    chain: ContainerCandidate[]
+  ): boolean => {
+    if (!chain.length || chain.length > MAX_CONTAINER_CHAIN_LENGTH) return false;
+    let scope: ParentNode = root;
+    for (let index = 0; index < chain.length; index += 1) {
+      const segment = chain[index];
+      const matches = containerMatchesIn(scope, segment.context);
+      if (matches.length !== 1 || matches[0] !== segment.node) return false;
+      scope = matches[0];
+    }
+    const targets = semanticElementsIn(scope, cand);
+    return targets.length === 1 && targets[0] === el;
   };
 
   // Up to 3 fallback candidates (excluding the chosen one), unique/non-fragile first.
@@ -896,18 +972,45 @@ export function installRecorderCapture(): void {
     // semantic candidate that a stable container isolates to this exact element. The compound CSS
     // stays a ranked alternative, so the runner is safe even if the container heuristic is imperfect.
     let containerScoped = false;
-    const goodPrimary = chosen.count === 1 && !chosen.fallback;
+    let selectedContainerChain: ContainerContext[] | undefined;
+    const compoundPrimary = chosen.strategy === "css" && /\s|>/.test(chosen.value);
+    const goodPrimary = chosen.count === 1 && !chosen.fallback && !compoundPrimary;
     if (!goodPrimary) {
-      const container = detectContainer(el, 2);
-      if (container) {
-        for (let i = 0; i < candidates.length; i += 1) {
-          const c = candidates[i];
-          if (!isSemanticStrategy(c.strategy)) continue;
-          if (containerIsolatesSemantic(el, c, container)) {
-            chosen = c;
-            containerScoped = true;
-            break;
-          }
+      const ancestors = containerCandidates(el);
+      const root = options.root ?? document;
+      let evaluations = 0;
+      /** Validate one chain against the budget; adopt it only when it isolates the clicked node. */
+      const tryChain = (c: Candidate, chain: ContainerCandidate[]): void => {
+        if (containerScoped || evaluations >= MAX_CONTAINER_CHAIN_EVALUATIONS) return;
+        evaluations += 1;
+        if (!containerChainIsolatesSemantic(root, el, c, chain)) return;
+        chosen = c;
+        selectedContainerChain = chain.map((entry) => entry.context);
+        containerScoped = true;
+      };
+      const budgetLeft = (): boolean => !containerScoped && evaluations < MAX_CONTAINER_CHAIN_EVALUATIONS;
+
+      for (let i = 0; i < candidates.length && budgetLeft(); i += 1) {
+        const c = candidates[i];
+        if (!isSemanticStrategy(c.strategy)) continue;
+
+        // Preserve the direct -> one-container -> nested-chain preference order.
+        for (let inner = 0; inner < ancestors.length && budgetLeft(); inner += 1) {
+          tryChain(c, [ancestors[inner]]);
+        }
+        for (let length = 2; length <= MAX_CONTAINER_CHAIN_LENGTH && budgetLeft(); length += 1) {
+          const choose = (pickedNearestFirst: ContainerCandidate[], nextIndex: number): void => {
+            if (!budgetLeft()) return;
+            if (pickedNearestFirst.length === length) {
+              tryChain(c, pickedNearestFirst.slice().reverse());
+              return;
+            }
+            for (let index = nextIndex; index < ancestors.length; index += 1) {
+              choose([...pickedNearestFirst, ancestors[index]], index + 1);
+              if (!budgetLeft()) return;
+            }
+          };
+          choose([], 0);
         }
       }
     }
@@ -951,7 +1054,9 @@ export function installRecorderCapture(): void {
     const alternatives = buildAlternatives(candidates, chosen);
     if (alternatives.length) locator.alternatives = alternatives;
 
-    const context = options.includeContext === false ? undefined : detectContext(el, chosen.count);
+    const context = options.includeContext === false
+      ? undefined
+      : detectContext(el, chosen.count, selectedContainerChain);
     if (context) locator.context = context;
 
     return { locator, quality, accessibleName: accessibleName(el), traversalComplete };
