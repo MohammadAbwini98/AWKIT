@@ -154,10 +154,11 @@ try {
   // 4/149 of 153, edges 93.
   // Then 2026-08-04: `awkit-wmq` filed AND closed (Recorder nested container chains + causal popup
   // URL/context capture), and `awkit-f2q` filed for the outstanding mock-site popup fixtures:
-  // 5/150 of 155, edges 93.
+  // 5/150 of 155, edges 93. `awkit-f2q` then closed once Scenario J landed as real Feature Test Lab
+  // pages: 4/151 of 155, edges 93. The four remaining outstanding items are all `blocked`.
   check(
-    "5 outstanding / 150 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 150,
+    "4 outstanding / 151 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 151,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -1,5 +1,41 @@
 # CURRENT_STATE
 
+## Mock-site Scenario J: popup URL lifecycle (`awkit-f2q`, 2026-08-04)
+
+The four popup URL-lifecycle cases that `awkit-wmq` left as verifier-local fixtures are now real
+Feature Test Lab pages at `/popup/url-lifecycle.html`, reusable for manual exploration and by any
+future verifier. Each case exists because the popup's URL **at creation** is not the URL that
+identifies it:
+
+- **J1** `open-blank-then-navigate` — `window.open("")` then assigns `location` 120 ms later, so the
+  page genuinely exists at `about:blank` first.
+- **J2** `open-redirecting-popup` — `/popup/redirect-entry.html` answers a fixed `302` to
+  `/popup/redirect-final.html`. The destination is a constant, so it can never become an open
+  redirect. The route **must stay ahead of the `/popup` static catch-all**, which maps any
+  `/popup/*` path straight to a file and would otherwise 404 it — that ordering is the whole reason
+  the first attempt failed.
+- **J3** `open-history-popup` — `pushState`, hash change and `back` inside the popup, none of which
+  may touch the opener's URL.
+- **J4** `open-same-title-pair` — two pages sharing the exact title `Shared report title`, differing
+  only by path.
+
+The fixed redirect is mirrored in `verify:popup-mock-site`'s embedded server so both servers behave
+identically. The four new tests (14–17) reset popups **on entry**: a throwing test previously never
+reached its own `resetPopups()`, leaking popups into every later test — the first mutation run failed
+4 tests instead of the 2 it should have, which is what exposed it.
+
+**Verified.** build PASS; `verify:popup-mock-site` **15/15**; `verify:mock-site` **114/114**;
+`verify:popup` **12/12**; `verify:popup-identity` **44/44**; `verify:recorder` **193/0**;
+`verify:recorder-ambiguity` **68/0**; `verify:protected-login-recorder` **57/57**;
+`verify:source-hygiene` **9/0**. Mutation-tested: opening J1 directly at its URL and repointing the
+J2 redirect fail exactly tests 14 and 15, with no cascade.
+
+No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Beads records **155 issues / 4 outstanding / 151 closed / 93 edges**; all four outstanding items are
+`blocked`.
+
+---
+
 ## Recorder: nested container chains + causal popup capture (`awkit-wmq`, 2026-08-04)
 
 Two Recorder correctness defects are fixed. Both changes are **additive and backward compatible** —

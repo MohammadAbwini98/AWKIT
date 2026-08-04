@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Mock-site Scenario J: popup URL lifecycle (`awkit-f2q`)
+
+- **Implementation:** promoted the four popup URL-lifecycle cases from verifier-local fixtures into
+  real Feature Test Lab pages — `/popup/url-lifecycle.html` plus `blank-then-navigate-popup.html`,
+  `redirect-final.html`, `history-popup.html`, `same-title-alpha.html`, `same-title-beta.html`, and a
+  fixed `302` route `/popup/redirect-entry.html` → `/popup/redirect-final.html`.
+- **Two ordering traps hit and fixed:** (1) the redirect route was first added after the `/popup`
+  static catch-all, which maps any `/popup/*` path to a file and 404'd it — verified against the real
+  server with curl, then moved ahead of the popup handlers with a comment recording why; (2)
+  `verify:popup-mock-site` runs its **own** embedded static server, so the redirect had to be
+  mirrored there or scenario J2 would only work in one of the two.
+- **Harness defect found via mutation:** the first mutation run failed 4 tests instead of 2. A test
+  that throws never reaches its trailing `resetPopups()`, so stale popups leak into the shared array
+  and cascade. The four new tests now reset on entry; re-running the same mutation then failed
+  exactly tests 14 and 15.
+- **Verified:** build PASS; popup-mock-site **15/15**; mock-site **114/114**; popup **12/12**;
+  popup-identity **44/44**; recorder **193/0**; ambiguity **68/0**; protected-login **57/57**;
+  source-hygiene **9/0**; roadmap dashboard Sources agree; `git diff --check` clean.
+- **Tracking:** closed `awkit-f2q`; Beads **155 issues / 4 outstanding / 151 closed / 93 edges**, all
+  four outstanding items `blocked`. Ledger unchanged at 63 PASS / 2 NOT RUN / 1 BLOCKED.
+
+---
+
 ## 2026-08-04 - Claude - Recorder nested container chains + causal popup capture (`awkit-wmq`)
 
 - **Review first:** audited an inherited Codex implementation against the agreed plan. Core design
