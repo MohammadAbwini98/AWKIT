@@ -1,4 +1,4 @@
-import type { LocatorApprovalBinding, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -58,6 +58,12 @@ export interface RecordedActionLocator {
   approvedFallbackReason?: string;
   approvedFallbackBinding?: LocatorApprovalBinding;
   reviewReason?: string;
+  /**
+   * Runtime identity guard for a positional locator on a sensitive step. Captured RAW in-page and
+   * hashed by the main process before persisting (see RecorderService.hashGuard). Dropped for
+   * non-sensitive steps.
+   */
+  guard?: LocatorGuard;
 }
 
 export interface RecordedAction {

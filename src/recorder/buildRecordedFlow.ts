@@ -1,6 +1,24 @@
 import { randomUUID } from "node:crypto";
-import type { FlowProfile, FlowStep } from "../profiles/FlowProfile";
+import type { FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfile";
+import { isPositionalLocator } from "../profiles/locatorApproval";
+import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
+import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
 import type { RecordedAction } from "./RecorderTypes";
+
+/** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
+function isSensitiveAction(action: RecordedAction): boolean {
+  const level = resolveStepSafety({ type: action.type, name: action.name, value: action.valueSource?.value }).sideEffectLevel;
+  return level === "dangerousMutation" || level === "externalCommit";
+}
+
+/** Hash a capture-time guard's RAW fingerprint and precondition values before persisting. */
+function hashGuard(draft: LocatorGuard): LocatorGuard {
+  return {
+    ...draft,
+    fingerprint: hashFingerprint(draft.fingerprint),
+    preconditions: draft.preconditions?.map((precondition) => ({ kind: precondition.kind, expected: hashToken(precondition.expected) }))
+  };
+}
 
 /**
  * Build a saveable {@link FlowProfile} from a recorded session's actions. Pure (no I/O) so it can be
@@ -46,13 +64,31 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
       
-      // Preserve explicit recorder/user decisions. Only derive a default for legacy payloads.
+      // Finalize resolution + the runtime identity guard here — the single source shared by the live
+      // recorder session and the test harness. The Recorder builds nested selectors until unique, so a
+      // positional last-resort locator is RESOLVED for ordinary steps. A SENSITIVE step
+      // (dangerousMutation/externalCommit) whose only unique locator is positional instead carries a
+      // guarded-positional locator whose identity is re-proven at replay; with no usable guard it stays
+      // needs-review. Explicit recorder/user decisions (shadow/frame review, open-shadow resolve, user
+      // approval) are preserved as-is.
       if (action.locator.resolution) {
         step.locator.resolution = action.locator.resolution;
         step.locator.resolvedBy = action.locator.resolvedBy ?? "recorder";
       } else if (action.locator.quality?.isUnique === false) {
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
+        if (!step.locator.reviewReason) step.locator.reviewReason = "the recorder could not build a unique locator";
+      } else if (isPositionalLocator(step.locator) && isSensitiveAction(action)) {
+        const draft = action.locator.guard;
+        if (draft?.fingerprint && draft.candidateSelector) {
+          step.locator.guard = hashGuard(draft);
+          step.locator.resolution = "resolved";
+          step.locator.resolvedBy = "recorder";
+        } else {
+          step.locator.resolution = "needs-review";
+          step.locator.resolvedBy = "recorder";
+          step.locator.reviewReason = step.locator.reviewReason ?? "sensitive action needs a stable or guarded locator";
+        }
       } else {
         step.locator.resolution = "resolved";
         step.locator.resolvedBy = "recorder";

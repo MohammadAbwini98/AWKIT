@@ -211,6 +211,12 @@ export interface SemanticPrecondition {
 export interface LocatorGuard {
   /** Stable container chain (outer→inner) the positional index is resolved inside. */
   container?: LocatorContainerContext[];
+  /**
+   * CSS selector that enumerates the candidate set inside the container (the positional index picks
+   * one). The runtime counts these, compares the count to `siblingCount`, then verifies the element
+   * at `index` still matches `fingerprint` before acting.
+   */
+  candidateSelector: string;
   /** Hashed identity fingerprint of the recorded target. */
   fingerprint: LocatorElementFingerprint;
   /** Candidate count inside the container at record time. */

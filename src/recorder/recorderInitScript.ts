@@ -527,6 +527,101 @@ export function installRecorderCapture(): void {
     return q(value) === 1 ? { value: value, count: 1, positional: true } : null;
   };
 
+  // ── Guarded-positional capture ──────────────────────────────────────────────────────────────────
+  // Identity fingerprint of the clicked element, computed IN-PAGE from the exact target (never a
+  // re-resolved locator, which for a positional twin could pick the wrong one). This is a byte-for-byte
+  // copy of the runner's `createPageFingerprint` (src/runner/locatorFingerprint.ts); `verify:fingerprint-parity`
+  // asserts they stay identical, since the guard compares a capture-time fingerprint to a runtime one.
+  const computeFingerprint = (element: Element): Record<string, unknown> => {
+    const tag = element.tagName.toLocaleLowerCase();
+    const type = (element.getAttribute("type") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+    const explicitRole = (element.getAttribute("role") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+    const implicitRole =
+      tag === "button" ? "button"
+      : tag === "a" && element.hasAttribute("href") ? "link"
+      : tag === "select" ? "combobox"
+      : tag === "textarea" ? "textbox"
+      : tag === "input" && ["button", "submit", "reset"].indexOf(type) >= 0 ? "button"
+      : tag === "input" && type === "checkbox" ? "checkbox"
+      : tag === "input" && type === "radio" ? "radio"
+      : tag === "input" ? "textbox"
+      : "";
+    let controlLabels = "";
+    if ("labels" in element) {
+      const labels = (element as HTMLInputElement).labels;
+      if (labels) {
+        for (let index = 0; index < labels.length; index += 1) controlLabels += " " + (labels[index].textContent || "");
+      }
+    }
+    const text = (element.textContent || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+    const rawName =
+      element.getAttribute("aria-label") || controlLabels || element.getAttribute("alt") ||
+      element.getAttribute("placeholder") || element.getAttribute("title") || text;
+    const name = rawName.replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+    const attributes: Record<string, string> = {};
+    const attrKeys = ["id", "name", "type", "placeholder", "data-testid", "aria-label"];
+    for (let i = 0; i < attrKeys.length; i += 1) {
+      const value = (element.getAttribute(attrKeys[i]) || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+      if (value) attributes[attrKeys[i]] = value;
+    }
+    const ancestry: string[] = [];
+    let parent = element.parentElement;
+    while (parent && ancestry.length < 3) {
+      let ancestor = parent.tagName.toLocaleLowerCase();
+      const parentRole = (parent.getAttribute("role") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+      const parentId = (parent.getAttribute("id") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+      const parentTestId = (parent.getAttribute("data-testid") || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
+      if (parentRole) ancestor += "|" + parentRole;
+      if (parentId) ancestor += "|" + parentId;
+      if (parentTestId) ancestor += "|" + parentTestId;
+      ancestry.push(ancestor);
+      parent = parent.parentElement;
+    }
+    return { tag, role: explicitRole || implicitRole, name, text, attributes, ancestry };
+  };
+
+  // Build the runtime identity guard for a positional target: a stable enumeration container, the base
+  // selector that enumerates the candidate set, the target's index/count within it, and the RAW
+  // fingerprint (hashed by the main process). Returns undefined when the target cannot be located
+  // among a stable candidate set, in which case the step falls back to review.
+  const buildPositionalGuard = (el: Element): Record<string, unknown> | undefined => {
+    let container: Record<string, unknown> | undefined;
+    let scopeRoot: ParentNode = document;
+    let anc: Element | null = el.parentElement;
+    for (let d = 0; anc && d < 10 && tagOf(anc) !== "html"; d += 1, anc = anc.parentElement) {
+      const dt = attr(anc, "data-testid");
+      if (dt) { container = { type: "section", strategy: "testId", value: dt }; scopeRoot = anc; break; }
+      const id = (anc as HTMLElement).id;
+      if (id && !looksGeneratedId(id)) { container = { type: "section", strategy: "id", value: id }; scopeRoot = anc; break; }
+    }
+    const candidateSelector = localSelectorFor(el, 2, 2);
+    if (!candidateSelector) return undefined;
+    let siblings: Element[] = [];
+    try {
+      siblings = Array.prototype.slice.call(scopeRoot.querySelectorAll(candidateSelector));
+    } catch {
+      return undefined;
+    }
+    const index = siblings.indexOf(el);
+    if (index < 0) return undefined;
+    const guard: Record<string, unknown> = {
+      candidateSelector,
+      fingerprint: computeFingerprint(el),
+      siblingCount: siblings.length,
+      index,
+      confidence: "exact"
+    };
+    if (container) guard.container = [container];
+    // Precondition: the enclosing dialog's title (verify you are acting in the right dialog before a
+    // sensitive Confirm/Delete). Non-secret; hashed by the main process alongside the fingerprint.
+    const dialog = el.closest ? el.closest('[role="dialog"], [role="alertdialog"], dialog') : null;
+    if (dialog) {
+      const title = norm(dialog.getAttribute("aria-label") || dialog.textContent).slice(0, 80);
+      if (title) guard.preconditions = [{ kind: "dialogTitle", expected: title }];
+    }
+    return guard;
+  };
+
   interface Candidate {
     strategy: string;
     value: string;
@@ -1058,6 +1153,17 @@ export function installRecorderCapture(): void {
       ? undefined
       : detectContext(el, chosen.count, selectedContainerChain);
     if (context) locator.context = context;
+
+    // Attach a runtime identity guard whenever the chosen locator is POSITIONAL — a fallback strategy
+    // OR an nth-based value (`isPositionalLocator` is value-based, so a scoped `…:nth-of-type(n)` counts
+    // too) — so a SENSITIVE step can re-prove the target before acting. `buildRecordedFlow` hashes it and
+    // keeps it only for sensitive steps; non-sensitive steps drop it.
+    const chosenIsPositional =
+      positional || (typeof chosen.value === "string" && /(?:>>\s*nth\s*=|:nth-(?:child|of-type)\s*\()/.test(chosen.value));
+    if (chosenIsPositional) {
+      const guard = buildPositionalGuard(el);
+      if (guard) locator.guard = guard;
+    }
 
     return { locator, quality, accessibleName: accessibleName(el), traversalComplete };
   };

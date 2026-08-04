@@ -110,6 +110,7 @@
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
     "verify:recorder-hover": "tsx scripts/verify-recorder-hover.mts",
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
+    "verify:locator-guard": "tsx scripts/verify-locator-guard.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",

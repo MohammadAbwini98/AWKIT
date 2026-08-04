@@ -1,14 +1,17 @@
 import type { Page, Locator } from "playwright";
-import { createPageFingerprint, hashFingerprint, similarity } from "./locatorFingerprint";
+import { createPageFingerprint, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   MAX_LOCATOR_CONTAINER_CHAIN,
   type FlowStep,
   type LocatorCandidate,
   type LocatorContext,
-  type LocatorShadowHost
+  type LocatorGuard,
+  type LocatorShadowHost,
+  type SemanticPrecondition
 } from "@src/profiles/FlowProfile";
-import { isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
+import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
+import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import {
   locatorCandidatesDigest,
   type LocatorElementFingerprint,
@@ -46,7 +49,7 @@ const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
 
 export interface LocatorRecoveryEvent {
-  type: "preferred-candidate" | "local-recovery" | "memory-error" | "user-approved-fallback";
+  type: "preferred-candidate" | "local-recovery" | "memory-error" | "user-approved-fallback" | "guarded-positional";
   stepId: string;
   message: string;
   score?: number;
@@ -138,6 +141,16 @@ export class LocatorFactory {
       throw new Error("Locator is required for this step.");
     }
 
+    // Guarded-positional: a SENSITIVE step whose only unique locator is positional re-proves the
+    // recorded target identity before acting (never trusts the index alone). Non-sensitive positional
+    // steps keep the lenient candidate/recovery path below.
+    if (hasPositionalIdentityGuard(step)) {
+      const level = resolveStepSafety(step).sideEffectLevel;
+      if (level === "dangerousMutation" || level === "externalCommit") {
+        return this.resolveGuardedPositional(step, spec.guard!);
+      }
+    }
+
     if (spec.context?.shadow?.boundary === "open") {
       const hasXPath = spec.strategy === "xpath" || spec.alternatives?.some((candidate) => candidate.strategy === "xpath");
       if (hasXPath) throw new Error(`Shadow DOM step "${step.name}" cannot use XPath across a shadow boundary.`);
@@ -223,6 +236,74 @@ export class LocatorFactory {
     if (!pass.ambiguousPresent && pass.primaryLocator) return pass.primaryLocator;
 
     throw new Error(LocatorFactory.formatFailure(step, pass.diagnostics));
+  }
+
+  private static readonly GUARD_MATCH_THRESHOLD = 0.9;
+
+  /**
+   * Resolve a SENSITIVE step's guarded-positional locator by INDEPENDENTLY re-proving the recorded
+   * target identity before the action: resolve the guard container, enumerate the candidate set, verify
+   * the count is unchanged, then verify the element at the recorded index still matches the recorded
+   * fingerprint and every precondition. Any mismatch throws SENSITIVE_TARGET_IDENTITY_CHANGED. It NEVER
+   * falls back to another sibling, repairs the index, or acts on position alone.
+   */
+  private async resolveGuardedPositional(step: FlowStep, guard: LocatorGuard): Promise<Locator> {
+    const context = step.locator?.context;
+    const root = await this.buildRoot({
+      frame: context?.frame,
+      frameChain: context?.frameChain,
+      shadow: context?.shadow,
+      containers: guard.container
+    });
+    const fail = (detail: string): Error =>
+      new Error(
+        `SENSITIVE_TARGET_IDENTITY_CHANGED: refusing the sensitive action on "${step.name}" — ${detail}. ` +
+          `Re-record the step to confirm the intended target.`
+      );
+    const candidates = root.locator(guard.candidateSelector);
+    const count = await candidates.count().catch(() => 0);
+    if (count !== guard.siblingCount) throw fail(`the candidate set changed (recorded ${guard.siblingCount}, found ${count})`);
+    if (guard.index < 0 || guard.index >= count) throw fail(`recorded position ${guard.index} is out of range (${count} candidates)`);
+    const target = candidates.nth(guard.index);
+    const fingerprint = await LocatorFactory.fingerprintOne(target);
+    if (!fingerprint) throw fail("the recorded target could not be re-identified");
+    const score = similarity(fingerprint, guard.fingerprint);
+    const threshold = guard.confidence === "exact" ? LocatorFactory.GUARD_MATCH_THRESHOLD : 0.82;
+    if (score < threshold) {
+      throw fail(`the element at the recorded position no longer matches the recorded identity (match ${score.toFixed(3)} < ${threshold})`);
+    }
+    for (const precondition of guard.preconditions ?? []) {
+      if (!(await LocatorFactory.checkGuardPrecondition(target, precondition))) {
+        throw fail(`precondition "${precondition.kind}" no longer holds`);
+      }
+    }
+    this.emit({
+      type: "guarded-positional",
+      stepId: step.id,
+      score,
+      message:
+        `Verified sensitive target identity for "${step.name}" ` +
+        `(fingerprint ${score.toFixed(3)}, ${count} candidates, ${(guard.preconditions ?? []).length} precondition(s)).`
+    });
+    return target;
+  }
+
+  /** Re-derive one semantic precondition on the resolved target and compare its hashed value. */
+  private static async checkGuardPrecondition(target: Locator, precondition: SemanticPrecondition): Promise<boolean> {
+    try {
+      if (precondition.kind === "dialogTitle") {
+        const raw = await target.evaluate((node) => {
+          const dialog = (node as Element).closest('[role="dialog"], [role="alertdialog"], dialog');
+          return dialog ? (dialog.getAttribute("aria-label") || dialog.textContent || "") : "";
+        });
+        return hashToken(String(raw).replace(/\s+/g, " ").trim().slice(0, 80)) === precondition.expected;
+      }
+    } catch {
+      return false;
+    }
+    // Unknown precondition kinds are conservatively satisfied (forward-compat): the fingerprint and
+    // candidate-count checks already gate the action.
+    return true;
   }
 
   private async tryCandidates(root: LocatorRoot, ranked: RankedCandidate[]): Promise<CandidatePass> {
