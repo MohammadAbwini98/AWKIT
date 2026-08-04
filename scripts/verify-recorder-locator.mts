@@ -1249,6 +1249,17 @@ async function main() {
         response.statusCode = 302;
         response.setHeader("location", "/reports/daily?access_token=HIDDEN#result");
         response.end();
+      } else if (url.pathname === "/js-opener") {
+        response.setHeader("content-type", "text/html");
+        response.end(`<!doctype html><button id="js-open" onclick="window.open('/js-hop')">Open via script redirect</button>`);
+      } else if (url.pathname === "/js-hop") {
+        // A CLIENT-side redirect, unlike /redirect above: this document COMMITS before replacing
+        // itself, so a first-commit-wins identity rule locks onto this URL instead of the final one.
+        response.setHeader("content-type", "text/html");
+        response.end(`<!doctype html><title>hop</title><script>location.replace('/reports/final?token=LEAKED#frag');</script>`);
+      } else if (url.pathname === "/reports/final") {
+        response.setHeader("content-type", "text/html");
+        response.end(`<!doctype html><title>Final</title><button id="final-action">Use final report</button>`);
       } else if (url.pathname === "/reports/daily") {
         response.setHeader("content-type", "text/html");
         response.end(`<!doctype html><title>Shared title</title><button id="popup-action" onclick="history.pushState({},'',location.pathname+'?token=ROTATED#done')">Use report</button>`);
@@ -1359,8 +1370,67 @@ async function main() {
       JSON.stringify(unhintedSwitch ?? null)
     );
 
+    // A CLIENT-side redirect commits an intermediate document, so a first-commit-wins identity rule
+    // locks onto the hop instead of the final URL. The 302 case above cannot catch this: a 302 never
+    // commits a document at all.
+    const jsContext = await browser.newContext();
+    const jsMain = await jsContext.newPage();
+    const jsRecorder = new RecorderService() as any;
+    jsRecorder.isRecording = true;
+    jsRecorder.captureWaitTime = false;
+    jsRecorder.captureSmartWaits = false;
+    jsRecorder.page = jsMain;
+    jsRecorder.lastActionPage = jsMain;
+    jsRecorder.actions = [];
+    jsRecorder.scheduleDraftPersist = () => undefined;
+    await jsRecorder.wireContext(jsContext);
+
+    await jsMain.goto(`${popupBase}/js-opener`);
+    const jsPopupPromise = jsMain.waitForEvent("popup");
+    await jsMain.getByRole("button", { name: "Open via script redirect" }).click();
+    const jsPopup = await jsPopupPromise;
+    await jsPopup.waitForURL("**/reports/final**");
+    await jsMain.waitForTimeout(600);
+
+    const jsActions = jsRecorder.getActions() as Array<any>;
+    const jsOpener = jsActions.find((action) => action.type === "click");
+    check(
+      "popup: a client-side redirect resolves to the FINAL url, not the committed hop",
+      jsOpener?.popupExpectation?.urlContains === `${popupBase}/reports/final`,
+      JSON.stringify(jsOpener?.popupExpectation)
+    );
+    check(
+      "popup: the superseded hop is not persisted as the popup identity",
+      !JSON.stringify(jsActions).includes("/js-hop"),
+      JSON.stringify(jsActions)
+    );
+    check(
+      "popup: the client-side redirect target's query and fragment are still stripped",
+      !/LEAKED|frag|[?#]/.test(JSON.stringify(jsActions.map((a) => a.popupExpectation))),
+      JSON.stringify(jsActions.map((a) => a.popupExpectation))
+    );
+    await jsContext.close();
+
     await popupContext.close();
     await new Promise<void>((resolve, reject) => popupServer.close((error) => error ? reject(error) : resolve()));
+  }
+
+  console.log("Part Q — source guards");
+  {
+    // The capture script is stringified into the browser, so it CANNOT import the shared constant.
+    // The cap therefore exists as two literals that can silently drift apart: the recorder would
+    // emit a chain the runtime then refuses. Assert they agree rather than trusting the comment.
+    const { readFile } = await import("node:fs/promises");
+    const initSource = await readFile("src/recorder/recorderInitScript.ts", "utf8");
+    const profileSource = await readFile("src/profiles/FlowProfile.ts", "utf8");
+    const captureCap = /MAX_CONTAINER_CHAIN_LENGTH\s*=\s*(\d+)/.exec(initSource)?.[1];
+    const runtimeCap = /MAX_LOCATOR_CONTAINER_CHAIN\s*=\s*(\d+)/.exec(profileSource)?.[1];
+    check("source guard: both container-chain caps were found", !!captureCap && !!runtimeCap, `capture=${captureCap}, runtime=${runtimeCap}`);
+    check(
+      "source guard: capture and runtime container-chain caps agree",
+      !!captureCap && captureCap === runtimeCap,
+      `capture=${captureCap}, runtime=${runtimeCap}`
+    );
   }
 
   await browser.close();
