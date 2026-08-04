@@ -1,5 +1,70 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-04) — Recorder guarantees unique resolved locators (epic `awkit-65g` Phases 0/A/B done; C1/C2 remain)
+
+- **Branch:** `main`. Working tree clean after the commits below.
+- **Commits (this session, on local `main`):** `813f46e` (Phase 0 schema + shared fingerprint), `fae1af9`
+  (Phase A uniqueness guarantee), `ecb72d2` (Phase B guarded-positional), plus a docs/tracking commit.
+  **Not pushed** — no push without explicit owner instruction.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged — no ledger case was touched).
+- **Tracking:** Beads **162 total / 8 outstanding / 154 closed / 93 edges**.
+
+### What shipped
+
+The owner directive — *"recorder should completely resolve unique locator by building nested selectors until
+unique; no un-unique fixes or alternatives"* — is delivered for every light-DOM / open-shadow target:
+
+- **Phase 0** — additive schema + `src/runner/locatorFingerprint.ts` (shared, so capture-time and runtime
+  fingerprints are identical). Behavior-preserving.
+- **Phase A** — the Recorder adopts a positional last-resort as `resolved`; **no ambiguity pause, no
+  alternatives-picker, no positional approval** for ordinary steps. Validator + executor relaxed to match.
+- **Phase B** — a SENSITIVE step (`dangerousMutation`/`externalCommit`) whose only unique locator is
+  positional gets an **automated guarded-positional fallback**: `LocatorFactory.resolveGuardedPositional`
+  re-proves the recorded target identity (candidate count + hashed fingerprint + preconditions) before
+  acting and aborts with **`SENSITIVE_TARGET_IDENTITY_CHANGED`** on any change, never falling back to a
+  sibling. `buildRecordedFlow` is the single finalizer (live session + harness). The wrong-privileged-action
+  safety property is preserved without an approval prompt.
+
+All finalization lives in **`buildRecordedFlow`** — `RecorderService.recordActionFromPage` just pushes.
+
+### Verified (all green)
+
+build; new `verify:locator-guard` **25/0** (mutation-tested both guards — non-vacuous); `verify:recorder`
+**206/0**; `verify:recorder-ambiguity` **69/0**; `verify:runner` **89/0**; `verify:recorder-hover` **214/0**;
+`verify:recorder-draft` **50/50**; `verify:recorder-flow` **29/29**; `verify:protected-login-recorder`
+**57/57**; `verify:recorder-redaction` **15/0**; `verify:flow-step-mapping` **111/0**;
+`test:random:roundtrip` **27/0**; `verify:legacy-compat` **152/0**; `verify:mock-site` **114/114**. Not run:
+packaged-EXE / clean-machine / live-Oracle (owner/environment-gated).
+
+### Remaining work (epic `awkit-65g`)
+
+- **`awkit-y1p` (C1) — cross-origin frame-chain resolver.** Capture the outer→inner iframe chain via
+  Playwright's Frame graph (`parentFrame()` + `frame.frameElement()`, works cross-origin) into
+  `LocatorContext.frameChain` (schema already present); resolve it segment-by-segment in
+  `LocatorFactory.buildRoot`. New `verify:frame-chain` + mock-site fixtures.
+- **`awkit-3zf` (C2) — instrumented closed-shadow resolver.** Retain closed roots in a private in-page
+  registry via the existing `attachShadow` bridge; persist an `instrumented-shadow` strategy; resolve via an
+  ElementHandle-based action path; optional CDP `DOM.getDocument({pierce:true})` investigation. **HARD
+  security boundary:** never automate CAPTCHA/MFA/OTP/passkey/protected-login/anti-bot — the protected-login
+  detector takes precedence. Mandatory `/security-review`. New `verify:closed-shadow` + mock-site fixtures.
+- **`awkit-871`** stays open until C1/C2 land (it now only covers those two platform-limit cases).
+
+### Design notes for whoever takes C1/C2
+
+- The Recorder capture only installs on a real navigation, **not `setContent`** — `verify:locator-guard`
+  serves its fixture over a local HTTP origin for that reason. Reuse that pattern for C1/C2 verifiers.
+- The guarded-positional fingerprint is strongest for a positional index into a list of *distinct* records
+  (the fingerprint captures record identity); for *truly identical* twins it can only detect candidate-set
+  changes (siblingCount), which is an honest, documented limit.
+
+### Do not touch (still in force from the prior handoff)
+
+- Do not push `main` without explicit owner instruction.
+- Do not weaken the protected-login/MFA/OTP/CAPTCHA handoff, and keep the `dangerousMutation`/`externalCommit`
+  refusal for a BARE (unguarded) positional locator absolute — only a valid runtime identity guard admits one.
+
+---
+
 ## HANDOFF (2026-08-04) — Recorder locator/popup work complete; `awkit-871` is the next engineering item
 
 - **Branch:** `main`. Working tree **clean**.

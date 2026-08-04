@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("159 issues parse", beads.stats.total === 159, `got ${beads.stats.total}`);
+  check("162 issues parse", beads.stats.total === 162, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -162,9 +162,14 @@ try {
   // edges 93. Then `awkit-871` was filed (Flow Designer cannot resolve a non-positional
   // needs-review locator): 5/154 of 159, edges 93. It is the only OPEN item — the other four
   // remain `blocked` on the owner.
+  // Then 2026-08-04: epic `awkit-65g` (Recorder always emits an automatically-resolvable locator) filed
+  // with two remaining-phase children `awkit-y1p` (C1 cross-origin frame-chain) and `awkit-3zf` (C2
+  // instrumented closed-shadow), all OPEN: 8/154 of 162, edges 93 (epic↔task edges not added — a task
+  // cannot block an epic). Phases 0/A/B of the epic landed as code (main @ ecb72d2) and are recorded in
+  // TASK_LOG, not as separate beads.
   check(
-    "5 outstanding / 154 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 154,
+    "8 outstanding / 154 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 154,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

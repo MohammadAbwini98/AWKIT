@@ -1,5 +1,46 @@
 # CURRENT_STATE
 
+## Recorder guarantees unique resolved locators — epic `awkit-65g` Phases 0/A/B (2026-08-04)
+
+The Recorder now **builds nested selectors until the locator is unique and adopts a positional last-resort
+as `resolved`**. It no longer pauses for an ambiguity dialog and no longer asks for positional-fallback
+approval on ordinary steps — the owner directive ("no un-unique fixes or alternatives"). Delivered in three
+committed phases; C1/C2 (the two platform-limit cases) remain.
+
+- **Phase 0** (`813f46e`) — additive schema (`LocatorGuard`, `SemanticPrecondition`, relocated
+  `LocatorElementFingerprint`, `LocatorContext.frameChain`, closed-shadow `instrumented`/`target`,
+  `StepLocator.guard`) + a shared `src/runner/locatorFingerprint.ts` so the runner and recorder compute an
+  identical fingerprint. Round-tripped through both mapping files. Behavior-preserving.
+- **Phase A** (`fae1af9`) — ordinary positional locators auto-resolve and run with no review/alternatives/
+  approval. `FlowValidator` + `StepExecutor.guardLocatorQuality` relaxed accordingly; the interactive
+  ambiguity dialog is now vestigial for the uniqueness case.
+- **Phase B** (`ecb72d2`) — a SENSITIVE step (`dangerousMutation`/`externalCommit`) whose only unique locator
+  is positional auto-resolves **with a runtime identity guard**: `LocatorFactory.resolveGuardedPositional`
+  re-proves the recorded target (candidate count + hashed fingerprint + preconditions) before acting and
+  aborts with **`SENSITIVE_TARGET_IDENTITY_CHANGED`** on any change — never a sibling fallback. The
+  wrong-privileged-action safety property is preserved without an approval prompt. Single finalizer is
+  `buildRecordedFlow` (used by the live session and the harness alike).
+
+**`awkit-871` is largely superseded**: the ambiguous/positional needs-review it was partly about no longer
+reaches the Flow Designer. The only remaining non-positional needs-review cases are **closed shadow root**
+and **cross-origin frame**, addressed by the two remaining epic children — **`awkit-y1p` (C1 cross-origin
+frame-chain)** and **`awkit-3zf` (C2 instrumented closed-shadow)**, both OPEN and not started.
+
+**Verified.** build PASS; new `verify:locator-guard` **25/0** (unchanged replay = fingerprint parity;
+insertion/removal/identity-change → abort clicking nothing), **mutation-tested** both guards (fingerprint
+check → only [8] fails; siblingCount check → only [7] fails); `verify:recorder` **206/0**;
+`verify:recorder-ambiguity` **69/0**; `verify:runner` **89/0**; `verify:recorder-hover` **214/0**;
+`verify:recorder-draft` **50/50**; `verify:recorder-flow` **29/29**; `verify:protected-login-recorder`
+**57/57**; `verify:recorder-redaction` **15/0**; `verify:flow-step-mapping` **111/0**;
+`test:random:roundtrip` **27/0**; `verify:legacy-compat` **152/0**; `verify:mock-site` **114/114**. The
+packaged-EXE / clean-machine / live-Oracle gates were not run (owner/environment-gated; not required here).
+
+No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. Beads
+records **162 issues / 8 outstanding / 154 closed / 93 edges** (epic `awkit-65g` + `awkit-y1p`/`awkit-3zf`
+filed).
+
+---
+
 ## Recorder review residuals closed: popup identity, ordering, chain coverage (2026-08-04)
 
 Three follow-ups from the `awkit-wmq` review. Writing **one** failing test for the first uncovered

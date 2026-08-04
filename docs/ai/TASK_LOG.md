@@ -4,6 +4,52 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Recorder guarantees unique resolved locators (epic `awkit-65g` Phases 0/A/B)
+
+- **Task:** Owner directive — "recorder should completely resolve unique locator by building nested
+  selectors until unique; I will not accept un-unique locator fixes or alternatives any more." Filed as
+  epic `awkit-65g`; plan approved (5 phases). Implemented Phases 0, A, B this session.
+- **Phase 0 (`813f46e`)** — schema + shared fingerprint foundation. Added `LocatorGuard`,
+  `SemanticPrecondition`, relocated `LocatorElementFingerprint` into `FlowProfile.ts` (now persisted
+  schema), `LocatorContext.frameChain`, closed-shadow `instrumented`/`target` markers, `StepLocator.guard`,
+  `locatorFrameChain()`. New `src/runner/locatorFingerprint.ts` (createPageFingerprint / hashFingerprint /
+  hashToken / similarity) shared by runner + recorder; `LocatorFactory` consumes it. Round-tripped `guard`
+  through both mapping files + `FlowDesignerNodeData`. Behavior-preserving.
+- **Phase A (`fae1af9`)** — the Recorder builds nested selectors until unique and ADOPTS a positional
+  last-resort as `resolution: "resolved"`. It no longer pauses for an ambiguity dialog; ordinary steps run
+  with no alternatives-picker and no positional-approval. `FlowValidator` + `StepExecutor.guardLocatorQuality`
+  relaxed: non-sensitive positional runs without approval; sensitive positional requires a guard
+  (`hasPositionalIdentityGuard`). Updated the two verifier expectations that encoded the old "unapproved
+  positional refused" policy.
+- **Phase B (`ecb72d2`)** — guarded-positional fallback for SENSITIVE steps (dangerousMutation/externalCommit):
+  the recorder captures an in-page identity fingerprint + container + candidate set into `guard`;
+  `buildRecordedFlow` (now the single finalizer for the live session AND the test harness) hashes it and keeps
+  it only for sensitive steps. At replay, `LocatorFactory.resolveGuardedPositional` re-proves the target
+  (candidate count + fingerprint + preconditions) BEFORE acting and aborts with `SENSITIVE_TARGET_IDENTITY_CHANGED`
+  on any mismatch — never a sibling fallback. Preserves the wrong-privileged-action property without approval.
+- **Files:** `src/profiles/FlowProfile.ts`, `src/profiles/locatorApproval.ts`, `src/runner/locatorFingerprint.ts`
+  (new), `src/runner/LocatorFactory.ts`, `src/runner/LocatorRecoveryStore.ts`, `src/runner/StepExecutor.ts`,
+  `src/validation/FlowValidator.ts`, `src/recorder/{recorderInitScript,RecorderService,RecorderTypes,buildRecordedFlow}.ts`,
+  `app/renderer/components/workflow/{flowDesignerTypes,flowProfileMapping,flowStepMapping}.ts`,
+  `scripts/verify-locator-guard.mts` (new), `scripts/verify-recorder-{ambiguity,locator}.mts`,
+  `scripts/lib/verifier-classification.ts`, `scripts/verify-roadmap-dashboard.mjs`, `package.json`.
+- **Verified:** `npm run build`; new `verify:locator-guard` **25/0** (unchanged replay = fingerprint parity;
+  insertion/removal/identity-change → abort clicking nothing) — MUTATION-TESTED both guards (disabling the
+  fingerprint check fails only [8]; disabling siblingCount fails only [7]); `verify:recorder` **206/0**;
+  `verify:recorder-ambiguity` **69/0**; `verify:runner` **89/0**; `verify:recorder-hover` **214/0**;
+  `verify:recorder-draft` **50/50**; `verify:recorder-flow` **29/29**; `verify:protected-login-recorder`
+  **57/57**; `verify:recorder-redaction` **15/0**; `verify:flow-step-mapping` **111/0**;
+  `test:random:roundtrip` **27/0**; `verify:legacy-compat` **152/0**; `verify:mock-site` **114/114**.
+- **Not run:** packaged-EXE / clean-machine / live-Oracle gates (owner/environment-gated; not required by
+  this work). The validation ledger was untouched: still **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracking:** epic `awkit-65g`; remaining `awkit-y1p` (C1 cross-origin frame-chain) and `awkit-3zf`
+  (C2 instrumented closed-shadow) OPEN. `awkit-871` largely superseded (recorder auto-resolves the
+  ambiguous/positional cases); it now only covers closed-shadow/cross-origin-frame, which C1/C2 close.
+  Beads **162 total / 8 outstanding / 154 closed / 93 edges**.
+- **Not done / deliberate:** did not push. C1/C2 not started.
+
+---
+
 ## 2026-08-04 - Claude - Handoff prepared; filed `awkit-871` (Designer cannot resolve needs-review)
 
 - **Task:** `/HANDOFF` — prepare the repository for the next agent or human.
