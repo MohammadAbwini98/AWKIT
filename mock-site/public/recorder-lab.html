@@ -716,6 +716,52 @@
         <p id="duplicateResult" data-testid="duplicate-result" role="status">No duplicate-control action yet</p>
       </section>
 
+      <section data-testid="nested-container-scope">
+        <h2>Nested container scoping</h2>
+        <p>
+          Four identical <code>Approve</code> buttons. Neither ancestor disambiguates on its own:
+          scoping to a region still leaves two matches, and scoping to an order card still leaves one
+          match per region. Only the ordered <em>region &rarr; card</em> chain isolates one button,
+          so this scenario fails whenever the Recorder can persist just a single container.
+        </p>
+        <section data-testid="nested-region-north">
+          <h3>North region</h3>
+          <div data-testid="nested-order-card">
+            <span>Standard order</span>
+            <button type="button" class="nested-approve" data-hit="north-standard">Approve</button>
+          </div>
+          <div data-testid="nested-order-card">
+            <span>Priority order</span>
+            <button type="button" class="nested-approve" data-hit="north-priority">Approve</button>
+          </div>
+        </section>
+        <section data-testid="nested-region-south">
+          <h3>South region</h3>
+          <div data-testid="nested-order-card">
+            <span>Standard order</span>
+            <button type="button" class="nested-approve" data-hit="south-standard">Approve</button>
+          </div>
+          <div data-testid="nested-order-card">
+            <span>Priority order</span>
+            <button type="button" class="nested-approve" data-hit="south-priority">Approve</button>
+          </div>
+        </section>
+        <p data-testid="nested-container-result" role="status">No nested-container action yet</p>
+        <script>
+          (function () {
+            Array.prototype.forEach.call(
+              document.querySelectorAll('[data-testid="nested-container-scope"] .nested-approve'),
+              function (button) {
+                button.addEventListener('click', function () {
+                  var result = document.querySelector('[data-testid="nested-container-result"]');
+                  if (result) result.textContent = button.getAttribute('data-hit');
+                });
+              }
+            );
+          })();
+        </script>
+      </section>
+
       <section data-testid="shadow-dom-capture">
         <h2>Open and closed Shadow DOM capture</h2>
         <p>

@@ -432,6 +432,14 @@ console.log("\nField preservation and edit paths");
   const popupBack = roundTripStep({ id: "p1", type: "click", name: "opener", locator: { strategy: "id", value: "open" }, pageAlias: "main", opensPopup: true, popupExpectation: { popupAlias: "popup-1" } });
   check("RT-03: opensPopup + popupExpectation survive a save", popupBack.opensPopup === true && popupBack.popupExpectation?.popupAlias === "popup-1", JSON.stringify(popupBack.popupExpectation));
 
+  // RT-13: outer-to-inner nested recorder scope remains byte-for-byte stable through Designer.
+  const nestedContext = { containers: [
+    { type: "section" as const, strategy: "testId" as const, value: "workspace-primary" },
+    { type: "card" as const, strategy: "testId" as const, value: "account-acme", hasText: "Acme" }
+  ] };
+  const nestedBack = roundTripStep({ id: "lc1", type: "click", name: "Confirm", locator: { strategy: "role", value: "button", name: "Confirm", context: nestedContext } });
+  check("RT-13: nested locator container chain survives a save", JSON.stringify(nestedBack.locator?.context) === JSON.stringify(nestedContext), JSON.stringify(nestedBack.locator?.context));
+
   // RT-04: an explicit non-retryable safety policy is not downgraded to a heuristic on save.
   const safetyBack = roundTripStep({ id: "s1", type: "click", name: "danger", locator: { strategy: "id", value: "delete" }, safety: { sideEffectLevel: "dangerousMutation", retryable: false } });
   check("RT-04: a non-retryable safety policy survives a save", safetyBack.safety?.sideEffectLevel === "dangerousMutation" && safetyBack.safety?.retryable === false, JSON.stringify(safetyBack.safety));

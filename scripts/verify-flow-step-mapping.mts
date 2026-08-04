@@ -415,6 +415,10 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
     ],
     context: {
       container: { type: "tableRow" as const, strategy: "css" as const, value: "tr.selected", hasText: "Acme", visibleOnly: true },
+      containers: [
+        { type: "section" as const, strategy: "testId" as const, value: "workspace-primary" },
+        { type: "card" as const, strategy: "testId" as const, value: "account-acme", hasText: "Acme" }
+      ],
       frame: { selector: "iframe#app" },
       shadow: {
         boundary: "open" as const,
@@ -431,7 +435,7 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
   };
   const out = cycle(baseStep({ type: "click", name: "Save", locator }));
   check("locator.alternatives preserved (compound self-heal payload)", json(out.locator?.alternatives) === json(locator.alternatives), json(out.locator?.alternatives));
-  check("locator.context (container + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
+  check("locator.context (legacy + nested containers + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
   check("locator Shadow DOM interaction evidence preserved", json(out.locator?.interaction) === json(locator.interaction), json(out.locator?.interaction));
   check("locator Shadow DOM resolution provenance preserved", out.locator?.resolution === "resolved" && out.locator?.resolvedBy === "recorder");
 }

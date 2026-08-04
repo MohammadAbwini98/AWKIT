@@ -123,6 +123,15 @@ try {
   check("container-scoped checkbox targets the Basic card", ((await page.getByTestId("duplicate-result").textContent()) ?? "").includes("package-basic"));
   check("customer table repeats Edit per row", (await page.locator("[data-testid='duplicate-customer-table'] .row-edit").count()) === 2);
 
+  // Nested container scoping: the fixture is only meaningful while NEITHER ancestor disambiguates
+  // alone, so assert the ambiguity as well as the resolution — otherwise a fixture edit could make
+  // the scenario trivially single-container and the locator suite would still look green.
+  check("nested scope repeats Approve four times", (await page.getByRole("button", { name: "Approve", exact: true }).count()) === 4);
+  check("region alone leaves the Approve buttons ambiguous", (await page.getByTestId("nested-region-south").getByRole("button", { name: "Approve", exact: true }).count()) === 2);
+  check("order card alone leaves the Approve buttons ambiguous", (await page.locator("[data-testid='nested-order-card']").filter({ hasText: "Priority order" }).getByRole("button", { name: "Approve", exact: true }).count()) === 2);
+  await page.getByTestId("nested-region-south").locator("[data-testid='nested-order-card']").filter({ hasText: "Priority order" }).getByRole("button", { name: "Approve", exact: true }).click();
+  check("region + card chain isolates exactly one Approve", (await page.getByTestId("nested-container-result").textContent()) === "south-priority");
+
   // Increment 6 Shadow DOM lab: Playwright's normal locators pierce open roots, while fixture
   // status nodes prove the intended host/control handled the action.
   check("open-shadow unique role control exists", (await page.getByRole("button", { name: "Unique shadow action" }).count()) === 1);

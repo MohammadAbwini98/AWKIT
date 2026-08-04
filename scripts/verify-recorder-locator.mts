@@ -12,6 +12,7 @@ import { chromium } from "playwright";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createServer } from "node:http";
 import type { Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
@@ -21,9 +22,10 @@ import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
+import { derivePopupAlias } from "@src/runner/runtime/PopupIdentityRegistry";
 import { executionBlockingErrorsOf, hasActivePathError, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
-import type { FlowStep } from "@src/profiles/FlowProfile";
+import type { FlowStep, LocatorContainerContext } from "@src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "@src/profiles/locatorApproval";
 
 let passed = 0;
@@ -117,7 +119,6 @@ async function main() {
     bindingRecorder.ambiguityState = null;
     bindingRecorder.isRecording = true;
     bindingRecorder.lastActionAt = 0;
-    bindingRecorder.lastClickAt = 0;
     bindingRecorder.lastActionPage = undefined;
     // Navigate (not setContent) so the addInitScript capture reliably runs for this document.
     await page.goto("data:text/html;charset=utf-8," + encodeURIComponent("<!doctype html><html><body>" + html + "</body></html>"), { waitUntil: "load" });
@@ -505,6 +506,52 @@ async function main() {
     check("dup role+name: recorded locator runs green", result.status === "passed", result.error ?? result.status);
     check("dup role+name: checked the intended (pkg-b) checkbox", await page.locator('[data-testid="pkg-b"] input').isChecked(), "pkg-b not checked");
     check("dup role+name: left pkg-a unchecked", !(await page.locator('[data-testid="pkg-a"] input').isChecked()), "pkg-a was checked");
+  }
+
+  // CR1b. Neither stable ancestor works alone: each outer section contains two Confirm buttons,
+  // and the same named card exists in both sections. Outer -> inner is therefore load-bearing.
+  {
+    const html = `
+      <section data-testid="nested-scope-a">
+        <div data-testid="nested-action-card">Primary <button onclick="window.__hit='a-primary'">Confirm</button></div>
+        <div data-testid="nested-action-card">Secondary <button onclick="window.__hit='a-secondary'">Confirm</button></div>
+      </section>
+      <section data-testid="nested-scope-b">
+        <div data-testid="nested-action-card">Primary <button onclick="window.__hit='b-primary'">Confirm</button></div>
+        <div data-testid="nested-action-card">Secondary <button onclick="window.__hit='b-secondary'">Confirm</button></div>
+      </section>`;
+    const action = await capture(html, (p) => p.locator('[data-testid="nested-scope-b"] [data-testid="nested-action-card"]').filter({ hasText: "Primary" }).getByRole("button", { name: "Confirm" }).click());
+    const chain = action?.locator?.context?.containers as Array<{ type?: string; value?: string }> | undefined;
+    check("nested containers: exactly two outer-to-inner segments captured", chain?.length === 2, JSON.stringify(action?.locator?.context));
+    check("nested containers: outer segment is the selected section", chain?.[0]?.value === "nested-scope-b", JSON.stringify(chain));
+    check("nested containers: inner segment is the repeated action card", chain?.[1]?.value === "nested-action-card", JSON.stringify(chain));
+    check("nested containers: capture proves the final locator unique", action?.locator?.quality?.isUnique === true && action.locator.quality.matchCount === 1, JSON.stringify(action?.locator));
+
+    const step: FlowStep = {
+      id: "cr1b",
+      type: "click",
+      name: "Click Confirm",
+      locator: JSON.parse(JSON.stringify(action?.locator ?? null)) as FlowStep["locator"]
+    };
+    const replay = await run(html, step);
+    check("nested containers: chain replays green", replay.status === "passed", replay.error ?? replay.status);
+    check("nested containers: replay reaches the originally clicked element", replay.hit === "b-primary", replay.hit ?? "null");
+
+    const withoutOuter: FlowStep = {
+      ...step,
+      id: "cr1b-negative",
+      locator: { ...step.locator!, context: { containers: chain?.slice(1) as LocatorContainerContext[] } }
+    };
+    const negative = await run(html, withoutOuter);
+    check("nested containers negative: removing one required segment fails", negative.status !== "passed", negative.status);
+
+    const overBound: FlowStep = {
+      ...step,
+      id: "cr1b-bound",
+      locator: { ...step.locator!, context: { containers: [...(step.locator?.context?.containers ?? []), ...(step.locator?.context?.containers ?? [])] } }
+    };
+    const boundResult = await run(html, overBound);
+    check("nested containers: runtime rejects a chain longer than three", boundResult.status !== "passed" && /3-segment bound/.test(boundResult.error ?? ""), boundResult.error);
   }
 
   // CR2. Repeated cards distinguished only by a meaningful per-card class (no id/testid/role
@@ -1191,6 +1238,131 @@ async function main() {
     }
   }
 
+  console.log("Part P — Recorder popup lifecycle, identity, switching, and sanitation");
+  {
+    const popupServer = createServer((request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      if (url.pathname === "/opener") {
+        response.setHeader("content-type", "text/html");
+        response.end(`<!doctype html><button id="open" onclick="const p=window.open('about:blank');setTimeout(()=>p.location=location.origin+'/redirect?token=SECRET#private',25)">Open report</button><button id="main-again">Main again</button>`);
+      } else if (url.pathname === "/redirect") {
+        response.statusCode = 302;
+        response.setHeader("location", "/reports/daily?access_token=HIDDEN#result");
+        response.end();
+      } else if (url.pathname === "/reports/daily") {
+        response.setHeader("content-type", "text/html");
+        response.end(`<!doctype html><title>Shared title</title><button id="popup-action" onclick="history.pushState({},'',location.pathname+'?token=ROTATED#done')">Use report</button>`);
+      } else {
+        response.statusCode = 404;
+        response.end("not found");
+      }
+    });
+    await new Promise<void>((resolve) => popupServer.listen(0, "127.0.0.1", resolve));
+    const address = popupServer.address();
+    if (!address || typeof address === "string") throw new Error("Popup verifier server did not bind a TCP port.");
+    const popupBase = `http://127.0.0.1:${address.port}`;
+    const popupContext = await browser.newContext();
+    const popupMain = await popupContext.newPage();
+    const popupRecorder = new RecorderService() as any;
+    popupRecorder.isRecording = true;
+    popupRecorder.captureWaitTime = false;
+    popupRecorder.captureSmartWaits = false;
+    popupRecorder.page = popupMain;
+    popupRecorder.lastActionPage = popupMain;
+    popupRecorder.actions = [];
+    popupRecorder.scheduleDraftPersist = () => undefined;
+    await popupRecorder.wireContext(popupContext);
+
+    await popupMain.goto(`${popupBase}/opener`);
+    const popupPromise = popupMain.waitForEvent("popup");
+    await popupMain.getByRole("button", { name: "Open report" }).click();
+    const opened = await popupPromise;
+    await opened.waitForURL("**/reports/daily**");
+    await opened.getByRole("button", { name: "Use report" }).click();
+    await popupMain.getByRole("button", { name: "Main again" }).click();
+    await popupMain.waitForTimeout(250);
+
+    const popupActions = popupRecorder.getActions() as Array<any>;
+    const opener = popupActions.find((action) => action.type === "click" && action.name.includes("Open report"));
+    const popupClickIndex = popupActions.findIndex((action) => action.type === "click" && action.name.includes("Use report"));
+    const switchStep = popupActions[popupClickIndex - 1];
+    const mainClickIndex = popupActions.findIndex((action) => action.type === "click" && action.name.includes("Main again"));
+    const routeStep = popupActions[mainClickIndex - 1];
+    const serialized = JSON.stringify(popupActions);
+    const persistedNavigation = JSON.stringify(popupActions.map((action) => ({
+      type: action.type,
+      name: action.type === "routeChange" ? action.name : undefined,
+      pageAlias: action.pageAlias,
+      popupExpectation: action.popupExpectation,
+      routeValue: action.type === "routeChange" ? action.valueSource?.value : undefined
+    })));
+    check("popup: direct opener action is causally tagged", opener?.opensPopup === true, serialized);
+    check("popup: expectation waits for meaningful post-redirect URL", opener?.popupExpectation?.urlContains === `${popupBase}/reports/daily`, JSON.stringify(opener));
+    check("popup: deterministic alias is shared by opener, switch, and action", !!opener?.popupExpectation?.popupAlias && switchStep?.popupExpectation?.popupAlias === opener.popupExpectation.popupAlias && popupActions[popupClickIndex]?.pageAlias === opener.popupExpectation.popupAlias, serialized);
+    check("popup: exactly one switch node precedes the first popup interaction", switchStep?.type === "switchToPopup" && popupActions.filter((action) => action.type === "switchToPopup").length === 1, serialized);
+    check("popup: return to main is explicit before the next main interaction", routeStep?.type === "routeChange" && routeStep?.valueSource?.value === `${popupBase}/opener`, serialized);
+    check("popup: persisted navigation contains no query, fragment, or secret value", !/[?#]|SECRET|HIDDEN|ROTATED|private/.test(persistedNavigation), persistedNavigation);
+    check("popup: context init script instruments the current popup document", await opened.evaluate(() => Boolean((window as any).__awtkitCaptureInstalled)));
+    check("popup: context and page events deduplicate one Page registration", popupRecorder.popupRegistrations.size === 1 && popupRecorder.popupPages.size === 1, `registrations=${popupRecorder.popupRegistrations.size}; pages=${popupRecorder.popupPages.size}`);
+
+    const aliasA = deriveAliasForTest("http://popup.test/reports/daily?token=one#x");
+    const aliasB = deriveAliasForTest("http://popup.test/reports/monthly?token=two#y");
+    const aliasAChanged = deriveAliasForTest("http://popup.test/reports/daily?token=changed#z");
+    check("popup: same titles on different paths retain distinct identities", aliasA !== aliasB, `${aliasA} / ${aliasB}`);
+    check("popup: pushState/hash/query changes do not change identity", aliasA === aliasAChanged, `${aliasA} / ${aliasAChanged}`);
+    // Two live popups on ONE origin+path: identity alone cannot separate them, so the arrival-order
+    // fallback must still register BOTH. Before the fix this threw, leaving the second popup
+    // unregistered and its actions silently mis-tagged as `main`.
+    const twinUrl = `${popupBase}/reports/daily`;
+    const twinA = await popupContext.newPage();
+    await twinA.goto(twinUrl);
+    const twinB = await popupContext.newPage();
+    await twinB.goto(twinUrl);
+    await popupRecorder.popupRegistrations.get(twinA);
+    await popupRecorder.popupRegistrations.get(twinB);
+    const twinAliases = [...(popupRecorder.popupPages as Map<string, any>).entries()]
+      .filter(([, page]) => page === twinA || page === twinB)
+      .map(([alias]) => alias);
+    check(
+      "popup: two live popups sharing one origin+path both register under distinct aliases",
+      twinAliases.length === 2 && new Set(twinAliases).size === 2,
+      JSON.stringify(twinAliases)
+    );
+    check("popup: identity collision is not reported as an instrumentation failure", !popupRecorder.instrumentationError, String(popupRecorder.instrumentationError));
+
+    // A tab whose URL carries no safe identity (about:blank, data:, blob:) must STILL emit the
+    // switch step — dropping it would replay the next action against the wrong page. Before the fix
+    // the step was silently omitted whenever sanitisation returned nothing.
+    const blankRecorder = new RecorderService() as any;
+    blankRecorder.isRecording = true;
+    blankRecorder.captureWaitTime = false;
+    blankRecorder.captureSmartWaits = false;
+    blankRecorder.actions = [];
+    blankRecorder.signals = [];
+    blankRecorder.scheduleDraftPersist = () => undefined;
+    const blankTabOne = { url: () => "about:blank" } as any;
+    const blankTabTwo = { url: () => "about:blank" } as any;
+    blankRecorder.lastActionPage = blankTabOne;
+    blankRecorder.recordActionFromPage(blankTabTwo, { type: "click", name: "Click in blank tab" });
+    const blankActions = blankRecorder.getActions() as Array<any>;
+    check(
+      "popup: a tab with no safe URL still emits an unhinted switch step",
+      blankActions[0]?.type === "routeChange" && blankActions[0]?.valueSource === undefined,
+      JSON.stringify(blankActions)
+    );
+    // Bind this to the switch step itself, not to `[0]` — otherwise a missing switch step lets the
+    // following click satisfy the assertion and the companion check passes against the defect.
+    const unhintedSwitch = blankActions.find((entry) => entry.type === "routeChange");
+    check(
+      "popup: the unhinted switch step leaks no raw URL in its name",
+      typeof unhintedSwitch?.name === "string" && !/about:blank/.test(unhintedSwitch.name),
+      JSON.stringify(unhintedSwitch ?? null)
+    );
+
+    await popupContext.close();
+    await new Promise<void>((resolve, reject) => popupServer.close((error) => error ? reject(error) : resolve()));
+  }
+
   await browser.close();
 
   console.log(`\n${passed} passed, ${failed} failed`);
@@ -1201,3 +1373,7 @@ main().catch((error) => {
   console.error(error);
   process.exit(1);
 });
+
+function deriveAliasForTest(raw: string): string {
+  return derivePopupAlias(new URL(raw));
+}

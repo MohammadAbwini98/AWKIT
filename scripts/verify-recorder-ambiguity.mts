@@ -183,15 +183,27 @@ async function main() {
     // ── [1] Clicking one of two identical visible controls records the ACTUAL selected candidate ──
     console.log("\n[1] Records the actual selected candidate:");
     check("[1] pro click recorded a locator", !!proClickRec?.locator);
+    // The discriminator may live in the primary value (compound CSS) or in the container scope
+    // (semantic primary + stable ancestor chain). Both are valid representations of "which card was
+    // clicked", so assert over the WHOLE scope rather than one representation — otherwise a ranking
+    // improvement reads as a regression while replay still hits the right element.
+    const scopeText = (rec: RecordedAction | undefined): string => {
+      const locator = rec?.locator as {
+        value?: string;
+        context?: { container?: { value?: string }; containers?: Array<{ value?: string }> };
+      } | undefined;
+      const chain = locator?.context?.containers ?? (locator?.context?.container ? [locator.context.container] : []);
+      return [locator?.value ?? "", ...chain.map((segment) => segment?.value ?? "")].join(" | ");
+    };
     check(
       "[1] recorded candidate is scoped to the clicked card (package-pro), not the other",
-      proClickRec?.locator?.value?.includes("package-pro") === true &&
-        proClickRec?.locator?.value?.includes("package-basic") !== true,
-      `${proClickRec?.locator?.strategy}=${proClickRec?.locator?.value}`
+      scopeText(proClickRec).includes("package-pro") && !scopeText(proClickRec).includes("package-basic"),
+      scopeText(proClickRec)
     );
     check(
       "[1] the OTHER recording is scoped to package-basic (distinguishes which was clicked)",
-      basicClickRec?.locator?.value?.includes("package-basic") === true
+      scopeText(basicClickRec).includes("package-basic") && !scopeText(basicClickRec).includes("package-pro"),
+      scopeText(basicClickRec)
     );
     // Replay proves the recorded candidate is the actual clicked one.
     {
@@ -216,15 +228,65 @@ async function main() {
         (editClickRec?.locator as { context?: { container?: { type?: string } } } | undefined)?.context?.container?.type === "tableRow",
       `disambig=${editClickRec?.locator?.quality?.disambiguation}`
     );
+    // Either stable-ancestor representation satisfies the requirement; `positional` never does, and
+    // an absent disambiguation would mean nothing scoped the duplicate at all.
     check(
-      "[2] package Select is scoped by a stable ancestor (compound), not positional",
-      proClickRec?.locator?.quality?.disambiguation === "compound",
+      "[2] package Select is scoped by a stable ancestor (container or compound), not positional",
+      proClickRec?.locator?.quality?.disambiguation === "container" ||
+        proClickRec?.locator?.quality?.disambiguation === "compound",
       `disambig=${proClickRec?.locator?.quality?.disambiguation}`
+    );
+    check(
+      "[2] the package scope resolves to exactly one element at record time",
+      proClickRec?.locator?.quality?.isUnique === true && proClickRec?.locator?.quality?.matchCount === 1,
+      JSON.stringify(proClickRec?.locator?.quality)
     );
     check(
       "[2] negative: the scoped candidate is unique (matchCount 1), never an unscoped 2-match",
       editClickRec?.locator?.quality?.isUnique === true && editClickRec?.locator?.quality?.matchCount === 1
     );
+
+    // ── [2b] Nested chain against the real mock-site fixture ─────────────────────────────────────
+    // `/recorder-lab` nested-container-scope: four identical Approve buttons where neither the
+    // region nor the order card disambiguates alone, so a single container can never satisfy this.
+    console.log("\n[2b] Nested container chain (mock-site nested-container-scope):");
+    const nestedActions = await recordActions(browser, async (p) => {
+      await p.getByTestId("nested-region-south")
+        .locator('[data-testid="nested-order-card"]').filter({ hasText: "Priority order" })
+        .getByRole("button", { name: "Approve", exact: true }).click();
+    });
+    const nestedRec = recordedClick(nestedActions, "Approve");
+    const nestedChain = (nestedRec?.locator as { context?: { containers?: Array<{ type?: string; value?: string }> } } | undefined)?.context?.containers;
+    check(
+      "[2b] two ordered outer-to-inner container segments are persisted",
+      nestedChain?.length === 2,
+      JSON.stringify(nestedRec?.locator?.context)
+    );
+    check(
+      "[2b] outer segment is the region, inner segment is the repeated order card",
+      nestedChain?.[0]?.value === "nested-region-south" && nestedChain?.[1]?.value === "nested-order-card",
+      JSON.stringify(nestedChain)
+    );
+    check(
+      "[2b] the chained locator is unique at record time",
+      nestedRec?.locator?.quality?.isUnique === true && nestedRec?.locator?.quality?.matchCount === 1,
+      JSON.stringify(nestedRec?.locator?.quality)
+    );
+    {
+      const step = clickStepNamed(buildRecordedFlow("Nested", nestedActions), "Approve") ?? anyClickStep(buildRecordedFlow("Nested", nestedActions));
+      const { page, exec, close } = await freshExecutor(browser);
+      try {
+        const r = await exec.execute(step as FlowStep);
+        check("[2b] the chain replays green", r.status === "passed", r.error);
+        check(
+          "[2b] replay hits the originally clicked button, not one of its three twins",
+          (await page.getByTestId("nested-container-result").textContent()) === "south-priority",
+          (await page.getByTestId("nested-container-result").textContent()) ?? ""
+        );
+      } finally {
+        await close();
+      }
+    }
 
     // ── [3] A stable unique scope replays to the same intended candidate (deterministic) ──────────
     // Uses the package-basic ancestor-scoped (compound) candidate — a stable unique scope — and proves
