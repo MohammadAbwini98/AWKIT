@@ -156,6 +156,18 @@ export class RecorderService {
   private popupOpeners = new Map<Page, Page>();
   /** Last committed click per page; only the direct opener page may claim it. */
   private lastClickByPage = new Map<Page, { action: RecordedAction; at: number }>();
+  /**
+   * Opener page -> the slot a popup awaiting identity has reserved on it. Playwright fires the popup
+   * event during the click's DEFAULT ACTION, so the recorder's async binding usually commits that
+   * click AFTER the popup already exists. Letting the next click to commit claim the slot is
+   * therefore the causal direction; reading "the opener's latest click" once identity resolves is
+   * not, because by then the user may have clicked something else.
+   */
+  private popupAttributions = new Map<Page, { action?: RecordedAction; createdAt: number }>();
+  /** Serializes every recorded action so per-page waits cannot reorder the recorded flow. */
+  private actionQueue: Promise<void> = Promise.resolve();
+  /** The same slots keyed by the POPUP, so both announcing events share one object. */
+  private popupAttributionOf = new Map<Page, { action?: RecordedAction; createdAt: number }>();
   /** Pages already carrying the direct causal popup listener. */
   private popupSources = new WeakSet<Page>();
   /** Non-secret instrumentation failure surfaced through Recorder status instead of swallowed. */
@@ -488,6 +500,9 @@ export class RecorderService {
     this.popupRegistrations.clear();
     this.popupOpeners.clear();
     this.lastClickByPage.clear();
+    this.popupAttributions.clear();
+    this.popupAttributionOf.clear();
+    this.actionQueue = Promise.resolve();
     this.popupSources = new WeakSet<Page>();
     this.instrumentationError = undefined;
     await this.closeBrowser();
@@ -522,6 +537,9 @@ export class RecorderService {
     this.popupRegistrations = new Map<Page, Promise<string>>();
     this.popupOpeners = new Map<Page, Page>();
     this.lastClickByPage = new Map<Page, { action: RecordedAction; at: number }>();
+    this.popupAttributions = new Map<Page, { action?: RecordedAction; createdAt: number }>();
+    this.popupAttributionOf = new Map<Page, { action?: RecordedAction; createdAt: number }>();
+    this.actionQueue = Promise.resolve();
     this.popupSources = new WeakSet<Page>();
     this.instrumentationError = undefined;
     this.captureWaitTime = options.captureWaitTime ?? false;
@@ -621,10 +639,18 @@ export class RecorderService {
     });
 
     await context.exposeBinding("__awtkit_recordAction", async (source, action: Omit<RecordedAction, "id">) => {
-      // A popup may emit its first interaction immediately after navigation. Await the one shared
-      // registration pipeline so the action can never be mis-tagged as `main`.
-      await this.popupRegistrations.get(source.page)?.catch((error) => this.noteInstrumentationError(error));
-      this.recordActionFromPage(source.page, action, source.frame);
+      const page = source.page;
+      const frame = source.frame;
+      // ONE ordered pipeline across every page. A popup action must wait for that popup's
+      // registration so it is never mis-tagged `main` — and every action that arrives after it must
+      // wait behind it too. Awaiting per-page instead lets an action on an unblocked page overtake a
+      // popup action that is still waiting, so the recorded order stops matching what the user did.
+      const queued = this.actionQueue.then(async () => {
+        await this.popupRegistrations.get(page)?.catch((error) => this.noteInstrumentationError(error));
+        this.recordActionFromPage(page, action, frame);
+      });
+      this.actionQueue = queued.catch(() => undefined);
+      await queued;
     });
 
     // Buffer raw Smart Wait observation signals (loader/network/url/rows/toast/enabled). Only safe
@@ -665,35 +691,95 @@ export class RecorderService {
     }
   }
 
-  /** Wait briefly for an about:blank popup's first identity-bearing main-frame navigation. */
+  /** Overall ceiling on identity resolution; a popup that never commits stays alias-only. */
+  /** A click binding that lands within this long AFTER the popup event may still be its opener. */
+  private static readonly POPUP_OPENER_LAG_MS = 500;
+  /** How far back a click already committed before the popup appeared may still be its opener. */
+  private static readonly POPUP_OPENER_LOOKBACK_MS = 1_000;
+  private static readonly POPUP_IDENTITY_BUDGET_MS = 2_000;
+  /**
+   * How long a committed URL must stand unchallenged before it is accepted as identity. A
+   * client-side redirect (`location.replace`, meta refresh) COMMITS its intermediate document, so a
+   * first-commit-wins rule would lock onto the hop. A server 302 never commits, which is why the
+   * redirect case alone cannot expose this.
+   */
+  private static readonly POPUP_IDENTITY_QUIET_MS = 250;
+
+  /**
+   * Resolve a popup's identity-bearing URL: the LAST main-frame URL that stays put for a quiet
+   * period, within a bounded budget. Handles both `about:blank`-then-navigate and a page that
+   * commits and then redirects itself. Returns undefined when nothing identity-bearing ever commits
+   * (a popup that intentionally stays blank), which falls back to arrival-order aliasing.
+   */
   private async popupIdentityUrl(page: Page): Promise<URL | undefined> {
-    const immediate = RecorderService.safePopupUrl(page.url());
-    if (immediate) return immediate;
     return await new Promise<URL | undefined>((resolve) => {
+      let candidate = RecorderService.safePopupUrl(page.url());
       let settled = false;
-      const finish = (value?: URL): void => {
+      let quiet: ReturnType<typeof setTimeout> | undefined;
+
+      const finish = (): void => {
         if (settled) return;
         settled = true;
-        clearTimeout(timer);
+        clearTimeout(budget);
+        if (quiet) clearTimeout(quiet);
         page.off("framenavigated", onNavigated);
         page.off("close", onClose);
-        resolve(value);
+        resolve(candidate);
+      };
+      // Each new commit supersedes the previous candidate and restarts the quiet period, so a chain
+      // of client-side hops settles on its final URL rather than its first.
+      const armQuiet = (): void => {
+        if (quiet) clearTimeout(quiet);
+        quiet = setTimeout(finish, RecorderService.POPUP_IDENTITY_QUIET_MS);
       };
       const onNavigated = (frame: Frame): void => {
         if (frame !== page.mainFrame()) return;
         const value = RecorderService.safePopupUrl(page.url());
-        if (value) finish(value);
+        if (!value) return;
+        candidate = value;
+        armQuiet();
       };
       const onClose = (): void => finish();
-      const timer = setTimeout(() => finish(), 2_000);
+
+      const budget = setTimeout(finish, RecorderService.POPUP_IDENTITY_BUDGET_MS);
       page.on("framenavigated", onNavigated);
       page.on("close", onClose);
+      // Already meaningful at creation: still give a self-redirect its chance to supersede this.
+      if (candidate) armQuiet();
     });
   }
 
   /** Register, instrument, attribute, and close-track one popup through one deduplicated pipeline. */
   private registerPopup(opened: Page, opener?: Page): Promise<string> {
     if (opener) this.popupOpeners.set(opened, opener);
+    // One attribution slot per popup, created on whichever event announces it first.
+    let attribution = this.popupAttributionOf.get(opened);
+    if (!attribution) {
+      attribution = { createdAt: Date.now() };
+      this.popupAttributionOf.set(opened, attribution);
+    }
+    const createdAt = attribution.createdAt;
+    // Index it under the opener as soon as the opener is KNOWN, which is not necessarily on the
+    // first call: `context.on("page")` fires before `page.on("popup")`, so the first call often has
+    // no opener at all. Doing this before the dedupe early-return is what lets the second call
+    // install the reservation. Reserving synchronously means the opening click's binding — which
+    // lands a few ms later — claims this popup, and no subsequent click can.
+    const causalOpener = opener ?? this.popupOpeners.get(opened);
+    if (causalOpener && !attribution.action) {
+      // WHICH page opened the popup is causal (`page.on("popup")`). WHICH click on that page is
+      // not: the capture binding is an async round trip, so it can commit either side of the popup
+      // events, in either order. Handle both, and consume the slot on first claim so a later
+      // unrelated click can never inherit it.
+      const prior = this.lastClickByPage.get(causalOpener);
+      const landedJustAfter = prior && prior.at - createdAt <= RecorderService.POPUP_OPENER_LAG_MS;
+      const landedJustBefore = prior && createdAt - prior.at <= RecorderService.POPUP_OPENER_LOOKBACK_MS;
+      if (prior && landedJustAfter && landedJustBefore) {
+        attribution.action = prior.action;
+      } else if (!this.popupAttributions.has(causalOpener)) {
+        this.popupAttributions.set(causalOpener, attribution);
+      }
+    }
+
     const existing = this.popupRegistrations.get(opened);
     if (existing) return existing;
 
@@ -727,13 +813,20 @@ export class RecorderService {
         if (!installed) await opened.evaluate(getRecorderInitScriptContent());
       }
 
-      // Let an action binding already in flight commit its click before causal attribution.
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      const causalOpener = this.popupOpeners.get(opened);
-      const click = causalOpener ? this.lastClickByPage.get(causalOpener) : undefined;
-      if (click && Date.now() - click.at <= 3_000) {
-        click.action.opensPopup = true;
-        click.action.popupExpectation = {
+      // Attribution: the slot reserved above, claimed by the opening click when it committed. If it
+      // is still empty the binding may have landed BEFORE the popup event, so fall back to a click
+      // that already preceded creation. No timing yield is needed — correctness comes from the
+      // reservation, not from a delay.
+      const opener2 = causalOpener ?? this.popupOpeners.get(opened);
+      if (opener2) this.popupAttributions.delete(opener2);
+      let attributed = attribution.action;
+      if (!attributed && opener2) {
+        const prior = this.lastClickByPage.get(opener2);
+        if (prior && prior.at <= createdAt && createdAt - prior.at <= 3_000) attributed = prior.action;
+      }
+      if (attributed) {
+        attributed.opensPopup = true;
+        attributed.popupExpectation = {
           popupAlias: alias,
           urlContains: identityUrl?.toString(),
           waitUntil: "domcontentloaded"
@@ -744,6 +837,7 @@ export class RecorderService {
         if (this.popupPages.get(alias) === opened) this.popupPages.delete(alias);
         this.popupOpeners.delete(opened);
         this.popupRegistrations.delete(opened);
+        this.popupAttributionOf.delete(opened);
         if (!this.isRecording) return;
         this.actions.push({
           id: randomUUID(),
@@ -1054,6 +1148,9 @@ export class RecorderService {
     this.popupRegistrations.clear();
     this.popupOpeners.clear();
     this.lastClickByPage.clear();
+    this.popupAttributions.clear();
+    this.popupAttributionOf.clear();
+    this.actionQueue = Promise.resolve();
     this.popupSources = new WeakSet<Page>();
     this.instrumentationError = undefined;
     this.signals = [];
@@ -1324,6 +1421,13 @@ export class RecorderService {
     this.actions.push(taggedAction);
     if (action.type === "click") {
       this.lastClickByPage.set(sourcePage, { action: taggedAction, at: now });
+      // Claim a popup that appeared during this click's default action. First committed click wins
+      // and the slot is consumed, so a later unrelated click can never inherit the attribution.
+      const pending = this.popupAttributions.get(sourcePage);
+      if (pending && !pending.action && now - pending.createdAt <= RecorderService.POPUP_OPENER_LAG_MS) {
+        pending.action = taggedAction;
+        this.popupAttributions.delete(sourcePage);
+      }
     }
     this.lastActionAt = now;
     this.scheduleDraftPersist();
