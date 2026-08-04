@@ -212,6 +212,20 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/designer-lab") return serveStatic(res, "designer-lab.html");
   if (req.method === "GET" && path === "/async-results") return serveStatic(res, "async-results.html");
   // ── Multi-Window / Popup Lab ───────────────────────────────────────────────
+  /**
+   * Scenario J2: a popup that redirects once BEFORE the user can interact with it. The destination
+   * is a hardcoded constant — nothing from the request reaches `Location`, so this can never become
+   * an open redirect (same shape as the fixed `/login` → `/form` hop). The Recorder must treat the
+   * FINAL url as the popup's identity, never this intermediate hop.
+   *
+   * MUST stay ahead of the `/popup` and `/mock/popup` static handlers below: they map any
+   * `/popup/*` path straight to a file and would 404 this route before it is ever reached.
+   */
+  if (req.method === "GET" && (path === "/popup/redirect-entry.html" || path === "/mock/popup/redirect-entry.html")) {
+    res.writeHead(302, { Location: "/popup/redirect-final.html" });
+    res.end();
+    return;
+  }
   if (req.method === "GET" && path.startsWith("/mock/popup")) {
     let file = path.slice("/mock/popup".length);
     if (!file || file === "/") file = "/index.html";

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>J2 — Final page after redirect</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>J2 — Final page after redirect</h1>
+      <p>
+        Reached via a <code>302</code> from <code>/popup/redirect-entry.html</code>. This URL — not
+        the entry URL — is the popup's stable identity.
+      </p>
+      <p data-testid="redirect-final-marker">redirect-final-loaded</p>
+      <button
+        id="redirect-final-action"
+        data-testid="redirect-final-action"
+        onclick="document.querySelector('[data-testid=redirect-final-result]').textContent = 'redirect-final-clicked'"
+      >Confirm in popup</button>
+      <p data-testid="redirect-final-result" role="status">idle</p>
+    </main>
+  </body>
+</html>

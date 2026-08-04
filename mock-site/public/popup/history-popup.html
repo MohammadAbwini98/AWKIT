@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>J3 — Same-document URL changes</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>J3 — Same-document URL changes</h1>
+      <p>
+        These controls change this popup's URL without navigating. Each transition belongs to the
+        popup's own identity and must never be attributed to the opener page.
+      </p>
+      <p data-testid="history-popup-marker">history-popup-loaded</p>
+
+      <button
+        id="history-push"
+        data-testid="history-push"
+        onclick="pushStep()"
+      >Push a new path</button>
+
+      <button
+        id="history-hash"
+        data-testid="history-hash"
+        onclick="hashStep()"
+      >Change the hash</button>
+
+      <button
+        id="history-back"
+        data-testid="history-back"
+        onclick="history.back()"
+      >Go back</button>
+
+      <p data-testid="history-popup-path" role="status">/popup/history-popup.html</p>
+
+      <script>
+        var out = document.querySelector('[data-testid=history-popup-path]');
+
+        function render() {
+          out.textContent = location.pathname + location.hash;
+        }
+
+        function pushStep() {
+          history.pushState({ step: "detail" }, "", "/popup/history-popup.html/detail");
+          render();
+        }
+
+        function hashStep() {
+          location.hash = "#section-2";
+          render();
+        }
+
+        window.addEventListener("popstate", render);
+        window.addEventListener("hashchange", render);
+        render();
+      </script>
+    </main>
+  </body>
+</html>

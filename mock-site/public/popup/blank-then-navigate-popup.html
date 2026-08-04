@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>J1 — Navigated from about:blank</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>J1 — Navigated from about:blank</h1>
+      <p>
+        This document is the popup's real identity. It was reached only after the popup already
+        existed at <code>about:blank</code>, so a URL read taken at creation time missed it.
+      </p>
+      <p data-testid="blank-then-navigate-marker">blank-then-navigate-loaded</p>
+      <button
+        id="blank-then-navigate-action"
+        data-testid="blank-then-navigate-action"
+        onclick="document.querySelector('[data-testid=blank-then-navigate-result]').textContent = 'blank-then-navigate-clicked'"
+      >Confirm in popup</button>
+      <p data-testid="blank-then-navigate-result" role="status">idle</p>
+    </main>
+  </body>
+</html>

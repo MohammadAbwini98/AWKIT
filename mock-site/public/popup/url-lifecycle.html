@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Scenario J — Popup URL lifecycle</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Scenario J — Popup URL lifecycle</h1>
+      <p>
+        Purpose: four cases where the popup's URL at creation time is <em>not</em> the URL that
+        identifies it. The Recorder must register the page immediately, treat the provisional URL as
+        provisional, and record the first meaningful committed URL as the popup's identity.
+      </p>
+
+      <h2>J1 — Opens at <code>about:blank</code>, then navigates</h2>
+      <p>
+        The popup is created blank and navigates 120&nbsp;ms later. Reading the URL once at creation
+        yields <code>about:blank</code> and loses the real identity entirely.
+      </p>
+      <button
+        id="open-blank-then-navigate"
+        data-testid="open-blank-then-navigate"
+        onclick="openBlankThenNavigate()"
+      >Open blank-then-navigate popup</button>
+
+      <h2>J2 — Redirects before the first interaction</h2>
+      <p>
+        The popup opens at <code>/popup/redirect-entry.html</code>, which answers <code>302</code> to
+        <code>/popup/redirect-final.html</code>. The final URL is the identity; the intermediate hop
+        must not be recorded as one.
+      </p>
+      <button
+        id="open-redirecting-popup"
+        data-testid="open-redirecting-popup"
+        onclick="window.open('/popup/redirect-entry.html', '_blank', 'width=600,height=400')"
+      >Open redirecting popup</button>
+
+      <h2>J3 — Same-document URL changes inside the popup</h2>
+      <p>
+        The popup performs <code>pushState</code> and a hash change after load. These change the URL
+        without a navigation, and must be attributed to the popup — never to this opener page.
+      </p>
+      <button
+        id="open-history-popup"
+        data-testid="open-history-popup"
+        onclick="window.open('/popup/history-popup.html', '_blank', 'width=600,height=400')"
+      >Open history-API popup</button>
+
+      <h2>J4 — Two popups, identical title, different paths</h2>
+      <p>
+        Both popups set <code>&lt;title&gt;Shared report title&lt;/title&gt;</code>. Title cannot
+        separate them; only the path can, so identity must not collapse to one page.
+      </p>
+      <button
+        id="open-same-title-pair"
+        data-testid="open-same-title-pair"
+        onclick="openSameTitlePair()"
+      >Open both same-title popups</button>
+
+      <p id="lifecycle-status" data-testid="lifecycle-status" role="status">No popup opened yet</p>
+
+      <br />
+      <a href="/popup/">Back to Popup Lab Index</a>
+    </main>
+
+    <script>
+      var status = document.getElementById("lifecycle-status");
+
+      function note(text) {
+        status.textContent = text;
+      }
+
+      // Deliberately opens with NO url, so the popup exists at about:blank first. The delay is
+      // bounded and fixed so the scenario is deterministic.
+      function openBlankThenNavigate() {
+        var popup = window.open("", "_blank", "width=600,height=400");
+        note("blank popup opened");
+        window.setTimeout(function () {
+          if (popup && !popup.closed) {
+            popup.location = "/popup/blank-then-navigate-popup.html";
+            note("blank popup navigated");
+          }
+        }, 120);
+      }
+
+      // Opened in a fixed order; the two pages differ only by path, never by title.
+      function openSameTitlePair() {
+        window.open("/popup/same-title-alpha.html", "_blank", "width=520,height=380");
+        window.open("/popup/same-title-beta.html", "_blank", "width=520,height=380");
+        note("same-title pair opened");
+      }
+
+      window.addEventListener("message", function (event) {
+        if (event.data && event.data.type === "lifecycle") {
+          note(event.data.detail);
+        }
+      });
+    </script>
+  </body>
+</html>

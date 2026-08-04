@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Shared report title</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>J4 — Beta report</h1>
+      <p>
+        This page's <code>&lt;title&gt;</code> is identical to <code>same-title-alpha.html</code>.
+        Only the path distinguishes them, so page identity must not be derived from the title.
+      </p>
+      <p data-testid="same-title-beta-marker">same-title-beta-loaded</p>
+      <button
+        id="same-title-beta-action"
+        data-testid="same-title-beta-action"
+        onclick="document.querySelector('[data-testid=same-title-beta-result]').textContent = 'beta-clicked'"
+      >Confirm in Beta</button>
+      <p data-testid="same-title-beta-result" role="status">idle</p>
+    </main>
+  </body>
+</html>
