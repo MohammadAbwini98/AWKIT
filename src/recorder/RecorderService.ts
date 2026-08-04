@@ -19,6 +19,7 @@ import type { SessionProfile } from "../session/SessionProfile";
 import { normalizeOrigin } from "../session/sessionMatch";
 import { createLocatorApprovalBinding, isPositionalCandidate, isPositionalLocator } from "../profiles/locatorApproval";
 import type { FlowStep, LocatorCandidate } from "../profiles/FlowProfile";
+import { buildFrameChain } from "./frameChainCapture";
 import { LocatorFactory } from "../runner/LocatorFactory";
 import { derivePopupAlias } from "../runner/runtime/PopupIdentityRegistry";
 import {
@@ -647,6 +648,15 @@ export class RecorderService {
       // popup action that is still waiting, so the recorded order stops matching what the user did.
       const queued = this.actionQueue.then(async () => {
         await this.popupRegistrations.get(page)?.catch((error) => this.noteInstrumentationError(error));
+        // Cross-origin / nested frame: build the ordered frame chain through Playwright's Frame graph
+        // (frameElement works across origins; the parent document is never scripted). Attach it before
+        // recording so buildRecordedFlow carries it through; a failure leaves it for the needs-review path.
+        if (frame && frame !== page.mainFrame() && action.locator && !action.locator.context?.frameChain?.length) {
+          const chain = await buildFrameChain(frame).catch(() => undefined);
+          if (chain && chain.length) {
+            action.locator.context = { ...(action.locator.context ?? {}), frameChain: chain };
+          }
+        }
         this.recordActionFromPage(page, action, frame);
       });
       this.actionQueue = queued.catch(() => undefined);
@@ -1388,9 +1398,13 @@ export class RecorderService {
         ...taggedAction.locator.interaction,
         frame: { state, name: sourceFrame.name() || undefined, origin: childOrigin }
       };
-      taggedAction.locator.resolution = "needs-review";
-      taggedAction.locator.resolvedBy = "recorder";
-      taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
+      // A frame chain was captured (Frame-graph, cross-origin safe) → the step is resolvable; leave the
+      // resolution to buildRecordedFlow. Only when no chain could be built do we fall back to review.
+      if (!taggedAction.locator.context?.frameChain?.length) {
+        taggedAction.locator.resolution = "needs-review";
+        taggedAction.locator.resolvedBy = "recorder";
+        taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
+      }
     }
     // Recording is never paused for ambiguity. Locator finalization (adopt a unique positional locator
     // as resolved, attach the runtime identity guard for a sensitive positional, or flag the rare

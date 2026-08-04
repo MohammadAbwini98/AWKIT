@@ -256,6 +256,10 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/runner-lab") return serveStatic(res, "runner-lab.html");
   if (req.method === "GET" && path === "/iframe-lab") return serveStatic(res, "iframe-lab.html");
   if (req.method === "GET" && path === "/iframe-child") return serveStatic(res, "iframe-child.html");
+  // Nested frame chain (main → outer → inner → leaf) for the guaranteed-unique frame-chain feature.
+  if (req.method === "GET" && path === "/iframe-nested") return serveStatic(res, "iframe-nested.html");
+  if (req.method === "GET" && path === "/iframe-nested-mid") return serveStatic(res, "iframe-nested-mid.html");
+  if (req.method === "GET" && path === "/iframe-nested-leaf") return serveStatic(res, "iframe-nested-leaf.html");
 
   // ── REC-018 record → save → replay oracle ─────────────────────────────────
   // Local, in-memory and resettable. It records only the deterministic synthetic Recorder-lab

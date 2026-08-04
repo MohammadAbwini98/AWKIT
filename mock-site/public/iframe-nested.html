@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nested Iframe Lab - frame-chain locators</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Nested Iframe Lab</h1>
+      <p>
+        A two-level frame nesting (main → <code>#frame-outer</code> → <code>#frame-inner</code> → leaf)
+        for exercising <code>LocatorContext.frameChain</code>. A locator that captures only the innermost
+        boundary — or none — cannot reach the leaf button; only the ordered outer→inner chain does. The
+        cross-origin, duplicate-iframe, navigate-after-attach and identity-change cases are covered by
+        <code>npm run verify:frame-chain</code>.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+
+      <section data-testid="nested-frame-section">
+        <h2>Outer wrapper frame</h2>
+        <iframe
+          id="frame-outer"
+          data-testid="frame-outer"
+          title="Outer wrapper frame"
+          src="/iframe-nested-mid"
+          width="100%"
+          height="360"
+        ></iframe>
+      </section>
+
+      <section data-testid="nested-mirror-section">
+        <h2>Parent mirror</h2>
+        <p>The leaf posts to <code>window.top</code>, so a top-level assertion confirms the deep click happened.</p>
+        <p>Leaf click reported: <span data-testid="nested-mirror">no</span></p>
+      </section>
+    </main>
+
+    <script>
+      window.addEventListener("message", (event) => {
+        const data = event.data;
+        if (!data || data.source !== "iframe-nested-leaf") return;
+        document.querySelector('[data-testid="nested-mirror"]').textContent = data.applied ? "yes" : "no";
+      });
+    </script>
+  </body>
+</html>

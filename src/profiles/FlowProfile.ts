@@ -92,10 +92,24 @@ export interface LocatorContainerContext extends LocatorCandidate {
   visibleOnly?: boolean;
 }
 
-/** The target lives inside an iframe; resolved via `page.frameLocator(selector)`. */
+/**
+ * The target lives inside an iframe. A single legacy `frame` is resolved via `page.frameLocator(selector)`;
+ * an ordered {@link LocatorContext.frameChain} is resolved frame-by-frame through Playwright's Frame graph
+ * (so it works across cross-origin boundaries and never touches a child document from the parent). The
+ * identity hints below are the iframe ELEMENT's parent-side attributes — stable across the child frame's
+ * own navigation — and are used to verify a positional/ambiguous match so replay never enters a sibling frame.
+ */
 export interface LocatorFrameContext {
-  /** CSS selector for the `<iframe>` element in the top document. */
+  /** CSS selector for the `<iframe>` element in its PARENT frame's document. */
   selector: string;
+  /** iframe `name` attribute (identity hint). */
+  name?: string;
+  /** iframe `title` attribute (identity hint). */
+  title?: string;
+  /** iframe resolved `src` as origin+pathname (query/fragment dropped); identity hint. */
+  url?: string;
+  /** Positional index among `selector` matches in the parent, used ONLY with identity verification. */
+  index?: number;
 }
 
 export type ShadowBoundaryState = "none" | "open" | "closed" | "unknown";

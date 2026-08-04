@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nested Iframe Lab - leaf frame</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <p>Innermost leaf frame. The button below is the frame-chain target.</p>
+    <button type="button" data-testid="nested-apply" id="nested-apply">Apply nested change</button>
+    <p>Leaf status: <span data-testid="nested-leaf-status">idle</span></p>
+    <script>
+      document.getElementById("nested-apply").addEventListener("click", () => {
+        document.querySelector('[data-testid="nested-leaf-status"]').textContent = "applied inside the inner frame";
+        try {
+          window.top.postMessage({ source: "iframe-nested-leaf", applied: true }, "*");
+        } catch (e) {
+          /* top may be cross-origin in some labs; the postMessage target '*' still delivers */
+        }
+      });
+    </script>
+  </body>
+</html>

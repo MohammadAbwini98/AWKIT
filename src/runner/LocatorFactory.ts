@@ -1,11 +1,13 @@
-import type { Page, Locator } from "playwright";
+import type { Page, Locator, Frame, ElementHandle } from "playwright";
 import { createPageFingerprint, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
+  locatorFrameChain,
   MAX_LOCATOR_CONTAINER_CHAIN,
   type FlowStep,
   type LocatorCandidate,
   type LocatorContext,
+  type LocatorFrameContext,
   type LocatorGuard,
   type LocatorShadowHost,
   type SemanticPrecondition
@@ -44,6 +46,10 @@ interface CandidateDiagnostic {
 
 /** How many matches to probe for visibility before giving up (bounds pathological pages). */
 const VISIBILITY_PROBE_CAP = 30;
+/** Hard ceiling on frame-chain depth (matches the recorder's capture bound). */
+const MAX_FRAME_CHAIN = 8;
+/** How long to auto-wait for a not-yet-attached iframe segment before failing. */
+const FRAME_WAIT_MS = 5_000;
 const RECOVERY_SCAN_CAP = 200;
 const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
@@ -470,7 +476,11 @@ export class LocatorFactory {
   private async buildRoot(context?: LocatorContext): Promise<LocatorRoot> {
     let root: LocatorRoot = this.page;
 
-    if (context?.frame?.selector) {
+    // An explicit frame chain (new captures, cross-origin safe) resolves through the Frame graph with
+    // per-segment identity verification. A legacy single `frame` keeps the frameLocator path unchanged.
+    if (context?.frameChain?.length) {
+      root = (await this.resolveFrameChain(context.frameChain)) as unknown as LocatorRoot;
+    } else if (context?.frame?.selector) {
       root = this.page.frameLocator(context.frame.selector) as unknown as LocatorRoot;
     }
 
@@ -507,6 +517,105 @@ export class LocatorFactory {
     }
 
     return root;
+  }
+
+  /**
+   * Resolve an ordered outer→inner iframe chain through Playwright's Frame graph. Each segment is
+   * resolved in its PARENT frame (never by scripting the child document): a unique selector match wins;
+   * an ambiguous match is disambiguated by the recorded index or by the iframe element's identity; the
+   * resolved frame's identity is then re-verified. Any failure throws `FRAME_IDENTITY_CHANGED` and never
+   * silently enters a sibling frame. Returns the innermost Frame as the scoped root for the target.
+   */
+  private async resolveFrameChain(chain: LocatorFrameContext[]): Promise<Frame> {
+    if (chain.length > MAX_FRAME_CHAIN) {
+      throw new Error(`Locator frame chain exceeds the supported ${MAX_FRAME_CHAIN}-segment bound.`);
+    }
+    let frame: Frame = this.page.mainFrame();
+    for (let index = 0; index < chain.length; index += 1) {
+      const seg = chain[index];
+      const fail = (why: string): Error =>
+        new Error(
+          `FRAME_IDENTITY_CHANGED: iframe segment ${index + 1} (${seg.selector}) ${why}. ` +
+            `Refusing to enter a sibling frame — re-record the step.`
+        );
+      const iframes = frame.locator(seg.selector);
+      let count = await iframes.count().catch(() => 0);
+      if (count === 0) {
+        await iframes.first().waitFor({ state: "attached", timeout: FRAME_WAIT_MS }).catch(() => undefined);
+        count = await iframes.count().catch(() => 0);
+      }
+      if (count === 0) throw fail("was not found");
+
+      let handle: ElementHandle<Element> | null = null;
+      if (count === 1) {
+        handle = await iframes.elementHandle();
+      } else if (typeof seg.index === "number" && seg.index < count) {
+        handle = await iframes.nth(seg.index).elementHandle();
+      } else {
+        handle = await this.matchFrameByIdentity(iframes, count, seg);
+      }
+      if (!handle) throw fail("could not be uniquely identified");
+
+      try {
+        const child = await handle.contentFrame();
+        if (!child) throw fail("is not an iframe");
+        if (!(await LocatorFactory.frameIdentityMatches(handle, seg))) throw fail("identity no longer matches");
+        frame = child;
+      } finally {
+        await handle.dispose().catch(() => undefined);
+      }
+    }
+    return frame;
+  }
+
+  /** Among several `selector` matches, return the single one whose identity matches `seg`, else null. */
+  private async matchFrameByIdentity(iframes: Locator, count: number, seg: LocatorFrameContext): Promise<ElementHandle<Element> | null> {
+    if (!seg.name && !seg.title && !seg.url) return null; // nothing to disambiguate on
+    let match: ElementHandle<Element> | null = null;
+    for (let i = 0; i < Math.min(count, 20); i += 1) {
+      const handle = await iframes.nth(i).elementHandle().catch(() => null);
+      if (!handle) continue;
+      if (await LocatorFactory.frameIdentityMatches(handle, seg)) {
+        if (match) {
+          await handle.dispose().catch(() => undefined);
+          await match.dispose().catch(() => undefined);
+          return null; // two frames share the recorded identity — refuse to guess
+        }
+        match = handle;
+      } else {
+        await handle.dispose().catch(() => undefined);
+      }
+    }
+    return match;
+  }
+
+  /**
+   * Verify the iframe ELEMENT's recorded identity from the PARENT side (stable across the child frame's
+   * own navigation). `name`/`title` are authoritative when recorded; `url` (resolved src origin+pathname)
+   * is a fallback identity used only when neither is present.
+   */
+  private static async frameIdentityMatches(handle: ElementHandle<Element>, seg: LocatorFrameContext): Promise<boolean> {
+    if (!seg.name && !seg.title && !seg.url) return true;
+    const current = await handle
+      .evaluate((el) => {
+        const iframe = el as HTMLIFrameElement;
+        let url: string | undefined;
+        try {
+          const parsed = new URL(iframe.src);
+          url = parsed.origin === "null" ? undefined : parsed.origin + parsed.pathname;
+        } catch {
+          url = undefined;
+        }
+        return { name: iframe.getAttribute("name") || undefined, title: iframe.getAttribute("title") || undefined, url };
+      })
+      .catch(() => null);
+    if (!current) return false;
+    if (seg.name || seg.title) {
+      if (seg.name && current.name !== seg.name) return false;
+      if (seg.title && current.title !== seg.title) return false;
+      return true;
+    }
+    return !seg.url || current.url === seg.url;
   }
 
   /** Resolve one host strictly, then use it as the root for the next host or final target. */
