@@ -1,5 +1,31 @@
 # KNOWN_ISSUES
 
+## OPEN: a non-positional `needs-review` locator cannot be resolved in the app (`awkit-871`, 2026-08-04)
+
+A recorded step whose locator is `needs-review` is refused at preflight by `locatorNeedsReview`
+(`src/validation/FlowValidator.ts:460`), before any browser launches — correct, and deliberate. The
+problem is the exit: the Flow Designer's approval control is gated behind `isPositionalLocator(...)`
+(`app/renderer/components/workflow/FlowNodePropertiesPanel.tsx:662`), so it renders **only** for
+positional locators. A step that is `needs-review` for any other reason — an ambiguous `role + name`
+matching two or more elements, a closed shadow root, an unsupported cross-origin frame — gets no
+resolve affordance at all. The ranked alternatives are rendered read-only; nothing adopts one.
+
+**The workaround is a trap, which is what makes this worth writing down.** Editing the locator by
+hand calls `editLocator` (`FlowNodePropertiesPanel.tsx:105`), which clears `locatorQuality`. The
+visible "matches N elements" warning therefore disappears and the step *looks* repaired — but
+`resolution` is never touched, so it stays `needs-review`, preflight still refuses it, and the review
+chip never clears. Anyone debugging this will believe they fixed the step.
+
+Until `awkit-871` lands, the only supported path for such a step is to re-record it and resolve it in
+the Recorder's ambiguity dialog, which does offer select-candidate / scope-to-ancestor /
+approve-fallback / defer.
+
+**When fixing:** keep the positional refusal absolute for `dangerousMutation` / `externalCommit`
+steps, and make sure a hand-edited locator cannot end up *looking* resolved while still blocking —
+that asymmetry is the actual defect, not just the missing button.
+
+---
+
 ## RESOLVED: bare NSIS `/S` crashes in temporary `System.dll` (`awkit-9yc`, 2026-08-04)
 
 On the clean Windows 11 Hyper-V guest, the hash-verified `SpecterStudio Setup 0.1.5.exe` exited with

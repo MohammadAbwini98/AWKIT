@@ -47,10 +47,20 @@ window, so a step that never fired its handler read the previous case's value.
 quiet period 0 restores first-commit-wins; drifting a chain cap fails the guard; folding only the
 first container segment fails 10 checks including all three new combined-context cases.
 
+**Known limitation found while answering a usage question (`awkit-871`, P1, OPEN).** A step whose
+locator is `needs-review` blocks execution at preflight, but the Flow Designer can only clear that
+state for **positional** locators — the approval form is gated behind `isPositionalLocator(...)`
+(`FlowNodePropertiesPanel.tsx:662`). A step that is `needs-review` for any other reason (ambiguous
+role+name, closed shadow root, cross-origin frame) has **no resolve affordance**: the ranked
+alternatives are shown read-only with no way to adopt one. Editing the locator by hand is a trap —
+`editLocator` clears `locatorQuality`, so the "matches N elements" warning disappears and the step
+looks fixed, but `resolution` is untouched, so preflight still blocks. Until this is fixed, the only
+path for such a step is to re-record it and resolve it in the Recorder ambiguity dialog.
+
 No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
-Beads records **158 issues / 4 outstanding / 154 closed / 93 edges**; all four outstanding items are
-`blocked` on the owner (real-IdP handoff, live Oracle, packaged/clean-machine gates, OS-shell
-launches) with no engineering remaining.
+Beads records **159 issues / 5 outstanding / 154 closed / 93 edges**. `awkit-871` is the only OPEN
+item; the other four are `blocked` on the owner (real-IdP handoff, live Oracle, packaged/clean-machine
+gates, OS-shell launches) with no engineering remaining.
 
 ---
 

@@ -1,5 +1,139 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-04) — Recorder locator/popup work complete; `awkit-871` is the next engineering item
+
+- **Branch:** `main`. Working tree **clean**.
+- **Push state:** `main` is **ahead of `origin/main` by 2 commits** — `50e46bf` (bump version to
+  0.1.6) and `aefd63b` (record portable v0.1.6 manifest). **These are the owner's release commits,
+  not the coding session's**, and they were deliberately left unpushed. All coding work described
+  below is already on `origin/main` at `2790148`. Do not push without the owner's explicit
+  instruction: pushing would publish their release commits too.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged — no ledger case was touched).
+- **Tracking:** Beads **159 total / 5 outstanding / 154 closed / 93 edges**.
+
+### Completed work
+
+Two Recorder correctness defects and their review residuals, across five closed beads:
+
+- **`awkit-wmq` — nested container chains.** `LocatorContext.container` was singular, so a target
+  needing two ancestors to become unique had no representation. Added
+  `containers?: LocatorContainerContext[]` (outer→inner, max 3), with `locatorContainerChain()` as
+  the single interpretation rule and the legacy `container` read as a one-segment chain. Capture
+  walks bounded ancestors, validates each chain against the concrete clicked node, and is capped at
+  240 evaluations per capture. `LocatorFactory.buildRoot` folds each segment strictly and names the
+  failing segment index. Additive and backward compatible.
+- **`awkit-wmq` — popup/new-tab capture.** Popups are instrumented before their first recorded
+  action; `about:blank` popups get their real URL captured and back-filled into the opener; opener
+  attribution is causal rather than wall-clock; page-switch steps are inserted in both directions;
+  and every persisted URL is origin+pathname only, structurally dropping query and fragment.
+- **`awkit-f2q` — mock-site Scenario J** (`/popup/url-lifecycle.html`): about:blank-then-navigate,
+  redirect-before-interaction, in-popup pushState/hash, and same-title-different-path pairs.
+- **`awkit-45d` / `awkit-tir` / `awkit-y53` — review residuals.** Popup identity now settles past a
+  **client-side** redirect (a server 302 never commits a document, which is why the earlier coverage
+  passed while `location.replace` broke it); opener attribution can no longer be stolen by a click
+  made while registration is in flight; all recorded actions pass through one ordered pipeline;
+  a source guard ties the two container-chain caps together; and the chain is now covered inside
+  iframes, across shadow-host chains, and after a DOM reorder.
+
+### Changed files (all committed and pushed)
+
+- `src/profiles/FlowProfile.ts`, `src/runner/LocatorFactory.ts`, `src/recorder/recorderInitScript.ts`,
+  `src/recorder/RecorderService.ts`
+- `app/main/preload.ts`, `app/renderer/pages/Recorder.tsx`,
+  `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, `app/renderer/styles/global.css`
+- `mock-site/server.mjs`, `mock-site/public/popup/*` (6 new pages), `mock-site/README.md`
+- `scripts/verify-recorder-locator.mts`, `scripts/verify-recorder-ambiguity.mts`,
+  `scripts/verify-popup-mock-site.mts`, `scripts/verify-mock-site.mjs`,
+  `scripts/verify-flow-step-mapping.mts`, `scripts/verify-random-roundtrip.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`
+- `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`
+
+### Commands run, with results
+
+| Command | Result |
+|---|---|
+| `npm run build` | PASS (typecheck + 3 bundles) |
+| `npm run verify:recorder` | **206 / 0** |
+| `npm run verify:recorder-ambiguity` | **68 / 0** |
+| `npm run verify:recorder-hover` | **214 / 0** |
+| `npm run verify:recorder-draft` | **50 / 50** |
+| `npm run verify:recorder-flow` | **29 / 29** |
+| `npm run verify:recorder-redaction` | **15 PASS / 0 FAIL** |
+| `npm run verify:protected-login-recorder` | **57 / 57** |
+| `npm run verify:popup` | **12 / 12** |
+| `npm run verify:popup-identity` | **44 / 44** |
+| `npm run verify:popup-mock-site` | **15 / 15** |
+| `npm run verify:mock-site` | **114 / 114** |
+| `npm run verify:runner` | **89 / 0** |
+| `npm run verify:flow-step-mapping` | **111 / 0** |
+| `npm run test:random:roundtrip` | **27 / 0** |
+| `npm run verify:legacy-compat` | **152 / 0** |
+| `npm run verify:source-hygiene` | **9 / 0** |
+| `npm run verify:verifier-classification` | reconciled, 166 classified |
+| `npm run verify:roadmap-dashboard` | **156 / 156**, Sources agree |
+| `git diff --check` | clean |
+
+**Not run:** the packaged-EXE, clean-machine, and live-Oracle gates — all owner/environment gated.
+Nothing in this work required them, and none may be reported as passed.
+
+Mutation-tested and reverted in every case: quiet period → 0 restores first-commit-wins; drifting a
+chain cap fails the guard; folding only the first container segment fails 10 checks; disabling
+container scoping reproduces the exact `nth-child` positional fallback the feature exists to prevent.
+
+### Remaining work
+
+- **`awkit-871` (P1, OPEN) — the only actionable engineering item.** A recorded step whose locator is
+  `needs-review` blocks execution at preflight, and the Flow Designer can only clear that state for
+  **positional** locators — the approval form is gated behind `isPositionalLocator(...)`. A step that
+  is `needs-review` for any other reason (ambiguous role+name, closed shadow root, cross-origin
+  frame) has **no resolve affordance at all**: the ranked alternatives are listed read-only with no
+  way to adopt one. The obvious workaround is a trap — editing the locator clears `locatorQuality`,
+  so the "matches N elements" warning disappears and the step *looks* fixed, but `resolution` is
+  never touched, so preflight still blocks and the chip never clears. The only current path is to
+  re-record the step and resolve it in the Recorder ambiguity dialog.
+- **`awkit-cey`, `awkit-7bu`, `awkit-az7`, `awkit-cm8`** remain `blocked` on the owner — real
+  approved IdP, approved Oracle credentials/operator, and the external packaged/clean-machine gates.
+  No engineering remains in any of them.
+
+### Known risks
+
+- **Popup click attribution is causal only at page level.** `page.on("popup")` tells you *which page*
+  opened a popup; Playwright provides no causal link to *which click*. That part is time-bounded
+  (`POPUP_OPENER_LAG_MS` / `POPUP_OPENER_LOOKBACK_MS` in `RecorderService`) and is documented as such
+  in code. Do not treat it as exact.
+- **Two container-chain caps exist by necessity.** The capture script is stringified for the browser
+  and cannot import the shared constant, so `MAX_CONTAINER_CHAIN_LENGTH` and
+  `MAX_LOCATOR_CONTAINER_CHAIN` are separate literals. `verify:recorder` Part Q asserts they agree —
+  keep that guard if either is touched.
+- **Popup identity resolution costs up to ~250 ms** (quiet period) before a popup's first action is
+  recorded, bounded by a 2 s budget. This is deliberate: it is what lets a client-side redirect
+  supersede its own intermediate URL.
+- **Release state is mid-flight.** The version is bumped to 0.1.6 and the manifest re-signed locally,
+  but unpushed and not validated by the packaged/clean-machine gates.
+
+### Do not touch
+
+- Never inspect, copy, or record private release-key material, one-time recovery codes, or session
+  values. Never claim Windows publisher signing is configured.
+- Do not push `main` without explicit owner instruction while their release commits sit unpushed.
+- Do not weaken the protected-login/MFA/OTP/CAPTCHA handoff, and keep the positional refusal absolute
+  for `dangerousMutation` / `externalCommit` steps.
+- Do not hand-edit anything under `tools/roadmap/` to change a number — it is derived. The
+  non-vacuity baselines in `scripts/verify-roadmap-dashboard.mjs` are the exception and must be moved
+  deliberately whenever a bead is filed or closed, together with `bd export -o .beads/issues.jsonl`
+  (plain `bd export` writes to STDOUT and leaves the file untouched).
+
+### Recommended next step
+
+Implement **`awkit-871`**: add a *"Use this alternative"* action on each listed alternative in the
+Flow Designer's locator section (adopt it as primary, set `resolution: "resolved"`,
+`resolvedBy: "user"`, clear `reviewReason`) and a *"Mark resolved"* action for a hand-edited locator.
+Carry the state through `flowProfileMapping` / `flowStepMapping` and the validation DTO, and add a
+verifier proving a `needs-review` flow becomes runnable after adopting an alternative, stays blocked
+when it is not, and never *looks* resolved while remaining blocked.
+
+---
+
 ## HANDOFF (2026-08-04) — SET-015 complete; four external/manual items remain
 
 - **Branch:** `main`.

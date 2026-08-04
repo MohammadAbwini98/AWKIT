@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Handoff prepared; filed `awkit-871` (Designer cannot resolve needs-review)
+
+- **Task:** `/HANDOFF` — prepare the repository for the next agent or human.
+- **Finding (not a code change):** answering a usage question about clearing locator warnings
+  exposed a real product gap. A `needs-review` step blocks preflight, but the Flow Designer's
+  approval form is gated behind `isPositionalLocator(...)`, so a step that is `needs-review` for any
+  other reason has NO resolve affordance — alternatives are listed read-only. `editLocator` clears
+  `locatorQuality` but not `resolution`, so a hand-edited locator LOOKS fixed while still blocking.
+  Filed as `awkit-871` (P1) with acceptance criteria; it is now the only actionable engineering item.
+- **Files updated:** `docs/ai/HANDOFF.md` (new top section), `docs/ai/TASK_LOG.md`,
+  `docs/ai/CURRENT_STATE.md` (stale bead count corrected, limitation recorded),
+  `docs/ai/KNOWN_ISSUES.md`, `scripts/verify-roadmap-dashboard.mjs` (baselines 158→159, 4→5
+  outstanding), `.beads/issues.jsonl`.
+- **Repository state recorded:** working tree clean; `main` is **ahead of `origin/main` by 2** —
+  `50e46bf` and `aefd63b`, the OWNER's v0.1.6 release commits, deliberately left unpushed. All
+  coding work is already on `origin/main` at `2790148`.
+- **Verified:** roadmap dashboard **156/156** with Sources agree; verifier classification reconciled;
+  AI-memory check PASS; `git diff --check` clean. No product code changed, so the verifier suite was
+  not re-run beyond the roadmap/classification gates.
+- **Not done / deliberate:** did not push. Pushing would publish the owner's release commits, which
+  is theirs to decide.
+
+---
+
 ## 2026-08-04 - Claude - Recorder review residuals (`awkit-45d`, `awkit-tir`, `awkit-y53`)
 
 - **One test found three defects.** Writing a failing case for the client-side-redirect identity bug
