@@ -4,6 +4,45 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Recorder nested container chains + causal popup capture (`awkit-wmq`)
+
+- **Review first:** audited an inherited Codex implementation against the agreed plan. Core design
+  was sound (additive `containers` chain, single `locatorContainerChain()` interpretation rule,
+  causal `page.on("popup")`, registration-await in the action binding). Six defects found and fixed.
+- **Fixed:** two double-encoded `→` mojibake sequences (`LocatorFactory.ts`, `recorderInitScript.ts`);
+  an identity collision that **threw**, leaving the second popup unregistered and its actions
+  mis-tagged `main` (now falls back to arrival-order suffixes); a switch step silently **dropped**
+  whenever URL sanitisation returned nothing, replaying the next action against the wrong page (the
+  step replays via `switchToLatestTab`, so the URL is only a hint and its absence must not remove the
+  step); an unbounded combinatorial chain search inside the click handler (now 240 evaluations);
+  and the vestigial write-only `lastClickAt` field left over from the replaced correlation.
+- **Assertions corrected, not silenced:** three `verify:recorder-ambiguity` checks failed because
+  they asserted the *superseded representation* — the discriminator moved from a compound CSS
+  `locator.value` into `context.container` while replay assertions still passed. Confirmed
+  empirically that the new output is `role=button` + `testId` card container, `isUnique:true`,
+  `disambiguation:"container"` — strictly better under the project's own ranking policy. Rewrote the
+  three to assert intent across both representations and made two of them stricter.
+- **Added:** mock-site `/recorder-lab` `nested-container-scope` (two regions × two repeated cards ×
+  one `Approve` each, so no single container can satisfy it) + `verify:mock-site` ambiguity-and-
+  resolution checks + `verify:recorder-ambiguity` part `[2b]` record→replay coverage; two
+  `verify:recorder` popup regressions for the alias-collision and dropped-switch fixes.
+- **Verified:** build PASS; recorder **193/0**; ambiguity **68/0**; mock-site **114/114**; runner
+  **89/0**; hover **214/0**; recorder-flow **29/29**; recorder-draft **50/50**; flow-step-mapping
+  **111/0**; random roundtrip **27/0**; legacy-compat **152/0**; popup **12/12**; popup-identity
+  **44/44**; popup-mock-site **11/11**; redaction **15/0**; protected-login **57/57**; source-hygiene
+  **9/0**; classification reconciled; `git diff --check` clean.
+- **Mutation-tested:** restoring the collision throw aborts the run; restoring the dropped-switch
+  guard fails the new check with the click recorded and no preceding switch; disabling container
+  scoping fails 5 ambiguity checks and reproduces the exact `nth-child` positional fallback the
+  feature exists to prevent. All reverted.
+- **Not done:** four plan-listed mock-site popup fixtures remain verifier-local (inline fixtures +
+  a local HTTP server in `verify:recorder` Part P) rather than mock-site pages.
+- **Correction to my own earlier report:** `verify:recorder-locator` is not a missing verifier — the
+  npm script is `verify:recorder`, which runs `scripts/verify-recorder-locator.mts`. The round-trip
+  script is `test:random:roundtrip`, not `verify:random-roundtrip`.
+
+---
+
 ## 2026-08-04 - Codex - Executed SET-015 real runtime-folder launch (`awkit-hlp`)
 
 - **Implementation:** added a fail-closed `AWKIT_ALLOW_OS_SHELL_LAUNCH=1` path to

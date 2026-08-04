@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("153 issues parse", beads.stats.total === 153, `got ${beads.stats.total}`);
+  check("155 issues parse", beads.stats.total === 155, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -152,9 +152,12 @@ try {
   // explicit `/currentuser /S` passed the clean-VM A/B install control: 5/148 of 153. Then
   // `awkit-hlp` closed after the owner-approved SET-015 exact-path Explorer check passed:
   // 4/149 of 153, edges 93.
+  // Then 2026-08-04: `awkit-wmq` filed AND closed (Recorder nested container chains + causal popup
+  // URL/context capture), and `awkit-f2q` filed for the outstanding mock-site popup fixtures:
+  // 5/150 of 155, edges 93.
   check(
-    "4 outstanding / 149 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 149,
+    "5 outstanding / 150 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 150,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

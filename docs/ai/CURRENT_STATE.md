@@ -1,5 +1,60 @@
 # CURRENT_STATE
 
+## Recorder: nested container chains + causal popup capture (`awkit-wmq`, 2026-08-04)
+
+Two Recorder correctness defects are fixed. Both changes are **additive and backward compatible** —
+no saved flow changes meaning, and absent fields keep their legacy interpretation.
+
+**Nested container scoping.** `LocatorContext.container` was singular, so a target needing two
+ancestors to become unique had no representation. `LocatorContext.containers?: LocatorContainerContext[]`
+(outer→inner, **max 3**, `MAX_LOCATOR_CONTAINER_CHAIN`) now carries the chain, with
+`locatorContainerChain()` as the single interpretation rule (`containers` wins; else `container` is
+read as a one-segment chain). `LocatorFactory.buildRoot` folds each segment strictly and reports
+which segment index failed. Capture walks bounded ancestors (depth 16), validates every chain
+outer→inner against the concrete clicked node, and is capped at **240 chain evaluations** per capture
+so a deeply nested page cannot stall the click handler; exhausting the budget adopts no chain and
+falls through to the existing review-required path. `form` and `section` joined the container types.
+Preference order is unchanged: direct unique locator → one container → nested chain.
+
+**Popup / new-tab capture.** Five located defects fixed in `RecorderService`: (1) `addInitScript`
+only instrumented *future* documents, so an already-navigated popup's current document was never
+instrumented — registration now verifies the `__awtkitCaptureInstalled` marker and re-applies
+idempotently, and the action binding awaits the registration so an action can never be mis-tagged
+`main`; (2) the popup URL was read once synchronously, so a `window.open()` popup stayed `about:blank`
+and `popupExpectation.urlContains` was never populated — a bounded first-meaningful-navigation wait
+now yields the identity URL and back-fills the opener; (3) opener attribution used a 3 s wall clock
+instead of `page.on("popup")` — the causal opener is now primary; (4) a `pageAlias === "main"` guard
+suppressed switch steps for main→popup and popup→popup — switch steps are now inserted lazily at the
+first action on a new page in **both** directions, which is what makes them idempotent against the
+several events announcing one transition; (5) `sourcePage.url()` was written raw into the step name
+and `valueSource` — all persisted URLs are now origin+pathname only, structurally dropping query and
+fragment. Aliases derive from `derivePopupAlias` (the existing runner registry — no second registry),
+falling back to arrival order only when identity collides or is unavailable.
+
+**Mock site.** New `/recorder-lab` `nested-container-scope` scenario: two regions × two repeated
+order cards × one `Approve` button each. Neither ancestor disambiguates alone, so a single container
+provably cannot satisfy it.
+
+**Verified.** build PASS; `verify:recorder` **193/0**; `verify:recorder-ambiguity` **68/0**;
+`verify:mock-site` **114/114**; `verify:runner` **89/0**; `verify:recorder-hover` **214/0**;
+`verify:recorder-flow` **29/29**; `verify:recorder-draft` **50/50**; `verify:flow-step-mapping`
+**111/0**; `test:random:roundtrip` **27/0**; `verify:legacy-compat` **152/0**; `verify:popup` **12/12**;
+`verify:popup-identity` **44/44**; `verify:popup-mock-site` **11/11**; `verify:recorder-redaction`
+**15/0**; `verify:protected-login-recorder` **57/57**; `verify:source-hygiene` **9/0**;
+`verify:verifier-classification` reconciled. Mutation-tested: reverting the chain fold, the alias
+fallback, the switch-step insertion, and all container scoping each fails the suite.
+
+No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Beads records **155 issues / 5 outstanding / 150 closed / 93 edges** (`awkit-wmq` filed and closed;
+`awkit-f2q` filed for the outstanding mock-site popup fixtures).
+
+**Not done.** The remaining plan-listed mock-site popup fixtures (`about:blank`-then-navigate,
+redirect-before-interaction, popup `pushState`/hash, same-title tabs) are covered by verifier-local
+fixtures and a local HTTP server inside `verify:recorder` Part P, not by mock-site pages. Tracked
+separately — see `awkit-wmq` follow-up.
+
+---
+
 ## SET-015 real runtime-folder launch passed; `awkit-hlp` closed (2026-08-04)
 
 The Settings E2E gate now has an explicit, fail-closed OS-shell opt-in:
