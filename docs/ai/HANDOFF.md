@@ -1,5 +1,60 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-05) — Epic `awkit-65g` closed AND its follow-ups reviewed + hardened; `origin/main` fresh-clone verified
+
+- **Branch:** `main`, working tree clean, **in sync with `origin/main`** at **`d6917cf`**. Nothing is
+  outstanding for this line of work.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged). **Beads:** **162 / 4 outstanding /
+  158 closed / 93 edges** — the 4 outstanding are the owner-gated items (`awkit-cey`/`awkit-7bu`/`awkit-az7`/
+  `awkit-cm8`); the whole `awkit-65g` epic (incl. `awkit-3zf`, `awkit-y1p`) and `awkit-871` are closed.
+
+### Since the epic completed (C2), three follow-ups landed and were reviewed
+
+A second agent (Antigravity/Gemini) added a diff-level security review, extended guarded-positional to
+non-click controls via a `labelContent` precondition, and a CDP fallback for pre-instrumentation closed
+roots. That work was **reviewed and hardened** and pushed as `5996ed5` (+ doc fix `d6917cf`):
+
+- **CDP fallback gated** (`LocatorFactory.resolveClosedShadow`/`attemptCdpFallback`): a 1 s grace period lets
+  the bridge resolve first, so the normal case + transient timing never spawn a CDP session; walk capped at 50.
+- **Resolver write-path made additive-only** (`closedShadowBridge.ts`): a token holder can register a root for
+  an un-instrumented host but can never overwrite/hijack a legitimately instrumented one.
+- **`label[for="…"]` selector escaped** in capture and runtime (was injection-prone).
+- **Latent guard bug fixed** (surfaced by the new guarded-FILL test): the fuzzy `similarity()` scored a bare
+  input's identical fingerprint at 0.72 (< 0.9) → false-abort. `fingerprintsEqual` now backs
+  `confidence: "exact"` (identity fields must be unchanged; ancestry not compared). Click guard unaffected.
+- Security review extended to actually cover the CDP fallback (§7) + write-path (§8).
+
+### Verification (all green; ran the gates the follow-up had skipped)
+
+build clean; `verify:locator-guard` **33/0** (new guarded-FILL section, MUTATION-TESTED `fingerprintsEqual`
+AND the labelContent precondition — independent second check); `verify:closed-shadow` 23/0; `verify:recorder`
+206/0; `verify:runner` 89/0; `verify:frame-chain` 25/0; `verify:recorder-ambiguity` 69/0;
+`test:random:roundtrip` 27/0; `verify:flow-step-mapping` 111/0; `verify:source-hygiene` 9/0;
+`verify:roadmap-dashboard` 156/156 (Sources agree).
+
+**`origin/main` fresh-clone verified (2026-08-05):** a clean `git clone` of `origin/main` is at `d6917cf`
+with a clean working tree; `npm ci` (lockfile in sync) + `npm run build` pass, and `verify:locator-guard`
+33/0 + `verify:closed-shadow` 23/0 run green from the pristine checkout — so the pushed source/tests are
+self-contained. (Windows note: deep clone paths need `git config --global core.longpaths true` to check out.)
+
+### Recommended (non-blocking) follow-ups
+
+- The `labelContent` precondition largely overlaps the fingerprint's accessible name for labeled controls, so
+  its marginal value is small — consider dropping it if it ever causes churn; the substantive wins are
+  guarded-FILL support and the `fingerprintsEqual` correctness fix.
+- The CDP *success* path (registering a genuinely pre-instrumentation root) is best-effort and hard to
+  reproduce deterministically, so it has limited automated coverage (the fail-closed path IS covered).
+- Guarded-positional + instrumented-shadow are exercised for click and fill; extend other actions if needed.
+
+### Do not touch / invariants (unchanged)
+
+- The closed-shadow bridge must NEVER automate CAPTCHA/MFA/OTP/passkey/protected-login/anti-bot — the
+  protected-login detector takes precedence. Do not force `mode:"open"`. Keep the bare-positional refusal for
+  dangerous/externalCommit absolute (only a runtime identity guard admits one). In-page `evaluate` bodies must
+  avoid named inner functions (esbuild `__name` gotcha).
+
+---
+
 ## HANDOFF (2026-08-04) — Epic `awkit-65g` COMPLETE: guaranteed-unique locators (0/A/B), frame-chain (C1), closed-shadow (C2)
 
 - **Branch:** `main`, working tree clean. **All epic commits are on `origin/main`.** The owner directive —
