@@ -32,9 +32,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   `fingerprintsEqual` (breaks [8]) and the labelContent precondition (independently aborts [9], defense in
   depth)); `verify:closed-shadow` 23/0; `verify:recorder` 206/0; `verify:runner` 89/0; `verify:frame-chain`
   25/0; `verify:recorder-ambiguity` 69/0; `test:random:roundtrip` 27/0; `verify:flow-step-mapping` 111/0.
-- **Not done / deliberate:** did not commit or push — leaving the changes staged for owner review (the labelContent
-  precondition overlaps the fingerprint's accessible-name for labeled controls, so its marginal value is small;
-  the guarded-FILL support and the `fingerprintsEqual` fix are the substantive wins).
+- **Committed + pushed** to `origin/main` (`5996ed5`) on the owner's instruction. Caveat kept for the record:
+  the labelContent precondition overlaps the fingerprint's accessible-name for labeled controls, so its marginal
+  value is small; the guarded-FILL support and the `fingerprintsEqual` fix are the substantive wins.
 
 ---
 

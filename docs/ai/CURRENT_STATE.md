@@ -26,8 +26,7 @@ were then implemented, **reviewed and hardened** (gate the CDP fallback behind a
 resolver write-path additive-only, escape the label selector), and a strict `fingerprintsEqual` identity check
 replaced the fuzzy score that false-aborted bare inputs. Verified by the feature gates (`verify:locator-guard`
 33/0 incl. a mutation-tested guarded-FILL case, `verify:closed-shadow` 23/0, `verify:recorder` 206/0,
-`verify:runner` 89/0, no regressions). **Uncommitted in the working tree** pending review sign-off — not yet
-committed or pushed.
+`verify:runner` 89/0, no regressions). Committed and pushed to `origin/main` (`5996ed5`).
 
 **Verified.** build PASS; new `verify:closed-shadow` **23/0** — MUTATION-TESTED the token gate. No
 regressions: `verify:recorder` 206/0, `verify:runner` 89/0, `verify:recorder-ambiguity` 69/0,
