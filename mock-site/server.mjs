@@ -260,6 +260,8 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && path === "/iframe-nested") return serveStatic(res, "iframe-nested.html");
   if (req.method === "GET" && path === "/iframe-nested-mid") return serveStatic(res, "iframe-nested-mid.html");
   if (req.method === "GET" && path === "/iframe-nested-leaf") return serveStatic(res, "iframe-nested-leaf.html");
+  // Instrumented closed-shadow feature lab (Phase C2).
+  if (req.method === "GET" && path === "/closed-shadow-lab") return serveStatic(res, "closed-shadow-lab.html");
 
   // ── REC-018 record → save → replay oracle ─────────────────────────────────
   // Local, in-memory and resettable. It records only the deterministic synthetic Recorder-lab

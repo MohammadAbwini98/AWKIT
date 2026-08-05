@@ -907,7 +907,8 @@ async function main() {
     check("shadow ambiguous host: static preflight blocks", !!step && hasActivePathError(report) && executionBlockingErrorsOf(report).some((issue) => issue.code === "locatorNeedsReview"), JSON.stringify(executionBlockingErrorsOf(report)));
   }
 
-  // F8. Closed roots expose only their host classification and block before any launch/action.
+  // F8. Closed roots are captured as an instrumented host-chain locator (C2), resolved via the runtime
+  //     bridge, while persisting no internal name/text and preserving native attachShadow behaviour.
   {
     const html = `<x-shadow-closed data-testid="closed-host"></x-shadow-closed><script>
       if (!customElements.get('x-shadow-closed')) customElements.define('x-shadow-closed', class extends HTMLElement {
@@ -920,14 +921,17 @@ async function main() {
     const report = validateFlowDefinition(flow);
     let guardedLaunches = 0;
     if (!hasActivePathError(report)) guardedLaunches += 1;
-    check("shadow closed: boundary is known closed and review-required", action?.locator?.context?.shadow?.boundary === "closed" && action.locator.resolution === "needs-review" && action.locator.reviewReason === "closed shadow root", serialized);
+    // C2: a closed-shadow target is now captured as an INSTRUMENTED locator (host chain + target CSS) and
+    // resolved via the runtime bridge — no longer review-required. It still persists NO internal name/text
+    // (privacy), and the full replay + host-substitution refusal is gated by verify:closed-shadow.
+    check("shadow closed: boundary is closed, instrumented, and resolved", action?.locator?.context?.shadow?.boundary === "closed" && action?.locator?.context?.shadow?.instrumented === true && action?.locator?.resolution === "resolved", serialized);
     check("shadow closed: persisted data exposes no internal node/name", !serialized.includes("Closed secret control") && !serialized.includes("triggerInternal"), serialized);
-    check("shadow closed: static preflight names the reason", executionBlockingErrorsOf(report).some((issue) => issue.code === "locatorNeedsReview" && /closed shadow root/.test(issue.message)), JSON.stringify(executionBlockingErrorsOf(report)));
-    check("shadow closed: instrumented preflight launch count stays zero", guardedLaunches === 0, String(guardedLaunches));
+    check("shadow closed: preflight admits the instrumented flow", !hasActivePathError(report), JSON.stringify(executionBlockingErrorsOf(report)));
+    check("shadow closed: the instrumented step is runnable (preflight passes)", guardedLaunches === 1, String(guardedLaunches));
     const step = flow.nodes.find((node) => node.type === "click");
     let directError = "";
     try { if (step) await new LocatorFactory(page).resolve(step); } catch (error) { directError = String(error); }
-    check("shadow closed: LocatorFactory refuses host substitution", /closed shadow boundary requires review/.test(directError), directError);
+    check("shadow closed: LocatorFactory resolves the instrumented locator (no review throw)", directError === "", directError);
 
     const behavior = await page.evaluate(() => {
       const openHost = document.createElement("div"); document.body.appendChild(openHost);

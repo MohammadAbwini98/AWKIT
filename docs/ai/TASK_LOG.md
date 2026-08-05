@@ -4,6 +4,41 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-04 - Claude - Instrumented closed-shadow resolver; epic `awkit-65g` COMPLETE (Phase C2 / `awkit-3zf`)
+
+- **Task:** C2 — replay an interaction whose target lives inside a CLOSED shadow root (which Playwright's
+  built-in engines cannot pierce) instead of leaving it review-required. Preceded by a design-level
+  `/security-review` (`docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md`).
+- **Capture** (`recorderInitScript`): the `attachShadow` wrap now installs the recorder's capture handlers
+  INSIDE each closed root (a closed root retargets composedPath for outside listeners, so window never sees
+  the internal target); the handler skips a target that is itself a closed host, so only the innermost
+  listener records. `captureClosedShadowChain` builds a CSS host chain + target (unique within each root) and
+  marks the locator `instrumented`/`resolved`, persisting NO internal accessible name/text.
+- **Runtime** (`src/runner/closedShadowBridge.ts`, new): an `addInitScript` wraps `attachShadow` (mode
+  preserved) and retains closed roots in a CLOSURE WeakMap behind a per-process **token-gated resolver**
+  (`Symbol.for("awtkit-cs-fn-"+token)`); a Playwright **custom selector engine** walks the host chain
+  (`host.shadowRoot` for open, the resolver for closed) and returns the target as a normal auto-waiting
+  Locator — so `LocatorFactory.resolveClosedShadow` needs no StepExecutor changes. `PlaywrightRunner`
+  installs the bridge once per run context, before the first page.
+- **Files:** `src/recorder/recorderInitScript.ts`, `src/runner/closedShadowBridge.ts` (new),
+  `src/runner/LocatorFactory.ts`, `src/runner/PlaywrightRunner.ts`, `src/profiles/FlowProfile.ts`
+  (schema from Phase 0), `scripts/verify-closed-shadow.mts` (new), `scripts/verify-recorder-locator.mts`
+  (F8 updated to the C2 policy), `scripts/lib/verifier-classification.ts`, `package.json`,
+  `mock-site/server.mjs`, `mock-site/public/closed-shadow-lab.html` (new), `mock-site/README.md`,
+  `docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md` (new).
+- **Verified:** build; new `verify:closed-shadow` **23/0** (single/nested/mixed roots replay; fail-closed
+  without the bridge or on a changed host/target — no side effect; mode not forced open; no internal name
+  persisted; roots unreachable without the secret token; mock-site fixture) — MUTATION-TESTED the token gate
+  (disabling it fails only the wrong-token privacy assertion). No regressions: `verify:recorder` 206/0,
+  `verify:runner` 89/0, `verify:recorder-ambiguity` 69/0, `verify:locator-guard` 25/0, `verify:frame-chain`
+  25/0, `verify:mock-site` 114/114, `verify:legacy-compat` 152/0, `verify:flow-step-mapping` 111/0,
+  `test:random:roundtrip` 27/0, `verify:source-hygiene` 9/0, classification reconciled.
+- **Epic COMPLETE + pushed.** `awkit-3zf`, `awkit-871` (superseded), and epic `awkit-65g` closed. Ledger
+  unchanged: **63 PASS / 2 NOT RUN / 1 BLOCKED**. Beads **162 / 4 outstanding / 158 closed / 93 edges** (the
+  4 outstanding are owner-gated). A diff-level `/security-review` of the closed-shadow bridge is recommended.
+
+---
+
 ## 2026-08-04 - Claude - Cross-origin frame-chain resolver (epic `awkit-65g` Phase C1 / `awkit-y1p`)
 
 - **Task:** C1 of the guaranteed-unique-locator epic — resolve a target inside one or more iframes

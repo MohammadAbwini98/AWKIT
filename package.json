@@ -112,6 +112,7 @@
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
     "verify:locator-guard": "tsx scripts/verify-locator-guard.mts",
     "verify:frame-chain": "tsx scripts/verify-frame-chain.mts",
+    "verify:closed-shadow": "tsx scripts/verify-closed-shadow.mts",
     "verify:recorder-e2e": "node scripts/verify-recorder-e2e.mjs",
     "verify:waits": "tsx scripts/verify-waits.mts",
     "verify:async-review": "tsx scripts/verify-async-review.mts",

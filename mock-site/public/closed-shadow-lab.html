@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Closed Shadow Lab - instrumented closed-shadow locators</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Closed Shadow Lab</h1>
+      <p>
+        A web component that mounts its control inside a <strong>closed</strong> shadow root
+        (<code>data-testid="secret-widget"</code>). Playwright's built-in engines cannot pierce a closed
+        root; the recorder captures an instrumented host-chain locator (Phase C2) and the runner replays
+        it via the closed-shadow bridge. The internal accessible name is deliberately not persisted. The
+        nested / mixed / identity-change cases are covered by <code>npm run verify:closed-shadow</code>.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+
+      <section data-testid="closed-shadow-section">
+        <h2>Closed component</h2>
+        <x-secret-widget data-testid="secret-widget"></x-secret-widget>
+        <p>Result (posted from inside the closed root): <output data-testid="cs-result">idle</output></p>
+      </section>
+    </main>
+
+    <script>
+      if (!customElements.get("x-secret-widget")) {
+        customElements.define(
+          "x-secret-widget",
+          class extends HTMLElement {
+            connectedCallback() {
+              if (this.__ready) return;
+              this.__ready = true;
+              this.style.cssText = "display:block;width:240px;height:56px";
+              const root = this.attachShadow({ mode: "closed" });
+              root.innerHTML = '<button id="apply" style="width:100%;height:100%">Apply setting</button>';
+              root.getElementById("apply").addEventListener("click", function () {
+                try { window.top.postMessage({ csLab: "applied" }, "*"); } catch (e) {}
+              });
+            }
+          }
+        );
+      }
+      window.__csLab = "";
+      window.addEventListener("message", function (event) {
+        if (event.data && event.data.csLab) {
+          window.__csLab = event.data.csLab;
+          document.querySelector('[data-testid="cs-result"]').textContent = event.data.csLab;
+        }
+      });
+    </script>
+  </body>
+</html>

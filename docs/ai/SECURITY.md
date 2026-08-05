@@ -40,6 +40,13 @@
   tokens/success or transfers UI cookies into the automation browser. Detection/handoff surface only the
   URL/provider/reason — never cookies/tokens/localStorage/session contents. See
   `docs/PROTECTED_LOGIN_HANDOFF.md`.
+- **Closed-shadow bridge** (`src/runner/closedShadowBridge.ts`, epic `awkit-65g` C2): a runtime
+  `addInitScript` wraps `attachShadow` (mode preserved, never forced open) and retains closed roots in a
+  closure WeakMap behind a per-process token-gated resolver, so the runner can replay an interaction inside a
+  closed shadow root. It exposes no accessor to workflow expressions / IPC / renderer, persists no internal
+  accessible name, and **must never be used to automate CAPTCHA / MFA / OTP / passkeys / device approval /
+  protected-login / bot-detection** — the protected-login detector above takes precedence. Design review:
+  `docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md`; gate: `verify:closed-shadow`.
 
 ## Offline / network safety
 - Production offline mode must not execute remote scripts, load remote renderer code, fetch CDN

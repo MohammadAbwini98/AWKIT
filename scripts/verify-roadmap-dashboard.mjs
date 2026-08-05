@@ -169,9 +169,13 @@ try {
   // TASK_LOG, not as separate beads.
   // Then `awkit-y1p` (C1) closed once the cross-origin frame-chain resolver landed (main @ 8fc9d32,
   // verify:frame-chain 25/0): 7/155 of 162, edges 93. `awkit-3zf` (C2) remains OPEN.
+  // Then the epic completed: `awkit-3zf` (C2 instrumented closed-shadow, verify:closed-shadow 23/0),
+  // `awkit-871` (superseded — no non-positional needs-review reaches the designer) and the parent epic
+  // `awkit-65g` all closed: 4/158 of 162, edges 93. The 4 outstanding are the owner-gated items
+  // (`awkit-cey`/`awkit-7bu`/`awkit-az7`/`awkit-cm8`).
   check(
-    "7 outstanding / 155 closed",
-    beads.stats.outstanding === 7 && beads.stats.closed === 155,
+    "4 outstanding / 158 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 158,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

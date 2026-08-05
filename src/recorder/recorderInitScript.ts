@@ -28,11 +28,22 @@ export function installRecorderCapture(): void {
   // drained, and holding a root that already exists on the page adds no new retention.
   const queuedShadowRoots: ShadowRoot[] = [];
   w.__awtkitPendingShadowRoots = queuedShadowRoots;
+  // Closed roots retarget composedPath for outside listeners, so the recorder must attach its capture
+  // handlers INSIDE each closed root to observe internal interactions (Phase C2). Roots created before
+  // the handlers exist are queued and drained once `installClosedRootCapture` is assigned during setup.
+  // The wrap never changes the requested `mode`.
+  const closedRootsPendingCapture: ShadowRoot[] = [];
+  let installClosedRootCapture: ((root: ShadowRoot) => void) | null = null;
   const nativeAttachShadow = Element.prototype.attachShadow;
   Element.prototype.attachShadow = function (init: ShadowRootInit): ShadowRoot {
     const root = nativeAttachShadow.call(this, init);
-    if (init?.mode === "closed") closedShadowHosts.add(this);
-    else if (queuedShadowRoots.length < 256) queuedShadowRoots.push(root);
+    if (init?.mode === "closed") {
+      closedShadowHosts.add(this);
+      if (installClosedRootCapture) installClosedRootCapture(root);
+      else if (closedRootsPendingCapture.length < 256) closedRootsPendingCapture.push(root);
+    } else if (queuedShadowRoots.length < 256) {
+      queuedShadowRoots.push(root);
+    }
     return root;
   };
 
@@ -1285,10 +1296,116 @@ export function installRecorderCapture(): void {
     };
   };
 
+  // ── Instrumented closed-shadow capture (Phase C2) ─────────────────────────────────────────────
+  // A CSS selector unique WITHIN one root (document or a shadow root) — what the runtime closed-shadow
+  // engine needs to query inside a retained closed root (getBy*/role are not CSS-queryable there).
+  const cssUniqueIn = (el: Element, root: ParentNode): string | null => {
+    const qn = (sel: string): number => {
+      try {
+        return (root as unknown as { querySelectorAll: (s: string) => ArrayLike<Element> }).querySelectorAll(sel).length;
+      } catch {
+        return 999;
+      }
+    };
+    const local = localSelectorFor(el, 3, 3);
+    if (local && qn(local) === 1) return local;
+    let chain = local || tagOf(el);
+    let node: Element | null = el.parentElement;
+    let depth = 0;
+    while (node && node.nodeType === 1 && depth < 12) {
+      const anc = localSelectorFor(node, 1, 1);
+      if (anc) {
+        const candidate = anc + " " + chain;
+        if (qn(candidate) < qn(chain)) {
+          chain = candidate;
+          if (qn(chain) === 1) return chain;
+        }
+      }
+      node = node.parentElement;
+      depth += 1;
+    }
+    // Structural nth-child path, scoped to the root (parentElement is null at the shadow boundary).
+    const parts: string[] = [];
+    let n: Element | null = el;
+    depth = 0;
+    while (n && n.nodeType === 1 && depth < 20) {
+      const parentEl: Element | null = n.parentElement;
+      let seg = tagOf(n);
+      if (parentEl) {
+        const idx = Array.prototype.slice.call(parentEl.children).indexOf(n);
+        if (idx >= 0) seg += ":nth-child(" + (idx + 1) + ")";
+      }
+      parts.unshift(seg);
+      if (qn(parts.join(" > ")) === 1) return parts.join(" > ");
+      if (!parentEl) break;
+      n = parentEl;
+      depth += 1;
+    }
+    const full = parts.join(" > ");
+    return qn(full) === 1 ? full : null;
+  };
+
+  // Build an instrumented closed-shadow context when the target lives inside a CLOSED root. Walk the
+  // boundary chain via getRootNode()/host (composedPath keeps these reachable across closed roots) and
+  // build a CSS selector unique within each parent root plus the target. Returns null when any host or
+  // the target is not CSS-addressable (→ the caller falls back to review), or when no closed root is present.
+  const captureClosedShadowChain = (target: Element): Record<string, unknown> | null => {
+    const boundaries: Array<{ root: ShadowRoot; host: Element; mode: string }> = [];
+    let node: Node = target;
+    let depth = 0;
+    while (depth < 8) {
+      const root = node.getRootNode();
+      if (!(root instanceof ShadowRoot)) break;
+      boundaries.push({ root, host: root.host, mode: root.mode });
+      node = root.host;
+      depth += 1;
+    }
+    if (!boundaries.length || !boundaries.some((b) => b.mode === "closed")) return null;
+    const outerToInner = boundaries.slice().reverse();
+    const hosts: Array<Record<string, unknown>> = [];
+    for (let i = 0; i < outerToInner.length; i += 1) {
+      const css = cssUniqueIn(outerToInner[i].host, outerToInner[i].host.getRootNode() as ParentNode);
+      if (!css) return null;
+      hosts.push({ strategy: "css", value: css });
+    }
+    const targetCss = cssUniqueIn(target, boundaries[0].root);
+    if (!targetCss) return null;
+    return { boundary: "closed", instrumented: true, hosts, target: { strategy: "css", value: targetCss } };
+  };
+
   const generateForEvent = (event: Event, interactive: boolean): { target: Element; generated: ReturnType<typeof generate>; shadow: ShadowCapture } | null => {
     const raw = firstPathElement(event);
     if (!raw) return null;
     const target = interactive ? interactiveTarget(raw) : raw;
+
+    // Instrumented closed shadow: the target lives inside a closed root the runtime bridge can reach.
+    const closedShadow = captureClosedShadowChain(target);
+    if (closedShadow) {
+      const generated = generate(target, { allowPositional: false, includeContext: false });
+      const existingContext = (generated.locator.context as Record<string, unknown> | undefined) ?? {};
+      generated.locator.context = { ...existingContext, shadow: closedShadow };
+      generated.locator.strategy = "css";
+      generated.locator.value = String((closedShadow.target as { value: string }).value);
+      delete (generated.locator as Record<string, unknown>).name;
+      delete (generated.locator as Record<string, unknown>).exact;
+      // Drop the throwaway generate()'s ranked alternatives: they carry the internal accessible name/text
+      // (privacy — a closed root's content is not persisted), and the engine host-chain is the resolution.
+      delete (generated.locator as Record<string, unknown>).alternatives;
+      // The throwaway generate() could not see into the closed root, so it left a "fallback" strategy;
+      // the real locator is the instrumented-shadow chain, which is neither positional nor a fallback.
+      generated.quality.strategy = "css";
+      generated.quality.isUnique = true;
+      generated.quality.matchCount = 1;
+      generated.quality.disambiguation = "shadow";
+      generated.quality.warning = undefined;
+      generated.locator.resolution = "resolved";
+      generated.locator.resolvedBy = "recorder";
+      // Do not surface the closed root's internal accessible name in the step name (privacy — a closed
+      // root's content is intentionally encapsulated); the step is labelled by the target's tag instead.
+      generated.accessibleName = "";
+      return { target, generated, shadow: { boundary: "closed", hosts: closedShadow.hosts as Array<Record<string, unknown>>, valid: true } };
+    }
+
     const targetRoot = target.getRootNode();
     const isOpenInternal = targetRoot instanceof ShadowRoot && targetRoot.mode === "open";
     const generated = generate(target, { allowPositional: !isOpenInternal && !closedShadowHosts.has(raw) });
@@ -2436,59 +2553,79 @@ export function installRecorderCapture(): void {
     return interaction;
   };
 
-  window.addEventListener(
-    "click",
-    (event) => {
-      const captured = generateForEvent(event, true);
-      if (!captured) return;
-      const { target, generated: g, shadow } = captured;
-      const tag = tagOf(target);
-      // Selects/textareas and interactive inputs are recorded by the 'change' handler.
-      if (tag === "select" || tag === "textarea") return;
-      if (tag === "input") {
-        const type = ((target as HTMLInputElement).type || "text").toLowerCase();
-        if (["checkbox", "radio", "text", "password", "email", "search", "tel", "url", "number", "date"].indexOf(type) >= 0) return;
-      }
-      const label = g.accessibleName || tag || "element";
-      const interaction = captureInteraction(event, target, g, shadow);
-      record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction } });
-    },
-    true
-  );
+  // A closed shadow root retargets composedPath for outside listeners, so the window listener never sees
+  // the internal target. The `attachShadow` wrap installs these SAME capture handlers INSIDE each closed
+  // root; the handler ignores a target that is itself a closed host (a retargeted internal click, or the
+  // outer boundary of a nested closed chain), so only the innermost listener — which sees the true target
+  // — records. (A direct click on a closed-shadow host is intentionally not recorded.)
+  const insideClosedHostRetarget = (event: Event): boolean => {
+    const raw = firstPathElement(event);
+    return !!raw && closedShadowHosts.has(raw);
+  };
 
-  window.addEventListener(
-    "change",
-    (event) => {
-      const captured = generateForEvent(event, false);
-      if (!captured) return;
-      const { target, generated: g, shadow } = captured;
-      const tag = tagOf(target);
-      if (tag !== "input" && tag !== "select" && tag !== "textarea") return;
+  const onClickCapture = (event: Event): void => {
+    if (insideClosedHostRetarget(event)) return;
+    const captured = generateForEvent(event, true);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const tag = tagOf(target);
+    // Selects/textareas and interactive inputs are recorded by the 'change' handler.
+    if (tag === "select" || tag === "textarea") return;
+    if (tag === "input") {
+      const type = ((target as HTMLInputElement).type || "text").toLowerCase();
+      if (["checkbox", "radio", "text", "password", "email", "search", "tel", "url", "number", "date"].indexOf(type) >= 0) return;
+    }
+    const label = g.accessibleName || tag || "element";
+    const interaction = captureInteraction(event, target, g, shadow);
+    record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction } });
+  };
+  window.addEventListener("click", onClickCapture, true);
 
-      const label = g.accessibleName || (target as HTMLInputElement).name || tag;
-      const interaction = captureInteraction(event, target, g, shadow);
-      const locator = { ...g.locator, interaction };
+  const onChangeCapture = (event: Event): void => {
+    if (insideClosedHostRetarget(event)) return;
+    const captured = generateForEvent(event, false);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const tag = tagOf(target);
+    if (tag !== "input" && tag !== "select" && tag !== "textarea") return;
 
-      if (tag === "input") {
-        const input = target as HTMLInputElement;
-        const type = (input.type || "text").toLowerCase();
-        if (type === "checkbox") {
-          record({ type: input.checked ? "check" : "uncheck", name: (input.checked ? "Check " : "Uncheck ") + label, locator });
-        } else if (type === "radio") {
-          if (input.checked) record({ type: "radio", name: "Select " + label, locator });
-        } else {
-          // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
-          const value = shouldRedactValue(input, type) ? "" : input.value;
-          record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });
-        }
-      } else if (tag === "select") {
-        record({ type: "select", name: "Select " + label, locator, valueSource: { type: "static", value: (target as HTMLSelectElement).value } });
+    const label = g.accessibleName || (target as HTMLInputElement).name || tag;
+    const interaction = captureInteraction(event, target, g, shadow);
+    const locator = { ...g.locator, interaction };
+
+    if (tag === "input") {
+      const input = target as HTMLInputElement;
+      const type = (input.type || "text").toLowerCase();
+      if (type === "checkbox") {
+        record({ type: input.checked ? "check" : "uncheck", name: (input.checked ? "Check " : "Uncheck ") + label, locator });
+      } else if (type === "radio") {
+        if (input.checked) record({ type: "radio", name: "Select " + label, locator });
       } else {
-        record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value: (target as HTMLTextAreaElement).value } });
+        // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
+        const value = shouldRedactValue(input, type) ? "" : input.value;
+        record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });
       }
-    },
-    true
-  );
+    } else if (tag === "select") {
+      record({ type: "select", name: "Select " + label, locator, valueSource: { type: "static", value: (target as HTMLSelectElement).value } });
+    } else {
+      record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value: (target as HTMLTextAreaElement).value } });
+    }
+  };
+  window.addEventListener("change", onChangeCapture, true);
+
+  // Now that the handlers exist, teach the `attachShadow` wrap to install them inside each closed root,
+  // and drain any closed roots created before this point. This is what lets the recorder observe an
+  // interaction inside a closed shadow root (Phase C2); the wrap never changes the requested mode.
+  installClosedRootCapture = (root: ShadowRoot): void => {
+    try {
+      root.addEventListener("click", onClickCapture, true);
+      root.addEventListener("change", onChangeCapture, true);
+    } catch {
+      /* detached/invalid root — ignore */
+    }
+  };
+  for (let index = 0; index < closedRootsPendingCapture.length; index += 1) installClosedRootCapture(closedRootsPendingCapture[index]);
+  closedRootsPendingCapture.length = 0;
 
   // Live text capture. The 'change' handler above only fires when a field loses focus, so text
   // typed into a field that never blurs (e.g. the user stops recording while still focused, or a

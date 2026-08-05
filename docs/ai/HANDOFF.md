@@ -1,5 +1,48 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-04) — Epic `awkit-65g` COMPLETE: guaranteed-unique locators (0/A/B), frame-chain (C1), closed-shadow (C2)
+
+- **Branch:** `main`, working tree clean. **All epic commits are on `origin/main`.** The owner directive —
+  "recorder builds nested selectors until unique; no un-unique fixes or alternatives" — is fully delivered:
+  every light-DOM / open-shadow / cross-origin-frame / closed-shadow target now auto-resolves.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged). **Beads:** **162 / 4 outstanding /
+  158 closed / 93 edges** — the 4 outstanding are the owner-gated items (`awkit-cey`/`awkit-7bu`/`awkit-az7`/
+  `awkit-cm8`); `awkit-3zf`, `awkit-871`, and the epic `awkit-65g` are closed.
+
+### What the epic delivered
+
+- **0/A/B** — schema + shared fingerprint; recorder adopts a unique positional last-resort as `resolved`
+  (no review/alternatives/approval); a SENSITIVE positional gets a guarded-positional locator re-verified at
+  replay (`SENSITIVE_TARGET_IDENTITY_CHANGED`).
+- **C1** — cross-origin/nested iframe targets capture an ordered `frameChain` (Playwright Frame graph) and
+  replay through `resolveFrameChain` with per-segment identity (`FRAME_IDENTITY_CHANGED`).
+- **C2** — closed-shadow targets: the recorder captures inside the closed root and persists an instrumented
+  CSS host chain; the runner's `closedShadowBridge` (attachShadow wrap → closure WeakMap behind a per-process
+  token-gated resolver) + a custom selector engine resolve it as a normal Locator. `PlaywrightRunner` installs
+  the bridge per run context. Security review: `docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md`.
+
+### Gates (all green, mutation-tested)
+
+`verify:locator-guard` 25/0, `verify:frame-chain` 25/0, `verify:closed-shadow` 23/0, plus `verify:recorder`
+206/0, `verify:runner` 89/0, `verify:recorder-ambiguity` 69/0, `verify:mock-site` 114/114,
+`verify:legacy-compat` 152/0, mapping/roundtrip/source-hygiene green, roadmap "Sources agree".
+
+### Recommended follow-ups (not blocking)
+
+- A diff-level `/security-review` of `closedShadowBridge.ts` + the recorder closed-root capture.
+- Guarded-positional & instrumented-shadow currently focus the CLICK path; extend other actions if needed.
+- CDP `DOM.getDocument({pierce:true})` fallback for closed roots created before instrumentation is scoped as
+  an investigation, not implemented — such roots return a deterministic unsupported/fail-closed result.
+
+### Do not touch / invariants
+
+- The closed-shadow bridge must NEVER be used to automate CAPTCHA/MFA/OTP/passkey/protected-login/anti-bot —
+  the protected-login detector takes precedence. Do not force `mode:"open"`. Keep the bare-positional refusal
+  for dangerous/externalCommit absolute (only a runtime identity guard admits one). In-page `evaluate` bodies
+  must avoid named inner functions (esbuild `__name` gotcha).
+
+---
+
 ## HANDOFF (2026-08-04) — Frame-chain resolver shipped (epic `awkit-65g` Phase C1 done; only C2 remains)
 
 - **Branch:** `main`, working tree clean. **Commits pushed to `origin/main`:** `8fc9d32` (C1 code); the

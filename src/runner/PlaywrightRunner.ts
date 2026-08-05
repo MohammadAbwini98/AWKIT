@@ -7,6 +7,7 @@ import { BrowserContextFactory, type BrowserContextFactoryOptions, type BrowserR
 import { FlowExecutor } from "./FlowExecutor";
 import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
+import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
 import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
@@ -124,6 +125,8 @@ export class PlaywrightRunner {
   private readonly locatorRecoveryStore?: LocatorRecoveryStore;
   /** Per-run failure-trace capture; armed only when the context provides a traces dir. */
   private traceService?: TraceService;
+  /** Contexts already given the closed-shadow bridge init script (install once per context). */
+  private readonly closedShadowInstrumentedContexts = new WeakSet<BrowserContext>();
 
   constructor(private readonly options: PlaywrightRunnerOptions) {
     this.flows = new Map(options.flows.map((flow) => [flow.id, flow]));
@@ -152,6 +155,13 @@ export class PlaywrightRunner {
     const logger = new MemoryRunnerLogger();
     let browserGeneration = 1;
     const runtime = await this.browserContextFactory.create(instanceConfig, context);
+    // Install the closed-shadow bridge before any page is created, so `attachShadow` is wrapped before
+    // app scripts run and closed roots become resolvable by the custom selector engine (Phase C2). It is
+    // idempotent in-page (an INSTALLED symbol), and only added once per context. Never forces `mode:open`.
+    if (!this.closedShadowInstrumentedContexts.has(runtime.context)) {
+      this.closedShadowInstrumentedContexts.add(runtime.context);
+      await runtime.context.addInitScript({ content: closedShadowBridgeScript() }).catch(() => undefined);
+    }
     // Mutable holder so Auto Secure Login can close/relaunch the automation browser mid-run
     // and re-point the live StepExecutor + subsequent flows at the new page.
     const rootPage = await this.resolveLivePage(runtime.context);

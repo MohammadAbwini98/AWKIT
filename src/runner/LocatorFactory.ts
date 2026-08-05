@@ -14,6 +14,7 @@ import {
 } from "@src/profiles/FlowProfile";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
+import { encodeClosedShadowSelector, isInstrumentedClosedShadow, registerClosedShadowEngine } from "./closedShadowBridge";
 import {
   locatorCandidatesDigest,
   type LocatorElementFingerprint,
@@ -155,6 +156,12 @@ export class LocatorFactory {
       if (level === "dangerousMutation" || level === "externalCommit") {
         return this.resolveGuardedPositional(step, spec.guard!);
       }
+    }
+
+    // Instrumented closed shadow: the target lives inside a closed shadow root captured through the
+    // runtime bridge. Resolve it via the custom selector engine (a normal, auto-waiting Locator).
+    if (isInstrumentedClosedShadow(spec.context)) {
+      return this.resolveClosedShadow(step);
     }
 
     if (spec.context?.shadow?.boundary === "open") {
@@ -474,18 +481,11 @@ export class LocatorFactory {
 
   /** Build a scoped root from frame/shadow/container context, resolving each segment strictly. */
   private async buildRoot(context?: LocatorContext): Promise<LocatorRoot> {
-    let root: LocatorRoot = this.page;
-
-    // An explicit frame chain (new captures, cross-origin safe) resolves through the Frame graph with
-    // per-segment identity verification. A legacy single `frame` keeps the frameLocator path unchanged.
-    if (context?.frameChain?.length) {
-      root = (await this.resolveFrameChain(context.frameChain)) as unknown as LocatorRoot;
-    } else if (context?.frame?.selector) {
-      root = this.page.frameLocator(context.frame.selector) as unknown as LocatorRoot;
-    }
+    let root: LocatorRoot = await this.frameRoot(context);
 
     const shadow = context?.shadow;
-    if (shadow?.boundary === "closed" || shadow?.boundary === "unknown") {
+    // An instrumented closed shadow is resolved by the custom engine in `resolveClosedShadow`, not here.
+    if ((shadow?.boundary === "closed" || shadow?.boundary === "unknown") && !isInstrumentedClosedShadow(context)) {
       throw new Error(`This locator cannot execute because its ${shadow.boundary} shadow boundary requires review.`);
     }
     if (shadow?.boundary === "open") {
@@ -517,6 +517,28 @@ export class LocatorFactory {
     }
 
     return root;
+  }
+
+  /** Resolve just the frame scope (frame chain / legacy frame / page) as a root, without shadow/container. */
+  private async frameRoot(context?: LocatorContext): Promise<LocatorRoot> {
+    if (context?.frameChain?.length) return (await this.resolveFrameChain(context.frameChain)) as unknown as LocatorRoot;
+    if (context?.frame?.selector) return this.page.frameLocator(context.frame.selector) as unknown as LocatorRoot;
+    return this.page;
+  }
+
+  /**
+   * Resolve an instrumented closed-shadow target via the custom selector engine — a normal auto-waiting
+   * Locator, so the caller acts on it like any other. The engine walks the recorded host chain (open
+   * roots via `host.shadowRoot`, closed roots via the bridge's retained reference) inside the frame root.
+   */
+  private async resolveClosedShadow(step: FlowStep): Promise<Locator> {
+    await registerClosedShadowEngine();
+    const selector = encodeClosedShadowSelector(step.locator?.context);
+    if (!selector) {
+      throw new Error(`Closed-shadow step "${step.name}" is missing its host chain or target signature. Re-record it.`);
+    }
+    const root = await this.frameRoot(step.locator?.context);
+    return root.locator(selector);
   }
 
   /**

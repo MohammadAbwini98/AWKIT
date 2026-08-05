@@ -1,5 +1,38 @@
 # CURRENT_STATE
 
+## Instrumented closed-shadow resolver — epic `awkit-65g` COMPLETE (2026-08-04)
+
+The unified guaranteed-unique-locator epic is **fully delivered and pushed**. C2 replays an interaction
+whose target lives inside a **closed** shadow root (which Playwright's built-in engines cannot pierce).
+
+- **Capture** (`recorderInitScript`): the `attachShadow` wrap installs the recorder's capture handlers
+  INSIDE each closed root (a closed root retargets composedPath for outside listeners, so window only sees
+  the retargeted host); the handler skips any target that is itself a closed host, so only the innermost
+  listener records the true target. `captureClosedShadowChain` builds a CSS host chain + target and marks
+  the locator `instrumented`/`resolved`, persisting **no internal accessible name/text** (privacy).
+- **Runtime** (`src/runner/closedShadowBridge.ts`): an `addInitScript` wraps `attachShadow` (mode preserved)
+  and retains closed roots in a **closure WeakMap** behind a per-process **token-gated resolver**; a
+  Playwright **custom selector engine** walks the host chain (`host.shadowRoot` for open, the resolver for
+  closed) and returns the target as a normal auto-waiting Locator — so `LocatorFactory.resolveClosedShadow`
+  needs no StepExecutor changes. `PlaywrightRunner` installs the bridge once per run context before the
+  first page. Security review: `docs/ai/security-reviews/2026-08-04-closed-shadow-c2.md`.
+
+**Epic status:** Phases 0/A/B (guaranteed-unique + guarded-positional), C1 (cross-origin frame-chain), and
+C2 (instrumented closed-shadow) are all on `origin/main`. `awkit-871` is superseded — the recorder now
+auto-resolves every ambiguous/positional/frame/closed-shadow case, so no non-positional needs-review reaches
+the Flow Designer.
+
+**Verified.** build PASS; new `verify:closed-shadow` **23/0** — MUTATION-TESTED the token gate. No
+regressions: `verify:recorder` 206/0, `verify:runner` 89/0, `verify:recorder-ambiguity` 69/0,
+`verify:locator-guard` 25/0, `verify:frame-chain` 25/0, `verify:mock-site` 114/114, `verify:legacy-compat`
+152/0, `verify:flow-step-mapping` 111/0, `test:random:roundtrip` 27/0, `verify:source-hygiene` 9/0.
+
+No validation-ledger case changed — focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. Beads records
+**162 issues / 4 outstanding / 158 closed / 93 edges** (`awkit-3zf`/`awkit-871`/`awkit-65g` closed; the 4
+outstanding are owner-gated). Remaining external gates (packaged-EXE / clean-machine / live-Oracle) unchanged.
+
+---
+
 ## Cross-origin frame-chain resolver — epic `awkit-65g` Phase C1 (2026-08-04)
 
 A target inside one or more iframes (cross-origin and nested) is now captured and replayed
