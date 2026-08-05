@@ -46,7 +46,14 @@ export function closedShadowBridgeScript(): string {
     };
     try {
       Object.defineProperty(window, Symbol.for("awtkit-cs-fn-" + TOKEN), {
-        value: function (token, host) { return token === TOKEN ? roots.get(host) : null; },
+        value: function (token, host, rootToRegister) {
+          if (token !== TOKEN) return null;
+          // Registration (CDP fallback for a pre-instrumentation root) is ADDITIVE only — it never
+          // overwrites a root the wrap already captured, so a token holder cannot hijack a legitimately
+          // instrumented host to redirect the engine to a different element.
+          if (rootToRegister && !roots.has(host)) roots.set(host, rootToRegister);
+          return roots.get(host) || null;
+        },
         enumerable: false,
         configurable: true
       });

@@ -59,6 +59,24 @@ const FIXTURE = `<!doctype html><html><body>
   </script>
 </body></html>`;
 
+// Two form controls that share a label ("Recipient account"), so the recorder can only distinguish them
+// by position — a SENSITIVE positional FILL captures a labelContent precondition alongside the fingerprint.
+const FILL_FIXTURE = `<!doctype html><html><body>
+  <div id="pay-form">
+    <div class="row"><label>Recipient account <input class="acct" /></label></div>
+    <div class="row"><label>Recipient account <input class="acct" /></label></div>
+  </div>
+  <output id="fill-result"></output>
+  <script>
+    document.getElementById('pay-form').addEventListener('input', function (e) {
+      var inputs = Array.prototype.slice.call(document.querySelectorAll('#pay-form input'));
+      if (e.target && e.target.tagName === 'INPUT') {
+        document.getElementById('fill-result').textContent = 'filled-' + inputs.indexOf(e.target) + '=' + e.target.value;
+      }
+    });
+  </script>
+</body></html>`;
+
 async function makeContext(): Promise<InstanceExecutionContext> {
   const dir = await mkdtemp(join(tmpdir(), "wfs-guard-"));
   return {
@@ -107,16 +125,35 @@ async function captureClick(browser: Browser, index: number): Promise<RecordedAc
 }
 
 /** A fresh fixture page + StepExecutor (with recovery events), for a runtime scenario. */
-async function freshRun(browser: Browser, mutate?: (page: import("playwright").Page) => Promise<void>) {
+async function freshRun(browser: Browser, mutate?: (page: import("playwright").Page) => Promise<void>, content: string = FIXTURE) {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
-  await page.setContent(FIXTURE);
+  await page.setContent(content);
   if (mutate) await mutate(page);
   const context = await makeContext();
   const events: LocatorRecoveryEvent[] = [];
   const factory = new LocatorFactory(page, { onRecoveryEvent: (event) => events.push(event) });
   const exec = new StepExecutor(page, factory, new ValueResolver(context), context);
   return { page, exec, events, close: () => ctx.close() };
+}
+
+/** Record a real FILL on the fill fixture's input `index`; return the raw recorded fill action. */
+async function captureFill(browser: Browser, index: number, value: string): Promise<RecordedAction> {
+  const ctx = await browser.newContext();
+  await ctx.addInitScript({ content: recorderScript });
+  const page = await ctx.newPage();
+  const actions: RecordedAction[] = [];
+  await page.exposeBinding("__awtkit_recordAction", (_s, a) => actions.push(a as RecordedAction));
+  await page.exposeBinding("__awtkit_recordSignal", () => {});
+  await page.goto(`${fixtureUrl}fill`);
+  await page.waitForTimeout(400);
+  await page.locator("#pay-form input").nth(index).fill(value);
+  await page.locator("#pay-form input").nth(index).blur();
+  await page.waitForTimeout(250);
+  await ctx.close();
+  const fill = actions.find((a) => a.type === "fill");
+  if (!fill) throw new Error("no fill captured");
+  return fill;
 }
 
 function clickStep(flow: FlowProfile): FlowStep {
@@ -127,9 +164,9 @@ function clickStep(flow: FlowProfile): FlowStep {
 
 async function main() {
   recorderScript = getRecorderInitScriptContent();
-  const server = createServer((_req, res) => {
+  const server = createServer((req, res) => {
     res.setHeader("content-type", "text/html");
-    res.end(FIXTURE);
+    res.end((req.url || "/").split("?")[0] === "/fill" ? FILL_FIXTURE : FIXTURE);
   });
   await new Promise<void>((resolve) => server.listen(4411, "127.0.0.1", resolve));
   fixtureUrl = "http://127.0.0.1:4411/";
@@ -218,6 +255,43 @@ async function main() {
         check("[8] a changed target aborts", r.status === "failed", `status=${r.status}`);
         check("[8] the abort is SENSITIVE_TARGET_IDENTITY_CHANGED", (r.error ?? "").includes("SENSITIVE_TARGET_IDENTITY_CHANGED"), r.error);
         check("[8] clicked NOTHING (no fallback to another sibling)", (await page.locator("#gp-result").textContent()) === "", await page.locator("#gp-result").textContent());
+      } finally {
+        await close();
+      }
+    }
+    // ── [9] Guarded-positional FILL (non-click): the guard applies to form controls too ─────────────
+    console.log("\n[9] Sensitive positional FILL is guarded and captures a labelContent precondition:");
+    const fillFlow = buildRecordedFlow("Guard fill", [{ ...(await captureFill(browser, 1, "acct-9001")), name: "Delete recipient account" }]);
+    const fillStep = fillFlow.nodes.find((n) => n.type === "fill");
+    if (!fillStep) throw new Error("no fill step in built flow");
+    check("[9] the fill locator is positional with a runtime identity guard", isPositionalLocator(fillStep.locator) && hasPositionalIdentityGuard(fillStep));
+    check("[9] the sensitive guarded fill is RESOLVED (no review, no approval)", fillStep.locator?.resolution === "resolved", fillStep.locator?.resolution);
+    check("[9] the guard carries a HASHED labelContent precondition", (fillStep.locator?.guard?.preconditions ?? []).some((p) => p.kind === "labelContent" && p.expected !== "recipient account" && /^[0-9a-f ]+$/.test(p.expected)), JSON.stringify(fillStep.locator?.guard?.preconditions));
+    // Unchanged → the guarded fill runs on the recorded input (proving the guard path works for FILL and
+    // the new labelContent precondition does not false-abort an unchanged target).
+    {
+      const { page, exec, close } = await freshRun(browser, undefined, FILL_FIXTURE);
+      try {
+        const r = await exec.execute({ ...fillStep, timeoutMs: 5000 });
+        check("[9] unchanged: the guarded fill executes", r.status === "passed", r.error);
+        check("[9] it filled the recorded input (index 1), not the other", (await page.locator("#fill-result").textContent()) === "filled-1=acct-9001", await page.locator("#fill-result").textContent());
+      } finally {
+        await close();
+      }
+    }
+    // Changed target identity at the recorded index (its label/name) → aborts before any fill.
+    {
+      const { page, exec, close } = await freshRun(browser, async (p) => {
+        await p.evaluate(() => {
+          const labels = document.querySelectorAll("#pay-form label");
+          if (labels[1] && labels[1].childNodes[0]) labels[1].childNodes[0].textContent = "Different account ";
+        });
+      }, FILL_FIXTURE);
+      try {
+        const r = await exec.execute({ ...fillStep, timeoutMs: 4000 });
+        check("[9] a changed target identity aborts the sensitive fill", r.status === "failed", `status=${r.status}`);
+        check("[9] the abort is SENSITIVE_TARGET_IDENTITY_CHANGED", (r.error ?? "").includes("SENSITIVE_TARGET_IDENTITY_CHANGED"), r.error);
+        check("[9] it filled NOTHING (refused before the side effect)", (await page.locator("#fill-result").textContent()) === "", await page.locator("#fill-result").textContent());
       } finally {
         await close();
       }

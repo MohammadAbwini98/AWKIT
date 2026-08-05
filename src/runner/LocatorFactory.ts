@@ -1,5 +1,5 @@
 import type { Page, Locator, Frame, ElementHandle } from "playwright";
-import { createPageFingerprint, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
+import { createPageFingerprint, fingerprintsEqual, hashFingerprint, hashToken, similarity } from "./locatorFingerprint";
 import {
   locatorContainerChain,
   locatorFrameChain,
@@ -51,6 +51,10 @@ const VISIBILITY_PROBE_CAP = 30;
 const MAX_FRAME_CHAIN = 8;
 /** How long to auto-wait for a not-yet-attached iframe segment before failing. */
 const FRAME_WAIT_MS = 5_000;
+/** Grace period a closed-shadow target gets to resolve via the bridge before the CDP fallback is tried. */
+const CLOSED_SHADOW_FALLBACK_GRACE_MS = 1_000;
+/** Cap on closed roots the CDP fallback registers per attempt (bounds pathological pages). */
+const MAX_CDP_CLOSED_ROOTS = 50;
 const RECOVERY_SCAN_CAP = 200;
 const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
@@ -280,10 +284,15 @@ export class LocatorFactory {
     const target = candidates.nth(guard.index);
     const fingerprint = await LocatorFactory.fingerprintOne(target);
     if (!fingerprint) throw fail("the recorded target could not be re-identified");
-    const score = similarity(fingerprint, guard.fingerprint);
-    const threshold = guard.confidence === "exact" ? LocatorFactory.GUARD_MATCH_THRESHOLD : 0.82;
-    if (score < threshold) {
-      throw fail(`the element at the recorded position no longer matches the recorded identity (match ${score.toFixed(3)} < ${threshold})`);
+    // "exact" (the recorder's capture confidence) requires the identity-bearing fields to be UNCHANGED —
+    // strict equality, so a bare control (empty text/attributes) is not falsely rejected the way a fuzzy
+    // score would be. "high" keeps a tolerant similarity threshold.
+    const identityOk =
+      guard.confidence === "exact"
+        ? fingerprintsEqual(fingerprint, guard.fingerprint)
+        : similarity(fingerprint, guard.fingerprint) >= LocatorFactory.GUARD_MATCH_THRESHOLD;
+    if (!identityOk) {
+      throw fail("the element at the recorded position no longer matches the recorded target identity");
     }
     for (const precondition of guard.preconditions ?? []) {
       if (!(await LocatorFactory.checkGuardPrecondition(target, precondition))) {
@@ -293,10 +302,9 @@ export class LocatorFactory {
     this.emit({
       type: "guarded-positional",
       stepId: step.id,
-      score,
       message:
         `Verified sensitive target identity for "${step.name}" ` +
-        `(fingerprint ${score.toFixed(3)}, ${count} candidates, ${(guard.preconditions ?? []).length} precondition(s)).`
+        `(exact fingerprint match, ${count} candidates, ${(guard.preconditions ?? []).length} precondition(s)).`
     });
     return target;
   }
@@ -308,6 +316,26 @@ export class LocatorFactory {
         const raw = await target.evaluate((node) => {
           const dialog = (node as Element).closest('[role="dialog"], [role="alertdialog"], dialog');
           return dialog ? (dialog.getAttribute("aria-label") || dialog.textContent || "") : "";
+        });
+        return hashToken(String(raw).replace(/\s+/g, " ").trim().slice(0, 80)) === precondition.expected;
+      }
+      if (precondition.kind === "labelContent") {
+        // No named inner functions (esbuild `__name` gotcha). Escape the id for the quoted attribute
+        // selector so parity with capture holds even for ids with special characters.
+        const raw = await target.evaluate((node) => {
+          const el = node as Element;
+          let labelText = "";
+          const id = el.getAttribute("id");
+          if (id) {
+            const escaped = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+            const labelled = document.querySelector('label[for="' + escaped + '"]');
+            if (labelled) labelText = labelled.textContent || "";
+          }
+          if (!labelText && el.closest) {
+            const wrapping = el.closest("label");
+            if (wrapping) labelText = wrapping.textContent || "";
+          }
+          return labelText;
         });
         return hashToken(String(raw).replace(/\s+/g, " ").trim().slice(0, 80)) === precondition.expected;
       }
@@ -538,7 +566,78 @@ export class LocatorFactory {
       throw new Error(`Closed-shadow step "${step.name}" is missing its host chain or target signature. Re-record it.`);
     }
     const root = await this.frameRoot(step.locator?.context);
-    return root.locator(selector);
+    const locator = root.locator(selector);
+
+    // Give the pre-navigation bridge and the DOM a real chance to make the target resolvable before
+    // deciding it is unreachable. This keeps the CDP fallback OFF for the normal case (a root the bridge
+    // instrumented) and for merely not-yet-attached timing; only a genuinely unresolvable closed root —
+    // one created before instrumentation could observe it — triggers the Chromium-only fallback below.
+    await locator.first().waitFor({ state: "attached", timeout: CLOSED_SHADOW_FALLBACK_GRACE_MS }).catch(() => undefined);
+    if ((await locator.count().catch(() => 0)) === 0) {
+      await this.attemptCdpFallback(step.locator?.context, selector).catch(() => undefined);
+    }
+    return locator;
+  }
+
+  /**
+   * Fallback for pre-instrumentation closed roots: uses CDP to find closed shadow roots
+   * and registers them with the runtime bridge so the custom selector engine can find them.
+   */
+  private async attemptCdpFallback(context: LocatorContext | undefined, selector: string): Promise<void> {
+    const shadow = context?.shadow;
+    if (!shadow || shadow.boundary !== "closed" || !shadow.instrumented) return;
+
+    const cdp = await this.page.context().newCDPSession(this.page).catch(() => null);
+    if (!cdp) return;
+
+    try {
+      const { root } = await cdp.send("DOM.getDocument", { pierce: true, depth: -1 });
+      const closedRoots: Array<{ hostId: number, rootId: number }> = [];
+      const walk = (node: any) => {
+        if (closedRoots.length >= MAX_CDP_CLOSED_ROOTS) return;
+        if (node.shadowRoots) {
+          for (const sr of node.shadowRoots) {
+            if (sr.shadowRootType === "closed") {
+              closedRoots.push({ hostId: node.backendNodeId, rootId: sr.backendNodeId });
+            }
+            walk(sr);
+          }
+        }
+        if (node.children) {
+          for (const child of node.children) walk(child);
+        }
+      };
+      walk(root);
+
+      if (closedRoots.length > 0) {
+        const specStr = selector.substring(selector.indexOf("=") + 1);
+        const spec = JSON.parse(specStr);
+        const token = spec.token;
+
+        for (const { hostId, rootId } of closedRoots) {
+          const hostObj = await cdp.send("DOM.resolveNode", { backendNodeId: hostId }).catch(() => null);
+          const rootObj = await cdp.send("DOM.resolveNode", { backendNodeId: rootId }).catch(() => null);
+
+          if (hostObj?.object?.objectId && rootObj?.object?.objectId) {
+            await cdp.send("Runtime.callFunctionOn", {
+              functionDeclaration: `function(token, shadowRoot) {
+                var fn = window[Symbol.for("awtkit-cs-fn-" + token)];
+                if (typeof fn === "function") fn(token, this, shadowRoot);
+              }`,
+              objectId: hostObj.object.objectId,
+              arguments: [
+                { value: token },
+                { objectId: rootObj.object.objectId }
+              ]
+            }).catch(() => null);
+          }
+        }
+      }
+    } catch {
+      // Ignore CDP errors — the normal timeout will handle resolution failure
+    } finally {
+      await cdp.detach().catch(() => {});
+    }
   }
 
   /**

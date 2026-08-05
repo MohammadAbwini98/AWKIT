@@ -630,6 +630,28 @@ export function installRecorderCapture(): void {
       const title = norm(dialog.getAttribute("aria-label") || dialog.textContent).slice(0, 80);
       if (title) guard.preconditions = [{ kind: "dialogTitle", expected: title }];
     }
+    // Non-click precondition: for a form control, capture its associated <label> text so a positional
+    // fill/select/check re-verifies the label before acting at replay (a changed label aborts). The
+    // `for` value is escaped for a quoted attribute selector, matching the codebase convention.
+    const controlTag = tagOf(el);
+    if (controlTag === "input" || controlTag === "select" || controlTag === "textarea") {
+      let labelText = "";
+      const id = attr(el, "id");
+      if (id) {
+        const labelled = document.querySelector('label[for="' + esc(id) + '"]');
+        if (labelled) labelText = norm(labelled.textContent).slice(0, 80);
+      }
+      if (!labelText && el.closest) {
+        const wrapping = el.closest("label");
+        if (wrapping) labelText = norm(wrapping.textContent).slice(0, 80);
+      }
+      if (labelText) {
+        const preconditions = (guard.preconditions as Array<Record<string, string>>) || [];
+        preconditions.push({ kind: "labelContent", expected: labelText });
+        guard.preconditions = preconditions;
+      }
+    }
+
     return guard;
   };
 

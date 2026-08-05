@@ -20,7 +20,14 @@ whose target lives inside a **closed** shadow root (which Playwright's built-in 
 **Epic status:** Phases 0/A/B (guaranteed-unique + guarded-positional), C1 (cross-origin frame-chain), and
 C2 (instrumented closed-shadow) are all on `origin/main`. `awkit-871` is superseded — the recorder now
 auto-resolves every ambiguous/positional/frame/closed-shadow case, so no non-positional needs-review reaches
-the Flow Designer.
+the Flow Designer. Three follow-up items (diff-level security review, extending guarded-positional to
+non-click actions via a `labelContent` precondition, and a CDP fallback for pre-instrumentation closed roots)
+were then implemented, **reviewed and hardened** (gate the CDP fallback behind a grace period + cap, make the
+resolver write-path additive-only, escape the label selector), and a strict `fingerprintsEqual` identity check
+replaced the fuzzy score that false-aborted bare inputs. Verified by the feature gates (`verify:locator-guard`
+33/0 incl. a mutation-tested guarded-FILL case, `verify:closed-shadow` 23/0, `verify:recorder` 206/0,
+`verify:runner` 89/0, no regressions). **Uncommitted in the working tree** pending review sign-off — not yet
+committed or pushed.
 
 **Verified.** build PASS; new `verify:closed-shadow` **23/0** — MUTATION-TESTED the token gate. No
 regressions: `verify:recorder` 206/0, `verify:runner` 89/0, `verify:recorder-ambiguity` 69/0,

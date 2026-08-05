@@ -209,7 +209,7 @@ export interface LocatorElementFingerprint {
  * token under the same policy as {@link LocatorElementFingerprint} — it never stores raw secrets.
  */
 export interface SemanticPrecondition {
-  kind: "accessibleName" | "dialogTitle" | "buttonName" | "recordId" | "amount" | "selectedCount" | "url";
+  kind: "accessibleName" | "dialogTitle" | "buttonName" | "recordId" | "amount" | "selectedCount" | "url" | "labelContent";
   expected: string;
 }
 

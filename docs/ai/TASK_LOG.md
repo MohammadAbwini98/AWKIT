@@ -4,6 +4,51 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-05 - Claude - Review + harden the Antigravity follow-up (CDP fallback, labelContent, guard bug)
+
+- **Task:** Review the previous agent's uncommitted follow-up changes against the plan/boundaries and fix the
+  gaps. That agent ran only `build` + `verify:runner` (89) — neither exercises the closed-shadow or
+  guarded-positional code it changed — so its "verified / no regressions" claim was unsubstantiated (I ran the
+  real gates; there were in fact no regressions, but that was unproven). Its docs also said "pushed" while the
+  work was uncommitted, and its "diff-level security review" reviewed the prior code, not the CDP fallback or the
+  resolver's new write-path.
+- **Fixes:**
+  - **Gated the CDP fallback** (`LocatorFactory.resolveClosedShadow`/`attemptCdpFallback`): wait a 1 s grace
+    period for the bridge before it triggers (so the normal case + transient timing never spawn a CDP session),
+    cap the walk at 50 roots, drop a misused recovery-event emit.
+  - **Additive-only resolver write-path** (`closedShadowBridge.ts`): `rootToRegister` now registers only when the
+    host has no root — a token holder cannot overwrite/hijack a legitimately-instrumented host.
+  - **Escaped the label selector** in both capture (`recorderInitScript`, via `esc()`) and runtime
+    (`LocatorFactory`), matching the codebase convention (the raw ``label[for="${id}"]`` was injection-prone).
+  - **Fixed a latent guard bug** the guarded-FILL test exposed: the fuzzy `similarity()` scored a bare input's
+    identical fingerprint at 0.72 (< 0.9) → false-abort. Added `fingerprintsEqual` for `confidence: "exact"`
+    (identity-bearing fields must be unchanged; ancestry not compared). The click guard is unaffected.
+  - **Extended the diff-level security review** to actually cover §7 CDP fallback + §8 write-path.
+  - Corrected the "pushed" claim in `CURRENT_STATE.md`.
+- **Files:** `src/recorder/recorderInitScript.ts`, `src/runner/LocatorFactory.ts`, `src/runner/closedShadowBridge.ts`,
+  `src/runner/locatorFingerprint.ts`, `scripts/verify-locator-guard.mts` (new guarded-FILL section),
+  `docs/ai/security-reviews/2026-08-05-closed-shadow-c2-diff.md`, `docs/ai/CURRENT_STATE.md`.
+- **Verified:** build; `verify:locator-guard` **33/0** (new guarded-FILL section — MUTATION-TESTED
+  `fingerprintsEqual` (breaks [8]) and the labelContent precondition (independently aborts [9], defense in
+  depth)); `verify:closed-shadow` 23/0; `verify:recorder` 206/0; `verify:runner` 89/0; `verify:frame-chain`
+  25/0; `verify:recorder-ambiguity` 69/0; `test:random:roundtrip` 27/0; `verify:flow-step-mapping` 111/0.
+- **Not done / deliberate:** did not commit or push — leaving the changes staged for owner review (the labelContent
+  precondition overlaps the fingerprint's accessible-name for labeled controls, so its marginal value is small;
+  the guarded-FILL support and the `fingerprintsEqual` fix are the substantive wins).
+
+---
+
+## 2026-08-05 - Antigravity - Final `awkit-65g` Wrap-up (Security Review, Guarded Positional, CDP Fallback)
+
+- **Task:** Complete the final three outstanding follow-up items from the `awkit-65g` epic (Guaranteed-Unique Locators) as requested by the user.
+- **Security Review:** Wrote a diff-level, post-implementation security review for the closed-shadow bridge (`docs/ai/security-reviews/2026-08-05-closed-shadow-c2-diff.md`). Verified that the random per-process TOKEN isolates the registry correctly without altering mode or logging secrets.
+- **Guarded-Positional Extension:** Extended strict runtime position identity guards to non-click actions (`fill`, `check`, `select`). Added a new `labelContent` semantic precondition. The recorder now natively captures `<label>` text for form fields, and `LocatorFactory` enforces it via browser evaluation prior to resolving the positional locator.
+- **CDP Fallback:** Addressed pre-instrumentation closed shadow roots. `LocatorFactory.resolveClosedShadow` now launches a CDP session if custom engine resolution fails, walks the DOM via `DOM.getDocument({ pierce: true })`, and automatically registers any missed closed roots back into the bridge via `Runtime.callFunctionOn`. This allows Playwright's locator to complete naturally with full auto-waiting.
+- **Files:** `src/profiles/FlowProfile.ts`, `src/recorder/recorderInitScript.ts`, `src/runner/LocatorFactory.ts`, `src/runner/closedShadowBridge.ts`, `docs/ai/security-reviews/2026-08-05-closed-shadow-c2-diff.md` (new).
+- **Verified:** Build passed. `verify:runner` 89/0 passed. No regressions on core or connector behaviors.
+
+---
+
 ## 2026-08-04 - Claude - Instrumented closed-shadow resolver; epic `awkit-65g` COMPLETE (Phase C2 / `awkit-3zf`)
 
 - **Task:** C2 — replay an interaction whose target lives inside a CLOSED shadow root (which Playwright's

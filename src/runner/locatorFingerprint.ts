@@ -109,6 +109,22 @@ export function hashToken(value: string): string {
   return createHash("sha256").update(value.replace(/\s+/g, " ").trim().toLocaleLowerCase()).digest("hex").slice(0, 20);
 }
 
+/**
+ * Exact identity equality of the identity-bearing fields (tag, role, name, text, attributes). Used by the
+ * guarded-positional check where `confidence: "exact"` — the recorded target's identity must be UNCHANGED.
+ * Unlike {@link similarity} (built for fuzzy local recovery), an identical fingerprint always matches, so a
+ * bare control with empty text/attributes (an input, an icon) is never falsely rejected. Ancestry is
+ * intentionally not compared: it is a weaker signal that shifts on benign wrapper restructuring, while
+ * name/text/attributes carry the record identity that matters for a sensitive action.
+ */
+export function fingerprintsEqual(a: LocatorElementFingerprint, b: LocatorElementFingerprint): boolean {
+  if (a.tag !== b.tag || a.role !== b.role || a.name !== b.name || a.text !== b.text) return false;
+  const aKeys = Object.keys(a.attributes).sort();
+  const bKeys = Object.keys(b.attributes).sort();
+  if (aKeys.length !== bKeys.length || aKeys.some((key, index) => key !== bKeys[index])) return false;
+  return aKeys.every((key) => a.attributes[key] === b.attributes[key]);
+}
+
 /** Weighted lexical/structural similarity of two hashed fingerprints in [0, 1]. */
 export function similarity(a: LocatorElementFingerprint, b: LocatorElementFingerprint): number {
   const textScore = (left: string, right: string): number => {
