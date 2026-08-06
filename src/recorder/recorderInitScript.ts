@@ -109,6 +109,7 @@ export function installRecorderCapture(): void {
     if (/^\d/.test(id)) return true; // invalid CSS id + usually generated
     if (/[:.]/.test(id)) return true; // React useId (":r0:") etc.
     if (/(^|[-_])[0-9a-f]{6,}($|[-_])/i.test(id)) return true; // hex hash chunk
+    if (/__[A-Za-z0-9]*\d[A-Za-z0-9]*$/.test(id)) return true; // CSS-module hashed suffix (Header_root__2x9Yt)
     if (/^(radix|headlessui|mui-|ember|ext-gen|react-aria|:r)/i.test(id)) return true;
     if (/\d{4,}/.test(id)) return true; // long digit runs
     return false;
@@ -418,6 +419,9 @@ export function installRecorderCapture(): void {
     if (CLASS_STATE_PREFIX_RE.test(c)) return false;
     if (UTILITY_CLASS_RE.test(c)) return false;
     if (/^(?:sc-|css-|jsx-|emotion-|makeStyles-|MuiBox-)/.test(c)) return false;
+    // CSS-module hashed class (Button_primary__3xKz9): a `__`-delimited suffix that contains a digit.
+    // Pure-word BEM elements (card__title) carry no digit and remain meaningful.
+    if (/__[A-Za-z0-9]*\d[A-Za-z0-9]*$/.test(c)) return false;
     if (CLASS_HASH_RE.test(c)) return false;
     return true;
   };
@@ -2585,7 +2589,13 @@ export function installRecorderCapture(): void {
     return !!raw && closedShadowHosts.has(raw);
   };
 
-  const captureBlueprint = (el: Element): Record<string, unknown> => {
+  const captureBlueprint = (el: Element): Record<string, unknown> | undefined => {
+    // Blueprint recovery resolves via the top document's `body *` document order and cannot reach a
+    // shadow-scoped element, so capturing one is useless — and would persist the internal (including
+    // CLOSED-root) element's name/text, breaking the closed-shadow "no internal identity persisted"
+    // invariant. Skip any element whose root is a shadow root.
+    const root = el.getRootNode ? el.getRootNode() : null;
+    if (root && typeof ShadowRoot !== "undefined" && root instanceof ShadowRoot) return undefined;
     let documentOrder = -1;
     try {
       const walker = document.createTreeWalker(document.body || document.documentElement, 1 /* NodeFilter.SHOW_ELEMENT */, null);
@@ -2657,7 +2667,9 @@ export function installRecorderCapture(): void {
       enabled,
       boundingRegion,
       fingerprint: computeFingerprint(el),
-      url: location.href,
+      // Origin + pathname only — never persist query/fragment (tokens/PII) in the draft. Matches the
+      // recorder's URL-masking policy and what buildRecordedFlow derives for the stored blueprint.
+      url: location.origin && location.origin !== "null" ? location.origin + location.pathname : location.href,
       title: document.title,
       documentStructure: (() => {
         try {

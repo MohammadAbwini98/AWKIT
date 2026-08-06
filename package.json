@@ -109,6 +109,7 @@
     "verify:settings-runner-behaviour": "tsx scripts/verify-settings-runner-behaviour.mts",
     "verify:recorder": "tsx scripts/verify-recorder-locator.mts",
     "verify:recorder-hover": "tsx scripts/verify-recorder-hover.mts",
+    "verify:recorder-competitive": "tsx scripts/verify-recorder-competitive.mts",
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
     "verify:locator-guard": "tsx scripts/verify-locator-guard.mts",
     "verify:frame-chain": "tsx scripts/verify-frame-chain.mts",
