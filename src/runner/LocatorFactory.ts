@@ -22,7 +22,7 @@ import {
   type LocatorRecoveryStore
 } from "./LocatorRecoveryStore";
 import type { ElementBlueprint, LocatorBlueprintStore } from "./LocatorBlueprintStore";
-import { computePageKey } from "./LocatorBlueprintStore";
+import { computeFrameKey, computePageKey, documentFingerprintMatches } from "./LocatorBlueprintStore";
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -450,14 +450,18 @@ export class LocatorFactory {
     if (!blueprintId || !this.options.blueprintStore) return undefined;
 
     try {
-      const frameType = step.locator?.context?.frameChain?.length ? "frame" : "";
-      const pageKey = computePageKey(this.page.url(), await this.page.title().catch(() => ""), frameType);
+      const frame = await this.blueprintFrame(step.locator?.context);
+      const frameKey = computeFrameKey(step.locator?.context?.frameChain);
+      const pageKey = computePageKey(frame.url(), await frame.title().catch(() => ""), frameKey);
       const pageBlueprint = await this.options.blueprintStore.get(pageKey);
-      const elementBlueprint = pageBlueprint?.elements.find((element) => element.blueprintId === blueprintId);
+      if (!pageBlueprint || pageBlueprint.frameKey !== (frameKey || undefined)) return undefined;
+      const elementBlueprint = pageBlueprint.elements.find((element) => element.blueprintId === blueprintId);
       if (!elementBlueprint) return undefined;
 
-      const frameRoot = await this.frameRoot(step.locator?.context);
-      const allElements = frameRoot.locator("body *");
+      const currentDocumentFingerprint = await LocatorFactory.documentFingerprint(frame);
+      if (!documentFingerprintMatches(pageBlueprint.documentFingerprint, currentDocumentFingerprint)) return undefined;
+
+      const allElements = frame.locator("body *");
       const count = await allElements.count().catch(() => 0);
       const start = Math.max(0, elementBlueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS);
       const end = Math.min(count - 1, elementBlueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS);
@@ -527,6 +531,30 @@ export class LocatorFactory {
     } catch {
       return 0;
     }
+  }
+
+  private async blueprintFrame(context?: LocatorContext): Promise<Frame> {
+    if (context?.frameChain?.length) return this.resolveFrameChain(context.frameChain);
+    if (context?.frame?.selector) return this.resolveFrameChain([{ selector: context.frame.selector }]);
+    return this.page.mainFrame();
+  }
+
+  private static async documentFingerprint(frame: Frame): Promise<string> {
+    return frame
+      .evaluate(() => {
+        const all = document.body ? document.body.querySelectorAll("*") : [];
+        const histogram = new Map<string, number>();
+        for (let index = 0; index < all.length && index < 5000; index += 1) {
+          const tag = all[index].tagName.toLowerCase();
+          const role = all[index].getAttribute("role");
+          const key = role ? `${tag}:${role}` : tag;
+          histogram.set(key, (histogram.get(key) ?? 0) + 1);
+        }
+        const sorted: string[] = [];
+        histogram.forEach((count, key) => sorted.push(`${key}=${count}`));
+        return sorted.sort().join("|");
+      })
+      .catch(() => "");
   }
 
   private scopeKey(step: FlowStep): string | undefined {

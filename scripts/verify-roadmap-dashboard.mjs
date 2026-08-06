@@ -188,9 +188,11 @@ try {
   // pointer-emulated capture) so it closed: closed 160 → 161, outstanding 9 → 8, total held at 169.
   // Then `awkit-qpv` closed after blueprint recovery became a genuine second layer with a bounded
   // neighborhood scan: closed 161 to 162, outstanding 8 to 7, total held at 169.
+  // Then `awkit-3ut` closed after framed page identity, the document-variant gate, and ancestry
+  // hashing were fixed: closed 162 to 163, outstanding 7 to 6, total held at 169.
   check(
-    "7 outstanding / 162 closed",
-    beads.stats.outstanding === 7 && beads.stats.closed === 162,
+    "6 outstanding / 163 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 163,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -4,7 +4,7 @@ import { isPositionalLocator } from "../profiles/locatorApproval";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
 import type { PageBlueprint, ElementBlueprint } from "../runner/LocatorBlueprintStore";
-import { computePageKey } from "../runner/LocatorBlueprintStore";
+import { computeFrameKey, computePageKey } from "../runner/LocatorBlueprintStore";
 import type { RecordedAction, RecordedActionLocator } from "./RecorderTypes";
 
 /** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
@@ -69,7 +69,8 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       // Page-level blueprint capture for fallback recovery
       if (action.locator.blueprintCapture && blueprintsOut) {
         const capture = action.locator.blueprintCapture;
-        const pageKey = computePageKey(capture.url, capture.title, action.locator.context?.frameChain?.length ? "frame" : "");
+        const frameKey = computeFrameKey(action.locator.context?.frameChain);
+        const pageKey = computePageKey(capture.url, capture.title, frameKey);
         let blueprint = blueprintsOut.find(b => b.pageKey === pageKey);
         if (!blueprint) {
           blueprint = {
@@ -79,6 +80,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
               try { return new URL(capture.url).origin + new URL(capture.url).pathname; }
               catch { return capture.url; }
             })(),
+            frameKey: frameKey || undefined,
             capturedAtUtc: new Date().toISOString(),
             documentFingerprint: capture.documentStructure,
             elements: []
@@ -89,6 +91,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
           const blueprintId = randomUUID();
           step.locator.blueprintId = blueprintId;
           const digest = hashToken(JSON.stringify({ strategy: action.locator.strategy, value: action.locator.value }));
+          const fingerprint = hashFingerprint(capture.fingerprint as any);
           const element: ElementBlueprint = {
             blueprintId,
             documentOrder: capture.documentOrder,
@@ -96,8 +99,9 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
             sameTagIndex: capture.sameTagIndex,
             tag: String(capture.fingerprint.tag || ""),
             role: capture.fingerprint.role ? String(capture.fingerprint.role) : undefined,
-            ancestry: Array.isArray(capture.fingerprint.ancestry) ? capture.fingerprint.ancestry.map(String) : [],
-            fingerprint: hashFingerprint(capture.fingerprint as any),
+            ancestry: fingerprint.ancestry,
+            frameChainDigest: frameKey || undefined,
+            fingerprint,
             primaryLocatorDigest: digest,
             alternativeCount: action.locator.alternatives?.length ?? 0,
             visible: capture.visible,

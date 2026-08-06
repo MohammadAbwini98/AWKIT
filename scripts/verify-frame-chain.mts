@@ -24,6 +24,8 @@ import { buildFrameChain } from "@src/recorder/frameChainCapture";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { type LocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
+import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { validateFlowDefinition, hasActivePathError } from "@src/validation/FlowValidator";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
@@ -57,6 +59,15 @@ const leaf = (buttonId: string, buttonName: string): string => `<!doctype html><
     });
   </script>
 </body></html>`;
+const blueprintLeaf = (): string => `<!doctype html><html><head><title>Blueprint Frame</title></head><body>
+  ${Array.from({ length: 205 }, (_unused, index) => `<div>filler ${index}</div>`).join("")}
+  <button id="blueprint-old">Blueprint target</button>
+  <script>
+    document.getElementById('blueprint-old').addEventListener('click', function () {
+      window.top.postMessage({ awtkitClick: 'blueprint' }, '*');
+    });
+  </script>
+</body></html>`;
 
 // A top page that records the last posted click identity in window.__lastClick.
 const topPage = (body: string): string => `<!doctype html><html><body>
@@ -73,6 +84,7 @@ const ROUTES_OUTER: Record<string, string> = {
   "/same": topPage(`<iframe id="fsame" src="${OUTER}/leafsame?l=same"></iframe>`),
   "/dup": topPage(`<iframe name="left" src="${INNER}/leaf"></iframe><iframe name="right" src="${INNER}/leaf"></iframe>`),
   "/navigate": topPage(`<iframe id="fnav" src="${INNER}/leafnav"></iframe>`),
+  "/blueprint-host": topPage(`<iframe id="fbp" src="${INNER}/blueprint"></iframe>`),
   "/deep": leaf("confirm", "Confirm order"),
   "/leafsame": leaf("go", "Submit order")
 };
@@ -81,7 +93,8 @@ const ROUTES_INNER: Record<string, string> = {
   "/leaf": leaf("go", "Submit order"),
   "/mid": `<!doctype html><html><body><iframe id="finner" src="${OUTER}/deep?l=deep"></iframe></body></html>`,
   // Navigates itself once, after attachment, to prove the iframe ELEMENT identity (not the child URL) drives resolution.
-  "/leafnav": `<!doctype html><html><body>${leaf("go", "Submit order")}<script>if(!/navigated/.test(location.search)){setTimeout(function(){location.search='?navigated=1';},80);}</script></body></html>`
+  "/leafnav": `<!doctype html><html><body>${leaf("go", "Submit order")}<script>if(!/navigated/.test(location.search)){setTimeout(function(){location.search='?navigated=1';},80);}</script></body></html>`,
+  "/blueprint": blueprintLeaf()
 };
 
 function serve(routes: Record<string, string>, port: number): Promise<Server> {
@@ -311,6 +324,77 @@ async function main() {
       }
     } finally {
       mock.kill();
+    }
+
+    // ── [10] Blueprint recovery uses the CHILD frame identity + document-variant gate ──
+    console.log("\n[10] Blueprint recovery in a framed document:");
+    {
+      const blueprints: PageBlueprint[] = [];
+      const action = await capture(browser, `${OUTER}/blueprint-host`, (page) =>
+        page.frameLocator("#fbp").locator("#blueprint-old").click()
+      );
+      const flow = buildRecordedFlow("frame-blueprint", [action], blueprints);
+      const recorded = clickStep(flow);
+      const step: FlowStep = {
+        ...recorded,
+        locator: { ...recorded.locator!, strategy: "id", value: "blueprint-old", alternatives: undefined }
+      };
+      const blueprint = blueprints[0];
+      check("[10] framed capture persists one blueprint", blueprints.length === 1 && !!blueprint);
+      check("[10] framed blueprint carries a non-placeholder frameKey", !!blueprint?.frameKey && blueprint.frameKey !== "frame", blueprint?.frameKey);
+
+      const recoveryStore = new FileLocatorRecoveryStore(await mkdtemp(join(tmpdir(), "wfs-frame-blueprint-")));
+      const scope = { scenarioId: "frame-blueprint-scenario", flowId: "frame-blueprint-flow" };
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      await page.goto(`${OUTER}/blueprint-host`);
+      await page.waitForTimeout(300);
+      await new LocatorFactory(page, { recoveryStore, scope, recoveryGraceMs: 0 }).resolve(step);
+
+      let requestedKey = "";
+      const blueprintStore: LocatorBlueprintStore = {
+        get: async (key) => {
+          requestedKey = key;
+          return key === blueprint.pageKey ? blueprint : undefined;
+        },
+        put: async () => undefined,
+        list: async () => [blueprint]
+      };
+      const child = page.frames().find((frame) => {
+        try { return new URL(frame.url()).pathname === "/blueprint"; } catch { return false; }
+      });
+      if (!child) throw new Error("blueprint child frame not found");
+      await child.evaluate(() => {
+        document.body.insertAdjacentHTML("afterbegin", "<aside>inserted banner</aside>");
+        const target = document.getElementById("blueprint-old");
+        if (target) target.id = "blueprint-new";
+      });
+      const events: string[] = [];
+      const recovered = await new LocatorFactory(page, {
+        recoveryStore,
+        blueprintStore,
+        scope,
+        recoveryGraceMs: 0,
+        onRecoveryEvent: (event) => events.push(event.type)
+      }).resolve(step);
+      await recovered.click();
+      await page.waitForFunction(() => (window as unknown as { __lastClick?: string }).__lastClick === "blueprint").catch(() => undefined);
+      check("[10] runtime requests the captured CHILD-frame page key", requestedKey === blueprint.pageKey, requestedKey);
+      check("[10] minor structural drift recovers and clicks inside the frame", (await lastClick(page)) === "blueprint", await lastClick(page));
+      check("[10] successful frame blueprint recovery is observable", events.includes("local-recovery"), JSON.stringify(events));
+
+      await child.evaluate(() => {
+        document.body.innerHTML = Array.from({ length: 205 }, (_unused, index) => `<a href="#${index}">other ${index}</a>`).join("") +
+          '<button id="blueprint-new">Blueprint target</button>';
+      });
+      const refused = await new LocatorFactory(page, {
+        recoveryStore,
+        blueprintStore,
+        scope,
+        recoveryGraceMs: 0
+      }).resolve(step);
+      check("[10] materially different same-URL frame variant is refused", (await refused.count()) === 0);
+      await ctx.close();
     }
   } finally {
     await browser.close();

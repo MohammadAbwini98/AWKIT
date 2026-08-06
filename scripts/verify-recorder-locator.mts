@@ -1300,7 +1300,7 @@ async function main() {
       pageKey,
       canonicalUrl: page.url(),
       capturedAtUtc: new Date().toISOString(),
-      documentFingerprint: "fixture",
+      documentFingerprint: "button=1|div=205",
       elements: [
         {
           blueprintId: "bp-neighborhood",

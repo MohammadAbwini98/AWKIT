@@ -1,5 +1,27 @@
 # CURRENT_STATE
 
+## Frame-correct blueprint identity + page-variant gate — awkit-3ut COMPLETE (2026-08-07)
+
+Blueprint recovery now uses the actual replay document identity for framed targets. Capture and
+runtime share a deterministic, privacy-safe digest of the recorded outer-to-inner frame chain;
+runtime resolves that chain to the real child `Frame` and computes the page key from the child URL
+and title instead of the top page. The same digest is persisted as `PageBlueprint.frameKey` and
+`ElementBlueprint.frameChainDigest`.
+
+The previously unused `documentFingerprint` is now an active fail-closed page-variant gate. It
+compares canonical tag/explicit-role histograms, tolerating small structural drift (such as one
+inserted banner) while refusing materially different same-URL documents. The redundant top-level
+`ElementBlueprint.ancestry` now reuses the hashed fingerprint ancestry, so raw structural identity
+is no longer persisted there.
+
+Real Chromium coverage proves child-frame key lookup, minor-drift framed recovery, observable local
+recovery, and same-URL variant refusal. Verified: `verify:frame-chain` **31/0**,
+`verify:blueprint-recovery` **52/52**, `verify:recorder` **217/0**, `verify:runner` **89/0**,
+`verify:recorder-flow` **33/33**, `verify:source-hygiene` **9/0**, verifier classification reconciled,
+and `npm run build` clean. `awkit-3ut` is closed; tracker
+**169 / 6 outstanding / 163 closed / 95 edges**. `awkit-c2z` is now dependency-ready. The validation
+ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Blueprint recovery second layer + neighborhood scan — awkit-qpv COMPLETE (2026-08-07)
 
 Blueprint-guided locator recovery now runs only after the existing broad 200-visible-element scan

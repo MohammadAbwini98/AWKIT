@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
+import type { LocatorElementFingerprint, LocatorFrameContext } from "@src/profiles/FlowProfile";
 
 // ── Blueprint schema types ────────────────────────────────────────────────────
 
@@ -24,7 +24,7 @@ export interface PageBlueprint {
   frameKey?: string;
   /** ISO timestamp of capture. */
   capturedAtUtc: string;
-  /** Structural hash for detecting page-variant drift (tag/role histogram). */
+  /** Canonical tag/role histogram for detecting page-variant drift without storing page text. */
   documentFingerprint: string;
   /** Captured element entries (capped at {@link MAX_BLUEPRINT_ELEMENTS}). */
   elements: ElementBlueprint[];
@@ -117,6 +117,58 @@ export function computePageKey(url: string, pageTitle: string, frameChainDigest 
     .join(" ");
   const raw = `${origin}\0${pathname}\0${titleCategory}\0${frameChainDigest}`;
   return createHash("sha256").update(raw).digest("hex");
+}
+
+/** Stable, privacy-safe identity for the recorded outer-to-inner frame chain. */
+export function computeFrameKey(frameChain: LocatorFrameContext[] | undefined): string {
+  if (!frameChain?.length) return "";
+  const normalized = frameChain.map((segment) => ({
+    selector: segment.selector,
+    index: segment.index ?? null,
+    name: segment.name ?? "",
+    title: segment.title ?? "",
+    url: segment.url ?? ""
+  }));
+  return createHash("sha256").update(JSON.stringify(normalized)).digest("hex").slice(0, 20);
+}
+
+/**
+ * Compare two canonical tag/role histograms. A small inserted banner or wrapper is tolerated, while
+ * a materially different same-URL page variant fails closed. Legacy opaque hashes only match exactly.
+ */
+export function documentFingerprintSimilarity(captured: string, current: string): number {
+  if (captured === current) return 1;
+  const parse = (value: string): Map<string, number> | undefined => {
+    if (!value || !value.includes("=")) return undefined;
+    const result = new Map<string, number>();
+    for (const part of value.split("|")) {
+      const separator = part.lastIndexOf("=");
+      const key = part.slice(0, separator);
+      const count = Number(part.slice(separator + 1));
+      if (!key || !Number.isFinite(count) || count < 0) return undefined;
+      result.set(key, count);
+    }
+    return result;
+  };
+  const left = parse(captured);
+  const right = parse(current);
+  if (!left || !right) return 0;
+  const keys = new Set([...left.keys(), ...right.keys()]);
+  let overlap = 0;
+  let leftTotal = 0;
+  let rightTotal = 0;
+  for (const key of keys) {
+    const leftCount = left.get(key) ?? 0;
+    const rightCount = right.get(key) ?? 0;
+    overlap += Math.min(leftCount, rightCount);
+    leftTotal += leftCount;
+    rightTotal += rightCount;
+  }
+  return overlap / Math.max(leftTotal, rightTotal, 1);
+}
+
+export function documentFingerprintMatches(captured: string, current: string): boolean {
+  return documentFingerprintSimilarity(captured, current) >= 0.85;
 }
 
 /**

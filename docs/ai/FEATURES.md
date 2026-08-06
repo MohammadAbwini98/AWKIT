@@ -286,7 +286,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ **Blueprint-guided second-layer recovery**: after the broad bounded scan fails, the runner may
   search a ±24 document-order neighborhood from the page blueprint. It uses the same hashed
   fingerprint scorer and 0.86/0.08 confidence gates as normal recovery; structural position is only
-  a small tiebreaker, and equal lookalikes fail closed.
+  a small tiebreaker, and equal lookalikes fail closed. Framed targets key against the actual child
+  document plus a deterministic frame-chain digest, and a drift-tolerant structural histogram gate
+  refuses materially different same-URL page variants.
 - ✅ **Locator-quality surfacing:** Flow Designer Node Properties shows a locator-quality readout
   (including how a non-unique element was disambiguated) and will not report a node as valid when its
   saved locator is genuinely non-unique (flow-level + node validation messages). Recorder

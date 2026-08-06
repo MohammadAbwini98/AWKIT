@@ -22,7 +22,10 @@ import type { RecordedAction, RecordedActionLocator } from "@src/recorder/Record
 import type { LocatorElementFingerprint } from "@src/profiles/FlowProfile";
 import {
   computeDocumentFingerprint,
+  computeFrameKey,
   computePageKey,
+  documentFingerprintMatches,
+  documentFingerprintSimilarity,
   FileLocatorBlueprintStore,
   MAX_BLUEPRINT_FILE_SIZE,
   type ElementBlueprint,
@@ -64,6 +67,7 @@ interface CaptureOver {
   fingerprint?: LocatorElementFingerprint;
   documentStructure?: string;
   alternatives?: number;
+  frameChain?: Array<{ selector: string; index?: number; name?: string; title?: string; url?: string }>;
 }
 
 function capturingClick(id: string, o: CaptureOver = {}): RecordedAction {
@@ -88,6 +92,7 @@ function capturingClick(id: string, o: CaptureOver = {}): RecordedAction {
   if (o.alternatives) {
     locator.alternatives = Array.from({ length: o.alternatives }, (_unused, i) => ({ strategy: "css", value: `.alt-${i}` }));
   }
+  if (o.frameChain) locator.context = { frameChain: o.frameChain };
   return { id, type: "click", name: "Click Field", locator };
 }
 
@@ -114,6 +119,7 @@ check("primaryLocatorDigest is a hashed digest of the primary locator", el1?.pri
 check("stored fingerprint equals hashFingerprint(raw) — one shared pipeline, no divergence", eq(el1?.fingerprint, hashFingerprint(fp1)));
 check("stored fingerprint is HASHED, not the raw fingerprint", !eq(el1?.fingerprint, fp1));
 check("hashed-fingerprint ancestry entries are 20-hex hashes", (el1?.fingerprint.ancestry.length ?? 0) === 3 && !!el1?.fingerprint.ancestry.every((a) => /^[0-9a-f]{20}$/.test(a)));
+check("top-level ancestry reuses the HASHED fingerprint ancestry", eq(el1?.ancestry, el1?.fingerprint.ancestry));
 const serialized1 = JSON.stringify(bp1);
 check("raw label/text token is NOT persisted (hashed away)", !serialized1.includes(PII_LABEL));
 check("raw attribute VALUE is NOT persisted (hashed away)", !serialized1.includes(PII_ATTR_VALUE));
@@ -137,6 +143,28 @@ check("document fingerprint is order-independent (same multiset → same hash)",
 check("different element histogram → different fingerprint", dfA !== computeDocumentFingerprint([{ tag: "div" }, { tag: "span" }]));
 check("role participates in the histogram key", computeDocumentFingerprint([{ tag: "div", role: "button" }]) !== computeDocumentFingerprint([{ tag: "div" }]));
 check("document fingerprint is a 20-hex digest", /^[0-9a-f]{20}$/.test(dfA));
+check("document variant gate tolerates one inserted element", documentFingerprintMatches("button=1|div=205", "aside=1|button=1|div=205"));
+check("document variant gate rejects a materially different same-URL page", !documentFingerprintMatches("button=1|div=205", "a=205|button=1"));
+check("document variant similarity is deterministic", documentFingerprintSimilarity("button=1|div=205", "aside=1|button=1|div=205") === 206 / 207);
+
+// ── 4b. Frame identity parity ───────────────────────────────────────────────
+const frameChain = [
+  { selector: "iframe#outer", title: "Checkout shell", url: "https://host.example.com/frame" },
+  { selector: "iframe#inner", index: 1, name: "payment" }
+];
+const frameKey = computeFrameKey(frameChain);
+const framedBlueprints: PageBlueprint[] = [];
+const framedFlow = buildRecordedFlow(
+  "Framed",
+  [capturingClick("framed", { url: "https://pay.example.com/form?token=hidden", title: "Payment Form", frameChain })],
+  framedBlueprints
+);
+check("frame-chain digest is deterministic and privacy-safe", /^[0-9a-f]{20}$/.test(frameKey) && frameKey === computeFrameKey(frameChain));
+check("frame blueprint stores the real frame-chain digest", framedBlueprints[0]?.frameKey === frameKey);
+check("framed step and element stay linked", framedBlueprints[0]?.elements[0]?.blueprintId === framedFlow.nodes.find((node) => node.id === "step-1")?.locator?.blueprintId);
+check("element frameChainDigest matches the page frameKey", framedBlueprints[0]?.elements[0]?.frameChainDigest === frameKey);
+check("framed pageKey uses child URL/title + frame digest", framedBlueprints[0]?.pageKey === computePageKey("https://pay.example.com/form", "Payment Form", frameKey));
+check("changing the frame chain changes its key", frameKey !== computeFrameKey([{ selector: "iframe#other" }]));
 
 // ── 5. Dedupe by page key / multi-page ───────────────────────────────────────
 const bps2: PageBlueprint[] = [];

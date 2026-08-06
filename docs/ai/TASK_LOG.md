@@ -10408,3 +10408,28 @@ pm run verify:mock-site
 - **Files:** `src/runner/LocatorFactory.ts`, `scripts/verify-recorder-locator.mts`,
   `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`, `tools/roadmap/assignments.json`,
   `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`.
+
+## 2026-08-07: Frame-correct blueprint identity + document-variant gate (awkit-3ut)
+
+- **Agent:** Codex. **Selection:** highest-priority dependency-ready item after `awkit-qpv`; tied at
+  P2 with `awkit-utj`, but selected because it is a bug and directly blocked `awkit-c2z`.
+- **Root cause:** capture keyed framed blueprints from the child URL/title plus the literal string
+  `"frame"`, while runtime keyed from the top page; `documentFingerprint` was stored but ignored;
+  and `ElementBlueprint.ancestry` duplicated the raw capture ancestry instead of the hashed copy.
+- **Fix:** added deterministic `computeFrameKey()` parity across capture/runtime, resolved the actual
+  child `Frame` before page-key computation and neighborhood scanning, activated a canonical
+  tag/explicit-role histogram gate with 0.85 overlap tolerance, and reused hashed fingerprint ancestry.
+  Blueprint errors and mismatched page variants remain fail-safe.
+- **Coverage:** `verify:frame-chain` gained a real cross-origin framed blueprint fixture proving child
+  page-key lookup, minor inserted-banner drift recovery, recovery observability, and materially
+  different same-URL variant refusal. `verify:blueprint-recovery` now pins frame-digest parity,
+  histogram tolerance/refusal, and top-level ancestry privacy.
+- **Verification:** `verify:frame-chain` **31/0**; `verify:blueprint-recovery` **52/52**;
+  `verify:recorder` **217/0**; `npm run build` PASS; `verify:runner` **89/0**;
+  `verify:recorder-flow` **33/33**; `verify:source-hygiene` **9/0**; verifier classification reconciled.
+- **Tracking:** closed `awkit-3ut`; tracker **169 / 6 outstanding / 163 closed / 95 edges**.
+  `awkit-c2z` is now ready; ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Files:** `src/runner/{LocatorBlueprintStore,LocatorFactory}.ts`,
+  `src/recorder/buildRecordedFlow.ts`, `scripts/{verify-blueprint-recovery,verify-frame-chain,
+  verify-recorder-locator}.mts`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/*.jsonl`, and
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`.
