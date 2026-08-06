@@ -17,6 +17,12 @@ additive, fail-safe second signal — it always falls through to the existing sc
   page-variant gate is captured but not checked; frame keying is a placeholder (capture uses the
   frame URL/title, runtime uses the top-page URL/title, so framed targets never match).
 
+No validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Beads filed for the open runtime gaps — `awkit-qpv` (second-layer ordering + neighborhood scan),
+`awkit-utj` (sensitive-action refusal), `awkit-3ut` (frame page-key + variant gate), `awkit-c2z`
+(real-browser verifier; blocked by qpv + 3ut) — so the tracker now stands at **166 / 8 outstanding /
+158 closed**, edges **95**.
+
 
 ## Instrumented closed-shadow resolver — epic `awkit-65g` COMPLETE (2026-08-04)
 

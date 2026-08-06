@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("162 issues parse", beads.stats.total === 162, `got ${beads.stats.total}`);
+  check("166 issues parse", beads.stats.total === 166, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -173,9 +173,13 @@ try {
   // `awkit-871` (superseded — no non-positional needs-review reaches the designer) and the parent epic
   // `awkit-65g` all closed: 4/158 of 162, edges 93. The 4 outstanding are the owner-gated items
   // (`awkit-cey`/`awkit-7bu`/`awkit-az7`/`awkit-cm8`).
+  // Then 2026-08-05: the Locator Blueprint recovery review filed four OPEN follow-ups — `awkit-qpv`
+  // (second-layer ordering + neighborhood scan), `awkit-utj` (sensitive-action refusal), `awkit-3ut`
+  // (frame page-key + variant gate) and `awkit-c2z` (real-browser verifier) — with two `blocks` edges
+  // (qpv→c2z, 3ut→c2z): 8/158 of 166, edges 93 → 95.
   check(
-    "4 outstanding / 158 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 158,
+    "8 outstanding / 158 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 158,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -191,8 +195,8 @@ try {
   check("no dangling dependency reference", beads.stats.danglingEdges === 0, `got ${beads.stats.danglingEdges}`);
   check("every status is known", beads.beads.every((b) => KNOWN_STATUSES.has(b.status)));
   check(
-    "93 edges are present to classify",
-    beads.stats.edges === 93,
+    "95 edges are present to classify",
+    beads.stats.edges === 95,
     `got ${beads.stats.edges} — the edge-type check below is vacuous if this reaches 0`
   );
   check(
