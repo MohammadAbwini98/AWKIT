@@ -19,6 +19,7 @@ import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { RecorderService } from "@src/recorder/RecorderService";
 import { buildSmartWaits, type RecordedSignal } from "@src/recorder/smartWaitObservation";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
+import { computePageKey, type LocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { FileLocatorRecoveryStore } from "@src/runner/LocatorRecoveryStore";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
@@ -1247,6 +1248,107 @@ async function main() {
       JSON.stringify(events)
     );
     check("local recovery: valid candidate emits no recovery event", !events.includes("local-recovery"), JSON.stringify(events));
+  }
+
+  // E6. Blueprint storage is a SECOND layer: a confident broad-scan recovery must win without a read.
+  {
+    const step: FlowStep = {
+      id: "blueprint-second-layer",
+      type: "click",
+      name: "Click broad winner",
+      locator: { strategy: "id", value: "broad-old", blueprintId: "bp-second-layer" }
+    };
+    await page.setContent(`<button id="broad-old">Broad winner</button>`);
+    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step);
+    await page.setContent(`<button id="broad-new" onclick="window.__hit='broad'">Broad winner</button>`);
+    let blueprintReads = 0;
+    const blueprintStore: LocatorBlueprintStore = {
+      get: async () => {
+        blueprintReads += 1;
+        return undefined;
+      },
+      put: async () => undefined,
+      list: async () => []
+    };
+    const recovered = await new LocatorFactory(page, {
+      recoveryStore,
+      blueprintStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0
+    }).resolve(step);
+    await recovered.click();
+    check("blueprint recovery: broad scan wins before blueprint storage is read", blueprintReads === 0, String(blueprintReads));
+    check("blueprint recovery: broad-scan winner is clicked", (await page.evaluate(() => (window as any).__hit)) === "broad");
+  }
+
+  // E7. The broad scan is capped at 200; a target shifted by an inserted sibling is recovered from
+  // the bounded blueprint neighborhood around its prior document order.
+  {
+    const step: FlowStep = {
+      id: "blueprint-neighborhood",
+      type: "click",
+      name: "Click neighborhood target",
+      locator: { strategy: "id", value: "neighborhood-old", blueprintId: "bp-neighborhood" }
+    };
+    const fillers = Array.from({ length: 205 }, (_unused, index) => `<div>filler ${index}</div>`).join("");
+    await page.setContent(`${fillers}<button id="neighborhood-old">Neighborhood target</button>`);
+    await new LocatorFactory(page, { recoveryStore, scope: recoveryScope, recoveryGraceMs: 0 }).resolve(step);
+    const memory = await recoveryStore.get("scenario-recovery\u0000flow-recovery\u0000blueprint-neighborhood");
+    const pageKey = computePageKey(page.url(), await page.title());
+    const blueprint: PageBlueprint = {
+      schemaVersion: 1,
+      pageKey,
+      canonicalUrl: page.url(),
+      capturedAtUtc: new Date().toISOString(),
+      documentFingerprint: "fixture",
+      elements: [
+        {
+          blueprintId: "bp-neighborhood",
+          documentOrder: 205,
+          siblingIndex: 205,
+          sameTagIndex: 0,
+          tag: "button",
+          role: "button",
+          ancestry: memory?.fingerprint?.ancestry ?? [],
+          fingerprint: memory!.fingerprint!,
+          primaryLocatorDigest: "fixture",
+          alternativeCount: 0,
+          visible: true,
+          enabled: true
+        }
+      ]
+    };
+    let blueprintReads = 0;
+    const blueprintStore: LocatorBlueprintStore = {
+      get: async (key) => {
+        blueprintReads += 1;
+        return key === pageKey ? blueprint : undefined;
+      },
+      put: async () => undefined,
+      list: async () => [blueprint]
+    };
+    await page.setContent(`<aside>inserted banner</aside>${fillers}<button id="neighborhood-new" onclick="window.__hit='blueprint'">Neighborhood target</button>`);
+    const recovered = await new LocatorFactory(page, {
+      recoveryStore,
+      blueprintStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0
+    }).resolve(step);
+    await recovered.click();
+    check("blueprint recovery: storage is read only after the broad scan misses", blueprintReads === 1, String(blueprintReads));
+    check("blueprint recovery: inserted sibling shift still clicks the intended target", (await page.evaluate(() => (window as any).__hit)) === "blueprint");
+
+    await page.setContent(
+      `<aside>inserted banner</aside>${fillers}` +
+        `<button id="neighborhood-a">Neighborhood target</button><button id="neighborhood-b">Neighborhood target</button>`
+    );
+    const unresolved = await new LocatorFactory(page, {
+      recoveryStore,
+      blueprintStore,
+      scope: recoveryScope,
+      recoveryGraceMs: 0
+    }).resolve(step);
+    check("blueprint recovery: equal neighborhood twins fail the 0.08 runner-up margin", (await unresolved.count()) === 0);
   }
 
   console.log("Part D — Smart Wait recorder observation (Phase 2)");

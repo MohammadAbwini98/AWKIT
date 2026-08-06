@@ -283,6 +283,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   remain equally actionable it does **not** guess and fails with the existing friendly diagnostic
   (clicking the wrong twin is worse than a clear error). This heals legacy non-unique flows without
   re-recording.
+- ✅ **Blueprint-guided second-layer recovery**: after the broad bounded scan fails, the runner may
+  search a ±24 document-order neighborhood from the page blueprint. It uses the same hashed
+  fingerprint scorer and 0.86/0.08 confidence gates as normal recovery; structural position is only
+  a small tiebreaker, and equal lookalikes fail closed.
 - ✅ **Locator-quality surfacing:** Flow Designer Node Properties shows a locator-quality readout
   (including how a non-unique element was disambiguated) and will not report a node as valid when its
   saved locator is genuinely non-unique (flow-level + node validation messages). Recorder

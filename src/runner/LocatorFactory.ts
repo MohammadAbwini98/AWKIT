@@ -21,7 +21,7 @@ import {
   type LocatorRecoveryRecord,
   type LocatorRecoveryStore
 } from "./LocatorRecoveryStore";
-import type { LocatorBlueprintStore } from "./LocatorBlueprintStore";
+import type { ElementBlueprint, LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import { computePageKey } from "./LocatorBlueprintStore";
 
 /**
@@ -60,6 +60,10 @@ const MAX_CDP_CLOSED_ROOTS = 50;
 const RECOVERY_SCAN_CAP = 200;
 const RECOVERY_SCORE_THRESHOLD = 0.86;
 const RECOVERY_MARGIN = 0.08;
+/** Bounded document-order window used only after the broad local-recovery scan has failed. */
+const BLUEPRINT_NEIGHBORHOOD_RADIUS = 24;
+/** Structural position is a tiebreaker, never a replacement for fingerprint identity. */
+const BLUEPRINT_POSITION_BONUS = 0.03;
 
 export interface LocatorRecoveryEvent {
   type: "preferred-candidate" | "local-recovery" | "memory-error" | "user-approved-fallback" | "guarded-positional";
@@ -419,38 +423,6 @@ export class LocatorFactory {
     step: FlowStep,
     expected: LocatorElementFingerprint
   ): Promise<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number } | undefined> {
-    if (step.locator?.blueprintId && this.options.blueprintStore) {
-      try {
-        const frameType = step.locator?.context?.frameChain?.length ? "frame" : "";
-        const pageKey = computePageKey(this.page.url(), await this.page.title().catch(() => ""), frameType);
-        const pageBlueprint = await this.options.blueprintStore.get(pageKey);
-        const elementBlueprint = pageBlueprint?.elements.find(e => e.blueprintId === step.locator!.blueprintId);
-        
-        if (elementBlueprint) {
-          const frameRoot = await this.frameRoot(step.locator.context);
-          const candidate = frameRoot.locator("body *").nth(elementBlueprint.documentOrder);
-          const candidateFingerprint = await LocatorFactory.fingerprintOne(candidate);
-          
-          if (candidateFingerprint && LocatorFactory.isCompatible(step, candidateFingerprint)) {
-            const score = similarity(expected, candidateFingerprint);
-            // We require a slightly higher threshold (0.90) for a blind positional jump to avoid clicking
-            // the wrong element if the DOM completely changed shape but happened to put something similar there.
-            if (score >= Math.max(RECOVERY_SCORE_THRESHOLD, 0.90)) {
-               this.emit({
-                 type: "local-recovery",
-                 stepId: step.id,
-                 score,
-                 message: `Blueprint structure fast-path recovered "${step.name}" (score: ${score.toFixed(3)}).`
-               });
-               return { locator: candidate, fingerprint: candidateFingerprint, score };
-            }
-          }
-        }
-      } catch (e) {
-        // Silently fall through to the deep scan on any blueprint read/evaluate error
-      }
-    }
-
     const visible = root.locator("*:visible");
     const fingerprints = await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP);
     const ranked = fingerprints
@@ -459,9 +431,102 @@ export class LocatorFactory {
       .sort((a, b) => b.score - a.score);
     const best = ranked[0];
     const runnerUp = ranked[1];
-    if (!best || best.score < RECOVERY_SCORE_THRESHOLD) return undefined;
-    if (runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
-    return { locator: visible.nth(best.index), fingerprint: best.fingerprint, score: best.score };
+    if (best && best.score >= RECOVERY_SCORE_THRESHOLD && (!runnerUp || best.score - runnerUp.score >= RECOVERY_MARGIN)) {
+      return { locator: visible.nth(best.index), fingerprint: best.fingerprint, score: best.score };
+    }
+
+    return this.recoverFromBlueprint(step);
+  }
+
+  /**
+   * Second recovery layer: inspect a small document-order neighborhood around the captured element
+   * only after the broad visible-element scan could not identify a unique match. Identity still comes
+   * from the shared fingerprint scorer; sibling/tag/viewport position contribute at most 0.03 total.
+   */
+  private async recoverFromBlueprint(
+    step: FlowStep
+  ): Promise<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number } | undefined> {
+    const blueprintId = step.locator?.blueprintId;
+    if (!blueprintId || !this.options.blueprintStore) return undefined;
+
+    try {
+      const frameType = step.locator?.context?.frameChain?.length ? "frame" : "";
+      const pageKey = computePageKey(this.page.url(), await this.page.title().catch(() => ""), frameType);
+      const pageBlueprint = await this.options.blueprintStore.get(pageKey);
+      const elementBlueprint = pageBlueprint?.elements.find((element) => element.blueprintId === blueprintId);
+      if (!elementBlueprint) return undefined;
+
+      const frameRoot = await this.frameRoot(step.locator?.context);
+      const allElements = frameRoot.locator("body *");
+      const count = await allElements.count().catch(() => 0);
+      const start = Math.max(0, elementBlueprint.documentOrder - BLUEPRINT_NEIGHBORHOOD_RADIUS);
+      const end = Math.min(count - 1, elementBlueprint.documentOrder + BLUEPRINT_NEIGHBORHOOD_RADIUS);
+      const ranked: Array<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number }> = [];
+
+      for (let index = start; index <= end; index += 1) {
+        const locator = allElements.nth(index);
+        if (!(await locator.isVisible().catch(() => false))) continue;
+        const fingerprint = await LocatorFactory.fingerprintOne(locator);
+        if (!fingerprint || !LocatorFactory.isCompatible(step, fingerprint)) continue;
+        const identityScore = similarity(elementBlueprint.fingerprint, fingerprint);
+        if (identityScore < RECOVERY_SCORE_THRESHOLD) continue;
+        const positionScore = await LocatorFactory.blueprintPositionScore(locator, index, elementBlueprint);
+        ranked.push({ locator, fingerprint, score: Math.min(1, identityScore + positionScore * BLUEPRINT_POSITION_BONUS) });
+      }
+
+      ranked.sort((left, right) => right.score - left.score);
+      const best = ranked[0];
+      const runnerUp = ranked[1];
+      if (!best || best.score < RECOVERY_SCORE_THRESHOLD) return undefined;
+      if (runnerUp && best.score - runnerUp.score < RECOVERY_MARGIN) return undefined;
+      return best;
+    } catch {
+      // Blueprint storage/page probing is additive and fail-safe: normal unresolved behavior wins.
+      return undefined;
+    }
+  }
+
+  private static async blueprintPositionScore(
+    locator: Locator,
+    documentOrder: number,
+    blueprint: ElementBlueprint
+  ): Promise<number> {
+    try {
+      const evidence = await locator.evaluate((node) => {
+        const element = node as Element;
+        const siblings = element.parentElement ? Array.from(element.parentElement.children) : [];
+        const siblingIndex = siblings.indexOf(element);
+        const sameTagIndex = siblings.filter((sibling) => sibling.tagName === element.tagName).indexOf(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          siblingIndex,
+          sameTagIndex,
+          boundingRegion: {
+            relativeX: window.innerWidth ? rect.x / window.innerWidth : 0,
+            relativeY: window.innerHeight ? rect.y / window.innerHeight : 0,
+            relativeWidth: window.innerWidth ? rect.width / window.innerWidth : 0,
+            relativeHeight: window.innerHeight ? rect.height / window.innerHeight : 0
+          }
+        };
+      });
+      const documentScore = 1 - Math.min(1, Math.abs(documentOrder - blueprint.documentOrder) / (BLUEPRINT_NEIGHBORHOOD_RADIUS + 1));
+      const siblingScore = evidence.siblingIndex === blueprint.siblingIndex ? 1 : 0;
+      const sameTagScore = evidence.sameTagIndex === blueprint.sameTagIndex ? 1 : 0;
+      const expectedRegion = blueprint.boundingRegion;
+      const regionScore = expectedRegion
+        ? 1 -
+          Math.min(
+            1,
+            Math.abs(evidence.boundingRegion.relativeX - expectedRegion.relativeX) +
+              Math.abs(evidence.boundingRegion.relativeY - expectedRegion.relativeY) +
+              Math.abs(evidence.boundingRegion.relativeWidth - expectedRegion.relativeWidth) +
+              Math.abs(evidence.boundingRegion.relativeHeight - expectedRegion.relativeHeight)
+          )
+        : 0;
+      return (documentScore + siblingScore + sameTagScore + regionScore) / (expectedRegion ? 4 : 3);
+    } catch {
+      return 0;
+    }
   }
 
   private scopeKey(step: FlowStep): string | undefined {

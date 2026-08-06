@@ -186,9 +186,11 @@ try {
   // outstanding held at 9, edges 95.
   // Then all three `awkit-3g6` parts landed (mock-site /drag-lab, designer drop-target editor,
   // pointer-emulated capture) so it closed: closed 160 → 161, outstanding 9 → 8, total held at 169.
+  // Then `awkit-qpv` closed after blueprint recovery became a genuine second layer with a bounded
+  // neighborhood scan: closed 161 to 162, outstanding 8 to 7, total held at 169.
   check(
-    "8 outstanding / 161 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 161,
+    "7 outstanding / 162 closed",
+    beads.stats.outstanding === 7 && beads.stats.closed === 162,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

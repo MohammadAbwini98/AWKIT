@@ -10386,3 +10386,25 @@ pm run verify:mock-site
 - **Result:** HANDOFF is ready for the next agent. No secrets written to Markdown. Recommended next step:
   `awkit-qpv` (blueprint recovery second-layer + neighborhood scan), which with `awkit-3ut` unblocks
   `awkit-c2z`.
+
+## 2026-08-07: Blueprint recovery second layer + neighborhood scan (awkit-qpv)
+
+- **Agent:** Codex. **Task:** resume from the drag/Recorder handoff and implement the recommended
+  `awkit-qpv` blueprint-recovery correction.
+- **Implementation:** `LocatorFactory.recoverLocally()` now completes the existing broad visible scan
+  first. Only when that fails does `recoverFromBlueprint()` load the page blueprint and inspect a
+  bounded ±24 document-order neighborhood. Candidates use the shared hashed-fingerprint
+  `similarity()` score with the existing 0.86 threshold and 0.08 runner-up margin. Captured document
+  order, sibling index, same-tag index, and bounding region contribute at most a 0.03 tiebreaker;
+  invisible candidates and equal twins are refused. Blueprint errors remain additive/fail-safe.
+- **Coverage:** extended the real-Chromium `verify:recorder` suite with broad-first/no-store-read,
+  inserted-sibling recovery beyond the 200-element broad cap, and equal-neighborhood-twin refusal.
+- **Verification:** `npm run verify:recorder` **217/0**; `npm run build` PASS;
+  `npm run verify:runner` **89/0**; `npm run verify:blueprint-recovery` **42/42**;
+  `npm run verify:source-hygiene` **9/0**.
+- **Tracking:** closed `awkit-qpv`; tracker **169 / 7 outstanding / 162 closed / 95 edges**. Ledger
+  unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Remaining blueprint work: `awkit-3ut`,
+  `awkit-utj`, and `awkit-c2z` (still blocked by `awkit-3ut`).
+- **Files:** `src/runner/LocatorFactory.ts`, `scripts/verify-recorder-locator.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`, `tools/roadmap/assignments.json`,
+  `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`.

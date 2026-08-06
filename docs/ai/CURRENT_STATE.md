@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Blueprint recovery second layer + neighborhood scan — awkit-qpv COMPLETE (2026-08-07)
+
+Blueprint-guided locator recovery now runs only after the existing broad 200-visible-element scan
+cannot identify a confident unique match. The blueprint layer searches a bounded ±24 window around
+the captured `documentOrder`, scores identity with the shared `similarity()` model, restores the
+standard **0.86 threshold + 0.08 runner-up margin**, and uses document order, sibling index,
+same-tag index, and viewport-relative bounding region only as a capped 0.03 structural tiebreaker.
+It remains fail-safe: storage/probing errors fall through, invisible candidates are ignored, and
+equal lookalikes are never selected.
+
+Real Chromium coverage in `verify:recorder` proves the broad scan wins without reading blueprint
+storage, a target shifted by an inserted sibling beyond the broad scan cap is recovered from its
+neighborhood, and equal neighborhood twins fail the margin. Verified: `verify:recorder` **217/0**,
+`verify:runner` **89/0**, `verify:blueprint-recovery` **42/42**, `verify:source-hygiene` **9/0**, and
+`npm run build` clean. `awkit-qpv` is closed; tracker **169 / 7 outstanding / 162 closed / 95 edges**.
+The remaining blueprint items are `awkit-3ut`, `awkit-utj`, and `awkit-c2z` (still blocked by
+`awkit-3ut`). The validation ledger is unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Pointer-emulated drag capture — awkit-3g6 COMPLETE (2026-08-06)
 
 The Recorder now captures pointer-emulated drag-and-drop (react-dnd / dnd-kit / SortableJS-style, which
