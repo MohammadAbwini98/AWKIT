@@ -10251,3 +10251,34 @@ pm run verify:mock-site
   `.beads/issues.jsonl`.
 - **Result:** one more gap closed, three competitive behaviors verified (two strengths, one new gap).
   Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).
+
+## 2026-08-06: Drag-and-drop — new `drag` step type end-to-end (awkit-dat)
+
+- **Agent:** Claude (Opus 4.8). **Task:** implement drag-and-drop capture + replay (the awkit-dat gap
+  found in the competitive deep-dive).
+- **Scope discovery:** adding a StepType ripples through several exhaustive `Record<StepType,…>` tables
+  (`tsc`-enforced) and a parity verifier (`test:random:generator`) that requires the renderer
+  `flowNodeCatalog` and the test-lab `NODE_CATALOG` to have the identical type set — so `drag` had to be
+  added to the renderer palette too (parity-only; a full designer editor is a follow-up).
+- **Implementation (10 files):**
+  - `FlowProfile.ts`: `StepType += "drag"`; `FlowStep.targetLocator?` (additive).
+  - `StepRequirements.ts`, `NodeCatalog.ts` (gated `missingLocalFixture`, weight 0),
+    `flowNodeCatalog.ts` (+`Move` icon), `flowNodeRegistry.ts` (interaction/locator section),
+    `StepSafetyPolicy.ts` (`drag` → `safeMutation`).
+  - `RecorderTypes.ts`: `RecordedAction.targetLocator?`.
+  - `recorderInitScript.ts`: `dragstart`/`drop`/`dragend` capture → one `drag` action with source +
+    target locators (cancelled drag records nothing).
+  - `buildRecordedFlow.ts`: map the drag action → `drag` step with `locator` + `targetLocator`, resolved.
+  - `StepExecutor.ts`: `case "drag"` resolves both locators and `source.dragTo(target)`; throws if the
+    `targetLocator` is missing.
+- **Tests:** extended `verify:recorder-competitive` (scenario G: native `page.dragAndDrop` → a `drag`
+  action with source + target, 35/35), `verify:recorder` (real StepExecutor replay + missing-target
+  negative, 210/0), `verify:recorder-flow` (mapping + JSON round-trip, 33/33).
+- **Verification (all green, no regressions):** build; `verify:validation` 125/0; `test:random:generator`
+  49/0; `test:random:roundtrip` 27/0; `verify:runner` 89/0; `verify:recorder-ambiguity` 69/0;
+  `verify:recorder-hover` 214/0; `verify:closed-shadow` 23/0; `verify:recorder-redaction` 15/0;
+  `verify:recorder-draft` 50/0; `verify:locator-guard` 33/0.
+- **Beads:** closed `awkit-dat` (core delivered); filed `awkit-3g6` (designer drop-target editor,
+  mock-site sortable scenario, pointer-emulated DnD). Tracker 169 / 9 outstanding / 160 closed.
+- **Result:** drag-and-drop is captured and replayed end-to-end. Ledger unchanged
+  (63 PASS / 2 NOT RUN / 1 BLOCKED).

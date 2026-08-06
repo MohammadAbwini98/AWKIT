@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Drag-and-drop capture + replay — new `drag` step type (2026-08-06)
+
+The Recorder now captures native HTML5 drag-and-drop, and the runner replays it (`awkit-dat` closed;
+enhancements → `awkit-3g6`). A new `drag` `StepType` runs end-to-end:
+
+- **Capture** (`recorderInitScript.ts`): `dragstart`/`drop`/`dragend` listeners emit one `drag` action
+  carrying the **source** locator and the **drop-target** locator (`targetLocator`). A cancelled drag
+  records nothing.
+- **Serialize** (`RecorderTypes.ts` `targetLocator`, `buildRecordedFlow.ts`): the drag action maps to a
+  `drag` step with both `locator` (source) and `targetLocator` (target), each finalized as resolved.
+- **Replay** (`StepExecutor.ts`): resolves both locators through the recovery-aware `LocatorFactory`
+  and performs a native `source.dragTo(target)`. A `drag` step missing its `targetLocator` fails with a
+  clear message (never a silent no-op).
+- **Additive across the exhaustive catalogs** (`tsc`/parity-enforced): `StepType`, `STEP_REQUIREMENTS`,
+  test-lab `NODE_CATALOG` (gated from random generation — no second-locator concept), renderer
+  `flowNodeCatalog` + `flowNodeRegistry`, and `StepSafetyPolicy` (`safeMutation`).
+
+Verified end-to-end: `verify:recorder` **210/0** (real StepExecutor replay + missing-target negative),
+`verify:recorder-competitive` **35/35** (capture), `verify:recorder-flow` **33/33** (mapping +
+round-trip), `verify:validation` 125/0, `test:random:generator` 49/0 (catalog↔registry parity),
+`test:random:roundtrip` 27/0, `verify:runner` 89/0, plus the recorder sweep (ambiguity 69, hover 214,
+closed-shadow 23, redaction 15, draft 50, locator-guard 33) and `npm run build` clean — no regressions.
+Follow-ups in `awkit-3g6`: designer drop-target editor, a mock-site sortable scenario, and
+pointer-emulated DnD (react-dnd/dnd-kit/SortableJS). No validation-ledger case changed, so the focused
+ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**; the tracker now stands at
+**169 / 9 outstanding / 160 closed**, edges **95**.
+
+
 ## Recorder competitive deep-testing + two fixes (2026-08-06)
 
 Deep-tested the Recorder against adversarial/competitive scenarios. New real-browser gate

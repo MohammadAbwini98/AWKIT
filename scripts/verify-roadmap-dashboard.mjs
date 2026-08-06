@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("168 issues parse", beads.stats.total === 168, `got ${beads.stats.total}`);
+  check("169 issues parse", beads.stats.total === 169, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -181,9 +181,12 @@ try {
   // not captured), OPEN, no new edges: 9/158 of 167, edges 95.
   // Then same day the contenteditable fix landed so `awkit-fbq` closed, and `awkit-dat` (drag-and-drop
   // not captured) was filed OPEN: net total 167 → 168, closed 158 → 159, outstanding held at 9, edges 95.
+  // Then the `drag` step type landed end-to-end so `awkit-dat` closed, and `awkit-3g6` (drag designer
+  // editor / mock-site / pointer-DnD follow-ups) was filed OPEN: total 168 → 169, closed 159 → 160,
+  // outstanding held at 9, edges 95.
   check(
-    "9 outstanding / 159 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 159,
+    "9 outstanding / 160 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 160,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
