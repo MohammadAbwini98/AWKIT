@@ -10307,3 +10307,32 @@ pm run verify:mock-site
   `scripts/verify-flow-step-mapping.mts`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
 - **Result:** drag fixture in the Feature Test Lab + a real designer data-loss bug fixed. Ledger
   unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).
+
+## 2026-08-06: Drag drop-target editor in the Flow Designer (awkit-3g6)
+
+- **Agent:** Claude (Opus 4.8). **Task:** awkit-3g6 Part 2 editor UI — a GUI editor for a drag step's
+  drop target, per an explicit requirement list.
+- **Implementation:**
+  - `flowNodeRegistry.ts`: new `dragTarget` `PropertySection`; drag META `sections:
+    ["locator","dragTarget","execution"]` + `validate` returning "Drag requires a drop-target locator."
+    when `targetLocator.value` is empty.
+  - `FlowNodePropertiesPanel.tsx`: `editTarget`/`clearTarget` helpers bound EXCLUSIVELY to
+    `targetLocator` (clearing sets it `undefined`, never touching the source `locator*`). New
+    drag-only **Drop Target** section (Strategy/Value/Accessible-Name/Match-exactly + Clear button +
+    an inline `role="alert"` when the target is empty). Source section retitled **Drag Source** for
+    drag nodes with a source-vs-target hint. Reuses existing token-styled classes (keyboard + focus
+    inherited); no unrelated redesign.
+- **Verifier:** extended `verify-flow-step-mapping.mts` (imports the real `getNodeDefinition`): drag
+  round-trip through BOTH mappings, edit→re-save persists, edit/clear leave the source untouched,
+  registry `validate` flags a missing target and passes with one, and the `dragTarget` section is
+  drag-exclusive — **122/0**.
+- **Verification (all green):** `npm run build` clean; `verify:flow-step-mapping` 122/0;
+  `verify:validation` 125/0; `test:random:generator` 49/0; `test:random:roundtrip` 27/0;
+  `verify:recorder-flow` 33/33. No regressions.
+- **Beads:** `awkit-3g6` kept OPEN — only pointer-emulated DnD capture remains (a separate, carefully
+  gated increment due to false-positive risk). Tracker unchanged at 169 / 9 / 160.
+- **Files:** `app/renderer/components/workflow/flowNodeRegistry.ts`,
+  `app/renderer/components/workflow/FlowNodePropertiesPanel.tsx`, `scripts/verify-flow-step-mapping.mts`,
+  `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
+- **Result:** a drag step's drop target is now GUI-editable, validated, and round-trip-safe. Ledger
+  unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).

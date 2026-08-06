@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## Drag drop-target editor in the Flow Designer (awkit-3g6, 2026-08-06)
+
+The Flow Designer can now edit a `drag` step's drop target in the GUI. `FlowNodePropertiesPanel` gained a
+**Drop Target** section (new `dragTarget` `PropertySection`, shown only for `drag` nodes) bound
+**exclusively** to `targetLocator`:
+
+- Strategy / Drop-target value / Accessible Name / Match-exactly, plus a **Clear drop target** button that
+  sets `targetLocator` to `undefined` and never touches the source `locator*` fields.
+- The source Locator section is retitled **Drag Source** for drag nodes, with a hint distinguishing source
+  from target.
+- `flowNodeRegistry`'s drag `validate()` flags a missing drop target (plus an inline `role="alert"`), so an
+  executable drag step cannot silently save without one.
+- Reuses existing Hologram-token controls (`property-group`/`property-section`/`toolbar-button`/`inline-check`),
+  so keyboard operability and focus visibility come for free; no unrelated panel redesign.
+
+`verify:flow-step-mapping` **122/0** proves — through the REAL production mapping — that both locators survive
+create → save → reload → edit → re-save, that editing/clearing the target leaves the source intact, that a
+missing target is flagged, and that the section is drag-exclusive. Verified: `npm run build` clean,
+`verify:validation` 125/0 and `test:random:generator` 49/0 (registry parity), `test:random:roundtrip` 27/0,
+`verify:recorder-flow` 33/33 — no regressions. **Still open in `awkit-3g6`:** pointer-emulated DnD capture
+(react-dnd/dnd-kit/SortableJS), kept as a separate carefully-gated increment (false-positive risk). No
+validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**; the
+tracker stands at **169 / 9 outstanding / 160 closed**, edges **95**.
+
+
 ## Drag follow-ups — mock-site lab + designer round-trip fix (awkit-3g6, 2026-08-06)
 
 Two of the three `awkit-3g6` drag follow-ups landed:
