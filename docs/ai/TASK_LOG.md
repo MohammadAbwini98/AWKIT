@@ -10372,3 +10372,17 @@ pm run verify:mock-site
   `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
 - **Result:** pointer-emulated drag captured + replayed, false-positives rejected, awkit-3g6 complete.
   Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).
+
+## 2026-08-06: /HANDOFF — prepared repository for the next agent
+
+- **Task:** produce a handoff after the drag-and-drop epic (`awkit-dat` + `awkit-3g6`) and the Recorder
+  competitive deep-testing pass.
+- **Git state:** `main` clean and in sync with `origin/main` at `c06c1f0`; nothing uncommitted or unpushed.
+- **Updated:** `docs/ai/HANDOFF.md` (new newest-first entry: current task, completed work, changed areas,
+  verification results, remaining work, risks/do-not-touch, recommended next step). `docs/ai/CURRENT_STATE.md`
+  already current (pointer-capture section is the newest). Appended this `TASK_LOG.md` entry.
+- **Checks:** `node scripts/ai-memory/check-memory.mjs`; `npm run verify:roadmap-dashboard` (re-run because
+  the newest HANDOFF section — the ledger-tally source — changed).
+- **Result:** HANDOFF is ready for the next agent. No secrets written to Markdown. Recommended next step:
+  `awkit-qpv` (blueprint recovery second-layer + neighborhood scan), which with `awkit-3ut` unblocks
+  `awkit-c2z`.

@@ -1,5 +1,91 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-06) — Drag-and-drop epic COMPLETE end-to-end (`awkit-dat` + `awkit-3g6` closed); Recorder competitive deep-testing + fixes
+
+- **Branch:** `main`, working tree clean, **in sync with `origin/main`** at **`c06c1f0`**. All work below is
+  committed and pushed. Nothing is outstanding for this line of work.
+- **Validation ledger:** **63 PASS / 2 NOT RUN / 1 BLOCKED** (unchanged — no ledger case was touched).
+  **Beads:** **169 / 8 outstanding / 161 closed / 95 edges**. The 8 outstanding are 4 blueprint-recovery
+  follow-ups (`awkit-qpv`/`awkit-utj`/`awkit-3ut`/`awkit-c2z`) plus the 4 owner-gated items
+  (`awkit-cey`/`awkit-7bu`/`awkit-az7`/`awkit-cm8`, status `blocked`).
+
+### What was delivered (this session)
+
+A full **drag-and-drop** capability plus a Recorder competitive deep-testing pass:
+
+1. **Recorder competitive gate + two fixes** — new `verify:recorder-competitive` (real-browser). Fixed a
+   **blueprint privacy regression** (`captureBlueprint` was persisting closed-shadow internals + full URLs
+   into the draft; `verify:recorder` had gone red 205/1 → back to green) and **CSS-module hashed
+   id/class locators** being emitted (`looksGeneratedId`/`isMeaningfulClass` now reject `Name__hash`).
+   Also fixed **contenteditable capture** (`awkit-fbq`, closed).
+2. **New `drag` step type, end-to-end** (`awkit-dat`, closed): capture → serialize → validate → replay.
+   Additive across the exhaustive `Record<StepType,…>` tables (`StepType`, `STEP_REQUIREMENTS`,
+   test-lab `NODE_CATALOG`, renderer `flowNodeCatalog` + `flowNodeRegistry`, `StepSafetyPolicy`) — note
+   `verify:validation` and `test:random:generator` enforce parity across those, so adding a StepType is a
+   cross-cutting change. `StepExecutor` `case "drag"` resolves source + `targetLocator` and calls
+   `source.dragTo(target)`.
+3. **`awkit-3g6` (all three parts, closed):**
+   - `/drag-lab` Feature Test Lab scenario (kanban native DnD + a pointer-driven sortable).
+   - Flow Designer **drop-target editor** (a `dragTarget` property section bound only to `targetLocator`;
+     drag-only; validation blocks a targetless save) + a **round-trip data-loss fix** (both
+     `flowStepMapping.ts` and `flowProfileMapping.ts` were dropping `targetLocator` on save).
+   - **Pointer-emulated drag capture** — a bounded gesture recognizer (`recorderInitScript.ts`) for
+     react-dnd/dnd-kit/SortableJS-style pointer drags, deduplicated with the native path, failing closed
+     on clicks/jitter/selection/scroll/touch/sliders/resize/canvas/cancel/non-primary buttons; ambiguous
+     or positional drop targets are `needs-review` (`buildRecordedFlow.ts`).
+
+### Changed areas (see TASK_LOG for exact file lists per commit)
+
+`src/recorder/{recorderInitScript,buildRecordedFlow,RecorderTypes}.ts`, `src/runner/StepExecutor.ts`,
+`src/profiles/FlowProfile.ts`, `src/validation/StepRequirements.ts`, `src/testing/random/NodeCatalog.ts`,
+`src/runner/runtime/StepSafetyPolicy.ts`, `app/renderer/components/workflow/{flowNodeCatalog,
+flowNodeRegistry,flowDesignerTypes,flowStepMapping,flowProfileMapping,FlowNodePropertiesPanel}.ts(x)`,
+`mock-site/{public/drag-lab.html,public/index.html,server.mjs,README.md}`, several `scripts/verify-*`, and
+the `docs/ai/*` + `tools/roadmap` derived-source updates.
+
+### Verification (all green; commands anyone can re-run)
+
+`npm run build`; `npm run verify:recorder` (212/0), `verify:recorder-competitive` (50/50),
+`verify:recorder-flow` (33/33), `verify:mock-site` (132/132), `verify:flow-step-mapping` (122/0),
+`verify:recorder-ambiguity` (69/0), `verify:recorder-hover` (214/0), `verify:closed-shadow` (23/0),
+`verify:recorder-redaction` (15/0), `verify:recorder-draft` (50/0), `verify:locator-guard` (33/0),
+`verify:frame-chain` (25/0), `verify:waits` (72/0), `verify:blueprint-recovery` (42/42),
+`verify:validation` (125/0), `verify:runner` (89/0), `verify:source-hygiene` (9/0),
+`verify:verifier-classification` (reconciled), `npm run test:random:generator` (49/0),
+`npm run test:random:roundtrip` (27/0), `npm run verify:roadmap-dashboard` (156/156, "Sources agree").
+The pointer-drag movement threshold was **mutation-tested** (recipe in TASK_LOG).
+
+### Remaining work (open beads — none blocking)
+
+- **Blueprint recovery runtime gaps** (from the 2026-08-05 review, still open): `awkit-qpv` (make it a
+  second layer + neighborhood scan, not a first exact-index jump), `awkit-3ut` (frame page-key mismatch +
+  unused document-fingerprint gate — a `bug`), `awkit-utj` (explicit sensitive-action refusal), `awkit-c2z`
+  (real-browser verifier for capture + the runtime fast-path; **blocked by** qpv + 3ut). The blueprint
+  feature is additive and fail-safe today (always falls through), so this is a value gap, not a defect.
+- **Owner-gated** items (`awkit-cey`/`7bu`/`az7`/`cm8`) remain `blocked` on the owner.
+
+### Known risks / do-not-touch
+
+- Adding or renaming a `StepType` ripples through the exhaustive catalogs above **and** the parity
+  verifiers (`verify:validation`, `test:random:generator`) — update all of them together or those gates
+  fail. Do not rename `window.playwrightFlowStudio`.
+- `recorderInitScript.ts` is Playwright-serialized and runs in-page: keep it self-contained and avoid
+  named inner functions (esbuild `__name`).
+- `verify-roadmap-dashboard.mjs` carries **hardcoded, deliberate non-vacuity baselines** (bead totals,
+  edge count) and reads the newest `CURRENT_STATE.md`/`HANDOFF.md` section's ledger tally — adding/closing a
+  bead means bumping those baselines and keeping the tally line, or the dashboard gate fails.
+- The clean-machine offline VM gate and packaged-EXE build were **not** exercised this session (out of
+  scope; unchanged).
+
+### Recommended next step
+
+Pick up `awkit-qpv` first (it unblocks the real-browser blueprint verifier `awkit-c2z` alongside
+`awkit-3ut`): turn the blueprint fast-path into a genuine second layer with a neighborhood scan around the
+stored document order, restoring the plan's 0.86 threshold + 0.08 margin, so it actually helps the
+DOM-mutation scenarios it was written for.
+
+---
+
 ## HANDOFF (2026-08-05) — Locator Blueprint recovery (Phase 4) reviewed vs the plan; docs repaired; `verify:blueprint-recovery` added; gap beads filed
 
 - **Branch:** `main`, working tree clean, **in sync with `origin/main`** at **`03538f7`** (three commits:
