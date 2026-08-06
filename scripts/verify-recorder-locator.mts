@@ -386,6 +386,35 @@ async function main() {
     check("drag: the failure names the missing drop target", /targetlocator|drop target/i.test(noTargetResult.error ?? ""), noTargetResult.error);
   }
 
+  // Pointer-emulated sortable replay: a `drag` step must move the CORRECT item on a list that uses
+  // pointer events only (no native draggable) — proving the runner's dragTo drives a react-dnd/dnd-kit/
+  // SortableJS-style widget (awkit-3g6 Part 3).
+  {
+    await page.setContent(`
+      <ul id="plist" style="list-style:none;padding:0;max-width:220px">
+        <li id="pi-a" data-item="a" style="user-select:none;padding:10px;margin:4px 0;border:1px solid #ccc">Alpha</li>
+        <li id="pi-b" data-item="b" style="user-select:none;padding:10px;margin:4px 0;border:1px solid #ccc">Bravo</li>
+      </ul>
+      <output id="porder">a,b</output>
+      <script>
+        var list=document.getElementById('plist'),out=document.getElementById('porder'),dragging=null,moved=false,sx=0,sy=0;
+        list.addEventListener('pointerdown',function(e){if(e.button!==0)return;var it=e.target.closest('li');if(!it)return;dragging=it;moved=false;sx=e.clientX;sy=e.clientY;try{it.setPointerCapture(e.pointerId);}catch(x){}});
+        list.addEventListener('pointermove',function(e){if(!dragging)return;var dx=e.clientX-sx,dy=e.clientY-sy;if(dx*dx+dy*dy>64)moved=true;});
+        list.addEventListener('pointerup',function(e){var s=dragging;dragging=null;if(!s||!moved)return;var over=document.elementFromPoint(e.clientX,e.clientY);var t=over&&over.closest?over.closest('li'):null;if(!t||t===s)return;list.insertBefore(s,t);var ids=[];list.querySelectorAll('li').forEach(function(li){ids.push(li.getAttribute('data-item'));});out.textContent=ids.join(',');});
+      </script>`);
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const pointerDragStep: FlowStep = {
+      id: "s-pdrag",
+      type: "drag",
+      name: "Drag Bravo onto Alpha",
+      locator: { strategy: "css", value: "#pi-b", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "high" } },
+      targetLocator: { strategy: "css", value: "#pi-a", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "high" } }
+    };
+    const pointerResult = await exec.execute(pointerDragStep);
+    check("pointer sortable: StepExecutor replays the drag (dragTo drives pointer events)", pointerResult.status === "passed", pointerResult.error || pointerResult.status);
+    check("pointer sortable: replay moved the CORRECT item (b before a → b,a)", (await page.evaluate(() => document.getElementById("porder")?.textContent)) === "b,a");
+  }
+
   console.log("Part C — Runner fallback resolution (alternatives, visibility, context scoping)");
 
   // Run one step against `html` and return the execution result + the id of the element the

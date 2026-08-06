@@ -413,6 +413,39 @@ try {
   await page.dragAndDrop("[data-testid='drag-card-ship']", "[data-testid='drag-col-done']");
   check("drag still works after reset (delegated listeners survive)", (await page.getByTestId("drag-result").textContent()) === "ship → done");
 
+  console.log("Drag & Drop Lab - pointer-driven sortable (no native draggable):");
+  // The list sits below the fold; scroll it into view so mouse coordinates (viewport-relative) line up
+  // with the items (and elementFromPoint resolves the real drop target).
+  await page.getByTestId("pointer-list").scrollIntoViewIfNeeded();
+  // Drive a real pointer gesture (pointerdown → pointermove → pointerup) with raw mouse events — the
+  // mouse path fires pointer events, which is exactly what the pointer recognizer + this fixture use.
+  const pointerReorder = async (fromSel, toSel) => {
+    const a = await page.locator(fromSel).boundingBox();
+    const b = await page.locator(toSel).boundingBox();
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 4, a.y + a.height / 2 + 4, { steps: 2 }); // cross the 8px threshold
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 10 });
+    await page.mouse.up();
+  };
+  check("pointer sortable starts in order a,b,c", (await page.getByTestId("pointer-order").textContent()) === "a,b,c");
+  check("three pointer items, none natively draggable", (await page.locator(".pointer-item").count()) === 3 && (await page.locator(".pointer-item[draggable='true']").count()) === 0);
+  await pointerReorder("[data-testid='pointer-item-c']", "[data-testid='pointer-item-a']");
+  check("a pointer drag reorders the correct item (c before a)", (await page.getByTestId("pointer-order").textContent()) === "c,a,b");
+  check("the pointer move is reported", (await page.getByTestId("pointer-result").textContent()) === "c before a");
+  // A tiny movement must NOT reorder (fixture threshold), mirroring the recognizer's guard.
+  const jitterBox = await page.locator("[data-testid='pointer-item-b']").boundingBox();
+  await page.mouse.move(jitterBox.x + 10, jitterBox.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(jitterBox.x + 12, jitterBox.y + 11, { steps: 1 });
+  await page.mouse.up();
+  check("a tiny pointer movement does not reorder (stays a click)", (await page.getByTestId("pointer-order").textContent()) === "c,a,b");
+  // Reset, then a SECOND successful pointer drag.
+  await page.getByTestId("pointer-reset").click();
+  check("pointer reset restores a,b,c", (await page.getByTestId("pointer-order").textContent()) === "a,b,c");
+  await pointerReorder("[data-testid='pointer-item-a']", "[data-testid='pointer-item-c']");
+  check("a second pointer drag after reset works (a before c)", (await page.getByTestId("pointer-order").textContent()) === "b,a,c");
+
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());

@@ -97,6 +97,89 @@
           window.__dragLab = "";
         })();
       </script>
+
+      <section data-testid="pointer-sort-section">
+        <h2>Pointer-driven sortable (no native draggable)</h2>
+        <p>
+          Reorder by pressing an item and dragging it onto another. Implemented with
+          <code>pointerdown → pointermove → pointerup</code> only (like react-dnd / dnd-kit / SortableJS),
+          so there is no native <code>dragstart</code>. The Recorder's bounded pointer-gesture recognizer
+          captures this as a <code>drag</code> step; the runner replays it with <code>dragTo</code>.
+        </p>
+        <ul data-testid="pointer-list" style="list-style:none;padding:0;max-width:240px">
+          <li class="pointer-item" data-testid="pointer-item-a" data-item="a" style="user-select:none;-webkit-user-select:none;padding:10px;margin:6px 0;background:#eef1f8;border:1px solid #c9d0e0;border-radius:6px;cursor:grab">Alpha</li>
+          <li class="pointer-item" data-testid="pointer-item-b" data-item="b" style="user-select:none;-webkit-user-select:none;padding:10px;margin:6px 0;background:#eef1f8;border:1px solid #c9d0e0;border-radius:6px;cursor:grab">Bravo</li>
+          <li class="pointer-item" data-testid="pointer-item-c" data-item="c" style="user-select:none;-webkit-user-select:none;padding:10px;margin:6px 0;background:#eef1f8;border:1px solid #c9d0e0;border-radius:6px;cursor:grab">Charlie</li>
+        </ul>
+        <p>Order: <output data-testid="pointer-order">a,b,c</output></p>
+        <p>Last move: <output data-testid="pointer-result">idle</output></p>
+        <button type="button" data-testid="pointer-reset">Reset list</button>
+      </section>
+
+      <script>
+        (function () {
+          var list = document.querySelector('[data-testid="pointer-list"]');
+          var order = document.querySelector('[data-testid="pointer-order"]');
+          var result = document.querySelector('[data-testid="pointer-result"]');
+          var initialHtml = list.innerHTML;
+          var THRESHOLD = 8;
+          var dragging = null;
+          var startX = 0;
+          var startY = 0;
+          var moved = false;
+
+          function refreshOrder() {
+            var ids = [];
+            var items = list.querySelectorAll(".pointer-item");
+            for (var i = 0; i < items.length; i++) ids.push(items[i].getAttribute("data-item"));
+            order.textContent = ids.join(",");
+          }
+
+          // Delegated on the stable list so Reset (innerHTML swap) never orphans the handlers.
+          list.addEventListener("pointerdown", function (e) {
+            if (e.button !== 0) return;
+            var item = e.target && e.target.closest ? e.target.closest(".pointer-item") : null;
+            if (!item) return;
+            dragging = item;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            try { item.setPointerCapture(e.pointerId); } catch (x) {}
+          });
+          list.addEventListener("pointermove", function (e) {
+            if (!dragging) return;
+            var dx = e.clientX - startX;
+            var dy = e.clientY - startY;
+            if (dx * dx + dy * dy > THRESHOLD * THRESHOLD) {
+              moved = true;
+              dragging.style.opacity = "0.5";
+            }
+          });
+          list.addEventListener("pointerup", function (e) {
+            var src = dragging;
+            dragging = null;
+            if (!src) return;
+            src.style.opacity = "";
+            try { src.releasePointerCapture(e.pointerId); } catch (x) {}
+            if (!moved) return;
+            var over = document.elementFromPoint(e.clientX, e.clientY);
+            var target = over && over.closest ? over.closest(".pointer-item") : null;
+            if (!target || target === src) return;
+            list.insertBefore(src, target);
+            var move = src.getAttribute("data-item") + " before " + target.getAttribute("data-item");
+            result.textContent = move;
+            window.__pointerDragLab = move;
+            refreshOrder();
+          });
+          document.querySelector('[data-testid="pointer-reset"]').addEventListener("click", function () {
+            list.innerHTML = initialHtml;
+            result.textContent = "idle";
+            window.__pointerDragLab = "";
+            refreshOrder();
+          });
+          window.__pointerDragLab = "";
+        })();
+      </script>
     </main>
   </body>
 </html>

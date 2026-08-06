@@ -20,6 +20,7 @@ import { chromium } from "playwright";
 import type { Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
 import { RecorderService } from "@src/recorder/RecorderService";
+import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 
 let passed = 0;
 let failed = 0;
@@ -34,9 +35,11 @@ function check(label: string, condition: unknown, detail?: string): void {
 }
 
 interface RecordedAction {
+  id?: string;
   type: string;
   name: string;
   locator?: { strategy: string; value: string; quality?: { matchCount?: number; isUnique?: boolean }; context?: any };
+  targetLocator?: { strategy?: string; value?: string; quality?: { isUnique?: boolean } };
   valueSource?: { type: string; value: string };
 }
 
@@ -171,6 +174,9 @@ async function main(): Promise<void> {
     check("drag: the action carries a source locator (the dragged element)", !!action?.locator?.value, JSON.stringify(action?.locator));
     check("drag: the action carries a distinct target locator (the drop target)", !!action?.targetLocator?.value && action?.targetLocator?.value !== action?.locator?.value, JSON.stringify(action?.targetLocator));
     check("drag: source locator is unique + non-utility", !action || (unique(action) && !UTILITY_OR_HASH.test(val(action))), JSON.stringify(action?.locator?.quality));
+    // Dedup: a native drag fires BOTH native (dragstart/drop/dragend) and pointer events; only ONE
+    // `drag` action must result (the pointer recognizer defers to the native path).
+    check("drag: native + pointer paths deduplicate to exactly one drag action", recorded.filter((a) => a.type === "drag").length === 1, `got ${recorded.filter((a) => a.type === "drag").length}`);
   }
 
   // ── H. Custom ARIA combobox + listbox option ─────────────────────────────────
@@ -240,6 +246,150 @@ async function main(): Promise<void> {
     check("keyboard: an action was captured for the interaction (no crash / silent loss of the fill)", !!action, JSON.stringify(action));
     check("keyboard: captured locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
   }
+
+  // ── P. Pointer-emulated drag (bounded gesture recognizer) ────────────────────
+  console.log("P — Pointer-emulated drag");
+  // Cards carry user-select:none (as react-dnd/dnd-kit/SortableJS items do) so a pointer drag never
+  // turns into a text selection. No `draggable` attr → the native path never fires here.
+  const pointerHtml = `
+    <div data-testid="p-src" style="position:absolute;left:12px;top:24px;width:96px;height:46px;user-select:none;-webkit-user-select:none;background:#dde">Card A</div>
+    <div data-testid="p-zone" style="position:absolute;left:240px;top:24px;width:150px;height:96px;user-select:none;-webkit-user-select:none;background:#efe">Drop zone</div>`;
+  const centreDrag = async (page: Page, srcSel: string, dstSel: string): Promise<void> => {
+    const s = await page.locator(srcSel).boundingBox();
+    const d = await page.locator(dstSel).boundingBox();
+    if (!s || !d) throw new Error("missing bounding box");
+    await page.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(s.x + s.width / 2 + 6, s.y + s.height / 2 + 4, { steps: 3 }); // cross the threshold
+    await page.mouse.move(d.x + d.width / 2, d.y + d.height / 2, { steps: 10 });
+    await page.mouse.up();
+  };
+
+  {
+    const action = await capture(pointerHtml, (p) => centreDrag(p, "[data-testid=p-src]", "[data-testid=p-zone]"));
+    console.log(`    · pointer drag → type=${action?.type} source=${JSON.stringify(val(action))} target=${JSON.stringify(action?.targetLocator?.value)}`);
+    check("pointer: a pointer-only gesture is captured as a `drag` action", action?.type === "drag", JSON.stringify(action));
+    check("pointer: the source locator is the dragged card", action?.locator?.value === "p-src", JSON.stringify(action?.locator));
+    check("pointer: a distinct drop-target locator is captured", action?.targetLocator?.value === "p-zone", JSON.stringify(action?.targetLocator));
+    const flow = buildRecordedFlow("PointerDrag", [action as any]);
+    const step = flow.nodes.find((n) => n.type === "drag");
+    const rt = JSON.parse(JSON.stringify(flow)).nodes.find((n: { type: string }) => n.type === "drag");
+    check("pointer: both locators survive the save/reload round-trip", rt?.locator?.value === "p-src" && rt?.targetLocator?.value === "p-zone", JSON.stringify(rt));
+    check("pointer: a unique drop target is resolved (not review)", step?.targetLocator?.resolution === "resolved", JSON.stringify(step?.targetLocator));
+  }
+
+  // Small movement stays a click — jitter must not become a drag.
+  {
+    const action = await capture(pointerHtml, async (p) => {
+      const s = await p.locator("[data-testid=p-src]").boundingBox();
+      if (!s) throw new Error("no box");
+      await p.mouse.move(s.x + 10, s.y + 10);
+      await p.mouse.down();
+      await p.mouse.move(s.x + 13, s.y + 12, { steps: 2 });
+      await p.mouse.up();
+    });
+    check("pointer: a small movement stays a click, not a drag", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // Text selection is not a drag (source without user-select:none; dragging selects text).
+  {
+    const textHtml = `<p data-testid="p-text" style="width:420px">The quick brown fox jumps over the lazy dog and then keeps on running for quite a while</p>`;
+    const action = await capture(textHtml, async (p) => {
+      const b = await p.locator("[data-testid=p-text]").boundingBox();
+      if (!b) throw new Error("no box");
+      await p.mouse.move(b.x + 5, b.y + 8);
+      await p.mouse.down();
+      await p.mouse.move(b.x + 220, b.y + 8, { steps: 10 });
+      await p.mouse.up();
+    });
+    check("pointer: dragging across text selects it and is NOT a drag", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // Escape during the gesture cancels it — no action.
+  {
+    const action = await capture(pointerHtml, async (p) => {
+      const s = await p.locator("[data-testid=p-src]").boundingBox();
+      if (!s) throw new Error("no box");
+      await p.mouse.move(s.x + 10, s.y + 10);
+      await p.mouse.down();
+      await p.mouse.move(s.x + 120, s.y + 40, { steps: 6 });
+      await p.keyboard.press("Escape");
+      await p.mouse.up();
+    });
+    check("pointer: Escape during a gesture cancels it (no drag)", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // Releasing over no credible target (empty page area) produces no drag — never fabricated.
+  {
+    const action = await capture(pointerHtml, async (p) => {
+      const s = await p.locator("[data-testid=p-src]").boundingBox();
+      if (!s) throw new Error("no box");
+      await p.mouse.move(s.x + 10, s.y + 10);
+      await p.mouse.down();
+      await p.mouse.move(s.x + 10, s.y + 460, { steps: 8 });
+      await p.mouse.up();
+    });
+    check("pointer: releasing over no credible target produces no drag", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // A slider (input[type=range]) is not a drag source.
+  {
+    const rangeHtml = `<input data-testid="p-range" type="range" min="0" max="100" style="position:absolute;left:12px;top:24px;width:200px" />
+      <div data-testid="p-zone" style="position:absolute;left:260px;top:24px;width:120px;height:80px;user-select:none">Zone</div>`;
+    const action = await capture(rangeHtml, (p) => centreDrag(p, "[data-testid=p-range]", "[data-testid=p-zone]"));
+    check("pointer: manipulating a range slider is not captured as a drag", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // A non-primary (right) button drag is not captured.
+  {
+    const action = await capture(pointerHtml, async (p) => {
+      const s = await p.locator("[data-testid=p-src]").boundingBox();
+      const d = await p.locator("[data-testid=p-zone]").boundingBox();
+      if (!s || !d) throw new Error("no box");
+      await p.mouse.move(s.x + s.width / 2, s.y + s.height / 2);
+      await p.mouse.down({ button: "right" });
+      await p.mouse.move(d.x + d.width / 2, d.y + d.height / 2, { steps: 8 });
+      await p.mouse.up({ button: "right" });
+    });
+    check("pointer: a non-primary (right-button) gesture is not a drag", action?.type !== "drag", JSON.stringify(action));
+  }
+
+  // Duplicate-looking drop targets → the target is review-required (never silently chosen by index).
+  {
+    const dupHtml = `
+      <div data-testid="p-src" style="position:absolute;left:12px;top:20px;width:90px;height:40px;user-select:none">Card</div>
+      <div class="zone" style="position:absolute;left:240px;top:20px;width:120px;height:64px;user-select:none">Zone</div>
+      <div class="zone" style="position:absolute;left:240px;top:110px;width:120px;height:64px;user-select:none">Zone</div>`;
+    const action = await capture(dupHtml, (p) => centreDrag(p, "[data-testid=p-src]", ".zone >> nth=0"));
+    const flow = buildRecordedFlow("PointerDup", [action as any]);
+    const step = flow.nodes.find((n) => n.type === "drag");
+    console.log(`    · duplicate target → target=${JSON.stringify(step?.targetLocator?.value)} resolution=${step?.targetLocator?.resolution}`);
+    check("pointer: an ambiguous/positional drop target is captured as a drag", action?.type === "drag", JSON.stringify(action));
+    check("pointer: an ambiguous/positional drop target is needs-review, not silently chosen", step?.targetLocator?.resolution === "needs-review", JSON.stringify(step?.targetLocator));
+  }
+
+  // Shadow-boundary: dropping onto an open-shadow host is supported through the existing architecture
+  // (elementFromPoint returns the light-DOM host, which the locator engine resolves normally).
+  {
+    const shadowHtml = `
+      <div data-testid="p-src" style="position:absolute;left:12px;top:24px;width:96px;height:46px;user-select:none">Card</div>
+      <div data-testid="p-shadow-host" style="position:absolute;left:240px;top:24px;width:150px;height:96px;user-select:none">host</div>
+      <script>
+        var h = document.querySelector('[data-testid="p-shadow-host"]');
+        var r = h.attachShadow({ mode: "open" });
+        r.innerHTML = '<div style="width:100%;height:100%">inner drop zone</div>';
+      </script>`;
+    const action = await capture(shadowHtml, (p) => centreDrag(p, "[data-testid=p-src]", "[data-testid=p-shadow-host]"));
+    console.log(`    · shadow-host drop → type=${action?.type} target=${JSON.stringify(action?.targetLocator?.value)}`);
+    check("pointer: dropping onto a shadow host is captured via the host (existing architecture)", action?.type === "drag" && action?.targetLocator?.value === "p-shadow-host", JSON.stringify(action?.targetLocator));
+  }
+
+  // NOTE on the movement threshold: the "successful drag" checks above and the "small movement stays a
+  // click" check below BRACKET DRAG_MOVE_THRESHOLD_PX — a threshold set too high fails the former, too
+  // low fails the latter. The threshold's load-bearing role is also mutation-tested in the verifier's
+  // run recipe (docs/ai/TASK_LOG.md): raising it to 100000 flips the successful-drag checks to FAIL.
+  // Cross-frame pointer drags cannot form a single gesture in one frame, so they fail closed (no action);
+  // within-frame drags are captured by that frame's recognizer.
 
   await browser.close();
   console.log(`\n${passed}/${passed + failed} recorder-competitive checks passed`);

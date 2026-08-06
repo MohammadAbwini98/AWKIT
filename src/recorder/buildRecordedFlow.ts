@@ -153,9 +153,24 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       if (t.alternatives && t.alternatives.length > 0) step.targetLocator.alternatives = t.alternatives;
       if (t.context) step.targetLocator.context = t.context;
       if (t.interaction) step.targetLocator.interaction = t.interaction;
-      step.targetLocator.resolution = t.resolution ?? "resolved";
-      step.targetLocator.resolvedBy = t.resolvedBy ?? "recorder";
-      if (t.reviewReason) step.targetLocator.reviewReason = t.reviewReason;
+      // Apply the same needs-review policy the source gets: an explicit recorder decision wins, then a
+      // non-unique (ambiguous) drop target is needs-review, otherwise resolved. This covers BOTH the
+      // native drag path and the pointer-emulated recognizer, which each supply a `quality`.
+      if (t.resolution) {
+        step.targetLocator.resolution = t.resolution;
+        step.targetLocator.resolvedBy = t.resolvedBy ?? "recorder";
+        if (t.reviewReason) step.targetLocator.reviewReason = t.reviewReason;
+      } else if (t.quality?.isUnique === false || isPositionalLocator(step.targetLocator)) {
+        // A drop target that is ambiguous OR identified only by position is order-fragile, so it is
+        // marked needs-review rather than silently committing to one of the look-alikes by index.
+        step.targetLocator.resolution = "needs-review";
+        step.targetLocator.resolvedBy = "recorder";
+        step.targetLocator.reviewReason =
+          t.reviewReason ?? (isPositionalLocator(step.targetLocator) ? "the drop target is identified only by position — review before running" : "the recorder could not build a unique drop-target locator");
+      } else {
+        step.targetLocator.resolution = "resolved";
+        step.targetLocator.resolvedBy = t.resolvedBy ?? "recorder";
+      }
     }
 
     if (action.valueSource) {

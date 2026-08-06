@@ -2691,7 +2691,16 @@ export function installRecorderCapture(): void {
     };
   };
 
+  // A recognized pointer-emulated drag ends with a synthetic `click` on the common ancestor of the
+  // press/release targets (browsers fire it whenever mousedown and mouseup differ). That click is part
+  // of the drag gesture, not a separate action, so the pointer recognizer suppresses exactly the next
+  // click after it emits a `drag`.
+  let suppressClickAfterDrag = false;
   const onClickCapture = (event: Event): void => {
+    if (suppressClickAfterDrag) {
+      suppressClickAfterDrag = false;
+      return;
+    }
     if (insideClosedHostRetarget(event)) return;
     const captured = generateForEvent(event, true);
     if (!captured) return;
@@ -2714,10 +2723,13 @@ export function installRecorderCapture(): void {
   // Capture a drag gesture as ONE `drag` action carrying the source locator (from dragstart) and the
   // drop-target locator (from drop), emitted on dragend once both ends are known. A cancelled drag
   // (Escape, or a target that never accepts the drop) records nothing. Sortable/kanban/reorder UIs
-  // that use the standard draggable + drop protocol are captured; pointer-emulated DnD is not (yet).
+  // that use the standard draggable + drop protocol are captured here; pointer-emulated DnD is handled
+  // by the bounded gesture recognizer below. `nativeDragFired` deduplicates the two paths.
   let pendingDragSource: { locator: Record<string, unknown>; name: string } | null = null;
   let pendingDragTarget: { locator: Record<string, unknown>; name: string } | null = null;
+  let nativeDragFired = false;
   const onDragStartCapture = (event: Event): void => {
+    nativeDragFired = true;
     pendingDragSource = null;
     pendingDragTarget = null;
     if (insideClosedHostRetarget(event)) return;
@@ -2750,6 +2762,110 @@ export function installRecorderCapture(): void {
   window.addEventListener("dragstart", onDragStartCapture, true);
   window.addEventListener("drop", onDropCapture, true);
   window.addEventListener("dragend", onDragEndCapture, true);
+
+  // ── Pointer-emulated drag and drop (bounded gesture recognizer) ──────────────
+  // Libraries like react-dnd / dnd-kit / SortableJS implement drag with pointer events, not native
+  // HTML5 DnD. Recognize a drag ONLY when: the PRIMARY mouse/pen button goes down on a valid source,
+  // the pointer moves beyond DRAG_MOVE_THRESHOLD_PX while still pressed, no scroll/selection/cancel/
+  // native-drag intervenes, and a CREDIBLE, DISTINCT drop target sits under the release point. Then
+  // emit ONE `drag`, deduplicated with the native path (a native `dragstart` sets `nativeDragFired`).
+  // Everything else fails closed with NO action — clicks + jitter, double-clicks, text selection,
+  // scroll/pan, sliders, resizes, canvas drawing, long presses, cancellation/Escape/navigation/detach,
+  // non-primary buttons and touch. The drop target is NEVER fabricated from coordinates alone.
+  const DRAG_MOVE_THRESHOLD_PX = 10;
+  let pointerDrag:
+    | { pointerId: number; startX: number; startY: number; startEl: Element; source: { locator: Record<string, unknown>; name: string }; moved: boolean; canceled: boolean }
+    | null = null;
+
+  const isExcludedPointerDragSource = (el: Element): boolean => {
+    let node: Element | null = el;
+    for (let depth = 0; node && node.nodeType === 1 && depth < 6; node = node.parentElement, depth += 1) {
+      const tag = tagOf(node);
+      if (tag === "textarea" || tag === "select" || tag === "canvas") return true; // text entry / drawing
+      if ((node as HTMLElement).isContentEditable) return true; // text selection
+      if (tag === "input") {
+        const type = ((node as HTMLInputElement).type || "text").toLowerCase();
+        if (["range", "file", "number", "color", "date", "datetime-local", "month", "week", "time", "text", "search", "email", "url", "tel", "password"].indexOf(type) >= 0) return true;
+      }
+      const role = (attr(node, "role") || "").toLowerCase();
+      if (role === "slider" || role === "scrollbar" || role === "spinbutton") return true;
+    }
+    try {
+      const view = el.ownerDocument ? el.ownerDocument.defaultView : null;
+      if (view && view.getComputedStyle(el).resize !== "none") return true; // resize handle
+    } catch {
+      /* ignore */
+    }
+    return false;
+  };
+
+  const cancelPointerDrag = (): void => {
+    if (pointerDrag) pointerDrag.canceled = true;
+  };
+
+  const onPointerDownDrag = (event: Event): void => {
+    pointerDrag = null;
+    nativeDragFired = false;
+    suppressClickAfterDrag = false;
+    if (!(event instanceof PointerEvent)) return;
+    if (event.button !== 0 || !event.isPrimary) return; // primary button only
+    if (event.pointerType === "touch") return; // touch pan/scroll is not a drag
+    if (insideClosedHostRetarget(event)) return;
+    const raw = firstPathElement(event);
+    if (!raw || isExcludedPointerDragSource(raw)) return;
+    const captured = generateForEvent(event, false);
+    if (!captured) return;
+    pointerDrag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startEl: captured.target,
+      source: { locator: { ...captured.generated.locator }, name: captured.generated.accessibleName || tagOf(captured.target) || "element" },
+      moved: false,
+      canceled: false
+    };
+  };
+
+  const onPointerMoveDrag = (event: Event): void => {
+    if (!pointerDrag || !(event instanceof PointerEvent) || event.pointerId !== pointerDrag.pointerId) return;
+    const dx = event.clientX - pointerDrag.startX;
+    const dy = event.clientY - pointerDrag.startY;
+    if (dx * dx + dy * dy > DRAG_MOVE_THRESHOLD_PX * DRAG_MOVE_THRESHOLD_PX) pointerDrag.moved = true;
+  };
+
+  const onPointerUpDrag = (event: Event): void => {
+    const gesture = pointerDrag;
+    pointerDrag = null;
+    if (!gesture || !(event instanceof PointerEvent) || event.pointerId !== gesture.pointerId) return;
+    if (gesture.canceled || nativeDragFired || !gesture.moved) return; // cancel / native-dedup / click-jitter
+    if (event.button !== 0) return;
+    const selection = typeof window.getSelection === "function" ? window.getSelection() : null;
+    if (selection && !selection.isCollapsed && String(selection).length > 0) return; // text selection
+    if (!gesture.startEl.isConnected) return; // navigation / detachment mid-gesture
+    // Identify a CREDIBLE, DISTINCT drop target under the release point — never fabricate from coords.
+    const dropEl = document.elementFromPoint(event.clientX, event.clientY);
+    if (!dropEl) return;
+    const dropTag = tagOf(dropEl);
+    if (dropTag === "html" || dropTag === "body") return; // no credible target
+    if (dropEl === gesture.startEl) return; // released on the source itself — not a move
+    const targetGen = generate(dropEl, { allowPositional: true });
+    record({
+      type: "drag",
+      name: "Drag " + gesture.source.name + " to " + (targetGen.accessibleName || dropTag || "target"),
+      locator: gesture.source.locator,
+      targetLocator: { ...targetGen.locator }
+    });
+    // Swallow the synthetic click the browser fires on the common ancestor right after this pointerup.
+    suppressClickAfterDrag = true;
+  };
+
+  window.addEventListener("pointerdown", onPointerDownDrag, true);
+  window.addEventListener("pointermove", onPointerMoveDrag, true);
+  window.addEventListener("pointerup", onPointerUpDrag, true);
+  window.addEventListener("pointercancel", cancelPointerDrag, true);
+  window.addEventListener("lostpointercapture", cancelPointerDrag, true);
+  window.addEventListener("scroll", cancelPointerDrag, true);
+  window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerDrag(); }, true);
 
   const onChangeCapture = (event: Event): void => {
     if (insideClosedHostRetarget(event)) return;
