@@ -1,5 +1,23 @@
 # CURRENT_STATE
 
+## Blueprint Recovery — Phase 4 wiring landed (2026-08-05)
+
+The Element Blueprint recovery system is wired into `LocatorFactory.recoverLocally` as an
+additive, fail-safe second signal — it always falls through to the existing scan on any miss.
+- `PlaywrightRunner` provides a `locatorBlueprintRoot` and instantiates `FileLocatorBlueprintStore`.
+- `LocatorFactory` performs a fast-path check using `pageKey` + `blueprintId` (stricter 0.90
+  fingerprint threshold) before the full 200-element scan; on any miss it falls through unchanged.
+- Blueprints are stored under `%LOCALAPPDATA%\SpecterStudio\<runtime-root>\locator-blueprints\`.
+- Covered by `verify:blueprint-recovery` (capture/assembly/page-key/store); `verify:runner` and
+  `verify:recorder-flow` still green (no regression).
+- **Open follow-ups (plan gaps):** blueprint runs as a *first* fast-path rather than the second
+  layer the plan specified; a single exact `.nth(documentOrder)` jump (no neighborhood scan) so a
+  node inserted before the target shifts the index and the jump misses; the 0.08 runner-up margin
+  is dropped; no explicit sensitive-action refusal in the blueprint path; the `documentFingerprint`
+  page-variant gate is captured but not checked; frame keying is a placeholder (capture uses the
+  frame URL/title, runtime uses the top-page URL/title, so framed targets never match).
+
+
 ## Instrumented closed-shadow resolver — epic `awkit-65g` COMPLETE (2026-08-04)
 
 The unified guaranteed-unique-locator epic is **fully delivered and pushed**. C2 replays an interaction

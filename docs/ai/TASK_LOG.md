@@ -10134,3 +10134,59 @@ pm run verify:mock-site
 - **Files changed:** `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`. No private key material was
   read, copied, or recorded at any point.
 - **Result:** Manifest disposition resolved. Ledger unchanged at 62 PASS / 3 NOT RUN / 1 BLOCKED.
+
+## 2026-08-05: Blueprint Recovery — Phase 4 integration (LocatorFactory fast-path)
+
+- **Agent:** coding agent (Antigravity)
+- **Task:** Implement Phase 4 (integration into `LocatorFactory`) of the Element Blueprint recovery
+  plan (`docs/implementation_plan.md`).
+- **Action:**
+  - New `src/runner/LocatorBlueprintStore.ts` — `PageBlueprint`/`ElementBlueprint`, `computePageKey`,
+    `computeDocumentFingerprint`, and the atomic `FileLocatorBlueprintStore`.
+  - Blueprint capture added to `recorderInitScript.ts` (`captureBlueprint`), assembled in
+    `buildRecordedFlow.ts`, persisted from `recorder.ipc.ts`; additive `blueprintId` (`StepLocator`)
+    and `blueprintCapture` (`RecordedActionLocator`) types.
+  - `PlaywrightRunner` accepts `locatorBlueprintRoot` (wired in `ExecutionEngine.ts` as
+    `join(dirs.root, "locator-blueprints")`) and instantiates `FileLocatorBlueprintStore`;
+    `LocatorFactory` accepts `blueprintStore`.
+  - Fast-path in `LocatorFactory.recoverLocally`: look up the page blueprint by `pageKey`, jump to the
+    stored `documentOrder` via `.nth()`, accept only at a stricter 0.90 fingerprint threshold, else
+    fall through to the existing 200-element scan.
+- **Tests run:** `npm run build` PASS; `npm run verify:recorder-flow` PASS (29/29);
+  `npm run verify:runner` PASS (89/89). NOTE: these confirm **no regression only** — no
+  blueprint-specific coverage existed at this point.
+- **Result:** Phase 4 wiring landed and builds clean. (The original log entry for this task was
+  written with a broken text encoding — a UTF-16 block plus a mangled duplicate — and was
+  de-corrupted here.)
+
+## 2026-08-05: Blueprint Recovery — plan-conformance review, doc repair, `verify:blueprint-recovery`
+
+- **Agent:** Claude (Opus 4.8) — asked to check the implementation against `docs/implementation_plan.md`.
+- **Findings (deviations from the revised plan; all degrade safely — the fast-path always falls
+  through on a miss):**
+  - Blueprint runs as a **first** fast-path, not the **second** layer after the broad scan that the
+    plan specified.
+  - A single **exact** `.nth(documentOrder)` jump, not the neighborhood scan the plan called for, so a
+    node inserted before the target shifts the index and the jump misses — undercutting the plan's
+    headline scenarios (banner/sibling inserted, rows reordered).
+  - Threshold raised to 0.90 and the plan's 0.08 runner-up **margin dropped**.
+  - **No explicit sensitive-action refusal** in the blueprint path (relies on guarded-positional
+    short-circuiting earlier, which only covers positional sensitive steps).
+  - `documentFingerprint` page-variant gate is captured but **never checked** at runtime.
+  - Frame keying is a **placeholder**: capture uses the frame URL/title, runtime uses the top-page
+    URL/title, so framed targets never match their page key.
+  - Several `ElementBlueprint` fields are dead at runtime; top-level `ancestry` is stored unhashed
+    (structural `tag|role|id|testid`, not inner text).
+- **Action:**
+  - Repaired the encoding-corrupted `CURRENT_STATE.md` heading and this log's mangled/duplicated entry.
+  - Added `scripts/verify-blueprint-recovery.mts` + the `verify:blueprint-recovery` npm script,
+    registered in `scripts/lib/verifier-classification.ts` (class `integration`). It pins the
+    Node-side surfaces: blueprint assembly, fingerprint hashing parity + privacy (no raw
+    label/attribute/URL text persisted), page-key/document-fingerprint normalization, the 2000-element
+    cap, and the atomic file store (put/get/list, no `.tmp` leak, schema + 512KB guards). It does NOT
+    exercise the in-page `captureBlueprint` or the `LocatorFactory` runtime fast-path (both
+    browser-only — a real-browser verifier for those remains an open follow-up).
+- **Tests run:** `npm run build` PASS; `npm run verify:blueprint-recovery` PASS (42/42); mutation-checked
+  by storing the raw (unhashed) fingerprint — 5 privacy/parity checks flipped to FAIL as expected.
+- **Result:** Docs repaired; the assembly/store behavior now has a focused verifier. Runtime design
+  gaps above remain open follow-ups (not yet filed as beads).
