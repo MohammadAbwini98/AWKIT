@@ -9,6 +9,7 @@ import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { LocatorFactory } from "./LocatorFactory";
 import { closedShadowBridgeScript } from "./closedShadowBridge";
 import { FileLocatorRecoveryStore, type LocatorRecoveryStore } from "./LocatorRecoveryStore";
+import { FileLocatorBlueprintStore, type LocatorBlueprintStore } from "./LocatorBlueprintStore";
 import { ManualHandoffController } from "./ManualHandoffController";
 import type { RunnerProgressReporter } from "./RunnerProgress";
 import { MemoryRunnerLogger, type FlowExecutionResult, type ScenarioExecutionResult } from "./RunnerResult";
@@ -109,6 +110,8 @@ export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   oracleNodeRunner?: OracleNodeRunner;
   /** Stable runtime-data folder for offline locator winner/recovery memory. */
   locatorRecoveryRoot?: string;
+  /** Stable runtime-data folder for offline locator blueprints. */
+  locatorBlueprintRoot?: string;
   /**
    * Notified with the scope key of each locator recovery record this run writes, so the caller can
    * index them once the run finishes (plan §14). The caller owns deduplication; keys repeat freely
@@ -123,6 +126,7 @@ export class PlaywrightRunner {
   private readonly manualHandoffController: ManualHandoffController;
   private readonly scenarioOrchestrator: ScenarioOrchestrator;
   private readonly locatorRecoveryStore?: LocatorRecoveryStore;
+  private readonly locatorBlueprintStore?: LocatorBlueprintStore;
   /** Per-run failure-trace capture; armed only when the context provides a traces dir. */
   private traceService?: TraceService;
   /** Contexts already given the closed-shadow bridge init script (install once per context). */
@@ -133,9 +137,12 @@ export class PlaywrightRunner {
     this.browserContextFactory = new BrowserContextFactory(options);
     this.manualHandoffController = options.manualHandoffController ?? new ManualHandoffController();
     this.scenarioOrchestrator = options.scenarioOrchestrator ?? new ScenarioOrchestrator();
-    this.locatorRecoveryStore = options.locatorRecoveryRoot
-      ? new FileLocatorRecoveryStore(options.locatorRecoveryRoot)
-      : undefined;
+    if (options.locatorRecoveryRoot) {
+      this.locatorRecoveryStore = new FileLocatorRecoveryStore(options.locatorRecoveryRoot);
+    }
+    if (options.locatorBlueprintRoot) {
+      this.locatorBlueprintStore = new FileLocatorBlueprintStore(options.locatorBlueprintRoot);
+    }
   }
 
   async executeScenario(
@@ -644,6 +651,7 @@ export class PlaywrightRunner {
   ): LocatorFactory {
     return new LocatorFactory(page, {
       recoveryStore: this.locatorRecoveryStore,
+      blueprintStore: this.locatorBlueprintStore,
       scope: { scenarioId: context.scenarioId, flowId: context.flowId },
       onRemembered: this.options.onLocatorRemembered,
       onRecoveryEvent: (event) =>

@@ -3,7 +3,9 @@ import type { FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfil
 import { isPositionalLocator } from "../profiles/locatorApproval";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
-import type { RecordedAction } from "./RecorderTypes";
+import type { PageBlueprint, ElementBlueprint } from "../runner/LocatorBlueprintStore";
+import { computePageKey } from "../runner/LocatorBlueprintStore";
+import type { RecordedAction, RecordedActionLocator } from "./RecorderTypes";
 
 /** A step whose side effect is dangerous enough to require a runtime identity guard on a positional locator. */
 function isSensitiveAction(action: RecordedAction): boolean {
@@ -31,7 +33,7 @@ function hashGuard(draft: LocatorGuard): LocatorGuard {
  *    duration in `timeoutMs`) so it replays during execution;
  *  - recorded tab switches (`routeChange`) replay as a Route Change targeting the newest tab.
  */
-export function buildRecordedFlow(name: string, actions: RecordedAction[]): FlowProfile {
+export function buildRecordedFlow(name: string, actions: RecordedAction[], blueprintsOut?: PageBlueprint[]): FlowProfile {
   // Guard against any Start/End sneaking in from the recording so we never duplicate them.
   const actionSteps = actions.filter((action) => action.type !== "start" && action.type !== "end");
 
@@ -63,7 +65,49 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[]): Flow
       if (action.locator.approvedFallbackReason) step.locator.approvedFallbackReason = action.locator.approvedFallbackReason;
       if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
-      
+
+      // Page-level blueprint capture for fallback recovery
+      if (action.locator.blueprintCapture && blueprintsOut) {
+        const capture = action.locator.blueprintCapture;
+        const pageKey = computePageKey(capture.url, capture.title, action.locator.context?.frameChain?.length ? "frame" : "");
+        let blueprint = blueprintsOut.find(b => b.pageKey === pageKey);
+        if (!blueprint) {
+          blueprint = {
+            schemaVersion: 1,
+            pageKey,
+            canonicalUrl: (() => {
+              try { return new URL(capture.url).origin + new URL(capture.url).pathname; }
+              catch { return capture.url; }
+            })(),
+            capturedAtUtc: new Date().toISOString(),
+            documentFingerprint: capture.documentStructure,
+            elements: []
+          };
+          blueprintsOut.push(blueprint);
+        }
+        if (blueprint.elements.length < 2000) {
+          const blueprintId = randomUUID();
+          step.locator.blueprintId = blueprintId;
+          const digest = hashToken(JSON.stringify({ strategy: action.locator.strategy, value: action.locator.value }));
+          const element: ElementBlueprint = {
+            blueprintId,
+            documentOrder: capture.documentOrder,
+            siblingIndex: capture.siblingIndex,
+            sameTagIndex: capture.sameTagIndex,
+            tag: String(capture.fingerprint.tag || ""),
+            role: capture.fingerprint.role ? String(capture.fingerprint.role) : undefined,
+            ancestry: Array.isArray(capture.fingerprint.ancestry) ? capture.fingerprint.ancestry.map(String) : [],
+            fingerprint: hashFingerprint(capture.fingerprint as any),
+            primaryLocatorDigest: digest,
+            alternativeCount: action.locator.alternatives?.length ?? 0,
+            visible: capture.visible,
+            enabled: capture.enabled,
+            boundingRegion: capture.boundingRegion
+          };
+          blueprint.elements.push(element);
+        }
+      }
+
       // Finalize resolution + the runtime identity guard here — the single source shared by the live
       // recorder session and the test harness. The Recorder builds nested selectors until unique, so a
       // positional last-resort locator is RESOLVED for ordinary steps. A SENSITIVE step

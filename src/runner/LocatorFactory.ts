@@ -21,6 +21,8 @@ import {
   type LocatorRecoveryRecord,
   type LocatorRecoveryStore
 } from "./LocatorRecoveryStore";
+import type { LocatorBlueprintStore } from "./LocatorBlueprintStore";
+import { computePageKey } from "./LocatorBlueprintStore";
 
 /**
  * Anything Playwright can build sub-locators from: a `Page`, a `FrameLocator`, or a `Locator`.
@@ -68,6 +70,7 @@ export interface LocatorRecoveryEvent {
 
 export interface LocatorFactoryOptions {
   recoveryStore?: LocatorRecoveryStore;
+  blueprintStore?: LocatorBlueprintStore;
   scope?: { scenarioId: string; flowId?: string };
   recoveryGraceMs?: number;
   onRecoveryEvent?: (event: LocatorRecoveryEvent) => void;
@@ -416,6 +419,38 @@ export class LocatorFactory {
     step: FlowStep,
     expected: LocatorElementFingerprint
   ): Promise<{ locator: Locator; fingerprint: LocatorElementFingerprint; score: number } | undefined> {
+    if (step.locator?.blueprintId && this.options.blueprintStore) {
+      try {
+        const frameType = step.locator?.context?.frameChain?.length ? "frame" : "";
+        const pageKey = computePageKey(this.page.url(), await this.page.title().catch(() => ""), frameType);
+        const pageBlueprint = await this.options.blueprintStore.get(pageKey);
+        const elementBlueprint = pageBlueprint?.elements.find(e => e.blueprintId === step.locator!.blueprintId);
+        
+        if (elementBlueprint) {
+          const frameRoot = await this.frameRoot(step.locator.context);
+          const candidate = frameRoot.locator("body *").nth(elementBlueprint.documentOrder);
+          const candidateFingerprint = await LocatorFactory.fingerprintOne(candidate);
+          
+          if (candidateFingerprint && LocatorFactory.isCompatible(step, candidateFingerprint)) {
+            const score = similarity(expected, candidateFingerprint);
+            // We require a slightly higher threshold (0.90) for a blind positional jump to avoid clicking
+            // the wrong element if the DOM completely changed shape but happened to put something similar there.
+            if (score >= Math.max(RECOVERY_SCORE_THRESHOLD, 0.90)) {
+               this.emit({
+                 type: "local-recovery",
+                 stepId: step.id,
+                 score,
+                 message: `Blueprint structure fast-path recovered "${step.name}" (score: ${score.toFixed(3)}).`
+               });
+               return { locator: candidate, fingerprint: candidateFingerprint, score };
+            }
+          }
+        }
+      } catch (e) {
+        // Silently fall through to the deep scan on any blueprint read/evaluate error
+      }
+    }
+
     const visible = root.locator("*:visible");
     const fingerprints = await LocatorFactory.fingerprintMany(visible, RECOVERY_SCAN_CAP);
     const ranked = fingerprints

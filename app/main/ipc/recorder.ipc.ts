@@ -3,9 +3,10 @@ import { join } from "node:path";
 import { recorderService } from "@src/recorder/RecorderService";
 import { BundledBrowserResolver } from "@src/offline/BundledBrowserResolver";
 import { createFlowProfileStore } from "../profileStores";
-import { getResourcesRoot, getRuntimeDataRoot, isProductionOffline } from "../appPaths";
+import { getResourcesRoot, getRuntimeDataRoot, getRuntimePaths, isProductionOffline } from "../appPaths";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
+import { FileLocatorBlueprintStore, type PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import { getSessionService } from "./session.ipc";
 import { getUiSettings } from "../uiSettings";
 import { resolveIgnoreHttpsErrors } from "@src/security/browser/CertificateTrust";
@@ -124,8 +125,16 @@ export function registerRecorderIpc(): void {
     const store = createFlowProfileStore();
     // Recorded flows always open with default Start/End nodes and the actions between them,
     // replaying recorded waits/tab-switches. Logic lives in a pure, unit-tested helper.
-    const flowProfile = buildRecordedFlow(name, actions);
+    const blueprints: PageBlueprint[] = [];
+    const flowProfile = buildRecordedFlow(name, actions, blueprints);
     await store.create(flowProfile);
+    
+    // Save any assembled blueprints for fallback recovery.
+    if (blueprints.length > 0) {
+      const blueprintStore = new FileLocatorBlueprintStore(join(getRuntimePaths().root, "locator-blueprints"));
+      await Promise.allSettled(blueprints.map(b => blueprintStore.put(b)));
+    }
+
     // The session is now persisted as a flow — clear the unsaved-recording draft.
     await recorderService.discardDraft();
     return flowProfile;

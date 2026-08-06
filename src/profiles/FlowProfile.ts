@@ -293,6 +293,12 @@ export interface StepLocator extends LocatorCandidate {
    * non-sensitive and non-positional locator, so legacy and ordinary flows are unaffected.
    */
   guard?: LocatorGuard;
+  /**
+   * Page-level blueprint element id for position-guided recovery. When present, the runner can load the
+   * blueprint for this page key and use the element's captured positional/structural evidence as a second
+   * recovery layer after `recoverLocally()` fails. Absent on legacy and pre-blueprint steps.
+   */
+  blueprintId?: string;
 }
 
 export type ValueSourceType =

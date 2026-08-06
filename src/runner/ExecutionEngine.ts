@@ -1492,6 +1492,7 @@ export class ExecutionEngine {
       operationLimiters: this.operationLimiters,
       oracleNodeRunner: this.oracleNodeRunner,
       locatorRecoveryRoot: join(dirs.root, "locator-recovery"),
+      locatorBlueprintRoot: join(dirs.root, "locator-blueprints"),
       // Accumulate only — no projection, no I/O, no emitter on the locator resolution path. The set
       // is read once when this instance finishes.
       onLocatorRemembered: (scopeKey) => {

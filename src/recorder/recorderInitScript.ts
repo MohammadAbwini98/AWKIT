@@ -2585,6 +2585,100 @@ export function installRecorderCapture(): void {
     return !!raw && closedShadowHosts.has(raw);
   };
 
+  const captureBlueprint = (el: Element): Record<string, unknown> => {
+    let documentOrder = -1;
+    try {
+      const walker = document.createTreeWalker(document.body || document.documentElement, 1 /* NodeFilter.SHOW_ELEMENT */, null);
+      let order = 0;
+      while (walker.nextNode()) {
+        if (walker.currentNode === el) {
+          documentOrder = order;
+          break;
+        }
+        order += 1;
+        if (order > 10000) break; // bounded
+      }
+    } catch {
+      /* ignore */
+    }
+
+    let siblingIndex = 0;
+    let sameTagIndex = 0;
+    const parent = el.parentElement;
+    if (parent) {
+      const children = parent.children;
+      for (let i = 0; i < children.length; i++) {
+        if (children[i] === el) {
+          siblingIndex = i;
+          break;
+        }
+      }
+      const tag = el.tagName;
+      let sameTagCount = 0;
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        if (child.tagName === tag) {
+          if (child === el) {
+            sameTagIndex = sameTagCount;
+            break;
+          }
+          sameTagCount += 1;
+        }
+      }
+    }
+
+    let enabled: boolean | undefined;
+    if (el.hasAttribute("disabled") || (el as HTMLInputElement).disabled === true) enabled = false;
+
+    let boundingRegion: Record<string, number> | undefined;
+    const vis = isVisible(el);
+    if (vis) {
+      try {
+        const rect = el.getBoundingClientRect();
+        const winWidth = window.innerWidth || 1;
+        const winHeight = window.innerHeight || 1;
+        // 0..1 ratio to remain resilient to exact pixel resizing
+        boundingRegion = {
+          relativeX: Math.max(0, Math.min(1, rect.left / winWidth)),
+          relativeY: Math.max(0, Math.min(1, rect.top / winHeight)),
+          relativeWidth: Math.max(0, Math.min(1, rect.width / winWidth)),
+          relativeHeight: Math.max(0, Math.min(1, rect.height / winHeight))
+        };
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return {
+      documentOrder,
+      siblingIndex,
+      sameTagIndex,
+      visible: vis,
+      enabled,
+      boundingRegion,
+      fingerprint: computeFingerprint(el),
+      url: location.href,
+      title: document.title,
+      documentStructure: (() => {
+        try {
+          const all = document.body ? document.body.querySelectorAll("*") : [];
+          const histogram = new Map<string, number>();
+          for (let i = 0; i < all.length && i < 5000; i++) {
+            const t = all[i].tagName.toLowerCase();
+            const r = all[i].getAttribute("role");
+            const key = r ? t + ":" + r : t;
+            histogram.set(key, (histogram.get(key) || 0) + 1);
+          }
+          const sorted: string[] = [];
+          histogram.forEach((v, k) => sorted.push(k + "=" + v));
+          return sorted.sort().join("|");
+        } catch {
+          return "";
+        }
+      })()
+    };
+  };
+
   const onClickCapture = (event: Event): void => {
     if (insideClosedHostRetarget(event)) return;
     const captured = generateForEvent(event, true);
@@ -2599,7 +2693,8 @@ export function installRecorderCapture(): void {
     }
     const label = g.accessibleName || tag || "element";
     const interaction = captureInteraction(event, target, g, shadow);
-    record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction } });
+    const blueprintCapture = captureBlueprint(target);
+    record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction, blueprintCapture } });
   };
   window.addEventListener("click", onClickCapture, true);
 
@@ -2613,7 +2708,8 @@ export function installRecorderCapture(): void {
 
     const label = g.accessibleName || (target as HTMLInputElement).name || tag;
     const interaction = captureInteraction(event, target, g, shadow);
-    const locator = { ...g.locator, interaction };
+    const blueprintCapture = captureBlueprint(target);
+    const locator = { ...g.locator, interaction, blueprintCapture };
 
     if (tag === "input") {
       const input = target as HTMLInputElement;
@@ -2667,7 +2763,8 @@ export function installRecorderCapture(): void {
       if (type === "checkbox" || type === "radio") return;
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
       const interaction = captureInteraction(event, target, g, shadow);
-      const locator = { ...g.locator, interaction };
+      const blueprintCapture = captureBlueprint(target);
+      const locator = { ...g.locator, interaction, blueprintCapture };
       // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
       const value = shouldRedactValue(target, type) ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
       record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });

@@ -64,6 +64,23 @@ export interface RecordedActionLocator {
    * non-sensitive steps.
    */
   guard?: LocatorGuard;
+  /**
+   * Per-element positional/structural data for page-level blueprint recovery. Captured RAW in-page
+   * and hashed by the main process at save time. The blueprint is assembled from accumulated captures
+   * and stored separately from the flow JSON.
+   */
+  blueprintCapture?: {
+    documentOrder: number;
+    siblingIndex: number;
+    sameTagIndex: number;
+    visible: boolean;
+    enabled?: boolean;
+    boundingRegion?: { relativeX: number; relativeY: number; relativeWidth: number; relativeHeight: number };
+    fingerprint: Record<string, unknown>;
+    url: string;
+    title: string;
+    documentStructure: string;
+  };
 }
 
 export interface RecordedAction {
