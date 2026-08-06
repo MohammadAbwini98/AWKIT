@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drag &amp; Drop Lab - kanban drag capture and replay</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      .drag-board { display: flex; gap: 16px; margin: 12px 0; }
+      .drag-column { flex: 1; min-height: 160px; border: 2px dashed #8891a5; border-radius: 8px; padding: 8px; }
+      .drag-column h3 { margin: 0 0 8px; font-size: 14px; }
+      .drag-card { padding: 10px; margin: 6px 0; background: #eef1f8; border: 1px solid #c9d0e0; border-radius: 6px; cursor: grab; }
+      .drag-column.drag-over { border-color: #4f7cff; background: rgba(79, 124, 255, 0.08); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Drag &amp; Drop Lab</h1>
+      <p>
+        Native HTML5 drag-and-drop (<code>draggable</code> + <code>dragstart</code> / <code>dragover</code> /
+        <code>drop</code> / <code>dragend</code>). Drag a card between the columns; each drop moves the card and
+        reports the move in <code>data-testid="drag-result"</code>. The Recorder captures this as a single
+        <code>drag</code> step (source + drop-target locators) and the runner replays it with
+        <code>source.dragTo(target)</code>. Covered by <code>npm run verify:mock-site</code> and
+        <code>npm run verify:recorder-competitive</code>.
+      </p>
+      <p><a href="/" data-testid="back-to-index">Back to Feature Test Lab</a></p>
+
+      <section data-testid="drag-drop-section">
+        <div class="drag-board">
+          <div class="drag-column" data-testid="drag-col-todo" data-column="todo" aria-label="To Do">
+            <h3>To Do</h3>
+            <div class="drag-card" draggable="true" data-testid="drag-card-design" data-card="design">Design</div>
+            <div class="drag-card" draggable="true" data-testid="drag-card-build" data-card="build">Build</div>
+            <div class="drag-card" draggable="true" data-testid="drag-card-ship" data-card="ship">Ship</div>
+          </div>
+          <div class="drag-column" data-testid="drag-col-doing" data-column="doing" aria-label="Doing">
+            <h3>Doing</h3>
+          </div>
+          <div class="drag-column" data-testid="drag-col-done" data-column="done" aria-label="Done">
+            <h3>Done</h3>
+          </div>
+        </div>
+        <p>Last move: <output data-testid="drag-result">idle</output></p>
+        <button type="button" data-testid="drag-reset">Reset board</button>
+      </section>
+
+      <script>
+        (function () {
+          var section = document.querySelector('[data-testid="drag-drop-section"]');
+          var dragBoard = section.querySelector(".drag-board");
+          var result = document.querySelector('[data-testid="drag-result"]');
+          // Snapshot the initial layout so Reset restores it deterministically.
+          var initialHtml = dragBoard.innerHTML;
+          var dragged = null;
+
+          // All handlers are delegated on the stable `.drag-board` (never replaced), so Reset — which
+          // only swaps its innerHTML — never leaves the new cards/columns without listeners.
+          dragBoard.addEventListener("dragstart", function (e) {
+            var card = e.target && e.target.closest ? e.target.closest(".drag-card") : null;
+            if (!card) return;
+            dragged = card;
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = "move";
+              try { e.dataTransfer.setData("text/plain", card.getAttribute("data-card")); } catch (x) {}
+            }
+          });
+          dragBoard.addEventListener("dragend", function () { dragged = null; });
+          dragBoard.addEventListener("dragover", function (e) {
+            var col = e.target && e.target.closest ? e.target.closest(".drag-column") : null;
+            if (!col) return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+            col.classList.add("drag-over");
+          });
+          dragBoard.addEventListener("dragleave", function (e) {
+            var col = e.target && e.target.closest ? e.target.closest(".drag-column") : null;
+            if (col) col.classList.remove("drag-over");
+          });
+          dragBoard.addEventListener("drop", function (e) {
+            var col = e.target && e.target.closest ? e.target.closest(".drag-column") : null;
+            if (!col || !dragged) return;
+            e.preventDefault();
+            col.classList.remove("drag-over");
+            col.appendChild(dragged);
+            var move = dragged.getAttribute("data-card") + " → " + col.getAttribute("data-column");
+            result.textContent = move;
+            window.__dragLab = move;
+          });
+
+          document.querySelector('[data-testid="drag-reset"]').addEventListener("click", function () {
+            dragBoard.innerHTML = initialHtml;
+            dragged = null;
+            result.textContent = "idle";
+            window.__dragLab = "";
+          });
+          window.__dragLab = "";
+        })();
+      </script>
+    </main>
+  </body>
+</html>

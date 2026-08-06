@@ -80,6 +80,19 @@
           </dl>
         </article>
 
+        <article data-testid="scenario-drag">
+          <h2><a href="/drag-lab">Drag &amp; Drop Lab</a></h2>
+          <p>A kanban board with native HTML5 draggable cards and column drop zones.</p>
+          <dl class="scenario-meta">
+            <dt>Expected</dt>
+            <dd>Dragging a card into another column moves it and reports the move (<code>data-testid="drag-result"</code>). The Recorder captures one <code>drag</code> step (source + drop-target locators); the runner replays it with <code>dragTo</code>.</dd>
+            <dt>Related feature</dt>
+            <dd>Recorder drag capture, <code>drag</code> step type, StepExecutor drag replay.</dd>
+            <dt>Stable URL</dt>
+            <dd><code>/drag-lab</code></dd>
+          </dl>
+        </article>
+
         <article data-testid="scenario-iframe-lab">
           <h2><a href="/iframe-lab">Iframe Lab</a></h2>
           <p>Same-origin interactive iframe with deliberate decoy controls in the top document.</p>

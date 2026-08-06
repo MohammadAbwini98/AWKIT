@@ -395,10 +395,29 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-testid="mirror-applied"]').hidden, null, { timeout: 5000 });
   check("frame reset clears the parent mirror", !(await page.getByTestId("mirror-applied").isVisible()));
 
+  console.log("Drag & Drop Lab - native HTML5 drag fixture:");
+  await page.goto(`${BASE}/drag-lab`);
+  check("drag lab has an accessible title", await page.getByRole("heading", { name: "Drag & Drop Lab" }).isVisible());
+  check("three draggable cards start in the To Do column", (await page.getByTestId("drag-col-todo").locator(".drag-card").count()) === 3);
+  check("cards are marked draggable", (await page.locator(".drag-card[draggable='true']").count()) === 3);
+  check("the Doing column starts empty", (await page.getByTestId("drag-col-doing").locator(".drag-card").count()) === 0);
+  // Drive a real native drag: move the Build card into the Doing column.
+  await page.dragAndDrop("[data-testid='drag-card-build']", "[data-testid='drag-col-doing']");
+  check("dragging a card into another column moves it", (await page.getByTestId("drag-col-doing").locator("[data-testid='drag-card-build']").count()) === 1);
+  check("the drop is reported deterministically", (await page.getByTestId("drag-result").textContent()) === "build → doing");
+  check("the source column no longer holds the moved card", (await page.getByTestId("drag-col-todo").locator("[data-testid='drag-card-build']").count()) === 0);
+  // Reset restores the initial layout; the delegated listeners survive the innerHTML swap.
+  await page.getByTestId("drag-reset").click();
+  check("reset returns every card to To Do", (await page.getByTestId("drag-col-todo").locator(".drag-card").count()) === 3);
+  check("reset clears the move result", (await page.getByTestId("drag-result").textContent()) === "idle");
+  await page.dragAndDrop("[data-testid='drag-card-ship']", "[data-testid='drag-col-done']");
+  check("drag still works after reset (delegated listeners survive)", (await page.getByTestId("drag-result").textContent()) === "ship → done");
+
   console.log("Feature Test Lab index registration:");
   await page.goto(`${BASE}/`);
   check("index lists the Runner Lab scenario", await page.getByTestId("scenario-runner-lab").isVisible());
   check("index lists the Iframe Lab scenario", await page.getByTestId("scenario-iframe-lab").isVisible());
+  check("index lists the Drag & Drop Lab scenario", await page.getByTestId("scenario-drag").isVisible());
 
   await page.close();
 } catch (error) {

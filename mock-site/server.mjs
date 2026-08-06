@@ -263,6 +263,9 @@ const server = createServer(async (req, res) => {
   // Instrumented closed-shadow feature lab (Phase C2).
   if (req.method === "GET" && path === "/closed-shadow-lab") return serveStatic(res, "closed-shadow-lab.html");
 
+  // Drag-and-drop feature lab (native HTML5 DnD → `drag` step capture + replay).
+  if (req.method === "GET" && path === "/drag-lab") return serveStatic(res, "drag-lab.html");
+
   // ── REC-018 record → save → replay oracle ─────────────────────────────────
   // Local, in-memory and resettable. It records only the deterministic synthetic Recorder-lab
   // fields; no credentials, cookies, headers, or browser/session state are accepted or returned.
