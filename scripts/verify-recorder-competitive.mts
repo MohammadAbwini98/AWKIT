@@ -137,18 +137,87 @@ async function main(): Promise<void> {
     check("select: if recorded, the locator is not a utility/hash selector", !action || !UTILITY_OR_HASH.test(val(action)), val(action));
   }
 
-  // ── E. contenteditable typing ────────────────────────────────────────────────
+  // ── E. contenteditable typing (awkit-fbq: the typed text must be captured, not just the click) ──
   console.log("E — contenteditable");
   {
-    const html = `<div contenteditable="true" role="textbox" aria-label="Notes" style="border:1px solid #000;min-height:2em">edit me</div>`;
+    const html = `<div contenteditable="true" role="textbox" aria-label="Notes" style="border:1px solid #000;min-height:2em;padding:4px"></div>`;
     const action = await capture(html, async (p) => {
       await p.locator("div[role=textbox]").click();
       await p.keyboard.type("hello world");
       await p.locator("div[role=textbox]").blur();
     });
-    console.log(`    · contenteditable → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(val(action))}`);
-    check("contenteditable: if recorded, the locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
-    check("contenteditable: if recorded, the locator is not a utility/hash selector", !action || !UTILITY_OR_HASH.test(val(action)), val(action));
+    console.log(`    · contenteditable → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(action?.valueSource?.value)}`);
+    check("contenteditable: typed text is captured as a fill (not just the click)", action?.type === "fill", JSON.stringify(action));
+    check("contenteditable: the fill value is the entered text", (action?.valueSource?.value ?? "").includes("hello world"), JSON.stringify(action?.valueSource));
+    check("contenteditable: locator is unique and not a utility/hash selector", unique(action) && !UTILITY_OR_HASH.test(val(action)), val(action));
+  }
+
+  // ── G. Drag and drop (HTML5 draggable) — characterization ────────────────────
+  console.log("G — Drag and drop");
+  {
+    const html = `<ul style="list-style:none"><li draggable="true" id="src" style="padding:8px">Item A</li><li id="dst" style="padding:8px">Item B</li></ul>`;
+    const action = await capture(html, async (p) => {
+      await p.locator("#src").hover();
+      await p.mouse.down();
+      await p.locator("#dst").hover();
+      await p.mouse.up();
+    });
+    console.log(`    · drag → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(val(action))}`);
+    check("drag: whatever is recorded has a unique, non-utility locator (no crash / bad selector)", !action || (unique(action) && !UTILITY_OR_HASH.test(val(action))), JSON.stringify(action));
+  }
+
+  // ── H. Custom ARIA combobox + listbox option ─────────────────────────────────
+  console.log("H — Custom ARIA combobox/listbox");
+  {
+    const html = `
+      <div role="combobox" aria-expanded="true" aria-label="Fruit" tabindex="0">Pick…</div>
+      <ul role="listbox" aria-label="Fruit options" style="list-style:none">
+        <li role="option" style="padding:6px">Apple</li>
+        <li role="option" style="padding:6px">Banana</li>
+      </ul>`;
+    const action = await capture(html, (p) => p.locator("li[role=option]", { hasText: "Banana" }).click());
+    console.log(`    · listbox option → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(val(action))} name=${JSON.stringify(action?.name)}`);
+    check("aria listbox: the option click is recorded", !!action, JSON.stringify(action));
+    check("aria listbox: option locator is unique", !action || unique(action), JSON.stringify(action?.locator?.quality));
+    check(
+      "aria listbox: option locator is semantic (role/text/testid), not utility/hash/positional",
+      !action || (["role", "text", "testId"].includes(action?.locator?.strategy ?? "") && !UTILITY_OR_HASH.test(val(action))),
+      `${action?.locator?.strategy} ${val(action)}`
+    );
+  }
+
+  // ── I. SPA client-side navigation continuity ─────────────────────────────────
+  // A pushState + full DOM replacement (no document navigation) must NOT stop capture — the delegated
+  // window listeners persist, so the post-"navigation" click must still be recorded.
+  console.log("I — SPA client-side navigation continuity");
+  {
+    recorded.length = 0;
+    bindingRecorder.actions = [];
+    bindingRecorder.ambiguityState = null;
+    bindingRecorder.isRecording = true;
+    bindingRecorder.lastActionAt = 0;
+    bindingRecorder.lastActionPage = undefined;
+    await page.goto(
+      "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><html><body><button id="p1">Page 1 action</button></body></html>`),
+      { waitUntil: "load" }
+    );
+    await page.locator("#p1").click();
+    await page.evaluate(() => {
+      try {
+        history.pushState({}, "", "#/dashboard"); // hash route change (valid even on data: URLs)
+      } catch {
+        /* some origins reject pushState — the DOM swap below is the real capture-survival test */
+      }
+      document.body.innerHTML = '<button id="p2">Page 2 action</button>';
+    });
+    await page.waitForTimeout(60);
+    await page.locator("#p2").click();
+    await page.waitForTimeout(120);
+    const count = recorded.length;
+    const last = recorded[recorded.length - 1];
+    console.log(`    · after pushState + DOM swap → captured ${count} action(s); last name=${JSON.stringify(last?.name)}`);
+    check("spa: capture survives a client-side route change (both clicks recorded)", count >= 2, `captured ${count}`);
+    check("spa: the post-navigation click resolves to the new element", (last?.name ?? "").includes("Page 2"), last?.name);
   }
 
   // ── F. Keyboard Enter submit ─────────────────────────────────────────────────

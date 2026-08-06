@@ -2769,7 +2769,11 @@ export function installRecorderCapture(): void {
       if (!captured) return;
       const { target, generated: g, shadow } = captured;
       const tag = tagOf(target);
-      if (tag !== "input" && tag !== "textarea") return;
+      // Rich-text / contenteditable hosts (Notion/Quill/Slate/ProseMirror-style editors) fire 'input'
+      // on the editing host, not 'change'. Capture their text like a fill so replay enters the content
+      // instead of only clicking the editor. The 'input' event targets the editing host per spec.
+      const isEditableHost = tag !== "input" && tag !== "textarea" && !!(target as HTMLElement).isContentEditable;
+      if (tag !== "input" && tag !== "textarea" && !isEditableHost) return;
       const type = tag === "input" ? ((target as HTMLInputElement).type || "text").toLowerCase() : "";
       // checkbox/radio fire 'input' too but are recorded as check/uncheck/radio by 'change'.
       if (type === "checkbox" || type === "radio") return;
@@ -2777,8 +2781,11 @@ export function installRecorderCapture(): void {
       const interaction = captureInteraction(event, target, g, shadow);
       const blueprintCapture = captureBlueprint(target);
       const locator = { ...g.locator, interaction, blueprintCapture };
+      const rawValue = isEditableHost
+        ? ((target as HTMLElement).innerText || target.textContent || "")
+        : (target as HTMLInputElement | HTMLTextAreaElement).value;
       // Never store sensitive field values (password/OTP/card/…) in the recorded flow.
-      const value = shouldRedactValue(target, type) ? "" : (target as HTMLInputElement | HTMLTextAreaElement).value;
+      const value = shouldRedactValue(target, type) ? "" : rawValue;
       record({ type: "fill", name: "Fill " + label, locator, valueSource: { type: "static", value } });
     },
     true
