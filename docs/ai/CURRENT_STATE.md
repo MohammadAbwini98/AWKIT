@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Drag follow-ups — mock-site lab + designer round-trip fix (awkit-3g6, 2026-08-06)
+
+Two of the three `awkit-3g6` drag follow-ups landed:
+
+- **Mock-site `/drag-lab` Feature Test Lab scenario** (`mock-site/public/drag-lab.html`): a kanban board
+  with native HTML5 `draggable` cards and column drop zones; a drop moves the card and reports
+  `"<card> → <column>"` in `data-testid="drag-result"`. Listeners are delegated on the stable
+  `.drag-board`, so Reset never orphans them. Registered on the home index + README; `verify:mock-site`
+  drives a real `page.dragAndDrop` and asserts the move + reset (**125/0**).
+- **Designer round-trip data-loss fix:** the Flow Designer's `toFlowStep`/`fromFlowStep` in **both**
+  `flowStepMapping.ts` and `flowProfileMapping.ts` mapped fields explicitly and dropped `targetLocator`
+  — so loading a recorded `drag` step into the designer and re-saving **silently lost its drop target**.
+  `targetLocator` is now carried verbatim (preserve, don't re-derive) in both directions, plus a
+  `FlowDesignerNodeData.targetLocator` field. `verify:flow-step-mapping` **115/0** covers it (both
+  mappings; a non-drag step gains no target).
+
+Still open in `awkit-3g6`: an interactive designer drop-target **editor** section (a drag node can now
+round-trip safely but the target is not yet GUI-editable), and pointer-emulated DnD capture
+(react-dnd/dnd-kit/SortableJS). Verified: `npm run build` clean, `verify:mock-site` 125/0,
+`verify:flow-step-mapping` 115/0, `test:random:roundtrip` 27/0 — no regressions. No validation-ledger
+case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**; the tracker stands at
+**169 / 9 outstanding / 160 closed**, edges **95**.
+
+
 ## Drag-and-drop capture + replay — new `drag` step type (2026-08-06)
 
 The Recorder now captures native HTML5 drag-and-drop, and the runner replays it (`awkit-dat` closed;

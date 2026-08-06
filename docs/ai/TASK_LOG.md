@@ -10282,3 +10282,28 @@ pm run verify:mock-site
   mock-site sortable scenario, pointer-emulated DnD). Tracker 169 / 9 outstanding / 160 closed.
 - **Result:** drag-and-drop is captured and replayed end-to-end. Ledger unchanged
   (63 PASS / 2 NOT RUN / 1 BLOCKED).
+
+## 2026-08-06: Drag follow-ups (awkit-3g6) — mock-site lab + designer round-trip fix
+
+- **Agent:** Claude (Opus 4.8). **Task:** work awkit-3g6 (drag follow-ups). Delivered 2 of 3 items.
+- **(1) Mock-site scenario:** new `mock-site/public/drag-lab.html` — a kanban board with native HTML5
+  draggable cards + column drop zones, delegated listeners on the stable `.drag-board` (Reset-safe),
+  `data-testid` selectors, and a `window.__dragLab` mirror. Registered route in `server.mjs`, home link
+  in `index.html`, README row. Extended `verify-mock-site.mjs` to drive a real `page.dragAndDrop` and
+  assert the move + reset + re-drag (**125/0**).
+- **(2) Designer round-trip DATA-LOSS FIX:** `toFlowStep`/`fromFlowStep` in BOTH
+  `flowStepMapping.ts` and `flowProfileMapping.ts` map fields explicitly and dropped `targetLocator`, so
+  editing+saving a recorded `drag` step silently lost its drop target. Added
+  `FlowDesignerNodeData.targetLocator` and carry it verbatim in both directions (like `locatorGuard`).
+  Extended `verify-flow-step-mapping.mts` with a drag round-trip test across both mappings + a non-drag
+  negative (**115/0**).
+- **Verification:** `npm run build` clean; `verify:mock-site` 125/0; `verify:flow-step-mapping` 115/0;
+  `test:random:roundtrip` 27/0. No regressions.
+- **Beads:** `awkit-3g6` kept OPEN with a progress note — remaining: interactive designer drop-target
+  editor section, and pointer-emulated DnD capture. Tracker unchanged at 169 / 9 / 160.
+- **Files:** `mock-site/public/drag-lab.html` (new), `mock-site/public/index.html`, `mock-site/server.mjs`,
+  `mock-site/README.md`, `scripts/verify-mock-site.mjs`, `app/renderer/components/workflow/flowDesignerTypes.ts`,
+  `app/renderer/components/workflow/flowStepMapping.ts`, `app/renderer/components/workflow/flowProfileMapping.ts`,
+  `scripts/verify-flow-step-mapping.mts`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
+- **Result:** drag fixture in the Feature Test Lab + a real designer data-loss bug fixed. Ledger
+  unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).
