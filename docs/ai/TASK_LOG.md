@@ -10336,3 +10336,39 @@ pm run verify:mock-site
   `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
 - **Result:** a drag step's drop target is now GUI-editable, validated, and round-trip-safe. Ledger
   unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).
+
+## 2026-08-06: Pointer-emulated drag capture — awkit-3g6 Part 3 (COMPLETE)
+
+- **Agent:** Claude (Opus 4.8). **Task:** awkit-3g6 Part 3 — capture pointer-emulated drag-and-drop
+  (react-dnd/dnd-kit/SortableJS) as a bounded gesture recognizer, per an explicit spec. Closes awkit-3g6.
+- **Recognizer (`src/recorder/recorderInitScript.ts`):** primary mouse/pen `pointerdown` on a valid
+  source → source locator captured via `generateForEvent` → `pointermove` past
+  `DRAG_MOVE_THRESHOLD_PX` (10) while pressed → `pointerup` over a credible DISTINCT drop target
+  (`document.elementFromPoint`, generated via `generate(el)`) → ONE `drag`. Never fabricates a target.
+  Deduplicated with the native path (`nativeDragFired` set on native `dragstart`); suppresses the
+  synthetic post-drag `click` (`suppressClickAfterDrag`). Fails closed for click+jitter, double-click,
+  text selection, scroll/pan, touch, range/file/number inputs, sliders, resize, canvas, contenteditable,
+  long-press, pointercancel/lostpointercapture/Escape/navigation/detach, non-primary buttons.
+- **needs-review policy (`buildRecordedFlow.ts`):** ambiguous OR positional drop target → needs-review
+  (both native + pointer paths); unique semantic target → resolved.
+- **Fixture:** `/drag-lab` gained a pointer-driven sortable (`pointer-*` selectors); README updated.
+- **Verifiers:** `verify-recorder-competitive` (+9 pointer cases + shadow-host + dedup) **50/50**;
+  `verify-recorder-locator` (+pointer `StepExecutor.dragTo` replay moving the correct item) → verify:recorder
+  **212/0**; `verify-mock-site` (+`page.mouse` pointer reorder/reset/second-drag) **132/132**;
+  `verify-flow-step-mapping` round-trip **122/0**.
+- **Mutation test (recipe):** `sed -i 's/DRAG_MOVE_THRESHOLD_PX = 10;/DRAG_MOVE_THRESHOLD_PX = 100000;/'
+  src/recorder/recorderInitScript.ts` → `npx tsx scripts/verify-recorder-competitive.mts` flips the
+  successful-pointer-drag checks to FAIL (42/49 then 49→50 restored); reverse the `sed` to restore. The
+  threshold is also bracketed permanently by the "small movement stays a click" check.
+- **Full sweep (all green, no regressions):** recorder-competitive 50, verify:recorder 212, recorder-flow
+  33, mock-site 132, flow-step-mapping 122, recorder-ambiguity 69, recorder-hover 214, closed-shadow 23,
+  recorder-redaction 15, recorder-draft 50, locator-guard 33, frame-chain 25, waits 72, blueprint-recovery
+  42, validation 125, runner 89, source-hygiene 9, verifier-classification reconciled, test:random:generator
+  49, test:random:roundtrip 27, build clean.
+- **Beads:** `awkit-3g6` CLOSED (all 3 parts delivered + real replay evidence). Tracker 169 / 8 / 161.
+- **Files:** `src/recorder/recorderInitScript.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `mock-site/public/drag-lab.html`, `mock-site/README.md`, `scripts/verify-mock-site.mjs`,
+  `scripts/verify-recorder-competitive.mts`, `scripts/verify-recorder-locator.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `.beads/issues.jsonl`.
+- **Result:** pointer-emulated drag captured + replayed, false-positives rejected, awkit-3g6 complete.
+  Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).

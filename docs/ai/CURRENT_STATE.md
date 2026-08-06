@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Pointer-emulated drag capture — awkit-3g6 COMPLETE (2026-08-06)
+
+The Recorder now captures pointer-emulated drag-and-drop (react-dnd / dnd-kit / SortableJS-style, which
+use pointer events, not native HTML5 DnD), closing the last part of `awkit-3g6` (Parts 1 `/drag-lab` and
+2 designer editor already done).
+
+- **Bounded gesture recognizer** (`recorderInitScript.ts`): recognizes a drag ONLY on primary mouse/pen
+  down on a valid source → movement past `DRAG_MOVE_THRESHOLD_PX` (10) while pressed → a credible,
+  DISTINCT drop target under the release point (`elementFromPoint`, never fabricated from coordinates) →
+  emits ONE `drag`. Deduplicated with the native path via `nativeDragFired`, and it suppresses the
+  synthetic click the browser fires after a drag.
+- **Fails closed** for: click + jitter, double-click, text selection, scroll/pan, touch, sliders/range/
+  file inputs, resize handles, canvas, contenteditable, long-press, `pointercancel`/`lostpointercapture`/
+  Escape/navigation/detachment, and non-primary buttons.
+- **needs-review policy** (`buildRecordedFlow.ts`): an ambiguous OR positional drop target is
+  `needs-review` (order-fragile) rather than silently committing to one look-alike by index. Applies to
+  both the native and pointer paths.
+- **Fixture**: `/drag-lab` gained a pointer-driven sortable (`pointer-sort-section`, `pointer-item-*`,
+  `pointer-order`, `pointer-result`, `pointer-reset`).
+- **Shadow**: supported via the light-DOM host (`elementFromPoint`). **Cross-frame**: no single-frame
+  gesture forms, so it fails closed.
+
+Verified: `verify:recorder-competitive` **50/50** (capture + every false-positive gate + shadow-host +
+native/pointer dedup), `verify:recorder` **212/0** (real `StepExecutor.dragTo` pointer-sortable replay
+moves the correct item; missing-target negative), `verify:mock-site` **132/132** (`page.mouse` reorder +
+tiny-move-no-op + reset + second drag), `verify:flow-step-mapping` **122/0** (round-trip). The movement
+threshold is mutation-tested (raising it 10 → 100000 flips the successful-drag checks to FAIL) and
+bracketed by the "small movement stays a click" check. Full applicable sweep green (recorder suite,
+ambiguity, hover, closed-shadow, redaction, draft, locator-guard, frame-chain, waits, blueprint-recovery,
+validation, runner, source-hygiene, classification, random-generator/roundtrip) — no regressions. No
+validation-ledger case changed, so the focused ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**; the
+tracker stands at **169 / 8 outstanding / 161 closed**, edges **95**.
+
+
 ## Drag drop-target editor in the Flow Designer (awkit-3g6, 2026-08-06)
 
 The Flow Designer can now edit a `drag` step's drop target in the GUI. `FlowNodePropertiesPanel` gained a

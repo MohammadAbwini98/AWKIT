@@ -184,9 +184,11 @@ try {
   // Then the `drag` step type landed end-to-end so `awkit-dat` closed, and `awkit-3g6` (drag designer
   // editor / mock-site / pointer-DnD follow-ups) was filed OPEN: total 168 → 169, closed 159 → 160,
   // outstanding held at 9, edges 95.
+  // Then all three `awkit-3g6` parts landed (mock-site /drag-lab, designer drop-target editor,
+  // pointer-emulated capture) so it closed: closed 160 → 161, outstanding 9 → 8, total held at 169.
   check(
-    "9 outstanding / 160 closed",
-    beads.stats.outstanding === 9 && beads.stats.closed === 160,
+    "8 outstanding / 161 closed",
+    beads.stats.outstanding === 8 && beads.stats.closed === 161,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
