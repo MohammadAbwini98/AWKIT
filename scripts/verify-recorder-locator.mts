@@ -351,6 +351,41 @@ async function main() {
     check("dangerous step error mentions sensitive action", /performs a sensitive action/i.test(result.error ?? ""), result.error);
   }
 
+  // Drag-and-drop: the runner executes a `drag` step by resolving BOTH the source and the drop target
+  // and performing a native drag. Exercises StepExecutor's `drag` case end-to-end (awkit-dat).
+  {
+    await page.setContent(`
+      <div id="src" draggable="true" style="padding:8px">Card</div>
+      <div id="zone" style="padding:24px">Zone</div>
+      <script>
+        var z = document.getElementById('zone');
+        z.addEventListener('dragover', function (e) { e.preventDefault(); });
+        z.addEventListener('drop', function (e) { e.preventDefault(); window.__dropped = 'src->zone'; });
+      </script>`);
+    await page.evaluate(() => { (window as unknown as { __dropped?: string }).__dropped = ""; });
+    const exec = new StepExecutor(page, new LocatorFactory(page), new ValueResolver(ctx), ctx);
+    const dragStep: FlowStep = {
+      id: "s-drag",
+      type: "drag",
+      name: "Drag Card to Zone",
+      locator: { strategy: "css", value: "#src", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "high" } },
+      targetLocator: { strategy: "css", value: "#zone", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "high" } }
+    };
+    const dragResult = await exec.execute(dragStep);
+    check("drag: StepExecutor resolves source + target and performs the drop", dragResult.status === "passed", dragResult.error || dragResult.status);
+    check("drag: the drop actually fired on the target", (await page.evaluate(() => (window as unknown as { __dropped?: string }).__dropped)) === "src->zone");
+
+    const noTarget: FlowStep = {
+      id: "s-drag-2",
+      type: "drag",
+      name: "Drag with no target",
+      locator: { strategy: "css", value: "#src", quality: { strategy: "css", isUnique: true, matchCount: 1, confidence: "high" } }
+    };
+    const noTargetResult = await exec.execute(noTarget);
+    check("drag: a step with no targetLocator fails (never a silent pass)", noTargetResult.status === "failed", noTargetResult.status);
+    check("drag: the failure names the missing drop target", /targetlocator|drop target/i.test(noTargetResult.error ?? ""), noTargetResult.error);
+  }
+
   console.log("Part C — Runner fallback resolution (alternatives, visibility, context scoping)");
 
   // Run one step against `html` and return the execution result + the id of the element the

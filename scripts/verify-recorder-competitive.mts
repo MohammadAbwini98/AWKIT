@@ -152,18 +152,25 @@ async function main(): Promise<void> {
     check("contenteditable: locator is unique and not a utility/hash selector", unique(action) && !UTILITY_OR_HASH.test(val(action)), val(action));
   }
 
-  // ── G. Drag and drop (HTML5 draggable) — characterization ────────────────────
+  // ── G. Drag and drop (native HTML5 DnD) — capture as a `drag` action ─────────
   console.log("G — Drag and drop");
   {
-    const html = `<ul style="list-style:none"><li draggable="true" id="src" style="padding:8px">Item A</li><li id="dst" style="padding:8px">Item B</li></ul>`;
-    const action = await capture(html, async (p) => {
-      await p.locator("#src").hover();
-      await p.mouse.down();
-      await p.locator("#dst").hover();
-      await p.mouse.up();
-    });
-    console.log(`    · drag → type=${action?.type} strategy=${action?.locator?.strategy} value=${JSON.stringify(val(action))}`);
-    check("drag: whatever is recorded has a unique, non-utility locator (no crash / bad selector)", !action || (unique(action) && !UTILITY_OR_HASH.test(val(action))), JSON.stringify(action));
+    const html = `
+      <ul style="list-style:none"><li draggable="true" id="src" style="padding:8px">Item A</li></ul>
+      <div id="dropzone" style="padding:24px;border:2px dashed #888">Drop zone</div>
+      <script>
+        var dz = document.getElementById('dropzone');
+        dz.addEventListener('dragover', function (e) { e.preventDefault(); });
+        dz.addEventListener('drop', function (e) { e.preventDefault(); dz.textContent = 'dropped'; });
+      </script>`;
+    const action = await capture(html, (p) => p.dragAndDrop("#src", "#dropzone"));
+    console.log(
+      `    · drag → type=${action?.type} source=${JSON.stringify(val(action))} target=${JSON.stringify(action?.targetLocator?.value)} name=${JSON.stringify(action?.name)}`
+    );
+    check("drag: a native HTML5 drag is captured as a `drag` action", action?.type === "drag", JSON.stringify(action));
+    check("drag: the action carries a source locator (the dragged element)", !!action?.locator?.value, JSON.stringify(action?.locator));
+    check("drag: the action carries a distinct target locator (the drop target)", !!action?.targetLocator?.value && action?.targetLocator?.value !== action?.locator?.value, JSON.stringify(action?.targetLocator));
+    check("drag: source locator is unique + non-utility", !action || (unique(action) && !UTILITY_OR_HASH.test(val(action))), JSON.stringify(action?.locator?.quality));
   }
 
   // ── H. Custom ARIA combobox + listbox option ─────────────────────────────────

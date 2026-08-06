@@ -88,6 +88,8 @@ export interface RecordedAction {
   type: string;
   name: string;
   locator?: RecordedActionLocator;
+  /** Drop target for a `drag` action. `locator` is the drag source; this is where it is dropped. */
+  targetLocator?: RecordedActionLocator;
   valueSource?: {
     type: string;
     value: string;

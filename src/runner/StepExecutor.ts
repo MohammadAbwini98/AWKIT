@@ -1568,6 +1568,17 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
+      case "drag": {
+        if (!step.targetLocator) throw new Error(`drag step ${step.id} requires a targetLocator (the drop target).`);
+        const timeout = step.timeoutMs ?? 10_000;
+        const source = await this.locatorFactory.resolve(step);
+        // Resolve the drop target through the same recovery-aware factory. A distinct step id keeps
+        // its locator memory separate from the source's.
+        const target = await this.locatorFactory.resolve({ ...step, id: `${step.id}::dropTarget`, locator: step.targetLocator });
+        await source.dragTo(target, { timeout });
+        return { status: "passed" };
+      }
+
       case "switchToPopup": {
         // Arm a popup listener, then wait for the new window to appear (used when no prior click
         // opener was available or the popup opens from a script/timer).

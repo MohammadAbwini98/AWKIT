@@ -87,6 +87,15 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
 
   // ---- interaction ----
   click: { type: "click", role: "action", requiresLocator: true, requiresValue: false, weight: 10 },
+  drag: {
+    type: "drag",
+    role: "action",
+    requiresLocator: true,
+    requiresValue: false,
+    gate: "missingLocalFixture",
+    weight: 0,
+    note: "Drag-and-drop needs a source AND a target locator; recorder-produced only. Not generated unattended — the randomizer has no second-locator concept."
+  },
   hover: { type: "hover", role: "action", requiresLocator: true, requiresValue: false, weight: 3 },
   scroll: { type: "scroll", role: "action", requiresLocator: false, requiresValue: true, weight: 3 },
 

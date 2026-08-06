@@ -139,6 +139,25 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       }
     }
 
+    // Drag steps carry a second locator — the drop target — built alongside the source (which the
+    // block above handled as `step.locator`). Mirrors the source construction; resolved as recorded.
+    if (action.type === "drag" && action.targetLocator) {
+      const t = action.targetLocator;
+      step.targetLocator = {
+        strategy: t.strategy as NonNullable<FlowStep["targetLocator"]>["strategy"],
+        value: t.value
+      };
+      if (t.name) step.targetLocator.name = t.name;
+      if (t.exact) step.targetLocator.exact = true;
+      if (t.quality) step.targetLocator.quality = t.quality;
+      if (t.alternatives && t.alternatives.length > 0) step.targetLocator.alternatives = t.alternatives;
+      if (t.context) step.targetLocator.context = t.context;
+      if (t.interaction) step.targetLocator.interaction = t.interaction;
+      step.targetLocator.resolution = t.resolution ?? "resolved";
+      step.targetLocator.resolvedBy = t.resolvedBy ?? "recorder";
+      if (t.reviewReason) step.targetLocator.reviewReason = t.reviewReason;
+    }
+
     if (action.valueSource) {
       step.valueSource = {
         type: action.valueSource.type as NonNullable<FlowStep["valueSource"]>["type"],

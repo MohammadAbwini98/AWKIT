@@ -50,6 +50,9 @@ const META: Record<StepType, RegistryMeta> = {
     validate: (d) => (d.value.trim() ? [] : ["Open URL requires a URL value."])
   },
   click: { category: "interaction", sections: ["locator", "execution", "output"], executable: true },
+  // The "locator" section edits the drag SOURCE. The drop target (targetLocator) is captured by the
+  // recorder; a dedicated designer editor for it is a follow-up (awkit-dat).
+  drag: { category: "interaction", sections: ["locator", "execution"], executable: true },
   fill: {
     category: "input",
     sections: ["locator", "value", "execution", "output"],

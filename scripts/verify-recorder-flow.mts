@@ -125,6 +125,23 @@ check(
   hStep?.locator?.strategy === "testId" && hStep?.locator?.value === "hover-trigger" && hStep?.locator?.resolution === "resolved"
 );
 check("hover step is NOT a copy of the click's own locator", hStep?.locator?.value !== "button");
+
+// ── Drag actions map to a drag step carrying BOTH the source and drop-target locators ─────────
+const dragFlow = buildRecordedFlow("Drag", [
+  {
+    id: "d1",
+    type: "drag",
+    name: "Drag Item A to Zone",
+    locator: { strategy: "css", value: "#src" },
+    targetLocator: { strategy: "css", value: "#zone" }
+  } as RecordedAction
+]);
+const dragStep = dragFlow.nodes.find((n) => n.type === "drag");
+check("drag action maps to a drag step", dragStep?.type === "drag");
+check("drag step keeps the source locator (marked resolved)", dragStep?.locator?.value === "#src" && dragStep?.locator?.resolution === "resolved");
+check("drag step carries the drop-target locator (marked resolved)", dragStep?.targetLocator?.value === "#zone" && dragStep?.targetLocator?.resolution === "resolved");
+const dragRt = JSON.parse(JSON.stringify(dragFlow));
+check("drag targetLocator survives JSON round-trip", dragRt.nodes.find((n: { type: string }) => n.type === "drag")?.targetLocator?.value === "#zone");
 // Saving a flow is a full JSON serialize/deserialize — the injected hover node + its order must survive.
 const hoverRT = JSON.parse(JSON.stringify(hoverFlow));
 const hRtIdx = hoverRT.nodes.findIndex((n: { type: string }) => n.type === "hover");

@@ -2710,6 +2710,47 @@ export function installRecorderCapture(): void {
   };
   window.addEventListener("click", onClickCapture, true);
 
+  // ── Drag and drop (native HTML5 DnD) ─────────────────────────────────────────
+  // Capture a drag gesture as ONE `drag` action carrying the source locator (from dragstart) and the
+  // drop-target locator (from drop), emitted on dragend once both ends are known. A cancelled drag
+  // (Escape, or a target that never accepts the drop) records nothing. Sortable/kanban/reorder UIs
+  // that use the standard draggable + drop protocol are captured; pointer-emulated DnD is not (yet).
+  let pendingDragSource: { locator: Record<string, unknown>; name: string } | null = null;
+  let pendingDragTarget: { locator: Record<string, unknown>; name: string } | null = null;
+  const onDragStartCapture = (event: Event): void => {
+    pendingDragSource = null;
+    pendingDragTarget = null;
+    if (insideClosedHostRetarget(event)) return;
+    const captured = generateForEvent(event, false);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const interaction = captureInteraction(event, target, g, shadow);
+    pendingDragSource = { locator: { ...g.locator, interaction }, name: g.accessibleName || tagOf(target) || "element" };
+  };
+  const onDropCapture = (event: Event): void => {
+    if (!pendingDragSource) return;
+    const captured = generateForEvent(event, false);
+    if (!captured) return;
+    const { target, generated: g, shadow } = captured;
+    const interaction = captureInteraction(event, target, g, shadow);
+    pendingDragTarget = { locator: { ...g.locator, interaction }, name: g.accessibleName || tagOf(target) || "element" };
+  };
+  const onDragEndCapture = (): void => {
+    if (pendingDragSource && pendingDragTarget) {
+      record({
+        type: "drag",
+        name: "Drag " + pendingDragSource.name + " to " + pendingDragTarget.name,
+        locator: pendingDragSource.locator,
+        targetLocator: pendingDragTarget.locator
+      });
+    }
+    pendingDragSource = null;
+    pendingDragTarget = null;
+  };
+  window.addEventListener("dragstart", onDragStartCapture, true);
+  window.addEventListener("drop", onDropCapture, true);
+  window.addEventListener("dragend", onDragEndCapture, true);
+
   const onChangeCapture = (event: Event): void => {
     if (insideClosedHostRetarget(event)) return;
     const captured = generateForEvent(event, false);

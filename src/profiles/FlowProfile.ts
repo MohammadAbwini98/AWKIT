@@ -2,6 +2,7 @@ export type StepType =
   | "start"
   | "goto"
   | "click"
+  | "drag"
   | "fill"
   | "select"
   | "check"
@@ -520,6 +521,11 @@ export interface FlowStep {
   description?: string;
   position?: { x: number; y: number };
   locator?: StepLocator;
+  /**
+   * Drop target for a `drag` step. The `locator` is the drag SOURCE; `targetLocator` is where it is
+   * dropped. Absent on all non-drag steps; a `drag` step without it fails at runtime.
+   */
+  targetLocator?: StepLocator;
   /** Condition-based waits run BEFORE this step's action (Smart Wait Engine, Phase 1). */
   beforeWaits?: WaitCondition[];
   /**
