@@ -190,9 +190,11 @@ try {
   // neighborhood scan: closed 161 to 162, outstanding 8 to 7, total held at 169.
   // Then `awkit-3ut` closed after framed page identity, the document-variant gate, and ancestry
   // hashing were fixed: closed 162 to 163, outstanding 7 to 6, total held at 169.
+  // Then `awkit-c2z` closed after the dedicated real-browser capture/runtime blueprint gate and
+  // Feature Test Lab fixture landed: closed 163 to 164, outstanding 6 to 5, total held at 169.
   check(
-    "6 outstanding / 163 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 163,
+    "5 outstanding / 164 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 164,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

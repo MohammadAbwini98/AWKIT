@@ -1,5 +1,17 @@
 # KNOWN_ISSUES
 
+## OPEN: `typecheck:scripts` is red on nine pre-existing verifier diagnostics (2026-08-07)
+
+The app build remains green, but `npm run typecheck:scripts` currently reports nine diagnostics in
+older verifier files: `verify-blueprint-recovery.mts`, `verify-closed-shadow.mts`,
+`verify-frame-chain.mts`, `verify-locator-guard.mts`, and `verify-recorder-competitive.mts`. The
+failures are `TS2322`/`TS2345` type mismatches; live focused verifiers still execute successfully
+because `tsx` does not typecheck them. The `awkit-c2z` browser verifier is not among the diagnostics
+and passes 20/20. Do not claim the combined scripts typecheck gate is green until this baseline is
+repaired and `npm run typecheck:scripts` passes.
+
+---
+
 ## OPEN: a non-positional `needs-review` locator cannot be resolved in the app (`awkit-871`, 2026-08-04)
 
 A recorded step whose locator is `needs-review` is refused at preflight by `locatorNeedsReview`

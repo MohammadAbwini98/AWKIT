@@ -226,6 +226,8 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
                             # real runs started from the card's Run button, ON/OFF/ON. Spawns the mock
                             # site; needs `npm run build` first. (11/11)
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, Smart Wait signals/correlation, and Increment 6 open/nested/duplicate/slotted/closed/frame/cap Shadow DOM capture→persistence→preflight→LocatorFactory→StepExecutor coverage (171/171)
+npm run verify:blueprint-recovery # tsx scripts/verify-blueprint-recovery.mts — Node-side blueprint assembly/privacy/store gate (52/52)
+npm run verify:blueprint-recovery-browser # tsx scripts/verify-blueprint-recovery-browser.mts — real Chromium capture→assembly→LocatorFactory recovery against /blueprint-recovery-lab; inserted sibling at 0.866667 succeeds and a below-0.86 control is refused (20/20)
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the actionable owner (not a wrapper or hidden revealed surface), refuses positional-only

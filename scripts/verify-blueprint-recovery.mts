@@ -7,7 +7,7 @@
 // COVERAGE BOUNDARY (be honest): this verifier does NOT exercise the in-page capture
 // (`recorderInitScript.captureBlueprint`, browser-only) nor the runtime resolution fast-path
 // (`LocatorFactory.recoverLocally`, real-page only) — both need a live Chromium page and belong in a
-// real-browser verifier that does not yet exist. What regression makes THIS file fail: any change
+// companion `verify:blueprint-recovery-browser` gate. What regression makes THIS file fail: any change
 // that stops persisting a blueprintId, leaks raw label/attribute/URL text into a blueprint, diverges
 // the fingerprint hashing, breaks page-key stripping/normalization, drops the 2000-element cap, or
 // breaks the atomic store round-trip / size guard.

@@ -10433,3 +10433,24 @@ pm run verify:mock-site
   `src/recorder/buildRecordedFlow.ts`, `scripts/{verify-blueprint-recovery,verify-frame-chain,
   verify-recorder-locator}.mts`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/*.jsonl`, and
   `docs/ai/{CURRENT_STATE,FEATURES,TASK_LOG}.md`.
+
+## 2026-08-07: Real-browser blueprint capture + LocatorFactory recovery gate (awkit-c2z)
+
+- **Agent:** Codex. **Selection:** highest-priority dependency-ready item after `awkit-3ut`.
+- **Fixture:** added `/blueprint-recovery-lab`, with a same-name decoy, 205 deterministic fillers,
+  inserted-sibling mutation, reset/status controls, and a below-threshold identity-drift control.
+- **Verifier:** added classified real-browser command `verify:blueprint-recovery-browser`. It records
+  the target through `getRecorderInitScriptContent`, assembles the browser capture through
+  `buildRecordedFlow`, proves every recorded candidate misses after drift, proves no recovery without
+  blueprint storage, then drives `LocatorFactory` to the intended target at measured similarity
+  **0.866667**. The paired below-0.86 mutation is refused with no side effect or success event.
+- **Verification:** `verify:blueprint-recovery-browser` **20/20**; `verify:mock-site` **141/141**;
+  `verify:blueprint-recovery` **52/52**; `verify:recorder` **217/217**; `verify:frame-chain` **31/31**;
+  `verify:runner` **89/89**; `verify:source-hygiene` **9/9**; verifier classification reconciled;
+  `npm run build` PASS. `npm run typecheck:scripts` was run and remains FAIL on nine pre-existing
+  errors in other verifier files; the new script was not among the diagnostics and its live run passed.
+- **Tracking:** closed `awkit-c2z`; tracker **169 / 5 outstanding / 164 closed / 95 edges**. Validation
+  ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Files:** new `mock-site/public/blueprint-recovery-lab.html` and
+  `scripts/verify-blueprint-recovery-browser.mts`; mock-site route/index/verifier/README; package script
+  and verifier classification; roadmap count source; AI memory docs; `.beads/issues.jsonl`.

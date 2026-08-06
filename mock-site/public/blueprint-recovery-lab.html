@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blueprint Recovery Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="card wide">
+      <h1>Blueprint Recovery Lab</h1>
+      <p class="hint">
+        Records a stable target beyond the normal recovery scan, then inserts a sibling and changes
+        one ancestry segment so Locator Blueprint recovery must identify the original element.
+      </p>
+
+      <nav data-testid="blueprint-decoy-zone" aria-label="Blueprint recovery decoy">
+        <p>
+          <button>
+            Blueprint recovery threshold target with intentionally repeated accessible identity for deterministic browser coverage alpha bravo charlie
+          </button>
+        </p>
+      </nav>
+
+      <section data-testid="blueprint-recovery-scenario" aria-labelledby="blueprint-scenario-title">
+        <h2 id="blueprint-scenario-title">Inserted-sibling recovery</h2>
+        <p>
+          Expected: the original selector stops matching after mutation, while blueprint-guided
+          recovery clicks the moved target and never the same-name decoy.
+        </p>
+        <div class="button-row">
+          <button data-testid="blueprint-mutate">Insert sibling and drift ancestry</button>
+          <button data-testid="blueprint-mutate-below-threshold">Apply below-threshold drift</button>
+          <button data-testid="blueprint-reset">Reset blueprint scenario</button>
+        </div>
+        <p data-testid="blueprint-mutation-status" role="status">original</p>
+        <p data-testid="blueprint-result" role="status">idle</p>
+        <div data-testid="blueprint-fillers" aria-label="Blueprint scan fillers"></div>
+        <div class="blueprint-target-parent"></div>
+      </section>
+    </main>
+
+    <script>
+      (() => {
+        const targetLabel =
+          "Blueprint recovery threshold target with intentionally repeated accessible identity for deterministic browser coverage alpha bravo charlie";
+        const scenario = document.querySelector('[data-testid="blueprint-recovery-scenario"]');
+        const fillers = document.querySelector('[data-testid="blueprint-fillers"]');
+        const mutationStatus = document.querySelector('[data-testid="blueprint-mutation-status"]');
+        const result = document.querySelector('[data-testid="blueprint-result"]');
+        let targetNode;
+
+        for (let index = 0; index < 205; index += 1) {
+          const filler = document.createElement("span");
+          filler.className = "blueprint-scan-filler";
+          filler.textContent = `Blueprint filler ${String(index).padStart(3, "0")}`;
+          fillers.append(filler, document.createElement("br"));
+        }
+
+        const buildTarget = () => {
+          const target = document.createElement("button");
+          target.setAttribute("data-test", "blueprint-primary");
+          target.textContent = targetLabel;
+          return target;
+        };
+
+        const reset = () => {
+          const priorParent = scenario.querySelector(".blueprint-target-parent, .blueprint-mutated-parent");
+          const parent = document.createElement("div");
+          parent.className = "blueprint-target-parent";
+          targetNode = buildTarget();
+          parent.append(targetNode);
+          priorParent.replaceWith(parent);
+          mutationStatus.textContent = "original";
+          result.textContent = "idle";
+        };
+
+        const mutate = (belowThreshold = false) => {
+          if (!targetNode || targetNode.classList.contains("blueprint-mutated-target")) reset();
+          const priorParent = targetNode.parentElement;
+          const parent = document.createElement("article");
+          parent.className = "blueprint-mutated-parent";
+          const inserted = document.createElement("aside");
+          inserted.dataset.testid = "blueprint-inserted-node";
+          inserted.textContent = "Inserted before the recorded target";
+          targetNode.removeAttribute("data-test");
+          targetNode.className = "blueprint-mutated-target";
+          if (belowThreshold) targetNode.textContent = targetLabel.replace("charlie", "delta");
+          parent.append(inserted, targetNode);
+          priorParent.replaceWith(parent);
+          mutationStatus.textContent = belowThreshold ? "mutated-below-threshold" : "mutated-above-threshold";
+          result.textContent = "idle";
+        };
+
+        scenario.addEventListener("click", (event) => {
+          if (event.target === targetNode) {
+            result.textContent = targetNode.classList.contains("blueprint-mutated-target")
+              ? "clicked-mutated-target"
+              : "clicked-original-target";
+          }
+        });
+        document.querySelector('[data-testid="blueprint-decoy-zone"] button').addEventListener("click", () => {
+          result.textContent = "clicked-decoy";
+        });
+        document.querySelector('[data-testid="blueprint-mutate"]').addEventListener("click", () => mutate(false));
+        document.querySelector('[data-testid="blueprint-mutate-below-threshold"]').addEventListener("click", () => mutate(true));
+        document.querySelector('[data-testid="blueprint-reset"]').addEventListener("click", reset);
+
+        reset();
+        window.__blueprintLab = { mutate, reset };
+      })();
+    </script>
+  </body>
+</html>

@@ -168,6 +168,7 @@ offline/local friendly and cannot depend on external services. Existing stable U
 - `/login`, `/form`, `/details`, `/success` - core runner/recorder flow.
 - `/smart-waits` - Smart Wait and runner timing scenarios.
 - `/recorder-lab` - Recorder, locator, saved URL, dynamic DOM, and waiting-time scenarios.
+- `/blueprint-recovery-lab` - browser-captured blueprint plus inserted-sibling/threshold recovery.
 - `/designer-lab` - Flow Designer, Workflow Builder, Instance Monitor, cards, and scenario-data examples.
 - `/api/delay?ms=...` - bounded local delayed JSON response.
 

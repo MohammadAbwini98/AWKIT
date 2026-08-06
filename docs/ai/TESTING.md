@@ -48,6 +48,12 @@ remain structural and legacy workflows remain compatible.
   enabled controls, polling ignored, fixed-delay fallback). Recovery coverage includes no-history,
   equal-twin, valid-recorded-candidate, class/business-text exclusion, durable-source, and
   loud-warning sentinels.
+- `scripts/verify-blueprint-recovery-browser.mts` (`npm run verify:blueprint-recovery-browser`) — **20
+  checks** in real Chromium for the browser-only half of Locator Blueprint recovery. It records a click
+  through the exact injected Recorder script, assembles the captured blueprint with `buildRecordedFlow`,
+  then drives `LocatorFactory` against `/blueprint-recovery-lab`: every saved locator misses after one
+  inserted sibling beyond the broad 200-element scan, the captured fingerprint scores 0.866667 and
+  recovers the intended target, while a below-0.86 identity change is refused with no side effect.
 - `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
   an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable

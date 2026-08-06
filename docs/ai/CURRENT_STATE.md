@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Real-browser blueprint capture + runtime recovery gate — awkit-c2z COMPLETE (2026-08-07)
+
+Locator Blueprint recovery now has a dedicated end-to-end browser acceptance gate. The new
+`/blueprint-recovery-lab` fixture places a same-name decoy early and the recorded target beyond 205
+deterministic fillers. Its mutation removes every saved locator, inserts one node before the target,
+and changes one of three ancestry segments. `verify:blueprint-recovery-browser` records the click
+through the exact injected Recorder script, assembles the captured `PageBlueprint` through
+`buildRecordedFlow`, seeds normal locator memory, proves the stale step cannot resolve without the
+blueprint, then drives `LocatorFactory`'s second recovery layer to the intended target.
+
+The browser-measured positive fingerprint is **0.866667**, directly bracketing the production 0.86
+threshold; a second mutation falls below 0.86 and is refused with no click or recovery-success event.
+Verified: `verify:blueprint-recovery-browser` **20/20**, `verify:mock-site` **141/141**,
+`verify:blueprint-recovery` **52/52**, `verify:recorder` **217/217**, `verify:frame-chain` **31/31**,
+`verify:runner` **89/89**, `verify:source-hygiene` **9/9**, verifier classification reconciled, and
+`npm run build` clean. Repository-wide `typecheck:scripts` remains red on nine pre-existing errors in
+other verifier files; the new verifier is not among them and executes cleanly. `awkit-c2z` is closed;
+tracker **169 / 5 outstanding / 164 closed / 95 edges**. The validation ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Frame-correct blueprint identity + page-variant gate — awkit-3ut COMPLETE (2026-08-07)
 
 Blueprint recovery now uses the actual replay document identity for framed targets. Capture and

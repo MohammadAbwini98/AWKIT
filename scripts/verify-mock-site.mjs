@@ -48,6 +48,7 @@ try {
   await page.getByRole("heading", { name: "Feature Test Lab" }).waitFor();
   check("home lists Smart Wait lab", await page.getByTestId("scenario-smart-waits").isVisible());
   check("home lists Recorder lab", await page.getByTestId("scenario-recorder").isVisible());
+  check("home lists Blueprint Recovery lab", await page.getByTestId("scenario-blueprint-recovery").isVisible());
   check("home lists Designer lab", await page.getByTestId("scenario-designer").isVisible());
   check("home lists Async Results lab", await page.getByTestId("scenario-async-results").isVisible());
 
@@ -112,6 +113,25 @@ try {
   check("manual waiting-time countdown starts", await page.getByTestId("manual-pause-countdown").isVisible());
   await page.getByRole("button", { name: "Render dynamic row" }).click();
   check("dynamic DOM keeps stable test id", await page.getByTestId("dynamic-customer-card").isVisible());
+
+  console.log("Blueprint Recovery scenario:");
+  await page.goto(`${BASE}/blueprint-recovery-lab`);
+  const blueprintLabel =
+    "Blueprint recovery threshold target with intentionally repeated accessible identity for deterministic browser coverage alpha bravo charlie";
+  check("blueprint page has an accessible title", await page.getByRole("heading", { name: "Blueprint Recovery Lab" }).isVisible());
+  check("blueprint target starts beyond 200 filler elements", (await page.locator(".blueprint-scan-filler").count()) === 205);
+  check("blueprint target identity is deliberately repeated", (await page.getByRole("button", { name: blueprintLabel, exact: true }).count()) === 2);
+  await page.locator('[data-test="blueprint-primary"]').click();
+  check("blueprint original target reports its click", (await page.getByTestId("blueprint-result").textContent()) === "clicked-original-target");
+  await page.getByTestId("blueprint-mutate").click();
+  check("blueprint mutation inserts a node before the target", (await page.getByTestId("blueprint-inserted-node").count()) === 1);
+  check("blueprint mutation retires the recorded selector", (await page.locator('[data-test="blueprint-primary"]').count()) === 0);
+  await page.locator(".blueprint-mutated-target").click();
+  check("blueprint mutated target remains actionable", (await page.getByTestId("blueprint-result").textContent()) === "clicked-mutated-target");
+  await page.getByTestId("blueprint-reset").click();
+  check("blueprint reset restores the original selector and state", (await page.locator('[data-test="blueprint-primary"]').count()) === 1 && (await page.getByTestId("blueprint-result").textContent()) === "idle");
+
+  await page.goto(`${BASE}/recorder-lab`);
 
   // Non-unique controls: same role+name/text repeated, distinguishable only by a stable container.
   check("duplicate package cards exist", (await page.locator("[data-testid^='package-']").count()) === 2);
