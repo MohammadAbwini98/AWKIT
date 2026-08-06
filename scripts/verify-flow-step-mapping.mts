@@ -19,6 +19,7 @@ import {
   fromFlowStep as fromProductionFlowStep,
   toFlowStep as toProductionFlowStep
 } from "../app/renderer/components/workflow/flowProfileMapping";
+import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeRegistry";
 import { readFile } from "node:fs/promises";
 import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "../src/profiles/locatorApproval";
@@ -568,6 +569,24 @@ console.log("\nDrag: source + drop-target locators both survive the round-trip (
   check("drag drop-target survives the PRODUCTION mapping too", prodRt.targetLocator?.value === "#zone");
   const clickRt = cycle(baseStep({ type: "click", name: "Click", locator: { strategy: "css", value: "#btn" } }));
   check("a non-drag step gains no targetLocator", clickRt.targetLocator === undefined);
+
+  // create → save → reload → EDIT → re-save: load to designer data, edit ONLY the target, re-save.
+  const loaded = fromFlowStep(dragStep);
+  const editedNode = { id: "s-drag", type: "action", position: { x: 0, y: 0 }, data: { ...loaded, targetLocator: { ...loaded.targetLocator, strategy: "testId" as const, value: "drop-zone-2" } } } as FlowDesignerNode;
+  const editedStep = toFlowStep(editedNode, []);
+  check("editing the drop target persists on re-save", editedStep.targetLocator?.value === "drop-zone-2" && editedStep.targetLocator?.strategy === "testId");
+  check("editing the drop target leaves the source locator untouched", editedStep.locator?.value === "#src" && editedStep.locator?.strategy === "css");
+  // Clearing the target removes it WITHOUT touching the source (requirement: independent clearing).
+  const clearedNode = { id: "s-drag", type: "action", position: { x: 0, y: 0 }, data: { ...loaded, targetLocator: undefined } } as FlowDesignerNode;
+  const clearedStep = toFlowStep(clearedNode, []);
+  check("clearing the drop target removes it", clearedStep.targetLocator === undefined);
+  check("clearing the drop target leaves the source locator intact", clearedStep.locator?.value === "#src");
+  // Registry validation blocks an executable drag step that has no drop target (no silent save).
+  const dragDef = getNodeDefinition("drag");
+  check("drag validation flags a missing drop target", dragDef.validate({ ...loaded, targetLocator: undefined }).some((m) => /drop-target/i.test(m)));
+  check("drag validation passes once a drop target is set", dragDef.validate(loaded).length === 0);
+  // Visibility: the dragTarget editor section is exclusive to drag nodes (the panel gates on this).
+  check("the dragTarget editor section is exclusive to drag nodes", dragDef.sections.includes("dragTarget") && !getNodeDefinition("click").sections.includes("dragTarget") && !getNodeDefinition("fill").sections.includes("dragTarget"));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

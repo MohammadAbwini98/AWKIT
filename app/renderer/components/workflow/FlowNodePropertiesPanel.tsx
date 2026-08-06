@@ -119,6 +119,13 @@ export function FlowNodePropertiesPanel({
         : {})
     });
   };
+  // Drop-target editor (drag steps only). Bound EXCLUSIVELY to `targetLocator`; clearing it never
+  // touches the source `locator*` fields. New targets default to a css locator authored by the user.
+  const editTarget = (patch: Partial<NonNullable<FlowDesignerNodeData["targetLocator"]>>) => {
+    if (!data) return;
+    set({ targetLocator: { strategy: "css", value: "", resolution: "resolved", resolvedBy: "user", ...(data.targetLocator ?? {}), ...patch } });
+  };
+  const clearTarget = () => set({ targetLocator: undefined });
   const typeErrors = data && definition ? definition.validate(data) : [];
   // A recorded locator that resolves to multiple elements must not read as "valid".
   const locatorQualityErrors =
@@ -540,7 +547,7 @@ export function FlowNodePropertiesPanel({
 
           {has("locator") ? (
             <details className="property-group" open>
-              <summary>Locator</summary>
+              <summary>{data.stepType === "drag" ? "Drag Source" : "Locator"}</summary>
               <section className="property-section">
                 <label>
                   Strategy
@@ -716,6 +723,70 @@ export function FlowNodePropertiesPanel({
                     ) : null}
                   </div>
                 ) : null}
+              </section>
+            </details>
+          ) : null}
+
+          {has("dragTarget") ? (
+            <details className="property-group" open>
+              <summary>Drop Target</summary>
+              <section className="property-section" data-testid="drag-target-section">
+                <p>The <strong>Drag Source</strong> above is the element being dragged; this locator is the <strong>drop target</strong> it is released onto.</p>
+                <label>
+                  Strategy
+                  <select
+                    data-testid="drag-target-strategy"
+                    value={data.targetLocator?.strategy ?? "css"}
+                    onChange={(e) => editTarget({ strategy: e.target.value as NonNullable<FlowDesignerNodeData["targetLocator"]>["strategy"] })}
+                  >
+                    <option value="role">Role</option>
+                    <option value="label">Label</option>
+                    <option value="placeholder">Placeholder</option>
+                    <option value="text">Text</option>
+                    <option value="testId">Test ID</option>
+                    <option value="id">ID</option>
+                    <option value="css">CSS</option>
+                    <option value="xpath">XPath</option>
+                    <option value="tagName">Tag Name</option>
+                  </select>
+                </label>
+                <label>
+                  Drop-target value
+                  <input
+                    data-testid="drag-target-value"
+                    value={data.targetLocator?.value ?? ""}
+                    aria-invalid={!(data.targetLocator?.value ?? "").trim() || undefined}
+                    onChange={(e) => editTarget({ value: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Accessible Name
+                  <input
+                    data-testid="drag-target-name"
+                    value={data.targetLocator?.name ?? ""}
+                    onChange={(e) => editTarget({ name: e.target.value || undefined })}
+                  />
+                </label>
+                {data.targetLocator?.strategy === "role" || data.targetLocator?.strategy === "text" || data.targetLocator?.strategy === "label" || data.targetLocator?.strategy === "placeholder" ? (
+                  <label className="inline-check">
+                    <input type="checkbox" checked={data.targetLocator?.exact ?? false} onChange={(e) => editTarget({ exact: e.target.checked || undefined })} />
+                    Match exactly
+                  </label>
+                ) : null}
+                {!(data.targetLocator?.value ?? "").trim() ? (
+                  <div className="locator-review-state warn" role="alert" data-testid="drag-target-missing">
+                    <strong>A drop target is required — the drag step cannot run without it.</strong>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  data-testid="drag-target-clear"
+                  disabled={!data.targetLocator}
+                  onClick={clearTarget}
+                >
+                  Clear drop target
+                </button>
               </section>
             </details>
           ) : null}

@@ -7,6 +7,7 @@ export type NodeCategory = "flow" | "navigation" | "interaction" | "input" | "ca
 
 export type PropertySection =
   | "locator"
+  | "dragTarget"
   | "value"
   | "select"
   | "wait"
@@ -50,9 +51,14 @@ const META: Record<StepType, RegistryMeta> = {
     validate: (d) => (d.value.trim() ? [] : ["Open URL requires a URL value."])
   },
   click: { category: "interaction", sections: ["locator", "execution", "output"], executable: true },
-  // The "locator" section edits the drag SOURCE. The drop target (targetLocator) is captured by the
-  // recorder; a dedicated designer editor for it is a follow-up (awkit-dat).
-  drag: { category: "interaction", sections: ["locator", "execution"], executable: true },
+  // "locator" edits the drag SOURCE; "dragTarget" edits the drop target (targetLocator). A drag step
+  // cannot execute without a drop target, so validate flags a missing one (awkit-3g6).
+  drag: {
+    category: "interaction",
+    sections: ["locator", "dragTarget", "execution"],
+    executable: true,
+    validate: (d) => (d.targetLocator?.value?.trim() ? [] : ["Drag requires a drop-target locator."])
+  },
   fill: {
     category: "input",
     sections: ["locator", "value", "execution", "output"],
