@@ -166,6 +166,9 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         guard: data.locatorGuard
       }
       : undefined,
+    // Drag drop-target: re-emitted for `drag` steps, carried verbatim (like `locatorGuard`) so a
+    // designer edit/save never drops it. Absent on non-drag steps.
+    targetLocator: data.stepType === "drag" ? data.targetLocator : undefined,
     value: data.value || undefined,
     valueSource,
     // `|| undefined` so a goto with no literal (its value comes from a source) does not persist `url: ""`.
@@ -322,6 +325,8 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
     locatorGuard: step.locator?.guard,
+    // Drag drop-target: carried verbatim so a designer edit/save never drops it (preserve, don't re-derive).
+    targetLocator: step.targetLocator,
     valueSourceType: valueSource?.type ?? "static",
     // Preserved verbatim so a source the panel cannot author survives a save (see createValueSource).
     valueSourceOriginal: valueSource,

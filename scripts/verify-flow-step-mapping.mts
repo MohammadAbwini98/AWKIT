@@ -553,5 +553,22 @@ console.log("\nOutputs: single-key round-trips; multi-key is a documented single
   check("PINNED: multi-key outputs collapse to the first key as text (documented §8)", json(multi.outputs) === json({ a: { type: "text" } }), json(multi.outputs));
 }
 
+console.log("\nDrag: source + drop-target locators both survive the round-trip (awkit-3g6):");
+{
+  const dragStep = baseStep({
+    type: "drag",
+    name: "Drag Card to Zone",
+    locator: { strategy: "css", value: "#src", resolution: "resolved", resolvedBy: "recorder" },
+    targetLocator: { strategy: "css", value: "#zone", resolution: "resolved", resolvedBy: "recorder" }
+  });
+  const rt = cycle(dragStep);
+  check("drag round-trip keeps the source locator", rt.locator?.value === "#src");
+  check("drag round-trip keeps the drop-target locator (not silently dropped)", rt.targetLocator?.value === "#zone" && rt.targetLocator?.strategy === "css");
+  const prodRt = productionCycle(dragStep);
+  check("drag drop-target survives the PRODUCTION mapping too", prodRt.targetLocator?.value === "#zone");
+  const clickRt = cycle(baseStep({ type: "click", name: "Click", locator: { strategy: "css", value: "#btn" } }));
+  check("a non-drag step gains no targetLocator", clickRt.targetLocator === undefined);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

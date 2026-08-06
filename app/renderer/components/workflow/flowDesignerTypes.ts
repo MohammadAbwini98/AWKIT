@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -35,6 +35,12 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorReviewReason?: string;
   /** Runtime identity guard for a guarded-positional locator on a sensitive step (from Recorder). */
   locatorGuard?: LocatorGuard;
+  /**
+   * Drop target for a `drag` step (the source is `locator*` above). Carried verbatim through the
+   * designer round-trip — "preserve, don't re-derive" — so editing or re-saving a recorded drag step
+   * never drops its drop target. Absent on non-drag nodes.
+   */
+  targetLocator?: StepLocator;
   /**
    * Which value source drives this node. `"none"` is a designer-only sentinel meaning "a bare
    * `value` with no explicit source" (e.g. a condition expression); it round-trips as `value` alone

@@ -53,6 +53,9 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         guard: data.locatorGuard
       }
       : undefined,
+    // Drag drop-target: re-emitted for `drag` steps, carried verbatim from node data so a designer
+    // edit/save never drops it (the source is `locator` above). Absent on non-drag steps.
+    targetLocator: data.stepType === "drag" ? data.targetLocator : undefined,
     // Recorder popup/window metadata (awkit-4t9). Mapped EXPLICITLY, not spread, so the schema stays
     // controlled — but mapped in BOTH directions, because omitting it here silently discarded a
     // recorded multi-window flow's popup identity the first time a user opened and saved it, which
@@ -179,6 +182,8 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
     locatorGuard: step.locator?.guard,
+    // Drag drop-target: carried verbatim so a designer edit/save never drops it (preserve, don't re-derive).
+    targetLocator: step.targetLocator,
     // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't
     // re-derive" (the rule established by awkit-cxa) — so an unrelated node edit cannot clear it.
     pageAlias: step.pageAlias,
