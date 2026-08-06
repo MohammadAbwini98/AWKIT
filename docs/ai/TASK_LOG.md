@@ -10225,3 +10225,29 @@ pm run verify:mock-site
   `docs/ai/TASK_LOG.md`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`.
 - **Result:** red gate fixed, two brittleness/privacy defects closed, competitive coverage added.
   Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED); tracker 167 / 9 outstanding / 158 closed.
+
+## 2026-08-06: Recorder deep-testing round 2 — contenteditable fix + drag/ARIA/SPA probes
+
+- **Agent:** Claude (Opus 4.8). **Task:** continue the Recorder competitive deep-dive — implement the
+  contenteditable gap and push probes into drag-and-drop, custom ARIA combobox/listbox, and SPA
+  client-side-navigation continuity.
+- **Fix (`src/recorder/recorderInitScript.ts`):** the `input` handler now captures a contenteditable /
+  rich-text editing host's text as a redaction-aware fill (`element.innerText`), not just the click.
+  The input/textarea path is unchanged. Closes `awkit-fbq`.
+- **New probes added to `scripts/verify-recorder-competitive.mts`** (now **32/32**):
+  - E (contenteditable): asserts fill + captured text ("hello world") — proves the fix.
+  - G (drag-and-drop): HTML5 draggable drag records NO action → gap, filed `awkit-dat`.
+  - H (custom ARIA combobox/listbox): option click captured as a semantic `role=option` locator,
+    unique — verified strength.
+  - I (SPA continuity): after `pushState` + full `body.innerHTML` replacement, both the pre- and
+    post-navigation clicks are captured — verified strength (delegated window listeners persist).
+- **Verification (all green):** `verify:recorder-competitive` 32/32, `verify:recorder` 206/0,
+  `verify:recorder-redaction` 15/0, `verify:recorder-draft` 50/50, `verify:recorder-ambiguity` 69/0,
+  `verify:closed-shadow` 23/0, `npm run build` clean. No regression from the input-handler change.
+- **Beads:** closed `awkit-fbq` (contenteditable, fixed); filed `awkit-dat` (drag-and-drop capture,
+  low pri). Tracker: 168 / 9 outstanding / 159 closed, edges 95.
+- **Files changed:** `src/recorder/recorderInitScript.ts`, `scripts/verify-recorder-competitive.mts`,
+  `docs/ai/CURRENT_STATE.md`, `docs/ai/TASK_LOG.md`, `scripts/verify-roadmap-dashboard.mjs`,
+  `.beads/issues.jsonl`.
+- **Result:** one more gap closed, three competitive behaviors verified (two strengths, one new gap).
+  Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED).

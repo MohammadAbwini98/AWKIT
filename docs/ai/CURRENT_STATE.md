@@ -3,10 +3,11 @@
 ## Recorder competitive deep-testing + two fixes (2026-08-06)
 
 Deep-tested the Recorder against adversarial/competitive scenarios. New real-browser gate
-`verify:recorder-competitive` (**25/25**) drives the real capture script and proves generated/
-framework identifiers and CSS-in-JS/hashed classes are never emitted as locators, plus characterizes
-`<select>`, contenteditable, and keyboard capture. Two real defects were found **and fixed** in
-`recorderInitScript.ts`:
+`verify:recorder-competitive` (**32/32**) drives the real capture script and proves generated/
+framework identifiers and CSS-in-JS/hashed classes are never emitted as locators, custom ARIA
+combobox/listbox options capture with semantic `role=option` locators, capture survives SPA
+client-side navigation (`pushState` + full DOM replacement), and native `<select>`/keyboard capture
+safely. Three real defects were found **and fixed** in `recorderInitScript.ts`:
 
 - **Blueprint capture leaked closed-shadow internals + full URLs (regression from `6591c08`).**
   `captureBlueprint` stored the raw `location.href` and the raw element fingerprint on the recorded
@@ -18,14 +19,18 @@ framework identifiers and CSS-in-JS/hashed classes are never emitted as locators
   `button.Button_primary__3xKz9` (Next.js/CRA/Vite CSS-Modules default) were emitted verbatim — brittle
   across builds. Fix: `looksGeneratedId` and `isMeaningfulClass` now reject a `__`-delimited suffix that
   contains a digit, while pure-word BEM (`card__title`) survives.
+- **Contenteditable / rich-text typed text was not captured — only the click (`awkit-fbq`, now
+  closed).** The `input` handler ignored non-form editing hosts. Fix: it now captures a
+  contenteditable host's text as a redaction-aware fill (`element.innerText`); `verify:recorder-competitive`
+  scenario E asserts fill + text.
 
 Regression sweep after the fixes is clean: `verify:recorder` 206/0, `verify:recorder-competitive`
-25/25, `verify:recorder-ambiguity` 69/0, `verify:recorder-hover` 214/0, `verify:closed-shadow` 23/0,
+32/32, `verify:recorder-ambiguity` 69/0, `verify:recorder-hover` 214/0, `verify:closed-shadow` 23/0,
 `verify:frame-chain` 25/0, `verify:locator-guard` 33/0, `verify:recorder-flow` 29/29,
 `verify:recorder-draft` 50/50, `verify:recorder-redaction` 15/0, `verify:blueprint-recovery` 42/42,
-`npm run build` clean. One open follow-up filed: `awkit-fbq` (contenteditable/rich-text typed text is
-not captured — only the click). No validation-ledger case changed, so the focused ledger remains
-**63 PASS / 2 NOT RUN / 1 BLOCKED**; the tracker now stands at **167 / 9 outstanding / 158 closed**,
+`npm run build` clean. One open follow-up filed: `awkit-dat` (HTML5 drag-and-drop interactions record
+no action). No validation-ledger case changed, so the focused ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**; the tracker now stands at **168 / 9 outstanding / 159 closed**,
 edges **95**.
 
 
