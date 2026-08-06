@@ -10190,3 +10190,38 @@ pm run verify:mock-site
   by storing the raw (unhashed) fingerprint — 5 privacy/parity checks flipped to FAIL as expected.
 - **Result:** Docs repaired; the assembly/store behavior now has a focused verifier. Runtime design
   gaps above remain open follow-ups (not yet filed as beads).
+
+## 2026-08-06: Recorder competitive deep-testing — 2 defects found + fixed, new verifier
+
+- **Agent:** Claude (Opus 4.8). **Task:** deeper testing / competitive-scenario deep-dive of the Recorder.
+- **Baseline:** ran the core recorder suite. All green EXCEPT `verify:recorder` at **205/1** — a real
+  regression: the blueprint Phase 4 commit (`6591c08`) made `captureBlueprint` store the raw
+  `location.href` and the raw element fingerprint on the recorded draft, so the closed-shadow
+  "persisted data exposes no internal node/name" gate failed (the draft embedded the closed root's
+  internal name/text and, for the data: fixture, the internal method name via the URL) and every draft
+  persisted full URLs (query/fragment/tokens).
+- **New gate:** `scripts/verify-recorder-competitive.mts` (`verify:recorder-competitive`,
+  class real-browser, **25/25**) drives the real `installRecorderCapture` and probes:
+  generated/framework ids (React `:r`, Ember, GUID, CSS-module id hash), CSS-in-JS/hashed classes
+  (emotion/styled/FB-atomic/CSS-module), meaningful-class usage, and native `<select>` /
+  contenteditable / keyboard capture. Its first run was 23/25, surfacing a second defect.
+- **Defect 2:** CSS-module hashed id (`#Header_root__2x9Yt`) and class
+  (`button.Button_primary__3xKz9`) were emitted as locators — brittle across builds.
+- **Fixes (`src/recorder/recorderInitScript.ts`):**
+  1. `captureBlueprint` skips shadow-scoped targets (root is a `ShadowRoot`) and masks the URL to
+     `origin + pathname`. Restores `verify:recorder` to 206/0 and stops the URL/PII leak in drafts.
+  2. `looksGeneratedId` + `isMeaningfulClass` reject a `__`-delimited suffix containing a digit
+     (CSS-module hash); pure-word BEM (`card__title`) is preserved.
+- **Verification (all after the fixes):** `verify:recorder` 206/0, `verify:recorder-competitive` 25/25,
+  `verify:recorder-ambiguity` 69/0, `verify:recorder-hover` 214/0, `verify:closed-shadow` 23/0,
+  `verify:frame-chain` 25/0, `verify:locator-guard` 33/0, `verify:recorder-flow` 29/29,
+  `verify:recorder-draft` 50/50, `verify:recorder-redaction` 15/0, `verify:blueprint-recovery` 42/42,
+  `npm run build` clean. No regressions from the CSS-module rule or the blueprint guard.
+- **Beads:** filed `awkit-fbq` (contenteditable typed text not captured — only the click; low pri).
+  Noted on `awkit-3ut` that the closed-shadow/URL leak is fixed (frame page-key + variant gate +
+  unhashed ancestry remain open).
+- **Files changed:** `src/recorder/recorderInitScript.ts`, `scripts/verify-recorder-competitive.mts`
+  (new), `package.json`, `scripts/lib/verifier-classification.ts`, `docs/ai/CURRENT_STATE.md`,
+  `docs/ai/TASK_LOG.md`, `scripts/verify-roadmap-dashboard.mjs`, `.beads/issues.jsonl`.
+- **Result:** red gate fixed, two brittleness/privacy defects closed, competitive coverage added.
+  Ledger unchanged (63 PASS / 2 NOT RUN / 1 BLOCKED); tracker 167 / 9 outstanding / 158 closed.

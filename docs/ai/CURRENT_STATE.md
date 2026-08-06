@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Recorder competitive deep-testing + two fixes (2026-08-06)
+
+Deep-tested the Recorder against adversarial/competitive scenarios. New real-browser gate
+`verify:recorder-competitive` (**25/25**) drives the real capture script and proves generated/
+framework identifiers and CSS-in-JS/hashed classes are never emitted as locators, plus characterizes
+`<select>`, contenteditable, and keyboard capture. Two real defects were found **and fixed** in
+`recorderInitScript.ts`:
+
+- **Blueprint capture leaked closed-shadow internals + full URLs (regression from `6591c08`).**
+  `captureBlueprint` stored the raw `location.href` and the raw element fingerprint on the recorded
+  draft, so `verify:recorder`'s "shadow closed: persisted data exposes no internal node/name" gate went
+  red (205/1) and every draft persisted full URLs (query/fragment/tokens). Fix: skip blueprint capture
+  for shadow-scoped targets (it cannot resolve them at runtime anyway) and mask the URL to
+  origin+pathname. `verify:recorder` is back to **206/0**.
+- **CSS-module hashed id/class were used as locators.** `#Header_root__2x9Yt` and
+  `button.Button_primary__3xKz9` (Next.js/CRA/Vite CSS-Modules default) were emitted verbatim — brittle
+  across builds. Fix: `looksGeneratedId` and `isMeaningfulClass` now reject a `__`-delimited suffix that
+  contains a digit, while pure-word BEM (`card__title`) survives.
+
+Regression sweep after the fixes is clean: `verify:recorder` 206/0, `verify:recorder-competitive`
+25/25, `verify:recorder-ambiguity` 69/0, `verify:recorder-hover` 214/0, `verify:closed-shadow` 23/0,
+`verify:frame-chain` 25/0, `verify:locator-guard` 33/0, `verify:recorder-flow` 29/29,
+`verify:recorder-draft` 50/50, `verify:recorder-redaction` 15/0, `verify:blueprint-recovery` 42/42,
+`npm run build` clean. One open follow-up filed: `awkit-fbq` (contenteditable/rich-text typed text is
+not captured — only the click). No validation-ledger case changed, so the focused ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**; the tracker now stands at **167 / 9 outstanding / 158 closed**,
+edges **95**.
+
+
 ## Blueprint Recovery — Phase 4 wiring landed (2026-08-05)
 
 The Element Blueprint recovery system is wired into `LocatorFactory.recoverLocally` as an

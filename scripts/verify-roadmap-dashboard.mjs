@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("166 issues parse", beads.stats.total === 166, `got ${beads.stats.total}`);
+  check("167 issues parse", beads.stats.total === 167, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -177,9 +177,11 @@ try {
   // (second-layer ordering + neighborhood scan), `awkit-utj` (sensitive-action refusal), `awkit-3ut`
   // (frame page-key + variant gate) and `awkit-c2z` (real-browser verifier) — with two `blocks` edges
   // (qpv→c2z, 3ut→c2z): 8/158 of 166, edges 93 → 95.
+  // Then 2026-08-06: Recorder competitive deep-testing filed `awkit-fbq` (contenteditable typed text
+  // not captured), OPEN, no new edges: 9/158 of 167, edges 95.
   check(
-    "8 outstanding / 158 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 158,
+    "9 outstanding / 158 closed",
+    beads.stats.outstanding === 9 && beads.stats.closed === 158,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
