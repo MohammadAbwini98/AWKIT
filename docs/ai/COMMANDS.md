@@ -526,6 +526,8 @@ npm run benchmark:oracle-jdbc            # direct-JDBC soak (≥30 min): latency
 npm run icon:generate    # node scripts/generate-app-icon.mjs (build resources/icon.ico from icon-source.png)
 ```
 
+npm run verify:recorder-action-owner # tsx scripts/verify-recorder-action-owner.mts — real Chromium capture from nested custom-icon leaves to semantic action owners, conservative custom-element fallback, duplicate-owner review, flow JSON round-trip, and StepExecutor replay (11/11)
+
 ## Database migrations
 `Unknown - verify before use` — the project uses JSON file storage, not a database; no migration command exists.
 

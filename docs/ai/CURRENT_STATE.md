@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Nested custom-element Recorder action ownership — awkit-jce COMPLETE (2026-08-07)
+
+Recorder click capture no longer stops at the first custom-element wrapper. `interactiveTarget` now
+continues toward an explicit/native semantic action owner while retaining the nearest custom element
+as a conservative fallback. This makes a click on an inner SVG of a named link/button generate from
+the link/button itself, while an explicit actionable custom control still owns its action and a bare
+custom control remains available when no semantic owner exists. A unique positional fallback for a
+genuinely duplicate semantic **click owner** is now explicitly `needs-review`; stable container
+scoping remains resolved and non-click/sensitive guarded-position behavior is unchanged.
+
+The red browser capture selected `x-nav-icon` and emitted a medium-confidence compound CSS locator.
+The new `verify:recorder-action-owner` now passes **11/11**, proving the raw SVG leaf, role/name
+winner, no child selector, custom-control fallback, duplicate-owner review, flow JSON round trip, and
+StepExecutor replay. Also verified: `verify:recorder` **217/217**,
+`verify:recorder-ambiguity` **69/69**, `verify:locator-guard` **35/35**,
+`verify:safety-policy` **17/17**, and `verify:mock-site` **145/145**. Build was started and compiled
+the main bundle but exceeded the agent tool's 30-second window before a final status was returned.
+Tracker: **170 / 4 outstanding / 166 closed / 95 edges**. The validation ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Sensitive-action locator recovery refusal — awkit-utj COMPLETE (2026-08-07)
 
 Sensitive `dangerousMutation` and `externalCommit` steps now remain bound to their exact recorded

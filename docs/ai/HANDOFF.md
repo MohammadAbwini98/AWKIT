@@ -19,7 +19,7 @@
   verifier classification reconciled; roadmap **156/156 — Sources agree**; AI memory and Graphify
   refresh passed. `npm run typecheck:scripts` remains FAIL only on the same nine documented
   pre-existing diagnostics.
-- **Tracker and ledger:** **169 total / 165 closed / 4 owner-gated outstanding / 95 edges**;
+- **Tracker and ledger:** **170 / 4 outstanding / 166 closed / 95 edges**;
   `bd ready --json` returns `[]`. Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 - **Owner decisions required — do not take automatically:**
   - `awkit-cey`: an authorized operator and approved test identity must perform the real-IdP Chrome

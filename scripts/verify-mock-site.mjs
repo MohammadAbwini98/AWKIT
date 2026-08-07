@@ -108,6 +108,10 @@ try {
   check("recorder email placeholder exists", await page.getByPlaceholder("ada@example.test").isVisible());
   check("recorder select exists", await page.getByTestId("recorder-plan").isVisible());
   check("saved URL reuse links exist", (await page.locator("[data-testid^='saved-url-']").count()) >= 4);
+  check("custom-owner fixture has the named subscriptions link", await page.getByRole("link", { name: "Subscriptions", exact: true }).isVisible());
+  check("custom-owner fixture intentionally repeats its internal icon id", (await page.locator("#icon").count()) === 4);
+  check("custom-owner fixture includes an explicit custom button", await page.getByRole("button", { name: "Run custom action", exact: true }).isVisible());
+  check("custom-owner fixture keeps duplicate named semantic buttons ambiguous", (await page.getByRole("button", { name: "Duplicate owner", exact: true }).count()) === 2);
   await page.getByRole("button", { name: "Start manual pause" }).click();
   await page.getByText("Pause countdown: 3").waitFor({ timeout: 500 });
   check("manual waiting-time countdown starts", await page.getByTestId("manual-pause-countdown").isVisible());

@@ -1070,6 +1070,7 @@ export function installRecorderCapture(): void {
     root?: ParentNode;
     allowPositional?: boolean;
     includeContext?: boolean;
+    reviewAmbiguousSemanticOwner?: boolean;
   }
 
   const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string; traversalComplete: boolean } => {
@@ -1183,6 +1184,20 @@ export function installRecorderCapture(): void {
     if (chosen.name) locator.name = chosen.name;
     if (chosen.exact) locator.exact = true;
 
+    // A positional path can point at one DOM node today even when the action owner's semantic
+    // identity is genuinely ambiguous. Keep that diagnostic fallback, but do not silently turn two
+    // indistinguishable named controls into a runnable action merely because their sibling order is
+    // known. Container scoping above is the safe exception: it has already proved semantic identity
+    // within a stable context.
+    const ambiguousSemanticOwner =
+      options.reviewAmbiguousSemanticOwner === true &&
+      positional && !containerScoped && candidates.some((candidate) => isSemanticStrategy(candidate.strategy) && candidate.count > 1);
+    if (ambiguousSemanticOwner) {
+      locator.resolution = "needs-review";
+      locator.resolvedBy = "recorder";
+      locator.reviewReason = "the semantic action owner matches multiple elements; positional identity requires review";
+    }
+
     const alternatives = buildAlternatives(candidates, chosen);
     if (alternatives.length) locator.alternatives = alternatives;
 
@@ -1220,12 +1235,16 @@ export function installRecorderCapture(): void {
 
   const interactiveTarget = (el: Element): Element => {
     let candidate: Element | null = el;
+    let nearestCustomElement: Element | null = null;
     while (candidate) {
       const tag = tagOf(candidate);
-      if (candidate.matches?.(ACTION_OWNER_SELECTOR) || tag.indexOf("-") > 0) return candidate;
+      if (candidate.matches?.(ACTION_OWNER_SELECTOR)) return candidate;
+      // A custom element can be a real control, but its tag alone is weaker evidence than a
+      // semantic/native owner above it. Keep the nearest one for bare-component fallback only.
+      if (!nearestCustomElement && tag.indexOf("-") > 0) nearestCustomElement = candidate;
       candidate = candidate.parentElement;
     }
-    return el;
+    return nearestCustomElement ?? el;
   };
 
   /**
@@ -1434,7 +1453,10 @@ export function installRecorderCapture(): void {
 
     const targetRoot = target.getRootNode();
     const isOpenInternal = targetRoot instanceof ShadowRoot && targetRoot.mode === "open";
-    const generated = generate(target, { allowPositional: !isOpenInternal && !closedShadowHosts.has(raw) });
+    const generated = generate(target, {
+      allowPositional: !isOpenInternal && !closedShadowHosts.has(raw),
+      reviewAmbiguousSemanticOwner: interactive
+    });
     const shadow = captureShadow(event, target);
     if (shadow.boundary !== "none") {
       const existingContext = (generated.locator.context as Record<string, unknown> | undefined) ?? {};

@@ -51,6 +51,29 @@
         <p id="rec013Status" data-testid="rec013-status" role="status">REC-013 harness idle</p>
       </section>
 
+      <section data-testid="custom-owner-fixture" aria-labelledby="custom-owner-title">
+        <h2 id="custom-owner-title">Nested custom-element action ownership</h2>
+        <p>
+          Recorder fixture for component-library icons. The repeated <code>id="icon"</code> values are
+          deliberate: they reproduce non-unique internal ids seen in third-party component trees, so
+          capture must normalize to the named control rather than select an icon wrapper.
+        </p>
+        <nav aria-label="Custom owner navigation" data-testid="custom-owner-nav">
+          <a href="#custom-home" aria-label="Home"><x-nav-icon id="icon"><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-nav-icon></a>
+          <a href="#custom-subscriptions" aria-label="Subscriptions" onclick="event.preventDefault(); document.getElementById('custom-owner-result').textContent = 'Navigated to Subscriptions';"><x-nav-icon id="icon"><svg style="width:16px;height:16px" data-testid="custom-owner-subscriptions-icon" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-nav-icon></a>
+          <a href="#custom-history" aria-label="History"><x-nav-icon id="icon"><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-nav-icon></a>
+          <a href="#custom-library" aria-label="Library"><x-nav-icon id="icon"><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-nav-icon></a>
+        </nav>
+        <button type="button" aria-label="Open settings" onclick="document.getElementById('custom-owner-result').textContent = 'Opened settings';"><x-action-icon><svg style="width:16px;height:16px" data-testid="custom-owner-settings-icon" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-action-icon></button>
+        <x-command role="button" tabindex="0" aria-label="Run custom action" data-testid="custom-owner-command"><span data-testid="custom-owner-command-inner">Run</span></x-command>
+        <x-bare-action data-testid="custom-owner-bare"><span data-testid="custom-owner-bare-inner">Bare custom action</span></x-bare-action>
+        <div class="custom-owner-ambiguous">
+          <button type="button" aria-label="Duplicate owner"><x-ambiguous-icon><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
+          <button type="button" aria-label="Duplicate owner"><x-ambiguous-icon><svg style="width:16px;height:16px" data-testid="custom-owner-ambiguous-icon" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
+        </div>
+        <output data-testid="custom-owner-result">No custom owner action</output>
+      </section>
+
       <section data-testid="recorder-wait-time">
         <h2>User waiting-time capture</h2>
         <p>Expected: start the pause, wait for the countdown to finish, then click the next action.</p>

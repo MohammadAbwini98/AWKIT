@@ -10491,3 +10491,19 @@ pm run verify:mock-site
   clean-machine/soak environment. No further implementation is authorized automatically.
 - **Verification:** AI-memory check PASS after this handoff edit; prior functional verification is
   recorded in the `awkit-utj` entry immediately above.
+
+## 2026-08-07: Nested custom-element Recorder action ownership (awkit-jce)
+
+- **Agent:** Codex. **Fix:** semantic/native action owners now outrank decorative custom-element
+  wrappers during interactive click capture; the nearest custom element remains the fallback when no
+  stronger owner exists. Duplicate semantic click owners with only a positional distinction are
+  recorded `needs-review` rather than silently runnable.
+- **Coverage:** added the `/recorder-lab` custom-owner fixture (intentionally repeated internal
+  `id="icon"` values) and classified `verify:recorder-action-owner`. Its real Chromium path is raw
+  SVG leaf → injected Recorder capture → `buildRecordedFlow` → JSON save/reload → `StepExecutor`
+  replay. It also covers button/custom-owner/bare-custom/duplicate-owner cases.
+- **Verification:** red baseline captured `x-nav-icon` with compound CSS; after the fix,
+  `verify:recorder-action-owner` **11/11**, `verify:recorder` **217/217**,
+  `verify:recorder-ambiguity` **69/69**, `verify:locator-guard` **35/35**,
+  `verify:safety-policy` **17/17**, `verify:mock-site` **145/145**, and verifier classification
+  passed. Build was inconclusive after the 30-second tool window (main bundle compiled before cutoff).
