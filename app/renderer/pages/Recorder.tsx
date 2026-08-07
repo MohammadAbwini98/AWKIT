@@ -690,7 +690,7 @@ export function Recorder() {
           >
             <div className="recorder-handoff-head">
               <ShieldAlert size={20} />
-              <h3 id="ambiguity-review-title">Locator review required</h3>
+              <h3 id="ambiguity-review-title">Recorded action needs proof</h3>
             </div>
 
             <p id="ambiguity-review-description">
@@ -699,7 +699,8 @@ export function Recorder() {
             </p>
 
             <div className="recorder-review-evidence" data-testid="ambiguity-evidence">
-              <span><strong>State</strong> {ambiguity.kind === "positional" ? "Positional fallback" : ambiguity.kind === "unsupported" ? "Unsupported boundary" : "Multiple matches"}</span>
+              <span><strong>Element identity</strong> {ambiguity.action.locator?.identity ? "Resolved" : "Unproven"}</span>
+              <span><strong>Interaction prerequisite</strong> {ambiguity.action.locator?.prerequisite?.status ?? "none"}</span>
               <span><strong>Confidence</strong> {ambiguity.action.locator?.quality?.confidence ?? "unknown"}</span>
               <span><strong>Total matches</strong> {ambiguity.action.locator?.quality?.matchCount ?? "unknown"}</span>
               <span><strong>Visible matches</strong> {ambiguity.action.locator?.quality?.visibleMatchCount ?? "unknown"}</span>
@@ -1128,10 +1129,11 @@ function RecorderActionIcon({ type }: { type: string }) {
 }
 
 function recorderActionBadge(action: RecordedAction): string | null {
-  if (action.locator?.resolution === "needs-review") return "Needs locator review";
+  if (action.locator?.prerequisite?.status === "unknown") return "Prerequisite unknown";
+  if (action.locator?.resolution === "needs-review") return action.locator?.identity ? "Identity resolved · action blocked" : "Needs identity proof";
   if (action.locator?.resolution === "user-approved-fallback") return "Approved fallback";
   if (action.locator?.resolution === "invalid") return "Invalid locator";
-  if (action.locator?.resolution === "resolved") return "Resolved";
+  if (action.locator?.resolution === "resolved") return action.locator?.identity ? "Identity resolved" : "Resolved";
   if (action.type === "switchToPopup") return "Switch popup";
   if (action.type === "closePopup") return "Close popup";
   if (action.type === "switchToMainPage") return "Main page";

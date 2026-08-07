@@ -429,6 +429,7 @@ export class StepExecutor {
     }
 
     if (!quality || quality.isUnique !== false) return;
+    if (hasPositionalIdentityGuard(step)) return;
     if (StepExecutor.MULTI_MATCH_STEP_TYPES.has(step.type)) return;
     if (step.type === "assertText" && step.config?.assertionType === "count") return;
     // The runtime resolver can now recover a non-unique primary via container/frame scoping,

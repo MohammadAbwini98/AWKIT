@@ -83,9 +83,9 @@ export function isValidLocatorFallbackApproval(
 /**
  * A positional locator that carries a structurally-complete runtime identity guard
  * (guarded-positional). This is a STATIC presence check — the runtime identity PROOF (resolve the
- * container, recompute the target's fingerprint, and abort with `SENSITIVE_TARGET_IDENTITY_CHANGED`
- * on any mismatch) is enforced by the runner. It is what lets a SENSITIVE step's positional locator
- * run without an interactive approval prompt while preserving the wrong-privileged-action property.
+ * container, recompute the target's fingerprint, and abort on any mismatch) is enforced by the
+ * runner. It lets normal and sensitive positional captures run without an interactive approval
+ * prompt while preserving the wrong-target safety property.
  */
 export function hasPositionalIdentityGuard(step: Pick<FlowStep, "locator">): boolean {
   const guard = step.locator?.guard;

@@ -125,7 +125,7 @@ async function main() {
     check("bare custom control remains a conservative custom-element fallback", bare.action?.locator?.strategy === "testId" && bare.action?.locator?.value === "custom-owner-bare", JSON.stringify(bare.action));
 
     const ambiguous = await capture("custom-owner-ambiguous-icon");
-    check("duplicate semantic owners are promoted but remain review-required", ambiguous.action?.locator?.resolution === "needs-review" && ambiguous.action?.locator?.alternatives?.some((candidate: any) => candidate.strategy === "role" && candidate.value === "button" && candidate.name === "Duplicate owner"), JSON.stringify(ambiguous.action));
+    check("duplicate semantic owner carries a runnable identity contract", ambiguous.action?.locator?.resolution !== "needs-review" && ambiguous.action?.locator?.identity?.schemaVersion === 1 && ambiguous.action?.locator?.guard, JSON.stringify(ambiguous.action));
 
     const flow = buildRecordedFlow("Custom owner replay", [{ type: "click", name: subscriptions.action?.name, locator: subscriptionsLocator }] as any[]);
     const reloaded = JSON.parse(JSON.stringify(flow));

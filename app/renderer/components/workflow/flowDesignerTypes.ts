@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, FlowStep, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, ElementIdentityContract, FlowStep, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -23,6 +23,10 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorContext?: LocatorContext;
   /** Compact Recorder evidence preserved through designer edits. */
   locatorInteraction?: LocatorInteractionEvidence;
+  /** Exact event-owner identity captured by Recorder. */
+  locatorIdentity?: ElementIdentityContract;
+  /** Actionability prerequisite status, independent from identity. */
+  locatorPrerequisite?: InteractionPrerequisiteContract;
   /** Resolution state of the locator (from Recorder). */
   locatorResolution?: "resolved" | "needs-review" | "user-approved-fallback" | "invalid";
   /** Provenance of the resolution decision (from Recorder). */
@@ -35,6 +39,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorReviewReason?: string;
   /** Runtime identity guard for a guarded-positional locator on a sensitive step (from Recorder). */
   locatorGuard?: LocatorGuard;
+  /** Optional bounded-recovery reference; preserved verbatim through designer edits. */
+  locatorBlueprintId?: string;
   /**
    * Drop target for a `drag` step (the source is `locator*` above). Carried verbatim through the
    * designer round-trip — "preserve, don't re-derive" — so editing or re-saving a recorded drag step
@@ -212,11 +218,14 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorAlternatives: undefined,
   locatorContext: undefined,
   locatorInteraction: undefined,
+  locatorIdentity: undefined,
+  locatorPrerequisite: undefined,
   locatorResolution: undefined,
   locatorResolvedBy: undefined,
   locatorApprovedFallbackReason: undefined,
   locatorReviewReason: undefined,
   locatorGuard: undefined,
+  locatorBlueprintId: undefined,
   pageAlias: undefined,
   opensPopup: undefined,
   popupExpectation: undefined,

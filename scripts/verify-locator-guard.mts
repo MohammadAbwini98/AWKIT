@@ -188,11 +188,11 @@ async function main() {
     check("[1] a sensitive recorded step receives no blueprint recovery reference", step.locator?.blueprintId === undefined);
     check("[1] a sensitive recorded step persists no page blueprint", sensitiveBlueprints.length === 0, String(sensitiveBlueprints.length));
 
-    // ── [2] A non-sensitive positional click carries NO guard (lenient policy retained) ──────────────
-    console.log("\n[2] Non-sensitive positional keeps the lenient policy (no guard):");
+    // ── [2] A non-sensitive positional click uses the same deterministic identity proof ─────────────
+    console.log("\n[2] Non-sensitive positional persists its identity guard:");
     const nonSensitive = clickStep(buildRecordedFlow("Open", [{ ...rawClick, name: "Open record" }]));
     check("[2] non-sensitive positional is resolved", nonSensitive.locator?.resolution === "resolved");
-    check("[2] non-sensitive positional carries NO guard", nonSensitive.locator?.guard === undefined);
+    check("[2] non-sensitive positional carries a hashed guard", !!nonSensitive.locator?.guard && nonSensitive.locator.guard.fingerprint.name !== "delete");
 
     // ── [3] A sensitive positional with NO captured guard stays needs-review ─────────────────────────
     console.log("\n[3] Sensitive positional with no usable guard is needs-review:");

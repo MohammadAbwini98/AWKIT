@@ -161,11 +161,9 @@ export class LocatorFactory {
     const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
     const sensitiveAction = sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit";
 
-    // Guarded-positional: a SENSITIVE step whose only unique locator is positional re-proves the
-    // recorded target identity before acting (never trusts the index alone). Non-sensitive positional
-    // steps keep the lenient candidate/recovery path below.
-    if (hasPositionalIdentityGuard(step) && sensitiveAction) {
-      return this.resolveGuardedPositional(step, spec.guard!);
+    // Guarded-positional identity is re-proven for every captured action; no action trusts index alone.
+    if (hasPositionalIdentityGuard(step)) {
+      return this.resolveGuardedPositional(step, spec.guard!, sensitiveAction);
     }
 
     // Instrumented closed shadow: the target lives inside a closed shadow root captured through the
@@ -266,13 +264,13 @@ export class LocatorFactory {
   private static readonly GUARD_MATCH_THRESHOLD = 0.9;
 
   /**
-   * Resolve a SENSITIVE step's guarded-positional locator by INDEPENDENTLY re-proving the recorded
+   * Resolve a guarded-positional locator by INDEPENDENTLY re-proving the recorded
    * target identity before the action: resolve the guard container, enumerate the candidate set, verify
    * the count is unchanged, then verify the element at the recorded index still matches the recorded
-   * fingerprint and every precondition. Any mismatch throws SENSITIVE_TARGET_IDENTITY_CHANGED. It NEVER
+   * fingerprint and every precondition. Any mismatch throws an identity-changed error. It NEVER
    * falls back to another sibling, repairs the index, or acts on position alone.
    */
-  private async resolveGuardedPositional(step: FlowStep, guard: LocatorGuard): Promise<Locator> {
+  private async resolveGuardedPositional(step: FlowStep, guard: LocatorGuard, sensitiveAction: boolean): Promise<Locator> {
     const context = step.locator?.context;
     const root = await this.buildRoot({
       frame: context?.frame,
@@ -282,7 +280,7 @@ export class LocatorFactory {
     });
     const fail = (detail: string): Error =>
       new Error(
-        `SENSITIVE_TARGET_IDENTITY_CHANGED: refusing the sensitive action on "${step.name}" — ${detail}. ` +
+        `${sensitiveAction ? "SENSITIVE_TARGET_IDENTITY_CHANGED" : "TARGET_IDENTITY_CHANGED"}: refusing the ${sensitiveAction ? "sensitive " : ""}action on "${step.name}" — ${detail}. ` +
           `Re-record the step to confirm the intended target.`
       );
     const candidates = root.locator(guard.candidateSelector);
@@ -311,7 +309,7 @@ export class LocatorFactory {
       type: "guarded-positional",
       stepId: step.id,
       message:
-        `Verified sensitive target identity for "${step.name}" ` +
+        `Verified ${sensitiveAction ? "sensitive " : ""}target identity for "${step.name}" ` +
         `(exact fingerprint match, ${count} candidates, ${(guard.preconditions ?? []).length} precondition(s)).`
     });
     return target;

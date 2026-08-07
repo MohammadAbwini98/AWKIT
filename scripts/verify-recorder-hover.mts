@@ -1269,6 +1269,9 @@ async function main() {
         String(click?.locator?.interaction?.hoverReviewReason)
       );
       const profile = buildRecordedFlow("Flood Ins", acts);
+      const builtClick = clickStepOf(profile, "Flood target");
+      check("saturated target identity remains independently resolved", builtClick?.locator?.identity?.schemaVersion === 1);
+      check("saturation is represented as an unknown interaction prerequisite", builtClick?.locator?.prerequisite?.status === "unknown");
       check("no trigger guessed at the bound", !hoverStepOf(profile));
       check(
         "saturated click left needs-review",
@@ -1297,7 +1300,10 @@ async function main() {
       );
       check("stable role click does not acquire a hover review", click?.locator?.interaction?.hoverUnresolved !== true, JSON.stringify(click?.locator?.interaction));
       const profile = buildRecordedFlow("Stable role after flood", acts);
-      check("stable role click remains resolved", clickStepOf(profile, "Stable next video")?.locator?.resolution !== "needs-review");
+      const builtClick = clickStepOf(profile, "Stable next video");
+      check("stable role identity remains resolved", builtClick?.locator?.identity?.schemaVersion === 1);
+      check("stable role has no interaction prerequisite", builtClick?.locator?.prerequisite?.status === "none");
+      check("stable role click remains resolved", builtClick?.locator?.resolution !== "needs-review");
     }
   } finally {
     await browser.close();

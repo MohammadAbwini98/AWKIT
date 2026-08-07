@@ -57,7 +57,7 @@ export function createPageFingerprint(element: Element): LocatorElementFingerpri
     text;
   const name = rawName.replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
   const attributes: Record<string, string> = {};
-  for (const key of ["id", "name", "type", "placeholder", "data-testid", "aria-label"]) {
+  for (const key of ["id", "name", "type", "placeholder", "data-testid", "aria-label", "data-key", "data-id", "data-row-key", "data-item-key"]) {
     const value = (element.getAttribute(key) || "")
       .replace(/\s+/g, " ")
       .trim()

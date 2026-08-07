@@ -348,73 +348,46 @@ async function main() {
     check("[4] negative: a unique locator is NOT needs-review", clickStepNamed(buildRecordedFlow("Pro", proActions), proClickRec?.locator?.name ?? "")?.locator?.resolution !== "needs-review" && anyClickStep(buildRecordedFlow("Pro", proActions))?.locator?.resolution === "resolved");
 
     // ── [5] Positional fallback: ordinary steps auto-resolve (no approval); sensitive steps stay gated ─
-    console.log("\n[5] Ambiguous semantic owners require review; sensitive steps stay gated:");
+    console.log("\n[5] Guarded positional identity resolves normal twins and refuses drift:");
     const posStep = anyClickStep(buildRecordedFlow("Pos", posActions)) as FlowStep;
     check(
       "[5] recorded positional locator is flagged positional with a warning",
       posStep.locator?.quality?.disambiguation === "positional" && !!posStep.locator?.quality?.warning
     );
     check(
-      "[5] duplicate semantic owner is needs-review (no positional auto-approval)",
-      posStep.locator?.resolution === "needs-review" && posStep.locator?.resolvedBy === "recorder"
+      "[5] duplicate semantic owner is resolved by a versioned identity contract",
+      posStep.locator?.resolution === "resolved" && posStep.locator?.identity?.schemaVersion === 1 && !!posStep.locator?.guard
     );
     const posReport = validateFlowDefinition(buildRecordedFlow("Pos", posActions));
-    check("[5] review-required positional owner blocks preflight", hasActivePathError(posReport));
-    check("[5] preflight identifies the positional owner as locatorNeedsReview", executionBlockingErrorsOf(posReport).some((issue) => issue.code === "locatorNeedsReview"));
-    // Positive: an explicitly approved positional fallback executes, through the approved-fallback policy.
+    check("[5] guarded positional identity passes preflight", !hasActivePathError(posReport));
+    check("[5] persisted fingerprint is hashed", !!posStep.locator?.identity?.fingerprint?.attributes["data-item-key"] && posStep.locator.identity.fingerprint.attributes["data-item-key"] !== "option-beta");
     {
-      const approved = approveFallback(posStep, "Reviewed: only position distinguishes these identical controls.");
-      const { page, exec, events, logger, context, close } = await freshExecutor(browser);
+      const { page, exec, events, close } = await freshExecutor(browser);
       try {
-        const r = await exec.execute(approved);
-        check("[5] approved positional fallback executes (passed)", r.status === "passed", r.error);
+        const r = await exec.execute(posStep);
+        check("[5] guarded positional identity executes without approval", r.status === "passed", r.error);
         const result = (await page.getByTestId("pos-twin-result").textContent()) ?? "";
-        check("[5] approved fallback hit the same (2nd) candidate", result === "pos-clicked-1", result);
+        check("[5] guarded replay hit the same logical second candidate", result === "pos-clicked-1", result);
         check(
-          "[5] execution went through the approved-fallback resolver policy (emitted event)",
-          events.some((e) => e.type === "user-approved-fallback")
-        );
-        const scenarioResult = {
-          scenarioId: context.scenarioId,
-          executionId: context.executionId,
-          instanceId: context.instanceId,
-          status: "passed" as const,
-          startedAt: r.startedAt,
-          endedAt: r.endedAt,
-          durationMs: r.durationMs,
-          flows: [{
-            flowId: context.flowId ?? "flow-amb",
-            status: "passed" as const,
-            startedAt: r.startedAt,
-            endedAt: r.endedAt,
-            durationMs: r.durationMs,
-            steps: [r],
-            outputs: {}
-          }],
-          logs: logger.entries
-        };
-        const report = new ReportService(context.paths.reports).createInstanceReport(scenarioResult);
-        check(
-          "[5] approved-fallback execution is disclosed in report/history logs",
-          report.scenarioResult?.logs.some((entry) =>
-            entry.message.includes("[locator:user-approved-fallback]") && entry.message.includes("lower resilience")
-          )
+          "[5] execution emitted guarded-positional proof",
+          events.some((e) => e.type === "guarded-positional")
         );
       } finally {
         await close();
       }
     }
-    // Negative: an approved positional fallback on a SENSITIVE step stays refused.
+    // Mutation control: swap logical twins while keeping candidate count and selector unchanged.
     {
-      const dangerous = approveFallback(
-        { ...posStep, name: "Delete account" },
-        "Reviewed: only position distinguishes these identical controls."
-      );
-      const { exec, close } = await freshExecutor(browser);
+      const { page, exec, close } = await freshExecutor(browser);
       try {
-        const r = await exec.execute({ ...dangerous, timeoutMs: 4000 });
-        check("[5] negative: approved positional on a sensitive step is STILL refused", r.status === "failed", `status=${r.status}`);
-        check("[5] negative: sensitive refusal names the sensitivity", (r.error ?? "").toLowerCase().includes("sensitive"), r.error);
+        await page.evaluate(() => {
+          const container = document.querySelector('[data-testid="pos-twins"]');
+          if (container?.lastElementChild) container.insertBefore(container.lastElementChild, container.firstElementChild);
+        });
+        const r = await exec.execute({ ...posStep, timeoutMs: 4000 });
+        check("[5] identity drift fails before clicking", r.status === "failed", `status=${r.status}`);
+        check("[5] failure explicitly reports TARGET_IDENTITY_CHANGED", (r.error ?? "").includes("TARGET_IDENTITY_CHANGED"), r.error);
+        check("[5] negative: reordered lookalike was never clicked", (await page.getByTestId("pos-twin-result").textContent()) === "idle");
       } finally {
         await close();
       }
@@ -581,6 +554,8 @@ async function main() {
       check("[9] exact approval binding survives", JSON.stringify(rt.locator?.approvedFallbackBinding) === JSON.stringify(approved.locator?.approvedFallbackBinding));
       check("[9] unknown future locator/binding fields survive save/reload + IPC clone", JSON.stringify((rt.locator as typeof futureLocator)?.futureLocatorEvidence) === JSON.stringify(futureLocator.futureLocatorEvidence) && (rt.locator?.approvedFallbackBinding as typeof futureBinding)?.futureBindingVersion === 2);
       check("[9] recording evidence survives (interaction present + deep equal)", JSON.stringify((rt.locator as { interaction?: unknown }).interaction) === JSON.stringify((approved.locator as { interaction?: unknown }).interaction));
+      check("[9] versioned element identity survives save/reload + IPC clone", JSON.stringify(rt.locator?.identity) === JSON.stringify(approved.locator?.identity));
+      check("[9] interaction prerequisite survives independently", JSON.stringify(rt.locator?.prerequisite) === JSON.stringify(approved.locator?.prerequisite));
       check("[9] ordered Shadow DOM host context survives save/reload + IPC clone", JSON.stringify(rt.locator?.context?.shadow) === JSON.stringify(approved.locator?.context?.shadow));
     }
 

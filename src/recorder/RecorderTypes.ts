@@ -1,4 +1,4 @@
-import type { LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { ElementIdentityContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -53,15 +53,18 @@ export interface RecordedActionLocator {
       origin?: string;
     };
   };
+  /** Raw capture-time identity; fingerprint tokens are hashed before persistence. */
+  identity?: ElementIdentityContract;
+  /** Actionability evidence kept separate from target identity. */
+  prerequisite?: InteractionPrerequisiteContract;
   resolution?: "needs-review" | "user-approved-fallback" | "resolved" | "invalid";
   resolvedBy?: "user" | "recorder";
   approvedFallbackReason?: string;
   approvedFallbackBinding?: LocatorApprovalBinding;
   reviewReason?: string;
   /**
-   * Runtime identity guard for a positional locator on a sensitive step. Captured RAW in-page and
-   * hashed by the main process before persisting (see RecorderService.hashGuard). Dropped for
-   * non-sensitive steps.
+   * Runtime identity guard for a positional locator. Captured RAW in-page and hashed by the main
+   * process before persistence.
    */
   guard?: LocatorGuard;
   /**

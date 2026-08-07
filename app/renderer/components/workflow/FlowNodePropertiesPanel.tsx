@@ -104,17 +104,19 @@ export function FlowNodePropertiesPanel({
   const set = (patch: Partial<FlowDesignerNodeData>) => selectedNode && onUpdateNode(selectedNode.id, patch);
   const editLocator = (patch: Partial<FlowDesignerNodeData>) => {
     if (!data) return;
-    const invalidatesApproval = data.locatorResolution === "user-approved-fallback";
+    const invalidatesApproval = data.locatorResolution === "user-approved-fallback" || !!data.locatorIdentity;
     set({
       ...patch,
       locatorQuality: undefined,
+      locatorIdentity: undefined,
+      locatorGuard: undefined,
       ...(invalidatesApproval
         ? {
             locatorResolution: "needs-review" as const,
             locatorResolvedBy: "user" as const,
             locatorApprovedFallbackReason: undefined,
             locatorApprovedFallbackBinding: undefined,
-            locatorReviewReason: "locator edited after fallback approval"
+            locatorReviewReason: "locator edited after recorded identity or fallback approval"
           }
         : {})
     });
@@ -129,7 +131,7 @@ export function FlowNodePropertiesPanel({
   const typeErrors = data && definition ? definition.validate(data) : [];
   // A recorded locator that resolves to multiple elements must not read as "valid".
   const locatorQualityErrors =
-    data?.locatorQuality && data.locatorQuality.isUnique === false
+    data?.locatorQuality && data.locatorQuality.isUnique === false && data.locatorResolution !== "resolved"
       ? [data.locatorQuality.warning ?? `${data.name} locator matches ${data.locatorQuality.matchCount} elements (not unique).`]
       : [];
   const kind = data?.valueSourceType === "dynamic" ? "dynamic" : "static";
@@ -600,6 +602,29 @@ export function FlowNodePropertiesPanel({
                     </span>
                   </div>
                 ) : null}
+                {data.locatorIdentity ? (
+                  <div className="locator-review-state ok" data-testid="element-identity-state" role="status">
+                    <strong>Element identity: Resolved</strong>
+                    <span>
+                      Primary matches at capture: {data.locatorQuality?.matchCount ?? "unknown"}
+                      {data.locatorIdentity.confidence.basis.length
+                        ? ` · resolved by ${data.locatorIdentity.confidence.basis.join(", ")}`
+                        : ""}
+                    </span>
+                  </div>
+                ) : null}
+                {data.locatorPrerequisite ? (
+                  <div
+                    className={`locator-review-state ${data.locatorPrerequisite.status === "unknown" ? "warn" : "ok"}`}
+                    data-testid="interaction-prerequisite-state"
+                    role={data.locatorPrerequisite.status === "unknown" ? "alert" : "status"}
+                  >
+                    <strong>
+                      Interaction prerequisite: {data.locatorPrerequisite.status === "unknown" ? "Unknown — execution blocked" : data.locatorPrerequisite.status === "resolved" ? "Resolved" : "None"}
+                    </strong>
+                    {data.locatorPrerequisite.hover?.reason ? <span>{data.locatorPrerequisite.hover.reason}</span> : null}
+                  </div>
+                ) : null}
                 {data.locatorResolution || isPositionalLocator({
                   strategy: data.locatorStrategy,
                   value: data.locatorValue,
@@ -620,7 +645,9 @@ export function FlowNodePropertiesPanel({
                           ? "User-approved fallback (lower resilience)"
                           : data.locatorResolution === "invalid"
                             ? "Invalid locator — execution blocked"
-                            : "Needs locator review — execution blocked"}
+                            : data.locatorPrerequisite?.status === "unknown"
+                              ? "Interaction prerequisite unresolved — execution blocked"
+                              : "Needs element identity proof — execution blocked"}
                     </strong>
                     {data.locatorReviewReason ? <span>{data.locatorReviewReason}</span> : null}
                     {data.locatorAlternatives?.length ? (

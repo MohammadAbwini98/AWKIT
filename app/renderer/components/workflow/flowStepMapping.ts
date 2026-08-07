@@ -45,12 +45,15 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         alternatives: data.locatorAlternatives,
         context: data.locatorContext,
         interaction: data.locatorInteraction,
+        identity: data.locatorIdentity,
+        prerequisite: data.locatorPrerequisite,
         resolution: data.locatorResolution,
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
         approvedFallbackBinding: data.locatorApprovedFallbackBinding,
         reviewReason: data.locatorReviewReason,
-        guard: data.locatorGuard
+        guard: data.locatorGuard,
+        blueprintId: data.locatorBlueprintId
       }
       : undefined,
     // Drag drop-target: re-emitted for `drag` steps, carried verbatim from node data so a designer
@@ -176,12 +179,15 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorAlternatives: step.locator?.alternatives,
     locatorContext: step.locator?.context,
     locatorInteraction: step.locator?.interaction,
+    locatorIdentity: step.locator?.identity,
+    locatorPrerequisite: step.locator?.prerequisite,
     locatorResolution: step.locator?.resolution,
     locatorResolvedBy: step.locator?.resolvedBy,
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,
     locatorReviewReason: step.locator?.reviewReason,
     locatorGuard: step.locator?.guard,
+    locatorBlueprintId: step.locator?.blueprintId,
     // Drag drop-target: carried verbatim so a designer edit/save never drops it (preserve, don't re-derive).
     targetLocator: step.targetLocator,
     // Preserve Recorder popup/window metadata (awkit-4t9). Carried verbatim — "preserve, don't

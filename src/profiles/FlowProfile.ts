@@ -204,6 +204,58 @@ export interface LocatorElementFingerprint {
   ancestry: string[];
 }
 
+/** Versioned evidence describing the exact element selected by the user. */
+export interface ElementIdentityContract {
+  schemaVersion: 1;
+  primary: LocatorCandidate;
+  alternatives?: LocatorCandidate[];
+  owner: {
+    tag: string;
+    role?: string;
+    accessibleName?: string;
+    type?: string;
+  };
+  context?: LocatorContext;
+  /** Raw during capture; every persisted token is hashed by buildRecordedFlow. */
+  fingerprint?: LocatorElementFingerprint;
+  structural?: {
+    candidateSelector?: string;
+    candidateIndex?: number;
+    candidateCount?: number;
+    siblingIndex?: number;
+    sameTagIndex?: number;
+    documentOrder?: number;
+  };
+  geometry?: {
+    relativeX: number;
+    relativeY: number;
+    relativeWidth: number;
+    relativeHeight: number;
+  };
+  captureEvidence?: {
+    composedPathTags?: string[];
+    capturedAtUrl?: string;
+    frameKey?: string;
+    pageKey?: string;
+  };
+  confidence: {
+    level: "exact" | "high" | "medium" | "guarded";
+    basis: string[];
+  };
+}
+
+/** Actionability evidence is deliberately independent from element identity. */
+export interface InteractionPrerequisiteContract {
+  schemaVersion: 1;
+  status: "none" | "resolved" | "unknown";
+  hover?: {
+    required: boolean;
+    resolved: boolean;
+    inserted?: boolean;
+    reason?: string;
+  };
+}
+
 /**
  * A semantic check evaluated immediately before a sensitive guarded action (e.g. the dialog title,
  * the button's accessible name, an expected record id or amount). `expected` is a non-secret hashed
@@ -215,13 +267,13 @@ export interface SemanticPrecondition {
 }
 
 /**
- * Runtime identity guard for a *positional* locator on a SENSITIVE step (`dangerousMutation` /
- * `externalCommit`). Its presence marks the locator "guarded-positional": before acting, the runner
+ * Runtime identity guard for a positional locator. Its presence marks the locator
+ * "guarded-positional": before acting, the runner
  * resolves `container`, re-selects candidate `index`, recomputes the target's fingerprint and proves
  * it still matches `fingerprint` (and every `preconditions` check, and that `siblingCount` and the
- * container/role/name/context are unchanged). Any mismatch aborts with `SENSITIVE_TARGET_IDENTITY_CHANGED`
- * BEFORE the interaction. It never falls back to another sibling or acts on position alone. This keeps
- * the wrong-privileged-action safety property without an interactive approval prompt.
+ * container/role/name/context are unchanged). Any mismatch aborts before the interaction. It never
+ * falls back to another sibling or acts on position alone; sensitive actions additionally retain
+ * their stricter error and no-broad-recovery policy.
  */
 export interface LocatorGuard {
   /** Stable container chain (outer→inner) the positional index is resolved inside. */
@@ -238,7 +290,7 @@ export interface LocatorGuard {
   siblingCount: number;
   /** Zero-based index of the recorded target among those candidates. */
   index: number;
-  /** Required match strength before a sensitive action may proceed. */
+  /** Required match strength before the action may proceed. */
   confidence: "exact" | "high";
   /** Semantic checks evaluated immediately before the action. */
   preconditions?: SemanticPrecondition[];
@@ -278,6 +330,10 @@ export interface StepLocator extends LocatorCandidate {
   context?: LocatorContext;
   /** Compact capture evidence retained for diagnostics and compatible round trips. */
   interaction?: LocatorInteractionEvidence;
+  /** Versioned multi-signal identity captured from the exact event target. */
+  identity?: ElementIdentityContract;
+  /** Conditions required to make the target actionable; never conflated with identity quality. */
+  prerequisite?: InteractionPrerequisiteContract;
   /** Resolution state of the locator. Absent means a legacy "resolved" step. */
   resolution?: LocatorResolution;
   /** Provenance of the resolution decision. */

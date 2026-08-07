@@ -574,7 +574,7 @@ export function installRecorderCapture(): void {
       element.getAttribute("placeholder") || element.getAttribute("title") || text;
     const name = rawName.replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
     const attributes: Record<string, string> = {};
-    const attrKeys = ["id", "name", "type", "placeholder", "data-testid", "aria-label"];
+    const attrKeys = ["id", "name", "type", "placeholder", "data-testid", "aria-label", "data-key", "data-id", "data-row-key", "data-item-key"];
     for (let i = 0; i < attrKeys.length; i += 1) {
       const value = (element.getAttribute(attrKeys[i]) || "").replace(/\s+/g, " ").trim().toLocaleLowerCase().slice(0, 160);
       if (value) attributes[attrKeys[i]] = value;
@@ -1070,7 +1070,6 @@ export function installRecorderCapture(): void {
     root?: ParentNode;
     allowPositional?: boolean;
     includeContext?: boolean;
-    reviewAmbiguousSemanticOwner?: boolean;
   }
 
   const generate = (el: Element, options: GenerateOptions = {}): { locator: Record<string, unknown>; quality: Quality; accessibleName: string; traversalComplete: boolean } => {
@@ -1183,20 +1182,6 @@ export function installRecorderCapture(): void {
     const locator: Record<string, unknown> = { strategy: chosen.strategy, value: chosen.value, quality };
     if (chosen.name) locator.name = chosen.name;
     if (chosen.exact) locator.exact = true;
-
-    // A positional path can point at one DOM node today even when the action owner's semantic
-    // identity is genuinely ambiguous. Keep that diagnostic fallback, but do not silently turn two
-    // indistinguishable named controls into a runnable action merely because their sibling order is
-    // known. Container scoping above is the safe exception: it has already proved semantic identity
-    // within a stable context.
-    const ambiguousSemanticOwner =
-      options.reviewAmbiguousSemanticOwner === true &&
-      positional && !containerScoped && candidates.some((candidate) => isSemanticStrategy(candidate.strategy) && candidate.count > 1);
-    if (ambiguousSemanticOwner) {
-      locator.resolution = "needs-review";
-      locator.resolvedBy = "recorder";
-      locator.reviewReason = "the semantic action owner matches multiple elements; positional identity requires review";
-    }
 
     const alternatives = buildAlternatives(candidates, chosen);
     if (alternatives.length) locator.alternatives = alternatives;
@@ -1418,6 +1403,59 @@ export function installRecorderCapture(): void {
     return { boundary: "closed", instrumented: true, hosts, target: { strategy: "css", value: targetCss } };
   };
 
+  /**
+   * Freeze the exact event owner's identity after frame/shadow context has been finalized. Locator
+   * candidates remain Playwright-facing hints; the fingerprint and positional guard prove which
+   * member of an ambiguous candidate set the user actually selected.
+   */
+  const attachIdentity = (
+    target: Element,
+    generated: ReturnType<typeof generate>,
+    redactClosedShadow: boolean
+  ): void => {
+    const locator = generated.locator;
+    const primary: Record<string, unknown> = {
+      strategy: String(locator.strategy || "css"),
+      value: String(locator.value || "")
+    };
+    if (typeof locator.name === "string" && !redactClosedShadow) primary.name = locator.name;
+    if (locator.exact === true) primary.exact = true;
+    const fingerprint = redactClosedShadow ? undefined : computeFingerprint(target);
+    const guard = locator.guard as Record<string, unknown> | undefined;
+    const context = locator.context as Record<string, unknown> | undefined;
+    const basis = ["primary"];
+    if (Array.isArray(locator.alternatives) && locator.alternatives.length) basis.push("alternatives");
+    if (context?.container || (Array.isArray(context?.containers) && context.containers.length)) basis.push("container-chain");
+    if (context?.frame || (Array.isArray(context?.frameChain) && context.frameChain.length)) basis.push("frame-chain");
+    if (context?.shadow) basis.push("shadow-chain");
+    if (fingerprint) basis.push("fingerprint");
+    if (guard) basis.push("guarded-position");
+    const owner: Record<string, unknown> = { tag: tagOf(target) };
+    if (fingerprint && typeof fingerprint.role === "string" && fingerprint.role) owner.role = fingerprint.role;
+    if (!redactClosedShadow && generated.accessibleName) owner.accessibleName = generated.accessibleName;
+    const type = attr(target, "type");
+    if (type && !redactClosedShadow) owner.type = type;
+    locator.identity = {
+      schemaVersion: 1,
+      primary,
+      alternatives: Array.isArray(locator.alternatives) ? locator.alternatives : undefined,
+      owner,
+      context,
+      fingerprint,
+      structural: guard
+        ? {
+            candidateSelector: guard.candidateSelector,
+            candidateIndex: guard.index,
+            candidateCount: guard.siblingCount
+          }
+        : undefined,
+      confidence: {
+        level: guard ? "guarded" : generated.quality.confidence === "high" ? "high" : "medium",
+        basis
+      }
+    };
+  };
+
   const generateForEvent = (event: Event, interactive: boolean): { target: Element; generated: ReturnType<typeof generate>; shadow: ShadowCapture } | null => {
     const raw = firstPathElement(event);
     if (!raw) return null;
@@ -1448,14 +1486,14 @@ export function installRecorderCapture(): void {
       // Do not surface the closed root's internal accessible name in the step name (privacy — a closed
       // root's content is intentionally encapsulated); the step is labelled by the target's tag instead.
       generated.accessibleName = "";
+      attachIdentity(target, generated, true);
       return { target, generated, shadow: { boundary: "closed", hosts: closedShadow.hosts as Array<Record<string, unknown>>, valid: true } };
     }
 
     const targetRoot = target.getRootNode();
     const isOpenInternal = targetRoot instanceof ShadowRoot && targetRoot.mode === "open";
     const generated = generate(target, {
-      allowPositional: !isOpenInternal && !closedShadowHosts.has(raw),
-      reviewAmbiguousSemanticOwner: interactive
+      allowPositional: !isOpenInternal && !closedShadowHosts.has(raw)
     });
     const shadow = captureShadow(event, target);
     if (shadow.boundary !== "none") {
@@ -1497,6 +1535,7 @@ export function installRecorderCapture(): void {
       generated.quality.warning = "The interaction originated inside a closed shadow root and cannot be replayed automatically.";
     }
     activeQueryRoots = collectOpenRoots(document);
+    attachIdentity(target, generated, false);
     return { target, generated, shadow };
   };
 
@@ -2601,6 +2640,27 @@ export function installRecorderCapture(): void {
       }
       // hover.kind === "none": target toggled independently of a hover trigger — no hover step.
     }
+    const requiresHover = interaction.requiresHover === true;
+    const hoverResolved = requiresHover && !!interaction.hoverContainer && interaction.hoverUnresolved !== true;
+    g.locator.prerequisite = {
+      schemaVersion: 1,
+      status: requiresHover ? (hoverResolved ? "resolved" : "unknown") : "none",
+      hover: requiresHover
+        ? {
+            required: true,
+            resolved: hoverResolved,
+            inserted: interaction.hoverInserted === true || undefined,
+            reason: typeof interaction.hoverReviewReason === "string" ? interaction.hoverReviewReason : undefined
+          }
+        : undefined
+    };
+    const identity = g.locator.identity as Record<string, unknown> | undefined;
+    if (identity) {
+      identity.captureEvidence = {
+        ...((identity.captureEvidence as Record<string, unknown> | undefined) ?? {}),
+        composedPathTags: interaction.path
+      };
+    }
     return interaction;
   };
 
@@ -2716,6 +2776,27 @@ export function installRecorderCapture(): void {
     };
   };
 
+  /** Fold bounded blueprint facts into the same identity contract. */
+  const attachBlueprintIdentityEvidence = (
+    locator: Record<string, unknown>,
+    blueprint: Record<string, unknown> | undefined
+  ): void => {
+    if (!blueprint) return;
+    const identity = locator.identity as Record<string, unknown> | undefined;
+    if (!identity) return;
+    identity.structural = {
+      ...((identity.structural as Record<string, unknown> | undefined) ?? {}),
+      siblingIndex: blueprint.siblingIndex,
+      sameTagIndex: blueprint.sameTagIndex,
+      documentOrder: blueprint.documentOrder
+    };
+    if (blueprint.boundingRegion) identity.geometry = blueprint.boundingRegion;
+    identity.captureEvidence = {
+      ...((identity.captureEvidence as Record<string, unknown> | undefined) ?? {}),
+      capturedAtUrl: blueprint.url
+    };
+  };
+
   // A recognized pointer-emulated drag ends with a synthetic `click` on the common ancestor of the
   // press/release targets (browsers fire it whenever mousedown and mouseup differ). That click is part
   // of the drag gesture, not a separate action, so the pointer recognizer suppresses exactly the next
@@ -2740,6 +2821,7 @@ export function installRecorderCapture(): void {
     const label = g.accessibleName || tag || "element";
     const interaction = captureInteraction(event, target, g, shadow);
     const blueprintCapture = captureBlueprint(target);
+    attachBlueprintIdentityEvidence(g.locator, blueprintCapture);
     record({ type: "click", name: "Click " + label, locator: { ...g.locator, interaction, blueprintCapture } });
   };
   window.addEventListener("click", onClickCapture, true);
@@ -2903,6 +2985,7 @@ export function installRecorderCapture(): void {
     const label = g.accessibleName || (target as HTMLInputElement).name || tag;
     const interaction = captureInteraction(event, target, g, shadow);
     const blueprintCapture = captureBlueprint(target);
+    attachBlueprintIdentityEvidence(g.locator, blueprintCapture);
     const locator = { ...g.locator, interaction, blueprintCapture };
 
     if (tag === "input") {
@@ -2962,6 +3045,7 @@ export function installRecorderCapture(): void {
       const label = g.accessibleName || (target as HTMLInputElement).name || tag;
       const interaction = captureInteraction(event, target, g, shadow);
       const blueprintCapture = captureBlueprint(target);
+      attachBlueprintIdentityEvidence(g.locator, blueprintCapture);
       const locator = { ...g.locator, interaction, blueprintCapture };
       const rawValue = isEditableHost
         ? ((target as HTMLElement).innerText || target.textContent || "")

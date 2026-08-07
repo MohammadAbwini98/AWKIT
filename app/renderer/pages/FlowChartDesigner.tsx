@@ -1262,7 +1262,7 @@ function rendererAdvisories(nodes: FlowDesignerNode[], edges: FlowDesignerEdge[]
 
   nodes.forEach((node) => {
     if (node.data.stepType !== "end" && !outgoing.has(node.id)) messages.push(`${node.data.name} has no outgoing connector.`);
-    if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false) {
+    if (node.data.locatorQuality && node.data.locatorQuality.isUnique === false && node.data.locatorResolution !== "resolved") {
       messages.push(`${node.data.name} has a non-unique locator (matches ${node.data.locatorQuality.matchCount} elements) — it may fail in Playwright strict mode.`);
     }
   });

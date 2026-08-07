@@ -68,8 +68,8 @@
         <x-command role="button" tabindex="0" aria-label="Run custom action" data-testid="custom-owner-command"><span data-testid="custom-owner-command-inner">Run</span></x-command>
         <x-bare-action data-testid="custom-owner-bare"><span data-testid="custom-owner-bare-inner">Bare custom action</span></x-bare-action>
         <div class="custom-owner-ambiguous">
-          <button type="button" aria-label="Duplicate owner"><x-ambiguous-icon><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
-          <button type="button" aria-label="Duplicate owner"><x-ambiguous-icon><svg style="width:16px;height:16px" data-testid="custom-owner-ambiguous-icon" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
+          <button type="button" aria-label="Duplicate owner" data-item-key="duplicate-alpha"><x-ambiguous-icon><svg style="width:16px;height:16px" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
+          <button type="button" aria-label="Duplicate owner" data-item-key="duplicate-beta"><x-ambiguous-icon><svg style="width:16px;height:16px" data-testid="custom-owner-ambiguous-icon" aria-hidden="true" viewBox="0 0 10 10"><path style="pointer-events:none" d="M0 0h10v10H0z"></path></svg></x-ambiguous-icon></button>
         </div>
         <output data-testid="custom-owner-result">No custom owner action</output>
       </section>
@@ -716,15 +716,12 @@
           </tbody>
         </table>
 
-        <!-- Recorder ambiguity gate (awkit-aui.8). Two identical "Approve" controls distinguished only
-             by position under a stable-testid wrapper -> the recorder yields a positional fallback that
-             replays only through explicit user approval. Two identical "Ghost" controls with no stable
-             containing scope -> the recorder cannot uniquely locate them. Neither button carries a
-             per-element distinguisher; the click handler reports the clicked index by DOM position so a
-             verifier can prove replay hit the same candidate without leaking a locator hint. -->
+        <!-- Element-identity twins. The buttons expose no unique Playwright-facing locator; the private
+             data-item-key is intentionally only a hashed fingerprint signal. Reordering the slots therefore
+             proves that guarded position refuses a different logical twin instead of silently clicking it. -->
         <div data-testid="pos-twins" class="pos-twins">
-          <div class="pos-slot"><button type="button" class="pos-btn">Pick option</button></div>
-          <div class="pos-slot"><button type="button" class="pos-btn">Pick option</button></div>
+          <div class="pos-slot"><button type="button" class="pos-btn" data-item-key="option-alpha">Pick option</button></div>
+          <div class="pos-slot"><button type="button" class="pos-btn" data-item-key="option-beta">Pick option</button></div>
         </div>
         <span data-testid="pos-twin-result">idle</span>
         <script>

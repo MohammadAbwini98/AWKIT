@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfile";
+import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfile";
 import { isPositionalLocator } from "../profiles/locatorApproval";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
@@ -19,6 +19,21 @@ function hashGuard(draft: LocatorGuard): LocatorGuard {
     ...draft,
     fingerprint: hashFingerprint(draft.fingerprint),
     preconditions: draft.preconditions?.map((precondition) => ({ kind: precondition.kind, expected: hashToken(precondition.expected) }))
+  };
+}
+
+function hashIdentity(draft: ElementIdentityContract, locator: RecordedActionLocator): ElementIdentityContract {
+  return {
+    ...draft,
+    primary: {
+      strategy: locator.strategy as ElementIdentityContract["primary"]["strategy"],
+      value: locator.value,
+      name: locator.name,
+      exact: locator.exact
+    },
+    alternatives: locator.alternatives,
+    context: locator.context,
+    fingerprint: draft.fingerprint ? hashFingerprint(draft.fingerprint) : undefined
   };
 }
 
@@ -63,6 +78,8 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       }
       if (action.locator.context) step.locator.context = action.locator.context;
       if (action.locator.interaction) step.locator.interaction = action.locator.interaction;
+      if (action.locator.identity) step.locator.identity = hashIdentity(action.locator.identity, action.locator);
+      if (action.locator.prerequisite) step.locator.prerequisite = action.locator.prerequisite;
       if (action.locator.approvedFallbackReason) step.locator.approvedFallbackReason = action.locator.approvedFallbackReason;
       if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
@@ -73,6 +90,13 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
         const capture = action.locator.blueprintCapture;
         const frameKey = computeFrameKey(action.locator.context?.frameChain);
         const pageKey = computePageKey(capture.url, capture.title, frameKey);
+        if (step.locator.identity) {
+          step.locator.identity.captureEvidence = {
+            ...step.locator.identity.captureEvidence,
+            frameKey: frameKey || undefined,
+            pageKey
+          };
+        }
         let blueprint = blueprintsOut.find(b => b.pageKey === pageKey);
         if (!blueprint) {
           blueprint = {
@@ -116,22 +140,23 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
 
       // Finalize resolution + the runtime identity guard here — the single source shared by the live
       // recorder session and the test harness. The Recorder builds nested selectors until unique, so a
-      // positional last-resort locator is RESOLVED for ordinary steps. A SENSITIVE step
-      // (dangerousMutation/externalCommit) whose only unique locator is positional instead carries a
-      // guarded-positional locator whose identity is re-proven at replay; with no usable guard it stays
-      // needs-review. Explicit recorder/user decisions (shadow/frame review, open-shadow resolve, user
-      // approval) are preserved as-is.
+      // positional last-resort locator is runnable only when its captured identity guard can be
+      // persisted and re-proven. Sensitive steps retain the same proof plus stricter recovery rules.
+      // Explicit recorder/user decisions (shadow/frame review, prerequisite refusal, user approval)
+      // are preserved as-is.
+      const positionalGuard = isPositionalLocator(step.locator) ? action.locator.guard : undefined;
+      if (positionalGuard?.fingerprint && positionalGuard.candidateSelector) {
+        step.locator.guard = hashGuard(positionalGuard);
+      }
       if (action.locator.resolution) {
         step.locator.resolution = action.locator.resolution;
         step.locator.resolvedBy = action.locator.resolvedBy ?? "recorder";
-      } else if (action.locator.quality?.isUnique === false) {
+      } else if (action.locator.quality?.isUnique === false && !step.locator.guard) {
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
         if (!step.locator.reviewReason) step.locator.reviewReason = "the recorder could not build a unique locator";
       } else if (isPositionalLocator(step.locator) && sensitiveAction) {
-        const draft = action.locator.guard;
-        if (draft?.fingerprint && draft.candidateSelector) {
-          step.locator.guard = hashGuard(draft);
+        if (step.locator.guard) {
           step.locator.resolution = "resolved";
           step.locator.resolvedBy = "recorder";
         } else {
@@ -159,6 +184,11 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       if (t.alternatives && t.alternatives.length > 0) step.targetLocator.alternatives = t.alternatives;
       if (t.context) step.targetLocator.context = t.context;
       if (t.interaction) step.targetLocator.interaction = t.interaction;
+      if (t.identity) step.targetLocator.identity = hashIdentity(t.identity, t);
+      if (t.prerequisite) step.targetLocator.prerequisite = t.prerequisite;
+      if (isPositionalLocator(step.targetLocator) && t.guard?.fingerprint && t.guard.candidateSelector) {
+        step.targetLocator.guard = hashGuard(t.guard);
+      }
       // Apply the same needs-review policy the source gets: an explicit recorder decision wins, then a
       // non-unique (ambiguous) drop target is needs-review, otherwise resolved. This covers BOTH the
       // native drag path and the pointer-emulated recognizer, which each supply a `quality`.
@@ -166,7 +196,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
         step.targetLocator.resolution = t.resolution;
         step.targetLocator.resolvedBy = t.resolvedBy ?? "recorder";
         if (t.reviewReason) step.targetLocator.reviewReason = t.reviewReason;
-      } else if (t.quality?.isUnique === false || isPositionalLocator(step.targetLocator)) {
+      } else if ((t.quality?.isUnique === false || isPositionalLocator(step.targetLocator)) && !step.targetLocator.guard) {
         // A drop target that is ambiguous OR identified only by position is order-fragile, so it is
         // marked needs-review rather than silently committing to one of the look-alikes by index.
         step.targetLocator.resolution = "needs-review";
