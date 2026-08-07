@@ -1534,16 +1534,14 @@ export function installRecorderCapture(): void {
   const revealWitness = new WeakMap<Element, RevealWitness>();
 
   /**
-   * Controls first seen AFTER the baseline scan — i.e. absent from the observed DOM at rest.
-   *
-   * This is the second, independent reading of "was not there before", alongside the MutationObserver
-   * insertion record. It exists because the two can disagree: a node can arrive while insertion
-   * tracking is saturated, or inside a boundary no observer reached. Keeping them separate is the
-   * point — absence is a fact about the baseline, insertion is a fact about an observation, and
-   * neither is hiddenness.
+   * All light-DOM action owners that exist when observation starts, whether or not they are part of the
+   * narrower visibility catalog used for hover/reveal attribution.
    */
-  const absentAtBaseline = new WeakSet<Element>();
-  let baselineScanDone = false;
+  // `visibilityState` intentionally samples only controls relevant to hover/reveal attribution.
+  // This separate snapshot answers the exact saturation question: did this action owner exist at
+  // rest? It is deliberately broader because valid semantic owners (for example role=link) may be
+  // outside the narrow visibility catalog.
+  const presentAtBaseline = new WeakSet<Element>();
   /**
    * How fresh the pointer evidence must be at the reveal moment. A CSS `:hover` reveal changes no
    * attribute, so it is caught by the 150ms sweep rather than the MutationObserver — the sample that
@@ -2027,7 +2025,7 @@ export function installRecorderCapture(): void {
       if (
         insertionSaturatedAt &&
         Date.now() - insertionSaturatedAt <= INSERTION_CLICK_WINDOW_MS &&
-        (absentAtBaseline.has(target) || !visibilityState.has(target)) &&
+        !presentAtBaseline.has(target) &&
         before
       ) {
         return { kind: "review", reason: "insertion tracking saturated — provenance unknown", inserted: true };
@@ -2332,9 +2330,8 @@ export function installRecorderCapture(): void {
       try {
         (Array.prototype.slice.call(document.querySelectorAll("a, button, input, select, textarea, [role=button], [role=menuitem]")) as Element[]).forEach((el) => {
           if (!visibilityState.has(el)) {
-            // First sighting. After the baseline this control was not in the observed DOM at rest —
-            // record that as its own fact, distinct from being present and hidden.
-            if (baselineScanDone) absentAtBaseline.add(el);
+            // First sighting in the narrow visibility catalog. The broader baseline-presence snapshot
+            // below determines whether a saturation review can claim this action was inserted.
             visibilityState.set(el, isVisible(el));
           } else if (visibilityState.get(el) === false && !revealWitness.has(el) && isVisible(el)) {
             // First time this hidden-at-rest control has been seen visible: record where the pointer
@@ -2416,7 +2413,13 @@ export function installRecorderCapture(): void {
         /* ignore */
       }
       // Everything recorded above is the at-rest DOM; anything first seen from here is not.
-      baselineScanDone = true;
+      try {
+        // WeakSet membership cannot retain detached nodes and this snapshot adds no work to later
+        // mutation scans. It prevents a catalog miss from becoming false insertion provenance.
+        (Array.prototype.slice.call(document.querySelectorAll("*")) as Element[]).forEach((el) => presentAtBaseline.add(el));
+      } catch {
+        /* ignore */
+      }
       /**
        * Observe open shadow roots for insertions. A document-level observer cannot see a childList
        * change inside a shadow root, so a control inserted there on hover would have no evidence at

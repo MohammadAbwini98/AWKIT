@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("170 issues parse", beads.stats.total === 170, `got ${beads.stats.total}`);
+  check("171 issues parse", beads.stats.total === 171, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -195,9 +195,12 @@ try {
   // Then `awkit-utj` closed after sensitive actions were excluded from local/blueprint recovery and
   // sensitive Recorder output stopped receiving blueprint references: closed 164 to 165,
   // outstanding 5 to 4, total held at 169.
+  // Then the nested-action-owner repair filed and closed `awkit-jce`: total 169 to 170 and closed
+  // 165 to 166. The saturation false-positive repair `awkit-85s` then filed and closed: total
+  // 170 to 171 and closed 166 to 167, while the four owner-gated outstanding items remain.
   check(
-    "4 outstanding / 166 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 166,
+    "4 outstanding / 167 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 167,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

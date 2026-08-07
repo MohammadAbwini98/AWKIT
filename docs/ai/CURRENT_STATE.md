@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Recorder saturation provenance false positive — awkit-85s COMPLETE (2026-08-07)
+
+Insertion-tracking saturation no longer turns a unique, high-confidence semantic locator into an
+unresolved action merely because that element is outside the narrow hover visibility catalog. The
+Recorder now snapshots all light-DOM elements present at its at-rest baseline in a `WeakSet`, distinct
+from the hover/reveal catalog. It retains the fail-closed boundary: an action that genuinely appeared
+after the baseline while insertion tracking is saturated still requires review rather than silently
+losing a possible hover prerequisite.
+
+The `/recorder-lab` flood fixture now includes the stable `role=link` **Stable next video** control,
+which verifies this exact high-confidence role-locator scenario after unrelated saturation. Focused
+verification passed: `verify:recorder-hover` **218/0** (including both the preserved true-insertion
+review and the resolved stable-role regression), `verify:recorder` **217/0**,
+`verify:recorder-ambiguity` **69/0**, `verify:mock-site` **145/0**, and
+`verify:source-hygiene` **9/0**. The combined type/build run started but this environment's
+30-second command-output limit ended it before a final status, so it is **INCONCLUSIVE**, not claimed
+as passed. Tracker: **171 / 4 outstanding / 167 closed / 95 edges**. The validation ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Nested custom-element Recorder action ownership — awkit-jce COMPLETE (2026-08-07)
 
 Recorder click capture no longer stops at the first custom-element wrapper. `interactiveTarget` now

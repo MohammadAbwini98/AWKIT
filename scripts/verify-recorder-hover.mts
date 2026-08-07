@@ -1275,6 +1275,30 @@ async function main() {
         clickStepOf(profile, "Flood target")?.locator?.resolution === "needs-review"
       );
     }
+    // Regression: the visibility sampler intentionally omits some valid semantic roles. After
+    // unrelated churn exhausts insertion tracking, that omission must not make a role-based action
+    // appear newly inserted when the full baseline snapshot proves it was already present.
+    console.log("\n[24] Saturation preserves a stable role locator:");
+    {
+      const acts = await recordActions(browser, async (p) => {
+        await p.hover(".ins-flood-trigger-r4k8");
+        await p.locator(".ins-flood-gated-r4k8").waitFor({ state: "visible" });
+        await p.getByRole("link", { name: "Stable next video" }).click();
+      });
+      const click = acts.find((a) => a.type === "click" && a.locator?.name === "Stable next video");
+      check("recorded the stable role click after saturation", !!click);
+      check(
+        "stable role locator remains unique and high confidence",
+        click?.locator?.strategy === "role" &&
+          click.locator.value === "link" &&
+          click.locator.quality?.isUnique === true &&
+          click.locator.quality?.confidence === "high",
+        JSON.stringify(click?.locator)
+      );
+      check("stable role click does not acquire a hover review", click?.locator?.interaction?.hoverUnresolved !== true, JSON.stringify(click?.locator?.interaction));
+      const profile = buildRecordedFlow("Stable role after flood", acts);
+      check("stable role click remains resolved", clickStepOf(profile, "Stable next video")?.locator?.resolution !== "needs-review");
+    }
   } finally {
     await browser.close();
     server.kill();

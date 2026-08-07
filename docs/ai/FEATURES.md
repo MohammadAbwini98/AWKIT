@@ -251,6 +251,11 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   toggles on its own (async) produces no hover step. Verified by `npm run verify:recorder-hover`, which
   records, builds, and **replays Hover→Click on fresh pages** and guards against hidden-surface,
   wrapper-owner, and positional-trigger regressions (48/48).
+- **Saturation-safe semantic locator provenance:** the Recorder keeps insertion-tracking saturation
+  fail-closed for targets that actually appeared after its at-rest baseline, while a baseline
+  light-DOM snapshot prevents valid semantic owners outside the hover visibility catalog from being
+  falsely marked review-required. The role-based **Stable next video** regression is replayed by
+  `npm run verify:recorder-hover`.
 - ✅ **Ambiguity/replayability acceptance gate** (`npm run verify:recorder-ambiguity`): the durable
   nine-point regression for the whole Recorder ambiguity story — records the actual selected candidate,
   prefers stable ancestor/context scoping, replays deterministically to the same candidate, marks

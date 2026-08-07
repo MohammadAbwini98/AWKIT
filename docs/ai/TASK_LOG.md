@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-07 - Codex - Preserve reliable semantic locators after insertion-tracking saturation
+
+- **Task:** Fix a Recorder false positive surfaced in Flow Designer: a unique, high-confidence
+  role locator was marked `needs-review` with “insertion tracking saturated — provenance unknown”.
+- **Root cause and fix:** The saturation guard conflated an action owner's absence from the narrow
+  hover visibility catalog with absence from the page at the recording baseline. The Recorder now
+  snapshots every baseline light-DOM element in a `WeakSet` and treats only a target missing from that
+  snapshot as possibly inserted. This leaves the existing fail-closed review for a truly
+  post-baseline, unrecorded target intact.
+- **Regression coverage:** Extended `/recorder-lab` with the static unique `role=link` **Stable next
+  video** beside the existing insertion-flood fixture. `verify:recorder-hover` proves the original
+  flood target still becomes review-required while the pre-existing role locator stays resolved.
+- **Files:** `src/recorder/recorderInitScript.ts`, `mock-site/public/recorder-lab.html`,
+  `mock-site/README.md`, `scripts/verify-recorder-hover.mts`,
+  `scripts/verify-roadmap-dashboard.mjs`, `tools/roadmap/assignments.json`, and this AI memory.
+- **Verified:** `verify:recorder-hover` **218/0**; `verify:recorder` **217/0**;
+  `verify:recorder-ambiguity` **69/0**; `verify:mock-site` **145/0**; source hygiene **9/0**.
+  The combined build/typecheck command was inconclusive because the agent environment stopped
+  returning command output at 30 seconds; no pass claim is made for that gate.
+
+---
+
 ## 2026-08-05 - Claude - Review + harden the Antigravity follow-up (CDP fallback, labelContent, guard bug)
 
 - **Task:** Review the previous agent's uncommitted follow-up changes against the plan/boundaries and fix the

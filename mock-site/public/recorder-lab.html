@@ -441,6 +441,10 @@
         <div class="ins-flood-sink-r4k8" style="display: none;"></div>
         <div class="ins-flood-target-host-r4k8" style="display: inline-block;"></div>
         <span data-testid="ins-flood-result">idle</span>
+        <!-- A pre-existing semantic role owner which the hover visibility catalog does not sample.
+             An unrelated insertion flood must not relabel this stable action as newly inserted. -->
+        <div role="link" tabindex="0" aria-label="Stable next video" class="ins-flood-stable-role-r4k8" style="display: inline-block; margin-left: 1rem; cursor: pointer;">Stable next video</div>
+        <span data-testid="ins-flood-stable-result">idle</span>
         <br><br>
 
         <!-- Review case: a container revealed on hover of a LANDMARK the pointer never lands on exactly
@@ -664,6 +668,11 @@
                 sink.appendChild(filler);
               }
               host.appendChild(insBtn('ins-flood-gated-r4k8', 'Flood target', 'ins-flood-result', 'ins-flood-ok'));
+            });
+            var stableFloodRole = document.querySelector('.ins-flood-stable-role-r4k8');
+            if (stableFloodRole) stableFloodRole.addEventListener('click', function () {
+              var r = document.querySelector('[data-testid="ins-flood-stable-result"]');
+              if (r) r.textContent = 'ins-flood-stable-ok';
             });
 
             // Remote TIMER reveal (awkit-hmt causality half): nothing to do with any hover.
