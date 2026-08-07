@@ -10477,3 +10477,17 @@ pm run verify:mock-site
 - **Files:** `src/runner/LocatorFactory.ts`, `src/recorder/buildRecordedFlow.ts`,
   `scripts/{verify-locator-guard,verify-blueprint-recovery-browser,verify-roadmap-dashboard}.m*`,
   `.beads/*.jsonl`, and `docs/ai/{ARCHITECTURE,COMMANDS,CURRENT_STATE,FEATURES,TASK_LOG,TESTING}.md`.
+
+## 2026-08-07: Owner-decision handoff after awkit-utj
+
+- **Agent:** Codex. **Task:** prepared the active cross-agent/owner handoff after the implementation
+  queue became empty.
+- **State recorded:** `main` is clean at `33a10d0`, two commits ahead of `origin/main` (`e1deff5`):
+  the pre-existing release version bump and portable manifest are preserved but deliberately not
+  pushed without owner direction. Tracker **169 / 4 outstanding / 165 closed / 95 edges**;
+  `bd ready --json` is empty; ledger **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Decision boundary:** the four remaining items require an owner-authorized real-IdP handoff,
+  Oracle environment/credential plus real-mode decision, OS-shell launch approval, or a capable
+  clean-machine/soak environment. No further implementation is authorized automatically.
+- **Verification:** AI-memory check PASS after this handoff edit; prior functional verification is
+  recorded in the `awkit-utj` entry immediately above.

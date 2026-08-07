@@ -1,5 +1,42 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-07) — Codex to owner / next agent: implementation queue exhausted; owner-gated decisions remain
+
+- **Pre-handoff Git inspection:** `main` was clean at **`33a10d0`** and was **two commits ahead of
+  `origin/main`** (`e8b644f` `build(release): bump version to 0.1.7`; `33a10d0`
+  `build(release): record portable v0.1.7 manifest`). `origin/main` remains at **`e1deff5`**
+  (`awkit-utj`). Preserve these pre-existing release commits; do not push them without the owner's
+  release decision.
+- **Completed functional checkpoint:** `awkit-utj` closed on `e1deff5`. Sensitive
+  `dangerousMutation`/`externalCommit` actions now retry only their exact saved candidates and
+  cannot enter broad or blueprint recovery; Recorder output stores no blueprint reference for a
+  sensitive capture. The explicit real-browser regression went **21/3 → 24/24** and the locator
+  guard went **33/2 → 35/35**.
+- **Verification:** `npm run build` PASS; `verify:blueprint-recovery-browser` **24/24**;
+  `verify:locator-guard` **35/35**; `verify:blueprint-recovery` **52/52**;
+  `verify:safety-policy` **17/17**; `verify:recorder` **217/217**;
+  `verify:recorder-flow` **33/33**; `verify:runner` **89/89**; source hygiene **9/9**;
+  verifier classification reconciled; roadmap **156/156 — Sources agree**; AI memory and Graphify
+  refresh passed. `npm run typecheck:scripts` remains FAIL only on the same nine documented
+  pre-existing diagnostics.
+- **Tracker and ledger:** **169 total / 165 closed / 4 owner-gated outstanding / 95 edges**;
+  `bd ready --json` returns `[]`. Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Owner decisions required — do not take automatically:**
+  - `awkit-cey`: an authorized operator and approved test identity must perform the real-IdP Chrome
+    handoff manually; do not automate or record protected input.
+  - `awkit-7bu`: authorize an Oracle 19c fixture/ephemeral credential and decide whether to fund the
+    missing explicit real-mode verifier path; never retrieve, print, or persist the credential.
+  - `awkit-az7`: approve the two manual OS-shell launch checks for System Reports.
+  - `awkit-cm8`: provide a capable host/clean machine for packaged-EXE/offline validation and decide
+    whether to run the days-long real-world Oracle soak.
+- **Do-not-touch:** protected-login/MFA/CAPTCHA boundaries; any credential/session material; the
+  documented `typecheck:scripts` baseline unless separately authorized; unpushed release commits.
+- **Recommended next step:** the owner chooses one gate above and explicitly authorizes the required
+  external/manual action or contained implementation. A new agent should first reconcile the two
+  local release commits with the owner before any push.
+
+---
+
 ## HANDOFF (2026-08-06) — Drag-and-drop epic COMPLETE end-to-end (`awkit-dat` + `awkit-3g6` closed); Recorder competitive deep-testing + fixes
 
 - **Branch:** `main`, working tree clean, **in sync with `origin/main`** at **`c06c1f0`**. All work below is
