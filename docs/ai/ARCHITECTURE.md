@@ -473,13 +473,16 @@ failure boundary under `src/testing/failures/`:
   ranked candidate locators (role/label/placeholder/text/testId → stable attributes → id → scoped →
   positional fallback; utility/layout classes are never used), counts each against the live DOM plus
   a bounded snapshot of recursively reachable open shadow roots, and
-  reports the best `count === 1` candidate plus `LocatorQuality`, **up to 3 ranked `alternatives`**, and a
+  reports the highest-ranked candidate plus `LocatorQuality`, **up to 3 ranked `alternatives`**, and a
   **`context`** (nearest visible dialog / table row / card-listItem / same-origin iframe / ordered
   open-shadow host chain). `event.composedPath()` supplies the actual inner interaction target. A
   native-preserving early `attachShadow` wrapper stores only known closed-mode hosts in a `WeakSet`,
   allowing an honest review-required state without inspecting or retaining closed-root content. The Node binding
-  (`__awtkit_recordAction`) stores the action verbatim; `buildRecordedFlow`/`recorder:saveFlow` copy
-  `exact`/`quality`/`alternatives`/`context` onto `FlowStep.locator` (a structured `StepLocator`).
+  (`__awtkit_recordAction`) stores the action verbatim. Every successful new capture also carries a
+  schema-v1 `ElementIdentityContract`: exact owner, candidates, ordered scope, raw in-page fingerprint,
+  bounded structural/geometry evidence, and confidence basis. `buildRecordedFlow` hashes identity
+  tokens before persistence and copies the additive contract to `StepLocator`. Hover/insertion
+  actionability travels separately in `InteractionPrerequisiteContract` (`none`/`resolved`/`unknown`).
 - **Smart Wait recorder observation (Phase 2):** the injected script also watches the DOM/network
   between actions and emits raw signals via a second binding `__awtkit_recordSignal` — patched
   `fetch`/`XHR` (method + URL **path** only, never query/headers/bodies/cookies), `history`+pop/hash
@@ -501,8 +504,11 @@ failure boundary under `src/testing/failures/`:
   single *visible* match when several exist (**visibility disambiguation** for hidden-template/duplicate
   modals). It auto-waits on the primary when nothing is present yet, and throws a per-candidate diagnostic
   (count/visibleCount + context) otherwise. Playwright 1.49 has no `filter({ visible })`, so visibility is
-  probed via `nth(i).isVisible()`. `StepExecutor.guardLocatorQuality` still fails a recorded non-unique
-  step early **unless** it has `context`/`alternatives` (then the resolver owns the outcome);
+  probed via `nth(i).isVisible()`. A guarded positional contract re-enumerates the recorded candidate
+  set, verifies its count/index and hashed fingerprint, and never substitutes a sibling. Normal drift
+  throws `TARGET_IDENTITY_CHANGED`; sensitive drift throws `SENSITIVE_TARGET_IDENTITY_CHANGED`.
+  `StepExecutor.guardLocatorQuality` fails a recorded non-unique step early **unless** resolver evidence
+  (`context`/`alternatives`/guard) owns the outcome;
   `friendlyLocatorError` translates any raw strict-mode violation. Verified by `npm run verify:recorder`
   (Parts A/B recorder + quality guard, Part C runtime fallback/visibility/context).
   Steps classified as `dangerousMutation` or `externalCommit` may retry those exact recorded

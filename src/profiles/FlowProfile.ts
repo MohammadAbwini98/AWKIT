@@ -345,9 +345,8 @@ export interface StepLocator extends LocatorCandidate {
   /** Recorder-provided reason for an explicit review-required boundary. */
   reviewReason?: string;
   /**
-   * Runtime identity guard for a positional locator on a sensitive step. Present ⇒ "guarded-positional":
-   * the runner re-proves the target's identity before acting (see {@link LocatorGuard}). Absent on every
-   * non-sensitive and non-positional locator, so legacy and ordinary flows are unaffected.
+   * Runtime identity guard for a positional locator. Present ⇒ "guarded-positional": the runner
+   * re-proves the target's identity before acting (see {@link LocatorGuard}).
    */
   guard?: LocatorGuard;
   /**

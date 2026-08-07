@@ -219,12 +219,18 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   URL changes, table/list/card data growth, enabled controls, toasts, and a fixed-delay fallback. Recorder
   Controls exposes a persisted Smart Wait toggle, and the recorded-actions list summarizes captured wait
   types. Legacy fixed-time wait capture remains controlled separately by `captureWaitTime`.
-- ✅ **Unique, Playwright-safe recorder locators** (`src/recorder/recorderInitScript.ts`): for
+- ✅ **Deterministic Recorder element identity** (`src/recorder/recorderInitScript.ts`): for
   click/fill/select/check/uncheck/radio steps the injected capture script generates ranked candidate
   locators (getByRole/label/placeholder/text/testId → stable attributes → id → scoped → **compound
   tree** → anchored/positional fallback), **never** utility/layout-class selectors (`flex`,
   `items-center`, …), validates each against the live DOM, and saves the highest-priority candidate
-  that resolves to exactly one element. Each saved step carries `LocatorQuality`
+  selected by the user. Each new saved step carries `LocatorQuality` plus a schema-v1
+  `ElementIdentityContract` binding candidates to owner, ordered scope, hashed fingerprint, bounded
+  structure/geometry, capture evidence, and confidence basis. A non-unique candidate is not itself a
+  failure: guarded positional identity re-proves the exact candidate before acting. Each step also
+  carries a separate `InteractionPrerequisiteContract`, so hover/insertion uncertainty can block for
+  actionability without degrading a proven target identity. Legacy flows may omit both fields.
+  `LocatorQuality` retains
   (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`/`requiresHover`/`hoverContainer`) and
   (for role/text) an `exact` flag. Steps get human-readable names ("Click Log in", "Fill Email").
   Password field values are never stored. Verified by `npm run verify:recorder`.
@@ -259,16 +265,16 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ **Ambiguity/replayability acceptance gate** (`npm run verify:recorder-ambiguity`): the durable
   nine-point regression for the whole Recorder ambiguity story — records the actual selected candidate,
   prefers stable ancestor/context scoping, replays deterministically to the same candidate, marks
-  no-unique-locator steps `needs-review`, executes approved positional fallbacks only through the
-  approved-fallback policy (refusing unapproved and sensitive-step positionals), **fails preflight with
+  genuinely unprovable steps `needs-review`, automatically executes guarded normal positional identity,
+  refuses reordered logical twins before clicking, **fails preflight with
   zero browser launches** on unresolved ambiguity, preserves locator evidence across
   save/reload/edit/serialize/import-export/IPC/execution, and captures + replays hover prerequisites —
   each an independent, defect-sensitive check driving the real recorder → `buildRecordedFlow` →
   `FlowValidator` → `LocatorFactory` → `StepExecutor` path.
-- ✅ **Live ambiguity review and bound positional approval:** positional/unresolved capture pauses
+- ✅ **Live ambiguity review and legacy bound positional approval:** genuinely unresolved capture pauses
   before commit in an accessible, focus-contained Recorder review dialog. Candidate and captured-scope
-  choices are proven through `LocatorFactory` in the recorded frame/shadow/container context. A
-  positional exception requires a user reason plus `approvedFallbackBinding` over the exact locator,
+  choices are proven through `LocatorFactory` in the recorded frame/shadow/container context.
+  Legacy/manual positional exceptions require a user reason plus `approvedFallbackBinding` over the exact locator,
   action, context, and safety policy; material edits invalidate it, Flow Designer can revoke it, static
   validation and runtime reject stale authority, and sensitive positional actions remain prohibited.
   Approved non-dangerous execution emits a lower-resilience event retained in reports/history.

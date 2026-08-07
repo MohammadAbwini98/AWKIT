@@ -1406,8 +1406,8 @@ export class RecorderService {
         taggedAction.locator.reviewReason = state === "cross-origin" ? "unsupported cross-origin frame" : "unsupported frame context";
       }
     }
-    // Recording is never paused for ambiguity. Locator finalization (adopt a unique positional locator
-    // as resolved, attach the runtime identity guard for a sensitive positional, or flag the rare
+    // Recording is never paused for ambiguity. Locator finalization (persist a guarded positional
+    // identity for normal/sensitive actions, or flag the rare
     // unrepresentable target for review) is owned by `buildRecordedFlow`, the single pure builder used
     // by BOTH this live session and the test harness, so both paths finalize identically.
     this.actions.push(taggedAction);

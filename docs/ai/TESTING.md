@@ -57,8 +57,12 @@ remain structural and legacy workflows remain compatible.
   explicit `externalCommit` control proves sensitive steps never enter local/blueprint recovery, read
   blueprint storage, emit recovery success, or click the drifted target.
 - `scripts/verify-locator-guard.mts` (`npm run verify:locator-guard`) — **35 checks** in real Chromium
-  for guarded positional identity and preconditions. Its Recorder coverage also proves a dangerous
+  for normal and sensitive guarded positional identity, fingerprint parity, and preconditions. Its Recorder coverage also proves a dangerous
   captured action receives no `blueprintId` and persists no page blueprint.
+- `scripts/verify-recorder-ambiguity.mts` (`npm run verify:recorder-ambiguity`) — **74 checks** through
+  trusted browser capture → action owner → identity contract → `buildRecordedFlow` → JSON/IPC round
+  trip → `LocatorFactory`/`StepExecutor`. Its twin fixture proves unchanged replay and refuses a
+  logical reorder with `TARGET_IDENTITY_CHANGED`; disabling normal guard enforcement yields 4 failures.
 - `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
   an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable

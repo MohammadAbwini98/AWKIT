@@ -10548,3 +10548,42 @@ pm run verify:mock-site
   `verify:recorder-ambiguity` **69/69**, `verify:locator-guard` **35/35**,
   `verify:safety-policy` **17/17**, `verify:mock-site` **145/145**, and verifier classification
   passed. Build was inconclusive after the 30-second tool window (main bundle compiled before cutoff).
+
+## 2026-08-07: Deterministic Recorder Element Identity Contract (awkit-szp)
+
+- **Agent:** Codex. **Objective:** replace selector uniqueness as the normal-action invariant with a
+  versioned, deterministic identity contract while preserving sensitive fail-closed behavior.
+- **Implementation:** `FlowProfile` gained optional schema-v1 element identity and interaction
+  prerequisite contracts. The injected Recorder binds the actual action owner to primary/alternatives,
+  ordered context, fingerprint, guard, structure, geometry, composed path, and confidence evidence.
+  `buildRecordedFlow` hashes identity/guard tokens, preserves frame/page keys, and persists guards for
+  normal positional actions. `LocatorFactory` now enforces those guards for every action; normal drift
+  throws `TARGET_IDENTITY_CHANGED`, sensitive drift retains `SENSITIVE_TARGET_IDENTITY_CHANGED`.
+- **UX/compatibility:** Recorder and Flow Designer surface identity separately from prerequisites;
+  unknown hover/insertion provenance no longer reads as locator ambiguity. Designer mappings preserve
+  identity, prerequisite, guard, and blueprint id. New fields are additive/optional for legacy JSON.
+- **Technology decision:** retained Playwright locators plus existing composed-path, frame/shadow,
+  fingerprint, and blueprint mechanisms. CDP Accessibility/DOMSnapshot and local visual matching were
+  deferred/rejected for this path due experimental/version/performance/privacy cost and no measured
+  acceptance gain.
+- **Red/mutation evidence:** temporarily restoring the old `guard && sensitiveAction` condition made
+  `verify:recorder-ambiguity` fail **67 pass / 4 fail**: no proof event, reordered twin executed, no
+  identity-changed error, and the wrong lookalike was clicked. Restoring enforcement returned green;
+  the final gate with bounded-performance checks is **74/74**.
+- **Bounds/measurement:** the real-browser twin capture measured **1036.6 ms end-to-end** with **6
+  generated candidates**; guarded resolution plus click measured **78 ms**. Container search remains
+  capped at **3 segments / 240 chain evaluations**; broad fingerprint recovery at **200 elements**;
+  blueprint recovery at **±24 document-order positions**, **2000 stored elements**, and a **5000-node
+  document histogram**. No DOMSnapshot, CDP AX query, screenshot, or visual matcher runs, so their
+  per-interaction storage/query cost is zero.
+- **Focused verification:** build PASS; ambiguity **74/74**; locator guard **35/35**; action owner
+  **11/11**; hover/prerequisite **222/222**; mock site **145/145**; Recorder **217/217**;
+  frame chain **31/31**; closed shadow **23/23**; blueprint browser **24/24**; runner **89/89**;
+  safety **17/17**; designer mapping **125/125**; recorder flow **33/33**; source hygiene **9/9**;
+  classification reconciled. `typecheck:scripts` remains FAIL only on the same nine documented
+  pre-existing diagnostics; this task introduced no new diagnostic. Roadmap **157/157 — Sources
+  agree**; AI memory PASS; Graphify refreshed **11,954 nodes / 24,668 edges / 620 communities**.
+- **Files:** `src/profiles/{FlowProfile,locatorApproval}.ts`, `src/recorder/*`,
+  `src/runner/{LocatorFactory,StepExecutor,locatorFingerprint}.ts`, Flow Designer/Recorder renderer
+  files, `mock-site/public/recorder-lab.html`, focused verifier scripts/classification, tracker source,
+  and AI-memory documentation.

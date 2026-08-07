@@ -171,9 +171,11 @@ async function main() {
       // Customer Beta is the second identical "Edit" button.
       await p.locator(".row-edit").nth(1).click();
     });
+    const posCaptureStarted = performance.now();
     const posActions = await recordActions(browser, async (p) => {
       await p.locator(".pos-btn").nth(1).click();
     });
+    const posCaptureDurationMs = performance.now() - posCaptureStarted;
 
     const proClickRec = recordedClick(proActions);
     const basicClickRec = recordedClick(basicActions);
@@ -354,6 +356,9 @@ async function main() {
       "[5] recorded positional locator is flagged positional with a warning",
       posStep.locator?.quality?.disambiguation === "positional" && !!posStep.locator?.quality?.warning
     );
+    check("[5] capture remains bounded to a finite candidate set", (posStep.locator?.quality?.candidateCount ?? 0) > 0 && (posStep.locator?.quality?.candidateCount ?? 999) <= 20, JSON.stringify(posStep.locator?.quality));
+    check("[5] end-to-end browser capture remains under 2 seconds", posCaptureDurationMs < 2_000, `${posCaptureDurationMs.toFixed(1)}ms`);
+    console.log(`  · [5] measured capture ${posCaptureDurationMs.toFixed(1)}ms; candidates ${posStep.locator?.quality?.candidateCount ?? "unknown"}`);
     check(
       "[5] duplicate semantic owner is resolved by a versioned identity contract",
       posStep.locator?.resolution === "resolved" && posStep.locator?.identity?.schemaVersion === 1 && !!posStep.locator?.guard
@@ -366,6 +371,8 @@ async function main() {
       try {
         const r = await exec.execute(posStep);
         check("[5] guarded positional identity executes without approval", r.status === "passed", r.error);
+        check("[5] guarded replay resolution/action remains under 2 seconds", r.durationMs < 2_000, `${r.durationMs}ms`);
+        console.log(`  · [5] measured guarded replay ${r.durationMs}ms`);
         const result = (await page.getByTestId("pos-twin-result").textContent()) ?? "";
         check("[5] guarded replay hit the same logical second candidate", result === "pos-clicked-1", result);
         check(

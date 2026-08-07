@@ -1,5 +1,30 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-07) - awkit-szp deterministic Recorder identity complete
+
+- **Delivered:** every successful new Recorder interaction carries an additive schema-v1 element
+  identity contract. Duplicate semantic owners may run through a hashed guarded-position proof;
+  reordering logical twins fails before action with `TARGET_IDENTITY_CHANGED`. Sensitive steps keep
+  the stronger sensitive error and no-broad/no-blueprint-recovery boundary.
+- **Prerequisites:** hover/insertion actionability is stored independently. A saturated inserted target
+  is identity-resolved but prerequisite-unknown and remains blocked for that reason; a stable
+  pre-existing semantic control remains identity-resolved with no prerequisite.
+- **Compatibility/technology:** old JSON remains valid; Flow Designer preserves identity,
+  prerequisite, guard, and blueprint references. Playwright locators and existing composed-path,
+  frame/shadow, fingerprint, and blueprint machinery remain authoritative. Experimental CDP AX/full
+  DOM snapshots and local visual matching were not added because they showed no measured acceptance
+  gain and add performance/privacy/versioning risk.
+- **Evidence:** build PASS; ambiguity **74/74**, guard **35/35**, action owner **11/11**, hover
+  **222/222**, mock site **145/145**. Removing normal guard enforcement produced the expected
+  **67 pass / 4 fail** mutation result, including a wrong-twin click. The validation ledger remains
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker is **173 total / 169 closed / 4 outstanding**;
+  roadmap is **157/157 — Sources agree**. `typecheck:scripts` still has only the same nine documented
+  pre-existing diagnostics.
+- **Next:** the four earlier owner-gated environment/manual items remain outside this implementation.
+  Consult the task log for final commit, push, dashboard, AI-memory, and Graphify results.
+
+---
+
 ## HANDOFF (2026-08-07) — Codex to owner / next agent: implementation queue exhausted; owner-gated decisions remain
 
 - **Pre-handoff Git inspection:** `main` was clean at **`33a10d0`** and was **two commits ahead of

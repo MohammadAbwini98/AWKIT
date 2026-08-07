@@ -1,5 +1,25 @@
 # DECISIONS
 
+### 2026-08-07 - Element identity is a versioned evidence contract, not selector uniqueness
+
+- **Decision:** New Recorder output carries an optional schema-v1 `ElementIdentityContract` plus a
+  separate `InteractionPrerequisiteContract`. `LocatorFactory` remains the single replay engine and
+  combines existing Playwright candidates, ordered scope, hashed fingerprints, bounded structure,
+  geometry/blueprint evidence, and guarded position. A non-unique primary alone does not block a
+  normal action when the exact selected target can be re-proven.
+- **Technology evaluation:** Adopt Playwright's re-resolving role/label/test-id locators and chaining,
+  the browser composed event path, existing frame/shadow APIs, and the shared privacy-preserving
+  fingerprint. Defer CDP Accessibility because its relevant tree/query methods are experimental and
+  enabling AX has a documented performance cost. Reject per-interaction DOMSnapshot capture because it
+  is experimental, page-wide, and adds privacy/size/versioning risk without improving acceptance.
+  Defer local visual matching until an offline benchmark demonstrates value over deterministic evidence.
+- **Compatibility:** all schema fields are optional, old saved flows retain legacy behavior, and
+  unknown fields continue to survive JSON/IPC. Editing a locator invalidates its captured identity and
+  guard. Sensitive steps keep exact-candidate-only recovery and fail closed.
+- **Related files:** `src/profiles/FlowProfile.ts`, `src/recorder/{recorderInitScript,buildRecordedFlow}.ts`,
+  `src/runner/{LocatorFactory,locatorFingerprint}.ts`, Flow Designer mappings/properties UI, and
+  `scripts/verify-{recorder-ambiguity,recorder-hover,locator-guard}.mts`.
+
 Important decisions visible in the repository / made during development. Newest first.
 
 ---

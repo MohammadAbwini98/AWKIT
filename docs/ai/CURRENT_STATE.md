@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Deterministic Recorder Element Identity Contract - awkit-szp COMPLETE (2026-08-07)
+
+Recorder capture now persists an additive, versioned `ElementIdentityContract` for the exact event
+owner instead of treating one unique selector string as the identity invariant. The contract binds the
+primary and ranked alternatives to ordered container/frame/shadow context, a hashed multi-signal
+fingerprint, bounded structural/geometry evidence, composed-path evidence, and an explicit confidence
+basis. Normal positional captures persist the same guarded proof previously reserved for sensitive
+actions; replay refuses count, position, or fingerprint drift with `TARGET_IDENTITY_CHANGED`.
+Sensitive actions retain `SENSITIVE_TARGET_IDENTITY_CHANGED` and no broad/blueprint recovery.
+
+Interaction prerequisites are represented separately as `none`, `resolved`, or `unknown`. Saturated
+insertion tracking can therefore show **Element identity: Resolved** with **Interaction prerequisite:
+Unknown** and remain fail-closed for the truthful actionability reason. Flow Designer/Recorder wording,
+round-trip mappings, and the `/recorder-lab` twin fixture were updated. Existing flows remain compatible
+because all fields are optional. The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+Focused green evidence: ambiguity **74/74**, guard **35/35**, action owner **11/11**, hover
+**222/222**, mock site **145/145**, and build PASS. Removing normal guard enforcement made the
+ambiguity gate fail **67 pass / 4 fail**, including a wrong-twin click after reorder; restoration
+returned it to green; the final gate with explicit performance checks is **74/74**. Final broad
+verification is recorded in the task log. Tracker: **173 total / 169 closed / 4 outstanding**;
+roadmap **157/157 — Sources agree**. `typecheck:scripts` remains red only on the same nine documented
+pre-existing diagnostics.
+
 ## Roadmap portable release base disclosure - awkit-402 COMPLETE (2026-08-07)
 
 The local Program Status dashboard now shows the exact clean main release base beside **Generate next

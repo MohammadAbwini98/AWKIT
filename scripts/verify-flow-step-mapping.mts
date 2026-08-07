@@ -430,6 +430,15 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
       }
     },
     interaction: { path: ["button", "product-picker", "product-card"], shadowBoundary: "open" as const },
+    identity: {
+      schemaVersion: 1 as const,
+      primary: { strategy: "role" as const, value: "button", name: "Save", exact: true },
+      owner: { tag: "button", role: "button", accessibleName: "Save" },
+      fingerprint: { tag: "button", role: "button", name: "hash-name", text: "hash-text", attributes: { "data-item-key": "hash-key" }, ancestry: ["hash-parent"] },
+      confidence: { level: "high" as const, basis: ["primary", "container-chain", "fingerprint"] }
+    },
+    prerequisite: { schemaVersion: 1 as const, status: "none" as const },
+    blueprintId: "blueprint-save",
     resolution: "resolved" as const,
     resolvedBy: "recorder" as const,
     reviewReason: undefined
@@ -438,6 +447,9 @@ console.log("\nCompound locator alternatives + container/frame context round-tri
   check("locator.alternatives preserved (compound self-heal payload)", json(out.locator?.alternatives) === json(locator.alternatives), json(out.locator?.alternatives));
   check("locator.context (legacy + nested containers + frame) preserved", json(out.locator?.context) === json(locator.context), json(out.locator?.context));
   check("locator Shadow DOM interaction evidence preserved", json(out.locator?.interaction) === json(locator.interaction), json(out.locator?.interaction));
+  check("locator element identity contract preserved", json(out.locator?.identity) === json(locator.identity), json(out.locator?.identity));
+  check("locator interaction prerequisite preserved separately", json(out.locator?.prerequisite) === json(locator.prerequisite));
+  check("locator blueprint reference preserved", out.locator?.blueprintId === locator.blueprintId);
   check("locator Shadow DOM resolution provenance preserved", out.locator?.resolution === "resolved" && out.locator?.resolvedBy === "recorder");
 }
 

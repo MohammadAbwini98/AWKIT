@@ -1,5 +1,17 @@
 # KNOWN_ISSUES
 
+## OPEN LIMIT: cross-reload reorder cannot be detected for truly evidence-identical twins (2026-08-07)
+
+The schema and resolver support guarded positional identity, but no browser API can prove which
+logical object is which after reload when two siblings have identical semantics, attributes, text,
+ancestry, geometry policy, and stable application identity. Browser node/backend ids are session-local
+and must not be treated as durable. In that genuinely unprovable case AWKIT can verify only the
+recorded candidate set and position; applications should expose a stable business key/test id, or the
+step must remain review-required. The `/recorder-lab` mutation fixture uses `data-item-key` only as a
+hashed fingerprint signal (not as the Playwright-facing locator) so logical reorder is detectable.
+
+---
+
 ## OPEN: `typecheck:scripts` is red on nine pre-existing verifier diagnostics (2026-08-07)
 
 The app build remains green, but `npm run typecheck:scripts` currently reports nine diagnostics in

@@ -228,7 +228,7 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, Smart Wait signals/correlation, and open/nested/duplicate/slotted/closed/frame/cap Shadow DOM capture→persistence→preflight→LocatorFactory→StepExecutor coverage (217/217)
 npm run verify:blueprint-recovery # tsx scripts/verify-blueprint-recovery.mts — Node-side blueprint assembly/privacy/store gate (52/52)
 npm run verify:blueprint-recovery-browser # tsx scripts/verify-blueprint-recovery-browser.mts — real Chromium capture→assembly→LocatorFactory recovery against /blueprint-recovery-lab; inserted sibling at 0.866667 succeeds, a below-0.86 control is refused, and sensitive recovery never reads blueprint storage (24/24)
-npm run verify:locator-guard # tsx scripts/verify-locator-guard.mts — real Chromium guarded-positional identity plus sensitive Recorder blueprint exclusion (35/35)
+npm run verify:locator-guard # tsx scripts/verify-locator-guard.mts — real Chromium normal+sensitive guarded-positional identity plus sensitive Recorder blueprint exclusion (35/35)
 npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — records a hover-gated click, builds the
                             # flow, and REPLAYS Hover→Click on fresh pages via the real StepExecutor/LocatorFactory;
                             # asserts the actionable owner (not a wrapper or hidden revealed surface), refuses positional-only
@@ -252,8 +252,8 @@ npm run verify:recorder-hover # tsx scripts/verify-recorder-hover.mts — record
 npm run verify:recorder-ambiguity # tsx scripts/verify-recorder-ambiguity.mts — awkit-aui.8 nine-point acceptance gate:
                             # records duplicate/ambiguous/hover controls in real Chromium, then drives buildRecordedFlow,
                             # FlowValidator preflight (zero-launch), LocatorFactory and StepExecutor to prove capture,
-                            # ancestor scoping, deterministic replay, review-required state, approved positional fallback,
-                            # round-trip integrity and hover replay, with negative controls.
+                            # ancestor scoping, versioned identity/prerequisite round trips, guarded normal twins,
+                            # reorder refusal, review-required state and hover replay, with negative controls. (74/74)
 npm run verify:recorder-e2e # node scripts/verify-recorder-e2e.mjs — REC-018 real Electron gate:
                             # Recorder UI → bundled Chromium capture → Stop/Save → restart/Flow Library
                             # → production replay → Flow Designer save → two DOM-drift replays. Reports
