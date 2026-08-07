@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-07 - Codex - Show portable release base in the roadmap dashboard
+
+- **Task:** Display the main commit and version that form the base of the portable EXE release.
+- **Implementation:** The dashboard's portable-build status now derives main through fixed,
+  shell-free Git calls and reads main:package.json, returning branch, full SHA, current version, and
+  the calculated patch target. The sidebar displays the short SHA and version transition; the full SHA
+  is available in its tooltip and the confirmation dialog. The wording makes clear that the release
+  wrapper creates the version commit from this clean base before packaging.
+- **Boundary:** The disclosure is read-only repository identity. It exposes no command, arguments,
+  working directory, environment, path, or child process output and does not alter the fixed release
+  action.
+- **Files:** tools/roadmap/server.mjs, tools/roadmap/public/index.html, dashboard.js, dashboard.css,
+  scripts/verify-roadmap-dashboard.mjs, tools/roadmap/README.md, docs/ai/ARCHITECTURE.md, and this
+  AI memory.
+- **Verified:** npm run verify:roadmap-dashboard **157/157** after tracker reconciliation; npm run
+  build; npm run verify:source-hygiene **9/9**; AI-memory check.
+
+---
+
 ## 2026-08-07 - Codex - Preserve reliable semantic locators after insertion-tracking saturation
 
 - **Task:** Fix a Recorder false positive surfaced in Flow Designer: a unique, high-confidence

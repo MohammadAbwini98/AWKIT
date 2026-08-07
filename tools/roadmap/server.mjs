@@ -22,7 +22,7 @@ import { readFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join } from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 
 import { buildSnapshot } from "./lib/model.mjs";
 import { clearReadCache, contentHash, fingerprintSources } from "./lib/read-cache.mjs";
@@ -66,7 +66,7 @@ const HOT_SOURCES = ["beads", "ledger"];
 let cached = null;
 /** @type {Set<import("node:http").ServerResponse>} */
 const sseClients = new Set();
-/** @type {{state: "idle"|"running"|"succeeded"|"failed", versionPolicy: "patch", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null}} */
+/** @type {{state: "idle"|"running"|"succeeded"|"failed", versionPolicy: "patch", startedAt: string|null, finishedAt: string|null, exitCode: number|null, artifact: string|null, errorCode: string|null, releaseTarget: PortableReleaseTarget|null}} */
 let portableBuild = {
   state: "idle",
   versionPolicy: RELEASE_VERSION_POLICY,
@@ -74,8 +74,52 @@ let portableBuild = {
   finishedAt: null,
   exitCode: null,
   artifact: null,
-  errorCode: null
+  errorCode: null,
+  releaseTarget: null
 };
+
+/**
+ * The clean main snapshot from which the fixed release wrapper creates its version commit.
+ * commit is intentionally a repository identity, not a command/path/output disclosure.
+ * @typedef {{branch: "main", commit: string|null, currentVersion: string|null, nextVersion: string|null}} PortableReleaseTarget
+ */
+
+function readPortableReleaseTarget() {
+  let commit = null;
+  let currentVersion = null;
+  try {
+    commit = execFileSync("git", ["-C", REPO_ROOT, "rev-parse", "--verify", "main"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true
+    }).trim();
+  } catch {
+    /* dashboard remains readable when Git metadata is unavailable */
+  }
+  try {
+    const packageJson = JSON.parse(
+      execFileSync("git", ["-C", REPO_ROOT, "show", "main:package.json"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        windowsHide: true
+      })
+    );
+    currentVersion = typeof packageJson.version === "string" ? packageJson.version : null;
+  } catch {
+    /* no target is better than misrepresenting a non-main checkout */
+  }
+
+  const match = currentVersion?.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  const nextVersion = match ? match[1] + "." + match[2] + "." + (Number(match[3]) + 1) : null;
+  return { branch: "main", commit: /^[0-9a-f]{40}$/i.test(commit ?? "") ? commit : null, currentVersion, nextVersion };
+}
+
+function portableBuildStatus() {
+  return {
+    ...portableBuild,
+    releaseTarget: portableBuild.releaseTarget ?? readPortableReleaseTarget()
+  };
+}
 /** @type {() => import("node:child_process").ChildProcess} */
 let spawnPortableProcess = () =>
   spawn(
@@ -194,7 +238,7 @@ const server = createServer(async (req, res) => {
  * @param {import("node:http").ServerResponse} res
  */
 function handlePortableBuild(req, res) {
-  if (req.method === "GET") return sendJson(res, 200, portableBuild);
+  if (req.method === "GET") return sendJson(res, 200, portableBuildStatus());
   if (req.method !== "POST") {
     res.writeHead(405, { Allow: "GET, POST", "Content-Type": "text/plain; charset=utf-8" });
     return res.end("Method Not Allowed");
@@ -207,7 +251,7 @@ function handlePortableBuild(req, res) {
     return sendJson(res, 403, { ok: false, error: "Portable build request was not authorized." });
   }
   if (portableBuild.state === "running") {
-    return sendJson(res, 409, { ok: false, error: "A portable build is already running.", build: portableBuild });
+    return sendJson(res, 409, { ok: false, error: "A portable build is already running.", build: portableBuildStatus() });
   }
 
   portableBuild = {
@@ -217,7 +261,8 @@ function handlePortableBuild(req, res) {
     finishedAt: null,
     exitCode: null,
     artifact: null,
-    errorCode: null
+    errorCode: null,
+    releaseTarget: readPortableReleaseTarget()
   };
 
   let child;
@@ -225,7 +270,7 @@ function handlePortableBuild(req, res) {
     child = spawnPortableProcess();
   } catch {
     finishPortableBuild(null, "SPAWN_FAILED");
-    return sendJson(res, 500, { ok: false, error: "Portable packaging could not be started.", build: portableBuild });
+    return sendJson(res, 500, { ok: false, error: "Portable packaging could not be started.", build: portableBuildStatus() });
   }
 
   child.stdout.on("data", (chunk) => process.stdout.write(chunk));
@@ -233,7 +278,7 @@ function handlePortableBuild(req, res) {
   child.once("error", () => finishPortableBuild(null, "SPAWN_FAILED"));
   child.once("close", (code) => finishPortableBuild(typeof code === "number" ? code : null, null));
 
-  return sendJson(res, 202, { ok: true, build: portableBuild });
+  return sendJson(res, 202, { ok: true, build: portableBuildStatus() });
 }
 
 /** @param {number|null} exitCode @param {string|null} errorCode */

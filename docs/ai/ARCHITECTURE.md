@@ -23,9 +23,10 @@
 - The only imperative route is `POST /api/package-portable`. It invokes the fixed
   `scripts/package-portable.ps1` path from `REPO_ROOT` with fixed PowerShell arguments and
   `shell: false`; request data cannot select a command, path, environment, or artifact.
-- The server owns an in-memory single-flight build state. `GET /api/package-portable` exposes only
-  state, timestamps, exit code, sanitized error code, and the repo-relative artifact name. Child output
-  stays attached to the dashboard terminal.
+- The server owns an in-memory single-flight build state. GET /api/package-portable exposes only
+  state, timestamps, exit code, sanitized error code, repo-relative artifact name, and the read-only
+  clean-main release base (commit plus current/next patch versions). Child output stays attached to
+  the dashboard terminal.
 - The renderer confirms the potentially replacing operation, sends a custom same-origin action header,
   disables duplicate starts, and polls while running. The endpoint returns `409` for concurrent starts
   and grants no CORS permission, preserving the loopback/CSRF boundary.

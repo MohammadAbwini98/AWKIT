@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("171 issues parse", beads.stats.total === 171, `got ${beads.stats.total}`);
+  check("172 issues parse", beads.stats.total === 172, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -198,9 +198,11 @@ try {
   // Then the nested-action-owner repair filed and closed `awkit-jce`: total 169 to 170 and closed
   // 165 to 166. The saturation false-positive repair `awkit-85s` then filed and closed: total
   // 170 to 171 and closed 166 to 167, while the four owner-gated outstanding items remain.
+  // The roadmap portable-release disclosure awkit-402 then filed and closed: total 171 to 172 and
+  // closed 167 to 168, with the same four outstanding owner-gated items.
   check(
-    "4 outstanding / 167 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 167,
+    "4 outstanding / 168 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 168,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
@@ -652,9 +654,20 @@ try {
 
   const initialBuildRes = await fetch(`${base}/api/package-portable`);
   const initialBuild = await initialBuildRes.json();
+  const packageVersion = JSON.parse(readFileSync(join(REPO_ROOT, "package.json"), "utf8")).version;
+  const versionMatch = packageVersion.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  const expectedNextVersion = versionMatch ? `${versionMatch[1]}.${versionMatch[2]}.${Number(versionMatch[3]) + 1}` : null;
   check(
     "portable build status starts idle with patch-release policy",
     initialBuildRes.status === 200 && initialBuild.state === "idle" && initialBuild.versionPolicy === "patch"
+  );
+  check(
+    "portable build status discloses the main release base and patch target",
+    initialBuild.releaseTarget?.branch === "main" &&
+      /^[0-9a-f]{40}$/i.test(initialBuild.releaseTarget?.commit ?? "") &&
+      initialBuild.releaseTarget?.currentVersion === packageVersion &&
+      initialBuild.releaseTarget?.nextVersion === expectedNextVersion,
+    JSON.stringify(initialBuild.releaseTarget)
   );
 
   const unauthorizedBuild = await fetch(`${base}/api/package-portable`, { method: "POST" });
@@ -742,11 +755,15 @@ try {
   const releaseScriptSrc = readFileSync(join(REPO_ROOT, "scripts", "release-portable.ps1"), "utf8");
   check(
     "the next-version portable action is visible in the dashboard shell",
-    indexSrc.includes('id="rm-package-portable"') && indexSrc.includes("Generate next portable EXE")
+    indexSrc.includes('id="rm-package-portable"') &&
+      indexSrc.includes("Generate next portable EXE") &&
+      indexSrc.includes('id="rm-release-target"')
   );
   check(
-    "the portable action discloses the patch bump and sends the CSRF-resistant header",
+    "the portable action discloses the release base, patch bump, and CSRF-resistant header",
     dashboardSrc.includes("window.confirm(") &&
+      dashboardSrc.includes("Release base:") &&
+      dashboardSrc.includes("releaseTarget") &&
       dashboardSrc.includes("increments the patch version") &&
       dashboardSrc.includes("latest clean main commit") &&
       dashboardSrc.includes("without predefined users") &&

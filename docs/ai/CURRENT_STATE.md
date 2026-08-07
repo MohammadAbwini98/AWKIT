@@ -1,5 +1,19 @@
 # CURRENT_STATE
 
+## Roadmap portable release base disclosure - awkit-402 COMPLETE (2026-08-07)
+
+The local Program Status dashboard now shows the exact clean main release base beside **Generate next
+portable EXE**: the 12-character commit, current application version, and calculated patch target.
+The full commit remains available as a tooltip and in the confirmation dialog. This is truthful about
+release sequencing: the displayed commit is the clean base; the fixed release wrapper creates the
+version commit from that base before packaging. The read-only GET status now exposes only that
+repository identity and version data, never command, argument, path, environment, or child output.
+
+verify:roadmap-dashboard passes **157/157**, including the main-commit/patch-target API shape, UI
+hook, and existing command-disclosure boundary. `npm run build`, `npm run verify:source-hygiene`
+(**9/9**), and the AI-memory check also pass. Tracker: **172 / 4 outstanding / 168 closed / 95
+edges**. The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Recorder saturation provenance false positive — awkit-85s COMPLETE (2026-08-07)
 
 Insertion-tracking saturation no longer turns a unique, high-confidence semantic locator into an

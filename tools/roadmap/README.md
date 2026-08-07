@@ -152,8 +152,11 @@ Node 18.16 is the dev runtime, so no `Object.groupBy`, no RegExp `/v`, no type s
 - **Build starts are CSRF-resistant.** `POST /api/package-portable` requires a custom action header
   and rejects a foreign `Origin`. A hostile webpage cannot submit that header with a plain form,
   while a cross-origin fetch is preflighted and receives no CORS permission.
-- **One build at a time.** A concurrent start receives `409`; `GET /api/package-portable` exposes
-  only state/timestamps/exit code and a repo-relative artifact name, never command output or paths.
+- **One build at a time.** A concurrent start receives 409; GET /api/package-portable exposes only
+  state/timestamps/exit code, a repo-relative artifact name, and the clean main release base (commit
+  plus current/next patch versions), never command output or paths. The dashboard labels this as a
+  base rather than an artifact SHA because the fixed wrapper creates the version commit from it before
+  packaging.
 - **`textContent` everywhere, `innerHTML` never.** Bead descriptions and defect bodies are arbitrary
   Markdown containing backticks and angle brackets. This is a correctness guard as much as a
   security one, and the verifier asserts no asset contains an `innerHTML` assignment.
@@ -200,7 +203,7 @@ the fingerprint-unchanged path, and `POST /api/refresh` backs the Refresh button
 npm run verify:roadmap-dashboard
 ```
 
-153 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
+157 checks: source readability, exact record counts, the four-way ledger reconciliation, CSV field
 recovery, a negative case proving a mangled phase literal is rejected, ordering invariants, a
 **synthetic 2-cycle** proving the cycle branch fires (there are no real cycles today), byte-identical
 determinism, the provenance rules driven against a claims fixture, server routes including 304 and

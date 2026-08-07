@@ -26,6 +26,7 @@ const dom = {
   filter: document.getElementById("rm-filter"),
   freshness: document.getElementById("rm-freshness"),
   packagePortable: document.getElementById("rm-package-portable"),
+  releaseTarget: document.getElementById("rm-release-target"),
   buildStatus: document.getElementById("rm-build-status"),
   refresh: document.getElementById("rm-refresh"),
   status: document.getElementById("rm-status"),
@@ -131,12 +132,18 @@ dom.refresh.addEventListener("click", async () => {
 });
 
 dom.packagePortable.addEventListener("click", async () => {
+  const target = state.portableBuild?.releaseTarget;
+  const targetSummary =
+    target?.commit && target?.currentVersion && target?.nextVersion
+      ? "\n\nRelease base: " + target.branch + " " + target.commit.slice(0, 12) + " · v" + target.currentVersion + " → v" + target.nextVersion + "."
+      : "";
   const confirmed = window.confirm(
     "Generate the next portable EXE version now?\n\n" +
       "This increments the patch version (for example, 0.1.2 to 0.1.3), commits the version and signed " +
       "release manifest on main, then packages the latest clean main commit under dist/. A release gate rejects " +
       "any bundled application database, so first launch starts without predefined users and asks the owner to " +
-      "create the Super User. Approved offline inputs and signing-key custody must already be available."
+      "create the Super User. Approved offline inputs and signing-key custody must already be available." +
+      targetSummary
   );
   if (!confirmed) return;
 
@@ -187,9 +194,20 @@ function requirePatchRelease(build) {
 
 function renderPortableBuild() {
   const build = state.portableBuild;
+  const target = build?.releaseTarget;
   const running = build?.state === "running";
   dom.packagePortable.disabled = running;
   dom.packagePortable.textContent = running ? "Releasing next portable EXE…" : "Generate next portable EXE";
+  dom.releaseTarget.title = "";
+  if (target?.commit && target.currentVersion && target.nextVersion) {
+    dom.releaseTarget.textContent =
+      "Release base: " + target.branch + " " + target.commit.slice(0, 12) + " · v" + target.currentVersion + " → v" + target.nextVersion;
+    dom.releaseTarget.title =
+      "The release wrapper creates the v" + target.nextVersion + " version commit from " + target.branch + " " + target.commit + " before packaging.";
+  } else {
+    dom.releaseTarget.textContent = "Release base unavailable";
+    dom.releaseTarget.title = "Git main or its package version could not be read.";
+  }
   dom.buildStatus.dataset.state = build?.state ?? "idle";
   dom.buildStatus.title = "";
 
