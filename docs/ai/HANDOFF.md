@@ -20,8 +20,9 @@
   **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker is **173 total / 169 closed / 4 outstanding**;
   roadmap is **157/157 — Sources agree**. `typecheck:scripts` still has only the same nine documented
   pre-existing diagnostics.
+- **Commits/push:** implementation `69b8185` and acceptance/docs `ddd50ab` were pushed directly to
+  `origin/main` together with the preserved pre-existing v0.1.10 release commits.
 - **Next:** the four earlier owner-gated environment/manual items remain outside this implementation.
-  Consult the task log for final commit, push, dashboard, AI-memory, and Graphify results.
 
 ---
 

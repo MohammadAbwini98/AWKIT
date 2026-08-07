@@ -10587,3 +10587,5 @@ pm run verify:mock-site
   `src/runner/{LocatorFactory,StepExecutor,locatorFingerprint}.ts`, Flow Designer/Recorder renderer
   files, `mock-site/public/recorder-lab.html`, focused verifier scripts/classification, tracker source,
   and AI-memory documentation.
+- **Commits/push:** `69b8185` (`feat(recorder): add deterministic element identity contract`) and
+  `ddd50ab` (`test(recorder): verify identity contract end to end`) were pushed to `origin/main`.
