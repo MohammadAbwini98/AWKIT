@@ -192,9 +192,12 @@ try {
   // hashing were fixed: closed 162 to 163, outstanding 7 to 6, total held at 169.
   // Then `awkit-c2z` closed after the dedicated real-browser capture/runtime blueprint gate and
   // Feature Test Lab fixture landed: closed 163 to 164, outstanding 6 to 5, total held at 169.
+  // Then `awkit-utj` closed after sensitive actions were excluded from local/blueprint recovery and
+  // sensitive Recorder output stopped receiving blueprint references: closed 164 to 165,
+  // outstanding 5 to 4, total held at 169.
   check(
-    "5 outstanding / 164 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 164,
+    "4 outstanding / 165 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 165,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

@@ -504,6 +504,9 @@ failure boundary under `src/testing/failures/`:
   step early **unless** it has `context`/`alternatives` (then the resolver owns the outcome);
   `friendlyLocatorError` translates any raw strict-mode violation. Verified by `npm run verify:recorder`
   (Parts A/B recorder + quality guard, Part C runtime fallback/visibility/context).
+  Steps classified as `dangerousMutation` or `externalCommit` may retry those exact recorded
+  candidates after the bounded grace period, but never enter broad or blueprint-guided recovery;
+  Recorder assembly likewise persists no blueprint reference for a sensitive captured action.
 - **Smart Wait Engine (runner execution + diagnostics + designer surfacing):** `FlowStep` carries optional
   `beforeWaits`/`afterWaits: WaitCondition[]` (`src/profiles/FlowProfile.ts`). `StepExecutor.execute`
   wraps each action via `runStepWithWaits`: `beforeWaits` → arm action-triggered `response` waits (a

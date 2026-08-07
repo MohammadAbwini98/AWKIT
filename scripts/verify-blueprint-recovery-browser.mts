@@ -190,6 +190,39 @@ async function main(): Promise<void> {
     check("blueprint-guided recovery clicks the moved target, never the decoy", (await page.getByTestId("blueprint-result").textContent()) === "clicked-mutated-target");
     check("successful blueprint recovery emits the local-recovery event", events.some((event) => event.type === "local-recovery" && (event.score ?? 0) >= RECOVERY_THRESHOLD), JSON.stringify(events));
 
+    console.log("Sensitive-action recovery refusal:");
+    await reset(page);
+    const sensitiveStep: FlowStep = {
+      ...structuredClone(step),
+      id: "sensitive-blueprint-step",
+      name: "Commit external payment",
+      safety: { sideEffectLevel: "externalCommit", retryable: false }
+    };
+    const sensitiveScope = { scenarioId: "blueprint-sensitive-scenario", flowId: "blueprint-sensitive-flow" };
+    const sensitiveSeed = await new LocatorFactory(page, { recoveryStore, scope: sensitiveScope, recoveryGraceMs: 0 }).resolve(sensitiveStep);
+    check("sensitive step seeds only from its unchanged recorded locator", (await sensitiveSeed.count()) === 1);
+    await mutate(page, false);
+    let sensitiveBlueprintReads = 0;
+    const sensitiveEvents: LocatorRecoveryEvent[] = [];
+    const sensitiveRefused = await new LocatorFactory(page, {
+      recoveryStore,
+      blueprintStore: {
+        ...blueprintStore,
+        get: async (pageKey) => {
+          sensitiveBlueprintReads += 1;
+          return pageKey === blueprint.pageKey ? blueprint : undefined;
+        }
+      },
+      scope: sensitiveScope,
+      recoveryGraceMs: 0,
+      onRecoveryEvent: (event) => sensitiveEvents.push(event)
+    }).resolve(sensitiveStep);
+    const sensitiveCount = await sensitiveRefused.count();
+    if (sensitiveCount > 0) await sensitiveRefused.click();
+    check("sensitive action refuses local and blueprint recovery", sensitiveCount === 0, String(sensitiveCount));
+    check("sensitive refusal occurs before blueprint storage is read", sensitiveBlueprintReads === 0, String(sensitiveBlueprintReads));
+    check("sensitive refusal performs no click or recovery event", (await page.getByTestId("blueprint-result").textContent()) === "idle" && !sensitiveEvents.some((event) => event.type === "local-recovery"), JSON.stringify(sensitiveEvents));
+
     console.log("Below-threshold negative control:");
     await reset(page);
     await new LocatorFactory(page, { recoveryStore, scope, recoveryGraceMs: 0 }).resolve(step);

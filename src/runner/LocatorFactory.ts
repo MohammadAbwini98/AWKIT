@@ -158,15 +158,14 @@ export class LocatorFactory {
     if (!spec) {
       throw new Error("Locator is required for this step.");
     }
+    const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
+    const sensitiveAction = sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit";
 
     // Guarded-positional: a SENSITIVE step whose only unique locator is positional re-proves the
     // recorded target identity before acting (never trusts the index alone). Non-sensitive positional
     // steps keep the lenient candidate/recovery path below.
-    if (hasPositionalIdentityGuard(step)) {
-      const level = resolveStepSafety(step).sideEffectLevel;
-      if (level === "dangerousMutation" || level === "externalCommit") {
-        return this.resolveGuardedPositional(step, spec.guard!);
-      }
+    if (hasPositionalIdentityGuard(step) && sensitiveAction) {
+      return this.resolveGuardedPositional(step, spec.guard!);
     }
 
     // Instrumented closed shadow: the target lives inside a closed shadow root captured through the
@@ -231,7 +230,9 @@ export class LocatorFactory {
         }
       }
 
-      if (pass.allMissing) {
+      // Sensitive actions may retry their exact recorded candidates after the bounded grace period,
+      // but must never select a different element through broad or blueprint-guided recovery.
+      if (pass.allMissing && !sensitiveAction) {
         const recovered = await this.recoverLocally(root, step, applicableMemory.fingerprint);
         if (recovered) {
           await this.writeMemory(

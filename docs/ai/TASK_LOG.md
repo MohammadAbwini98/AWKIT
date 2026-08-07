@@ -10454,3 +10454,26 @@ pm run verify:mock-site
 - **Files:** new `mock-site/public/blueprint-recovery-lab.html` and
   `scripts/verify-blueprint-recovery-browser.mts`; mock-site route/index/verifier/README; package script
   and verifier classification; roadmap count source; AI memory docs; `.beads/issues.jsonl`.
+
+## 2026-08-07: Sensitive-action locator recovery refusal (awkit-utj)
+
+- **Agent:** Codex. **Selection:** the sole dependency-ready item after `awkit-c2z`.
+- **Reproduction:** before the fix, a Recorder-captured dangerous action still received a
+  `blueprintId`/page blueprint (`verify:locator-guard` **33 passed / 2 failed**), and a real-browser
+  `externalCommit` step whose recorded locator drifted read blueprint storage, recovered the moved
+  target, emitted `local-recovery`, and clicked it (`verify:blueprint-recovery-browser`
+  **21 passed / 3 failed**).
+- **Fix:** `LocatorFactory.resolve` classifies sensitivity once and permits dangerous/external steps
+  to retry only their exact recorded candidates; broad fingerprint and blueprint recovery are both
+  skipped when those candidates miss. `buildRecordedFlow` assigns and persists no blueprint recovery
+  reference for a sensitive captured action.
+- **Verification:** `verify:locator-guard` **35/35**; `verify:blueprint-recovery-browser` **24/24**;
+  `verify:blueprint-recovery` **52/52**; `verify:safety-policy` **17/17**; `verify:recorder`
+  **217/217**; `verify:recorder-flow` **33/33**; `verify:runner` **89/89**; `npm run build` PASS.
+  `npm run typecheck:scripts` remains FAIL on the same nine documented pre-existing diagnostics;
+  no new diagnostic is attributable to this task.
+- **Tracking:** closed `awkit-utj`; tracker **169 / 4 outstanding / 165 closed / 95 edges**.
+  Validation ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Files:** `src/runner/LocatorFactory.ts`, `src/recorder/buildRecordedFlow.ts`,
+  `scripts/{verify-locator-guard,verify-blueprint-recovery-browser,verify-roadmap-dashboard}.m*`,
+  `.beads/*.jsonl`, and `docs/ai/{ARCHITECTURE,COMMANDS,CURRENT_STATE,FEATURES,TASK_LOG,TESTING}.md`.

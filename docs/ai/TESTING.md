@@ -41,19 +41,24 @@ remain structural and legacy workflows remain compatible.
   protected-login detector (provider URLs, Google insecure-browser page, MFA/CAPTCHA text, no false
   positives, no secret fields). As of the last run: **16 checks pass**. `verify:runner` also covers the
   Protected Login Handoff node pausing/resuming and auto-detect not pausing normal mock pages (82 total).
-- `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — **110 checks** in live Chromium
+- `scripts/verify-recorder-locator.mts` (`npm run verify:recorder`) — **217 checks** in live Chromium
   for recorder locator generation, runner locator safeguards/fallbacks, persisted winner ordering,
   bounded all-candidates-miss recovery, and Smart Wait recorder observation
   (safe fetch/XHR path-only signals, loader disappearance, URL changes, table/list/card waits, toast,
   enabled controls, polling ignored, fixed-delay fallback). Recovery coverage includes no-history,
   equal-twin, valid-recorded-candidate, class/business-text exclusion, durable-source, and
   loud-warning sentinels.
-- `scripts/verify-blueprint-recovery-browser.mts` (`npm run verify:blueprint-recovery-browser`) — **20
+- `scripts/verify-blueprint-recovery-browser.mts` (`npm run verify:blueprint-recovery-browser`) — **24
   checks** in real Chromium for the browser-only half of Locator Blueprint recovery. It records a click
   through the exact injected Recorder script, assembles the captured blueprint with `buildRecordedFlow`,
   then drives `LocatorFactory` against `/blueprint-recovery-lab`: every saved locator misses after one
   inserted sibling beyond the broad 200-element scan, the captured fingerprint scores 0.866667 and
-  recovers the intended target, while a below-0.86 identity change is refused with no side effect.
+  recovers the intended target, while a below-0.86 identity change is refused with no side effect. An
+  explicit `externalCommit` control proves sensitive steps never enter local/blueprint recovery, read
+  blueprint storage, emit recovery success, or click the drifted target.
+- `scripts/verify-locator-guard.mts` (`npm run verify:locator-guard`) — **35 checks** in real Chromium
+  for guarded positional identity and preconditions. Its Recorder coverage also proves a dangerous
+  captured action receives no `blueprintId` and persists no page blueprint.
 - `scripts/verify-recorder-e2e.mjs` (`npm run verify:recorder-e2e`) — REC-018 real-Electron gate on
   an isolated profile using bundled Chromium: Recorder UI capture/Stop/Save, full restart and visible
   Flow Library reopen, production `ExecutionEngine` replay, exact node/log/report order, resettable

@@ -42,6 +42,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
 
   const steps: FlowStep[] = actionSteps.flatMap((action, index) => {
     currentY += 120;
+    const sensitiveAction = isSensitiveAction(action);
     const step: FlowStep = {
       id: `step-${index + 1}`,
       type: action.type as FlowStep["type"],
@@ -66,8 +67,9 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
 
-      // Page-level blueprint capture for fallback recovery
-      if (action.locator.blueprintCapture && blueprintsOut) {
+      // Sensitive actions never receive or persist a blueprint recovery reference. Their exact
+      // recorded locator (or guarded positional identity) must remain authoritative at replay.
+      if (action.locator.blueprintCapture && blueprintsOut && !sensitiveAction) {
         const capture = action.locator.blueprintCapture;
         const frameKey = computeFrameKey(action.locator.context?.frameChain);
         const pageKey = computePageKey(capture.url, capture.title, frameKey);
@@ -126,7 +128,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
         if (!step.locator.reviewReason) step.locator.reviewReason = "the recorder could not build a unique locator";
-      } else if (isPositionalLocator(step.locator) && isSensitiveAction(action)) {
+      } else if (isPositionalLocator(step.locator) && sensitiveAction) {
         const draft = action.locator.guard;
         if (draft?.fingerprint && draft.candidateSelector) {
           step.locator.guard = hashGuard(draft);

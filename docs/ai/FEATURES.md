@@ -290,7 +290,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   document plus a deterministic frame-chain digest, and a drift-tolerant structural histogram gate
   refuses materially different same-URL page variants. `verify:blueprint-recovery-browser` records
   through the injected browser capture and proves the complete capture→assembly→runtime path against
-  `/blueprint-recovery-lab`, including a 0.866667 positive and a below-0.86 refusal control.
+  `/blueprint-recovery-lab`, including a 0.866667 positive and a below-0.86 refusal control. Sensitive
+  `dangerousMutation`/`externalCommit` steps never enter broad or blueprint recovery, and sensitive
+  Recorder output receives no blueprint reference or persisted page blueprint.
 - ✅ **Locator-quality surfacing:** Flow Designer Node Properties shows a locator-quality readout
   (including how a non-unique element was disambiguated) and will not report a node as valid when its
   saved locator is genuinely non-unique (flow-level + node validation messages). Recorder

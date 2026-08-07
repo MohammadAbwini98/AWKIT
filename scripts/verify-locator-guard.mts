@@ -26,6 +26,7 @@ import { validateFlowDefinition, hasActivePathError, executionBlockingErrorsOf }
 import { hasPositionalIdentityGuard, isPositionalLocator } from "@src/profiles/locatorApproval";
 import type { RecordedAction } from "@src/recorder/RecorderTypes";
 import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import type { PageBlueprint } from "@src/runner/LocatorBlueprintStore";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 
 let passed = 0;
@@ -176,13 +177,16 @@ async function main() {
 
     // ── [1] Capture: a SENSITIVE positional click becomes a guarded-positional resolved locator ──────
     console.log("\n[1] Capture builds a guarded-positional locator for a sensitive step:");
-    const sensitiveFlow = buildRecordedFlow("Guard", [{ ...rawClick, name: "Delete account" }]);
+    const sensitiveBlueprints: PageBlueprint[] = [];
+    const sensitiveFlow = buildRecordedFlow("Guard", [{ ...rawClick, name: "Delete account" }], sensitiveBlueprints);
     const step = clickStep(sensitiveFlow);
     check("[1] the recorded locator is positional", isPositionalLocator(step.locator));
     check("[1] a runtime identity guard is attached", hasPositionalIdentityGuard(step));
     check("[1] the sensitive guarded-positional locator is RESOLVED (no review, no approval)", step.locator?.resolution === "resolved");
     check("[1] the guard records the candidate set size and index", step.locator?.guard?.siblingCount === 4 && step.locator?.guard?.index === 2, JSON.stringify({ n: step.locator?.guard?.siblingCount, i: step.locator?.guard?.index }));
     check("[1] the guard fingerprint is HASHED, not raw page text", step.locator?.guard?.fingerprint?.name !== "delete" && /^[0-9a-f]{20}$/.test(step.locator?.guard?.fingerprint?.name ?? ""), step.locator?.guard?.fingerprint?.name);
+    check("[1] a sensitive recorded step receives no blueprint recovery reference", step.locator?.blueprintId === undefined);
+    check("[1] a sensitive recorded step persists no page blueprint", sensitiveBlueprints.length === 0, String(sensitiveBlueprints.length));
 
     // ── [2] A non-sensitive positional click carries NO guard (lenient policy retained) ──────────────
     console.log("\n[2] Non-sensitive positional keeps the lenient policy (no guard):");

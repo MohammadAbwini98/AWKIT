@@ -1,5 +1,25 @@
 # CURRENT_STATE
 
+## Sensitive-action locator recovery refusal — awkit-utj COMPLETE (2026-08-07)
+
+Sensitive `dangerousMutation` and `externalCommit` steps now remain bound to their exact recorded
+locator candidates. `LocatorFactory.resolve` still permits the bounded same-candidate grace retry,
+but refuses both the broad fingerprint scan and the blueprint neighborhood whenever those exact
+candidates miss. Recorder flow assembly also omits `blueprintId` and page-blueprint persistence for
+sensitive captured actions, so the unsafe recovery authority is absent at rest as well as enforced
+at runtime.
+
+The regression was observed before the fix: `verify:locator-guard` reported **33 passed / 2 failed**
+because a sensitive recording received a blueprint, and the real-browser blueprint gate reported
+**21 passed / 3 failed** after recovering and clicking a drifted target for an explicit
+`externalCommit` step. After the fix: `verify:locator-guard` **35/35**,
+`verify:blueprint-recovery-browser` **24/24**, `verify:blueprint-recovery` **52/52**,
+`verify:safety-policy` **17/17**, `verify:recorder` **217/217**, `verify:recorder-flow` **33/33**,
+`verify:runner` **89/89**, and `npm run build` passed. `typecheck:scripts` remains red only on the
+same nine documented pre-existing diagnostics. `awkit-utj` is closed; tracker
+**169 / 4 outstanding / 165 closed / 95 edges**. The validation ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Real-browser blueprint capture + runtime recovery gate — awkit-c2z COMPLETE (2026-08-07)
 
 Locator Blueprint recovery now has a dedicated end-to-end browser acceptance gate. The new
