@@ -13,8 +13,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   runner diagnostics; and Flow Designer evidence details. Legacy/manual waits remain authoritative.
 - **Verifier:** real Chromium Recorder observation -> buildRecordedFlow -> JSON -> StepExecutor plus
   the A-T causality/identity matrix plus route privacy boundary is **33/33**.
-- **Mutation proof:** promote enables **29/4**; remove competing cause **31/2**; ignore identity
-  **32/1**; ignore route dominance **32/1**; optional fatal **32/1**; final restored **33/33**.
+- **Mutation proof (32-assertion gate):** promote enables **28/4**; remove competing cause **30/2**;
+  ignore identity **31/1**; ignore route dominance **31/1**; optional fatal **31/1**; restored
+  **32/32**. A final route-privacy assertion subsequently raised the green gate to **33/33**.
 - **Security:** safe origin/path metadata only, fingerprints hashed before save, no force or sensitive
   policy change. External YouTube acceptance was not run.
 
