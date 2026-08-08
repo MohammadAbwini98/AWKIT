@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfile";
+import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard, StepLocator, WaitCondition } from "../profiles/FlowProfile";
 import { isPositionalLocator } from "../profiles/locatorApproval";
 import {
   automaticInteractionDecision,
@@ -40,6 +40,49 @@ function hashIdentity(draft: ElementIdentityContract, locator: RecordedActionLoc
     context: locator.context,
     fingerprint: draft.fingerprint ? hashFingerprint(draft.fingerprint) : undefined
   };
+}
+
+function hashWaitLocator(locator: StepLocator): StepLocator {
+  return locator.identity
+    ? { ...locator, identity: hashIdentity(locator.identity, locator as RecordedActionLocator), guard: locator.guard ? hashGuard(locator.guard) : undefined }
+    : { ...locator, guard: locator.guard ? hashGuard(locator.guard) : undefined };
+}
+
+/** Hash every Recorder-captured wait fingerprint before the evidence reaches a saved profile. */
+function persistWait(wait: WaitCondition): WaitCondition {
+  const copy = { ...wait } as WaitCondition;
+  if (copy.evidence?.targetIdentity?.fingerprint) {
+    copy.evidence = {
+      ...copy.evidence,
+      targetIdentity: {
+        ...copy.evidence.targetIdentity,
+        fingerprint: hashFingerprint(copy.evidence.targetIdentity.fingerprint)
+      }
+    };
+  }
+  switch (copy.type) {
+    case "loaderHidden":
+    case "elementVisible":
+    case "elementHidden":
+    case "elementEnabled":
+      copy.locator = hashWaitLocator(copy.locator);
+      break;
+    case "toastVisible":
+      if (copy.locator) copy.locator = hashWaitLocator(copy.locator);
+      break;
+    case "tableHasRows":
+      copy.tableLocator = hashWaitLocator(copy.tableLocator);
+      if (copy.rowLocator) copy.rowLocator = hashWaitLocator(copy.rowLocator);
+      break;
+    case "listHasItems":
+      copy.listLocator = hashWaitLocator(copy.listLocator);
+      if (copy.itemLocator) copy.itemLocator = hashWaitLocator(copy.itemLocator);
+      break;
+    case "anyOf":
+      copy.conditions = copy.conditions.map(persistWait);
+      break;
+  }
+  return copy;
 }
 
 /**
@@ -243,8 +286,8 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
     }
 
     // Smart Wait conditions observed during recording (Phase 2).
-    if (action.beforeWaits && action.beforeWaits.length > 0) step.beforeWaits = action.beforeWaits;
-    if (action.afterWaits && action.afterWaits.length > 0) step.afterWaits = action.afterWaits;
+    if (action.beforeWaits && action.beforeWaits.length > 0) step.beforeWaits = action.beforeWaits.map(persistWait);
+    if (action.afterWaits && action.afterWaits.length > 0) step.afterWaits = action.afterWaits.map(persistWait);
 
     // Recorded think-time replays as a fixed-time wait step (Point 1).
     if (action.type === "wait") {

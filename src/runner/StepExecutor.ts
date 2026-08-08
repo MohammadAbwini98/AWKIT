@@ -29,6 +29,7 @@ import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExec
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
 import { OracleBridgeCallError } from "@src/oracle/OracleBridgeProtocol";
 import { armNetworkObservation, type ArmedNetworkObservation } from "./NetworkDiagnosticsObserver";
+import { createPageFingerprint, fingerprintsEqual, hashFingerprint } from "./locatorFingerprint";
 
 /** Step types after which the runner auto-checks for a protected-login page. */
 const PROTECTED_LOGIN_AUTODETECT_STEPS = new Set(["goto", "click", "routeChange", "wait"]);
@@ -540,6 +541,10 @@ export class StepExecutor {
       const deferred: WaitCondition[] = [];
       const quiet = mode === "quietPeriod" ? this.armNetworkQuietObserver() : undefined;
       for (const wait of afterWaits) {
+        if (wait.evidence?.requirement === "advisory") {
+          this.log("info", step, `WAIT_SIGNAL_ADVISORY_ONLY: ${StepExecutor.describeWaitCondition(wait)} (${wait.evidence.confidence.level}; ${wait.evidence.confidence.basis.join(", ")})`);
+          continue;
+        }
         if (wait.type === "response" && wait.armBeforeAction) {
           const timeout = wait.timeoutMs ?? StepExecutor.DEFAULT_WAIT_TIMEOUT_MS;
           const promise = this.buildResponseWait(wait, timeout);
@@ -608,7 +613,7 @@ export class StepExecutor {
           await this.waitLocator(wait.locator).waitFor({ state: "visible", timeout });
           return;
         case "elementEnabled": {
-          const locator = this.waitLocator(wait.locator);
+          const locator = await this.resolveIdentifiedWaitTarget(wait, wait.locator);
           await this.waitForPredicate(
             () => locator.isEnabled().catch(() => false),
             timeout,
@@ -1028,8 +1033,8 @@ export class StepExecutor {
       await fn();
     } catch (error) {
       if (error instanceof CancelledError) throw error;
-      if (wait.optional) {
-        this.log("info", step, `Optional ${phase} condition not satisfied (ignored): ${StepExecutor.describeWaitCondition(wait)}`);
+      if (wait.optional || wait.evidence?.requirement === "optional") {
+        this.log("info", step, `WAIT_SIGNAL_OPTIONAL_MISSED: Optional ${phase} condition not satisfied (ignored): ${StepExecutor.describeWaitCondition(wait)}`);
         return;
       }
       throw error;
@@ -1109,7 +1114,7 @@ export class StepExecutor {
 
   /** Progress event describing exactly what is being awaited (endpoint/loader/ui, timeout, required/optional). */
   private emitWaiting(step: FlowStep, wait: WaitCondition, timeout: number, phase: string): void {
-    const req = wait.optional ? "optional" : "required";
+    const req = wait.evidence?.requirement ?? (wait.optional ? "optional" : "required");
     this.emitProgress(step, "waiting", {
       message: `Waiting (${phase}) for ${req} ${StepExecutor.describeWaitCondition(wait)} · timeout ${Math.round(timeout / 1000)}s`
     });
@@ -1123,6 +1128,10 @@ export class StepExecutor {
       `Current URL: ${this.safeCurrentUrl()}`
     ];
     if (wait.reason) lines.push(`Recorded reason: ${wait.reason}`);
+    if (wait.evidence) {
+      lines.push(`Evidence: ${wait.evidence.requirement} / ${wait.evidence.confidence.level} (${wait.evidence.confidence.basis.join(", ")})`);
+      lines.push(`Causality: ${wait.evidence.causality.attributable ? "attributed" : "not reproduced"}; competing cause=${wait.evidence.causality.competingCause ?? "unknown"}`);
+    }
     lines.push(`Detail: ${detail}`);
     return lines.join("\n");
   }
@@ -1188,6 +1197,29 @@ export class StepExecutor {
   /** Build a Playwright locator from a structured locator for wait purposes (tolerant `.first()`). */
   private waitLocator(locator: StepLocator): Locator {
     return this.locatorFactory.create(locator).first();
+  }
+
+  /** Resolve a Recorder-inferred required wait target by the saved hashed identity before polling. */
+  private async resolveIdentifiedWaitTarget(wait: WaitCondition, locator: StepLocator): Promise<Locator> {
+    const candidate = this.locatorFactory.create(locator);
+    if (wait.evidence?.requirement !== "required" || !locator.identity?.fingerprint) return candidate.first();
+    const count = await candidate.count().catch(() => 0);
+    if (count === 0) {
+      throw new Error(`WAIT_TARGET_NOT_FOUND: required ${wait.type} target could not be resolved`);
+    }
+    const visible: Locator[] = [];
+    for (let index = 0; index < Math.min(count, 25); index += 1) {
+      const item = candidate.nth(index);
+      if (await item.isVisible().catch(() => false)) visible.push(item);
+    }
+    if (visible.length !== 1) {
+      throw new Error(`WAIT_TARGET_IDENTITY_CHANGED: expected one visible target, found ${visible.length} of ${count} candidate(s)`);
+    }
+    const actual = await visible[0].evaluate(createPageFingerprint).catch(() => undefined);
+    if (!actual || !fingerprintsEqual(hashFingerprint(actual), locator.identity.fingerprint)) {
+      throw new Error("WAIT_TARGET_IDENTITY_CHANGED: resolved target no longer matches the recorded Element Identity Contract");
+    }
+    return visible[0];
   }
 
   /** Poll `predicate` until true or `timeout`; on timeout throw with the last observed value. */

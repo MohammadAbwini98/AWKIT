@@ -76,6 +76,11 @@ export function installRecorderCapture(): void {
     value: string;
     name?: string;
     exact?: boolean;
+    quality?: Record<string, unknown>;
+    alternatives?: unknown[];
+    context?: Record<string, unknown>;
+    guard?: Record<string, unknown>;
+    identity?: Record<string, unknown>;
   }
 
   const norm = (s: string | null | undefined): string => (s || "").replace(/\s+/g, " ").trim();
@@ -2200,6 +2205,40 @@ export function installRecorderCapture(): void {
     };
     const upper = (m: unknown): string => String(m || "GET").toUpperCase();
 
+    // Timer callbacks are a stronger explanation than mere proximity to the last click. A timer
+    // scheduled before that click is background work; a timer scheduled by its handler remains
+    // attributable to the click. The clock is bounded and stores no callback/data.
+    let recentTimerCallback: { at: number; actionLinked: boolean } | null = null;
+    try {
+      const wrapTimer = (key: "setTimeout" | "setInterval"): void => {
+        const native = window[key] as unknown as (...args: unknown[]) => number;
+        (window as unknown as Record<string, unknown>)[key] = function (callback: unknown, delay?: unknown, ...args: unknown[]): number {
+          const scheduledAt = Date.now();
+          const actionLinked = scheduledAt - lastTrustedClickAt >= 0 && scheduledAt - lastTrustedClickAt <= COMPETING_CAUSE_WINDOW_MS;
+          const wrapped = typeof callback === "function" ? function (this: unknown, ...callbackArgs: unknown[]): unknown {
+            recentTimerCallback = { at: Date.now(), actionLinked };
+            return (callback as (...values: unknown[]) => unknown).apply(this, callbackArgs);
+          } : callback;
+          return native.call(window, wrapped, delay, ...args);
+        };
+      };
+      wrapTimer("setTimeout");
+      wrapTimer("setInterval");
+    } catch {
+      /* ignore */
+    }
+    const smartWaitCauseAt = (at: number): "navigation" | "click" | "focus" | "timer" | "background" | "unknown" => {
+      // A synchronous route/DOM change in the trusted click dispatch outranks an older timer tick.
+      if (lastTrustedClickAt >= (recentTimerCallback?.at ?? 0) && at - lastTrustedClickAt >= 0 && at - lastTrustedClickAt <= COMPETING_CAUSE_WINDOW_MS) return "click";
+      if (recentTimerCallback && at - recentTimerCallback.at >= 0 && at - recentTimerCallback.at <= COMPETING_CAUSE_WINDOW_MS) {
+        return recentTimerCallback.actionLinked ? "click" : "background";
+      }
+      if (at - lastNavigationAt >= 0 && at - lastNavigationAt <= COMPETING_CAUSE_WINDOW_MS) return "navigation";
+      if (at - lastTrustedClickAt >= 0 && at - lastTrustedClickAt <= COMPETING_CAUSE_WINDOW_MS) return "click";
+      if (at - lastFocusChangeAt >= 0 && at - lastFocusChangeAt <= COMPETING_CAUSE_WINDOW_MS) return "focus";
+      return "unknown";
+    };
+
     // Network — patch fetch + XMLHttpRequest (method / path / status / timing only).
     try {
       const holder = window as unknown as { fetch?: (...args: unknown[]) => Promise<unknown> };
@@ -2211,7 +2250,8 @@ export function installRecorderCapture(): void {
           const method = upper(initObj.method || inputObj.method || "GET");
           const path = safePath(typeof input === "string" ? input : inputObj.url || "");
           const startedAt = Date.now();
-          const done = (status: number): void => signal({ kind: "request", method, path, status, startedAt, endedAt: Date.now() });
+          const cause = smartWaitCauseAt(startedAt);
+          const done = (status: number): void => signal({ kind: "request", method, path, status, startedAt, endedAt: Date.now(), cause });
           // eslint-disable-next-line prefer-rest-params
           return (origFetch as (...a: unknown[]) => Promise<unknown>).apply(this, arguments as unknown as unknown[]).then(
             (resp: unknown) => {
@@ -2246,6 +2286,7 @@ export function installRecorderCapture(): void {
         };
         proto.send = function (this: Record<string, unknown>): unknown {
           this.__awtkitStart = Date.now();
+          this.__awtkitCause = smartWaitCauseAt(this.__awtkitStart as number);
           const self = this;
           try {
             (this.addEventListener as (t: string, cb: () => void) => void).call(this, "loadend", function () {
@@ -2255,7 +2296,8 @@ export function installRecorderCapture(): void {
                 path: (self.__awtkitPath as string) || "",
                 status: typeof self.status === "number" ? (self.status as number) : 0,
                 startedAt: (self.__awtkitStart as number) || Date.now(),
-                endedAt: Date.now()
+                endedAt: Date.now(),
+                cause: self.__awtkitCause || "unknown"
               });
             });
           } catch {
@@ -2275,8 +2317,12 @@ export function installRecorderCapture(): void {
       const emitUrl = (): void => {
         // Also the navigation clock for insertion attribution: content that arrives right after a
         // route change is explained by the navigation, not by whatever the pointer was resting on.
-        lastNavigationAt = Date.now();
-        signal({ kind: "url", url: location.href, ts: lastNavigationAt });
+        const ts = Date.now();
+        const cause = smartWaitCauseAt(ts);
+        const fromUrl = String(w.__awtkitLastObservedUrl || "");
+        lastNavigationAt = ts;
+        signal({ kind: "url", url: location.origin + location.pathname, fromUrl, ts, cause });
+        w.__awtkitLastObservedUrl = location.origin + location.pathname;
       };
       const h = history as unknown as { __awtkitPatched?: boolean; pushState: (...a: unknown[]) => unknown; replaceState: (...a: unknown[]) => unknown };
       if (!h.__awtkitPatched) {
@@ -2321,14 +2367,12 @@ export function installRecorderCapture(): void {
       return ".spinner";
     };
     const waitLocatorFor = (el: Element): SignalLocatorShape => {
-      const loc = generate(el).locator as Record<string, unknown>;
-      const out: SignalLocatorShape = { strategy: String(loc.strategy), value: String(loc.value) };
-      if (loc.name) out.name = String(loc.name);
-      if (loc.exact) out.exact = true;
-      return out;
+      const generated = generate(el);
+      attachIdentity(el, generated, false);
+      return generated.locator as unknown as SignalLocatorShape;
     };
 
-    const shownLoaders = new Map<Element, { selector: string; shownAt: number }>();
+    const shownLoaders = new Map<Element, { selector: string; locator: SignalLocatorShape; shownAt: number; cause: string; existedAtBaseline: boolean }>();
     const seenToasts = new WeakSet<Element>();
     const disabledState = new WeakMap<Element, boolean>();
     const rowCounts = new WeakMap<Element, number>();
@@ -2341,12 +2385,12 @@ export function installRecorderCapture(): void {
         nodes.forEach((el) => {
           if (isVisible(el)) {
             visibleSet.add(el);
-            if (!shownLoaders.has(el)) shownLoaders.set(el, { selector: loaderSelectorFor(el), shownAt: now });
+            if (!shownLoaders.has(el)) shownLoaders.set(el, { selector: loaderSelectorFor(el), locator: waitLocatorFor(el), shownAt: now, cause: smartWaitCauseAt(now), existedAtBaseline: presentAtBaseline.has(el) });
           }
         });
         shownLoaders.forEach((info, el) => {
           if (!visibleSet.has(el) || !document.contains(el)) {
-            if (!silent) signal({ kind: "loaderHidden", selector: info.selector, shownAt: info.shownAt, hiddenAt: now });
+            if (!silent) signal({ kind: "loaderHidden", selector: info.selector, locator: info.locator, shownAt: info.shownAt, hiddenAt: now, cause: info.cause, existedAtBaseline: info.existedAtBaseline });
             shownLoaders.delete(el);
           }
         });
@@ -2359,7 +2403,7 @@ export function installRecorderCapture(): void {
             seenToasts.add(el);
             if (!silent) {
               const text = norm(el.textContent).slice(0, 80);
-              signal({ kind: "toast", text: text || undefined, role: attr(el, "role") || "", ts: now });
+              signal({ kind: "toast", locator: waitLocatorFor(el), role: attr(el, "role") || "", ts: now, cause: smartWaitCauseAt(now) });
             }
           }
         });
@@ -2398,7 +2442,7 @@ export function installRecorderCapture(): void {
             const disabled = (el as HTMLInputElement).disabled === true || attr(el, "aria-disabled") === "true";
             const was = disabledState.get(el);
             if (!silent && was === true && !disabled) {
-              signal({ kind: "enabled", locator: waitLocatorFor(el), ts: now });
+              signal({ kind: "enabled", locator: waitLocatorFor(el), ts: now, existedBefore: presentAtBaseline.has(el), preDisabled: true, postDisabled: false, cause: smartWaitCauseAt(now) });
             }
             disabledState.set(el, disabled);
           }
@@ -2422,7 +2466,7 @@ export function installRecorderCapture(): void {
           }
           const prev = rowCounts.get(container) || 0;
           if (!silent && count > prev && count > 0) {
-            signal({ kind: "rows", container: waitLocatorFor(container), listLike, count, ts: now });
+            signal({ kind: "rows", container: waitLocatorFor(container), listLike, previousCount: prev, count, ts: now, cause: smartWaitCauseAt(now) });
           }
           rowCounts.set(container, count);
         });

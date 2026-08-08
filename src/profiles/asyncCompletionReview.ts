@@ -70,6 +70,12 @@ export function reviewWait(wait: WaitCondition): WaitReview {
     warnings.push(message);
   };
 
+  if (wait.evidence?.requirement === "advisory") {
+    worsen("needsReview", `Recorder kept this as advisory evidence only: ${wait.evidence.confidence.basis.join(", ")}.`);
+  } else if (wait.evidence?.requirement === "required" && !wait.evidence.causality.attributable) {
+    worsen("unsafe", "Recorder evidence is marked required without reproducible action attribution.");
+  }
+
   switch (wait.type) {
     case "response":
       if (!wait.method && !wait.urlContains) {
@@ -174,7 +180,7 @@ export function reviewStepAsync(input: AsyncReviewInput): StepAsyncReview | null
 
   // ── Policy-level checks ────────────────────────────────────────────────────
   const warnings: string[] = [];
-  const requiredSignals = after.filter((w) => !w.optional && isCompletionSignal(w));
+  const requiredSignals = after.filter((w) => (w.evidence?.requirement ?? (w.optional ? "optional" : "required")) === "required" && isCompletionSignal(w));
   if (after.length > 0 && requiredSignals.length === 0) {
     classification = maxClass(classification, "incomplete");
     warnings.push("No required completion signal after the action — nothing concrete gates completion.");
@@ -188,7 +194,7 @@ export function reviewStepAsync(input: AsyncReviewInput): StepAsyncReview | null
     warnings.push("Policy is 'Any required' but there are fewer than two required conditions to choose between.");
   }
   // Contradiction: a required non-empty table alongside an empty-state text outcome.
-  const requiresRows = after.some((w) => w.type === "tableHasRows" && !w.optional && w.minRows >= 1);
+  const requiresRows = after.some((w) => w.type === "tableHasRows" && (w.evidence?.requirement ?? (w.optional ? "optional" : "required")) === "required" && w.minRows >= 1);
   const hasEmptyState = after.some((w) => w.type === "textVisible" && EMPTY_STATE_TEXT.test(w.text ?? ""));
   if (requiresRows && hasEmptyState) {
     classification = maxClass(classification, "unsafe");

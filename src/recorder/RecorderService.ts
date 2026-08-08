@@ -1225,6 +1225,8 @@ export class RecorderService {
     const prev = this.actions[this.actions.length - 1];
     if (!prev || prev.type === "wait" || prev.type === "routeChange") return;
     const waits = buildSmartWaits(this.signals, this.lastActionAt, now, {
+      actionId: prev.id,
+      actionType: prev.type,
       allowFixedDelayFallback: !this.captureWaitTime,
       adaptiveTimeouts: this.asyncAwareness.enabled && this.asyncAwareness.adaptiveTimeouts,
       minimumTimeoutMs: this.asyncAwareness.minimumTimeoutMs,

@@ -1,4 +1,4 @@
-import type { WaitCondition, StepLocator, LocatorStrategy, WaitHttpMethod } from "../profiles/FlowProfile";
+import type { WaitCondition, StepLocator, LocatorStrategy, WaitHttpMethod, SmartWaitEvidence } from "../profiles/FlowProfile";
 
 /**
  * Smart Wait recorder observation (Phase 2) — the pure, browser-free half.
@@ -14,20 +14,18 @@ import type { WaitCondition, StepLocator, LocatorStrategy, WaitHttpMethod } from
  */
 
 /** A locator captured page-side for a wait target (subset of {@link StepLocator}). */
-export interface SignalLocator {
-  strategy: string;
-  value: string;
-  name?: string;
-  exact?: boolean;
-}
+export type SignalLocator = StepLocator;
+
+type SignalCause = "navigation" | "click" | "focus" | "timer" | "background" | "unknown";
+interface SignalContext { cause?: SignalCause; }
 
 export type RecordedSignal =
-  | { kind: "request"; method: string; path: string; status: number; startedAt: number; endedAt: number }
-  | { kind: "loaderHidden"; selector: string; shownAt: number; hiddenAt: number }
-  | { kind: "toast"; text?: string; role?: string; ts: number }
-  | { kind: "enabled"; locator: SignalLocator; ts: number }
-  | { kind: "rows"; container: SignalLocator; listLike: boolean; count: number; ts: number }
-  | { kind: "url"; url: string; ts: number };
+  | ({ kind: "request"; method: string; path: string; status: number; startedAt: number; endedAt: number } & SignalContext)
+  | ({ kind: "loaderHidden"; locator?: SignalLocator; selector: string; shownAt: number; hiddenAt: number; existedAtBaseline?: boolean } & SignalContext)
+  | ({ kind: "toast"; locator?: SignalLocator; text?: string; role?: string; ts: number } & SignalContext)
+  | ({ kind: "enabled"; locator: SignalLocator; ts: number; existedBefore?: boolean; preDisabled?: boolean; postDisabled?: boolean } & SignalContext)
+  | ({ kind: "rows"; container: SignalLocator; listLike: boolean; previousCount?: number; count: number; ts: number } & SignalContext)
+  | ({ kind: "url"; url: string; fromUrl?: string; ts: number } & SignalContext);
 
 export interface SmartWaitBuildOptions {
   /** Minimum window duration (ms) before a `fixedDelay` fallback is considered. */
@@ -57,6 +55,9 @@ export interface SmartWaitBuildOptions {
   /** Grace (ms) stamped on recorded loaders so a late-appearing spinner is not skipped on replay
    *  (two-phase loader lifecycle). 0 disables the lifecycle (legacy loaderHidden). */
   loaderAppearanceGraceMs?: number;
+  actionId?: string;
+  actionType?: string;
+  causalWindowMs?: number;
 }
 
 const DEFAULTS: Required<SmartWaitBuildOptions> = {
@@ -70,7 +71,10 @@ const DEFAULTS: Required<SmartWaitBuildOptions> = {
   maximumTimeoutMs: 300_000,
   timeoutMultiplier: 3,
   timeoutSafetyMarginMs: 5_000,
-  loaderAppearanceGraceMs: 1_500
+  loaderAppearanceGraceMs: 1_500,
+  actionId: "",
+  actionType: "",
+  causalWindowMs: 2_000
 };
 
 /**
@@ -85,6 +89,7 @@ export function adaptiveTimeoutMs(observedMs: number, opts: Required<SmartWaitBu
 
 /** Priority order (most reliable first) used to rank and cap the waits kept per window. */
 const PRIORITY: WaitCondition["type"][] = [
+  "urlChanged",
   "response",
   "loaderHidden",
   "tableHasRows",
@@ -92,7 +97,6 @@ const PRIORITY: WaitCondition["type"][] = [
   "toastVisible",
   "textVisible",
   "elementEnabled",
-  "urlChanged",
   "domStable",
   "fixedDelay"
 ];
@@ -111,10 +115,52 @@ function normMethod(method: string): WaitHttpMethod | undefined {
 }
 
 function toStepLocator(locator: SignalLocator): StepLocator {
-  const out: StepLocator = { strategy: locator.strategy as LocatorStrategy, value: locator.value };
-  if (locator.name) out.name = locator.name;
-  if (locator.exact) out.exact = true;
-  return out;
+  return { ...locator, strategy: locator.strategy as LocatorStrategy };
+}
+
+function hasStrongIdentity(locator?: SignalLocator): boolean {
+  if (!locator) return false;
+  const quality = locator.quality;
+  return Boolean(locator.identity?.fingerprint && quality?.isUnique && quality.confidence === "high");
+}
+
+function evidence(
+  signalType: string,
+  requirement: SmartWaitEvidence["requirement"],
+  level: SmartWaitEvidence["confidence"]["level"],
+  basis: string[],
+  observedAt: number,
+  fromTs: number,
+  opts: Required<SmartWaitBuildOptions>,
+  cause: SignalCause = "unknown",
+  target?: SignalLocator,
+  states?: Pick<SmartWaitEvidence, "preState" | "postState">,
+  rank = 0
+): SmartWaitEvidence {
+  return {
+    schemaVersion: 1,
+    signalType,
+    requirement,
+    confidence: { level, basis },
+    causality: {
+      actionId: opts.actionId || undefined,
+      actionType: opts.actionType || undefined,
+      observedAt,
+      actionAt: fromTs,
+      competingCause: cause,
+      attributable: cause === "click" && observedAt - fromTs <= opts.causalWindowMs
+    },
+    targetIdentity: target?.identity,
+    ...states,
+    replayPolicy: { failureMode: requirement === "required" ? "fail" : requirement === "optional" ? "warn" : "ignore" },
+    dominance: { rank }
+  };
+}
+
+function applyEvidence<T extends WaitCondition>(wait: T, value: SmartWaitEvidence): T {
+  wait.evidence = value;
+  if (value.requirement !== "required") wait.optional = true;
+  return wait;
 }
 
 function cssLocator(selector: string): StepLocator {
@@ -184,7 +230,7 @@ export function buildSmartWaits(
       reason: `${req.method} ${req.path} completed in ${Math.max(0, req.endedAt - req.startedAt)}ms after the action`
     };
     if (opts.adaptiveTimeouts) wait.timeoutMs = adaptiveTimeoutMs(req.endedAt - req.startedAt, opts);
-    waits.push(wait);
+    waits.push(applyEvidence(wait, evidence("network", "optional", "medium", ["safe request metadata", "single request in action window"], req.endedAt, fromTs, opts, req.cause, undefined, undefined, 40)));
   }
 
   // 2. Loader appeared then disappeared (only loaders that appeared after the previous action).
@@ -194,7 +240,7 @@ export function buildSmartWaits(
   if (loader) {
     const wait: Extract<WaitCondition, { type: "loaderHidden" }> = {
       type: "loaderHidden",
-      locator: cssLocator(loader.selector),
+      locator: loader.locator ? toStepLocator(loader.locator) : cssLocator(loader.selector),
       reason: "Loader appeared then disappeared"
     };
     if (opts.adaptiveTimeouts) wait.timeoutMs = adaptiveTimeoutMs(loader.hiddenAt - loader.shownAt, opts);
@@ -205,7 +251,8 @@ export function buildSmartWaits(
       wait.mustAppear = false;
       wait.completion = "hidden";
     }
-    waits.push(wait);
+    const strong = loader.cause === "click" && hasStrongIdentity(loader.locator) && !loader.existedAtBaseline;
+    waits.push(applyEvidence(wait, evidence("loaderHidden", strong ? "required" : "advisory", strong ? "high" : "low", strong ? ["action-caused lifecycle", "stable target identity"] : ["loader causality or identity not proven"], loader.hiddenAt, fromTs, opts, loader.cause, loader.locator, { preState: { visible: true }, postState: { visible: false } }, 70)));
   }
 
   // 3. Table/list data appeared (the container that gained the most rows/items).
@@ -213,29 +260,61 @@ export function buildSmartWaits(
     .filter((s): s is Extract<RecordedSignal, { kind: "rows" }> => s.kind === "rows")
     .sort((a, b) => b.count - a.count)[0];
   if (rows) {
-    if (rows.listLike) waits.push({ type: "listHasItems", listLocator: toStepLocator(rows.container), minItems: 1, reason: "List items appeared" });
-    else waits.push({ type: "tableHasRows", tableLocator: toStepLocator(rows.container), minRows: 1, reason: "Table rows appeared" });
+    const strong = rows.cause === "click" && hasStrongIdentity(rows.container) && typeof rows.previousCount === "number";
+    const ev = evidence("rows", strong ? "required" : "advisory", strong ? "high" : "low", strong ? ["scoped count transition", "stable container identity"] : ["scoped causal transition not proven"], rows.ts, fromTs, opts, rows.cause, rows.container, { preState: { count: rows.previousCount ?? 0 }, postState: { count: rows.count } }, 65);
+    if (rows.listLike) waits.push(applyEvidence({ type: "listHasItems", listLocator: toStepLocator(rows.container), minItems: 1, reason: "List items appeared" }, ev));
+    else waits.push(applyEvidence({ type: "tableHasRows", tableLocator: toStepLocator(rows.container), minRows: 1, reason: "Table rows appeared" }, ev));
   }
 
   // 4. Toast/alert became visible.
   const toast = inWindow.find((s): s is Extract<RecordedSignal, { kind: "toast" }> => s.kind === "toast");
   if (toast) {
-    waits.push(
-      toast.text
-        ? { type: "toastVisible", text: toast.text, reason: "Toast/alert appeared" }
-        : { type: "toastVisible", reason: "Toast/alert appeared" }
-    );
+    const strong = toast.cause === "click" && hasStrongIdentity(toast.locator);
+    waits.push(applyEvidence(
+      toast.locator ? { type: "toastVisible", locator: toStepLocator(toast.locator), reason: "Toast/alert appeared" } : { type: "toastVisible", reason: "Toast/alert appeared" },
+      evidence("toast", strong ? "optional" : "advisory", strong ? "medium" : "low", strong ? ["action-attributed stable status target"] : ["background or weak status observation"], toast.ts, fromTs, opts, toast.cause, toast.locator, undefined, 45)
+    ));
   }
 
   // 5. Control became enabled.
   const enabled = inWindow.find((s): s is Extract<RecordedSignal, { kind: "enabled" }> => s.kind === "enabled");
-  if (enabled) waits.push({ type: "elementEnabled", locator: toStepLocator(enabled.locator), reason: "Control became enabled" });
+  if (enabled) {
+    const bounded = enabled.ts - fromTs <= opts.causalWindowMs;
+    const strong = enabled.cause === "click" && bounded && enabled.existedBefore === true && enabled.preDisabled === true && enabled.postDisabled === false && hasStrongIdentity(enabled.locator);
+    waits.push(applyEvidence(
+      { type: "elementEnabled", locator: toStepLocator(enabled.locator), reason: "Control became enabled" },
+      evidence("elementEnabled", strong ? "required" : "advisory", strong ? "high" : "low", strong ? ["same stable target", "disabled-to-enabled transition", "bounded action attribution"] : ["target identity or causal transition not proven"], enabled.ts, fromTs, opts, enabled.cause, enabled.locator, { preState: { disabled: enabled.preDisabled ?? null }, postState: { disabled: enabled.postDisabled ?? null } }, 60)
+    ));
+  }
 
   // 6. URL changed after the action.
   const urls = inWindow.filter((s): s is Extract<RecordedSignal, { kind: "url" }> => s.kind === "url");
   if (urls.length) {
     const frag = urlFragment(urls[urls.length - 1].url);
-    if (frag) waits.push({ type: "urlChanged", urlContains: frag, reason: "URL changed after the action" });
+    if (frag) {
+      const url = urls[urls.length - 1];
+      const strong = url.cause === "click" && url.ts - fromTs <= opts.causalWindowMs;
+      waits.push(applyEvidence(
+        { type: "urlChanged", fromUrl: url.fromUrl ? urlFragment(url.fromUrl) : undefined, urlContains: frag, reason: "Route changed after the action" },
+        evidence("route", strong ? "required" : "advisory", strong ? "high" : "low", strong ? ["trusted action route transition", "origin/path-only evidence"] : ["route attribution not proven"], url.ts, fromTs, opts, url.cause, undefined, undefined, 90)
+      ));
+    }
+  }
+
+  const dominant = waits.filter((wait) => wait.evidence?.requirement === "required").sort((a, b) => (b.evidence?.dominance?.rank ?? 0) - (a.evidence?.dominance?.rank ?? 0))[0];
+  if (dominant?.evidence) {
+    dominant.evidence.dominance = { rank: dominant.evidence.dominance?.rank ?? 0, ...dominant.evidence.dominance, dominant: true };
+    for (const wait of waits) {
+      if (wait === dominant || !wait.evidence) continue;
+      if ((wait.evidence.dominance?.rank ?? 0) < (dominant.evidence.dominance?.rank ?? 0)) {
+        wait.evidence.dominance = { rank: wait.evidence.dominance?.rank ?? 0, ...wait.evidence.dominance, supersededBy: dominant.evidence.signalType };
+        if (wait.evidence.requirement === "required") {
+          wait.evidence.requirement = "optional";
+          wait.evidence.replayPolicy = { failureMode: "warn" };
+          wait.optional = true;
+        }
+      }
+    }
   }
 
   const ordered = orderByPriority(waits).slice(0, opts.maxWaits);
@@ -244,11 +323,11 @@ export function buildSmartWaits(
   if (ordered.length === 0 && opts.allowFixedDelayFallback) {
     const delta = toTs - fromTs;
     if (delta >= opts.minMeaningfulMs) {
-      ordered.push({
+      ordered.push(applyEvidence({
         type: "fixedDelay",
         delayMs: Math.min(Math.round(delta), opts.maxFixedDelayMs),
         reason: "No reliable condition detected; recorded think-time"
-      });
+      }, evidence("thinkTime", "advisory", "low", ["no causal completion signal"], toTs, fromTs, opts, "unknown", undefined, undefined, 1)));
     }
   }
 

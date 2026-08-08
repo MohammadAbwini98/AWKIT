@@ -446,6 +446,20 @@ export function FlowNodePropertiesPanel({
               </div>
               <span>{smartWaitDetail(wait)}</span>
               {wait.reason ? <small>Evidence: {wait.reason}</small> : null}
+              {wait.evidence ? (
+                <div className="async-status-row" aria-label="Recorded completion evidence">
+                  <span className={`async-badge async-badge-${wait.evidence.requirement === "required" ? "reliable" : "needsReview"}`}>
+                    {wait.evidence.requirement} · {wait.evidence.confidence.level} confidence
+                  </span>
+                  <small title={wait.evidence.confidence.basis.join(", ")}>
+                    {wait.evidence.dominance?.dominant
+                      ? `Resolved strategy: ${wait.evidence.signalType}`
+                      : wait.evidence.dominance?.supersededBy
+                        ? `Supporting only · ${wait.evidence.dominance.supersededBy} dominates`
+                        : wait.evidence.confidence.basis.join(" · ")}
+                  </small>
+                </div>
+              ) : null}
               {review.warnings.map((w, i) => (
                 <small key={i} className="async-warning">⚠ {w}</small>
               ))}

@@ -425,6 +425,33 @@ export interface ValueSource {
 
 export type WaitHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export type SmartWaitRequirement = "required" | "optional" | "advisory";
+export type SmartWaitConfidenceLevel = "high" | "medium" | "low";
+
+/** Privacy-safe Recorder evidence used to decide whether an inferred wait may gate replay. */
+export interface SmartWaitEvidence {
+  schemaVersion: 1;
+  signalType: string;
+  requirement: SmartWaitRequirement;
+  confidence: { level: SmartWaitConfidenceLevel; score?: number; basis: string[] };
+  causality: {
+    actionId?: string;
+    actionType?: string;
+    observedAt: number;
+    actionAt?: number;
+    transitionStartedAt?: number;
+    transitionCompletedAt?: number;
+    competingCause?: "navigation" | "click" | "focus" | "timer" | "background" | "unknown";
+    attributable: boolean;
+  };
+  /** Hashed Element Identity Contract; never raw page text or customer data. */
+  targetIdentity?: ElementIdentityContract;
+  preState?: Record<string, boolean | number | string | null>;
+  postState?: Record<string, boolean | number | string | null>;
+  replayPolicy?: { timeoutMs?: number; failureMode: "fail" | "warn" | "ignore" };
+  dominance?: { rank: number; dominant?: boolean; supersededBy?: string };
+}
+
 /** Fields shared by every {@link WaitCondition}. */
 export interface WaitConditionBase {
   /** Max time to wait before the condition fails (ms). Runner default: 30000. */
@@ -437,6 +464,8 @@ export interface WaitConditionBase {
    * (the historical behavior). Enables optional loaders, optional background responses, etc.
    */
   optional?: boolean;
+  /** Present on newly Recorder-inferred waits. Absent preserves legacy/manual semantics. */
+  evidence?: SmartWaitEvidence;
 }
 
 /** How a loader's disappearance/settling is detected in the loader lifecycle's completion phase. */
