@@ -73,6 +73,11 @@ export class SecurityKernel {
     return { provisioned: this.store.isProvisioned(), idleTimeoutMs: this.sessions.idleTimeoutMs };
   }
 
+  /** Trusted composition-root update used after an authorized persisted settings change. */
+  setSessionIdleTimeoutMs(idleMs: number): void {
+    this.sessions.setIdleTimeoutMs(idleMs);
+  }
+
   async close(): Promise<void> {
     await this.store.close();
   }

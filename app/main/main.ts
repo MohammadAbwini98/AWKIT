@@ -3,7 +3,7 @@ import { ensureRuntimeFolders, isProductionOffline } from "./appPaths";
 import { getOfflineRuntimeStatus } from "./offlineRuntimeValidator";
 import { registerIpcHandlers } from "./ipc";
 import { createMainWindow, createSplashWindow, fadeOutAndClose } from "./windowManager";
-import { updateUiSettings, flushSettingsWrites } from "./uiSettings";
+import { updateUiSettings, flushSettingsWrites, getUiSettings } from "./uiSettings";
 import { disposeOracleServices } from "./oracleService";
 import { disposeSecurityKernel } from "./security/securityKernel";
 import { disposeSemanticSubsystem, initializeSemanticSubsystem } from "./semantic/semanticService";
@@ -11,6 +11,7 @@ import { initializeLicensingRuntime } from "./licensing/licenseRuntime";
 import { startLicenseEnforcementWatcher, stopLicenseEnforcementWatcher } from "./licensing/licenseEnforcementService";
 import { evaluateOfflineStartupGate } from "@src/offline/ProductionStartupCheck";
 import { executionEngine } from "@src/runner/ExecutionEngine";
+import { getDebugLogService } from "./debugLogService";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -62,6 +63,11 @@ async function bootstrap(): Promise<void> {
 
   // Record this launch so the Settings screen can show the last-launched time.
   await updateUiSettings({ app: { lastLaunchedAt: new Date().toISOString() } }).catch(() => undefined);
+  const currentSettings = await getUiSettings();
+  getDebugLogService().setEnabled(currentSettings.superUser.debugMode);
+  await getDebugLogService().log("info", "application", "SpecterStudio started.", {
+    mode: isProductionOffline() ? "production-offline" : "development"
+  });
 
   registerIpcHandlers();
   if (!executionEngine.dispatchGateRegistered) {
@@ -170,6 +176,7 @@ if (!gotSingleInstanceLock) {
     if (settingsFlushed) return;
     event.preventDefault();
     stopLicenseEnforcementWatcher();
+    void getDebugLogService().log("info", "application", "SpecterStudio is shutting down.");
 
     // Staged shutdown (plan §12). Stage 1 closes the semantic host on its OWN bounded budget so a
     // native close can never eat into the existing 2s envelope that settings/Oracle/security
@@ -178,7 +185,10 @@ if (!gotSingleInstanceLock) {
     const stage2 = (): Promise<unknown> => {
       const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2000));
       // Also dispose the Oracle JDBC bridge so no Java child process is orphaned.
-      return Promise.race([Promise.all([flushSettingsWrites(), disposeOracleServices(), disposeSecurityKernel()]), timeout]);
+      return Promise.race([
+        Promise.all([flushSettingsWrites(), getDebugLogService().flush(), disposeOracleServices(), disposeSecurityKernel()]),
+        timeout
+      ]);
     };
 
     // Stage 1 is raced against its own ceiling rather than trusted to be bounded. It now drains the

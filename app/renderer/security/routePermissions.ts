@@ -35,7 +35,7 @@ export const RoutePermissions: Partial<Record<RouteId, Permission>> = {
   reportsServer: Permission.PAGE_REPORTS,
   reports: Permission.PAGE_REPORTS,
   recorder: Permission.PAGE_RECORDER,
-  roadmap: Permission.PAGE_SETTINGS,
+  roadmap: Permission.PAGE_ROADMAP,
   // projectContract (the "Help Center" doc page) is intentionally NOT gated — it is reference
   // documentation surfaced once in the pinned footer and available to every signed-in role.
   offlineRuntime: Permission.PAGE_SETTINGS,

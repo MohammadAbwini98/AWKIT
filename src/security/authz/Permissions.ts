@@ -19,6 +19,8 @@ export const Permission = {
   PAGE_REPORTS: "page.reports",
   PAGE_RECORDER: "page.recorder",
   PAGE_SETTINGS: "page.settings",
+  /** Full derived Program Status dashboard. Super-User only. */
+  PAGE_ROADMAP: "page.roadmap",
   PAGE_ADMIN: "page.admin", // Super User Administration area
   PAGE_LICENSE: "page.license",
   PAGE_LICENSE_ISSUER: "page.licenseIssuer",
@@ -34,6 +36,12 @@ export const Permission = {
   REPORT_EXPORT: "report.export",
   // ── System configuration ───────────────────────────────────────────────────
   SETTINGS_EDIT: "settings.edit",
+  /** Enable/disable optional diagnostic logging. Super-User only. */
+  DEBUG_MODE_MANAGE: "debug.mode.manage",
+  /** Read optional diagnostic logs through the application. Super-User only. */
+  DEBUG_LOG_VIEW: "debug.log.view",
+  /** Change the application-session inactivity policy. Super-User only. */
+  SESSION_POLICY_MANAGE: "session.policy.manage",
   /** Manage the custom workspace logo (Settings → Appearance → Branding). Super-User only. */
   SETTINGS_BRANDING_MANAGE: "settings.appearance.branding.manage",
   CONFIG_VIEW_SENSITIVE: "config.viewSensitive",
@@ -84,6 +92,8 @@ export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set<Permission
   Permission.LICENSE_REVOKE,
   Permission.LICENSE_ISSUE,
   Permission.SETTINGS_EDIT,
+  Permission.DEBUG_MODE_MANAGE,
+  Permission.SESSION_POLICY_MANAGE,
   Permission.SETTINGS_BRANDING_MANAGE,
   Permission.SEMANTIC_MANAGE_INDEX,
   Permission.SEMANTIC_MANAGE_EMBEDDINGS
@@ -142,7 +152,11 @@ const ADMINISTRATOR_PERMISSIONS: readonly Permission[] = ALL_PERMISSIONS.filter(
     p !== Permission.USER_MANAGE &&
     p !== Permission.PAGE_LICENSE &&
     p !== Permission.PAGE_LICENSE_ISSUER &&
+    p !== Permission.PAGE_ROADMAP &&
     p !== Permission.SETTINGS_BRANDING_MANAGE &&
+    p !== Permission.DEBUG_MODE_MANAGE &&
+    p !== Permission.DEBUG_LOG_VIEW &&
+    p !== Permission.SESSION_POLICY_MANAGE &&
     !p.startsWith("license.")
 );
 

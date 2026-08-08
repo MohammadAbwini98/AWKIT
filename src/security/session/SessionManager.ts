@@ -9,6 +9,7 @@
 import { randomBytes } from "node:crypto";
 import type { SecurityStore } from "@src/security/store/SecurityStore";
 import type { ProviderId } from "@src/security/auth/AuthTypes";
+import { DEFAULT_SESSION_INACTIVITY_MINUTES, sessionInactivityMinutesToMs } from "./SessionPolicy";
 
 export interface SessionPolicy {
   /** Idle timeout: revoke if inactive longer than this. */
@@ -18,7 +19,7 @@ export interface SessionPolicy {
 }
 
 export const DEFAULT_SESSION_POLICY: SessionPolicy = {
-  idleMs: 30 * 60 * 1000, // 30 minutes
+  idleMs: sessionInactivityMinutesToMs(DEFAULT_SESSION_INACTIVITY_MINUTES),
   absoluteMs: 12 * 60 * 60 * 1000 // 12 hours
 };
 
@@ -27,15 +28,25 @@ export type SessionResolution =
   | { valid: false };
 
 export class SessionManager {
+  private policy: SessionPolicy;
+
   constructor(
     private readonly store: SecurityStore,
-    private readonly policy: SessionPolicy = DEFAULT_SESSION_POLICY,
+    policy: SessionPolicy = DEFAULT_SESSION_POLICY,
     private readonly now: () => number = () => Date.now()
-  ) {}
+  ) {
+    this.policy = { ...policy };
+  }
 
   /** The idle timeout (ms) the renderer uses to lock proactively before the server-side sweep. */
   get idleTimeoutMs(): number {
     return this.policy.idleMs;
+  }
+
+  /** Apply a validated idle policy immediately; absolute session expiry is intentionally unchanged. */
+  setIdleTimeoutMs(idleMs: number): void {
+    if (!Number.isFinite(idleMs) || idleMs <= 0) throw new Error("Session idle timeout must be positive.");
+    this.policy = { ...this.policy, idleMs };
   }
 
   /** Create a new session bound to a user; returns the opaque session id. */

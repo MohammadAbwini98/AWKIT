@@ -213,6 +213,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-data-source": { class: "unit", why: "Oracle data-source model/resolution; no Java, no DB." },
   "verify:oracle-driver-bundle": { class: "unit", why: "Driver-bundle store logic with a STUB bridge probe." },
   "verify:authz": { class: "unit", why: "RBAC + Super-User admin logic, headless." },
+  "verify:super-user-controls": { class: "integration", why: "Exercises the Super-User permission registry, session-policy validation, real bounded/redacted JSONL files in a temp directory, generated roadmap parity, and IPC/UI source boundaries without Electron." },
   "verify:session-context": { class: "unit", why: "Browser-free sender-bound session-registry checks." },
   "verify:stress:concurrency": { class: "unit", why: "Concurrency stress over pure logic with fake runtimes." },
   "verify:stress:cancellation": { class: "unit", why: "Cancellation stress over pure logic with fake runtimes." },

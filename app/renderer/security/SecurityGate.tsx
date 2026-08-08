@@ -42,9 +42,9 @@ export function SecurityGate() {
   const [principal, setPrincipal] = useState<PrincipalSnapshot | null>(null);
   const [lockNotice, setLockNotice] = useState<string | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
+  const [idleTimeoutMs, setIdleTimeoutMs] = useState(DEFAULT_IDLE_MS);
   const sessionRef = useRef<string>("");
   const pendingBootstrapRef = useRef<{ username: string; password: string } | null>(null);
-  const idleTimeoutRef = useRef<number>(DEFAULT_IDLE_MS);
   const lastActivityRef = useRef<number>(Date.now());
   const lastValidateRef = useRef<number>(Date.now());
 
@@ -69,7 +69,7 @@ export function SecurityGate() {
         return;
       }
       if (typeof boot.idleTimeoutMs === "number" && boot.idleTimeoutMs > 0) {
-        idleTimeoutRef.current = boot.idleTimeoutMs;
+        setIdleTimeoutMs(boot.idleTimeoutMs);
       }
       setOptions(await window.playwrightFlowStudio.security.getLoginOptions());
       setState(boot.provisioned ? "login" : "firstRun");
@@ -81,6 +81,18 @@ export function SecurityGate() {
   useEffect(() => {
     void init();
   }, [init]);
+
+  // Privileged policy changes take effect immediately for the current signed-in window. Rebuilding
+  // the timer below starts a fresh inactivity window at the moment the policy is changed, matching
+  // the main-process validation that authorized the settings mutation.
+  useEffect(
+    () =>
+      window.playwrightFlowStudio.security.onIdleTimeoutChanged((nextIdleMs) => {
+        if (!Number.isFinite(nextIdleMs) || nextIdleMs <= 0) return;
+        setIdleTimeoutMs(nextIdleMs);
+      }),
+    []
+  );
 
   const applyPrincipal = useCallback((next: PrincipalSnapshot) => {
     sessionRef.current = next.sessionRef;
@@ -208,7 +220,7 @@ export function SecurityGate() {
     const activityEvents = ["pointerdown", "keydown", "mousemove", "wheel", "touchstart", "scroll"];
     for (const ev of activityEvents) window.addEventListener(ev, markActivity, { passive: true });
 
-    const idleMs = idleTimeoutRef.current;
+    const idleMs = idleTimeoutMs;
     const tickMs = Math.min(15000, Math.max(1000, Math.floor(idleMs / 6)));
     const validateMinIntervalMs = Math.min(60000, Math.max(1000, Math.floor(idleMs / 3)));
     const interval = window.setInterval(async () => {
@@ -231,7 +243,7 @@ export function SecurityGate() {
       for (const ev of activityEvents) window.removeEventListener(ev, markActivity);
       window.clearInterval(interval);
     };
-  }, [state, lock]);
+  }, [state, lock, idleTimeoutMs]);
 
   if (state === "authed" && principal) {
     return (

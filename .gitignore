@@ -159,5 +159,8 @@ test-artifacts/
 # Rebuild with `graphify update .` — see docs/ai/GRAPHIFY.md.
 graphify-out/
 
+# Deterministic build input generated from the authoritative roadmap sources before compilation.
+resources/embedded-roadmap-snapshot.json
+
 # Machine-local Codex sandbox policy; never publish a workstation's access mode.
 .codex/config.toml

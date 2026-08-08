@@ -14,6 +14,12 @@ import {
   type RecorderSecuritySettings
 } from "@src/security/browser/CertificateTrust";
 import { SEMANTIC_DEFAULT_TOP_K, SEMANTIC_MAX_TOP_K } from "@src/semantic/contracts/SemanticDocument";
+import {
+  DEFAULT_SESSION_INACTIVITY_MINUTES,
+  MAX_SESSION_INACTIVITY_MINUTES,
+  MIN_SESSION_INACTIVITY_MINUTES,
+  isValidSessionInactivityMinutes
+} from "@src/security/session/SessionPolicy";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
@@ -194,6 +200,13 @@ export interface UiSettings {
      */
     autoIndex: boolean;
   };
+  /** Privileged application policy. Every mutation is enforced in main, not trusted to the renderer. */
+  superUser: {
+    /** Optional structured diagnostic logging; mandatory audit trails are independent. */
+    debugMode: boolean;
+    /** Sliding application-session inactivity timeout, in whole minutes. */
+    sessionInactivityMinutes: number;
+  };
   tables: { flows: TableState; workflows: TableState };
 }
 
@@ -303,6 +316,10 @@ const defaultSettings: UiSettings = {
     // nobody is watching.
     autoIndex: true
   },
+  superUser: {
+    debugMode: false,
+    sessionInactivityMinutes: DEFAULT_SESSION_INACTIVITY_MINUTES
+  },
   tables: { flows: { ...defaultTableState }, workflows: { ...defaultTableState } }
 };
 
@@ -330,7 +347,8 @@ function pruneUnknownSettings(settings: UiSettings): UiSettings {
     "execution",
     "runtime",
     "paths",
-    "semantic"
+    "semantic",
+    "superUser"
   ] as const) {
     retainKnownKeys(settings[key], defaultSettings[key] as unknown as Record<string, unknown>);
   }
@@ -408,6 +426,7 @@ function hydrate(parsed: Partial<UiSettings>): UiSettings {
     workflowRunCards: { ...defaultSettings.workflowRunCards, ...parsed.workflowRunCards },
     paths: { ...defaultSettings.paths, ...parsed.paths },
     semantic: { ...defaultSettings.semantic, ...parsed.semantic },
+    superUser: { ...defaultSettings.superUser, ...parsed.superUser },
     tables: {
       flows: { ...defaultTableState, ...parsed.tables?.flows },
       workflows: { ...defaultTableState, ...parsed.tables?.workflows }
@@ -440,6 +459,7 @@ function mergePatch(current: UiSettings, patch: DeepPartial<UiSettings>): UiSett
     workflowRunCards: { ...current.workflowRunCards, ...patch.workflowRunCards } as UiSettings["workflowRunCards"],
     paths: { ...current.paths, ...patch.paths },
     semantic: { ...current.semantic, ...patch.semantic },
+    superUser: { ...current.superUser, ...patch.superUser },
     tables: {
       flows: { ...current.tables.flows, ...patch.tables?.flows },
       workflows: { ...current.tables.workflows, ...patch.tables?.workflows }
@@ -642,6 +662,17 @@ export function validateSettings(settings: UiSettings): string[] {
   }
   if (!Number.isInteger(sem?.defaultTopK) || sem.defaultTopK < 1 || sem.defaultTopK > SEMANTIC_MAX_TOP_K) {
     errors.push(`Semantic default result count must be an integer between 1 and ${SEMANTIC_MAX_TOP_K}.`);
+  }
+
+  if (typeof settings.superUser.debugMode !== "boolean") {
+    errors.push("Debug mode must be true or false.");
+  }
+  if (
+    !isValidSessionInactivityMinutes(settings.superUser.sessionInactivityMinutes)
+  ) {
+    errors.push(
+      `Session inactivity timeout must be a whole number between ${MIN_SESSION_INACTIVITY_MINUTES} and ${MAX_SESSION_INACTIVITY_MINUTES} minutes.`
+    );
   }
 
   const acc = settings.accent;

@@ -24,6 +24,9 @@ import {
 } from "../profileStores";
 import { assertSenderPermission } from "../security/sessionContext";
 import { Permission } from "@src/security/authz/Permissions";
+import { getDebugLogService } from "../debugLogService";
+import { getSecurityKernel } from "../security/securityKernel";
+import { sessionInactivityMinutesToMs } from "@src/security/session/SessionPolicy";
 
 /**
  * Config groups the Settings page owns; a patch touching any of these requires SETTINGS_EDIT. Everything
@@ -88,13 +91,40 @@ export function registerSettingsIpc(): void {
     if (patchTouchesSubstantiveSettings(patch)) {
       await assertSenderPermission(event, Permission.SETTINGS_EDIT);
     }
+    if (patch.superUser?.debugMode !== undefined) {
+      await assertSenderPermission(event, Permission.DEBUG_MODE_MANAGE);
+    }
+    if (patch.superUser?.sessionInactivityMinutes !== undefined) {
+      await assertSenderPermission(event, Permission.SESSION_POLICY_MANAGE);
+    }
     const next = await updateUiSettings(patch);
+    if (patch.superUser?.debugMode !== undefined) {
+      getDebugLogService().setEnabled(next.superUser.debugMode);
+      await getDebugLogService().log("info", "settings", "Debug mode setting changed.", {
+        enabled: next.superUser.debugMode
+      });
+    }
+    if (patch.superUser?.sessionInactivityMinutes !== undefined) {
+      const idleMs = sessionInactivityMinutesToMs(next.superUser.sessionInactivityMinutes);
+      const kernel = await getSecurityKernel();
+      kernel.setSessionIdleTimeoutMs(idleMs);
+      event.sender.send("security:idle-timeout-changed", idleMs);
+      await getDebugLogService().log("info", "security", "Session inactivity policy changed.", {
+        minutes: next.superUser.sessionInactivityMinutes
+      });
+    }
     applyConcurrency();
     return next;
   });
   ipcMain.handle("settings:reset", async (event) => {
     await assertSenderPermission(event, Permission.SETTINGS_EDIT);
+    await assertSenderPermission(event, Permission.DEBUG_MODE_MANAGE);
+    await assertSenderPermission(event, Permission.SESSION_POLICY_MANAGE);
     const next = await resetUiSettings();
+    getDebugLogService().setEnabled(next.superUser.debugMode);
+    const kernel = await getSecurityKernel();
+    kernel.setSessionIdleTimeoutMs(sessionInactivityMinutesToMs(next.superUser.sessionInactivityMinutes));
+    event.sender.send("security:idle-timeout-changed", sessionInactivityMinutesToMs(next.superUser.sessionInactivityMinutes));
     applyConcurrency();
     return next;
   });
@@ -108,7 +138,13 @@ export function registerSettingsIpc(): void {
   });
   ipcMain.handle("settings:import", async (event, incoming: unknown) => {
     await assertSenderPermission(event, Permission.SETTINGS_EDIT);
+    await assertSenderPermission(event, Permission.DEBUG_MODE_MANAGE);
+    await assertSenderPermission(event, Permission.SESSION_POLICY_MANAGE);
     const next = await replaceUiSettings(incoming);
+    getDebugLogService().setEnabled(next.superUser.debugMode);
+    const kernel = await getSecurityKernel();
+    kernel.setSessionIdleTimeoutMs(sessionInactivityMinutesToMs(next.superUser.sessionInactivityMinutes));
+    event.sender.send("security:idle-timeout-changed", sessionInactivityMinutesToMs(next.superUser.sessionInactivityMinutes));
     applyConcurrency();
     return next;
   });

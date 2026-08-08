@@ -15,17 +15,17 @@
    custom title bar that does not exist here, and locks scrolling for the
    desktop shell.
    ========================================================================== */
-:root {
+html[data-roadmap-standalone] {
   --titlebar-height: 0px;
 }
 
-html,
-body,
-#root {
+html[data-roadmap-standalone],
+html[data-roadmap-standalone] body,
+html[data-roadmap-standalone] #root {
   overflow: auto;
 }
 
-#root {
+html[data-roadmap-standalone] #root {
   min-height: 100%;
 }
 
@@ -35,6 +35,54 @@ body,
 .rm-shell {
   min-height: 100vh;
 }
+
+/* Embedded mode reuses every view/card/table renderer inside SpecterStudio's existing shell. */
+.rm-embedded-page {
+  min-height: 0;
+  padding: 0;
+}
+
+.rm-embedded-layout {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100%;
+}
+
+.rm-embedded-nav {
+  background: var(--awkit-sidebar-bg);
+  border-bottom: 1px solid var(--awkit-border);
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  padding: var(--space-2);
+}
+
+.rm-embedded-nav .rm-live {
+  margin-left: auto;
+}
+
+.rm-embedded-nav .nav-item {
+  flex: 0 0 auto;
+}
+
+.rm-embedded-main {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.rm-embedded-header {
+  border-bottom: 1px solid var(--awkit-border);
+  padding: var(--space-3) var(--space-4);
+}
+
+.rm-embedded-view {
+  min-height: 0;
+  overflow: auto;
+}
+
 
 .rm-brand-sub {
   color: var(--awkit-text-muted);

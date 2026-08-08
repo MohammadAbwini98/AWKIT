@@ -42,6 +42,8 @@ import type {
 import type { RuntimeStatusSnapshot } from "@src/runner/concurrency/RuntimeStatus";
 import type { CdpObservationSnapshot } from "@src/runner/observation/PassiveCdpTrace";
 import type { BrandingStateView } from "./ipc/branding.ipc";
+import type { DebugLogEntry } from "./debugLogService";
+import type { RoadmapSnapshot } from "./roadmapSnapshotService";
 
 /** Uniform admin IPC response shape (success carries `value`; failure carries a safe `reason`). */
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
@@ -168,6 +170,13 @@ const api = {
       invoke("security:changePassword", input) as Promise<{ ok: boolean; reason?: string; errors?: string[] }>,
     reauth: (input: { sessionRef: string; password: string }) =>
       invoke("security:reauth", input) as Promise<{ ok: boolean; reason?: string }>,
+    onIdleTimeoutChanged: (callback: (idleTimeoutMs: number) => void) => {
+      const listener = (_event: unknown, idleTimeoutMs: number) => callback(idleTimeoutMs);
+      ipcRenderer.on("security:idle-timeout-changed", listener);
+      return () => {
+        ipcRenderer.removeListener("security:idle-timeout-changed", listener);
+      };
+    },
     admin: {
       listUsers: (sessionRef: string) =>
         invoke("security:admin:listUsers", { sessionRef }) as Promise<AdminResponse<AdminUserView[]>>,
@@ -248,6 +257,12 @@ const api = {
         dataSources: number;
         reports: number;
       }>
+  },
+  debug: {
+    list: (limit?: number) => invoke("debug:list", limit) as Promise<DebugLogEntry[]>
+  },
+  roadmap: {
+    getSnapshot: () => invoke("roadmap:getSnapshot") as Promise<RoadmapSnapshot>
   },
   // Custom workspace logo (Settings → Appearance → Branding). `getState` is an open read (every role
   // renders the sidebar); the mutating calls are Super-User-only, enforced in the main process. The

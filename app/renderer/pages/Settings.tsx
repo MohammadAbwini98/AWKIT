@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  Bug,
   Database,
   FolderOpen,
   Gauge,
@@ -9,6 +10,7 @@ import {
   KeyRound,
   Plus,
   RotateCcw,
+  RefreshCw,
   Save,
   ShieldAlert,
   ShieldCheck,
@@ -31,6 +33,12 @@ import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 import { OracleDriverSettings } from "./OracleDriverSettings";
 import { JavaRuntimeSettings } from "./JavaRuntimeSettings";
 import { SemanticIndexSettings } from "./SemanticIndexSettings";
+import type { DebugLogEntry } from "../../main/debugLogService";
+import {
+  MAX_SESSION_INACTIVITY_MINUTES,
+  MIN_SESSION_INACTIVITY_MINUTES,
+  isValidSessionInactivityMinutes
+} from "@src/security/session/SessionPolicy";
 
 const CAPACITY_MODES: { id: UiSettings["runtime"]["capacityMode"]; label: string; hint: string }[] = [
   { id: "sequential", label: "Sequential", hint: "One instance at a time — safest, machine-independent." },
@@ -112,6 +120,12 @@ function validateClient(settings: UiSettings): FieldError[] {
   for (const { key, label } of PATH_FIELDS) {
     if (!settings.paths[key]?.trim()) errors.push({ field: `set-path-${key}`, message: `${label} path must not be empty.` });
   }
+  if (!isValidSessionInactivityMinutes(settings.superUser.sessionInactivityMinutes)) {
+    errors.push({
+      field: "set-session-inactivity",
+      message: `Session inactivity timeout must be a whole number between ${MIN_SESSION_INACTIVITY_MINUTES} and ${MAX_SESSION_INACTIVITY_MINUTES} minutes.`
+    });
+  }
   return errors;
 }
 
@@ -129,6 +143,8 @@ export function SettingsPage() {
   const [defaultPaths, setDefaultPaths] = useState<Record<string, string>>({});
   const [capacity, setCapacity] = useState<CapacityPreview | null>(null);
   const [capacityLoading, setCapacityLoading] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+  const [debugLogsLoading, setDebugLogsLoading] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const api = window.playwrightFlowStudio.settings;
   const secretsApi = window.playwrightFlowStudio.secrets;
@@ -169,6 +185,18 @@ export function SettingsPage() {
       setSecretsAvailable(false);
     }
   }, [secretsApi]);
+
+  const loadDebugLogs = useCallback(async () => {
+    if (!can(Permission.DEBUG_LOG_VIEW)) return;
+    setDebugLogsLoading(true);
+    try {
+      setDebugLogs(await window.playwrightFlowStudio.debug.list());
+    } catch {
+      setDebugLogs([]);
+    } finally {
+      setDebugLogsLoading(false);
+    }
+  }, [can]);
 
   const addSecret = useCallback(async () => {
     const name = secretName.trim();
@@ -226,7 +254,8 @@ export function SettingsPage() {
   useEffect(() => {
     void reload();
     void loadSecrets();
-  }, [reload, loadSecrets]);
+    void loadDebugLogs();
+  }, [reload, loadSecrets, loadDebugLogs]);
 
   // Refresh the machine capacity readout on load and whenever the workload class changes (so Auto's
   // recommendation reflects the selected class live, before saving).
@@ -331,16 +360,20 @@ export function SettingsPage() {
         designerDefaults: settings.designerDefaults,
         execution: settings.execution,
         runtime: settings.runtime,
-        paths: settings.paths
+        paths: settings.paths,
+        ...(can(Permission.DEBUG_MODE_MANAGE) && can(Permission.SESSION_POLICY_MANAGE)
+          ? { superUser: settings.superUser }
+          : {})
       });
       setBanner({ type: "success", text: "Settings saved." });
       await loadStats();
+      await loadDebugLogs();
     } catch {
       setBanner({ type: "error", text: "Failed to save settings." });
     } finally {
       setSaving(false);
     }
-  }, [api, settings, loadStats]);
+  }, [api, can, settings, loadStats, loadDebugLogs]);
 
   const resetDefaults = useCallback(async () => {
     if (!window.confirm("Reset ALL settings to defaults? This does not delete flows, workflows, or reports.")) return;
@@ -497,6 +530,88 @@ export function SettingsPage() {
         {/* Appearance — Workspace Logo (Super-User-only custom branding; hidden for other roles).
             The main process is the real boundary — SETTINGS_BRANDING_MANAGE gates the mutating IPC. */}
         {can(Permission.SETTINGS_BRANDING_MANAGE) ? <BrandingSettings /> : null}
+
+        {can(Permission.DEBUG_MODE_MANAGE) && can(Permission.SESSION_POLICY_MANAGE) ? (
+          <section className="work-panel settings-card" data-testid="super-user-debug-settings">
+            <div className="settings-card-head">
+              <Bug size={16} />
+              <h2>Super User Debug &amp; Session Policy</h2>
+            </div>
+            <p className="settings-card-hint">
+              Optional diagnostic logs are local, structured, redacted, and bounded. Security audit records
+              remain independent. Timeout changes take effect immediately and start a fresh inactivity window.
+            </p>
+            <div className="settings-grid">
+              <label className="inline-check">
+                <input
+                  type="checkbox"
+                  checked={settings.superUser.debugMode}
+                  onChange={(event) =>
+                    setSettings((current) =>
+                      current
+                        ? { ...current, superUser: { ...current.superUser, debugMode: event.target.checked } }
+                        : current
+                    )
+                  }
+                />
+                Debug Mode
+              </label>
+              <label htmlFor="set-session-inactivity">
+                Session inactivity timeout (minutes)
+                <input
+                  id="set-session-inactivity"
+                  type="number"
+                  min={MIN_SESSION_INACTIVITY_MINUTES}
+                  max={MAX_SESSION_INACTIVITY_MINUTES}
+                  step={1}
+                  value={settings.superUser.sessionInactivityMinutes}
+                  {...fieldError("set-session-inactivity")}
+                  onChange={(event) =>
+                    setSettings((current) =>
+                      current
+                        ? {
+                            ...current,
+                            superUser: {
+                              ...current.superUser,
+                              sessionInactivityMinutes: Number(event.target.value)
+                            }
+                          }
+                        : current
+                    )
+                  }
+                />
+              </label>
+            </div>
+            <div className="settings-card-head settings-debug-log-head">
+              <h3>Recent debug logs</h3>
+              <button className="toolbar-button" type="button" onClick={() => void loadDebugLogs()} disabled={debugLogsLoading}>
+                <RefreshCw size={14} />
+                {debugLogsLoading ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+            {settings.superUser.debugMode && debugLogs.length ? (
+              <div className="awkit-table-wrap settings-debug-log-table">
+                <table className="awkit-table">
+                  <thead><tr><th>Time</th><th>Severity</th><th>Source</th><th>Message</th></tr></thead>
+                  <tbody>
+                    {debugLogs.map((entry, index) => (
+                      <tr key={`${entry.at}:${index}`}>
+                        <td>{new Date(entry.at).toLocaleString()}</td>
+                        <td><span className="status-badge">{entry.level}</span></td>
+                        <td>{entry.source}</td>
+                        <td>{entry.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="form-message">
+                {settings.superUser.debugMode ? "No debug entries have been written yet." : "Debug logging is off."}
+              </p>
+            )}
+          </section>
+        ) : null}
 
         {/* Recorder — Protected Login Detection */}
         <section className="work-panel settings-card">

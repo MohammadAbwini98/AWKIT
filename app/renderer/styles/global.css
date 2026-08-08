@@ -11387,3 +11387,18 @@ button.recorded-url-use:disabled {
 .semantic-health-error {
   background: var(--awkit-danger);
 }
+/* Super-User diagnostics stay inside the existing Settings card/table vocabulary. */
+.settings-debug-log-head {
+  justify-content: space-between;
+  margin-top: var(--space-3);
+}
+
+.settings-debug-log-table {
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.settings-debug-log-table td:last-child {
+  min-width: 16rem;
+  white-space: normal;
+}

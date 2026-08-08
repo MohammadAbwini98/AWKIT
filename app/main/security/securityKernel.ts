@@ -12,6 +12,9 @@ import { SecurityKernel, type SecurityKernelOptions } from "@src/security/Securi
 import { DEFAULT_SESSION_POLICY } from "@src/security/session/SessionManager";
 import type { ColumnCrypto } from "@src/security/crypto/ColumnCrypto";
 import { SECURITY_DB_FILENAME } from "@src/security/store/SecurityStoreSchema";
+import { getUiSettings } from "../uiSettings";
+import { getDebugLogService } from "../debugLogService";
+import { sessionInactivityMinutesToMs } from "@src/security/session/SessionPolicy";
 
 /**
  * Optional test/dev overrides, each honored only as a positive finite number so a malformed value can
@@ -21,8 +24,15 @@ import { SECURITY_DB_FILENAME } from "@src/security/store/SecurityStoreSchema";
  *   - AWKIT_REAUTH_WINDOW_MS — the sensitive-op re-auth window (ms), so the ReauthDialog path can be
  *     exercised without waiting out the 5-minute default.
  */
-function resolveKernelOptions(): SecurityKernelOptions {
+async function resolveKernelOptions(): Promise<SecurityKernelOptions> {
   const options: SecurityKernelOptions = {};
+
+  const settings = await getUiSettings();
+  options.sessionPolicy = {
+    ...DEFAULT_SESSION_POLICY,
+    idleMs: sessionInactivityMinutesToMs(settings.superUser.sessionInactivityMinutes)
+  };
+  getDebugLogService().setEnabled(settings.superUser.debugMode);
 
   const idleRaw = process.env.AWKIT_SESSION_IDLE_MS;
   const idleMs = idleRaw ? Number(idleRaw) : NaN;
@@ -81,7 +91,7 @@ let kernelPromise: Promise<SecurityKernel> | null = null;
 export function getSecurityKernel(): Promise<SecurityKernel> {
   if (!kernelPromise) {
     const dbPath = join(getRuntimeDataRoot(), "security", SECURITY_DB_FILENAME);
-    kernelPromise = SecurityKernel.open(dbPath, electronColumnCrypto, resolveKernelOptions()).catch((error) => {
+    kernelPromise = resolveKernelOptions().then((options) => SecurityKernel.open(dbPath, electronColumnCrypto, options)).catch((error) => {
       kernelPromise = null; // allow a retry on the next call instead of caching the rejection
       throw error;
     });
