@@ -470,6 +470,11 @@ const api = {
     stop: () => invoke("recorder:stop") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
     cancel: () => invoke("recorder:cancel") as Promise<{ success: boolean }>,
     getActions: () => invoke("recorder:getActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
+    clearActions: () => invoke("recorder:clearActions") as Promise<import("@src/recorder/RecorderTypes").RecordedAction[]>,
+    deleteAction: (actionId: string) => invoke("recorder:deleteAction", actionId) as Promise<{
+      actions: import("@src/recorder/RecorderTypes").RecordedAction[];
+      removedIds: string[];
+    }>,
     getStatus: () => invoke("recorder:getStatus") as Promise<RecorderStatus>,
     getUrls: () => invoke("recorder:getUrls") as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,
     saveUrl: (url: string) => invoke("recorder:saveUrl", url) as Promise<import("@src/recorder/RecorderTypes").RecordedUrl[]>,

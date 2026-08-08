@@ -441,6 +441,41 @@ try {
   check("REC-004 Stop re-enables Start", await startButton(win).isEnabled());
   check("REC-004 Stop disables Stop and Cancel", (await stopButton(win).isDisabled()) && (await cancelButton(win).isDisabled()));
 
+  // Recorder action management: UI mutations go through the main-process action owner and persist.
+  const beforeDeleteCount = afterStop.length;
+  await win.locator(".recorder-action-delete").last().click();
+  await win.getByRole("alertdialog").getByRole("button", { name: "Delete action" }).click();
+  const afterDelete = await poll("recorded action deletion", async () => {
+    const count = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+    return count < beforeDeleteCount ? { count } : null;
+  });
+  const afterDeleteCount = afterDelete.count;
+  check("Recorder deletes an individual action through the confirmed UI", afterDeleteCount < beforeDeleteCount, `${beforeDeleteCount} â†’ ${afterDeleteCount}`);
+
+  await startAndWaitRecording(win, labUrl);
+  await poll("actions before Clear all", async () => {
+    const count = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+    return count > 0 ? count : null;
+  });
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+  const urlsBeforeClear = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;
+  await win.getByRole("button", { name: "Clear all", exact: true }).click();
+  await win.getByRole("alertdialog").getByRole("button", { name: "Clear all", exact: true }).click();
+  await poll("Clear all action list", async () => (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === 0 ? true : null);
+  check("Recorder Clear all empties the current action list", (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === 0);
+  check("Recorder Clear all preserves URL history", (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length === urlsBeforeClear);
+  await startAndWaitRecording(win, labUrl);
+  const capturedAfterClear = await poll("recording after Clear all", async () => {
+    const count = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
+    return count > 0 ? count : null;
+  });
+  check("Recorder can capture more actions after Clear all", capturedAfterClear > 0, `${capturedAfterClear} actions`);
+  await stopButton(win).click();
+  await waitIdle(win);
+  await waitUiIdle(win);
+
   // ── REC-019 — URL history UI ───────────────────────────────────────────────
   console.log("\nREC-019 — Recorded URL history UI");
   const historySeed = [`${baseUrl}/form`, `${baseUrl}/details`, `${baseUrl}/smart-waits`, `${baseUrl}/form`];
@@ -475,6 +510,13 @@ try {
   await reuseButton.click();
   await win.waitForTimeout(200);
   check("REC-019 reusing a saved URL loads it into the Target URL field", (await urlField(win).inputValue()).startsWith(baseUrl), await urlField(win).inputValue());
+  const rowUrl = await rows.nth(1).locator(".recorded-url-value").textContent();
+  await win.locator(".recorded-url-use").nth(1).focus();
+  await win.keyboard.press("Enter");
+  check("REC-019 the whole-row activator supports keyboard activation", await urlField(win).inputValue() === rowUrl, `${await urlField(win).inputValue()} vs ${rowUrl}`);
+  const beforeCopyTarget = await urlField(win).inputValue();
+  await rows.nth(1).getByTitle("Copy URL").click();
+  check("REC-019 nested Copy does not trigger row URL selection", await urlField(win).inputValue() === beforeCopyTarget);
 
   // ── REC-004 (Cancel half) ──────────────────────────────────────────────────
   const urlsBeforeCancel = (await win.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;

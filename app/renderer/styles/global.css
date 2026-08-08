@@ -4451,6 +4451,32 @@ table {
   justify-content: flex-end;
 }
 
+.unsaved-changes-dialog {
+  max-width: 36rem;
+}
+
+.unsaved-changes-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.unsaved-changes-actions .toolbar-button {
+  min-height: calc(var(--space-5) + var(--space-3));
+  white-space: nowrap;
+}
+
+@media (max-width: 32rem) {
+  .unsaved-changes-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .unsaved-changes-actions .toolbar-button {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 .toolbar-button.modal-danger {
   background: var(--awkit-danger-soft);
   border-color: var(--awkit-danger-muted);
@@ -6873,6 +6899,16 @@ table {
   min-width: 0;
 }
 
+.recorder-panel-actions {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.recorder-clear-actions {
+  color: var(--awkit-danger);
+}
+
 .recorder-control-title > svg,
 .recorder-panel-title > svg {
   color: var(--awkit-accent);
@@ -7427,9 +7463,35 @@ table {
   border-radius: var(--radius-md);
   display: grid;
   gap: 10px;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
   min-width: 0;
   padding: 12px;
+}
+
+.recorder-action-delete {
+  align-items: center;
+  align-self: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--awkit-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-height: calc(var(--space-5) + var(--space-2));
+  min-width: calc(var(--space-5) + var(--space-2));
+}
+
+.recorder-action-delete:hover:not(:disabled),
+.recorder-action-delete:focus-visible {
+  background: var(--awkit-danger-soft);
+  border-color: var(--awkit-danger-muted);
+  color: var(--awkit-danger);
+}
+
+.recorder-action-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .recorder-action-icon {
@@ -7677,23 +7739,43 @@ table {
   color: var(--awkit-text);
 }
 
-/* Saved URL cell rendered as a clickable link that refills the Recorder Controls field. */
-button.recorded-url-use {
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: 0;
+/* One semantic button spans each URL row. Visible cells and action buttons are siblings, so the
+   copy/use controls are never nested inside the row activator. */
+.recorded-url-row {
   cursor: pointer;
-  color: var(--awkit-accent);
 }
 
-button.recorded-url-use:hover:not(:disabled) {
-  text-decoration: underline;
+.recorded-url-row[data-disabled] {
+  cursor: default;
 }
 
-button.recorded-url-use:disabled {
-  color: var(--awkit-text-secondary);
+.recorded-url-row-primary {
+  position: relative;
+}
+
+.recorded-url-row-activator {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  width: 100%;
+  z-index: 1;
+}
+
+.recorded-url-row:not([data-disabled]):hover > td,
+.recorded-url-row:has(.recorded-url-row-activator:focus-visible) > td {
+  background: var(--awkit-accent-soft);
+}
+
+.recorded-url-row-activator:focus-visible {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--awkit-focus-ring);
+  outline: none;
+}
+
+.recorded-url-row-activator:disabled {
   cursor: default;
 }
 

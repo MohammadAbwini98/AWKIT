@@ -13,7 +13,7 @@ import {
   type EdgeTypes,
   type Viewport
 } from "../components/canvas";
-import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
+import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Redo2, Repeat, ShieldCheck, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
@@ -60,6 +60,7 @@ import {
   type FlowValidationIssue,
   type FlowValidationReport
 } from "@src/validation/FlowValidator";
+import { isNativeUndoTarget, useEditorHistory } from "../lib/editorHistory";
 
 /** Derived validation status of the SAVED flow, from `validation:status` (Stage 2c). */
 type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.status>>;
@@ -166,6 +167,36 @@ function FlowChartDesignerContent() {
   const pendingSnapshot = useRef(true);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
+
+  const historyState = useMemo(() => ({ nodes, edges, flowName }), [edges, flowName, nodes]);
+  const applyHistoryState = useCallback((next: typeof historyState) => {
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setFlowName(next.flowName);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSaveState("History restored");
+  }, [setEdges, setNodes]);
+  const historyEquals = useCallback(
+    (left: typeof historyState, right: typeof historyState) =>
+      left.flowName === right.flowName && JSON.stringify(left.nodes) === JSON.stringify(right.nodes) && JSON.stringify(left.edges) === JSON.stringify(right.edges),
+    []
+  );
+  const editorHistory = useEditorHistory(historyState, applyHistoryState, historyEquals);
+
+  useEffect(() => {
+    const onHistoryKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isNativeUndoTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const redo = key === "y" || (key === "z" && event.shiftKey);
+      if (key !== "z" && key !== "y") return;
+      event.preventDefault();
+      if (redo) editorHistory.redo();
+      else editorHistory.undo();
+    };
+    document.addEventListener("keydown", onHistoryKey);
+    return () => document.removeEventListener("keydown", onHistoryKey);
+  }, [editorHistory.redo, editorHistory.undo]);
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
@@ -582,6 +613,7 @@ function FlowChartDesignerContent() {
       setFlowId(profile.id);
       setFlowName(profile.name);
       setFlowMeta({ description: profile.description, version: profile.version, createdAt: profile.createdAt, updatedAt: profile.updatedAt });
+      editorHistory.reset({ nodes: arrangedNodes, edges: reconcileFlowBranches(nextEdges), flowName: profile.name });
       setSaveState("Loaded profile");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded doc settles
       window.playwrightFlowStudio.settings.update({ selections: { lastSelectedFlowId: profile.id } }).catch(() => undefined);
@@ -610,7 +642,7 @@ function FlowChartDesignerContent() {
         })
         .catch(() => undefined);
     },
-    [setEdges, setNodes, armLayoutGlide]
+    [setEdges, setNodes, armLayoutGlide, editorHistory.reset]
   );
 
   /* ── Stage 2c suggested fixes: preview → confirm → apply → undo ──────────── */
@@ -1112,6 +1144,16 @@ function FlowChartDesignerContent() {
             <LayoutGrid size={15} />
             Auto-arrange
           </button>
+          <div className="designer-history-controls" role="group" aria-label="Edit history">
+            <button className="toolbar-button" type="button" onClick={editorHistory.undo} disabled={!editorHistory.canUndo} title="Undo (Ctrl+Z)" data-testid="flow-undo">
+              <Undo2 size={15} />
+              Undo
+            </button>
+            <button className="toolbar-button" type="button" onClick={editorHistory.redo} disabled={!editorHistory.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" data-testid="flow-redo">
+              <Redo2 size={15} />
+              Redo
+            </button>
+          </div>
           {/* Derived runnability (Stage 2b): blocking = the run gate would reject this flow now.
               Never persisted. Clicking opens the issue list; each row navigates to its node/connector. */}
           <button

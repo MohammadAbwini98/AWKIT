@@ -72,6 +72,17 @@ export function registerRecorderIpc(): void {
     return recorderService.getActions();
   });
 
+  ipcMain.handle("recorder:clearActions", async (event) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    return recorderService.clearActions();
+  });
+
+  ipcMain.handle("recorder:deleteAction", async (event, actionId: string) => {
+    await assertSenderPermission(event, Permission.PAGE_RECORDER);
+    if (typeof actionId !== "string" || !actionId.trim()) throw new Error("A recorded action id is required.");
+    return recorderService.deleteAction(actionId);
+  });
+
   ipcMain.handle("recorder:getStatus", async (event) => {
     await assertSenderPermission(event, Permission.PAGE_RECORDER);
     return recorderService.getStatus();

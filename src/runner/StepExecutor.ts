@@ -1735,6 +1735,13 @@ export class StepExecutor {
         return { status: "passed" };
       }
 
+      case "press": {
+        const shortcut = await this.resolveStepValue(step, step.value);
+        if (!shortcut) throw new Error(`Press Shortcut step ${step.id} requires a key or key combination.`);
+        await this.activePage.keyboard.press(shortcut, { delay: 0 });
+        return { status: "passed" };
+      }
+
       case "select": {
         const value = await this.resolveStepValue(step);
         const locator = await this.locatorFactory.resolve(step);

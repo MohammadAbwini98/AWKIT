@@ -3018,6 +3018,45 @@ export function installRecorderCapture(): void {
   window.addEventListener("scroll", cancelPointerDrag, true);
   window.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.key === "Escape") cancelPointerDrag(); }, true);
 
+  // Capture deliberate shortcuts as ONE canonical action. Ordinary typing is handled exclusively by
+  // the input/change listeners below, so a sentence never expands into one action per key. Browser
+  // auto-repeat is ignored, pure modifier presses are ignored, and protected inputs fail closed.
+  const canonicalShortcut = (event: KeyboardEvent): string | null => {
+    if (!event.isTrusted || event.repeat || event.isComposing) return null;
+    const target = firstPathElement(event);
+    if (!target || insideClosedHostRetarget(event)) return null;
+    const tag = tagOf(target);
+    const type = tag === "input" ? ((target as HTMLInputElement).type || "text").toLowerCase() : "";
+    if (shouldRedactValue(target, type)) return null;
+
+    const raw = event.key;
+    const aliases: Record<string, string> = { " ": "Space", Esc: "Escape", OS: "Meta", Control: "Control", AltGraph: "AltGraph" };
+    let key = aliases[raw] || raw;
+    if (/^f(?:[1-9]|1[0-2])$/i.test(key)) key = key.toUpperCase();
+    else if (key.length === 1 && /[a-z]/i.test(key)) key = key.toUpperCase();
+    const modifierOnly = key === "Control" || key === "Alt" || key === "AltGraph" || key === "Shift" || key === "Meta";
+    if (modifierOnly) return null;
+
+    const hasCommandModifier = event.ctrlKey || event.altKey || event.metaKey;
+    const standaloneSpecial = key === "Enter" || key === "Escape" || key === "Tab" || /^F(?:[1-9]|1[0-2])$/.test(key);
+    if (!hasCommandModifier && !standaloneSpecial) return null;
+
+    const parts: string[] = [];
+    if (event.ctrlKey) parts.push("Control");
+    if (event.altKey && key !== "AltGraph") parts.push("Alt");
+    if (event.shiftKey) parts.push("Shift");
+    if (event.metaKey) parts.push("Meta");
+    parts.push(key);
+    return parts.join("+");
+  };
+
+  window.addEventListener("keydown", (event) => {
+    if (!(event instanceof KeyboardEvent)) return;
+    const shortcut = canonicalShortcut(event);
+    if (!shortcut) return;
+    record({ type: "press", name: "Press " + shortcut, valueSource: { type: "static", value: shortcut } });
+  }, true);
+
   const onChangeCapture = (event: Event): void => {
     if (insideClosedHostRetarget(event)) return;
     const captured = generateForEvent(event, false);

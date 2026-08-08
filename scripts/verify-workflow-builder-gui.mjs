@@ -228,6 +228,24 @@ try {
     toolbarLayout ? JSON.stringify(toolbarLayout) : "toolbar not found"
   );
 
+  // --- 1a. Workflow Builder history uses the same bounded contract. ---
+  const originalWorkflowName = await win.locator(WF_NAME_INPUT).inputValue();
+  await win.locator(WF_NAME_INPUT).fill(`${originalWorkflowName} history edit`);
+  await win.waitForTimeout(380);
+  check("Workflow Builder Undo enables after a property edit", await win.locator("#sb-undo").isEnabled());
+  await win.locator("#sb-undo").click();
+  check("Workflow Builder Undo restores the prior property value", await win.locator(WF_NAME_INPUT).inputValue() === originalWorkflowName);
+  await win.locator("#sb-redo").click();
+  check("Workflow Builder Redo restores the edit", await win.locator(WF_NAME_INPUT).inputValue() === `${originalWorkflowName} history edit`);
+  await win.locator(".sb-save-state").click();
+  await win.keyboard.press("Control+z");
+  check("Workflow Builder Ctrl+Z invokes editor Undo outside inputs", await win.locator(WF_NAME_INPUT).inputValue() === originalWorkflowName);
+  await win.locator(WF_NAME_INPUT).focus();
+  await win.keyboard.type("X");
+  await win.keyboard.press("Control+z");
+  check("Workflow Builder leaves native input Ctrl+Z local", await win.locator(WF_NAME_INPUT).inputValue() === originalWorkflowName);
+  await win.waitForTimeout(380);
+
   // --- 2. Import-from-file: dirty guard, conflict guard, cancellation, dismissal, validation ---
   const incomingReplacement = importFixture("Incoming Replacement", ["verify-flow-a"]);
   await win.locator('.awkit-flow-node[data-id="verify-flow-a"] .scenario-flow-node').click();
@@ -296,6 +314,7 @@ try {
       && !replacedState.saveState.includes("Unsaved"),
     JSON.stringify(replacedState)
   );
+  check("Loading another Workflow resets edit history", await win.locator("#sb-undo").isDisabled() && await win.locator("#sb-redo").isDisabled());
 
   const differentlyNamed = importFixture("Different Incoming Name", ["verify-flow-b"]);
   const cleanBaseline = await importState(win);

@@ -51,6 +51,12 @@ const META: Record<StepType, RegistryMeta> = {
     validate: (d) => (d.value.trim() ? [] : ["Open URL requires a URL value."])
   },
   click: { category: "interaction", sections: ["locator", "execution", "output"], executable: true },
+  press: {
+    category: "input",
+    sections: ["value", "execution"],
+    executable: true,
+    validate: (d) => (d.value.trim() ? [] : ["Press Shortcut requires a key or key combination."])
+  },
   // "locator" edits the drag SOURCE; "dragTarget" edits the drop target (targetLocator). A drag step
   // cannot execute without a drop target, so validate flags a missing one (awkit-3g6).
   drag: {

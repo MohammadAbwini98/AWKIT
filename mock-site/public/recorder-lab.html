@@ -51,6 +51,18 @@
         <p id="rec013Status" data-testid="rec013-status" role="status">REC-013 harness idle</p>
       </section>
 
+      <section data-testid="keyboard-shortcut-capture" aria-labelledby="keyboard-shortcut-title">
+        <h2 id="keyboard-shortcut-title">Keyboard shortcut capture and replay</h2>
+        <p>
+          Expected: Ctrl+S, modifier combinations, Enter, Escape, Tab, Shift+Tab, and F1â€“F12 are
+          captured once as canonical Press Shortcut actions. Ordinary typing remains one Fill action.
+        </p>
+        <label for="shortcutText">Ordinary text</label>
+        <input id="shortcutText" data-testid="shortcut-text" type="text" autocomplete="off" />
+        <button id="shortcutFocus" data-testid="shortcut-focus" type="button">Focus shortcut target</button>
+        <output id="shortcutResult" data-testid="shortcut-result" aria-live="polite">No shortcut received</output>
+      </section>
+
       <section data-testid="custom-owner-fixture" aria-labelledby="custom-owner-title">
         <h2 id="custom-owner-title">Nested custom-element action ownership</h2>
         <p>
@@ -991,6 +1003,24 @@
           }).catch(function () { /* the verifier reports a missing submission */ });
         }
       });
+      $("shortcutFocus").addEventListener("click", function () {
+        $("shortcutFocus").focus();
+      });
+      window.addEventListener("keydown", function (event) {
+        var key = event.key === " " ? "Space" : event.key;
+        if (/^f(?:[1-9]|1[0-2])$/i.test(key)) key = key.toUpperCase();
+        else if (key.length === 1 && /[a-z]/i.test(key)) key = key.toUpperCase();
+        var modifiers = [];
+        if (event.ctrlKey) modifiers.push("Control");
+        if (event.altKey) modifiers.push("Alt");
+        if (event.shiftKey) modifiers.push("Shift");
+        if (event.metaKey) modifiers.push("Meta");
+        var modifierOnly = key === "Control" || key === "Alt" || key === "Shift" || key === "Meta";
+        if (modifierOnly) return;
+        if (!modifiers.length && key !== "Enter" && key !== "Escape" && key !== "Tab" && !/^F(?:[1-9]|1[0-2])$/.test(key)) return;
+        if (event.ctrlKey && key === "S") event.preventDefault();
+        $("shortcutResult").textContent = "Shortcut received: " + modifiers.concat([key]).join("+");
+      }, true);
       $("startManualPause").addEventListener("click", function () {
         var remaining = 3;
         $("manualPauseCountdown").textContent = "Pause countdown: " + remaining;

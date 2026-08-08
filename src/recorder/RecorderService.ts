@@ -10,6 +10,7 @@ import type {
   AmbiguityResolutionChoice, 
   AmbiguityResolutionPayload 
 } from "./RecorderTypes";
+import { removeRecordedAction } from "./recordedActionMutations";
 import { getRecorderInitScriptContent } from "./recorderInitScript";
 import { buildSmartWaits, type RecordedSignal } from "./smartWaitObservation";
 import { detectRecorderProtectedLogin } from "../security/ProtectedLoginDetector";
@@ -1253,6 +1254,52 @@ export class RecorderService {
     return this.actions;
   }
 
+  /** Clear captured actions while preserving URL history and any live browser session. */
+  public async clearActions(): Promise<RecordedAction[]> {
+    await this.actionQueue.catch(() => undefined);
+    this.actions = [];
+    this.lastActionAt = 0;
+    this.lastActionPage = null;
+    this.signals = [];
+    this.lastClickByPage.clear();
+    this.popupAttributions.clear();
+    this.popupAttributionOf.clear();
+    this.ambiguityState = null;
+    this.ambiguityPage = null;
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+    return this.actions;
+  }
+
+  /** Delete one action plus its strictly dependent synthetic wait/popup lifecycle actions. */
+  public async deleteAction(actionId: string): Promise<{ actions: RecordedAction[]; removedIds: string[] }> {
+    await this.actionQueue.catch(() => undefined);
+    const result = removeRecordedAction(this.actions, actionId);
+    if (result.removedIds.length === 0) return result;
+    this.actions = result.actions;
+    this.lastActionAt = 0;
+    this.signals = [];
+    for (const [page, click] of this.lastClickByPage) {
+      if (result.removedIds.includes(click.action.id)) this.lastClickByPage.delete(page);
+    }
+    for (const [page, attribution] of this.popupAttributions) {
+      if (attribution.action && result.removedIds.includes(attribution.action.id)) this.popupAttributions.delete(page);
+    }
+    if (this.ambiguityState && result.removedIds.includes(this.ambiguityState.action.id)) {
+      this.ambiguityState = null;
+      this.ambiguityPage = null;
+    }
+    if (this.draftTimer) {
+      clearTimeout(this.draftTimer);
+      this.draftTimer = null;
+    }
+    await this.persistDraft();
+    return result;
+  }
+
   public getStatus() {
     return {
       isRecording: this.isRecording,
@@ -1283,6 +1330,9 @@ export class RecorderService {
     }
 
     this.isRecording = false;
+    // Drain any capture that was already accepted before closing the browser. Besides preserving the
+    // final action, this guarantees later draft mutations never inherit an orphaned binding promise.
+    await this.actionQueue.catch(() => undefined);
     const finalActions = [...this.actions];
 
     // Flush the finished session to the draft so it survives an app close before Save.
@@ -1336,12 +1386,28 @@ export class RecorderService {
     // fills on the same field (same page + same locator) into one action — updating its value
     // in place — instead of appending one action per character.
     const last = this.actions[this.actions.length - 1];
+    const sameStableTarget = (left?: RecordedAction["locator"], right?: RecordedAction["locator"]): boolean => {
+      if (!left || !right) return false;
+      return JSON.stringify({
+        strategy: left.strategy,
+        value: left.value,
+        name: left.name,
+        exact: left.exact,
+        context: left.context
+      }) === JSON.stringify({
+        strategy: right.strategy,
+        value: right.value,
+        name: right.name,
+        exact: right.exact,
+        context: right.context
+      });
+    };
     if (
       action.type === "fill" &&
       last &&
       last.type === "fill" &&
       sourcePage === this.lastActionPage &&
-      JSON.stringify(last.locator) === JSON.stringify(action.locator)
+      sameStableTarget(last.locator, action.locator)
     ) {
       last.name = action.name;
       last.valueSource = action.valueSource;

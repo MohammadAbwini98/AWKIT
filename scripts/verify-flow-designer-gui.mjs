@@ -344,6 +344,26 @@ try {
   check("Connector paths render on the engine SVG layer", dom.edges >= 1 && dom.edgePaths >= 1, `edges=${dom.edges} paths=${dom.edgePaths}`);
   check("Dotted background + zoom control render", dom.background && dom.zoomControl, `bg=${dom.background} zoom=${dom.zoomControl}`);
 
+  // --- 1a. Bounded editor history is reachable by buttons and desktop shortcuts. ---
+  const flowNameInput = win.locator('label:has-text("Flow Name") input');
+  const originalFlowName = await flowNameInput.inputValue();
+  await flowNameInput.fill(`${originalFlowName} history edit`);
+  await win.waitForTimeout(380);
+  check("Flow Designer Undo enables after a property edit", await win.locator('[data-testid="flow-undo"]').isEnabled());
+  await win.locator('[data-testid="flow-undo"]').click();
+  check("Flow Designer Undo restores the prior property value", await flowNameInput.inputValue() === originalFlowName);
+  check("Flow Designer Redo enables after Undo", await win.locator('[data-testid="flow-redo"]').isEnabled());
+  await win.locator('[data-testid="flow-redo"]').click();
+  check("Flow Designer Redo restores the edit", await flowNameInput.inputValue() === `${originalFlowName} history edit`);
+  await win.locator(".flow-action-title").click();
+  await win.keyboard.press("Control+z");
+  check("Flow Designer Ctrl+Z invokes editor Undo outside inputs", await flowNameInput.inputValue() === originalFlowName);
+  await flowNameInput.focus();
+  await win.keyboard.type("X");
+  await win.keyboard.press("Control+z");
+  check("native input Ctrl+Z remains local to the text field", await flowNameInput.inputValue() === originalFlowName);
+  await win.waitForTimeout(380);
+
   // --- 1b. A rapid pointer lifecycle must not leave a queued pan updater reading a released
   // gesture. This is the real originX crash path: pointer-up clears the gesture before React may
   // flush the pointer-move state update.
@@ -1092,6 +1112,65 @@ try {
     ipcRejection.message.trim().length > 0,
     ipcRejection.message
   );
+
+  // --- 11. Shared Unsaved Changes dialog alignment, focus order, responsive behavior and actions. ---
+  const dirtyNameInput = win.locator('label:has-text("Flow Name") input');
+  await dirtyNameInput.fill(`${await dirtyNameInput.inputValue()} dialog check`);
+  await win.waitForTimeout(380);
+  await win.click('button.nav-item:has-text("Reports")').catch(async () => win.click('button.nav-item[title="Reports"]'));
+  const unsavedDialog = win.getByRole("alertdialog");
+  await unsavedDialog.waitFor({ state: "visible" });
+  const desktopActions = await unsavedDialog.evaluate((dialog) => {
+    const buttons = [...dialog.querySelectorAll(".unsaved-changes-actions button")];
+    const rects = buttons.map((button) => button.getBoundingClientRect());
+    const shell = dialog.getBoundingClientRect();
+    return {
+      labels: buttons.map((button) => button.textContent?.trim()),
+      sameBaseline: rects.every((rect) => Math.abs(rect.bottom - rects[0].bottom) <= 1),
+      noOverlap: rects.every((rect, index) => index === 0 || rect.left >= rects[index - 1].right),
+      contained: rects.every((rect) => rect.left >= shell.left && rect.right <= shell.right)
+    };
+  });
+  check("Unsaved dialog actions share one desktop baseline without overlap", desktopActions.sameBaseline && desktopActions.noOverlap && desktopActions.contained, JSON.stringify(desktopActions));
+  check("Unsaved dialog action order is Cancel, Discard, Save", desktopActions.labels.join("|") === "Cancel|Discard Changes|Save and Continue", JSON.stringify(desktopActions.labels));
+  check("Unsaved dialog initially focuses Cancel", await unsavedDialog.getByRole("button", { name: "Cancel" }).evaluate((button) => button === document.activeElement));
+  await win.keyboard.press("Tab");
+  check("Unsaved dialog Tab order reaches Discard second", await unsavedDialog.getByRole("button", { name: "Discard Changes" }).evaluate((button) => button === document.activeElement));
+  await win.keyboard.press("Tab");
+  check("Unsaved dialog Tab order reaches Save third", await unsavedDialog.getByRole("button", { name: "Save and Continue" }).evaluate((button) => button === document.activeElement));
+  await win.keyboard.press("Escape");
+  await unsavedDialog.waitFor({ state: "hidden" });
+  check("Escape cancels navigation and keeps the current page", Boolean(await win.$(".flow-designer-shell")));
+
+  await win.setViewportSize({ width: 420, height: 760 });
+  await win.click('button.nav-item:has-text("Reports")').catch(async () => win.click('button.nav-item[title="Reports"]'));
+  await unsavedDialog.waitFor({ state: "visible" });
+  const narrowActions = await unsavedDialog.evaluate((dialog) => {
+    const buttons = [...dialog.querySelectorAll(".unsaved-changes-actions button")];
+    const rects = buttons.map((button) => button.getBoundingClientRect());
+    const shell = dialog.getBoundingClientRect();
+    return {
+      stacked: rects.every((rect, index) => index === 0 || rect.top >= rects[index - 1].bottom),
+      contained: rects.every((rect) => rect.left >= shell.left && rect.right <= shell.right && rect.top >= shell.top && rect.bottom <= shell.bottom)
+    };
+  });
+  check("Unsaved dialog intentionally stacks without overflow at narrow width", narrowActions.stacked && narrowActions.contained, JSON.stringify(narrowActions));
+  await unsavedDialog.getByRole("button", { name: "Discard Changes" }).click();
+  await win.waitForSelector(".reports-page", { timeout: 10000 }).catch(() => undefined);
+  check("Discard navigates away without saving", !await win.$(".flow-designer-shell"));
+
+  await win.setViewportSize({ width: 1280, height: 800 });
+  await win.click('button.nav-item:has-text("Flow Designer")').catch(async () => win.click('button.nav-item[title="Flow Designer"]'));
+  await win.waitForSelector(".flow-designer-shell", { timeout: 10000 });
+  const saveContinueInput = win.locator('label:has-text("Flow Name") input');
+  const saveContinueName = `${await saveContinueInput.inputValue()} saved before leave`;
+  await saveContinueInput.fill(saveContinueName);
+  await win.waitForTimeout(380);
+  await win.click('button.nav-item:has-text("Reports")').catch(async () => win.click('button.nav-item[title="Reports"]'));
+  await win.getByRole("alertdialog").getByRole("button", { name: "Save and Continue" }).click();
+  await win.waitForTimeout(800);
+  const persistedAfterLeave = await win.evaluate(async (name) => (await window.playwrightFlowStudio.flows.list()).some((flow) => flow.name === name), saveContinueName);
+  check("Save and Continue persists then navigates", persistedAfterLeave && !await win.$(".flow-designer-shell"));
 
   check("Flow Designer walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 

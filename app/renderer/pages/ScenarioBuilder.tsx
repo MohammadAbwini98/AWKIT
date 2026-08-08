@@ -30,11 +30,13 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  Redo2,
   Repeat,
   Save,
   Search,
   ShieldCheck,
   Trash2,
+  Undo2,
   Upload
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -76,6 +78,7 @@ import {
   validateWorkflowProfile,
   WORKFLOW_IMPORT_ID_CONFLICT
 } from "@src/profiles/workflowProfileValidation";
+import { isNativeUndoTarget, useEditorHistory } from "../lib/editorHistory";
 
 type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
 type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
@@ -246,6 +249,51 @@ function ScenarioBuilderContent() {
     () => toWorkflowProfile(nodes, edges, workflowId, workflowName, executionMode, maxParallelFlows, failurePolicy, workflowDataSource),
     [edges, executionMode, failurePolicy, maxParallelFlows, nodes, workflowDataSource, workflowId, workflowName]
   );
+  const historyState = useMemo(
+    () => ({
+      nodes,
+      edges,
+      workflowName,
+      executionMode,
+      maxParallelFlows,
+      workflowDataSourceId,
+      workflowRootArrayPath,
+      failurePolicy
+    }),
+    [edges, executionMode, failurePolicy, maxParallelFlows, nodes, workflowDataSourceId, workflowName, workflowRootArrayPath]
+  );
+  const applyHistoryState = useCallback((next: typeof historyState) => {
+    setNodes(next.nodes);
+    setEdges(next.edges);
+    setWorkflowName(next.workflowName);
+    setExecutionMode(next.executionMode);
+    setMaxParallelFlows(next.maxParallelFlows);
+    setWorkflowDataSourceId(next.workflowDataSourceId);
+    setWorkflowRootArrayPath(next.workflowRootArrayPath);
+    setFailurePolicy(next.failurePolicy);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSaveState("History restored");
+  }, [setEdges, setNodes]);
+  const historyEquals = useCallback(
+    (left: typeof historyState, right: typeof historyState) => JSON.stringify(left) === JSON.stringify(right),
+    []
+  );
+  const editorHistory = useEditorHistory(historyState, applyHistoryState, historyEquals);
+
+  useEffect(() => {
+    const onHistoryKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || isNativeUndoTarget(event.target)) return;
+      const key = event.key.toLowerCase();
+      const redo = key === "y" || (key === "z" && event.shiftKey);
+      if (key !== "z" && key !== "y") return;
+      event.preventDefault();
+      if (redo) editorHistory.redo();
+      else editorHistory.undo();
+    };
+    document.addEventListener("keydown", onHistoryKey);
+    return () => document.removeEventListener("keydown", onHistoryKey);
+  }, [editorHistory.redo, editorHistory.undo]);
   // Dirty only when the saveable workflow document differs from the saved/loaded snapshot.
   const docSnapshot = useMemo(() => serializeWorkflowDoc(workflowProfile), [workflowProfile]);
   useEffect(() => {
@@ -853,7 +901,8 @@ function ScenarioBuilderContent() {
       setMaxParallelFlows(profile.execution.maxConcurrentInstances);
       setWorkflowDataSourceId(profile.dataSource?.dataSourceId ?? "");
       setWorkflowRootArrayPath(profile.dataSource?.rootArrayPath ?? "$.customers");
-      setFailurePolicy((current) => ({ ...current, stopOnRequiredFlowFailure: profile.execution.stopOnRequiredFlowFailure }));
+      const nextFailurePolicy = { ...failurePolicy, stopOnRequiredFlowFailure: profile.execution.stopOnRequiredFlowFailure };
+      setFailurePolicy(nextFailurePolicy);
       // Point 1c: workflows saved without node positions collapse/stack. Auto-arrange
       // (top-to-bottom) only when positions are missing/stacked; manual layouts are preserved.
       const builtNodes = profile.nodes.map((node, index) =>
@@ -872,8 +921,20 @@ function ScenarioBuilderContent() {
       // Only reframe when we actually rearranged, so normal loads keep the persisted zoom.
       const needsLayout = positionsNeedLayout(builtNodes);
       if (needsLayout && builtNodes.length <= GLIDE_MAX_NODES) armLayoutGlide();
-      setNodes(needsLayout ? withAutoLayout(builtNodes, profile.edges, { direction: "TB", force: true }) : builtNodes);
-      setEdges(reconcileScenarioBranches(profile.edges.map((link) => createScenarioEdge(link.source, link.target, link.type, link))));
+      const arrangedNodes = needsLayout ? withAutoLayout(builtNodes, profile.edges, { direction: "TB", force: true }) : builtNodes;
+      const nextEdges = reconcileScenarioBranches(profile.edges.map((link) => createScenarioEdge(link.source, link.target, link.type, link)));
+      setNodes(arrangedNodes);
+      setEdges(nextEdges);
+      editorHistory.reset({
+        nodes: arrangedNodes,
+        edges: nextEdges,
+        workflowName: profile.name,
+        executionMode: profile.execution.mode,
+        maxParallelFlows: profile.execution.maxConcurrentInstances,
+        workflowDataSourceId: profile.dataSource?.dataSourceId ?? "",
+        workflowRootArrayPath: profile.dataSource?.rootArrayPath ?? "$.customers",
+        failurePolicy: nextFailurePolicy
+      });
       if (needsLayout) window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
       setSaveState("Loaded");
       pendingSnapshot.current = true; // recapture the dirty baseline once the loaded workflow settles
@@ -882,7 +943,7 @@ function ScenarioBuilderContent() {
         .update({ selectedBuilderWorkflowId: profile.id, selections: { lastSelectedWorkflowId: profile.id } })
         .catch(() => undefined);
     },
-    [flowLibrary, setEdges, setNodes, armLayoutGlide]
+    [flowLibrary, setEdges, setNodes, armLayoutGlide, editorHistory.reset, failurePolicy]
   );
 
   // Point 1c: manual "Auto-arrange" — re-run the layered layout (top-to-bottom) on demand, then
@@ -1211,6 +1272,14 @@ function ScenarioBuilderContent() {
           <button className="toolbar-button" id="sb-auto-arrange" onClick={autoArrange} title="Auto-arrange flows (top-to-bottom)" type="button">
             <LayoutGrid size={14} />
             Auto-arrange
+          </button>
+          <button className="toolbar-button" id="sb-undo" onClick={editorHistory.undo} disabled={!editorHistory.canUndo} title="Undo (Ctrl+Z)" type="button">
+            <Undo2 size={14} />
+            Undo
+          </button>
+          <button className="toolbar-button" id="sb-redo" onClick={editorHistory.redo} disabled={!editorHistory.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" type="button">
+            <Redo2 size={14} />
+            Redo
           </button>
         </div>
 

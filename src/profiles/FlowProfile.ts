@@ -2,6 +2,7 @@ export type StepType =
   | "start"
   | "goto"
   | "click"
+  | "press"
   | "drag"
   | "fill"
   | "select"

@@ -87,6 +87,15 @@ export const NODE_CATALOG: Record<StepType, NodeGenerationSpec> = {
 
   // ---- interaction ----
   click: { type: "click", role: "action", requiresLocator: true, requiresValue: false, weight: 10 },
+  press: {
+    type: "press",
+    role: "action",
+    requiresLocator: false,
+    requiresValue: true,
+    weight: 0,
+    gate: "missingLocalFixture",
+    note: "Recorder-produced keyboard shortcut; random campaigns do not yet model focused-keyboard state."
+  },
   drag: {
     type: "drag",
     role: "action",

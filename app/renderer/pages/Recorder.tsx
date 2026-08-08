@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw, ClipboardCheck } from "lucide-react";
+import { PlayCircle, StopCircle, XCircle, Save, Video, Link, ArrowRight, CheckCircle2, AlertCircle, Search, X, Copy, Globe, Timer, Bookmark, CornerDownLeft, Sparkles, ShieldAlert, ExternalLink, RefreshCw, ClipboardCheck, Trash2 } from "lucide-react";
 import { usePageChrome } from "../state/pageChrome";
 import { Toast, type ToastState } from "../components/shared/Toast";
 import { DataTablePagination, TableEmptyState } from "../components/table/TableUI";
@@ -12,6 +12,7 @@ import type {
 } from "@src/recorder/RecorderTypes";
 import { reviewStepAsync, summarizeReviews, classLabel } from "@src/profiles/asyncCompletionReview";
 import { locatorContainerChain } from "@src/profiles/FlowProfile";
+import { ConfirmDialog } from "../components/shared/ConfirmDialog";
 
 export function Recorder() {
   const [url, setUrl] = useState("https://example.com");
@@ -28,6 +29,10 @@ export function Recorder() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [saveResult, setSaveResult] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [actionMutationBusy, setActionMutationBusy] = useState(false);
+  const [actionMutationConfirm, setActionMutationConfirm] = useState<
+    { kind: "clear" } | { kind: "delete"; action: RecordedAction } | null
+  >(null);
 
   const [handoff, setHandoff] = useState<RecorderHandoffInfo | null>(null);
   const [handoffBusy, setHandoffBusy] = useState(false);
@@ -257,6 +262,33 @@ export function Recorder() {
 
   const copyUrl = (value: string) => {
     navigator.clipboard?.writeText(value).catch(() => undefined);
+  };
+
+  const applyActionMutation = async () => {
+    const request = actionMutationConfirm;
+    if (!request || actionMutationBusy) return;
+    setActionMutationBusy(true);
+    try {
+      if (request.kind === "clear") {
+        const updated = await window.playwrightFlowStudio.recorder.clearActions();
+        setActions(updated);
+        setStatusMsg("All recorded actions cleared. URL history was preserved.");
+      } else {
+        const result = await window.playwrightFlowStudio.recorder.deleteAction(request.action.id);
+        setActions(result.actions);
+        const dependentCount = Math.max(0, result.removedIds.length - 1);
+        setStatusMsg(
+          dependentCount > 0
+            ? `Action deleted with ${dependentCount} dependent recorder action${dependentCount === 1 ? "" : "s"}.`
+            : "Recorded action deleted."
+        );
+      }
+      setActionMutationConfirm(null);
+    } catch (error: any) {
+      setStatusMsg(`Could not update recorded actions: ${error?.message ?? error}`);
+    } finally {
+      setActionMutationBusy(false);
+    }
   };
 
   const handleStart = async () => {
@@ -831,7 +863,18 @@ export function Recorder() {
                 <span>{actions.length} captured action{actions.length === 1 ? "" : "s"}</span>
               </div>
             </div>
-            {isRecording ? <span className="recorder-recording-dot" title="Recording" /> : null}
+            <div className="recorder-panel-actions">
+              {isRecording ? <span className="recorder-recording-dot" title="Recording" /> : null}
+              <button
+                type="button"
+                className="toolbar-button recorder-clear-actions"
+                disabled={actions.length === 0 || actionMutationBusy}
+                onClick={() => setActionMutationConfirm({ kind: "clear" })}
+              >
+                <Trash2 size={14} />
+                Clear all
+              </button>
+            </div>
           </header>
 
           {instrumentationError ? (
@@ -885,6 +928,16 @@ export function Recorder() {
                           <span>{action.valueSource.value}</span>
                         </div>
                       ) : null}
+                      <button
+                        type="button"
+                        className="recorder-action-delete"
+                        aria-label={`Delete recorded action ${index + 1}: ${action.name}`}
+                        title="Delete recorded action"
+                        disabled={actionMutationBusy}
+                        onClick={() => setActionMutationConfirm({ kind: "delete", action })}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </article>
                 );
@@ -994,29 +1047,34 @@ export function Recorder() {
                 </thead>
                 <tbody>
                   {pagedUrls.map((record) => (
-                    <tr key={record.id}>
-                      <td title={new Date(record.timestamp).toLocaleString()}>{new Date(record.timestamp).toLocaleTimeString()}</td>
-                      <td title={record.title || undefined}>{record.title || "--"}</td>
-                      <td title={isRecording ? record.url : `Click to use: ${record.url}`}>
+                    <tr
+                      key={record.id}
+                      className="recorded-url-row"
+                      data-disabled={isRecording || undefined}
+                      onClick={() => { if (!isRecording) useSavedUrl(record.url); }}
+                    >
+                      <td className="recorded-url-row-primary" title={new Date(record.timestamp).toLocaleString()}>
                         <button
                           type="button"
-                          className="recorded-url-value recorded-url-use"
+                          className="recorded-url-row-activator recorded-url-use"
                           disabled={isRecording}
-                          onClick={() => useSavedUrl(record.url)}
-                        >
-                          {record.url}
-                        </button>
+                          aria-label={`Use recorded URL ${record.title || record.url}`}
+                          onClick={(event) => { event.stopPropagation(); useSavedUrl(record.url); }}
+                        />
+                        {new Date(record.timestamp).toLocaleTimeString()}
                       </td>
+                      <td title={record.title || undefined}>{record.title || "--"}</td>
+                      <td title={isRecording ? record.url : `Click row to use: ${record.url}`}><span className="recorded-url-value">{record.url}</span></td>
                       <td>
                         <span className="state-pill">{record.source}</span>
                       </td>
                       <td title={record.sessionId || undefined}>{record.sessionId ? record.sessionId.slice(0, 8) : "--"}</td>
-                      <td>
+                      <td className="recorded-url-row-actions">
                         <div className="table-actions">
-                          <button type="button" title="Use this URL in Recorder Controls" disabled={isRecording} onClick={() => useSavedUrl(record.url)}>
+                          <button type="button" title="Use this URL in Recorder Controls" disabled={isRecording} onClick={(event) => { event.stopPropagation(); useSavedUrl(record.url); }}>
                             <CornerDownLeft size={14} />
                           </button>
-                          <button type="button" title="Copy URL" onClick={() => copyUrl(record.url)}>
+                          <button type="button" title="Copy URL" onClick={(event) => { event.stopPropagation(); copyUrl(record.url); }}>
                             <Copy size={14} />
                           </button>
                         </div>
@@ -1101,6 +1159,21 @@ export function Recorder() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {actionMutationConfirm ? (
+        <ConfirmDialog
+          title={actionMutationConfirm.kind === "clear" ? "Clear all recorded actions?" : "Delete recorded action?"}
+          message={
+            actionMutationConfirm.kind === "clear"
+              ? "This clears the current action list and draft while preserving recorded URL history. Recording can continue afterward."
+              : `Delete “${actionMutationConfirm.action.name}”? Any synthetic wait or popup lifecycle actions that depend on it will also be removed.`
+          }
+          confirmLabel={actionMutationConfirm.kind === "clear" ? "Clear all" : "Delete action"}
+          danger
+          onConfirm={() => void applyActionMutation()}
+          onCancel={() => { if (!actionMutationBusy) setActionMutationConfirm(null); }}
+        />
       ) : null}
 
       <Toast toast={toast} onDismiss={() => setToast(null)} />
