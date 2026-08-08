@@ -23,6 +23,7 @@ import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
+import { isValidInteractionExecutionDecision } from "@src/profiles/interactionPrerequisiteDecision";
 import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
@@ -306,6 +307,7 @@ export class StepExecutor {
       this.cancellation?.throwIfCancelled();
       await this.assertBrowserRuntimeAlive?.(`before step ${step.name}`);
       await this.assertActivePageAlive(`before step ${step.name}`);
+      this.guardInteractionPrerequisiteDecision(step);
       this.guardLocatorQuality(step);
       const result = await this.runStepWithWaits(step, outputs);
 
@@ -441,6 +443,40 @@ export class StepExecutor {
         `Re-record the step or edit the locator so it targets a single element. ` +
         `(locator: ${step.locator?.strategy}=${step.locator?.value})`
     );
+  }
+
+  /** Unknown actionability evidence is independent from locator identity and has its own gate. */
+  private guardInteractionPrerequisiteDecision(step: FlowStep): void {
+    if (step.locator?.prerequisite?.status !== "unknown") return;
+    if (isValidInteractionExecutionDecision(step)) return;
+    const sideEffectLevel = resolveStepSafety(step).sideEffectLevel;
+    const sensitive = sideEffectLevel === "dangerousMutation" || sideEffectLevel === "externalCommit";
+    throw new Error(
+      sensitive
+        ? `Interaction prerequisite is unknown for sensitive action ${step.name} (${sideEffectLevel}). Re-record or explicitly resolve the prerequisite before execution.`
+        : `Interaction prerequisite is unknown for ${step.name}. Choose Try direct action, confirm that no prerequisite is required, or re-record the prerequisite before execution.`
+    );
+  }
+
+  /**
+   * Let Playwright prove ordinary-click actionability without causing the action, then re-resolve the
+   * identity immediately before the real click. `force` is intentionally never used.
+   */
+  private async resolveClickTarget(step: FlowStep): Promise<Locator> {
+    const target = await this.locatorFactory.resolve(step);
+    if (step.locator?.prerequisite?.status !== "unknown") return target;
+    const timeout = step.timeoutMs ?? 10_000;
+    try {
+      await target.click({ timeout, trial: true });
+    } catch (error) {
+      const detail = StepExecutor.friendlyLocatorError(error instanceof Error ? error.message : String(error));
+      throw new Error(
+        `Playwright could not prove that ${step.name} is directly actionable while its interaction prerequisite is unknown. ` +
+          `Re-record the prerequisite or select a valid recorded hover trigger. ${detail}`
+      );
+    }
+    this.cancellation?.throwIfCancelled();
+    return this.locatorFactory.resolve(step);
   }
 
   /** Translate Playwright strict-mode / ambiguity errors into an end-user-friendly message. */
@@ -1535,7 +1571,7 @@ export class StepExecutor {
           // cancellation closing the context/page) fails before we await it below. The awaited value/throw
           // is still handled in-context; this extra no-op handler only marks the rejection as observed.
           popupPromise.catch(() => undefined);
-          await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+          await (await this.resolveClickTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
           const popupPage = await popupPromise;
           // Wait for initial load state.
           await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
@@ -1565,7 +1601,7 @@ export class StepExecutor {
           }
           return { status: "passed" };
         }
-        await (await this.locatorFactory.resolve(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.resolveClickTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
       }
 

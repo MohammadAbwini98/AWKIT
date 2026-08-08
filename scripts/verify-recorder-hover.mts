@@ -322,11 +322,8 @@ async function main() {
         !npHover,
         `strategy=${npHover?.locator?.strategy} value=${npHover?.locator?.value}`
       );
-      check(
-        "the no-owner click is left needing review",
-        npClick?.locator?.resolution === "needs-review",
-        String(npClick?.locator?.resolution)
-      );
+      check("the no-owner target identity remains resolved", npClick?.locator?.resolution === "resolved", String(npClick?.locator?.resolution));
+      check("the no-owner prerequisite uses an automatic trial decision", npClick?.locator?.executionDecision?.status === "automatic");
     }
 
     // ── [5] Negative: without the hover step, the click fails (actionability) ─────────────────
@@ -420,7 +417,8 @@ async function main() {
       const reviewProfile = buildRecordedFlow("Review", reviewActions);
       check("no hover step fabricated for the review case", !hoverStepOf(reviewProfile));
       const rc = clickStepOf(reviewProfile, "Review Click");
-      check("review click step left needs-review", rc?.locator?.resolution === "needs-review", rc?.locator?.resolution);
+      check("review-case target identity remains resolved", rc?.locator?.resolution === "resolved", rc?.locator?.resolution);
+      check("review-case prerequisite uses an automatic trial decision", rc?.locator?.executionDecision?.status === "automatic");
     }
 
     // ── [11] Adjacent-sibling trigger: `.trigger:hover + .target` (awkit-vot) ─────────────────
@@ -523,7 +521,8 @@ async function main() {
       const npProfile = buildRecordedFlow("Sibling No Owner", sibNpActions);
       check("no hover step fabricated for the unnamed sibling", !hoverStepOf(npProfile));
       const npStep = clickStepOf(npProfile, "Sibling no-owner");
-      check("unnamed-sibling click left needs-review", npStep?.locator?.resolution === "needs-review", npStep?.locator?.resolution);
+      check("unnamed-sibling target identity remains resolved", npStep?.locator?.resolution === "resolved", npStep?.locator?.resolution);
+      check("unnamed-sibling prerequisite uses an automatic trial decision", npStep?.locator?.executionDecision?.status === "automatic");
     }
 
     // ── [12b] Sibling trigger resolvable only positionally → review, never a saved nth-child chain ──
@@ -551,7 +550,8 @@ async function main() {
       const posProfile = buildRecordedFlow("Sibling Positional", posActions);
       check("no positional sibling trigger was persisted as a hover step", !hoverStepOf(posProfile));
       const posStep = clickStepOf(posProfile, "Positional sibling");
-      check("positional-sibling click left needs-review", posStep?.locator?.resolution === "needs-review", posStep?.locator?.resolution);
+      check("positional-sibling target identity remains resolved", posStep?.locator?.resolution === "resolved", posStep?.locator?.resolution);
+      check("positional-sibling prerequisite uses an automatic trial decision", posStep?.locator?.executionDecision?.status === "automatic");
     }
 
     // ── [12c] REMOTE (non-adjacent) hover trigger is attributed and replays (awkit-hmt) ───────
@@ -1096,11 +1096,12 @@ async function main() {
       const profile = buildRecordedFlow("Unsafe Shadow", acts);
       check("no hover step fabricated from the host", !hoverStepOf(profile));
       const step = clickStepOf(profile, "Unsafe shadow inserted");
-      check("unsafe shadow click left needs-review", step?.locator?.resolution === "needs-review", step?.locator?.resolution);
+      check("unsafe-shadow target identity remains resolved", step?.locator?.resolution === "resolved", step?.locator?.resolution);
+      check("unsafe-shadow prerequisite uses an automatic trial decision", step?.locator?.executionDecision?.status === "automatic");
       check(
-        "the review reason reaches the built step",
-        step?.locator?.reviewReason === "hover trigger inside open shadow root could not be represented safely",
-        String(step?.locator?.reviewReason)
+        "the prerequisite reason reaches the built step without polluting locator review",
+        step?.locator?.prerequisite?.hover?.reason === "hover trigger inside open shadow root could not be represented safely" && step.locator.reviewReason === undefined,
+        String(step?.locator?.prerequisite?.hover?.reason)
       );
     }
 
@@ -1211,11 +1212,12 @@ async function main() {
       const profile = buildRecordedFlow("Positional Ins", acts);
       check("no positional trigger persisted as a hover step", !hoverStepOf(profile));
       const step = clickStepOf(profile, "Positional inserted");
-      check("positional-trigger click left needs-review", step?.locator?.resolution === "needs-review", step?.locator?.resolution);
+      check("positional-trigger target identity remains resolved", step?.locator?.resolution === "resolved", step?.locator?.resolution);
+      check("positional-trigger prerequisite uses an automatic trial decision", step?.locator?.executionDecision?.status === "automatic");
       check(
-        "the review reason reaches the built step",
-        typeof step?.locator?.reviewReason === "string" && step.locator.reviewReason.length > 0,
-        String(step?.locator?.reviewReason)
+        "the prerequisite reason reaches the built step without locator review",
+        typeof step?.locator?.prerequisite?.hover?.reason === "string" && step.locator.reviewReason === undefined,
+        String(step?.locator?.prerequisite?.hover?.reason)
       );
     }
 
@@ -1240,10 +1242,9 @@ async function main() {
       );
       const profile = buildRecordedFlow("Vanishing Ins", acts);
       check("no hover step for a trigger that no longer exists", !hoverStepOf(profile));
-      check(
-        "vanishing-trigger click left needs-review",
-        clickStepOf(profile, "Vanish inserted")?.locator?.resolution === "needs-review"
-      );
+      const vanishingStep = clickStepOf(profile, "Vanish inserted");
+      check("vanishing-trigger target identity remains resolved", vanishingStep?.locator?.resolution === "resolved");
+      check("vanishing-trigger prerequisite uses an automatic trial decision", vanishingStep?.locator?.executionDecision?.status === "automatic");
     }
 
     // ── [23] FAIL-CLOSED: insertion tracking saturated → review, never a silent save ──────────
@@ -1273,10 +1274,20 @@ async function main() {
       check("saturated target identity remains independently resolved", builtClick?.locator?.identity?.schemaVersion === 1);
       check("saturation is represented as an unknown interaction prerequisite", builtClick?.locator?.prerequisite?.status === "unknown");
       check("no trigger guessed at the bound", !hoverStepOf(profile));
-      check(
-        "saturated click left needs-review",
-        clickStepOf(profile, "Flood target")?.locator?.resolution === "needs-review"
-      );
+      check("saturated click keeps its resolved locator", builtClick?.locator?.resolution === "resolved", builtClick?.locator?.resolution);
+      check("ordinary saturated click selects automatic runtime trial", builtClick?.locator?.executionDecision?.status === "automatic");
+      const runtime = await freshExecutor(browser);
+      try {
+        const result = await runtime.exec.execute({ ...builtClick!, timeoutMs: 500 });
+        check(
+          "direct trial fails safely when the hidden target is not actionable",
+          result.status === "failed" && result.error?.includes("Playwright could not prove") === true,
+          result.error
+        );
+        check("failed trial causes no target click", await runtime.page.getByTestId("ins-flood-result").textContent() === "idle");
+      } finally {
+        await runtime.close();
+      }
     }
     // Regression: the visibility sampler intentionally omits some valid semantic roles. After
     // unrelated churn exhausts insertion tracking, that omission must not make a role-based action
@@ -1304,6 +1315,35 @@ async function main() {
       check("stable role identity remains resolved", builtClick?.locator?.identity?.schemaVersion === 1);
       check("stable role has no interaction prerequisite", builtClick?.locator?.prerequisite?.status === "none");
       check("stable role click remains resolved", builtClick?.locator?.resolution !== "needs-review");
+
+      // Reproduce the screenshot shape without changing target identity: unique semantic target,
+      // unknown prerequisite, and the old prerequisite-only needs-review flag.
+      const uncertain = structuredClone(click!);
+      uncertain.locator!.interaction = {
+        ...uncertain.locator!.interaction,
+        requiresHover: true,
+        hoverUnresolved: true,
+        hoverInserted: true,
+        hoverReviewReason: "insertion tracking saturated — provenance unknown"
+      };
+      uncertain.locator!.prerequisite = {
+        schemaVersion: 1,
+        status: "unknown",
+        hover: { required: true, resolved: false, inserted: true, reason: "insertion tracking saturated — provenance unknown" }
+      };
+      uncertain.locator!.resolution = "needs-review";
+      uncertain.locator!.reviewReason = "insertion tracking saturated — provenance unknown";
+      const uncertainStep = clickStepOf(buildRecordedFlow("Stable direct trial", [uncertain]), "Stable next video");
+      check("legacy prerequisite-only review is normalized to resolved identity", uncertainStep?.locator?.resolution === "resolved");
+      check("normalized step carries automatic trial decision", uncertainStep?.locator?.executionDecision?.status === "automatic");
+      const runtime = await freshExecutor(browser);
+      try {
+        const result = await runtime.exec.execute({ ...uncertainStep!, timeoutMs: 2_000 });
+        check("direct actionability trial permits the ordinary click", result.status === "passed", result.error);
+        check("ordinary click occurs once after trial proof", await runtime.page.getByTestId("ins-flood-stable-result").textContent() === "ins-flood-stable-ok");
+      } finally {
+        await runtime.close();
+      }
     }
   } finally {
     await browser.close();

@@ -1,4 +1,4 @@
-import type { DataSourceScope, DynamicIdMode, ElementIdentityContract, FlowStep, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
+import type { DataSourceScope, DynamicIdMode, ElementIdentityContract, FlowStep, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorCandidate, LocatorContext, LocatorGuard, LocatorInteractionEvidence, LocatorQuality, LocatorStrategy, OracleNodeConfig, PageAlias, PopupExpectation, StepLocator, StepSafetyPolicy, StepType, ValueSource, ValueSourceType, WaitCondition } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export type ValidationState = "valid" | "warning" | "error";
@@ -27,6 +27,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   locatorIdentity?: ElementIdentityContract;
   /** Actionability prerequisite status, independent from identity. */
   locatorPrerequisite?: InteractionPrerequisiteContract;
+  /** Runtime/user execution decision for an unknown actionability prerequisite. */
+  locatorExecutionDecision?: InteractionExecutionDecisionContract;
   /** Resolution state of the locator (from Recorder). */
   locatorResolution?: "resolved" | "needs-review" | "user-approved-fallback" | "invalid";
   /** Provenance of the resolution decision (from Recorder). */
@@ -220,6 +222,7 @@ export const defaultNodeData = (stepType: StepType, label: string, description: 
   locatorInteraction: undefined,
   locatorIdentity: undefined,
   locatorPrerequisite: undefined,
+  locatorExecutionDecision: undefined,
   locatorResolution: undefined,
   locatorResolvedBy: undefined,
   locatorApprovedFallbackReason: undefined,

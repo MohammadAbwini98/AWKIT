@@ -1020,7 +1020,7 @@ try {
     await win.waitForTimeout(320);
   }
   const locatorReview = win.getByTestId("locator-review-state");
-  check("Flow Designer displays the unresolved positional locator", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  check("Flow Designer displays the unresolved positional locator", /Needs element identity proof.*execution blocked/.test((await locatorReview.textContent()) ?? ""));
   const approveLocator = win.getByTestId("approve-locator-fallback");
   check("Flow Designer requires a reason before approval", await approveLocator.isDisabled());
   await locatorReview.getByLabel("Approval reason").fill("Reviewed: fixture is intentionally position-only.");
@@ -1041,7 +1041,7 @@ try {
   );
 
   await win.getByLabel("Value", { exact: true }).fill(".pos-btn >> nth=0");
-  check("Editing the locator immediately invalidates stale approval", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  check("Editing the locator immediately invalidates stale approval", /Needs element identity proof.*execution blocked/.test((await locatorReview.textContent()) ?? ""));
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForTimeout(700);
   const editedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));
@@ -1059,7 +1059,7 @@ try {
   await win.keyboard.press("Enter");
   await win.getByTestId("revoke-locator-fallback").focus();
   await win.keyboard.press("Enter");
-  check("Revoking approval returns the locator to review-required", /Needs locator review/.test((await locatorReview.textContent()) ?? ""));
+  check("Revoking approval returns the locator to review-required", /Needs element identity proof.*execution blocked/.test((await locatorReview.textContent()) ?? ""));
   await win.getByRole("button", { name: "Save", exact: true }).click();
   await win.waitForTimeout(700);
   const revokedProfile = await win.evaluate(() => window.playwrightFlowStudio.flows.get("verify-positional-approval"));

@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Interaction prerequisite execution decisions - awkit-aek COMPLETE (2026-08-08)
+
+Recorder output no longer converts an unknown hover/insertion prerequisite into a locator failure
+when element identity is already proven. `StepLocator.executionDecision` now stores an independently
+bound decision: ordinary clicks default to a Playwright actionability trial, an operator may confirm
+that no prerequisite is required with a recorded reason, and blocked/sensitive actions remain
+fail-closed. Legacy prerequisite-only `needs-review` records normalize to resolved identity without
+silently gaining execution authority.
+
+At runtime an automatic ordinary click performs `click({ trial: true })`, checks cancellation,
+re-resolves the identity contract, and only then performs the real click. It never uses `force`.
+Flow Designer shows the identity and prerequisite states separately, offers **Try direct actionability
+check**, **Confirm no prerequisite**, and **Re-record prerequisite**, invalidates decisions after
+material edits, and emits one prerequisite validation finding instead of duplicate locator warnings.
+
+Focused verification: build PASS; Flow Designer GUI **72/72**; mapping **133/133**; validation
+**132/132**; runner **95/95**; Recorder hover **236/236**; Recorder **217/217**; Recorder flow
+**33/33**; locator guard **35/35**; safety **17/17**; source hygiene **9/9**. `typecheck:scripts`
+still reports only the same nine documented pre-existing diagnostics. The validation ledger remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Deterministic Recorder Element Identity Contract - awkit-szp COMPLETE (2026-08-07)
 
 Recorder capture now persists an additive, versioned `ElementIdentityContract` for the exact event

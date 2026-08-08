@@ -1,5 +1,13 @@
 # KNOWN_ISSUES
 
+## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
+
+A proven element identity could still receive locator `needs-review` when insertion/hover provenance
+was unknown. That conflated identity with actionability, produced duplicate Designer validation text,
+and left no execution decision path. The states are now independent. Ordinary clicks can use a
+binding-scoped Playwright actionability trial or a reasoned user confirmation; sensitive actions remain
+blocked. Legacy prerequisite-only review records normalize without silently becoming executable.
+
 ## OPEN LIMIT: cross-reload reorder cannot be detected for truly evidence-identical twins (2026-08-07)
 
 The schema and resolver support guarded positional identity, but no browser API can prove which

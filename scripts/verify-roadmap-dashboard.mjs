@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("173 issues parse", beads.stats.total === 173, `got ${beads.stats.total}`);
+  check("174 issues parse", beads.stats.total === 174, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -202,9 +202,11 @@ try {
   // closed 167 to 168, with the same four outstanding owner-gated items.
   // The Recorder Element Identity Contract epic awkit-szp then filed and closed: total 172 to 173
   // and closed 168 to 169; the same four owner-gated items remain outstanding.
+  // The independent interaction-prerequisite decision repair awkit-aek then filed and closed: total
+  // 173 to 174 and closed 169 to 170; the same four owner-gated items remain outstanding.
   check(
-    "4 outstanding / 169 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 169,
+    "4 outstanding / 170 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 170,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

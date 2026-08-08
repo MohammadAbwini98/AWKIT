@@ -1,5 +1,17 @@
 # ARCHITECTURE
 
+## Recorder identity, prerequisite, and execution-decision boundary
+
+- `ElementIdentityContract` proves which element was recorded; `InteractionPrerequisiteContract`
+  records whether an actionability prerequisite is known; `InteractionExecutionDecisionContract`
+  independently authorizes how an unknown prerequisite may be handled. Exact binding covers the
+  action, locator/context, hashed identity, prerequisite, and safety classification.
+- `buildRecordedFlow` creates automatic-trial authority only for ordinary resolved clicks.
+  `FlowValidator` checks the decision independently from locator resolution, while `StepExecutor`
+  performs trial, cancellation check, identity re-resolution, and the real action.
+- Flow Designer mapping preserves these contracts and invalidates stale decisions after material
+  target/action edits. Sensitive actions cannot acquire ordinary trial or confirmation authority.
+
 ## Security authentication boundary
 
 - `src/security/auth/AuthenticationProvider.ts` defines the provider contract.

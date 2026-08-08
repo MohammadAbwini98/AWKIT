@@ -1,5 +1,27 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-08) - awkit-aek prerequisite decision dead-end fixed
+
+- **Delivered:** element identity, interaction prerequisite, and execution authority are independent.
+  A proven normal click with an unknown prerequisite now receives a binding-scoped automatic trial;
+  legacy prerequisite-only locator review records normalize without losing the unknown prerequisite.
+- **Runtime safety:** automatic execution runs Playwright `click({ trial: true })`, checks cancellation,
+  re-resolves identity, and then clicks normally. No `force` path was added. Dangerous mutation and
+  external commit steps remain blocked and cannot be confirmed through the ordinary-action UI.
+- **Designer:** the properties panel exposes direct trial, reasoned no-prerequisite confirmation, and
+  re-record controls. Target/action edits invalidate stale decisions. Validation reports the one real
+  prerequisite blocker instead of also claiming the proven locator is unresolved.
+- **Evidence:** build PASS; Flow Designer GUI **72/72**; mapping **133/133**; validation **132/132**;
+  runner **95/95**; hover **236/236**; Recorder **217/217**; Recorder flow **33/33**; guard **35/35**;
+  safety **17/17**; source hygiene **9/9**. Script typechecking has only the same nine known baseline
+  diagnostics. The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Git boundary:** the implementation is committed locally on `main`. Two owner-generated v0.1.11
+  release commits already preceded it locally and remain unpublished; pushing this fix would also
+  publish those release commits, so no push was performed without an explicit release decision.
+- **Next:** no further scope is implied; the existing owner-gated environment/manual items remain.
+
+---
+
 ## HANDOFF (2026-08-07) - awkit-szp deterministic Recorder identity complete
 
 - **Delivered:** every successful new Recorder interaction carries an additive schema-v1 element

@@ -4,6 +4,7 @@ import type { CanvasEdge, CanvasNode } from "../canvas";
 import type { FlowConnectionData } from "./ConnectionPropertiesPanel";
 import type { FlowStep, NodeConfig, ValueSource } from "@src/profiles/FlowProfile";
 import { invalidateStaleLocatorApproval } from "@src/profiles/locatorApproval";
+import { invalidateStaleInteractionDecision, isPrerequisiteOnlyLocatorReview } from "@src/profiles/interactionPrerequisiteDecision";
 
 /**
  * The Flow Designer's model <-> canvas-node conversion pair.
@@ -47,6 +48,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         interaction: data.locatorInteraction,
         identity: data.locatorIdentity,
         prerequisite: data.locatorPrerequisite,
+        executionDecision: data.locatorExecutionDecision,
         resolution: data.locatorResolution,
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
@@ -89,7 +91,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     size: { width: Math.round(data.width), height: Math.round(data.height) },
     config: toNodeConfig(data)
   };
-  return invalidateStaleLocatorApproval(step);
+  return invalidateStaleInteractionDecision(invalidateStaleLocatorApproval(step));
 }
 
 export function toNodeConfig(data: FlowDesignerNodeData): NodeConfig {
@@ -181,7 +183,8 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorInteraction: step.locator?.interaction,
     locatorIdentity: step.locator?.identity,
     locatorPrerequisite: step.locator?.prerequisite,
-    locatorResolution: step.locator?.resolution,
+    locatorExecutionDecision: step.locator?.executionDecision,
+    locatorResolution: isPrerequisiteOnlyLocatorReview(step.locator) ? "resolved" : step.locator?.resolution,
     locatorResolvedBy: step.locator?.resolvedBy,
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,

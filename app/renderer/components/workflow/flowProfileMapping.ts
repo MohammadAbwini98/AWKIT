@@ -25,6 +25,7 @@ import type {
   ValueSourceType
 } from "@src/profiles/FlowProfile";
 import { invalidateStaleLocatorApproval } from "@src/profiles/locatorApproval";
+import { invalidateStaleInteractionDecision, isPrerequisiteOnlyLocatorReview } from "@src/profiles/interactionPrerequisiteDecision";
 import type { CanvasEdge, CanvasNode } from "../canvas/types";
 import { buildConnectorVisual, hasCustomStyle } from "../shared/connectorStyle";
 import type { FlowConnectionData } from "./ConnectionPropertiesPanel";
@@ -160,6 +161,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
         interaction: data.locatorInteraction,
         identity: data.locatorIdentity,
         prerequisite: data.locatorPrerequisite,
+        executionDecision: data.locatorExecutionDecision,
         resolution: data.locatorResolution,
         resolvedBy: data.locatorResolvedBy,
         approvedFallbackReason: data.locatorApprovedFallbackReason,
@@ -199,7 +201,7 @@ export function toFlowStep(node: FlowDesignerNode, edges: FlowDesignerEdge[]): F
     loop: data.loop,
     message: data.message
   };
-  return invalidateStaleLocatorApproval(step);
+  return invalidateStaleInteractionDecision(invalidateStaleLocatorApproval(step));
 }
 
 /**
@@ -324,7 +326,8 @@ export function fromFlowStep(step: FlowStep): FlowDesignerNodeData {
     locatorInteraction: step.locator?.interaction,
     locatorIdentity: step.locator?.identity,
     locatorPrerequisite: step.locator?.prerequisite,
-    locatorResolution: step.locator?.resolution,
+    locatorExecutionDecision: step.locator?.executionDecision,
+    locatorResolution: isPrerequisiteOnlyLocatorReview(step.locator) ? "resolved" : step.locator?.resolution,
     locatorResolvedBy: step.locator?.resolvedBy,
     locatorApprovedFallbackReason: step.locator?.approvedFallbackReason,
     locatorApprovedFallbackBinding: step.locator?.approvedFallbackBinding,

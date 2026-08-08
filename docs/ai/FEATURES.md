@@ -229,7 +229,10 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   structure/geometry, capture evidence, and confidence basis. A non-unique candidate is not itself a
   failure: guarded positional identity re-proves the exact candidate before acting. Each step also
   carries a separate `InteractionPrerequisiteContract`, so hover/insertion uncertainty can block for
-  actionability without degrading a proven target identity. Legacy flows may omit both fields.
+  actionability without degrading a proven target identity. A separately bound
+  `InteractionExecutionDecisionContract` permits ordinary clicks to run a Playwright actionability
+  trial or a reasoned user confirmation; sensitive actions remain blocked, and material edits
+  invalidate the decision. Legacy flows may omit these fields.
   `LocatorQuality` retains
   (`strategy`/`isUnique`/`matchCount`/`confidence`/`warning`/`candidateCount`/`disambiguation`/`requiresHover`/`hoverContainer`) and
   (for role/text) an `exact` flag. Steps get human-readable names ("Click Log in", "Fill Email").
@@ -253,8 +256,9 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   `buildRecordedFlow` injects an
   explicit `hover` step (the trigger's full locator, `resolution: "resolved"`) immediately before the
   click; `StepExecutor` replays it as `locator.hover()`. When no stable trigger can be attributed the
-  click is left `needs-review` rather than fabricating an unreplayable hover step; a target that
-  toggles on its own (async) produces no hover step. Verified by `npm run verify:recorder-hover`, which
+  click keeps its proven identity but records an unknown prerequisite rather than fabricating an
+  unreplayable hover step; a target that toggles on its own (async) produces no hover step. Ordinary
+  clicks may proceed only through their bound execution decision. Verified by `npm run verify:recorder-hover`, which
   records, builds, and **replays Hover→Click on fresh pages** and guards against hidden-surface,
   wrapper-owner, and positional-trigger regressions (48/48).
 - **Saturation-safe semantic locator provenance:** the Recorder keeps insertion-tracking saturation

@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { ElementIdentityContract, FlowProfile, FlowStep, LocatorGuard } from "../profiles/FlowProfile";
 import { isPositionalLocator } from "../profiles/locatorApproval";
+import {
+  automaticInteractionDecision,
+  isPrerequisiteOnlyLocatorReview,
+  supportsAutomaticPrerequisiteTrial
+} from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { hashFingerprint, hashToken } from "../runner/locatorFingerprint";
 import type { PageBlueprint, ElementBlueprint } from "../runner/LocatorBlueprintStore";
@@ -80,6 +85,7 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       if (action.locator.interaction) step.locator.interaction = action.locator.interaction;
       if (action.locator.identity) step.locator.identity = hashIdentity(action.locator.identity, action.locator);
       if (action.locator.prerequisite) step.locator.prerequisite = action.locator.prerequisite;
+      if (action.locator.executionDecision) step.locator.executionDecision = action.locator.executionDecision;
       if (action.locator.approvedFallbackReason) step.locator.approvedFallbackReason = action.locator.approvedFallbackReason;
       if (action.locator.approvedFallbackBinding) step.locator.approvedFallbackBinding = action.locator.approvedFallbackBinding;
       if (action.locator.reviewReason) step.locator.reviewReason = action.locator.reviewReason;
@@ -142,13 +148,18 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       // recorder session and the test harness. The Recorder builds nested selectors until unique, so a
       // positional last-resort locator is runnable only when its captured identity guard can be
       // persisted and re-proven. Sensitive steps retain the same proof plus stricter recovery rules.
-      // Explicit recorder/user decisions (shadow/frame review, prerequisite refusal, user approval)
-      // are preserved as-is.
+      // Explicit recorder/user decisions (shadow/frame review and user approval) are preserved as-is.
+      // The one legacy exception is prerequisite-only review: an unknown actionability prerequisite
+      // must not overwrite an otherwise resolved element identity.
       const positionalGuard = isPositionalLocator(step.locator) ? action.locator.guard : undefined;
       if (positionalGuard?.fingerprint && positionalGuard.candidateSelector) {
         step.locator.guard = hashGuard(positionalGuard);
       }
-      if (action.locator.resolution) {
+      const prerequisiteOnlyReview = isPrerequisiteOnlyLocatorReview({
+        ...step.locator,
+        resolution: action.locator.resolution
+      });
+      if (action.locator.resolution && !prerequisiteOnlyReview) {
         step.locator.resolution = action.locator.resolution;
         step.locator.resolvedBy = action.locator.resolvedBy ?? "recorder";
       } else if (action.locator.quality?.isUnique === false && !step.locator.guard) {
@@ -167,6 +178,21 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
       } else {
         step.locator.resolution = "resolved";
         step.locator.resolvedBy = "recorder";
+      }
+      if (prerequisiteOnlyReview) delete step.locator.reviewReason;
+
+      if (step.locator.prerequisite?.status === "unknown" && !step.locator.executionDecision) {
+        const decisionStep = { type: step.type, name: step.name, safety: step.safety, locator: step.locator };
+        step.locator.executionDecision =
+          step.locator.resolution === "resolved" && supportsAutomaticPrerequisiteTrial(decisionStep)
+            ? automaticInteractionDecision("Playwright actionability trial required before the real action")
+            : {
+                schemaVersion: 1,
+                status: "blocked",
+                reason: sensitiveAction
+                  ? "sensitive actions require a resolved prerequisite"
+                  : "re-record or resolve the interaction prerequisite before execution"
+              };
       }
     }
 
@@ -281,13 +307,16 @@ export function buildRecordedFlow(name: string, actions: RecordedAction[], bluep
         return [hoverStep, step];
       }
       // Hover-gated but no stable trigger could be attributed (`hoverUnresolved`). Never fabricate a
-      // hover step from the hidden target; leave the click needs-review so preflight blocks it.
-      if (step.locator) {
+      // hover step from the hidden target. Identity and locator resolution remain independent; the
+      // execution decision above owns the runtime trial/block policy for this unknown prerequisite.
+      // Older/incomplete captures that carry no independently resolved identity remain review-only.
+      if (
+        step.locator &&
+        (!step.locator.identity || step.locator.quality?.isUnique !== true || step.locator.prerequisite?.status !== "unknown")
+      ) {
         step.locator.resolution = "needs-review";
         step.locator.resolvedBy = "recorder";
-        // Carry the recorder's diagnosis so the review says why, not just that.
-        const why = action.locator.interaction.hoverReviewReason;
-        if (typeof why === "string" && why) step.locator.reviewReason = why;
+        step.locator.reviewReason = action.locator.interaction.hoverReviewReason ?? "interaction prerequisite could not be resolved";
       }
       return [step];
     }

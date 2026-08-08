@@ -1,4 +1,4 @@
-import type { ElementIdentityContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
+import type { ElementIdentityContract, InteractionExecutionDecisionContract, InteractionPrerequisiteContract, LocatorApprovalBinding, LocatorGuard, LocatorQuality, LocatorCandidate, LocatorContext, WaitCondition } from "../profiles/FlowProfile";
 
 export type { LocatorQuality } from "../profiles/FlowProfile";
 
@@ -57,6 +57,8 @@ export interface RecordedActionLocator {
   identity?: ElementIdentityContract;
   /** Actionability evidence kept separate from target identity. */
   prerequisite?: InteractionPrerequisiteContract;
+  /** Optional user/runtime decision for an unknown prerequisite. */
+  executionDecision?: InteractionExecutionDecisionContract;
   resolution?: "needs-review" | "user-approved-fallback" | "resolved" | "invalid";
   resolvedBy?: "user" | "recorder";
   approvedFallbackReason?: string;

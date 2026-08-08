@@ -1,5 +1,18 @@
 # DECISIONS
 
+### 2026-08-08 - Unknown prerequisites require a separate, binding-scoped execution decision
+
+- **Decision:** Locator identity and interaction actionability are independent invariants. A proven
+  locator stays resolved when prerequisite provenance is unknown; execution depends on a separately
+  validated decision bound to the exact step, locator/context, identity hash, prerequisite, and safety.
+- **Ordinary clicks:** automatic policy uses Playwright `click({ trial: true })`, then cancellation and
+  identity re-resolution before a normal click. Operators may instead confirm no prerequisite with a
+  reason. Material edits invalidate either authority.
+- **Safety:** never use `force`; dangerous mutation and external commit actions remain blocked when the
+  prerequisite is unknown and cannot use the ordinary confirmation controls.
+- **Compatibility:** prerequisite-only legacy locator reviews normalize to resolved identity but do not
+  gain execution authority unless a current decision validates.
+
 ### 2026-08-07 - Element identity is a versioned evidence contract, not selector uniqueness
 
 - **Decision:** New Recorder output carries an optional schema-v1 `ElementIdentityContract` plus a

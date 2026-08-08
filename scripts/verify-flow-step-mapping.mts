@@ -23,6 +23,7 @@ import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeR
 import { readFile } from "node:fs/promises";
 import type { FlowProfile, FlowStep, ValueSource, WaitCondition } from "../src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "../src/profiles/locatorApproval";
+import { createInteractionDecisionBinding } from "../src/profiles/interactionPrerequisiteDecision";
 
 let passed = 0;
 let failed = 0;
@@ -497,6 +498,55 @@ console.log("\nPositional-fallback approval binding lifecycle (awkit-aui.4):");
   safetyNode.data.safety = { sideEffectLevel: "dangerousMutation", retryable: false };
   const resafed = toProductionFlowStep(safetyNode, []);
   check("safety/action-policy edit invalidates approval and removes stale authority", resafed.locator?.resolution === "needs-review" && resafed.locator?.approvedFallbackBinding === undefined && resafed.locator?.approvedFallbackReason === undefined, json(resafed.locator));
+}
+
+console.log("\nUnknown interaction prerequisite decision lifecycle (awkit-aek):");
+{
+  const decisionStep: FlowStep = baseStep({
+    type: "click",
+    name: "Open next video",
+    locator: {
+      strategy: "role",
+      value: "link",
+      name: "Next video",
+      quality: { strategy: "role", isUnique: true, matchCount: 1, confidence: "high" },
+      identity: {
+        schemaVersion: 1,
+        primary: { strategy: "role", value: "link", name: "Next video" },
+        owner: { tag: "a", role: "link", accessibleName: "Next video" },
+        fingerprint: { tag: "tag", role: "role", name: "name", text: "text", attributes: {}, ancestry: ["parent"] },
+        confidence: { level: "high", basis: ["primary", "fingerprint"] }
+      },
+      prerequisite: {
+        schemaVersion: 1,
+        status: "unknown",
+        hover: { required: true, resolved: false, inserted: true, reason: "insertion provenance unknown" }
+      },
+      resolution: "resolved",
+      resolvedBy: "recorder",
+      executionDecision: { schemaVersion: 1, status: "user-confirmed", reason: "Target is directly actionable in this flow." }
+    }
+  });
+  decisionStep.locator!.executionDecision!.binding = createInteractionDecisionBinding(decisionStep);
+  const roundTrip = cycle(decisionStep);
+  check("prerequisite decision survives designer round trip", json(roundTrip.locator?.executionDecision) === json(decisionStep.locator?.executionDecision));
+  check("prerequisite remains independent from resolved locator", roundTrip.locator?.resolution === "resolved" && roundTrip.locator?.prerequisite?.status === "unknown");
+
+  const renamedNode = { ...nodeFor(decisionStep), data: fromProductionFlowStep(decisionStep) } as FlowDesignerNode;
+  renamedNode.data.name = "Open a different video";
+  const renamed = toProductionFlowStep(renamedNode, []);
+  check("action-name edit invalidates prerequisite confirmation", renamed.locator?.executionDecision?.status === "blocked" && renamed.locator.executionDecision.binding === undefined);
+
+  const editedNode = { ...nodeFor(decisionStep), data: fromProductionFlowStep(decisionStep) } as FlowDesignerNode;
+  editedNode.data.locatorName = "Different target";
+  const edited = toProductionFlowStep(editedNode, []);
+  check("target edit invalidates prerequisite confirmation", edited.locator?.executionDecision?.status === "blocked" && edited.locator.executionDecision.binding === undefined);
+
+  const panelSource = await readFile("app/renderer/components/workflow/FlowNodePropertiesPanel.tsx", "utf8");
+  check("Designer exposes direct-trial prerequisite control", panelSource.includes('data-testid="try-direct-action"'));
+  check("Designer exposes reason-bound confirmation control", panelSource.includes('data-testid="confirm-no-prerequisite"'));
+  check("Designer exposes re-record prerequisite control", panelSource.includes('data-testid="rerecord-prerequisite"'));
+  check("old duplicate prerequisite-as-locator warning is removed", !panelSource.includes("Interaction prerequisite unresolved — execution blocked"));
 }
 
 console.log("\nRecorder popup/window metadata survives the designer round trip (awkit-4t9, FR-C1 prerequisite):");

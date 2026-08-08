@@ -10,6 +10,8 @@ import { defaultOracleNodeConfig } from "./flowDesignerTypes";
 import { locatorContainerChain, type AsyncCompletionMode, type LoaderCompletion, type OracleNodeConfig, type WaitCondition, type WaitHttpMethod } from "@src/profiles/FlowProfile";
 import { classLabel, reviewWait } from "@src/profiles/asyncCompletionReview";
 import { createLocatorApprovalBinding, isPositionalLocator } from "@src/profiles/locatorApproval";
+import { createInteractionDecisionBinding, isSensitiveInteractionStep } from "@src/profiles/interactionPrerequisiteDecision";
+import { useNavigation } from "../../state/navigation";
 
 /** Completion-policy options for the Async Completion editor. */
 const COMPLETION_MODES: { id: AsyncCompletionMode; label: string }[] = [
@@ -65,10 +67,15 @@ export function FlowNodePropertiesPanel({
   // Saved sessions for the Reuse Session node's dropdown (fetched from the Main process).
   const [availableSessions, setAvailableSessions] = useState<{ id: string; name: string; targetUrl?: string }[]>([]);
   const [fallbackReason, setFallbackReason] = useState("");
+  const [prerequisiteReason, setPrerequisiteReason] = useState("");
+  const { navigateTo } = useNavigation();
   const stepType = selectedNode?.data.stepType;
   useEffect(() => {
     setFallbackReason(selectedNode?.data.locatorApprovedFallbackReason ?? "");
   }, [selectedNode?.id, selectedNode?.data.locatorApprovedFallbackReason]);
+  useEffect(() => {
+    setPrerequisiteReason(selectedNode?.data.locatorExecutionDecision?.reason ?? "");
+  }, [selectedNode?.id, selectedNode?.data.locatorExecutionDecision?.reason]);
   useEffect(() => {
     if (stepType !== "reuseSession") return;
     let cancelled = false;
@@ -110,6 +117,8 @@ export function FlowNodePropertiesPanel({
       locatorQuality: undefined,
       locatorIdentity: undefined,
       locatorGuard: undefined,
+      locatorPrerequisite: undefined,
+      locatorExecutionDecision: undefined,
       ...(invalidatesApproval
         ? {
             locatorResolution: "needs-review" as const,
@@ -522,6 +531,15 @@ export function FlowNodePropertiesPanel({
                           locatorApprovedFallbackBinding: undefined,
                           locatorReviewReason: "action changed after fallback approval"
                         }
+                      : {}),
+                    ...(data.locatorExecutionDecision?.status === "user-confirmed"
+                      ? {
+                          locatorExecutionDecision: {
+                            schemaVersion: 1 as const,
+                            status: "blocked" as const,
+                            reason: "action changed after prerequisite confirmation"
+                          }
+                        }
                       : {})
                   })}
                 />
@@ -617,12 +635,100 @@ export function FlowNodePropertiesPanel({
                   <div
                     className={`locator-review-state ${data.locatorPrerequisite.status === "unknown" ? "warn" : "ok"}`}
                     data-testid="interaction-prerequisite-state"
-                    role={data.locatorPrerequisite.status === "unknown" ? "alert" : "status"}
+                    role={
+                      data.locatorPrerequisite.status === "unknown" &&
+                      (!data.locatorExecutionDecision || data.locatorExecutionDecision.status === "blocked")
+                        ? "alert"
+                        : "status"
+                    }
                   >
                     <strong>
-                      Interaction prerequisite: {data.locatorPrerequisite.status === "unknown" ? "Unknown — execution blocked" : data.locatorPrerequisite.status === "resolved" ? "Resolved" : "None"}
+                      Interaction prerequisite: {data.locatorPrerequisite.status === "unknown"
+                        ? data.locatorExecutionDecision?.status === "automatic"
+                          ? "Unknown — direct actionability trial"
+                          : data.locatorExecutionDecision?.status === "user-confirmed"
+                            ? "Unknown — user confirmed"
+                            : "Unknown — execution blocked"
+                        : data.locatorPrerequisite.status === "resolved" ? "Resolved" : "None"}
                     </strong>
                     {data.locatorPrerequisite.hover?.reason ? <span>{data.locatorPrerequisite.hover.reason}</span> : null}
+                    {data.locatorPrerequisite.status === "unknown" ? (() => {
+                      const decisionStep = {
+                        type: data.stepType,
+                        name: data.name,
+                        safety: data.safety,
+                        locator: {
+                          strategy: data.locatorStrategy,
+                          value: data.locatorValue,
+                          name: data.locatorName || undefined,
+                          exact: data.locatorExact || undefined,
+                          identity: data.locatorIdentity,
+                          prerequisite: data.locatorPrerequisite,
+                          executionDecision: data.locatorExecutionDecision
+                        }
+                      };
+                      const sensitive = isSensitiveInteractionStep(decisionStep);
+                      return (
+                        <div className="locator-approval-form" data-testid="interaction-prerequisite-controls">
+                          <span>
+                            {sensitive
+                              ? "Sensitive actions must re-record or resolve the prerequisite; direct trial and confirmation are disabled."
+                              : "A direct trial uses Playwright actionability checks first. It never uses force click."}
+                          </span>
+                          <button
+                            type="button"
+                            className="toolbar-button"
+                            data-testid="try-direct-action"
+                            disabled={sensitive || !data.locatorIdentity || data.stepType !== "click"}
+                            onClick={() => set({
+                              locatorExecutionDecision: {
+                                schemaVersion: 1,
+                                status: "automatic",
+                                reason: "Playwright actionability trial required before the real action"
+                              }
+                            })}
+                          >
+                            Try direct action
+                          </button>
+                          <label>
+                            Confirmation reason
+                            <textarea
+                              value={prerequisiteReason}
+                              onChange={(event) => setPrerequisiteReason(event.target.value)}
+                              aria-describedby="interaction-prerequisite-help"
+                            />
+                          </label>
+                          <span id="interaction-prerequisite-help">Confirm why this exact resolved target needs no hover prerequisite. Normal Playwright actionability remains enforced.</span>
+                          <button
+                            type="button"
+                            className="toolbar-button"
+                            data-testid="confirm-no-prerequisite"
+                            disabled={sensitive || !data.locatorIdentity || data.stepType !== "click" || prerequisiteReason.trim().length < 8}
+                            onClick={() => {
+                              const reason = prerequisiteReason.trim();
+                              set({
+                                locatorExecutionDecision: {
+                                  schemaVersion: 1,
+                                  status: "user-confirmed",
+                                  reason,
+                                  binding: createInteractionDecisionBinding(decisionStep)
+                                }
+                              });
+                            }}
+                          >
+                            Confirm no prerequisite
+                          </button>
+                          <button
+                            type="button"
+                            className="toolbar-button"
+                            data-testid="rerecord-prerequisite"
+                            onClick={() => void navigateTo("recorder")}
+                          >
+                            Re-record prerequisite
+                          </button>
+                        </div>
+                      );
+                    })() : null}
                   </div>
                 ) : null}
                 {data.locatorResolution || isPositionalLocator({
@@ -645,9 +751,7 @@ export function FlowNodePropertiesPanel({
                           ? "User-approved fallback (lower resilience)"
                           : data.locatorResolution === "invalid"
                             ? "Invalid locator — execution blocked"
-                            : data.locatorPrerequisite?.status === "unknown"
-                              ? "Interaction prerequisite unresolved — execution blocked"
-                              : "Needs element identity proof — execution blocked"}
+                            : "Needs element identity proof — execution blocked"}
                     </strong>
                     {data.locatorReviewReason ? <span>{data.locatorReviewReason}</span> : null}
                     {data.locatorAlternatives?.length ? (

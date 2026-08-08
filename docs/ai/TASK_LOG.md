@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-08 - Codex - Separate interaction prerequisite decisions from locator identity
+
+- **Task:** Remove the Flow Designer dead-end where a unique, proven locator with an unknown
+  interaction prerequisite was mislabeled `needs-review`, duplicated in validation, and offered no
+  safe way to execute or resolve the prerequisite.
+- **Implementation:** Added a binding-scoped execution-decision contract. Normal clicks default to a
+  Playwright actionability trial; user confirmation requires a reason; target/action edits invalidate
+  stale authority; sensitive actions stay blocked. Runtime performs trial, cancellation check,
+  identity re-resolution, then a normal click, never `force`. The Designer exposes direct-trial,
+  confirmation, and re-record controls and validation emits a distinct prerequisite blocker.
+- **Compatibility:** Legacy prerequisite-only locator reviews normalize to resolved identity while
+  retaining unknown prerequisite state and requiring a valid execution decision.
+- **Files:** profile/recorder/runner/validation contracts, Flow Designer mappings and properties panel,
+  focused verifier suites, Mock Site documentation, tracker, and AI memory.
+- **Verified:** build PASS; Flow Designer GUI **72/72**; mapping **133/133**; validation **132/132**;
+  runner **95/95**; hover **236/236**; Recorder **217/217**; Recorder flow **33/33**; guard **35/35**;
+  safety **17/17**; source hygiene **9/9**. `typecheck:scripts` retains only nine pre-existing errors.
+
+---
+
 ## 2026-08-07 - Codex - Show portable release base in the roadmap dashboard
 
 - **Task:** Display the main commit and version that form the base of the portable EXE release.

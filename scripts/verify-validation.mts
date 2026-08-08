@@ -514,6 +514,63 @@ console.log("\nRule: required locator and value");
 }
 
 /* ------------------------------------------------------------------ *
+ * 9b. Unknown interaction prerequisite decisions
+ * ------------------------------------------------------------------ */
+console.log("\nRule: unknown interaction prerequisite execution decision");
+{
+  const locator = {
+    strategy: "role" as const,
+    value: "button",
+    name: "Continue",
+    quality: { strategy: "role" as const, isUnique: true, matchCount: 1, confidence: "high" as const },
+    identity: {
+      schemaVersion: 1 as const,
+      primary: { strategy: "role" as const, value: "button", name: "Continue" },
+      owner: { tag: "button", role: "button", accessibleName: "Continue" },
+      fingerprint: { tag: "tag", role: "role", name: "name", text: "text", attributes: {}, ancestry: ["parent"] },
+      confidence: { level: "high" as const, basis: ["primary"] }
+    },
+    prerequisite: {
+      schemaVersion: 1 as const,
+      status: "unknown" as const,
+      hover: { required: true, resolved: false, reason: "insertion provenance unknown" }
+    },
+    resolution: "resolved" as const,
+    executionDecision: { schemaVersion: 1 as const, status: "automatic" as const }
+  };
+  const automatic = validateFlowDefinition(baseFlow({
+    nodes: [step("n-start", "start"), step("n-click", "click", { locator }), step("n-end", "end")]
+  }));
+  expectNoCode("ordinary click with automatic trial is runnable", automatic, "interactionPrerequisiteBlocked");
+  expectNoCode("unknown prerequisite does not become a locator error", automatic, "locatorNeedsReview");
+
+  const blocked = validateFlowDefinition(baseFlow({
+    nodes: [step("n-start", "start"), step("n-click", "click", { locator: { ...locator, executionDecision: { schemaVersion: 1, status: "blocked" } } }), step("n-end", "end")]
+  }));
+  expectCode("blocked prerequisite has its own validation code", blocked, "interactionPrerequisiteBlocked", { nodeId: "n-click" });
+  expectNoCode("blocked prerequisite still does not corrupt locator validity", blocked, "locatorNeedsReview");
+
+  const sensitive = validateFlowDefinition(baseFlow({
+    nodes: [step("n-start", "start"), step("n-click", "click", { name: "Submit payment", safety: { sideEffectLevel: "externalCommit", retryable: false }, locator }), step("n-end", "end")]
+  }));
+  expectCode("sensitive action remains blocked even with automatic decision", sensitive, "interactionPrerequisiteBlocked", { nodeId: "n-click" });
+
+  const legacy = validateFlowDefinition(baseFlow({
+    nodes: [step("n-start", "start"), step("n-click", "click", {
+      locator: {
+        ...locator,
+        resolution: "needs-review",
+        executionDecision: { schemaVersion: 1, status: "blocked" },
+        interaction: { requiresHover: true, hoverUnresolved: true, hoverReviewReason: "insertion provenance unknown" },
+        reviewReason: "insertion provenance unknown"
+      }
+    }), step("n-end", "end")]
+  }));
+  expectNoCode("legacy prerequisite-only review is not reported as locator failure", legacy, "locatorNeedsReview");
+  expectCode("legacy prerequisite-only review remains blocked by decision", legacy, "interactionPrerequisiteBlocked", { nodeId: "n-click" });
+}
+
+/* ------------------------------------------------------------------ *
  * 10. Nested / referenced flows
  * ------------------------------------------------------------------ */
 console.log("\nRule: nested and referenced flows");

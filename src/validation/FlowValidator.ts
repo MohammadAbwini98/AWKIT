@@ -45,6 +45,11 @@ import type {
 } from "../profiles/FlowProfile";
 import { connectorKind, validateConnectorStructureDetailed } from "../profiles/FlowProfile";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "../profiles/locatorApproval";
+import {
+  isPrerequisiteOnlyLocatorReview,
+  isSensitiveInteractionStep,
+  isValidInteractionExecutionDecision
+} from "../profiles/interactionPrerequisiteDecision";
 import { resolveStepSafety } from "../runner/runtime/StepSafetyPolicy";
 import { isKnownStepType, stepRequirement } from "./StepRequirements";
 
@@ -89,7 +94,8 @@ export type FlowValidationCode =
   | "connectorStructure"
   | "highTimeout"
   | "largeLoopBounds"
-  | "locatorNeedsReview";
+  | "locatorNeedsReview"
+  | "interactionPrerequisiteBlocked";
 
 interface RuleSpec {
   readonly severity: FlowValidationSeverity;
@@ -123,7 +129,8 @@ export const FLOW_VALIDATION_RULES: Record<FlowValidationCode, RuleSpec> = {
   connectorStructure: { severity: "error", summary: "Structural connector rule (wrapped validateConnectorStructure)." },
   highTimeout: { severity: "warning", summary: "Timeout is unusually high." },
   largeLoopBounds: { severity: "warning", summary: "Loop bound is large enough to make an unattended run very long." },
-  locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." }
+  locatorNeedsReview: { severity: "error", summary: "Step locator requires manual review or fallback approval before execution." },
+  interactionPrerequisiteBlocked: { severity: "error", summary: "Step interaction prerequisite has no valid execution decision." }
 };
 
 const RULE_ORDER: readonly FlowValidationCode[] = Object.keys(FLOW_VALIDATION_RULES) as FlowValidationCode[];
@@ -455,7 +462,10 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
     if (requirement.requiresLocator) {
       if (step.locator === undefined) {
         collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step)} (${step.type}) requires a locator.`);
-      } else if (step.locator.resolution === "needs-review" || step.locator.resolution === "invalid") {
+      } else if (
+        (step.locator.resolution === "needs-review" && !isPrerequisiteOnlyLocatorReview(step.locator)) ||
+        step.locator.resolution === "invalid"
+      ) {
         const reason = step.locator.reviewReason ? ` (${step.locator.reviewReason})` : "";
         collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
       } else if (step.locator.resolution === "user-approved-fallback" && !isValidLocatorFallbackApproval(step)) {
@@ -471,6 +481,15 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
         // Delete/Submit/Pay control after a layout change, so it must carry a runtime identity guard
         // that re-proves the target before acting (guarded-positional).
         collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} performs a sensitive action but its locator is a positional fallback with no runtime identity guard. Re-record it so the recorder captures an identity guard, or add a stable data-testid or unique accessible name.`);
+      }
+      if (step.locator?.prerequisite?.status === "unknown" && !isValidInteractionExecutionDecision(step)) {
+        collect.node(
+          "interactionPrerequisiteBlocked",
+          step.id,
+          isSensitiveInteractionStep(step)
+            ? `Step ${labelFor(step)} is a sensitive action with an unknown interaction prerequisite. Re-record or resolve the prerequisite before execution.`
+            : `Step ${labelFor(step)} has an unknown interaction prerequisite with no valid execution decision. Choose Try direct action, confirm no prerequisite, or re-record it.`
+        );
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {

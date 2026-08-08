@@ -122,6 +122,57 @@ async function main() {
     ok("assert text contains", await exec.execute({ id: "as", type: "assertText", name: "as", locator: { strategy: "id", value: "successMessage" }, config: { assertionType: "text", comparisonOperator: "contains", expectedValue: "successful" } }));
     await page.close();
 
+    console.log("Unknown interaction prerequisite runtime trial:");
+    const trialPage = await browser.newPage();
+    await trialPage.goto(`${BASE}/login`);
+    const clickOptions: Array<Record<string, unknown> | undefined> = [];
+    let resolveCount = 0;
+    const trialFactory = {
+      setPage: (_page: Page) => undefined,
+      resolve: async (_step: FlowStep) => {
+        resolveCount += 1;
+        return {
+          click: async (options?: Record<string, unknown>) => {
+            clickOptions.push(options);
+          }
+        };
+      }
+    } as unknown as LocatorFactory;
+    const trialExec = new StepExecutor(trialPage, trialFactory, new ValueResolver(context), context);
+    const identity = {
+      schemaVersion: 1 as const,
+      primary: { strategy: "role" as const, value: "button", name: "Continue" },
+      owner: { tag: "button", role: "button", accessibleName: "Continue" },
+      fingerprint: { tag: "tag", role: "role", name: "name", text: "text", attributes: {}, ancestry: ["parent"] },
+      confidence: { level: "high" as const, basis: ["primary"] }
+    };
+    const unknownLocator = {
+      strategy: "role" as const,
+      value: "button",
+      name: "Continue",
+      identity,
+      prerequisite: { schemaVersion: 1 as const, status: "unknown" as const, hover: { required: true, resolved: false } },
+      executionDecision: { schemaVersion: 1 as const, status: "automatic" as const },
+      resolution: "resolved" as const
+    };
+    const trialResult = await trialExec.execute({ id: "trial-click", type: "click", name: "Open panel", locator: unknownLocator });
+    ok("ordinary unknown prerequisite executes after trial", trialResult);
+    check("runner performs trial then re-resolves for real click", resolveCount === 2 && clickOptions.length === 2, `resolves=${resolveCount} clicks=${clickOptions.length}`);
+    check("first click is trial-only and second is normal", clickOptions[0]?.trial === true && clickOptions[1]?.trial !== true);
+    check("runtime never requests force click", clickOptions.every((options) => options?.force !== true));
+
+    const beforeSensitiveResolve = resolveCount;
+    const sensitiveResult = await trialExec.execute({
+      id: "sensitive-trial-click",
+      type: "click",
+      name: "Submit payment",
+      safety: { sideEffectLevel: "externalCommit", retryable: false },
+      locator: unknownLocator
+    });
+    check("sensitive unknown prerequisite remains blocked", sensitiveResult.status === "failed" && sensitiveResult.error?.includes("sensitive action") === true, sensitiveResult.error);
+    check("sensitive block happens before locator resolution or trial", resolveCount === beforeSensitiveResolve);
+    await trialPage.close();
+
     // ── Loop ─────────────────────────────────────────────────────────────────
     console.log("Loop node:");
     const loopPage = await browser.newPage();

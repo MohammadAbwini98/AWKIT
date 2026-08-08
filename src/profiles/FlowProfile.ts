@@ -256,6 +256,30 @@ export interface InteractionPrerequisiteContract {
   };
 }
 
+/** Material action/identity fields a user prerequisite decision is granted for. */
+export interface InteractionDecisionBinding {
+  version: 1;
+  stepType: string;
+  stepName: string;
+  locator: LocatorCandidate;
+  context?: LocatorContext;
+  identity: ElementIdentityContract;
+  prerequisite: InteractionPrerequisiteContract;
+  safety?: StepSafetyPolicy;
+}
+
+/**
+ * Execution policy for an unknown interaction prerequisite. This is deliberately separate from
+ * locator resolution: identity can be resolved while execution is trial-gated or blocked.
+ */
+export interface InteractionExecutionDecisionContract {
+  schemaVersion: 1;
+  status: "automatic" | "user-confirmed" | "blocked";
+  reason?: string;
+  /** Required only for user confirmation; exact structural comparison invalidates stale authority. */
+  binding?: InteractionDecisionBinding;
+}
+
 /**
  * A semantic check evaluated immediately before a sensitive guarded action (e.g. the dialog title,
  * the button's accessible name, an expected record id or amount). `expected` is a non-secret hashed
@@ -334,6 +358,8 @@ export interface StepLocator extends LocatorCandidate {
   identity?: ElementIdentityContract;
   /** Conditions required to make the target actionable; never conflated with identity quality. */
   prerequisite?: InteractionPrerequisiteContract;
+  /** Runtime/user decision for an unknown prerequisite; independent from locator resolution. */
+  executionDecision?: InteractionExecutionDecisionContract;
   /** Resolution state of the locator. Absent means a legacy "resolved" step. */
   resolution?: LocatorResolution;
   /** Provenance of the resolution decision. */
