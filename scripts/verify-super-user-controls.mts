@@ -20,6 +20,7 @@ import {
   MIN_SESSION_INACTIVITY_MINUTES,
   isValidSessionInactivityMinutes
 } from "../src/security/session/SessionPolicy";
+import { DEFAULT_SESSION_POLICY, SessionManager } from "../src/security/session/SessionManager";
 
 let passed = 0;
 let failed = 0;
@@ -65,6 +66,29 @@ check("upper bound is accepted", isValidSessionInactivityMinutes(MAX_SESSION_INA
 for (const invalid of [0, -1, 1.5, NaN, Infinity, MAX_SESSION_INACTIVITY_MINUTES + 1, "30"]) {
   check(`invalid timeout ${String(invalid)} is rejected`, !isValidSessionInactivityMinutes(invalid));
 }
+
+let clockMs = Date.parse("2026-08-08T12:00:00.000Z");
+const sessionRows = new Map<string, any>();
+const sessionStore = {
+  insertSession: async (session: any) => { sessionRows.set(session.id, { ...session }); },
+  getSession: (id: string) => sessionRows.get(id),
+  touchSession: async (id: string, at: string) => { const row = sessionRows.get(id); if (row) row.lastActivityAt = at; },
+  revokeSession: async (id: string, at: string) => { const row = sessionRows.get(id); if (row) row.revokedAt = at; },
+  revokeSessionsForUser: async () => undefined,
+  revokeSessionsForUserExcept: async () => undefined,
+  touchReauth: async () => undefined
+};
+const sessions = new SessionManager(sessionStore as never, DEFAULT_SESSION_POLICY, () => clockMs);
+check("SessionManager compatibility policy is 30 minutes", sessions.idleTimeoutMs === 30 * 60_000);
+sessions.setIdleTimeoutMs(2 * 60_000);
+const activeSession = await sessions.create("super-user");
+clockMs += 90_000;
+check("meaningful validation activity keeps a configured session alive", (await sessions.validate(activeSession)).valid);
+clockMs += 90_000;
+check("meaningful activity resets the configured idle window", (await sessions.validate(activeSession)).valid);
+clockMs += 120_000;
+check("background time without user validation expires at the configured boundary", !(await sessions.validate(activeSession)).valid);
+check("configured timeout revokes the expired session", Boolean(sessionRows.get(activeSession)?.revokedAt));
 
 console.log("\nStructured debug logs:");
 const root = await mkdtemp(join(tmpdir(), "awkit-debug-"));

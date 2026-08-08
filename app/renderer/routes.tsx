@@ -255,7 +255,7 @@ export const routes: AppRoute[] = [
   },
   {
     id: "roadmap",
-    label: "Roadmap",
+    label: "Program Status",
     description: "Implementation phases, acceptance status, and remaining work.",
     icon: ListChecks,
     component: ImplementationRoadmap

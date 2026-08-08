@@ -438,6 +438,10 @@ try {
       exportSettings: function () { return api.settings.export(); },
       stats: function () { return api.settings.getStorageStats(); },
       paths: function () { return api.settings.validatePaths(); },
+      roadmap: function () { return api.roadmap.getSnapshot(); },
+      debugLogs: function () { return api.debug.list(); },
+      debugMode: function () { return api.settings.update({ superUser: { debugMode: true } }); },
+      sessionPolicy: function () { return api.settings.update({ superUser: { sessionInactivityMinutes: 31 } }); },
       secretAvailable: function () { return api.secrets.isAvailable(); },
       secretList: function () { return api.secrets.list(); },
       secretSet: function () { return api.secrets.set(${JSON.stringify(PREAUTH_SECRET)}, ${JSON.stringify(SECRET_VALUE_1)}); }
@@ -488,6 +492,46 @@ try {
     (await win.getByText(`@${admin.username}`).count()) > 0 && (await win.getByText(`@${viewer.username}`).count()) > 0
   );
 
+  await openSettings(win);
+  const superUserLabels = await navLabels(win);
+  check("SET-001 Super User has Program Status navigation", superUserLabels.includes("Program Status"));
+  const privilegedRoadmap = await directProbe(win, `() => window.playwrightFlowStudio.roadmap.getSnapshot()`);
+  const privilegedDebug = await directProbe(win, `() => window.playwrightFlowStudio.debug.list(10)`);
+  check("SET-001 Super User can read the embedded roadmap through IPC", !privilegedRoadmap.rejected, privilegedRoadmap.message);
+  check("SET-001 Super User can read bounded debug logs through IPC", !privilegedDebug.rejected, privilegedDebug.message);
+  const privilegedSettings = await win.evaluate(async () => {
+    const updated = await window.playwrightFlowStudio.settings.update({
+      superUser: { debugMode: true, sessionInactivityMinutes: 31 }
+    });
+    return updated.superUser;
+  });
+  check(
+    "SET-001 Super User can persist privileged debug and inactivity policy",
+    privilegedSettings.debugMode === true && privilegedSettings.sessionInactivityMinutes === 31,
+    JSON.stringify(privilegedSettings)
+  );
+  const invalidSessionPolicy = await directProbe(
+    win,
+    `() => window.playwrightFlowStudio.settings.update({ superUser: { sessionInactivityMinutes: 0 } })`
+  );
+  check("SET-001 invalid session policy is rejected at the main-process boundary", invalidSessionPolicy.rejected, invalidSessionPolicy.message);
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({
+    superUser: { debugMode: false, sessionInactivityMinutes: 30 }
+  }));
+  await navClick(win, "Program Status");
+  await win.getByTestId("embedded-roadmap").waitFor({ state: "visible", timeout: 20_000 });
+  const embeddedSnapshot = await win.evaluate(() => window.playwrightFlowStudio.roadmap.getSnapshot());
+  const embeddedText = (await win.getByTestId("embedded-roadmap").textContent()) ?? "";
+  check(
+    "SET-001 embedded Program Status renders its authorized source count",
+    embeddedText.includes(`${embeddedSnapshot.sources.length} sources`) && embeddedText.includes(`${embeddedSnapshot.stats.items} records`),
+    embeddedText.slice(-240)
+  );
+  check(
+    "SET-001 embedded Program Status renders the same source-agreement state",
+    embeddedText.includes(embeddedSnapshot.consistency.agrees ? "Sources agree" : "Sources disagree")
+  );
+  check("SET-001 Generate remains hidden in embedded mode", !embeddedText.includes("Generate next portable EXE"));
   await openSettings(win);
   const headings = (await win.locator(".settings-card-head h2").allTextContents()).map((text) => text.trim());
   for (const heading of [
@@ -1303,6 +1347,7 @@ try {
   await win.waitForSelector(".app-shell", { timeout: 20_000 });
   const adminLabels = await navLabels(win);
   check("SET-001 Administrator has Settings navigation", adminLabels.includes("Settings"));
+  check("SET-001 Administrator has no Program Status navigation", !adminLabels.includes("Program Status"));
   await openSettings(win);
   check("SET-001 Administrator sees Settings page", await win.getByRole("heading", { name: "Settings", exact: true }).isVisible());
   check("SET-001 Administrator does not see SU-only Workspace Branding", (await win.getByRole("heading", { name: "Workspace Branding" }).count()) === 0);
@@ -1311,6 +1356,40 @@ try {
     `() => window.playwrightFlowStudio.settings.update({ execution: { maxRuns: 99 } })`
   );
   check("SET-001 Administrator can apply substantive Settings changes", !adminMutation.rejected, adminMutation.message);
+  await win.evaluate(() => window.playwrightFlowStudio.settings.update({ lastRouteId: "roadmap" }));
+  await win.reload();
+  await loginExisting(win, admin.username, admin.final);
+  await win.locator(".awkit-not-authorized").waitFor({ state: "visible", timeout: 20_000 });
+  check("SET-001 Administrator direct Program Status route is denied", (await win.locator(".awkit-not-authorized").count()) === 1);
+  await openSettings(win);
+  const privilegedBeforeAdminProbe = await win.evaluate(() => window.playwrightFlowStudio.settings.get().then((value) => value.superUser));
+  const adminPrivileged = await win.evaluate(`(async () => {
+    const calls = {
+      roadmap: function () { return window.playwrightFlowStudio.roadmap.getSnapshot(); },
+      debugLogs: function () { return window.playwrightFlowStudio.debug.list(); },
+      debugMode: function () { return window.playwrightFlowStudio.settings.update({ superUser: { debugMode: true } }); },
+      sessionPolicy: function () { return window.playwrightFlowStudio.settings.update({ superUser: { sessionInactivityMinutes: 31 } }); }
+    };
+    const result = {};
+    for (const name of Object.keys(calls)) {
+      try {
+        await calls[name]();
+        result[name] = { rejected: false, message: "allowed" };
+      } catch (error) {
+        result[name] = { rejected: true, message: error instanceof Error ? error.message : String(error) };
+      }
+    }
+    return result;
+  })()`) as Record<string, Probe>;
+  for (const [name, probe] of Object.entries(adminPrivileged)) {
+    check(`SET-001 Administrator direct privileged ${name} is denied`, probe.rejected, probe.message);
+  }
+  const privilegedAfterAdminProbe = await win.evaluate(() => window.playwrightFlowStudio.settings.get().then((value) => value.superUser));
+  check(
+    "SET-001 denied Administrator probes do not mutate privileged settings",
+    JSON.stringify(privilegedAfterAdminProbe) === JSON.stringify(privilegedBeforeAdminProbe),
+    JSON.stringify(privilegedAfterAdminProbe)
+  );
 
   // Viewer: no route/nav and every Settings-owned direct action fails closed.
   await signOut(win);

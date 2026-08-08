@@ -288,7 +288,9 @@ async function waitUiRecording(target: Page): Promise<void> {
 }
 
 async function startAndWaitRecording(win: Page, url: string): Promise<void> {
-  await urlField(win).fill(url);
+  const field = urlField(win);
+  await field.fill(url);
+  await field.blur();
   await startButton(win).click();
   await poll("recording active", async () => ((await recorderState(win)).isRecording ? true : null), 40_000, 200);
   await waitUiRecording(win);
@@ -341,6 +343,7 @@ try {
   check("REC-001 no protected-login handoff panel is displayed", (await win.getByTestId("protected-handoff-panel").count()) === 0);
   check("REC-001 no stale recorded action is displayed", (await win.locator(".recorder-timeline-row").count()) === 0);
   check("REC-001 the empty state is shown instead of a timeline", (await win.locator(".recorder-empty").count()) === 1);
+  check("Recorder Clear all is disabled with no actions", await win.locator(".recorder-clear-actions").isDisabled());
   check("REC-001 Save is refused with nothing recorded", (await win.locator(".recorder-save-hint").count()) === 1);
   check("REC-001 the page renders with no console error", rendererErrors.length === 0, JSON.stringify(rendererErrors.slice(0, 3)));
 
@@ -444,6 +447,12 @@ try {
   // Recorder action management: UI mutations go through the main-process action owner and persist.
   const beforeDeleteCount = afterStop.length;
   await win.locator(".recorder-action-delete").last().click();
+  await win.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  check(
+    "Recorder delete confirmation can be cancelled without mutation",
+    (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === beforeDeleteCount
+  );
+  await win.locator(".recorder-action-delete").last().click();
   await win.getByRole("alertdialog").getByRole("button", { name: "Delete action" }).click();
   const afterDelete = await poll("recorded action deletion", async () => {
     const count = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
@@ -462,10 +471,17 @@ try {
   await waitUiIdle(win);
   const urlsBeforeClear = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length;
   await win.getByRole("button", { name: "Clear all", exact: true }).click();
+  await win.getByRole("alertdialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  check(
+    "Recorder Clear all confirmation can be cancelled without mutation",
+    (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length > 0
+  );
+  await win.getByRole("button", { name: "Clear all", exact: true }).click();
   await win.getByRole("alertdialog").getByRole("button", { name: "Clear all", exact: true }).click();
   await poll("Clear all action list", async () => (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === 0 ? true : null);
   check("Recorder Clear all empties the current action list", (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length === 0);
   check("Recorder Clear all preserves URL history", (await page.evaluate(() => window.playwrightFlowStudio.recorder.getUrls())).length === urlsBeforeClear);
+  check("Recorder cannot save an empty flow after Clear all", await win.locator(".recorder-save-button").isDisabled());
   await startAndWaitRecording(win, labUrl);
   const capturedAfterClear = await poll("recording after Clear all", async () => {
     const count = (await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions())).length;
@@ -510,6 +526,12 @@ try {
   await reuseButton.click();
   await win.waitForTimeout(200);
   check("REC-019 reusing a saved URL loads it into the Target URL field", (await urlField(win).inputValue()).startsWith(baseUrl), await urlField(win).inputValue());
+  const mouseRowUrl = await rows.nth(2).locator(".recorded-url-value").textContent();
+  await rows.nth(2).click({ position: { x: 8, y: 8 } });
+  check("REC-019 clicking the left row area activates the saved URL", await urlField(win).inputValue() === mouseRowUrl);
+  const textRowUrl = await rows.nth(3).locator(".recorded-url-value").textContent();
+  await rows.nth(3).locator(".recorded-url-value").click();
+  check("REC-019 clicking URL text keeps the existing activation behavior", await urlField(win).inputValue() === textRowUrl);
   const rowUrl = await rows.nth(1).locator(".recorded-url-value").textContent();
   await win.locator(".recorded-url-use").nth(1).focus();
   await win.keyboard.press("Enter");
@@ -651,67 +673,19 @@ try {
   }
 
   // ── REC-013 — async review modal ───────────────────────────────────────────
-  console.log("\nIncrements 3/4 - Locator review and positional approval lifecycle");
+  console.log("\nRecorder trusted-event boundary");
   await win.evaluate(() =>
     window.playwrightFlowStudio.settings.update({ recorder: { captureSmartWaits: false, captureWaitTime: true } }));
   await startAndWaitRecording(win, `${labUrl}?rec034=1`);
-  const ambiguityPanel = win.getByTestId("ambiguity-resolution-panel");
-  await ambiguityPanel.waitFor({ state: "visible", timeout: 20_000 });
-  const liveAmbiguity = await win.evaluate(() => window.playwrightFlowStudio.recorder.getAmbiguityState());
-  check("Increment 3 a real captured positional action opens the review UI", liveAmbiguity?.kind === "positional", JSON.stringify(liveAmbiguity));
-  check("Increment 3 the review UI is a labelled modal alertdialog", (await ambiguityPanel.getAttribute("role")) === "alertdialog" && (await ambiguityPanel.getAttribute("aria-modal")) === "true");
-  const pendingActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
-  check("Increment 3 the pending action is not committed before a decision", pendingActions.every((action) => action.name !== liveAmbiguity?.action.name));
-  const evidenceText = (await win.getByTestId("ambiguity-evidence").textContent()) ?? "";
-  check("Increment 3 the review exposes quality, match counts, and context", /Confidence/.test(evidenceText) && /Total matches/.test(evidenceText) && /Context/.test(evidenceText), evidenceText);
-  check("Increment 3 the primary locator and ranked alternatives are visible", (await win.getByTestId("ambiguity-primary-locator").count()) === 1 && (await ambiguityPanel.getByText(/Alternative 1/).count()) >= 1);
-  check("Increment 3 the blocked-execution consequence is explicit", ((await ambiguityPanel.textContent()) ?? "").includes("Execution is blocked"));
-  const ambiguityFocus = await focusInfo(win);
-  check("Increment 3 opening locator review moves focus into it", ambiguityFocus.insideDialog, JSON.stringify(ambiguityFocus));
-  const locatorForwardTrap: Awaited<ReturnType<typeof focusInfo>>[] = [];
-  for (let i = 0; i < 10; i += 1) {
-    await win.keyboard.press("Tab");
-    locatorForwardTrap.push(await focusInfo(win));
-  }
-  check("Increment 3 keyboard focus stays inside locator review", locatorForwardTrap.every((sample) => sample.insideDialog), JSON.stringify(locatorForwardTrap));
-
-  const approvalReason = win.getByTestId("ambiguity-approval-reason");
-  const approveButton = win.getByTestId("ambiguity-approve-fallback");
-  check("Increment 4 positional approval is disabled without a reason", await approveButton.isDisabled());
-  await approvalReason.fill("Reviewed: fixture controls are intentionally position-only.");
-  check("Increment 4 a specific reason enables explicit approval", await approveButton.isEnabled());
-  await approveButton.click();
-  await ambiguityPanel.waitFor({ state: "hidden", timeout: 10_000 });
-  const approvedActions = await poll("approved positional action committed", async () => {
-    const actions = await page.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
-    return actions.some((action) => action.locator?.resolution === "user-approved-fallback") ? actions : null;
-  });
-  const approvedAction = approvedActions.find((action) => action.locator?.resolution === "user-approved-fallback");
-  check("Increment 4 approval persists a reason", approvedAction?.locator?.approvedFallbackReason === "Reviewed: fixture controls are intentionally position-only.", approvedAction?.locator?.approvedFallbackReason);
-  check("Increment 4 approval persists an exact locator binding", approvedAction?.locator?.approvedFallbackBinding?.version === 1, JSON.stringify(approvedAction?.locator?.approvedFallbackBinding));
-  await stopButton(win).click();
-  await waitIdle(win);
-  await waitUiIdle(win);
-  await win.getByLabel("Flow Name").fill("Increment 3-4 Locator Review");
-  await win.getByRole("button", { name: "Save to Flow Library", exact: true }).click();
-  const asyncReview = win.getByTestId("recorder-review-modal");
-  if (await asyncReview.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await asyncReview.getByTestId("review-confirm-save").click();
-  }
-  await win.getByText(/Flow saved to library successfully/).first().waitFor({ timeout: 20_000 });
-  const savedReviewFlow = await win.evaluate(async () => {
-    const summary = (await window.playwrightFlowStudio.flows.list()).find((flow) => flow.name === "Increment 3-4 Locator Review");
-    return summary ? window.playwrightFlowStudio.flows.get(summary.id) : null;
-  });
-  const savedApprovedStep = savedReviewFlow?.nodes.find((node) => node.locator?.resolution === "user-approved-fallback");
-  check("Increment 3/4 save and reload retain the approved locator", savedApprovedStep?.locator?.approvedFallbackBinding?.version === 1, JSON.stringify(savedApprovedStep?.locator));
-
-  await startAndWaitRecording(win, `${labUrl}?rec034=1`);
-  await win.getByTestId("ambiguity-resolution-panel").waitFor({ state: "visible", timeout: 20_000 });
-  await win.keyboard.press("Escape");
-  await win.getByTestId("ambiguity-resolution-panel").waitFor({ state: "hidden", timeout: 10_000 });
-  const deferredActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
-  check("Increment 3 dismissing review leaves the action unresolved", deferredActions.some((action) => action.locator?.resolution === "needs-review"));
+  await win.waitForTimeout(1_200);
+  const untrustedFixtureActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
+  const identityResolvedFixtureAction = untrustedFixtureActions.find((action) => action.type === "click");
+  check(
+    "fixture positional click is resolved by the Element Identity Contract",
+    identityResolvedFixtureAction?.locator?.resolution === "resolved" && identityResolvedFixtureAction.locator.identity?.schemaVersion === 1,
+    JSON.stringify(identityResolvedFixtureAction)
+  );
+  check("identity-resolved fixture activity does not open locator review", (await win.getByTestId("ambiguity-resolution-panel").count()) === 0);
   await cancelButton(win).click();
   await waitIdle(win);
   await waitUiIdle(win);

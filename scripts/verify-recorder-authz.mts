@@ -93,6 +93,8 @@ function probeScript(url: string, flowName: string): string {
     const calls = {
       getStatus: function () { return api.getStatus(); },
       getActions: function () { return api.getActions(); },
+      clearActions: function () { return api.clearActions(); },
+      deleteAction: function () { return api.deleteAction("rec028-nonexistent-action"); },
       getUrls: function () { return api.getUrls(); },
       getHandoff: function () { return api.getHandoff(); },
       saveUrl: function () { return api.saveUrl(${JSON.stringify(url)}); },
@@ -145,6 +147,8 @@ function flowReadProbeScript(flowId: string): string {
 const channels = [
   "getStatus",
   "getActions",
+  "clearActions",
+  "deleteAction",
   "getUrls",
   "getHandoff",
   "saveUrl",
@@ -306,6 +310,8 @@ try {
     const calls = {
       getStatus: function () { return api.getStatus(); },
       getActions: function () { return api.getActions(); },
+      clearActions: function () { return api.clearActions(); },
+      deleteAction: function () { return api.deleteAction("rec028-nonexistent-action"); },
       getUrls: function () { return api.getUrls(); },
       getHandoff: function () { return api.getHandoff(); }
     };
