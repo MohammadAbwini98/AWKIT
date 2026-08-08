@@ -26,7 +26,7 @@ import { StepExecutor } from "@src/runner/StepExecutor";
 import { derivePopupAlias } from "@src/runner/runtime/PopupIdentityRegistry";
 import { executionBlockingErrorsOf, hasActivePathError, validateFlowDefinition } from "@src/validation/FlowValidator";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
-import type { FlowStep, LocatorContainerContext } from "@src/profiles/FlowProfile";
+import type { FlowStep, LocatorContainerContext, WaitCondition } from "@src/profiles/FlowProfile";
 import { createLocatorApprovalBinding } from "@src/profiles/locatorApproval";
 
 let passed = 0;
@@ -1393,11 +1393,11 @@ async function main() {
       check("spinner shown→hidden → loaderHidden with selector", !!l && l.locator.value === ".ant-spin", JSON.stringify(w));
     }
 
-    // 5. Success toast → toastVisible with text.
+    // 5. Toast observation remains privacy-safe and non-gating without target/cause evidence.
     {
       const w = buildSmartWaits([{ kind: "toast", text: "Saved successfully", role: "alert", ts: 1200 }], T0, T1);
-      const t = w.find((x) => x.type === "toastVisible") as { type: "toastVisible"; text?: string } | undefined;
-      check("toast → toastVisible with text", !!t && t.text === "Saved successfully", JSON.stringify(w));
+      const t = w.find((x) => x.type === "toastVisible") as Extract<WaitCondition, { type: "toastVisible" }> | undefined;
+      check("toast → advisory toastVisible without persisted page text", !!t && !t.text && t.evidence?.requirement === "advisory", JSON.stringify(w));
     }
 
     // 6. Button became enabled → elementEnabled.

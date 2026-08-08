@@ -4,6 +4,22 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-08 - Codex - Harden Recorder Smart Wait causality
+
+- **Task:** Stop unrelated post-click activity from becoming fatal Recorder completion conditions
+  (`awkit-dl7`).
+- **Implementation:** Added versioned causal evidence; required/optional/advisory semantics; bounded
+  timer/click/navigation attribution; identity-bound pre/post transitions; route dominance; specific
+  runner diagnostics; and Flow Designer evidence details. Legacy/manual waits remain authoritative.
+- **Verifier:** real Chromium Recorder observation -> buildRecordedFlow -> JSON -> StepExecutor plus
+  the A-T causality/identity matrix is **32/32**.
+- **Mutation proof:** promote enables **28/4**; remove competing cause **30/2**; ignore identity
+  **31/1**; ignore route dominance **31/1**; optional fatal **31/1**; final restored **32/32**.
+- **Security:** safe origin/path metadata only, fingerprints hashed before save, no force or sensitive
+  policy change. External YouTube acceptance was not run.
+
+---
+
 ## 2026-08-08 - Codex - Separate interaction prerequisite decisions from locator identity
 
 - **Task:** Remove the Flow Designer dead-end where a unique, proven locator with an unknown

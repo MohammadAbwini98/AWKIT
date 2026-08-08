@@ -991,3 +991,9 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
 
 - When packaging fails at the startup gate, the cause has historically been a **manifest** issue
   (BOM or stale path/name), not a missing file. Check `resources/dependency-manifest.json` first.
+# Resolved: Recorder Smart Wait temporal-correlation false requirements (2026-08-08)
+
+Recorder observation previously converted every nearby signal into an evidence-free required wait,
+so a background `elementEnabled role=button` could fail after a successful SPA route change. New
+captures classify causal evidence as required/optional/advisory and apply route dominance. Legacy
+manual waits intentionally retain their prior semantics.

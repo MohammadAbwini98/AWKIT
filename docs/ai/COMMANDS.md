@@ -226,6 +226,7 @@ npm run verify:settings-runner-behaviour # tsx scripts/verify-settings-runner-be
                             # real runs started from the card's Run button, ON/OFF/ON. Spawns the mock
                             # site; needs `npm run build` first. (11/11)
 npm run verify:recorder     # tsx scripts/verify-recorder-locator.mts — live unique locators, persisted winner + bounded recovery, live text capture, Smart Wait signals/correlation, and open/nested/duplicate/slotted/closed/frame/cap Shadow DOM capture→persistence→preflight→LocatorFactory→StepExecutor coverage (217/217)
+npm run verify:smart-wait-causality # real Chromium Recorder observation → evidence classification → buildRecordedFlow → JSON round-trip → StepExecutor; A-T causality/identity/compatibility matrix (32/32)
 npm run verify:blueprint-recovery # tsx scripts/verify-blueprint-recovery.mts — Node-side blueprint assembly/privacy/store gate (52/52)
 npm run verify:blueprint-recovery-browser # tsx scripts/verify-blueprint-recovery-browser.mts — real Chromium capture→assembly→LocatorFactory recovery against /blueprint-recovery-lab; inserted sibling at 0.866667 succeeds, a below-0.86 control is refused, and sensitive recovery never reads blueprint storage (24/24)
 npm run verify:locator-guard # tsx scripts/verify-locator-guard.mts — real Chromium normal+sensitive guarded-positional identity plus sensitive Recorder blueprint exclusion (35/35)

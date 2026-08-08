@@ -1,5 +1,24 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-08) - awkit-dl7 Smart Wait causality complete
+
+- **Delivered:** only identity-bound, bounded, action-attributed Recorder transitions can gate
+  replay; SPA routes dominate weaker nearby signals. Background timers/polling and weak DOM signals
+  are advisory.
+- **Runtime/UI:** advisory evidence is diagnostic-only; optional misses are non-fatal; required
+  enabled targets are checked against their hashed identity. Flow Designer shows requirement,
+  confidence, basis, and dominant strategy. Legacy/manual required waits are unchanged.
+- **Evidence:** real Chromium observer -> profile -> JSON -> StepExecutor is **32/32**. Mutation
+  results: promote enables **28/4**, remove competing cause **30/2**, ignore identity **31/1**,
+  ignore dominance **31/1**, optional fatal **31/1**, restored to **32/32**.
+- **Ledger:** unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Git boundary:** local `main` contains pre-existing unpublished owner release commits; do not push
+  this work implicitly without the owner's publication decision.
+- **Next:** run the exact YouTube `Shorts -> Next video` external acceptance in an authorized
+  environment; deterministic local acceptance is complete.
+
+---
+
 ## HANDOFF (2026-08-08) - awkit-aek prerequisite decision dead-end fixed
 
 - **Delivered:** element identity, interaction prerequisite, and execution authority are independent.

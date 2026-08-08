@@ -41,7 +41,7 @@ const rawFingerprint: LocatorElementFingerprint = {
   tag: "button", role: "button", name: "target", text: "target", attributes: { "data-testid": "target" }, ancestry: ["main"]
 };
 const strongLocator = (extra: Partial<SignalLocator> = {}): SignalLocator => ({
-  strategy: "testId", value: "target", quality: { isUnique: true, confidence: "high", candidateCount: 1, strategy: "testId" },
+  strategy: "testId", value: "target", quality: { isUnique: true, matchCount: 1, confidence: "high", candidateCount: 1, strategy: "testId" },
   identity: {
     schemaVersion: 1,
     primary: { strategy: "testId", value: "target" },
@@ -127,7 +127,7 @@ try {
   const polling = classify([1_100, 1_200, 1_300].map((endedAt) => ({ kind: "request" as const, method: "GET", path: "/api/poll", status: 200, startedAt: endedAt - 10, endedAt, cause: "background" as const })));
   check("C background polling mutation → omitted", polling.length === 0, JSON.stringify(polling));
   check("D SPA route outranks unrelated enable", route?.evidence?.dominance?.dominant && enabled?.evidence?.dominance?.supersededBy === "route");
-  const generic = classify([{ kind: "enabled", locator: { strategy: "role", value: "button", quality: { isUnique: false, confidence: "low", candidateCount: 4, strategy: "role" } }, ts: 1_100, existedBefore: true, preDisabled: true, postDisabled: false, cause: "click" }]);
+  const generic = classify([{ kind: "enabled", locator: { strategy: "role", value: "button", quality: { isUnique: false, matchCount: 4, confidence: "low", candidateCount: 4, strategy: "role" } }, ts: 1_100, existedBefore: true, preDisabled: true, postDisabled: false, cause: "click" }]);
   check("E generic role ambiguity → not required", generic[0]?.evidence?.requirement !== "required");
   check("F hidden duplicate cannot create required wait", generic[0]?.evidence?.requirement === "advisory");
   check("G semantic DOM replacement retains identity-bearing locator", directEnable[0]?.type === "elementEnabled" && Boolean(directEnable[0].locator.identity?.fingerprint));
@@ -157,9 +157,9 @@ try {
   const networkPositive = classify([{ kind: "request", method: "POST", path: "/api/save", status: 204, startedAt: 1_050, endedAt: 1_120, cause: "click" }]);
   check("O causal network → optional supporting", networkPositive[0]?.type === "response" && networkPositive[0].evidence?.requirement === "optional");
   check("P background repeated network → not a required gate", polling.every((wait) => wait.evidence?.requirement !== "required"));
-  const frameLocator = strongLocator({ context: { frameChain: [{ strategy: "url", value: "/frame", frameKey: "frame-key" }] } });
+  const frameLocator = strongLocator({ context: { frameChain: [{ selector: "iframe[data-testid=frame]", url: "http://frame.test/frame" }] } });
   const frameWait = classify([{ kind: "enabled", locator: frameLocator, ts: 1_100, existedBefore: true, preDisabled: true, postDisabled: false, cause: "click" }]);
-  check("Q frame target chain remains load-bearing", frameWait[0]?.type === "elementEnabled" && frameWait[0].locator.context?.frameChain?.[0]?.frameKey === "frame-key");
+  check("Q frame target chain remains load-bearing", frameWait[0]?.type === "elementEnabled" && frameWait[0].locator.context?.frameChain?.[0]?.url === "http://frame.test/frame");
   const shadowLocator = strongLocator({ context: { shadow: { boundary: "open", hosts: [{ strategy: "testId", value: "host" }] } } });
   const shadowWait = classify([{ kind: "enabled", locator: shadowLocator, ts: 1_100, existedBefore: true, preDisabled: true, postDisabled: false, cause: "click" }]);
   check("R open-shadow host chain remains load-bearing", shadowWait[0]?.type === "elementEnabled" && shadowWait[0].locator.context?.shadow?.boundary === "open");

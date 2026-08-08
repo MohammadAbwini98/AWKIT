@@ -1,5 +1,20 @@
 # CURRENT_STATE
 
+## Recorder Smart Wait causality - awkit-dl7 COMPLETE (2026-08-08)
+
+New Recorder-inferred waits carry a versioned, privacy-safe evidence contract that separates
+`required`, `optional`, and `advisory` observations. A wait may gate replay only when its transition
+is bounded, attributable to the action, and (for element targets) backed by a unique high-confidence
+Element Identity Contract. Trusted SPA route changes rank above nearby DOM/network observations;
+page-load timers, polling, generic controls, global loaders, and unrelated list/toast changes cannot
+become fatal merely because they happen after a click.
+
+The runner skips advisory evidence, logs optional misses without failing, validates required enabled
+targets by hashed identity, and reports specific wait identity/evidence codes. Legacy/manual waits
+with no evidence retain their historical semantics. Real Chromium verification is **32/32** through
+observer -> profile -> JSON -> StepExecutor; five deliberate mutations failed before restoration.
+The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Interaction prerequisite execution decisions - awkit-aek COMPLETE (2026-08-08)
 
 Recorder output no longer converts an unknown hover/insertion prerequisite into a locator failure
