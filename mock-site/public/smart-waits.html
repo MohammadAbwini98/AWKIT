@@ -110,6 +110,15 @@
           <button id="fastScenarioButton" type="button">Run fast scenario</button>
           <p id="fastResult" data-testid="fast-result" hidden>Fast result ready</p>
         </article>
+
+        <article data-testid="wait-route-background-enable">
+          <h2>SPA route with unrelated enable</h2>
+          <p>Expected: the route is the completion signal; the independently scheduled background control must not gate replay.</p>
+          <button id="spaRouteButton" data-testid="spa-route-button" type="button">Open Shorts route</button>
+          <button class="background-suggestion-control" type="button" disabled aria-label="Background suggestion">&#8943;</button>
+          <button id="nextVideoButton" data-testid="next-video-button" type="button">Next video</button>
+          <p id="spaRouteStatus" data-testid="spa-route-status">Route idle</p>
+        </article>
       </section>
 
       <section aria-label="Scenario log">
@@ -145,6 +154,8 @@
         $("sequentialDone").hidden = true;
         $("failureContext").hidden = true;
         $("fastResult").hidden = true;
+        $("spaRouteStatus").textContent = "Route idle";
+        document.querySelector(".background-suggestion-control").disabled = true;
         $("eventLog").innerHTML = "";
       };
       $("resetLab").addEventListener("click", reset);
@@ -193,6 +204,18 @@
       });
       $("failingWaitButton").addEventListener("click", function () { log("failure context scheduled"); later(function () { $("failureContext").hidden = false; log("missing target intentionally absent"); }); });
       $("fastScenarioButton").addEventListener("click", function () { $("fastResult").hidden = false; log("fast result ready"); });
+      $("spaRouteButton").addEventListener("click", function () {
+        history.pushState({}, "", "/smart-waits/shorts/local-video");
+        $("spaRouteStatus").textContent = "Shorts route complete";
+        log("SPA route complete");
+      });
+      // Deliberately independent of the route button: the timer is armed at page load, not by the
+      // action. If it happens to land after a click, temporal proximity alone must not make it a
+      // required completion condition.
+      window.setTimeout(function () {
+        document.querySelector(".background-suggestion-control").disabled = false;
+        log("background suggestion enabled");
+      }, 650);
       reset();
     </script>
   </body>
