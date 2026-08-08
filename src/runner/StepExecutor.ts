@@ -615,9 +615,9 @@ export class StepExecutor {
         case "elementEnabled": {
           const locator = await this.resolveIdentifiedWaitTarget(wait, wait.locator);
           await this.waitForPredicate(
-            () => locator.isEnabled().catch(() => false),
+            () => locator.isEnabled({ timeout: Math.min(timeout, 100) }).catch(() => false),
             timeout,
-            async () => `enabled=${await locator.isEnabled().catch(() => "n/a")}`
+            async () => `enabled=${await locator.isEnabled({ timeout: Math.min(timeout, 100) }).catch(() => "n/a")}`
           );
           return;
         }

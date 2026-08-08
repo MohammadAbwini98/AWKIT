@@ -169,6 +169,14 @@ try {
 
   const legacy = JSON.parse(JSON.stringify({ id: "legacy", type: "click", name: "Legacy", locator: { strategy: "id", value: "x" }, afterWaits: [{ type: "elementEnabled", locator: { strategy: "id", value: "y" } }] })) as FlowStep;
   check("legacy/manual required wait remains required", legacy.afterWaits?.[0]?.optional !== true && !legacy.afterWaits?.[0]?.evidence);
+  await page.goto("about:blank");
+  await page.setContent(`<button id="x">Run</button>`);
+  const optionalMiss = await execute(page, {
+    id: "optional-miss", type: "click", name: "Optional miss", locator: { strategy: "id", value: "x" },
+    afterWaits: [{ type: "elementEnabled", locator: { strategy: "id", value: "missing" }, timeoutMs: 50, optional: true,
+      evidence: { schemaVersion: 1, signalType: "elementEnabled", requirement: "optional", confidence: { level: "medium", basis: ["supporting"] }, causality: { observedAt: 1_100, actionAt: 1_000, competingCause: "click", attributable: true }, replayPolicy: { failureMode: "warn" } } }]
+  });
+  check("optional miss is non-fatal and precisely reported", optionalMiss.status === "passed" && optionalMiss.logs.some((line) => line.includes("WAIT_SIGNAL_OPTIONAL_MISSED")), optionalMiss.error);
   check("sensitive policy remains untouched (no force)", !getRecorderInitScriptContent().includes("force: true"));
 
   await browser.close();
