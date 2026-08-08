@@ -171,7 +171,7 @@ function cssLocator(selector: string): StepLocator {
 function urlFragment(raw: string): string | undefined {
   try {
     const url = new URL(raw);
-    const frag = (url.pathname && url.pathname !== "/" ? url.pathname : "") + (url.hash || "");
+    const frag = url.pathname && url.pathname !== "/" ? url.pathname : "";
     return frag || undefined;
   } catch {
     return undefined;

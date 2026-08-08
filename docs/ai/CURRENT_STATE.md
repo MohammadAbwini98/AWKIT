@@ -11,7 +11,7 @@ become fatal merely because they happen after a click.
 
 The runner skips advisory evidence, logs optional misses without failing, validates required enabled
 targets by hashed identity, and reports specific wait identity/evidence codes. Legacy/manual waits
-with no evidence retain their historical semantics. Real Chromium verification is **32/32** through
+with no evidence retain their historical semantics. Real Chromium verification is **33/33** through
 observer -> profile -> JSON -> StepExecutor; five deliberate mutations failed before restoration.
 The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 

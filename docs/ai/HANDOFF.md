@@ -8,9 +8,9 @@
 - **Runtime/UI:** advisory evidence is diagnostic-only; optional misses are non-fatal; required
   enabled targets are checked against their hashed identity. Flow Designer shows requirement,
   confidence, basis, and dominant strategy. Legacy/manual required waits are unchanged.
-- **Evidence:** real Chromium observer -> profile -> JSON -> StepExecutor is **32/32**. Mutation
-  results: promote enables **28/4**, remove competing cause **30/2**, ignore identity **31/1**,
-  ignore dominance **31/1**, optional fatal **31/1**, restored to **32/32**.
+- **Evidence:** real Chromium observer -> profile -> JSON -> StepExecutor is **33/33**. Mutation
+  results: promote enables **29/4**, remove competing cause **31/2**, ignore identity **32/1**,
+  ignore dominance **32/1**, optional fatal **32/1**, restored to **33/33**.
 - **Ledger:** unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 - **Git boundary:** local `main` contains pre-existing unpublished owner release commits; do not push
   this work implicitly without the owner's publication decision.

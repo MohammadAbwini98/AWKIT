@@ -157,6 +157,8 @@ try {
   const networkPositive = classify([{ kind: "request", method: "POST", path: "/api/save", status: 204, startedAt: 1_050, endedAt: 1_120, cause: "click" }]);
   check("O causal network → optional supporting", networkPositive[0]?.type === "response" && networkPositive[0].evidence?.requirement === "optional");
   check("P background repeated network → not a required gate", polling.every((wait) => wait.evidence?.requirement !== "required"));
+  const sanitizedRoute = classify([{ kind: "url", url: "https://example.test/shorts/video?token=secret#private", ts: 1_100, cause: "click" }]);
+  check("route evidence strips query and fragment", sanitizedRoute[0]?.type === "urlChanged" && sanitizedRoute[0].urlContains === "/shorts/video");
   const frameLocator = strongLocator({ context: { frameChain: [{ selector: "iframe[data-testid=frame]", url: "http://frame.test/frame" }] } });
   const frameWait = classify([{ kind: "enabled", locator: frameLocator, ts: 1_100, existedBefore: true, preDisabled: true, postDisabled: false, cause: "click" }]);
   check("Q frame target chain remains load-bearing", frameWait[0]?.type === "elementEnabled" && frameWait[0].locator.context?.frameChain?.[0]?.url === "http://frame.test/frame");
