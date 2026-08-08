@@ -1,5 +1,25 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-08) - awkit-3jm nine-feature tranche complete
+
+- **Delivered:** Super-User-only embedded Program Status, bounded redacted Debug Mode, persisted
+  inactivity policy, trusted Recorder hotkeys, Clear All, dependency-aware deletion, whole-row URL
+  activation, shared bounded history in both designers, and the accessible Unsaved Changes layout.
+- **Security:** all new privileged pages and IPC fail closed before authentication and for non-Super
+  Users; logs redact secret-bearing keys and bearer/cookie material; Recorder ignores protected-input
+  shortcuts and untrusted/repeated events. No force action or sensitive recovery policy changed.
+- **Evidence:** Super User **49/49**; Settings E2E **170/170**; hotkeys **37/37**; actions **20/20**;
+  history **14/14**; Flow Designer **87/87**; Workflow Builder **34/34**; hover **236/236**; Mock Site
+  **145/145**; runner **95/95**. Nine production mutations were independently detected and restored.
+- **Ledger/tracker:** validation ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker is
+  **185 total / 181 closed / 4 owner-gated outstanding**; `awkit-3jm` and all nine children are closed.
+- **Git boundary:** commits are local on `main`; pre-existing unpublished owner release commits are in
+  the same history. Do not push implicitly. Fresh signed portable packaging remains owner/environment
+  gated and was not attempted.
+- **Next:** owner decision on the four existing gated items and publication/release timing.
+
+---
+
 ## HANDOFF (2026-08-08) - awkit-dl7 Smart Wait causality complete
 
 - **Delivered:** only identity-bound, bounded, action-attributed Recorder transitions can gate

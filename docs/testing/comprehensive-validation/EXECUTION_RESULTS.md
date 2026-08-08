@@ -1,5 +1,19 @@
 # AWKIT Comprehensive Validation Execution Results
 
+## Super User / Recorder UX / editor-history tranche - 2026-08-08
+
+Epic `awkit-3jm` and its nine children passed focused authorization, persistence, real-browser,
+Electron GUI, accessibility, and mutation-sensitive acceptance. Key restored-state results were:
+Super User controls **49/49**, Settings E2E **170/170**, Recorder hotkeys **37/37**, Recorder action
+mutation **20/20**, editor history **14/14**, Flow Designer **87/87**, Workflow Builder **34/34**,
+Recorder hover **236/236**, Mock Site **145/145**, and runner **95/95**. Nine targeted production
+mutations each made its owning verifier fail before restoration.
+
+No focused-ledger case changed status, so the authoritative tally remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## SET-015 real runtime-folder launch — 2026-08-04
 
 The owner-approved opt-in Settings gate passed **154 PASS / 0 FAIL** with

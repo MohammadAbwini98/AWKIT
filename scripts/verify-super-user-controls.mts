@@ -47,17 +47,22 @@ for (const permission of [
   check(`Super User holds ${permission}`, BUILTIN_ROLES.SuperUser.permissions.includes(permission));
   check(`Administrator is denied ${permission}`, !BUILTIN_ROLES.Administrator.permissions.includes(permission));
 }
-const [roadmapIpc, debugIpc, settingsIpc, routePermissions] = await Promise.all([
+const [roadmapIpc, debugIpc, settingsIpc, routePermissions, securityKernelSource] = await Promise.all([
   source("app/main/ipc/roadmap.ipc.ts"),
   source("app/main/ipc/debug.ipc.ts"),
   source("app/main/ipc/settings.ipc.ts"),
-  source("app/renderer/security/routePermissions.ts")
+  source("app/renderer/security/routePermissions.ts"),
+  source("app/main/security/securityKernel.ts")
 ]);
 check("roadmap IPC requires PAGE_ROADMAP", roadmapIpc.includes("assertSenderPermission(event, Permission.PAGE_ROADMAP"));
 check("debug log IPC requires DEBUG_LOG_VIEW", debugIpc.includes("assertSenderPermission(event, Permission.DEBUG_LOG_VIEW"));
 check("debug mutation requires DEBUG_MODE_MANAGE", settingsIpc.includes("Permission.DEBUG_MODE_MANAGE"));
 check("timeout mutation requires SESSION_POLICY_MANAGE", settingsIpc.includes("Permission.SESSION_POLICY_MANAGE"));
 check("direct roadmap route uses PAGE_ROADMAP", routePermissions.includes("roadmap: Permission.PAGE_ROADMAP"));
+check(
+  "session startup policy is hydrated from the persisted Super User setting",
+  securityKernelSource.includes("sessionInactivityMinutesToMs(settings.superUser.sessionInactivityMinutes)")
+);
 
 console.log("\nSession policy:");
 check("compatibility default remains 30 minutes", DEFAULT_SESSION_INACTIVITY_MINUTES === 30);

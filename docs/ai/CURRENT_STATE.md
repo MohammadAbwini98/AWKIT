@@ -1,5 +1,26 @@
 # CURRENT_STATE
 
+## Super User controls, Recorder UX, session policy, and editor history - awkit-3jm COMPLETE (2026-08-08)
+
+The Program Status dashboard is now embedded in the app from the same source/views as the standalone
+dashboard, is authorized only for Super Users, omits the portable-generation control, and has no
+localhost runtime dependency. Super Users can also enable bounded, rotated, redacted JSONL debug logs
+and configure the persisted inactivity timeout (default 30 minutes) through separately authorized IPC.
+
+Recorder now captures trusted keyboard shortcuts as one `press` action, filters normal typing,
+auto-repeat, protected inputs, and untrusted synthetic events, and replays the canonical chords through
+Playwright. Clear All and individual deletion are confirmed and dependency-aware; recorded URL rows are
+fully mouse/keyboard activatable while nested controls remain isolated. Flow Designer and Workflow
+Builder share bounded 50-state undo/redo with 300 ms coalescing, save-checkpoint dirty semantics,
+buttons and safe shortcuts. The Unsaved Changes dialog has a trapped focus cycle, stable desktop action
+alignment, narrow responsive stacking, and reduced-motion-safe behavior.
+
+Focused green evidence: Super User controls **49/49**; settings E2E **170/170**; hotkeys **37/37**;
+Recorder actions **20/20**; editor history **14/14**; Flow Designer GUI **87/87**; Workflow Builder GUI
+**34/34**; Recorder hover **236/236**; Mock Site **145/145**; runner **95/95**. Nine deliberate
+authorization/redaction/canonicalization/session/cleanup/history/dialog mutations each made a verifier
+red and were restored. The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Recorder Smart Wait causality - awkit-dl7 COMPLETE (2026-08-08)
 
 New Recorder-inferred waits carry a versioned, privacy-safe evidence contract that separates

@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const ordinary: RecordedAction[] = [
     { id: "a", type: "click", name: "First" },
     { id: "wait-b", type: "wait", name: "Wait", waitMs: 800 },
-    { id: "b", type: "click", name: "Second", afterWaits: [{ type: "fixedDelay", durationMs: 500 }] },
+    { id: "b", type: "click", name: "Second", afterWaits: [{ type: "fixedDelay", delayMs: 500 }] },
     { id: "c", type: "click", name: "Third" }
   ];
   const deleted = removeRecordedAction(ordinary, "b");
@@ -71,10 +71,18 @@ async function main(): Promise<void> {
     service.actions = [...ordinary];
     service.recordedUrls = [{ id: "url", url: "https://example.test/", timestamp: new Date(0).toISOString(), source: "manual_url_entry" }];
     service.isRecording = true;
+    service.signals = [{ type: "mutation", at: 1 }];
+    service.lastClickByPage.set({} as never, { action: ordinary[0], at: 1 });
+    service.popupAttributions.set({} as never, { action: ordinary[0] });
+    service.ambiguityState = { kind: "positional", action: ordinary[0] };
     const cleared = await service.clearActions();
     check("Clear all empties the service action list", cleared.length === 0 && service.getActions().length === 0);
     check("Clear all preserves URL history", service.getUrls().length === 1 && service.getUrls()[0].id === "url");
     check("Clear all preserves the live recording state", service.getStatus().isRecording === true);
+    check(
+      "Clear all removes stale signals, click attribution, popup attribution, and review state",
+      service.signals.length === 0 && service.lastClickByPage.size === 0 && service.popupAttributions.size === 0 && service.ambiguityState === null
+    );
     const persisted = JSON.parse(await readFile(draft, "utf8")) as { actions: RecordedAction[] };
     check("Clear all durably persists an empty draft", Array.isArray(persisted.actions) && persisted.actions.length === 0);
 

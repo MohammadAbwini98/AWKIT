@@ -4,6 +4,23 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-08 - Codex - Complete Super User, Recorder UX, session, and editor-history tranche
+
+- **Task:** Implement epic `awkit-3jm` and its nine acceptance-matrix children.
+- **Implementation:** Embedded the exact dashboard for Super Users; added bounded redacted Debug Mode
+  and persisted inactivity policy; added canonical Recorder `press` capture/replay, confirmed Clear All,
+  dependency-aware delete, and whole-row URL activation; added shared bounded undo/redo to both canvas
+  editors; polished the Unsaved Changes dialog's alignment, focus, responsiveness, and motion behavior.
+- **Safety/compatibility:** privileged route and IPC checks are independent; debug retention is bounded;
+  protected input and synthetic/repeat keyboard events are ignored; delete cleans synthetic waits,
+  popup lifecycle dependencies, and ambiguity/provenance state; legacy profiles/settings remain valid.
+- **Verified:** Super User **49/49**; Settings E2E **170/170**; hotkeys **37/37**; Recorder actions
+  **20/20**; history **14/14**; Flow Designer **87/87**; Workflow Builder **34/34**; hover **236/236**;
+  Mock Site **145/145**; runner **95/95**. Nine targeted mutations went red before restoration.
+- **Release:** no push and no fresh signed portable package; those remain owner/environment decisions.
+
+---
+
 ## 2026-08-08 - Codex - Harden Recorder Smart Wait causality
 
 - **Task:** Stop unrelated post-click activity from becoming fatal Recorder completion conditions

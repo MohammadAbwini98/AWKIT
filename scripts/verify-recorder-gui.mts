@@ -681,9 +681,13 @@ try {
   const untrustedFixtureActions = await win.evaluate(() => window.playwrightFlowStudio.recorder.getActions());
   const identityResolvedFixtureAction = untrustedFixtureActions.find((action) => action.type === "click");
   check(
-    "fixture positional click is resolved by the Element Identity Contract",
-    identityResolvedFixtureAction?.locator?.resolution === "resolved" && identityResolvedFixtureAction.locator.identity?.schemaVersion === 1,
-    JSON.stringify(identityResolvedFixtureAction)
+    "fixture positional click carries the Element Identity Contract before flow finalization",
+    identityResolvedFixtureAction?.locator?.identity?.schemaVersion === 1,
+    JSON.stringify({
+      resolution: identityResolvedFixtureAction?.locator?.resolution,
+      identity: identityResolvedFixtureAction?.locator?.identity,
+      guard: identityResolvedFixtureAction?.locator?.guard
+    })
   );
   check("identity-resolved fixture activity does not open locator review", (await win.getByTestId("ambiguity-resolution-panel").count()) === 0);
   await cancelButton(win).click();

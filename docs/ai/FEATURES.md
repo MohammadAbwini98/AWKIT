@@ -1,5 +1,16 @@
 # FEATURES
 
+## Super User controls and Recorder/editor productivity (2026-08-08)
+
+- Super Users can open an embedded, offline Program Status page sourced from the standalone roadmap
+  implementation, enable bounded redacted Debug Mode logs, and set the persisted session inactivity
+  timeout. Each page/read/mutation path has its own fail-closed permission.
+- Recorder supports canonical trusted shortcut actions including F1-F12 and modified chords, confirmed
+  Clear All, dependency-aware action deletion, and fully activatable URL history rows.
+- Flow Designer and Workflow Builder share bounded undo/redo with toolbar and keyboard controls,
+  coalescing, save-checkpoint dirty state, and reset-on-load semantics. Unsaved-change confirmation is
+  keyboard trapped, responsive, and visually aligned.
+
 ## Program Status portable packaging action (2026-08-03)
 
 - Implemented: the local roadmap dashboard can start the existing portable packaging pipeline from a

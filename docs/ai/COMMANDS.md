@@ -7,6 +7,15 @@
 All commands verified against `package.json` scripts and repo scripts (2026-06-26).
 Platform: **Windows** (packaging/offline scripts are PowerShell). Node 18 in the current dev env.
 
+## Super User, Recorder UX, and editor-history focused verification
+
+```bash
+npm run verify:super-user-controls # RBAC, IPC, session policy, debug retention/redaction, roadmap parity
+npm run verify:recorder-hotkeys     # trusted capture, privacy filters, persistence, production replay
+npm run verify:recorder-actions     # Clear All and dependency-aware delete policy/persistence
+npm run verify:editor-history       # shared bounded undo/redo, coalescing, dirty checkpoint, reset
+```
+
 ## Install
 ```bash
 npm install
