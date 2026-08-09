@@ -6,7 +6,7 @@ import { useSession } from "../../security/SessionContext";
 import { usePageChrome } from "../../state/pageChrome";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge } from "./components/AdminUi";
+import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge, AdminSummaryItem } from "./components/AdminUi";
 
 type Resp<T> = { ok: boolean; value?: T; reason?: string };
 const licensing = () => window.playwrightFlowStudio.licensing;
@@ -167,6 +167,15 @@ export function LicensingPage() {
 
   return (
     <AdminPage
+      title="Licensing"
+      description="Review this machine's offline license, activation identity, and enforcement state."
+      summary={
+        <>
+          <AdminSummaryItem label="License status" value={report ? <AdminStatusBadge status={report.status} /> : "—"} />
+          <AdminSummaryItem label="Execution" value={report?.enforcement?.runsAllowed ? "Allowed" : "Blocked"} />
+          <AdminSummaryItem label="Remaining" value={remaining(report?.remainingMinutes)} />
+        </>
+      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -194,8 +203,9 @@ export function LicensingPage() {
         </>
       }
     >
+      <div className="awkit-admin-dashboard-grid awkit-admin-license-layout">
       {/* Status */}
-      <section className="settings-card">
+      <section className="settings-card awkit-admin-license-status">
         <div className="awkit-admin-card-head">
           <h2><KeyRound size={16} /> License status</h2>
           {report ? <AdminStatusBadge status={report.status} /> : null}
@@ -282,6 +292,7 @@ export function LicensingPage() {
           </button>
         </div>
       </section>
+      </div>
 
       {pendingFn ? (
         <ReauthDialog

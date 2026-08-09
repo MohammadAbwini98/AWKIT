@@ -30,13 +30,10 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
-  Redo2,
   Repeat,
-  Save,
   Search,
   ShieldCheck,
   Trash2,
-  Undo2,
   Upload
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -79,6 +76,12 @@ import {
   WORKFLOW_IMPORT_ID_CONFLICT
 } from "@src/profiles/workflowProfileValidation";
 import { isNativeUndoTarget, useEditorHistory } from "../lib/editorHistory";
+import {
+  EditorCommandBar,
+  EditorCommandGroup,
+  EditorHistoryControls,
+  EditorIdentityField
+} from "../components/shared/EditorCommandBar";
 
 type ScenarioNode = CanvasNode<ScenarioFlowNodeData>;
 type ScenarioEdge = CanvasEdge<ScenarioLinkData>;
@@ -1141,11 +1144,10 @@ function ScenarioBuilderContent() {
       {/* Phase 02 + UI-repair pass: grouped single-row toolbar. Save/Run live in the top app header;
           zoom/fit live in the canvas zoom pill. Controls are organized into labeled groups
           (Workflow · Add · Execution · Layout) with separators, then a right-aligned status area. */}
-      <section className="scenario-toolbar scenario-toolbar-compact">
+      <EditorCommandBar ariaLabel="Workflow commands" className="scenario-toolbar scenario-toolbar-compact">
         {/* Group 1 — Workflow: select / name / new / reload / settings / export */}
-        <div className="sb-toolbar-group" role="group" aria-label="Workflow">
-          <label className="sb-toolbar-field">
-            <span>Workflow</span>
+        <EditorCommandGroup label="Workflow identity" className="sb-toolbar-group editor-command-identity">
+          <EditorIdentityField label="Workflow" className="sb-toolbar-field editor-identity-select">
             <select
               value={workflowId}
               onChange={(event) => {
@@ -1162,10 +1164,9 @@ function ScenarioBuilderContent() {
                   </option>
                 ))}
             </select>
-          </label>
+          </EditorIdentityField>
 
-          <label className="sb-toolbar-field">
-            <span>Name</span>
+          <EditorIdentityField label="Workflow name" className="sb-toolbar-field editor-identity-name">
             <input
               value={workflowName}
               onChange={(event) => {
@@ -1174,8 +1175,10 @@ function ScenarioBuilderContent() {
               }}
               style={{ minWidth: "140px" }}
             />
-          </label>
+          </EditorIdentityField>
+        </EditorCommandGroup>
 
+        <EditorCommandGroup label="Files" className="sb-toolbar-group">
           <button className="toolbar-button" id="sb-new" onClick={() => setNamingWorkflow(true)} title="Create a new named workflow" type="button">
             <FilePlus size={14} />
             New
@@ -1183,21 +1186,6 @@ function ScenarioBuilderContent() {
           <button className="toolbar-button" id="sb-reload" disabled onClick={() => void loadScenario()} title="Reload this workflow from the last saved copy" type="button">
             <FolderOpen size={14} />
             Reload
-          </button>
-          <button
-            className="toolbar-button"
-            id="sb-workflow-settings"
-            title="Edit workflow data source & failure policy"
-            onClick={() => {
-              setWorkflowSettingsOpen(true);
-              setSelectedNodeId(null);
-              setSelectedEdgeId(null);
-              setRightPanelCollapsed(false);
-            }}
-            type="button"
-          >
-            <Database size={14} />
-            Settings
           </button>
           <button className="toolbar-button" id="sb-export" onClick={exportScenario} title="Export this workflow as JSON" type="button">
             <Download size={14} />
@@ -1225,24 +1213,37 @@ function ScenarioBuilderContent() {
               event.target.value = "";
             }}
           />
-        </div>
+        </EditorCommandGroup>
 
-        <span className="sb-toolbar-sep" aria-hidden="true" />
+        <EditorCommandGroup label="Configuration" className="sb-toolbar-group">
+          <button
+            className="toolbar-button"
+            id="sb-workflow-settings"
+            title="Edit workflow data source & failure policy"
+            onClick={() => {
+              setWorkflowSettingsOpen(true);
+              setSelectedNodeId(null);
+              setSelectedEdgeId(null);
+              setRightPanelCollapsed(false);
+            }}
+            type="button"
+          >
+            <Database size={14} />
+            Workflow settings
+          </button>
+        </EditorCommandGroup>
 
         {/* Group 2 — Add: single Add Flow entry (its menu also hosts the Flow Logic section) */}
-        <div className="sb-toolbar-group" role="group" aria-label="Add">
+        <EditorCommandGroup label="Build" className="sb-toolbar-group">
           <button className="toolbar-button primary" id="sb-add-flow" onClick={openToolbarPicker} title="Add a flow or a conditional / parallel / loop branch" type="button">
             <Plus size={14} />
-            Add
+            Add flow
           </button>
-        </div>
-
-        <span className="sb-toolbar-sep" aria-hidden="true" />
+        </EditorCommandGroup>
 
         {/* Group 3 — Execution: run mode + parallelism */}
-        <div className="sb-toolbar-group" role="group" aria-label="Execution">
-          <label className="sb-toolbar-field">
-            <span>Mode</span>
+        <EditorCommandGroup label="Execution model" className="sb-toolbar-group">
+          <EditorIdentityField label="Mode" className="sb-toolbar-field editor-mode-field">
             <select disabled value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
               <option value="sequential">Sequential</option>
               <option value="conditional">Conditional</option>
@@ -1250,10 +1251,9 @@ function ScenarioBuilderContent() {
               <option value="loop">Loop</option>
               <option value="manual">Manual</option>
             </select>
-          </label>
+          </EditorIdentityField>
 
-          <label className="sb-toolbar-field">
-            <span>Parallel</span>
+          <EditorIdentityField label="Parallel" className="sb-toolbar-field editor-parallel-field">
             <input
               disabled
               min="1"
@@ -1262,31 +1262,31 @@ function ScenarioBuilderContent() {
               value={maxParallelFlows}
               onChange={(event) => setMaxParallelFlows(Number(event.target.value))}
             />
-          </label>
-        </div>
-
-        <span className="sb-toolbar-sep" aria-hidden="true" />
+          </EditorIdentityField>
+        </EditorCommandGroup>
 
         {/* Group 4 — Layout */}
-        <div className="sb-toolbar-group" role="group" aria-label="Layout">
+        <EditorCommandGroup label="Layout & history" className="sb-toolbar-group editor-command-utilities">
           <button className="toolbar-button" id="sb-auto-arrange" onClick={autoArrange} title="Auto-arrange flows (top-to-bottom)" type="button">
             <LayoutGrid size={14} />
             Auto-arrange
           </button>
-          <button className="toolbar-button" id="sb-undo" onClick={editorHistory.undo} disabled={!editorHistory.canUndo} title="Undo (Ctrl+Z)" type="button">
-            <Undo2 size={14} />
-            Undo
-          </button>
-          <button className="toolbar-button" id="sb-redo" onClick={editorHistory.redo} disabled={!editorHistory.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" type="button">
-            <Redo2 size={14} />
-            Redo
-          </button>
-        </div>
+          <EditorHistoryControls
+            canUndo={editorHistory.canUndo}
+            canRedo={editorHistory.canRedo}
+            onUndo={editorHistory.undo}
+            onRedo={editorHistory.redo}
+            undoId="sb-undo"
+            redoId="sb-redo"
+          />
+        </EditorCommandGroup>
 
         {/* Right-aligned status: validation summary + save state. Counts include the shared
             engine's blocking findings for referenced flows (Stage 2b), so the chip and the run
             gate agree on whether this workflow can execute. */}
-        <div className="sb-toolbar-actions" role="status">
+        <div className="sb-toolbar-actions editor-command-state" role="status" aria-label="Workflow state">
+          <span className="editor-command-group-label" aria-hidden="true">Workflow state</span>
+          <div className="editor-command-controls">
           <span
             className={
               flowValidationIssues.length
@@ -1307,8 +1307,9 @@ function ScenarioBuilderContent() {
               : "Valid"}
           </span>
           <span className="sb-save-state" title={saveState}>{saveState}</span>
+          </div>
         </div>
-      </section>
+      </EditorCommandBar>
 
       {/* Phase 01+03: Dynamic 3-column grid responding to collapse state */}
       <div className="scenario-builder-grid">

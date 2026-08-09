@@ -13,7 +13,7 @@ import {
   type EdgeTypes,
   type Viewport
 } from "../components/canvas";
-import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Redo2, Repeat, ShieldCheck, Trash2, Undo2 } from "lucide-react";
+import { FolderOpen, GitBranch, GitFork, LayoutGrid, Plus, Repeat, ShieldCheck, Trash2 } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
@@ -61,6 +61,12 @@ import {
   type FlowValidationReport
 } from "@src/validation/FlowValidator";
 import { isNativeUndoTarget, useEditorHistory } from "../lib/editorHistory";
+import {
+  EditorCommandBar,
+  EditorCommandGroup,
+  EditorHistoryControls,
+  EditorIdentityField
+} from "../components/shared/EditorCommandBar";
 
 /** Derived validation status of the SAVED flow, from `validation:status` (Stage 2c). */
 type FlowValidationStatus = Awaited<ReturnType<typeof window.playwrightFlowStudio.validation.status>>;
@@ -1109,68 +1115,72 @@ function FlowChartDesignerContent() {
           </div>
         ) : null}
 
-        <div className="flow-action-bar">
-          <div className="flow-action-title">
-            <strong>{flowName}</strong>
-            <span>{saveState}</span>
-          </div>
-          <label>
-            Saved Flow
-            <SearchableSelect
-              ariaLabel="Saved flow"
-              value={flowId}
-              placeholder="Select a flow…"
-              options={savedFlows.map((profile) => ({ value: profile.id, label: profile.name, description: profile.id }))}
-              onChange={(next) => {
-                const profile = savedFlows.find((item) => item.id === next);
-                if (profile) loadProfile(profile);
-              }}
-            />
-          </label>
-          <label>
-            Flow Name
-            <input value={flowName} onChange={(event) => setFlowName(event.target.value)} />
-          </label>
+        <EditorCommandBar ariaLabel="Flow commands" className="flow-action-bar">
+          <EditorCommandGroup label="Flow identity" className="editor-command-identity">
+            <EditorIdentityField label="Saved flow" className="editor-identity-select">
+              <SearchableSelect
+                ariaLabel="Saved flow"
+                value={flowId}
+                placeholder="Select a flow…"
+                options={savedFlows.map((profile) => ({ value: profile.id, label: profile.name, description: profile.id }))}
+                onChange={(next) => {
+                  const profile = savedFlows.find((item) => item.id === next);
+                  if (profile) loadProfile(profile);
+                }}
+              />
+            </EditorIdentityField>
+            <EditorIdentityField label="Flow name" className="editor-identity-name">
+              <input value={flowName} onChange={(event) => setFlowName(event.target.value)} />
+            </EditorIdentityField>
+          </EditorCommandGroup>
           {/* Save and Export live in the top header (usePageChrome) — not duplicated here. */}
-          <button className="toolbar-button" onClick={openToolbarPicker} type="button">
-            <Plus size={15} />
-            Add Node
-          </button>
-          <button className="toolbar-button" onClick={loadFlow} type="button">
-            <FolderOpen size={15} />
-            Load
-          </button>
-          <button className="toolbar-button" onClick={autoArrange} type="button" title="Auto-arrange nodes (top-to-bottom)">
-            <LayoutGrid size={15} />
-            Auto-arrange
-          </button>
-          <div className="designer-history-controls" role="group" aria-label="Edit history">
-            <button className="toolbar-button" type="button" onClick={editorHistory.undo} disabled={!editorHistory.canUndo} title="Undo (Ctrl+Z)" data-testid="flow-undo">
-              <Undo2 size={15} />
-              Undo
+          <EditorCommandGroup label="Edit">
+            <button className="toolbar-button primary" onClick={openToolbarPicker} type="button">
+              <Plus size={15} />
+              Add node
             </button>
-            <button className="toolbar-button" type="button" onClick={editorHistory.redo} disabled={!editorHistory.canRedo} title="Redo (Ctrl+Y or Ctrl+Shift+Z)" data-testid="flow-redo">
-              <Redo2 size={15} />
-              Redo
+            <button className="toolbar-button" onClick={loadFlow} type="button">
+              <FolderOpen size={15} />
+              Load
             </button>
-          </div>
+          </EditorCommandGroup>
+          <EditorCommandGroup label="Layout & history" className="editor-command-utilities">
+            <button className="toolbar-button" onClick={autoArrange} type="button" title="Auto-arrange nodes (top-to-bottom)">
+              <LayoutGrid size={15} />
+              Auto-arrange
+            </button>
+            <EditorHistoryControls
+              canUndo={editorHistory.canUndo}
+              canRedo={editorHistory.canRedo}
+              onUndo={editorHistory.undo}
+              onRedo={editorHistory.redo}
+              undoTestId="flow-undo"
+              redoTestId="flow-redo"
+            />
+          </EditorCommandGroup>
           {/* Derived runnability (Stage 2b): blocking = the run gate would reject this flow now.
               Never persisted. Clicking opens the issue list; each row navigates to its node/connector. */}
-          <button
-            type="button"
-            className={`validation-chip ${blockingIssues.length ? "block" : validationMessages.length ? "warn" : "ok"}`}
-            onClick={() => setIssuesOpen((open) => !open)}
-            title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationMessages.length ? "Click to review validation findings" : "No validation findings"}
-            data-testid="flow-validation-chip"
-          >
-            <ShieldCheck size={14} />
-            {blockingIssues.length
-              ? `Draft — not runnable (${blockingIssues.length})`
-              : validationMessages.length
-                ? `${validationMessages.length} finding${validationMessages.length === 1 ? "" : "s"}`
-                : "Runnable"}
-          </button>
-        </div>
+          <div className="editor-command-state" role="status" aria-label="Flow state">
+            <span className="editor-command-group-label" aria-hidden="true">Flow state</span>
+            <div className="editor-command-controls">
+              <button
+                type="button"
+                className={`validation-chip ${blockingIssues.length ? "block" : validationMessages.length ? "warn" : "ok"}`}
+                onClick={() => setIssuesOpen((open) => !open)}
+                title={blockingIssues.length ? "This draft has errors that block execution — click to review" : validationMessages.length ? "Click to review validation findings" : "No validation findings"}
+                data-testid="flow-validation-chip"
+              >
+                <ShieldCheck size={14} />
+                {blockingIssues.length
+                  ? `Draft — not runnable (${blockingIssues.length})`
+                  : validationMessages.length
+                    ? `${validationMessages.length} finding${validationMessages.length === 1 ? "" : "s"}`
+                    : "Runnable"}
+              </button>
+              <span className="editor-command-save-state" title={saveState}>{saveState}</span>
+            </div>
+          </div>
+        </EditorCommandBar>
 
         {issuesOpen && (validationReport.issues.length > 0 || advisoryMessages.length > 0) ? (
           <div className="validation-issues-panel" data-testid="flow-validation-panel">

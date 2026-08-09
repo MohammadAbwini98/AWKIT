@@ -141,8 +141,8 @@ async function loopItemLabel(win, nodeId) {
 }
 
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
-const WF_NAME_INPUT = 'label.sb-toolbar-field:has(span:text-is("Name")) input';
-const IMPORT_INPUT = '.sb-toolbar-group[aria-label="Workflow"] input[type="file"]';
+const WF_NAME_INPUT = 'label.sb-toolbar-field:has(span:text-is("Workflow name")) input';
+const IMPORT_INPUT = '.sb-toolbar-group[aria-label="Files"] input[type="file"]';
 
 async function setImportFile(win, value, fileName = "workflow.json") {
   const body = typeof value === "string" ? value : JSON.stringify(value, null, 2);
@@ -184,6 +184,35 @@ try {
   await signInFirstRun(win);
   await win.waitForTimeout(1200);
 
+  // The sibling Workflows library should use the full editor surface before entering the Builder.
+  await win.click('button.nav-item:has(span:text-is("Workflows"))').catch(() => {});
+  await win.getByTestId("workflows-library-surface").waitFor({ state: "visible", timeout: 10000 });
+  const workflowsLayout = await win.evaluate(() => {
+    const page = document.querySelector(".workflows-library-page");
+    const panel = document.querySelector(".workflows-library-panel");
+    const table = document.querySelector(".wl-table-workflows");
+    if (!page || !panel || !table) return null;
+    const pageRect = page.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      pageWidth: pageRect.width,
+      panelWidth: panelRect.width,
+      tableWidth: table.getBoundingClientRect().width,
+      wrapperWidth: table.parentElement?.getBoundingClientRect().width ?? 0,
+      panelFillsPage: Math.abs(pageRect.width - panelRect.width - 32) <= 2,
+      tableFillsPanel: table.getBoundingClientRect().width >= (table.parentElement?.getBoundingClientRect().width ?? panelRect.width) - 2,
+      actionColumnWidth: table.querySelector("col.wl-col-actions")?.getBoundingClientRect().width ?? 0
+    };
+  });
+  check(
+    "Workflows table fills its desktop content surface with a compact action column",
+    workflowsLayout?.panelFillsPage && workflowsLayout.tableFillsPanel && workflowsLayout.actionColumnWidth <= 64,
+    workflowsLayout ? JSON.stringify(workflowsLayout) : "workflow table not found"
+  );
+  const uiEvidenceDir = path.join(root, "reports", "ui-consistency");
+  mkdirSync(uiEvidenceDir, { recursive: true });
+  await win.screenshot({ path: path.join(uiEvidenceDir, "workflows-desktop.png"), fullPage: true }).catch(() => undefined);
+
   // Navigate to the Workflow Builder (sidebar may be expanded or collapsed).
   if (!(await win.$(".scenario-flow-node"))) {
     await win.click('button.nav-item:has(span:text-is("Workflow Builder"))').catch(() => {});
@@ -214,19 +243,27 @@ try {
     const toolbar = document.querySelector(".scenario-toolbar-compact");
     if (!toolbar) return null;
     const rect = toolbar.getBoundingClientRect();
-    const controls = [...toolbar.querySelectorAll(":scope > *")].map((element) => element.getBoundingClientRect());
+    const historyButtons = [...toolbar.querySelectorAll(".editor-command-icon-button")].map((element) => element.getBoundingClientRect());
     return {
       height: rect.height,
-      oneRow: controls.every((control) => control.top >= rect.top && control.bottom <= rect.bottom),
+      clientWidth: toolbar.clientWidth,
+      scrollWidth: toolbar.scrollWidth,
+      overflowX: getComputedStyle(toolbar).overflowX,
       overflowY: getComputedStyle(toolbar).overflowY,
-      groups: toolbar.querySelectorAll(".sb-toolbar-group").length
+      groups: toolbar.querySelectorAll(".sb-toolbar-group").length,
+      groupRects: [...toolbar.querySelectorAll(":scope > *")].map((element) => {
+        const groupRect = element.getBoundingClientRect();
+        return { label: element.getAttribute("aria-label"), width: Math.round(groupRect.width), top: Math.round(groupRect.top - rect.top), height: Math.round(groupRect.height) };
+      }),
+      historyCompact: historyButtons.length === 2 && historyButtons.every((button) => button.width <= 36 && button.height <= 36)
     };
   });
   check(
-    "Workflow toolbar stays in one compact row with horizontal overflow",
-    toolbarLayout && toolbarLayout.height <= 64 && toolbarLayout.oneRow && toolbarLayout.overflowY === "hidden" && toolbarLayout.groups === 4,
+    "Workflow command bar wraps complete groups without horizontal scrolling",
+    toolbarLayout && toolbarLayout.height <= 160 && toolbarLayout.scrollWidth <= toolbarLayout.clientWidth + 1 && toolbarLayout.overflowX === "visible" && toolbarLayout.overflowY === "visible" && toolbarLayout.groups === 6 && toolbarLayout.historyCompact,
     toolbarLayout ? JSON.stringify(toolbarLayout) : "toolbar not found"
   );
+  await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-command-bar.png"), fullPage: true }).catch(() => undefined);
 
   // --- 1a. Workflow Builder history uses the same bounded contract. ---
   const originalWorkflowName = await win.locator(WF_NAME_INPUT).inputValue();
@@ -493,6 +530,30 @@ try {
   await win.waitForTimeout(350);
   check("Workflow leaf + opens the contextual Workflow Definition", await win.locator('.canvas-item-picker[aria-label="Workflow Definition"]').isVisible().catch(() => false));
   await win.keyboard.press("Escape");
+
+  // Resize only after the functional walkthrough so responsive layout state cannot perturb later gestures.
+  await win.setViewportSize({ width: 1024, height: 768 });
+  await win.waitForTimeout(500);
+  const narrowToolbar = await win.evaluate(() => {
+    const toolbar = document.querySelector(".scenario-toolbar-compact");
+    if (!toolbar) return null;
+    const rect = toolbar.getBoundingClientRect();
+    const controls = [...toolbar.querySelectorAll("button:not([hidden]), input:not([type=file]), select")];
+    return {
+      noHorizontalScroll: toolbar.scrollWidth <= toolbar.clientWidth + 1,
+      noOverlapOutsideBar: controls.every((control) => {
+        const controlRect = control.getBoundingClientRect();
+        return controlRect.left >= rect.left - 1 && controlRect.right <= rect.right + 1;
+      }),
+      commandCount: controls.length
+    };
+  });
+  check(
+    "Workflow command bar keeps every command reachable at a narrow desktop width",
+    narrowToolbar?.noHorizontalScroll && narrowToolbar.noOverlapOutsideBar && narrowToolbar.commandCount >= 13,
+    narrowToolbar ? JSON.stringify(narrowToolbar) : "toolbar not found"
+  );
+  await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-narrow.png"), fullPage: true }).catch(() => undefined);
 
   check("Workflow Builder walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));
 

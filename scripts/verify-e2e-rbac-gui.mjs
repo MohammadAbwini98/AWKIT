@@ -36,26 +36,26 @@ const ROLES = [
   {
     role: "Administrator",
     username: "adminuser",
-    presentNav: ["Dashboard", "Recorder", "Roadmap", "Roles", "Permissions", "Audit Log", "Help Center"],
-    absentNav: ["Users", "Licensing", "License Issuer"]
+    presentNav: ["Dashboard", "Recorder", "Roles", "Permissions", "Audit Log", "Help Center"],
+    absentNav: ["Program Status", "Users", "Licensing", "License Issuer"]
   },
   {
     role: "Operator",
     username: "opuser2",
     presentNav: ["Dashboard", "Recorder", "Workflows", "Instances", "Help Center"],
-    absentNav: ["Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
+    absentNav: ["Program Status", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
   },
   {
     role: "Viewer",
     username: "viewuser",
     presentNav: ["Dashboard", "Workflows", "Flows", "Data Sources", "Instances", "Reports", "Help Center"],
-    absentNav: ["Recorder", "Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
+    absentNav: ["Recorder", "Program Status", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "License Issuer"]
   },
   {
     role: "Issuer",
     username: "issueruser",
     presentNav: ["License Issuer", "Help Center"],
-    absentNav: ["Dashboard", "Workflows", "Flows", "Data Sources", "Instances", "Reports", "Recorder", "Roadmap", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "Settings"]
+    absentNav: ["Dashboard", "Workflows", "Flows", "Data Sources", "Instances", "Reports", "Recorder", "Program Status", "Users", "Roles", "Permissions", "Audit Log", "Licensing", "Settings"]
   }
 ].map((r) => ({ ...r, temp: genPassword(`T${r.role[0]}`), final: genPassword(`F${r.role[0]}`) }));
 

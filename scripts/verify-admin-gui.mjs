@@ -26,6 +26,34 @@ async function nav(win, label) {
   await win.waitForTimeout(500);
 }
 
+async function adminLayout(win, expectedTitle) {
+  return win.evaluate((title) => {
+    const page = document.querySelector(".awkit-admin-page");
+    const header = page?.querySelector(".awkit-admin-header");
+    const heading = header?.querySelector("h1");
+    if (!page || !header || !heading) return null;
+    const rect = page.getBoundingClientRect();
+    const main = document.querySelector(".main-surface");
+    const mainRect = main?.getBoundingClientRect();
+    return {
+      title: heading.textContent?.trim(),
+      expectedTitle: title,
+      fillsSurface: Boolean(mainRect && rect.width >= mainRect.width - 34),
+      noPageOverflow: page.scrollWidth <= page.clientWidth + 1,
+      summaryItems: page.querySelectorAll(".awkit-admin-summary-item").length
+    };
+  }, expectedTitle);
+}
+
+async function captureAdminThemes(win, shotDir, slug) {
+  for (const theme of ["dark", "light"]) {
+    await win.evaluate((nextTheme) => document.documentElement.setAttribute("data-theme", nextTheme), theme);
+    await win.waitForTimeout(80);
+    await win.screenshot({ path: path.join(shotDir, `${slug}-${theme}.png`), fullPage: true }).catch(() => undefined);
+  }
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+}
+
 const { env, cleanup } = isolatedLaunchEnv("awkit-admin-gui");
 const app = await electron.launch({ args: [root], cwd: root, env });
 const consoleErrors = [];
@@ -35,6 +63,8 @@ try {
   await win.waitForLoadState("domcontentloaded");
   await signInFirstRun(win);
   await win.waitForTimeout(400);
+  const shotDir = path.join(root, "reports", "security-admin");
+  mkdirSync(shotDir, { recursive: true });
 
   // The protected Super User sees the Administration group.
   const adminNav = await win.evaluate(() => [...document.querySelectorAll("button.nav-item")].some((b) => (b.textContent || "").trim() === "Users"));
@@ -45,6 +75,8 @@ try {
   await win.getByRole("heading", { name: "Add a user" }).first().waitFor({ timeout: 10000 }).catch(() => {});
   check("Users page renders the create-user card", (await win.getByRole("heading", { name: "Add a user" }).count()) >= 1);
   check("existing Super User is listed", (await win.getByText("@guiverifier").count()) >= 1);
+  const usersLayout = await adminLayout(win, "Users");
+  check("Users uses the shared Administration header and full-width surface", usersLayout?.title === "Users" && usersLayout.fillsSurface && usersLayout.noPageOverflow && usersLayout.summaryItems === 3, JSON.stringify(usersLayout));
 
   // Create a Viewer user (fresh first-run login counts as a fresh reauth → no prompt).
   await win.locator(".awkit-admin-create-form input").first().fill("viewer1");
@@ -54,13 +86,13 @@ try {
   check("newly created user appears in the list", (await win.getByText("@viewer1").count()) >= 1);
   check("no renderer console errors on Users", consoleErrors.length === 0, consoleErrors.slice(0, 2).join(" | "));
 
-  const shotDir = path.join(root, "reports", "security-admin");
-  mkdirSync(shotDir, { recursive: true });
-  await win.screenshot({ path: path.join(shotDir, "user-management.png") }).catch(() => undefined);
+  await captureAdminThemes(win, shotDir, "users");
 
   // ── Roles / Permissions / Audit / Licensing ─────────────────────────────────
   await nav(win, "Roles");
   check("Roles page lists the Super User role", (await win.getByRole("heading", { name: "Super User" }).count()) >= 1);
+  const rolesLayout = await adminLayout(win, "Roles");
+  check("Roles uses the shared Administration header and summary", rolesLayout?.title === "Roles" && rolesLayout.noPageOverflow && rolesLayout.summaryItems === 3, JSON.stringify(rolesLayout));
 
   const roleForm = win.locator(".settings-card", { has: win.getByRole("heading", { name: "Add a custom role" }) });
   await roleForm.locator("input").first().fill("QA Runner");
@@ -75,10 +107,29 @@ try {
   await roleEditor.getByRole("button", { name: "Save role" }).click();
   await win.waitForTimeout(900);
   check("custom role permissions can be edited", (await createdRoleCard.getByText("workflow.stop", { exact: true }).count()) === 1);
+  await captureAdminThemes(win, shotDir, "roles");
 
   await nav(win, "Permissions");
   check("Permissions matrix renders", (await win.getByRole("heading", { name: "Permission matrix" }).count()) >= 1);
   check("custom role appears in the permission matrix", (await win.getByRole("columnheader", { name: "QA Runner" }).count()) === 1);
+  check("Permissions are organized into named capability groups", (await win.locator(".awkit-admin-matrix-group").count()) >= 4);
+  const permissionMatrixLayout = await win.evaluate(() => {
+    const surface = document.querySelector(".awkit-admin-primary-surface");
+    const scroller = document.querySelector(".awkit-admin-table-scroll");
+    const table = document.querySelector(".awkit-admin-matrix");
+    if (!surface || !scroller || !table) return null;
+    return {
+      surfaceWidth: surface.getBoundingClientRect().width,
+      scrollerWidth: scroller.getBoundingClientRect().width,
+      tableWidth: table.getBoundingClientRect().width
+    };
+  });
+  check(
+    "Permissions matrix uses the available Administration content width",
+    permissionMatrixLayout && permissionMatrixLayout.tableWidth >= permissionMatrixLayout.surfaceWidth - 2,
+    JSON.stringify(permissionMatrixLayout)
+  );
+  await captureAdminThemes(win, shotDir, "permissions");
 
   await nav(win, "Users");
   const viewerRow = win.locator("tr", { hasText: "@viewer1" }).first();
@@ -107,11 +158,16 @@ try {
   await nav(win, "Audit Log");
   await win.waitForTimeout(400);
   check("Audit Log shows the USER_CREATE event", (await win.getByText("USER_CREATE").count()) >= 1);
+  check("Audit Log exposes local search and result filters", (await win.getByRole("search", { name: "Audit filters" }).count()) === 1);
+  await captureAdminThemes(win, shotDir, "audit-log");
   // PR #21 replaced the licensing placeholder with the real LicensingPage (offline per-machine).
   await nav(win, "Licensing");
   await win.getByRole("heading", { name: "License status" }).first().waitFor({ timeout: 10000 }).catch(() => {});
   check("Licensing page renders the license status card", (await win.getByRole("heading", { name: "License status" }).count()) >= 1);
   check("Licensing shows the not-activated state on a fresh profile", (await win.getByText("Not activated").count()) >= 1);
+  const licensingLayout = await adminLayout(win, "Licensing");
+  check("Licensing uses the shared Administration header and dashboard summary", licensingLayout?.title === "Licensing" && licensingLayout.noPageOverflow && licensingLayout.summaryItems === 3, JSON.stringify(licensingLayout));
+  await captureAdminThemes(win, shotDir, "licensing");
 
   check("no renderer console errors overall", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));
 } finally {

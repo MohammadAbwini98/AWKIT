@@ -92,29 +92,6 @@ export function ImplementationRoadmap() {
   return (
     <section className="page rm-embedded-page" data-testid="embedded-roadmap">
       <div className="rm-embedded-layout">
-        <nav className="rm-embedded-nav" aria-label="Program Status views">
-          {views.map((view) => {
-            const count = snapshot ? view.count(snapshot) : null;
-            return (
-              <button
-                className={`nav-item${view.id === currentView.id ? " active" : ""}`}
-                type="button"
-                key={view.id}
-                aria-current={view.id === currentView.id ? "page" : undefined}
-                onClick={() => setViewId(view.id)}
-              >
-                <RoadmapIcon name={view.icon} />
-                <span>{view.label}</span>
-                {count === null ? null : <span className="rm-nav-count">{count}</span>}
-              </button>
-            );
-          })}
-          <p className="rm-live" data-state={error ? "offline" : "live"}>
-            <span className="rm-live-dot" aria-hidden="true" />
-            <span>{error ? "Unavailable" : "Embedded · read-only"}</span>
-          </p>
-        </nav>
-
         <div className="rm-embedded-main">
           <header className="rm-header rm-embedded-header">
             <div className="rm-header-title">
@@ -146,6 +123,34 @@ export function ImplementationRoadmap() {
             </footer>
           ) : null}
         </div>
+        <nav className="rm-embedded-nav" aria-label="Program Status views" data-testid="roadmap-section-nav">
+          <div className="rm-embedded-nav-heading">
+            <span>Program Status</span>
+            <strong>Repository views</strong>
+          </div>
+          <div className="rm-embedded-nav-list">
+            {views.map((view) => {
+              const count = snapshot ? view.count(snapshot) : null;
+              return (
+                <button
+                  className={`nav-item${view.id === currentView.id ? " active" : ""}`}
+                  type="button"
+                  key={view.id}
+                  aria-current={view.id === currentView.id ? "page" : undefined}
+                  onClick={() => setViewId(view.id)}
+                >
+                  <RoadmapIcon name={view.icon} />
+                  <span>{view.label}</span>
+                  {count === null ? null : <span className="rm-nav-count">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="rm-live" data-state={error ? "offline" : "live"}>
+            <span className="rm-live-dot" aria-hidden="true" />
+            <span>{error ? "Unavailable" : "Embedded · read-only"}</span>
+          </p>
+        </nav>
       </div>
     </section>
   );

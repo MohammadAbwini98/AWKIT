@@ -531,6 +531,32 @@ try {
     "SET-001 embedded Program Status renders the same source-agreement state",
     embeddedText.includes(embeddedSnapshot.consistency.agrees ? "Sources agree" : "Sources disagree")
   );
+  const roadmapLayout = await win.evaluate(() => {
+    const nav = document.querySelector<HTMLElement>('[data-testid="roadmap-section-nav"]');
+    const main = document.querySelector<HTMLElement>(".rm-embedded-main");
+    if (!nav || !main) return null;
+    const navRect = nav.getBoundingClientRect();
+    const mainRect = main.getBoundingClientRect();
+    return {
+      navRightOfContent: navRect.left >= mainRect.right - 1,
+      navIsVertical: navRect.height > navRect.width,
+      buttons: nav.querySelectorAll(".nav-item").length,
+      noPageOverflow: document.querySelector<HTMLElement>(".rm-embedded-page")!.scrollWidth <= document.querySelector<HTMLElement>(".rm-embedded-page")!.clientWidth + 1
+    };
+  });
+  check(
+    "SET-001 embedded Program Status uses a right-side repository view rail",
+    roadmapLayout?.navRightOfContent && roadmapLayout.navIsVertical && roadmapLayout.buttons >= 8 && roadmapLayout.noPageOverflow,
+    JSON.stringify(roadmapLayout)
+  );
+  await win.getByRole("button", { name: /Roadmap Phases/ }).click();
+  check("SET-001 Program Status right rail switches the shared canonical view", (await win.getByRole("heading", { name: "Roadmap Phases" }).count()) >= 1);
+  for (const theme of ["dark", "light"] as const) {
+    await win.evaluate((nextTheme) => document.documentElement.setAttribute("data-theme", nextTheme), theme);
+    await win.waitForTimeout(80);
+    await win.screenshot({ path: join(screenshotRoot, `program-status-${theme}.png`), fullPage: true });
+  }
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
   check("SET-001 Generate remains hidden in embedded mode", !embeddedText.includes("Generate next portable EXE"));
   await openSettings(win);
   const headings = (await win.locator(".settings-card-head h2").allTextContents()).map((text) => text.trim());

@@ -1,10 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminLoading, AdminPage } from "./components/AdminUi";
+import { AdminBanner, AdminLoading, AdminPage, AdminSummaryItem } from "./components/AdminUi";
 
 interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
+
+const PERMISSION_GROUPS = [
+  { label: "Application pages", prefixes: ["page."] },
+  { label: "Workflows & execution", prefixes: ["workflow."] },
+  { label: "Data & reports", prefixes: ["datasource.", "report."] },
+  { label: "Configuration", prefixes: ["settings.", "debug.", "session.", "config."] },
+  { label: "Administration", prefixes: ["user.", "role.", "audit."] },
+  { label: "Licensing", prefixes: ["license."] },
+  { label: "Semantic index", prefixes: ["semantic."] }
+] as const;
+
+function permissionGroup(permission: string): string {
+  return PERMISSION_GROUPS.find((group) => group.prefixes.some((prefix) => permission.startsWith(prefix)))?.label ?? "Other capabilities";
+}
 
 /** Permission → role matrix across built-in and custom roles (deny-by-default reference). */
 export function PermissionsPage() {
@@ -24,24 +38,49 @@ export function PermissionsPage() {
     roles.forEach((r) => r.permissions.forEach((p) => all.add(p)));
     return [...all].sort();
   }, [roles]);
+  const groupedPermissions = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    for (const permission of permissions) {
+      const label = permissionGroup(permission);
+      groups.set(label, [...(groups.get(label) ?? []), permission]);
+    }
+    return [...PERMISSION_GROUPS.map((group) => group.label), "Other capabilities"]
+      .flatMap((label) => groups.has(label) ? [[label, groups.get(label)!] as const] : []);
+  }, [permissions]);
 
   if (loading) return <AdminPage><AdminLoading label="Loading permissions…" /></AdminPage>;
   return (
-    <AdminPage banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}>
-      <section className="settings-card">
+    <AdminPage
+      title="Permissions"
+      description="Review the deny-by-default capability model and the roles that grant each permission."
+      summary={
+        <>
+          <AdminSummaryItem label="Permissions" value={permissions.length} />
+          <AdminSummaryItem label="Role columns" value={roles.length} />
+          <AdminSummaryItem label="Capability groups" value={groupedPermissions.length} />
+        </>
+      }
+      banner={error ? <AdminBanner tone="error">{error}</AdminBanner> : undefined}
+    >
+      <section className="settings-card awkit-admin-primary-surface">
         <h2>Permission matrix</h2>
         <p className="awkit-admin-muted">Every permission and the roles that grant it. Enforced deny-by-default in the main process.</p>
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table awkit-admin-matrix">
             <thead><tr><th>Permission</th>{roles.map((r) => <th key={r.id}>{r.name}</th>)}</tr></thead>
             <tbody>
-              {permissions.map((perm) => (
-                <tr key={perm}>
-                  <td><code>{perm}</code></td>
-                  {roles.map((r) => (
-                    <td key={r.id} className="awkit-admin-matrix-cell">{r.permissions.includes(perm) ? <Check size={15} aria-label="granted" /> : <span aria-hidden="true">·</span>}</td>
+              {groupedPermissions.map(([group, groupPermissions]) => (
+                <Fragment key={group}>
+                  <tr className="awkit-admin-matrix-group"><th colSpan={roles.length + 1} scope="rowgroup">{group}</th></tr>
+                  {groupPermissions.map((perm) => (
+                    <tr key={perm}>
+                      <td><code>{perm}</code></td>
+                      {roles.map((r) => (
+                        <td key={r.id} className="awkit-admin-matrix-cell">{r.permissions.includes(perm) ? <Check size={15} aria-label="granted" /> : <span aria-hidden="true">·</span>}</td>
+                      ))}
+                    </tr>
                   ))}
-                </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

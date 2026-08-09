@@ -22,12 +22,47 @@ import {
  * `global.css` tokens; badges pair an icon with text so status never relies on colour alone.
  */
 
-/** Consistent Administration page wrapper: width, spacing, and a slot for a page-level banner. */
-export function AdminPage({ banner, children }: { banner?: ReactNode; children: ReactNode }) {
+/** Consistent Administration page wrapper with a shared section identity and optional summary/actions. */
+export function AdminPage({
+  title,
+  description,
+  summary,
+  actions,
+  banner,
+  children
+}: {
+  title?: string;
+  description?: string;
+  summary?: ReactNode;
+  actions?: ReactNode;
+  banner?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="awkit-admin-page">
+      {title ? (
+        <header className="awkit-admin-header">
+          <div className="awkit-admin-heading">
+            <span className="awkit-admin-eyebrow">Administration</span>
+            <h1>{title}</h1>
+            {description ? <p>{description}</p> : null}
+          </div>
+          {actions ? <div className="awkit-admin-header-actions">{actions}</div> : null}
+        </header>
+      ) : null}
+      {summary ? <div className="awkit-admin-summary" aria-label={`${title ?? "Administration"} summary`}>{summary}</div> : null}
       {banner}
       {children}
+    </div>
+  );
+}
+
+export function AdminSummaryItem({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="awkit-admin-summary-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {hint ? <small>{hint}</small> : null}
     </div>
   );
 }

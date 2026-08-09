@@ -44,27 +44,59 @@ html[data-roadmap-standalone] #root {
 
 .rm-embedded-layout {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem);
   min-height: 100%;
 }
 
 .rm-embedded-nav {
   background: var(--awkit-sidebar-bg);
-  border-bottom: 1px solid var(--awkit-border);
+  border-left: 1px solid var(--awkit-border);
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
   padding: var(--space-2);
 }
 
 .rm-embedded-nav .rm-live {
-  margin-left: auto;
+  border-top: 1px solid var(--awkit-border);
+  margin-top: auto;
+  padding-top: var(--space-3);
 }
 
 .rm-embedded-nav .nav-item {
   flex: 0 0 auto;
+  width: 100%;
+}
+
+.rm-embedded-nav-heading {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+}
+
+.rm-embedded-nav-heading span {
+  color: var(--awkit-accent);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-2xs);
+  text-transform: uppercase;
+}
+
+.rm-embedded-nav-heading strong {
+  color: var(--awkit-text);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.rm-embedded-nav-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .rm-embedded-main {
@@ -81,6 +113,26 @@ html[data-roadmap-standalone] #root {
 .rm-embedded-view {
   min-height: 0;
   overflow: auto;
+}
+
+@media (max-width: 64rem) {
+  .rm-embedded-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .rm-embedded-nav {
+    border-bottom: 1px solid var(--awkit-border);
+    border-left: 0;
+    grid-row: 1;
+    overflow-x: auto;
+  }
+
+  .rm-embedded-main { grid-row: 2; }
+  .rm-embedded-nav-heading { display: none; }
+  .rm-embedded-nav-list { flex-direction: row; overflow: visible; }
+  .rm-embedded-nav .nav-item { width: auto; }
+  .rm-embedded-nav .rm-live { border-top: 0; margin: 0 0 0 auto; padding: 0; }
 }
 
 

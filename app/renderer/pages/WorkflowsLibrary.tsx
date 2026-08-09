@@ -232,8 +232,8 @@ export function WorkflowsLibrary() {
     : [];
 
   return (
-    <section className="page">
-      <section className="work-panel">
+    <section className="page workflows-library-page">
+      <section className="work-panel workflows-library-panel" data-testid="workflows-library-surface">
         <div className="section-heading">
           <h1>Workflows</h1>
           <span>{loading ? "Loading…" : `${workflows.length} saved workflow${workflows.length !== 1 ? "s" : ""}`}</span>
@@ -304,14 +304,14 @@ export function WorkflowsLibrary() {
             <div className="wl-table-wrapper">
               <table className="wl-table wl-table-workflows">
                 <colgroup>
-                  <col style={{ width: "190px" }} />
-                  <col style={{ minWidth: "140px" }} />
-                  <col style={{ width: "70px" }} />
-                  <col style={{ minWidth: "120px" }} />
-                  <col style={{ width: "110px" }} />
-                  <col style={{ width: "100px" }} />
-                  <col style={{ width: "90px" }} />
-                  <col style={{ width: "64px" }} />
+                  <col className="wl-col-name" />
+                  <col className="wl-col-description" />
+                  <col className="wl-col-flows" />
+                  <col className="wl-col-data" />
+                  <col className="wl-col-mode" />
+                  <col className="wl-col-updated" />
+                  <col className="wl-col-status" />
+                  <col className="wl-col-actions" />
                 </colgroup>
                 <thead>
                   <tr>

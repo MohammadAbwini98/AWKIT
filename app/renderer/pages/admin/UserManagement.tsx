@@ -6,7 +6,7 @@ import { useSession } from "../../security/SessionContext";
 import { PasswordField } from "../../security/components/PasswordField";
 import { ReauthDialog } from "./ReauthDialog";
 import { adminReasonMessage } from "./adminMessages";
-import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge } from "./components/AdminUi";
+import { AdminBanner, AdminEmpty, AdminLoading, AdminPage, AdminStatusBadge, AdminSummaryItem } from "./components/AdminUi";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
 interface RoleView { id: string; name: string; description: string; builtIn: boolean; permissions: string[] }
@@ -53,6 +53,15 @@ export function UserManagement() {
 
   return (
     <AdminPage
+      title="Users"
+      description="Manage local accounts, access roles, credentials, and active sessions."
+      summary={
+        <>
+          <AdminSummaryItem label="Total accounts" value={users.length} />
+          <AdminSummaryItem label="Active" value={users.filter((user) => user.status === "active").length} />
+          <AdminSummaryItem label="Needs password reset" value={users.filter((user) => user.mustChangePassword).length} />
+        </>
+      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -60,12 +69,14 @@ export function UserManagement() {
         </>
       }
     >
-      <CreateUserCard roles={roles} onCreate={(input) => sensitive(() => security().admin.createUser({ sessionRef, ...input }))} />
-
-      <section className="settings-card">
-        <h2><UsersIcon size={16} /> Users ({users.length})</h2>
+      <div className="awkit-admin-split awkit-admin-users-layout">
+      <section className="settings-card awkit-admin-primary-surface">
+        <div className="awkit-admin-card-head">
+          <h2><UsersIcon size={16} /> Account directory</h2>
+          <span className="awkit-admin-muted">{users.length} user{users.length === 1 ? "" : "s"}</span>
+        </div>
         {users.length === 0 ? (
-          <AdminEmpty icon={UsersIcon} title="No users yet" hint="Create the first user with the form above." />
+          <AdminEmpty icon={UsersIcon} title="No users yet" hint="Create the first user with the form beside this directory." />
         ) : (
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table">
@@ -113,6 +124,8 @@ export function UserManagement() {
         </div>
         )}
       </section>
+      <CreateUserCard roles={roles} onCreate={(input) => sensitive(() => security().admin.createUser({ sessionRef, ...input }))} />
+      </div>
 
       {roleEditFor ? (
         <RoleEditModal
@@ -165,7 +178,7 @@ function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (inp
     setUsername(""); setDisplayName(""); setPassword(""); setSelected(["Viewer"]);
   };
   return (
-    <section className="settings-card">
+    <section className="settings-card awkit-admin-create-card">
       <h2><UserPlus size={16} /> Add a user</h2>
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field"><span className="awkit-login-field-label">Username</span>

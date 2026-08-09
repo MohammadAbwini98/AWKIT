@@ -5,7 +5,7 @@ import type { AdminRoleView } from "@src/security/admin/RoleAdminService";
 import { useSession } from "../../security/SessionContext";
 import { adminReasonMessage } from "./adminMessages";
 import { ReauthDialog } from "./ReauthDialog";
-import { AdminBanner, AdminLoading, AdminPage } from "./components/AdminUi";
+import { AdminBanner, AdminLoading, AdminPage, AdminSummaryItem } from "./components/AdminUi";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 
 type AdminResponse<T> = { ok: boolean; value?: T; reason?: string; errors?: string[] };
@@ -50,6 +50,15 @@ export function RolesPage() {
   if (loading) return <AdminPage><AdminLoading label="Loading roles…" /></AdminPage>;
   return (
     <AdminPage
+      title="Roles"
+      description="Define reusable permission sets while keeping protected built-in roles intact."
+      summary={
+        <>
+          <AdminSummaryItem label="All roles" value={roles.length} />
+          <AdminSummaryItem label="Built in" value={roles.filter((role) => role.builtIn).length} />
+          <AdminSummaryItem label="Custom" value={roles.filter((role) => !role.builtIn).length} />
+        </>
+      }
       banner={
         <>
           {error ? <AdminBanner tone="error">{error}</AdminBanner> : null}
@@ -57,19 +66,18 @@ export function RolesPage() {
         </>
       }
     >
-      <CreateRoleCard
-        onCreate={(input) => sensitive(() => security().admin.createRole({ sessionRef, ...input }))}
-      />
-
       <p className="awkit-admin-muted">
         Built-in roles are protected. Custom roles are stored locally and enforced by the trusted
         authorization boundary.
       </p>
+      <div className="awkit-admin-split awkit-admin-roles-layout">
+      <div className="awkit-admin-role-grid">
       {roles.map((role) => (
         <section className="settings-card" key={role.id}>
           <div className="awkit-admin-role-heading">
             <h2><ShieldCheck size={16} /> {role.name}</h2>
             <div className="awkit-admin-row-actions">
+              <span className="awkit-admin-muted">{role.permissions.length} permission{role.permissions.length === 1 ? "" : "s"}</span>
               {role.builtIn ? <span className="awkit-admin-tag">Built in</span> : (
                 <>
                   <button className="toolbar-button" type="button" onClick={() => setEditing(role)}>
@@ -90,6 +98,11 @@ export function RolesPage() {
           </div>
         </section>
       ))}
+      </div>
+      <CreateRoleCard
+        onCreate={(input) => sensitive(() => security().admin.createRole({ sessionRef, ...input }))}
+      />
+      </div>
 
       {editing ? (
         <RoleEditorModal
@@ -150,7 +163,7 @@ function CreateRoleCard({
     setPermissions([]);
   };
   return (
-    <section className="settings-card">
+    <section className="settings-card awkit-admin-create-card">
       <h2><Plus size={16} /> Add a custom role</h2>
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field">

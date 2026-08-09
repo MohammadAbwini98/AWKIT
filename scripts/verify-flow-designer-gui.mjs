@@ -344,6 +344,24 @@ try {
   check("Connector paths render on the engine SVG layer", dom.edges >= 1 && dom.edgePaths >= 1, `edges=${dom.edges} paths=${dom.edgePaths}`);
   check("Dotted background + zoom control render", dom.background && dom.zoomControl, `bg=${dom.background} zoom=${dom.zoomControl}`);
 
+  const commandBar = await win.evaluate(() => {
+    const toolbar = document.querySelector(".flow-action-bar");
+    if (!toolbar) return null;
+    const historyButtons = [...toolbar.querySelectorAll(".editor-command-icon-button")].map((button) => button.getBoundingClientRect());
+    return {
+      clientWidth: toolbar.clientWidth,
+      scrollWidth: toolbar.scrollWidth,
+      overflowX: getComputedStyle(toolbar).overflowX,
+      groups: toolbar.querySelectorAll(".editor-command-group").length,
+      compactHistory: historyButtons.length === 2 && historyButtons.every((button) => button.width <= 36 && button.height <= 36)
+    };
+  });
+  check(
+    "Flow Designer command bar uses grouped controls without horizontal scrolling",
+    commandBar && commandBar.scrollWidth <= commandBar.clientWidth + 1 && commandBar.overflowX === "visible" && commandBar.groups === 3 && commandBar.compactHistory,
+    commandBar ? JSON.stringify(commandBar) : "command bar not found"
+  );
+
   // --- 1a. Bounded editor history is reachable by buttons and desktop shortcuts. ---
   const flowNameInput = win.locator('label:has-text("Flow Name") input');
   const originalFlowName = await flowNameInput.inputValue();
@@ -355,7 +373,7 @@ try {
   check("Flow Designer Redo enables after Undo", await win.locator('[data-testid="flow-redo"]').isEnabled());
   await win.locator('[data-testid="flow-redo"]').click();
   check("Flow Designer Redo restores the edit", await flowNameInput.inputValue() === `${originalFlowName} history edit`);
-  await win.locator(".flow-action-title").click();
+  await win.locator(".flow-action-bar").click({ position: { x: 2, y: 2 } });
   await win.keyboard.press("Control+z");
   check("Flow Designer Ctrl+Z invokes editor Undo outside inputs", await flowNameInput.inputValue() === originalFlowName);
   await flowNameInput.focus();
