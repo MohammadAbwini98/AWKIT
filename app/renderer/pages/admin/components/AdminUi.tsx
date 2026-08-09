@@ -43,14 +43,17 @@ export function AdminPage({
       {title ? (
         <header className="awkit-admin-header">
           <div className="awkit-admin-heading">
-            <span className="awkit-admin-eyebrow">Administration</span>
             <h1>{title}</h1>
             {description ? <p>{description}</p> : null}
           </div>
-          {actions ? <div className="awkit-admin-header-actions">{actions}</div> : null}
         </header>
       ) : null}
-      {summary ? <div className="awkit-admin-summary" aria-label={`${title ?? "Administration"} summary`}>{summary}</div> : null}
+      {summary || actions ? (
+        <div className="awkit-admin-context">
+          {summary ? <div className="awkit-admin-summary" aria-label={`${title ?? "Administration"} summary`}>{summary}</div> : null}
+          {actions ? <div className="awkit-admin-header-actions">{actions}</div> : null}
+        </div>
+      ) : null}
       {banner}
       {children}
     </div>

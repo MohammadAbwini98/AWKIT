@@ -551,6 +551,34 @@ try {
   );
   await win.getByRole("button", { name: /Roadmap Phases/ }).click();
   check("SET-001 Program Status right rail switches the shared canonical view", (await win.getByRole("heading", { name: "Roadmap Phases" }).count()) >= 1);
+  await win.getByRole("button", { name: /Overview/ }).click();
+  await win.getByRole("heading", { name: "Overview" }).waitFor({ state: "visible" });
+  const roadmapResponsive: Array<{ width: number; noOverflow: boolean; navRight: boolean }> = [];
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ]) {
+    await win.setViewportSize(viewport);
+    await win.waitForTimeout(100);
+    roadmapResponsive.push(await win.evaluate((width) => {
+      const page = document.querySelector<HTMLElement>(".rm-embedded-page")!;
+      const nav = document.querySelector<HTMLElement>(".rm-embedded-nav")!;
+      const main = document.querySelector<HTMLElement>(".rm-embedded-main")!;
+      return {
+        width,
+        noOverflow: page.scrollWidth <= page.clientWidth + 1,
+        navRight: nav.getBoundingClientRect().left >= main.getBoundingClientRect().right - 1
+      };
+    }, viewport.width));
+  }
+  check(
+    "SET-001 Program Status keeps its right rail and avoids page overflow at supported desktop widths",
+    roadmapResponsive.every((result) => result.noOverflow && result.navRight),
+    JSON.stringify(roadmapResponsive)
+  );
+  await win.setViewportSize({ width: 1440, height: 900 });
   for (const theme of ["dark", "light"] as const) {
     await win.evaluate((nextTheme) => document.documentElement.setAttribute("data-theme", nextTheme), theme);
     await win.waitForTimeout(80);

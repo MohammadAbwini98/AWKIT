@@ -115,7 +115,7 @@ html[data-roadmap-standalone] #root {
   overflow: auto;
 }
 
-@media (max-width: 64rem) {
+@media (max-width: 56rem) {
   .rm-embedded-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -220,6 +220,9 @@ html[data-roadmap-standalone] #root {
    Header
    ========================================================================== */
 .rm-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
   justify-content: space-between;
 }

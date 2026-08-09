@@ -91,9 +91,12 @@ export function RolesPage() {
             </div>
           </div>
           <p className="awkit-admin-muted">{role.description || "No description."}</p>
-          <div className="awkit-admin-perm-list">
+          <div className="awkit-admin-perm-list awkit-admin-perm-preview">
             {role.permissions.length
-              ? role.permissions.map((permission) => <span key={permission} className="awkit-admin-role-chip">{permission}</span>)
+              ? <>
+                  {role.permissions.slice(0, 5).map((permission) => <span key={permission} className="awkit-admin-role-chip">{permission}</span>)}
+                  {role.permissions.length > 5 ? <span className="awkit-admin-more-count">+{role.permissions.length - 5} more</span> : null}
+                </>
               : <span className="awkit-admin-muted">No permissions.</span>}
           </div>
         </section>
@@ -163,7 +166,7 @@ function CreateRoleCard({
     setPermissions([]);
   };
   return (
-    <section className="settings-card awkit-admin-create-card">
+    <section className="settings-card awkit-admin-create-card awkit-admin-quick-create awkit-admin-role-create">
       <h2><Plus size={16} /> Add a custom role</h2>
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field">

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ShieldAlert, UserPlus, Users as UsersIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Archive, Ban, KeyRound, LogOut, Search, ShieldAlert, UserCheck, UserPlus, Users as UsersIcon } from "lucide-react";
 import type { AdminUserView } from "@src/security/admin/UserAdminService";
 import { ALL_PERMISSIONS, ISSUER_ROLE } from "@src/security/authz/Permissions";
 import { useSession } from "../../security/SessionContext";
@@ -25,6 +25,8 @@ export function UserManagement() {
   const [pendingFn, setPendingFn] = useState<(() => Promise<AdminResponse<unknown>>) | null>(null);
   const [roleEditFor, setRoleEditFor] = useState<AdminUserView | null>(null);
   const [resetFor, setResetFor] = useState<AdminUserView | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const reload = useCallback(async () => {
     const [u, r] = await Promise.all([security().admin.listUsers(sessionRef), security().admin.listRoles(sessionRef)]);
@@ -35,6 +37,15 @@ export function UserManagement() {
   }, [sessionRef]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return users.filter((user) => {
+      if (statusFilter !== "all" && user.status !== statusFilter) return false;
+      if (!query) return true;
+      return [user.displayName, user.username, ...user.roles].some((value) => value.toLocaleLowerCase().includes(query));
+    });
+  }, [search, statusFilter, users]);
 
   /** Run a sensitive admin call; if it needs a fresh reauth, prompt then retry once. */
   const sensitive = useCallback(async (fn: () => Promise<AdminResponse<unknown>>) => {
@@ -73,10 +84,28 @@ export function UserManagement() {
       <section className="settings-card awkit-admin-primary-surface">
         <div className="awkit-admin-card-head">
           <h2><UsersIcon size={16} /> Account directory</h2>
-          <span className="awkit-admin-muted">{users.length} user{users.length === 1 ? "" : "s"}</span>
+          <span className="awkit-admin-muted">{filteredUsers.length} of {users.length}</span>
+        </div>
+        <div className="awkit-admin-filter-bar" role="search" aria-label="User filters">
+          <label className="awkit-admin-search-field">
+            <span className="sr-only">Search users</span>
+            <Search size={15} aria-hidden="true" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} type="search" placeholder="Search name, username, or role…" />
+          </label>
+          <label className="awkit-admin-filter-field awkit-admin-filter-field-inline">
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
         </div>
         {users.length === 0 ? (
           <AdminEmpty icon={UsersIcon} title="No users yet" hint="Create the first user with the form beside this directory." />
+        ) : filteredUsers.length === 0 ? (
+          <AdminEmpty icon={Search} title="No matching users" hint="Clear or change the current filters." />
         ) : (
         <div className="awkit-admin-table-scroll">
           <table className="awkit-admin-table">
@@ -84,12 +113,15 @@ export function UserManagement() {
               <tr><th>User</th><th>Status</th><th>Roles</th><th>Last login</th><th>Actions</th></tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.id}>
                   <td>
                     <div className="awkit-admin-user-cell">
-                      <strong>{u.displayName}</strong>
-                      <span>@{u.username}{u.isProtectedSuperUser ? <em className="awkit-admin-tag"><ShieldAlert size={12} /> Primary SU</em> : null}</span>
+                      <span className="awkit-admin-avatar" aria-hidden="true">{initials(u.displayName || u.username)}</span>
+                      <span className="awkit-admin-user-identity">
+                        <strong>{u.displayName}</strong>
+                        <span>@{u.username}{u.isProtectedSuperUser ? <em className="awkit-admin-tag"><ShieldAlert size={12} /> Primary SU</em> : null}</span>
+                      </span>
                     </div>
                   </td>
                   <td>
@@ -108,13 +140,13 @@ export function UserManagement() {
                     <div className="awkit-admin-row-actions">
                       <button className="toolbar-button" onClick={() => setRoleEditFor(u)}>Roles</button>
                       {u.status === "active" ? (
-                        <button className="toolbar-button" disabled={u.isProtectedSuperUser} onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "disabled" }))}>Disable</button>
+                        <button className="awkit-admin-icon-action" aria-label="Disable" title="Disable account" disabled={u.isProtectedSuperUser} onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "disabled" }))}><Ban size={14} aria-hidden="true" /></button>
                       ) : u.status === "disabled" ? (
-                        <button className="toolbar-button" onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "active" }))}>Enable</button>
+                        <button className="awkit-admin-icon-action" aria-label="Enable" title="Enable account" onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "active" }))}><UserCheck size={14} aria-hidden="true" /></button>
                       ) : null}
-                      <button className="toolbar-button" disabled={u.isProtectedSuperUser || u.status === "archived"} onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "archived" }))}>Archive</button>
-                      <button className="toolbar-button" onClick={() => setResetFor(u)}>Reset password</button>
-                      <button className="toolbar-button" onClick={() => sensitive(() => security().admin.revokeSessions({ sessionRef, userId: u.id }))}>Sign out</button>
+                      <button className="awkit-admin-icon-action" aria-label="Archive" title="Archive account" disabled={u.isProtectedSuperUser || u.status === "archived"} onClick={() => sensitive(() => security().admin.setStatus({ sessionRef, userId: u.id, status: "archived" }))}><Archive size={14} aria-hidden="true" /></button>
+                      <button className="awkit-admin-icon-action" aria-label="Reset password" title="Reset password" onClick={() => setResetFor(u)}><KeyRound size={14} aria-hidden="true" /></button>
+                      <button className="awkit-admin-icon-action" aria-label="Sign out" title="End active sessions" onClick={() => sensitive(() => security().admin.revokeSessions({ sessionRef, userId: u.id }))}><LogOut size={14} aria-hidden="true" /></button>
                     </div>
                   </td>
                 </tr>
@@ -178,7 +210,7 @@ function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (inp
     setUsername(""); setDisplayName(""); setPassword(""); setSelected(["Viewer"]);
   };
   return (
-    <section className="settings-card awkit-admin-create-card">
+    <section className="settings-card awkit-admin-create-card awkit-admin-quick-create">
       <h2><UserPlus size={16} /> Add a user</h2>
       <form className="awkit-admin-create-form" onSubmit={submit}>
         <label className="awkit-login-field"><span className="awkit-login-field-label">Username</span>
@@ -191,6 +223,12 @@ function CreateUserCard({ roles, onCreate }: { roles: RoleView[]; onCreate: (inp
       </form>
     </section>
   );
+}
+
+function initials(value: string): string {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts.length === 1 ? parts[0].slice(0, 2) : `${parts[0][0]}${parts.at(-1)?.[0] ?? ""}`).toLocaleUpperCase();
 }
 
 function RolePicker({ roles, selected, onChange }: { roles: RoleView[]; selected: string[]; onChange: (next: string[]) => void }) {

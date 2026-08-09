@@ -321,6 +321,7 @@ try {
   });
   await win.waitForLoadState("domcontentloaded");
   await signInFirstRun(win);
+  await win.setViewportSize({ width: 1440, height: 900 });
 
   // Ensure we're on the Flow Designer (the app restores the last route).
   if (!(await win.$(".action-flow-node"))) {
@@ -347,7 +348,9 @@ try {
   const commandBar = await win.evaluate(() => {
     const toolbar = document.querySelector(".flow-action-bar");
     if (!toolbar) return null;
-    const historyButtons = [...toolbar.querySelectorAll(".editor-command-icon-button")].map((button) => button.getBoundingClientRect());
+    const historyButtons = [toolbar.querySelector('[data-testid="flow-undo"]'), toolbar.querySelector('[data-testid="flow-redo"]')]
+      .filter(Boolean)
+      .map((button) => button.getBoundingClientRect());
     return {
       clientWidth: toolbar.clientWidth,
       scrollWidth: toolbar.scrollWidth,
@@ -357,10 +360,44 @@ try {
     };
   });
   check(
-    "Flow Designer command bar uses grouped controls without horizontal scrolling",
+    "Flow Designer command bar is compact and does not scroll horizontally",
     commandBar && commandBar.scrollWidth <= commandBar.clientWidth + 1 && commandBar.overflowX === "visible" && commandBar.groups === 3 && commandBar.compactHistory,
     commandBar ? JSON.stringify(commandBar) : "command bar not found"
   );
+  const responsiveCommandBar = [];
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ]) {
+    await win.setViewportSize(viewport);
+    await win.waitForTimeout(120);
+    responsiveCommandBar.push(await win.evaluate(({ width, height }) => {
+      const toolbar = document.querySelector(".flow-action-bar");
+      if (!toolbar) return { width, height, valid: false };
+      const rect = toolbar.getBoundingClientRect();
+      const controls = [...toolbar.querySelectorAll("button:not([hidden]), input, select")];
+      return {
+        width,
+        height,
+        barHeight: Math.round(rect.height),
+        valid: rect.height <= 64 &&
+          toolbar.scrollWidth <= toolbar.clientWidth + 1 &&
+          controls.every((control) => {
+            const controlRect = control.getBoundingClientRect();
+            return controlRect.left >= rect.left - 1 && controlRect.right <= rect.right + 1;
+          })
+      };
+    }, viewport));
+  }
+  check(
+    "Flow Designer command bar stays contained at 1024, 1280, 1440, and 1920 widths",
+    responsiveCommandBar.every((result) => result.valid),
+    JSON.stringify(responsiveCommandBar)
+  );
+  await win.setViewportSize({ width: 1440, height: 900 });
+  await win.waitForTimeout(180);
 
   // --- 1a. Bounded editor history is reachable by buttons and desktop shortcuts. ---
   const flowNameInput = win.locator('label:has-text("Flow Name") input');

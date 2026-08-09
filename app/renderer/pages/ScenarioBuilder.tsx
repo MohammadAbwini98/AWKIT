@@ -80,6 +80,7 @@ import {
   EditorCommandBar,
   EditorCommandGroup,
   EditorHistoryControls,
+  EditorIconButton,
   EditorIdentityField
 } from "../components/shared/EditorCommandBar";
 
@@ -1179,29 +1180,24 @@ function ScenarioBuilderContent() {
         </EditorCommandGroup>
 
         <EditorCommandGroup label="Files" className="sb-toolbar-group">
-          <button className="toolbar-button" id="sb-new" onClick={() => setNamingWorkflow(true)} title="Create a new named workflow" type="button">
-            <FilePlus size={14} />
-            New
-          </button>
-          <button className="toolbar-button" id="sb-reload" disabled onClick={() => void loadScenario()} title="Reload this workflow from the last saved copy" type="button">
-            <FolderOpen size={14} />
-            Reload
-          </button>
-          <button className="toolbar-button" id="sb-export" onClick={exportScenario} title="Export this workflow as JSON" type="button">
-            <Download size={14} />
-            Export
-          </button>
-          <button
-            className="toolbar-button"
+          <EditorIconButton id="sb-new" onClick={() => setNamingWorkflow(true)} title="New workflow" aria-label="New workflow">
+            <FilePlus size={15} aria-hidden="true" />
+          </EditorIconButton>
+          <EditorIconButton id="sb-reload" disabled onClick={() => void loadScenario()} title="Reload from the last saved copy" aria-label="Reload workflow">
+            <FolderOpen size={15} aria-hidden="true" />
+          </EditorIconButton>
+          <EditorIconButton id="sb-export" onClick={exportScenario} title="Export workflow JSON" aria-label="Export workflow">
+            <Download size={15} aria-hidden="true" />
+          </EditorIconButton>
+          <EditorIconButton
             id="sb-import"
             onClick={() => importInputRef.current?.click()}
             disabled={!canImportWorkflow}
             title={canImportWorkflow ? "Import a workflow JSON file" : "Requires the Create Workflows permission"}
-            type="button"
+            aria-label="Import workflow"
           >
-            <Upload size={14} />
-            Import
-          </button>
+            <Upload size={15} aria-hidden="true" />
+          </EditorIconButton>
           <input
             accept=".json,application/json"
             ref={importInputRef}
@@ -1216,21 +1212,19 @@ function ScenarioBuilderContent() {
         </EditorCommandGroup>
 
         <EditorCommandGroup label="Configuration" className="sb-toolbar-group">
-          <button
-            className="toolbar-button"
+          <EditorIconButton
             id="sb-workflow-settings"
-            title="Edit workflow data source & failure policy"
+            title="Workflow settings"
+            aria-label="Workflow settings"
             onClick={() => {
               setWorkflowSettingsOpen(true);
               setSelectedNodeId(null);
               setSelectedEdgeId(null);
               setRightPanelCollapsed(false);
             }}
-            type="button"
           >
-            <Database size={14} />
-            Workflow settings
-          </button>
+            <Database size={15} aria-hidden="true" />
+          </EditorIconButton>
         </EditorCommandGroup>
 
         {/* Group 2 — Add: single Add Flow entry (its menu also hosts the Flow Logic section) */}
@@ -1243,34 +1237,20 @@ function ScenarioBuilderContent() {
 
         {/* Group 3 — Execution: run mode + parallelism */}
         <EditorCommandGroup label="Execution model" className="sb-toolbar-group">
-          <EditorIdentityField label="Mode" className="sb-toolbar-field editor-mode-field">
-            <select disabled value={executionMode} onChange={(event) => setExecutionMode(event.target.value as ScenarioProfile["executionMode"])}>
-              <option value="sequential">Sequential</option>
-              <option value="conditional">Conditional</option>
-              <option value="parallel">Parallel</option>
-              <option value="loop">Loop</option>
-              <option value="manual">Manual</option>
-            </select>
-          </EditorIdentityField>
-
-          <EditorIdentityField label="Parallel" className="sb-toolbar-field editor-parallel-field">
-            <input
-              disabled
-              min="1"
-              style={{ width: "58px" }}
-              type="number"
-              value={maxParallelFlows}
-              onChange={(event) => setMaxParallelFlows(Number(event.target.value))}
-            />
-          </EditorIdentityField>
+          <div className="editor-execution-summary" title="Workflow execution model">
+            <Network size={15} aria-hidden="true" />
+            <span className="editor-execution-value">{executionMode}</span>
+            <span className="editor-execution-meta">
+              {executionMode === "sequential" && maxParallelFlows === 1 ? "one at a time" : `up to ${maxParallelFlows} parallel`}
+            </span>
+          </div>
         </EditorCommandGroup>
 
         {/* Group 4 — Layout */}
         <EditorCommandGroup label="Layout & history" className="sb-toolbar-group editor-command-utilities">
-          <button className="toolbar-button" id="sb-auto-arrange" onClick={autoArrange} title="Auto-arrange flows (top-to-bottom)" type="button">
-            <LayoutGrid size={14} />
-            Auto-arrange
-          </button>
+          <EditorIconButton id="sb-auto-arrange" onClick={autoArrange} title="Auto-arrange flows" aria-label="Auto-arrange flows">
+            <LayoutGrid size={15} aria-hidden="true" />
+          </EditorIconButton>
           <EditorHistoryControls
             canUndo={editorHistory.canUndo}
             canRedo={editorHistory.canRedo}

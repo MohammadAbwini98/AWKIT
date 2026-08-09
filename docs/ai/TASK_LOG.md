@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-09 - Codex - Professionally redesign and visually correct core UI surfaces
+
+- **Task:** Complete `awkit-7le`: visually redesign Workflow Builder, Flow Designer, Users, Roles,
+  Permissions, Audit Log, Licensing, Workflows, and embedded Program Status through rendered evidence.
+- **Implementation:** made editor rails dense and task-led; replaced redundant/disabled editor chrome
+  with icon utilities and a read-only execution summary; removed duplicate Administration hierarchy;
+  made Users, Roles, Permissions, and Audit Log table-first and scannable; made Workflows full-width;
+  and preserved the Program Status right rail through supported desktop widths. Existing handlers,
+  IPC, RBAC, licensing, persistence, execution, and offline boundaries are unchanged.
+- **Visual evidence:** captured before, intermediate, and final renders; manually inspected final dark
+  and light screenshots for all nine required surfaces at 1440x900. Responsive assertions cover
+  1024x768, 1280x800, 1440x900, and 1920x1080 where applicable.
+- **Verified:** build PASS; Workflow Builder **37/37**; Flow Designer **89/89**; Administration
+  **29/29**; Settings/Program Status **173/173**; licensing **183/183**; licensing E2E **38/38**;
+  RBAC E2E **70/70**; accessibility **14/0**; Mock Site **145/145**; source hygiene **9/9**;
+  verifier classification reconciled. `typecheck:scripts` has only the same nine pre-existing
+  diagnostics.
+- **Tracking:** closed `awkit-7le`; tracker **187 total / 183 closed / 4 outstanding / 104 edges**;
+  ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## 2026-08-09 - Codex - Unify editor and Administration UI surfaces
 
 - **Task:** Complete `awkit-39h`: redesign the Workflow Builder and Flow Designer command bars,

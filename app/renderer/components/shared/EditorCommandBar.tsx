@@ -98,6 +98,6 @@ export function EditorHistoryControls({
   );
 }
 
-function EditorIconButton({ className = "", type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+export function EditorIconButton({ className = "", type = "button", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button className={`editor-command-icon-button ${className}`.trim()} type={type} {...props} />;
 }

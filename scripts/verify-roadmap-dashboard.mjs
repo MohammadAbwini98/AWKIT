@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("186 issues parse", beads.stats.total === 186, `got ${beads.stats.total}`);
+  check("187 issues parse", beads.stats.total === 187, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -208,9 +208,11 @@ try {
   // The nine-part Super User / Recorder UX / session / editor tranche `awkit-3jm` then filed and
   // The editor/Administration UI consistency task added and closed one issue after that tranche:
   // total 185 to 186, closed 181 to 182, with the same four owner-gated outstanding issues.
+  // The professional rendered-evidence redesign `awkit-7le` then filed and closed one issue:
+  // total 186 to 187, closed 182 to 183, with the same four owner-gated outstanding issues.
   check(
-    "4 outstanding / 182 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 182,
+    "4 outstanding / 183 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 183,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

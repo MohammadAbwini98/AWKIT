@@ -87,15 +87,23 @@ export function AuditLogPage() {
                 <tr><th>When</th><th>Event</th><th scope="col">Actor</th><th>Target</th><th>Result</th></tr>
               </thead>
               <tbody>
-                {filteredRows.map((r) => (
+                {filteredRows.map((r) => {
+                  const timestamp = new Date(r.at);
+                  return (
                   <tr key={r.seq}>
-                    <td>{new Date(r.at).toLocaleString()}</td>
+                    <td>
+                      <time className="awkit-admin-event-time" dateTime={r.at}>
+                        <strong>{timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</strong>
+                        <span>{timestamp.toLocaleDateString()}</span>
+                      </time>
+                    </td>
                     <td><code>{r.eventType}</code>{r.reasonCode ? <span className="awkit-admin-muted"> · {r.reasonCode}</span> : null}</td>
                     <td>{r.actorName ?? "—"}</td>
                     <td>{r.targetType ? `${r.targetType}${r.targetId ? ` (${r.targetId.slice(0, 8)}…)` : ""}` : "—"}</td>
                     <td><AdminStatusBadge status={r.result} /></td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

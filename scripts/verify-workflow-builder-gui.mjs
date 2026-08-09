@@ -182,6 +182,7 @@ try {
   });
   await win.waitForLoadState("domcontentloaded");
   await signInFirstRun(win);
+  await win.setViewportSize({ width: 1440, height: 900 });
   await win.waitForTimeout(1200);
 
   // The sibling Workflows library should use the full editor surface before entering the Builder.
@@ -216,6 +217,35 @@ try {
   await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
   await win.screenshot({ path: path.join(uiEvidenceDir, "workflows-desktop-dark.png"), fullPage: true }).catch(() => undefined);
   await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), initialTheme);
+  const workflowsResponsive = [];
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ]) {
+    await win.setViewportSize(viewport);
+    await win.waitForTimeout(120);
+    workflowsResponsive.push(await win.evaluate(({ width, height }) => {
+      const page = document.querySelector(".workflows-library-page");
+      const wrapper = document.querySelector(".workflows-library-panel .wl-table-wrapper");
+      if (!page || !wrapper) return { width, height, valid: false };
+      const pageRect = page.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      return {
+        width,
+        height,
+        valid: page.scrollWidth <= page.clientWidth + 1 &&
+          wrapperRect.left >= pageRect.left - 1 && wrapperRect.right <= pageRect.right + 1
+      };
+    }, viewport));
+  }
+  check(
+    "Workflows library keeps its table surface contained at supported desktop widths",
+    workflowsResponsive.every((result) => result.valid),
+    JSON.stringify(workflowsResponsive)
+  );
+  await win.setViewportSize({ width: 1440, height: 900 });
 
   // Navigate to the Workflow Builder (sidebar may be expanded or collapsed).
   if (!(await win.$(".scenario-flow-node"))) {
@@ -247,7 +277,9 @@ try {
     const toolbar = document.querySelector(".scenario-toolbar-compact");
     if (!toolbar) return null;
     const rect = toolbar.getBoundingClientRect();
-    const historyButtons = [...toolbar.querySelectorAll(".editor-command-icon-button")].map((element) => element.getBoundingClientRect());
+    const historyButtons = [toolbar.querySelector("#sb-undo"), toolbar.querySelector("#sb-redo")]
+      .filter(Boolean)
+      .map((element) => element.getBoundingClientRect());
     return {
       height: rect.height,
       clientWidth: toolbar.clientWidth,
@@ -263,8 +295,8 @@ try {
     };
   });
   check(
-    "Workflow command bar wraps complete groups without horizontal scrolling",
-    toolbarLayout && toolbarLayout.height <= 160 && toolbarLayout.scrollWidth <= toolbarLayout.clientWidth + 1 && toolbarLayout.overflowX === "visible" && toolbarLayout.overflowY === "visible" && toolbarLayout.groups === 6 && toolbarLayout.historyCompact,
+    "Workflow command bar is a compact, non-scrolling command rail",
+    toolbarLayout && toolbarLayout.height <= 60 && toolbarLayout.scrollWidth <= toolbarLayout.clientWidth + 1 && toolbarLayout.overflowX === "visible" && toolbarLayout.overflowY === "visible" && toolbarLayout.groups === 6 && toolbarLayout.historyCompact,
     toolbarLayout ? JSON.stringify(toolbarLayout) : "toolbar not found"
   );
   await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-command-bar.png"), fullPage: true }).catch(() => undefined);
@@ -539,27 +571,46 @@ try {
   await win.keyboard.press("Escape");
 
   // Resize only after the functional walkthrough so responsive layout state cannot perturb later gestures.
-  await win.setViewportSize({ width: 1024, height: 768 });
-  await win.waitForTimeout(500);
-  const narrowToolbar = await win.evaluate(() => {
-    const toolbar = document.querySelector(".scenario-toolbar-compact");
-    if (!toolbar) return null;
-    const rect = toolbar.getBoundingClientRect();
-    const controls = [...toolbar.querySelectorAll("button:not([hidden]), input:not([type=file]), select")];
-    return {
-      noHorizontalScroll: toolbar.scrollWidth <= toolbar.clientWidth + 1,
-      noOverlapOutsideBar: controls.every((control) => {
+  const responsiveToolbar = [];
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ]) {
+    await win.setViewportSize(viewport);
+    await win.waitForTimeout(180);
+    responsiveToolbar.push(await win.evaluate(({ width, height }) => {
+      const toolbar = document.querySelector(".scenario-toolbar-compact");
+      if (!toolbar) return { width, height, valid: false };
+      const rect = toolbar.getBoundingClientRect();
+      const controls = [...toolbar.querySelectorAll("button:not([hidden]), input:not([type=file]), select")];
+      const maxHeight = width <= 1024 ? 132 : width <= 1280 ? 104 : 60;
+      const noHorizontalScroll = toolbar.scrollWidth <= toolbar.clientWidth + 1;
+      const controlsContained = controls.every((control) => {
         const controlRect = control.getBoundingClientRect();
         return controlRect.left >= rect.left - 1 && controlRect.right <= rect.right + 1;
-      }),
-      commandCount: controls.length
-    };
-  });
+      });
+      return {
+        width,
+        height,
+        barHeight: Math.round(rect.height),
+        controlCount: controls.length,
+        noHorizontalScroll,
+        controlsContained,
+        valid: noHorizontalScroll &&
+          rect.height <= maxHeight &&
+          controls.length >= 11 &&
+          controlsContained
+      };
+    }, viewport));
+  }
   check(
-    "Workflow command bar keeps every command reachable at a narrow desktop width",
-    narrowToolbar?.noHorizontalScroll && narrowToolbar.noOverlapOutsideBar && narrowToolbar.commandCount >= 13,
-    narrowToolbar ? JSON.stringify(narrowToolbar) : "toolbar not found"
+    "Workflow command bar stays contained at 1024, 1280, 1440, and 1920 widths",
+    responsiveToolbar.every((result) => result.valid),
+    JSON.stringify(responsiveToolbar)
   );
+  await win.setViewportSize({ width: 1024, height: 768 });
   await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-narrow.png"), fullPage: true }).catch(() => undefined);
 
   check("Workflow Builder walkthrough emits no renderer console errors", consoleErrors.length === 0, JSON.stringify(consoleErrors));

@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Professional core-surface visual redesign - awkit-7le COMPLETE (2026-08-09)
+
+Workflow Builder and Flow Designer now use a denser, purpose-built command rail: identity stays
+visible, one domain action leads each editor, file/layout/history utilities are icon-led with intact
+accessible names, validation remains derived state, and the canvas retains visual priority. Workflow
+Builder also replaces two disabled form controls with a truthful read-only execution summary. All
+existing commands, shortcuts, permissions, save/export behavior, canvas geometry, and persistence
+contracts remain unchanged.
+
+Administration is now table-first instead of card-heavy. The duplicate page heading is removed from
+the visible hierarchy while remaining in the accessibility tree; context facts sit in a compact rail;
+Users adds local search/status filtering, initials avatars, compact icon actions, and a full-width
+creation strip; Roles shows concise permission previews with the complete picker retained in the
+editor; Permissions and Audit Log use the available width with denser rows and stronger scan paths.
+Licensing remains one operational surface. Workflows now presents a full-width library table with
+flexible identifying columns. Embedded Program Status retains the canonical roadmap view renderers
+and keeps its right-side view rail at supported desktop widths.
+
+Final rendered evidence was captured and manually inspected in both themes for Workflow Builder,
+Flow Designer, Users, Roles, Permissions, Audit Log, Licensing, Workflows, and Program Status at
+`reports/ui-redesign/final/`. Responsive assertions cover 1024x768, 1280x800, 1440x900, and
+1920x1080 where applicable. Focused evidence: build PASS; Workflow Builder **37/37**; Flow Designer
+**89/89**; Administration **29/29**; Settings/Program Status **173/173**; licensing logic **183/183**;
+licensing E2E **38/38**; RBAC E2E **70/70**; reports/settings accessibility **14 PASS / 0 FAIL**;
+Mock Site **145/145**; source hygiene **9/9**; verifier classification reconciled. Script
+typechecking retains only the same nine documented pre-existing diagnostics. Tracker **187 total /
+183 closed / 4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT
+RUN / 1 BLOCKED**.
+
 ## Editor, Administration, Workflows, and Program Status UI consistency - awkit-39h COMPLETE (2026-08-09)
 
 Workflow Builder and Flow Designer now use shared `EditorCommandBar`, command-group, identity-field,

@@ -46,12 +46,47 @@ async function adminLayout(win, expectedTitle) {
 }
 
 async function captureAdminThemes(win, shotDir, slug) {
+  await win.setViewportSize({ width: 1440, height: 900 });
+  await win.evaluate(() => {
+    document.querySelector(".main-surface")?.scrollTo({ top: 0, left: 0 });
+    document.querySelector(".awkit-admin-page")?.scrollTo({ top: 0, left: 0 });
+  });
   for (const theme of ["dark", "light"]) {
     await win.evaluate((nextTheme) => document.documentElement.setAttribute("data-theme", nextTheme), theme);
     await win.waitForTimeout(80);
     await win.screenshot({ path: path.join(shotDir, `${slug}-${theme}.png`), fullPage: true }).catch(() => undefined);
   }
   await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+}
+
+async function verifyAdminResponsive(win, label) {
+  const observations = [];
+  for (const viewport of [
+    { width: 1024, height: 768 },
+    { width: 1280, height: 800 },
+    { width: 1440, height: 900 },
+    { width: 1920, height: 1080 }
+  ]) {
+    await win.setViewportSize(viewport);
+    await win.waitForTimeout(100);
+    observations.push(await win.evaluate(({ width, height }) => {
+      const page = document.querySelector(".awkit-admin-page");
+      const main = document.querySelector(".main-surface");
+      if (!page || !main) return { width, height, valid: false };
+      const pageRect = page.getBoundingClientRect();
+      const mainRect = main.getBoundingClientRect();
+      return {
+        width,
+        height,
+        valid: page.scrollWidth <= page.clientWidth + 1 &&
+          pageRect.left >= mainRect.left - 1 &&
+          pageRect.right <= mainRect.right + 1 &&
+          [...page.querySelectorAll(".awkit-admin-table-scroll")].every((scroller) => scroller.scrollWidth >= scroller.clientWidth)
+      };
+    }, viewport));
+  }
+  check(`${label} remains contained at 1024, 1280, 1440, and 1920 widths`, observations.every((item) => item.valid), JSON.stringify(observations));
+  await win.setViewportSize({ width: 1440, height: 900 });
 }
 
 const { env, cleanup } = isolatedLaunchEnv("awkit-admin-gui");
@@ -86,6 +121,7 @@ try {
   check("newly created user appears in the list", (await win.getByText("@viewer1").count()) >= 1);
   check("no renderer console errors on Users", consoleErrors.length === 0, consoleErrors.slice(0, 2).join(" | "));
 
+  await verifyAdminResponsive(win, "Users");
   await captureAdminThemes(win, shotDir, "users");
 
   // ── Roles / Permissions / Audit / Licensing ─────────────────────────────────
@@ -107,6 +143,7 @@ try {
   await roleEditor.getByRole("button", { name: "Save role" }).click();
   await win.waitForTimeout(900);
   check("custom role permissions can be edited", (await createdRoleCard.getByText("workflow.stop", { exact: true }).count()) === 1);
+  await verifyAdminResponsive(win, "Roles");
   await captureAdminThemes(win, shotDir, "roles");
 
   await nav(win, "Permissions");
@@ -129,6 +166,7 @@ try {
     permissionMatrixLayout && permissionMatrixLayout.tableWidth >= permissionMatrixLayout.surfaceWidth - 2,
     JSON.stringify(permissionMatrixLayout)
   );
+  await verifyAdminResponsive(win, "Permissions");
   await captureAdminThemes(win, shotDir, "permissions");
 
   await nav(win, "Users");
@@ -159,6 +197,7 @@ try {
   await win.waitForTimeout(400);
   check("Audit Log shows the USER_CREATE event", (await win.getByText("USER_CREATE").count()) >= 1);
   check("Audit Log exposes local search and result filters", (await win.getByRole("search", { name: "Audit filters" }).count()) === 1);
+  await verifyAdminResponsive(win, "Audit Log");
   await captureAdminThemes(win, shotDir, "audit-log");
   // PR #21 replaced the licensing placeholder with the real LicensingPage (offline per-machine).
   await nav(win, "Licensing");
@@ -167,6 +206,7 @@ try {
   check("Licensing shows the not-activated state on a fresh profile", (await win.getByText("Not activated").count()) >= 1);
   const licensingLayout = await adminLayout(win, "Licensing");
   check("Licensing uses the shared Administration header and dashboard summary", licensingLayout?.title === "Licensing" && licensingLayout.noPageOverflow && licensingLayout.summaryItems === 3, JSON.stringify(licensingLayout));
+  await verifyAdminResponsive(win, "Licensing");
   await captureAdminThemes(win, shotDir, "licensing");
 
   check("no renderer console errors overall", consoleErrors.length === 0, consoleErrors.slice(0, 3).join(" | "));

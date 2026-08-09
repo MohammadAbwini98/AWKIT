@@ -65,6 +65,7 @@ import {
   EditorCommandBar,
   EditorCommandGroup,
   EditorHistoryControls,
+  EditorIconButton,
   EditorIdentityField
 } from "../components/shared/EditorCommandBar";
 
@@ -1134,21 +1135,19 @@ function FlowChartDesignerContent() {
             </EditorIdentityField>
           </EditorCommandGroup>
           {/* Save and Export live in the top header (usePageChrome) — not duplicated here. */}
-          <EditorCommandGroup label="Edit">
+          <EditorCommandGroup label="Step creation">
             <button className="toolbar-button primary" onClick={openToolbarPicker} type="button">
               <Plus size={15} />
-              Add node
+              Add step
             </button>
-            <button className="toolbar-button" onClick={loadFlow} type="button">
-              <FolderOpen size={15} />
-              Load
-            </button>
+            <EditorIconButton onClick={loadFlow} title="Reload selected flow" aria-label="Reload selected flow">
+              <FolderOpen size={15} aria-hidden="true" />
+            </EditorIconButton>
           </EditorCommandGroup>
           <EditorCommandGroup label="Layout & history" className="editor-command-utilities">
-            <button className="toolbar-button" onClick={autoArrange} type="button" title="Auto-arrange nodes (top-to-bottom)">
-              <LayoutGrid size={15} />
-              Auto-arrange
-            </button>
+            <EditorIconButton onClick={autoArrange} title="Auto-arrange steps" aria-label="Auto-arrange steps">
+              <LayoutGrid size={15} aria-hidden="true" />
+            </EditorIconButton>
             <EditorHistoryControls
               canUndo={editorHistory.canUndo}
               canRedo={editorHistory.canRedo}
