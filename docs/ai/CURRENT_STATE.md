@@ -25,8 +25,8 @@ internet, or portable-generation dependency.
 Focused evidence: build PASS; Workflow Builder **36/36**; Flow Designer **88/88**; Administration
 **24/24**; Settings/Program Status **172/172**; licensing logic **183/183**; licensing E2E **38/38**;
 RBAC E2E **70/70**; reports/settings accessibility **14 PASS / 0 FAIL**. Dark/light screenshots cover all five
-Administration pages and Program Status; Workflow Builder was captured at standard and 1024-wide
-desktop layouts; Workflows and the 1936-wide Flow Designer were inspected. Tracker **186 total / 182
+Administration pages, Program Status, Workflows, Workflow Builder, and Flow Designer; Workflow Builder
+was also captured at a 1024-wide desktop layout and Flow Designer at 1936 wide. Tracker **186 total / 182
 closed / 4 owner-gated outstanding / 104 edges**; validation ledger unchanged at **63 PASS / 2 NOT
 RUN / 1 BLOCKED**. Source hygiene **9/9**, verifier classification, roadmap **157/157 — Sources
 agree**, AI memory, and Graphify refresh (**12,115 nodes / 25,110 edges / 612 communities**) pass.

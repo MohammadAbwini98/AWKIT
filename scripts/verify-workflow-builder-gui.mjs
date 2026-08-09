@@ -212,6 +212,10 @@ try {
   const uiEvidenceDir = path.join(root, "reports", "ui-consistency");
   mkdirSync(uiEvidenceDir, { recursive: true });
   await win.screenshot({ path: path.join(uiEvidenceDir, "workflows-desktop.png"), fullPage: true }).catch(() => undefined);
+  const initialTheme = await win.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await win.screenshot({ path: path.join(uiEvidenceDir, "workflows-desktop-dark.png"), fullPage: true }).catch(() => undefined);
+  await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), initialTheme);
 
   // Navigate to the Workflow Builder (sidebar may be expanded or collapsed).
   if (!(await win.$(".scenario-flow-node"))) {
@@ -264,6 +268,9 @@ try {
     toolbarLayout ? JSON.stringify(toolbarLayout) : "toolbar not found"
   );
   await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-command-bar.png"), fullPage: true }).catch(() => undefined);
+  await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await win.screenshot({ path: path.join(uiEvidenceDir, "workflow-builder-command-bar-dark.png"), fullPage: true }).catch(() => undefined);
+  await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), initialTheme);
 
   // --- 1a. Workflow Builder history uses the same bounded contract. ---
   const originalWorkflowName = await win.locator(WF_NAME_INPUT).inputValue();

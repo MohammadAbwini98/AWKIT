@@ -531,6 +531,12 @@ try {
   if (process.env.AWKIT_FLOW_DESIGNER_EVIDENCE) {
     await win.screenshot({ path: process.env.AWKIT_FLOW_DESIGNER_EVIDENCE });
   }
+  if (process.env.AWKIT_FLOW_DESIGNER_EVIDENCE_DARK) {
+    const initialTheme = await win.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
+    await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await win.screenshot({ path: process.env.AWKIT_FLOW_DESIGNER_EVIDENCE_DARK });
+    await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), initialTheme);
+  }
   await win.setViewportSize({ width: 1024, height: 768 });
   const compactLayout = await waitForDrawerSettled(win);
   check(
