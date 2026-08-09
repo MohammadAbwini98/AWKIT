@@ -81,7 +81,7 @@ app/
                         Settings, ImplementationRoadmap, ProjectContract, WorkflowDesigner
     components/         workflow/ (nodes, registry, panels, zoom), table/ (state+UI),
                         data-binding/, reports/, scenario/, shared/ (CanvasItemPicker,
-                        NodeAppendButton, themed canvas edges/dialogs/primitives)
+                        NodeAppendButton, EditorCommandBar, themed canvas edges/dialogs/primitives)
     layout/             AppShell, TopHeader, LeftNavigation, StatusBar, DesignerCanvasLayout, RightPropertiesPanel
     state/              navigation.tsx, pageChrome.tsx (header actions + dirty flag)
     styles/global.css   single plain-CSS stylesheet
@@ -551,6 +551,14 @@ failure boundary under `src/testing/failures/`:
   `EdgeVisualStyle`) is the single edge-visual source for both `FlowChartDesigner` and `ScenarioBuilder`;
   style persists on `FlowEdge.style` / `WorkflowEdge.style`. Shared UI: `ConnectorStyleEditor`,
   `SearchableSelect`.
+- **Shared editor command presentation:** `app/renderer/components/shared/EditorCommandBar.tsx`
+  supplies the command bar, labeled group, identity-field, and compact history primitives used by
+  `FlowChartDesigner` and `ScenarioBuilder`. It owns presentation/accessibility only; each editor
+  retains its handlers, history state, validation derivation, save/export actions, and persistence.
+- **Embedded roadmap presentation:** `ImplementationRoadmap.tsx` consumes the shared framework-free
+  `tools/roadmap/public/views.js` registry and `dashboard.css` inside the normal renderer shell. Data
+  comes only from the authorized `roadmap.getSnapshot()` IPC over the packaged local snapshot; the
+  embedded layout adds a right-side view rail and never loads the standalone localhost server.
 
 - **Reporting & Telemetry (UI-reports refactor, 2026-07-07):** an additive read-model over the
   existing durable runtime. **Writers:** `ExecutionEngine` records run-summary fields

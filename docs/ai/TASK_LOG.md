@@ -4,6 +4,28 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-09 - Codex - Unify editor and Administration UI surfaces
+
+- **Task:** Complete `awkit-39h`: redesign the Workflow Builder and Flow Designer command bars,
+  Administration family, Workflows table, and embedded Program Status presentation.
+- **Implementation:** added shared editor command primitives; grouped both editor toolbars; compacted
+  Undo/Redo; kept validation as derived state; introduced the shared Administration header/summary/
+  layout grammar; grouped the real permission model; added audit filters; made Workflows fluid; and
+  moved the canonical embedded roadmap navigation to a responsive right rail.
+- **Safety:** no IPC, persistence, execution, permission, or licensing behavior changed. Program
+  Status still uses the shared roadmap renderers plus the offline snapshot IPC and exposes neither
+  localhost nor the portable-build action.
+- **Verified:** build PASS; Workflow Builder **36/36**; Flow Designer **88/88**; Administration
+  **24/24**; Settings/Program Status **172/172**; licensing **183/183**; licensing E2E **38/38**;
+  RBAC E2E **70/70**; reports/settings accessibility **14/0**. Dark/light and standard/narrow/wide visual evidence was
+  generated and inspected. Source hygiene **9/9**, verifier classification, roadmap **157/157 —
+  Sources agree**, AI memory, and Graphify refresh (**12,115 nodes / 25,110 edges / 612 communities**)
+  also pass.
+- **Tracking:** closed `awkit-39h`; tracker **186 total / 182 closed / 4 outstanding / 104 edges**;
+  ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+---
+
 ## 2026-08-08 - Codex - Complete Super User, Recorder UX, session, and editor-history tranche
 
 - **Task:** Implement epic `awkit-3jm` and its nine acceptance-matrix children.

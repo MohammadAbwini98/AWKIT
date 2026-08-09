@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## Editor, Administration, Workflows, and Program Status UI consistency - awkit-39h COMPLETE (2026-08-09)
+
+Workflow Builder and Flow Designer now use shared `EditorCommandBar`, command-group, identity-field,
+and compact history primitives while retaining their domain handlers and top-header Save/Export/Back
+actions. Workflow commands are grouped into identity, files, configuration, construction, execution,
+layout/history, and state; Flow Designer uses the same grammar for identity, edit, layout/history,
+and derived validation state. Both bars wrap complete groups without horizontal scrolling and retain
+all accessible labels, disabled states, shortcuts, and reduced-motion behavior.
+
+Users, Roles, Permissions, Audit Log, and Licensing now compose one Administration page shell with
+shared headings, descriptions, summary metrics, table/status language, loading/empty/error states,
+and responsive grids. Users prioritizes the account directory beside a bounded creation panel; Roles
+uses a responsive role grid and permission counts; Permissions groups the real deny-by-default model
+by actual permission prefixes; Audit Log adds local search/result filters; Licensing uses the same
+summary/dashboard hierarchy without changing license authority or exposing signing material.
+
+The Workflows table now fills its usable desktop content width with flexible identifying columns and
+a compact actions column. Embedded Program Status continues to render the exact canonical roadmap
+view registry and snapshot through authorized offline IPC, but now keeps a distinct roadmap section
+rail on the right inside the normal application shell; it still has no localhost, webview, iframe,
+internet, or portable-generation dependency.
+
+Focused evidence: build PASS; Workflow Builder **36/36**; Flow Designer **88/88**; Administration
+**24/24**; Settings/Program Status **172/172**; licensing logic **183/183**; licensing E2E **38/38**;
+RBAC E2E **70/70**; reports/settings accessibility **14 PASS / 0 FAIL**. Dark/light screenshots cover all five
+Administration pages and Program Status; Workflow Builder was captured at standard and 1024-wide
+desktop layouts; Workflows and the 1936-wide Flow Designer were inspected. Tracker **186 total / 182
+closed / 4 owner-gated outstanding / 104 edges**; validation ledger unchanged at **63 PASS / 2 NOT
+RUN / 1 BLOCKED**. Source hygiene **9/9**, verifier classification, roadmap **157/157 — Sources
+agree**, AI memory, and Graphify refresh (**12,115 nodes / 25,110 edges / 612 communities**) pass.
+
 ## Super User controls, Recorder UX, session policy, and editor history - awkit-3jm COMPLETE (2026-08-08)
 
 The Program Status dashboard is now embedded in the app from the same source/views as the standalone

@@ -1,5 +1,19 @@
 # FEATURES
 
+## Editor and Administration UI consistency (2026-08-09)
+
+- Workflow Builder and Flow Designer share the `EditorCommandBar` presentation grammar: grouped
+  identity/task/layout/state regions, compact accessible history controls, wrapped command groups,
+  and no normal desktop horizontal toolbar scroll. Domain handlers remain editor-owned.
+- Users, Roles, Permissions, Audit Log, and Licensing share an Administration shell with consistent
+  heading/summary/table/status/loading/empty/error patterns. Permission groups are derived from the
+  actual permission prefixes; Audit Log filters the real local records; RBAC/licensing IPC remains
+  trusted-main-process enforced.
+- Workflows uses the full available content width with flexible columns and a compact actions column.
+- Embedded Program Status reuses the canonical roadmap view registry and dashboard CSS with a distinct
+  right-side section rail inside the application shell. It remains Super-User-only, offline, read-only,
+  and independent of the roadmap development server.
+
 ## Super User controls and Recorder/editor productivity (2026-08-08)
 
 - Super Users can open an embedded, offline Program Status page sourced from the standalone roadmap

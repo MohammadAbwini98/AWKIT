@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("185 issues parse", beads.stats.total === 185, `got ${beads.stats.total}`);
+  check("186 issues parse", beads.stats.total === 186, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -206,10 +206,11 @@ try {
   // 173 to 174 and closed 169 to 170; `awkit-dl7` Smart Wait causality then closed, taking the
   // tracker to 175/171 while the same four owner-gated items remain outstanding.
   // The nine-part Super User / Recorder UX / session / editor tranche `awkit-3jm` then filed and
-  // closed its epic and nine children: total 175 to 185, closed 171 to 181, and edges 95 to 104.
+  // The editor/Administration UI consistency task added and closed one issue after that tranche:
+  // total 185 to 186, closed 181 to 182, with the same four owner-gated outstanding issues.
   check(
-    "4 outstanding / 181 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 181,
+    "4 outstanding / 182 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 182,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
