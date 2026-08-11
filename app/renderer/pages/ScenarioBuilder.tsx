@@ -726,10 +726,14 @@ function ScenarioBuilderContent() {
         data: {
           ...(edge.data ?? { linkType: "success", label: "success", expression: "" }),
           showAddButton: edge.source !== edge.target,
+          insertControlRole:
+            edge.source !== edge.target && loopControlledSources.has(edge.source) && scenarioEdgeKind(edge.data?.linkType) === "conditional"
+              ? "loop-exit"
+              : "default",
           onInsertNode: openEdgePicker
         } as ScenarioLinkData
       })),
-    [edges, openEdgePicker, selectedEdgeId]
+    [edges, loopControlledSources, openEdgePicker, selectedEdgeId]
   );
 
   // Select a flow node from its kebab "Configure" action — opens the right properties drawer

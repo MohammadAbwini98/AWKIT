@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-12 - Codex - Restore the original Loop visual and animate its exit control
+
+- **Task:** Keep the existing Loop model/runtime/validation intact, restore the owner-requested original
+  self-loop connection shape, and enlarge/animate the Loop/Exit Loop circular `+` in both designers.
+- **Implementation:** restored the centered right-bulging self-loop while retaining its directional SVG
+  layer and reliable Configure action. Structurally tagged Conditional Loop exits at render time, enlarged
+  only their control from 24px to 32px, let the shared `+` render at 14px, added collision-aware source-stem/
+  side routing and label clearance, and added a tokenized 2.2-second halo with a static reduced-motion state.
+  Flow edge insertion also preserves optional type-derived Conditional semantics.
+- **Safety:** no connector schema, persisted display flag, validation/runtime policy, IPC contract, remote
+  asset, dependency, or mock-site route changed. Generic connector controls and legacy Loop Back remain
+  unchanged.
+- **Verified:** build PASS; Flow Designer **106/106**; Workflow Builder **53/53**; Flow mapping **137/137**;
+  workflow conversions **14/14**; canvas performance **13/13**; canvas layout **35/35**; source hygiene
+  **9/9**.
+- **Files:** shared canvas geometry/edge rendering/styles; Flow/Workflow render-only edge data and insertion
+  mapping; focused real-Electron GUI verifiers; AI memory/tracking sources.
+
+---
+
 ## 2026-08-11 - Codex - Fix Loop reconfiguration and directional connector motion
 
 - **Task:** Complete `awkit-kwg` by repairing existing Loop reopening/reconfiguration and adding a

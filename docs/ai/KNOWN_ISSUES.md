@@ -1,16 +1,19 @@
 # KNOWN_ISSUES
 
-## RESOLVED: existing Loop connectors were occluded, hard to reopen, and lost derived config (awkit-kwg, 2026-08-11)
+## RESOLVED: Loop reconfiguration and exit affordance were unreliable (awkit-kwg, 2026-08-12)
 
-The shared canvas placed self-loop anchors at the node's center and bulged only inside the 320px card,
-so the higher-z-index node covered most of the connector. Fixed right-side routing was still obscured
-when another card sat immediately beside it. Edge pointer-down also entered pane panning, Flow Designer
-did not expand a collapsed inspector on edge selection, Workflow Builder could replace persisted node
-ids with `flowId`, and Flow save dropped Loop config when legacy edges omitted optional `kind`. Self-loop
-geometry now selects the clearer horizontal side, edge gestures are isolated, both designers expose an
-explicit Configure loop action, saved ids/config round-trip, and real pointer/reload GUI checks protect
-both layouts. Direction motion is a separate reduced-motion-safe layer instead of mutating the authored
-base line style.
+The centered self-loop can sit partly beneath its higher-z-index node, so precise path clicking is not a
+reliable configuration mechanism. The owner requested that original centered/right-bulging visual back;
+both designers therefore retain it and expose an explicit **Configure loop** node action, separate from
+**Remove loop**. Edge gestures are isolated from pane panning, collapsed inspectors reopen on selection,
+Workflow Builder preserves node ids independently from `flowId`, and Flow save retains type-derived Loop
+config. The direction cue remains a reduced-motion-safe overlay rather than mutating authored line style.
+
+The Conditional exit's shared 24px insert control was also visually undersized and, for same-row cards,
+could land on their boundary. It is now a structural render-only 32px Loop-exit control with a stable 14px
+`+`, collision-aware source-stem/side routing, label clearance, a 2.2-second halo, and a static
+reduced-motion ring. Generic controls and persisted connector data are unchanged; real-Electron checks
+cover vertical, tight-gap, and same-row layouts, click targeting, motion, reload, insertion, and removal.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

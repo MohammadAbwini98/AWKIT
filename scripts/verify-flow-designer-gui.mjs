@@ -53,6 +53,51 @@ function seedFlowFixture(localAppData) {
   };
   writeFileSync(path.join(flowsDir, `${flow.id}.json`), `${JSON.stringify(flow, null, 2)}\n`, "utf8");
 
+  const legacyLoopSpliceFlow = {
+    id: "verify-legacy-loop-splice",
+    name: "Verify — Legacy Loop Splice",
+    description: "Type-derived Loop/Conditional fixture for insert-control compatibility.",
+    version: 1,
+    createdAt: now,
+    updatedAt: now,
+    nodes: [
+      { id: "legacy-start", type: "start", name: "Start", position: { x: 280, y: 80 } },
+      {
+        id: "legacy-loop",
+        type: "goto",
+        name: "Legacy Loop",
+        url: "http://localhost:4321/",
+        valueSource: { type: "static", value: "http://localhost:4321/" },
+        position: { x: 280, y: 220 }
+      },
+      { id: "legacy-end", type: "end", name: "End", position: { x: 280, y: 316 } }
+    ],
+    edges: [
+      { id: "legacy-in", source: "legacy-start", target: "legacy-loop", type: "success" },
+      {
+        id: "legacy-loop-edge",
+        source: "legacy-loop",
+        target: "legacy-loop",
+        type: "loop",
+        label: "Loop",
+        loop: { mode: "count", maxIterations: 2, parameterName: "item" }
+      },
+      {
+        id: "legacy-exit",
+        source: "legacy-loop",
+        target: "legacy-end",
+        type: "conditional",
+        label: "Legacy exit",
+        conditional: { sourceField: "status", operator: "always", priority: 0 }
+      }
+    ]
+  };
+  writeFileSync(
+    path.join(flowsDir, `${legacyLoopSpliceFlow.id}.json`),
+    `${JSON.stringify(legacyLoopSpliceFlow, null, 2)}\n`,
+    "utf8"
+  );
+
   const positionalFlow = {
     id: "verify-positional-approval",
     name: "Verify Positional Approval",
@@ -312,21 +357,6 @@ async function loopMenuLabels(win, nodeId) {
   return labels;
 }
 
-async function clickLoopPath(win, nodeId) {
-  const point = await win.evaluate((id) => {
-    const path = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-interaction`);
-    if (!(path instanceof SVGPathElement)) return null;
-    const local = path.getPointAtLength(path.getTotalLength() * 0.32);
-    const matrix = path.getScreenCTM();
-    if (!matrix) return null;
-    const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix);
-    return { x: screen.x, y: screen.y };
-  }, nodeId);
-  if (point) await win.mouse.click(point.x, point.y);
-  await win.waitForTimeout(250);
-  return point;
-}
-
 async function readLoopVisual(win, nodeId) {
   return win.evaluate((id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
@@ -358,6 +388,112 @@ async function readLoopVisual(win, nodeId) {
       pathRight: pathRect.right,
       nodeLeft: nodeRect.left,
       nodeRight: nodeRect.right
+    };
+  }, nodeId);
+}
+
+
+async function readLoopExitControlVisual(win, nodeId) {
+  return win.evaluate((id) => {
+    const edgeGroups = [...document.querySelectorAll("g.awkit-flow-edge")];
+    const exitGroup = edgeGroups.find(
+      (edge) => edge.getAttribute("data-source") === id && edge.getAttribute("data-target") !== id
+    );
+    const selfGroup = edgeGroups.find(
+      (edge) => edge.getAttribute("data-source") === id && edge.getAttribute("data-target") === id
+    );
+    const edgeId = exitGroup?.getAttribute("data-id") ?? "";
+    const selfEdgeId = selfGroup?.getAttribute("data-id") ?? "";
+    const controls = [...document.querySelectorAll("button.awkit-edge-add")];
+    const control = controls.find((button) => button.getAttribute("data-edge-id") === edgeId);
+    const label = [...document.querySelectorAll(".awkit-edge-label")]
+      .find((element) => element.getAttribute("data-edge-id") === edgeId);
+    const path = exitGroup?.querySelector(".awkit-flow-edge-path");
+    if (!(control instanceof HTMLButtonElement) || !(label instanceof HTMLElement) || !(path instanceof SVGPathElement)) return null;
+
+    const sourceNode = [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .find((node) => node.getAttribute("data-id") === id);
+    const targetId = exitGroup?.getAttribute("data-target");
+    const targetNode = [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .find((node) => node.getAttribute("data-id") === targetId);
+    const icon = control.querySelector(".awkit-edge-add-icon");
+    const genericControl = controls.find((button) => button.getAttribute("data-insert-role") === "default");
+    const genericIcon = genericControl?.querySelector(".awkit-edge-add-icon");
+    const controlRect = control.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const sourceRect = sourceNode?.getBoundingClientRect();
+    const targetRect = targetNode?.getBoundingClientRect();
+    const center = { x: controlRect.left + controlRect.width / 2, y: controlRect.top + controlRect.height / 2 };
+    const matrix = path.getScreenCTM();
+    let pathDistance = Number.POSITIVE_INFINITY;
+    if (matrix) {
+      const length = path.getTotalLength();
+      for (let index = 0; index <= 160; index += 1) {
+        const point = path.getPointAtLength((length * index) / 160);
+        const screen = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+        pathDistance = Math.min(pathDistance, Math.hypot(screen.x - center.x, screen.y - center.y));
+      }
+    }
+    const overlaps = (a, b) => Boolean(
+      a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+    );
+    const overlapsOtherControl = controls.some((button) => {
+      if (button === control) return false;
+      return overlaps(controlRect, button.getBoundingClientRect());
+    });
+    const style = getComputedStyle(control);
+    const iconStyle = icon instanceof SVGElement ? getComputedStyle(icon) : null;
+    const genericStyle = genericControl instanceof HTMLButtonElement ? getComputedStyle(genericControl) : null;
+    const genericIconStyle = genericIcon instanceof SVGElement ? getComputedStyle(genericIcon) : null;
+    const haloStyle = getComputedStyle(control, "::after");
+    const haloAnimation = document.getAnimations().find((animation) => animation.animationName === "awkit-loop-exit-halo");
+    const animatedHaloScales = (haloAnimation?.effect?.getKeyframes?.() ?? []).map((frame) => {
+      const match = /^scale\(([\d.]+)\)$/.exec(String(frame.transform ?? ""));
+      return match ? Number.parseFloat(match[1]) : 1;
+    });
+    const computedHaloScale = haloStyle.transform === "none" ? 1 : new DOMMatrix(haloStyle.transform).a;
+    const haloScale = Math.max(1, computedHaloScale, ...animatedHaloScales);
+    const haloOverflow = (controlRect.width * (haloScale - 1)) / 2;
+    const haloRect = {
+      left: controlRect.left - haloOverflow,
+      right: controlRect.right + haloOverflow,
+      top: controlRect.top - haloOverflow,
+      bottom: controlRect.bottom + haloOverflow
+    };
+
+    return {
+      edgeId,
+      role: control.getAttribute("data-insert-role"),
+      className: control.className,
+      ariaLabel: control.getAttribute("aria-label"),
+      width: style.width,
+      height: style.height,
+      iconWidth: iconStyle?.width ?? "",
+      genericWidth: genericStyle?.width ?? "",
+      genericIconWidth: genericIconStyle?.width ?? "",
+      labelText: (label.textContent ?? "").trim(),
+      labelRole: label.getAttribute("data-insert-role"),
+      labelClearance: labelRect.top >= controlRect.bottom
+        ? labelRect.top - controlRect.bottom
+        : controlRect.top - labelRect.bottom,
+      pathDistance,
+      overlapsLabel: overlaps(controlRect, labelRect),
+      overlapsSource: overlaps(controlRect, sourceRect),
+      overlapsTarget: overlaps(controlRect, targetRect),
+      overlapsOtherControl,
+      haloScale,
+      haloOverlapsLabel: overlaps(haloRect, labelRect),
+      haloOverlapsSource: overlaps(haloRect, sourceRect),
+      haloOverlapsTarget: overlaps(haloRect, targetRect),
+      haloOverlapsOtherControl: controls.some((button) => button !== control && overlaps(haloRect, button.getBoundingClientRect())),
+      selfHasControl: controls.some((button) => button.getAttribute("data-edge-id") === selfEdgeId),
+      haloAnimationName: haloStyle.animationName,
+      haloDuration: haloStyle.animationDuration,
+      haloIterationCount: haloStyle.animationIterationCount,
+      haloTimingFunction: haloStyle.animationTimingFunction,
+      haloOpacity: haloStyle.opacity,
+      haloTransform: haloStyle.transform,
+      haloContent: haloStyle.content
     };
   }, nodeId);
 }
@@ -694,7 +830,7 @@ try {
   await win.keyboard.press("Escape");
 
   // --- 5. Edge insert "+" opens the palette ---
-  const insertBtn = win.locator(".awkit-edge-add").first();
+  const insertBtn = win.locator('.awkit-edge-add[data-insert-role="default"]').first();
   if (await insertBtn.isVisible().catch(() => false)) {
     await insertBtn.evaluate((el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window })));
     await win.waitForTimeout(250);
@@ -707,7 +843,7 @@ try {
   // --- 6. Loop toggle via the node kebab menu creates/removes a self-loop connector ---
   // Reload the pristine fixture first so this save/reload contract does not persist temporary
   // nodes created by the palette/insert checks above.
-  await win.click(".searchable-select-trigger");
+  await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
   await win.locator(".searchable-select-menu >> text=Verify — Flow Designer").first().click();
   await win.waitForTimeout(600);
   const NODE = await win.evaluate(() => {
@@ -742,10 +878,11 @@ try {
       const visual = await readLoopVisual(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Flow Loop renders a semantic directional layer outside the node",
+        "Flow Loop keeps the original centered curve with a semantic directional layer",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
           visual.baseCount === 1 && visual.directionCount === 1 && visual.samePath &&
-          (visual.pathRight > visual.nodeRight + 20 || visual.pathLeft < visual.nodeLeft - 20),
+          Math.abs(visual.pathLeft - (visual.nodeLeft + visual.nodeRight) / 2) < 6 &&
+          visual.pathRight > visual.pathLeft + 20 && visual.pathRight < visual.nodeRight,
         JSON.stringify(visual)
       );
       check(
@@ -755,14 +892,55 @@ try {
           Number.parseFloat(visual.directionWidth) > Number.parseFloat(visual.baseWidth),
         JSON.stringify(visual)
       );
+      const loopExitControl = await readLoopExitControlVisual(win, NODE);
+      const controlRatio = Number.parseFloat(loopExitControl?.width ?? "0") / Number.parseFloat(loopExitControl?.genericWidth ?? "1");
+      const iconRatio = Number.parseFloat(loopExitControl?.iconWidth ?? "0") / Number.parseFloat(loopExitControl?.genericIconWidth ?? "1");
+      check(
+        "Flow Loop exit uses the larger semantic insert control while default controls stay unchanged",
+        loopExitControl?.role === "loop-exit" && loopExitControl.className.includes("is-loop-exit-affordance") &&
+          loopExitControl.ariaLabel === "Insert step on loop exit" && controlRatio >= 1.3 && controlRatio <= 1.5 &&
+          Number.parseFloat(loopExitControl.genericWidth) === 24 && Number.parseFloat(loopExitControl.genericIconWidth) === 10 &&
+          iconRatio >= 1.3 && iconRatio <= 1.5 && loopExitControl.labelRole === "loop-exit" &&
+          loopExitControl.labelText === "Exit loop" && !loopExitControl.selfHasControl,
+        JSON.stringify({ ...loopExitControl, controlRatio, iconRatio })
+      );
+      check(
+        "Flow Loop exit control stays centered and clear of its label, nodes, and nearby controls",
+        Number.isFinite(loopExitControl?.pathDistance) && loopExitControl.pathDistance < 3 && loopExitControl.labelClearance >= 2 &&
+          !loopExitControl.overlapsLabel && !loopExitControl.overlapsSource && !loopExitControl.overlapsTarget && !loopExitControl.overlapsOtherControl &&
+          !loopExitControl.haloOverlapsLabel && !loopExitControl.haloOverlapsSource && !loopExitControl.haloOverlapsTarget && !loopExitControl.haloOverlapsOtherControl,
+        JSON.stringify(loopExitControl)
+      );
+      check(
+        "Flow Loop exit ring has a calm continuous halo coordinated with connector motion",
+        loopExitControl?.haloAnimationName === "awkit-loop-exit-halo" && loopExitControl.haloIterationCount === "infinite" &&
+          Number.parseFloat(loopExitControl.haloDuration) >= 1.5 && Number.parseFloat(loopExitControl.haloDuration) <= 2.5 &&
+          loopExitControl.haloContent !== "none",
+        JSON.stringify(loopExitControl)
+      );
       await win.emulateMedia({ reducedMotion: "reduce" });
       const reducedVisual = await readLoopVisual(win, NODE);
+      const reducedLoopExitControl = await readLoopExitControlVisual(win, NODE);
       check(
         "Flow Loop directional motion honors reduced motion",
         reducedVisual?.display === "none" && reducedVisual.animationName === "none",
         JSON.stringify(reducedVisual)
       );
+      check(
+        "Flow Loop exit halo becomes a static ring under reduced motion",
+        reducedLoopExitControl?.haloAnimationName === "none" && Number.parseFloat(reducedLoopExitControl.haloOpacity) > 0,
+        JSON.stringify(reducedLoopExitControl)
+      );
       await win.emulateMedia({ reducedMotion: "no-preference" });
+      if (loopExitControl?.edgeId) {
+        await win.locator(`button.awkit-edge-add[data-edge-id="${loopExitControl.edgeId}"]`).click();
+        await win.waitForTimeout(180);
+        check(
+          "The enlarged Flow Loop exit control remains an accurate click target",
+          await win.locator('.canvas-item-picker[aria-label="Node Palette"]').isVisible().catch(() => false)
+        );
+        await win.keyboard.press("Escape");
+      }
       await win.getByRole("button", { name: "Save", exact: true }).click();
       await win.waitForTimeout(350);
       const savedLoopAuthoring = await win.evaluate(async (sourceId) => {
@@ -781,7 +959,8 @@ try {
       );
       check(
         "Adding the loop promotes the existing Standard path to a persisted Conditional exit",
-        savedLoopAuthoring.exit?.kind === "conditional" && savedLoopAuthoring.exit?.conditional?.operator === "always",
+        savedLoopAuthoring.exit?.kind === "conditional" && savedLoopAuthoring.exit?.conditional?.operator === "always" &&
+          !("insertControlRole" in savedLoopAuthoring.exit) && !("showAddButton" in savedLoopAuthoring.exit),
         JSON.stringify(savedLoopAuthoring.exit)
       );
 
@@ -790,19 +969,19 @@ try {
       await win.locator(`.awkit-flow-node[data-id="${NODE}"] .action-flow-node`).click();
       await win.getByTitle("Collapse properties").click();
       await win.waitForTimeout(320);
-      const loopPoint = await clickLoopPath(win, NODE);
-      const reopenedByPath = await loopMode.isVisible().catch(() => false);
-      const reopenedMode = reopenedByPath ? await loopMode.inputValue() : "";
-      const reopenedMax = reopenedByPath ? await win.locator('.connection-config-drawer label:has-text("Max iterations") input').inputValue() : "";
-      const selectedByPath = await win.evaluate((id) => Boolean(
+      await clickNodeMenuItem(win, NODE, "Configure loop");
+      const reopenedByMenu = await loopMode.isVisible().catch(() => false);
+      const reopenedMode = reopenedByMenu ? await loopMode.inputValue() : "";
+      const reopenedMax = reopenedByMenu ? await win.locator('.connection-config-drawer label:has-text("Max iterations") input').inputValue() : "";
+      const selectedByMenu = await win.evaluate((id) => Boolean(
         document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path.is-selected`)
       ), NODE);
       check(
-        "A real click on the saved Flow Loop reopens its collapsed editor",
-        Boolean(loopPoint) && reopenedByPath && reopenedMode === "whileCondition" && reopenedMax === "4" && selectedByPath,
-        JSON.stringify({ loopPoint, reopenedByPath, reopenedMode, reopenedMax, selectedByPath })
+        "Configure loop reopens the saved Flow Loop from a collapsed editor",
+        reopenedByMenu && reopenedMode === "whileCondition" && reopenedMax === "4" && selectedByMenu,
+        JSON.stringify({ reopenedByMenu, reopenedMode, reopenedMax, selectedByMenu })
       );
-      if (reopenedByPath) {
+      if (reopenedByMenu) {
         await win.locator('.connection-config-drawer label:has-text("Max iterations") input').fill("6");
         await win.locator(`.awkit-flow-node[data-id="${NODE}"] .action-flow-node`).click();
         await clickNodeMenuItem(win, NODE, "Configure loop");
@@ -837,9 +1016,14 @@ try {
     await win.waitForTimeout(400);
     const after = await win.evaluate((id) => ({
       count: document.querySelectorAll("g.awkit-flow-edge").length,
-      hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`))
+      hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`)),
+      hasLoopExitControl: Boolean(document.querySelector('button.awkit-edge-add[data-insert-role="loop-exit"]'))
     }), NODE);
-    check("Removing the loop deletes the connector", !after.hasSelfLoop && after.count === before, `count=${after.count} (baseline ${before})`);
+    check(
+      "Removing the loop deletes the connector and clears its exit-control emphasis",
+      !after.hasSelfLoop && !after.hasLoopExitControl && after.count === before,
+      JSON.stringify({ ...after, baseline: before })
+    );
     await win.getByRole("button", { name: "Save", exact: true }).click();
     await win.waitForTimeout(350);
   }
@@ -910,28 +1094,59 @@ try {
   if (connectDialog) await win.getByRole("button", { name: "Cancel", exact: true }).click();
 
   // --- 8. Saved Flow searchable dropdown closes on an outside click over the canvas ---
-  const trigger = await win.$(".searchable-select-trigger");
+  const trigger = await win.$('button.searchable-select-trigger[aria-label="Saved flow"]');
   if (!trigger) {
-    check("Saved Flow dropdown closes on outside (canvas) click", false, "SKIPPED: no .searchable-select-trigger on this page");
+    check("Saved Flow dropdown closes on outside (canvas) click", false, "SKIPPED: no Saved flow trigger on this page");
   } else {
-    await win.click(".searchable-select-trigger").catch(() => {});
+    await trigger.click();
     await win.waitForTimeout(200);
-    const opened = Boolean(await win.$(".searchable-select-menu"));
+    const opened = (await trigger.getAttribute("aria-expanded")) === "true";
     await win.evaluate(() => {
       const pane = document.querySelector(".awkit-flow-canvas") || document.body;
       pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
     });
     await win.waitForTimeout(200);
-    const stillOpen = Boolean(await win.$(".searchable-select-menu"));
+    const stillOpen = (await trigger.getAttribute("aria-expanded")) === "true";
     check("Saved Flow dropdown opens, then closes on an outside canvas pointerdown", opened && !stillOpen, `opened=${opened} closedAfterCanvasClick=${!stillOpen}`);
   }
+
+  // --- 8b. The emphasized control must preserve a legacy type-derived Conditional exit when
+  // it is actually used to splice a node (not merely opened and dismissed).
+  await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
+  await win.locator(".searchable-select-menu >> text=Verify — Legacy Loop Splice").first().click();
+  await win.waitForTimeout(600);
+  const tightLoopExitControl = await readLoopExitControlVisual(win, "legacy-loop");
+  check(
+    "A tight downstream Loop exit routes the enlarged control and halo clear of both cards",
+    Number.isFinite(tightLoopExitControl?.pathDistance) && tightLoopExitControl.pathDistance < 3 &&
+      !tightLoopExitControl.overlapsSource && !tightLoopExitControl.overlapsTarget &&
+      !tightLoopExitControl.haloOverlapsSource && !tightLoopExitControl.haloOverlapsTarget,
+    JSON.stringify(tightLoopExitControl)
+  );
+  const legacyExitControl = win.locator('button.awkit-edge-add[data-insert-role="loop-exit"]').first();
+  await legacyExitControl.click();
+  await win.getByRole("menuitem", { name: /Take Screenshot/ }).click();
+  await win.waitForTimeout(300);
+  await win.getByRole("button", { name: "Save", exact: true }).click();
+  await win.waitForTimeout(350);
+  const legacySplice = await win.evaluate(async () => {
+    const profile = await window.playwrightFlowStudio.flows.get("verify-legacy-loop-splice");
+    const sourceSegment = profile?.edges.find((edge) => edge.source === "legacy-loop" && edge.target !== "legacy-loop");
+    return { sourceSegment, nodeIds: profile?.nodes.map((node) => node.id) ?? [] };
+  });
+  check(
+    "Loop exit insertion preserves legacy type-derived Conditional semantics",
+    legacySplice.sourceSegment?.type === "conditional" && !("kind" in legacySplice.sourceSegment) &&
+      legacySplice.sourceSegment?.conditional?.operator === "always" && legacySplice.sourceSegment.target !== "legacy-end",
+    JSON.stringify(legacySplice)
+  );
 
   // --- 9. Stage 2b: shared validation engine — draft save, chip, navigation, gate, library ---
   console.log("\nStage 2b: validation engine in the designer, library and run gate");
 
   // 9a. Reload the pristine valid flow (the walkthrough above mutated the canvas document) and
   // assert the chip derives "Runnable".
-  await win.click(".searchable-select-trigger");
+  await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
   await win.locator(".searchable-select-menu >> text=Verify — Flow Designer").first().click();
   await win.waitForTimeout(600);
   const chipRunnable = (await win.locator('[data-testid="flow-validation-chip"]').textContent().catch(() => "")) ?? "";
@@ -1026,7 +1241,7 @@ try {
   // 9b. Switch to the seeded invalid draft via the Saved Flow dropdown. Re-open defensively —
   // the trigger click can race the popover dismiss from the selection just made in 9a.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await win.click(".searchable-select-trigger");
+    await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
     await win.waitForTimeout(250);
     if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
   }
@@ -1193,7 +1408,7 @@ try {
   await navClick(win, "Flow Designer");
   await win.waitForTimeout(500);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await win.click(".searchable-select-trigger");
+    await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
     await win.waitForTimeout(250);
     if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
   }
@@ -1206,7 +1421,7 @@ try {
 
   // 10e. Suggested fix: preview → confirm → apply → undo, on the fixable flow.
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await win.click(".searchable-select-trigger");
+    await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
     await win.waitForTimeout(250);
     if (await win.locator(".searchable-select-menu").isVisible().catch(() => false)) break;
   }
@@ -1247,7 +1462,7 @@ try {
 
   // --- 10. Increment 3/4: the real properties UI persists, invalidates and revokes approval. ---
   console.log("\nIncrements 3/4: Flow Designer locator approval lifecycle");
-  await win.click(".searchable-select-trigger");
+  await win.click('button.searchable-select-trigger[aria-label="Saved flow"]');
   await win.locator(".searchable-select-menu >> text=Verify Positional Approval").first().click();
   await win.waitForTimeout(600);
   await win.keyboard.press("Escape");

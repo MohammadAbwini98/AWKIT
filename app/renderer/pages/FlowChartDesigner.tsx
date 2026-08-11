@@ -820,7 +820,9 @@ function FlowChartDesignerContent() {
             targetEdge.data?.style,
             targetEdge.data?.maxLoopCount,
             {
-              kind: targetEdge.data?.kind ?? "normal",
+              // Preserve legacy type-derived connector semantics. Writing an explicit "normal"
+              // kind here would override a loaded conditional/outcome type when the edge is split.
+              kind: targetEdge.data?.kind,
               conditional: targetEdge.data?.conditional,
               parallel: targetEdge.data?.parallel,
               loop: targetEdge.data?.loop
@@ -1045,11 +1047,15 @@ function FlowChartDesignerContent() {
             ...base,
             label: base.label ?? (typeof edge.label === "string" ? edge.label : undefined),
             showAddButton: edge.source !== edge.target,
+            insertControlRole:
+              edge.source !== edge.target && loopControlledSources.has(edge.source) && flowEdgeKind(edge) === "conditional"
+                ? "loop-exit"
+                : "default",
             onInsertNode: openEdgePicker
           }
         };
       }),
-    [edges, openEdgePicker, selectedEdgeId]
+    [edges, loopControlledSources, openEdgePicker, selectedEdgeId]
   );
 
   // Delete an arbitrary node by id (used by the per-node kebab menu). Start/End are structural

@@ -1,16 +1,22 @@
 # FEATURES
 
-## Reliable Loop reconfiguration and directional motion (2026-08-11)
+## Loop visual treatment, reliable reconfiguration, and directional motion (2026-08-12)
 
-- Existing Loops reopen from either their visible canvas path or a dedicated **Configure loop** node
-  action; **Remove loop** remains a separate destructive action. Connector selection expands a collapsed
-  inspector in both designers and preserves edits across save/reload.
-- The shared canvas routes self-loops around the clearer left/right side of their node and prevents edge
-  pointer gestures from becoming pane pans. Workflow loads preserve node ids independently from flow ids.
+- Existing Loops reopen through a dedicated **Configure loop** node action; **Remove loop** remains a
+  separate destructive action. Connector selection expands a collapsed inspector in both designers and
+  preserves edits across save/reload. Edge pointer gestures do not become pane pans.
+- The owner-requested original centered, right-bulging self-loop shape is shared by both designers.
 - A derived, non-interactive moving segment communicates source-to-target direction while preserving the
   authored base color, thickness, and line style. Reduced-motion users see the static Loop only.
+- The Conditional Loop exit receives a render-only 32px `+` control (generic controls stay 24px), clear
+  label/node placement, and a subtle 2.2-second halo. Reduced-motion users see a static ring. Classification
+  is structural rather than label-based and the presentation role is never persisted.
+- Same-row/upward Loop exits reserve a longer source stem and tight downstream gaps use a side route, so
+  the enlarged control and full halo stay centered without overlapping either card. Workflow loads
+  preserve node ids independently from flow ids.
 - Legacy Flow edges with `type: "loop"` and no explicit `kind` retain complete Loop configuration on
-  re-save; legacy cross-node Loop Back behavior remains unchanged.
+  re-save, and inserting on a type-derived Conditional exit preserves that semantic kind; legacy
+  cross-node Loop Back behavior remains unchanged.
 
 ## Complete Loop connector authoring (2026-08-11)
 

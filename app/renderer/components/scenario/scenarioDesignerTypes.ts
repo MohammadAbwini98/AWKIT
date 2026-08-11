@@ -46,5 +46,6 @@ export interface ScenarioLinkData extends Record<string, unknown> {
    * `toWorkflowProfile` reads connector fields explicitly and ignores these.
    */
   showAddButton?: boolean;
+  insertControlRole?: "default" | "loop-exit";
   onInsertNode?: (edgeId: string, anchor: HTMLElement) => void;
 }

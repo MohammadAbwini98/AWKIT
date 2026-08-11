@@ -1,28 +1,32 @@
 # CURRENT_STATE
 
-## Loop reconfiguration and directional motion - awkit-kwg COMPLETE (2026-08-11)
+## Loop visual treatment and reliable reconfiguration - awkit-kwg COMPLETE (2026-08-12)
 
-Existing structured Loop connectors can now be reopened reliably in both Flow Designer and Workflow
-Builder. Their visible/hit-test path leaves the clearer horizontal side of the node (including layouts
-with an adjacent card), connector pointer-down no longer starts a competing pane-pan gesture, and edge
-selection reopens a collapsed inspector. Each node menu now separates **Configure loop** from
-**Remove loop**, so reconfiguration does not depend on precise canvas clicking. Workflow Builder also
-preserves the persisted workflow-node id when it differs from `flowId`, keeping saved connector
-endpoints attached after reload.
+Flow Designer and Workflow Builder retain the original centered, right-bulging self-loop shape requested
+by the owner. Loop direction remains visible through the separate source-to-target SVG motion layer,
+which preserves the authored base color, thickness, and solid/dashed/dotted style. Existing Loops remain
+reliably editable through the explicit **Configure loop** node action, with **Remove loop** kept separate;
+connector gestures do not start pane panning and selecting a connector expands a collapsed inspector.
 
-Loop direction is communicated by a dedicated source-to-target SVG segment layered above the authored
-connector. The base keeps its solid/dashed/dotted color and thickness; the motion layer is
-non-interactive, uses derived renderer state only, and is removed under reduced motion. Flow profile
-save now uses canonical `connectorKind()` derivation to retain configuration on legacy `type: "loop"`
-edges whose optional `kind` is absent, without normalizing legacy Loop Back semantics. Validation and
-runtime policy were not weakened or duplicated.
+The insert control on the non-self Conditional Loop exit is now structurally identified at render time
+and enlarged from 24px to 32px (the shared `+` grows from 10px rendered to its intended 14px). Its label
+is moved clear of the larger circle. Same-row/upward exits receive enough source-stem clearance and tight
+downstream gaps use a side route, avoiding either node card while staying centered on the connector. A
+tokenized 2.2-second halo communicates Loop motion without moving the stable `+`; reduced-motion users
+receive a static ring.
+Generic connector controls remain unchanged and no display metadata is persisted.
 
-Focused evidence: build PASS; Flow Designer Electron GUI **99/99**; Workflow Builder Electron GUI
-**48/48**; Flow mapping **137/137**; runner **99/99**; validation **134/134**; branch pairs **36/36**;
-workflow sentinel/conversion **14/14**; canvas performance **13/13**; canvas layout **35/35**; source
-hygiene **9/9**. No duplicate mock-site scenario was added because this is desktop-canvas interaction;
-the real-Electron isolated-profile walkthroughs cover it directly. Tracker **189 total / 185 closed /
-4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Workflow Builder still preserves persisted workflow-node ids independently from `flowId`. Flow profile
+save retains complete config for legacy `type: "loop"` edges with no optional `kind`, and edge insertion
+now preserves a type-derived Conditional kind instead of normalizing it to Standard. Legacy Loop Back,
+validation, persistence schemas, and runtime routing remain unchanged.
+
+Focused evidence: build PASS; Flow Designer Electron GUI **106/106**; Workflow Builder Electron GUI
+**53/53**; Flow mapping **137/137**; workflow sentinel/conversion **14/14**; canvas performance **13/13**;
+canvas layout **35/35**; source hygiene **9/9**. No duplicate mock-site scenario was added because this
+is desktop-canvas interaction covered by the isolated real-Electron walkthroughs. Tracker **189 total /
+185 closed / 4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN /
+1 BLOCKED**.
 
 ## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
 

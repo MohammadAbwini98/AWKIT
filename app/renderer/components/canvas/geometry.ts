@@ -190,6 +190,9 @@ export interface GetSmoothStepPathParams {
   offset?: number;
 }
 
+/** Shared clearance between a node anchor and the first bend of a smooth-step connector. */
+export const SMOOTH_STEP_OFFSET = 20;
+
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({
   sourceX,
@@ -201,7 +204,7 @@ export function getSmoothStepPath({
   borderRadius = 5,
   centerX,
   centerY,
-  offset = 20
+  offset = SMOOTH_STEP_OFFSET
 }: GetSmoothStepPathParams): [string, number, number, number, number] {
   const [points, labelX, labelY, offsetX, offsetY] = getPoints({
     source: { x: sourceX, y: sourceY },

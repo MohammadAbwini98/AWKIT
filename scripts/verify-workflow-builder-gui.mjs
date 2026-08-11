@@ -81,7 +81,8 @@ function seedWorkflowFixture(localAppData) {
     name: "Verify — Loop Authoring",
     description: "Untouched workflow with distinct node/flow ids and a Standard exit for loop-authoring verification.",
     nodes: workflow.nodes.map((node, index) => ({ ...node, id: `workflow-node-${index + 1}` })),
-    edges: [{ id: "w-loop-authoring", source: "workflow-node-1", target: "workflow-node-2", type: "success" }]
+    // A custom label proves loop-exit treatment is structural and never depends on "Exit loop" text.
+    edges: [{ id: "w-loop-authoring", source: "workflow-node-1", target: "workflow-node-2", type: "success", label: "always" }]
   };
   writeFileSync(path.join(workflowsDir, `${loopAuthoringWorkflow.id}.json`), `${JSON.stringify(loopAuthoringWorkflow, null, 2)}\n`, "utf8");
 }
@@ -151,21 +152,6 @@ async function loopMenuLabels(win, nodeId) {
   return labels;
 }
 
-async function clickLoopPath(win, nodeId) {
-  const point = await win.evaluate((id) => {
-    const path = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-interaction`);
-    if (!(path instanceof SVGPathElement)) return null;
-    const local = path.getPointAtLength(path.getTotalLength() * 0.32);
-    const matrix = path.getScreenCTM();
-    if (!matrix) return null;
-    const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix);
-    return { x: screen.x, y: screen.y };
-  }, nodeId);
-  if (point) await win.mouse.click(point.x, point.y);
-  await win.waitForTimeout(250);
-  return point;
-}
-
 async function readLoopVisual(win, nodeId) {
   return win.evaluate((id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
@@ -197,6 +183,112 @@ async function readLoopVisual(win, nodeId) {
       pathRight: pathRect.right,
       nodeLeft: nodeRect.left,
       nodeRight: nodeRect.right
+    };
+  }, nodeId);
+}
+
+
+async function readLoopExitControlVisual(win, nodeId) {
+  return win.evaluate((id) => {
+    const edgeGroups = [...document.querySelectorAll("g.awkit-flow-edge")];
+    const exitGroup = edgeGroups.find(
+      (edge) => edge.getAttribute("data-source") === id && edge.getAttribute("data-target") !== id
+    );
+    const selfGroup = edgeGroups.find(
+      (edge) => edge.getAttribute("data-source") === id && edge.getAttribute("data-target") === id
+    );
+    const edgeId = exitGroup?.getAttribute("data-id") ?? "";
+    const selfEdgeId = selfGroup?.getAttribute("data-id") ?? "";
+    const controls = [...document.querySelectorAll("button.awkit-edge-add")];
+    const control = controls.find((button) => button.getAttribute("data-edge-id") === edgeId);
+    const label = [...document.querySelectorAll(".awkit-edge-label")]
+      .find((element) => element.getAttribute("data-edge-id") === edgeId);
+    const path = exitGroup?.querySelector(".awkit-flow-edge-path");
+    if (!(control instanceof HTMLButtonElement) || !(label instanceof HTMLElement) || !(path instanceof SVGPathElement)) return null;
+
+    const sourceNode = [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .find((node) => node.getAttribute("data-id") === id);
+    const targetId = exitGroup?.getAttribute("data-target");
+    const targetNode = [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+      .find((node) => node.getAttribute("data-id") === targetId);
+    const icon = control.querySelector(".awkit-edge-add-icon");
+    const genericControl = controls.find((button) => button.getAttribute("data-insert-role") === "default");
+    const genericIcon = genericControl?.querySelector(".awkit-edge-add-icon");
+    const controlRect = control.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const sourceRect = sourceNode?.getBoundingClientRect();
+    const targetRect = targetNode?.getBoundingClientRect();
+    const center = { x: controlRect.left + controlRect.width / 2, y: controlRect.top + controlRect.height / 2 };
+    const matrix = path.getScreenCTM();
+    let pathDistance = Number.POSITIVE_INFINITY;
+    if (matrix) {
+      const length = path.getTotalLength();
+      for (let index = 0; index <= 160; index += 1) {
+        const point = path.getPointAtLength((length * index) / 160);
+        const screen = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+        pathDistance = Math.min(pathDistance, Math.hypot(screen.x - center.x, screen.y - center.y));
+      }
+    }
+    const overlaps = (a, b) => Boolean(
+      a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+    );
+    const overlapsOtherControl = controls.some((button) => {
+      if (button === control) return false;
+      return overlaps(controlRect, button.getBoundingClientRect());
+    });
+    const style = getComputedStyle(control);
+    const iconStyle = icon instanceof SVGElement ? getComputedStyle(icon) : null;
+    const genericStyle = genericControl instanceof HTMLButtonElement ? getComputedStyle(genericControl) : null;
+    const genericIconStyle = genericIcon instanceof SVGElement ? getComputedStyle(genericIcon) : null;
+    const haloStyle = getComputedStyle(control, "::after");
+    const haloAnimation = document.getAnimations().find((animation) => animation.animationName === "awkit-loop-exit-halo");
+    const animatedHaloScales = (haloAnimation?.effect?.getKeyframes?.() ?? []).map((frame) => {
+      const match = /^scale\(([\d.]+)\)$/.exec(String(frame.transform ?? ""));
+      return match ? Number.parseFloat(match[1]) : 1;
+    });
+    const computedHaloScale = haloStyle.transform === "none" ? 1 : new DOMMatrix(haloStyle.transform).a;
+    const haloScale = Math.max(1, computedHaloScale, ...animatedHaloScales);
+    const haloOverflow = (controlRect.width * (haloScale - 1)) / 2;
+    const haloRect = {
+      left: controlRect.left - haloOverflow,
+      right: controlRect.right + haloOverflow,
+      top: controlRect.top - haloOverflow,
+      bottom: controlRect.bottom + haloOverflow
+    };
+
+    return {
+      edgeId,
+      role: control.getAttribute("data-insert-role"),
+      className: control.className,
+      ariaLabel: control.getAttribute("aria-label"),
+      width: style.width,
+      height: style.height,
+      iconWidth: iconStyle?.width ?? "",
+      genericWidth: genericStyle?.width ?? "",
+      genericIconWidth: genericIconStyle?.width ?? "",
+      labelText: (label.textContent ?? "").trim(),
+      labelRole: label.getAttribute("data-insert-role"),
+      labelClearance: labelRect.top >= controlRect.bottom
+        ? labelRect.top - controlRect.bottom
+        : controlRect.top - labelRect.bottom,
+      pathDistance,
+      overlapsLabel: overlaps(controlRect, labelRect),
+      overlapsSource: overlaps(controlRect, sourceRect),
+      overlapsTarget: overlaps(controlRect, targetRect),
+      overlapsOtherControl,
+      haloScale,
+      haloOverlapsLabel: overlaps(haloRect, labelRect),
+      haloOverlapsSource: overlaps(haloRect, sourceRect),
+      haloOverlapsTarget: overlaps(haloRect, targetRect),
+      haloOverlapsOtherControl: controls.some((button) => button !== control && overlaps(haloRect, button.getBoundingClientRect())),
+      selfHasControl: controls.some((button) => button.getAttribute("data-edge-id") === selfEdgeId),
+      haloAnimationName: haloStyle.animationName,
+      haloDuration: haloStyle.animationDuration,
+      haloIterationCount: haloStyle.animationIterationCount,
+      haloTimingFunction: haloStyle.animationTimingFunction,
+      haloOpacity: haloStyle.opacity,
+      haloTransform: haloStyle.transform,
+      haloContent: haloStyle.content
     };
   }, nodeId);
 }
@@ -525,6 +617,16 @@ try {
     check("Add loop creates a self-loop connector", false, "no loopable scenario flow node found");
   } else {
     const activeWorkflowId = await win.inputValue(WF_SELECT);
+    const defaultInsertControl = await win.evaluate(() => {
+      const control = document.querySelector('button.awkit-edge-add[data-insert-role="default"]');
+      const icon = control?.querySelector(".awkit-edge-add-icon");
+      return control instanceof HTMLButtonElement
+        ? {
+            width: getComputedStyle(control).width,
+            iconWidth: icon instanceof SVGElement ? getComputedStyle(icon).width : ""
+          }
+        : null;
+    });
     const before = await win.evaluate(() => document.querySelectorAll("g.awkit-flow-edge").length);
     await clickNodeMenuItem(win, NODE, "Add loop");
     await win.waitForTimeout(450);
@@ -547,10 +649,11 @@ try {
       const visual = await readLoopVisual(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Workflow Loop renders a semantic directional layer outside the node",
+        "Workflow Loop keeps the original centered curve with a semantic directional layer",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
           visual.baseCount === 1 && visual.directionCount === 1 && visual.samePath &&
-          (visual.pathRight > visual.nodeRight + 20 || visual.pathLeft < visual.nodeLeft - 20),
+          Math.abs(visual.pathLeft - (visual.nodeLeft + visual.nodeRight) / 2) < 6 &&
+          visual.pathRight > visual.pathLeft + 20 && visual.pathRight < visual.nodeRight,
         JSON.stringify(visual)
       );
       check(
@@ -560,14 +663,57 @@ try {
           Number.parseFloat(visual.directionWidth) > Number.parseFloat(visual.baseWidth),
         JSON.stringify(visual)
       );
+      const loopExitControl = await readLoopExitControlVisual(win, NODE);
+      const genericWidth = loopExitControl?.genericWidth || defaultInsertControl?.width || "1";
+      const genericIconWidth = loopExitControl?.genericIconWidth || defaultInsertControl?.iconWidth || "1";
+      const controlRatio = Number.parseFloat(loopExitControl?.width ?? "0") / Number.parseFloat(genericWidth);
+      const iconRatio = Number.parseFloat(loopExitControl?.iconWidth ?? "0") / Number.parseFloat(genericIconWidth);
+      check(
+        "Workflow Loop exit uses the larger semantic insert control while default controls stay unchanged",
+        loopExitControl?.role === "loop-exit" && loopExitControl.className.includes("is-loop-exit-affordance") &&
+          loopExitControl.ariaLabel === "Insert step on loop exit" && controlRatio >= 1.3 && controlRatio <= 1.5 &&
+          Number.parseFloat(genericWidth) === 24 && Number.parseFloat(genericIconWidth) === 10 &&
+          iconRatio >= 1.3 && iconRatio <= 1.5 && loopExitControl.labelRole === "loop-exit" &&
+          loopExitControl.labelText === "always" && !loopExitControl.selfHasControl,
+        JSON.stringify({ ...loopExitControl, genericWidth, genericIconWidth, controlRatio, iconRatio })
+      );
+      check(
+        "Workflow Loop exit control stays centered and clear of its label, nodes, and nearby controls",
+        Number.isFinite(loopExitControl?.pathDistance) && loopExitControl.pathDistance < 3 && loopExitControl.labelClearance >= 2 &&
+          !loopExitControl.overlapsLabel && !loopExitControl.overlapsSource && !loopExitControl.overlapsTarget && !loopExitControl.overlapsOtherControl &&
+          !loopExitControl.haloOverlapsLabel && !loopExitControl.haloOverlapsSource && !loopExitControl.haloOverlapsTarget && !loopExitControl.haloOverlapsOtherControl,
+        JSON.stringify(loopExitControl)
+      );
+      check(
+        "Workflow Loop exit ring has a calm continuous halo coordinated with connector motion",
+        loopExitControl?.haloAnimationName === "awkit-loop-exit-halo" && loopExitControl.haloIterationCount === "infinite" &&
+          Number.parseFloat(loopExitControl.haloDuration) >= 1.5 && Number.parseFloat(loopExitControl.haloDuration) <= 2.5 &&
+          loopExitControl.haloContent !== "none",
+        JSON.stringify(loopExitControl)
+      );
       await win.emulateMedia({ reducedMotion: "reduce" });
       const reducedVisual = await readLoopVisual(win, NODE);
+      const reducedLoopExitControl = await readLoopExitControlVisual(win, NODE);
       check(
         "Workflow Loop directional motion honors reduced motion",
         reducedVisual?.display === "none" && reducedVisual.animationName === "none",
         JSON.stringify(reducedVisual)
       );
+      check(
+        "Workflow Loop exit halo becomes a static ring under reduced motion",
+        reducedLoopExitControl?.haloAnimationName === "none" && Number.parseFloat(reducedLoopExitControl.haloOpacity) > 0,
+        JSON.stringify(reducedLoopExitControl)
+      );
       await win.emulateMedia({ reducedMotion: "no-preference" });
+      if (loopExitControl?.edgeId) {
+        await win.locator(`button.awkit-edge-add[data-edge-id="${loopExitControl.edgeId}"]`).click();
+        await win.waitForTimeout(180);
+        check(
+          "The enlarged Workflow Loop exit control remains an accurate click target",
+          await win.locator('.canvas-item-picker[aria-label="Workflow Definition"]').isVisible().catch(() => false)
+        );
+        await win.keyboard.press("Escape");
+      }
       await win.getByRole("button", { name: "Save", exact: true }).click();
       await win.waitForTimeout(350);
       const savedLoopAuthoring = await win.evaluate(async ({ sourceId, workflowId }) => {
@@ -586,7 +732,8 @@ try {
       );
       check(
         "Adding the workflow loop promotes the existing Standard path to a persisted Conditional exit",
-        savedLoopAuthoring.exit?.type === "conditional" && savedLoopAuthoring.exit?.condition?.expression === "true",
+        savedLoopAuthoring.exit?.type === "conditional" && savedLoopAuthoring.exit?.condition?.expression === "true" &&
+          !("insertControlRole" in savedLoopAuthoring.exit) && !("showAddButton" in savedLoopAuthoring.exit),
         JSON.stringify(savedLoopAuthoring.exit)
       );
 
@@ -602,19 +749,19 @@ try {
       }
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
       await win.waitForTimeout(180);
-      const loopPoint = await clickLoopPath(win, NODE);
-      const reopenedByPath = await loopMode.isVisible().catch(() => false);
-      const reopenedMode = reopenedByPath ? await loopMode.inputValue() : "";
-      const reopenedMax = reopenedByPath ? await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() : "";
-      const selectedByPath = await win.evaluate((id) => Boolean(
+      await clickNodeMenuItem(win, NODE, "Configure loop");
+      const reopenedByMenu = await loopMode.isVisible().catch(() => false);
+      const reopenedMode = reopenedByMenu ? await loopMode.inputValue() : "";
+      const reopenedMax = reopenedByMenu ? await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() : "";
+      const selectedByMenu = await win.evaluate((id) => Boolean(
         document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path.is-selected`)
       ), NODE);
       check(
-        "A real click on the saved Workflow Loop reopens its collapsed editor",
-        Boolean(loopPoint) && reopenedByPath && reopenedMode === "whileCondition" && reopenedMax === "5" && selectedByPath,
-        JSON.stringify({ loopPoint, reopenedByPath, reopenedMode, reopenedMax, selectedByPath })
+        "Configure loop reopens the saved Workflow Loop after switching workflows",
+        reopenedByMenu && reopenedMode === "whileCondition" && reopenedMax === "5" && selectedByMenu,
+        JSON.stringify({ reopenedByMenu, reopenedMode, reopenedMax, selectedByMenu })
       );
-      if (reopenedByPath) {
+      if (reopenedByMenu) {
         await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').fill("7");
         await win.locator(`.awkit-flow-node[data-id="${NODE}"] .scenario-flow-node`).click();
         await clickNodeMenuItem(win, NODE, "Configure loop");
@@ -653,9 +800,14 @@ try {
     await win.waitForTimeout(400);
     const after = await win.evaluate((id) => ({
       count: document.querySelectorAll("g.awkit-flow-edge").length,
-      hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`))
+      hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`)),
+      hasLoopExitControl: Boolean(document.querySelector('button.awkit-edge-add[data-insert-role="loop-exit"]'))
     }), NODE);
-    check("Removing the loop deletes the connector", !after.hasSelfLoop && after.count === before, `count=${after.count} (baseline ${before})`);
+    check(
+      "Removing the workflow loop deletes the connector and clears its exit-control emphasis",
+      !after.hasSelfLoop && !after.hasLoopExitControl && after.count === before,
+      JSON.stringify({ ...after, baseline: before })
+    );
   }
 
   // --- 4. New workflows use the structural Start -> End scaffold and contextual picker ---
@@ -685,7 +837,7 @@ try {
   await win.waitForTimeout(300);
 
   // --- 5. Default edge "+" splices Start -> flow -> End ---
-  const insertBtn = win.locator(".awkit-edge-add").first();
+  const insertBtn = win.locator('.awkit-edge-add[data-insert-role="default"]').first();
   if (await insertBtn.isVisible().catch(() => false)) {
     await insertBtn.evaluate((el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window })));
     await win.waitForTimeout(250);

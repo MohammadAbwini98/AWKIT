@@ -9280,6 +9280,9 @@ table {
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1100ms;
+  --awkit-loop-exit-control-size: calc(var(--space-5) + var(--space-2));
+  --awkit-loop-exit-control-label-offset: var(--awkit-loop-exit-control-size);
+  --awkit-loop-exit-halo-duration: 2200ms;
 
   --awkit-drawer-width: 440px;
   --awkit-motion-panel: var(--awkit-dur-panel);
@@ -10402,6 +10405,44 @@ table {
     border-color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease),
     color var(--awkit-dur-fast, 140ms) var(--awkit-ease-out, ease);
 }
+.awkit-edge-add.is-loop-exit-affordance {
+  width: var(--awkit-loop-exit-control-size);
+  height: var(--awkit-loop-exit-control-size);
+  border-color: var(--awkit-connector-loop);
+  color: var(--awkit-connector-loop);
+}
+
+.awkit-edge-add.is-loop-exit-affordance .awkit-edge-add-icon {
+  flex: none;
+}
+
+.awkit-edge-add.is-loop-exit-affordance::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--awkit-connector-loop);
+  border-radius: inherit;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: awkit-loop-exit-halo var(--awkit-loop-exit-halo-duration) var(--awkit-ease-out) infinite;
+}
+
+@keyframes awkit-loop-exit-halo {
+  0%,
+  20% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  38% {
+    opacity: 0.42;
+    transform: scale(1);
+  }
+  82%,
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
 .awkit-edge-add:hover,
 .awkit-edge-add:focus-visible {
   background: var(--awkit-accent);
@@ -10415,6 +10456,14 @@ table {
 @media (hover: hover) and (pointer: fine) {
   .awkit-edge-add:hover {
     transform: translate(-50%, -50%) translate(var(--tx, 0), var(--ty, 0)) scale(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .awkit-edge-add.is-loop-exit-affordance::after {
+    animation: none !important;
+    opacity: 0.28;
+    transform: scale(1.12);
+    will-change: auto;
   }
 }
 

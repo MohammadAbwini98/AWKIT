@@ -1,5 +1,5 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
-import { Position, getRectOfNodes, getViewportForBounds, pointToFlowPosition, getOverlappingArea, clamp, type Rect, type XYPosition } from "./geometry";
+import { Position, SMOOTH_STEP_OFFSET, getRectOfNodes, getViewportForBounds, pointToFlowPosition, getOverlappingArea, clamp, type Rect, type XYPosition } from "./geometry";
 import { EdgeLabelContext } from "./edgeLabelContext";
 import { bumpRenderProbe } from "./renderProbe";
 import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, NodeTypes, Viewport } from "./types";
@@ -7,10 +7,10 @@ import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, No
 /**
  * Custom canvas engine — a small, purpose-built replacement for the parts of
  * React Flow the app used (viewport pan/zoom, node drag, smooth-step edges,
- * fit-view, screen↔flow mapping). The flow runs top→bottom: every edge leaves
- * the source node's bottom-center and enters the target node's top-center,
- * matching the Workflow (flowforge) reference. Self-loops (source === target)
- * leave and re-enter the clearer horizontal edge so their curve remains visible and selectable.
+ * fit-view, screen↔flow mapping). The flow runs top→bottom by default: edges leave
+ * the source node's bottom-center and enter the target node's top-center, matching
+ * the Workflow (flowforge) reference. Tight Loop exits can route beside their cards;
+ * self-loops (source === target) are drawn by the edge component from a single anchor.
  */
 
 const MIN_ZOOM_DEFAULT = 0.3;
@@ -26,9 +26,6 @@ interface MeasuredSize {
   width: number;
   height: number;
 }
-
-type SelfLoopSide = Position.Left | Position.Right;
-const SELF_LOOP_CLEARANCE = 96;
 
 interface CanvasContextValue {
   viewport: Viewport;
@@ -629,78 +626,51 @@ function measuredSizeOf(node: CanvasNode, sizes: Record<string, MeasuredSize>): 
   };
 }
 
-function edgeEndpoints(
+interface EdgeEndpointLayout {
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  sourcePosition: Position;
+  targetPosition: Position;
+}
+
+/** Keep an enlarged Loop-exit control out of a tight downstream gap by routing that edge beside the cards. */
+function edgeEndpointLayout(
   edge: CanvasEdge,
-  sourcePosition: XYPosition,
+  source: XYPosition,
+  target: XYPosition,
   sourceSize: MeasuredSize,
-  targetPosition: XYPosition,
-  targetSize: MeasuredSize,
-  selfLoopSide: SelfLoopSide = Position.Right
-): { sourceX: number; sourceY: number; targetX: number; targetY: number } {
-  if (edge.source === edge.target) {
-    const anchorX = selfLoopSide === Position.Left ? sourcePosition.x : sourcePosition.x + sourceSize.width;
+  targetSize: MeasuredSize
+): EdgeEndpointLayout {
+  const verticalGap = target.y - (source.y + sourceSize.height);
+  const insertControlRole = (edge.data as { insertControlRole?: unknown } | undefined)?.insertControlRole;
+  if (insertControlRole === "loop-exit" && verticalGap >= 0 && verticalGap < SMOOTH_STEP_OFFSET * 2) {
     return {
-      sourceX: anchorX,
-      sourceY: sourcePosition.y + sourceSize.height * 0.7,
-      targetX: anchorX,
-      targetY: sourcePosition.y + sourceSize.height * 0.3
+      sourceX: source.x + sourceSize.width,
+      sourceY: source.y + sourceSize.height / 2,
+      targetX: target.x + targetSize.width,
+      targetY: target.y + targetSize.height / 2,
+      sourcePosition: Position.Right,
+      targetPosition: Position.Right
     };
   }
   return {
-    sourceX: sourcePosition.x + sourceSize.width / 2,
-    sourceY: sourcePosition.y + sourceSize.height,
-    targetX: targetPosition.x + targetSize.width / 2,
-    targetY: targetPosition.y
+    sourceX: source.x + sourceSize.width / 2,
+    sourceY: source.y + sourceSize.height,
+    targetX: target.x + targetSize.width / 2,
+    targetY: target.y,
+    sourcePosition: Position.Bottom,
+    targetPosition: Position.Top
   };
 }
 
-function selfLoopSideFor(
-  source: CanvasNode,
-  sourcePosition: XYPosition,
-  sourceSize: MeasuredSize,
-  nodes: CanvasNode[],
-  sizes: Record<string, MeasuredSize>,
-  positionOf?: (id: string) => XYPosition
-): SelfLoopSide {
-  const sourceLeft = sourcePosition.x;
-  const sourceRight = sourceLeft + sourceSize.width;
-  const sourceTop = sourcePosition.y;
-  const sourceBottom = sourceTop + sourceSize.height;
-  let leftClearance = Number.POSITIVE_INFINITY;
-  let rightClearance = Number.POSITIVE_INFINITY;
-
-  for (const node of nodes) {
-    if (node.id === source.id) continue;
-    const position = positionOf?.(node.id) ?? node.position;
-    const size = measuredSizeOf(node, sizes);
-    const top = position.y;
-    const bottom = top + size.height;
-    if (bottom < sourceTop || top > sourceBottom) continue;
-    const left = position.x;
-    const right = left + size.width;
-    if (left >= sourceRight) rightClearance = Math.min(rightClearance, left - sourceRight);
-    else if (right <= sourceLeft) leftClearance = Math.min(leftClearance, sourceLeft - right);
-    else {
-      // Overlapping cards obstruct both sides; prefer whichever still has more measured room.
-      leftClearance = 0;
-      rightClearance = 0;
-    }
-  }
-
-  if (rightClearance >= SELF_LOOP_CLEARANCE || rightClearance >= leftClearance) return Position.Right;
-  return Position.Left;
-}
-
-/** One connector `<g>`, shared by the static + dragging layers. */
+/** One connector `<g>`, shared by the static and dragging layers. */
 function renderEdgeElement(
   edge: CanvasEdge,
-  sourceX: number,
-  sourceY: number,
-  targetX: number,
-  targetY: number,
+  endpoints: EdgeEndpointLayout,
   edgeTypes: EdgeTypes,
-  onEdgeClick?: (id: string) => void,
-  selfLoopSide: SelfLoopSide = Position.Right
+  onEdgeClick?: (id: string) => void
 ): ReactNode {
   const EdgeComponent = (edge.type && edgeTypes[edge.type]) || edgeTypes.default;
   if (!EdgeComponent) return null;
@@ -711,12 +681,7 @@ function renderEdgeElement(
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition: isSelfLoop ? selfLoopSide : Position.Bottom,
-    targetPosition: isSelfLoop ? selfLoopSide : Position.Top,
+    ...endpoints,
     data: edge.data,
     label: edge.label,
     selected: Boolean(edge.selected),
@@ -764,17 +729,11 @@ const EdgeLayer = memo(function EdgeLayer({ nodes, edges, edgeTypes, sizes, onEd
         if (!source || !target) return null;
         const sSize = measuredSizeOf(source, sizes);
         const tSize = measuredSizeOf(target, sizes);
-        const selfLoopSide = edge.source === edge.target ? selfLoopSideFor(source, source.position, sSize, nodes, sizes) : Position.Right;
-        const endpoints = edgeEndpoints(edge, source.position, sSize, target.position, tSize, selfLoopSide);
         return renderEdgeElement(
           edge,
-          endpoints.sourceX,
-          endpoints.sourceY,
-          endpoints.targetX,
-          endpoints.targetY,
+          edgeEndpointLayout(edge, source.position, target.position, sSize, tSize),
           edgeTypes,
-          onEdgeClick,
-          selfLoopSide
+          onEdgeClick
         );
       })}
     </svg>
@@ -814,17 +773,10 @@ function DraggingEdgeLayer({ nodes, edges, edgeTypes, sizes, drag }: DraggingEdg
         const tSize = measuredSizeOf(target, sizes);
         const sPos = positionOf(edge.source);
         const tPos = positionOf(edge.target);
-        const selfLoopSide = edge.source === edge.target ? selfLoopSideFor(source, sPos, sSize, nodes, sizes, positionOf) : Position.Right;
-        const endpoints = edgeEndpoints(edge, sPos, sSize, tPos, tSize, selfLoopSide);
         return renderEdgeElement(
           edge,
-          endpoints.sourceX,
-          endpoints.sourceY,
-          endpoints.targetX,
-          endpoints.targetY,
-          edgeTypes,
-          undefined,
-          selfLoopSide
+          edgeEndpointLayout(edge, sPos, tPos, sSize, tSize),
+          edgeTypes
         );
       })}
     </svg>

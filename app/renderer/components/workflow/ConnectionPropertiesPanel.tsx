@@ -31,6 +31,7 @@ export type FlowConnectionData = {
    * ignores these.
    */
   showAddButton?: boolean;
+  insertControlRole?: "default" | "loop-exit";
   onInsertNode?: (edgeId: string, anchor: HTMLElement) => void;
 };
 
