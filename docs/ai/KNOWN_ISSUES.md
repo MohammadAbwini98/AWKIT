@@ -1,5 +1,17 @@
 # KNOWN_ISSUES
 
+## RESOLVED: existing Loop connectors were occluded, hard to reopen, and lost derived config (awkit-kwg, 2026-08-11)
+
+The shared canvas placed self-loop anchors at the node's center and bulged only inside the 320px card,
+so the higher-z-index node covered most of the connector. Fixed right-side routing was still obscured
+when another card sat immediately beside it. Edge pointer-down also entered pane panning, Flow Designer
+did not expand a collapsed inspector on edge selection, Workflow Builder could replace persisted node
+ids with `flowId`, and Flow save dropped Loop config when legacy edges omitted optional `kind`. Self-loop
+geometry now selects the clearer horizontal side, edge gestures are isolated, both designers expose an
+explicit Configure loop action, saved ids/config round-trip, and real pointer/reload GUI checks protect
+both layouts. Direction motion is a separate reduced-motion-safe layer instead of mutating the authored
+base line style.
+
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 
 A proven element identity could still receive locator `needs-review` when insertion/hover provenance

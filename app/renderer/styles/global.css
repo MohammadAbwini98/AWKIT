@@ -9279,6 +9279,7 @@ table {
   --awkit-connector-warning: #d99017;
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
+  --awkit-loop-flow-duration: 1100ms;
 
   --awkit-drawer-width: 440px;
   --awkit-motion-panel: var(--awkit-dur-panel);
@@ -10340,9 +10341,29 @@ table {
   stroke: transparent;
   cursor: pointer;
 }
-.awkit-flow-edge.is-animated .awkit-flow-edge-path {
+.awkit-flow-edge.is-animated:not(.is-loop-connector) .awkit-flow-edge-path {
   stroke-dasharray: 6 4;
   animation: awkit-edge-flow 700ms linear infinite;
+}
+.awkit-loop-direction-path {
+  stroke: var(--awkit-connector-loop);
+  stroke-dasharray: 8 92;
+  stroke-linecap: round;
+  pointer-events: none;
+  animation: awkit-loop-direction var(--awkit-loop-flow-duration) linear infinite;
+}
+
+@keyframes awkit-loop-direction {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-loop-direction-path {
+    display: none;
+    animation: none !important;
+  }
 }
 
 /* Edge label + insert "+" overlay (portaled inside the transform) */
@@ -10351,6 +10372,7 @@ table {
 }
 .awkit-edge-label {
   position: absolute;
+  pointer-events: none;
   background: var(--awkit-canvas-bg);
   color: var(--awkit-text-muted);
   border-radius: 6px;

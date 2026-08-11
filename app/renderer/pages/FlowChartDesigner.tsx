@@ -520,7 +520,21 @@ function FlowChartDesignerContent() {
     setSelectedEdgeId(edgeId);
     setSelectedNodeId(null);
     window.playwrightFlowStudio.settings.update({ selections: { lastSelectedConnectorId: edgeId } }).catch(() => undefined);
+    setPropertiesCollapsed((collapsed) => {
+      if (collapsed) {
+        window.playwrightFlowStudio.settings.update({ flowDesignerPropertiesCollapsed: false }).catch(() => undefined);
+      }
+      return false;
+    });
   }, []);
+
+  const configureNodeLoop = useCallback(
+    (nodeId: string) => {
+      const loop = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop"));
+      if (loop) selectEdge(loop.id);
+    },
+    [edges, selectEdge]
+  );
 
   const clearSelection = useCallback(() => {
     setSelectedNodeId(null);
@@ -1063,7 +1077,7 @@ function FlowChartDesignerContent() {
     return mapWithIdentity(
       interactiveNodesStore,
       nodes,
-      [openAppendPicker, selectNode, removeNodeById, toggleNodeLoop],
+      [openAppendPicker, selectNode, removeNodeById, toggleNodeLoop, configureNodeLoop],
       (node) => `${sources.has(node.id) ? 1 : 0}${loopSources.has(node.id) ? 1 : 0}${node.id === selectedNodeId ? "S" : ""}`,
       (node) => ({
         ...node,
@@ -1075,11 +1089,12 @@ function FlowChartDesignerContent() {
           onAppendNode: openAppendPicker,
           onConfigure: selectNode,
           onDeleteNode: removeNodeById,
+          onConfigureLoop: configureNodeLoop,
           onToggleLoop: toggleNodeLoop
         }
       })
     );
-  }, [edges, nodes, selectedNodeId, openAppendPicker, selectNode, removeNodeById, toggleNodeLoop, interactiveNodesStore]);
+  }, [edges, nodes, selectedNodeId, openAppendPicker, selectNode, removeNodeById, toggleNodeLoop, configureNodeLoop, interactiveNodesStore]);
 
   usePageChrome(
     {

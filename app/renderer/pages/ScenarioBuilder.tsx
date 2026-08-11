@@ -742,6 +742,19 @@ function ScenarioBuilderContent() {
     setRightPanelCollapsed(false);
   }, []);
 
+  const configureNodeLoop = useCallback(
+    (nodeId: string) => {
+      const loop = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop");
+      if (!loop) return;
+      setSelectedEdgeId(loop.id);
+      setSelectedNodeId(null);
+      setWorkflowSettingsOpen(false);
+      persistRightPanel(false);
+      window.playwrightFlowStudio.settings.update({ selections: { lastSelectedConnectorId: loop.id } }).catch(() => undefined);
+    },
+    [edges, persistRightPanel]
+  );
+
   // Identity-preserving so editing / dragging one flow node rebuilds only that node's wrapper —
   // unchanged nodes keep object identity and the memoized NodeContainer skips them.
   const interactiveNodesStore = useRef(createIdentityStore<ScenarioNode, ScenarioNode>()).current;
@@ -751,7 +764,7 @@ function ScenarioBuilderContent() {
     return mapWithIdentity(
       interactiveNodesStore,
       nodes,
-      [openAppendPicker, selectFlowNode, toggleNodeLoop],
+      [openAppendPicker, selectFlowNode, toggleNodeLoop, configureNodeLoop],
       // Fold selection into the identity signature so selecting/deselecting a node rebuilds only the
       // affected cards (and their `.selected` highlight) — not the whole graph.
       (node) => `${sources.has(node.id) ? 1 : 0}${loopSources.has(node.id) ? 1 : 0}${node.id === selectedNodeId ? "S" : ""}`,
@@ -765,11 +778,12 @@ function ScenarioBuilderContent() {
           onAppendFlow: openAppendPicker,
           onConfigure: selectFlowNode,
           onDeleteFlow: (nodeId: string) => removeFlow(nodeId),
+          onConfigureLoop: configureNodeLoop,
           onToggleLoop: toggleNodeLoop
         }
       })
     );
-  }, [edges, nodes, selectedNodeId, openAppendPicker, selectFlowNode, toggleNodeLoop, interactiveNodesStore]);
+  }, [edges, nodes, selectedNodeId, openAppendPicker, selectFlowNode, toggleNodeLoop, configureNodeLoop, interactiveNodesStore]);
 
   const addFlow = useCallback(
     (flowId: string, position?: { x: number; y: number }) => {
@@ -973,7 +987,8 @@ function ScenarioBuilderContent() {
           library,
           node.alias,
           node.size,
-          node.type
+          node.type,
+          node.id
         )
       );
       // Only reframe when we actually rearranged, so normal loads keep the persisted zoom.
@@ -1917,7 +1932,8 @@ function createScenarioNode(
   library = fallbackFlowLibrary,
   alias?: string,
   size?: { width: number; height: number },
-  kind: ScenarioFlowNodeData["kind"] = "flowRef"
+  kind: ScenarioFlowNodeData["kind"] = "flowRef",
+  canvasId = flowId
 ): ScenarioNode {
   const libraryItem = library.find((flow) => flow.flowId === flowId) ?? {
     flowId,
@@ -1931,7 +1947,7 @@ function createScenarioNode(
   const height = size?.height ?? SCENARIO_NODE_DEFAULT_HEIGHT;
 
   return {
-    id: flowId,
+    id: canvasId,
     type: "scenarioFlow",
     position,
     data: {

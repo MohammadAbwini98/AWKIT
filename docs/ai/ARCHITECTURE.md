@@ -423,8 +423,11 @@ failure boundary under `src/testing/failures/`:
   so `ScenarioOrchestrator.createExecutionPlan()` blocks invalid workflow graphs at runtime even when an
   invalid draft was intentionally saved.
   Connector kind/style is derived into the in-house canvas edge representation; no renderer-only routing
-  model is persisted. `EdgeVisualStyle.shape: "circular"` selects the shared in-house `LoopEdge`, which
-  renders the self-loop arc used by both designers.
+  model is persisted. `EdgeVisualStyle.shape: "circular"` selects the shared in-house `LoopEdge`, while
+  `FlowCanvas` anchors every self-loop on the clearer horizontal side of its source card and keeps edge
+  pointer gestures out of pane panning. Structured Loops receive a semantic, non-interactive SVG motion
+  layer shared by `LoopEdge` and `SmoothEdge`; it preserves the authored base style and is removed under
+  reduced motion. Both designers use the same geometry and rendering path.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
   the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session

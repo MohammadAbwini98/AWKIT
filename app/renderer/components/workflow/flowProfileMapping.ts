@@ -24,6 +24,7 @@ import type {
   ValueSource,
   ValueSourceType
 } from "@src/profiles/FlowProfile";
+import { connectorKind } from "@src/profiles/FlowProfile";
 import { invalidateStaleLocatorApproval } from "@src/profiles/locatorApproval";
 import { invalidateStaleInteractionDecision, isPrerequisiteOnlyLocatorReview } from "@src/profiles/interactionPrerequisiteDecision";
 import type { CanvasEdge, CanvasNode } from "../canvas/types";
@@ -97,22 +98,30 @@ export function toFlowProfile(
     description: meta ? meta.description : "Editable reusable flow",
     version: meta?.version ?? 1,
     nodes: nodes.map((node) => toFlowStep(node, edges)),
-    edges: edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: edge.data?.linkType ?? "success",
-      kind: edge.data?.kind,
-      conditional: edge.data?.kind === "conditional" ? edge.data?.conditional : undefined,
-      parallel: edge.data?.kind === "parallel" ? edge.data?.parallel : undefined,
-      loop: edge.data?.kind === "loop" ? edge.data?.loop : undefined,
-      label: edge.data?.label,
-      condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
-      style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined,
-      // RT-11: persist maxLoopCount whenever it is set, on any connector; let the runtime apply its
-      // own default when it is absent instead of fabricating a 2 on save.
-      maxLoopCount: edge.data?.maxLoopCount
-    })),
+    edges: edges.map((edge) => {
+      const type = edge.data?.linkType ?? "success";
+      // Legacy profiles can omit `kind`; the editor correctly derives it from `type`, so the save
+      // boundary must use the same canonical derivation or a reopened Loop silently loses its
+      // configuration. Keep the authored optional `kind` unchanged: normalising a legacy
+      // `loopBack` to `kind: "loop"` would change its validation semantics.
+      const derivedKind = connectorKind({ type, kind: edge.data?.kind });
+      return {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type,
+        kind: edge.data?.kind,
+        conditional: derivedKind === "conditional" ? edge.data?.conditional : undefined,
+        parallel: derivedKind === "parallel" ? edge.data?.parallel : undefined,
+        loop: type === "loop" && derivedKind === "loop" ? edge.data?.loop : undefined,
+        label: edge.data?.label,
+        condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
+        style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined,
+        // RT-11: persist maxLoopCount whenever it is set, on any connector; let the runtime apply its
+        // own default when it is absent instead of fabricating a 2 on save.
+        maxLoopCount: edge.data?.maxLoopCount
+      };
+    }),
     // RT-07: preserve createdAt; updatedAt is carried here and bumped at actual save time by the store.
     createdAt: meta?.createdAt,
     updatedAt: meta?.updatedAt

@@ -24,6 +24,8 @@ export interface ScenarioFlowNodeData extends Record<string, unknown> {
   onDeleteFlow?: (nodeId: string) => void;
   /** Whether this flow node currently carries a self-loop connector (render-only). */
   hasLoop?: boolean;
+  /** Open the existing self-loop connector in the connector inspector (render-only). */
+  onConfigureLoop?: (nodeId: string) => void;
   /** Toggle the flow node's self-loop connector from its kebab menu (render-only). */
   onToggleLoop?: (nodeId: string) => void;
 }

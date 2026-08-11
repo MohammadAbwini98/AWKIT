@@ -16,7 +16,7 @@ function canHaveLoop(stepType: FlowDesignerNodeData["stepType"]): boolean {
 
 /**
  * Flow Designer node card — the Workflow-reference look, rendered on the custom
- * canvas engine (no React Flow). Loop create/remove and delete live in the kebab
+ * canvas engine (no React Flow). Loop create/configure/remove and delete live in the kebab
  * menu; the page owns the actual edge/node mutation via the `data` callbacks.
  */
 export function ActionFlowNode({ id, data, selected }: CanvasNodeProps<FlowDesignerNodeData>) {
@@ -33,7 +33,12 @@ export function ActionFlowNode({ id, data, selected }: CanvasNodeProps<FlowDesig
   const menuItems: NodeMenuItem[] = [
     { id: "configure", label: "Configure", icon: SlidersHorizontal, onSelect: () => nodeData.onConfigure?.(id) },
     ...(canHaveLoop(nodeData.stepType)
-      ? [{ id: "loop", label: hasLoop ? "Remove loop" : "Add loop", icon: Repeat, onSelect: () => nodeData.onToggleLoop?.(id) } as NodeMenuItem]
+      ? hasLoop
+        ? [
+            { id: "configure-loop", label: "Configure loop", icon: Repeat, onSelect: () => nodeData.onConfigureLoop?.(id) } as NodeMenuItem,
+            { id: "remove-loop", label: "Remove loop", icon: Trash2, tone: "danger", onSelect: () => nodeData.onToggleLoop?.(id) } as NodeMenuItem
+          ]
+        : [{ id: "add-loop", label: "Add loop", icon: Repeat, onSelect: () => nodeData.onToggleLoop?.(id) } as NodeMenuItem]
       : []),
     ...(isStructural ? [] : [{ id: "delete", label: "Delete node", icon: Trash2, tone: "danger", onSelect: () => nodeData.onDeleteNode?.(id) } as NodeMenuItem])
   ];

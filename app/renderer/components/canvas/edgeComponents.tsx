@@ -12,6 +12,7 @@ export function BaseEdge({
   path,
   style,
   className,
+  directional = false,
   interactionWidth = 20
 }: {
   id?: string;
@@ -19,12 +20,34 @@ export function BaseEdge({
   style?: React.CSSProperties;
   className?: string;
   markerEnd?: unknown;
+  directional?: boolean;
   interactionWidth?: number;
 }) {
+  const authoredWidth = typeof style?.strokeWidth === "number" ? style.strokeWidth : 2;
   return (
     <>
       <path id={id} d={path} fill="none" className={["awkit-flow-edge-path", className].filter(Boolean).join(" ")} style={style} />
-      {interactionWidth ? <path d={path} fill="none" strokeOpacity={0} strokeWidth={interactionWidth} className="awkit-flow-edge-interaction" /> : null}
+      {directional ? (
+        <path
+          aria-hidden="true"
+          className="awkit-loop-direction-path"
+          d={path}
+          fill="none"
+          focusable="false"
+          pathLength={100}
+          style={{ stroke: style?.stroke, strokeWidth: authoredWidth + 2 }}
+        />
+      ) : null}
+      {interactionWidth ? (
+        <path
+          className="awkit-flow-edge-interaction"
+          d={path}
+          fill="none"
+          pointerEvents="stroke"
+          strokeOpacity={0}
+          strokeWidth={interactionWidth}
+        />
+      ) : null}
     </>
   );
 }

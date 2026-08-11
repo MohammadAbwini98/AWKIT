@@ -1,5 +1,29 @@
 # CURRENT_STATE
 
+## Loop reconfiguration and directional motion - awkit-kwg COMPLETE (2026-08-11)
+
+Existing structured Loop connectors can now be reopened reliably in both Flow Designer and Workflow
+Builder. Their visible/hit-test path leaves the clearer horizontal side of the node (including layouts
+with an adjacent card), connector pointer-down no longer starts a competing pane-pan gesture, and edge
+selection reopens a collapsed inspector. Each node menu now separates **Configure loop** from
+**Remove loop**, so reconfiguration does not depend on precise canvas clicking. Workflow Builder also
+preserves the persisted workflow-node id when it differs from `flowId`, keeping saved connector
+endpoints attached after reload.
+
+Loop direction is communicated by a dedicated source-to-target SVG segment layered above the authored
+connector. The base keeps its solid/dashed/dotted color and thickness; the motion layer is
+non-interactive, uses derived renderer state only, and is removed under reduced motion. Flow profile
+save now uses canonical `connectorKind()` derivation to retain configuration on legacy `type: "loop"`
+edges whose optional `kind` is absent, without normalizing legacy Loop Back semantics. Validation and
+runtime policy were not weakened or duplicated.
+
+Focused evidence: build PASS; Flow Designer Electron GUI **99/99**; Workflow Builder Electron GUI
+**48/48**; Flow mapping **137/137**; runner **99/99**; validation **134/134**; branch pairs **36/36**;
+workflow sentinel/conversion **14/14**; canvas performance **13/13**; canvas layout **35/35**; source
+hygiene **9/9**. No duplicate mock-site scenario was added because this is desktop-canvas interaction;
+the real-Electron isolated-profile walkthroughs cover it directly. Tracker **189 total / 185 closed /
+4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
 
 Flow Designer and Workflow Builder now open a complete shared Loop editor when a self-loop is

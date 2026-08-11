@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-11 - Codex - Fix Loop reconfiguration and directional connector motion
+
+- **Task:** Complete `awkit-kwg` by repairing existing Loop reopening/reconfiguration and adding a
+  clear direction animation in both visual designers, extending `88b964f` without weakening validation.
+- **Implementation:** made Loop paths choose an unobstructed node side, isolated edge pointer gestures
+  from pane panning, reopened collapsed inspectors on connector selection, and added explicit Configure
+  loop menu actions. Preserved workflow node ids across load and type-derived Flow Loop metadata across
+  re-save. Added a separate derived SVG direction layer that leaves authored line styling intact and
+  disappears for reduced motion.
+- **Safety:** no connector schema, runtime routing, validation rule, IPC contract, storage key, remote
+  dependency, or mock-site route was added; legacy Loop Back remains distinct.
+- **Verified:** build PASS; Flow Designer **99/99**; Workflow Builder **48/48**; Flow mapping **137/137**;
+  runner **99/99**; validation **134/134**; branch pairs **36/36**; workflow conversions **14/14**;
+  canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**.
+- **Files:** shared canvas edge geometry/rendering/styles; Flow/Workflow designer node actions and load/
+  save boundaries; focused GUI/mapping verifiers; AI memory/tracking sources.
+
+---
+
 ## 2026-08-11 - Codex - Complete Loop connector authoring in both visual designers
 
 - **Task:** Complete `awkit-pwc`: make structured Loop connectors fully authorable, persistent,

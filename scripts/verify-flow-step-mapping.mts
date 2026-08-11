@@ -16,7 +16,10 @@
  */
 import { fromFlowStep, toFlowStep, type FlowDesignerNode, type FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
 import {
+  createEdge as createProductionEdge,
   fromFlowStep as fromProductionFlowStep,
+  toDesignerDocument,
+  toFlowProfile,
   toFlowStep as toProductionFlowStep
 } from "../app/renderer/components/workflow/flowProfileMapping";
 import { getNodeDefinition } from "../app/renderer/components/workflow/flowNodeRegistry";
@@ -596,6 +599,64 @@ console.log("\nEdge → next wiring (§8):");
   const withEdge = toFlowStep(node, [{ id: "e1", source: node.id, target: "next-node" } as FlowDesignerEdge]);
   check("next resolves from the outgoing edge target", withEdge.next === "next-node", String(withEdge.next));
   check("no outgoing edge → next is undefined", toFlowStep(node, []).next === undefined, String(toFlowStep(node, []).next));
+}
+
+console.log("\nLoop connector profile round-trips:");
+{
+  const legacyLoopProfile: FlowProfile = {
+    id: "legacy-loop-profile",
+    name: "Legacy loop profile",
+    version: 3,
+    nodes: [baseStep({ id: "loop-node", name: "Loop node", type: "click" })],
+    edges: [
+      {
+        id: "legacy-loop-edge",
+        source: "loop-node",
+        target: "loop-node",
+        type: "loop",
+        label: "Retry item",
+        loop: {
+          mode: "count",
+          maxIterations: 3,
+          parameterName: "itemIndex",
+          delayMs: 25,
+          condition: { sourceField: "variable", variableName: "itemIndex", operator: "lessThan", expectedValue: "3", priority: 1 }
+        }
+      }
+    ]
+  };
+  const loaded = toDesignerDocument(legacyLoopProfile);
+  const loadedLoop = loaded.edges[0];
+  check("type-derived Loop loads without an explicit kind", loadedLoop.data?.kind === undefined && loadedLoop.data?.linkType === "loop");
+  check("type-derived Loop loads its complete configuration", json(loadedLoop.data?.loop) === json(legacyLoopProfile.edges[0].loop), json(loadedLoop.data?.loop));
+
+  const reconfiguredLoop = createProductionEdge(
+    loadedLoop.source,
+    loadedLoop.target,
+    loadedLoop.data?.linkType ?? "loop",
+    loadedLoop.data?.label,
+    loadedLoop.data?.expression,
+    loadedLoop.data?.style,
+    loadedLoop.data?.maxLoopCount,
+    {
+      ...loadedLoop.data,
+      kind: undefined,
+      loop: {
+        mode: "staticList",
+        maxIterations: 7,
+        parameterName: "product",
+        staticValues: ["alpha", "beta"],
+        delayMs: 10,
+        condition: { sourceField: "variable", variableName: "product", operator: "notEquals", expectedValue: "", priority: 2 }
+      }
+    },
+    loadedLoop.id
+  );
+  const saved = toFlowProfile(loaded.nodes, [reconfiguredLoop], legacyLoopProfile.id, legacyLoopProfile.name, {
+    version: legacyLoopProfile.version
+  });
+  check("reconfigured type-derived Loop persists its complete configuration", json(saved.edges[0].loop) === json(reconfiguredLoop.data?.loop), json(saved.edges[0]));
+  check("saving a type-derived Loop does not normalize its optional kind", saved.edges[0].kind === undefined, json(saved.edges[0]));
 }
 
 console.log("\nstep.config breadth round-trips (§8 — representative):");

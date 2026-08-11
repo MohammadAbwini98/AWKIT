@@ -10,7 +10,7 @@ import type { CanvasNodeProps } from "../canvas";
 
 /**
  * Workflow Builder flow-node card — the Workflow-reference look, rendered on the
- * custom canvas engine (no React Flow). Loop create/remove and delete live in the
+ * custom canvas engine (no React Flow). Loop create/configure/remove and delete live in the
  * kebab menu; the page owns the actual edge/node mutation via the `data` callbacks.
  */
 export function ScenarioFlowNode({ id, data, selected }: CanvasNodeProps<ScenarioFlowNodeData>) {
@@ -26,7 +26,12 @@ export function ScenarioFlowNode({ id, data, selected }: CanvasNodeProps<Scenari
     { id: "configure", label: "Configure", icon: SlidersHorizontal, onSelect: () => data.onConfigure?.(id) },
     ...(!isStart && !isEnd
       ? [
-          { id: "loop", label: hasLoop ? "Remove loop" : "Add loop", icon: Repeat, onSelect: () => data.onToggleLoop?.(id) } as NodeMenuItem,
+          ...(hasLoop
+            ? [
+                { id: "configure-loop", label: "Configure loop", icon: Repeat, onSelect: () => data.onConfigureLoop?.(id) } as NodeMenuItem,
+                { id: "remove-loop", label: "Remove loop", icon: Trash2, tone: "danger", onSelect: () => data.onToggleLoop?.(id) } as NodeMenuItem
+              ]
+            : [{ id: "add-loop", label: "Add loop", icon: Repeat, onSelect: () => data.onToggleLoop?.(id) } as NodeMenuItem]),
           { id: "delete", label: "Remove flow", icon: Trash2, tone: "danger", onSelect: () => data.onDeleteFlow?.(id) } as NodeMenuItem
         ]
       : [])

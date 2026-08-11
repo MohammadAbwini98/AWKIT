@@ -6,6 +6,14 @@
 
 ## Confirmed
 
+Loop reconfiguration/motion regression coverage (2026-08-11, `awkit-kwg`):
+`verify:flow-designer` **99/99** and `verify:workflow-builder` **48/48** now save, reload/switch,
+physically click an existing Loop path, reopen its collapsed editor, change the bound again, use the
+separate Configure loop action, save/reload, and confirm the value persists. Both assert unobstructed
+geometry, the semantic direction layer, negative source-to-target dash travel, authored dotted/thickness
+independence, and reduced-motion removal. Workflow coverage includes `node.id !== flowId`;
+`verify:flow-step-mapping` **137/137** includes a type-derived Loop with omitted `kind`.
+
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
 `verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete
 while-condition editing, Standard→Conditional exit promotion, save, and persisted profile reads.
@@ -105,7 +113,11 @@ remain structural and legacy workflows remain compatible.
   being skipped only after a successful `goto`. As of the last run: **21 checks pass**.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
   for Flow Designer connector behavior, complete Loop authoring/persistence, and saved-flow dropdown
-  behavior. As of the last run: **93 checks pass**.
+  behavior. As of the last run: **99 checks pass**.
+- `scripts/verify-workflow-builder-gui.mjs` (`npm run verify:workflow-builder`) — real Electron GUI
+  walkthrough for Workflow Builder import/canvas/Loop behavior, including persisted node-id identity,
+  existing Loop pointer/menu reopening, save/reload, direction motion, and reduced motion. As of the
+  last run: **48 checks pass**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):

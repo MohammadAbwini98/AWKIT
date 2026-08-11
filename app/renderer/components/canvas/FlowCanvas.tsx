@@ -10,7 +10,7 @@ import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, No
  * fit-view, screen↔flow mapping). The flow runs top→bottom: every edge leaves
  * the source node's bottom-center and enters the target node's top-center,
  * matching the Workflow (flowforge) reference. Self-loops (source === target)
- * are drawn by the edge component from a single anchor.
+ * leave and re-enter the clearer horizontal edge so their curve remains visible and selectable.
  */
 
 const MIN_ZOOM_DEFAULT = 0.3;
@@ -26,6 +26,9 @@ interface MeasuredSize {
   width: number;
   height: number;
 }
+
+type SelfLoopSide = Position.Left | Position.Right;
+const SELF_LOOP_CLEARANCE = 96;
 
 interface CanvasContextValue {
   viewport: Viewport;
@@ -294,7 +297,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
     (event: React.PointerEvent) => {
       // Only start panning from the pane background (not a node / interactive element).
       const target = event.target as HTMLElement;
-      if (target.closest("[data-canvas-node]") || target.closest(".nopan")) return;
+      if (target.closest("[data-canvas-node]") || target.closest(".nopan") || target.closest(".awkit-flow-edge")) return;
       if (event.button !== 0) return;
       panState.current = { startX: event.clientX, startY: event.clientY, originX: viewportRef.current.x, originY: viewportRef.current.y };
       movedRef.current = false;
@@ -626,7 +629,69 @@ function measuredSizeOf(node: CanvasNode, sizes: Record<string, MeasuredSize>): 
   };
 }
 
-/** One connector `<g>`: bottom-of-source → top-of-target. Shared by the static + dragging layers. */
+function edgeEndpoints(
+  edge: CanvasEdge,
+  sourcePosition: XYPosition,
+  sourceSize: MeasuredSize,
+  targetPosition: XYPosition,
+  targetSize: MeasuredSize,
+  selfLoopSide: SelfLoopSide = Position.Right
+): { sourceX: number; sourceY: number; targetX: number; targetY: number } {
+  if (edge.source === edge.target) {
+    const anchorX = selfLoopSide === Position.Left ? sourcePosition.x : sourcePosition.x + sourceSize.width;
+    return {
+      sourceX: anchorX,
+      sourceY: sourcePosition.y + sourceSize.height * 0.7,
+      targetX: anchorX,
+      targetY: sourcePosition.y + sourceSize.height * 0.3
+    };
+  }
+  return {
+    sourceX: sourcePosition.x + sourceSize.width / 2,
+    sourceY: sourcePosition.y + sourceSize.height,
+    targetX: targetPosition.x + targetSize.width / 2,
+    targetY: targetPosition.y
+  };
+}
+
+function selfLoopSideFor(
+  source: CanvasNode,
+  sourcePosition: XYPosition,
+  sourceSize: MeasuredSize,
+  nodes: CanvasNode[],
+  sizes: Record<string, MeasuredSize>,
+  positionOf?: (id: string) => XYPosition
+): SelfLoopSide {
+  const sourceLeft = sourcePosition.x;
+  const sourceRight = sourceLeft + sourceSize.width;
+  const sourceTop = sourcePosition.y;
+  const sourceBottom = sourceTop + sourceSize.height;
+  let leftClearance = Number.POSITIVE_INFINITY;
+  let rightClearance = Number.POSITIVE_INFINITY;
+
+  for (const node of nodes) {
+    if (node.id === source.id) continue;
+    const position = positionOf?.(node.id) ?? node.position;
+    const size = measuredSizeOf(node, sizes);
+    const top = position.y;
+    const bottom = top + size.height;
+    if (bottom < sourceTop || top > sourceBottom) continue;
+    const left = position.x;
+    const right = left + size.width;
+    if (left >= sourceRight) rightClearance = Math.min(rightClearance, left - sourceRight);
+    else if (right <= sourceLeft) leftClearance = Math.min(leftClearance, sourceLeft - right);
+    else {
+      // Overlapping cards obstruct both sides; prefer whichever still has more measured room.
+      leftClearance = 0;
+      rightClearance = 0;
+    }
+  }
+
+  if (rightClearance >= SELF_LOOP_CLEARANCE || rightClearance >= leftClearance) return Position.Right;
+  return Position.Left;
+}
+
+/** One connector `<g>`, shared by the static + dragging layers. */
 function renderEdgeElement(
   edge: CanvasEdge,
   sourceX: number,
@@ -634,10 +699,14 @@ function renderEdgeElement(
   targetX: number,
   targetY: number,
   edgeTypes: EdgeTypes,
-  onEdgeClick?: (id: string) => void
+  onEdgeClick?: (id: string) => void,
+  selfLoopSide: SelfLoopSide = Position.Right
 ): ReactNode {
   const EdgeComponent = (edge.type && edgeTypes[edge.type]) || edgeTypes.default;
   if (!EdgeComponent) return null;
+  const connectorData = edge.data as { kind?: unknown; linkType?: unknown } | undefined;
+  const isSelfLoop = edge.source === edge.target;
+  const isStructuredLoop = isSelfLoop && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
   const props: CanvasEdgeProps = {
     id: edge.id,
     source: edge.source,
@@ -646,12 +715,13 @@ function renderEdgeElement(
     sourceY,
     targetX,
     targetY,
-    sourcePosition: Position.Bottom,
-    targetPosition: Position.Top,
+    sourcePosition: isSelfLoop ? selfLoopSide : Position.Bottom,
+    targetPosition: isSelfLoop ? selfLoopSide : Position.Top,
     data: edge.data,
     label: edge.label,
     selected: Boolean(edge.selected),
-    style: edge.style
+    style: edge.style,
+    directional: isStructuredLoop
   };
   return (
     <g
@@ -660,8 +730,13 @@ function renderEdgeElement(
       data-testid={edge.id}
       data-source={edge.source}
       data-target={edge.target}
-      className={["awkit-flow-edge", edge.animated ? "is-animated" : ""].filter(Boolean).join(" ")}
-      onClick={() => onEdgeClick?.(edge.id)}
+      data-connector-kind={isStructuredLoop ? "loop" : undefined}
+      className={["awkit-flow-edge", "nopan", edge.animated ? "is-animated" : "", isStructuredLoop ? "is-loop-connector" : ""].filter(Boolean).join(" ")}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onEdgeClick?.(edge.id);
+      }}
       style={{ pointerEvents: "visibleStroke" }}
     >
       <EdgeComponent {...(props as CanvasEdgeProps<never>)} />
@@ -689,14 +764,17 @@ const EdgeLayer = memo(function EdgeLayer({ nodes, edges, edgeTypes, sizes, onEd
         if (!source || !target) return null;
         const sSize = measuredSizeOf(source, sizes);
         const tSize = measuredSizeOf(target, sizes);
+        const selfLoopSide = edge.source === edge.target ? selfLoopSideFor(source, source.position, sSize, nodes, sizes) : Position.Right;
+        const endpoints = edgeEndpoints(edge, source.position, sSize, target.position, tSize, selfLoopSide);
         return renderEdgeElement(
           edge,
-          source.position.x + sSize.width / 2,
-          source.position.y + sSize.height,
-          target.position.x + tSize.width / 2,
-          target.position.y,
+          endpoints.sourceX,
+          endpoints.sourceY,
+          endpoints.targetX,
+          endpoints.targetY,
           edgeTypes,
-          onEdgeClick
+          onEdgeClick,
+          selfLoopSide
         );
       })}
     </svg>
@@ -736,13 +814,17 @@ function DraggingEdgeLayer({ nodes, edges, edgeTypes, sizes, drag }: DraggingEdg
         const tSize = measuredSizeOf(target, sizes);
         const sPos = positionOf(edge.source);
         const tPos = positionOf(edge.target);
+        const selfLoopSide = edge.source === edge.target ? selfLoopSideFor(source, sPos, sSize, nodes, sizes, positionOf) : Position.Right;
+        const endpoints = edgeEndpoints(edge, sPos, sSize, tPos, tSize, selfLoopSide);
         return renderEdgeElement(
           edge,
-          sPos.x + sSize.width / 2,
-          sPos.y + sSize.height,
-          tPos.x + tSize.width / 2,
-          tPos.y,
-          edgeTypes
+          endpoints.sourceX,
+          endpoints.sourceY,
+          endpoints.targetX,
+          endpoints.targetY,
+          edgeTypes,
+          undefined,
+          selfLoopSide
         );
       })}
     </svg>

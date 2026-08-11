@@ -20,7 +20,7 @@ export interface SmoothEdgeData extends Record<string, unknown> {
  * optional inline "+" insert button. Branch edges (those carrying a label like
  * "If true") render only the label; plain spine edges expose the "+".
  */
-export function SmoothEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, label, selected, style }: CanvasEdgeProps<SmoothEdgeData>) {
+export function SmoothEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, label, selected, style, directional }: CanvasEdgeProps<SmoothEdgeData>) {
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -37,7 +37,7 @@ export function SmoothEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosit
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} className={selected ? "is-selected" : undefined} style={style} />
+      <BaseEdge id={id} path={edgePath} className={selected ? "is-selected" : undefined} style={style} directional={directional} />
       <EdgeLabelRenderer>
         {isBranch ? (
           // Offset the label ABOVE the midpoint so it never sits under the insert "+"; without the

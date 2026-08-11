@@ -179,6 +179,8 @@ export interface FlowDesignerNodeData extends Record<string, unknown> {
   onDeleteNode?: (nodeId: string) => void;
   /** Whether this node currently carries a self-loop connector (render-only). */
   hasLoop?: boolean;
+  /** Open the existing self-loop connector in the connection inspector (render-only). */
+  onConfigureLoop?: (nodeId: string) => void;
   /** Toggle the node's self-loop connector from its kebab menu (render-only). */
   onToggleLoop?: (nodeId: string) => void;
 }

@@ -54,6 +54,8 @@ export interface CanvasEdgeProps<T = Record<string, unknown>> {
   label?: string;
   selected: boolean;
   style?: React.CSSProperties;
+  /** Render a non-interactive source-to-target motion cue above the authored edge style. */
+  directional?: boolean;
 }
 
 export type NodeTypes = Record<string, React.ComponentType<CanvasNodeProps<never>>>;

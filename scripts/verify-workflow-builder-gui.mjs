@@ -79,7 +79,9 @@ function seedWorkflowFixture(localAppData) {
     ...workflow,
     id: "verify-workflow-loop-authoring",
     name: "Verify — Loop Authoring",
-    description: "Untouched workflow with a Standard exit for loop-authoring verification."
+    description: "Untouched workflow with distinct node/flow ids and a Standard exit for loop-authoring verification.",
+    nodes: workflow.nodes.map((node, index) => ({ ...node, id: `workflow-node-${index + 1}` })),
+    edges: [{ id: "w-loop-authoring", source: "workflow-node-1", target: "workflow-node-2", type: "success" }]
   };
   writeFileSync(path.join(workflowsDir, `${loopAuthoringWorkflow.id}.json`), `${JSON.stringify(loopAuthoringWorkflow, null, 2)}\n`, "utf8");
 }
@@ -117,34 +119,86 @@ function check(name, pass, detail) {
   console.log(`${pass ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
 }
 
-// Toggle a scenario node's self-loop via its kebab ("…") menu. The menu portals into #root, so
-// synthetic bubbling clicks fire React's delegated onClick reliably.
-async function toggleLoopViaMenu(win, nodeId) {
+// Open the scenario node's portaled kebab menu and choose one exact action.
+async function clickNodeMenuItem(win, nodeId, label) {
   await win.evaluate((id) => {
     const kebab = document.querySelector(`.awkit-flow-node[data-id="${id}"] .action-node-menu`);
     if (kebab) kebab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   }, nodeId);
   await win.waitForTimeout(180);
-  await win.evaluate(() => {
-    const item = [...document.querySelectorAll(".node-options-menu .node-options-item")].find((b) => /loop/i.test(b.textContent || ""));
+  await win.evaluate((expected) => {
+    const item = [...document.querySelectorAll(".node-options-menu .node-options-item")]
+      .find((button) => (button.textContent || "").trim().toLowerCase() === expected.toLowerCase());
     if (item) item.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
-  });
+  }, label);
   await win.waitForTimeout(150);
 }
 
-// Read the loop menu item label ("Add loop" | "Remove loop") without activating it.
-async function loopItemLabel(win, nodeId) {
+// Read every Loop-specific action without activating one.
+async function loopMenuLabels(win, nodeId) {
   await win.evaluate((id) => {
     const kebab = document.querySelector(`.awkit-flow-node[data-id="${id}"] .action-node-menu`);
     if (kebab) kebab.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
   }, nodeId);
   await win.waitForTimeout(180);
-  const label = await win.evaluate(
-    () => ([...document.querySelectorAll(".node-options-menu .node-options-item")].find((b) => /loop/i.test(b.textContent || ""))?.textContent || "").trim()
+  const labels = await win.evaluate(
+    () => [...document.querySelectorAll(".node-options-menu .node-options-item")]
+      .map((button) => (button.textContent || "").trim())
+      .filter((label) => /loop/i.test(label))
   );
   await win.keyboard.press("Escape").catch(() => {});
   await win.waitForTimeout(80);
-  return label;
+  return labels;
+}
+
+async function clickLoopPath(win, nodeId) {
+  const point = await win.evaluate((id) => {
+    const path = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-interaction`);
+    if (!(path instanceof SVGPathElement)) return null;
+    const local = path.getPointAtLength(path.getTotalLength() * 0.32);
+    const matrix = path.getScreenCTM();
+    if (!matrix) return null;
+    const screen = new DOMPoint(local.x, local.y).matrixTransform(matrix);
+    return { x: screen.x, y: screen.y };
+  }, nodeId);
+  if (point) await win.mouse.click(point.x, point.y);
+  await win.waitForTimeout(250);
+  return point;
+}
+
+async function readLoopVisual(win, nodeId) {
+  return win.evaluate((id) => {
+    const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
+    const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);
+    const base = group?.querySelector(".awkit-flow-edge-path");
+    const direction = group?.querySelector(".awkit-loop-direction-path");
+    if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(base instanceof SVGPathElement) || !(direction instanceof SVGPathElement)) return null;
+    const baseStyle = getComputedStyle(base);
+    const directionStyle = getComputedStyle(direction);
+    const keyframes = direction.getAnimations()[0]?.effect?.getKeyframes?.() ?? [];
+    const nodeRect = node.getBoundingClientRect();
+    const pathRect = base.getBoundingClientRect();
+    return {
+      className: group.getAttribute("class") || "",
+      connectorKind: group.getAttribute("data-connector-kind"),
+      baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
+      directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
+      samePath: base.getAttribute("d") === direction.getAttribute("d"),
+      baseDash: base.style.strokeDasharray || baseStyle.strokeDasharray,
+      baseWidth: baseStyle.strokeWidth,
+      directionDash: directionStyle.strokeDasharray,
+      directionWidth: directionStyle.strokeWidth,
+      animationName: directionStyle.animationName,
+      animationIterationCount: directionStyle.animationIterationCount,
+      animationTimingFunction: directionStyle.animationTimingFunction,
+      display: directionStyle.display,
+      terminalOffset: String(keyframes.at(-1)?.strokeDashoffset ?? ""),
+      pathLeft: pathRect.left,
+      pathRight: pathRect.right,
+      nodeLeft: nodeRect.left,
+      nodeRight: nodeRect.right
+    };
+  }, nodeId);
 }
 
 const WF_SELECT = 'label.sb-toolbar-field:has(span:text-is("Workflow")) select';
@@ -448,6 +502,20 @@ try {
     await win.waitForTimeout(400);
   }
 
+  // Use the dedicated fixture whose persisted canvas ids intentionally differ from flowId. A
+  // connector can only be reopened if the builder preserves those node ids on load.
+  await win.selectOption(WF_SELECT, "verify-workflow-loop-authoring");
+  await win.waitForTimeout(900);
+  const distinctIdFixture = await win.evaluate(() => ({
+    firstNode: document.querySelector('.awkit-flow-node[data-id="workflow-node-1"]')?.getAttribute("data-id"),
+    hasExit: Boolean(document.querySelector('g.awkit-flow-edge[data-source="workflow-node-1"][data-target="workflow-node-2"]'))
+  }));
+  check(
+    "Workflow load preserves persisted node ids when they differ from flow ids",
+    distinctIdFixture.firstNode === "workflow-node-1" && distinctIdFixture.hasExit,
+    JSON.stringify(distinctIdFixture)
+  );
+
   // --- 3. Loop toggle via the node kebab menu creates/removes a self-loop connector ---
   const NODE = await win.evaluate(() => {
     const node = [...document.querySelectorAll(".awkit-flow-node[data-id]")].find((n) => n.querySelector(".scenario-flow-node.flowRef"));
@@ -458,7 +526,7 @@ try {
   } else {
     const activeWorkflowId = await win.inputValue(WF_SELECT);
     const before = await win.evaluate(() => document.querySelectorAll("g.awkit-flow-edge").length);
-    await toggleLoopViaMenu(win, NODE);
+    await clickNodeMenuItem(win, NODE, "Add loop");
     await win.waitForTimeout(450);
     const loop = await win.evaluate((id) => {
       const self = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
@@ -472,8 +540,34 @@ try {
     if (loopEditorVisible) {
       await loopMode.selectOption("whileCondition");
       await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').fill("5");
+      await win.locator('.scenario-properties-panel label:has-text("Line style") select').selectOption("dotted");
+      await win.locator('.scenario-properties-panel label:has-text("Thickness") select').selectOption("4");
       await win.waitForTimeout(150);
       check("Workflow while-condition mode exposes structured condition authoring", await win.locator('.scenario-properties-panel label:has-text("Condition source") select').isVisible().catch(() => false));
+      const visual = await readLoopVisual(win, NODE);
+      const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
+      check(
+        "Workflow Loop renders a semantic directional layer outside the node",
+        visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
+          visual.baseCount === 1 && visual.directionCount === 1 && visual.samePath &&
+          (visual.pathRight > visual.nodeRight + 20 || visual.pathLeft < visual.nodeLeft - 20),
+        JSON.stringify(visual)
+      );
+      check(
+        "Workflow Loop direction travels source-to-target without replacing authored style",
+        visual?.animationName === "awkit-loop-direction" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
+          Number.parseFloat(visual.terminalOffset) < 0 && normalizeDash(visual.baseDash) === "1 5" && normalizeDash(visual.directionDash) === "8 92" &&
+          Number.parseFloat(visual.directionWidth) > Number.parseFloat(visual.baseWidth),
+        JSON.stringify(visual)
+      );
+      await win.emulateMedia({ reducedMotion: "reduce" });
+      const reducedVisual = await readLoopVisual(win, NODE);
+      check(
+        "Workflow Loop directional motion honors reduced motion",
+        reducedVisual?.display === "none" && reducedVisual.animationName === "none",
+        JSON.stringify(reducedVisual)
+      );
+      await win.emulateMedia({ reducedMotion: "no-preference" });
       await win.getByRole("button", { name: "Save", exact: true }).click();
       await win.waitForTimeout(350);
       const savedLoopAuthoring = await win.evaluate(async ({ sourceId, workflowId }) => {
@@ -495,12 +589,67 @@ try {
         savedLoopAuthoring.exit?.type === "conditional" && savedLoopAuthoring.exit?.condition?.expression === "true",
         JSON.stringify(savedLoopAuthoring.exit)
       );
+
+      const otherWorkflowId = await win.$$eval(`${WF_SELECT} option`, (options, activeId) =>
+        options.map((option) => option.value).find((value) => value && value !== activeId) ?? "",
+        activeWorkflowId
+      );
+      if (otherWorkflowId) {
+        await win.selectOption(WF_SELECT, otherWorkflowId);
+        await win.waitForTimeout(650);
+        await win.selectOption(WF_SELECT, activeWorkflowId);
+        await win.waitForTimeout(750);
+      }
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      await win.waitForTimeout(180);
+      const loopPoint = await clickLoopPath(win, NODE);
+      const reopenedByPath = await loopMode.isVisible().catch(() => false);
+      const reopenedMode = reopenedByPath ? await loopMode.inputValue() : "";
+      const reopenedMax = reopenedByPath ? await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() : "";
+      const selectedByPath = await win.evaluate((id) => Boolean(
+        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path.is-selected`)
+      ), NODE);
+      check(
+        "A real click on the saved Workflow Loop reopens its collapsed editor",
+        Boolean(loopPoint) && reopenedByPath && reopenedMode === "whileCondition" && reopenedMax === "5" && selectedByPath,
+        JSON.stringify({ loopPoint, reopenedByPath, reopenedMode, reopenedMax, selectedByPath })
+      );
+      if (reopenedByPath) {
+        await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').fill("7");
+        await win.locator(`.awkit-flow-node[data-id="${NODE}"] .scenario-flow-node`).click();
+        await clickNodeMenuItem(win, NODE, "Configure loop");
+        check(
+          "Configure loop reopens the existing Workflow Loop with unsaved edits intact",
+          await loopMode.isVisible().catch(() => false) && await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() === "7"
+        );
+        await win.getByRole("button", { name: "Save", exact: true }).click();
+        await win.waitForTimeout(350);
+        if (otherWorkflowId) {
+          await win.selectOption(WF_SELECT, otherWorkflowId);
+          await win.waitForTimeout(650);
+          await win.selectOption(WF_SELECT, activeWorkflowId);
+          await win.waitForTimeout(750);
+        }
+        await win.locator(`.awkit-flow-node[data-id="${NODE}"] .scenario-flow-node`).click();
+        await clickNodeMenuItem(win, NODE, "Configure loop");
+        const persistedMax = await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue().catch(() => "");
+        const persistedVisual = await readLoopVisual(win, NODE);
+        check(
+          "Reconfigured Workflow Loop persists and remains directionally animated after reload",
+          persistedMax === "7" && persistedVisual?.animationName === "awkit-loop-direction" && persistedVisual.animationIterationCount === "infinite",
+          JSON.stringify({ persistedMax, persistedVisual })
+        );
+      }
     }
 
-    const removeLabel = await loopItemLabel(win, NODE);
-    check("Loop menu item toggled to a Remove control", removeLabel === "Remove loop", `label="${removeLabel}"`);
+    const loopActions = await loopMenuLabels(win, NODE);
+    check(
+      "Existing workflow Loop exposes separate Configure and Remove controls",
+      loopActions.includes("Configure loop") && loopActions.includes("Remove loop") && !loopActions.includes("Add loop"),
+      JSON.stringify(loopActions)
+    );
 
-    await toggleLoopViaMenu(win, NODE);
+    await clickNodeMenuItem(win, NODE, "Remove loop");
     await win.waitForTimeout(400);
     const after = await win.evaluate((id) => ({
       count: document.querySelectorAll("g.awkit-flow-edge").length,
