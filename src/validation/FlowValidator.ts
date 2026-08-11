@@ -621,6 +621,13 @@ function validateEdges(profile: FlowProfile, edges: readonly FlowEdge[], nodeIds
           casingFix("loop.mode", mode, LOOP_MODE_BY_ENUM_KEY, "loop mode")
         );
       }
+      if (mode === "whileCondition" && !edge.loop.condition) {
+        collect.edge(
+          "unsupportedConfiguration",
+          edge,
+          `Loop connector ${edge.id} uses while-condition mode but has no loop condition; configure the condition that decides whether another iteration runs.`
+        );
+      }
       if (edge.loop.condition) validateConditional(edge.loop.condition, edge, "loop condition", collect);
       validateEdgeLoopBound(edge, edge.loop.maxIterations, "max iterations", collect);
     }

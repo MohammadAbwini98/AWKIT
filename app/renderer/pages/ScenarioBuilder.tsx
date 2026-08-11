@@ -51,6 +51,11 @@ import {
   scenarioEdgeToNormal
 } from "../components/shared/branchPairs";
 import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor";
+import { LoopConnectorEditor } from "../components/shared/LoopConnectorEditor";
+import {
+  defaultLoopConnectorConfig,
+  promoteScenarioLoopExits
+} from "../components/shared/loopConnectorAuthoring";
 import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { usePageChrome } from "../state/pageChrome";
@@ -65,8 +70,9 @@ import {
 } from "../components/scenario/scenarioDesignerTypes";
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
 import type { JsonArrayDataSourceProfile } from "@src/data/DataSourceProfile";
-import { connectorKind, type ConnectorKind, type EdgeVisualStyle, type FlowProfile } from "@src/profiles/FlowProfile";
+import type { EdgeVisualStyle, FlowProfile } from "@src/profiles/FlowProfile";
 import { isExecutionBlocking, validateFlowSet } from "@src/validation/FlowValidator";
+import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 import type { ScenarioFlowReference, ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import type { WorkflowDataSourceBinding, WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import { createBlankWorkflowProfile, workflowToScenarioProfile } from "@src/profiles/WorkflowProfile";
@@ -350,10 +356,12 @@ function ScenarioBuilderContent() {
   const selectedEdgeIsSelf = Boolean(selectedEdge && selectedEdge.source === selectedEdge.target);
   const selectedEdgeKind = selectedEdge ? scenarioEdgeKind(selectedEdge.data?.linkType) : "normal";
   const selectedEdgeIsBranch = selectedEdgeKind === "conditional" || selectedEdgeKind === "parallel";
+  const selectedEdgeIsLegacyLoopBack = selectedEdge?.data?.linkType === "loopBack";
   // Rule 3/4: a conditional/parallel connector's type is locked (part of a pair) until removed.
-  // Rule 1: loop is button-managed. Also keep the loop-controlled-source lock.
+  // Rule 1: a structured loop is button-managed. A loaded invalid Standard exit remains editable;
+  // its option list restricts the repair to Conditional instead of dead-locking the selector.
   const selectedEdgeKindLocked = Boolean(
-    selectedEdge && (selectedEdgeIsBranch || selectedEdgeKind === "loop" || loopControlledSources.has(selectedEdge.source))
+    selectedEdge && (selectedEdgeIsBranch || selectedEdgeKind === "loop")
   );
   const availableFlows = flowLibrary.filter((flow) => !nodes.some((node) => node.data.kind === "flowRef" && node.data.flowId === flow.flowId));
   const filteredFlows = useMemo(() => {
@@ -519,16 +527,36 @@ function ScenarioBuilderContent() {
   // in-node loop button that mutated edges via useReactFlow.
   const toggleNodeLoop = useCallback(
     (nodeId: string) => {
-      setEdges((currentEdges) => {
-        const hasLoop = currentEdges.some((edge) => edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop");
-        if (hasLoop) {
-          return currentEdges.filter((edge) => !(edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop"));
-        }
-        return [...currentEdges, createScenarioEdge(nodeId, nodeId, "loop", { style: { shape: "circular" } })];
-      });
+      const existing = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop");
+      if (existing) {
+        setEdges((currentEdges) =>
+          reconcileScenarioBranches(
+            currentEdges.filter((edge) => edge.id !== existing.id),
+            new Set([nodeId])
+          )
+        );
+        setSelectedEdgeId(null);
+        setToast({ tone: "info", message: "Loop removed. Its lone Conditional exit was restored to a standard connector." });
+      } else {
+        const loopEdge = createScenarioEdge(nodeId, nodeId, "loop", {
+          style: { shape: "circular" },
+          loop: defaultLoopConnectorConfig()
+        });
+        const promoted = promoteScenarioLoopExits(edges, nodeId);
+        setEdges([...promoted.edges, loopEdge]);
+        setSelectedNodeId(null);
+        setSelectedEdgeId(loopEdge.id);
+        persistRightPanel(false);
+        setToast({
+          tone: "success",
+          message: promoted.converted
+            ? `Loop added. ${promoted.converted} existing exit connector${promoted.converted === 1 ? " was" : "s were"} converted to Conditional.`
+            : "Loop added. Configure its mode, condition, and iteration limit in the connector panel."
+        });
+      }
       setSaveState("Unsaved changes");
     },
-    [setEdges]
+    [edges, persistRightPanel, setEdges]
   );
 
   const updateNodeData = useCallback(
@@ -548,8 +576,15 @@ function ScenarioBuilderContent() {
             const nextData = { ...edge.data, ...data } as ScenarioLinkData;
             // Loop is button-managed and never selected from the panel (Rule 1); guard anyway:
             // a loop connector may only connect a node to itself.
-            if (scenarioEdgeKind(nextData.linkType) === "loop" && edge.source !== edge.target) {
+            if (nextData.linkType === "loop" && edge.source !== edge.target) {
               nextData.linkType = edge.data?.linkType ?? "success";
+            }
+            const sourceHasLoop = currentEdges.some((candidate) => candidate.source === edge.source && candidate.target === edge.source && candidate.data?.linkType === "loop");
+            if (data.linkType && sourceHasLoop && edge.source !== edge.target && scenarioEdgeKind(nextData.linkType) !== "conditional") {
+              nextData.linkType = "conditional";
+            }
+            if (data.linkType && scenarioEdgeKind(nextData.linkType) === "conditional" && !nextData.expression.trim()) {
+              nextData.expression = "true";
             }
             const label = nextData.label && nextData.label.trim() ? nextData.label : nextData.linkType;
             return {
@@ -565,6 +600,18 @@ function ScenarioBuilderContent() {
     },
     [setEdges]
   );
+
+  const deleteEdge = useCallback((edgeId: string) => {
+    setEdges((currentEdges) => {
+      const source = currentEdges.find((edge) => edge.id === edgeId)?.source;
+      return reconcileScenarioBranches(
+        currentEdges.filter((edge) => edge.id !== edgeId),
+        source ? new Set([source]) : undefined
+      );
+    });
+    setSelectedEdgeId(null);
+    setSaveState("Unsaved changes");
+  }, [setEdges]);
 
   // Point 1a: connector "+" affordance. A workflow node *is* a saved flow, so inserting on an
   // edge splices the first not-yet-used saved flow between source and target at the edge midpoint,
@@ -635,7 +682,13 @@ function ScenarioBuilderContent() {
     if (!source || !flow) return;
     const node = createScenarioNode(flowId, source.data.kind === "flowRef" ? source.data.order + 1 : 1, { x: source.position.x, y: source.position.y + 190 }, true, undefined, flowLibrary);
     setNodes((current) => normalizeOrders([...current, node]));
-    setEdges((current) => [...current, createScenarioEdge(sourceId, flowId, source.data.kind === "start" ? "always" : "success")]);
+    setEdges((current) => {
+      const sourceHasLoop = current.some((edge) => edge.source === sourceId && edge.target === sourceId && edge.data?.linkType === "loop");
+      const nextEdge = sourceHasLoop
+        ? createScenarioEdge(sourceId, flowId, "conditional", { label: "Exit loop", condition: { expression: "true" } })
+        : createScenarioEdge(sourceId, flowId, source.data.kind === "start" ? "always" : "success");
+      return [...current, nextEdge];
+    });
     setSelectedNodeId(flowId);
     setSelectedEdgeId(null);
     setSaveState("Unsaved changes");
@@ -753,9 +806,10 @@ function ScenarioBuilderContent() {
           return;
         }
         toggleNodeLoop(source.id);
-        setSelectedNodeId(source.id);
-        setSelectedEdgeId(null);
-        setToast({ tone: "success", message: `Loop connector toggled on "${source.data.name}".` });
+        return;
+      }
+      if (logic === "parallel" && loopControlledSources.has(source.id)) {
+        setToast({ tone: "error", message: "A loop-controlled flow can only have Conditional exits. Remove the loop before adding a Parallel branch." });
         return;
       }
       const targets = availableFlows.slice(0, 2);
@@ -794,7 +848,7 @@ function ScenarioBuilderContent() {
         message: `${logic === "condition" ? "Conditional" : "Parallel"} branch added from "${source.data.name}" (${targets.length} path${targets.length === 1 ? "" : "s"}). Edit the connectors in the drawer.`
       });
     },
-    [edges, nodes, selectedNodeId, availableFlows, flowLibrary, toggleNodeLoop, setNodes, setEdges, rightPanelCollapsed, persistRightPanel]
+    [edges, nodes, selectedNodeId, availableFlows, flowLibrary, toggleNodeLoop, setNodes, setEdges, rightPanelCollapsed, persistRightPanel, loopControlledSources]
   );
 
   const handlePickerPick = useCallback((id: string) => {
@@ -1095,8 +1149,13 @@ function ScenarioBuilderContent() {
   }, []);
   const confirmConnect = useCallback(() => {
     if (!connectPrompt) return;
-    const linkType: ScenarioLink["type"] = connectPrompt.source === "start" ? "always" : "success";
-    setEdges((current) => reconcileScenarioBranches([...current, createScenarioEdge(connectPrompt.source, connectPrompt.target, linkType)]));
+    setEdges((current) => {
+      const sourceHasLoop = current.some((edge) => edge.source === connectPrompt.source && edge.target === connectPrompt.source && edge.data?.linkType === "loop");
+      const nextEdge = sourceHasLoop
+        ? createScenarioEdge(connectPrompt.source, connectPrompt.target, "conditional", { label: "Exit loop", condition: { expression: "true" } })
+        : createScenarioEdge(connectPrompt.source, connectPrompt.target, connectPrompt.source === "start" ? "always" : "success");
+      return reconcileScenarioBranches([...current, nextEdge]);
+    });
     setSaveState("Unsaved changes");
     setToast({ tone: "success", message: `Connected "${connectPrompt.sourceName}" → "${connectPrompt.targetName}".` });
     setConnectPrompt(null);
@@ -1622,22 +1681,26 @@ function ScenarioBuilderContent() {
                     <select
                       disabled={selectedEdgeKindLocked}
                       value={selectedEdge.data?.linkType ?? "success"}
-                      onChange={(event) =>
-                        updateEdgeData(selectedEdge.id, { linkType: event.target.value as ScenarioLink["type"], label: event.target.value })
-                      }
+                      onChange={(event) => {
+                        const linkType = event.target.value as ScenarioLink["type"];
+                        updateEdgeData(selectedEdge.id, {
+                          linkType,
+                          label: loopControlledSources.has(selectedEdge.source) && linkType === "conditional" ? "Exit loop" : linkType
+                        });
+                      }}
                     >
-                      <option disabled={selectedEdgeKindLocked} value="success">
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="success">
                         Success
                       </option>
-                      <option disabled={selectedEdgeKindLocked} value="failure">
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="failure">
                         Failure
                       </option>
-                      <option disabled={selectedEdgeKindLocked} value="always">
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="always">
                         Always
                       </option>
                       <option value="conditional">Conditional</option>
-                      <option value="outcome">Outcome-based</option>
-                      <option disabled={selectedEdgeKindLocked} value="manualApproval">
+                      <option disabled={loopControlledSources.has(selectedEdge.source)} value="outcome">Outcome-based</option>
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="manualApproval">
                         Manual Approval
                       </option>
                       {/* Loop is created only by the node's loop button (Rule 1); shown disabled so an
@@ -1645,10 +1708,10 @@ function ScenarioBuilderContent() {
                       <option disabled value="loop">
                         Loop
                       </option>
-                      <option disabled={selectedEdgeKindLocked} value="loopBack">
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="loopBack">
                         Loop Back
                       </option>
-                      <option disabled={selectedEdgeKindLocked} value="parallel">
+                      <option disabled={selectedEdgeKindLocked || loopControlledSources.has(selectedEdge.source)} value="parallel">
                         Parallel
                       </option>
                     </select>
@@ -1658,11 +1721,10 @@ function ScenarioBuilderContent() {
                         connector to change the type — the remaining connector reverts to Normal automatically.
                       </small>
                     ) : selectedEdgeKind === "loop" ? (
-                      <small>Loop connectors are managed by the node&apos;s loop button. Remove the loop to change this connector.</small>
-                    ) : selectedEdgeKindLocked ? (
+                      <small>{selectedEdgeIsLegacyLoopBack ? "Loop Back is a bounded cross-flow return path." : "Loop connectors are managed by the node's loop button. Remove the loop to change this connector."}</small>
+                    ) : loopControlledSources.has(selectedEdge.source) ? (
                       <small>
-                        This node has a loop connector. Additional outgoing connectors must be Conditional. Remove the loop connector
-                        to choose another link type.
+                        This flow has a loop connector. Change this outgoing connector to Conditional so it becomes the explicit loop exit.
                       </small>
                     ) : null}
                   </label>
@@ -1670,19 +1732,58 @@ function ScenarioBuilderContent() {
                     Label
                     <input value={selectedEdge.data?.label ?? ""} onChange={(event) => updateEdgeData(selectedEdge.id, { label: event.target.value })} />
                   </label>
-                  <label>
-                    Condition
-                    <input
-                      placeholder="${outputs.flow.customerId} !== ''"
-                      value={selectedEdge.data?.expression ?? ""}
-                      onChange={(event) => updateEdgeData(selectedEdge.id, { expression: event.target.value })}
+                  {selectedEdge.data?.linkType === "loop" ? (
+                    <LoopConnectorEditor
+                      value={selectedEdge.data.loop}
+                      targetLabel={selectedEdge.target}
+                      dataSources={dataSources}
+                      onChange={(loop) => updateEdgeData(selectedEdge.id, { loop })}
                     />
-                  </label>
+                  ) : null}
+                  {selectedEdgeIsLegacyLoopBack ? (
+                    <>
+                      <label>
+                        Return target
+                        <input value={selectedEdge.target} readOnly aria-readonly="true" />
+                      </label>
+                      <label>
+                        Continue while (optional)
+                        <input
+                          placeholder="${outputs.hasMore} === true"
+                          value={selectedEdge.data?.expression ?? ""}
+                          onChange={(event) => updateEdgeData(selectedEdge.id, { expression: event.target.value })}
+                        />
+                      </label>
+                      <label>
+                        Max traversals
+                        <input
+                          type="number"
+                          min={1}
+                          max={FLOW_VALIDATION_LIMITS.maxLoopIterations}
+                          value={selectedEdge.data?.maxLoopCount ?? 2}
+                          onChange={(event) => updateEdgeData(selectedEdge.id, { maxLoopCount: Number.parseInt(event.target.value, 10) || 1 })}
+                        />
+                      </label>
+                    </>
+                  ) : null}
+                  {["conditional", "outcome"].includes(selectedEdge.data?.linkType ?? "") ? (
+                    <label>
+                      Condition
+                      <input
+                        placeholder="${outputs.flow.customerId} !== ''"
+                        value={selectedEdge.data?.expression ?? ""}
+                        onChange={(event) => updateEdgeData(selectedEdge.id, { expression: event.target.value })}
+                      />
+                    </label>
+                  ) : null}
                   <ConnectorStyleEditor
                     style={selectedEdge.data?.style}
                     onChange={(patch) => updateEdgeData(selectedEdge.id, { style: { ...selectedEdge.data?.style, ...patch } })}
                     onReset={() => updateEdgeData(selectedEdge.id, { style: undefined })}
                   />
+                  <button className="toolbar-button danger" type="button" onClick={() => deleteEdge(selectedEdge.id)}>
+                    <Trash2 size={14} /> Delete connector
+                  </button>
                 </>
               ) : (
                 <p>Select a connector on the canvas to edit link type and condition.</p>
@@ -1853,7 +1954,7 @@ function createScenarioEdge(
   source: string,
   target: string,
   linkType: ScenarioLink["type"],
-  link?: { id?: string; label?: string; condition?: { expression: string }; style?: EdgeVisualStyle }
+  link?: Partial<Pick<ScenarioLink, "id" | "label" | "condition" | "loop" | "maxLoopCount">> & { style?: EdgeVisualStyle }
 ): ScenarioEdge {
   const label = link?.label ?? linkType;
   const style = link?.style;
@@ -1867,6 +1968,8 @@ function createScenarioEdge(
       linkType,
       label,
       expression: link?.condition?.expression ?? "",
+      loop: link?.loop,
+      maxLoopCount: link?.maxLoopCount,
       style
     }
   };
@@ -2002,6 +2105,8 @@ function toWorkflowProfile(
       type: edge.data?.linkType ?? "success",
       label: edge.data?.label,
       condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
+      loop: edge.data?.linkType === "loop" ? edge.data.loop : undefined,
+      maxLoopCount: edge.data?.linkType === "loopBack" ? edge.data.maxLoopCount : undefined,
       style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined
     })),
     runtimeInputs: [

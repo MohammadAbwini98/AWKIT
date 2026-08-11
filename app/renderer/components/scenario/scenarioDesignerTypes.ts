@@ -1,5 +1,5 @@
 import type { ScenarioLink } from "@src/profiles/ScenarioProfile";
-import type { EdgeVisualStyle } from "@src/profiles/FlowProfile";
+import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import type { ConnectorPortFlags } from "../shared/connectorStyle";
 
 export interface ScenarioFlowNodeData extends Record<string, unknown> {
@@ -35,6 +35,8 @@ export interface ScenarioLinkData extends Record<string, unknown> {
   linkType: ScenarioLink["type"];
   label: string;
   expression: string;
+  loop?: LoopConnectorConfig;
+  maxLoopCount?: number;
   style?: EdgeVisualStyle;
   /**
    * Display-only fields injected per-render by the canvas (`edgesForCanvas`) for the

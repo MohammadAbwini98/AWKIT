@@ -399,10 +399,15 @@ failure boundary under `src/testing/failures/`:
   via `executeLoopConnector` (count/staticList/dataSource/whileCondition), injecting the value under
   `parameterName` into `context.runtimeInputs`, then continues via the node's own exit edge (forced
   Conditional, see below). The legacy `loopBack` edge type (cross-node) is exempt from the self-loop rule.
+  `LoopConnectorRuntime` owns count/list/data-source/while value materialization and the canonical bound
+  shared by `FlowExecutor` and `PlaywrightRunner`.
   `FlowExecutor` emits connector timeline events via the injected `RunnerProgressReporter`.
-  `PlaywrightRunner.chooseNextFlow` routes workflow links (outcome → conditional → success/loop → always);
-  expression conditions use `ExpressionEvaluator` against `${outputs.*}` / `${runtimeInputs.*}` /
-  `${instanceInputs.*}`.
+  `WorkflowEdge` and `ScenarioLink` persist the same `LoopConnectorConfig` plus legacy `maxLoopCount`.
+  `PlaywrightRunner` executes a workflow self-loop in place, injects each loop value, evaluates a while
+  condition against the previous Flow result, then routes through the Conditional exit.
+  `chooseNextFlow` routes outcome → conditional → bounded conditional Loop Back → success → always →
+  bounded unconditional Loop Back; expression conditions use `ExpressionEvaluator` against
+  `${outputs.*}` / `${runtimeInputs.*}` / `${instanceInputs.*}`.
 - **Connector-structure safeguards (AWKIT points 1–5):** `validateConnectorStructure`
   (`src/profiles/FlowProfile.ts`) enforces three rules on `FlowEdge[]`: a loop connector must return to the
   same node; a node may have at most one standard (non-conditional/non-parallel) outgoing connector; a node
@@ -411,19 +416,15 @@ failure boundary under `src/testing/failures/`:
   bypass). The Flow Designer (`connectorStructureIssues` in `FlowChartDesigner.tsx`) and Workflow Builder
   (`scenarioConnectorStructureIssues` in `ScenarioBuilder.tsx`, deriving kind from the legacy `type` string
   via `scenarioEdgeKind`/`connectorKind` since `WorkflowEdge` has no separate `kind` field) mirror the same
-  rules and block Save; both kind/link-type selectors disable the disallowed options with helper text.
+  rules as draft advisories; Save remains allowed by the Stage 2b draft policy, while Run is blocked.
+  The shared renderer authoring helper promotes existing Standard exits before creating a Loop, and the
+  selectors keep an invalid loaded Standard exit editable so it can be repaired to Conditional.
   `FlowDependencyResolver.validate()` now mirrors the same structure checks for `ScenarioProfile.links`,
-  so `ScenarioOrchestrator.createExecutionPlan()` blocks invalid workflow graphs at runtime if they bypass
-  the renderer Save gate.
-  **Dynamic ports:** `computePortFlags`/`portHandlesForKind` (`app/renderer/components/shared/
-  connectorStyle.ts`) derive per-node port visibility and per-edge `sourceHandle`/`targetHandle` purely at
-  render time (nothing new persisted to `FlowEdge`/`WorkflowEdge`) — rendered by the shared
-  `ConnectorPorts.tsx` (`ConnectorTargetPorts`/`ConnectorSourcePorts`) in `ActionFlowNode`/`ScenarioFlowNode`.
-  Both node components call `useUpdateNodeInternals(id)` when `portFlags` change so React Flow refreshes
-  dynamic handle bounds for real drag-connections.
-  **Circular shape:** `EdgeVisualStyle.shape` gained `"circular"`; the shared `SelfLoopEdge.tsx` is
-  registered as the React Flow edge type `circular` in both canvases (`edgeTypes` prop) and renders a
-  self-loop arc; loop connectors default to this shape when created.
+  so `ScenarioOrchestrator.createExecutionPlan()` blocks invalid workflow graphs at runtime even when an
+  invalid draft was intentionally saved.
+  Connector kind/style is derived into the in-house canvas edge representation; no renderer-only routing
+  model is persisted. `EdgeVisualStyle.shape: "circular"` selects the shared in-house `LoopEdge`, which
+  renders the self-loop arc used by both designers.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
   the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session

@@ -1,5 +1,20 @@
 # FEATURES
 
+## Complete Loop connector authoring (2026-08-11)
+
+- Flow Designer and Workflow Builder share one complete structured Loop editor: fixed self target,
+  count/static list/data source/while condition, maximum iterations, runtime-input parameter, delay,
+  data-source binding, and an editable structured while condition.
+- Adding a Loop selects it and opens the connector panel. Any existing non-self Standard path is
+  promoted to an always-taken Conditional exit, and later append/drag/logic connections from a loop
+  source are constrained to Conditional. Removing the Loop reconciles a lone exit back to Standard.
+- `WorkflowEdge` ↔ `ScenarioLink` conversion preserves `loop` and `maxLoopCount`. Workflow execution
+  uses the same loop value materialization and hard cap as Flow execution, including previous-iteration
+  while evaluation and bounded legacy Loop Back routing.
+- Invalid loaded graphs are not silently rewritten. Their Standard exit remains selectable and can be
+  repaired to Conditional; invalid graphs can still save as drafts, while the unchanged run gate blocks
+  execution until connector structure and loop configuration are valid.
+
 ## Editor and Administration UI consistency (2026-08-09)
 
 - Workflow Builder and Flow Designer share the `EditorCommandBar` presentation grammar: grouped
@@ -153,22 +168,23 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   expectedValue + priority); **Parallel** (`ParallelConnectorConfig` — join waitAll/waitAny, fail
   failFast/collectErrors, isolation sharedPage[sequential]/isolatedPage[concurrent, `maxConcurrency`]);
   **Loop** (`LoopConnectorConfig` — **self-loop only** (source===target), count/staticList/dataSource/
-  whileCondition, `maxIterations`, `parameterName` injected as a runtimeInput). Kind selector + per-kind
-  fields in Connection Properties; legacy `outcome`/`loopBack` (cross-node, exempt from the self-loop rule)
+  whileCondition, `maxIterations`, `parameterName` injected as a runtimeInput, delay, and structured
+  while condition). Shared complete fields in both designers; legacy `outcome`/`loopBack` (cross-node,
+  bounded by `maxLoopCount` and exempt from the self-loop rule)
   expression edges still supported. Routing/eval in `FlowExecutor` + `ConnectorConditionEvaluator`; connector
   timeline events surface in the Live Report.
-- ✅ **Connector-structure safeguards** (Flow Designer + Workflow Builder, block Save; Flow Designer
+- ✅ **Connector-structure safeguards** (Flow Designer + Workflow Builder; invalid graphs save only as
+  drafts and are blocked by the run gate; Flow Designer
   re-validated at runtime by `FlowExecutor`; Workflow Builder re-validated at runtime by
   `ScenarioOrchestrator`/`FlowDependencyResolver`): a node may have at most one standard (non-conditional/
   non-parallel) outgoing connector; a loop connector must return to the same node; a node with a self-loop
   forces every other outgoing connector to be Conditional. `validateConnectorStructure`
-  (`src/profiles/FlowProfile.ts`) is the shared rule set.
-- ✅ **Dynamic connector ports:** `ActionFlowNode`/`ScenarioFlowNode` show a `normal` handle per side always,
-  plus a conditional/parallel two-port source pair once an edge of that kind leaves the node (derived at
-  render time via `computePortFlags`, not persisted). Node components refresh React Flow internals when
-  port flags change so the dynamic branch handles support real drag-connections.
+  (`src/profiles/FlowProfile.ts`) is the shared Flow rule set. Loop authoring promotes an existing
+  Standard exit to Conditional so ordinary creation produces a valid structure intentionally.
+- ✅ **Derived connector visuals:** the in-house canvas derives edge kind/style per render; connector
+  presentation state is never persisted as a second routing model.
 - ✅ **Circular self-loop connector shape:** `EdgeVisualStyle.shape` includes `circular`, rendered by
-  `SelfLoopEdge.tsx` (custom React Flow edge type); loop connectors default to it.
+  the in-house canvas `LoopEdge`; loop connectors default to it.
 - ✅ **Node Palette search** + searchable node-property dropdowns (`SearchableSelect` for JSON Data Source /
   Target flow / Saved Flow).
 - ✅ **Connector style customization** (`ConnectorStyleEditor`, shared): per-connector color/line-style/
@@ -190,6 +206,8 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
   validator. Dirty canvases prompt before discard; ID collisions require an explicit destructive
   replacement confirmation and are rechecked by the authoritative IPC before overwrite.
 - ✅ Link saved flows into a `WorkflowProfile`; typed connectors (Connection Properties panel).
+- ✅ Full structured Loop connector authoring and persistence, including automatic Conditional exits,
+  count/list/data-source/while modes, bound/parameter/delay/condition fields, and legacy Loop Back cap.
 - ✅ Resizable "Workflow Definition" panel; collapsible data-source/connector sections; zoom.
 - ✅ Workflow data-source binding; selection persistence.
 - ✅ Snapshot-based unsaved-changes detection (`serializeWorkflowDoc`, includes execution +
@@ -357,7 +375,8 @@ Status legend: ✅ implemented · 🟡 partial/unverified · 🔭 planned/implie
 - ✅ **Smart Wait execution diagnostics:** `StepExecutor` runs `beforeWaits`/`afterWaits` around steps and
   reports failed waits with phase, sanitized current URL, wait condition, timeout, recorded reason, last
   observed state, and a suggested fix.
-- ✅ Connector routing at flow and workflow level (structured conditional/parallel/loop connectors +
+- ✅ Connector routing at flow and workflow level (structured conditional/parallel/loop connectors,
+  with workflow loops using the same count/list/data-source/while materialization as Flow loops, plus
   legacy success/failure/conditional/always/outcome/loopBack); Auto Secure Login engine restart guard
   (`MAX_AUTO_LOGIN_RESTART`); Run Another Flow with recursion guard (depth 5).
 - ✅ Instance manager/pool/coordinator for concurrent isolated instances; manual handoff.

@@ -1460,6 +1460,98 @@ async function main() {
       invalidLoopExitPlan.validationIssues.map((issue) => issue.message).join(" | ")
     );
 
+    const missingWhileCondition: ScenarioProfile = {
+      ...validLoopWithConditionalExit,
+      id: "sc-missing-workflow-loop-condition",
+      links: [
+        {
+          id: "loop-missing-condition",
+          sourceFlowId: "flowA",
+          targetFlowId: "flowA",
+          type: "loop",
+          loop: { mode: "whileCondition", maxIterations: 3 }
+        },
+        { id: "exit-missing-condition", sourceFlowId: "flowA", targetFlowId: "flowB", type: "conditional", condition: { expression: "true" } }
+      ]
+    };
+    const missingWhilePlan = connectorOrchestrator.createExecutionPlan(missingWhileCondition);
+    check(
+      "workflow validation requires a condition for while-condition loops",
+      missingWhilePlan.validationIssues.some((issue) => issue.severity === "error" && issue.message.includes("requires a loop condition")),
+      missingWhilePlan.validationIssues.map((issue) => issue.message).join(" | ")
+    );
+
+    const countLoopScenario: ScenarioProfile = {
+      ...validLoopWithConditionalExit,
+      id: "sc-workflow-count-loop",
+      links: [
+        {
+          id: "workflow-count-loop",
+          sourceFlowId: "flowA",
+          targetFlowId: "flowA",
+          type: "loop",
+          loop: { mode: "count", maxIterations: 2, parameterName: "iteration" }
+        },
+        { id: "workflow-count-exit", sourceFlowId: "flowA", targetFlowId: "flowB", type: "conditional", condition: { expression: "true" } }
+      ]
+    };
+    const countLoopRunner = new PlaywrightRunner({ flows: [flowA, flowB, flowC], productionOffline: false, resourcesRoot });
+    const countLoopResult = await countLoopRunner.executeScenario(countLoopScenario, await makeContext("flowA"), instanceConfig);
+    const countLoopRuns = countLoopResult.flows.filter((result) => result.flowId === "flowA").length;
+    check(
+      "workflow count loop repeats its source flow to the authored bound, then takes the Conditional exit",
+      countLoopResult.status === "passed" && countLoopRuns === 2 && countLoopResult.flows.at(-1)?.flowId === "flowB",
+      `status=${countLoopResult.status} ran=${countLoopResult.flows.map((result) => result.flowId).join(",")}`
+    );
+
+    const whileLoopScenario: ScenarioProfile = {
+      ...countLoopScenario,
+      id: "sc-workflow-while-loop",
+      links: [
+        {
+          id: "workflow-while-loop",
+          sourceFlowId: "flowA",
+          targetFlowId: "flowA",
+          type: "loop",
+          loop: {
+            mode: "whileCondition",
+            maxIterations: 5,
+            condition: { sourceField: "status", operator: "equals", expectedValue: "failed" }
+          }
+        },
+        { id: "workflow-while-exit", sourceFlowId: "flowA", targetFlowId: "flowB", type: "conditional", condition: { expression: "true" } }
+      ]
+    };
+    const whileLoopRunner = new PlaywrightRunner({ flows: [flowA, flowB, flowC], productionOffline: false, resourcesRoot });
+    const whileLoopResult = await whileLoopRunner.executeScenario(whileLoopScenario, await makeContext("flowA"), instanceConfig);
+    check(
+      "workflow while-condition loop evaluates the previous iteration and stops before its max bound",
+      whileLoopResult.status === "passed" && whileLoopResult.flows.filter((result) => result.flowId === "flowA").length === 1,
+      `status=${whileLoopResult.status} ran=${whileLoopResult.flows.map((result) => result.flowId).join(",")}`
+    );
+
+    const workflowLoopBackScenario: ScenarioProfile = {
+      ...successScenario,
+      id: "sc-workflow-loop-back",
+      flows: [
+        { order: 1, flowId: "flowA", required: true },
+        { order: 2, flowId: "flowB", required: false }
+      ],
+      links: [
+        { id: "loop-back-forward", sourceFlowId: "flowA", targetFlowId: "flowB", type: "success" },
+        { id: "loop-back-return", sourceFlowId: "flowB", targetFlowId: "flowA", type: "loopBack", condition: { expression: "true" }, maxLoopCount: 2 }
+      ]
+    };
+    const workflowLoopBackRunner = new PlaywrightRunner({ flows: [flowA, flowB], productionOffline: false, resourcesRoot });
+    const workflowLoopBackResult = await workflowLoopBackRunner.executeScenario(workflowLoopBackScenario, await makeContext("flowA"), instanceConfig);
+    check(
+      "workflow Loop Back honors maxLoopCount and terminates cleanly",
+      workflowLoopBackResult.status === "passed" &&
+        workflowLoopBackResult.flows.filter((result) => result.flowId === "flowA").length === 3 &&
+        workflowLoopBackResult.flows.filter((result) => result.flowId === "flowB").length === 3,
+      `status=${workflowLoopBackResult.status} ran=${workflowLoopBackResult.flows.map((result) => result.flowId).join(",")}`
+    );
+
     console.log("Run Another Flow recursion guard:");
     const soloScenario = (flowId: string): ScenarioProfile => ({
       id: `sc-${flowId}`,

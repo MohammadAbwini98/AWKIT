@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-11 - Codex - Complete Loop connector authoring in both visual designers
+
+- **Task:** Complete `awkit-pwc`: make structured Loop connectors fully authorable, persistent,
+  validated, and executable in Flow Designer and Workflow Builder without weakening validation.
+- **Implementation:** added a shared loop/while-condition editor and shared exit-promotion policy;
+  adding a Loop now selects it, opens its configuration, and converts existing Standard exits to
+  explicit Conditional exits. Workflow/Scenario edges now round-trip `LoopConnectorConfig` and
+  `maxLoopCount`; workflow execution shares canonical loop value materialization with Flow execution
+  and supports bounded count/list/data-source/while-condition and legacy Loop Back routing.
+- **Safety:** structured Loops remain self-only; the existing 1,000-iteration cap and run-gate
+  structure checks remain authoritative; missing while conditions are now rejected. No new connector
+  model, remote dependency, API, IPC, storage key, or mock-site route was introduced.
+- **Verified:** build PASS; Flow Designer **93/93**; Workflow Builder **41/41**; runner **99/99**;
+  validation **134/134**; branch pairs/authoring **36/36**; workflow conversions **14/14**.
+- **Files:** renderer loop editor/authoring helper and both designer pages; Workflow/Scenario profiles;
+  Flow/Workflow runtime validation and routing; focused verifier scripts; AI memory/tracking sources.
+
+---
+
 ## 2026-08-09 - Codex - Professionally redesign and visually correct core UI surfaces
 
 - **Task:** Complete `awkit-7le`: visually redesign Workflow Builder, Flow Designer, Users, Roles,

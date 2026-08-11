@@ -363,6 +363,27 @@ console.log("\nRule: invalid loop bounds");
   expectNoCode("a loop bound of 1 is accepted", validateFlowDefinition(loopEdge(1)), "invalidLoopBounds");
   expectNoCode(`a loop bound at the ${FLOW_VALIDATION_LIMITS.maxLoopIterations} cap is accepted`, validateFlowDefinition(loopEdge(FLOW_VALIDATION_LIMITS.maxLoopIterations)), "invalidLoopBounds");
 
+  const whileWithoutCondition = loopEdge(3);
+  whileWithoutCondition.edges.find((candidate) => candidate.id === "e-loop")!.loop = { mode: "whileCondition", maxIterations: 3 };
+  expectCode(
+    "a while-condition loop without a condition reports unsupportedConfiguration",
+    validateFlowDefinition(whileWithoutCondition),
+    "unsupportedConfiguration",
+    { edgeId: "e-loop" }
+  );
+
+  const whileWithCondition = loopEdge(3);
+  whileWithCondition.edges.find((candidate) => candidate.id === "e-loop")!.loop = {
+    mode: "whileCondition",
+    maxIterations: 3,
+    condition: { sourceField: "status", operator: "equals", expectedValue: "passed" }
+  };
+  expectNoCode(
+    "a while-condition loop with a structured condition is accepted",
+    validateFlowDefinition(whileWithCondition),
+    "unsupportedConfiguration"
+  );
+
   const large = validateFlowDefinition(loopEdge(FLOW_VALIDATION_LIMITS.warnLoopIterations + 1));
   check("a large-but-legal loop bound is a warning, not an error", warningsOf(large).some((issue) => issue.code === "largeLoopBounds") && errorsOf(large).length === 0);
 

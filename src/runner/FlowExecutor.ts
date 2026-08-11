@@ -1,7 +1,7 @@
 import type { FlowEdge, FlowProfile, FlowStep, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { connectorKind, validateConnectorStructure } from "@src/profiles/FlowProfile";
 import { normalizeFlowBounds } from "@src/profiles/FlowValidation";
-import { materializeDataSourceRows, type InstanceExecutionContext } from "./InstanceExecutionContext";
+import type { InstanceExecutionContext } from "./InstanceExecutionContext";
 import { evaluateBoolean } from "./ExpressionEvaluator";
 import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
 import { loadConcurrencyLimits } from "./concurrency/ConcurrencyConfig";
@@ -12,6 +12,7 @@ import { StepExecutor } from "./StepExecutor";
 import { SecretMasker } from "@src/reports/SecretMasker";
 import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 import { resolveJsonPath } from "@src/data/JsonPathResolver";
+import { loopIterationLimit, resolveLoopConnectorValues } from "./LoopConnectorRuntime";
 
 /**
  * Hard cap on loop-connector iterations regardless of configured maxIterations.
@@ -367,8 +368,8 @@ export class FlowExecutor {
     outputs: Record<string, unknown>,
     context: InstanceExecutionContext
   ): Promise<{ success: boolean; error?: string; lastResult?: StepExecutionResult }> {
-    const maxIterations = Math.max(1, Math.min(cfg.maxIterations || 1, LOOP_CONNECTOR_HARD_CAP));
-    const values = await this.resolveLoopValues(cfg, context, maxIterations);
+    const maxIterations = Math.min(loopIterationLimit(cfg), LOOP_CONNECTOR_HARD_CAP);
+    const values = await resolveLoopConnectorValues(cfg, context, maxIterations);
     const paramKey = cfg.parameterName?.trim();
     const previous = paramKey ? context.runtimeInputs[paramKey] : undefined;
     let lastResult: StepExecutionResult | undefined;
@@ -412,25 +413,6 @@ export class FlowExecutor {
     }
 
     return { success: true, lastResult };
-  }
-
-  /** Build the ordered list of loop values for a loop connector. */
-  private async resolveLoopValues(cfg: LoopConnectorConfig, context: InstanceExecutionContext, maxIterations: number): Promise<unknown[]> {
-    switch (cfg.mode) {
-      case "staticList":
-        return (cfg.staticValues ?? []).slice(0, maxIterations);
-      case "dataSource": {
-        const dataSource = cfg.dataSourceId ? context.dataSources?.[cfg.dataSourceId] : context.workflowDataSource;
-        const rows = dataSource ? await materializeDataSourceRows(dataSource) : [];
-        const binding = cfg.dataSourceBinding?.trim();
-        const values = binding ? rows.map((row) => (row && typeof row === "object" ? (row as Record<string, unknown>)[binding] : undefined)) : rows;
-        return values.slice(0, maxIterations);
-      }
-      case "count":
-      case "whileCondition":
-      default:
-        return Array.from({ length: maxIterations }, (_, index) => index + 1);
-    }
   }
 
   /**

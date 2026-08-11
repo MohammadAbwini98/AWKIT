@@ -1,4 +1,4 @@
-import { isWorkflowFlowNode, workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import { isWorkflowFlowNode, scenarioToWorkflowProfile, workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
 import {
   formatWorkflowConflictMessage,
   parseWorkflowConflictName,
@@ -42,6 +42,42 @@ const legacy: WorkflowProfile = {
 };
 const legacyScenario = workflowToScenarioProfile(legacy);
 check("legacy workflows without sentinels still load and convert unchanged", legacyScenario.flows.length === 1 && legacyScenario.flows[0].flowId === "flow-a");
+
+const loopWorkflow: WorkflowProfile = {
+  ...workflow,
+  id: "loop-workflow",
+  nodes: [
+    { id: "node-a", type: "flowRef", flowId: "flow-a", alias: "Flow A", order: 1, required: true, inputBindings: {} },
+    { id: "node-b", type: "flowRef", flowId: "flow-b", alias: "Flow B", order: 2, required: true, inputBindings: {} }
+  ],
+  edges: [
+    {
+      id: "loop-a",
+      source: "node-a",
+      target: "node-a",
+      type: "loop",
+      loop: {
+        mode: "whileCondition",
+        maxIterations: 7,
+        condition: { sourceField: "status", operator: "equals", expectedValue: "passed" }
+      }
+    },
+    { id: "exit-a", source: "node-a", target: "node-b", type: "conditional", condition: { expression: "true" } }
+  ]
+};
+const loopScenario = workflowToScenarioProfile(loopWorkflow);
+check(
+  "workflow conversion preserves structured loop metadata and the Conditional exit",
+  loopScenario.links[0]?.loop?.mode === "whileCondition" &&
+    loopScenario.links[0]?.loop?.maxIterations === 7 &&
+    loopScenario.links[0]?.loop?.condition?.expectedValue === "passed" &&
+    loopScenario.links[1]?.condition?.expression === "true"
+);
+const loopRoundTrip = scenarioToWorkflowProfile(loopScenario);
+check(
+  "scenario conversion preserves loop metadata back into WorkflowEdge",
+  loopRoundTrip.edges[0]?.loop?.maxIterations === 7 && loopRoundTrip.edges[0]?.loop?.condition?.sourceField === "status"
+);
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const errorsFor = (candidate: unknown): string[] => {
@@ -90,4 +126,4 @@ check(
   parseWorkflowConflictName(formatWorkflowConflictMessage(conflictName, workflow.id)) === conflictName
 );
 
-console.log(`\n${passed}/12 workflow sentinel checks passed`);
+console.log(`\n${passed}/14 workflow sentinel checks passed`);

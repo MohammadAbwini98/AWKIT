@@ -136,7 +136,10 @@ export interface IncompleteBranchPair {
  */
 export function incompleteBranchPairs<E extends BranchPairEdge>(edges: E[], kindOf: (edge: E) => string): IncompleteBranchPair[] {
   const issues: IncompleteBranchPair[] = [];
+  // A loop node's sole Conditional sibling is its required exit, not half of an if/else pair.
+  const loopSources = new Set(edges.filter((edge) => edge.source === edge.target && kindOf(edge) === "loop").map((edge) => edge.source));
   outgoingBySource(edges).forEach((outgoing, source) => {
+    if (loopSources.has(source)) return;
     if (hasFallbackConnector(outgoing, kindOf)) return;
     BRANCH_KINDS.forEach((kind) => {
       const kindEdges = outgoing.filter((edge) => kindOf(edge) === kind);

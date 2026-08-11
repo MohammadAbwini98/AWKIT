@@ -75,6 +75,13 @@ function seedWorkflowFixture(localAppData) {
     execution: { mode: "sequential", maxConcurrentInstances: 1, stopOnRequiredFlowFailure: true }
   };
   writeFileSync(path.join(workflowsDir, `${workflow.id}.json`), `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
+  const loopAuthoringWorkflow = {
+    ...workflow,
+    id: "verify-workflow-loop-authoring",
+    name: "Verify — Loop Authoring",
+    description: "Untouched workflow with a Standard exit for loop-authoring verification."
+  };
+  writeFileSync(path.join(workflowsDir, `${loopAuthoringWorkflow.id}.json`), `${JSON.stringify(loopAuthoringWorkflow, null, 2)}\n`, "utf8");
 }
 
 function importFixture(name, flowIds) {
@@ -449,6 +456,7 @@ try {
   if (!NODE) {
     check("Add loop creates a self-loop connector", false, "no loopable scenario flow node found");
   } else {
+    const activeWorkflowId = await win.inputValue(WF_SELECT);
     const before = await win.evaluate(() => document.querySelectorAll("g.awkit-flow-edge").length);
     await toggleLoopViaMenu(win, NODE);
     await win.waitForTimeout(450);
@@ -457,6 +465,37 @@ try {
       return { count: document.querySelectorAll("g.awkit-flow-edge").length, hasSelfLoop: Boolean(self && self.querySelector("path.awkit-flow-edge-path")) };
     }, NODE);
     check("Add loop creates a self-loop connector", loop.count === before + 1 && loop.hasSelfLoop, `before=${before} after=${loop.count} selfLoop=${loop.hasSelfLoop}`);
+
+    const loopMode = win.locator('.scenario-properties-panel label:has-text("Loop mode") select');
+    const loopEditorVisible = await loopMode.isVisible().catch(() => false);
+    check("Adding a workflow loop selects it and opens the complete loop editor", loopEditorVisible, await win.locator(".scenario-properties-panel").textContent().catch(() => "panel missing"));
+    if (loopEditorVisible) {
+      await loopMode.selectOption("whileCondition");
+      await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').fill("5");
+      await win.waitForTimeout(150);
+      check("Workflow while-condition mode exposes structured condition authoring", await win.locator('.scenario-properties-panel label:has-text("Condition source") select').isVisible().catch(() => false));
+      await win.getByRole("button", { name: "Save", exact: true }).click();
+      await win.waitForTimeout(350);
+      const savedLoopAuthoring = await win.evaluate(async ({ sourceId, workflowId }) => {
+        const profile = await window.playwrightFlowStudio.workflows.get(workflowId);
+        const loopEdge = profile?.edges.find((edge) => edge.source === sourceId && edge.target === sourceId);
+        const exit = profile?.edges.find((edge) => edge.source === sourceId && edge.target !== sourceId);
+        return { loopEdge, exit };
+      }, { sourceId: NODE, workflowId: activeWorkflowId });
+      check(
+        "Workflow save persists loop mode, bound, and while condition",
+        savedLoopAuthoring.loopEdge?.type === "loop" &&
+          savedLoopAuthoring.loopEdge?.loop?.mode === "whileCondition" &&
+          savedLoopAuthoring.loopEdge?.loop?.maxIterations === 5 &&
+          savedLoopAuthoring.loopEdge?.loop?.condition?.sourceField === "status",
+        JSON.stringify(savedLoopAuthoring.loopEdge)
+      );
+      check(
+        "Adding the workflow loop promotes the existing Standard path to a persisted Conditional exit",
+        savedLoopAuthoring.exit?.type === "conditional" && savedLoopAuthoring.exit?.condition?.expression === "true",
+        JSON.stringify(savedLoopAuthoring.exit)
+      );
+    }
 
     const removeLabel = await loopItemLabel(win, NODE);
     check("Loop menu item toggled to a Remove control", removeLabel === "Remove loop", `label="${removeLabel}"`);

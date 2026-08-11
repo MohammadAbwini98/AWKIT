@@ -653,6 +653,11 @@ try {
   }
 
   // --- 6. Loop toggle via the node kebab menu creates/removes a self-loop connector ---
+  // Reload the pristine fixture first so this save/reload contract does not persist temporary
+  // nodes created by the palette/insert checks above.
+  await win.click(".searchable-select-trigger");
+  await win.locator(".searchable-select-menu >> text=Verify — Flow Designer").first().click();
+  await win.waitForTimeout(600);
   const NODE = await win.evaluate(() => {
     const node = [...document.querySelectorAll(".awkit-flow-node[data-id]")].find((n) => {
       const id = n.getAttribute("data-id") || "";
@@ -672,6 +677,37 @@ try {
     }, NODE);
     check("Add loop creates a self-loop connector", loop.count === before + 1 && loop.hasSelfLoop, `before=${before} after=${loop.count} selfLoop=${loop.hasSelfLoop}`);
 
+    const loopMode = win.locator('.connection-config-drawer label:has-text("Loop mode") select');
+    const loopEditorVisible = await loopMode.isVisible().catch(() => false);
+    check("Adding a loop selects it and opens the complete loop editor", loopEditorVisible, await win.locator(".connection-config-drawer").textContent().catch(() => "panel missing"));
+    if (loopEditorVisible) {
+      await loopMode.selectOption("whileCondition");
+      await win.locator('.connection-config-drawer label:has-text("Max iterations") input').fill("4");
+      await win.waitForTimeout(150);
+      check("While-condition mode exposes its structured condition fields", await win.locator('.connection-config-drawer label:has-text("Condition source") select').isVisible().catch(() => false));
+      await win.getByRole("button", { name: "Save", exact: true }).click();
+      await win.waitForTimeout(350);
+      const savedLoopAuthoring = await win.evaluate(async (sourceId) => {
+        const profile = await window.playwrightFlowStudio.flows.get("verify-flow-designer");
+        const loopEdge = profile?.edges.find((edge) => edge.source === sourceId && edge.target === sourceId);
+        const exit = profile?.edges.find((edge) => edge.source === sourceId && edge.target !== sourceId);
+        return { loopEdge, exit };
+      }, NODE);
+      check(
+        "Flow save persists loop mode, bound, and while condition",
+        savedLoopAuthoring.loopEdge?.kind === "loop" &&
+          savedLoopAuthoring.loopEdge?.loop?.mode === "whileCondition" &&
+          savedLoopAuthoring.loopEdge?.loop?.maxIterations === 4 &&
+          savedLoopAuthoring.loopEdge?.loop?.condition?.sourceField === "status",
+        JSON.stringify(savedLoopAuthoring.loopEdge)
+      );
+      check(
+        "Adding the loop promotes the existing Standard path to a persisted Conditional exit",
+        savedLoopAuthoring.exit?.kind === "conditional" && savedLoopAuthoring.exit?.conditional?.operator === "always",
+        JSON.stringify(savedLoopAuthoring.exit)
+      );
+    }
+
     const removeLabel = await loopItemLabel(win, NODE);
     check("Loop menu item toggled to a Remove control", removeLabel === "Remove loop", `label="${removeLabel}"`);
 
@@ -682,6 +718,8 @@ try {
       hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`))
     }), NODE);
     check("Removing the loop deletes the connector", !after.hasSelfLoop && after.count === before, `count=${after.count} (baseline ${before})`);
+    await win.getByRole("button", { name: "Save", exact: true }).click();
+    await win.waitForTimeout(350);
   }
 
 

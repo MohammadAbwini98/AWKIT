@@ -1,5 +1,20 @@
 # DECISIONS
 
+### 2026-08-11 - Workflow loops reuse the Flow connector contract and runtime policy
+
+- **Decision:** `WorkflowEdge`/`ScenarioLink` carry the existing `LoopConnectorConfig` and
+  `maxLoopCount`; no renderer-only or workflow-only loop model is introduced. A structured Loop is a
+  self-loop and all non-self siblings are explicit Conditional exits.
+- **Authoring:** adding a Loop promotes existing Standard exits instead of relaxing validation. Both
+  designers use the same loop editor/defaults/exit-promotion helpers, while invalid loaded documents
+  remain user-repairable and are never rewritten merely by opening them.
+- **Execution:** Flow and workflow loops share value materialization, the canonical 1,000-iteration
+  cap, runtime-input injection, and previous-iteration while evaluation. Legacy Loop Back remains a
+  separate cross-node connector bounded by `maxLoopCount`.
+- **Reason:** the persisted model and run gate already define valid loop semantics; completing that
+  contract end-to-end avoids a second policy in the renderer and prevents designer-created invalid
+  graphs without hiding errors.
+
 ### 2026-08-08 - Unknown prerequisites require a separate, binding-scoped execution decision
 
 - **Decision:** Locator identity and interaction actionability are independent invariants. A proven

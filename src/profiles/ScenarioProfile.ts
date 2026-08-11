@@ -1,3 +1,5 @@
+import type { LoopConnectorConfig } from "./FlowProfile";
+
 export interface ScenarioFlowReference {
   order: number;
   flowId: string;
@@ -15,6 +17,10 @@ export interface ScenarioLink {
   condition?: {
     expression: string;
   };
+  /** Structured self-loop configuration shared with Flow connectors. */
+  loop?: LoopConnectorConfig;
+  /** Legacy cross-node loop-back traversal bound. */
+  maxLoopCount?: number;
 }
 
 export interface ScenarioProfile {

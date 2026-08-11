@@ -1,5 +1,31 @@
 # CURRENT_STATE
 
+## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
+
+Flow Designer and Workflow Builder now open a complete shared Loop editor when a self-loop is
+created. Authors can set the fixed self target, count/static-list/data-source/while-condition mode,
+maximum iterations, runtime-input parameter, delay, data-source binding, and the structured condition
+used by while-condition loops. Adding a Loop to a node that already has a Standard exit converts that
+exit to an explicit always-taken Conditional exit; append/drag/logic entry points preserve the same
+rule, while invalid loaded Standard exits remain editable instead of being selector-locked. Removing
+the Loop restores a lone exit to Standard through the existing branch reconciliation policy. Legacy
+cross-node Loop Back remains separate and now exposes its expression, target, and `maxLoopCount`.
+
+`WorkflowEdge` and `ScenarioLink` now persist `LoopConnectorConfig` and `maxLoopCount` through both
+conversion directions. `PlaywrightRunner` executes workflow self-loops with the same canonical
+count/list/data-source/while-condition value materialization and 1,000-iteration cap used by
+`FlowExecutor`; it evaluates while conditions against the previous iteration, injects loop values into
+runtime inputs, takes the Conditional exit after completion, and bounds legacy Loop Back traversals.
+Missing while conditions and invalid workflow loop bounds are execution-blocking validation errors;
+validation was not weakened.
+
+Focused evidence: build PASS; Flow Designer Electron GUI **93/93**; Workflow Builder Electron GUI
+**41/41**; runner **99/99**; validation **134/134**; branch-pair/loop authoring **36/36**; workflow
+sentinel/conversion **14/14**. The existing mock-site routes are sufficient: designer authoring is
+covered in isolated real-Electron profiles and runtime routing uses the existing local login/form lab,
+so no duplicate mock-site scenario was added. Tracker **188 total / 184 closed / 4 owner-gated
+outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Professional core-surface visual redesign - awkit-7le COMPLETE (2026-08-09)
 
 Workflow Builder and Flow Designer now use a denser, purpose-built command rail: identity stays

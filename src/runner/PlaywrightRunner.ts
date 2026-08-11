@@ -1,7 +1,8 @@
 import { ScenarioOrchestrator } from "@src/orchestrator/ScenarioOrchestrator";
-import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
+import type { FlowProfile, FlowStep, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import type { ScenarioLink, ScenarioProfile } from "@src/profiles/ScenarioProfile";
 import { evaluateBoolean } from "./ExpressionEvaluator";
+import { evaluateConnectorCondition, type NodeOutcomeView } from "./ConnectorConditionEvaluator";
 import type { InstanceConfig } from "@src/instances/InstanceConfig";
 import { BrowserContextFactory, type BrowserContextFactoryOptions, type BrowserRuntime } from "./BrowserContextFactory";
 import { FlowExecutor } from "./FlowExecutor";
@@ -22,6 +23,8 @@ import { ValueResolver } from "./ValueResolver";
 import { PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import type { SessionCaptureService } from "@src/session/SessionCaptureService";
 import type { Browser, BrowserContext, Page } from "playwright";
+import { loopIterationLimit, resolveLoopConnectorValues } from "./LoopConnectorRuntime";
+import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 
 /** Live automation-browser state that a mid-run restart (Auto Secure Login) can swap. */
 interface BrowserHolder {
@@ -60,6 +63,9 @@ interface RuntimeCandidate {
 
 /** Guards Run Another Flow against runaway/recursive nesting. */
 const MAX_NESTED_FLOW_DEPTH = 5;
+
+/** Compatibility defaults for structured workflow loops saved before explicit config existed. */
+const LEGACY_WORKFLOW_LOOP_DEFAULT: LoopConnectorConfig = { mode: "count", maxIterations: 3, parameterName: "" };
 
 export interface PlaywrightRunnerOptions extends BrowserContextFactoryOptions {
   flows: FlowProfile[];
@@ -295,7 +301,11 @@ export class PlaywrightRunner {
       // outgoing link ends that path). With no links at all we run flows in order.
       const hasLinks = profile.links.length > 0;
       const accumulatedOutputs: Record<string, unknown> = { ...context.flowOutputs };
-      const maxSteps = Math.max(order.length * 4, 8);
+      const loopBackBudget = profile.links
+        .filter((link) => link.type === "loopBack")
+        .reduce((total, link) => total + Math.min(link.maxLoopCount ?? 2, FLOW_VALIDATION_LIMITS.maxLoopIterations), 0);
+      const maxSteps = Math.max(order.length * (1 + loopBackBudget), 8);
+      const loopBackCounts = new Map<string, number>();
       let currentFlowId: string | undefined = order[0];
       let stepCount = 0;
 
@@ -317,15 +327,66 @@ export class PlaywrightRunner {
           flowOutputs: { ...accumulatedOutputs }
         };
 
-        const result = await this.runFlowWithChildren(flow, flowContext, holder, restartBrowser, logger, [flow.id]);
-        flowResults.push(result);
-        Object.assign(accumulatedOutputs, result.outputs);
+        const links = linksBySource.get(currentFlowId) ?? [];
+        const structuredLoop = links.find(
+          (link) => link.type === "loop" && link.sourceFlowId === currentFlowId && link.targetFlowId === currentFlowId
+        );
+        const noOpAt = new Date().toISOString();
+        let result: FlowExecutionResult = {
+          flowId: flow.id,
+          status: "passed",
+          startedAt: noOpAt,
+          endedAt: noOpAt,
+          durationMs: 0,
+          steps: [],
+          outputs: {}
+        };
+
+        // A workflow-level structured Loop repeats the source Flow reference with the same
+        // count/list/data-source/while policy used by FlowExecutor's step-level connector.
+        if (structuredLoop) {
+          const config = structuredLoop.loop ?? LEGACY_WORKFLOW_LOOP_DEFAULT;
+          const maxIterations = loopIterationLimit(config);
+          const values = await resolveLoopConnectorValues(config, context, maxIterations);
+          const parameterName = config.parameterName?.trim();
+          const previousParameter = parameterName ? context.runtimeInputs[parameterName] : undefined;
+          let previousIteration: FlowExecutionResult | undefined;
+          let iteration = 0;
+
+          try {
+            for (const value of values) {
+              if (config.mode === "whileCondition" && config.condition && previousIteration) {
+                if (!evaluateConnectorCondition(config.condition, this.flowOutcomeView(previousIteration), this.scenarioScope(accumulatedOutputs, context))) break;
+              }
+              if (this.options.cancellation?.cancelled) throw new CancelledError(this.options.cancellation.reason);
+              if (parameterName) context.runtimeInputs[parameterName] = value;
+              flowContext.flowOutputs = { ...accumulatedOutputs };
+              result = await this.runFlowWithChildren(flow, flowContext, holder, restartBrowser, logger, [flow.id]);
+              flowResults.push(result);
+              Object.assign(accumulatedOutputs, result.outputs);
+              previousIteration = result;
+              iteration += 1;
+              logger.log({
+                level: "info",
+                message: `Workflow loop ${structuredLoop.id} iteration ${iteration}/${maxIterations} → ${flow.id} (${result.status}).`,
+                ...this.logMeta(context)
+              });
+              if (result.status !== "passed") break;
+              if (config.delayMs && config.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, config.delayMs));
+            }
+          } finally {
+            if (parameterName) context.runtimeInputs[parameterName] = previousParameter;
+          }
+        } else {
+          result = await this.runFlowWithChildren(flow, flowContext, holder, restartBrowser, logger, [flow.id]);
+          flowResults.push(result);
+          Object.assign(accumulatedOutputs, result.outputs);
+        }
 
         if (result.status === "manualHandoff") {
           return this.finish(profile.id, context, startedAt, flowResults, logger, "manualHandoff", result.error, result.manualHandoff);
         }
 
-        const links = linksBySource.get(currentFlowId) ?? [];
         const orderFallback = hasLinks ? undefined : this.nextInOrder(order, currentFlowId);
 
         if (result.status === "failed") {
@@ -342,7 +403,11 @@ export class PlaywrightRunner {
           continue;
         }
 
-        currentFlowId = this.chooseNextFlow(links, accumulatedOutputs, context) ?? orderFallback;
+        currentFlowId = this.chooseNextFlow(links, accumulatedOutputs, context, loopBackCounts) ?? orderFallback;
+      }
+
+      if (currentFlowId) {
+        throw new Error(`Workflow routing exceeded its bounded connector budget (${maxSteps} flow dispatches).`);
       }
 
       closeReason = "execution-completed-cleanup";
@@ -361,14 +426,10 @@ export class PlaywrightRunner {
   private chooseNextFlow(
     links: ScenarioLink[],
     outputs: Record<string, unknown>,
-    context: InstanceExecutionContext
+    context: InstanceExecutionContext,
+    loopBackCounts: Map<string, number>
   ): string | undefined {
-    const getValue = (path: string): unknown => {
-      if (path.startsWith("outputs.")) return outputs[path.slice("outputs.".length)];
-      if (path.startsWith("runtimeInputs.")) return context.runtimeInputs[path.slice("runtimeInputs.".length)];
-      if (path.startsWith("instanceInputs.")) return context.instanceInputs[path.slice("instanceInputs.".length)];
-      return outputs[path];
-    };
+    const getValue = this.scenarioScope(outputs, context);
 
     // Outcome links first (most specific), then conditional.
     for (const link of links.filter((l) => l.type === "outcome")) {
@@ -377,10 +438,47 @@ export class PlaywrightRunner {
     for (const link of links.filter((l) => l.type === "conditional")) {
       if (evaluateBoolean(link.condition?.expression ?? "", getValue)) return link.targetFlowId;
     }
-    const successOrLoop = links.find((l) => l.type === "success" || l.type === "loop" || l.type === "manualApproval");
-    if (successOrLoop) return successOrLoop.targetFlowId;
+
+    const loopBack = links.find((link) => link.type === "loopBack");
+    const loopBackAvailable = Boolean(
+      loopBack && (loopBackCounts.get(loopBack.id) ?? 0) < (loopBack.maxLoopCount ?? 2)
+    );
+    const takeLoopBack = (): string | undefined => {
+      if (!loopBack || !loopBackAvailable) return undefined;
+      loopBackCounts.set(loopBack.id, (loopBackCounts.get(loopBack.id) ?? 0) + 1);
+      return loopBack.targetFlowId;
+    };
+
+    if (loopBack?.condition?.expression && loopBackAvailable && evaluateBoolean(loopBack.condition.expression, getValue)) {
+      return takeLoopBack();
+    }
+
+    // Structured self-loops were already executed above and are intentionally excluded here.
+    const success = links.find((link) => link.type === "success" || link.type === "manualApproval");
+    if (success) return success.targetFlowId;
     const always = links.find((l) => l.type === "always");
-    return always?.targetFlowId;
+    if (always) return always.targetFlowId;
+    if (loopBack && !loopBack.condition?.expression) return takeLoopBack();
+    return undefined;
+  }
+
+  private scenarioScope(outputs: Record<string, unknown>, context: InstanceExecutionContext): (path: string) => unknown {
+    return (path: string): unknown => {
+      if (path.startsWith("outputs.")) return outputs[path.slice("outputs.".length)];
+      if (path.startsWith("runtimeInputs.")) return context.runtimeInputs[path.slice("runtimeInputs.".length)];
+      if (path.startsWith("instanceInputs.")) return context.instanceInputs[path.slice("instanceInputs.".length)];
+      return outputs[path];
+    };
+  }
+
+  private flowOutcomeView(result: FlowExecutionResult): NodeOutcomeView {
+    const lastStep = result.steps[result.steps.length - 1];
+    return {
+      status: result.status,
+      outcome: lastStep?.outcome,
+      outputs: result.outputs,
+      errorCode: lastStep?.errorCode
+    };
   }
 
   /** Common structured-log fields for browser-swap diagnostics. */

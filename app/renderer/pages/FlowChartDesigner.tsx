@@ -18,6 +18,11 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { ActionFlowNode } from "../components/workflow/ActionFlowNode";
 import { ConnectionPropertiesPanel, type FlowConnectionData } from "../components/workflow/ConnectionPropertiesPanel";
 import { buildConnectorVisual } from "../components/shared/connectorStyle";
+import {
+  defaultLoopConnectorConfig,
+  defaultLoopExitCondition,
+  promoteFlowLoopExits
+} from "../components/shared/loopConnectorAuthoring";
 import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
 import { useFlowGlide, GLIDE_MAX_NODES } from "../lib/motion";
 import { SearchableSelect } from "../components/shared/SearchableSelect";
@@ -51,7 +56,7 @@ import { CanvasItemPicker, type CanvasPickerItem } from "../components/shared/Ca
 import { usePageChrome } from "../state/pageChrome";
 import { usePermissions } from "../security/usePermissions";
 import { Permission } from "@src/security/authz/Permissions";
-import type { ConnectorKind, EdgeVisualStyle, FlowEdge, FlowEdgeType, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
+import type { EdgeVisualStyle, FlowProfile, FlowStep, StepType } from "@src/profiles/FlowProfile";
 import { connectorKind } from "@src/profiles/FlowProfile";
 import {
   executionBlockingErrorsOf,
@@ -391,8 +396,16 @@ function FlowChartDesignerContent() {
   }, []);
   const confirmConnect = useCallback(() => {
     if (!connectPrompt) return;
-    const linkType: FlowEdgeType = connectPrompt.source === "start" ? "always" : "success";
-    setEdges((current) => reconcileFlowBranches([...current, createEdge(connectPrompt.source, connectPrompt.target, linkType)]));
+    setEdges((current) => {
+      const sourceHasLoop = current.some((edge) => edge.source === connectPrompt.source && edge.target === connectPrompt.source && flowEdgeKind(edge) === "loop");
+      const nextEdge = sourceHasLoop
+        ? createEdge(connectPrompt.source, connectPrompt.target, "conditional", "Exit loop", undefined, undefined, undefined, {
+            kind: "conditional",
+            conditional: defaultLoopExitCondition()
+          })
+        : createEdge(connectPrompt.source, connectPrompt.target, connectPrompt.source === "start" ? "always" : "success");
+      return reconcileFlowBranches([...current, nextEdge]);
+    });
     setSaveState("Unsaved changes");
     setToast({ tone: "success", message: `Connected "${connectPrompt.sourceName}" → "${connectPrompt.targetName}".` });
     setConnectPrompt(null);
@@ -415,22 +428,36 @@ function FlowChartDesignerContent() {
   // in-node loop button that mutated edges via useReactFlow.
   const toggleNodeLoop = useCallback(
     (nodeId: string) => {
-      setEdges((currentEdges) => {
-        const hasLoop = currentEdges.some((edge) => edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop"));
-        if (hasLoop) {
-          return currentEdges.filter((edge) => !(edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop")));
-        }
-        return [
-          ...currentEdges,
-          createEdge(nodeId, nodeId, "loop", "Loop", undefined, { shape: "circular" }, undefined, {
-            kind: "loop",
-            loop: { mode: "count", maxIterations: 3, parameterName: "" }
-          })
-        ];
-      });
+      const existing = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop"));
+      if (existing) {
+        setEdges((currentEdges) =>
+          reconcileFlowBranches(
+            currentEdges.filter((edge) => edge.id !== existing.id),
+            new Set([nodeId])
+          )
+        );
+        setSelectedEdgeId(null);
+        setToast({ tone: "info", message: "Loop removed. Its lone Conditional exit was restored to a standard connector." });
+      } else {
+        const loopEdge = createEdge(nodeId, nodeId, "loop", "Loop", undefined, { shape: "circular" }, undefined, {
+          kind: "loop",
+          loop: defaultLoopConnectorConfig()
+        });
+        const promoted = promoteFlowLoopExits(edges, nodeId);
+        setEdges([...promoted.edges, loopEdge]);
+        setSelectedNodeId(null);
+        setSelectedEdgeId(loopEdge.id);
+        setPropertiesCollapsed(false);
+        setToast({
+          tone: "success",
+          message: promoted.converted
+            ? `Loop added. ${promoted.converted} existing exit connector${promoted.converted === 1 ? " was" : "s were"} converted to Conditional.`
+            : "Loop added. Configure its mode, condition, and iteration limit in the connection panel."
+        });
+      }
       setSaveState("Unsaved changes");
     },
-    [setEdges]
+    [edges, setEdges]
   );
 
   const updateEdgeData = useCallback(
@@ -825,7 +852,16 @@ function FlowChartDesignerContent() {
       data: { ...defaultNodeData(stepType, catalogItem.label, catalogItem.description), ...defaultNodeSize.current }
     });
     setNodes((current) => [...current, node]);
-    setEdges((current) => [...current, createEdge(sourceId, id, source.data.stepType === "start" ? "always" : "success")]);
+    setEdges((current) => {
+      const sourceHasLoop = current.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop");
+      const nextEdge = sourceHasLoop
+        ? createEdge(sourceId, id, "conditional", "Exit loop", undefined, undefined, undefined, {
+            kind: "conditional",
+            conditional: defaultLoopExitCondition()
+          })
+        : createEdge(sourceId, id, source.data.stepType === "start" ? "always" : "success");
+      return [...current, nextEdge];
+    });
     setSelectedNodeId(id);
     setSelectedEdgeId(null);
     setSaveState("Unsaved changes");
@@ -880,7 +916,7 @@ function FlowChartDesignerContent() {
         conditional: { sourceField: "outcome", operator: "equals", expectedValue: "", priority }
       });
       const parallel = (): Partial<FlowConnectionData> => ({ kind: "parallel", parallel: { joinMode: "waitAll", failMode: "failFast" } });
-      const loop = (): Partial<FlowConnectionData> => ({ kind: "loop", loop: { mode: "count", maxIterations: 3, parameterName: "" } });
+      const loop = (): Partial<FlowConnectionData> => ({ kind: "loop", loop: defaultLoopConnectorConfig() });
 
       // Resolve an anchor position + optional (source, target) the operation splices around.
       const sourceId = state.mode === "append" ? state.sourceId : state.mode === "edge" ? edges.find((e) => e.id === state.edgeId)?.source : undefined;
@@ -888,18 +924,31 @@ function FlowChartDesignerContent() {
       const sourceNode = sourceId ? nodes.find((n) => n.id === sourceId) : undefined;
       const anchor = sourceNode ? { x: sourceNode.position.x, y: sourceNode.position.y + ROW } : state.mode === "blank" ? state.position : { x: 360, y: 200 };
       const startEdgeType = sourceNode?.data.stepType === "start" ? "always" : "success";
+      const sourceHasLoop = Boolean(sourceId && edges.some((edge) => edge.source === sourceId && edge.target === sourceId && flowEdgeKind(edge) === "loop"));
+      const sourceEdge = (target: string): FlowDesignerEdge => sourceHasLoop
+        ? createEdge(sourceId!, target, "conditional", "Exit loop", undefined, undefined, undefined, {
+            kind: "conditional",
+            conditional: defaultLoopExitCondition()
+          })
+        : createEdge(sourceId!, target, startEdgeType);
+
+      if (logic === "parallel" && sourceHasLoop) {
+        setToast({ tone: "error", message: "A loop-controlled node can only have Conditional exits. Remove the loop before adding a Parallel branch." });
+        return;
+      }
 
       let addNodes: FlowDesignerNode[] = [];
       let addEdges: FlowDesignerEdge[] = [];
       let removeEdgeId: string | undefined;
       let selectId: string | undefined;
+      let selectEdgeId: string | undefined;
 
       if (logic === "condition") {
         const cond = make("condition", anchor);
         const yes = make("click", { x: anchor.x - DX, y: anchor.y + ROW });
         addNodes = [cond, yes];
         addEdges = [createEdge(cond.id, yes.id, "conditional", "If true", undefined, undefined, undefined, conditional(0))];
-        if (sourceId) addEdges.push(createEdge(sourceId, cond.id, startEdgeType));
+        if (sourceId) addEdges.push(sourceEdge(cond.id));
         if (state.mode === "edge" && targetId) {
           removeEdgeId = state.edgeId;
           addEdges.push(createEdge(cond.id, targetId, "conditional", "If false", undefined, undefined, undefined, conditional(1)));
@@ -925,19 +974,27 @@ function FlowChartDesignerContent() {
       } else {
         // loop: a step that carries a self-loop connector.
         const node = make("click", anchor);
+        const loopEdge = createEdge(node.id, node.id, "loop", "Loop", undefined, { shape: "circular" }, undefined, loop());
         addNodes = [node];
-        addEdges = [createEdge(node.id, node.id, "loop", "Loop", undefined, { shape: "circular" }, undefined, loop())];
-        if (sourceId) addEdges.push(createEdge(sourceId, node.id, startEdgeType));
+        addEdges = [loopEdge];
+        if (sourceId) addEdges.push(sourceEdge(node.id));
         if (state.mode === "edge" && targetId) {
           removeEdgeId = state.edgeId;
-          addEdges.push(createEdge(node.id, targetId, "success"));
+          addEdges.push(createEdge(node.id, targetId, "conditional", "Exit loop", undefined, undefined, undefined, {
+            kind: "conditional",
+            conditional: defaultLoopExitCondition()
+          }));
         }
-        selectId = node.id;
+        selectEdgeId = loopEdge.id;
       }
 
       setNodes((current) => [...current, ...addNodes]);
       setEdges((current) => reconcileFlowBranches([...current.filter((e) => e.id !== removeEdgeId), ...addEdges]));
-      if (selectId) {
+      if (selectEdgeId) {
+        setSelectedNodeId(null);
+        setSelectedEdgeId(selectEdgeId);
+        setPropertiesCollapsed(false);
+      } else if (selectId) {
         setSelectedNodeId(selectId);
         setSelectedEdgeId(null);
       }

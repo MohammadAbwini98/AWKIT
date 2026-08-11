@@ -6,6 +6,14 @@
 
 ## Confirmed
 
+Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
+`verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete
+while-condition editing, Standard→Conditional exit promotion, save, and persisted profile reads.
+`verify:runner` **99/99** includes workflow count/while execution and bounded Loop Back;
+`verify:validation` **134/134** requires while conditions; `verify:branch-pairs` **36/36** exercises the
+shared promotion policy; `verify:workflow-sentinels` **14/14** proves loop metadata conversion parity.
+No new mock page was needed: authoring is editor-local and runtime uses existing local login/form routes.
+
 Workflow.rar contextual-editor coverage extends the real-Electron designer verifiers with checks for
 absent permanent rails, `Start -> End` workflow scaffolding, blank/edge/leaf picker entry points, actual
 insertion, and selection drawers. `npm run verify:workflow-sentinels` adds 4 checks proving sentinels
@@ -19,7 +27,7 @@ remain structural and legacy workflows remain compatible.
 - `tests/runner.mocksite.spec.ts` — Playwright test exercising the runner against the mock site.
 - `scripts/verify-runner.mts` — standalone live verification (run via `npm run verify:runner`)
   that drives `StepExecutor` / `FlowExecutor` / `PlaywrightRunner` against `mock-site/` with a real
-  Chromium. As of the last run: **82 checks pass** (node types, loop, runFlow + recursion guard,
+  Chromium. As of the last run: **99 checks pass** (node types, flow/workflow loops, runFlow + recursion guard,
   Protected Login Handoff pause/resume, manual handoff in-place resume, workflow runtime connector-structure validation,
   **Route Change** [opens a new tab, switches the active page, fills/clicks/asserts on it], **Reuse Session
   browser lifecycle** [two-phase swap, stale old-generation lifecycle ignored, locked profile fail-before-
@@ -96,8 +104,8 @@ remain structural and legacy workflows remain compatible.
   (phase, sanitized URL, reason, suggestion), including stale recorder-generated navigation response waits
   being skipped only after a successful `goto`. As of the last run: **21 checks pass**.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
-  for Flow Designer connector behavior and saved-flow dropdown behavior. As of the last run: **19 checks
-  pass**.
+  for Flow Designer connector behavior, complete Loop authoring/persistence, and saved-flow dropdown
+  behavior. As of the last run: **93 checks pass**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):

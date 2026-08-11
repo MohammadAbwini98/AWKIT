@@ -29,6 +29,10 @@ import {
   scenarioEdgeToNormal,
   type ScenarioDesignerEdge
 } from "../app/renderer/components/shared/branchPairs";
+import {
+  promoteFlowLoopExits,
+  promoteScenarioLoopExits
+} from "../app/renderer/components/shared/loopConnectorAuthoring";
 import type { FlowDesignerEdge } from "../app/renderer/components/workflow/flowStepMapping";
 import type { FlowEdgeType } from "../src/profiles/FlowProfile";
 
@@ -235,10 +239,31 @@ console.log("Branch-pair reconciliation (FR-2.6)\n");
 // Self-loops are not branch pairs and must never be reported or reverted.
 {
   const loopy = [flowEdge("loop", "n", "n", "loop", { kind: "loop" }), flowEdge("out", "n", "a", "conditional", { kind: "conditional" })];
-  // The conditional is lone with no standard fallback (the loop is self-referential) → still reported.
-  check("Flow: a self-loop does not count as a branch fallback", incompleteBranchPairs(loopy, flowKindOf).some((i) => i.kind === "conditional"));
+  check("Flow: a self-loop's single Conditional exit is not misreported as half a branch pair", incompleteBranchPairs(loopy, flowKindOf).length === 0);
   const reverted = revertFlow(loopy, new Set(["n"]));
   check("Flow: a self-loop is never reverted to normal", flowKindOf(byId(reverted, "loop")) === "loop");
+}
+
+{
+  const loopy = [scenarioEdge("loop", "n", "n", "loop"), scenarioEdge("out", "n", "a", "conditional")];
+  check("Workflow: a self-loop's single Conditional exit is valid", incompleteBranchPairs(loopy, scenarioKindOf).length === 0);
+}
+
+// Adding a loop repairs an existing Standard exit instead of creating a graph validation rejects.
+{
+  const standard = [flowEdge("out", "n", "a", "success")];
+  const promoted = promoteFlowLoopExits(standard, "n");
+  const exit = byId(promoted.edges, "out");
+  check("Flow: loop authoring promotes an existing Standard exit", promoted.converted === 1 && flowKindOf(exit) === "conditional");
+  check("Flow: promoted loop exit is an explicit always Conditional", exit.data?.conditional?.operator === "always" && exit.data?.label === "Exit loop");
+}
+
+{
+  const standard = [scenarioEdge("out", "n", "a", "success")];
+  const promoted = promoteScenarioLoopExits(standard, "n");
+  const exit = byId(promoted.edges, "out");
+  check("Workflow: loop authoring promotes an existing Standard exit", promoted.converted === 1 && scenarioKindOf(exit) === "conditional");
+  check("Workflow: promoted loop exit persists an always-true expression", exit.data?.expression === "true" && exit.data?.label === "Exit loop");
 }
 
 // ---------------------------------------------------------------------------

@@ -718,32 +718,27 @@ Evidence-based. Update when a task reveals a repeated bug, fragile area, or risk
   (b) loop connectors repeat a **single node** (themselves — see below), not an arbitrary multi-node branch.
   (The loop `dataSource` dropdown and live-report connector events are implemented.) Legacy expression-based
   edges remain fully supported.
-- **Loop connectors are self-loops; connector-structure rules block Save (AWKIT points 1–5).** A `loop`-kind
+- **RESOLVED (2026-08-11): Loop connectors are fully authorable self-loops; connector-structure rules
+  block Run, not draft Save (AWKIT points 1–5).** A `loop`-kind
   connector's source and target must now be the **same node** (`validateConnectorStructure` in
   `src/profiles/FlowProfile.ts`, enforced by `FlowExecutor.executeFlow` at the top of every run, and by
   `connectorStructureIssues`/`scenarioConnectorStructureIssues` in the Flow Designer/Workflow Builder, which
-  block Save). The legacy `loopBack` edge type (Enhanced Connectors, Phase 1) is **exempt** — it remains an
+  surface draft advisories). The legacy `loopBack` edge type (Enhanced Connectors, Phase 1) is **exempt** — it remains an
   intentional cross-node back-edge; only the new structured `loop` kind is self-only. `FlowExecutor`'s main
   loop now detects a self-loop edge on the current node *before* its normal single execution and runs the
   whole loop in place via `executeLoopConnector`, then continues via the node's own (Conditional) exit edge.
   Two more structural rules are enforced the same way: a node may have **at most one standard
   (non-conditional/non-parallel) outgoing connector**, and a node with a self-loop **forces every other
-  outgoing connector to be Conditional** (both the Flow Designer and Workflow Builder kind/link-type
-  selectors disable the other options and explain why; both also block Save with a specific message).
-  **Dynamic ports (Point 1):** `ActionFlowNode`/`ScenarioFlowNode` always show one `normal` handle per side;
-  a `conditional`/`parallel` handle additionally renders on a node once an edge of that kind actually
-  touches it (`computePortFlags` in `app/renderer/components/shared/connectorStyle.ts`, rendered by the
-  shared `ConnectorPorts.tsx`). Ports are **derived at render time** from each edge's kind, not persisted —
-  `portHandlesForKind` recomputes `sourceHandle`/`targetHandle` on edge create/kind-change/load, so no
-  `FlowEdge`/`WorkflowEdge` schema change was needed. **Runtime guard parity:** the Workflow Builder's
-  connector-structure rules now also run through `FlowDependencyResolver`/`ScenarioOrchestrator` before
-  execution, so bypassed invalid workflow graphs fail validation at runtime. **Circular shape (Point 5):** `EdgeVisualStyle.shape`
-  gained `"circular"`; a shared `SelfLoopEdge.tsx` (registered as React Flow edge type `circular` in both
-  canvases) renders self-loops as an arc bulging outside the node. Loop connectors default to `circular`
-  shape automatically when created. **Workflow Builder scope note:** `ScenarioLink`/`WorkflowEdge` have no
-  separate `kind` field — `scenarioEdgeKind()` derives kind from the legacy `type` string the same way
-  `connectorKind()` does for `FlowEdge`; workflow execution remains dependency/routing based rather than a
-  full `FlowExecutor` equivalent, but the connector-structure safety checks now run before execution.
+  outgoing connector to be Conditional**. Both designers now select/open a complete Loop editor on create,
+  persist the mode/bound/parameter/delay/data binding/while condition, and promote an existing Standard exit
+  to an always-taken Conditional exit. An invalid loaded Standard exit remains editable for manual repair.
+  **Canvas/runtime parity:** the in-house canvas derives connector visuals without persisting a second
+  routing model; `EdgeVisualStyle.shape: "circular"` selects its shared `LoopEdge` arc. Workflow structure
+  rules also run through `FlowDependencyResolver`/`ScenarioOrchestrator`, so an invalid saved draft fails
+  validation before execution. **Workflow Builder scope:** `ScenarioLink`/`WorkflowEdge` still derive
+  kind from `type`, but now persist `LoopConnectorConfig` and `maxLoopCount`. `PlaywrightRunner` executes
+  workflow loops with the shared count/list/data-source/while value materialization, condition evaluation,
+  runtime-input injection, and canonical bound before taking a Conditional exit.
 - **Parallel `sharedPage` mode is sequential fan-out (by design).** `FlowExecutor.executeParallelTargets`
   runs each branch one-after-another on the current page — this is the shared-page safety guard (no concurrent
   UI mutation). Concurrency is available via `isolatedPage` mode (`executeParallelIsolated`): each branch runs

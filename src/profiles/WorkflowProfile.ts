@@ -1,5 +1,5 @@
 import type { ScenarioLink, ScenarioProfile } from "./ScenarioProfile";
-import type { EdgeVisualStyle, ValueSource } from "./FlowProfile";
+import type { EdgeVisualStyle, LoopConnectorConfig, ValueSource } from "./FlowProfile";
 import type { WorkflowSecuritySettings } from "@src/security/browser/CertificateTrust";
 
 export interface WorkflowNodeInputBinding {
@@ -57,6 +57,10 @@ export interface WorkflowEdge {
   condition?: {
     expression: string;
   };
+  /** Structured self-loop configuration. Persisted without renderer-only state. */
+  loop?: LoopConnectorConfig;
+  /** Legacy cross-node loop-back traversal bound. */
+  maxLoopCount?: number;
   style?: EdgeVisualStyle;
 }
 
@@ -158,7 +162,9 @@ export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioPr
       targetFlowId: target.flowId,
       type: edge.type,
       label: edge.label,
-      condition: edge.condition
+      condition: edge.condition,
+      loop: edge.loop,
+      maxLoopCount: edge.maxLoopCount
       }];
     }),
     failurePolicy: {
@@ -196,7 +202,9 @@ export function scenarioToWorkflowProfile(scenario: ScenarioProfile): WorkflowPr
       target: `node-${link.targetFlowId}`,
       type: link.type,
       label: link.label,
-      condition: link.condition
+      condition: link.condition,
+      loop: link.loop,
+      maxLoopCount: link.maxLoopCount
     })),
     runtimeInputs: [],
     execution: {

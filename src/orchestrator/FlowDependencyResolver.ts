@@ -1,4 +1,5 @@
 import type { ScenarioProfile } from "@src/profiles/ScenarioProfile";
+import { FLOW_VALIDATION_LIMITS } from "@src/validation/FlowLimits";
 
 export interface ScenarioValidationIssue {
   id: string;
@@ -61,6 +62,32 @@ export class FlowDependencyResolver {
           id: `${link.id}-condition`,
           severity: "error",
           message: `Conditional link ${link.id} requires an expression.`
+        });
+      }
+
+      const loopBound = link.type === "loop" ? link.loop?.maxIterations : link.type === "loopBack" ? link.maxLoopCount : undefined;
+      if (
+        loopBound !== undefined &&
+        (!Number.isInteger(loopBound) || loopBound < 1 || loopBound > FLOW_VALIDATION_LIMITS.maxLoopIterations)
+      ) {
+        issues.push({
+          id: `${link.id}-loop-bound`,
+          severity: "error",
+          message: `Loop link ${link.id} must have an iteration limit between 1 and ${FLOW_VALIDATION_LIMITS.maxLoopIterations}.`
+        });
+      } else if (loopBound !== undefined && loopBound > FLOW_VALIDATION_LIMITS.warnLoopIterations) {
+        issues.push({
+          id: `${link.id}-loop-bound-warning`,
+          severity: "warning",
+          message: `Loop link ${link.id} allows ${loopBound} iterations, which can make an unattended run very long.`
+        });
+      }
+
+      if (link.type === "loop" && link.loop?.mode === "whileCondition" && !link.loop.condition) {
+        issues.push({
+          id: `${link.id}-loop-condition`,
+          severity: "error",
+          message: `Loop link ${link.id} uses while-condition mode and requires a loop condition.`
         });
       }
     });
@@ -144,7 +171,7 @@ export class FlowDependencyResolver {
     const cycles: string[][] = [];
 
     profile.flows.forEach((flow) => graph.set(flow.flowId, []));
-    profile.links.filter((link) => link.type !== "loop").forEach((link) => {
+    profile.links.filter((link) => link.type !== "loop" && link.type !== "loopBack").forEach((link) => {
       graph.get(link.sourceFlowId)?.push(link.targetFlowId);
     });
 
