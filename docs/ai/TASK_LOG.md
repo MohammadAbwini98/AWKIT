@@ -4,7 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-08-12 - Codex - Replace the Loop arc with a central circular control
+## 2026-08-12 - Codex - Match the Loop connector to the detached owner sketch
+
+- **Task:** Correct the prior central Loop result, which still appeared as a small badge attached to its
+  node, and make the sketched pill-and-ring mechanism a separate, dominant workflow component.
+- **Root cause:** the prior geometry used a 160x20 pill and 80-unit outer circle whose near end touched the
+  node. Its GUI assertions proved the parts and animation existed, but did not assert separation,
+  card-relative scale, an explicit bridge/arrow, or complete viewport visibility.
+- **Implementation:** expanded the shared mechanism to a 280x40 pill, 160-unit outer circle, 120-unit main
+  ring, and 176-unit hit target; inserted a 60-unit straight bridge with an arrow into the node; retained
+  collision-aware left/right placement; and reframed after Loop add/remove once the new edge state commits.
+  One bright segment rotates on the stable rings; reduced motion keeps a static highlighted segment.
+- **Safety:** pointer, double-click, Enter/Space, node-menu Configure/Remove, persisted styles/configuration,
+  Conditional exits, validation, Loop Back, and runtime semantics remain on their existing paths.
+- **Verified:** build PASS; Flow Designer Electron GUI **109/109**; Workflow Builder Electron GUI **56/56**;
+  runner **99/99**; Flow step mapping **137/137**; workflow conversions **14/14**; branch pairs **36/36**;
+  canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**. Captured both designers and
+  visually confirmed the full detached mechanism; no mock-site fixture was applicable to the desktop canvas.
+- **Files:** shared canvas geometry/fit bounds/Loop edge, both editor mutation flows, Hologram CSS, both
+  real-Electron GUI verifiers, tracker sources, and AI memory.
+
+---
+
+## 2026-08-12 - Codex - Replace the Loop arc with a central circular control (superseded proportions)
 
 - **Task:** Implement the clarified Loop visual in Flow Designer and Workflow Builder: a horizontal
   connector lane with a dominant concentric circular control, continuous orbit, and the circle itself as
@@ -24,6 +46,8 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   screenshots and assert a real pixel delta for the rotating sweep.
 - **Files:** shared canvas side routing/fit bounds/Loop edge, connector visual mapping, Hologram CSS, both
   real-Electron GUI verifiers, and AI memory/tracking sources.
+- **Superseded:** owner review found the 160x20 / 80-unit-outer mechanism still read as a node-attached
+  badge. The later entry above records the corrected detached geometry and stronger acceptance checks.
 
 ---
 

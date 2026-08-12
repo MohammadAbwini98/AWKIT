@@ -6,12 +6,16 @@
 
 ## Confirmed
 
-Loop reconfiguration/motion regression coverage (2026-08-11, `awkit-kwg`):
-`verify:flow-designer` **99/99** and `verify:workflow-builder` **48/48** now save, reload/switch,
+Owner-sketch Loop mechanism regression coverage (2026-08-12, `awkit-kwg`):
+`verify:flow-designer` **109/109** and `verify:workflow-builder` **56/56** now create a detached
+280x40 pill plus 160-unit outer circle, assert the 60-unit bridge/arrow and card-relative scale, prove the
+complete mechanism remains inside the canvas after automatic reframing, and reject the prior small
+node-attached badge geometry. They also save, reload/switch,
 physically click an existing Loop path, reopen its collapsed editor, change the bound again, use the
 separate Configure loop action, save/reload, and confirm the value persists. Both assert unobstructed
-geometry, the semantic direction layer, negative source-to-target dash travel, authored dotted/thickness
-independence, and reduced-motion removal. Workflow coverage includes `node.id !== flowId`;
+geometry, the stable authored dotted/thickness route, a single transform-only bright sweep with decoded
+pixel movement, and a static highlighted sweep under reduced motion. Workflow coverage includes
+`node.id !== flowId`;
 `verify:flow-step-mapping` **137/137** includes a type-derived Loop with omitted `kind`.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and

@@ -157,10 +157,12 @@ async function readLoopVisual(win, nodeId) {
   return win.evaluate((id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
     const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);
+    const canvas = document.querySelector(".awkit-flow-canvas");
     const base = group?.querySelector(".awkit-flow-edge-path");
     const interaction = group?.querySelector(".awkit-flow-edge-interaction");
     const control = group?.querySelector(".awkit-loop-control");
     const lane = control?.querySelector(".awkit-loop-control-lane");
+    const arrow = control?.querySelector(".awkit-loop-control-arrowhead");
     const outer = control?.querySelector(".awkit-loop-control-outer-ring");
     const main = control?.querySelector(".awkit-loop-control-main-ring");
     const sweep = control?.querySelector(".awkit-loop-control-sweep");
@@ -169,15 +171,18 @@ async function readLoopVisual(win, nodeId) {
     const hit = control?.querySelector(".awkit-loop-control-hit");
     const label = [...document.querySelectorAll(".awkit-loop-edge-label")]
       .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
-    if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(base instanceof SVGPathElement) ||
+    if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(canvas instanceof HTMLElement) || !(base instanceof SVGPathElement) ||
       !(interaction instanceof SVGPathElement) || !(control instanceof SVGGElement) || !(lane instanceof SVGRectElement) ||
+      !(arrow instanceof SVGPathElement) ||
       !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) ||
       !(inner instanceof SVGCircleElement) || !(dot instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
       !(label instanceof HTMLElement)) return null;
     const baseStyle = getComputedStyle(base);
     const sweepStyle = getComputedStyle(sweep);
     const nodeRect = node.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
     const laneRect = lane.getBoundingClientRect();
+    const arrowRect = arrow.getBoundingClientRect();
     const outerRect = outer.getBoundingClientRect();
     const mainRect = main.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
@@ -204,6 +209,7 @@ async function readLoopVisual(win, nodeId) {
       baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
       directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
       laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
+      arrowCount: group.querySelectorAll(".awkit-loop-control-arrowhead").length,
       outerCount: group.querySelectorAll(".awkit-loop-control-outer-ring").length,
       mainCount: group.querySelectorAll(".awkit-loop-control-main-ring").length,
       sweepCount: group.querySelectorAll(".awkit-loop-control-sweep").length,
@@ -211,6 +217,8 @@ async function readLoopVisual(win, nodeId) {
       dotCount: group.querySelectorAll(".awkit-loop-control-center-dot").length,
       hitCount: group.querySelectorAll(".awkit-loop-control-hit").length,
       samePath: base.getAttribute("d") === interaction.getAttribute("d"),
+      basePath: base.getAttribute("d") || "",
+      bridgeLength: base.getTotalLength(),
       baseDash: base.style.strokeDasharray || baseStyle.strokeDasharray,
       baseWidth: baseStyle.strokeWidth,
       laneWidth: Number(lane.getAttribute("width")),
@@ -235,6 +243,8 @@ async function readLoopVisual(win, nodeId) {
       transform: sweepStyle.transform,
       nodeLeft: nodeRect.left,
       nodeRight: nodeRect.right,
+      nodeHeight: nodeRect.height,
+      nodeWidth: nodeRect.width,
       laneLeft: laneRect.left,
       laneRight: laneRect.right,
       outerLeft: outerRect.left,
@@ -244,6 +254,13 @@ async function readLoopVisual(win, nodeId) {
       outerDiameter: outerRect.width,
       mainDiameter: mainRect.width,
       hitDiameter: hitRect.width,
+      componentNodeGap: side === "left" ? nodeRect.left - laneRect.right : laneRect.left - nodeRect.right,
+      circleNodeGap: side === "left" ? nodeRect.left - outerRect.right : outerRect.left - nodeRect.right,
+      circleToNodeHeightRatio: outerRect.height / nodeRect.height,
+      pillToNodeWidthRatio: laneRect.width / nodeRect.width,
+      arrowTouchesNode: side === "left" ? Math.abs(arrowRect.right - nodeRect.left) < 2 : Math.abs(arrowRect.left - nodeRect.right) < 2,
+      mechanismFullyVisible: laneRect.left >= canvasRect.left - 1 && laneRect.right <= canvasRect.right + 1 &&
+        outerRect.top >= canvasRect.top - 1 && outerRect.bottom <= canvasRect.bottom + 1 && labelRect.top >= canvasRect.top - 1,
       labelBottom: labelRect.bottom,
       labelClearance: outerRect.top - labelRect.bottom,
       circleOutsideNode: side === "left" ? outerRect.right <= nodeRect.left + 1 : outerRect.left >= nodeRect.right - 1,
@@ -777,17 +794,19 @@ try {
       const pixelMotion = await readLoopPixelMotion(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Workflow Loop renders the dominant central capsule-and-ring control outside the node",
+        "Workflow Loop renders a detached, dominant pill-and-ring mechanism before the node",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
           visual.role === "button" && visual.tabIndex === "0" && visual.ariaLabel?.startsWith("Configure loop connector:") &&
           visual.baseCount === 1 && visual.directionCount === 0 && visual.samePath &&
-          visual.laneCount === 1 && visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 &&
+          visual.laneCount === 1 && visual.arrowCount === 1 && visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 &&
           visual.innerCount === 1 && visual.dotCount === 1 && visual.hitCount === 1 &&
-          visual.laneWidth / visual.laneHeight === 8 && visual.laneRadius === visual.laneHeight / 2 &&
-          visual.outerRadius === 40 && visual.mainRadius === 30 && visual.innerRadius === 10 && visual.hitRadius === 44 && visual.dotRadius === 3 &&
+          visual.laneWidth === 280 && visual.laneHeight === 40 && visual.laneWidth / visual.laneHeight === 7 && visual.laneRadius === visual.laneHeight / 2 &&
+          visual.outerRadius === 80 && visual.mainRadius === 60 && visual.innerRadius === 16 && visual.hitRadius === 88 && visual.dotRadius === 4 &&
           visual.sharedCenter && visual.centeredOnLane && visual.outerRadius / visual.mainRadius >= 1.3 && visual.hitRadius >= visual.outerRadius &&
-          visual.circleOutsideNode && !visual.overlapsOtherNode && visual.labelClearance >= 2 &&
-          Number.parseFloat(visual.interactionWidth) >= 28,
+          visual.basePath.includes(" H ") && !/[CQ]/.test(visual.basePath) && Math.abs(visual.bridgeLength - 60) < 0.1 &&
+          visual.componentNodeGap > 30 && visual.circleNodeGap > visual.componentNodeGap && visual.circleToNodeHeightRatio >= 1.6 &&
+          visual.pillToNodeWidthRatio >= 0.7 && visual.arrowTouchesNode && visual.mechanismFullyVisible && visual.circleOutsideNode && !visual.overlapsOtherNode && visual.labelClearance >= 2 &&
+          Number.parseFloat(visual.interactionWidth) >= 32,
         JSON.stringify(visual)
       );
       check(
@@ -795,7 +814,7 @@ try {
         visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
           Number.parseFloat(visual.animationDuration) >= 1.5 && Number.parseFloat(visual.animationDuration) <= 2.5 && visual.pathLength === "100" &&
           normalizeDash(visual.baseDash) === "1 5" && Number.parseFloat(visual.baseWidth) >= 3 && Number.parseFloat(visual.baseWidth) <= 4.1 && normalizeDash(visual.sweepDash) === "22 78" &&
-          Number.parseFloat(visual.sweepWidth) === 4 && Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved &&
+          Number.parseFloat(visual.sweepWidth) === 6 && Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved &&
           Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 40 && pixelMotion.totalDelta > 0,
         JSON.stringify({ visual, motion, pixelMotion })
       );

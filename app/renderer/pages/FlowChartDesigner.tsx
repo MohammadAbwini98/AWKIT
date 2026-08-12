@@ -175,6 +175,7 @@ function FlowChartDesignerContent() {
   const [connectPrompt, setConnectPrompt] = useState<{ source: string; target: string; sourceName: string; targetName: string } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<FlowCanvasHandle>(null);
+  const pendingLoopFitRef = useRef(false);
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const pendingSnapshot = useRef(true);
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -212,6 +213,12 @@ function FlowChartDesignerContent() {
 
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
+
+  useEffect(() => {
+    if (!pendingLoopFitRef.current) return;
+    pendingLoopFitRef.current = false;
+    window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
+  }, [edges]);
 
   // The properties inspector owns a layout column. If that narrower viewport clips the selected
   // item, pan only far enough to reveal it and restore that exact accommodation on close.
@@ -430,6 +437,7 @@ function FlowChartDesignerContent() {
     (nodeId: string) => {
       const existing = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && (edge.data?.kind === "loop" || edge.data?.linkType === "loop"));
       if (existing) {
+        pendingLoopFitRef.current = true;
         setEdges((currentEdges) =>
           reconcileFlowBranches(
             currentEdges.filter((edge) => edge.id !== existing.id),
@@ -444,6 +452,7 @@ function FlowChartDesignerContent() {
           loop: defaultLoopConnectorConfig()
         });
         const promoted = promoteFlowLoopExits(edges, nodeId);
+        pendingLoopFitRef.current = true;
         setEdges([...promoted.edges, loopEdge]);
         setSelectedNodeId(null);
         setSelectedEdgeId(loopEdge.id);

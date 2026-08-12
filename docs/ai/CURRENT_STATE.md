@@ -1,13 +1,16 @@
 # CURRENT_STATE
 
-## Central Loop control and reliable reconfiguration - awkit-kwg COMPLETE (2026-08-12)
+## Detached Loop mechanism matching the owner sketch - awkit-kwg COMPLETE (2026-08-12)
 
 Flow Designer and Workflow Builder now render every structured self-Loop as the same purpose-built
-control mechanism: a 160x20 rounded connector lane, an 80-unit concentric circular control, a fixed
-center anchor, and an 88-unit primary hit target. The control chooses the clearer left/right side from
-measured node geometry (defaulting away from the shared right inspector), participates in fit-to-view,
-and keeps its label outside the rings. A saved non-circular connector shape can no longer make a semantic
-Loop fall back to an ordinary edge renderer; the persisted style itself remains unchanged.
+control mechanism: a 280x40 rounded connector lane, a 160-unit outer circular mechanism, a fixed center
+anchor, and a 176-unit primary hit target. A separate 60-unit bridge and arrow connect the mechanism to
+the node, so it no longer reads as a small badge attached to the card. The mechanism is more than twice
+the workflow-card height at default zoom and the pill is 87.5% of the card width. It chooses the clearer
+left/right side from measured node geometry (defaulting to the requested left side on ties), participates
+in fit-to-view, automatically reframes after add/remove, and keeps its label and full footprint visible.
+A saved non-circular connector shape cannot make a semantic Loop fall back to an ordinary edge renderer;
+the persisted style itself remains unchanged.
 
 One highlighted ring segment rotates smoothly on a 2-second linear, transform-only orbit. The connector
 lane, authored color/thickness/solid-dashed-dotted route, outer ring, and center dot remain stable, so the
@@ -18,12 +21,13 @@ sampling and decoded screenshot pixel deltas instead of treating registered keyf
 The circular control is the primary pointer target. Click, double-click, Enter, and Space select the same
 persisted Loop connector and reopen its existing configuration surface; the node-menu **Configure loop**
 action remains available and **Remove loop** stays separate. Connector gestures do not start pane panning,
-and selection expands a collapsed inspector. Workflow node-id preservation, legacy type-derived Loop
+selection expands a collapsed inspector, and the reframed viewport is restored after removal. Workflow
+node-id preservation, legacy type-derived Loop
 configuration, Conditional exit semantics, Loop Back, validation, persistence schemas, and runtime routing
 remain unchanged.
 
 Focused evidence: build PASS; Flow Designer Electron GUI **109/109**; Workflow Builder Electron GUI
-**56/56**; Flow step mapping **137/137**; workflow sentinel/conversion **14/14**; branch-pair validation
+**56/56**; runner **99/99**; Flow step mapping **137/137**; workflow sentinel/conversion **14/14**; branch-pair validation
 **36/36**; canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**. No duplicate
 mock-site scenario was added because this is desktop-canvas interaction covered by the isolated
 real-Electron walkthroughs. Tracker **189 total / 185 closed / 4 owner-gated outstanding / 104 edges**;

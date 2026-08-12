@@ -229,6 +229,7 @@ function ScenarioBuilderContent() {
   const [snapshotRevision, setSnapshotRevision] = useState(0);
   const pendingSnapshot = useRef(true);
   const engineRef = useRef<FlowCanvasHandle>(null);
+  const pendingLoopFitRef = useRef(false);
   const { animating: layoutGliding, arm: armLayoutGlide } = useFlowGlide();
   const navigation = useNavigation();
   const { can } = usePermissions();
@@ -318,6 +319,12 @@ function ScenarioBuilderContent() {
   const scenarioProfile = useMemo(() => workflowToScenarioProfile(workflowProfile), [workflowProfile]);
   const executionPlan = useMemo(() => new ScenarioOrchestrator().createExecutionPlan(scenarioProfile), [scenarioProfile]);
   const selectedEdge = useMemo(() => edges.find((edge) => edge.id === selectedEdgeId) ?? null, [edges, selectedEdgeId]);
+
+  useEffect(() => {
+    if (!pendingLoopFitRef.current) return;
+    pendingLoopFitRef.current = false;
+    window.requestAnimationFrame(() => engineRef.current?.fitView({ padding: 0.2, duration: 200 }));
+  }, [edges]);
   const orderedNodes = useMemo(() => nodes.filter((node) => node.data.kind === "flowRef").sort((a, b) => a.data.order - b.data.order), [nodes]);
   const selectedNode = useMemo(() => nodes.find((node) => node.id === selectedNodeId) ?? null, [nodes, selectedNodeId]);
 
@@ -529,6 +536,7 @@ function ScenarioBuilderContent() {
     (nodeId: string) => {
       const existing = edges.find((edge) => edge.source === nodeId && edge.target === nodeId && edge.data?.linkType === "loop");
       if (existing) {
+        pendingLoopFitRef.current = true;
         setEdges((currentEdges) =>
           reconcileScenarioBranches(
             currentEdges.filter((edge) => edge.id !== existing.id),
@@ -543,6 +551,7 @@ function ScenarioBuilderContent() {
           loop: defaultLoopConnectorConfig()
         });
         const promoted = promoteScenarioLoopExits(edges, nodeId);
+        pendingLoopFitRef.current = true;
         setEdges([...promoted.edges, loopEdge]);
         setSelectedNodeId(null);
         setSelectedEdgeId(loopEdge.id);

@@ -194,17 +194,23 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Structured Loop control geometry. Every value is derived from the shared connector offset so
- * the capsule, concentric mechanism, label clearance, and hit target stay on the Hologram spacing
- * rhythm. The control sits outside the node on the clearer horizontal side.
+ * Structured Loop control geometry. The Loop is a separate workflow mechanism before the node:
+ * a substantial pill body, an oversized concentric control, and an explicit bridge into the node.
+ * Every value stays derived from the shared connector offset so the composition follows the
+ * Hologram spacing rhythm at every zoom level.
  */
-export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 8;
-export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET;
-export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 1.5;
-export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 2;
-export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 2.2;
-export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
-export const LOOP_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.4;
+export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 14;
+export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET * 2;
+export const LOOP_CONTROL_BRIDGE_GAP = SMOOTH_STEP_OFFSET * 3;
+export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 3;
+export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 4;
+export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 4.4;
+export const LOOP_CONTROL_INNER_RADIUS = SMOOTH_STEP_OFFSET * 0.8;
+export const LOOP_CONTROL_DOT_RADIUS = SMOOTH_STEP_OFFSET * 0.2;
+export const LOOP_CONTROL_ARROW_LENGTH = SMOOTH_STEP_OFFSET * 0.65;
+export const LOOP_CONTROL_ARROW_HALF_HEIGHT = SMOOTH_STEP_OFFSET * 0.35;
+export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.8;
+export const LOOP_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.6;
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({

@@ -1,5 +1,6 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
 import {
+  LOOP_CONTROL_BRIDGE_GAP,
   LOOP_CONTROL_LABEL_GAP,
   LOOP_CONTROL_LANE_HEIGHT,
   LOOP_CONTROL_LANE_WIDTH,
@@ -24,7 +25,7 @@ import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, No
  * fit-view, screen↔flow mapping). The flow runs top→bottom by default: edges leave
  * the source node's bottom-center and enter the target node's top-center, matching
  * the Workflow (flowforge) reference. Tight Loop exits can route beside their cards;
- * self-loops (source === target) are drawn by the edge component from a single anchor.
+ * self-loops (source === target) are drawn as detached controls bridged into a side anchor.
  */
 
 const MIN_ZOOM_DEFAULT = 0.3;
@@ -671,14 +672,14 @@ function loopControlFootprint(source: XYPosition, sourceSize: MeasuredSize, side
   const anchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
   const centerY = source.y + sourceSize.height / 2;
   const sideSign = side === Position.Left ? -1 : 1;
-  const farX = anchorX + sideSign * LOOP_CONTROL_LANE_WIDTH;
+  const farX = anchorX + sideSign * (LOOP_CONTROL_BRIDGE_GAP + LOOP_CONTROL_LANE_WIDTH);
   const horizontalPadding = SMOOTH_STEP_OFFSET / 2;
   const topClearance = LOOP_CONTROL_OUTER_RADIUS + LOOP_CONTROL_LABEL_GAP + SMOOTH_STEP_OFFSET;
   const bottomClearance = LOOP_CONTROL_OUTER_RADIUS + horizontalPadding;
   return {
     x: Math.min(anchorX, farX) - horizontalPadding,
     y: centerY - topClearance,
-    width: LOOP_CONTROL_LANE_WIDTH + horizontalPadding * 2,
+    width: LOOP_CONTROL_BRIDGE_GAP + LOOP_CONTROL_LANE_WIDTH + horizontalPadding * 2,
     height: topClearance + bottomClearance
   };
 }
@@ -717,7 +718,7 @@ function selfLoopSideFor(
   return sourceCenterX > graphCenterX ? Position.Right : Position.Left;
 }
 
-/** Route structured Loops to their side control; keep enlarged Loop exits clear in tight gaps. */
+/** Route structured Loops to their detached side mechanism; keep enlarged Loop exits clear in tight gaps. */
 function edgeEndpointLayout(
   edge: CanvasEdge,
   source: XYPosition,

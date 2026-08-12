@@ -10374,7 +10374,7 @@ table {
   }
 }
 
-/* Structured Loop control: a stable connector lane with one dominant concentric mechanism. */
+/* Structured Loop control: a detached connector mechanism before the node, not a node badge. */
 .awkit-flow-edge[role="button"]:focus {
   outline: none;
 }
@@ -10385,11 +10385,11 @@ table {
 }
 
 .awkit-loop-control-lane {
-  fill: var(--awkit-surface);
-  fill-opacity: 0.94;
+  fill: var(--awkit-surface-inset);
+  fill-opacity: 0.98;
   stroke: currentColor;
-  stroke-opacity: 0.34;
-  stroke-width: 1;
+  stroke-opacity: 0.46;
+  stroke-width: 1.5;
   pointer-events: none;
   transition: stroke-opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
@@ -10405,14 +10405,24 @@ table {
   pointer-events: none;
 }
 
+.awkit-loop-control-arrowhead {
+  fill: currentColor;
+  opacity: 0.9;
+  pointer-events: none;
+  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
 .awkit-loop-control-halo {
   fill: currentColor;
-  opacity: 0.08;
+  opacity: 0.1;
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
 .awkit-loop-control-backplate {
   fill: var(--awkit-surface-raised);
+  stroke: currentColor;
+  stroke-opacity: 0.16;
+  stroke-width: 1;
 }
 
 .awkit-loop-control-outer-ring,
@@ -10425,25 +10435,23 @@ table {
 }
 
 .awkit-loop-control-outer-ring {
-  opacity: 0.34;
-  stroke-dasharray: 2 6;
-  stroke-width: 1.25;
+  opacity: 0.42;
+  stroke-dasharray: 3 9;
+  stroke-width: 2;
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
 .awkit-loop-control-main-ring {
-  opacity: 0.72;
-  stroke-width: 2;
-  transition:
-    opacity var(--awkit-dur-fast) var(--awkit-ease-out),
-    stroke-width var(--awkit-dur-fast) var(--awkit-ease-out);
+  opacity: 0.76;
+  stroke-width: 3;
+  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
 .awkit-loop-control-sweep {
   opacity: 0.96;
   stroke-dasharray: 22 78;
   stroke-linecap: round;
-  stroke-width: 4;
+  stroke-width: 6;
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform;
@@ -10451,8 +10459,8 @@ table {
 }
 
 .awkit-loop-control-inner-ring {
-  opacity: 0.52;
-  stroke-width: 1;
+  opacity: 0.58;
+  stroke-width: 1.5;
 }
 
 .awkit-loop-control-center-dot {
@@ -10485,7 +10493,7 @@ table {
 }
 
 .awkit-loop-control.is-selected .awkit-loop-control-main-ring {
-  stroke-width: 2.5;
+  opacity: 1;
 }
 
 .awkit-flow-edge:focus-visible .awkit-loop-control-focus-ring {
@@ -10504,6 +10512,10 @@ table {
   .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-outer-ring,
   .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-main-ring {
     opacity: 0.88;
+  }
+
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-arrowhead {
+    opacity: 1;
   }
 }
 

@@ -1,22 +1,25 @@
 # FEATURES
 
-## Central Loop control, reconfiguration, and orbital motion (2026-08-12)
+## Detached Loop control, reconfiguration, and orbital motion (2026-08-12)
 
-- Every structured Loop uses a dedicated 160x20 horizontal capsule with an 80-unit concentric circular
-  mechanism, fixed center anchor, and 88-unit pointer target. It cannot fall back to an ordinary edge when
-  a legacy profile carries a non-circular visual shape.
+- Every structured Loop uses a dedicated 280x40 horizontal capsule with a 160-unit outer concentric
+  mechanism, fixed center anchor, and 176-unit pointer target. A separate 60-unit bridge and arrow lead
+  into the node, making the Loop a distinct workflow component instead of a node-attached badge. It cannot
+  fall back to an ordinary edge when a legacy profile carries a non-circular visual shape.
 - The shared canvas scores the complete control footprint on both sides of the node, chooses the clearer
-  side, defaults away from the right inspector on ties, and includes the result in fit-to-view. The control,
-  label, other cards, handles, and nearby connectors remain clear in both designers.
+  side, defaults to the requested left side on ties, and includes the result in fit-to-view. Adding or
+  removing the Loop reframes the current document after the edge state commits. The control, label, other
+  cards, handles, and nearby connectors remain clear and the mechanism is not clipped in either designer.
 - One bright arc rotates around the stable main ring on a 2-second linear transform-only cycle. The lane,
   authored connector route/style, concentric depth rings, and center dot remain stable. Reduced motion
   substitutes a fixed highlighted arc.
 - The circular target supports pointer click, double-click, Enter, and Space through the existing connector
   selection/configuration path. Selecting it expands a collapsed inspector; **Configure loop** and
   **Remove loop** remain distinct node-menu actions.
-- Real-Electron verification asserts exact geometry, collision clearance, semantic rendering after a
-  non-circular style selection, authored-line preservation, keyboard/pointer activation, static reduced-
-  motion treatment, animation progress, and visible screenshot pixel change in both designers.
+- Real-Electron verification asserts exact geometry, the explicit component-to-node gap and arrow,
+  proportional dominance over the card, full viewport visibility, collision clearance, semantic rendering
+  after a non-circular style selection, authored-line preservation, keyboard/pointer activation, static
+  reduced-motion treatment, animation progress, and visible screenshot pixel change in both designers.
 - Loop authoring, workflow-node identity, full Loop configuration persistence, Conditional exit promotion,
   Loop Back behavior, validation, and Flow/workflow execution semantics are unchanged.
 

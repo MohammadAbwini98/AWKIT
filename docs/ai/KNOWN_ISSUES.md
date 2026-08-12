@@ -1,20 +1,23 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop visuals targeted the wrong control and hid their motion (awkit-kwg, 2026-08-12)
+## RESOLVED: Loop visuals remained a small node-attached badge after the first central-control pass (awkit-kwg, 2026-08-12)
 
-The first visual fix (`5cc98c9`) enlarged the non-self Conditional exit's insertion `+`, which is a separate
-HTML step-insertion affordance rather than the structured Loop. The follow-up top arc exposed the SVG edge
-but still treated the Loop as a decorated ordinary connector. Both approaches missed the requested visual
-and interaction model.
+The first visual fix (`5cc98c9`) enlarged the non-self Conditional exit's insertion `+`, and the follow-up
+top arc still treated the Loop as a decorated ordinary connector. The first central-control pass added the
+right pieces but kept them at 160x20 / 80-unit-outer proportions with the capsule touching the node. Those
+checks proved rings and motion existed, but encoded the wrong acceptance target; the result still read as
+a small node-attached badge rather than the separate mechanism in the owner's sketch.
 
-Structured self-Loops now render as a purpose-built horizontal capsule with a prominent concentric circular
-mechanism, fixed anchor, and full circular hit target. Collision-aware side selection keeps the complete
-control outside cards and away from the right inspector, while fit-to-view includes its footprint. One
-transform-only bright arc orbits the stable rings; reduced motion freezes that arc at a readable angle.
-Click, double-click, and keyboard activation all reuse the existing connector selection/configuration path.
+Structured self-Loops now render as a separate 280x40 horizontal capsule with a 160-unit outer concentric
+mechanism, fixed anchor, and 176-unit circular hit target. A 60-unit bridge and explicit arrow preserve a
+clear gap before the node. Collision-aware side selection keeps the complete control outside cards, while
+post-mutation fit-to-view prevents clipping even when the configuration drawer opens. One transform-only
+bright arc orbits the stable rings; reduced motion freezes that arc at a readable angle. Click,
+double-click, and keyboard activation all reuse the existing connector selection/configuration path.
 
-Keep the new GUI perceptibility guards. They assert exact geometry, collision clearance, the large hit
-target, real animation progress, and decoded screenshot pixel differences in both Electron designers.
+Keep the new GUI perceptibility guards. They assert exact geometry, proportional dominance, the explicit
+component gap/bridge/arrow, complete viewport visibility, collision clearance, the large hit target, real
+animation progress, and decoded screenshot pixel differences in both Electron designers.
 Checking only an animation name or keyframe registration is not evidence that a user can see the motion.
 The connector model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
 
