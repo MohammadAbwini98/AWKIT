@@ -78,11 +78,11 @@ export function buildConnectorVisual(type: string, style?: EdgeVisualStyle): Con
   const defaultDash = type === "loopBack" ? "6 4" : undefined;
   // Loop connectors default to the circular self-loop shape when no explicit shape was chosen.
   const shape = s.shape ?? (type === "loop" ? "circular" : "smoothstep");
-  // Map the serialized shape to the canvas-engine edge `type`. The engine has two edge renderers:
-  // `loop` (self-loop bezier) and `smooth` (curved line + label pill + insert affordance). Circular
-  // self-loops render through `loop`; every other shape renders through `smooth`. The saved
+  // Map the serialized shape to the canvas-engine edge `type`. Semantic Loops always keep their
+  // recognisable dedicated control even when a legacy profile carries a non-circular shape. Other
+  // circular styles keep the distinct-node curve. The saved
   // `EdgeVisualStyle.shape` value is NOT altered — only the runtime edge type is remapped.
-  const engineType = shape === "circular" ? "loop" : "smooth";
+  const engineType = type === "loop" || shape === "circular" ? "loop" : "smooth";
   return {
     type: engineType,
     animated: type === "loop" || type === "conditional" || type === "loopBack" || type === "parallel",

@@ -1,39 +1,33 @@
 # CURRENT_STATE
 
-## Loop visual treatment and reliable reconfiguration - awkit-kwg COMPLETE (2026-08-12)
+## Central Loop control and reliable reconfiguration - awkit-kwg COMPLETE (2026-08-12)
 
-Flow Designer and Workflow Builder now render structured Loops through dedicated top anchors as a fully
-exposed arc above the node card. The live arc is approximately 1.33x wider and 1.48x taller than the old
-Loop control, rather than hiding most of its geometry behind the higher-z-index card, and its 28px
-interaction stroke makes direct connector selection reliable. Existing Loops also remain editable through
-the explicit **Configure loop** node action, with **Remove loop** kept separate; connector gestures do not
-start pane panning and selecting a connector expands a collapsed inspector.
+Flow Designer and Workflow Builder now render every structured self-Loop as the same purpose-built
+control mechanism: a 160x20 rounded connector lane, an 80-unit concentric circular control, a fixed
+center anchor, and an 88-unit primary hit target. The control chooses the clearer left/right side from
+measured node geometry (defaulting away from the shared right inspector), participates in fit-to-view,
+and keeps its label outside the rings. A saved non-circular connector shape can no longer make a semantic
+Loop fall back to an ordinary edge renderer; the persisted style itself remains unchanged.
 
-Loop direction is now perceptible through repeating source-to-target segments on a calm 1.8-second linear
-cycle. The overlay preserves the authored base color, thickness, and solid/dashed/dotted style. Reduced-
-motion users receive one strong static direction segment instead of continuous travel. Real-Electron
-coverage measures actual dash-offset movement over time and clicks the exposed outer arc with a pointer;
-it no longer treats registered keyframes alone as evidence that users can see motion.
+One highlighted ring segment rotates smoothly on a 2-second linear, transform-only orbit. The connector
+lane, authored color/thickness/solid-dashed-dotted route, outer ring, and center dot remain stable, so the
+motion reads as iteration rather than loading. Reduced-motion users receive the same prominent mechanism
+with a fixed highlighted segment. Real-Electron coverage proves visible motion with both animation-time
+sampling and decoded screenshot pixel deltas instead of treating registered keyframes as sufficient.
 
-The insert control on the non-self Conditional Loop exit is now structurally identified at render time
-and enlarged from 24px to 32px (the shared `+` grows from 10px rendered to its intended 14px). Its label
-is moved clear of the larger circle. Same-row/upward exits receive enough source-stem clearance and tight
-downstream gaps use a side route, avoiding either node card while staying centered on the connector. A
-tokenized 2.2-second linear halo now expands far enough to remain visible without moving the stable `+`;
-reduced-motion users receive a static ring.
-Generic connector controls remain unchanged and no display metadata is persisted.
+The circular control is the primary pointer target. Click, double-click, Enter, and Space select the same
+persisted Loop connector and reopen its existing configuration surface; the node-menu **Configure loop**
+action remains available and **Remove loop** stays separate. Connector gestures do not start pane panning,
+and selection expands a collapsed inspector. Workflow node-id preservation, legacy type-derived Loop
+configuration, Conditional exit semantics, Loop Back, validation, persistence schemas, and runtime routing
+remain unchanged.
 
-Workflow Builder still preserves persisted workflow-node ids independently from `flowId`. Flow profile
-save retains complete config for legacy `type: "loop"` edges with no optional `kind`, and edge insertion
-now preserves a type-derived Conditional kind instead of normalizing it to Standard. Legacy Loop Back,
-validation, persistence schemas, and runtime routing remain unchanged.
-
-Focused evidence: build PASS; Flow Designer Electron GUI **107/107**; Workflow Builder Electron GUI
-**54/54**; Flow mapping **137/137**; workflow sentinel/conversion **14/14**; canvas performance **13/13**;
-canvas layout **35/35**; source hygiene **9/9**. No duplicate mock-site scenario was added because this
-is desktop-canvas interaction covered by the isolated real-Electron walkthroughs. Tracker **189 total /
-185 closed / 4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN /
-1 BLOCKED**.
+Focused evidence: build PASS; Flow Designer Electron GUI **109/109**; Workflow Builder Electron GUI
+**56/56**; Flow step mapping **137/137**; workflow sentinel/conversion **14/14**; branch-pair validation
+**36/36**; canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**. No duplicate
+mock-site scenario was added because this is desktop-canvas interaction covered by the isolated
+real-Electron walkthroughs. Tracker **189 total / 185 closed / 4 owner-gated outstanding / 104 edges**;
+the validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 
 ## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
 

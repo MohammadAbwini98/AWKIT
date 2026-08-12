@@ -4,6 +4,29 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-12 - Codex - Replace the Loop arc with a central circular control
+
+- **Task:** Implement the clarified Loop visual in Flow Designer and Workflow Builder: a horizontal
+  connector lane with a dominant concentric circular control, continuous orbit, and the circle itself as
+  the reconfiguration target.
+- **Root cause:** the earlier Exit Loop `+` and exposed top-arc fixes improved separate affordances but still
+  modeled the structured Loop as an ordinary edge. They did not match the requested control mechanism.
+- **Implementation:** added a token-derived 160x20 capsule, 80-unit concentric mechanism, fixed center dot,
+  88-unit hit target, and one 2-second transform-only rotating sweep. The shared canvas chooses a collision-
+  clear side, defaults away from the right inspector, includes the control in fit-to-view, and gives the
+  semantic Loop renderer precedence over legacy visual shapes. Click, double-click, Enter, and Space reuse
+  the existing connector configuration path; reduced motion freezes a readable highlighted arc.
+- **Safety:** Loop authoring data, persistence, validation, execution, Conditional exits, and legacy Loop
+  Back are unchanged. Authored connector color, thickness, and line pattern stay on the stable route.
+- **Verified:** build PASS; Flow Designer Electron GUI **109/109**; Workflow Builder Electron GUI **56/56**;
+  Flow step mapping **137/137**; workflow conversions **14/14**; branch pairs **36/36**; canvas performance
+  **13/13**; canvas layout **35/35**; source hygiene **9/9**. Both GUI suites also decode two timed
+  screenshots and assert a real pixel delta for the rotating sweep.
+- **Files:** shared canvas side routing/fit bounds/Loop edge, connector visual mapping, Hologram CSS, both
+  real-Electron GUI verifiers, and AI memory/tracking sources.
+
+---
+
 ## 2026-08-12 - Codex - Correct the visible Loop circle and motion target
 
 - **Task:** Fix the reported unchanged Loop size and invisible animation after `5cc98c9` in Flow Designer

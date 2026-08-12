@@ -16,6 +16,7 @@ import { _electron as electron } from "playwright";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import sharp from "sharp";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 import { navClick } from "./lib/e2e-qa-lib.mjs";
 
@@ -362,48 +363,97 @@ async function readLoopVisual(win, nodeId) {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
     const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);
     const base = group?.querySelector(".awkit-flow-edge-path");
-    const direction = group?.querySelector(".awkit-loop-direction-path");
     const interaction = group?.querySelector(".awkit-flow-edge-interaction");
+    const control = group?.querySelector(".awkit-loop-control");
+    const lane = control?.querySelector(".awkit-loop-control-lane");
+    const outer = control?.querySelector(".awkit-loop-control-outer-ring");
+    const main = control?.querySelector(".awkit-loop-control-main-ring");
+    const sweep = control?.querySelector(".awkit-loop-control-sweep");
+    const inner = control?.querySelector(".awkit-loop-control-inner-ring");
+    const dot = control?.querySelector(".awkit-loop-control-center-dot");
+    const hit = control?.querySelector(".awkit-loop-control-hit");
     const label = [...document.querySelectorAll(".awkit-loop-edge-label")]
       .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
     if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(base instanceof SVGPathElement) ||
-      !(direction instanceof SVGPathElement) || !(interaction instanceof SVGPathElement) || !(label instanceof HTMLElement)) return null;
+      !(interaction instanceof SVGPathElement) || !(control instanceof SVGGElement) || !(lane instanceof SVGRectElement) ||
+      !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) ||
+      !(inner instanceof SVGCircleElement) || !(dot instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
+      !(label instanceof HTMLElement)) return null;
     const baseStyle = getComputedStyle(base);
-    const directionStyle = getComputedStyle(direction);
-    const keyframes = direction.getAnimations()[0]?.effect?.getKeyframes?.() ?? [];
+    const sweepStyle = getComputedStyle(sweep);
     const nodeRect = node.getBoundingClientRect();
-    const pathRect = base.getBoundingClientRect();
+    const laneRect = lane.getBoundingClientRect();
+    const outerRect = outer.getBoundingClientRect();
+    const mainRect = main.getBoundingClientRect();
+    const hitRect = hit.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
+    const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+    const otherNodeRects = [...document.querySelectorAll(".awkit-flow-node")]
+      .filter((candidate) => candidate instanceof HTMLElement && candidate.getAttribute("data-id") !== id)
+      .map((candidate) => candidate.getBoundingClientRect());
+    const circleCenterX = Number(outer.getAttribute("cx"));
+    const circleCenterY = Number(outer.getAttribute("cy"));
+    const sharedCenter = [main, sweep, inner, dot, hit].every((circle) =>
+      Math.abs(Number(circle.getAttribute("cx")) - circleCenterX) < 0.01 && Math.abs(Number(circle.getAttribute("cy")) - circleCenterY) < 0.01
+    );
+    const laneCenterX = Number(lane.getAttribute("x")) + Number(lane.getAttribute("width")) / 2;
+    const laneCenterY = Number(lane.getAttribute("y")) + Number(lane.getAttribute("height")) / 2;
+    const side = control.getAttribute("data-loop-side");
     return {
       className: group.getAttribute("class") || "",
       connectorKind: group.getAttribute("data-connector-kind"),
+      role: group.getAttribute("role"),
+      ariaLabel: group.getAttribute("aria-label"),
+      tabIndex: group.getAttribute("tabindex"),
+      side,
       baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
       directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
-      samePath: base.getAttribute("d") === direction.getAttribute("d") && base.getAttribute("d") === interaction.getAttribute("d"),
+      laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
+      outerCount: group.querySelectorAll(".awkit-loop-control-outer-ring").length,
+      mainCount: group.querySelectorAll(".awkit-loop-control-main-ring").length,
+      sweepCount: group.querySelectorAll(".awkit-loop-control-sweep").length,
+      innerCount: group.querySelectorAll(".awkit-loop-control-inner-ring").length,
+      dotCount: group.querySelectorAll(".awkit-loop-control-center-dot").length,
+      hitCount: group.querySelectorAll(".awkit-loop-control-hit").length,
+      samePath: base.getAttribute("d") === interaction.getAttribute("d"),
       baseDash: base.style.strokeDasharray || baseStyle.strokeDasharray,
       baseWidth: baseStyle.strokeWidth,
-      directionDash: directionStyle.strokeDasharray,
-      directionWidth: directionStyle.strokeWidth,
-      animationName: directionStyle.animationName,
-      animationIterationCount: directionStyle.animationIterationCount,
-      animationTimingFunction: directionStyle.animationTimingFunction,
-      display: directionStyle.display,
-      opacity: directionStyle.opacity,
-      currentOffset: directionStyle.strokeDashoffset,
-      terminalOffset: String(keyframes.at(-1)?.strokeDashoffset ?? ""),
-      pathLeft: pathRect.left,
-      pathRight: pathRect.right,
-      pathTop: pathRect.top,
-      pathBottom: pathRect.bottom,
-      pathWidth: pathRect.width,
-      pathHeight: pathRect.height,
+      laneWidth: Number(lane.getAttribute("width")),
+      laneHeight: Number(lane.getAttribute("height")),
+      laneRadius: Number(lane.getAttribute("rx")),
+      outerRadius: Number(outer.getAttribute("r")),
+      mainRadius: Number(main.getAttribute("r")),
+      innerRadius: Number(inner.getAttribute("r")),
+      hitRadius: Number(hit.getAttribute("r")),
+      dotRadius: Number(dot.getAttribute("r")),
+      sharedCenter,
+      centeredOnLane: Math.abs(laneCenterX - circleCenterX) < 0.01 && Math.abs(laneCenterY - circleCenterY) < 0.01,
+      pathLength: sweep.getAttribute("pathLength"),
+      sweepDash: sweepStyle.strokeDasharray,
+      sweepWidth: sweepStyle.strokeWidth,
+      animationName: sweepStyle.animationName,
+      animationDuration: sweepStyle.animationDuration,
+      animationIterationCount: sweepStyle.animationIterationCount,
+      animationTimingFunction: sweepStyle.animationTimingFunction,
+      display: sweepStyle.display,
+      opacity: sweepStyle.opacity,
+      transform: sweepStyle.transform,
       nodeLeft: nodeRect.left,
       nodeRight: nodeRect.right,
-      nodeTop: nodeRect.top,
-      nodeBottom: nodeRect.bottom,
-      nodeWidth: nodeRect.width,
-      nodeHeight: nodeRect.height,
+      laneLeft: laneRect.left,
+      laneRight: laneRect.right,
+      outerLeft: outerRect.left,
+      outerRight: outerRect.right,
+      outerTop: outerRect.top,
+      outerBottom: outerRect.bottom,
+      outerDiameter: outerRect.width,
+      mainDiameter: mainRect.width,
+      hitDiameter: hitRect.width,
       labelBottom: labelRect.bottom,
+      labelClearance: outerRect.top - labelRect.bottom,
+      circleOutsideNode: side === "left" ? outerRect.right <= nodeRect.left + 1 : outerRect.left >= nodeRect.right - 1,
+      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, laneRect) || overlaps(rect, outerRect) || overlaps(rect, labelRect)),
+      selected: control.classList.contains("is-selected"),
       interactionWidth: getComputedStyle(interaction).strokeWidth
     };
   }, nodeId);
@@ -411,27 +461,50 @@ async function readLoopVisual(win, nodeId) {
 
 async function readLoopMotionDelta(win, nodeId) {
   return win.evaluate(async (id) => {
-    const direction = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-direction-path`
+    const sweep = document.querySelector(
+      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control-sweep`
     );
-    if (!(direction instanceof SVGPathElement)) return null;
-    const before = Number.parseFloat(getComputedStyle(direction).strokeDashoffset);
+    if (!(sweep instanceof SVGCircleElement)) return null;
+    const animation = sweep.getAnimations()[0];
+    const beforeTime = Number(animation?.currentTime ?? Number.NaN);
+    const beforeTransform = getComputedStyle(sweep).transform;
     await new Promise((resolve) => window.setTimeout(resolve, 180));
-    const after = Number.parseFloat(getComputedStyle(direction).strokeDashoffset);
-    return { before, after, delta: Math.abs(after - before) };
+    const afterTime = Number(animation?.currentTime ?? Number.NaN);
+    const afterTransform = getComputedStyle(sweep).transform;
+    return { beforeTime, afterTime, delta: afterTime - beforeTime, beforeTransform, afterTransform, moved: beforeTransform !== afterTransform };
   }, nodeId);
 }
 
-async function clickLoopArc(win, nodeId) {
+async function readLoopPixelMotion(win, nodeId) {
+  const control = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-control`);
+  const before = await control.screenshot({ animations: "allow" });
+  await win.waitForTimeout(180);
+  const after = await control.screenshot({ animations: "allow" });
+  const [first, second] = await Promise.all([
+    sharp(before).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    sharp(after).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  ]);
+  if (first.info.width !== second.info.width || first.info.height !== second.info.height || first.info.channels !== second.info.channels) return null;
+  let changedPixels = 0;
+  let totalDelta = 0;
+  const channels = first.info.channels;
+  for (let offset = 0; offset < first.data.length; offset += channels) {
+    const delta = Math.abs(first.data[offset] - second.data[offset]) + Math.abs(first.data[offset + 1] - second.data[offset + 1]) + Math.abs(first.data[offset + 2] - second.data[offset + 2]);
+    totalDelta += delta;
+    if (delta >= 24) changedPixels += 1;
+  }
+  return { changedPixels, totalDelta, width: first.info.width, height: first.info.height };
+}
+
+async function clickLoopControl(win, nodeId) {
   const point = await win.evaluate((id) => {
-    const path = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path`
+    const hit = document.querySelector(
+      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control-hit`
     );
-    if (!(path instanceof SVGPathElement)) return null;
-    const matrix = path.getScreenCTM();
+    if (!(hit instanceof SVGCircleElement)) return null;
+    const matrix = hit.getScreenCTM();
     if (!matrix) return null;
-    const apex = path.getPointAtLength(path.getTotalLength() / 2);
-    const screen = new DOMPoint(apex.x, apex.y).matrixTransform(matrix);
+    const screen = new DOMPoint(Number(hit.getAttribute("cx")), Number(hit.getAttribute("cy"))).matrixTransform(matrix);
     return { x: screen.x, y: screen.y };
   }, nodeId);
   if (!point) return false;
@@ -925,28 +998,40 @@ try {
       await win.locator('.connection-config-drawer label:has-text("Max iterations") input').fill("4");
       await win.locator('.connection-config-drawer label:has-text("Line style") select').selectOption("dotted");
       await win.locator('.connection-config-drawer label:has-text("Thickness") select').selectOption("4");
+      await win.locator('.connection-config-drawer label:has-text("Connector shape") select').selectOption("smoothstep");
       await win.waitForTimeout(150);
       check("While-condition mode exposes its structured condition fields", await win.locator('.connection-config-drawer label:has-text("Condition source") select').isVisible().catch(() => false));
       const visual = await readLoopVisual(win, NODE);
       const motion = await readLoopMotionDelta(win, NODE);
+      const pixelMotion = await readLoopPixelMotion(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Flow Loop restores the enlarged above-card circle and interaction area",
+        "Flow Loop renders the dominant central capsule-and-ring control outside the node",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
-          visual.baseCount === 1 && visual.directionCount === 1 && visual.samePath &&
-          Math.abs((visual.pathLeft + visual.pathRight) / 2 - (visual.nodeLeft + visual.nodeRight) / 2) < 6 &&
-          visual.pathBottom <= visual.nodeTop + 2 && visual.labelBottom <= visual.pathTop - 2 &&
-          visual.pathHeight / visual.nodeHeight >= 0.5 && visual.pathHeight / visual.nodeHeight <= 0.9 &&
-          visual.pathWidth / visual.nodeWidth >= 0.13 && visual.pathWidth / visual.nodeWidth <= 0.22 &&
+          visual.role === "button" && visual.tabIndex === "0" && visual.ariaLabel?.startsWith("Configure loop connector:") &&
+          visual.baseCount === 1 && visual.directionCount === 0 && visual.samePath &&
+          visual.laneCount === 1 && visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 &&
+          visual.innerCount === 1 && visual.dotCount === 1 && visual.hitCount === 1 &&
+          visual.laneWidth / visual.laneHeight === 8 && visual.laneRadius === visual.laneHeight / 2 &&
+          visual.outerRadius === 40 && visual.mainRadius === 30 && visual.innerRadius === 10 && visual.hitRadius === 44 && visual.dotRadius === 3 &&
+          visual.sharedCenter && visual.centeredOnLane && visual.outerRadius / visual.mainRadius >= 1.3 && visual.hitRadius >= visual.outerRadius &&
+          visual.circleOutsideNode && !visual.overlapsOtherNode && visual.labelClearance >= 2 &&
           Number.parseFloat(visual.interactionWidth) >= 28,
         JSON.stringify(visual)
       );
       check(
-        "Flow Loop visibly travels source-to-target without replacing authored style",
-        visual?.animationName === "awkit-loop-direction" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
-          Number.parseFloat(visual.terminalOffset) === -25 && normalizeDash(visual.baseDash) === "1 5" && normalizeDash(visual.directionDash) === "9 16" &&
-          Number.parseFloat(visual.directionWidth) >= Number.parseFloat(visual.baseWidth) + 2 && Number.isFinite(motion?.delta) && motion.delta >= 0.5,
-        JSON.stringify({ visual, motion })
+        "Flow Loop rotates one bright sweep while preserving the authored return lane style",
+        visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
+          Number.parseFloat(visual.animationDuration) >= 1.5 && Number.parseFloat(visual.animationDuration) <= 2.5 && visual.pathLength === "100" &&
+          normalizeDash(visual.baseDash) === "1 5" && Number.parseFloat(visual.baseWidth) >= 3 && Number.parseFloat(visual.baseWidth) <= 4.1 && normalizeDash(visual.sweepDash) === "22 78" &&
+          Number.parseFloat(visual.sweepWidth) === 4 && Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved &&
+          Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 40 && pixelMotion.totalDelta > 0,
+        JSON.stringify({ visual, motion, pixelMotion })
+      );
+      check(
+        "A non-circular saved shape cannot collapse a semantic Loop back into an ordinary edge",
+        visual?.laneCount === 1 && visual.sweepCount === 1 && visual.directionCount === 0,
+        JSON.stringify(visual)
       );
       const loopExitControl = await readLoopExitControlVisual(win, NODE);
       const controlRatio = Number.parseFloat(loopExitControl?.width ?? "0") / Number.parseFloat(loopExitControl?.genericWidth ?? "1");
@@ -981,9 +1066,9 @@ try {
       const reducedVisual = await readLoopVisual(win, NODE);
       const reducedLoopExitControl = await readLoopExitControlVisual(win, NODE);
       check(
-        "Flow Loop directional motion becomes a strong static cue under reduced motion",
+        "Flow Loop rotation becomes one strong static sweep under reduced motion",
         reducedVisual?.display !== "none" && reducedVisual.animationName === "none" &&
-          normalizeDash(reducedVisual.directionDash) === "12 88" && Number.parseFloat(reducedVisual.opacity) >= 0.7,
+          normalizeDash(reducedVisual.sweepDash) === "22 78" && Number.parseFloat(reducedVisual.opacity) >= 0.9 && reducedVisual.transform !== "none",
         JSON.stringify(reducedVisual)
       );
       check(
@@ -1027,15 +1112,24 @@ try {
       await win.getByTitle("Reload selected flow").click();
       await win.waitForTimeout(650);
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
-      const clickedLoopArc = await clickLoopArc(win, NODE);
-      const reopenedByArc = await loopMode.isVisible().catch(() => false);
-      const selectedByArc = await win.evaluate((id) => Boolean(
-        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path.is-selected`)
+      const clickedLoopControl = await clickLoopControl(win, NODE);
+      const reopenedByControl = await loopMode.isVisible().catch(() => false);
+      const selectedByControl = await win.evaluate((id) => Boolean(
+        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control.is-selected`)
       ), NODE);
       check(
-        "The enlarged Flow Loop arc is a reliable direct click target",
-        clickedLoopArc && reopenedByArc && selectedByArc,
-        JSON.stringify({ clickedLoopArc, reopenedByArc, selectedByArc })
+        "The central Flow Loop circle is a reliable direct configuration target",
+        clickedLoopControl && reopenedByControl && selectedByControl,
+        JSON.stringify({ clickedLoopControl, reopenedByControl, selectedByControl })
+      );
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      const loopGroup = win.locator(`g.awkit-flow-edge[data-source="${NODE}"][data-target="${NODE}"][role="button"]`);
+      await loopGroup.focus();
+      await win.keyboard.press("Enter");
+      await win.waitForTimeout(180);
+      check(
+        "The Flow Loop control reopens configuration from the keyboard",
+        await loopMode.isVisible().catch(() => false) && await loopGroup.getAttribute("aria-label").then((value) => value?.startsWith("Configure loop connector:"))
       );
       await win.locator(`.awkit-flow-node[data-id="${NODE}"] .action-flow-node`).click();
       await win.getByTitle("Collapse properties").click();
@@ -1069,8 +1163,8 @@ try {
         const persistedMax = await win.locator('.connection-config-drawer label:has-text("Max iterations") input').inputValue().catch(() => "");
         const persistedVisual = await readLoopVisual(win, NODE);
         check(
-          "Reconfigured Flow Loop persists and remains directionally animated after reload",
-          persistedMax === "6" && persistedVisual?.animationName === "awkit-loop-direction" && persistedVisual.animationIterationCount === "infinite",
+          "Reconfigured Flow Loop persists and keeps its rotating control after reload",
+          persistedMax === "6" && persistedVisual?.animationName === "awkit-loop-control-orbit" && persistedVisual.animationIterationCount === "infinite",
           JSON.stringify({ persistedMax, persistedVisual })
         );
       }

@@ -9280,6 +9280,7 @@ table {
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1800ms;
+  --awkit-loop-orbit-duration: 2000ms;
   --awkit-loop-exit-control-size: calc(var(--space-5) + var(--space-2));
   --awkit-loop-exit-control-label-offset: var(--awkit-loop-exit-control-size);
   --awkit-loop-exit-halo-duration: 2200ms;
@@ -10370,6 +10371,156 @@ table {
     stroke-dashoffset: -76;
     opacity: 0.72;
     filter: none;
+  }
+}
+
+/* Structured Loop control: a stable connector lane with one dominant concentric mechanism. */
+.awkit-flow-edge[role="button"]:focus {
+  outline: none;
+}
+
+.awkit-loop-control {
+  color: var(--awkit-connector-loop);
+  cursor: pointer;
+}
+
+.awkit-loop-control-lane {
+  fill: var(--awkit-surface);
+  fill-opacity: 0.94;
+  stroke: currentColor;
+  stroke-opacity: 0.34;
+  stroke-width: 1;
+  pointer-events: none;
+  transition: stroke-opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-loop-control-halo,
+.awkit-loop-control-backplate,
+.awkit-loop-control-outer-ring,
+.awkit-loop-control-main-ring,
+.awkit-loop-control-sweep,
+.awkit-loop-control-inner-ring,
+.awkit-loop-control-center-dot,
+.awkit-loop-control-focus-ring {
+  pointer-events: none;
+}
+
+.awkit-loop-control-halo {
+  fill: currentColor;
+  opacity: 0.08;
+  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-loop-control-backplate {
+  fill: var(--awkit-surface-raised);
+}
+
+.awkit-loop-control-outer-ring,
+.awkit-loop-control-main-ring,
+.awkit-loop-control-sweep,
+.awkit-loop-control-inner-ring,
+.awkit-loop-control-focus-ring {
+  fill: none;
+  stroke: currentColor;
+}
+
+.awkit-loop-control-outer-ring {
+  opacity: 0.34;
+  stroke-dasharray: 2 6;
+  stroke-width: 1.25;
+  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-loop-control-main-ring {
+  opacity: 0.72;
+  stroke-width: 2;
+  transition:
+    opacity var(--awkit-dur-fast) var(--awkit-ease-out),
+    stroke-width var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-loop-control-sweep {
+  opacity: 0.96;
+  stroke-dasharray: 22 78;
+  stroke-linecap: round;
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+  animation: awkit-loop-control-orbit var(--awkit-loop-orbit-duration) linear infinite;
+}
+
+.awkit-loop-control-inner-ring {
+  opacity: 0.52;
+  stroke-width: 1;
+}
+
+.awkit-loop-control-center-dot {
+  fill: currentColor;
+}
+
+.awkit-loop-control-focus-ring {
+  opacity: 0;
+  stroke: var(--awkit-connector-selected);
+  stroke-width: 2;
+  transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
+}
+
+.awkit-loop-control-hit {
+  cursor: pointer;
+  stroke: none;
+}
+
+.awkit-loop-control.is-selected .awkit-loop-control-lane {
+  stroke-opacity: 0.78;
+}
+
+.awkit-loop-control.is-selected .awkit-loop-control-halo {
+  opacity: 0.16;
+}
+
+.awkit-loop-control.is-selected .awkit-loop-control-outer-ring,
+.awkit-loop-control.is-selected .awkit-loop-control-main-ring {
+  opacity: 0.96;
+}
+
+.awkit-loop-control.is-selected .awkit-loop-control-main-ring {
+  stroke-width: 2.5;
+}
+
+.awkit-flow-edge:focus-visible .awkit-loop-control-focus-ring {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-lane {
+    stroke-opacity: 0.62;
+  }
+
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-halo {
+    opacity: 0.13;
+  }
+
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-outer-ring,
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-control-main-ring {
+    opacity: 0.88;
+  }
+}
+
+@keyframes awkit-loop-control-orbit {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-loop-control-sweep {
+    animation: none !important;
+    transform: rotate(-32deg);
+    will-change: auto;
   }
 }
 

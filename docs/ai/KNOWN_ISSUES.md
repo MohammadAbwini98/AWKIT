@@ -1,28 +1,22 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop reconfiguration and exit affordance were unreliable (awkit-kwg, 2026-08-12)
+## RESOLVED: Loop visuals targeted the wrong control and hid their motion (awkit-kwg, 2026-08-12)
 
-The first visual fix (`5cc98c9`) enlarged and halo-animated the non-self Conditional exit's insertion `+`,
-but incorrectly treated that separate HTML control as the requested Loop circle. The actual self-loop is
-an SVG edge: roughly 57-60% of its old right-bulging path sat under the higher-z-index node, leaving only
-about 3.5px visible above/below the card. Its directional layer was running but travelled mostly behind an
-opaque surface, so DOM-only keyframe assertions passed while users reasonably saw no size or motion change.
+The first visual fix (`5cc98c9`) enlarged the non-self Conditional exit's insertion `+`, which is a separate
+HTML step-insertion affordance rather than the structured Loop. The follow-up top arc exposed the SVG edge
+but still treated the Loop as a decorated ordinary connector. Both approaches missed the requested visual
+and interaction model.
 
-Both designers now derive dedicated top anchors from the measured node and draw a fully exposed, enlarged
-arc above it with a 28px hit stroke. Repeating direction segments visibly travel on a 1.8-second linear
-cycle; reduced motion produces a strong static segment. Real-Electron checks measure dash-offset change,
-assert exposed geometry, and click the outer arc. Keep those perceptibility assertions: animation-name or
-keyframe existence alone is not evidence of visible motion.
+Structured self-Loops now render as a purpose-built horizontal capsule with a prominent concentric circular
+mechanism, fixed anchor, and full circular hit target. Collision-aware side selection keeps the complete
+control outside cards and away from the right inspector, while fit-to-view includes its footprint. One
+transform-only bright arc orbits the stable rings; reduced motion freezes that arc at a readable angle.
+Click, double-click, and keyboard activation all reuse the existing connector selection/configuration path.
 
-The explicit **Configure loop** action remains separate from **Remove loop**. Edge gestures are isolated
-from pane panning, collapsed inspectors reopen on selection, Workflow Builder preserves node ids
-independently from `flowId`, and Flow save retains type-derived Loop config.
-
-The Conditional exit's shared 24px insert control was also visually undersized and, for same-row cards,
-could land on their boundary. It is now a structural render-only 32px Loop-exit control with a stable 14px
-`+`, collision-aware source-stem/side routing, label clearance, a visible 2.2-second linear halo, and a static
-reduced-motion ring. Generic controls and persisted connector data are unchanged; real-Electron checks
-cover vertical, tight-gap, and same-row layouts, click targeting, motion, reload, insertion, and removal.
+Keep the new GUI perceptibility guards. They assert exact geometry, collision clearance, the large hit
+target, real animation progress, and decoded screenshot pixel differences in both Electron designers.
+Checking only an animation name or keyframe registration is not evidence that a user can see the motion.
+The connector model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

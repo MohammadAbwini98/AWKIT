@@ -1,25 +1,24 @@
 # FEATURES
 
-## Loop visual treatment, reliable reconfiguration, and directional motion (2026-08-12)
+## Central Loop control, reconfiguration, and orbital motion (2026-08-12)
 
-- Existing Loops reopen through a dedicated **Configure loop** node action; **Remove loop** remains a
-  separate destructive action. Connector selection expands a collapsed inspector in both designers and
-  preserves edits across save/reload. Edge pointer gestures do not become pane pans.
-- Both designers derive dedicated top anchors from the measured card and draw a fully exposed Loop arc
-  above it. The arc is approximately 1.33x wider / 1.48x taller than the historical control and has a
-  28px interaction stroke, so it no longer disappears behind the node and can be selected directly.
-- A derived, non-interactive repeating segment communicates source-to-target direction on a 1.8-second
-  linear cycle while preserving the authored base color, thickness, and line style. Reduced-motion users
-  receive one clear static direction segment.
-- The Conditional Loop exit receives a render-only 32px `+` control (generic controls stay 24px), clear
-  label/node placement, and a visible 2.2-second linear halo. Reduced-motion users see a static ring. Classification
-  is structural rather than label-based and the presentation role is never persisted.
-- Same-row/upward Loop exits reserve a longer source stem and tight downstream gaps use a side route, so
-  the enlarged control and full halo stay centered without overlapping either card. Workflow loads
-  preserve node ids independently from flow ids.
-- Legacy Flow edges with `type: "loop"` and no explicit `kind` retain complete Loop configuration on
-  re-save, and inserting on a type-derived Conditional exit preserves that semantic kind; legacy
-  cross-node Loop Back behavior remains unchanged.
+- Every structured Loop uses a dedicated 160x20 horizontal capsule with an 80-unit concentric circular
+  mechanism, fixed center anchor, and 88-unit pointer target. It cannot fall back to an ordinary edge when
+  a legacy profile carries a non-circular visual shape.
+- The shared canvas scores the complete control footprint on both sides of the node, chooses the clearer
+  side, defaults away from the right inspector on ties, and includes the result in fit-to-view. The control,
+  label, other cards, handles, and nearby connectors remain clear in both designers.
+- One bright arc rotates around the stable main ring on a 2-second linear transform-only cycle. The lane,
+  authored connector route/style, concentric depth rings, and center dot remain stable. Reduced motion
+  substitutes a fixed highlighted arc.
+- The circular target supports pointer click, double-click, Enter, and Space through the existing connector
+  selection/configuration path. Selecting it expands a collapsed inspector; **Configure loop** and
+  **Remove loop** remain distinct node-menu actions.
+- Real-Electron verification asserts exact geometry, collision clearance, semantic rendering after a
+  non-circular style selection, authored-line preservation, keyboard/pointer activation, static reduced-
+  motion treatment, animation progress, and visible screenshot pixel change in both designers.
+- Loop authoring, workflow-node identity, full Loop configuration persistence, Conditional exit promotion,
+  Loop Back behavior, validation, and Flow/workflow execution semantics are unchanged.
 
 ## Complete Loop connector authoring (2026-08-11)
 

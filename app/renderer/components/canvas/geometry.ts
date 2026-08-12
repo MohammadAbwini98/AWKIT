@@ -194,14 +194,16 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Structured self-loop geometry. The current canvas no longer renders React Flow handles, so the
- * engine derives the old dedicated top-loop anchors from the measured node width. Compared with
- * the original 44%/56%, 54px loop, this 42%/58%, 80px arc increases the visible footprint by
- * roughly 1.33x horizontally and 1.48x vertically while keeping it centred above the node.
+ * Structured Loop control geometry. Every value is derived from the shared connector offset so
+ * the capsule, concentric mechanism, label clearance, and hit target stay on the Hologram spacing
+ * rhythm. The control sits outside the node on the clearer horizontal side.
  */
-export const LOOP_SOURCE_ANCHOR_RATIO = 0.42;
-export const LOOP_TARGET_ANCHOR_RATIO = 0.58;
-export const LOOP_ARC_HEIGHT = SMOOTH_STEP_OFFSET * 4;
+export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 8;
+export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET;
+export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 1.5;
+export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 2;
+export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 2.2;
+export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
 export const LOOP_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.4;
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
