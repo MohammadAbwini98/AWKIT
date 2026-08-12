@@ -6,16 +6,16 @@
 
 ## Confirmed
 
-Owner-sketch Loop mechanism regression coverage (2026-08-12, `awkit-kwg`):
-`verify:flow-designer` **109/109** and `verify:workflow-builder` **56/56** now create a detached
-280x40 pill plus 160-unit outer circle, assert the 60-unit bridge/arrow and card-relative scale, prove the
-complete mechanism remains inside the canvas after automatic reframing, and reject the prior small
-node-attached badge geometry. They also save, reload/switch,
-physically click an existing Loop path, reopen its collapsed editor, change the bound again, use the
-separate Configure loop action, save/reload, and confirm the value persists. Both assert unobstructed
-geometry, the stable authored dotted/thickness route, a single transform-only bright sweep with decoded
-pixel movement, and a static highlighted sweep under reduced motion. Workflow coverage includes
-`node.id !== flowId`;
+Owner-corrected node-owned Loop regression coverage (2026-08-12, `awkit-kwg`):
+`verify:flow-designer` **110/110** and `verify:workflow-builder` **57/57** create a structured self-loop
+whose rings share the exact center of the real card, assert connector-layer-before-node-layer ownership,
+prove the card naturally covers the center while upper/lower arcs remain visible, reject detached pills,
+bridges, arrows, filled backplates, and synthetic canvas nodes, then physically drag the real card and prove
+the ring follows without center drift. They also save, reload/switch, click an exposed Loop arc, reopen its
+collapsed editor, change the bound again, use the separate Configure loop action, save/reload, and confirm
+the value persists. Both assert viewport containment, the stable authored dotted/thickness ring, a single
+transform-only bright sweep with decoded pixel movement, and a static highlighted sweep under reduced
+motion. Workflow coverage includes `node.id !== flowId`;
 `verify:flow-step-mapping` **137/137** includes a type-derived Loop with omitted `kind`.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and

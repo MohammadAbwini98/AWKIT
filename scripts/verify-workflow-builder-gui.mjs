@@ -158,31 +158,23 @@ async function readLoopVisual(win, nodeId) {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
     const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);
     const canvas = document.querySelector(".awkit-flow-canvas");
-    const base = group?.querySelector(".awkit-flow-edge-path");
-    const interaction = group?.querySelector(".awkit-flow-edge-interaction");
-    const control = group?.querySelector(".awkit-loop-control");
-    const lane = control?.querySelector(".awkit-loop-control-lane");
-    const arrow = control?.querySelector(".awkit-loop-control-arrowhead");
-    const outer = control?.querySelector(".awkit-loop-control-outer-ring");
-    const main = control?.querySelector(".awkit-loop-control-main-ring");
-    const sweep = control?.querySelector(".awkit-loop-control-sweep");
-    const inner = control?.querySelector(".awkit-loop-control-inner-ring");
-    const dot = control?.querySelector(".awkit-loop-control-center-dot");
-    const hit = control?.querySelector(".awkit-loop-control-hit");
-    const label = [...document.querySelectorAll(".awkit-loop-edge-label")]
+    const edgesLayer = group?.closest(".awkit-flow-edges");
+    const nodesLayer = node?.closest(".awkit-flow-nodes");
+    const indicator = group?.querySelector(".awkit-loop-indicator");
+    const outer = indicator?.querySelector(".awkit-loop-indicator-outer-ring");
+    const main = indicator?.querySelector(".awkit-loop-indicator-main-ring");
+    const sweep = indicator?.querySelector(".awkit-loop-indicator-sweep");
+    const hit = indicator?.querySelector(".awkit-loop-indicator-hit");
+    const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
       .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
-    if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(canvas instanceof HTMLElement) || !(base instanceof SVGPathElement) ||
-      !(interaction instanceof SVGPathElement) || !(control instanceof SVGGElement) || !(lane instanceof SVGRectElement) ||
-      !(arrow instanceof SVGPathElement) ||
-      !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) ||
-      !(inner instanceof SVGCircleElement) || !(dot instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
+    if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(canvas instanceof HTMLElement) ||
+      !(edgesLayer instanceof SVGElement) || !(nodesLayer instanceof HTMLElement) || !(indicator instanceof SVGGElement) ||
+      !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
       !(label instanceof HTMLElement)) return null;
-    const baseStyle = getComputedStyle(base);
+    const mainStyle = getComputedStyle(main);
     const sweepStyle = getComputedStyle(sweep);
     const nodeRect = node.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
-    const laneRect = lane.getBoundingClientRect();
-    const arrowRect = arrow.getBoundingClientRect();
     const outerRect = outer.getBoundingClientRect();
     const mainRect = main.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
@@ -191,49 +183,46 @@ async function readLoopVisual(win, nodeId) {
     const otherNodeRects = [...document.querySelectorAll(".awkit-flow-node")]
       .filter((candidate) => candidate instanceof HTMLElement && candidate.getAttribute("data-id") !== id)
       .map((candidate) => candidate.getBoundingClientRect());
-    const circleCenterX = Number(outer.getAttribute("cx"));
-    const circleCenterY = Number(outer.getAttribute("cy"));
-    const sharedCenter = [main, sweep, inner, dot, hit].every((circle) =>
-      Math.abs(Number(circle.getAttribute("cx")) - circleCenterX) < 0.01 && Math.abs(Number(circle.getAttribute("cy")) - circleCenterY) < 0.01
+    const circleCenterX = outerRect.left + outerRect.width / 2;
+    const circleCenterY = outerRect.top + outerRect.height / 2;
+    const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+    const nodeCenterY = nodeRect.top + nodeRect.height / 2;
+    const sharedCenter = [main, sweep, hit].every((circle) =>
+      Math.abs(Number(circle.getAttribute("cx")) - Number(outer.getAttribute("cx"))) < 0.01 &&
+      Math.abs(Number(circle.getAttribute("cy")) - Number(outer.getAttribute("cy"))) < 0.01
     );
-    const laneCenterX = Number(lane.getAttribute("x")) + Number(lane.getAttribute("width")) / 2;
-    const laneCenterY = Number(lane.getAttribute("y")) + Number(lane.getAttribute("height")) / 2;
-    const side = control.getAttribute("data-loop-side");
+    const topElement = document.elementFromPoint(nodeCenterX, nodeCenterY);
     return {
       className: group.getAttribute("class") || "",
       connectorKind: group.getAttribute("data-connector-kind"),
       role: group.getAttribute("role"),
       ariaLabel: group.getAttribute("aria-label"),
       tabIndex: group.getAttribute("tabindex"),
-      side,
+      owner: indicator.getAttribute("data-loop-owner"),
+      canvasNodeCount: document.querySelectorAll("[data-canvas-node]").length,
+      syntheticLoopNodeCount: document.querySelectorAll('[data-canvas-node][data-loop-indicator], [data-canvas-node^="loop-visual-"]').length,
+      indicatorInEdgeLayer: Boolean(indicator.closest(".awkit-flow-edges")),
+      indicatorInNodeLayer: Boolean(indicator.closest(".awkit-flow-nodes")),
+      edgeLayerZ: getComputedStyle(edgesLayer).zIndex,
+      nodeLayerZ: getComputedStyle(nodesLayer).zIndex,
       baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
       directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
       laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
       arrowCount: group.querySelectorAll(".awkit-loop-control-arrowhead").length,
-      outerCount: group.querySelectorAll(".awkit-loop-control-outer-ring").length,
-      mainCount: group.querySelectorAll(".awkit-loop-control-main-ring").length,
-      sweepCount: group.querySelectorAll(".awkit-loop-control-sweep").length,
-      innerCount: group.querySelectorAll(".awkit-loop-control-inner-ring").length,
-      dotCount: group.querySelectorAll(".awkit-loop-control-center-dot").length,
-      hitCount: group.querySelectorAll(".awkit-loop-control-hit").length,
-      samePath: base.getAttribute("d") === interaction.getAttribute("d"),
-      basePath: base.getAttribute("d") || "",
-      bridgeLength: base.getTotalLength(),
-      baseDash: base.style.strokeDasharray || baseStyle.strokeDasharray,
-      baseWidth: baseStyle.strokeWidth,
-      laneWidth: Number(lane.getAttribute("width")),
-      laneHeight: Number(lane.getAttribute("height")),
-      laneRadius: Number(lane.getAttribute("rx")),
+      backplateCount: group.querySelectorAll(".awkit-loop-control-backplate").length,
+      outerCount: group.querySelectorAll(".awkit-loop-indicator-outer-ring").length,
+      mainCount: group.querySelectorAll(".awkit-loop-indicator-main-ring").length,
+      sweepCount: group.querySelectorAll(".awkit-loop-indicator-sweep").length,
+      hitCount: group.querySelectorAll(".awkit-loop-indicator-hit").length,
       outerRadius: Number(outer.getAttribute("r")),
       mainRadius: Number(main.getAttribute("r")),
-      innerRadius: Number(inner.getAttribute("r")),
       hitRadius: Number(hit.getAttribute("r")),
-      dotRadius: Number(dot.getAttribute("r")),
       sharedCenter,
-      centeredOnLane: Math.abs(laneCenterX - circleCenterX) < 0.01 && Math.abs(laneCenterY - circleCenterY) < 0.01,
       pathLength: sweep.getAttribute("pathLength"),
       sweepDash: sweepStyle.strokeDasharray,
       sweepWidth: sweepStyle.strokeWidth,
+      mainDash: main.style.strokeDasharray || mainStyle.strokeDasharray,
+      mainWidth: mainStyle.strokeWidth,
       animationName: sweepStyle.animationName,
       animationDuration: sweepStyle.animationDuration,
       animationIterationCount: sweepStyle.animationIterationCount,
@@ -245,8 +234,6 @@ async function readLoopVisual(win, nodeId) {
       nodeRight: nodeRect.right,
       nodeHeight: nodeRect.height,
       nodeWidth: nodeRect.width,
-      laneLeft: laneRect.left,
-      laneRight: laneRect.right,
       outerLeft: outerRect.left,
       outerRight: outerRect.right,
       outerTop: outerRect.top,
@@ -254,19 +241,20 @@ async function readLoopVisual(win, nodeId) {
       outerDiameter: outerRect.width,
       mainDiameter: mainRect.width,
       hitDiameter: hitRect.width,
-      componentNodeGap: side === "left" ? nodeRect.left - laneRect.right : laneRect.left - nodeRect.right,
-      circleNodeGap: side === "left" ? nodeRect.left - outerRect.right : outerRect.left - nodeRect.right,
+      centerDeltaX: Math.abs(circleCenterX - nodeCenterX),
+      centerDeltaY: Math.abs(circleCenterY - nodeCenterY),
       circleToNodeHeightRatio: outerRect.height / nodeRect.height,
-      pillToNodeWidthRatio: laneRect.width / nodeRect.width,
-      arrowTouchesNode: side === "left" ? Math.abs(arrowRect.right - nodeRect.left) < 2 : Math.abs(arrowRect.left - nodeRect.right) < 2,
-      mechanismFullyVisible: laneRect.left >= canvasRect.left - 1 && laneRect.right <= canvasRect.right + 1 &&
+      upperArcVisible: nodeRect.top - outerRect.top > 8,
+      lowerArcVisible: outerRect.bottom - nodeRect.bottom > 8,
+      nodeOverlapsRing: overlaps(nodeRect, outerRect),
+      nodeCoversRingCenter: Boolean(topElement?.closest(`[data-canvas-node="${CSS.escape(id)}"]`)),
+      ringFullyVisible: outerRect.left >= canvasRect.left - 1 && outerRect.right <= canvasRect.right + 1 &&
         outerRect.top >= canvasRect.top - 1 && outerRect.bottom <= canvasRect.bottom + 1 && labelRect.top >= canvasRect.top - 1,
       labelBottom: labelRect.bottom,
       labelClearance: outerRect.top - labelRect.bottom,
-      circleOutsideNode: side === "left" ? outerRect.right <= nodeRect.left + 1 : outerRect.left >= nodeRect.right - 1,
-      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, laneRect) || overlaps(rect, outerRect) || overlaps(rect, labelRect)),
-      selected: control.classList.contains("is-selected"),
-      interactionWidth: getComputedStyle(interaction).strokeWidth
+      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, outerRect) || overlaps(rect, labelRect)),
+      selected: indicator.classList.contains("is-selected"),
+      interactionWidth: getComputedStyle(hit).strokeWidth
     };
   }, nodeId);
 }
@@ -274,7 +262,7 @@ async function readLoopVisual(win, nodeId) {
 async function readLoopMotionDelta(win, nodeId) {
   return win.evaluate(async (id) => {
     const sweep = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control-sweep`
+      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator-sweep`
     );
     if (!(sweep instanceof SVGCircleElement)) return null;
     const animation = sweep.getAnimations()[0];
@@ -288,7 +276,7 @@ async function readLoopMotionDelta(win, nodeId) {
 }
 
 async function readLoopPixelMotion(win, nodeId) {
-  const control = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-control`);
+  const control = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator`);
   const before = await control.screenshot({ animations: "allow" });
   await win.waitForTimeout(180);
   const after = await control.screenshot({ animations: "allow" });
@@ -311,12 +299,12 @@ async function readLoopPixelMotion(win, nodeId) {
 async function clickLoopControl(win, nodeId) {
   const point = await win.evaluate((id) => {
     const hit = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control-hit`
+      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator-hit`
     );
     if (!(hit instanceof SVGCircleElement)) return null;
     const matrix = hit.getScreenCTM();
     if (!matrix) return null;
-    const screen = new DOMPoint(Number(hit.getAttribute("cx")), Number(hit.getAttribute("cy"))).matrixTransform(matrix);
+    const screen = new DOMPoint(Number(hit.getAttribute("cx")), Number(hit.getAttribute("cy")) - Number(hit.getAttribute("r"))).matrixTransform(matrix);
     return { x: screen.x, y: screen.y };
   }, nodeId);
   if (!point) return false;
@@ -774,7 +762,7 @@ try {
     await win.waitForTimeout(450);
     const loop = await win.evaluate((id) => {
       const self = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
-      return { count: document.querySelectorAll("g.awkit-flow-edge").length, hasSelfLoop: Boolean(self && self.querySelector("path.awkit-flow-edge-path")) };
+      return { count: document.querySelectorAll("g.awkit-flow-edge").length, hasSelfLoop: Boolean(self?.querySelector(".awkit-loop-indicator")) };
     }, NODE);
     check("Add loop creates a self-loop connector", loop.count === before + 1 && loop.hasSelfLoop, `before=${before} after=${loop.count} selfLoop=${loop.hasSelfLoop}`);
 
@@ -794,34 +782,49 @@ try {
       const pixelMotion = await readLoopPixelMotion(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Workflow Loop renders a detached, dominant pill-and-ring mechanism before the node",
+        "Workflow Loop renders one node-owned ring centered behind the real node",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
           visual.role === "button" && visual.tabIndex === "0" && visual.ariaLabel?.startsWith("Configure loop connector:") &&
-          visual.baseCount === 1 && visual.directionCount === 0 && visual.samePath &&
-          visual.laneCount === 1 && visual.arrowCount === 1 && visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 &&
-          visual.innerCount === 1 && visual.dotCount === 1 && visual.hitCount === 1 &&
-          visual.laneWidth === 280 && visual.laneHeight === 40 && visual.laneWidth / visual.laneHeight === 7 && visual.laneRadius === visual.laneHeight / 2 &&
-          visual.outerRadius === 80 && visual.mainRadius === 60 && visual.innerRadius === 16 && visual.hitRadius === 88 && visual.dotRadius === 4 &&
-          visual.sharedCenter && visual.centeredOnLane && visual.outerRadius / visual.mainRadius >= 1.3 && visual.hitRadius >= visual.outerRadius &&
-          visual.basePath.includes(" H ") && !/[CQ]/.test(visual.basePath) && Math.abs(visual.bridgeLength - 60) < 0.1 &&
-          visual.componentNodeGap > 30 && visual.circleNodeGap > visual.componentNodeGap && visual.circleToNodeHeightRatio >= 1.6 &&
-          visual.pillToNodeWidthRatio >= 0.7 && visual.arrowTouchesNode && visual.mechanismFullyVisible && visual.circleOutsideNode && !visual.overlapsOtherNode && visual.labelClearance >= 2 &&
-          Number.parseFloat(visual.interactionWidth) >= 32,
+          visual.owner === NODE && visual.syntheticLoopNodeCount === 0 && visual.canvasNodeCount > 0 &&
+          visual.indicatorInEdgeLayer && !visual.indicatorInNodeLayer && Number.parseFloat(visual.edgeLayerZ) < Number.parseFloat(visual.nodeLayerZ) &&
+          visual.baseCount === 0 && visual.directionCount === 0 && visual.laneCount === 0 && visual.arrowCount === 0 && visual.backplateCount === 0 &&
+          visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 && visual.hitCount === 1 && visual.sharedCenter &&
+          Math.abs(visual.outerRadius - visual.mainRadius - 8) < 0.1 && visual.hitRadius === visual.mainRadius &&
+          visual.centerDeltaX < 1 && visual.centerDeltaY < 1 && visual.circleToNodeHeightRatio >= 2 && visual.circleToNodeHeightRatio <= 3 &&
+          visual.upperArcVisible && visual.lowerArcVisible && visual.nodeOverlapsRing && visual.nodeCoversRingCenter && visual.ringFullyVisible &&
+          !visual.overlapsOtherNode && visual.labelClearance >= 2 && Number.parseFloat(visual.interactionWidth) >= 24,
         JSON.stringify(visual)
       );
       check(
-        "Workflow Loop rotates one bright sweep while preserving the authored return lane style",
+        "Workflow Loop rotates one refined sweep while preserving the authored ring style",
         visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
           Number.parseFloat(visual.animationDuration) >= 1.5 && Number.parseFloat(visual.animationDuration) <= 2.5 && visual.pathLength === "100" &&
-          normalizeDash(visual.baseDash) === "1 5" && Number.parseFloat(visual.baseWidth) >= 3 && Number.parseFloat(visual.baseWidth) <= 4.1 && normalizeDash(visual.sweepDash) === "22 78" &&
-          Number.parseFloat(visual.sweepWidth) === 6 && Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved &&
+          normalizeDash(visual.mainDash) === "1 5" && Number.parseFloat(visual.mainWidth) >= 3 && Number.parseFloat(visual.mainWidth) <= 4.1 && normalizeDash(visual.sweepDash) === "16 84" &&
+          Number.parseFloat(visual.sweepWidth) === 4 && Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved &&
           Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 40 && pixelMotion.totalDelta > 0,
         JSON.stringify({ visual, motion, pixelMotion })
       );
       check(
         "A non-circular saved shape cannot collapse a semantic Workflow Loop into an ordinary edge",
-        visual?.laneCount === 1 && visual.sweepCount === 1 && visual.directionCount === 0,
+        visual?.outerCount === 1 && visual.sweepCount === 1 && visual.baseCount === 0 && visual.laneCount === 0,
         JSON.stringify(visual)
+      );
+      const loopNodeBox = await win.locator(`.awkit-flow-node[data-id="${NODE}"]`).boundingBox();
+      let draggedVisual = null;
+      if (loopNodeBox) {
+        await win.mouse.move(loopNodeBox.x + loopNodeBox.width / 2, loopNodeBox.y + loopNodeBox.height / 2);
+        await win.mouse.down();
+        await win.mouse.move(loopNodeBox.x + loopNodeBox.width / 2 + 32, loopNodeBox.y + loopNodeBox.height / 2 + 18, { steps: 6 });
+        draggedVisual = await readLoopVisual(win, NODE);
+        await win.mouse.up();
+        await win.waitForTimeout(100);
+      }
+      check(
+        "Dragging the real Workflow node keeps its behind-node Loop ring centered without creating another node",
+        Boolean(loopNodeBox) && draggedVisual?.centerDeltaX < 1 && draggedVisual.centerDeltaY < 1 && draggedVisual.syntheticLoopNodeCount === 0 &&
+          Math.abs((draggedVisual.nodeLeft - visual.nodeLeft) - (draggedVisual.outerLeft - visual.outerLeft)) < 2 &&
+          Math.abs((draggedVisual.outerLeft - visual.outerLeft)) > 20,
+        JSON.stringify({ before: visual, duringDrag: draggedVisual })
       );
       const loopExitControl = await readLoopExitControlVisual(win, NODE);
       const genericWidth = loopExitControl?.genericWidth || defaultInsertControl?.width || "1";
@@ -860,7 +863,7 @@ try {
       check(
         "Workflow Loop rotation becomes one strong static sweep under reduced motion",
         reducedVisual?.display !== "none" && reducedVisual.animationName === "none" &&
-          normalizeDash(reducedVisual.sweepDash) === "22 78" && Number.parseFloat(reducedVisual.opacity) >= 0.9 && reducedVisual.transform !== "none",
+          normalizeDash(reducedVisual.sweepDash) === "16 84" && Number.parseFloat(reducedVisual.opacity) >= 0.9 && reducedVisual.transform !== "none",
         JSON.stringify(reducedVisual)
       );
       check(
@@ -916,7 +919,7 @@ try {
       const clickedLoopControl = await clickLoopControl(win, NODE);
       const reopenedByControl = await loopMode.isVisible().catch(() => false);
       const selectedByControl = await win.evaluate((id) => Boolean(
-        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-control.is-selected`)
+        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator.is-selected`)
       ), NODE);
       check(
         "The central Workflow Loop circle is a reliable direct configuration target",
@@ -939,7 +942,7 @@ try {
       const reopenedMode = reopenedByMenu ? await loopMode.inputValue() : "";
       const reopenedMax = reopenedByMenu ? await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() : "";
       const selectedByMenu = await win.evaluate((id) => Boolean(
-        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-flow-edge-path.is-selected`)
+        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator.is-selected`)
       ), NODE);
       check(
         "Configure loop reopens the saved Workflow Loop after switching workflows",

@@ -1,29 +1,19 @@
 import { BaseEdge, EdgeLabelRenderer } from "../edgeComponents";
 import {
-  LOOP_CONTROL_ARROW_HALF_HEIGHT,
-  LOOP_CONTROL_ARROW_LENGTH,
-  LOOP_CONTROL_BRIDGE_GAP,
-  LOOP_CONTROL_DOT_RADIUS,
-  LOOP_CONTROL_HIT_RADIUS,
-  LOOP_CONTROL_INNER_RADIUS,
-  LOOP_CONTROL_LABEL_GAP,
-  LOOP_CONTROL_LANE_HEIGHT,
-  LOOP_CONTROL_LANE_WIDTH,
-  LOOP_CONTROL_MAIN_RADIUS,
-  LOOP_CONTROL_OUTER_RADIUS,
-  LOOP_INTERACTION_WIDTH,
-  Position,
-  SMOOTH_STEP_OFFSET
+  LOOP_RING_INTERACTION_WIDTH,
+  LOOP_RING_LABEL_GAP,
+  getLoopOuterRadius,
+  getLoopRingRadius
 } from "../geometry";
 import type { CanvasEdgeProps } from "../types";
 
 /**
- * Circular connector renderer. A structured self-loop is a separate Loop mechanism before its
- * node: a substantial capsule body, dominant concentric control, fixed anchor, rotating sweep,
- * and an explicit straight bridge into the node. Circular styles between distinct nodes retain
- * the legacy curved-edge renderer.
+ * Circular connector renderer. A structured self-loop is a node-owned ring centered behind its
+ * real source card; the edge layer sits below the node layer, so the card naturally occludes the
+ * ring's middle while its upper/lower arcs remain visible. Circular styles between distinct nodes
+ * retain the legacy curved-edge renderer.
  */
-export function LoopEdge({ id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, data, label, selected, style, directional }: CanvasEdgeProps<{ label?: string }>) {
+export function LoopEdge({ id, source, target, sourceX, sourceY, targetX, targetY, data, label, selected, style, directional }: CanvasEdgeProps<{ label?: string }>) {
   const isSelfLoop = source === target;
   const resolvedLabel = label ?? data?.label ?? "Next Item";
 
@@ -46,72 +36,52 @@ export function LoopEdge({ id, source, target, sourceX, sourceY, targetX, target
     );
   }
 
-  const side = sourcePosition === Position.Left ? -1 : 1;
+  const nodeHeight = Math.abs(targetY - sourceY);
+  const centerX = (sourceX + targetX) / 2;
   const centerY = (sourceY + targetY) / 2;
-  const nearX = sourceX + side * LOOP_CONTROL_BRIDGE_GAP;
-  const farX = nearX + side * LOOP_CONTROL_LANE_WIDTH;
-  const centerX = nearX + side * (LOOP_CONTROL_LANE_WIDTH / 2);
-  const laneX = Math.min(nearX, farX);
-  const laneY = centerY - LOOP_CONTROL_LANE_HEIGHT / 2;
-  const path = `M ${nearX},${centerY} H ${sourceX}`;
-  const arrowBaseX = sourceX + side * LOOP_CONTROL_ARROW_LENGTH;
-  const arrowPath = `M ${sourceX},${centerY} L ${arrowBaseX},${centerY - LOOP_CONTROL_ARROW_HALF_HEIGHT} L ${arrowBaseX},${centerY + LOOP_CONTROL_ARROW_HALF_HEIGHT} Z`;
-  const labelY = centerY - LOOP_CONTROL_OUTER_RADIUS - LOOP_CONTROL_LABEL_GAP;
+  const ringRadius = getLoopRingRadius(nodeHeight);
+  const outerRadius = getLoopOuterRadius(nodeHeight);
+  const labelY = centerY - outerRadius - LOOP_RING_LABEL_GAP;
   const controlColor = typeof style?.stroke === "string" ? style.stroke : "var(--awkit-connector-loop)";
+  const authoredRingStyle = {
+    strokeDasharray: typeof style?.strokeDasharray === "string" ? style.strokeDasharray : undefined,
+    strokeWidth: typeof style?.strokeWidth === "number" ? style.strokeWidth : undefined
+  };
 
   return (
     <>
       <g
-        className={["awkit-loop-control", selected ? "is-selected" : ""].filter(Boolean).join(" ")}
-        data-loop-control="true"
-        data-loop-side={side < 0 ? "left" : "right"}
+        className={["awkit-loop-indicator", selected ? "is-selected" : ""].filter(Boolean).join(" ")}
+        data-loop-indicator="true"
+        data-loop-owner={source}
         style={{ color: controlColor }}
       >
-        <rect
-          aria-hidden="true"
-          className="awkit-loop-control-lane"
-          x={laneX}
-          y={laneY}
-          width={LOOP_CONTROL_LANE_WIDTH}
-          height={LOOP_CONTROL_LANE_HEIGHT}
-          rx={LOOP_CONTROL_LANE_HEIGHT / 2}
-        />
-        <BaseEdge
-          id={id}
-          path={path}
-          className={selected ? "is-selected" : undefined}
-          style={style}
-          interactionWidth={LOOP_INTERACTION_WIDTH}
-        />
-        <path aria-hidden="true" className="awkit-loop-control-arrowhead" d={arrowPath} />
-        <circle aria-hidden="true" className="awkit-loop-control-halo" cx={centerX} cy={centerY} r={LOOP_CONTROL_OUTER_RADIUS} />
-        <circle aria-hidden="true" className="awkit-loop-control-backplate" cx={centerX} cy={centerY} r={LOOP_CONTROL_OUTER_RADIUS - SMOOTH_STEP_OFFSET / 2} />
-        <circle aria-hidden="true" className="awkit-loop-control-outer-ring" cx={centerX} cy={centerY} r={LOOP_CONTROL_OUTER_RADIUS} />
-        <circle aria-hidden="true" className="awkit-loop-control-main-ring" cx={centerX} cy={centerY} r={LOOP_CONTROL_MAIN_RADIUS} />
+        <circle aria-hidden="true" className="awkit-loop-indicator-outer-ring" cx={centerX} cy={centerY} r={outerRadius} />
+        <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={centerX} cy={centerY} r={ringRadius} style={authoredRingStyle} />
         <circle
           aria-hidden="true"
-          className="awkit-loop-control-sweep"
+          className="awkit-loop-indicator-sweep"
           cx={centerX}
           cy={centerY}
-          r={LOOP_CONTROL_MAIN_RADIUS}
+          r={ringRadius}
           pathLength={100}
         />
-        <circle aria-hidden="true" className="awkit-loop-control-inner-ring" cx={centerX} cy={centerY} r={LOOP_CONTROL_INNER_RADIUS} />
-        <circle aria-hidden="true" className="awkit-loop-control-center-dot" cx={centerX} cy={centerY} r={LOOP_CONTROL_DOT_RADIUS} />
-        <circle aria-hidden="true" className="awkit-loop-control-focus-ring" cx={centerX} cy={centerY} r={LOOP_CONTROL_HIT_RADIUS - 1} />
+        <circle aria-hidden="true" className="awkit-loop-indicator-focus-ring" cx={centerX} cy={centerY} r={outerRadius + 1} />
         <circle
           aria-hidden="true"
-          className="awkit-loop-control-hit"
+          className="awkit-loop-indicator-hit"
           cx={centerX}
           cy={centerY}
-          r={LOOP_CONTROL_HIT_RADIUS}
-          fill="transparent"
-          pointerEvents="all"
+          r={ringRadius}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={LOOP_RING_INTERACTION_WIDTH}
+          pointerEvents="stroke"
         />
       </g>
       <EdgeLabelRenderer>
         <div
-          className="awkit-edge-label awkit-loop-edge-label"
+          className="awkit-edge-label awkit-loop-indicator-label"
           data-edge-id={id}
           style={{ whiteSpace: "nowrap", transform: `translate(-50%, -50%) translate(${centerX}px, ${labelY}px)` }}
         >

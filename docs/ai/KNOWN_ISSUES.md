@@ -1,25 +1,24 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop visuals remained a small node-attached badge after the first central-control pass (awkit-kwg, 2026-08-12)
+## RESOLVED: Loop visual ownership was interpreted as a detached control instead of a ring behind the real node (awkit-kwg, 2026-08-12)
 
-The first visual fix (`5cc98c9`) enlarged the non-self Conditional exit's insertion `+`, and the follow-up
-top arc still treated the Loop as a decorated ordinary connector. The first central-control pass added the
-right pieces but kept them at 160x20 / 80-unit-outer proportions with the capsule touching the node. Those
-checks proved rings and motion existed, but encoded the wrong acceptance target; the result still read as
-a small node-attached badge rather than the separate mechanism in the owner's sketch.
+Earlier fixes moved from a decorated ordinary connector to a central circle, then incorrectly interpreted
+the reference as a separate left/right pill-and-ring mechanism. The pieces and animation existed, but the
+visual ownership was wrong: the Loop is not another node, badge, side control, or graph position. It is a
+ring centered on and behind the actual workflow card.
 
-Structured self-Loops now render as a separate 280x40 horizontal capsule with a 160-unit outer concentric
-mechanism, fixed anchor, and 176-unit circular hit target. A 60-unit bridge and explicit arrow preserve a
-clear gap before the node. Collision-aware side selection keeps the complete control outside cards, while
-post-mutation fit-to-view prevents clipping even when the configuration drawer opens. One transform-only
-bright arc orbits the stable rings; reduced motion freezes that arc at a readable angle. Click,
-double-click, and keyboard activation all reuse the existing connector selection/configuration path.
+Structured self-Loops now derive their center from the real card's measured bounds. Stable concentric rings
+render in the connector SVG below the DOM node, so the card itself masks the middle and exposes the upper
+and lower arcs. The live drag overlay keeps the centers locked during movement. There is no detached pill,
+bridge, arrow, center badge, filled backplate, or synthetic node. One transform-only bright arc orbits the
+main ring; reduced motion freezes it. Exposed ring strokes retain pointer and keyboard configuration while
+the covered center retains normal node interaction.
 
-Keep the new GUI perceptibility guards. They assert exact geometry, proportional dominance, the explicit
-component gap/bridge/arrow, complete viewport visibility, collision clearance, the large hit target, real
-animation progress, and decoded screenshot pixel differences in both Electron designers.
-Checking only an animation name or keyframe registration is not evidence that a user can see the motion.
-The connector model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
+Keep the corrected GUI guards. They assert exact card/ring center equality, edge-before-node layering,
+natural center occlusion, visible upper/lower arcs, no synthetic node or detached mechanism, attachment
+during physical drag, viewport visibility, real animation progress, and decoded screenshot pixel changes
+in both Electron designers. Checking only parts, keyframes, or component scale is insufficient. The
+connector model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

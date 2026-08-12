@@ -194,23 +194,24 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Structured Loop control geometry. The Loop is a separate workflow mechanism before the node:
- * a substantial pill body, an oversized concentric control, and an explicit bridge into the node.
- * Every value stays derived from the shared connector offset so the composition follows the
- * Hologram spacing rhythm at every zoom level.
+ * Structured Loop indicator geometry. The ring is owned by the real source node and shares its
+ * center; its radius derives from the measured card height so differently sized nodes retain the
+ * same relationship. Values stay on the shared connector rhythm and never create a second graph
+ * position for the visual indicator.
  */
-export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 14;
-export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET * 2;
-export const LOOP_CONTROL_BRIDGE_GAP = SMOOTH_STEP_OFFSET * 3;
-export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 3;
-export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 4;
-export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 4.4;
-export const LOOP_CONTROL_INNER_RADIUS = SMOOTH_STEP_OFFSET * 0.8;
-export const LOOP_CONTROL_DOT_RADIUS = SMOOTH_STEP_OFFSET * 0.2;
-export const LOOP_CONTROL_ARROW_LENGTH = SMOOTH_STEP_OFFSET * 0.65;
-export const LOOP_CONTROL_ARROW_HALF_HEIGHT = SMOOTH_STEP_OFFSET * 0.35;
-export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.8;
-export const LOOP_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.6;
+export const LOOP_RING_MIN_RADIUS = SMOOTH_STEP_OFFSET * 3;
+export const LOOP_RING_NODE_HEIGHT_RATIO = 1;
+export const LOOP_RING_OUTER_GAP = SMOOTH_STEP_OFFSET * 0.4;
+export const LOOP_RING_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
+export const LOOP_RING_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
+
+export function getLoopRingRadius(nodeHeight: number): number {
+  return Math.max(LOOP_RING_MIN_RADIUS, nodeHeight * LOOP_RING_NODE_HEIGHT_RATIO);
+}
+
+export function getLoopOuterRadius(nodeHeight: number): number {
+  return getLoopRingRadius(nodeHeight) + LOOP_RING_OUTER_GAP;
+}
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({

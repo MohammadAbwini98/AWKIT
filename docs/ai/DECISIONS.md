@@ -1,5 +1,20 @@
 # DECISIONS
 
+### 2026-08-12 - A structured Loop is a node-owned edge-layer ring, not a graph node or detached control
+
+- **Decision:** the Loop's circular visual shares the exact center of its real workflow card and renders in
+  the existing connector SVG below the DOM node layer. The card naturally occludes the ring center; no
+  synthetic node, separate position, detached lane, filled backdrop, bridge, arrow, or center badge exists.
+- **Geometry:** the ring derives from the card's measured height with a bounded minimum and follows the
+  card through the existing live dragging-edge overlay. Fit-to-view includes the visual footprint but never
+  rewrites the card's persisted coordinates.
+- **Interaction and motion:** exposed arcs reuse the persisted connector's pointer/keyboard configuration
+  path, while the covered card center remains the node's drag/select surface. One transform-only sweep runs
+  over stable rings; reduced motion uses a fixed segment.
+- **Reason:** visual ownership, movement, persistence, and runtime meaning all belong to the same workflow
+  node and self-loop connector. A second graph component would miscommunicate the model and create avoidable
+  positioning, selection, and synchronization state.
+
 ### 2026-08-11 - Workflow loops reuse the Flow connector contract and runtime policy
 
 - **Decision:** `WorkflowEdge`/`ScenarioLink` carry the existing `LoopConnectorConfig` and

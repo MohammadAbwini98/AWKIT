@@ -4,7 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
-## 2026-08-12 - Codex - Match the Loop connector to the detached owner sketch
+## 2026-08-12 - Codex - Center the Loop ring behind its real workflow node
+
+- **Task:** Correct the Loop's visual ownership: it is a node-owned ring centered behind the real card,
+  not a detached pill, badge, side mechanism, or synthetic node.
+- **Root cause:** the preceding implementation treated the reference as a separate left/right graph
+  component. Its tests verified size and motion but encoded separation from the node instead of exact
+  card/ring center equality and natural layering.
+- **Implementation:** removed the lane, bridge, arrow, filled backplate, center badge, and side-selection
+  geometry; derived concentric ring radii from the measured card height; centered the edge endpoints on the
+  card's top/bottom; and relied on the existing edge-below-node layers for natural occlusion. The exposed
+  arc retains a 24-unit hit stroke, the bright sweep remains transform-only, and reduced motion is static.
+- **Safety:** the dragging-edge overlay keeps the ring attached to the real card. Pointer/keyboard and
+  node-menu Configure/Remove actions, persisted styles/configuration, Conditional exits, validation, Loop
+  Back, and runtime semantics remain on their existing paths.
+- **Verified:** build PASS; Flow Designer Electron GUI **110/110**; Workflow Builder Electron GUI **57/57**;
+  runner **99/99**; mock site **145/145**; validation **134/134**; Flow step mapping **137/137**; workflow
+  conversions **14/14**; branch pairs **36/36**; canvas performance **13/13**; canvas layout **35/35**;
+  source hygiene **9/9**; verifier classification reconciled.
+- **Files:** shared canvas geometry/fit bounds/Loop edge, Hologram CSS, both real-Electron GUI verifiers,
+  tracker sources, and AI memory.
+
+---
+
+## 2026-08-12 - Codex - Match the Loop connector to the detached owner sketch (superseded)
 
 - **Task:** Correct the prior central Loop result, which still appeared as a small badge attached to its
   node, and make the sketched pill-and-ring mechanism a separate, dominant workflow component.
@@ -23,6 +46,8 @@ Append a new entry after every task (newest at top). Keep entries short and fact
   visually confirmed the full detached mechanism; no mock-site fixture was applicable to the desktop canvas.
 - **Files:** shared canvas geometry/fit bounds/Loop edge, both editor mutation flows, Hologram CSS, both
   real-Electron GUI verifiers, tracker sources, and AI memory.
+- **Superseded:** subsequent owner clarification established that separation was the wrong model; the Loop
+  ring must share the real node's exact center and sit behind it. The entry above records the correction.
 
 ---
 

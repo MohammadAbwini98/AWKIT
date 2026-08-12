@@ -1,12 +1,9 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
 import {
-  LOOP_CONTROL_BRIDGE_GAP,
-  LOOP_CONTROL_LABEL_GAP,
-  LOOP_CONTROL_LANE_HEIGHT,
-  LOOP_CONTROL_LANE_WIDTH,
-  LOOP_CONTROL_OUTER_RADIUS,
+  LOOP_RING_LABEL_GAP,
   Position,
   SMOOTH_STEP_OFFSET,
+  getLoopOuterRadius,
   getRectOfNodes,
   getViewportForBounds,
   pointToFlowPosition,
@@ -25,7 +22,7 @@ import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, No
  * fit-view, screen↔flow mapping). The flow runs top→bottom by default: edges leave
  * the source node's bottom-center and enter the target node's top-center, matching
  * the Workflow (flowforge) reference. Tight Loop exits can route beside their cards;
- * self-loops (source === target) are drawn as detached controls bridged into a side anchor.
+ * structured self-loops are node-owned rings centered in the edge layer behind their source card.
  */
 
 const MIN_ZOOM_DEFAULT = 0.3;
@@ -41,8 +38,6 @@ interface MeasuredSize {
   width: number;
   height: number;
 }
-
-type SelfLoopSide = Position.Left | Position.Right;
 
 interface CanvasContextValue {
   viewport: Viewport;
@@ -254,8 +249,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
         const source = nodeById.get(edge.source);
         if (!source) continue;
         const sourceSize = measuredSizeOf(source, sizesRef.current);
-        const side = selfLoopSideFor(source, source.position, sourceSize, nodesRef.current, sizesRef.current);
-        rects.push(loopControlFootprint(source.position, sourceSize, side));
+        rects.push(loopIndicatorFootprint(source.position, sourceSize));
       }
       const bounds = getRectOfNodes(rects);
       if (bounds.width === 0 || bounds.height === 0) return;
@@ -668,75 +662,38 @@ function isStructuredSelfLoop(edge: CanvasEdge): boolean {
   return edge.source === edge.target && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
 }
 
-function loopControlFootprint(source: XYPosition, sourceSize: MeasuredSize, side: SelfLoopSide): Rect {
-  const anchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
+function loopIndicatorFootprint(source: XYPosition, sourceSize: MeasuredSize): Rect {
+  const centerX = source.x + sourceSize.width / 2;
   const centerY = source.y + sourceSize.height / 2;
-  const sideSign = side === Position.Left ? -1 : 1;
-  const farX = anchorX + sideSign * (LOOP_CONTROL_BRIDGE_GAP + LOOP_CONTROL_LANE_WIDTH);
+  const outerRadius = getLoopOuterRadius(sourceSize.height);
   const horizontalPadding = SMOOTH_STEP_OFFSET / 2;
-  const topClearance = LOOP_CONTROL_OUTER_RADIUS + LOOP_CONTROL_LABEL_GAP + SMOOTH_STEP_OFFSET;
-  const bottomClearance = LOOP_CONTROL_OUTER_RADIUS + horizontalPadding;
+  const topClearance = outerRadius + LOOP_RING_LABEL_GAP + SMOOTH_STEP_OFFSET;
+  const bottomClearance = outerRadius + horizontalPadding;
   return {
-    x: Math.min(anchorX, farX) - horizontalPadding,
+    x: centerX - outerRadius - horizontalPadding,
     y: centerY - topClearance,
-    width: LOOP_CONTROL_BRIDGE_GAP + LOOP_CONTROL_LANE_WIDTH + horizontalPadding * 2,
+    width: outerRadius * 2 + horizontalPadding * 2,
     height: topClearance + bottomClearance
   };
 }
 
-/** Choose the side whose complete Loop control footprint least obstructs the graph. */
-function selfLoopSideFor(
-  source: CanvasNode,
-  sourcePosition: XYPosition,
-  sourceSize: MeasuredSize,
-  nodes: CanvasNode[],
-  sizes: Record<string, MeasuredSize>,
-  positionOf?: (id: string) => XYPosition
-): SelfLoopSide {
-  const score = (side: SelfLoopSide): number => {
-    const footprint = loopControlFootprint(sourcePosition, sourceSize, side);
-    return nodes.reduce((total, node) => {
-      if (node.id === source.id) return total;
-      const position = positionOf?.(node.id) ?? node.position;
-      return total + getOverlappingArea(footprint, { ...position, ...measuredSizeOf(node, sizes) });
-    }, 0);
-  };
-
-  const leftScore = score(Position.Left);
-  const rightScore = score(Position.Right);
-  if (leftScore !== rightScore) return leftScore < rightScore ? Position.Left : Position.Right;
-
-  // Equal-clearance controls face out of the graph. A centred/single-column tie goes left so the
-  // control remains clear of the right-side properties inspector shared by both designers.
-  const nodeRects = nodes.map((node) => {
-    const position = positionOf?.(node.id) ?? node.position;
-    return { ...position, ...measuredSizeOf(node, sizes) };
-  });
-  const graphBounds = getRectOfNodes(nodeRects);
-  const sourceCenterX = sourcePosition.x + sourceSize.width / 2;
-  const graphCenterX = graphBounds.x + graphBounds.width / 2;
-  return sourceCenterX > graphCenterX ? Position.Right : Position.Left;
-}
-
-/** Route structured Loops to their detached side mechanism; keep enlarged Loop exits clear in tight gaps. */
+/** Center structured Loop indicators on their real source node; keep Loop exits clear in tight gaps. */
 function edgeEndpointLayout(
   edge: CanvasEdge,
   source: XYPosition,
   target: XYPosition,
   sourceSize: MeasuredSize,
-  targetSize: MeasuredSize,
-  selfLoopSide: SelfLoopSide = Position.Left
+  targetSize: MeasuredSize
 ): EdgeEndpointLayout {
   if (isStructuredSelfLoop(edge)) {
-    const anchorX = selfLoopSide === Position.Left ? source.x : source.x + sourceSize.width;
-    const centerY = source.y + sourceSize.height / 2;
+    const centerX = source.x + sourceSize.width / 2;
     return {
-      sourceX: anchorX,
-      sourceY: centerY + LOOP_CONTROL_LANE_HEIGHT / 2,
-      targetX: anchorX,
-      targetY: centerY - LOOP_CONTROL_LANE_HEIGHT / 2,
-      sourcePosition: selfLoopSide,
-      targetPosition: selfLoopSide
+      sourceX: centerX,
+      sourceY: source.y,
+      targetX: centerX,
+      targetY: source.y + sourceSize.height,
+      sourcePosition: Position.Top,
+      targetPosition: Position.Bottom
     };
   }
   const verticalGap = target.y - (source.y + sourceSize.height);
@@ -838,10 +795,9 @@ const EdgeLayer = memo(function EdgeLayer({ nodes, edges, edgeTypes, sizes, onEd
         if (!source || !target) return null;
         const sSize = measuredSizeOf(source, sizes);
         const tSize = measuredSizeOf(target, sizes);
-        const selfLoopSide = isStructuredSelfLoop(edge) ? selfLoopSideFor(source, source.position, sSize, nodes, sizes) : Position.Left;
         return renderEdgeElement(
           edge,
-          edgeEndpointLayout(edge, source.position, target.position, sSize, tSize, selfLoopSide),
+          edgeEndpointLayout(edge, source.position, target.position, sSize, tSize),
           edgeTypes,
           onEdgeClick
         );
@@ -883,10 +839,9 @@ function DraggingEdgeLayer({ nodes, edges, edgeTypes, sizes, drag }: DraggingEdg
         const tSize = measuredSizeOf(target, sizes);
         const sPos = positionOf(edge.source);
         const tPos = positionOf(edge.target);
-        const selfLoopSide = isStructuredSelfLoop(edge) ? selfLoopSideFor(source, sPos, sSize, nodes, sizes, positionOf) : Position.Left;
         return renderEdgeElement(
           edge,
-          edgeEndpointLayout(edge, sPos, tPos, sSize, tSize, selfLoopSide),
+          edgeEndpointLayout(edge, sPos, tPos, sSize, tSize),
           edgeTypes
         );
       })}
