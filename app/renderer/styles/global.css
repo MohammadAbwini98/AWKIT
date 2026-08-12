@@ -9279,7 +9279,7 @@ table {
   --awkit-connector-warning: #d99017;
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
-  --awkit-loop-flow-duration: 1100ms;
+  --awkit-loop-flow-duration: 1800ms;
   --awkit-loop-exit-control-size: calc(var(--space-5) + var(--space-2));
   --awkit-loop-exit-control-label-offset: var(--awkit-loop-exit-control-size);
   --awkit-loop-exit-halo-duration: 2200ms;
@@ -10350,22 +10350,26 @@ table {
 }
 .awkit-loop-direction-path {
   stroke: var(--awkit-connector-loop);
-  stroke-dasharray: 8 92;
+  stroke-dasharray: 9 16;
   stroke-linecap: round;
+  opacity: 0.8;
   pointer-events: none;
   animation: awkit-loop-direction var(--awkit-loop-flow-duration) linear infinite;
 }
 
 @keyframes awkit-loop-direction {
   to {
-    stroke-dashoffset: -100;
+    stroke-dashoffset: -25;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .awkit-loop-direction-path {
-    display: none;
     animation: none !important;
+    stroke-dasharray: 12 88;
+    stroke-dashoffset: -76;
+    opacity: 0.72;
+    filter: none;
   }
 }
 
@@ -10424,23 +10428,23 @@ table {
   border-radius: inherit;
   pointer-events: none;
   will-change: transform, opacity;
-  animation: awkit-loop-exit-halo var(--awkit-loop-exit-halo-duration) var(--awkit-ease-out) infinite;
+  animation: awkit-loop-exit-halo var(--awkit-loop-exit-halo-duration) linear infinite;
 }
 
 @keyframes awkit-loop-exit-halo {
   0%,
-  20% {
+  18% {
     opacity: 0;
-    transform: scale(0.94);
+    transform: scale(0.96);
   }
   38% {
-    opacity: 0.42;
-    transform: scale(1);
+    opacity: 0.58;
+    transform: scale(1.06);
   }
-  82%,
+  78%,
   100% {
     opacity: 0;
-    transform: scale(1.12);
+    transform: scale(1.24);
   }
 }
 .awkit-edge-add:hover,
@@ -10461,8 +10465,8 @@ table {
 @media (prefers-reduced-motion: reduce) {
   .awkit-edge-add.is-loop-exit-affordance::after {
     animation: none !important;
-    opacity: 0.28;
-    transform: scale(1.12);
+    opacity: 0.3;
+    transform: scale(1.18);
     will-change: auto;
   }
 }

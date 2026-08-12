@@ -2,18 +2,25 @@
 
 ## Loop visual treatment and reliable reconfiguration - awkit-kwg COMPLETE (2026-08-12)
 
-Flow Designer and Workflow Builder retain the original centered, right-bulging self-loop shape requested
-by the owner. Loop direction remains visible through the separate source-to-target SVG motion layer,
-which preserves the authored base color, thickness, and solid/dashed/dotted style. Existing Loops remain
-reliably editable through the explicit **Configure loop** node action, with **Remove loop** kept separate;
-connector gestures do not start pane panning and selecting a connector expands a collapsed inspector.
+Flow Designer and Workflow Builder now render structured Loops through dedicated top anchors as a fully
+exposed arc above the node card. The live arc is approximately 1.33x wider and 1.48x taller than the old
+Loop control, rather than hiding most of its geometry behind the higher-z-index card, and its 28px
+interaction stroke makes direct connector selection reliable. Existing Loops also remain editable through
+the explicit **Configure loop** node action, with **Remove loop** kept separate; connector gestures do not
+start pane panning and selecting a connector expands a collapsed inspector.
+
+Loop direction is now perceptible through repeating source-to-target segments on a calm 1.8-second linear
+cycle. The overlay preserves the authored base color, thickness, and solid/dashed/dotted style. Reduced-
+motion users receive one strong static direction segment instead of continuous travel. Real-Electron
+coverage measures actual dash-offset movement over time and clicks the exposed outer arc with a pointer;
+it no longer treats registered keyframes alone as evidence that users can see motion.
 
 The insert control on the non-self Conditional Loop exit is now structurally identified at render time
 and enlarged from 24px to 32px (the shared `+` grows from 10px rendered to its intended 14px). Its label
 is moved clear of the larger circle. Same-row/upward exits receive enough source-stem clearance and tight
 downstream gaps use a side route, avoiding either node card while staying centered on the connector. A
-tokenized 2.2-second halo communicates Loop motion without moving the stable `+`; reduced-motion users
-receive a static ring.
+tokenized 2.2-second linear halo now expands far enough to remain visible without moving the stable `+`;
+reduced-motion users receive a static ring.
 Generic connector controls remain unchanged and no display metadata is persisted.
 
 Workflow Builder still preserves persisted workflow-node ids independently from `flowId`. Flow profile
@@ -21,8 +28,8 @@ save retains complete config for legacy `type: "loop"` edges with no optional `k
 now preserves a type-derived Conditional kind instead of normalizing it to Standard. Legacy Loop Back,
 validation, persistence schemas, and runtime routing remain unchanged.
 
-Focused evidence: build PASS; Flow Designer Electron GUI **106/106**; Workflow Builder Electron GUI
-**53/53**; Flow mapping **137/137**; workflow sentinel/conversion **14/14**; canvas performance **13/13**;
+Focused evidence: build PASS; Flow Designer Electron GUI **107/107**; Workflow Builder Electron GUI
+**54/54**; Flow mapping **137/137**; workflow sentinel/conversion **14/14**; canvas performance **13/13**;
 canvas layout **35/35**; source hygiene **9/9**. No duplicate mock-site scenario was added because this
 is desktop-canvas interaction covered by the isolated real-Electron walkthroughs. Tracker **189 total /
 185 closed / 4 owner-gated outstanding / 104 edges**; validation ledger remains **63 PASS / 2 NOT RUN /

@@ -4,6 +4,26 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-12 - Codex - Correct the visible Loop circle and motion target
+
+- **Task:** Fix the reported unchanged Loop size and invisible animation after `5cc98c9` in Flow Designer
+  and Workflow Builder without changing connector semantics.
+- **Root cause:** the prior patch enlarged the separate Conditional-exit insertion `+`; the structured
+  self-loop SVG remained a 54px right-bulging curve with roughly 57-60% hidden beneath its node. Its moving
+  segment existed but travelled primarily behind the opaque card.
+- **Implementation:** restored dedicated measured top anchors, enlarged the exposed arc by approximately
+  1.33x horizontally / 1.48x vertically, expanded its interaction stroke to 28px, and added repeating
+  source-to-target segments on a 1.8-second linear cycle. The 32px Exit Loop `+` keeps its stable glyph and
+  now uses a more legible 2.2-second linear halo; reduced motion uses static direction/ring cues.
+- **Safety:** connector schema, persistence, validation, runtime routing, generic controls, and legacy Loop
+  Back are unchanged. GUI verifiers now use isolated Electron user-data locks, measure real temporal motion,
+  assert exposed geometry, and direct-click the Loop arc.
+- **Verified:** build PASS; Flow Designer **107/107**; Workflow Builder **54/54**; Flow mapping **137/137**;
+  workflow conversions **14/14**; canvas performance **13/13**; canvas layout **35/35**; source hygiene
+  **9/9**. Rendered evidence was inspected in both designers under `reports/loop-connector-fix/`.
+
+---
+
 ## 2026-08-12 - Codex - Restore the original Loop visual and animate its exit control
 
 - **Task:** Keep the existing Loop model/runtime/validation intact, restore the owner-requested original

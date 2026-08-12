@@ -193,6 +193,17 @@ export interface GetSmoothStepPathParams {
 /** Shared clearance between a node anchor and the first bend of a smooth-step connector. */
 export const SMOOTH_STEP_OFFSET = 20;
 
+/**
+ * Structured self-loop geometry. The current canvas no longer renders React Flow handles, so the
+ * engine derives the old dedicated top-loop anchors from the measured node width. Compared with
+ * the original 44%/56%, 54px loop, this 42%/58%, 80px arc increases the visible footprint by
+ * roughly 1.33x horizontally and 1.48x vertically while keeping it centred above the node.
+ */
+export const LOOP_SOURCE_ANCHOR_RATIO = 0.42;
+export const LOOP_TARGET_ANCHOR_RATIO = 0.58;
+export const LOOP_ARC_HEIGHT = SMOOTH_STEP_OFFSET * 4;
+export const LOOP_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.4;
+
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({
   sourceX,

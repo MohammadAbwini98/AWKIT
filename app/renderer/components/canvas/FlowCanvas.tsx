@@ -1,5 +1,17 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
-import { Position, SMOOTH_STEP_OFFSET, getRectOfNodes, getViewportForBounds, pointToFlowPosition, getOverlappingArea, clamp, type Rect, type XYPosition } from "./geometry";
+import {
+  LOOP_SOURCE_ANCHOR_RATIO,
+  LOOP_TARGET_ANCHOR_RATIO,
+  Position,
+  SMOOTH_STEP_OFFSET,
+  getRectOfNodes,
+  getViewportForBounds,
+  pointToFlowPosition,
+  getOverlappingArea,
+  clamp,
+  type Rect,
+  type XYPosition
+} from "./geometry";
 import { EdgeLabelContext } from "./edgeLabelContext";
 import { bumpRenderProbe } from "./renderProbe";
 import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, NodeTypes, Viewport } from "./types";
@@ -635,7 +647,12 @@ interface EdgeEndpointLayout {
   targetPosition: Position;
 }
 
-/** Keep an enlarged Loop-exit control out of a tight downstream gap by routing that edge beside the cards. */
+function isStructuredSelfLoop(edge: CanvasEdge): boolean {
+  const connectorData = edge.data as { kind?: unknown; linkType?: unknown } | undefined;
+  return edge.source === edge.target && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
+}
+
+/** Restore the dedicated top Loop anchors; keep an enlarged Loop exit clear in tight downstream gaps. */
 function edgeEndpointLayout(
   edge: CanvasEdge,
   source: XYPosition,
@@ -643,6 +660,16 @@ function edgeEndpointLayout(
   sourceSize: MeasuredSize,
   targetSize: MeasuredSize
 ): EdgeEndpointLayout {
+  if (isStructuredSelfLoop(edge)) {
+    return {
+      sourceX: source.x + sourceSize.width * LOOP_SOURCE_ANCHOR_RATIO,
+      sourceY: source.y,
+      targetX: source.x + sourceSize.width * LOOP_TARGET_ANCHOR_RATIO,
+      targetY: source.y,
+      sourcePosition: Position.Top,
+      targetPosition: Position.Top
+    };
+  }
   const verticalGap = target.y - (source.y + sourceSize.height);
   const insertControlRole = (edge.data as { insertControlRole?: unknown } | undefined)?.insertControlRole;
   if (insertControlRole === "loop-exit" && verticalGap >= 0 && verticalGap < SMOOTH_STEP_OFFSET * 2) {
@@ -674,9 +701,7 @@ function renderEdgeElement(
 ): ReactNode {
   const EdgeComponent = (edge.type && edgeTypes[edge.type]) || edgeTypes.default;
   if (!EdgeComponent) return null;
-  const connectorData = edge.data as { kind?: unknown; linkType?: unknown } | undefined;
-  const isSelfLoop = edge.source === edge.target;
-  const isStructuredLoop = isSelfLoop && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
+  const isStructuredLoop = isStructuredSelfLoop(edge);
   const props: CanvasEdgeProps = {
     id: edge.id,
     source: edge.source,

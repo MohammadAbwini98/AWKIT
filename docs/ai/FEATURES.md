@@ -5,11 +5,14 @@
 - Existing Loops reopen through a dedicated **Configure loop** node action; **Remove loop** remains a
   separate destructive action. Connector selection expands a collapsed inspector in both designers and
   preserves edits across save/reload. Edge pointer gestures do not become pane pans.
-- The owner-requested original centered, right-bulging self-loop shape is shared by both designers.
-- A derived, non-interactive moving segment communicates source-to-target direction while preserving the
-  authored base color, thickness, and line style. Reduced-motion users see the static Loop only.
+- Both designers derive dedicated top anchors from the measured card and draw a fully exposed Loop arc
+  above it. The arc is approximately 1.33x wider / 1.48x taller than the historical control and has a
+  28px interaction stroke, so it no longer disappears behind the node and can be selected directly.
+- A derived, non-interactive repeating segment communicates source-to-target direction on a 1.8-second
+  linear cycle while preserving the authored base color, thickness, and line style. Reduced-motion users
+  receive one clear static direction segment.
 - The Conditional Loop exit receives a render-only 32px `+` control (generic controls stay 24px), clear
-  label/node placement, and a subtle 2.2-second halo. Reduced-motion users see a static ring. Classification
+  label/node placement, and a visible 2.2-second linear halo. Reduced-motion users see a static ring. Classification
   is structural rather than label-based and the presentation role is never persisted.
 - Same-row/upward Loop exits reserve a longer source stem and tight downstream gaps use a side route, so
   the enlarged control and full halo stay centered without overlapping either card. Workflow loads

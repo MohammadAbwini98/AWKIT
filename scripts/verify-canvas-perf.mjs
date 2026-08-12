@@ -19,7 +19,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // Isolated %LOCALAPPDATA% + first-run sign-in: this verifier predated the splash window and the
 // SecurityGate, so it drove `firstWindow()` (now the splash, which has no preload API) against the
 // developer's real profile (now auth-gated). Same harness as every other GUI verifier.
-const { env, cleanup } = isolatedLaunchEnv("awkit-canvas-perf");
+const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-canvas-perf");
 delete env.ELECTRON_RUN_AS_NODE;
 
 const results = [];
@@ -29,7 +29,11 @@ function check(name, pass, detail) {
 }
 
 const SEED_ID = "perf-canvas-verify-flow";
-const app = await electron.launch({ args: [root], cwd: root, env });
+const app = await electron.launch({
+  args: [root, `--user-data-dir=${path.join(dataRoot, "electron-user-data")}`],
+  cwd: root,
+  env
+});
 try {
   // The app shows a splash window first (no preload API) — `firstWindow()` would land on it and
   // every `window.playwrightFlowStudio` call would fail. Resolve the real main window instead.
