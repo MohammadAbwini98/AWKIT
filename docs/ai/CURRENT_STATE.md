@@ -1,37 +1,33 @@
 # CURRENT_STATE
 
-## Node-owned Loop ring centered behind the real workflow card - awkit-kwg COMPLETE (2026-08-12)
+## Reference-style Loop return path and configured-value marker - COMPLETE (2026-08-13)
 
-Flow Designer and Workflow Builder now render every structured self-Loop as a circular ring centered on
-the measured bounds of its actual workflow card. The main radius is the greater of 60 units or the card's
-measured height; a second ring sits 8 units outside it. Both are drawn in the connector SVG layer below the
-DOM node layer, so the real card naturally masks the middle and the upper/lower arcs remain visible. There
-is no detached pill, side mechanism, bridge, arrow, center badge, filled disc, or synthetic canvas node.
-The live drag overlay recomputes from the real card position, keeping the ring centered while the user
-moves the card, and fit-to-view reserves the centered ring and label without changing persisted node
-coordinates. A semantic Loop cannot fall back to an ordinary edge when an older profile carries a
-non-circular visual shape; that persisted style value itself is left intact.
+Flow Designer and Workflow Builder now render every structured self-Loop through the same shared
+`LoopEdge` as one continuous rounded return path. It leaves the real card at bottom-center, wraps around
+the collision-aware left or right side, and returns at top-center. The connector stays in the SVG edge
+layer below DOM cards, its fit-to-view footprint includes the full route and marker, and the live drag
+overlay recomputes from graph coordinates without adding a node or persisted visual position.
 
-One 16% highlighted arc rotates smoothly around the stable authored main ring on a 2-second linear,
-transform-only orbit; the softer outer ring supplies depth without glow or fill. Reduced-motion users
-receive the same ring with a fixed highlighted segment. Real-Electron coverage verifies animation time and
-decoded screenshot pixels, exact card/ring centers, edge-layer-before-node-layer ownership, natural center
-occlusion, exposed upper/lower arcs, and attachment throughout a physical node drag.
+A compact circular marker sits directly on the route's outer vertical segment. It reads the existing
+`LoopConnectorConfig.maxIterations` and displays only that configured number; missing/non-numeric legacy
+configuration leaves the marker blank instead of inventing execution progress. Changing the shared Loop
+editor from 5 to 10 updates the marker immediately, and existing Flow/Workflow serialization supplies the
+same value after save/reload and conversion. No runtime counter, IPC event, schema, validation, or runner
+policy was added or changed.
 
-The exposed circular stroke has a 24-unit interaction width. Click, double-click, Enter, and Space select
-the same persisted Loop connector and reopen its existing configuration surface; the node-menu
-**Configure loop** action remains available and **Remove loop** stays separate. Node selection/dragging and
-normal connectors retain their existing paths. Workflow node-id preservation, legacy type-derived Loop
-configuration, Conditional exit semantics, Loop Back, validation, persistence schemas, and runtime routing
-remain unchanged.
+One highlighted arc rotates around the stable marker on the existing 2-second linear, transform-only
+orbit. The return path and number remain stationary. Reduced motion freezes the arc at a readable angle
+while preserving the circle and value. The marker and route retain connector click/double-click and the
+parent edge's Enter/Space configuration path; node-menu Configure/Remove actions remain separate.
 
-Focused evidence: build PASS; Flow Designer Electron GUI **110/110**; Workflow Builder Electron GUI
-**57/57**; runner **99/99**; mock site **145/145**; validation **134/134**; Flow step mapping **137/137**;
-workflow sentinel/conversion **14/14**; branch-pair validation **36/36**; canvas performance **13/13**;
-canvas layout **35/35**; source hygiene **9/9**. No duplicate mock-site scenario was added because this is
-desktop-canvas interaction covered by the isolated real-Electron walkthroughs; the existing Feature Test
-Lab still passes in full. Tracker **189 total / 185 closed / 4 owner-gated outstanding / 104 edges**; the
-validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Focused evidence: build PASS; Flow Designer Electron GUI **113/113**; Workflow Builder Electron GUI
+**60/60**; Flow step mapping **137/137**; workflow sentinel/conversion **14/14**; branch-pair validation
+**36/36**; canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**. The GUI suites
+cover 5 -> 10 live binding and reload, rounded geometry, direct pointer/keyboard reopening, physical drag,
+25/100/200% zoom, decoded pixel motion, stationary text, reduced motion, and non-Loop isolation. Light and
+dark screenshots were inspected in both editors. No mock-site fixture was added because this is an
+editor-local canvas presentation with no runtime behavior. The pre-existing uncommitted `awkit-6cg`
+tracker/assignment work was preserved and intentionally excluded from this UI task.
 
 ## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
 

@@ -1,25 +1,21 @@
 # FEATURES
 
-## Node-owned Loop ring, reconfiguration, and orbital motion (2026-08-12)
+## Reference-style Loop connector, configured-value marker, and orbital motion (2026-08-13)
 
-- Every structured Loop uses a circular main ring and softer outer ring centered exactly on the measured
-  bounds of its real workflow card. The connector SVG remains below the DOM node layer, so the card masks
-  the center and exposes the upper/lower arcs. There is no detached pill, side mechanism, synthetic node,
-  filled backdrop, bridge, arrow, or center badge.
-- The ring radius derives from the measured card height with a 60-unit minimum; fit-to-view includes the
-  centered footprint and label without changing saved card coordinates. During drag, the live edge overlay
-  follows the real card position and preserves the same center.
-- One bright 16% arc rotates around the stable authored main ring on a 2-second linear transform-only cycle;
-  the outer ring supplies restrained depth. Reduced motion substitutes a fixed highlighted arc.
-- The exposed ring uses a 24-unit pointer target and supports click, double-click, Enter, and Space through
-  the existing connector selection/configuration path. **Configure loop** and **Remove loop** remain distinct
-  node-menu actions; the covered card center retains normal node selection and drag behavior.
-- Real-Electron verification asserts exact center equality, edge-before-node layering, natural center
-  occlusion, visible upper/lower arcs, no synthetic node, physical drag attachment, viewport containment,
-  semantic rendering after a non-circular style selection, authored-line preservation, keyboard/pointer
-  activation, static reduced-motion treatment, animation progress, and screenshot pixel change.
-- Loop authoring, workflow-node identity, full Loop configuration persistence, Conditional exit promotion,
-  Loop Back behavior, validation, and Flow/workflow execution semantics are unchanged.
+- Every structured Loop uses one continuous rounded return path around its real source card. The shared
+  canvas selects a collision-aware side, keeps the connector behind DOM nodes, and includes the complete
+  route/marker footprint when fitting the viewport.
+- A compact 48-unit outer ring is integrated directly on the route and displays only the existing
+  `LoopConnectorConfig.maxIterations` value. It is not a fake node and has no UI-only persistence model.
+- One bright 16% arc rotates around the stable marker on a 2-second linear transform-only cycle. The route
+  and configured number stay stationary; reduced motion retains both and freezes the highlighted arc.
+- The route and marker reuse the existing Loop connector selection/configuration surface for pointer,
+  double-click, Enter, and Space. **Configure loop** and **Remove loop** remain distinct node-menu actions.
+- Real-Electron coverage verifies exact 5 -> 10 live binding and reload, rounded path/marker attachment,
+  physical node drag, 25/100/200% zoom, authored path style, keyboard/pointer activation, static reduced
+  motion, decoded pixel motion, and unchanged non-self connector rendering in both editors.
+- Loop authoring, workflow-node identity, persistence/conversion, Conditional exits, Loop Back, validation,
+  and Flow/workflow runtime semantics remain unchanged.
 
 ## Complete Loop connector authoring (2026-08-11)
 

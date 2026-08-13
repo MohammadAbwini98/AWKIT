@@ -6,17 +6,17 @@
 
 ## Confirmed
 
-Owner-corrected node-owned Loop regression coverage (2026-08-12, `awkit-kwg`):
-`verify:flow-designer` **110/110** and `verify:workflow-builder` **57/57** create a structured self-loop
-whose rings share the exact center of the real card, assert connector-layer-before-node-layer ownership,
-prove the card naturally covers the center while upper/lower arcs remain visible, reject detached pills,
-bridges, arrows, filled backplates, and synthetic canvas nodes, then physically drag the real card and prove
-the ring follows without center drift. They also save, reload/switch, click an exposed Loop arc, reopen its
-collapsed editor, change the bound again, use the separate Configure loop action, save/reload, and confirm
-the value persists. Both assert viewport containment, the stable authored dotted/thickness ring, a single
-transform-only bright sweep with decoded pixel movement, and a static highlighted sweep under reduced
-motion. Workflow coverage includes `node.id !== flowId`;
-`verify:flow-step-mapping` **137/137** includes a type-derived Loop with omitted `kind`.
+Reference Loop connector coverage (2026-08-13): `verify:flow-designer` **113/113** and
+`verify:workflow-builder` **60/60** create a structured self-loop, configure `maxIterations` from 5 to 10,
+assert the marker changes immediately to exactly `10`, and prove the same value after save/reload or a
+workflow switch. Both assert one continuous rounded path, one compact marker attached directly to it,
+connector-layer-before-node-layer ownership, no synthetic node or second directional animation, authored
+dotted/thickness preservation, collision-aware physical drag, and attachment at 25/100/200% zoom. Motion
+checks combine animation timing/transform evidence with decoded pixel deltas and prove the SVG number has
+no animation or movement. Reduced motion retains the value and freezes the sweep. Pointer, keyboard,
+collapsed-editor reopening, separate Configure/Remove actions, and non-self exit isolation are covered.
+Workflow coverage includes `node.id !== flowId`; `verify:flow-step-mapping` **137/137** includes a
+type-derived Loop with omitted `kind`.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
 `verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete

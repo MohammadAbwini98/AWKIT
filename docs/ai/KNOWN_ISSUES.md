@@ -1,24 +1,20 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop visual ownership was interpreted as a detached control instead of a ring behind the real node (awkit-kwg, 2026-08-12)
+## RESOLVED: Loop visual fixes targeted the wrong canvas element or obscured the control (2026-08-13)
 
-Earlier fixes moved from a decorated ordinary connector to a central circle, then incorrectly interpreted
-the reference as a separate left/right pill-and-ring mechanism. The pieces and animation existed, but the
-visual ownership was wrong: the Loop is not another node, badge, side control, or graph position. It is a
-ring centered on and behind the actual workflow card.
+Earlier iterations enlarged the Conditional exit's insertion `+`, animated an ordinary edge overlay, or
+placed node-sized rings behind the real card. Those implementations could be present in the DOM while the
+actual Loop still appeared tiny, hidden, or unrelated to the requested reference.
 
-Structured self-Loops now derive their center from the real card's measured bounds. Stable concentric rings
-render in the connector SVG below the DOM node, so the card itself masks the middle and exposes the upper
-and lower arcs. The live drag overlay keeps the centers locked during movement. There is no detached pill,
-bridge, arrow, center badge, filled backplate, or synthetic node. One transform-only bright arc orbits the
-main ring; reduced motion freezes it. Exposed ring strokes retain pointer and keyboard configuration while
-the covered center retains normal node interaction.
+Structured self-Loops now render through the shared `LoopEdge` as one rounded return path around the real
+card, with a compact circular marker directly on the path. The marker shows the existing configured
+`maxIterations` value and animates one transform-only sweep; the route and number do not animate. Reduced
+motion freezes the sweep. There is no fake node, UI-only count, or runtime progress channel.
 
-Keep the corrected GUI guards. They assert exact card/ring center equality, edge-before-node layering,
-natural center occlusion, visible upper/lower arcs, no synthetic node or detached mechanism, attachment
-during physical drag, viewport visibility, real animation progress, and decoded screenshot pixel changes
-in both Electron designers. Checking only parts, keyframes, or component scale is insufficient. The
-connector model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
+Keep the GUI guards that assert rendered geometry and pixels rather than keyframe existence alone: exact
+5 -> 10 marker updates, save/reload, path/marker attachment, 25/100/200% zoom, physical drag, direct pointer
+and keyboard configuration, reduced motion, and non-self connector isolation in both editors. Connector
+model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

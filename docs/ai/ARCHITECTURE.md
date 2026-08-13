@@ -424,13 +424,13 @@ failure boundary under `src/testing/failures/`:
   invalid draft was intentionally saved.
   Connector kind/style is derived into the in-house canvas edge representation; no renderer-only routing
   model is persisted. A structured self-loop always selects the shared `LoopEdge` regardless of a stale
-  non-circular visual shape. `FlowCanvas` gives that edge the exact horizontal center and measured top/bottom
-  of its real source card; `LoopEdge` derives a card-height-based radius (60-unit minimum) and renders stable
-  concentric rings plus one transform-only bright sweep. The connector SVG layer remains below the DOM node
-  layer, producing natural center occlusion without a synthetic node or detached control. Fit-to-view
-  reserves the centered ring/label, the dragging-edge overlay tracks live card coordinates, and pointer
-  gestures on exposed arcs stay out of pane panning. Reduced motion freezes the sweep at a readable angle.
-  Both designers use this geometry, rendering, and interaction path.
+  non-circular visual shape. `FlowCanvas` supplies the measured source-card width and semantic bottom/top
+  anchors, chooses a collision-aware side, and includes the full return route in fit bounds. `LoopEdge`
+  renders one rounded path around the card and places a compact circular marker on its outer segment. The
+  marker reads the existing `loop.maxIterations` value directly; it creates no graph or persistence state.
+  Only its sweep uses a transform animation, while the route and value remain stationary. The connector SVG
+  stays below DOM nodes, the dragging-edge overlay tracks live graph coordinates, and the same parent edge
+  handles pointer/keyboard configuration in both designers. Reduced motion freezes the sweep.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
   the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session

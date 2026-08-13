@@ -4,6 +4,25 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-13 - Codex - Implement the reference Loop return path and configured marker
+
+- **Task:** Replace the obscured card-centered Loop ring with the supplied reference's continuous rounded
+  return path and compact animated marker in both visual designers.
+- **Implementation:** routed structured self-loops bottom-center to top-center around a collision-aware card
+  side; integrated a 48-unit marker on the path; bound its stationary text directly to persisted
+  `loop.maxIterations`; retained one 2-second transform-only sweep and a static reduced-motion state; and
+  extended fit bounds, drag routing, accessible naming, and the canvas zoom floor to the advertised 25%.
+- **Safety:** no fake node, display count field, persistence/schema, validation, IPC, runner, or execution
+  change. Non-self connector rendering and the existing Loop editor/Configure/Remove paths remain intact.
+- **Verified:** build PASS; Flow Designer Electron GUI **113/113**; Workflow Builder Electron GUI **60/60**;
+  Flow mapping **137/137**; workflow conversions **14/14**; branch pairs **36/36**; canvas performance
+  **13/13**; canvas layout **35/35**; source hygiene **9/9**. Inspected light/dark screenshots for both
+  editors at desktop size; the GUI suites also cover 25/100/200% zoom.
+- **Files:** shared canvas geometry/types/fit routing/Loop renderer, Hologram CSS, both Electron GUI
+  verifiers, and repository AI memory.
+
+---
+
 ## 2026-08-12 - Codex - Center the Loop ring behind its real workflow node
 
 - **Task:** Correct the Loop's visual ownership: it is a node-owned ring centered behind the real card,

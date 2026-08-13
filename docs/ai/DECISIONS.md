@@ -1,6 +1,19 @@
 # DECISIONS
 
-### 2026-08-12 - A structured Loop is a node-owned edge-layer ring, not a graph node or detached control
+### 2026-08-13 - A structured Loop is a return path with a configured-value marker
+
+- **Decision:** the Loop remains one persisted self-edge, rendered as a continuous rounded return path
+  around its real source card with a compact circular marker attached directly to the path. The marker is
+  an SVG part of the edge, never a node or separately positioned/persisted object.
+- **Value:** the marker reads `LoopConnectorConfig.maxIterations` directly and shows only that configured
+  number. It never derives runtime progress, defaults missing legacy data, or subscribes to execution IPC.
+- **Geometry and motion:** measured card dimensions and graph coordinates drive the route, fit bounds, and
+  live drag overlay. Only one transform-based arc rotates; path and text remain stationary, and reduced
+  motion freezes the arc.
+- **Reason:** this matches the supplied reference while preserving the existing graph, configuration,
+  persistence, validation, and runtime contracts shared by both editors.
+
+### 2026-08-12 - Superseded visual: a structured Loop was a node-owned edge-layer ring
 
 - **Decision:** the Loop's circular visual shares the exact center of its real workflow card and renders in
   the existing connector SVG below the DOM node layer. The card naturally occludes the ring center; no
@@ -14,6 +27,9 @@
 - **Reason:** visual ownership, movement, persistence, and runtime meaning all belong to the same workflow
   node and self-loop connector. A second graph component would miscommunicate the model and create avoidable
   positioning, selection, and synchronization state.
+- **Superseded:** the 2026-08-13 reference explicitly requires a rounded return path with a compact marker
+  on that path. The enduring parts of this decision are that the Loop remains one edge, not a graph node,
+  and that no separate persistence/runtime representation is introduced.
 
 ### 2026-08-11 - Workflow loops reuse the Flow connector contract and runtime policy
 

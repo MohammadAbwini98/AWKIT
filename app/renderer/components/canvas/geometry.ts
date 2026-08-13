@@ -194,24 +194,17 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Structured Loop indicator geometry. The ring is owned by the real source node and shares its
- * center; its radius derives from the measured card height so differently sized nodes retain the
- * same relationship. Values stay on the shared connector rhythm and never create a second graph
- * position for the visual indicator.
+ * Reference-style structured Loop geometry. Every measurement is derived from the shared
+ * connector offset so the return path and compact marker scale as one canvas primitive rather
+ * than becoming a second persisted graph object.
  */
-export const LOOP_RING_MIN_RADIUS = SMOOTH_STEP_OFFSET * 3;
-export const LOOP_RING_NODE_HEIGHT_RATIO = 1;
-export const LOOP_RING_OUTER_GAP = SMOOTH_STEP_OFFSET * 0.4;
-export const LOOP_RING_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
-export const LOOP_RING_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
-
-export function getLoopRingRadius(nodeHeight: number): number {
-  return Math.max(LOOP_RING_MIN_RADIUS, nodeHeight * LOOP_RING_NODE_HEIGHT_RATIO);
-}
-
-export function getLoopOuterRadius(nodeHeight: number): number {
-  return getLoopRingRadius(nodeHeight) + LOOP_RING_OUTER_GAP;
-}
+export const LOOP_RETURN_CLEARANCE = SMOOTH_STEP_OFFSET * 2;
+export const LOOP_RETURN_CORNER_RADIUS = SMOOTH_STEP_OFFSET;
+export const LOOP_MARKER_RADIUS = SMOOTH_STEP_OFFSET;
+export const LOOP_MARKER_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 1.2;
+export const LOOP_MARKER_HIT_RADIUS = SMOOTH_STEP_OFFSET * 1.3;
+export const LOOP_MARKER_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
+export const LOOP_RETURN_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({

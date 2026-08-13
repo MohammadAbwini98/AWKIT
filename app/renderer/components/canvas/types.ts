@@ -50,6 +50,10 @@ export interface CanvasEdgeProps<T = Record<string, unknown>> {
   targetY: number;
   sourcePosition: Position;
   targetPosition: Position;
+  /** Measured source-card dimensions used only by structured self-loop routing. */
+  sourceNodeWidth?: number;
+  /** Collision-aware side chosen by the canvas for a structured self-loop. */
+  loopSide?: Position.Left | Position.Right;
   data?: T;
   label?: string;
   selected: boolean;

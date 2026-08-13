@@ -10374,13 +10374,21 @@ table {
   }
 }
 
-/* Structured Loop indicator: node-owned ring in the edge layer, behind the real node card. */
+/* Structured Loop connector: one rounded return path with a compact configured-value marker. */
 .awkit-flow-edge[role="button"]:focus {
   outline: none;
 }
 
 .awkit-loop-indicator {
   color: var(--awkit-connector-loop);
+}
+
+.awkit-loop-indicator-path {
+  opacity: 0.78;
+}
+
+.awkit-loop-indicator-marker {
+  color: inherit;
 }
 
 .awkit-loop-indicator-outer-ring,
@@ -10400,7 +10408,8 @@ table {
 }
 
 .awkit-loop-indicator-main-ring {
-  opacity: 0.68;
+  fill: var(--awkit-surface-raised);
+  opacity: 0.92;
   stroke-width: 2;
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
@@ -10423,6 +10432,18 @@ table {
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
+.awkit-loop-indicator-value {
+  fill: var(--awkit-text);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  dominant-baseline: central;
+  text-anchor: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
 .awkit-loop-indicator-hit {
   cursor: pointer;
 }
@@ -10432,7 +10453,7 @@ table {
 }
 
 .awkit-loop-indicator.is-selected .awkit-loop-indicator-main-ring {
-  opacity: 0.92;
+  opacity: 1;
 }
 
 .awkit-flow-edge:focus-visible .awkit-loop-indicator-focus-ring {
@@ -10440,9 +10461,11 @@ table {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-outer-ring,
-  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-main-ring {
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-outer-ring {
     opacity: 0.8;
+  }
+  .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-main-ring {
+    opacity: 1;
   }
 }
 
