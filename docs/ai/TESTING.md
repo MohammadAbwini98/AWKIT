@@ -6,20 +6,14 @@
 
 ## Confirmed
 
-Reference Loop connector coverage (2026-08-13; hardened 2026-08-14): `verify:flow-designer` **115/115** and
-`verify:workflow-builder` **62/62** create a structured self-loop, configure `maxIterations` from 5 to 10,
+Reference Loop connector coverage (2026-08-13): `verify:flow-designer` **113/113** and
+`verify:workflow-builder` **60/60** create a structured self-loop, configure `maxIterations` from 5 to 10,
 assert the marker changes immediately to exactly `10`, and prove the same value after save/reload or a
 workflow switch. Both assert one continuous rounded path, one compact marker attached directly to it,
 connector-layer-before-node-layer ownership, no synthetic node or second directional animation, authored
-dotted/thickness preservation, and collision-aware physical drag. The verifiers screen-sample the actual
-SVG route against every non-owner node rectangle and repeat clearance checks during drag and at
-25/100/200% zoom, expanding the route by the authored stroke width transformed into screen space. Zoom
-coverage also proves the marker remains visible and path-attached, its configured value occupies at least
-2x2 screen pixels at the 25% floor, stays centered and inside the ring, and only the orbit remains animated.
-`verify:canvas-layout` **39/39** includes four pure shared-geometry checks that pin seven return-path
-corridors plus the marker and top/bottom-leg blockers outside the former coarse strip. Motion checks
-combine animation timing/transform evidence with decoded pixel deltas and prove the SVG number has no
-animation or movement. Reduced motion retains the value and freezes the sweep. Pointer, keyboard,
+dotted/thickness preservation, collision-aware physical drag, and attachment at 25/100/200% zoom. Motion
+checks combine animation timing/transform evidence with decoded pixel deltas and prove the SVG number has
+no animation or movement. Reduced motion retains the value and freezes the sweep. Pointer, keyboard,
 collapsed-editor reopening, separate Configure/Remove actions, and non-self exit isolation are covered.
 Workflow coverage includes `node.id !== flowId`; `verify:flow-step-mapping` **137/137** includes a
 type-derived Loop with omitted `kind`.
@@ -123,11 +117,11 @@ remain structural and legacy workflows remain compatible.
   being skipped only after a successful `goto`. As of the last run: **21 checks pass**.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
   for Flow Designer connector behavior, complete Loop authoring/persistence, and saved-flow dropdown
-  behavior. As of the last run: **115 checks pass**.
+  behavior. As of the last run: **99 checks pass**.
 - `scripts/verify-workflow-builder-gui.mjs` (`npm run verify:workflow-builder`) — real Electron GUI
   walkthrough for Workflow Builder import/canvas/Loop behavior, including persisted node-id identity,
   existing Loop pointer/menu reopening, save/reload, direction motion, and reduced motion. As of the
-  last run: **62 checks pass**.
+  last run: **48 checks pass**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):
