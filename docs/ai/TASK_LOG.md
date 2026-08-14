@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-14 - Codex - Harden Loop collision routing and rendered GUI evidence
+
+- **Task:** Audit the committed reference Loop UI for remaining geometry, collision, zoom, and evidence
+  gaps without changing Loop behavior, persistence, validation, or runtime semantics.
+- **Implementation:** replaced the coarse self-loop collision footprint with the seven corridor bounds
+  that match the rendered cubic, horizontal, quadratic, and vertical path segments plus the marker hit
+  bounds. Side selection, fit-to-view, and live drag routing now use the same segment-accurate geometry
+  without filling the Loop cavity or adding persisted visual state. Extracted that calculation into a
+  pure shared geometry helper and pinned top/bottom-leg-only blockers that the former side strip missed.
+- **Coverage:** both real-Electron GUI verifiers now screen-sample the rendered SVG route against other
+  node rectangles and retain those clearance checks during drag and 25/100/200% zoom. Zoom assertions
+  also prove the marker stays visible, centered, readable, inside its ring, attached to the path, and
+  animated while the configured value remains stationary. Screen collision margins now scale the
+  authored stroke through the SVG transform, and the configured value has a 2x2-pixel minimum at 25%.
+- **Verified:** `npm run build` PASS; Flow Designer Electron GUI **115/115 PASS**; Workflow Builder
+  Electron GUI **62/62 PASS** on the final isolated run; Flow step mapping **137/137**; workflow sentinels
+  **14/14**; canvas layout **39/39**; canvas performance **13/13**; source hygiene **9/9**. The unchanged
+  Mock Site verifier passes **145/145** at port 4701 because the host reserves default port 4401. A
+  concurrent Workflow run transiently missed one unrelated leaf-picker check (61/62) before the isolated
+  pass. Final light/dark evidence for both editors was inspected at original resolution. Verifier
+  classification and repository AI memory pass; Graphify was refreshed and queried. Roadmap consistency
+  is **155/157** solely because preserved local `awkit-6cg` edits change its two pinned bead counts.
+- **Files:** shared canvas route/fit geometry, FlowCanvas, canvas-layout and both Electron GUI verifiers,
+  plus `CURRENT_STATE`, `HANDOFF`, `TASK_LOG`, and `TESTING` repository memory.
+
 ## 2026-08-13 - Codex - Implement the reference Loop return path and configured marker
 
 - **Task:** Replace the obscured card-centered Loop ring with the supplied reference's continuous rounded

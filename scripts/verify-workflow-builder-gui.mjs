@@ -175,12 +175,13 @@ async function readLoopVisual(win, nodeId) {
       !(edgesLayer instanceof SVGElement) || !(nodesLayer instanceof HTMLElement) || !(indicator instanceof SVGGElement) ||
       !(path instanceof SVGPathElement) || !(marker instanceof SVGGElement) ||
       !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) ||
-      !(focus instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) || !(value instanceof SVGElement) ||
+      !(focus instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
       !(label instanceof HTMLElement)) return null;
+    const valueElement = value instanceof SVGElement ? value : null;
     const pathStyle = getComputedStyle(path);
     const mainStyle = getComputedStyle(main);
     const sweepStyle = getComputedStyle(sweep);
-    const valueStyle = getComputedStyle(value);
+    const valueStyle = valueElement ? getComputedStyle(valueElement) : null;
     const nodeRect = node.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
     const pathRect = path.getBoundingClientRect();
@@ -188,6 +189,7 @@ async function readLoopVisual(win, nodeId) {
     const mainRect = main.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
+    const valueRect = valueElement?.getBoundingClientRect() ?? null;
     const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
     const otherNodeRects = [...document.querySelectorAll(".awkit-flow-node")]
       .filter((candidate) => candidate instanceof HTMLElement && candidate.getAttribute("data-id") !== id)
@@ -206,12 +208,17 @@ async function readLoopVisual(win, nodeId) {
     let markerPathDistance = Number.POSITIVE_INFINITY;
     let startPoint = null;
     let endPoint = null;
+    let screenScale = 1;
+    const routeScreenPoints = [];
     if (pathMatrix && pathLength > 0) {
       const markerX = Number(outer.getAttribute("cx"));
       const markerY = Number(outer.getAttribute("cy"));
-      for (let index = 0; index <= 400; index += 1) {
-        const point = path.getPointAtLength((pathLength * index) / 400);
+      screenScale = Math.max(Math.hypot(pathMatrix.a, pathMatrix.b), Math.hypot(pathMatrix.c, pathMatrix.d));
+      const sampleCount = Math.max(400, Math.min(2400, Math.ceil((pathLength * screenScale) / 2)));
+      for (let index = 0; index <= sampleCount; index += 1) {
+        const point = path.getPointAtLength((pathLength * index) / sampleCount);
         markerPathDistance = Math.min(markerPathDistance, Math.hypot(point.x - markerX, point.y - markerY));
+        routeScreenPoints.push(new DOMPoint(point.x, point.y).matrixTransform(pathMatrix));
       }
       const start = path.getPointAtLength(0);
       const end = path.getPointAtLength(pathLength);
@@ -237,6 +244,23 @@ async function readLoopVisual(win, nodeId) {
       outerRect.left - nodeRect.right,
       nodeRect.top - outerRect.bottom,
       outerRect.top - nodeRect.bottom
+    );
+    const routeHalfStroke = Math.max(1, ((Number.parseFloat(pathStyle.strokeWidth) || 0) * screenScale) / 2);
+    const routeOverlapsOtherNode = !pathMatrix || routeScreenPoints.some((point) =>
+      otherNodeRects.some((rect) =>
+        point.x >= rect.left - routeHalfStroke && point.x <= rect.right + routeHalfStroke &&
+        point.y >= rect.top - routeHalfStroke && point.y <= rect.bottom + routeHalfStroke
+      )
+    );
+    const valueCenterDeltaX = valueRect ? Math.abs(valueRect.left + valueRect.width / 2 - circleCenterX) : Number.POSITIVE_INFINITY;
+    const valueCenterDeltaY = valueRect ? Math.abs(valueRect.top + valueRect.height / 2 - circleCenterY) : Number.POSITIVE_INFINITY;
+    const valueReadable = Boolean(
+      valueElement && valueStyle && valueRect && valueStyle.display !== "none" && valueStyle.visibility !== "hidden" &&
+      Number.parseFloat(valueStyle.opacity || "1") > 0 && valueRect.width >= 2 && valueRect.height >= 2
+    );
+    const valueInsideMarker = Boolean(valueRect &&
+      valueRect.left >= mainRect.left - 1 && valueRect.right <= mainRect.right + 1 &&
+      valueRect.top >= mainRect.top - 1 && valueRect.bottom <= mainRect.bottom + 1
     );
     return {
       className: group.getAttribute("class") || "",
@@ -264,6 +288,8 @@ async function readLoopVisual(win, nodeId) {
       focusCount: group.querySelectorAll(".awkit-loop-indicator-focus-ring").length,
       hitCount: group.querySelectorAll(".awkit-loop-indicator-hit").length,
       valueCount: group.querySelectorAll(".awkit-loop-indicator-value").length,
+      valueScreenWidth: valueRect?.width ?? 0,
+      valueScreenHeight: valueRect?.height ?? 0,
       outerRadius: Number(outer.getAttribute("r")),
       mainRadius: Number(main.getAttribute("r")),
       hitRadius: Number(hit.getAttribute("r")),
@@ -282,6 +308,7 @@ async function readLoopVisual(win, nodeId) {
       pathStrokeLinecap: pathStyle.strokeLinecap,
       pathStrokeLinejoin: pathStyle.strokeLinejoin,
       markerPathDistance,
+      routeOverlapsOtherNode,
       pathEndpointsTouchNode: touchesNodeBoundary(startPoint) && touchesNodeBoundary(endPoint),
       pathWrapsNode: pathRect.top < nodeRect.top - 2 && pathRect.bottom > nodeRect.bottom + 2 &&
         (pathRect.left < nodeRect.left - 2 || pathRect.right > nodeRect.right + 2),
@@ -292,10 +319,14 @@ async function readLoopVisual(win, nodeId) {
       display: sweepStyle.display,
       opacity: sweepStyle.opacity,
       transform: sweepStyle.transform,
-      valueText: (value.textContent || "").trim(),
-      valueAnimationName: valueStyle.animationName,
-      valueAnimationCount: value.getAnimations().length,
-      valueTransform: valueStyle.transform,
+      valueText: (valueElement?.textContent || "").trim(),
+      valueAnimationName: valueStyle?.animationName ?? "none",
+      valueAnimationCount: valueElement?.getAnimations().length ?? 0,
+      valueTransform: valueStyle?.transform ?? "none",
+      valueReadable,
+      valueInsideMarker,
+      valueCenterDeltaX,
+      valueCenterDeltaY,
       nodeLeft: nodeRect.left,
       nodeTop: nodeRect.top,
       nodeRight: nodeRect.right,
@@ -399,8 +430,8 @@ async function readLoopPixelMotion(win, nodeId) {
   return { changedPixels, totalDelta, width: first.info.width, height: first.info.height };
 }
 
-async function clickLoopControl(win, nodeId) {
-  const point = await win.evaluate((id) => {
+async function loopControlPoint(win, nodeId) {
+  return win.evaluate((id) => {
     const hit = document.querySelector(
       `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator-hit`
     );
@@ -410,10 +441,62 @@ async function clickLoopControl(win, nodeId) {
     const screen = new DOMPoint(Number(hit.getAttribute("cx")), Number(hit.getAttribute("cy"))).matrixTransform(matrix);
     return { x: screen.x, y: screen.y };
   }, nodeId);
+}
+
+async function clickLoopControl(win, nodeId) {
+  const point = await loopControlPoint(win, nodeId);
   if (!point) return false;
   await win.mouse.click(point.x, point.y);
   await win.waitForTimeout(180);
   return true;
+}
+
+async function doubleClickLoopControl(win, nodeId) {
+  const point = await loopControlPoint(win, nodeId);
+  if (!point) return false;
+  await win.mouse.dblclick(point.x, point.y, { delay: 70 });
+  await win.waitForTimeout(180);
+  return true;
+}
+
+async function panLoopMarkerTo(win, nodeId, targetPoint) {
+  const markerPoint = await loopControlPoint(win, nodeId);
+  if (!markerPoint) return false;
+  const gesture = await win.evaluate(({ markerX, markerY, targetX, targetY }) => {
+    const canvas = document.querySelector(".awkit-flow-canvas");
+    if (!(canvas instanceof HTMLElement)) return null;
+    const rect = canvas.getBoundingClientRect();
+    const dx = targetX - markerX;
+    const dy = targetY - markerY;
+    for (let y = rect.top + 32; y <= rect.bottom - 32; y += 24) {
+      for (let x = rect.left + 32; x <= rect.right - 32; x += 24) {
+        const endX = x + dx;
+        const endY = y + dy;
+        if (endX < rect.left + 16 || endX > rect.right - 16 || endY < rect.top + 16 || endY > rect.bottom - 16) continue;
+        const target = document.elementFromPoint(x, y);
+        if (target?.closest("[data-canvas-node], .nopan, .awkit-flow-edge, button, input, select, textarea, a")) continue;
+        return { startX: x, startY: y, endX, endY };
+      }
+    }
+    return null;
+  }, { markerX: markerPoint.x, markerY: markerPoint.y, targetX: targetPoint.x, targetY: targetPoint.y });
+  if (!gesture) return false;
+  await win.mouse.move(gesture.startX, gesture.startY);
+  await win.mouse.down();
+  await win.mouse.move(gesture.endX, gesture.endY, { steps: 8 });
+  await win.mouse.up();
+  await win.waitForTimeout(220);
+  return true;
+}
+
+async function centerLoopInCanvas(win, nodeId) {
+  const target = await win.evaluate(() => {
+    const canvas = document.querySelector(".awkit-flow-canvas");
+    if (!(canvas instanceof HTMLElement)) return null;
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  });
+  return target ? panLoopMarkerTo(win, nodeId, target) : false;
 }
 
 async function readLoopZoomSamples(win, nodeId) {
@@ -434,6 +517,8 @@ async function readLoopZoomSamples(win, nodeId) {
 
   await reset.click();
   await win.waitForTimeout(220);
+  const originalMarkerPoint = await loopControlPoint(win, nodeId);
+  const centeredByPan = await centerLoopInCanvas(win, nodeId);
   const at100 = await sample();
   await clickTimes(zoomOut, 8);
   const at25 = await sample();
@@ -443,10 +528,13 @@ async function readLoopZoomSamples(win, nodeId) {
   const at200 = await sample();
   await reset.click();
   await win.waitForTimeout(220);
+  const restoredByPan = originalMarkerPoint ? await panLoopMarkerTo(win, nodeId, originalMarkerPoint) : false;
   return {
     at25,
     at100,
     at200,
+    centeredByPan,
+    restoredByPan,
     restoredPercent: Number.parseInt((await zoomValue.textContent().catch(() => "")) || "", 10)
   };
 }
@@ -944,7 +1032,8 @@ try {
           Number.isFinite(visual.markerPathDistance) && visual.markerPathDistance <= 3 && visual.markerOutsideNode && !visual.nodeOverlapsRing &&
           visual.outerRadius >= 18 && visual.outerRadius <= 30 && visual.mainRadius >= 14 && visual.mainRadius < visual.outerRadius &&
           visual.hitRadius >= visual.outerRadius && visual.hitRadius <= 34 && visual.markerToNodeHeightRatio < 1 &&
-          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker && visual.labelClearance >= 1,
+          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.routeOverlapsOtherNode &&
+          !visual.labelOverlapsMarker && visual.labelClearance >= 1,
         JSON.stringify(visual)
       );
       check(
@@ -969,11 +1058,18 @@ try {
       const zoomVisuals = [zoomSamples.at25, zoomSamples.at100, zoomSamples.at200];
       const zoomRatios = zoomVisuals.map((sample) => sample.visual?.markerToNodeHeightRatio ?? Number.NaN);
       check(
-        "Workflow Loop path and marker remain attached and proportionate at 25%, 100%, and 200% zoom",
+        "Workflow Loop path, readable value, and orbit remain visible and attached at 25%, 100%, and 200% zoom",
+        zoomSamples.centeredByPan && zoomSamples.restoredByPan &&
         zoomSamples.at25.percent === 25 && zoomSamples.at100.percent === 100 && zoomSamples.at200.percent === 200 &&
           zoomSamples.restoredPercent === 100 && zoomVisuals.every((sample) =>
             sample.visual?.valueText === "10" && sample.visual.markerOutsideNode && sample.visual.pathWrapsNode &&
-            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3
+            sample.visual.ringFullyVisible && sample.visual.sharedCenter && sample.visual.valueReadable && sample.visual.valueInsideMarker &&
+            sample.visual.valueCenterDeltaX <= 2 && sample.visual.valueCenterDeltaY <= 2 &&
+            sample.visual.valueAnimationName === "none" && sample.visual.valueAnimationCount === 0 &&
+            sample.visual.animationName === "awkit-loop-control-orbit" && sample.visual.animationIterationCount === "infinite" &&
+            Number.parseFloat(sample.visual.animationDuration) >= 1.5 && Number.parseFloat(sample.visual.animationDuration) <= 2.5 &&
+            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3 &&
+            !sample.visual.overlapsOtherNode && !sample.visual.routeOverlapsOtherNode
           ) && zoomRatios.every(Number.isFinite) && Math.max(...zoomRatios) - Math.min(...zoomRatios) <= 0.08,
         JSON.stringify(zoomSamples)
       );
@@ -994,7 +1090,8 @@ try {
           Number.isFinite(draggedVisual.markerPathDistance) && draggedVisual.markerPathDistance <= 3 &&
           Math.abs((draggedVisual.nodeTop - preDragVisual?.nodeTop) - (draggedVisual.markerTop - preDragVisual?.markerTop)) < 2 &&
           Math.abs(draggedVisual.markerNodeClearance - preDragVisual?.markerNodeClearance) < 2 &&
-          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 && !draggedVisual.overlapsOtherNode,
+          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 &&
+          !draggedVisual.overlapsOtherNode && !draggedVisual.routeOverlapsOtherNode,
         JSON.stringify({ before: preDragVisual, duringDrag: draggedVisual })
       );
       const loopExitControl = await readLoopExitControlVisual(win, NODE);
@@ -1116,12 +1213,33 @@ try {
         JSON.stringify({ clickedLoopControl, reopenedByControl, selectedByControl })
       );
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      await win.waitForTimeout(120);
+      const doubleClickedLoopControl = await doubleClickLoopControl(win, NODE);
+      const reopenedByDoubleClick = await loopMode.isVisible().catch(() => false);
+      const selectedByDoubleClick = await win.evaluate((id) => Boolean(
+        document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator.is-selected`)
+      ), NODE);
+      check(
+        "Double-clicking the Workflow Loop marker directly reopens its existing configuration",
+        doubleClickedLoopControl && reopenedByDoubleClick && selectedByDoubleClick,
+        JSON.stringify({ doubleClickedLoopControl, reopenedByDoubleClick, selectedByDoubleClick })
+      );
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
       const loopGroup = win.locator(`g.awkit-flow-edge[data-source="${NODE}"][data-target="${NODE}"][role="button"]`);
       await loopGroup.focus();
       await win.keyboard.press("Enter");
       await win.waitForTimeout(180);
       check(
-        "The Workflow Loop control reopens configuration from the keyboard",
+        "Enter reopens the Workflow Loop configuration from the keyboard",
+        await loopMode.isVisible().catch(() => false) && await loopGroup.getAttribute("aria-label").then((value) => value?.startsWith("Configure loop connector:"))
+      );
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      await win.waitForTimeout(120);
+      await loopGroup.focus();
+      await win.keyboard.press("Space");
+      await win.waitForTimeout(180);
+      check(
+        "Space reopens the Workflow Loop configuration from the keyboard",
         await loopMode.isVisible().catch(() => false) && await loopGroup.getAttribute("aria-label").then((value) => value?.startsWith("Configure loop connector:"))
       );
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });

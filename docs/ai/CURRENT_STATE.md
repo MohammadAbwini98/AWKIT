@@ -1,12 +1,15 @@
 # CURRENT_STATE
 
-## Reference-style Loop return path and configured-value marker - COMPLETE (2026-08-13)
+## Reference-style Loop return path and configured-value marker - COMPLETE (2026-08-13; hardened 2026-08-14)
 
 Flow Designer and Workflow Builder now render every structured self-Loop through the same shared
 `LoopEdge` as one continuous rounded return path. It leaves the real card at bottom-center, wraps around
 the collision-aware left or right side, and returns at top-center. The connector stays in the SVG edge
 layer below DOM cards, its fit-to-view footprint includes the full route and marker, and the live drag
-overlay recomputes from graph coordinates without adding a node or persisted visual position.
+overlay recomputes from graph coordinates without adding a node or persisted visual position. Side
+selection now scores the seven actual path-segment corridors plus the marker hit bounds instead of a
+coarse side strip, so nodes beside the upper/lower return legs influence routing without treating the
+empty Loop cavity as occupied; fit-to-view consumes those same segment-accurate bounds.
 
 A compact circular marker sits directly on the route's outer vertical segment. It reads the existing
 `LoopConnectorConfig.maxIterations` and displays only that configured number; missing/non-numeric legacy
@@ -20,14 +23,24 @@ orbit. The return path and number remain stationary. Reduced motion freezes the 
 while preserving the circle and value. The marker and route retain connector click/double-click and the
 parent edge's Enter/Space configuration path; node-menu Configure/Remove actions remain separate.
 
-Focused evidence: build PASS; Flow Designer Electron GUI **113/113**; Workflow Builder Electron GUI
-**60/60**; Flow step mapping **137/137**; workflow sentinel/conversion **14/14**; branch-pair validation
-**36/36**; canvas performance **13/13**; canvas layout **35/35**; source hygiene **9/9**. The GUI suites
-cover 5 -> 10 live binding and reload, rounded geometry, direct pointer/keyboard reopening, physical drag,
-25/100/200% zoom, decoded pixel motion, stationary text, reduced motion, and non-Loop isolation. Light and
-dark screenshots were inspected in both editors. No mock-site fixture was added because this is an
-editor-local canvas presentation with no runtime behavior. The pre-existing uncommitted `awkit-6cg`
-tracker/assignment work was preserved and intentionally excluded from this UI task.
+Focused reference-UI evidence includes build PASS, Flow step mapping **137/137**, workflow
+sentinel/conversion **14/14**, branch-pair validation **36/36**, canvas performance **13/13**, canvas
+layout **39/39**, and source hygiene **9/9**. The four new layout checks pin all seven route corridors
+plus the marker and prove that narrow blockers on upper/lower return legs change the chosen side even
+when they sit outside the former coarse strip. The hardened Electron GUI suites now pass Flow Designer
+**115/115** and Workflow Builder **62/62**. They cover 5 -> 10 live binding and reload, rounded geometry,
+direct pointer/keyboard reopening, physical drag, screen-sampled route clearance from other nodes, and
+readable/centered marker value plus stable orbit/attachment at 25/100/200% zoom. Route clearance expands
+the authored stroke by the SVG's actual screen scale, and the 25% value check requires a meaningful
+screen-space floor. Decoded pixel motion, stationary text, reduced motion, and non-Loop isolation remain
+covered. Light and dark screenshots were
+inspected in both editors. The full TypeScript and Electron bundle build also passes on the hardened
+implementation. No mock-site fixture was added because this is an editor-local canvas presentation with no
+runtime behavior; the existing Feature Test Lab verifier passes **145/145** on port 4701 because this
+Windows host reserves its default port 4401. The validation ledger remains **63 PASS / 2 NOT RUN / 1
+BLOCKED**. The pre-existing uncommitted `awkit-6cg` tracker/assignment work was preserved and intentionally
+excluded from this UI task. With those local tracker edits present, the roadmap verifier passes **155/157**;
+only its pinned 189-total and 4-outstanding expectations disagree with the local 190/5 export.
 
 ## Complete Loop connector authoring and workflow execution - awkit-pwc COMPLETE (2026-08-11)
 

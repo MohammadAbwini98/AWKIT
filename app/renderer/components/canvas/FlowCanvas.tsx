@@ -1,14 +1,15 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
 import {
-  LOOP_MARKER_HIT_RADIUS,
-  LOOP_RETURN_CLEARANCE,
   Position,
   SMOOTH_STEP_OFFSET,
+  getLeastObstructedLoopSide,
+  getLoopReturnFootprints,
   getRectOfNodes,
   getViewportForBounds,
   pointToFlowPosition,
   getOverlappingArea,
   clamp,
+  type LoopReturnSide,
   type Rect,
   type XYPosition
 } from "./geometry";
@@ -251,7 +252,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
         if (!source) continue;
         const sourceSize = measuredSizeOf(source, sizesRef.current);
         const side = selfLoopSideFor(source, source.position, sourceSize, nodesRef.current, sizesRef.current);
-        rects.push(loopIndicatorFootprint(source.position, sourceSize, side));
+        rects.push(...getLoopReturnFootprints({ ...source.position, ...sourceSize }, side));
       }
       const bounds = getRectOfNodes(rects);
       if (bounds.width === 0 || bounds.height === 0) return;
@@ -661,27 +662,11 @@ interface EdgeEndpointLayout {
   loopSide?: SelfLoopSide;
 }
 
-type SelfLoopSide = Position.Left | Position.Right;
+type SelfLoopSide = LoopReturnSide;
 
 function isStructuredSelfLoop(edge: CanvasEdge): boolean {
   const connectorData = edge.data as { kind?: unknown; linkType?: unknown } | undefined;
   return edge.source === edge.target && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
-}
-
-function loopIndicatorFootprint(source: XYPosition, sourceSize: MeasuredSize, side: SelfLoopSide): Rect {
-  const sideSign = side === Position.Left ? -1 : 1;
-  const sideAnchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
-  const markerX = sideAnchorX + sideSign * LOOP_RETURN_CLEARANCE;
-  const markerEdgeX = markerX + sideSign * LOOP_MARKER_HIT_RADIUS;
-  const padding = SMOOTH_STEP_OFFSET / 2;
-  const nearX = side === Position.Left ? markerEdgeX : sideAnchorX;
-  const farX = side === Position.Left ? sideAnchorX : markerEdgeX;
-  return {
-    x: nearX - padding,
-    y: source.y - LOOP_RETURN_CLEARANCE - padding,
-    width: farX - nearX + padding * 2,
-    height: sourceSize.height + LOOP_RETURN_CLEARANCE * 2 + padding * 2
-  };
 }
 
 /** Choose the side whose complete return-loop footprint least obstructs the graph. */
@@ -693,22 +678,13 @@ function selfLoopSideFor(
   sizes: Record<string, MeasuredSize>,
   positionOf?: (id: string) => XYPosition
 ): SelfLoopSide {
-  const score = (side: SelfLoopSide): number => {
-    const footprint = loopIndicatorFootprint(sourcePosition, sourceSize, side);
-    return nodes.reduce((total, node) => {
-      if (node.id === source.id) return total;
+  const obstacles = nodes
+    .filter((node) => node.id !== source.id)
+    .map((node) => {
       const position = positionOf?.(node.id) ?? node.position;
-      return total + getOverlappingArea(footprint, { ...position, ...measuredSizeOf(node, sizes) });
-    }, 0);
-  };
-
-  const leftScore = score(Position.Left);
-  const rightScore = score(Position.Right);
-  if (leftScore !== rightScore) return leftScore < rightScore ? Position.Left : Position.Right;
-
-  // Keep equal-clearance routing stable while a node moves. The left tie-break also keeps the
-  // marker clear of the right-side inspector shared by both designers.
-  return Position.Left;
+      return { ...position, ...measuredSizeOf(node, sizes) };
+    });
+  return getLeastObstructedLoopSide({ ...sourcePosition, ...sourceSize }, obstacles);
 }
 
 /** Route structured Loops around their real source card; keep Loop exits clear in tight gaps. */

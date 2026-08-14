@@ -206,6 +206,67 @@ export const LOOP_MARKER_HIT_RADIUS = SMOOTH_STEP_OFFSET * 1.3;
 export const LOOP_MARKER_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
 export const LOOP_RETURN_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
 
+export type LoopReturnSide = Position.Left | Position.Right;
+
+/**
+ * Side-specific route corridors for fit bounds and collision scoring. Keeping the route as
+ * separate corridors avoids treating the open Loop cavity as occupied canvas space.
+ */
+export function getLoopReturnFootprints(source: Rect, side: LoopReturnSide): Rect[] {
+  const sideSign = side === Position.Left ? -1 : 1;
+  const centerX = source.x + source.width / 2;
+  const centerY = source.y + source.height / 2;
+  const markerX = centerX + sideSign * (source.width / 2 + LOOP_RETURN_CLEARANCE);
+  const innerCornerX = centerX + sideSign * LOOP_RETURN_CORNER_RADIUS;
+  const outerCornerX = markerX - sideSign * LOOP_RETURN_CORNER_RADIUS;
+  const returnTopY = source.y - LOOP_RETURN_CLEARANCE;
+  const returnBottomY = source.y + source.height + LOOP_RETURN_CLEARANCE;
+  const padding = SMOOTH_STEP_OFFSET / 2;
+
+  const corridor = (x1: number, x2: number, y1: number, y2: number): Rect => ({
+    x: Math.min(x1, x2) - padding,
+    y: Math.min(y1, y2) - padding,
+    width: Math.abs(x2 - x1) + padding * 2,
+    height: Math.abs(y2 - y1) + padding * 2
+  });
+  const markerHalfSize = LOOP_MARKER_HIT_RADIUS + padding;
+
+  return [
+    corridor(centerX, innerCornerX, source.y + source.height, returnBottomY),
+    corridor(innerCornerX, outerCornerX, returnBottomY, returnBottomY),
+    corridor(outerCornerX, markerX, returnBottomY, returnBottomY - LOOP_RETURN_CORNER_RADIUS),
+    corridor(markerX, markerX, returnBottomY - LOOP_RETURN_CORNER_RADIUS, returnTopY + LOOP_RETURN_CORNER_RADIUS),
+    corridor(markerX, outerCornerX, returnTopY + LOOP_RETURN_CORNER_RADIUS, returnTopY),
+    corridor(outerCornerX, innerCornerX, returnTopY, returnTopY),
+    corridor(innerCornerX, centerX, returnTopY, source.y),
+    {
+      x: markerX - markerHalfSize,
+      y: centerY - markerHalfSize,
+      width: markerHalfSize * 2,
+      height: markerHalfSize * 2
+    }
+  ];
+}
+
+/** Choose the side whose complete return-path footprint has the least obstacle overlap. */
+export function getLeastObstructedLoopSide(source: Rect, obstacles: Rect[]): LoopReturnSide {
+  const score = (side: LoopReturnSide): number => {
+    const footprints = getLoopReturnFootprints(source, side);
+    return obstacles.reduce(
+      (total, obstacle) =>
+        total + footprints.reduce((overlap, footprint) => overlap + getOverlappingArea(footprint, obstacle), 0),
+      0
+    );
+  };
+
+  const leftScore = score(Position.Left);
+  const rightScore = score(Position.Right);
+  if (leftScore !== rightScore) return leftScore < rightScore ? Position.Left : Position.Right;
+
+  // Stable equal-clearance routing also keeps the marker clear of the right-side inspector.
+  return Position.Left;
+}
+
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({
   sourceX,

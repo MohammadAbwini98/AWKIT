@@ -27,6 +27,12 @@ import {
   withAutoLayout,
   type LayoutPosition
 } from "../app/renderer/components/shared/graphLayout";
+import {
+  Position,
+  getLeastObstructedLoopSide,
+  getLoopReturnFootprints,
+  type Rect
+} from "../app/renderer/components/canvas/geometry";
 
 let passed = 0;
 let failed = 0;
@@ -253,6 +259,31 @@ console.log("\nDimension handling:");
   const unsized = layeredLayout([{ id: "a" }, { id: "b" }], [], { direction: "TB" });
   const gap = Math.abs(unsized.get("b")!.x - unsized.get("a")!.x);
   check("PINNED: dimension-less siblings would under-space vs real 320px nodes", gap < W + 64, `gap=${gap}, real node width=${W}`);
+}
+
+// ── Structured Loop route collision geometry ────────────────────────────────
+console.log("\nStructured Loop return-path collision geometry:");
+{
+  const source: Rect = { x: 0, y: 100, width: W, height: H };
+  // These narrow blockers touch only a horizontal return leg. They deliberately sit outside the
+  // old coarse side strip, so reverting to that scorer makes the left-side cases tie and fail.
+  const leftTopLegBlocker: Rect = { x: 40, y: 50, width: 60, height: 20 };
+  const leftBottomLegBlocker: Rect = { x: 40, y: 226, width: 60, height: 20 };
+  const rightTopLegBlocker: Rect = { x: 220, y: 50, width: 60, height: 20 };
+
+  check("Loop bounds contain seven route corridors plus the marker", getLoopReturnFootprints(source, Position.Left).length === 8);
+  check(
+    "a blocker on only the left top return leg routes the Loop right",
+    getLeastObstructedLoopSide(source, [leftTopLegBlocker]) === Position.Right
+  );
+  check(
+    "a blocker on only the left bottom return leg routes the Loop right",
+    getLeastObstructedLoopSide(source, [leftBottomLegBlocker]) === Position.Right
+  );
+  check(
+    "a blocker on only the right top return leg keeps the Loop left",
+    getLeastObstructedLoopSide(source, [rightTopLegBlocker]) === Position.Left
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

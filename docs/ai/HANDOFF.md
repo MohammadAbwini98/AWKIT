@@ -1,5 +1,34 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-14) - reference Loop return-path hardening complete
+
+- **Delivered:** the August 13 reference Loop UI is closed out with collision and fit bounds that
+  follow all seven rendered return-path corridors plus the configured-value marker. The same pure
+  geometry now drives fit-to-view, static routing, and live drag routing without filling the open
+  Loop cavity or adding persisted canvas state.
+- **Coverage:** Flow Designer and Workflow Builder screen-sample the rendered route against every
+  other card through 25/100/200% zoom using the transformed stroke width. A deterministic geometry
+  regression places narrow blockers on the upper and lower horizontal legs outside the former coarse
+  side strip and proves the route changes sides. The configured value must occupy at least 2x2 screen
+  pixels at the 25% floor.
+- **Evidence:** build PASS; Flow Designer **115/115**; Workflow Builder **62/62** on its final isolated
+  run; Flow mapping **137/137**; workflow sentinels **14/14**; canvas layout **39/39**; canvas performance
+  **13/13**; source hygiene **9/9**; and the unchanged Feature Test Lab **145/145** on port 4701 because
+  this Windows host reserves the verifier's default port 4401. Final light/dark screenshots for both
+  editors were opened at original resolution and visually pass. A concurrent Workflow run transiently
+  missed one unrelated leaf-picker interaction (61/62); the isolated rerun passed it. Verifier
+  classification and repository AI memory pass, and Graphify was refreshed and queried successfully.
+- **Safety:** persistence, schema, validation, IPC, runner behavior, and execution semantics are
+  unchanged. The validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Next:** the separate uncommitted `awkit-6cg` bead and expired assignment claim remain preserved.
+  Its settings-write work has not been implemented, and its older node-centered-ring wording is
+  superseded by the August 13 rounded return-path decision; reconcile or split that item before acting
+  on it. Those local tracker edits make the pinned roadmap count check report a source-count mismatch
+  until they are deliberately committed/reconciled or removed by their owner; the final result is
+  **155/157**, with all other dashboard/source checks passing.
+
+---
+
 ## HANDOFF (2026-08-09) - awkit-7le professional visual redesign complete
 
 - **Delivered:** a rendered-evidence redesign of Workflow Builder, Flow Designer, Users, Roles,
