@@ -22,7 +22,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-workflow-builder-gui");
 seedWorkflowFixture(dataRoot);
 
-// Seed two saved flows and one workflow (flowA → flowB) so the builder auto-loads a workflow with a
+// Seed two saved flows and focused workflow fixtures so the builder auto-loads a workflow with a
 // connector + a loopable flowRef node, and the contextual picker's "Saved Flows" section has entries.
 function seedWorkflowFixture(localAppData) {
   const now = new Date().toISOString();
@@ -86,6 +86,27 @@ function seedWorkflowFixture(localAppData) {
     edges: [{ id: "w-loop-authoring", source: "workflow-node-1", target: "workflow-node-2", type: "success", label: "always" }]
   };
   writeFileSync(path.join(workflowsDir, `${loopAuthoringWorkflow.id}.json`), `${JSON.stringify(loopAuthoringWorkflow, null, 2)}\n`, "utf8");
+  const legacyReturnWorkflow = {
+    ...workflow,
+    id: "verify-workflow-legacy-return",
+    name: "Verify — Legacy Return",
+    description: "Cross-node legacy loopBack rendering fixture with an ordinary reference edge.",
+    nodes: workflow.nodes.map((node, index) => ({ ...node, id: `legacy-return-node-${index + 1}` })),
+    edges: [
+      { id: "legacy-forward", source: "legacy-return-node-1", target: "legacy-return-node-2", type: "success" },
+      {
+        id: "legacy-return",
+        source: "legacy-return-node-2",
+        target: "legacy-return-node-1",
+        type: "loopBack",
+        maxLoopCount: 4,
+        // Deliberately conflicting opaque data proves a legacy return never adopts a structured
+        // Loop mode label. Its runtime model and rendered summary remain separate.
+        loop: { mode: "count", maxIterations: 99, parameterName: "opaque-loop-payload" }
+      }
+    ]
+  };
+  writeFileSync(path.join(workflowsDir, `${legacyReturnWorkflow.id}.json`), `${JSON.stringify(legacyReturnWorkflow, null, 2)}\n`, "utf8");
 }
 
 function importFixture(name, flowIds) {
@@ -346,6 +367,120 @@ async function readLoopVisual(win, nodeId) {
   }, nodeId);
 }
 
+async function readLegacyReturnVisual(win, ids) {
+  return win.evaluate(({ edgeId, ordinaryEdgeId }) => {
+    const group = document.querySelector(`g.awkit-flow-edge[data-id="${CSS.escape(edgeId)}"]`);
+    const ordinaryGroup = document.querySelector(`g.awkit-flow-edge[data-id="${CSS.escape(ordinaryEdgeId)}"]`);
+    const sourceId = group?.getAttribute("data-source") || "";
+    const targetId = group?.getAttribute("data-target") || "";
+    const source = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(sourceId)}"]`);
+    const target = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(targetId)}"]`);
+    const path = group?.querySelector("path.awkit-flow-edge-path");
+    const ordinaryPath = ordinaryGroup?.querySelector("path.awkit-flow-edge-path");
+    const direction = group?.querySelector(".awkit-loop-direction-path");
+    const arrow = group?.querySelector(".awkit-loop-indicator-arrow");
+    const label = document.querySelector(`.awkit-edge-label[data-edge-id="${CSS.escape(edgeId)}"]`);
+    if (!(group instanceof SVGGElement) || !(ordinaryGroup instanceof SVGGElement) ||
+      !(source instanceof HTMLElement) || !(target instanceof HTMLElement) ||
+      !(path instanceof SVGPathElement) || !(ordinaryPath instanceof SVGPathElement) ||
+      !(direction instanceof SVGPathElement) || !(arrow instanceof SVGPathElement) ||
+      !(label instanceof HTMLElement)) return null;
+
+    const pathLength = path.getTotalLength();
+    const matrix = path.getScreenCTM();
+    if (!(pathLength > 0) || !matrix) return null;
+    const start = path.getPointAtLength(0);
+    const end = path.getPointAtLength(pathLength);
+    const screenStart = new DOMPoint(start.x, start.y).matrixTransform(matrix);
+    const screenEnd = new DOMPoint(end.x, end.y).matrixTransform(matrix);
+    const sourceRect = source.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const touchesBoundary = (point, rect) => Boolean(point &&
+      point.x >= rect.left - 6 && point.x <= rect.right + 6 &&
+      point.y >= rect.top - 6 && point.y <= rect.bottom + 6 &&
+      Math.min(
+        Math.abs(point.x - rect.left),
+        Math.abs(point.x - rect.right),
+        Math.abs(point.y - rect.top),
+        Math.abs(point.y - rect.bottom)
+      ) <= 6
+    );
+    let maxPathX = Number.NEGATIVE_INFINITY;
+    for (let index = 0; index <= 160; index += 1) {
+      maxPathX = Math.max(maxPathX, path.getPointAtLength((pathLength * index) / 160).x);
+    }
+
+    const pathStyle = getComputedStyle(path);
+    const directionStyle = getComputedStyle(direction);
+    const arrowStyle = getComputedStyle(arrow);
+    const labelStyle = getComputedStyle(label);
+    const directionAnimation = direction.getAnimations()[0];
+    const pathData = path.getAttribute("d") || "";
+    const labelText = (label.textContent || "").trim();
+    return {
+      sourceId,
+      targetId,
+      connectorKind: group.getAttribute("data-connector-kind"),
+      role: group.getAttribute("role"),
+      ariaLabel: group.getAttribute("aria-label"),
+      persistentLayer: Boolean(group.closest(".awkit-flow-loop-edges")),
+      baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
+      directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
+      arrowCount: group.querySelectorAll(".awkit-loop-indicator-arrow").length,
+      markerCount: group.querySelectorAll(".awkit-loop-indicator-marker").length,
+      valueCount: group.querySelectorAll(".awkit-loop-indicator-value").length,
+      totalAnimationCount: group.getAnimations({ subtree: true }).length,
+      mainAnimationCount: path.getAnimations().length,
+      directionAnimationCount: direction.getAnimations().length,
+      arrowAnimationCount: arrow.getAnimations().length,
+      labelAnimationCount: label.getAnimations().length,
+      pathData,
+      ordinaryPathData: ordinaryPath.getAttribute("d") || "",
+      directionPathData: direction.getAttribute("d") || "",
+      pathMoveCount: (pathData.match(/[Mm]/g) || []).length,
+      pathCubicCount: (pathData.match(/[Cc]/g) || []).length,
+      curvesBeyondEndpoints: maxPathX > Math.max(start.x, end.x) + 8,
+      startTouchesSource: touchesBoundary(screenStart, sourceRect),
+      endTouchesTarget: touchesBoundary(screenEnd, targetRect),
+      animationName: directionStyle.animationName,
+      animationDuration: directionStyle.animationDuration,
+      animationIterationCount: directionStyle.animationIterationCount,
+      animationTimingFunction: directionStyle.animationTimingFunction,
+      animationCurrentTime: Number(directionAnimation?.currentTime ?? Number.NaN),
+      animationStartTime: Number(directionAnimation?.startTime ?? Number.NaN),
+      pathDisplay: pathStyle.display,
+      pathVisibility: pathStyle.visibility,
+      pathOpacity: pathStyle.opacity,
+      pathStroke: pathStyle.stroke,
+      pathStrokeWidth: pathStyle.strokeWidth,
+      arrowDisplay: arrowStyle.display,
+      arrowOpacity: arrowStyle.opacity,
+      labelText,
+      labelDisplay: labelStyle.display,
+      labelOpacity: labelStyle.opacity,
+      labelHasRuntimeProgress: /\b(?:current|iteration|of)\b|\d+\s*\/\s*\d+/i.test(labelText),
+      sourceLeft: sourceRect.left,
+      sourceTop: sourceRect.top,
+      ordinaryConnectorKind: ordinaryGroup.getAttribute("data-connector-kind"),
+      ordinaryDirectionCount: ordinaryGroup.querySelectorAll(".awkit-loop-direction-path").length,
+      ordinaryArrowCount: ordinaryGroup.querySelectorAll(".awkit-loop-indicator-arrow").length
+    };
+  }, ids);
+}
+
+async function pollLegacyReturnVisual(win, ids, predicate, { timeout = 3000, interval = 40, consecutive = 1 } = {}) {
+  const deadline = Date.now() + timeout;
+  let lastVisual = null;
+  let passingSamples = 0;
+  do {
+    lastVisual = await readLegacyReturnVisual(win, ids);
+    passingSamples = predicate(lastVisual) ? passingSamples + 1 : 0;
+    if (passingSamples >= consecutive) return lastVisual;
+    await win.waitForTimeout(interval);
+  } while (Date.now() < deadline);
+  return lastVisual;
+}
+
 async function readLoopMotionDelta(win, nodeId) {
   return win.evaluate(async (id) => {
     const direction = document.querySelector(
@@ -434,14 +569,14 @@ async function clickLoopControl(win, nodeId) {
   return true;
 }
 
-async function readLoopZoomSamples(win, nodeId) {
+async function readLoopZoomSamples(win, visualId, readVisual = readLoopVisual) {
   const reset = win.locator('.canvas-zoom-control button[title="Reset to 100%"]');
   const zoomOut = win.locator('.canvas-zoom-control button[title="Zoom out"]');
   const zoomIn = win.locator('.canvas-zoom-control button[title="Zoom in"]');
   const zoomValue = win.locator(".canvas-zoom-control .zoom-value");
   const sample = async () => ({
     percent: Number.parseInt((await zoomValue.textContent().catch(() => "")) || "", 10),
-    visual: await readLoopVisual(win, nodeId)
+    visual: await readVisual(win, visualId)
   });
   const clickTimes = async (control, count) => {
     for (let index = 0; index < count; index += 1) {
@@ -881,6 +1016,122 @@ try {
     await win.waitForSelector(".scenario-flow-node", { timeout: 10000 });
     await win.waitForTimeout(400);
   }
+
+  // A persisted, bounded cross-node `loopBack` must use the dedicated return renderer without
+  // becoming a structured self-Loop. Exercise the real profile mapping and the persistent SVG
+  // layer at rest, across viewport-only zoom, and while its source node is physically dragged.
+  const legacyReturnIds = { edgeId: "legacy-return", ordinaryEdgeId: "legacy-forward" };
+  await win.selectOption(WF_SELECT, "verify-workflow-legacy-return");
+  await win.waitForTimeout(900);
+  await win.locator('.canvas-zoom-control button[title="Fit to screen"]').click();
+  await win.waitForTimeout(300);
+  await win.waitForFunction(
+    ({ edgeId }) => {
+      const direction = document.querySelector(`g.awkit-flow-edge[data-id="${CSS.escape(edgeId)}"] .awkit-loop-direction-path`);
+      const animation = direction?.getAnimations()[0];
+      return animation?.startTime !== null && Number.isFinite(Number(animation?.startTime));
+    },
+    legacyReturnIds,
+    { timeout: 5000 }
+  );
+  const legacyInitial = await readLegacyReturnVisual(win, legacyReturnIds);
+  let legacyHiddenBasePath = null;
+  let legacyAfterVisibilityMutation = null;
+  await win.evaluate(({ edgeId }) => {
+    const style = document.createElement("style");
+    style.id = "verify-hidden-legacy-return-path";
+    style.textContent = `g.awkit-flow-edge[data-id="${CSS.escape(edgeId)}"] path.awkit-flow-edge-path { opacity: 0 !important; }`;
+    document.head.append(style);
+  }, legacyReturnIds);
+  try {
+    legacyHiddenBasePath = await readLegacyReturnVisual(win, legacyReturnIds);
+  } finally {
+    await win.evaluate(() => document.getElementById("verify-hidden-legacy-return-path")?.remove());
+  }
+  legacyAfterVisibilityMutation = await pollLegacyReturnVisual(
+    win,
+    legacyReturnIds,
+    (visual) => Number.parseFloat(visual?.pathOpacity ?? "0") > 0
+  );
+  const legacyZoomSamples = await readLoopZoomSamples(win, legacyReturnIds, readLegacyReturnVisual);
+  const legacyZoomVisuals = [legacyZoomSamples.at25, legacyZoomSamples.at100, legacyZoomSamples.at200]
+    .map((sample) => sample.visual);
+  const legacyPreDrag = await readLegacyReturnVisual(win, legacyReturnIds);
+  const legacySourceBox = await win.locator('.awkit-flow-node[data-id="legacy-return-node-2"]').boundingBox();
+  let legacyDuringDrag = null;
+  let legacyAfterDrag = null;
+  if (legacySourceBox) {
+    await win.mouse.move(legacySourceBox.x + legacySourceBox.width / 2, legacySourceBox.y + legacySourceBox.height / 2);
+    await win.mouse.down();
+    try {
+      await win.mouse.move(legacySourceBox.x + legacySourceBox.width / 2 + 32, legacySourceBox.y + legacySourceBox.height / 2 + 18, { steps: 6 });
+      legacyDuringDrag = await pollLegacyReturnVisual(
+        win,
+        legacyReturnIds,
+        (visual) => Boolean(visual && legacyPreDrag && visual.pathData !== legacyPreDrag.pathData &&
+          visual.sourceLeft - legacyPreDrag.sourceLeft > 20 && visual.sourceTop - legacyPreDrag.sourceTop > 10)
+      );
+    } finally {
+      await win.mouse.up();
+    }
+    legacyAfterDrag = await pollLegacyReturnVisual(
+      win,
+      legacyReturnIds,
+      (visual) => Boolean(visual && legacyDuringDrag && visual.pathData === legacyDuringDrag.pathData &&
+        visual.animationStartTime === legacyDuringDrag.animationStartTime),
+      { consecutive: 2 }
+    );
+  }
+  const legacyZoomStartTimes = legacyZoomVisuals.map((visual) => visual?.animationStartTime ?? Number.NaN);
+  const legacyZoomPathData = legacyZoomVisuals.map((visual) => visual?.pathData ?? "");
+  const legacyBasePathIsVisible = (visual) => Boolean(
+    visual?.pathDisplay !== "none" && visual?.pathVisibility !== "hidden" && visual?.pathVisibility !== "collapse" &&
+    Number.parseFloat(visual?.pathOpacity ?? "0") > 0 && visual?.pathStroke !== "none" &&
+    visual?.pathStroke !== "transparent" && !/^rgba\([^)]*,\s*0\s*\)$/i.test(visual?.pathStroke ?? "") &&
+    Number.parseFloat(visual?.pathStrokeWidth ?? "0") > 0
+  );
+  const legacyVisualIsStable = (visual) => Boolean(
+    visual?.connectorKind === "loopBack" && visual.persistentLayer && visual.baseCount === 1 &&
+    visual.directionCount === 1 && visual.arrowCount === 1 && visual.markerCount === 0 && visual.valueCount === 0 &&
+    visual.totalAnimationCount === 1 && visual.mainAnimationCount === 0 && visual.directionAnimationCount === 1 &&
+    visual.arrowAnimationCount === 0 && visual.labelAnimationCount === 0 &&
+    legacyBasePathIsVisible(visual) && visual.directionPathData === visual.pathData &&
+    visual.startTouchesSource && visual.endTouchesTarget &&
+    visual.labelText === "Loop Back × 4" && !visual.labelHasRuntimeProgress
+  );
+  check(
+    "Legacy Loop Back base-path visibility oracle rejects a hidden continuous return stroke",
+    Boolean(legacyHiddenBasePath && legacyAfterVisibilityMutation) &&
+      !legacyBasePathIsVisible(legacyHiddenBasePath) && legacyBasePathIsVisible(legacyAfterVisibilityMutation),
+    JSON.stringify({ hidden: legacyHiddenBasePath, restored: legacyAfterVisibilityMutation })
+  );
+  check(
+    "Legacy cross-node Loop Back keeps distinct return geometry, one path animation, one arrow, a mode-safe label, and stable drag/zoom",
+    Boolean(legacyInitial && legacyPreDrag && legacyDuringDrag && legacyAfterDrag && legacySourceBox) &&
+      legacyVisualIsStable(legacyInitial) && legacyVisualIsStable(legacyPreDrag) &&
+      legacyInitial.sourceId !== legacyInitial.targetId && legacyInitial.connectorKind === "loopBack" &&
+      legacyInitial.role === "button" && legacyInitial.ariaLabel === "Configure loop connector: Loop Back × 4" &&
+      legacyInitial.pathMoveCount === 1 && legacyInitial.pathCubicCount === 1 && legacyInitial.curvesBeyondEndpoints &&
+      legacyInitial.pathData !== legacyInitial.ordinaryPathData && legacyInitial.ordinaryConnectorKind === null &&
+      legacyInitial.ordinaryDirectionCount === 0 && legacyInitial.ordinaryArrowCount === 0 &&
+      legacyInitial.animationName === "awkit-loop-direction" && legacyInitial.animationIterationCount === "infinite" &&
+      legacyInitial.animationTimingFunction === "linear" && Number.parseFloat(legacyInitial.animationDuration) >= 1.5 &&
+      Number.parseFloat(legacyInitial.animationDuration) <= 2.5 && legacyInitial.arrowDisplay !== "none" &&
+      Number.parseFloat(legacyInitial.arrowOpacity) > 0 && legacyInitial.labelDisplay !== "none" &&
+      Number.parseFloat(legacyInitial.labelOpacity) > 0 && legacyInitial.labelText !== "Count × 99" &&
+      legacyZoomSamples.at25.percent === 25 && legacyZoomSamples.at100.percent === 100 &&
+      legacyZoomSamples.at200.percent === 200 && legacyZoomSamples.restoredPercent === 100 &&
+      legacyZoomVisuals.every(legacyVisualIsStable) && new Set(legacyZoomPathData).size === 1 &&
+      legacyZoomStartTimes.every(Number.isFinite) && new Set(legacyZoomStartTimes).size === 1 &&
+      legacyVisualIsStable(legacyDuringDrag) && legacyDuringDrag.pathData !== legacyPreDrag.pathData &&
+      legacyDuringDrag.animationStartTime === legacyPreDrag.animationStartTime &&
+      legacyDuringDrag.animationCurrentTime >= legacyPreDrag.animationCurrentTime &&
+      legacyDuringDrag.sourceLeft - legacyPreDrag.sourceLeft > 20 && legacyDuringDrag.sourceTop - legacyPreDrag.sourceTop > 10 &&
+      legacyVisualIsStable(legacyAfterDrag) && legacyAfterDrag.pathData === legacyDuringDrag.pathData &&
+      legacyAfterDrag.animationStartTime === legacyPreDrag.animationStartTime &&
+      legacyAfterDrag.animationCurrentTime >= legacyDuringDrag.animationCurrentTime,
+    JSON.stringify({ initial: legacyInitial, zoom: legacyZoomSamples, beforeDrag: legacyPreDrag, duringDrag: legacyDuringDrag, afterDrag: legacyAfterDrag })
+  );
 
   // Use the dedicated fixture whose persisted canvas ids intentionally differ from flowId. A
   // connector can only be reopened if the builder preserves those node ids on load.
