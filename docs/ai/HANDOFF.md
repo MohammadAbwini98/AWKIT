@@ -6,11 +6,13 @@
 
 - **From:** Codex.
 - **To:** next AI coding agent or human maintainer.
-- **Timestamp:** 2026-08-14T23:07:40+03:00.
+- **Timestamp:** 2026-08-14T23:31:20+03:00.
 - **Canonical branch:** `main`.
-- **Focused verifier commit:** `8eef3c0` (`test(connectors): cover legacy loopback rendering`). The
-  tracker/documentation reconciliation commit follows this record; run `git rev-parse HEAD` for it.
-- **origin/main before the final closeout push:** `67228ef`; re-check after takeoff completion.
+- **Pushed closeout commits:** `8eef3c0` (`test(connectors): cover legacy loopback rendering`) and
+  `4e95bcc` (`fix(connectors): clear loop labels and close acceptance`). This documentation-only push
+  record follows those commits; run `git rev-parse HEAD` for its SHA.
+- **origin/main after the substantive closeout push:** `4e95bcc`; local `main` was synchronized before
+  this documentation-only record.
 - **Preserved stash:** `stash@{2026-08-14 04:16:39 +0300}`
   (`codex-pre-revert-727248f-doc-overlap-20260814`). Do not apply or drop it blindly.
 

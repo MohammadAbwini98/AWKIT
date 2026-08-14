@@ -27,8 +27,9 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Tracking:** closed `awkit-6cg`; kept settings-only `awkit-4qs` open; removed the completed claim;
   exported **191 total / 186 closed / 5 outstanding / 104 edges**. Validation ledger remains
   **63 PASS / 2 NOT RUN / 1 BLOCKED**.
-- **Commits:** `8eef3c0` adds the focused verifier. The label-clearance/tracker/documentation reconciliation
-  commit follows this entry; its SHA and push state are recorded after the commit exists.
+- **Commits:** `8eef3c0` adds the focused verifier; `4e95bcc` adds label clearance, both rendered guards,
+  tracker/roadmap reconciliation, and closeout memory. Both were pushed directly to `origin/main`; this
+  documentation-only push record follows them.
 
 ---
 
