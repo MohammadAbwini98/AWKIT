@@ -1,5 +1,79 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-14) - corrective Loop connector closeout complete
+
+### Transfer
+
+- **From:** Codex.
+- **To:** next AI coding agent or human maintainer.
+- **Timestamp:** 2026-08-14T23:07:40+03:00.
+- **Canonical branch:** `main`.
+- **Focused verifier commit:** `8eef3c0` (`test(connectors): cover legacy loopback rendering`). The
+  tracker/documentation reconciliation commit follows this record; run `git rev-parse HEAD` for it.
+- **origin/main before the final closeout push:** `67228ef`; re-check after takeoff completion.
+- **Preserved stash:** `stash@{2026-08-14 04:16:39 +0300}`
+  (`codex-pre-revert-727248f-doc-overlap-20260814`). Do not apply or drop it blindly.
+
+### Delivered in this takeoff
+
+- Split the interrupted combined tracker scope: corrective Loop acceptance stayed on `awkit-6cg`;
+  Windows settings replacement retry work remains separately open as `awkit-4qs`.
+- Added a real-Electron persisted legacy cross-node `loopBack` fixture beside an ordinary edge. The
+  verifier asserts distinct cubic return geometry, one visible continuous base stroke, one matching
+  direction overlay, one arrow, `Loop Back × 4` rather than the opaque payload's `Count × 99`, zero
+  marker/value elements, stable animation identity through zoom and drag, and ordinary-edge isolation.
+- Strengthened the test oracle after review: computed base-path visibility/stroke is required, a temporary
+  hidden-stroke mutation must be rejected, and drag/post-drop state is polled instead of sampled after
+  fixed 60/120 ms sleeps.
+- Manual review caught the long While label partly under its owning card. `LoopEdge` now anchors summaries
+  in the clear band above the card, and both GUI suites require `labelOverlapsNode === false` at rest,
+  through zoom/drag, for multiple Loops, and under reduced motion.
+- Captured and opened the Flow Designer and Workflow Builder at 1440x900 in light and dark under
+  `reports/loop-connector-closeout/2026-08-14-takeoff/`. All four pass manual readability/contrast review.
+  The Workflow capture path collapses its inspector, dismisses the toast, and refits the canvas so both
+  independent Loops, paths, arrows, markers, and full labels are visible.
+- Corrected stale numeric-marker/marker-only-motion text in architecture, testing, commands, known issues,
+  and the CSS source comment; refreshed Graphify from that corrected authority to **12,215 nodes / 25,379
+  edges / 620 communities**.
+- Closed only `awkit-6cg`, removed its assignment, exported the tracker, and reconciled exact dashboard
+  pins. `awkit-4qs` remains open and unclaimed.
+
+### Fresh verification
+
+| Verification | State | Evidence / reason |
+|---|---|---|
+| `npm run build` | PASS | TypeScript and Electron/Vite bundles complete. |
+| `npm run verify:all-typecheck` | FAIL | Its build phase passed; script typechecking reported the same nine documented pre-existing diagnostics in unrelated Recorder/blueprint verifier files. |
+| `npm run verify:flow-designer` | PASS | 128/128 real-Electron checks; generated the two Flow captures. |
+| `npm run verify:workflow-builder` | PASS | 74/74 on the final run; both new legacy-return checks passed on two consecutive runs. |
+| preceding Workflow run | FAIL | 73/74 because the unrelated first-page Workflows-table probe raced startup; all Loop checks passed, and the immediate rerun was 74/74. |
+| `npm run verify:verifier-classification` | PASS | 178 package commands classified. |
+| `npm run verify:roadmap-dashboard` | PASS | 157/157; Overview: `Sources agree`. |
+| `graphify update .` | PASS | 12,215 nodes / 25,379 edges / 620 communities after final code/document corrections. |
+| `node scripts/ai-memory/check-memory.mjs` | PASS | Repository AI-memory structure and newest-section requirements agree. |
+| final light/dark screenshot inspection | PASS | Four 1440x900 images opened and manually adjudicated. |
+| focused `@playwright/test` data-source Loop spec | BLOCKED | Historic Node/config-loader boundary; supported `verify:runner` is 100/100 from the implementation checkpoint. |
+
+Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+### Tracker and next work
+
+- Tracker: **191 total / 186 closed / 5 outstanding / 104 edges**.
+- `awkit-6cg`: CLOSED. `awkit-4qs`: OPEN, settings-only, unclaimed.
+- The other four outstanding issues remain owner-gated and blocked.
+- No settings implementation or settings verifier was changed in this takeoff.
+- Program Status is reconciled; do not alter the exact pins without a deliberate tracker transition/export.
+
+### Do not lose
+
+- Do not apply/drop the preserved stash blindly.
+- Do not reintroduce marker-only animation, runtime-looking counters, global SVG ids, React per-frame
+  animation state, or a second Loop runtime model.
+- Keep structured self-Loops and cross-node `loopBack` separate at runtime even though their design-time
+  direction vocabulary is shared.
+
+---
+
 ## HANDOFF (2026-08-14) - corrective Loop connector implementation checkpoint
 
 ### Transfer

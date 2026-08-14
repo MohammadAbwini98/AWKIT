@@ -108,11 +108,11 @@ manifest signing key id, final artifact size and final artifact SHA-256.
 
 ## Test / verify
 ```bash
-npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (4 checks)
+npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (20 checks)
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
-npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 105 checks over the
+npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 157 checks over the
                             # tools/roadmap dashboard: source readability, exact record counts
-                            # (111 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
+                            # (191 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
                             # FOUR-WAY ledger reconciliation (case file = its own rollup =
                             # CURRENT_STATE.md = HANDOFF.md — this is what catches doc drift),
                             # ordering invariants incl. a SYNTHETIC 2-cycle proving the cycle branch
@@ -133,7 +133,10 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
                             # drawer INSETS the canvas — engine right edge flush against the drawer's
                             # left edge, never covering nodes/connections (awkit-73s) — and wait for the
                             # drawer's actual open/resize animations to finish (`Animation.finished` +
-                            # geometry-stability polling) rather than a fixed delay. (72/72)
+                            # geometry-stability polling) rather than a fixed delay. The current Loop
+                            # suite also covers shared return-path motion, interaction, persistence,
+                            # drag/zoom continuity, owning-card label clearance, reduced motion, and
+                            # multiple-Loop isolation. (128/128)
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
 npm run verify:flow-library # tsx scripts/verify-flow-library-gui.mts — awkit-k2s defensive hardening.
                             # Unit-tests rescanTitle()'s reason priority (capability > permission >
@@ -160,7 +163,11 @@ npm run verify:workflow-builder # node scripts/verify-workflow-builder-gui.mjs �
                             # walkthrough for the Workflow Builder (.scenario-flow-node) canvas on the engine:
                             # engine cards/edges, kebab loop toggle, new Start→End scaffold, contextual
                             # Workflow Definition picker, default-edge + splices Start→flow→End, flow config
-                            # drawer, and leaf append +.
+                            # drawer, and leaf append +. Loop coverage includes create/edit/reopen/save/reload,
+                            # multiple-Loop isolation, reduced motion, stable drag/zoom animation identity,
+                            # owning-card label clearance,
+                            # and a focused cross-node legacy loopBack return-path assertion with an ordinary
+                            # edge negative control and hidden-base-path mutation. (74/74)
 npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Electron canvas render-count
                             # regression guard. Seeds a 40-node flow and asserts (via the opt-in
                             # renderProbe) that zoom + typing cause 0 node/card/edge re-renders, a node

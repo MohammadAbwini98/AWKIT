@@ -360,6 +360,7 @@ async function readLoopVisual(win, nodeId) {
         labelRect.top - outerRect.bottom
       ),
       labelOverlapsMarker: overlaps(labelRect, outerRect),
+      labelOverlapsNode: overlaps(labelRect, nodeRect),
       overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, outerRect) || overlaps(rect, labelRect)),
       selected: indicator.classList.contains("is-selected"),
       interactionWidth: getComputedStyle(hit).strokeWidth
@@ -1222,7 +1223,8 @@ try {
           Number.isFinite(visual.markerPathDistance) && visual.markerPathDistance <= 3 && visual.markerOutsideNode && !visual.nodeOverlapsRing &&
           visual.outerRadius === 20 && visual.mainRadius === 16 && visual.hitRadius === 24 &&
           visual.markerAnimationCount === 0 && visual.markerAnimationName === "none" && visual.markerToNodeHeightRatio < 1 &&
-          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker && visual.labelClearance >= 1,
+          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker &&
+          !visual.labelOverlapsNode && visual.labelClearance >= 1,
         JSON.stringify(visual)
       );
       check(
@@ -1255,7 +1257,8 @@ try {
           zoomSamples.restoredPercent === 100 && zoomVisuals.every((sample) =>
             sample.visual?.labelText === "While · status = passed" && sample.visual.markerOutsideNode && sample.visual.pathWrapsNode &&
             sample.visual.directionMatchesPath && sample.visual.arrowCount === 1 &&
-            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3
+            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3 &&
+            !sample.visual.labelOverlapsNode
           ) && zoomRatios.every(Number.isFinite) && Math.max(...zoomRatios) - Math.min(...zoomRatios) <= 0.08 &&
           zoomAnimationStartTimes.every(Number.isFinite) && new Set(zoomAnimationStartTimes).size === 1,
         JSON.stringify(zoomSamples)
@@ -1278,7 +1281,8 @@ try {
           draggedVisual.animationStartTime === preDragVisual?.animationStartTime && draggedVisual.animationCurrentTime >= preDragVisual.animationCurrentTime &&
           Math.abs((draggedVisual.nodeTop - preDragVisual?.nodeTop) - (draggedVisual.markerTop - preDragVisual?.markerTop)) < 2 &&
           Math.abs(draggedVisual.markerNodeClearance - preDragVisual?.markerNodeClearance) < 2 &&
-          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 && !draggedVisual.overlapsOtherNode,
+          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 &&
+          !draggedVisual.overlapsOtherNode && !draggedVisual.labelOverlapsNode,
         JSON.stringify({ before: preDragVisual, duringDrag: draggedVisual })
       );
       const loopExitControl = await readLoopExitControlVisual(win, NODE);
@@ -1332,11 +1336,20 @@ try {
             primaryVisualWithPeer.edgeId !== secondaryVisual.edgeId && primaryVisualWithPeer.pathData !== secondaryVisual.pathData &&
             primaryVisualWithPeer.labelText === "While · status = passed" && secondaryVisual.labelText === "Count × 3" &&
             primaryVisualWithPeer.directionMatchesPath && secondaryVisual.directionMatchesPath &&
+            !primaryVisualWithPeer.labelOverlapsNode && !secondaryVisual.labelOverlapsNode &&
             primaryVisualWithPeer.animationName === "awkit-loop-direction" && secondaryVisual.animationName === "awkit-loop-direction",
           JSON.stringify({ selfLoopCount, primaryVisualWithPeer, secondaryVisual })
         );
       } else {
         check("Two Workflow Loops render independently with distinct identities, routes, and authored summaries", false, "no secondary flow node found");
+      }
+      if (process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE || process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE_DARK) {
+        await win.locator("#sb-right-panel-collapse").click();
+        await win.locator(".scenario-properties-panel").waitFor({ state: "hidden" });
+        await win.locator(".app-toast-close").click().catch(() => undefined);
+        await win.locator(".app-toast").waitFor({ state: "hidden" }).catch(() => undefined);
+        await win.locator('.canvas-zoom-control button[title="Fit to screen"]').click();
+        await win.waitForTimeout(300);
       }
       if (process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE) {
         await win.screenshot({ path: process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE });
@@ -1361,7 +1374,7 @@ try {
           reducedVisual.arrowDisplay !== "none" && Number.parseFloat(reducedVisual.arrowOpacity) > 0 &&
           reducedVisual.labelDisplay !== "none" && Number.parseFloat(reducedVisual.labelOpacity) > 0 &&
           reducedVisual.labelText === "While · status = passed" && reducedVisual.labelAnimationCount === 0 &&
-          reducedVisual.markerCount === 1 && reducedVisual.markerAnimationCount === 0 &&
+          !reducedVisual.labelOverlapsNode && reducedVisual.markerCount === 1 && reducedVisual.markerAnimationCount === 0 &&
           !reducedMotion?.dashMoved && !reducedMotion?.labelMoved && !reducedMotion?.labelTransformChanged,
         JSON.stringify({ reducedVisual, reducedMotion })
       );
@@ -1370,7 +1383,7 @@ try {
         !secondaryLoopAdded || (
           reducedSecondaryVisual?.animationName === "none" && reducedSecondaryVisual.display !== "none" &&
           reducedSecondaryVisual.arrowDisplay !== "none" && reducedSecondaryVisual.labelText === "Count × 3" &&
-          !reducedSecondaryMotion?.dashMoved && !reducedSecondaryMotion?.labelMoved
+          !reducedSecondaryVisual.labelOverlapsNode && !reducedSecondaryMotion?.dashMoved && !reducedSecondaryMotion?.labelMoved
         ),
         JSON.stringify({ secondaryLoopAdded, reducedSecondaryVisual, reducedSecondaryMotion })
       );

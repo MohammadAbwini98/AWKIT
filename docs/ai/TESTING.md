@@ -7,21 +7,29 @@
 ## Confirmed
 
 Corrective Loop connector coverage (2026-08-14): `verify:flow-designer` **128/128** and
-`verify:workflow-builder` **72/72** create structured self-loops, assert the authoritative `Count × 3`
+`verify:workflow-builder` **74/74** create structured self-loops, assert the authoritative `Count × 3`
 default (then edit the bound/mode), and prove the mode-aware summary after save/reload or a workflow
-switch. Both assert one continuous rounded path, one compact static marker attached directly to it,
-one identical-geometry directional path plus arrow, connector-layer-before-node-layer ownership, no
-synthetic node or runtime counter, authored
-dotted/thickness preservation, collision-aware physical drag, and attachment at 25/100/200% zoom. Motion
-checks combine animation timing/transform evidence with decoded pixel deltas and prove the SVG number has
-no animation or movement. Reduced motion retains the value and freezes the sweep. Pointer, keyboard,
+switch. Both assert one continuous rounded path, one compact static configuration marker, one
+identical-geometry directional path plus arrow, connector-layer-before-node-layer ownership, no
+synthetic node or runtime counter, authored dotted/thickness preservation, collision-aware physical
+drag, and attachment at 25/100/200% zoom. Motion checks combine computed animation state with decoded
+pixel deltas and prove direction travels on the real return path while the marker and label stay static.
+The label rectangle stays outside its owning card at rest, through zoom/drag, for multiple Loops, and
+under reduced motion. Reduced motion leaves a readable static directional segment. Pointer, keyboard,
 collapsed-editor reopening, separate Configure/Remove actions, and non-self exit isolation are covered.
-Workflow coverage includes `node.id !== flowId`; `verify:flow-step-mapping` **142/142** covers two
-independent Loops and legacy payload preservation; `verify:workflow-sentinels` **20/20** covers two
-Workflow/Scenario cycles including style and unknown nested metadata; `verify:branch-pairs` **40/40**
-proves repeated exit promotion is idempotent; `verify:runner` **100/100** includes data-source Loop
-binding/cleanup. Node drag asserts animation start-time continuity; both suites cover keyboard Delete,
-Undo/Redo, Enter/Space, reduced motion, multiple Loops, and exact Conditional-exit cardinality.
+
+Workflow coverage additionally seeds a bounded cross-node legacy `loopBack` beside an ordinary edge.
+It proves distinct cubic return geometry, a visibly stroked continuous base path, one matching direction
+overlay, one arrow, the mode-safe `Loop Back × 4` label (never the opaque structured payload's
+`Count × 99`), zero marker/value elements, stable animation identity through 25/100/200% zoom and a
+physical node drag, and ordinary-edge isolation. A temporary hidden-base-path mutation makes the new
+visibility oracle reject the connector before the style is restored. Workflow coverage also includes
+`node.id !== flowId`; `verify:flow-step-mapping` **142/142** covers two independent Loops and legacy
+payload preservation; `verify:workflow-sentinels` **20/20** covers two Workflow/Scenario cycles including
+style and unknown nested metadata; `verify:branch-pairs` **40/40** proves repeated exit promotion is
+idempotent; `verify:runner` **100/100** includes data-source Loop binding/cleanup. Both GUI suites cover
+keyboard Delete, Undo/Redo, Enter/Space, reduced motion, multiple Loops, and exact Conditional-exit
+cardinality.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
 `verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete
@@ -125,8 +133,9 @@ remain structural and legacy workflows remain compatible.
   behavior. As of the last run: **128 checks pass**.
 - `scripts/verify-workflow-builder-gui.mjs` (`npm run verify:workflow-builder`) — real Electron GUI
   walkthrough for Workflow Builder import/canvas/Loop behavior, including persisted node-id identity,
-  existing Loop pointer/menu reopening, save/reload, direction motion, and reduced motion. As of the
-  last run: **72 checks pass**.
+  existing Loop pointer/menu reopening, save/reload, direction motion, reduced motion, and focused legacy
+  cross-node `loopBack` geometry/visibility/drag/zoom isolation with a hidden-path mutation control. As of
+  the last run: **74 checks pass**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):

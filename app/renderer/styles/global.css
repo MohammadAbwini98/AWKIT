@@ -10373,7 +10373,7 @@ table {
   }
 }
 
-/* Structured Loop connector: one rounded return path with a compact configured-value marker. */
+/* Structured Loop connector: one rounded return path with a compact static configuration marker. */
 .awkit-flow-edge[role="button"]:focus {
   outline: none;
 }

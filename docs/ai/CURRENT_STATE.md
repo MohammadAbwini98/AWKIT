@@ -1,6 +1,6 @@
 # CURRENT_STATE
 
-## Corrective Loop connector implementation checkpoint - CLOSEOUT PENDING (2026-08-14)
+## Corrective Loop connector closeout - COMPLETE (2026-08-14)
 
 Flow Designer and Workflow Builder now share a compact rounded return-path presentation for
 structured self-Loops. New Loops use the existing authoritative count configuration
@@ -9,7 +9,8 @@ and configuration are never defaulted over. The path itself carries one 1.8-seco
 animation and a static direction arrow. The former orbiting marker arc and bare numeric marker value
 are removed. Reduced motion freezes the path to a readable directional segment. Canvas labels are
 design summaries (`Count × N`, `For Each`, data-source name, or compact `While` condition), never a
-current/total execution counter.
+current/total execution counter. Their geometry is anchored above the owning card rather than over its
+vertical footprint, so the node layer cannot cover long While/data-source summaries.
 
 `FlowCanvas` keeps Loop and legacy cross-node `loopBack` paths in one persistent SVG layer so node
 drag changes geometry without remounting or restarting the animation timeline. The self-Loop route
@@ -25,21 +26,27 @@ Workflow -> Scenario -> Workflow conversion. Repeated Loop-exit promotion and tw
 keep exact edge ids/counts and one Conditional exit. Runtime production semantics were not changed;
 the existing runner now has focused data-source Loop regression coverage.
 
-Fresh checkpoint evidence: build PASS; Flow Designer Electron GUI **128/128**; Workflow Builder
-Electron GUI **72/72**; Flow mapping **142/142**; Workflow conversion **20/20**; branch pairs
-**40/40**; runner **100/100**; validation **134/134**; editor history **14/14**; canvas layout
-**35/35**; canvas performance **13/13**; Mock Site **145/145**; source hygiene **9/9**; randomized
-round trip **27/27**; verifier classification reconciled (**178 commands**). The focused
-`@playwright/test` data-source Loop spec was added but is environmentally BLOCKED before collection
-because this Node/config-loader path rejects `playwright.config.ts`; `verify:runner` proves the same
-runtime behavior. Dark/light screenshots for this final corrective design were NOT RUN.
+Fresh takeoff evidence: build PASS; Flow Designer Electron GUI **128/128**; Workflow Builder Electron
+GUI **74/74**, now including an isolated legacy cross-node `loopBack` return path, computed base-stroke
+visibility, a hidden-path mutation control, ordinary-edge isolation, 25/100/200% zoom, and physical drag
+without animation-timeline restart. The completed implementation checkpoint also recorded Flow mapping
+**142/142**, Workflow conversion **20/20**, branch pairs **40/40**, runner **100/100**, validation
+**134/134**, editor history **14/14**, canvas layout **35/35**, canvas performance **13/13**, Mock Site
+**145/145**, source hygiene **9/9**, randomized round trip **27/27**, and verifier classification over
+**178 commands**. The focused `@playwright/test` data-source Loop spec remains environmentally BLOCKED
+before collection because this Node/config-loader path rejects `playwright.config.ts`; the supported
+`verify:runner` path proves the same runtime behavior. `verify:all-typecheck` rebuilt the app successfully,
+then remained red only on the same nine documented pre-existing script-type diagnostics outside this
+Loop/test/document scope.
 
-Closeout is intentionally still open: the pre-existing dirty `awkit-6cg` issue bundles this Loop
-scope with unrelated settings-write retry work, its assignment expired, and
-`verify:roadmap-dashboard` is **155/157 FAIL** until the two tracker count pins are reconciled.
-The tracker currently parses **190 total / 185 closed / 5 outstanding / 104 edges**. Do not close the
-settings work or claim `Sources agree` from this checkpoint. Validation ledger remains
-**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Four isolated 1440x900 captures under `reports/loop-connector-closeout/2026-08-14-takeoff/` were opened
+and manually inspected: Flow Designer and Workflow Builder in light and dark. The return path, marker,
+arrow, and full design-only labels remain clear of the owning cards in both themes. The Workflow evidence
+shows both independent Loops after the inspector is collapsed, its toast dismissed, and the canvas refit.
+Graphify was refreshed to **12,215 nodes / 25,379 edges / 620 communities** after the corrected source and
+memory text, and Program Status reports **157/157 - Sources agree**. `awkit-6cg` is closed; the unrelated
+settings retry remains open as `awkit-4qs`. Tracker: **191 total / 186 closed / 5 outstanding / 104 edges**.
+Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 
 ## Reference-style Loop return path and configured-value marker - COMPLETE (2026-08-13)
 

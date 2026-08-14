@@ -136,7 +136,10 @@ export function LoopEdge({
     `H ${innerCornerX}`,
     `C ${centerX},${returnTopY} ${centerX},${targetY - LOOP_RETURN_CLEARANCE * 0.45} ${centerX},${targetY}`
   ].join(" ");
-  const labelY = centerY - LOOP_MARKER_OUTER_RADIUS - LOOP_MARKER_LABEL_GAP;
+  // Keep the design summary in the clear band between the top return segment and the card. Centering
+  // it above the marker leaves long While/data-source labels inside the card's vertical footprint,
+  // where the DOM node (correctly layered above SVG edges) can visibly cover the label.
+  const labelY = targetY - LOOP_MARKER_LABEL_GAP;
   const controlColor = typeof style?.stroke === "string" ? style.stroke : "var(--awkit-connector-loop)";
   const arrowDirection = -side;
   const arrowTipX = innerCornerX - arrowDirection * 4;

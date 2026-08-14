@@ -546,6 +546,7 @@ async function readLoopVisual(win, nodeId) {
         labelRect.top - outerRect.bottom
       ),
       labelOverlapsMarker: overlaps(labelRect, outerRect),
+      labelOverlapsNode: overlaps(labelRect, nodeRect),
       overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, outerRect) || overlaps(rect, labelRect)),
       selected: indicator.classList.contains("is-selected"),
       interactionWidth: getComputedStyle(hit).strokeWidth
@@ -1231,7 +1232,8 @@ try {
           visual.arrowDisplay !== "none" && Number.parseFloat(visual.arrowOpacity) > 0 && visual.arrowAnimationCount === 0 &&
           visual.arrowWidth > 0 && visual.arrowHeight > 0 &&
           visual.markerToNodeHeightRatio < 1 &&
-          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker && visual.labelClearance >= 1,
+          visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker &&
+          !visual.labelOverlapsNode && visual.labelClearance >= 1,
         JSON.stringify(visual)
       );
       check(
@@ -1279,7 +1281,8 @@ try {
           zoomSamples.restoredPercent === 100 && zoomVisuals.every((sample) =>
             sample.visual?.labelText === "While · status = passed" && sample.visual.markerOutsideNode && sample.visual.pathWrapsNode &&
             sample.visual.pathData === sample.visual.directionData && sample.visual.arrowCount === 1 &&
-            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3
+            Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3 &&
+            !sample.visual.labelOverlapsNode
           ) && zoomRatios.every(Number.isFinite) && Math.max(...zoomRatios) - Math.min(...zoomRatios) <= 0.08,
         JSON.stringify(zoomSamples)
       );
@@ -1302,7 +1305,8 @@ try {
           Number.isFinite(draggedVisual.markerPathDistance) && draggedVisual.markerPathDistance <= 3 &&
           Math.abs((draggedVisual.nodeTop - preDragVisual?.nodeTop) - (draggedVisual.markerTop - preDragVisual?.markerTop)) < 2 &&
           Math.abs(draggedVisual.markerNodeClearance - preDragVisual?.markerNodeClearance) < 2 &&
-          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 && !draggedVisual.overlapsOtherNode,
+          Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 &&
+          !draggedVisual.overlapsOtherNode && !draggedVisual.labelOverlapsNode,
         JSON.stringify({ before: preDragVisual, duringDrag: draggedVisual })
       );
       const loopExitControl = await readLoopExitControlVisual(win, NODE);
@@ -1352,7 +1356,7 @@ try {
           Number.parseFloat(reducedVisual.opacity) > 0 && reducedVisual.directionAnimationCount === 0 &&
           reducedVisual.arrowDisplay !== "none" && Number.parseFloat(reducedVisual.arrowOpacity) > 0 &&
           reducedVisual.labelText === "While · status = passed" && reducedVisual.labelDisplay !== "none" && Number.parseFloat(reducedVisual.labelOpacity) > 0 &&
-          reducedVisual.sweepCount === 0 && reducedVisual.valueCount === 0 &&
+          !reducedVisual.labelOverlapsNode && reducedVisual.sweepCount === 0 && reducedVisual.valueCount === 0 &&
           !reducedMotion?.moved && !reducedMotion?.geometryChanged && !reducedMotion?.labelMoved && !reducedMotion?.labelTransformChanged,
         JSON.stringify({ reducedVisual, reducedMotion })
       );

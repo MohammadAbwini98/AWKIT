@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("189 issues parse", beads.stats.total === 189, `got ${beads.stats.total}`);
+  check("191 issues parse", beads.stats.total === 191, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -214,9 +214,12 @@ try {
   // total 187 to 188, closed 183 to 184; the same four owner-gated issues remain outstanding.
   // Loop reconfiguration and directional motion `awkit-kwg` then filed and closed one issue:
   // total 188 to 189, closed 184 to 185; the same four owner-gated issues remain outstanding.
+  // Corrective Loop closeout added `awkit-6cg` and split its unrelated settings retry into open
+  // `awkit-4qs`: total 189 to 191. Closing `awkit-6cg` moves closed 185 to 186 and leaves five
+  // outstanding (`awkit-4qs` plus the four owner-gated items); edges remain 104.
   check(
-    "4 outstanding / 185 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 185,
+    "5 outstanding / 186 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 186,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

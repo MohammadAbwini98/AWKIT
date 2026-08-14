@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-14 - Codex - Close corrective Loop acceptance and reconcile Program Status
+
+- **Task:** Resume the corrective Loop checkpoint, preserve interrupted tracker/test work, finish the
+  missing legacy-return and visual acceptance, and leave the settings retry as a separate task.
+- **Coverage:** added a persisted cross-node `loopBack` plus ordinary-edge negative control to the real
+  Workflow Builder walkthrough; asserted visible base stroke, distinct return geometry, one direction
+  animation/arrow, mode-safe label, no marker/value, stable zoom/drag animation identity, and a
+  hidden-base-path mutation that turns the visibility oracle red. Manual review then exposed owning-card
+  label occlusion; moved summaries into the clear band above the card and added no-overlap guards in both
+  designers across rest/zoom/drag/multiple-Loop/reduced-motion states.
+- **Visual evidence:** opened and manually inspected Flow Designer and Workflow Builder light/dark
+  1440x900 captures under `reports/loop-connector-closeout/2026-08-14-takeoff/`; all four pass for
+  full label/path/marker/arrow readability and theme contrast. Workflow evidence shows both independent
+  Loops with the inspector collapsed, toast dismissed, and canvas refit.
+- **Verified:** build PASS; Flow GUI **128/128**; final Workflow GUI **74/74**; classification **178**;
+  roadmap **157/157 - Sources agree**; Graphify refresh PASS; AI-memory check PASS. One immediately
+  preceding Workflow run was **73/74 FAIL** when its unrelated first Workflows-table probe raced startup;
+  both new Loop checks passed in that run and the immediate rerun was green. `verify:all-typecheck`
+  rebuilt the app successfully, then FAILED on the same nine documented pre-existing script-only
+  diagnostics outside this scope.
+- **Tracking:** closed `awkit-6cg`; kept settings-only `awkit-4qs` open; removed the completed claim;
+  exported **191 total / 186 closed / 5 outstanding / 104 edges**. Validation ledger remains
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Commits:** `8eef3c0` adds the focused verifier. The label-clearance/tracker/documentation reconciliation
+  commit follows this entry; its SHA and push state are recorded after the commit exists.
+
+---
+
 ## 2026-08-14 - Codex - Checkpoint corrective Loop connector implementation
 
 - **Task:** Correct Loop design, path animation, labels, editing/persistence, multiple-Loop isolation,

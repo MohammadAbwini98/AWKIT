@@ -1,20 +1,28 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop visual fixes targeted the wrong canvas element or obscured the control (2026-08-13)
+## RESOLVED: Loop direction now lives on the real return path without runtime-looking counters (2026-08-14)
 
-Earlier iterations enlarged the Conditional exit's insertion `+`, animated an ordinary edge overlay, or
-placed node-sized rings behind the real card. Those implementations could be present in the DOM while the
-actual Loop still appeared tiny, hidden, or unrelated to the requested reference.
+Earlier iterations targeted the Conditional insertion control, an ordinary edge overlay, a node-obscured
+ring, or a numeric marker sweep. Those implementations could satisfy DOM/keyframe checks while the real
+returning connector remained visually small, static, or suggested live execution progress.
 
-Structured self-Loops now render through the shared `LoopEdge` as one rounded return path around the real
-card, with a compact circular marker directly on the path. The marker shows the existing configured
-`maxIterations` value and animates one transform-only sweep; the route and number do not animate. Reduced
-motion freezes the sweep. There is no fake node, UI-only count, or runtime progress channel.
+Structured self-Loops now render through the shared `LoopEdge` as one compact collision-aware rounded
+return path around the real card. A compact configuration marker remains static; the external label
+summarizes authored design configuration (`Count × N`, `For Each`, data source, or `While`) and never shows
+a current/total runtime counter. Directional motion is one dash overlay whose `d` matches the real path,
+accompanied by one static arrow. Reduced motion leaves a static directional segment. `FlowCanvas` keeps
+structured Loops and legacy `loopBack` paths in a persistent SVG layer so drag updates geometry without
+resetting animation phase. No graph, persistence, IPC, or runtime state was introduced, and structured
+self-Loops remain distinct from legacy cross-node `loopBack`.
 
-Keep the GUI guards that assert rendered geometry and pixels rather than keyframe existence alone: exact
-5 -> 10 marker updates, save/reload, path/marker attachment, 25/100/200% zoom, physical drag, direct pointer
-and keyboard configuration, reduced motion, and non-self connector isolation in both editors. Connector
-model, persistence, validation, runtime, and legacy Loop Back behavior remain unchanged.
+Keep rendered GUI guards for matching route/overlay geometry, exactly one path animation and one arrow,
+zero counter/value elements, mode-safe labels, save/reload/reopen, 25/100/200% zoom, physical drag with
+stable animation start time, pointer and keyboard configuration, reduced motion, multiple-Loop isolation,
+and non-Loop isolation in both editors. A label centered above the marker can still extend under the
+owning DOM card; keep its rectangle anchored in the clear band above the card and explicitly assert no
+owning-node overlap at rest, through zoom/drag, for multiple Loops, and under reduced motion. Retain the
+focused legacy `loopBack` rendered assertion, its hidden-base-path mutation control, and manually inspected
+Flow Designer/Workflow Builder light and dark desktop screenshots.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

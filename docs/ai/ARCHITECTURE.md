@@ -426,11 +426,16 @@ failure boundary under `src/testing/failures/`:
   model is persisted. A structured self-loop always selects the shared `LoopEdge` regardless of a stale
   non-circular visual shape. `FlowCanvas` supplies the measured source-card width and semantic bottom/top
   anchors, chooses a collision-aware side, and includes the full return route in fit bounds. `LoopEdge`
-  renders one rounded path around the card and places a compact circular marker on its outer segment. The
-  marker reads the existing `loop.maxIterations` value directly; it creates no graph or persistence state.
-  Only its sweep uses a transform animation, while the route and value remain stationary. The connector SVG
-  stays below DOM nodes, the dragging-edge overlay tracks live graph coordinates, and the same parent edge
-  handles pointer/keyboard configuration in both designers. Reduced motion freezes the sweep.
+  renders one compact rounded bottom-center -> side-return -> top-center path around the card, a static
+  configuration marker, an external mode-aware design label (`Count × N`, `For Each`, data-source, or
+  `While`) in the clear band just above the card, one matching real-path dash overlay, and one static
+  direction arrow. Neither the marker nor label represents a current runtime iteration, and these visuals
+  create no graph, persistence, IPC, or runtime state. `FlowCanvas.LoopEdgeLayer` keeps structured Loops
+  and legacy cross-node `loopBack` paths in one persistent SVG layer, updating geometry during node drag
+  without remounting the path or restarting its CSS animation timeline. The parent edge remains
+  pointer/keyboard configurable in both designers.
+  Reduced motion removes the animation and leaves a static directional segment. Legacy `loopBack` shares
+  this design-time vocabulary without changing its separate cross-node runtime model.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
   the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session
