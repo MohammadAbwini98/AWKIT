@@ -1,5 +1,203 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-14) - corrective Loop connector implementation checkpoint
+
+### Transfer
+
+- **From:** Codex.
+- **To:** next AI coding agent or human maintainer.
+- **Timestamp:** 2026-08-14T22:00:23+03:00.
+- **Canonical branch:** `main`.
+- **Implementation checkpoint HEAD:** `22fd95b` (`31f32af` production + `22fd95b` tests). This
+  handoff documentation is committed after that checkpoint, so run `git rev-parse HEAD` for the
+  final documentation commit.
+- **origin/main at checkpoint start:** `b05a466`; local `main` was 2 ahead / 0 behind before the
+  documentation commit and push.
+- **Preserved stash:** `stash@{2026-08-14 04:16:39 +0300}`
+  (`codex-pre-revert-727248f-doc-overlap-20260814`). Do not apply or drop it blindly.
+
+### Objective
+
+Correct Loop connector design, functional behavior, persistence, and non-functional quality in both
+Flow Designer and Workflow Builder. The supplied reference is a canvas design for repeat/return
+semantics, not runtime execution progress.
+
+### User-approved intent
+
+- Normal designer mode must not show `iteration / total`, current iteration, or similar runtime
+  counters.
+- The Loop must read as a slightly smaller circular/rounded returning connector with an obvious
+  direction arrow and smooth continuous motion on its real path.
+- Existing Loop configuration must reopen, edit, save, reload, and reopen without loss.
+- Both designers must share new-Loop defaults and behavior; existing saved values remain authored.
+- Runtime self-Loop and legacy cross-node `loopBack` semantics remain distinct and must not be
+  redesigned for the visual fix.
+
+### What is already complete
+
+| Area | Implemented behavior | Proof |
+|---|---|---|
+| Geometry | One rounded bottom-center -> side return -> top-center path; marker radii reduced to 20/16 with 24 hit radius; route clearance reduced to 36; fit/zoom/drag stay graph-bound. | Flow GUI 128/128; Workflow GUI 72/72; canvas layout 35/35. |
+| Direction/motion | One real-path dash overlay (`awkit-loop-direction`, 1.8s linear infinite), one static arrow, no orbiting sweep/value; reduced motion is static. | Both GUI suites inspect matching `d`, computed animation, decoded pixel motion, and reduced motion. |
+| Animation continuity | Loop/return edges stay in a persistent SVG layer instead of moving between static/drag layers, so a node drag updates `d` without restarting `Animation.startTime`. | Workflow drag assertion passes; canvas performance 13/13. |
+| Labels | Shared design-only summaries for count, static list, data source, while condition, and legacy Loop Back; accessible name uses the same summary. | Both GUI suites assert `Count × N` / `While · status = passed` and zero counter/value elements. |
+| Defaults | Existing `defaultLoopConnectorConfig()` remains the one semantic factory (`count`, bound 3); new shared style factory returns dotted/4px/circular/closed arrow in both designers only at creation. | Build; Flow/Workflow fresh-create GUI assertions. |
+| Editing/interactions | Existing shared `LoopConnectorEditor` reopens populated values. Pointer, double-click, marker, Enter, Space, node-menu Configure/Remove, inspector delete, keyboard Delete/Backspace, Undo, and Redo remain functional. | Flow 128/128; Workflow 72/72. |
+| Multiple Loops | Per-edge identity/state/label/path remains isolated; no SVG global ids were introduced. | Both GUI suites create two Loops, edit/read each, and clean up deterministically. |
+| Persistence | Full nested Loop config and unknown nested keys survive two Flow cycles; Workflow conversion preserves config, id, semantic endpoints, Conditional exit, and edge style for two cycles; legacy `loopBack` keeps an opaque attached Loop payload. | Flow mapping 142/142; Workflow sentinels 20/20. |
+| Conditional exits | Promotion is idempotent; save/reload/reconfigure keep exactly one Loop and one Conditional exit; delete/undo/redo restore existing branch semantics. | Branch pairs 40/40 plus both GUI suites. |
+| Runtime separation | No production runtime policy changed. Focused data-source Loop tests prove bound ordering, final value, and temporary runtime-input cleanup. | Runner 100/100. |
+
+Important files are `FlowCanvas.tsx` (`LoopEdgeLayer`, `renderEdgeElement`), `LoopEdge.tsx`,
+`geometry.ts`, `loopConnectorAuthoring.ts`, `connectorStyle.ts`, both designer pages,
+`flowProfileMapping.ts`, `ScenarioProfile.ts`, `WorkflowProfile.ts`, `global.css`, and the focused
+GUI/headless verifiers committed in `31f32af` and `22fd95b`.
+
+### Root-cause findings preserved
+
+- The prior implementation animated only a compact marker sweep while the real return path was
+  static and `directional={false}`. Both old GUI suites explicitly expected zero direction paths and
+  arrows, locking in the wrong result.
+- A bare `maxIterations` number and generic `Loop` aria label were used for every mode, so while/list/
+  data-source safety bounds looked like execution progress.
+- Moving a connected edge from `EdgeLayer` to `DraggingEdgeLayer` remounted its SVG animation at drag
+  start. The persistent Loop layer fixes the phase reset without React animation-frame state.
+- Workflow/Scenario fixed-field conversion dropped `WorkflowEdge.style`; both designer save
+  projectors dropped an existing opaque `loop` payload on `loopBack`. These are now preserved without
+  merging runtime models.
+- Reopening itself was already routed through the shared editor and selected edge id; the main gap
+  was insufficient regression coverage, not a second editor requirement.
+- No shared SVG definition/id collision was found. Each edge uses keyed DOM and CSS classes; multiple
+  Loop isolation is now tested.
+- Structured self-Loops and cross-node `loopBack` are intentionally separate runtime models.
+  `connectorKind()` may classify both as Loop-like for authoring/preservation, but runtime still keys
+  on serialized type.
+
+### What is partially complete or not run
+
+- **Dedicated return-loop GUI acceptance:** source maps `loopBack` to the specialized returning curve,
+  direction overlay, arrow, label, focus, and click behavior, but no focused real-Electron assertion
+  isolates a cross-node `loopBack` visual. Safe in the tree; build and legacy runtime tests pass.
+- **Final visual evidence:** the GUI suites exercised light/default CSS and reduced motion, but final
+  dark/light screenshots were not captured and manually inspected for this corrected design.
+- **Geometry breadth:** drag and 25/100/200% zoom are Loop-specific; generic canvas tests cover layout
+  and pan/zoom render stability. A named Loop-specific pan/auto-layout/import/duplicate assertion is
+  still absent.
+- **Playwright parity spec:** `tests/runner.mocksite.spec.ts` includes a data-source Loop case, but the
+  focused `@playwright/test` launch is BLOCKED before collection by `TypeError: Unknown file extension
+  ".ts" for ...playwright.config.ts`. The supported `verify:runner` path passes the same behavior.
+- **Graphify:** the graph was queried during investigation but `graphify update .` after final edits
+  was NOT RUN.
+
+### What remains (prioritized)
+
+- **P0 - reconcile tracker ownership without losing user work.** `.beads/issues.jsonl` and
+  `tools/roadmap/assignments.json` were modified before this corrective implementation and remain
+  intentionally dirty. `awkit-6cg` bundles obsolete centered-ring wording, completed Loop defaults/
+  size work, and unrelated settings atomic-replacement retry work. Split or rewrite it deliberately;
+  do not close the settings requirement. Remove/refresh the expired assignment as appropriate.
+- **P0 - restore roadmap consistency.** Update the dashboard verifier's deliberate issue-count pins
+  only after deciding the tracker split, then run `npm run verify:roadmap-dashboard` until it reports
+  `Sources agree`. Current result is 155/157 FAIL (190 vs pinned 189; 5 outstanding vs pinned 4).
+- **P1 - add one focused legacy return-loop rendered assertion** in the most appropriate GUI fixture:
+  curved return geometry distinct from an ordinary edge, one path animation, one arrow, mode-safe
+  label, and stable drag/zoom behavior.
+- **P1 - capture and manually inspect final Flow/Workflow light and dark screenshots** at desktop
+  width; record paths and verdict, without relying only on pixel assertions.
+- **P2 - refresh Graphify** with `graphify update .` and save the corrected result that the authority is
+  a side return path, not the stale centered-ring lesson.
+- **P2 - decide whether to keep the blocked Playwright parity spec.** Do not fix the repository-wide
+  Node/config loader merely for this checkpoint; `docs/ai/COMMANDS.md` already documents the caveat.
+
+The unrelated settings retry requested inside `awkit-6cg` was **not started**: no `uiSettings` or
+main-process settings file changed, and no settings verifier was claimed.
+
+### Verification handoff
+
+| Verification | State | Evidence / reason |
+|---|---|---|
+| `npm run build` | PASS | TypeScript + all Electron/Vite bundles complete. |
+| `npm run verify:flow-designer` | PASS | 128/128 real-Electron checks. |
+| `npm run verify:workflow-builder` | PASS | 72/72 real-Electron checks, including animation phase through drag. |
+| `npm run verify:flow-step-mapping` | PASS | 142/142. |
+| `npm run verify:workflow-sentinels` | PASS | 20/20. |
+| `npm run verify:branch-pairs` | PASS | 40/40. |
+| `npm run verify:editor-history` | PASS | 14/14. |
+| `npm run verify:canvas-layout` | PASS | 35/35. |
+| `npm run verify:canvas-perf` | PASS | 13/13. |
+| `npm run verify:validation` | PASS | 134/134. |
+| `npm run verify:runner` | PASS | 100/100, including data-source Loop. |
+| `npm run verify:mock-site` | PASS | 145/145. |
+| `npm run verify:source-hygiene` | PASS | 9/9. |
+| `npm run test:random:roundtrip` | PASS | 27/27. |
+| `npm run verify:verifier-classification` | PASS | 178 commands classified. |
+| focused `@playwright/test` data-source Loop spec | BLOCKED | Node/config loader rejects TypeScript config before collection. |
+| `npm run verify:roadmap-dashboard` | FAIL | 155/157; only the two tracker count pins remain inconsistent. |
+| final dark/light screenshot inspection | NOT RUN | Required follow-up; no screenshot claim in this checkpoint. |
+| `graphify update .` | NOT RUN | Required closeout follow-up. |
+| `git diff --check` | PASS | No whitespace errors before implementation/test commits. |
+
+Validation ledger is unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+### Roadmap / tracker state
+
+- Related issue: dirty, open `awkit-6cg` (combined Loop + unrelated settings retry); dependencies 0.
+- Related completed historical items: `awkit-kwg`, `awkit-pwc`.
+- Parsed tracker: **190 total / 185 closed / 5 outstanding / 104 edges**.
+- `tools/roadmap/assignments.json` contains an expired Codex claim ending 2026-08-13T22:14:57Z.
+- Program Status is **not** `Sources agree`; do not represent it as green.
+
+### Do not touch without deliberate review
+
+- Do not apply/drop the preserved stash blindly.
+- Do not silently fold the settings retry into this visual/runtime checkpoint or close it without a
+  reproduction and responsible-layer verification.
+- Do not reintroduce marker-only animation, runtime-looking counters, global SVG ids, React per-frame
+  state, or a second Loop runtime model.
+- Preserve `window.playwrightFlowStudio`, offline-first rules, user profile data, and the two dirty
+  tracker files.
+
+### NEXT AGENT START HERE
+
+Branch:
+`main`
+
+HEAD:
+Implementation/test checkpoint `22fd95b`; run `git rev-parse HEAD` for the following handoff-doc commit.
+
+origin/main:
+`b05a466` at checkpoint start; re-check because this handoff requests a safe push.
+
+Working tree:
+Intentionally dirty before docs: `.beads/issues.jsonl` adds open `awkit-6cg`; `tools/roadmap/assignments.json`
+adds its expired Codex claim. No source/test implementation is intentionally uncommitted.
+
+Last completed change:
+Committed full corrective Loop implementation (`31f32af`) and regression coverage (`22fd95b`).
+
+Current incomplete change:
+Tracker/roadmap closeout and final visual/return-loop evidence only; unrelated settings retry not started.
+
+First file to inspect:
+`.beads/issues.jsonl`
+
+First function/component to inspect:
+The `awkit-6cg` issue record and `tools/roadmap/assignments.json` claim; for source follow-up,
+`FlowCanvas.LoopEdgeLayer`.
+
+First command to run:
+`git status --short --branch`
+
+First implementation action:
+Split/reword `awkit-6cg` so completed Loop work and the still-open settings retry have truthful,
+separate ownership, then remove/refresh the expired claim and update roadmap count pins.
+
+Why this is next:
+The product implementation and focused tests are green; tracker ambiguity is the remaining P0 and is
+the direct cause of the roadmap consistency failure.
+
+---
+
 ## HANDOFF (2026-08-09) - awkit-7le professional visual redesign complete
 
 - **Delivered:** a rendered-evidence redesign of Workflow Builder, Flow Designer, Users, Roles,

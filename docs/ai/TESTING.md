@@ -6,17 +6,22 @@
 
 ## Confirmed
 
-Reference Loop connector coverage (2026-08-13): `verify:flow-designer` **113/113** and
-`verify:workflow-builder` **60/60** create a structured self-loop, configure `maxIterations` from 5 to 10,
-assert the marker changes immediately to exactly `10`, and prove the same value after save/reload or a
-workflow switch. Both assert one continuous rounded path, one compact marker attached directly to it,
-connector-layer-before-node-layer ownership, no synthetic node or second directional animation, authored
+Corrective Loop connector coverage (2026-08-14): `verify:flow-designer` **128/128** and
+`verify:workflow-builder` **72/72** create structured self-loops, assert the authoritative `Count × 3`
+default (then edit the bound/mode), and prove the mode-aware summary after save/reload or a workflow
+switch. Both assert one continuous rounded path, one compact static marker attached directly to it,
+one identical-geometry directional path plus arrow, connector-layer-before-node-layer ownership, no
+synthetic node or runtime counter, authored
 dotted/thickness preservation, collision-aware physical drag, and attachment at 25/100/200% zoom. Motion
 checks combine animation timing/transform evidence with decoded pixel deltas and prove the SVG number has
 no animation or movement. Reduced motion retains the value and freezes the sweep. Pointer, keyboard,
 collapsed-editor reopening, separate Configure/Remove actions, and non-self exit isolation are covered.
-Workflow coverage includes `node.id !== flowId`; `verify:flow-step-mapping` **137/137** includes a
-type-derived Loop with omitted `kind`.
+Workflow coverage includes `node.id !== flowId`; `verify:flow-step-mapping` **142/142** covers two
+independent Loops and legacy payload preservation; `verify:workflow-sentinels` **20/20** covers two
+Workflow/Scenario cycles including style and unknown nested metadata; `verify:branch-pairs` **40/40**
+proves repeated exit promotion is idempotent; `verify:runner` **100/100** includes data-source Loop
+binding/cleanup. Node drag asserts animation start-time continuity; both suites cover keyboard Delete,
+Undo/Redo, Enter/Space, reduced motion, multiple Loops, and exact Conditional-exit cardinality.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
 `verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete
@@ -117,11 +122,11 @@ remain structural and legacy workflows remain compatible.
   being skipped only after a successful `goto`. As of the last run: **21 checks pass**.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
   for Flow Designer connector behavior, complete Loop authoring/persistence, and saved-flow dropdown
-  behavior. As of the last run: **99 checks pass**.
+  behavior. As of the last run: **128 checks pass**.
 - `scripts/verify-workflow-builder-gui.mjs` (`npm run verify:workflow-builder`) — real Electron GUI
   walkthrough for Workflow Builder import/canvas/Loop behavior, including persisted node-id identity,
   existing Loop pointer/menu reopening, save/reload, direction motion, and reduced motion. As of the
-  last run: **48 checks pass**.
+  last run: **72 checks pass**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):

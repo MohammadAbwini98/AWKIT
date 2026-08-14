@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-14 - Codex - Checkpoint corrective Loop connector implementation
+
+- **Task:** Correct Loop design, path animation, labels, editing/persistence, multiple-Loop isolation,
+  geometry continuity, keyboard deletion, Conditional exits, and regression quality in both visual
+  designers, then stop and prepare a lossless agent handoff.
+- **Implementation:** moved motion from the marker to one real-path dash plus static arrow; reduced
+  route/marker footprint; added mode-aware design labels and shared new-Loop style defaults; kept
+  Loop DOM identity persistent through drag; rendered legacy `loopBack` as a return curve without
+  changing runtime semantics; preserved Loop/style data through designer and Workflow/Scenario cycles;
+  and added Delete/Backspace handling.
+- **Coverage:** two independent Loops; create/configure/undo/redo/save/reload/reconfigure; Enter/Space/
+  pointer/inspector/keyboard deletion; reduced motion; node drag and 25/100/200% zoom; unknown nested
+  metadata; legacy payload; style conversion; exit idempotence; data-source runtime cleanup.
+- **Verified:** build PASS; Flow GUI **128/128**; Workflow GUI **72/72**; mapping **142/142**;
+  conversions **20/20**; branches **40/40**; runner **100/100**; validation **134/134**; history
+  **14/14**; layout **35/35**; canvas perf **13/13**; Mock Site **145/145**; source hygiene **9/9**;
+  random round trip **27/27**; verifier classification **178**. Roadmap **155/157 FAIL** from the
+  pre-existing combined tracker item/count pins. Focused Playwright spec is
+  environment-BLOCKED before collection; final dark/light screenshot inspection and Graphify refresh
+  are NOT RUN.
+- **Commits:** `31f32af` production; `22fd95b` tests. Pre-existing `.beads/issues.jsonl` and
+  `tools/roadmap/assignments.json` edits remain intentionally dirty and are documented in HANDOFF.
+
+---
+
 ## 2026-08-13 - Codex - Implement the reference Loop return path and configured marker
 
 - **Task:** Replace the obscured card-centered Loop ring with the supplied reference's continuous rounded
