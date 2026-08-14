@@ -54,6 +54,7 @@ import { ConnectorStyleEditor } from "../components/shared/ConnectorStyleEditor"
 import { LoopConnectorEditor } from "../components/shared/LoopConnectorEditor";
 import {
   defaultLoopConnectorConfig,
+  defaultLoopConnectorStyle,
   promoteScenarioLoopExits
 } from "../components/shared/loopConnectorAuthoring";
 import { positionsNeedLayout, withAutoLayout } from "../components/shared/graphLayout";
@@ -547,7 +548,7 @@ function ScenarioBuilderContent() {
         setToast({ tone: "info", message: "Loop removed. Its lone Conditional exit was restored to a standard connector." });
       } else {
         const loopEdge = createScenarioEdge(nodeId, nodeId, "loop", {
-          style: { shape: "circular" },
+          style: defaultLoopConnectorStyle(),
           loop: defaultLoopConnectorConfig()
         });
         const promoted = promoteScenarioLoopExits(edges, nodeId);
@@ -621,6 +622,24 @@ function ScenarioBuilderContent() {
     setSelectedEdgeId(null);
     setSaveState("Unsaved changes");
   }, [setEdges]);
+
+  useEffect(() => {
+    const onDeleteKey = (event: KeyboardEvent) => {
+      if (
+        !selectedEdgeId ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isNativeUndoTarget(event.target) ||
+        (event.key !== "Delete" && event.key !== "Backspace")
+      ) return;
+      event.preventDefault();
+      deleteEdge(selectedEdgeId);
+    };
+    document.addEventListener("keydown", onDeleteKey);
+    return () => document.removeEventListener("keydown", onDeleteKey);
+  }, [deleteEdge, selectedEdgeId]);
 
   // Point 1a: connector "+" affordance. A workflow node *is* a saved flow, so inserting on an
   // edge splices the first not-yet-used saved flow between source and target at the edge midpoint,
@@ -2134,7 +2153,9 @@ function toWorkflowProfile(
       type: edge.data?.linkType ?? "success",
       label: edge.data?.label,
       condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
-      loop: edge.data?.linkType === "loop" ? edge.data.loop : undefined,
+      // Preserve an attached opaque Loop payload on legacy `loopBack` edges. The runtime continues
+      // to distinguish traversal models by link type.
+      loop: scenarioEdgeKind(edge.data?.linkType) === "loop" ? edge.data?.loop : undefined,
       maxLoopCount: edge.data?.linkType === "loopBack" ? edge.data.maxLoopCount : undefined,
       style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined
     })),

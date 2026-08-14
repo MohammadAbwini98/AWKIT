@@ -164,7 +164,8 @@ export function workflowToScenarioProfile(workflow: WorkflowProfile): ScenarioPr
       label: edge.label,
       condition: edge.condition,
       loop: edge.loop,
-      maxLoopCount: edge.maxLoopCount
+      maxLoopCount: edge.maxLoopCount,
+      style: edge.style
       }];
     }),
     failurePolicy: {
@@ -204,7 +205,8 @@ export function scenarioToWorkflowProfile(scenario: ScenarioProfile): WorkflowPr
       label: link.label,
       condition: link.condition,
       loop: link.loop,
-      maxLoopCount: link.maxLoopCount
+      maxLoopCount: link.maxLoopCount,
+      style: link.style
     })),
     runtimeInputs: [],
     execution: {

@@ -20,6 +20,7 @@ import { ConnectionPropertiesPanel, type FlowConnectionData } from "../component
 import { buildConnectorVisual } from "../components/shared/connectorStyle";
 import {
   defaultLoopConnectorConfig,
+  defaultLoopConnectorStyle,
   defaultLoopExitCondition,
   promoteFlowLoopExits
 } from "../components/shared/loopConnectorAuthoring";
@@ -447,7 +448,7 @@ function FlowChartDesignerContent() {
         setSelectedEdgeId(null);
         setToast({ tone: "info", message: "Loop removed. Its lone Conditional exit was restored to a standard connector." });
       } else {
-        const loopEdge = createEdge(nodeId, nodeId, "loop", "Loop", undefined, { shape: "circular" }, undefined, {
+        const loopEdge = createEdge(nodeId, nodeId, "loop", "Loop", undefined, defaultLoopConnectorStyle(), undefined, {
           kind: "loop",
           loop: defaultLoopConnectorConfig()
         });
@@ -510,6 +511,24 @@ function FlowChartDesignerContent() {
     },
     [setEdges]
   );
+
+  useEffect(() => {
+    const onDeleteKey = (event: KeyboardEvent) => {
+      if (
+        !selectedEdgeId ||
+        event.defaultPrevented ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isNativeUndoTarget(event.target) ||
+        (event.key !== "Delete" && event.key !== "Backspace")
+      ) return;
+      event.preventDefault();
+      deleteEdge(selectedEdgeId);
+    };
+    document.addEventListener("keydown", onDeleteKey);
+    return () => document.removeEventListener("keydown", onDeleteKey);
+  }, [deleteEdge, selectedEdgeId]);
 
   const selectNode = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
@@ -999,7 +1018,7 @@ function FlowChartDesignerContent() {
       } else {
         // loop: a step that carries a self-loop connector.
         const node = make("click", anchor);
-        const loopEdge = createEdge(node.id, node.id, "loop", "Loop", undefined, { shape: "circular" }, undefined, loop());
+        const loopEdge = createEdge(node.id, node.id, "loop", "Loop", undefined, defaultLoopConnectorStyle(), undefined, loop());
         addNodes = [node];
         addEdges = [loopEdge];
         if (sourceId) addEdges.push(sourceEdge(node.id));

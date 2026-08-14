@@ -1,4 +1,4 @@
-import type { ConditionalConnectorConfig, LoopConnectorConfig } from "@src/profiles/FlowProfile";
+import type { ConditionalConnectorConfig, EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import type { FlowDesignerEdge } from "../workflow/flowProfileMapping";
 import type { FlowConnectionData } from "../workflow/ConnectionPropertiesPanel";
 import type { ScenarioDesignerEdge } from "./branchPairs";
@@ -14,6 +14,75 @@ export function defaultLoopCondition(): ConditionalConnectorConfig {
 /** One source of truth for newly authored structured self-loop configuration. */
 export function defaultLoopConnectorConfig(): LoopConnectorConfig {
   return { mode: "count", maxIterations: 3, parameterName: "", condition: undefined };
+}
+
+/** Shared visual defaults for every newly-authored Loop; loaded edges keep their persisted style. */
+export function defaultLoopConnectorStyle(): EdgeVisualStyle {
+  return { shape: "circular", lineStyle: "dotted", thickness: 4, arrowHead: "closed" };
+}
+
+const GENERIC_LOOP_LABELS = new Set(["loop", "loop connector"]);
+
+function compactLoopText(value: unknown, maxLength = 22): string {
+  const text = String(value ?? "").trim().replace(/\s+/g, " ");
+  return text.length <= maxLength ? text : `${text.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
+}
+
+function loopConditionSummary(condition: ConditionalConnectorConfig | undefined): string | undefined {
+  if (!condition) return undefined;
+  const source = condition.sourceField === "variable"
+    ? compactLoopText(condition.variableName || "variable", 14)
+    : condition.sourceField === "dataSourceValue"
+      ? compactLoopText(condition.variableName || "data value", 14)
+      : condition.sourceField;
+  const operator = {
+    always: "always",
+    equals: "=",
+    notEquals: "≠",
+    contains: "contains",
+    notContains: "excludes",
+    exists: "exists",
+    notExists: "missing",
+    greaterThan: ">",
+    greaterThanOrEqual: "≥",
+    lessThan: "<",
+    lessThanOrEqual: "≤",
+    truthy: "is true",
+    falsy: "is false"
+  }[condition.operator];
+  const unary = ["always", "exists", "notExists", "truthy", "falsy"].includes(condition.operator);
+  return unary
+    ? `${source} ${operator}`
+    : `${source} ${operator} ${compactLoopText(condition.expectedValue, 12)}`.trim();
+}
+
+/** Compact design-time label. It never represents a live/current iteration. */
+export function loopConnectorDesignLabel(loop: LoopConnectorConfig | undefined, authoredLabel?: string): string {
+  const explicitLabel = compactLoopText(loop?.label || authoredLabel, 30);
+  if (explicitLabel && !GENERIC_LOOP_LABELS.has(explicitLabel.toLowerCase())) return explicitLabel;
+  if (!loop) return explicitLabel || "Loop";
+
+  switch (loop.mode) {
+    case "count":
+      return Number.isFinite(loop.maxIterations) ? `Count × ${loop.maxIterations}` : "Loop";
+    case "staticList":
+      return loop.staticValues?.length ? `For Each · ${loop.staticValues.length} items` : "For Each";
+    case "dataSource": {
+      const source = compactLoopText(loop.dataSourceId || loop.dataSourceBinding, 16);
+      return source ? `For Each · ${source}` : "For Each · data source";
+    }
+    case "whileCondition": {
+      const condition = loopConditionSummary(loop.condition);
+      return condition ? compactLoopText(`While · ${condition}`, 30) : "While";
+    }
+  }
+}
+
+/** Design-time label for the separate, bounded legacy cross-node return model. */
+export function loopBackDesignLabel(maxLoopCount: number | undefined, authoredLabel?: string): string {
+  const explicitLabel = compactLoopText(authoredLabel, 30);
+  if (explicitLabel && !["loop back", "loopback"].includes(explicitLabel.toLowerCase())) return explicitLabel;
+  return Number.isFinite(maxLoopCount) ? `Loop Back × ${maxLoopCount}` : explicitLabel || "Loop Back";
 }
 
 /** A structured Conditional exit that is taken after the self-loop finishes. */

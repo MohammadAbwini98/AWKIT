@@ -15,6 +15,8 @@ import {
 import { EdgeLabelContext } from "./edgeLabelContext";
 import { bumpRenderProbe } from "./renderProbe";
 import type { CanvasEdge, CanvasEdgeProps, CanvasNode, Connection, EdgeTypes, NodeTypes, Viewport } from "./types";
+import type { LoopConnectorConfig } from "@src/profiles/FlowProfile";
+import { loopBackDesignLabel, loopConnectorDesignLabel } from "../shared/loopConnectorAuthoring";
 
 /**
  * Custom canvas engine — a small, purpose-built replacement for the parts of
@@ -454,6 +456,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
         >
           <EdgeLabelContext.Provider value={labelOverlay}>
             <EdgeLayer nodes={nodes} edges={edges} edgeTypes={edgeTypes} sizes={sizes} onEdgeClick={onEdgeClick} draggingId={dragState?.id ?? null} />
+            <LoopEdgeLayer nodes={nodes} edges={edges} edgeTypes={edgeTypes} sizes={sizes} onEdgeClick={onEdgeClick} drag={dragState} />
             {dragState ? <DraggingEdgeLayer nodes={nodes} edges={edges} edgeTypes={edgeTypes} sizes={sizes} drag={dragState} /> : null}
             <div ref={setLabelOverlay} className="awkit-flow-edge-labels" style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 1 }} />
           </EdgeLabelContext.Provider>
@@ -668,6 +671,11 @@ function isStructuredSelfLoop(edge: CanvasEdge): boolean {
   return edge.source === edge.target && (connectorData?.kind === "loop" || connectorData?.linkType === "loop");
 }
 
+function isLoopVisualConnector(edge: CanvasEdge): boolean {
+  const connectorData = edge.data as { linkType?: unknown } | undefined;
+  return isStructuredSelfLoop(edge) || connectorData?.linkType === "loopBack";
+}
+
 function loopIndicatorFootprint(source: XYPosition, sourceSize: MeasuredSize, side: SelfLoopSide): Rect {
   const sideSign = side === Position.Left ? -1 : 1;
   const sideAnchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
@@ -763,12 +771,20 @@ function renderEdgeElement(
   onEdgeClick?: (id: string) => void
 ): ReactNode {
   const isStructuredLoop = isStructuredSelfLoop(edge);
+  const connectorData = edge.data as {
+    label?: unknown;
+    linkType?: unknown;
+    loop?: LoopConnectorConfig;
+    maxLoopCount?: unknown;
+  } | undefined;
+  const isReturnLoop = connectorData?.linkType === "loopBack";
+  const isLoopConnector = isStructuredLoop || isReturnLoop;
   const EdgeComponent = isStructuredLoop ? edgeTypes.loop ?? edgeTypes.default : (edge.type && edgeTypes[edge.type]) || edgeTypes.default;
   if (!EdgeComponent) return null;
-  const connectorData = edge.data as { label?: unknown; loop?: { maxIterations?: unknown } } | undefined;
-  const resolvedLoopLabel = typeof edge.label === "string" ? edge.label : typeof connectorData?.label === "string" ? connectorData.label : "Loop";
-  const configuredTotal = connectorData?.loop?.maxIterations;
-  const accessibleTotal = typeof configuredTotal === "number" && Number.isFinite(configuredTotal) ? `, ${configuredTotal} iterations` : "";
+  const authoredLabel = typeof edge.label === "string" ? edge.label : typeof connectorData?.label === "string" ? connectorData.label : undefined;
+  const resolvedLoopLabel = isReturnLoop
+    ? loopBackDesignLabel(typeof connectorData?.maxLoopCount === "number" ? connectorData.maxLoopCount : undefined, authoredLabel)
+    : loopConnectorDesignLabel(connectorData?.loop, authoredLabel);
   const props: CanvasEdgeProps = {
     id: edge.id,
     source: edge.source,
@@ -778,7 +794,7 @@ function renderEdgeElement(
     label: edge.label,
     selected: Boolean(edge.selected),
     style: edge.style,
-    directional: false
+    directional: isLoopConnector
   };
   return (
     <g
@@ -787,11 +803,11 @@ function renderEdgeElement(
       data-testid={edge.id}
       data-source={edge.source}
       data-target={edge.target}
-      data-connector-kind={isStructuredLoop ? "loop" : undefined}
-      className={["awkit-flow-edge", "nopan", edge.animated ? "is-animated" : "", isStructuredLoop ? "is-loop-connector" : ""].filter(Boolean).join(" ")}
-      role={isStructuredLoop && onEdgeClick ? "button" : undefined}
-      tabIndex={isStructuredLoop && onEdgeClick ? 0 : undefined}
-      aria-label={isStructuredLoop && onEdgeClick ? `Configure loop connector: ${resolvedLoopLabel}${accessibleTotal}` : undefined}
+      data-connector-kind={isStructuredLoop ? "loop" : isReturnLoop ? "loopBack" : undefined}
+      className={["awkit-flow-edge", "nopan", edge.animated ? "is-animated" : "", isLoopConnector ? "is-loop-connector" : ""].filter(Boolean).join(" ")}
+      role={isLoopConnector && onEdgeClick ? "button" : undefined}
+      tabIndex={isLoopConnector && onEdgeClick ? 0 : undefined}
+      aria-label={isLoopConnector && onEdgeClick ? `Configure loop connector: ${resolvedLoopLabel}` : undefined}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => {
         event.stopPropagation();
@@ -802,7 +818,7 @@ function renderEdgeElement(
         onEdgeClick?.(edge.id);
       }}
       onKeyDown={(event) => {
-        if (!isStructuredLoop || !onEdgeClick || (event.key !== "Enter" && event.key !== " ")) return;
+        if (!isLoopConnector || !onEdgeClick || (event.key !== "Enter" && event.key !== " ")) return;
         event.preventDefault();
         event.stopPropagation();
         onEdgeClick(edge.id);
@@ -827,6 +843,10 @@ const EdgeLayer = memo(function EdgeLayer({ nodes, edges, edgeTypes, sizes, onEd
   return (
     <svg className="awkit-flow-edges" style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none", width: "100%", height: "100%" }}>
       {edges.map((edge) => {
+        // Loop/return paths live in a persistent layer so their CSS animation timeline survives
+        // node drag. Moving them between this SVG and the drag SVG would remount the path and jump
+        // its dash animation back to frame zero.
+        if (isLoopVisualConnector(edge)) return null;
         // The dragged node's own edges are rendered live by DraggingEdgeLayer.
         if (draggingId && (edge.source === draggingId || edge.target === draggingId)) return null;
         const source = nodeById.get(edge.source);
@@ -845,6 +865,50 @@ const EdgeLayer = memo(function EdgeLayer({ nodes, edges, edgeTypes, sizes, onEd
     </svg>
   );
 });
+
+// Loop connectors keep one DOM identity for their entire canvas lifetime. The layer reroutes only
+// these uncommon edges while a connected node is moving; CSS owns animation frames, so React never
+// drives the motion and a drag cannot restart its phase.
+interface LoopEdgeLayerProps {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  edgeTypes: EdgeTypes;
+  sizes: Record<string, MeasuredSize>;
+  onEdgeClick?: (id: string) => void;
+  drag: { id: string; position: XYPosition } | null;
+}
+
+function LoopEdgeLayer({ nodes, edges, edgeTypes, sizes, onEdgeClick, drag }: LoopEdgeLayerProps) {
+  const nodeById = useMemo(() => {
+    const map = new Map<string, CanvasNode>();
+    for (const node of nodes) map.set(node.id, node);
+    return map;
+  }, [nodes]);
+  const positionOf = (id: string): XYPosition =>
+    drag?.id === id ? drag.position : nodeById.get(id)?.position ?? { x: 0, y: 0 };
+
+  return (
+    <svg className="awkit-flow-edges awkit-flow-loop-edges" style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none", width: "100%", height: "100%" }}>
+      {edges.map((edge) => {
+        if (!isLoopVisualConnector(edge)) return null;
+        const source = nodeById.get(edge.source);
+        const target = nodeById.get(edge.target);
+        if (!source || !target) return null;
+        const sSize = measuredSizeOf(source, sizes);
+        const tSize = measuredSizeOf(target, sizes);
+        const sPos = positionOf(edge.source);
+        const tPos = positionOf(edge.target);
+        const selfLoopSide = isStructuredSelfLoop(edge) ? selfLoopSideFor(source, sPos, sSize, nodes, sizes, positionOf) : Position.Left;
+        return renderEdgeElement(
+          edge,
+          edgeEndpointLayout(edge, sPos, tPos, sSize, tSize, selfLoopSide),
+          edgeTypes,
+          onEdgeClick
+        );
+      })}
+    </svg>
+  );
+}
 
 // ── Dragging-edge overlay ───────────────────────────────────────────────────────
 // Renders ONLY the edges touching the actively-dragged node, using its live position, so a drag
@@ -871,6 +935,7 @@ function DraggingEdgeLayer({ nodes, edges, edgeTypes, sizes, drag }: DraggingEdg
   return (
     <svg className="awkit-flow-edges awkit-flow-edges-drag" style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none", width: "100%", height: "100%" }}>
       {edges.map((edge) => {
+        if (isLoopVisualConnector(edge)) return null;
         if (edge.source !== drag.id && edge.target !== drag.id) return null;
         const source = nodeById.get(edge.source);
         const target = nodeById.get(edge.target);

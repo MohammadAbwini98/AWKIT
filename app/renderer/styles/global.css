@@ -9280,7 +9280,6 @@ table {
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1800ms;
-  --awkit-loop-orbit-duration: 2000ms;
   --awkit-loop-exit-control-size: calc(var(--space-5) + var(--space-2));
   --awkit-loop-exit-control-label-offset: var(--awkit-loop-exit-control-size);
   --awkit-loop-exit-halo-duration: 2200ms;
@@ -10353,7 +10352,7 @@ table {
   stroke: var(--awkit-connector-loop);
   stroke-dasharray: 9 16;
   stroke-linecap: round;
-  opacity: 0.8;
+  opacity: 0.82;
   pointer-events: none;
   animation: awkit-loop-direction var(--awkit-loop-flow-duration) linear infinite;
 }
@@ -10393,11 +10392,23 @@ table {
 
 .awkit-loop-indicator-outer-ring,
 .awkit-loop-indicator-main-ring,
-.awkit-loop-indicator-sweep,
 .awkit-loop-indicator-focus-ring {
   fill: none;
   stroke: currentColor;
   pointer-events: none;
+}
+
+.awkit-loop-indicator-arrow {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+
+.awkit-loop-indicator-arrow.is-closed {
+  fill: currentColor;
 }
 
 .awkit-loop-indicator-outer-ring {
@@ -10414,34 +10425,11 @@ table {
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
 }
 
-.awkit-loop-indicator-sweep {
-  opacity: 0.9;
-  stroke-dasharray: 16 84;
-  stroke-linecap: round;
-  stroke-width: 4;
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform;
-  animation: awkit-loop-control-orbit var(--awkit-loop-orbit-duration) linear infinite;
-}
-
 .awkit-loop-indicator-focus-ring {
   opacity: 0;
   stroke: var(--awkit-connector-selected);
   stroke-width: 2;
   transition: opacity var(--awkit-dur-fast) var(--awkit-ease-out);
-}
-
-.awkit-loop-indicator-value {
-  fill: var(--awkit-text);
-  font-family: inherit;
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  dominant-baseline: central;
-  text-anchor: middle;
-  pointer-events: none;
-  user-select: none;
 }
 
 .awkit-loop-indicator-hit {
@@ -10466,23 +10454,6 @@ table {
   }
   .awkit-flow-edge.is-loop-connector:hover .awkit-loop-indicator-main-ring {
     opacity: 1;
-  }
-}
-
-@keyframes awkit-loop-control-orbit {
-  from {
-    transform: rotate(-90deg);
-  }
-  to {
-    transform: rotate(270deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .awkit-loop-indicator-sweep {
-    animation: none !important;
-    transform: rotate(-32deg);
-    will-change: auto;
   }
 }
 

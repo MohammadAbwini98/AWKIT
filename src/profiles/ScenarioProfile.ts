@@ -1,4 +1,4 @@
-import type { LoopConnectorConfig } from "./FlowProfile";
+import type { EdgeVisualStyle, LoopConnectorConfig } from "./FlowProfile";
 
 export interface ScenarioFlowReference {
   order: number;
@@ -21,6 +21,8 @@ export interface ScenarioLink {
   loop?: LoopConnectorConfig;
   /** Legacy cross-node loop-back traversal bound. */
   maxLoopCount?: number;
+  /** Authored connector presentation, preserved across Workflow conversion. */
+  style?: EdgeVisualStyle;
 }
 
 export interface ScenarioProfile {

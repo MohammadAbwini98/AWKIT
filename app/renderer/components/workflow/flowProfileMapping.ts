@@ -113,7 +113,9 @@ export function toFlowProfile(
         kind: edge.data?.kind,
         conditional: derivedKind === "conditional" ? edge.data?.conditional : undefined,
         parallel: derivedKind === "parallel" ? edge.data?.parallel : undefined,
-        loop: type === "loop" && derivedKind === "loop" ? edge.data?.loop : undefined,
+        // Preserve an attached opaque Loop payload on legacy `loopBack` edges as authored data.
+        // Runtime still keys on `type`, so this does not merge the two execution models.
+        loop: derivedKind === "loop" ? edge.data?.loop : undefined,
         label: edge.data?.label,
         condition: edge.data?.expression ? { expression: edge.data.expression } : undefined,
         style: hasCustomStyle(edge.data?.style) ? edge.data?.style : undefined,

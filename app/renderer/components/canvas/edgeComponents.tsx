@@ -35,7 +35,7 @@ export function BaseEdge({
           fill="none"
           focusable="false"
           pathLength={100}
-          style={{ stroke: style?.stroke, strokeWidth: authoredWidth + 2 }}
+          style={{ stroke: style?.stroke, strokeWidth: authoredWidth + 1 }}
         />
       ) : null}
       {interactionWidth ? (

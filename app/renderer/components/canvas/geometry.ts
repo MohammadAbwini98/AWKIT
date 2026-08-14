@@ -198,12 +198,12 @@ export const SMOOTH_STEP_OFFSET = 20;
  * connector offset so the return path and compact marker scale as one canvas primitive rather
  * than becoming a second persisted graph object.
  */
-export const LOOP_RETURN_CLEARANCE = SMOOTH_STEP_OFFSET * 2;
-export const LOOP_RETURN_CORNER_RADIUS = SMOOTH_STEP_OFFSET;
-export const LOOP_MARKER_RADIUS = SMOOTH_STEP_OFFSET;
-export const LOOP_MARKER_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 1.2;
-export const LOOP_MARKER_HIT_RADIUS = SMOOTH_STEP_OFFSET * 1.3;
-export const LOOP_MARKER_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.6;
+export const LOOP_RETURN_CLEARANCE = SMOOTH_STEP_OFFSET * 1.8;
+export const LOOP_RETURN_CORNER_RADIUS = SMOOTH_STEP_OFFSET * 0.9;
+export const LOOP_MARKER_RADIUS = SMOOTH_STEP_OFFSET * 0.8;
+export const LOOP_MARKER_OUTER_RADIUS = SMOOTH_STEP_OFFSET;
+export const LOOP_MARKER_HIT_RADIUS = SMOOTH_STEP_OFFSET * 1.2;
+export const LOOP_MARKER_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.5;
 export const LOOP_RETURN_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
