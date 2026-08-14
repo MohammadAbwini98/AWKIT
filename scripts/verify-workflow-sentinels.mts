@@ -1,4 +1,5 @@
 import { isWorkflowFlowNode, scenarioToWorkflowProfile, workflowToScenarioProfile, type WorkflowProfile } from "@src/profiles/WorkflowProfile";
+import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import {
   formatWorkflowConflictMessage,
   parseWorkflowConflictName,
@@ -43,40 +44,99 @@ const legacy: WorkflowProfile = {
 const legacyScenario = workflowToScenarioProfile(legacy);
 check("legacy workflows without sentinels still load and convert unchanged", legacyScenario.flows.length === 1 && legacyScenario.flows[0].flowId === "flow-a");
 
+type ForwardLoopConfig = LoopConnectorConfig & {
+  futureMetadata: { revision: number; policy: string };
+};
+const fullLoopConfig: ForwardLoopConfig = {
+  mode: "dataSource",
+  maxIterations: 7,
+  staticValues: ["preserved-hidden-value"],
+  dataSourceId: "customers",
+  dataSourceBinding: "displayName",
+  parameterName: "customer",
+  condition: {
+    sourceField: "dataSourceValue",
+    variableName: "customer.active",
+    operator: "equals",
+    expectedValue: true,
+    priority: 6,
+    label: "Active customer",
+    futurePredicate: "preserve-me"
+  } as NonNullable<LoopConnectorConfig["condition"]> & { futurePredicate: string },
+  delayMs: 25,
+  label: "Customers",
+  futureMetadata: { revision: 3, policy: "forward-compatible" }
+};
+const loopStyle: EdgeVisualStyle = {
+  color: "accent",
+  lineStyle: "dotted",
+  thickness: 4,
+  shape: "circular",
+  arrowHead: "closed"
+};
 const loopWorkflow: WorkflowProfile = {
   ...workflow,
   id: "loop-workflow",
   nodes: [
-    { id: "node-a", type: "flowRef", flowId: "flow-a", alias: "Flow A", order: 1, required: true, inputBindings: {} },
-    { id: "node-b", type: "flowRef", flowId: "flow-b", alias: "Flow B", order: 2, required: true, inputBindings: {} }
+    { id: "node-flow-a", type: "flowRef", flowId: "flow-a", alias: "Flow A", order: 1, required: true, inputBindings: {} },
+    { id: "node-flow-b", type: "flowRef", flowId: "flow-b", alias: "Flow B", order: 2, required: true, inputBindings: {} }
   ],
   edges: [
     {
       id: "loop-a",
-      source: "node-a",
-      target: "node-a",
+      source: "node-flow-a",
+      target: "node-flow-a",
       type: "loop",
-      loop: {
-        mode: "whileCondition",
-        maxIterations: 7,
-        condition: { sourceField: "status", operator: "equals", expectedValue: "passed" }
-      }
+      loop: fullLoopConfig,
+      style: loopStyle
     },
-    { id: "exit-a", source: "node-a", target: "node-b", type: "conditional", condition: { expression: "true" } }
+    { id: "exit-a", source: "node-flow-a", target: "node-flow-b", type: "conditional", condition: { expression: "true" } }
   ]
 };
 const loopScenario = workflowToScenarioProfile(loopWorkflow);
+const scenarioLoop = loopScenario.links.find((link) => link.id === "loop-a") as
+  | ((typeof loopScenario.links)[number] & { style?: EdgeVisualStyle })
+  | undefined;
+const scenarioExit = loopScenario.links.find((link) => link.id === "exit-a");
 check(
-  "workflow conversion preserves structured loop metadata and the Conditional exit",
-  loopScenario.links[0]?.loop?.mode === "whileCondition" &&
-    loopScenario.links[0]?.loop?.maxIterations === 7 &&
-    loopScenario.links[0]?.loop?.condition?.expectedValue === "passed" &&
-    loopScenario.links[1]?.condition?.expression === "true"
+  "workflow conversion preserves every structured Loop field and the Conditional exit",
+  JSON.stringify(scenarioLoop?.loop) === JSON.stringify(fullLoopConfig) && scenarioExit?.condition?.expression === "true"
 );
-const loopRoundTrip = scenarioToWorkflowProfile(loopScenario);
 check(
-  "scenario conversion preserves loop metadata back into WorkflowEdge",
-  loopRoundTrip.edges[0]?.loop?.maxIterations === 7 && loopRoundTrip.edges[0]?.loop?.condition?.sourceField === "status"
+  "workflow conversion preserves Loop connector identity and semantic endpoints",
+  scenarioLoop?.id === "loop-a" && scenarioLoop.sourceFlowId === "flow-a" && scenarioLoop.targetFlowId === "flow-a"
+);
+check(
+  "workflow conversion preserves Loop visual style",
+  JSON.stringify(scenarioLoop?.style) === JSON.stringify(loopStyle)
+);
+check(
+  "workflow conversion preserves unknown nested Loop and condition metadata",
+  (scenarioLoop?.loop as ForwardLoopConfig | undefined)?.futureMetadata.policy === "forward-compatible" &&
+    (scenarioLoop?.loop?.condition as (NonNullable<LoopConnectorConfig["condition"]> & { futurePredicate?: string }) | undefined)?.futurePredicate === "preserve-me"
+);
+
+const firstLoopRoundTrip = scenarioToWorkflowProfile(loopScenario);
+const secondLoopScenario = workflowToScenarioProfile(firstLoopRoundTrip);
+const secondLoopRoundTrip = scenarioToWorkflowProfile(secondLoopScenario);
+const roundTrippedLoop = secondLoopRoundTrip.edges.find((edge) => edge.id === "loop-a");
+const roundTrippedExits = secondLoopRoundTrip.edges.filter((edge) => edge.id === "exit-a" && edge.type === "conditional");
+check(
+  "scenario conversion preserves the full Loop configuration through two cycles",
+  JSON.stringify(roundTrippedLoop?.loop) === JSON.stringify(fullLoopConfig)
+);
+check(
+  "scenario conversion preserves Loop style through two cycles",
+  JSON.stringify(roundTrippedLoop?.style) === JSON.stringify(loopStyle)
+);
+check(
+  "scenario conversion keeps Loop id and canonical self-loop endpoints stable through two cycles",
+  roundTrippedLoop?.id === "loop-a" && roundTrippedLoop.source === "node-flow-a" && roundTrippedLoop.target === "node-flow-a"
+);
+check(
+  "two conversion cycles keep exactly one Conditional exit with its routing expression",
+  roundTrippedExits.length === 1 && roundTrippedExits[0].source === "node-flow-a" &&
+    roundTrippedExits[0].target === "node-flow-b" && roundTrippedExits[0].condition?.expression === "true"
 );
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -126,4 +186,4 @@ check(
   parseWorkflowConflictName(formatWorkflowConflictMessage(conflictName, workflow.id)) === conflictName
 );
 
-console.log(`\n${passed}/14 workflow sentinel checks passed`);
+console.log(`\n${passed}/20 workflow sentinel checks passed`);

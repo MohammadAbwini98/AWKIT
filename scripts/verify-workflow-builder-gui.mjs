@@ -165,22 +165,24 @@ async function readLoopVisual(win, nodeId) {
     const marker = indicator?.querySelector(".awkit-loop-indicator-marker");
     const outer = marker?.querySelector(".awkit-loop-indicator-outer-ring");
     const main = marker?.querySelector(".awkit-loop-indicator-main-ring");
-    const sweep = marker?.querySelector(".awkit-loop-indicator-sweep");
+    const direction = indicator?.querySelector(".awkit-loop-direction-path");
+    const arrow = indicator?.querySelector(".awkit-loop-indicator-arrow");
     const focus = marker?.querySelector(".awkit-loop-indicator-focus-ring");
     const hit = marker?.querySelector(".awkit-loop-indicator-hit");
-    const value = marker?.querySelector(".awkit-loop-indicator-value");
     const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
       .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
     if (!(group instanceof SVGGElement) || !(node instanceof HTMLElement) || !(canvas instanceof HTMLElement) ||
       !(edgesLayer instanceof SVGElement) || !(nodesLayer instanceof HTMLElement) || !(indicator instanceof SVGGElement) ||
       !(path instanceof SVGPathElement) || !(marker instanceof SVGGElement) ||
-      !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(sweep instanceof SVGCircleElement) ||
-      !(focus instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) || !(value instanceof SVGElement) ||
+      !(outer instanceof SVGCircleElement) || !(main instanceof SVGCircleElement) || !(direction instanceof SVGPathElement) ||
+      !(arrow instanceof SVGElement) || !(focus instanceof SVGCircleElement) || !(hit instanceof SVGCircleElement) ||
       !(label instanceof HTMLElement)) return null;
     const pathStyle = getComputedStyle(path);
     const mainStyle = getComputedStyle(main);
-    const sweepStyle = getComputedStyle(sweep);
-    const valueStyle = getComputedStyle(value);
+    const directionStyle = getComputedStyle(direction);
+    const arrowStyle = getComputedStyle(arrow);
+    const labelStyle = getComputedStyle(label);
+    const directionAnimation = direction.getAnimations()[0];
     const nodeRect = node.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
     const pathRect = path.getBoundingClientRect();
@@ -196,7 +198,7 @@ async function readLoopVisual(win, nodeId) {
     const circleCenterY = outerRect.top + outerRect.height / 2;
     const nodeCenterX = nodeRect.left + nodeRect.width / 2;
     const nodeCenterY = nodeRect.top + nodeRect.height / 2;
-    const sharedCenter = [main, sweep, focus, hit].every((circle) =>
+    const sharedCenter = [main, focus, hit].every((circle) =>
       Math.abs(Number(circle.getAttribute("cx")) - Number(outer.getAttribute("cx"))) < 0.01 &&
       Math.abs(Number(circle.getAttribute("cy")) - Number(outer.getAttribute("cy"))) < 0.01
     );
@@ -229,6 +231,7 @@ async function readLoopVisual(win, nodeId) {
       ) <= 5
     );
     const pathData = path.getAttribute("d") || "";
+    const directionPathData = direction.getAttribute("d") || "";
     const markerOutsideNode = !overlaps(nodeRect, outerRect) &&
       (outerRect.right <= nodeRect.left + 1 || outerRect.left >= nodeRect.right - 1 ||
         outerRect.bottom <= nodeRect.top + 1 || outerRect.top >= nodeRect.bottom - 1);
@@ -244,6 +247,7 @@ async function readLoopVisual(win, nodeId) {
       role: group.getAttribute("role"),
       ariaLabel: group.getAttribute("aria-label"),
       tabIndex: group.getAttribute("tabindex"),
+      edgeId: group.getAttribute("data-id"),
       owner: indicator.getAttribute("data-loop-owner"),
       canvasNodeCount: document.querySelectorAll("[data-canvas-node]").length,
       syntheticLoopNodeCount: document.querySelectorAll('[data-canvas-node][data-loop-indicator], [data-canvas-node^="loop-visual-"]').length,
@@ -256,7 +260,8 @@ async function readLoopVisual(win, nodeId) {
       markerCount: group.querySelectorAll(".awkit-loop-indicator-marker").length,
       directionCount: group.querySelectorAll(".awkit-loop-direction-path").length,
       laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
-      arrowCount: group.querySelectorAll(".awkit-loop-control-arrowhead").length,
+      arrowCount: group.querySelectorAll(".awkit-loop-indicator-arrow").length,
+      legacyArrowCount: group.querySelectorAll(".awkit-loop-control-arrowhead").length,
       backplateCount: group.querySelectorAll(".awkit-loop-control-backplate").length,
       outerCount: group.querySelectorAll(".awkit-loop-indicator-outer-ring").length,
       mainCount: group.querySelectorAll(".awkit-loop-indicator-main-ring").length,
@@ -268,12 +273,11 @@ async function readLoopVisual(win, nodeId) {
       mainRadius: Number(main.getAttribute("r")),
       hitRadius: Number(hit.getAttribute("r")),
       sharedCenter,
-      sweepPathLength: sweep.getAttribute("pathLength"),
-      sweepDash: sweepStyle.strokeDasharray,
-      sweepWidth: sweepStyle.strokeWidth,
       mainDash: main.style.strokeDasharray || mainStyle.strokeDasharray,
       mainWidth: mainStyle.strokeWidth,
       pathData,
+      directionPathData,
+      directionMatchesPath: directionPathData === pathData,
       pathMoveCount: (pathData.match(/[Mm]/g) || []).length,
       pathHasRoundedSegments: /[QqCcAa]/.test(pathData),
       pathTotalLength: pathLength,
@@ -281,21 +285,31 @@ async function readLoopVisual(win, nodeId) {
       pathStrokeWidth: pathStyle.strokeWidth,
       pathStrokeLinecap: pathStyle.strokeLinecap,
       pathStrokeLinejoin: pathStyle.strokeLinejoin,
+      directionPathLength: direction.getAttribute("pathLength"),
+      directionStrokeDash: directionStyle.strokeDasharray,
+      directionStrokeDashOffset: directionStyle.strokeDashoffset,
+      directionStrokeWidth: directionStyle.strokeWidth,
       markerPathDistance,
       pathEndpointsTouchNode: touchesNodeBoundary(startPoint) && touchesNodeBoundary(endPoint),
       pathWrapsNode: pathRect.top < nodeRect.top - 2 && pathRect.bottom > nodeRect.bottom + 2 &&
         (pathRect.left < nodeRect.left - 2 || pathRect.right > nodeRect.right + 2),
-      animationName: sweepStyle.animationName,
-      animationDuration: sweepStyle.animationDuration,
-      animationIterationCount: sweepStyle.animationIterationCount,
-      animationTimingFunction: sweepStyle.animationTimingFunction,
-      display: sweepStyle.display,
-      opacity: sweepStyle.opacity,
-      transform: sweepStyle.transform,
-      valueText: (value.textContent || "").trim(),
-      valueAnimationName: valueStyle.animationName,
-      valueAnimationCount: value.getAnimations().length,
-      valueTransform: valueStyle.transform,
+      animationName: directionStyle.animationName,
+      animationDuration: directionStyle.animationDuration,
+      animationIterationCount: directionStyle.animationIterationCount,
+      animationTimingFunction: directionStyle.animationTimingFunction,
+      animationCurrentTime: Number(directionAnimation?.currentTime ?? Number.NaN),
+      animationStartTime: Number(directionAnimation?.startTime ?? Number.NaN),
+      display: directionStyle.display,
+      opacity: directionStyle.opacity,
+      arrowDisplay: arrowStyle.display,
+      arrowOpacity: arrowStyle.opacity,
+      markerAnimationCount: marker.getAnimations().length,
+      markerAnimationName: getComputedStyle(marker).animationName,
+      labelText: (label.textContent || "").trim(),
+      labelDisplay: labelStyle.display,
+      labelOpacity: labelStyle.opacity,
+      labelAnimationName: labelStyle.animationName,
+      labelAnimationCount: label.getAnimations().length,
       nodeLeft: nodeRect.left,
       nodeTop: nodeRect.top,
       nodeRight: nodeRect.right,
@@ -334,45 +348,49 @@ async function readLoopVisual(win, nodeId) {
 
 async function readLoopMotionDelta(win, nodeId) {
   return win.evaluate(async (id) => {
-    const sweep = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator-sweep`
+    const direction = document.querySelector(
+      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-direction-path`
     );
-    const value = document.querySelector(
-      `g.awkit-flow-edge[data-source="${id}"][data-target="${id}"] .awkit-loop-indicator-value`
-    );
-    if (!(sweep instanceof SVGCircleElement) || !(value instanceof SVGElement)) return null;
-    const animation = sweep.getAnimations()[0];
+    const group = direction?.closest("g.awkit-flow-edge");
+    const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
+      .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
+    if (!(direction instanceof SVGPathElement) || !(label instanceof HTMLElement)) return null;
+    const animation = direction.getAnimations()[0];
     const beforeTime = Number(animation?.currentTime ?? Number.NaN);
-    const beforeTransform = getComputedStyle(sweep).transform;
-    const beforeValueTransform = getComputedStyle(value).transform;
-    const beforeValueRect = value.getBoundingClientRect();
+    const beforeStartTime = Number(animation?.startTime ?? Number.NaN);
+    const beforeDashOffset = getComputedStyle(direction).strokeDashoffset;
+    const beforeLabelTransform = getComputedStyle(label).transform;
+    const beforeLabelRect = label.getBoundingClientRect();
     await new Promise((resolve) => window.setTimeout(resolve, 180));
     const afterTime = Number(animation?.currentTime ?? Number.NaN);
-    const afterTransform = getComputedStyle(sweep).transform;
-    const afterValueTransform = getComputedStyle(value).transform;
-    const afterValueRect = value.getBoundingClientRect();
-    const textMoved = Math.hypot(
-      afterValueRect.left + afterValueRect.width / 2 - (beforeValueRect.left + beforeValueRect.width / 2),
-      afterValueRect.top + afterValueRect.height / 2 - (beforeValueRect.top + beforeValueRect.height / 2)
+    const afterStartTime = Number(animation?.startTime ?? Number.NaN);
+    const afterDashOffset = getComputedStyle(direction).strokeDashoffset;
+    const afterLabelTransform = getComputedStyle(label).transform;
+    const afterLabelRect = label.getBoundingClientRect();
+    const labelMoved = Math.hypot(
+      afterLabelRect.left + afterLabelRect.width / 2 - (beforeLabelRect.left + beforeLabelRect.width / 2),
+      afterLabelRect.top + afterLabelRect.height / 2 - (beforeLabelRect.top + beforeLabelRect.height / 2)
     ) > 0.5;
     return {
       beforeTime,
       afterTime,
       delta: afterTime - beforeTime,
-      beforeTransform,
-      afterTransform,
-      moved: beforeTransform !== afterTransform,
-      textMoved,
-      textTransformChanged: beforeValueTransform !== afterValueTransform,
-      textAnimationCount: value.getAnimations().length,
-      textAnimationName: getComputedStyle(value).animationName
+      beforeStartTime,
+      afterStartTime,
+      beforeDashOffset,
+      afterDashOffset,
+      dashMoved: beforeDashOffset !== afterDashOffset,
+      labelMoved,
+      labelTransformChanged: beforeLabelTransform !== afterLabelTransform,
+      labelAnimationCount: label.getAnimations().length,
+      labelAnimationName: getComputedStyle(label).animationName
     };
   }, nodeId);
 }
 
 async function readLoopPixelMotion(win, nodeId) {
-  const hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
-  const bounds = await hit.boundingBox();
+  const direction = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-direction-path`);
+  const bounds = await direction.boundingBox();
   if (!bounds) return null;
   const clip = {
     x: Math.max(0, Math.floor(bounds.x - 4)),
@@ -910,11 +928,17 @@ try {
     const loopEditorVisible = await loopMode.isVisible().catch(() => false);
     check("Adding a workflow loop selects it and opens the complete loop editor", loopEditorVisible, await win.locator(".scenario-properties-panel").textContent().catch(() => "panel missing"));
     if (loopEditorVisible) {
+      const countVisual = await readLoopVisual(win, NODE);
+      check(
+        "A fresh Workflow Loop shows its authoritative Count × 3 default instead of runtime progress",
+        countVisual?.labelText === "Count × 3" && countVisual.valueCount === 0 && countVisual.labelAnimationCount === 0,
+        JSON.stringify(countVisual)
+      );
       await loopMode.selectOption("whileCondition");
       const maxIterationsInput = win.locator('.scenario-properties-panel label:has-text("Max iterations") input');
       await maxIterationsInput.fill("5");
       await win.waitForTimeout(120);
-      const fiveIterationVisual = await readLoopVisual(win, NODE);
+      const whileFiveVisual = await readLoopVisual(win, NODE);
       await maxIterationsInput.fill("10");
       await win.locator('.scenario-properties-panel label:has-text("Line style") select').selectOption("dotted");
       await win.locator('.scenario-properties-panel label:has-text("Thickness") select').selectOption("4");
@@ -926,55 +950,63 @@ try {
       const pixelMotion = await readLoopPixelMotion(win, NODE);
       const normalizeDash = (value) => String(value ?? "").replace(/px|,/g, " ").trim().replace(/\s+/g, " ");
       check(
-        "Workflow Loop marker reads exactly the configured total and updates immediately from 5 to 10",
-        fiveIterationVisual?.valueText === "5" && fiveIterationVisual.valueCount === 1 &&
-          visual?.valueText === "10" && visual.valueCount === 1 && /\b10\b/.test(visual.ariaLabel || ""),
-        JSON.stringify({ fiveIterationVisual, tenIterationVisual: visual })
+        "Workflow Loop label updates to the authored While condition and never presents an iteration counter",
+        whileFiveVisual?.labelText === "While · status = passed" && whileFiveVisual.valueCount === 0 &&
+          visual?.labelText === "While · status = passed" && visual.valueCount === 0 && visual.labelAnimationCount === 0 &&
+          Number.isFinite(whileFiveVisual.animationStartTime) && visual.animationStartTime === whileFiveVisual.animationStartTime &&
+          visual.animationCurrentTime > whileFiveVisual.animationCurrentTime,
+        JSON.stringify({ whileFiveVisual, tenIterationVisual: visual })
       );
       check(
-        "Workflow Loop renders one continuous rounded return path with one compact marker behind real nodes",
+        "Workflow Loop renders one continuous rounded return path, one path direction layer, and one compact static marker",
         visual?.connectorKind === "loop" && visual.className.includes("is-loop-connector") && visual.className.includes("nopan") &&
           visual.role === "button" && visual.tabIndex === "0" && visual.ariaLabel?.startsWith("Configure loop connector:") &&
           visual.owner === NODE && visual.syntheticLoopNodeCount === 0 && visual.canvasNodeCount > 0 &&
           visual.indicatorInEdgeLayer && !visual.indicatorInNodeLayer && Number.parseFloat(visual.edgeLayerZ) < Number.parseFloat(visual.nodeLayerZ) &&
-          visual.baseCount === 1 && visual.pathCount === 1 && visual.markerCount === 1 && visual.directionCount === 0 &&
-          visual.laneCount === 0 && visual.arrowCount === 0 && visual.backplateCount === 0 &&
-          visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 1 && visual.focusCount === 1 && visual.hitCount === 1 && visual.sharedCenter &&
+          visual.baseCount === 1 && visual.pathCount === 1 && visual.markerCount === 1 && visual.directionCount === 1 &&
+          visual.arrowCount === 1 && visual.legacyArrowCount === 0 && visual.laneCount === 0 && visual.backplateCount === 0 &&
+          visual.outerCount === 1 && visual.mainCount === 1 && visual.sweepCount === 0 && visual.valueCount === 0 &&
+          visual.focusCount === 1 && visual.hitCount === 1 && visual.sharedCenter && visual.directionMatchesPath &&
           visual.pathMoveCount === 1 && visual.pathHasRoundedSegments && visual.pathTotalLength > 0 && visual.pathWrapsNode && visual.pathEndpointsTouchNode &&
           Number.isFinite(visual.markerPathDistance) && visual.markerPathDistance <= 3 && visual.markerOutsideNode && !visual.nodeOverlapsRing &&
-          visual.outerRadius >= 18 && visual.outerRadius <= 30 && visual.mainRadius >= 14 && visual.mainRadius < visual.outerRadius &&
-          visual.hitRadius >= visual.outerRadius && visual.hitRadius <= 34 && visual.markerToNodeHeightRatio < 1 &&
+          visual.outerRadius === 20 && visual.mainRadius === 16 && visual.hitRadius === 24 &&
+          visual.markerAnimationCount === 0 && visual.markerAnimationName === "none" && visual.markerToNodeHeightRatio < 1 &&
           visual.ringFullyVisible && !visual.overlapsOtherNode && !visual.labelOverlapsMarker && visual.labelClearance >= 1,
         JSON.stringify(visual)
       );
       check(
-        "Workflow Loop rotates only its refined sweep while preserving its stationary total and authored path style",
-        visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
-          Number.parseFloat(visual.animationDuration) >= 1.5 && Number.parseFloat(visual.animationDuration) <= 2.5 && visual.sweepPathLength === "100" &&
+        "Workflow Loop direction moves continuously on the real return path while its marker and authored label stay stationary",
+        visual?.animationName === "awkit-loop-direction" && visual.animationIterationCount === "infinite" && visual.animationTimingFunction === "linear" &&
+          Number.parseFloat(visual.animationDuration) > 0 && visual.directionMatchesPath && normalizeDash(visual.directionStrokeDash) !== "none" &&
+          Number.parseFloat(visual.directionStrokeWidth) > 0 && visual.arrowDisplay !== "none" && Number.parseFloat(visual.arrowOpacity) > 0 &&
           normalizeDash(visual.pathStrokeDash) === "1 5" && Number.parseFloat(visual.pathStrokeWidth) >= 3 && Number.parseFloat(visual.pathStrokeWidth) <= 4.1 &&
-          visual.pathStrokeLinecap === "round" && visual.pathStrokeLinejoin === "round" && normalizeDash(visual.sweepDash) === "16 84" &&
-          Number.parseFloat(visual.sweepWidth) >= 2 && Number.parseFloat(visual.sweepWidth) <= 5 &&
-          visual.valueAnimationName === "none" && visual.valueAnimationCount === 0 &&
-          Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.moved && !motion.textMoved && !motion.textTransformChanged &&
-          motion.textAnimationCount === 0 && motion.textAnimationName === "none" &&
+          visual.pathStrokeLinecap === "round" && visual.pathStrokeLinejoin === "round" &&
+          visual.markerAnimationCount === 0 && visual.labelAnimationCount === 0 &&
+          Number.isFinite(motion?.delta) && motion.delta >= 100 && motion.dashMoved &&
+          motion.beforeStartTime === motion.afterStartTime && !motion.labelMoved && !motion.labelTransformChanged &&
+          motion.labelAnimationCount === 0 && motion.labelAnimationName === "none" &&
           Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 12 && pixelMotion.totalDelta > 0,
         JSON.stringify({ visual, motion, pixelMotion })
       );
       check(
         "A non-circular saved shape cannot collapse a semantic Workflow Loop into an ordinary edge",
-        visual?.pathCount === 1 && visual.markerCount === 1 && visual.outerCount === 1 && visual.sweepCount === 1 && visual.directionCount === 0,
+        visual?.pathCount === 1 && visual.markerCount === 1 && visual.outerCount === 1 && visual.directionCount === 1 &&
+          visual.arrowCount === 1 && visual.sweepCount === 0 && visual.valueCount === 0 && visual.directionMatchesPath,
         JSON.stringify(visual)
       );
       const zoomSamples = await readLoopZoomSamples(win, NODE);
       const zoomVisuals = [zoomSamples.at25, zoomSamples.at100, zoomSamples.at200];
       const zoomRatios = zoomVisuals.map((sample) => sample.visual?.markerToNodeHeightRatio ?? Number.NaN);
+      const zoomAnimationStartTimes = zoomVisuals.map((sample) => sample.visual?.animationStartTime ?? Number.NaN);
       check(
-        "Workflow Loop path and marker remain attached and proportionate at 25%, 100%, and 200% zoom",
+        "Workflow Loop path and marker remain attached and proportionate without restarting motion at 25%, 100%, and 200% zoom",
         zoomSamples.at25.percent === 25 && zoomSamples.at100.percent === 100 && zoomSamples.at200.percent === 200 &&
           zoomSamples.restoredPercent === 100 && zoomVisuals.every((sample) =>
-            sample.visual?.valueText === "10" && sample.visual.markerOutsideNode && sample.visual.pathWrapsNode &&
+            sample.visual?.labelText === "While · status = passed" && sample.visual.markerOutsideNode && sample.visual.pathWrapsNode &&
+            sample.visual.directionMatchesPath && sample.visual.arrowCount === 1 &&
             Number.isFinite(sample.visual.markerPathDistance) && sample.visual.markerPathDistance <= 3
-          ) && zoomRatios.every(Number.isFinite) && Math.max(...zoomRatios) - Math.min(...zoomRatios) <= 0.08,
+          ) && zoomRatios.every(Number.isFinite) && Math.max(...zoomRatios) - Math.min(...zoomRatios) <= 0.08 &&
+          zoomAnimationStartTimes.every(Number.isFinite) && new Set(zoomAnimationStartTimes).size === 1,
         JSON.stringify(zoomSamples)
       );
       const preDragVisual = await readLoopVisual(win, NODE);
@@ -992,6 +1024,7 @@ try {
         "Dragging the real Workflow node keeps its attached return path and marker aligned without creating another node",
         Boolean(loopNodeBox) && draggedVisual?.syntheticLoopNodeCount === 0 && draggedVisual.markerOutsideNode && draggedVisual.pathWrapsNode &&
           Number.isFinite(draggedVisual.markerPathDistance) && draggedVisual.markerPathDistance <= 3 &&
+          draggedVisual.animationStartTime === preDragVisual?.animationStartTime && draggedVisual.animationCurrentTime >= preDragVisual.animationCurrentTime &&
           Math.abs((draggedVisual.nodeTop - preDragVisual?.nodeTop) - (draggedVisual.markerTop - preDragVisual?.markerTop)) < 2 &&
           Math.abs(draggedVisual.markerNodeClearance - preDragVisual?.markerNodeClearance) < 2 &&
           Math.abs(draggedVisual.markerCenterX - preDragVisual?.markerCenterX) > 20 && !draggedVisual.overlapsOtherNode,
@@ -1026,6 +1059,34 @@ try {
           loopExitControl.haloTimingFunction === "linear" && loopExitControl.haloScale >= 1.24 && loopExitControl.haloContent !== "none",
         JSON.stringify(loopExitControl)
       );
+      const secondaryNodeId = await win.evaluate((primaryId) =>
+        [...document.querySelectorAll(".awkit-flow-node[data-id]")]
+          .find((candidate) => candidate.getAttribute("data-id") !== primaryId && candidate.querySelector(".scenario-flow-node.flowRef"))
+          ?.getAttribute("data-id") ?? null,
+        NODE
+      );
+      let secondaryLoopAdded = false;
+      if (secondaryNodeId) {
+        await clickNodeMenuItem(win, secondaryNodeId, "Add loop");
+        await win.waitForTimeout(350);
+        const primaryVisualWithPeer = await readLoopVisual(win, NODE);
+        const secondaryVisual = await readLoopVisual(win, secondaryNodeId);
+        const selfLoopCount = await win.locator('g.awkit-flow-edge[data-source][data-target]').evaluateAll((groups) =>
+          groups.filter((group) => group.getAttribute("data-source") === group.getAttribute("data-target") && group.querySelector(".awkit-loop-indicator")).length
+        );
+        secondaryLoopAdded = selfLoopCount === 2;
+        check(
+          "Two Workflow Loops render independently with distinct identities, routes, and authored summaries",
+          secondaryLoopAdded && primaryVisualWithPeer?.owner === NODE && secondaryVisual?.owner === secondaryNodeId &&
+            primaryVisualWithPeer.edgeId !== secondaryVisual.edgeId && primaryVisualWithPeer.pathData !== secondaryVisual.pathData &&
+            primaryVisualWithPeer.labelText === "While · status = passed" && secondaryVisual.labelText === "Count × 3" &&
+            primaryVisualWithPeer.directionMatchesPath && secondaryVisual.directionMatchesPath &&
+            primaryVisualWithPeer.animationName === "awkit-loop-direction" && secondaryVisual.animationName === "awkit-loop-direction",
+          JSON.stringify({ selfLoopCount, primaryVisualWithPeer, secondaryVisual })
+        );
+      } else {
+        check("Two Workflow Loops render independently with distinct identities, routes, and authored summaries", false, "no secondary flow node found");
+      }
       if (process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE) {
         await win.screenshot({ path: process.env.AWKIT_WORKFLOW_LOOP_EVIDENCE });
       }
@@ -1039,14 +1100,28 @@ try {
       await win.emulateMedia({ reducedMotion: "reduce" });
       const reducedVisual = await readLoopVisual(win, NODE);
       const reducedMotion = await readLoopMotionDelta(win, NODE);
+      const reducedSecondaryVisual = secondaryLoopAdded && secondaryNodeId ? await readLoopVisual(win, secondaryNodeId) : null;
+      const reducedSecondaryMotion = secondaryLoopAdded && secondaryNodeId ? await readLoopMotionDelta(win, secondaryNodeId) : null;
       const reducedLoopExitControl = await readLoopExitControlVisual(win, NODE);
       check(
-        "Workflow Loop rotation becomes a static sweep while its exact total stays visible under reduced motion",
+        "Workflow Loop direction becomes static while its path, arrow, marker, and authored label remain readable under reduced motion",
         reducedVisual?.display !== "none" && reducedVisual.animationName === "none" &&
-          normalizeDash(reducedVisual.sweepDash) === "16 84" && Number.parseFloat(reducedVisual.opacity) >= 0.9 &&
-          reducedVisual.valueText === "10" && reducedVisual.valueAnimationName === "none" && reducedVisual.valueAnimationCount === 0 &&
-          !reducedMotion?.moved && !reducedMotion?.textMoved && !reducedMotion?.textTransformChanged,
+          Number.parseFloat(reducedVisual.opacity) > 0 && reducedVisual.directionMatchesPath &&
+          reducedVisual.arrowDisplay !== "none" && Number.parseFloat(reducedVisual.arrowOpacity) > 0 &&
+          reducedVisual.labelDisplay !== "none" && Number.parseFloat(reducedVisual.labelOpacity) > 0 &&
+          reducedVisual.labelText === "While · status = passed" && reducedVisual.labelAnimationCount === 0 &&
+          reducedVisual.markerCount === 1 && reducedVisual.markerAnimationCount === 0 &&
+          !reducedMotion?.dashMoved && !reducedMotion?.labelMoved && !reducedMotion?.labelTransformChanged,
         JSON.stringify({ reducedVisual, reducedMotion })
+      );
+      check(
+        "Reduced motion freezes both independent Workflow Loop direction paths without hiding either summary",
+        !secondaryLoopAdded || (
+          reducedSecondaryVisual?.animationName === "none" && reducedSecondaryVisual.display !== "none" &&
+          reducedSecondaryVisual.arrowDisplay !== "none" && reducedSecondaryVisual.labelText === "Count × 3" &&
+          !reducedSecondaryMotion?.dashMoved && !reducedSecondaryMotion?.labelMoved
+        ),
+        JSON.stringify({ secondaryLoopAdded, reducedSecondaryVisual, reducedSecondaryMotion })
       );
       check(
         "Workflow Loop exit halo becomes a static ring under reduced motion",
@@ -1054,6 +1129,22 @@ try {
         JSON.stringify(reducedLoopExitControl)
       );
       await win.emulateMedia({ reducedMotion: "no-preference" });
+      if (secondaryLoopAdded && secondaryNodeId) {
+        await clickNodeMenuItem(win, secondaryNodeId, "Remove loop");
+        await win.waitForTimeout(350);
+        const cleanedLoops = await win.evaluate(({ primaryId, secondaryId }) => ({
+          primary: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${primaryId}"][data-target="${primaryId}"] .awkit-loop-indicator`)),
+          secondary: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${secondaryId}"][data-target="${secondaryId}"] .awkit-loop-indicator`)),
+          count: [...document.querySelectorAll("g.awkit-flow-edge")]
+            .filter((group) => group.getAttribute("data-source") === group.getAttribute("data-target") && group.querySelector(".awkit-loop-indicator")).length
+        }), { primaryId: NODE, secondaryId: secondaryNodeId });
+        check(
+          "Removing the temporary peer Loop leaves the configured Workflow Loop untouched",
+          cleanedLoops.primary && !cleanedLoops.secondary && cleanedLoops.count === 1,
+          JSON.stringify(cleanedLoops)
+        );
+        await clickNodeMenuItem(win, NODE, "Configure loop");
+      }
       if (loopExitControl?.edgeId) {
         await win.locator(`button.awkit-edge-add[data-edge-id="${loopExitControl.edgeId}"]`).click();
         await win.waitForTimeout(180);
@@ -1067,9 +1158,16 @@ try {
       await win.waitForTimeout(350);
       const savedLoopAuthoring = await win.evaluate(async ({ sourceId, workflowId }) => {
         const profile = await window.playwrightFlowStudio.workflows.get(workflowId);
-        const loopEdge = profile?.edges.find((edge) => edge.source === sourceId && edge.target === sourceId);
-        const exit = profile?.edges.find((edge) => edge.source === sourceId && edge.target !== sourceId);
-        return { loopEdge, exit };
+        const loopEdges = profile?.edges.filter((edge) => edge.source === sourceId && edge.target === sourceId && edge.type === "loop") ?? [];
+        const exits = profile?.edges.filter((edge) => edge.source === sourceId && edge.target !== sourceId) ?? [];
+        const conditionalExits = exits.filter((edge) => edge.type === "conditional");
+        return {
+          loopEdge: loopEdges[0],
+          exit: exits[0],
+          loopCount: loopEdges.length,
+          nonSelfExitCount: exits.length,
+          conditionalExitCount: conditionalExits.length
+        };
       }, { sourceId: NODE, workflowId: activeWorkflowId });
       check(
         "Workflow save persists loop mode, bound, and while condition",
@@ -1080,10 +1178,11 @@ try {
         JSON.stringify(savedLoopAuthoring.loopEdge)
       );
       check(
-        "Adding the workflow loop promotes the existing Standard path to a persisted Conditional exit",
+        "Adding the workflow loop persists exactly one Loop and exactly one Conditional exit without duplication",
         savedLoopAuthoring.exit?.type === "conditional" && savedLoopAuthoring.exit?.condition?.expression === "true" &&
+          savedLoopAuthoring.loopCount === 1 && savedLoopAuthoring.nonSelfExitCount === 1 && savedLoopAuthoring.conditionalExitCount === 1 &&
           !("insertControlRole" in savedLoopAuthoring.exit) && !("showAddButton" in savedLoopAuthoring.exit),
-        JSON.stringify(savedLoopAuthoring.exit)
+        JSON.stringify(savedLoopAuthoring)
       );
 
       const otherWorkflowId = await win.$$eval(`${WF_SELECT} option`, (options, activeId) =>
@@ -1097,11 +1196,24 @@ try {
         await win.waitForTimeout(750);
       }
       const reloadedTenVisual = await readLoopVisual(win, NODE);
+      const reloadedLoopStructure = await win.evaluate(async ({ sourceId, workflowId }) => {
+        const profile = await window.playwrightFlowStudio.workflows.get(workflowId);
+        const persistedOutgoing = profile?.edges.filter((edge) => edge.source === sourceId) ?? [];
+        const renderedOutgoing = [...document.querySelectorAll(`g.awkit-flow-edge[data-source="${sourceId}"]`)];
+        return {
+          loops: persistedOutgoing.filter((edge) => edge.target === sourceId && edge.type === "loop").length,
+          conditionalExits: persistedOutgoing.filter((edge) => edge.target !== sourceId && edge.type === "conditional").length,
+          outgoing: persistedOutgoing.length,
+          renderedLoops: renderedOutgoing.filter((edge) => edge.getAttribute("data-target") === sourceId && edge.getAttribute("data-connector-kind") === "loop").length
+        };
+      }, { sourceId: NODE, workflowId: activeWorkflowId });
       check(
-        "Saved Workflow Loop marker restores the exact configured total 10 after reload",
-        reloadedTenVisual?.valueText === "10" && reloadedTenVisual.valueCount === 1 &&
-          reloadedTenVisual.pathCount === 1 && reloadedTenVisual.markerCount === 1,
-        JSON.stringify(reloadedTenVisual)
+        "Saved Workflow Loop restores its While summary, direction path, and single Conditional exit after reload",
+        reloadedTenVisual?.labelText === "While · status = passed" && reloadedTenVisual.valueCount === 0 &&
+          reloadedTenVisual.pathCount === 1 && reloadedTenVisual.directionCount === 1 && reloadedTenVisual.arrowCount === 1 &&
+          reloadedTenVisual.directionMatchesPath && reloadedLoopStructure.loops === 1 &&
+          reloadedLoopStructure.conditionalExits === 1 && reloadedLoopStructure.outgoing === 2 && reloadedLoopStructure.renderedLoops === 1,
+        JSON.stringify({ reloadedTenVisual, reloadedLoopStructure })
       );
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
       await win.waitForTimeout(180);
@@ -1121,7 +1233,16 @@ try {
       await win.keyboard.press("Enter");
       await win.waitForTimeout(180);
       check(
-        "The Workflow Loop control reopens configuration from the keyboard",
+        "The Workflow Loop control reopens configuration with Enter",
+        await loopMode.isVisible().catch(() => false) && await loopGroup.getAttribute("aria-label").then((value) => value?.startsWith("Configure loop connector:"))
+      );
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      await win.waitForTimeout(180);
+      await loopGroup.focus();
+      await win.keyboard.press("Space");
+      await win.waitForTimeout(180);
+      check(
+        "The Workflow Loop control reopens configuration with Space",
         await loopMode.isVisible().catch(() => false) && await loopGroup.getAttribute("aria-label").then((value) => value?.startsWith("Configure loop connector:"))
       );
       await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
@@ -1145,8 +1266,9 @@ try {
         await win.locator(`.awkit-flow-node[data-id="${NODE}"] .scenario-flow-node`).click();
         await clickNodeMenuItem(win, NODE, "Configure loop");
         check(
-          "Configure loop reopens the existing Workflow Loop with its immediate unsaved marker edit intact",
-          unsavedTwelveVisual?.valueText === "12" && await loopMode.isVisible().catch(() => false) &&
+          "Configure loop reopens the existing Workflow Loop with its immediate unsaved bound edit and authored summary intact",
+          unsavedTwelveVisual?.labelText === "While · status = passed" && unsavedTwelveVisual.valueCount === 0 &&
+            await loopMode.isVisible().catch(() => false) &&
             await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue() === "12"
         );
         await win.getByRole("button", { name: "Save", exact: true }).click();
@@ -1161,11 +1283,106 @@ try {
         await clickNodeMenuItem(win, NODE, "Configure loop");
         const persistedMax = await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue().catch(() => "");
         const persistedVisual = await readLoopVisual(win, NODE);
+        const persistedLoopStructure = await win.evaluate(async ({ sourceId, workflowId }) => {
+          const profile = await window.playwrightFlowStudio.workflows.get(workflowId);
+          const outgoing = profile?.edges.filter((edge) => edge.source === sourceId) ?? [];
+          return {
+            loops: outgoing.filter((edge) => edge.target === sourceId && edge.type === "loop").length,
+            conditionalExits: outgoing.filter((edge) => edge.target !== sourceId && edge.type === "conditional").length,
+            outgoing: outgoing.length
+          };
+        }, { sourceId: NODE, workflowId: activeWorkflowId });
         check(
-          "Reconfigured Workflow Loop persists and keeps its rotating control after reload",
-          persistedMax === "12" && persistedVisual?.valueText === "12" &&
-            persistedVisual.animationName === "awkit-loop-control-orbit" && persistedVisual.animationIterationCount === "infinite",
-          JSON.stringify({ persistedMax, persistedVisual })
+          "Reconfigured Workflow Loop persists with one Conditional exit and keeps its path-following direction motion after reload",
+          persistedMax === "12" && persistedVisual?.labelText === "While · status = passed" && persistedVisual.valueCount === 0 &&
+            persistedVisual.animationName === "awkit-loop-direction" && persistedVisual.animationIterationCount === "infinite" &&
+            persistedVisual.directionMatchesPath && persistedVisual.arrowCount === 1 &&
+            persistedLoopStructure.loops === 1 && persistedLoopStructure.conditionalExits === 1 && persistedLoopStructure.outgoing === 2,
+          JSON.stringify({ persistedMax, persistedVisual, persistedLoopStructure })
+        );
+      }
+
+      await clickNodeMenuItem(win, NODE, "Configure loop");
+      const focusedLoop = win.locator(`g.awkit-flow-edge[data-source="${NODE}"][data-target="${NODE}"][role="button"]`);
+      await focusedLoop.focus();
+      await focusedLoop.press("Delete");
+      await win.waitForTimeout(300);
+      const removedByKeyboard = await win.locator(`g.awkit-flow-edge[data-source="${NODE}"][data-target="${NODE}"]`).count() === 0;
+      check("Delete removes the keyboard-focused Workflow Loop connector", removedByKeyboard);
+      await win.locator("#sb-undo").click();
+      await win.waitForTimeout(300);
+      const keyboardDeleteUndoVisual = await readLoopVisual(win, NODE);
+      check(
+        "Undo restores a keyboard-deleted Workflow Loop with its authored state",
+        keyboardDeleteUndoVisual?.labelText === "While · status = passed" && keyboardDeleteUndoVisual.directionMatchesPath,
+        JSON.stringify(keyboardDeleteUndoVisual)
+      );
+
+      await clickNodeMenuItem(win, NODE, "Configure loop");
+      const inspectorDelete = win.getByRole("button", { name: "Delete connector", exact: true });
+      const inspectorDeleteVisible = await inspectorDelete.isVisible().catch(() => false);
+      check("The selected Workflow Loop exposes its connector-inspector delete action", inspectorDeleteVisible);
+      if (inspectorDeleteVisible) {
+        const readHistoryStructure = () => win.evaluate((sourceId) => {
+          const outgoing = [...document.querySelectorAll(`g.awkit-flow-edge[data-source="${sourceId}"]`)];
+          const exitIds = outgoing
+            .filter((edge) => edge.getAttribute("data-target") !== sourceId)
+            .map((edge) => edge.getAttribute("data-id"))
+            .filter(Boolean);
+          return {
+            loops: outgoing.filter((edge) => edge.getAttribute("data-target") === sourceId && edge.getAttribute("data-connector-kind") === "loop").length,
+            exits: exitIds.length,
+            loopExitControls: exitIds.filter((edgeId) =>
+              document.querySelector(`button.awkit-edge-add[data-edge-id="${CSS.escape(edgeId)}"][data-insert-role="loop-exit"]`)
+            ).length,
+            defaultExitControls: exitIds.filter((edgeId) =>
+              document.querySelector(`button.awkit-edge-add[data-edge-id="${CSS.escape(edgeId)}"][data-insert-role="default"]`)
+            ).length
+          };
+        }, NODE);
+
+        await inspectorDelete.click();
+        await win.waitForTimeout(300);
+        const deletedStructure = await readHistoryStructure();
+        check(
+          "Deleting a Workflow Loop from the inspector removes it and restores its lone exit to Standard",
+          deletedStructure.loops === 0 && deletedStructure.exits === 1 &&
+            deletedStructure.loopExitControls === 0 && deletedStructure.defaultExitControls === 1,
+          JSON.stringify(deletedStructure)
+        );
+
+        await win.locator("#sb-undo").click();
+        await win.waitForTimeout(300);
+        const undoneVisual = await readLoopVisual(win, NODE);
+        const undoneStructure = await readHistoryStructure();
+        check(
+          "Workflow Loop Undo restores the configured connector and exactly one emphasized Loop exit",
+          undoneVisual?.labelText === "While · status = passed" && undoneVisual.directionMatchesPath &&
+            undoneStructure.loops === 1 && undoneStructure.exits === 1 &&
+            undoneStructure.loopExitControls === 1 && undoneStructure.defaultExitControls === 0,
+          JSON.stringify({ undoneVisual, undoneStructure })
+        );
+
+        await win.locator("#sb-redo").click();
+        await win.waitForTimeout(300);
+        const redoneStructure = await readHistoryStructure();
+        check(
+          "Workflow Loop Redo removes the same connector without duplicating or orphaning its exit",
+          redoneStructure.loops === 0 && redoneStructure.exits === 1 &&
+            redoneStructure.loopExitControls === 0 && redoneStructure.defaultExitControls === 1,
+          JSON.stringify(redoneStructure)
+        );
+
+        await win.locator("#sb-undo").click();
+        await win.waitForTimeout(300);
+        await clickNodeMenuItem(win, NODE, "Configure loop");
+        const restoredMax = await win.locator('.scenario-properties-panel label:has-text("Max iterations") input').inputValue().catch(() => "");
+        const restoredStructure = await readHistoryStructure();
+        check(
+          "Undo after Redo restores the persisted Workflow Loop configuration exactly once",
+          restoredMax === "12" && restoredStructure.loops === 1 && restoredStructure.exits === 1 &&
+            restoredStructure.loopExitControls === 1 && restoredStructure.defaultExitControls === 0,
+          JSON.stringify({ restoredMax, restoredStructure })
         );
       }
     }

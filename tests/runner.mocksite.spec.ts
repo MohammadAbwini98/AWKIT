@@ -7,8 +7,9 @@ import { join } from "node:path";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
 import { ValueResolver } from "@src/runner/ValueResolver";
 import { StepExecutor } from "@src/runner/StepExecutor";
+import { FlowExecutor } from "@src/runner/FlowExecutor";
 import type { FlowExecutionResult } from "@src/runner/RunnerResult";
-import type { FlowStep } from "@src/profiles/FlowProfile";
+import type { FlowProfile, FlowStep } from "@src/profiles/FlowProfile";
 import type { InstanceExecutionContext } from "@src/runner/InstanceExecutionContext";
 
 const PORT = 4399;
@@ -125,6 +126,61 @@ test("Loop node executes a fixed-count action with guard", async () => {
   const result = await exec.execute(loopStep);
   ok(result);
   expect(result.outputs.iterations).toBe(3);
+  await browser.close();
+});
+
+test("structured Loop consumes a bound data-source field up to its authored cap", async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  const context = await makeContext("data-source-loop");
+  context.dataSources = {
+    customers: {
+      id: "customers",
+      name: "Customers",
+      file: "",
+      rootArrayPath: "$",
+      rows: [
+        { displayName: "alpha" },
+        { displayName: "beta" },
+        { displayName: "must-not-run" }
+      ]
+    }
+  };
+  const flow: FlowProfile = {
+    id: "data-source-loop",
+    name: "Data source Loop",
+    version: 1,
+    nodes: [
+      { id: "start", type: "start", name: "Start" },
+      { id: "L", type: "fill", name: "L", locator: { strategy: "id", value: "firstName" }, valueSource: { type: "runtimeInput", key: "customer" } },
+      { id: "end", type: "end", name: "End" }
+    ],
+    edges: [
+      { id: "ld1", source: "start", target: "L", type: "success" },
+      {
+        id: "ld2",
+        source: "L",
+        target: "L",
+        type: "loop",
+        kind: "loop",
+        loop: {
+          mode: "dataSource",
+          maxIterations: 2,
+          dataSourceId: "customers",
+          dataSourceBinding: "displayName",
+          parameterName: "customer"
+        }
+      },
+      { id: "ld3", source: "L", target: "end", type: "conditional", kind: "conditional", conditional: { sourceField: "status", operator: "always" } }
+    ]
+  };
+
+  await page.goto(`${BASE}/form`);
+  const result = await new FlowExecutor(makeExecutor(page, context)).executeFlow(flow, context);
+  expect(result.status, result.error).toBe("passed");
+  expect(result.steps.filter((step) => step.stepId === "L")).toHaveLength(2);
+  expect(await page.inputValue("#firstName")).toBe("beta");
+  expect(context.runtimeInputs.customer).toBeUndefined();
   await browser.close();
 });
 

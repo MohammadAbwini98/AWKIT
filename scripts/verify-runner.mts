@@ -275,7 +275,7 @@ async function main() {
       const result = await flowExec.executeFlow(flow, ctx);
       const value = await page.inputValue("#firstName").catch(() => "");
       await page.close();
-      return { result, value };
+      return { result, value, context: ctx };
     };
     const ran = (r: FlowExecutionResult, stepId: string) => r.steps.filter((s) => s.stepId === stepId).length;
 
@@ -576,6 +576,58 @@ async function main() {
       "loop connector (static list, self-loop) runs once per value in order",
       loopStaticRes.result.status === "passed" && ran(loopStaticRes.result, "L") === 2 && loopStaticRes.value === "beta",
       `status=${loopStaticRes.result.status} L=${ran(loopStaticRes.result, "L")} value=${loopStaticRes.value}`
+    );
+
+    // Loop connector — a specific data source binds the selected row key, respects the authored
+    // cap, and restores the temporary runtime input after the Loop finishes.
+    const loopDataSourceFlow: FlowProfile = {
+      id: "b-loop-data-source",
+      name: "Loop data source",
+      version: 1,
+      nodes: [
+        { id: "start", type: "start", name: "Start" },
+        { id: "L", type: "fill", name: "L", locator: { strategy: "id", value: "firstName" }, valueSource: { type: "runtimeInput", key: "customer" } },
+        { id: "end", type: "end", name: "End" }
+      ],
+      edges: [
+        { id: "ld1", source: "start", target: "L", type: "success" },
+        {
+          id: "ld2",
+          source: "L",
+          target: "L",
+          type: "loop",
+          kind: "loop",
+          loop: {
+            mode: "dataSource",
+            maxIterations: 2,
+            dataSourceId: "customers",
+            dataSourceBinding: "displayName",
+            parameterName: "customer"
+          }
+        },
+        { id: "ld3", source: "L", target: "end", type: "conditional", kind: "conditional", conditional: { sourceField: "status", operator: "always" } }
+      ]
+    };
+    const loopDataSourceRes = await runFlowOnForm(loopDataSourceFlow, {
+      dataSources: {
+        customers: {
+          id: "customers",
+          name: "Customers",
+          file: "",
+          rootArrayPath: "$",
+          rows: [
+            { displayName: "alpha" },
+            { displayName: "beta" },
+            { displayName: "must-not-run" }
+          ]
+        }
+      }
+    });
+    check(
+      "loop connector (data source, bound field) honors maxIterations and clears its temporary runtime value",
+      loopDataSourceRes.result.status === "passed" && ran(loopDataSourceRes.result, "L") === 2 &&
+        loopDataSourceRes.value === "beta" && loopDataSourceRes.context.runtimeInputs.customer === undefined,
+      `status=${loopDataSourceRes.result.status} L=${ran(loopDataSourceRes.result, "L")} value=${loopDataSourceRes.value} runtime=${JSON.stringify(loopDataSourceRes.context.runtimeInputs)}`
     );
 
     // Loop connector — whileCondition is bounded by maxIterations.

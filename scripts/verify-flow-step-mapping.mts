@@ -657,6 +657,136 @@ console.log("\nLoop connector profile round-trips:");
   });
   check("reconfigured type-derived Loop persists its complete configuration", json(saved.edges[0].loop) === json(reconfiguredLoop.data?.loop), json(saved.edges[0]));
   check("saving a type-derived Loop does not normalize its optional kind", saved.edges[0].kind === undefined, json(saved.edges[0]));
+
+  type ForwardLoopConfig = NonNullable<FlowProfile["edges"][number]["loop"]> & {
+    futureMetadata: { revision: number; policy: string };
+  };
+  const fullLoopConfig: ForwardLoopConfig = {
+    mode: "dataSource",
+    maxIterations: 9,
+    staticValues: ["preserved-even-when-hidden"],
+    dataSourceId: "customers",
+    dataSourceBinding: "displayName",
+    parameterName: "customer",
+    condition: {
+      sourceField: "dataSourceValue",
+      variableName: "customer.active",
+      operator: "equals",
+      expectedValue: true,
+      priority: 4,
+      label: "Active customer",
+      futurePredicate: "preserve-me"
+    } as NonNullable<ForwardLoopConfig["condition"]> & { futurePredicate: string },
+    delayMs: 15,
+    label: "Customers",
+    futureMetadata: { revision: 2, policy: "forward-compatible" }
+  };
+  const untouchedLoopConfig: ForwardLoopConfig = {
+    mode: "staticList",
+    maxIterations: 4,
+    staticValues: ["north", "south"],
+    dataSourceId: "preserve-hidden-source",
+    dataSourceBinding: "code",
+    parameterName: "region",
+    condition: {
+      sourceField: "variable",
+      variableName: "region",
+      operator: "notEquals",
+      expectedValue: "blocked",
+      priority: 1,
+      label: "Allowed region"
+    },
+    delayMs: 5,
+    label: "Regions",
+    futureMetadata: { revision: 7, policy: "independent" }
+  };
+  const opaqueLoopBackConfig: ForwardLoopConfig = {
+    mode: "count",
+    maxIterations: 8,
+    parameterName: "legacyIteration",
+    delayMs: 3,
+    label: "Legacy payload",
+    futureMetadata: { revision: 1, policy: "opaque-loop-back" }
+  };
+  const independentLoopsProfile: FlowProfile = {
+    id: "independent-loop-profile",
+    name: "Independent loops",
+    version: 5,
+    nodes: [
+      baseStep({ id: "loop-a", name: "Loop A", type: "click" }),
+      baseStep({ id: "loop-b", name: "Loop B", type: "click" })
+    ],
+    edges: [
+      { id: "loop-edge-a", source: "loop-a", target: "loop-a", type: "loop", kind: "loop", loop: fullLoopConfig },
+      { id: "loop-edge-b", source: "loop-b", target: "loop-b", type: "loop", kind: "loop", loop: untouchedLoopConfig },
+      {
+        id: "legacy-loop-back",
+        source: "loop-b",
+        target: "loop-a",
+        type: "loopBack",
+        maxLoopCount: 6,
+        loop: opaqueLoopBackConfig
+      }
+    ]
+  };
+  const firstDocument = toDesignerDocument(independentLoopsProfile);
+  const firstLoopA = firstDocument.edges.find((edge) => edge.id === "loop-edge-a");
+  const firstLoopB = firstDocument.edges.find((edge) => edge.id === "loop-edge-b");
+  check("two independently configured Loops load by their own connector ids", Boolean(firstLoopA && firstLoopB) && json(firstLoopA?.data?.loop) !== json(firstLoopB?.data?.loop));
+
+  const editedLoopA = createProductionEdge(
+    firstLoopA!.source,
+    firstLoopA!.target,
+    firstLoopA!.data?.linkType ?? "loop",
+    firstLoopA!.data?.label,
+    firstLoopA!.data?.expression,
+    firstLoopA!.data?.style,
+    firstLoopA!.data?.maxLoopCount,
+    {
+      ...firstLoopA!.data,
+      loop: { ...firstLoopA!.data!.loop!, maxIterations: 11, label: "Customers updated" }
+    },
+    firstLoopA!.id
+  );
+  const firstSave = toFlowProfile(
+    firstDocument.nodes,
+    firstDocument.edges.map((edge) => (edge.id === editedLoopA.id ? editedLoopA : edge)),
+    independentLoopsProfile.id,
+    independentLoopsProfile.name,
+    { version: independentLoopsProfile.version }
+  );
+  const secondDocument = toDesignerDocument(firstSave);
+  const secondSave = toFlowProfile(
+    secondDocument.nodes,
+    secondDocument.edges,
+    independentLoopsProfile.id,
+    independentLoopsProfile.name,
+    { version: independentLoopsProfile.version }
+  );
+  const savedLoopA = secondSave.edges.find((edge) => edge.id === "loop-edge-a");
+  const savedLoopB = secondSave.edges.find((edge) => edge.id === "loop-edge-b");
+  const savedLoopBack = secondSave.edges.find((edge) => edge.id === "legacy-loop-back");
+  const expectedEditedLoopA = { ...fullLoopConfig, maxIterations: 11, label: "Customers updated" };
+  check(
+    "editing one Loop preserves every full/unknown field through two save-load cycles",
+    json(savedLoopA?.loop) === json(expectedEditedLoopA),
+    json(savedLoopA)
+  );
+  check(
+    "editing one Loop never mutates the second Loop through two save-load cycles",
+    json(savedLoopB?.loop) === json(untouchedLoopConfig),
+    json(savedLoopB)
+  );
+  check(
+    "multiple Loop connector identities and endpoints remain stable through two cycles",
+    savedLoopA?.id === "loop-edge-a" && savedLoopA.source === "loop-a" && savedLoopA.target === "loop-a" &&
+      savedLoopB?.id === "loop-edge-b" && savedLoopB.source === "loop-b" && savedLoopB.target === "loop-b"
+  );
+  check(
+    "an opaque Loop payload on legacy loopBack survives two designer cycles without changing return semantics",
+    savedLoopBack?.type === "loopBack" && savedLoopBack.maxLoopCount === 6 && json(savedLoopBack.loop) === json(opaqueLoopBackConfig),
+    json(savedLoopBack)
+  );
 }
 
 console.log("\nstep.config breadth round-trips (§8 — representative):");

@@ -266,6 +266,46 @@ console.log("Branch-pair reconciliation (FR-2.6)\n");
   check("Workflow: promoted loop exit persists an always-true expression", exit.data?.expression === "true" && exit.data?.label === "Exit loop");
 }
 
+// Repeating promotion (for example after reload/reconfiguration) is idempotent: it never appends,
+// re-ids, or reconfigures an already-promoted exit. Exercise multiple exits so an accidental
+// "ensure exit" implementation that adds one more connector cannot hide behind the single-edge case.
+{
+  const standard = [
+    flowEdge("out-a", "n", "a", "success"),
+    flowEdge("out-b", "n", "b", "failure")
+  ];
+  const once = promoteFlowLoopExits(standard, "n");
+  const twice = promoteFlowLoopExits(once.edges, "n");
+  check(
+    "Flow: repeated Loop-exit promotion converts only the first pass",
+    once.converted === 2 && twice.converted === 0 && twice.edges === once.edges
+  );
+  check(
+    "Flow: repeated Loop-exit promotion preserves exact edge count, ids, and one config per exit",
+    twice.edges.length === 2 && twice.edges.map((edge) => edge.id).join(",") === "out-a,out-b" &&
+      twice.edges.every((edge) => flowKindOf(edge) === "conditional" && edge.data?.conditional?.operator === "always")
+  );
+}
+
+{
+  const standard = [
+    scenarioEdge("out-a", "n", "a", "success"),
+    scenarioEdge("out-b", "n", "b", "failure")
+  ];
+  const once = promoteScenarioLoopExits(standard, "n");
+  const twice = promoteScenarioLoopExits(once.edges, "n");
+  check(
+    "Workflow: repeated Loop-exit promotion converts only the first pass",
+    once.converted === 2 && twice.converted === 0 && twice.edges === once.edges
+  );
+  check(
+    "Workflow: repeated Loop-exit promotion preserves exact edge count, ids, and one config per exit",
+    twice.edges.length === 2 && twice.edges.map((edge) => edge.id).join(",") === "out-a,out-b" &&
+      twice.edges.every((edge) => scenarioKindOf(edge) === "conditional" && edge.data?.expression === "true"),
+    JSON.stringify(twice.edges.map((edge) => ({ id: edge.id, type: edge.data?.linkType, expression: edge.data?.expression })))
+  );
+}
+
 // ---------------------------------------------------------------------------
 // 6. Conversion to normal clears branch-only configuration (no stale config carried over).
 // ---------------------------------------------------------------------------
