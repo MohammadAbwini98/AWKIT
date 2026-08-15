@@ -424,18 +424,19 @@ failure boundary under `src/testing/failures/`:
   invalid draft was intentionally saved.
   Connector kind/style is derived into the in-house canvas edge representation; no renderer-only routing
   model is persisted. A structured self-loop always selects the shared `LoopEdge` regardless of a stale
-  non-circular visual shape. `FlowCanvas` supplies the measured source-card width and semantic bottom/top
-  anchors, chooses a collision-aware side, and includes the full return route in fit bounds. `LoopEdge`
-  renders one compact rounded bottom-center -> side-return -> top-center path around the card, a static
-  configuration marker, an external mode-aware design label (`Count × N`, `For Each`, data-source, or
-  `While`) in the clear band just above the card, one matching real-path dash overlay, and one static
-  direction arrow. Neither the marker nor label represents a current runtime iteration, and these visuals
-  create no graph, persistence, IPC, or runtime state. `FlowCanvas.LoopEdgeLayer` keeps structured Loops
-  and legacy cross-node `loopBack` paths in one persistent SVG layer, updating geometry during node drag
-  without remounting the path or restarting its CSS animation timeline. The parent edge remains
-  pointer/keyboard configurable in both designers.
-  Reduced motion removes the animation and leaves a static directional segment. Legacy `loopBack` shares
-  this design-time vocabulary without changing its separate cross-node runtime model.
+  non-circular visual shape. `geometry.ts` owns the authoritative 160x20/r10 capsule, 40/30/44 ring/hit
+  radii, and full lane/ring/hit/label footprint. `FlowCanvas` supplies the measured source-card width,
+  chooses the least-obstructed left/right side from that complete footprint, and reuses it for fit bounds.
+  `LoopEdge` renders the compact same-side capsule, a concentric configured-value ring, and an external
+  mode-aware design label (`Count × N`, `For Each`, data-source, or `While`). That label is capped to the
+  shared 160-unit lane, ellipsizes overflow, and exposes its full resolved text through `title`. Only one circular sweep
+  animates; the capsule/path/rings/value/label remain stationary. Structured self-Loops have no full-card
+  U-route, duplicate direction path, or self-arrow. These visuals create no graph, persistence, IPC, or
+  runtime state. `FlowCanvas.LoopEdgeLayer` keeps structured Loops and legacy cross-node `loopBack` paths
+  in one persistent SVG layer, updating geometry during node/peer drag without inventing a visual node.
+  The parent edge remains pointer, double-click, and keyboard configurable in both designers. Reduced
+  motion freezes only the visible circular sweep. Legacy `loopBack` retains its separate cross-node
+  directional return renderer and runtime model.
 - **Auto Secure Login / Reuse Session:** `StepExecutor` is injected with a `BrowserRestarter` callback and
   the `SessionCaptureService` (from `ExecutionEngine`). `PlaywrightRunner` owns a mutable `BrowserHolder`
   with a browser generation id. The restarter performs a generation-guarded two-phase swap for session

@@ -1,6 +1,23 @@
 # DECISIONS
 
-### 2026-08-13 - A structured Loop is a return path with a configured-value marker
+### 2026-08-15 - Structured Loops use the frozen side capsule and one circular sweep
+
+- **Decision:** `LOOP_VISUAL_CONTRACT.md` is the visual authority. A structured self-edge renders one
+  160x20/r10 side capsule with 40/30/44 outer/main/hit radii, `maxIterations` in the dominant ring,
+  and an external mode-aware summary. This deliberately augments the historical `7282178` image with
+  configuration text while preserving its topology.
+- **Motion:** only the ring sweep animates, for 2 seconds linearly and continuously. The capsule path,
+  rings, value, and label are stationary; reduced motion freezes only the visible sweep.
+- **Geometry ownership:** renderer constants, side-collision scoring, and fit bounds share one geometry
+  source. The full lane/hit/ring/label footprint—not the superseded small-marker/U-route footprint—must
+  be modelled. Long design summaries are bounded to the 160-unit lane with ellipsis and a full-text title.
+- **Separation:** structured self-Loops have no direction overlay or self-arrow. Legacy cross-node
+  `loopBack` keeps its distinct return-path renderer and bounded runtime semantics.
+- **Reason:** the prior test oracle followed an incompatible U-route implementation and could report
+  success for the visually corrupted result. The shared immutable contract plus mutation/dense-layout
+  controls prevents implementation-defined visual acceptance.
+
+### SUPERSEDED 2026-08-13 - A structured Loop was a U-route with a configured-value marker
 
 - **Decision:** the Loop remains one persisted self-edge, rendered as a continuous rounded return path
   around its real source card with a compact circular marker attached directly to the path. The marker is

@@ -1,28 +1,56 @@
 # KNOWN_ISSUES
 
-## RESOLVED: Loop direction now lives on the real return path without runtime-looking counters (2026-08-14)
+## RESOLVED: restored Loop renderer used a stale U-route collision and fit footprint (2026-08-15)
+
+The restored `LoopEdge` rendered the approved 160-unit capsule and 44-unit hit ring, but `FlowCanvas`
+still scored and framed a roughly 80-unit-wide, full-card-height footprint derived from the rejected
+36-unit U-route marker. A neighbor inside the real capsule's outer band could be invisible to side
+selection, and fit-to-screen could crop the lane/ring. Because nodes paint above edges, an overlap looked
+like a cut or corrupted Loop even though the isolated topology oracle was green.
+
+`geometry.ts` now owns one full capsule/ring/hit/label footprint consumed by `LoopEdge` and `FlowCanvas`.
+`LoopEdge` also caps the rendered summary to the shared 160-unit lane, uses ellipsis for overflow, and
+retains the exact full text as its title. The visual oracle requires nonzero visible layers, correct
+edge-below-node stacking, the hit/accessibility contract, and the measured label bound; independent
+negative mutations prove each requirement can turn the gate red.
+The focused GUI fixtures use a connected blocker 100 graph units from the owner, require the clear side,
+complete post-fit containment, and no node/label/insert-control intersection. Workflow coverage physically
+drags the blocker away and back and requires right -> left -> right recomputation without detachment.
+Keep these negative controls; an open-space fixture cannot detect this regression.
+
+The canonical broad-coverage adapter was also hardened. A killed, signalled, truncated, status-2, wrong
+check-count, missing-allow-list, or unexpected-failure child now fails. The pre-capsule readers expose a
+safe compatibility view for the removed direction descendants so all unrelated checks run. Sixteen exact
+U-route-era compound assertions per suite may be non-binding; the focused suites independently replace
+their editing, persistence, history, access, and visual intent with ordered 15/16-check contracts.
+
+## RESOLVED: Workflow GUI verifier sampled the library before its table loaded (2026-08-15)
+
+The preserved Workflow walkthrough waited only for the Workflows page surface, which mounts while its
+async profile list still shows `Loading workflows...`. Its first layout assertion could therefore report
+`workflow table not found`; an immediate run from the same source usually passed, making the failure a
+real fixed-delay/startup race rather than product geometry evidence.
+
+The verifier now waits for the exact Workflows navigation control, performs the observable navigation,
+waits for the page surface, and then waits for the visible `.wl-table-workflows` that the assertion
+measures. The swallowed navigation click and blind 1.2-second startup delay were removed. Keep this state
+synchronization; do not replace it with another delay or allow-list this non-Loop assertion.
+
+## SUPERSEDED RESOLUTION: Loop direction lived on the real U-route (2026-08-14)
 
 Earlier iterations targeted the Conditional insertion control, an ordinary edge overlay, a node-obscured
 ring, or a numeric marker sweep. Those implementations could satisfy DOM/keyframe checks while the real
 returning connector remained visually small, static, or suggested live execution progress.
 
-Structured self-Loops now render through the shared `LoopEdge` as one compact collision-aware rounded
-return path around the real card. A compact configuration marker remains static; the external label
-summarizes authored design configuration (`Count × N`, `For Each`, data source, or `While`) and never shows
-a current/total runtime counter. Directional motion is one dash overlay whose `d` matches the real path,
-accompanied by one static arrow. Reduced motion leaves a static directional segment. `FlowCanvas` keeps
-structured Loops and legacy `loopBack` paths in a persistent SVG layer so drag updates geometry without
-resetting animation phase. No graph, persistence, IPC, or runtime state was introduced, and structured
-self-Loops remain distinct from legacy cross-node `loopBack`.
+During that superseded iteration, structured self-Loops used a compact rounded U-route with a static
+configuration marker, path-dash motion, and an arrow. Those details are historical and must not be used as
+current acceptance criteria. The binding topology is now `LOOP_VISUAL_CONTRACT.md`: a 160x20 capsule,
+dominant configured-value ring, and sweep-only circular motion with no structured-Loop direction overlay or
+arrow. Legacy cross-node `loopBack` alone retains its directional return renderer.
 
-Keep rendered GUI guards for matching route/overlay geometry, exactly one path animation and one arrow,
-zero counter/value elements, mode-safe labels, save/reload/reopen, 25/100/200% zoom, physical drag with
-stable animation start time, pointer and keyboard configuration, reduced motion, multiple-Loop isolation,
-and non-Loop isolation in both editors. A label centered above the marker can still extend under the
-owning DOM card; keep its rectangle anchored in the clear band above the card and explicitly assert no
-owning-node overlap at rest, through zoom/drag, for multiple Loops, and under reduced motion. Retain the
-focused legacy `loopBack` rendered assertion, its hidden-base-path mutation control, and manually inspected
-Flow Designer/Workflow Builder light and dark desktop screenshots.
+The historical checks remain useful only for nonvisual editing, persistence, Conditional exits, undo/redo,
+keyboard access, node interactions, and the separate legacy `loopBack` renderer. The canonical adapter must
+retire only the exact U-route assertions and must run the current focused capsule oracle afterward.
 
 ## RESOLVED: unknown interaction prerequisites were misclassified as locator review (awkit-aek, 2026-08-08)
 

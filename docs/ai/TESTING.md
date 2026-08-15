@@ -6,30 +6,37 @@
 
 ## Confirmed
 
-Corrective Loop connector coverage (2026-08-14): `verify:flow-designer` **128/128** and
-`verify:workflow-builder` **74/74** create structured self-loops, assert the authoritative `Count × 3`
-default (then edit the bound/mode), and prove the mode-aware summary after save/reload or a workflow
-switch. Both assert one continuous rounded path, one compact static configuration marker, one
-identical-geometry directional path plus arrow, connector-layer-before-node-layer ownership, no
-synthetic node or runtime counter, authored dotted/thickness preservation, collision-aware physical
-drag, and attachment at 25/100/200% zoom. Motion checks combine computed animation state with decoded
-pixel deltas and prove direction travels on the real return path while the marker and label stay static.
-The label rectangle stays outside its owning card at rest, through zoom/drag, for multiple Loops, and
-under reduced motion. Reduced motion leaves a readable static directional segment. Pointer, keyboard,
-collapsed-editor reopening, separate Configure/Remove actions, and non-self exit isolation are covered.
+Restored Loop capsule-and-ring coverage (2026-08-15): the canonical
+`verify:flow-designer` and `verify:workflow-builder` wrappers first execute the complete preserved broad
+walkthroughs (exactly 128 and 74 checks). Only 16 exact named compound assertions per walkthrough may be
+non-binding because their visual predicates require the rejected U-route; their editing, persistence,
+history, and access intent is reasserted independently by the focused suites. A killed, signalled,
+truncated, wrong-count, incomplete-allow-list, or unexpectedly failing child makes the wrapper fail.
+The wrappers then require the exact ordered 15-name Flow and 16-name Workflow focused inventories.
 
-Workflow coverage additionally seeds a bounded cross-node legacy `loopBack` beside an ordinary edge.
-It proves distinct cubic return geometry, a visibly stroked continuous base path, one matching direction
-overlay, one arrow, the mode-safe `Loop Back × 4` label (never the opaque structured payload's
-`Count × 99`), zero marker/value elements, stable animation identity through 25/100/200% zoom and a
-physical node drag, and ordinary-edge isolation. A temporary hidden-base-path mutation makes the new
-visibility oracle reject the connector before the style is restored. Workflow coverage also includes
-`node.id !== flowId`; `verify:flow-step-mapping` **142/142** covers two independent Loops and legacy
-payload preservation; `verify:workflow-sentinels` **20/20** covers two Workflow/Scenario cycles including
-style and unknown nested metadata; `verify:branch-pairs` **40/40** proves repeated exit promotion is
-idempotent; `verify:runner` **100/100** includes data-source Loop binding/cleanup. Both GUI suites cover
-keyboard Delete, Undo/Redo, Enter/Space, reduced motion, multiple Loops, and exact Conditional-exit
-cardinality.
+The focused suites require the 160x20/r10 lane, 40/30/44 ring/hit radii, configured value, mode-aware
+label, same-side compact attachment, exactly one two-second circular sweep, and no structured-Loop
+direction path or arrow. Computed animation state and decoded pixel deltas prove that only the sweep
+moves; reduced motion freezes that sweep while retaining a visible segment. The suites also exercise
+25/100/200% zoom, viewport pan, physical owner-node drag, direct hit click, double-click, Enter/Space
+access, selection isolation, two independent Loop DOM ids/configurations/timelines, exact dotted/4px
+style persistence, two save/reload cycles, configuration Undo/Redo, and Delete/Undo/Redo with exactly
+one Conditional exit.
+
+Dense-layout coverage deliberately places a connected peer 100 graph units from the Loop owner, outside
+the superseded footprint but inside the real capsule. It requires the clear side, full post-fit lane/ring/
+hit/label containment, and no node or insertion-control collision. Workflow additionally drags the peer
+away and back and requires right -> left -> right side recomputation without detachment. The oracle's
+mutation controls prove that removing required layers, adding the rejected direction/arrow hybrid,
+hiding any visible layer or stroke, reversing edge/node stacking, breaking the hit target, accessible
+button contract, or bounded full-title label, or introducing a U-route/collision signature is rejected.
+
+The preserved Workflow walkthrough still seeds a bounded cross-node legacy `loopBack` beside an ordinary
+edge. That separate renderer retains its distinct cubic return geometry, visible base path, direction
+overlay, arrow, `Loop Back × 4` label, zoom/drag identity, and hidden-path negative control. Runtime and
+mapping coverage remain separate: `verify:flow-step-mapping`, `verify:workflow-sentinels`,
+`verify:branch-pairs`, and `verify:runner` protect persisted and execution semantics rather than defining
+the design-time visual topology.
 
 Complete Loop connector coverage (2026-08-11, `awkit-pwc`): `verify:flow-designer` **93/93** and
 `verify:workflow-builder` **41/41** drive the real Electron editors through loop creation, complete
@@ -52,7 +59,7 @@ remain structural and legacy workflows remain compatible.
 - `tests/runner.mocksite.spec.ts` — Playwright test exercising the runner against the mock site.
 - `scripts/verify-runner.mts` — standalone live verification (run via `npm run verify:runner`)
   that drives `StepExecutor` / `FlowExecutor` / `PlaywrightRunner` against `mock-site/` with a real
-  Chromium. As of the last run: **99 checks pass** (node types, flow/workflow loops, runFlow + recursion guard,
+  Chromium. As of the 2026-08-15 closeout run: **100 checks pass** (node types, flow/workflow loops, runFlow + recursion guard,
   Protected Login Handoff pause/resume, manual handoff in-place resume, workflow runtime connector-structure validation,
   **Route Change** [opens a new tab, switches the active page, fills/clicks/asserts on it], **Reuse Session
   browser lifecycle** [two-phase swap, stale old-generation lifecycle ignored, locked profile fail-before-
@@ -69,7 +76,7 @@ remain structural and legacy workflows remain compatible.
   Feature lab routes include `/smart-waits`, `/recorder-lab`, `/designer-lab`, and `/api/delay`.
 - `scripts/verify-mock-site.mjs` (`npm run verify:mock-site`) — starts the mock site and verifies Feature
   Test Lab scenario URLs, Smart Wait delay behavior, Recorder selectors, Designer/Workflow Builder
-  selectors, and local delayed API behavior. As of the last run: **28 checks pass**.
+  selectors, and local delayed API behavior. As of the 2026-08-15 closeout run: **145 checks pass**.
 - `scripts/verify-protected-login.mts` (`npm run verify:protected-login`) — pure unit checks for the
   protected-login detector (provider URLs, Google insecure-browser page, MFA/CAPTCHA text, no false
   positives, no secret fields). As of the last run: **16 checks pass**. `verify:runner` also covers the
@@ -130,12 +137,16 @@ remain structural and legacy workflows remain compatible.
   being skipped only after a successful `goto`. As of the last run: **21 checks pass**.
 - `scripts/verify-flow-designer-gui.mjs` (`npm run verify:flow-designer`) — real Electron GUI walkthrough
   for Flow Designer connector behavior, complete Loop authoring/persistence, and saved-flow dropdown
-  behavior. As of the last run: **128 checks pass**.
+  behavior. The canonical wrapper requires all **128** preserved broad checks to run, permits only the
+  exact 16 non-binding U-route-era compound assertions, rejects every unexpected failure, then requires
+  the exact ordered focused capsule suite **15/15**.
 - `scripts/verify-workflow-builder-gui.mjs` (`npm run verify:workflow-builder`) — real Electron GUI
   walkthrough for Workflow Builder import/canvas/Loop behavior, including persisted node-id identity,
-  existing Loop pointer/menu reopening, save/reload, direction motion, reduced motion, and focused legacy
-  cross-node `loopBack` geometry/visibility/drag/zoom isolation with a hidden-path mutation control. As of
-  the last run: **74 checks pass**.
+  existing Loop pointer/menu reopening, save/reload, sweep-only motion, reduced motion, and focused legacy
+  cross-node `loopBack` geometry/visibility/drag/zoom isolation with a hidden-path mutation control. The
+  canonical wrapper requires all **74** preserved broad checks to run, permits only the exact 16 retired
+  U-route-era compound assertions, rejects every unexpected failure, then requires the exact ordered
+  focused capsule suite **16/16**.
 - **E2E QA suites (2026-07-19 assessment, bd `awkit-xyo`)** — four real-Electron suites on isolated fresh
   profiles, driven by the specs in `specs/e2e/` and the shared drivers in `scripts/lib/e2e-qa-lib.mjs`
   (login/sign-out/nav/create-user/forced-change/direct-IPC on top of `gui-verify-harness.mjs`):

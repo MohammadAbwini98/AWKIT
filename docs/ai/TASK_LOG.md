@@ -4,6 +4,65 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-15 - Codex - Restore and verify the Loop capsule-and-ring contract
+
+- **Task:** Continue from restored checkpoint `13dfc7a`, verify the authoritative augmented `7282178`
+  capsule-and-ring Loop in both designers, repair any exposed production/test defect without changing
+  runtime semantics, capture fresh rendered evidence, reconcile project state, and push `main`.
+- **Failure reproduced:** the restored renderer and canvas geometry disagreed. `LoopEdge` drew the approved
+  160-unit capsule with a 44-unit hit ring, but `FlowCanvas` collision/fit still modelled the rejected
+  roughly 80-unit U-route marker. The initial Flow focused gate failed drag-side stability (12/13), while
+  the old broad child aborted on removed direction descendants. Workflow's old child similarly timed out
+  on an absent direction path; its focused harness sampled a panel transition and left a properties panel
+  intercepting a later node-menu click. These were product geometry plus verifier-contract/harness defects,
+  not evidence that the capsule target was wrong.
+- **Implementation:** centralized the 160x20/r10 and 40/30/44 geometry plus a full lane/ring/hit/label
+  footprint; reused it for rendering, collision-side scoring, and fit bounds; pinned the two-second orbit
+  token; left structured Loop persistence, IPC, and execution untouched. Added a connected peer exactly
+  100 graph units from the owner and binding full-containment/collision checks, including physical
+  right -> left -> right peer-drag recomputation.
+- **Coverage:** made visibility, stacking, accessibility, interaction, no-overlap, unique-id, and negative
+  mutations binding; bounded long summaries to the 160-unit lane with ellipsis/full title; proved
+  sweep-only computed and pixel motion, single/two-Loop reduced motion, 25/100/200% zoom plus pan in both
+  designers, owner/peer drag, independent selection/config/timelines, exact dotted/4px styling, pointer/
+  double-click/Enter/Space access, two app-backed save/reload cycles, configuration Undo/Redo, destructive
+  Delete/Undo/Redo, and one Conditional exit. Hardened the broad adapter against killed/truncated/
+  wrong-count/incomplete children while executing all 128 Flow and 74 Workflow checks and retaining the
+  separate legacy cross-node `loopBack` assertions. The focused 15/16 check names and order are frozen.
+- **Visual evidence:** opened both designers' light/dark 1440x900 captures under
+  `reports/loop-capsule-verification/2026-08-15/` beside the historical reference. All four show the compact
+  attached capsule, dominant clean concentric ring, centered configured value, readable external label,
+  and current theme accents without a whole-card U-route, detached marker, bright bars, or beaded overlay.
+- **Gate repairs:** verifier classification initially failed one check because the two intentional internal
+  pre-capsule child files lacked justified exemptions; added exact reasons and returned to reconciled.
+  Roadmap initially passed the tracker counts but failed 154/156 because the newest Current State section
+  omitted the unchanged ledger tally; restored **63 PASS / 2 NOT RUN / 1 BLOCKED**, returning to
+  **157/157 - Sources agree**. The first definitive Workflow run then found the known startup race as one
+  unexpected `workflow table not found` failure even though focused Loop checks were 16/16. Replaced its
+  swallowed navigation/1.2-second delay with waits for the real navigation, library surface, and visible
+  table; the canonical regression rerun returned to **74 observed / 15 retired / 0 unexpected + 16/16**.
+  Expanded lifecycle coverage then exposed verifier mistakes rather than product regressions: an Undo
+  assertion ignored intentional 300ms edit coalescing; test drags moved toward peers/insertion controls;
+  a Flow Delete probe deselected the edge before pressing Delete; and a topology query expected a
+  `data-connector-kind` attribute the shared canvas never emits for ordinary Conditional edges. Each was
+  corrected to synchronize on observable state and assert the real history/loop-exit contract without
+  sleeps, forced clicks, or weakened capsule geometry. Direct focused reruns finished Flow **15/15** and
+  Workflow **16/16** with their exact ordered inventories.
+  Generated dashboard output was not edited.
+- **Verified:** build PASS; Flow canonical **128 observed / 16 retired / 0 unexpected + 15/15 focused**;
+  Workflow canonical **74 observed / 15 retired / 0 unexpected + 16/16 focused**; runner **100/100**;
+  Mock Site **145/145**; source hygiene **9/9**; classification **178** commands/files reconciled;
+  roadmap **157/157 - Sources agree**; `git diff --check` PASS; Graphify **12,284 nodes / 25,532
+  edges / 618 communities**; repository AI-memory check PASS.
+- **Tracking/Git:** `awkit-6cg` was reopened while the restored-capsule defects were active, its obsolete
+  U-route description/acceptance was replaced, and it was reclosed only after current evidence passed.
+  Final tracker: **191 total / 186 closed / 5 outstanding / 104 edges**; settings-only `awkit-4qs` remains
+  separate, open, and unclaimed. Commits `24995a7` and `942c858` contain production/test work; the current
+  repository-memory/tracker commit records closeout. All are committed directly to `main`; the final
+  report records push synchronization. The pre-existing named stash was left untouched.
+
+---
+
 ## 2026-08-14 - Codex - Close corrective Loop acceptance and reconcile Program Status
 
 - **Task:** Resume the corrective Loop checkpoint, preserve interrupted tracker/test work, finish the

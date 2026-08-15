@@ -20,7 +20,8 @@ A structured Loop remains one persisted self-edge owned by its real source node.
 - a 40-unit outer ring, 30-unit main ring, and 44-unit interaction radius;
 - the configured `LoopConnectorConfig.maxIterations` value centered inside the dominant ring;
 - one circular sweep segment rotating around the main ring;
-- the mode-aware design-time summary (`Count × N`, `While · …`, `For Each`, etc.) outside the ring;
+- the mode-aware design-time summary (`Count × N`, `While · …`, `For Each`, etc.) outside the ring,
+  bounded to the 160-unit capsule width with an ellipsis and the exact full text exposed as its title;
 - the existing connector identity, selection, keyboard, persistence, and configuration behavior.
 
 The value in the ring is configuration, **not runtime progress**. Normal design mode must never invent `current / total`, current iteration, or execution-progress state.
@@ -52,10 +53,21 @@ The capsule must remain tied to the real node through pan, zoom, drag, save/relo
 
 Multiple Loops must retain independent edge identities, configuration values, labels, selection, and motion. No synthetic graph node or separately persisted visual object may be introduced.
 
+`FlowCanvas` collision-side selection and fit-to-screen bounds must use the same authoritative capsule
+measurements as the renderer. The modelled footprint must contain the full 160-unit lane, 44-unit hit
+target, outer ring, and bounded label band. A smaller marker-only or U-route-era footprint is a contract defect:
+it can select an occupied side or crop the rendered control even when `LoopEdge` itself is correct.
+
 Functional Loop behavior already established by the product remains binding: edit/reopen, save/reload round trip, configuration defaults, Conditional-exit promotion, keyboard access, undo/redo, validation, and runtime/design-time separation must not regress for a visual repair.
 
 ## Verification authority
 
 `scripts/verify-flow-designer-gui.mjs` and `scripts/verify-workflow-builder-gui.mjs` must validate this contract through the shared capsule visual oracle. Passing criteria include the capsule, dominant ring/backplate, configured value, rotating sweep, same-side attachment geometry, reduced-motion behavior, and explicit rejection of the full-node U-route hybrid.
+
+The oracle must also require nonzero visible lane/ring/sweep/value/label layers, the edge layer below
+real nodes, an interactive 44-unit hit target, button/keyboard semantics, the bounded label with its
+full title, and no node, label, insertion-control, or canvas-bound collision in the applicable fixture.
+The focused Flow and Workflow check inventories are exact and ordered; deleting or renaming a required
+assertion must fail the canonical wrapper.
 
 A generic pixel-delta assertion is not sufficient visual acceptance by itself. Pixel evidence may prove that the sweep moves, but structural SVG/DOM geometry is the authoritative machine-readable oracle.

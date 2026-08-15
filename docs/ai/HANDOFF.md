@@ -1,5 +1,110 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-15) - restored Loop capsule-and-ring verification complete
+
+### Transfer
+
+- **From:** Codex.
+- **To:** next AI coding agent or human maintainer.
+- **Timestamp:** 2026-08-15T21:36:59+03:00.
+- **Canonical branch:** `main`; no branch or worktree was created.
+- **Starting restored checkpoint:** `13dfc7a569144e6455ebc0b9b00f3dd7af29a53d`.
+- **Implementation commits:** `24995a7` (`fix(connectors): harden restored loop capsule geometry`) and
+  `942c858` (`test(connectors): bind loop capsule lifecycle contract`). This repository-memory/
+  tracking closeout commit follows them; run `git rev-parse HEAD` for its final SHA.
+- **Preserved stash:** `stash@{2026-08-14 04:16:39 +0300}`
+  (`codex-pre-revert-727248f-doc-overlap-20260814`). It was not applied, changed, or dropped.
+
+### Delivered
+
+- Restored structured self-Loops remain the authoritative augmented `7282178` capsule-and-ring design:
+  one 160x20/r10 capsule; 40/30/44 outer/main/hit radii; configured `maxIterations` in the dominant
+  ring; external mode-aware design text; and one two-second circular sweep. Capsule/path/rings/value/
+  label are stationary; long labels are bounded to the lane with ellipsis and a full-text title;
+  reduced motion freezes only the sweep; and structured self-Loops have no
+  full-card U-route, direction overlay, or self-arrow. Legacy cross-node `loopBack` remains separate.
+- Fixed the production geometry mismatch that caused the apparently cut/corrupted result in realistic
+  canvases. `FlowCanvas` still scored and framed an approximately 80-unit U-route-era marker footprint
+  while `LoopEdge` rendered the 160-unit capsule. Shared constants and one full lane/ring/hit/label
+  footprint in `geometry.ts` now drive the renderer, side selection, and fit bounds.
+- Added deterministic dense-layout proof: a connected peer sits 100 graph units from the owner, where
+  the old footprint could not see it. Both designers require the clear side, full post-fit containment,
+  and no node/label/insertion-control collision; Workflow physically moves the peer away and back and
+  requires right -> left -> right recomputation.
+- Hardened the focused oracle so visibility, layer ownership, accessibility, pointer behavior,
+  edge-below-node stacking, bounded full-title labels, collision/containment, unique DOM ids, and
+  independent mutation guards are binding. Normal motion requires one
+  exact two-second sweep plus real changed pixels while capsule/value/label stay fixed. Two independent
+  Loops prove distinct ids, values, labels, selection, and animation timelines, including reduced motion.
+- Executed all broad GUI checks. Canonical wrappers require exactly 128 Flow and 74 Workflow results,
+  complete reachability of the 16 named U-route-era compound assertions, normal child completion, and
+  zero unexpected failures before running the exact ordered 15/16-check focused suites. Those 16 broad
+  compound assertions may be non-binding because their visual predicates require removed direction
+  descendants; the focused suites independently replace their editing, persistence, history, access,
+  and visual intent.
+- Corrected repository authority that still called the rejected U-route current. The visual contract,
+  architecture, decisions, testing, commands, current state, known issues, task log, and this handoff now
+  agree on the capsule-and-ring design.
+- Fixed the repeated first-check Workflow harness race exposed by the definitive sequence. The Workflows
+  page surface mounted before its async table; the verifier now waits on the real navigation and visible
+  table instead of swallowing the click and sleeping 1.2 seconds. The failed run had one unexpected
+  `workflow table not found` result while focused capsule checks still passed 16/16; the canonical
+  regression rerun completed with zero unexpected failures.
+
+### Fresh Windows/Electron evidence
+
+- Canonical Flow Designer: all **128** broad checks observed; **16** obsolete U-route failures retired;
+  **0** unexpected failures; focused capsule checks **15/15**.
+- Canonical Workflow Builder: all **74** broad checks observed; **15** obsolete U-route failures retired
+  (one allowlisted assertion was already compatible); **0** unexpected failures; focused capsule checks
+  **16/16**. The separate legacy cross-node `loopBack` negative control remains green.
+- Configuration lifecycle is a real persisted round trip in both designers: default value, mode/value
+  edits, immediate visual update, save, app-backed reload/reopen, exact persisted value, reconfiguration,
+  configuration Undo/Redo, second save/reload, exact dotted/4px style, and exactly one structured
+  Conditional exit.
+- Interaction/geometry coverage includes owner and peer drag, fit, 25/100/200% zoom, selection isolation,
+  viewport pan, direct ring click, double-click, Enter, Space, focused Delete/Undo/Redo exact-state
+  restoration, and two independent Loops.
+- Fresh 1440x900 light/dark captures for both designers are under
+  `reports/loop-capsule-verification/2026-08-15/`. All four were opened beside
+  `reports/loop-connector-fix/flow-central-control.png`: the result reads as the approved compact,
+  attached, dominant concentric control with centered configured values and current accent contrast.
+  There is no whole-card U-route, detached tiny marker, bright path bars, or double-dash interference.
+
+### Fresh verification
+
+| Verification | State | Evidence / reason |
+|---|---|---|
+| `npm run build` | PASS | TypeScript and Electron/Vite bundles complete from current sources. |
+| `npm run verify:flow-designer` | PASS | 128 broad observed / 16 retired / 0 unexpected; focused 15/15. |
+| `npm run verify:workflow-builder` | PASS | 74 broad observed / 15 retired / 0 unexpected; focused 16/16. |
+| `npm run verify:runner` | PASS | 100 passed / 0 failed. |
+| `npm run verify:mock-site` | PASS | 145/145. |
+| `npm run verify:source-hygiene` | PASS | 9 passed / 0 failed. |
+| `npm run verify:verifier-classification` | PASS | 178 commands classified; 178 runnable files registered or justified. |
+| `npm run verify:roadmap-dashboard` | PASS | 157/157; Overview: `Sources agree`. |
+| `git diff --check` | PASS | No whitespace errors. |
+| `graphify update .` | PASS | 12,284 nodes / 25,532 edges / 618 communities. |
+| `node scripts/ai-memory/check-memory.mjs` | PASS | Repository AI-memory contract is current. |
+
+Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker finishes at
+**191 total / 186 closed / 5 outstanding / 104 edges**. `awkit-6cg` was explicitly reopened while the
+capsule defect was active, rewritten to the authoritative contract, then reclosed only after current
+evidence passed. Settings-only `awkit-4qs` remains separate, open, and unclaimed.
+
+### Do not lose
+
+- Keep `docs/ai/LOOP_VISUAL_CONTRACT.md` as the visual authority. The historical image is deliberately
+  augmented by its configured numeric value and mode label; do not use that augmentation to reauthorize
+  the later U-route.
+- Keep the dense 100-unit peer fixture and full-footprint fit/collision assertions. An open-space fixture
+  cannot detect the fixed production defect.
+- Keep structured self-Loops and legacy cross-node `loopBack` separate in rendering and runtime behavior.
+- Do not apply or drop the preserved stash blindly. Continue unrelated Windows settings work only under
+  its separate tracker scope.
+
+---
+
 ## HANDOFF (2026-08-14) - corrective Loop connector closeout complete
 
 ### Transfer

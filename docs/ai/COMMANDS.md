@@ -133,10 +133,13 @@ npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — lau
                             # drawer INSETS the canvas — engine right edge flush against the drawer's
                             # left edge, never covering nodes/connections (awkit-73s) — and wait for the
                             # drawer's actual open/resize animations to finish (`Animation.finished` +
-                            # geometry-stability polling) rather than a fixed delay. The current Loop
-                            # suite also covers shared return-path motion, interaction, persistence,
-                            # drag/zoom continuity, owning-card label clearance, reduced motion, and
-                            # multiple-Loop isolation. (128/128)
+                            # geometry-stability polling) rather than a fixed delay. Its canonical Loop
+                            # adapter requires all 128 preserved broad checks to run (only 16 exact obsolete
+                            # U-route-era compound assertions may be non-binding), then requires the exact
+                            # ordered 15-name focused capsule inventory covering
+                            # shared 160x20/40/30/44 geometry, dense collision/fit, sweep-only motion,
+                            # interaction, two persistence cycles, history, drag/zoom/pan, reduced motion,
+                            # bounded labels, and two-Loop isolation.
                             # Requires `npm run build` first; clears ELECTRON_RUN_AS_NODE internally.
 npm run verify:flow-library # tsx scripts/verify-flow-library-gui.mts — awkit-k2s defensive hardening.
                             # Unit-tests rescanTitle()'s reason priority (capability > permission >
@@ -163,11 +166,14 @@ npm run verify:workflow-builder # node scripts/verify-workflow-builder-gui.mjs �
                             # walkthrough for the Workflow Builder (.scenario-flow-node) canvas on the engine:
                             # engine cards/edges, kebab loop toggle, new Start→End scaffold, contextual
                             # Workflow Definition picker, default-edge + splices Start→flow→End, flow config
-                            # drawer, and leaf append +. Loop coverage includes create/edit/reopen/save/reload,
-                            # multiple-Loop isolation, reduced motion, stable drag/zoom animation identity,
-                            # owning-card label clearance,
-                            # and a focused cross-node legacy loopBack return-path assertion with an ordinary
-                            # edge negative control and hidden-base-path mutation. (74/74)
+                            # drawer, and leaf append +. Its canonical Loop adapter requires all 74 preserved
+                            # broad checks to run (only 16 exact obsolete U-route-era compound assertions may
+                            # be non-binding), then requires the exact ordered 16-name focused inventory for
+                            # create/edit/reopen/save/reload/history, two-Loop id/
+                            # configuration/animation isolation, reduced motion, 25/100/200% zoom, owner and
+                            # peer drag, pan, dense collision/fit, bounded label clearance, and access. The preserved broad
+                            # suite separately covers cross-node legacy loopBack with an ordinary-edge negative
+                            # control and hidden-base-path mutation.
 npm run verify:canvas-perf  # node scripts/verify-canvas-perf.mjs — real-Electron canvas render-count
                             # regression guard. Seeds a 40-node flow and asserts (via the opt-in
                             # renderProbe) that zoom + typing cause 0 node/card/edge re-renders, a node

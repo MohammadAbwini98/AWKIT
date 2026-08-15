@@ -1,21 +1,26 @@
 # FEATURES
 
-## Reference-style Loop connector, configured-value marker, and orbital motion (2026-08-13)
+## Restored Loop capsule-and-ring visual contract (2026-08-15)
 
-- Every structured Loop uses one continuous rounded return path around its real source card. The shared
-  canvas selects a collision-aware side, keeps the connector behind DOM nodes, and includes the complete
-  route/marker footprint when fitting the viewport.
-- A compact 48-unit outer ring is integrated directly on the route and displays only the existing
-  `LoopConnectorConfig.maxIterations` value. It is not a fake node and has no UI-only persistence model.
-- One bright 16% arc rotates around the stable marker on a 2-second linear transform-only cycle. The route
-  and configured number stay stationary; reduced motion retains both and freezes the highlighted arc.
-- The route and marker reuse the existing Loop connector selection/configuration surface for pointer,
-  double-click, Enter, and Space. **Configure loop** and **Remove loop** remain distinct node-menu actions.
-- Real-Electron coverage verifies exact 5 -> 10 live binding and reload, rounded path/marker attachment,
-  physical node drag, 25/100/200% zoom, authored path style, keyboard/pointer activation, static reduced
-  motion, decoded pixel motion, and unchanged non-self connector rendering in both editors.
-- Loop authoring, workflow-node identity, persistence/conversion, Conditional exits, Loop Back, validation,
-  and Flow/workflow runtime semantics remain unchanged.
+- Every structured Loop uses one compact 160x20/r10 horizontal capsule attached to one side of its real
+  source card. The shared canvas chooses the least-obstructed side and uses the complete lane/ring/hit/label
+  footprint for collision scoring and fit bounds.
+- One dominant concentric control is centered halfway along the capsule: 40-unit outer ring, 30-unit main
+  ring, and 44-unit interaction radius. It displays the existing
+  `LoopConnectorConfig.maxIterations` configuration value and has no fake node or UI-only persistence.
+- Exactly one circular sweep rotates around the main ring on a two-second linear transform-only cycle.
+  The capsule/path, rings, value, and external mode-aware label stay stationary; reduced motion freezes
+  only the visible sweep. The label is bounded to the 160-unit lane, ellipsizes long summaries, and keeps
+  its exact text in the title. Structured self-Loops have no full-card U-route, direction overlay, or arrow.
+- The ring reuses the existing Loop selection/configuration surface for pointer, double-click, Enter, and
+  Space. **Configure loop** and **Remove loop** remain distinct node-menu actions.
+- Real-Electron coverage verifies dense side selection and fit, configured-value/mode editing, two save/
+  reload cycles, physical owner/peer drag, 25/100/200% zoom, independent two-Loop ids/config/selection/
+  animation, canvas pan, reduced motion, decoded sweep pixels, exact Delete/Undo/Redo restoration,
+  keyboard/pointer access, and unchanged ordinary edges.
+- Loop authoring, workflow-node identity, persistence/conversion, Conditional exits, validation, and Flow/
+  workflow runtime semantics remain unchanged. Legacy cross-node `loopBack` remains a separate bounded
+  runtime model with its own directional return-path renderer.
 
 ## Complete Loop connector authoring (2026-08-11)
 

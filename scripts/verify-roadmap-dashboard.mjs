@@ -215,8 +215,8 @@ try {
   // Loop reconfiguration and directional motion `awkit-kwg` then filed and closed one issue:
   // total 188 to 189, closed 184 to 185; the same four owner-gated issues remain outstanding.
   // Corrective Loop closeout added `awkit-6cg` and split its unrelated settings retry into open
-  // `awkit-4qs`: total 189 to 191. Closing `awkit-6cg` moves closed 185 to 186 and leaves five
-  // outstanding (`awkit-4qs` plus the four owner-gated items); edges remain 104.
+  // `awkit-4qs`: total 189 to 191. The capsule-restoration verification explicitly reopened and
+  // reclosed `awkit-6cg`; final state is five outstanding and 186 closed, with 104 edges.
   check(
     "5 outstanding / 186 closed",
     beads.stats.outstanding === 5 && beads.stats.closed === 186,

@@ -1,6 +1,51 @@
 # CURRENT_STATE
 
-## Corrective Loop connector closeout - COMPLETE (2026-08-14)
+## Restored Loop capsule-and-ring contract - implementation verified (2026-08-15)
+
+Structured self-Loops in Flow Designer and Workflow Builder use the authoritative augmented
+`7282178` capsule-and-ring topology frozen in `LOOP_VISUAL_CONTRACT.md`: one 160x20/r10 side-attached
+capsule, 40/30/44 outer/main/hit radii, configured `maxIterations` centered in the ring, and one
+2-second linear circular sweep. The capsule/path, concentric rings, configured value, and mode-aware
+design label remain stationary. Long summaries are bounded to the 160-unit lane with ellipsis and an
+exact full-text title. Reduced motion freezes only the visible sweep. Structured self-Loops
+have no full-card U-route, direction-path overlay, or arrow; legacy cross-node `loopBack` remains a
+separate directional return connector and runtime model.
+
+`geometry.ts` now owns the shared capsule measurements and full collision/fit footprint. `LoopEdge`
+and `FlowCanvas` consume the same constants, so side selection and fit-to-screen can no longer model
+the superseded 36-unit U-route marker while rendering a 160-unit capsule. The footprint includes the
+lane, 44-unit hit target, ring, label band, and padding. A real dense fixture places a connected peer
+100 graph units from the owner—outside the obsolete footprint but inside the real capsule—and requires
+the opposite side, full canvas containment, no node/label/insert-control overlap, and sensible
+right -> left -> right recomputation when that peer is physically dragged away and back.
+
+The canonical GUI wrappers execute all 128 Flow and 74 Workflow broad checks. Sixteen exact named
+U-route-era compound assertions in each child may be non-binding; their functional intent is replaced
+independently in the focused suites. The adapter requires the historical check total and complete
+allow-list reachability, and rejects killed, signalled, truncated, status-2, or unexpected-failure
+children. Focused real-Electron coverage requires the exact ordered 15-name Flow and 16-name Workflow
+inventories and binds topology/visible layers/stacking, bounded labels, pointer/keyboard/double-click
+access, 25/100/200% zoom plus pan, owner/peer drag, exact dotted/4px style, two save/reload cycles,
+configuration and destructive Undo/Redo, Conditional-exit cardinality, two-Loop DOM/config/selection/
+animation isolation, pixel-visible sweep motion, and single-/multiple-Loop reduced motion.
+
+Fresh 1440x900 light/dark evidence is under
+`reports/loop-capsule-verification/2026-08-15/` for both designers. All four captures were opened and
+compared with `reports/loop-connector-fix/flow-central-control.png`: the dominant concentric control,
+compact attachment, configured value, label clearance, current accent colors, and absence of the
+rejected U-route/double animated path are visually confirmed. The focused Flow suite passes **15/15**
+and the focused Workflow suite passes **16/16** on the normal Windows checkout. The full canonical
+gate sequence and Program Status reconciliation are recorded in the newest `TASK_LOG.md` and handoff.
+No validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. `awkit-6cg` was
+reopened while the restored-capsule defects were active and reclosed after the canonical editors passed;
+the final tracker is **191 total / 186 closed / 5 outstanding / 104 edges**. The unrelated settings-only
+`awkit-4qs` remains open and unclaimed.
+Graphify was refreshed from this closeout source to **12,284 nodes / 25,532 edges / 618 communities**.
+
+The older corrective return-path sections below are retained only as implementation history and are
+superseded by `LOOP_VISUAL_CONTRACT.md` plus this current section.
+
+## SUPERSEDED: corrective U-route Loop connector closeout (2026-08-14)
 
 Flow Designer and Workflow Builder now share a compact rounded return-path presentation for
 structured self-Loops. New Loops use the existing authoritative count configuration
@@ -48,7 +93,7 @@ memory text, and Program Status reports **157/157 - Sources agree**. `awkit-6cg`
 settings retry remains open as `awkit-4qs`. Tracker: **191 total / 186 closed / 5 outstanding / 104 edges**.
 Validation ledger remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
 
-## Reference-style Loop return path and configured-value marker - COMPLETE (2026-08-13)
+## SUPERSEDED: reference-style U-route and configured-value marker (2026-08-13)
 
 Flow Designer and Workflow Builder now render every structured self-Loop through the same shared
 `LoopEdge` as one continuous rounded return path. It leaves the real card at bottom-center, wraps around
