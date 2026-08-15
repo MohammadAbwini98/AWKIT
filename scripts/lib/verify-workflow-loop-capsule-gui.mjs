@@ -213,7 +213,15 @@ export async function runWorkflowLoopCapsuleSuite(root) {
       JSON.stringify(persisted)
     );
 
-    await win.selectOption(WF_SELECT, "verify-workflow").catch(() => undefined);
+    await win.reload({ waitUntil: "domcontentloaded" });
+    await signInFirstRun(win);
+    await win.setViewportSize({ width: 1440, height: 900 });
+    if (!(await win.$(".scenario-flow-node"))) {
+      await win.locator('button.nav-item:has(span:text-is("Workflow Builder"))').click().catch(async () => {
+        await win.locator('button.nav-item[title="Workflow Builder"]').click();
+      });
+    }
+    await win.locator(WF_SELECT).waitFor({ state: "visible" });
     await win.selectOption(WF_SELECT, "verify-workflow-loop-capsule");
     await waitForLoop(win, nodeId);
     await waitForValue(win, nodeId, 12);
@@ -224,15 +232,16 @@ export async function runWorkflowLoopCapsuleSuite(root) {
       JSON.stringify(reloaded)
     );
 
+    const reloadedLoopMode = win.locator('.scenario-properties-panel label:has-text("Loop mode") select');
     const hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
     await hit.click();
-    await loopMode.waitFor({ state: "visible" });
-    check("Workflow dominant ring remains a direct configuration target", await loopMode.inputValue() === "whileCondition");
+    await reloadedLoopMode.waitFor({ state: "visible" });
+    check("Workflow dominant ring remains a direct configuration target", await reloadedLoopMode.inputValue() === "whileCondition");
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
     const group = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"][role="button"]`);
     await group.focus();
     await win.keyboard.press("Enter");
-    await loopMode.waitFor({ state: "visible" });
+    await reloadedLoopMode.waitFor({ state: "visible" });
     check("Workflow Loop configuration remains keyboard-accessible", (await group.getAttribute("aria-label"))?.includes("While · status = passed"));
 
     await app.close();
