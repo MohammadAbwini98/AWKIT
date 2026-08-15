@@ -110,9 +110,18 @@ manifest signing key id, final artifact size and final artifact SHA-256.
 ```bash
 npm run verify:workflow-sentinels # workflow Start/End persistence/runtime compatibility (20 checks)
 npm run verify:runner       # tsx scripts/verify-runner.mts — live runner checks vs the mock site
-npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 157 checks over the
+npm run verify:agent-routing # node scripts/verify-agent-routing.mjs — 119 checks over the
+                            # deterministic routing system in tools/agents: registry integrity, the
+                            # evidence vocabulary matching the ledger's own LEDGER_STATUSES, the glob
+                            # matcher (positive AND negative — an under-matching one would let a scope
+                            # escape read as "nothing touched"), routing determinism and mandatory
+                            # activation, EVERY contract rejection rule driven by a fixture that
+                            # violates it, the vacuity guards, and the write lease + amendment
+                            # rerouting run against temp files. Mutation-tested 8/8.
+                            # static-source-validation: never launches a browser or the app.
+npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs — 158 checks over the
                             # tools/roadmap dashboard: source readability, exact record counts
-                            # (191 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
+                            # (193 beads / 66 cases / 34 defects / 101 CSV rows / 11 phases), the
                             # FOUR-WAY ledger reconciliation (case file = its own rollup =
                             # CURRENT_STATE.md = HANDOFF.md — this is what catches doc drift),
                             # ordering invariants incl. a SYNTHETIC 2-cycle proving the cycle branch
@@ -120,6 +129,11 @@ npm run verify:roadmap-dashboard # node scripts/verify-roadmap-dashboard.mjs —
                             # a claims fixture, server routes (200/304/404/405), the offline rules,
                             # and the 19 global.css class names the page borrows.
                             # static-source-validation: never launches a browser or the app.
+                            # NOTE: adding or closing ANY bead moves the hardcoded
+                            # 193-total / 187-closed / 6-outstanding baselines here, and
+                            # `bd export -o .beads/issues.jsonl` must run first —
+                            # plain `bd export` writes to stdout. Restart `npm run roadmap` after
+                            # changing sources.mjs; the server caches the registry at import.
 npm run verify:mock-site    # node scripts/verify-mock-site.mjs — starts the local Feature Test Lab
                             # mock site and checks scenario URLs, delay behavior, and stable selectors
 npm run verify:flow-designer # node scripts/verify-flow-designer-gui.mjs — launches the REAL built Electron
@@ -572,6 +586,32 @@ graphify path "FlowProfile" "JsonProfileStore"   # shortest connectivity path (u
 > **NOT indexed:** all `.css` (incl. `global.css`), all `mock-site/*.html`, `.json` fixtures, and
 > `docs/ai/{CURRENT_STATE,HANDOFF,TASK_LOG}.md`. Markdown is structural only. Use `Grep` for those.
 > Contract, coverage accounting, exclusions, hooks and limits: `docs/ai/GRAPHIFY.md`.
+
+## Deterministic agent routing (developer/AI tool — never part of the app or its build)
+```bash
+npm run agent:lease         # show the active write lease, or state that none is held
+```
+```bash
+npm run agent:lease-grant -- --task awkit-xyz --holder frontend --paths "app/renderer/**"
+```
+```bash
+npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact discovered"
+```
+```bash
+npm run agent:lease-release -- --reason "handing off to qa"
+```
+```bash
+npm run agent:render-docs   # regenerate docs/ai/routing/ROUTING_MATRIX.md from the registry
+```
+> `tools/agents/routing-matrix.mjs` is the ONE source for agent ownership, activation and risk.
+> `ROUTING_MATRIX.md` is DERIVED — `verify:agent-routing` re-renders it and compares byte-for-byte,
+> so hand-editing it fails. Process guide: `docs/ai/routing/ROUTING_RULES.md`.
+> **`agent:lease-amend` re-runs routing.** If the added paths belong to another specialist the lease
+> is RELEASED rather than widened, and the CLI names who should hold the next one (exit code 3).
+> While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` hook on
+> `Edit|Write|NotebookEdit` and blocks out-of-scope writes. Two stated limits: no active lease means
+> edits are allowed (failing closed would block every task not yet using a contract), and `Bash`
+> writes bypass the hook — derived classification is the backstop for both.
 
 ## Notes
 - Bash tool note: this repo runs on Windows; prefer the npm scripts above. PowerShell is the shell

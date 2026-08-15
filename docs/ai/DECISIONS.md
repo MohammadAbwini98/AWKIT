@@ -1,5 +1,44 @@
 # DECISIONS
 
+### 2026-08-16 - Agent routing has one canonical registry, and platform agents will be derived from it
+
+- **Decision:** `tools/agents/routing-matrix.mjs` is the single encoding of agent ownership,
+  activation predicates and risk. `docs/ai/routing/ROUTING_MATRIX.md` is RENDERED from it and
+  compared byte-for-byte by `verify:agent-routing`.
+- **Reason:** the reviewed proposal stated its routing rules three times — as pseudocode, as a
+  markdown matrix, and as a validator rejection list — and the three had already drifted into
+  disagreement about when the Architect was mandatory, before anyone implemented them. Three
+  hand-maintained copies of one rule always end that way. This mirrors the Program Status dashboard's
+  own discipline: derive the fact, never hand-record it.
+- **Phase 5 rule (binding when it is implemented):** `.claude/agents/*.md`, Codex and Gemini adapters
+  must be **generated from or asserted against** this registry. They may never become a second source
+  of truth, and three independently maintained per-provider architectures are explicitly rejected.
+- **Registry format is `.mjs`, not YAML or TypeScript.** The repository has no YAML parser in
+  `dependencies` or `devDependencies`, and adding one would itself be a `new_dependency` change
+  routed to Architect and Release and reviewed against the offline boundary — a governance tool must
+  not open the boundary it exists to police. TypeScript would buy nothing: `tsc --noEmit` covers only
+  `app` and `src`, so a registry under `tools/` is not typechecked by the build. `.mjs` also lets the
+  `PreToolUse` lease guard import it directly, which matters because that hook runs on every edit.
+  Task contracts are JSON for the same reason. Precedent: `tools/roadmap/lib/sources.mjs`.
+
+### 2026-08-16 - The write lease is enforced, and scope expansion re-runs routing
+
+- **Decision:** while a lease is active, a `PreToolUse` hook on `Edit|Write|NotebookEdit` blocks
+  writes outside it. Scope grows only through `npm run agent:lease-amend`, which re-runs the
+  classifier and router; if the added paths are owned by another specialist the lease is **released
+  rather than widened** and the work moves to that specialist.
+- **Reason:** a lease that lives only in a document is a suggestion. And a lease that simply widens
+  on request lets one agent creep outward into the whole repository, which defeats the specialization
+  the system exists to provide. Rerouting is what makes specialization survive surprise.
+- **No environment-variable bypass.** An `AWKIT_SKIP_LEASE=1` escape would be one keystroke, invisible
+  in the repository afterwards, and would leave no trace that scope had grown. Emergency overrides
+  are recorded in the contract, narrowly scoped, and force QC; the verifier rejects one that sets
+  `qc_required: false` or whose forced QC never resolved.
+- **Two limits accepted and documented, not hidden:** with no active lease the hook allows the edit
+  (failing closed would block every task that does not yet use a contract), and `Bash` writes bypass
+  it entirely. Derived classification — computed from `git diff --name-only` after the fact — is the
+  backstop for both, which is the right place for a check that cannot be made precise up front.
+
 ### 2026-08-15 - Structured Loops use the frozen side capsule and one circular sweep
 
 - **Decision:** `LOOP_VISUAL_CONTRACT.md` is the visual authority. A structured self-edge renders one

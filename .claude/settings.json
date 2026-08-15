@@ -40,6 +40,15 @@
             "command": "graphify hook-guard read"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agents/lease-guard.mjs"
+          }
+        ]
       }
     ]
   }

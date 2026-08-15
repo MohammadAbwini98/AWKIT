@@ -1,5 +1,51 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-16) - deterministic multi-agent routing, Phases 0-4 complete
+
+### Transfer
+
+- **From:** Claude.
+- **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`; no branch or worktree was created.
+- **Tracker:** `awkit-a1u` CLOSED (Phases 0-4). `awkit-bk3` OPEN and unclaimed for the deferred
+  Phase 5. Tracker is **193 total / 187 closed / 6 outstanding**.
+- **Preserved stash:** `stash@{0}` (`codex-pre-revert-727248f-doc-overlap-20260814`) untouched.
+
+### Delivered
+
+- Reviewed the proposed routing architecture against the repository before implementing it. Five of
+  its concrete claims were wrong and three structural gaps would have let the system pass while doing
+  nothing. Findings and the corrected plan are recorded in `CURRENT_STATE.md` and `DECISIONS.md`.
+- `tools/agents/` implements Phases 0-4: one canonical registry, two-phase classification
+  (declared for routing, derived from the diff for measurement), a deterministic router, a contract
+  validator, and a `PreToolUse`-enforced write lease whose amendment re-runs routing.
+- `verify:agent-routing` **119/119**, mutation-tested **8/8**. Dashboard **158/158**, "Sources agree",
+  now **14 sources**. Validation ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
+### Do not lose
+
+- **`ROUTING_MATRIX.md` is DERIVED.** Hand-editing it fails `verify:agent-routing`. Change
+  `tools/agents/routing-matrix.mjs`, then `npm run agent:render-docs`.
+- **The lease guard is live** in `.claude/settings.json`. `docs/ai/contracts/active-lease.json` ships
+  with `status: "unassigned"`, which means no lease and unrestricted editing. The file must keep
+  existing — the dashboard registers it as a source and asserts every source is readable.
+- **Adding or closing any bead moves hardcoded baselines** in `scripts/verify-roadmap-dashboard.mjs`
+  (now 192 total / 6 outstanding), and `bd export -o .beads/issues.jsonl` must run first — plain
+  `bd export` writes to stdout.
+- **Restart `npm run roadmap` after editing `sources.mjs`**; the server caches the registry at import,
+  so a running dashboard will keep reporting the old source count.
+- **Phase 5 is bound by a recorded decision:** platform agent definitions must be generated from or
+  asserted against the registry, never become a second source of truth.
+
+### Known gaps
+
+- The lease guard allows edits when no lease is held, and `Bash` writes bypass it entirely. Both are
+  documented in `ROUTING_RULES.md`; derived classification is the backstop.
+- The routing system has been proven by its verifier and by end-to-end hook probes, but has not yet
+  governed a real multi-specialist task. That is the point of deferring Phase 5.
+
+---
+
 ## HANDOFF (2026-08-15) - restored Loop capsule-and-ring verification complete
 
 ### Transfer

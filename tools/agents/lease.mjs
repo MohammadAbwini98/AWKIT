@@ -1,0 +1,321 @@
+/**
+ * The write lease — one writer at a time, enforced rather than described.
+ *
+ * AWKIT develops directly on `main`, so "only one implementation agent may hold the repository write
+ * lease" is not a stylistic preference; it is the only thing standing between two concurrent
+ * specialists and a working tree neither of them can reason about. A lease that lives only in a
+ * document is a suggestion. This module makes it state, and `lease-guard.mjs` makes it a gate.
+ *
+ * Three levels of scope change, in descending order of preference:
+ *
+ *   1. Normal lease      granted from the routed writer sequence with the narrowest correct scope.
+ *   2. Lease amendment   the PREFERRED way to grow. Logged with a reason, and — critically — it
+ *                        RE-RUNS ROUTING. If the added paths flip a classification, the lease is
+ *                        released and the next one goes to the specialist who actually owns them.
+ *                        Permissions never creep outward from one agent's original grant.
+ *   3. Emergency override rare recovery only. Narrow, logged, and it forces QC review.
+ *
+ * The lease is mirrored into `tools/roadmap/assignments.json` rather than kept as a second truth.
+ * That file is already the only source the Program Status dashboard treats as authoritative for who
+ * is working on what, complete with a 24h expiry and struck-through rendering for stale claims.
+ * Duplicating it would recreate exactly the drift this architecture exists to prevent.
+ */
+
+import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { agent, pathInScope } from "./routing-matrix.mjs";
+import { deriveClassification, normalizeClassification } from "./classify.mjs";
+import { route } from "./route.mjs";
+
+/** tools/agents -> tools -> repo root */
+export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+
+/** The single active lease. One file, because there is one writer. */
+export const LEASE_PATH = join(REPO_ROOT, "docs", "ai", "contracts", "active-lease.json");
+
+/** The dashboard's claims file, mirrored — never duplicated. */
+export const ASSIGNMENTS_PATH = join(REPO_ROOT, "tools", "roadmap", "assignments.json");
+
+/**
+ * @typedef {Object} Lease
+ * @property {string} task
+ * @property {string} holder
+ * @property {"active"|"released"|"revoked"|"blocked"} status
+ * @property {string[]} allowed_paths
+ * @property {string} acquired_at
+ * @property {string} acquired_at_commit
+ * @property {Array<Object>} amendments
+ * @property {Array<Object>} overrides
+ */
+
+/**
+ * Read the active lease.
+ *
+ * The three outcomes are deliberately distinct. `null` means no lease exists, which is a normal
+ * state — ordinary tasks that predate this system still have to work. A thrown error means the file
+ * exists but is unreadable, which the guard treats as a BLOCK rather than an allow: a corrupt lease
+ * is loud, actionable, and trivially fixed, whereas silently allowing on a parse error would let
+ * anyone defeat the gate by damaging one file.
+ *
+ * @param {string} [path]
+ * @returns {Lease|null}
+ */
+export function readLease(path = LEASE_PATH) {
+  let text;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `active-lease.json is not valid JSON (${err instanceof Error ? err.message : String(err)}). ` +
+        "Repair or delete it — a damaged lease is never treated as an absent one."
+    );
+  }
+
+  if (parsed?.status !== "active") return null;
+  if (typeof parsed.holder !== "string" || !Array.isArray(parsed.allowed_paths)) {
+    throw new Error("active-lease.json is missing holder or allowed_paths");
+  }
+
+  return parsed;
+}
+
+/**
+ * @param {Lease} lease
+ * @param {string} [path]
+ */
+export function writeLease(lease, path = LEASE_PATH) {
+  writeFileSync(path, `${JSON.stringify(lease, null, 2)}\n`, "utf8");
+}
+
+/** @returns {string} current HEAD, or "unknown" outside a git checkout. */
+function headCommit() {
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8"
+    }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * Convert any path the tooling might hand us — absolute, Windows-separated, or already relative —
+ * into a repo-relative POSIX path.
+ *
+ * @param {string} candidate
+ * @returns {string|null} null when the path lies outside the repository
+ */
+export function toRepoRelative(candidate) {
+  if (!candidate) return null;
+  const absolute = resolve(REPO_ROOT, candidate);
+  const rel = relative(REPO_ROOT, absolute).replace(/\\/g, "/");
+  if (rel === "" || rel.startsWith("../")) return null;
+  return rel;
+}
+
+/**
+ * Is this path writable under the given lease?
+ *
+ * @param {Lease} lease
+ * @param {string} repoRelativePath
+ * @returns {boolean}
+ */
+export function leaseAllows(lease, repoRelativePath) {
+  return pathInScope(repoRelativePath, lease.allowed_paths);
+}
+
+/**
+ * Grant a lease.
+ *
+ * `path` and `assignmentsPath` exist so the verifier can drive this against fixtures. Without them
+ * every lease assertion would have to mutate the repository's own lease file, which makes the tests
+ * destructive and — worse — makes them pass trivially whenever that file happens to be absent.
+ *
+ * @param {Object} params
+ * @param {string} params.task
+ * @param {string} params.holder
+ * @param {readonly string[]} params.allowedPaths
+ * @param {string} [params.path]
+ * @param {string} [params.assignmentsPath]
+ * @returns {Lease}
+ */
+export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH }) {
+  agent(holder); // throws on an unknown id rather than granting a lease to a typo
+
+  if (!Array.isArray(allowedPaths) || allowedPaths.length === 0) {
+    throw new Error("a lease with no allowed_paths grants nothing and blocks everything");
+  }
+
+  const existing = readLease(path);
+  if (existing) {
+    throw new Error(
+      `"${existing.holder}" already holds the lease for ${existing.task}. One writer at a time — ` +
+        "release it before granting another."
+    );
+  }
+
+  /** @type {Lease} */
+  const lease = {
+    task,
+    holder,
+    status: "active",
+    allowed_paths: [...allowedPaths].sort(),
+    acquired_at: new Date().toISOString(),
+    acquired_at_commit: headCommit(),
+    amendments: [],
+    overrides: []
+  };
+
+  writeLease(lease, path);
+  mirrorToAssignments(lease, assignmentsPath);
+  return lease;
+}
+
+/**
+ * Amend a lease — the preferred response to discovering the work is bigger than declared.
+ *
+ * The routing re-run is the whole point. Adding `src/storage/**` to a `frontend` lease does not
+ * simply widen frontend's permissions; it makes the change a persistence change, which makes the
+ * Persistence specialist mandatory. In that case this returns `reroute`, the current lease is
+ * released, and the next lease belongs to someone else. Specialization survives contact with
+ * surprise.
+ *
+ * @param {Object} params
+ * @param {readonly string[]} params.addPaths
+ * @param {string} params.reason
+ * @param {string} [params.path]
+ * @param {string} [params.assignmentsPath]
+ * @returns {{outcome: "extended"|"reroute", lease: Lease, requiredAgents: string[], addedFlags: string[]}}
+ */
+export function amendLease({ addPaths, reason, path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH }) {
+  if (!reason || reason.trim().length === 0) {
+    throw new Error("an amendment without a reason is an undocumented scope expansion");
+  }
+
+  const lease = readLease(path);
+  if (!lease) throw new Error("no active lease to amend");
+
+  const added = [...addPaths];
+  const derived = deriveClassification(added);
+
+  // Re-run routing over what the widened scope actually implies.
+  const { classification } = normalizeClassification({});
+  for (const flag of derived.flags) classification[flag] = true;
+  classification.cross_layer_count = Math.max(1, derived.crossLayerCount);
+  const routing = route(classification, { expectedPaths: added });
+
+  const owned = agent(lease.holder).ownsPaths;
+  const outsideOwnership = added.filter((path) => !pathInScope(path, owned));
+
+  const amendment = {
+    timestamp: new Date().toISOString(),
+    added,
+    reason,
+    triggered_escalation: routing.activated.filter((id) => id !== "manager" && id !== lease.holder),
+    approved_by: "manager"
+  };
+
+  lease.amendments.push(amendment);
+
+  if (outsideOwnership.length > 0) {
+    // The added paths belong to someone else. Release rather than widen.
+    lease.status = "released";
+    lease.released_at = new Date().toISOString();
+    lease.released_reason =
+      `amendment added paths outside ${lease.holder}'s ownership (${outsideOwnership.join(", ")}) — ` +
+      "routing re-run requires a different specialist";
+    writeLease(lease, path);
+    clearAssignment(lease.task, assignmentsPath);
+
+    return {
+      outcome: "reroute",
+      lease,
+      requiredAgents: routing.writerSequence,
+      addedFlags: derived.flags
+    };
+  }
+
+  lease.allowed_paths = [...new Set([...lease.allowed_paths, ...added])].sort();
+  writeLease(lease, path);
+  mirrorToAssignments(lease, assignmentsPath);
+
+  return { outcome: "extended", lease, requiredAgents: [], addedFlags: derived.flags };
+}
+
+/**
+ * Release the lease so the next writer in the sequence can take it.
+ * @param {string} [reason]
+ * @param {string} [path]
+ * @param {string} [assignmentsPath]
+ * @returns {Lease|null}
+ */
+export function releaseLease(reason = "work complete", path = LEASE_PATH, assignmentsPath = ASSIGNMENTS_PATH) {
+  const lease = readLease(path);
+  if (!lease) return null;
+
+  lease.status = "released";
+  lease.released_at = new Date().toISOString();
+  lease.released_reason = reason;
+  writeLease(lease, path);
+  clearAssignment(lease.task, assignmentsPath);
+  return lease;
+}
+
+/**
+ * Mirror the holder into the dashboard's claims file.
+ *
+ * Deliberately additive and tolerant: a failure to mirror must never prevent a lease from being
+ * granted. The lease is the enforcement mechanism; the claim is a display convenience.
+ *
+ * @param {Lease} lease
+ * @param {string} [assignmentsPath]
+ */
+export function mirrorToAssignments(lease, assignmentsPath = ASSIGNMENTS_PATH) {
+  try {
+    const raw = JSON.parse(readFileSync(assignmentsPath, "utf8"));
+    const claims = Array.isArray(raw.claims) ? raw.claims : [];
+    const itemId = `bead:${lease.task}`;
+
+    const next = claims.filter((claim) => claim?.itemId !== itemId);
+    next.push({
+      itemId,
+      agent: agent(lease.holder).role,
+      state: "in-progress",
+      claimedAt: lease.acquired_at,
+      note: `write lease: ${lease.allowed_paths.join(", ")}`
+    });
+
+    raw.claims = next;
+    writeFileSync(assignmentsPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+  } catch {
+    // Non-fatal by design — see the doc comment.
+  }
+}
+
+/**
+ * Remove a mirrored claim when its lease ends. A stale claim is worse than no claim.
+ * @param {string} task
+ * @param {string} [assignmentsPath]
+ */
+export function clearAssignment(task, assignmentsPath = ASSIGNMENTS_PATH) {
+  try {
+    const raw = JSON.parse(readFileSync(assignmentsPath, "utf8"));
+    raw.claims = (Array.isArray(raw.claims) ? raw.claims : []).filter(
+      (claim) => claim?.itemId !== `bead:${task}`
+    );
+    writeFileSync(assignmentsPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+  } catch {
+    // Non-fatal by design.
+  }
+}

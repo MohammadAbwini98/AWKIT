@@ -118,6 +118,17 @@ export const SOURCES = [
     role: "The verify:* / validate:* script inventory the classification registry is reconciled against."
   },
   {
+    id: "activeLease",
+    rel: "docs/ai/contracts/active-lease.json",
+    label: "Active write lease",
+    parsed: false,
+    role: "The single write lease held by the deterministic routing system, if any.",
+    skipReason:
+      "The holder is mirrored into assignments.json, which is already the only authoritative " +
+      "assignee source. Parsing it here would create a second answer to 'who is working on this' — " +
+      "the exact drift this registry exists to prevent. Listed so the blind spot is declared."
+  },
+  {
     id: "globalCss",
     rel: "app/renderer/styles/global.css",
     label: "Application stylesheet",

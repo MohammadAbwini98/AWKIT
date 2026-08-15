@@ -1,0 +1,556 @@
+/**
+ * verify:agent-routing — static source validation for the deterministic routing system.
+ *
+ * What regression makes this fail?
+ *   - the agent registry, path map, or activation rules become internally inconsistent (an unknown
+ *     agent id, a writer that owns nothing, a path domain with no owner);
+ *   - the evidence vocabulary drifts from the validation ledger's own LEDGER_STATUSES, recreating
+ *     the second-vocabulary problem this system exists to avoid;
+ *   - the glob matcher stops matching a path it must match, or starts matching one it must not —
+ *     the failure mode that would let a scope escape read as "no domain touched";
+ *   - routing stops being deterministic, or a mandatory specialist stops being mandatory;
+ *   - a contract rule stops FIRING: every rejection rule below is driven by a fixture that violates
+ *     it, so a rule that silently became unreachable fails here instead of passing forever;
+ *   - a vacuity guard is removed, so a completion gate could pass with nothing proven;
+ *   - the write lease stops blocking an out-of-scope path, or an amendment widens a lease into
+ *     another specialist's territory instead of rerouting;
+ *   - the rendered ROUTING_MATRIX.md disagrees with the registry it is generated from.
+ *
+ * Deliberately .mjs: tsconfig.scripts.json covers .mts only and verify-source-hygiene globs
+ * .ts/.mts/.tsx, so this file stays outside both — matching verify-roadmap-dashboard.mjs. It never
+ * launches a browser or the Electron app, which is why it is static-source-validation.
+ */
+
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { LEDGER_STATUSES } from "../tools/roadmap/lib/parse-ledger.mjs";
+import {
+  ACTIVATION_RULES,
+  AGENTS,
+  AGENT_IDS,
+  CLASSIFICATION_FLAGS,
+  EVIDENCE_STATUSES,
+  PATH_DOMAINS,
+  RISK_3_FLAGS,
+  WRITER_PRECEDENCE,
+  agent,
+  domainForPath,
+  matchGlob,
+  riskLevelFor
+} from "../tools/agents/routing-matrix.mjs";
+import {
+  MAPPED_OWNERS,
+  deriveClassification,
+  findScopeEscapes,
+  normalizeClassification
+} from "../tools/agents/classify.mjs";
+import { leaseScopeFor, route } from "../tools/agents/route.mjs";
+import { MATRIX_DOC_PATH, renderMatrix } from "../tools/agents/render-docs.mjs";
+import {
+  completionBlockers,
+  requireCardinality,
+  validateContract
+} from "../tools/agents/validate-contract.mjs";
+import {
+  amendLease,
+  grantLease,
+  leaseAllows,
+  readLease,
+  releaseLease
+} from "../tools/agents/lease.mjs";
+import { targetPathOf } from "../tools/agents/lease-guard.mjs";
+
+let passed = 0;
+let failed = 0;
+
+function check(label, condition, detail = "") {
+  if (condition) {
+    passed += 1;
+    console.log(`  OK ${label}`);
+  } else {
+    failed += 1;
+    console.error(`  FAIL ${label}${detail ? ` - ${detail}` : ""}`);
+  }
+}
+
+/** A contract that must be VALID. Every rejection fixture below is this, minimally damaged. */
+function validContract() {
+  return {
+    version: 1,
+    task: { id: "awkit-fixture", title: "Fixture", objective: "Prove the rules fire.", risk_level: 1 },
+    repository: { branch: "main", baseline_commit: "HEAD" },
+    classification: { renderer_visual_change: true, cross_layer_count: 1 },
+    routing: {
+      manager: "manager",
+      activated_agents: ["manager", "uiux", "frontend", "qa"],
+      expected_paths: ["app/renderer/components/Thing.tsx"],
+      writer: { agent_id: "frontend", allowed_paths: ["app/renderer/components/Thing.tsx"] },
+      reviewers: ["qa"]
+    },
+    acceptance: [{ id: "AC-001", description: "It looks right.", evidence_required: ["EV-001"] }],
+    evidence: [{ id: "EV-001", type: "build", command: "npm run build", required: true, result: "PASS" }],
+    git: { direct_main: true, force_push: false },
+    completion: { status: "pending", qa_status: "PASS", qc_status: "NOT_REQUIRED" }
+  };
+}
+
+/** Does validating `mutate(validContract())` produce a violation with this rule id? */
+function rejects(ruleId, mutate) {
+  const contract = validContract();
+  mutate(contract);
+  const { violations } = validateContract(contract);
+  return violations.some((v) => v.rule === ruleId);
+}
+
+const tempDirs = [];
+function tempFile(name, contents) {
+  const dir = mkdtempSync(join(tmpdir(), "awkit-routing-"));
+  tempDirs.push(dir);
+  const path = join(dir, name);
+  writeFileSync(path, contents, "utf8");
+  return path;
+}
+
+try {
+  /* ======================================================================
+     1. Registry integrity
+     ====================================================================== */
+  console.log("Registry:");
+  check("11 agents are registered", AGENTS.length === 11, `got ${AGENTS.length}`);
+  check("agent ids are unique", new Set(AGENT_IDS).size === AGENT_IDS.length);
+  check(
+    "every agent states a mandate",
+    AGENTS.every((a) => typeof a.mandate === "string" && a.mandate.length > 20)
+  );
+  check(
+    "every writer-mode agent owns at least one path",
+    AGENTS.filter((a) => a.defaultMode === "writer").every((a) => a.ownsPaths.length > 0)
+  );
+  check(
+    "read-only agents own no product code",
+    AGENTS.filter((a) => a.defaultMode === "read-only").every((a) =>
+      a.ownsPaths.every((p) => p.startsWith("docs/"))
+    )
+  );
+  check(
+    "every activation rule targets a known agent",
+    ACTIVATION_RULES.every((r) => AGENT_IDS.includes(r.agent))
+  );
+  check(
+    "every activation rule cites only known flags",
+    ACTIVATION_RULES.every((r) => r.anyFlag.every((f) => CLASSIFICATION_FLAGS.includes(f)))
+  );
+  check(
+    "every path domain has a known owner",
+    PATH_DOMAINS.every((d) => AGENT_IDS.includes(d.owner))
+  );
+  check(
+    "every implied flag is a known flag",
+    PATH_DOMAINS.every((d) => d.impliesFlags.every((f) => CLASSIFICATION_FLAGS.includes(f)))
+  );
+  check(
+    "writer precedence covers every writer-mode agent",
+    AGENTS.filter((a) => a.defaultMode === "writer").every((a) => WRITER_PRECEDENCE.includes(a.id))
+  );
+  check("path map is non-empty", PATH_DOMAINS.length >= 20, `got ${PATH_DOMAINS.length}`);
+  check(
+    "every owned path is reachable through the path map",
+    MAPPED_OWNERS.length >= 6,
+    `mapped owners: ${MAPPED_OWNERS.join(", ")}`
+  );
+
+  /* ======================================================================
+     2. Evidence vocabulary — one repository truth
+     ====================================================================== */
+  console.log("Evidence vocabulary:");
+  const ledger = [...LEDGER_STATUSES].sort();
+  const ours = [...EVIDENCE_STATUSES].sort();
+  check(
+    "evidence statuses equal the ledger's LEDGER_STATUSES exactly",
+    JSON.stringify(ledger) === JSON.stringify(ours),
+    `ledger=${ledger.join("|")} routing=${ours.join("|")}`
+  );
+  check("no underscored NOT_RUN variant exists", !EVIDENCE_STATUSES.includes("NOT_RUN"));
+  check("INCONCLUSIVE was not reintroduced", !EVIDENCE_STATUSES.includes("INCONCLUSIVE"));
+
+  /* ======================================================================
+     3. Glob matcher — positive AND negative, because a matcher that under-matches
+        would let a scope escape read as "nothing touched"
+     ====================================================================== */
+  console.log("Glob matcher:");
+  const globCases = [
+    ["app/renderer/**", "app/renderer/App.tsx", true],
+    ["app/renderer/**", "app/renderer/a/b/c.tsx", true],
+    ["app/renderer/**", "app/main/index.ts", false],
+    ["app/main/ipc/**", "app/main/ipc/execution.ipc.ts", true],
+    ["app/main/ipc/**", "app/main/window.ts", false],
+    ["scripts/verify-*", "scripts/verify-runner.mts", true],
+    ["scripts/verify-*", "scripts/validate-offline.mts", false],
+    ["scripts/verify-*", "scripts/lib/helper.ts", false],
+    ["package.json", "package.json", true],
+    ["package.json", "app/package.json", false],
+    ["src/orchestrator/**", "src/orchestrator/queue.ts", true],
+    ["src/orchestrator/**", "src/orchestration/queue.ts", false]
+  ];
+  for (const [glob, path, want] of globCases) {
+    check(`glob ${glob} ${want ? "matches" : "rejects"} ${path}`, matchGlob(glob, path) === want);
+  }
+  check(
+    "src/orchestration does not exist in the path map (it is src/orchestrator)",
+    !PATH_DOMAINS.some((d) => d.glob.startsWith("src/orchestration/"))
+  );
+
+  /* ======================================================================
+     4. Derived classification
+     ====================================================================== */
+  console.log("Derived classification:");
+  const derivedIpc = deriveClassification(["app/main/ipc/execution.ipc.ts"]);
+  check("ipc path implies ipc_change", derivedIpc.flags.includes("ipc_change"));
+  check("ipc path is owned by runtime", derivedIpc.domains.includes("runtime"));
+
+  const derivedMixed = deriveClassification([
+    "app/renderer/App.tsx",
+    "src/storage/store.ts",
+    "src/licensing/validate.ts"
+  ]);
+  check("three domains give cross_layer_count 3", derivedMixed.crossLayerCount === 3, `got ${derivedMixed.crossLayerCount}`);
+  check("licensing path implies licensing_change", derivedMixed.flags.includes("licensing_change"));
+  check(
+    "renderer path implies NO visual flag (not path-determinable)",
+    !derivedMixed.flags.includes("renderer_visual_change")
+  );
+
+  const unmapped = deriveClassification(["some/unknown/place.ts"]);
+  check("an unmapped path is reported, not silently owned", unmapped.unmappedFiles.length === 1);
+  check("an unmapped path yields no domain", unmapped.domains.length === 0);
+
+  const escapes = findScopeEscapes(
+    { renderer_visual_change: true },
+    deriveClassification(["src/storage/store.ts"]),
+    ["manager", "frontend"]
+  );
+  check("touching persistence under a frontend contract is a scope escape", escapes.length > 0);
+  check(
+    "the escape names the unactivated domain",
+    escapes.some((e) => e.kind === "domain" && e.subject === "persistence")
+  );
+  check(
+    "declaring MORE than touched is not an escape",
+    findScopeEscapes(
+      { renderer_visual_change: true, migration_required: true },
+      deriveClassification(["app/renderer/App.tsx"]),
+      ["manager", "frontend", "persistence"]
+    ).length === 0
+  );
+
+  const unknownFlag = normalizeClassification({ persistance_change: true });
+  check("a misspelled flag is rejected, not ignored", unknownFlag.errors.length === 1);
+  check("a valid flag normalizes cleanly", normalizeClassification({ ipc_change: true }).errors.length === 0);
+
+  /* ======================================================================
+     5. Risk and routing
+     ====================================================================== */
+  console.log("Risk and routing:");
+  check("licensing is Risk 3", riskLevelFor({ licensing_change: true }) === 3);
+  check("migration is Risk 3", riskLevelFor({ migration_required: true }) === 3);
+  check("ipc alone is Risk 2", riskLevelFor({ ipc_change: true }) === 2);
+  check(
+    "packaging alone is Risk 2, not 3 (the §15/§30 contradiction, resolved)",
+    riskLevelFor({ packaging_change: true }) === 2
+  );
+  check("packaging + signing is Risk 3", riskLevelFor({ packaging_change: true, signing_change: true }) === 3);
+  check("a visual-only change is Risk 1", riskLevelFor({ renderer_visual_change: true }) === 1);
+  check("documentation is Risk 0", riskLevelFor({}) === 0);
+  check("cross_layer_count 3 alone reaches Risk 2", riskLevelFor({ cross_layer_count: 3 }) === 2);
+  check(
+    "every Risk 3 flag really returns 3",
+    RISK_3_FLAGS.every((flag) => riskLevelFor({ [flag]: true }) === 3)
+  );
+
+  const a = route(normalizeClassification({ licensing_change: true }).classification);
+  const b = route(normalizeClassification({ licensing_change: true }).classification);
+  check("routing is deterministic for identical input", JSON.stringify(a) === JSON.stringify(b));
+  check("licensing activates security", a.activated.includes("security"));
+  check("licensing activates qc", a.activated.includes("qc"));
+  check("licensing activates architect", a.activated.includes("architect"));
+  check("manager is always activated", a.activated.includes("manager"));
+  check("every activation carries a stated trigger", a.rationale.every((r) => r.trigger.length > 0));
+
+  const migration = route(normalizeClassification({ migration_required: true }).classification);
+  check("migration activates persistence", migration.activated.includes("persistence"));
+
+  const packaging = route(normalizeClassification({ packaging_change: true }).classification);
+  check("packaging activates release", packaging.activated.includes("release"));
+
+  const wide = route(normalizeClassification({ cross_layer_count: 3 }).classification);
+  check("cross_layer_count 3 activates architect", wide.activated.includes("architect"));
+
+  const docs = route(normalizeClassification({}).classification);
+  check("a Risk 0 documentation task does not activate qc", !docs.activated.includes("qc"));
+  check("a Risk 0 documentation task does not activate qa", !docs.activated.includes("qa"));
+
+  const visual = route(normalizeClassification({ renderer_visual_change: true }).classification);
+  check("a visual change activates uiux", visual.activated.includes("uiux"));
+  check("a visual change activates qa", visual.activated.includes("qa"));
+  check("a visual change does NOT activate qc (Risk 1 fast path)", !visual.activated.includes("qc"));
+
+  const multi = route(
+    normalizeClassification({ persisted_shape_change: true, ipc_change: true }).classification
+  );
+  check(
+    "a multi-domain task yields an ordered writer sequence",
+    multi.writerSequence.length >= 2,
+    multi.writerSequence.join(" -> ")
+  );
+  check(
+    "persistence precedes runtime in the lease order",
+    multi.writerSequence.indexOf("persistence") < multi.writerSequence.indexOf("runtime")
+  );
+
+  const scope = leaseScopeFor("frontend", ["app/renderer/x.tsx", "src/storage/y.ts"]);
+  check("a lease scope keeps only what its holder owns", JSON.stringify(scope.allowed) === JSON.stringify(["app/renderer/x.tsx"]));
+  check("a lease scope forbids other agents' territory", scope.forbidden.includes("src/storage/**"));
+
+  /* ======================================================================
+     6. Contract validation — every rule proven to FIRE
+     ====================================================================== */
+  console.log("Contract rules (each driven by a violating fixture):");
+  check("the baseline fixture is VALID", validateContract(validContract()).ok,
+    JSON.stringify(validateContract(validContract()).violations));
+
+  check("rejects a contract with no manager", rejects("manager.absent", (c) => {
+    c.routing.activated_agents = c.routing.activated_agents.filter((x) => x !== "manager");
+  }));
+  check("rejects a missing mandatory specialist", rejects("activation.missing", (c) => {
+    c.classification.licensing_change = true;
+  }));
+  check("rejects more than one writer", rejects("writer.multiple", (c) => {
+    c.routing.writer = [{ agent_id: "frontend" }, { agent_id: "runtime" }];
+  }));
+  check("rejects a writer outside the routed sequence", rejects("writer.unrouted", (c) => {
+    c.routing.writer.agent_id = "release";
+  }));
+  check("rejects a writer with no allowed_paths", rejects("writer.no_paths", (c) => {
+    c.routing.writer.allowed_paths = [];
+  }));
+  check("rejects a lease exceeding its holder's ownership", rejects("writer.scope_exceeds_ownership", (c) => {
+    c.routing.writer.allowed_paths = ["src/licensing/**"];
+  }));
+  check("rejects understated risk", rejects("risk.understated", (c) => {
+    c.classification.licensing_change = true;
+    c.task.risk_level = 1;
+    c.routing.activated_agents = [...c.routing.activated_agents, "security", "qc", "architect"];
+  }));
+  check("rejects an empty required-evidence set", rejects("evidence.no_required", (c) => {
+    c.evidence = [{ id: "EV-001", type: "build", required: false, result: "PASS" }];
+  }));
+  check("rejects a foreign evidence status", rejects("evidence.status", (c) => {
+    c.evidence[0].result = "INCONCLUSIVE";
+  }));
+  check("rejects acceptance with no evidence link", rejects("acceptance.unproven", (c) => {
+    c.acceptance[0].evidence_required = [];
+  }));
+  check("rejects acceptance citing unknown evidence", rejects("acceptance.dangling", (c) => {
+    c.acceptance[0].evidence_required = ["EV-999"];
+  }));
+  check("rejects no acceptance criteria", rejects("acceptance.empty", (c) => {
+    c.acceptance = [];
+  }));
+  check("rejects direct_main false", rejects("git.direct_main", (c) => {
+    c.git.direct_main = false;
+  }));
+  check("rejects force_push", rejects("git.force_push", (c) => {
+    c.git.force_push = true;
+  }));
+  check("rejects an override with no reason", rejects("override.no_reason", (c) => {
+    c.write_lease = { overrides: [{ timestamp: "t", affected_paths: ["x"], qc_required: true }] };
+    c.completion.qc_status = "APPROVED";
+  }));
+  check("rejects an override that exempts itself from QC", rejects("override.no_qc", (c) => {
+    c.write_lease = { overrides: [{ timestamp: "t", reason: "r", affected_paths: ["x"], qc_required: false }] };
+  }));
+  check("rejects an override whose forced QC never resolved", rejects("override.qc_unresolved", (c) => {
+    c.write_lease = { overrides: [{ timestamp: "t", reason: "r", affected_paths: ["x"], qc_required: true }] };
+    c.completion.qc_status = "pending";
+  }));
+
+  /* ======================================================================
+     7. Vacuity guards
+     ====================================================================== */
+  console.log("Vacuity guards:");
+  check("requireCardinality flags an empty collection", requireCardinality([], 1, "x") !== null);
+  check("requireCardinality passes a populated one", requireCardinality([1], 1, "x") === null);
+
+  const allOptional = validContract();
+  allOptional.evidence = allOptional.evidence.map((e) => ({ ...e, required: false }));
+  const optionalBlockers = completionBlockers(allOptional);
+  check(
+    "a contract whose evidence is all optional CANNOT complete",
+    optionalBlockers.length > 0,
+    "this is the .every()-over-empty trap the reviewed proposal left open"
+  );
+
+  // The check above is NOT enough on its own, and mutation testing proved it: deleting the
+  // completion gate's own cardinality guard left it green, because `validateContract` independently
+  // rejects an empty required set and that one blocker satisfied "length > 0". The assertion was
+  // being met by a mechanism other than the one it names — so assert the gate's OWN blocker text.
+  check(
+    "the completion gate raises its own vacuity blocker (not merely inheriting the validator's)",
+    optionalBlockers.some((b) => b.includes("required evidence") && b.includes("vacuously")),
+    JSON.stringify(optionalBlockers)
+  );
+  check(
+    "both guards fire independently for an empty required set",
+    optionalBlockers.filter((b) => /required evidence|contract is invalid/.test(b)).length === 2,
+    `got ${optionalBlockers.length} blocker(s): ${JSON.stringify(optionalBlockers)}`
+  );
+
+  const blockedEvidence = validContract();
+  blockedEvidence.evidence[0].result = "BLOCKED";
+  check("BLOCKED evidence blocks completion", completionBlockers(blockedEvidence).length > 0);
+
+  const notRun = validContract();
+  notRun.evidence[0].result = "NOT RUN";
+  check("NOT RUN evidence blocks completion", completionBlockers(notRun).length > 0);
+
+  check("a fully proven contract has no blockers", completionBlockers(validContract()).length === 0,
+    JSON.stringify(completionBlockers(validContract())));
+
+  const escaped = validContract();
+  escaped.scope_escapes = [{ kind: "domain", subject: "persistence" }];
+  check("an unresolved scope escape blocks completion", completionBlockers(escaped).length > 0);
+
+  const qcPending = validContract();
+  qcPending.routing.reviewers = ["qa", "qc"];
+  qcPending.completion.qc_status = "pending";
+  check("pending QC blocks completion when QC is a reviewer", completionBlockers(qcPending).length > 0);
+
+  /* ======================================================================
+     8. Write lease — driven against fixtures, never the real lease file
+     ====================================================================== */
+  console.log("Write lease:");
+  const leasePath = tempFile("active-lease.json", "");
+  const assignPath = tempFile("assignments.json", JSON.stringify({ claims: [] }));
+  rmSync(leasePath, { force: true });
+
+  const granted = grantLease({
+    task: "awkit-fixture",
+    holder: "frontend",
+    allowedPaths: ["app/renderer/**"],
+    path: leasePath,
+    assignmentsPath: assignPath
+  });
+  check("a lease can be granted", granted.status === "active");
+  check("the lease allows an in-scope path", leaseAllows(granted, "app/renderer/App.tsx"));
+  check("the lease BLOCKS an out-of-scope path", !leaseAllows(granted, "src/runner/exec.ts"));
+  check("the lease blocks another specialist's territory", !leaseAllows(granted, "src/licensing/x.ts"));
+
+  check(
+    "the holder is mirrored into the claims file",
+    JSON.parse(readFileSync(assignPath, "utf8")).claims.length === 1
+  );
+
+  let doubleGrant = false;
+  try {
+    grantLease({ task: "other", holder: "runtime", allowedPaths: ["app/main/**"], path: leasePath, assignmentsPath: assignPath });
+  } catch {
+    doubleGrant = true;
+  }
+  check("a second concurrent lease is refused", doubleGrant);
+
+  let noReason = false;
+  try {
+    amendLease({ addPaths: ["app/renderer/other.tsx"], reason: "", path: leasePath, assignmentsPath: assignPath });
+  } catch {
+    noReason = true;
+  }
+  check("an amendment without a reason is refused", noReason);
+
+  const extended = amendLease({
+    addPaths: ["app/renderer/deep/Other.tsx"],
+    reason: "same domain",
+    path: leasePath,
+    assignmentsPath: assignPath
+  });
+  check("an in-domain amendment EXTENDS the lease", extended.outcome === "extended");
+
+  const rerouted = amendLease({
+    addPaths: ["src/storage/store.ts"],
+    reason: "persistence impact discovered",
+    path: leasePath,
+    assignmentsPath: assignPath
+  });
+  check("an out-of-domain amendment REROUTES instead of widening", rerouted.outcome === "reroute");
+  check("rerouting names the specialist who owns the new path", rerouted.requiredAgents.includes("persistence"));
+  check("rerouting releases the old lease", readLease(leasePath) === null);
+  check("rerouting records the amendment for audit", rerouted.lease.amendments.length === 2);
+  check(
+    "rerouting clears the stale claim",
+    JSON.parse(readFileSync(assignPath, "utf8")).claims.length === 0
+  );
+
+  const damaged = tempFile("damaged.json", "{ not json");
+  let damagedThrew = false;
+  try {
+    readLease(damaged);
+  } catch {
+    damagedThrew = true;
+  }
+  check("a damaged lease throws rather than reading as absent", damagedThrew);
+  check("an absent lease reads as null", readLease(join(tmpdir(), "awkit-no-such-lease.json")) === null);
+
+  check("the guard reads Edit payloads", targetPathOf({ tool_input: { file_path: "a.ts" } }) === "a.ts");
+  check("the guard reads NotebookEdit payloads", targetPathOf({ tool_input: { notebook_path: "b.ipynb" } }) === "b.ipynb");
+  check("the guard ignores payloads with no target", targetPathOf({ tool_input: {} }) === null);
+
+  /* ======================================================================
+     9. Rendered documentation agrees with the registry
+     ====================================================================== */
+  console.log("Rendered documentation:");
+  const matrixDoc = readFileSync(MATRIX_DOC_PATH, "utf8");
+  const freshlyRendered = renderMatrix();
+
+  // Byte-for-byte, not "contains every id". A containment check would still pass if someone hand-
+  // edited a routing decision in the table while leaving the names in place — which is exactly the
+  // drift that put the pseudocode, the table and the validator into disagreement in the first place.
+  check(
+    "the rendered matrix is byte-identical to the registry it derives from",
+    matrixDoc === freshlyRendered,
+    "run `node tools/agents/render-docs.mjs --write` — never hand-edit ROUTING_MATRIX.md"
+  );
+  check(
+    "every agent id appears in the rendered matrix",
+    AGENT_IDS.every((id) => matrixDoc.includes(`\`${id}\``)),
+    AGENT_IDS.filter((id) => !matrixDoc.includes(`\`${id}\``)).join(", ")
+  );
+  check(
+    "every classification flag appears in the rendered matrix",
+    CLASSIFICATION_FLAGS.every((flag) => matrixDoc.includes(flag)),
+    CLASSIFICATION_FLAGS.filter((f) => !matrixDoc.includes(f)).join(", ")
+  );
+  check("the rendered matrix declares itself derived", /derived|generated/i.test(matrixDoc));
+
+  const schema = JSON.parse(
+    readFileSync(new URL("../docs/ai/routing/TASK_CONTRACT.schema.json", import.meta.url), "utf8")
+  );
+  const schemaFlags = Object.keys(schema.properties?.classification?.properties ?? {}).filter(
+    (k) => k !== "cross_layer_count"
+  );
+  check(
+    "the contract schema lists exactly the registry's classification flags",
+    JSON.stringify([...schemaFlags].sort()) === JSON.stringify([...CLASSIFICATION_FLAGS].sort()),
+    `schema has ${schemaFlags.length}, registry has ${CLASSIFICATION_FLAGS.length}`
+  );
+  check(
+    "the schema's evidence enum equals the ledger vocabulary",
+    JSON.stringify([...(schema.$defs?.evidenceResult?.enum ?? [])].sort()) ===
+      JSON.stringify([...EVIDENCE_STATUSES, "pending"].sort())
+  );
+} finally {
+  for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
+}
+
+console.log(`\n${passed}/${passed + failed} agent routing checks passed`);
+if (failed > 0) process.exit(1);

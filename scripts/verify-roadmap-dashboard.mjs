@@ -57,7 +57,7 @@ try {
      1. Sources
      ====================================================================== */
   console.log("Sources:");
-  check("13 sources are registered", SOURCES.length === 13, `got ${SOURCES.length}`);
+  check("14 sources are registered", SOURCES.length === 14, `got ${SOURCES.length}`);
   for (const source of SOURCES) {
     const read = readSource(source.id);
     check(`${source.rel} is readable`, read.ok, read.error ?? "");
@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("191 issues parse", beads.stats.total === 191, `got ${beads.stats.total}`);
+  check("193 issues parse", beads.stats.total === 193, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -216,10 +216,12 @@ try {
   // total 188 to 189, closed 184 to 185; the same four owner-gated issues remain outstanding.
   // Corrective Loop closeout added `awkit-6cg` and split its unrelated settings retry into open
   // `awkit-4qs`: total 189 to 191. The capsule-restoration verification explicitly reopened and
-  // reclosed `awkit-6cg`; final state is five outstanding and 186 closed, with 104 edges.
+  // reclosed `awkit-6cg`; that left five outstanding and 186 closed, with 104 edges.
+  // Deterministic multi-agent routing filed and closed `awkit-a1u` (Phases 0-4) and filed `awkit-bk3`
+  // for the deferred Phase 5: total 191 to 193, closed 186 to 187, outstanding five to six.
   check(
-    "5 outstanding / 186 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 186,
+    "6 outstanding / 187 closed",
+    beads.stats.outstanding === 6 && beads.stats.closed === 187,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

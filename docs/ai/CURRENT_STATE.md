@@ -1,5 +1,55 @@
 # CURRENT_STATE
 
+## Deterministic multi-agent routing - Phases 0-4 implemented (2026-08-16)
+
+AWKIT now has an enforced, deterministic specialist-routing system under `tools/agents/`. A reviewed
+architecture proposal was checked against the repository first: five of its concrete claims were
+wrong (`src/orchestration` does not exist, `DEFECTS.md` is not at the root, its evidence vocabulary
+near-missed the ledger's, contracts were placed in a new `.ai/` rather than the existing
+`docs/ai/tasks|contracts`), and its central claim of determinism was a prediction rather than a
+measurement. Phases 0-4 implement the corrected design; Phase 5 (executable per-platform agent
+definitions) is deliberately deferred until the routing model is proven on real tasks.
+
+`tools/agents/routing-matrix.mjs` is the **single** encoding of agent ownership, activation
+predicates and risk. The proposal stated those rules in three places that already disagreed, so
+`docs/ai/routing/ROUTING_MATRIX.md` is now RENDERED from the registry and `verify:agent-routing`
+re-renders it and compares byte-for-byte. It is a `.mjs` module rather than YAML because the
+repository has no YAML parser and adding one would itself be a `new_dependency` change routed to
+Architect and Release — a governance tool must not open the boundary it polices. TypeScript would
+have bought nothing: `tsc --noEmit` covers only `app` and `src`, so a registry under `tools/` is not
+typechecked by the build.
+
+Classification is two-phase. `declared` drives routing before work starts; `derived` is computed
+from `git diff --name-only` through the path map afterwards, and a domain in `derived` that the
+contract never activated is a **scope escape** that blocks completion. Only soundly path-implied
+flags are derived — editing the renderer proves it changed, never that the change was visual.
+
+The write lease is enforced, not described. `tools/agents/lease-guard.mjs` runs as a `PreToolUse`
+hook on `Edit|Write|NotebookEdit` beside the existing graphify guards and blocks out-of-scope
+writes. Scope grows through `npm run agent:lease-amend`, which **re-runs routing**: adding
+`src/storage/**` to a `frontend` lease releases that lease rather than widening it and names
+Persistence as the next holder. There is no environment-variable bypass; emergency overrides are
+logged, narrowly scoped, and force QC. Two limits are documented rather than hidden: no active lease
+means edits are allowed, and `Bash` writes bypass the hook — derived classification is the backstop.
+
+`verify:agent-routing` passes **119/119** and was **mutation-tested 8/8**. That mutation round earned
+its keep: the completion gate's own vacuity guard could be deleted while the suite stayed green,
+because the assertion was being satisfied by the validator's independent rule rather than the guard
+it named. The check now asserts that guard's own blocker text. Registrations: the verifier is
+classified `static-source-validation` (179 commands now classified), and
+`docs/ai/contracts/active-lease.json` is registered in `tools/roadmap/lib/sources.mjs` as a declared
+blind spot (`parsed: false` — the holder is mirrored into `assignments.json`, already the only
+authoritative assignee source), taking the dashboard to **14 sources**.
+
+Verification: `npm run build` PASS; `verify:agent-routing` 119/119; `verify:roadmap-dashboard`
+158/158 with the Overview reading "Sources agree"; `verify:verifier-classification` 179 commands;
+`verify:source-hygiene` 9/9; `check-memory.mjs` PASS. The write-lease hook was additionally driven
+end-to-end with real payloads: in-scope allowed, out-of-scope blocked (relative and absolute),
+outside-repo allowed, damaged lease blocked. No validation-ledger case changed; it remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker is **193 total / 187 closed / 6 outstanding**:
+`awkit-a1u` was filed and closed for Phases 0-4, and `awkit-bk3` filed for the deferred Phase 5. The
+roadmap baselines were moved from 191/186/5 accordingly.
+
 ## Restored Loop capsule-and-ring contract - implementation verified (2026-08-15)
 
 Structured self-Loops in Flow Designer and Workflow Builder use the authoritative augmented

@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://awkit.local/schemas/TASK_CONTRACT.schema.json",
+  "title": "AWKIT task contract",
+  "description": "Contracts are JSON, not YAML. The repository has no YAML parser in dependencies or devDependencies, and adding one would itself be a new_dependency change routed to the Architect and Release specialists and reviewed against the offline boundary. A governance tool must not open the boundary it exists to police. This schema documents the shape; tools/agents/validate-contract.mjs is what ENFORCES it, and verify:agent-routing asserts the two agree on the classification flags and the evidence vocabulary.",
+  "type": "object",
+  "required": ["version", "task", "classification", "routing", "acceptance", "evidence", "git", "completion"],
+  "additionalProperties": true,
+  "properties": {
+    "version": { "const": 1 },
+
+    "task": {
+      "type": "object",
+      "required": ["id", "title", "objective", "risk_level"],
+      "properties": {
+        "id": { "type": "string", "description": "Beads issue id where possible, e.g. awkit-a1u." },
+        "title": { "type": "string" },
+        "objective": { "type": "string" },
+        "requested_by": { "type": "string" },
+        "risk_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "May be HIGHER than the computed level; never lower. Risk is raised by caution, not lowered by preference."
+        }
+      }
+    },
+
+    "repository": {
+      "type": "object",
+      "properties": {
+        "branch": { "const": "main" },
+        "baseline_commit": { "type": "string" },
+        "working_tree_expected": { "enum": ["clean", "preserved_changes"] }
+      }
+    },
+
+    "classification": {
+      "type": "object",
+      "description": "Declared before implementation; the only input allowed to drive routing. Unknown keys are REJECTED rather than ignored, so a misspelled flag cannot read as declared while routing as absent.",
+      "additionalProperties": false,
+      "properties": {
+        "renderer_visual_change": { "type": "boolean" },
+        "interaction_change": { "type": "boolean" },
+        "accessibility_change": { "type": "boolean" },
+        "electron_main_change": { "type": "boolean" },
+        "ipc_change": { "type": "boolean" },
+        "runner_change": { "type": "boolean" },
+        "execution_change": { "type": "boolean" },
+        "concurrency_change": { "type": "boolean" },
+        "persisted_shape_change": { "type": "boolean" },
+        "migration_required": { "type": "boolean" },
+        "filesystem_write_change": { "type": "boolean" },
+        "playwright_change": { "type": "boolean" },
+        "recorder_change": { "type": "boolean" },
+        "browser_behavior_change": { "type": "boolean" },
+        "mock_site_required": { "type": "boolean" },
+        "licensing_change": { "type": "boolean" },
+        "auth_change": { "type": "boolean" },
+        "authorization_change": { "type": "boolean" },
+        "secret_handling_change": { "type": "boolean" },
+        "protected_login_change": { "type": "boolean" },
+        "signing_change": { "type": "boolean" },
+        "packaging_change": { "type": "boolean" },
+        "offline_boundary_change": { "type": "boolean" },
+        "new_dependency": { "type": "boolean" },
+        "public_contract_change": { "type": "boolean" },
+        "cross_layer_count": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "routing": {
+      "type": "object",
+      "required": ["activated_agents", "reviewers"],
+      "properties": {
+        "manager": { "const": "manager" },
+        "activated_agents": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/agentId" }
+        },
+        "expected_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths the task expects to touch. Activates path-owning specialists and scopes the lease."
+        },
+        "consultants": { "type": "array", "items": { "$ref": "#/$defs/agentId" } },
+        "writer": {
+          "type": "object",
+          "description": "Exactly ONE writer. A multi-domain task is a SEQUENCE of leases, not a committee, so this names whoever holds the lease right now.",
+          "required": ["agent_id", "allowed_paths"],
+          "properties": {
+            "agent_id": { "$ref": "#/$defs/agentId" },
+            "allowed_paths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+            "forbidden_paths": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "reviewers": { "type": "array", "items": { "$ref": "#/$defs/agentId" } }
+      }
+    },
+
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "architecture": { "type": "array", "items": { "type": "string" } },
+        "security": { "type": "array", "items": { "type": "string" } },
+        "compatibility": { "type": "array", "items": { "type": "string" } },
+        "offline": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "evidence_required"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "evidence_required": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "Must cite evidence ids that exist. An acceptance criterion with no evidence is an assertion, not a proof."
+          }
+        }
+      }
+    },
+
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "description": "At least one item must carry required: true. A list where everything is optional makes the completion gate vacuous, because .every() over an empty filtered array is true.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "required", "result"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "enum": ["build", "verifier", "gui", "packaged", "migration", "security", "inspection"]
+          },
+          "command": { "type": ["string", "null"] },
+          "required": { "type": "boolean" },
+          "result": { "$ref": "#/$defs/evidenceResult" },
+          "artifact": { "type": ["string", "null"] }
+        }
+      }
+    },
+
+    "write_lease": {
+      "type": "object",
+      "description": "Mirrors docs/ai/contracts/active-lease.json. Amendments are the preferred scope expansion and re-run routing; overrides are exceptional and force QC.",
+      "properties": {
+        "holder": { "$ref": "#/$defs/agentId" },
+        "status": { "enum": ["unassigned", "active", "released", "revoked", "blocked"] },
+        "allowed_paths": { "type": "array", "items": { "type": "string" } },
+        "amendments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["timestamp", "added", "reason"],
+            "properties": {
+              "timestamp": { "type": "string" },
+              "added": { "type": "array", "items": { "type": "string" } },
+              "reason": { "type": "string" },
+              "triggered_escalation": { "type": "array", "items": { "$ref": "#/$defs/agentId" } },
+              "approved_by": { "type": "string" }
+            }
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["timestamp", "reason", "affected_paths", "qc_required"],
+            "properties": {
+              "timestamp": { "type": "string" },
+              "reason": { "type": "string" },
+              "requested_by": { "type": "string" },
+              "affected_paths": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "qc_required": {
+                "const": true,
+                "description": "Always true. An override that exempts itself from review is the abuse this field exists to prevent."
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "scope_escapes": {
+      "type": "array",
+      "description": "Populated from derive-classification when the diff touched a domain the contract never activated. Any unresolved entry blocks completion.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["domain", "flag", "unmapped"] },
+          "subject": { "type": "string" },
+          "detail": { "type": "string" },
+          "resolved": { "type": "boolean" }
+        }
+      }
+    },
+
+    "git": {
+      "type": "object",
+      "required": ["direct_main"],
+      "properties": {
+        "commit_policy": { "const": "coherent" },
+        "direct_main": { "const": true },
+        "force_push": { "const": false },
+        "destructive_reset": { "type": "boolean" }
+      }
+    },
+
+    "completion": {
+      "type": "object",
+      "required": ["status", "qa_status"],
+      "properties": {
+        "status": { "enum": ["pending", "implemented", "rejected", "blocked", "complete"] },
+        "qa_status": { "enum": ["pending", "PASS", "FAIL", "BLOCKED"] },
+        "qc_status": { "enum": ["pending", "APPROVED", "REJECTED", "NOT_REQUIRED"] }
+      }
+    }
+  },
+
+  "$defs": {
+    "agentId": {
+      "enum": [
+        "manager",
+        "architect",
+        "uiux",
+        "frontend",
+        "runtime",
+        "persistence",
+        "integration",
+        "security",
+        "qa",
+        "qc",
+        "release"
+      ]
+    },
+    "evidenceResult": {
+      "description": "The validation ledger's own vocabulary, copied rather than invented. An inconclusive check is NOT RUN with a reason; there is no INCONCLUSIVE state and no underscored NOT_RUN.",
+      "enum": ["pending", "PASS", "FAIL", "BLOCKED", "NOT RUN", "NOT APPLICABLE"]
+    }
+  }
+}

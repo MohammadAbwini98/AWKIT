@@ -4,6 +4,40 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Review and implement deterministic multi-agent routing (Phases 0-4)
+
+- **Task:** Review a proposed multi-agent routing/task-contract architecture, judge whether it was
+  sufficient, then implement the corrected Phases 0-4 (`awkit-a1u`).
+- **Review outcome:** design sound, specification insufficient. Five factual errors against the repo
+  (`src/orchestration` vs `src/orchestrator`; root `DEFECTS.md`; an evidence vocabulary that
+  near-missed `LEDGER_STATUSES` with `NOT_RUN`/`INCONCLUSIVE`; a new `.ai/` beside the existing
+  `docs/ai/tasks`; doc-only "agents"). Three structural gaps: determinism was a pre-implementation
+  prediction, routing was encoded three times with the copies already disagreeing, and the write
+  lease had no enforcement. Plus a vacuous completion gate and no dashboard visibility.
+- **Implementation:** `tools/agents/` — `routing-matrix.mjs` (single registry: 11 agents, path map,
+  activation, risk), `classify.mjs` (declared + derived-from-diff, scope escapes), `route.mjs`
+  (deterministic activation, sequential writer order), `validate-contract.mjs` (rejection rules +
+  `requireCardinality` before every `.every()`), `lease.mjs` / `lease-guard.mjs` / `lease-cli.mjs`
+  (PreToolUse-enforced lease, amend-reroutes, logged overrides), `render-docs.mjs`. Docs:
+  `docs/ai/routing/{ROUTING_MATRIX.md,ROUTING_RULES.md,TASK_CONTRACT.schema.json}` and
+  `docs/ai/contracts/`. Contracts are JSON, not YAML — no YAML parser exists and adding one would
+  itself be a `new_dependency` change.
+- **Tests run:** `npm run build` PASS; `verify:agent-routing` **119/119**; mutation harness **8/8
+  killed**; `verify:roadmap-dashboard` **158/158** ("Sources agree"); `verify:verifier-classification`
+  179 commands; `verify:source-hygiene` 9/9; `check-memory.mjs` PASS; write-lease hook driven
+  end-to-end with real payloads (in-scope allow, out-of-scope block relative + absolute, outside-repo
+  allow, damaged-lease block).
+- **Tests not run:** no runner/renderer/packaging code was touched, so `verify:runner`,
+  `verify:flow-designer`, `verify:workflow-builder` and `validate:offline` were not re-run.
+- **Notable:** the first mutation round found a real hole in this work — deleting the completion
+  gate's own cardinality guard left the suite green, because the assertion was satisfied by
+  `validateContract`'s independent rule instead of the guard it named. Fixed by asserting the gate's
+  own blocker text and that both guards fire.
+- **Result:** Phases 0-4 complete and enforced. Phase 5 (executable `.claude/agents/*.md` plus Codex
+  and Gemini adapters, generated from the registry) deliberately deferred.
+
+---
+
 ## 2026-08-15 - Codex - Restore and verify the Loop capsule-and-ring contract
 
 - **Task:** Continue from restored checkpoint `13dfc7a`, verify the authoritative augmented `7282178`

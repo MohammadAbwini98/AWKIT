@@ -234,6 +234,7 @@ export const VERIFIER_CLASSIFICATION: Record<string, VerifierClassification> = {
   "verify:oracle-offline-bundle": { class: "static-source-validation", why: "Audits Oracle offline-bundle integrity over fixtures (no packaged app run)." },
   "verify:oracle-packaging": { class: "static-source-validation", why: "Checks Oracle packaging + path-resolution config." },
   "verify:roadmap-dashboard": { class: "static-source-validation", why: "Parses the repo's roadmap/issue/ledger/traceability sources plus the tools/roadmap model and server; never launches a browser or the app." },
+  "verify:agent-routing": { class: "static-source-validation", why: "Exercises the tools/agents routing registry, classifier, contract validator and write lease in-process against fixtures — every rejection rule is driven by a contract that violates it, and the write lease runs against a temp file rather than the repository's own. Never launches a browser or the app." },
 
   // ── Packaged application (drives the built artifact or the offline dependency bundle) ─────────
   "verify:packaged-runtime": { class: "packaged-application", why: "Smoke of the packaged app runtime." },
