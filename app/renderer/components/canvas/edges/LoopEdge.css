@@ -1,0 +1,29 @@
+/*
+ * Structured self-loop motion for the approved capsule-and-ring control.
+ * Keep this animation on the circular sweep only: the capsule path, configured value, label,
+ * and hit target remain stationary. This intentionally does not affect cross-node loopBack edges,
+ * which continue to use the shared directional-path animation.
+ */
+.awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-sweep {
+  animation: awkit-loop-control-orbit var(--awkit-loop-orbit-duration, 2s) linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+@keyframes awkit-loop-control-orbit {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awkit-flow-edge[data-connector-kind="loop"] .awkit-loop-indicator-sweep {
+    animation: none !important;
+    transform: rotate(-32deg);
+    will-change: auto;
+  }
+}
