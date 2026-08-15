@@ -378,6 +378,91 @@ try {
     multi.writerSequence.indexOf("persistence") < multi.writerSequence.indexOf("runtime")
   );
 
+  /* ── writerSequence names only agents that will actually hold a lease (awkit-yeh) ──────────
+     Regression from the first real routed task: `filesystem_write_change` activated persistence,
+     which then LED the writer sequence for a task whose only file was runtime's. The narrowing must
+     drop it — and, more importantly, must never empty the sequence, because validate-contract
+     derives "changes product code" from its length and would otherwise stop requiring a writer. */
+  {
+    const cls = normalizeClassification({
+      electron_main_change: true,
+      filesystem_write_change: true
+    }).classification;
+
+    const unscoped = route(cls);
+    const scoped = route(cls, { expectedPaths: ["app/main/uiSettings.ts"] });
+
+    check(
+      "without declared paths, every activated writer stays in the sequence",
+      unscoped.writerSequence.includes("persistence") && unscoped.writerSequence.includes("runtime"),
+      unscoped.writerSequence.join(" -> ")
+    );
+    check(
+      "with a runtime-only path, persistence is dropped from the writer sequence",
+      !scoped.writerSequence.includes("persistence"),
+      scoped.writerSequence.join(" -> ")
+    );
+    check(
+      "the path owner remains the writer",
+      scoped.writerSequence.includes("runtime"),
+      scoped.writerSequence.join(" -> ")
+    );
+    check(
+      "the dropped writer is reclassified as a consultant, not discarded",
+      scoped.consultants.includes("persistence"),
+      `consultants=${scoped.consultants.join(", ")}`
+    );
+    check("narrowing is reported", scoped.writerSequenceNarrowed === true);
+    check("no narrowing is reported when no paths are declared", unscoped.writerSequenceNarrowed === false);
+
+    // The fail-open guard. Paths that no activated writer owns must NOT empty the sequence.
+    const unmapped = route(cls, { expectedPaths: ["some/unmapped/place.ts"] });
+    check(
+      "unmapped paths fall back to the full writer list rather than emptying it",
+      unmapped.writerSequence.length === unscoped.writerSequence.length,
+      unmapped.writerSequence.join(" -> ")
+    );
+    check("the fallback reports itself as un-narrowed", unmapped.writerSequenceNarrowed === false);
+
+    // And the consequence that actually matters: a contract for such a task still needs a writer.
+    const stillNeedsWriter = validContract();
+    stillNeedsWriter.classification = { electron_main_change: true, cross_layer_count: 1 };
+    stillNeedsWriter.routing.expected_paths = ["some/unmapped/place.ts"];
+    stillNeedsWriter.routing.activated_agents = ["manager", "runtime", "qa", "qc"];
+    stillNeedsWriter.routing.reviewers = ["qa", "qc"];
+    stillNeedsWriter.completion.qc_status = "APPROVED";
+    delete stillNeedsWriter.routing.writer;
+    check(
+      "a task with unmapped paths still fails without a writer (no fail-open)",
+      validateContract(stillNeedsWriter).violations.some((v) => v.rule === "writer.absent"),
+      JSON.stringify(validateContract(stillNeedsWriter).violations.map((v) => v.rule))
+    );
+
+    // The manager is writer-mode and activated on EVERY task, so before narrowing it sat in every
+    // writer sequence regardless of what the task touched. Ownership now governs it too.
+    check(
+      "the manager is not a writer for a task it owns no path in",
+      !scoped.writerSequence.includes("manager"),
+      scoped.writerSequence.join(" -> ")
+    );
+    check(
+      "a runtime-only task narrows to exactly one writer",
+      JSON.stringify(scoped.writerSequence) === JSON.stringify(["runtime"]),
+      scoped.writerSequence.join(" -> ")
+    );
+
+    // A documentation task genuinely IS the manager's to write, so it keeps the lease here.
+    const docsOnly = route(normalizeClassification({}).classification, {
+      expectedPaths: ["docs/ai/CURRENT_STATE.md"]
+    });
+    check(
+      "a documentation task routes the manager as its writer",
+      JSON.stringify(docsOnly.writerSequence) === JSON.stringify(["manager"]),
+      docsOnly.writerSequence.join(" -> ")
+    );
+    check("a Risk 0 documentation task activates no reviewer", docsOnly.reviewers.length === 0);
+  }
+
   const scope = leaseScopeFor("frontend", ["app/renderer/x.tsx", "src/storage/y.ts"]);
   check("a lease scope keeps only what its holder owns", JSON.stringify(scope.allowed) === JSON.stringify(["app/renderer/x.tsx"]));
   check("a lease scope forbids other agents' territory", scope.forbidden.includes("src/storage/**"));

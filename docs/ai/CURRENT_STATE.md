@@ -1,5 +1,30 @@
 # CURRENT_STATE
 
+## Router narrows writerSequence to actual path owners (2026-08-16)
+
+`awkit-yeh` closes the rough edge the first routed task exposed. `route()` built `writerSequence`
+from every activated writer-mode agent regardless of whether it owned any of the task's paths, so
+`filesystem_write_change` put persistence at the head of the lease order for a task whose only file
+was `app/main/uiSettings.ts` — runtime's. The manager, being writer-mode and activated on every
+task, sat in every sequence for the same reason.
+
+The sequence is now restricted to activated writers that own at least one expected path, and the
+dropped writer-mode agents are reclassified as **consultants**, which is what they actually were.
+The same task now routes `runtime` alone, with persistence as a consultant.
+
+**The fallback matters more than the narrowing.** `validate-contract.mjs` derives "does this task
+change product code?" from `writerSequence.length > 0`, so a narrowing that could empty the list
+would stop requiring a writer at all — failing OPEN on exactly the tasks whose paths are unmapped or
+mis-declared. When the intersection is empty, or no paths are declared, the full activated-writer
+list is used instead; both fallbacks err toward requiring more review, never less. A verifier check
+drives an unmapped-path contract through `validateContract` and requires `writer.absent` to still
+fire, and the mutation that removes the fallback is killed by it.
+
+`verify:agent-routing` is **228/228** and the fix is **mutation-tested 4/4** (narrowing removed,
+fallback removed, dropped writer discarded rather than reclassified, narrowing flag pinned false).
+Tracker: **194 total / 190 closed / 4 outstanding**, all four externally blocked and owner-gated. No
+validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Windows settings atomic replacement hardened, routed end to end (2026-08-16)
 
 `awkit-4qs` is closed, and it was the first task run through the deterministic routing system rather

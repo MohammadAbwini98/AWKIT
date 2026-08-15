@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("193 issues parse", beads.stats.total === 193, `got ${beads.stats.total}`);
+  check("194 issues parse", beads.stats.total === 194, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -222,10 +222,12 @@ try {
   // Phase 5 then landed and `awkit-bk3` closed: closed 187 to 188, outstanding six back to five,
   // total unchanged at 193. `awkit-4qs` (Windows settings atomic replacement retries) then closed as
   // the routing system's first real task: closed 188 to 189, outstanding five to four. All four
-  // remaining are externally blocked and owner-gated, so nothing is ready.
+  // remaining are externally blocked and owner-gated, so nothing is ready. `awkit-yeh` (router
+  // writerSequence narrowing) was then filed and closed in one session: total 193 to 194, closed
+  // 189 to 190, outstanding unchanged at four.
   check(
-    "4 outstanding / 189 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 189,
+    "4 outstanding / 190 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 190,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

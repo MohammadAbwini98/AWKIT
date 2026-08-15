@@ -24,8 +24,10 @@ import {
  * @typedef {Object} RoutingResult
  * @property {0|1|2|3} riskLevel
  * @property {string[]} activated        every agent id this task requires, sorted canonically
- * @property {string[]} writerSequence   writer-capable agents in lease order
- * @property {string[]} consultants      activated read-only/review agents
+ * @property {string[]} writerSequence   agents that will hold a lease, in lease order
+ * @property {boolean} writerSequenceNarrowed  true when the sequence was restricted to path owners;
+ *   false means it is the unnarrowed activated-writer list, used as the fail-closed fallback
+ * @property {string[]} consultants      activated agents that advise but hold no lease here
  * @property {string[]} reviewers        qa/qc subset that is active
  * @property {{agent: string, why: string, trigger: string}[]} rationale
  */
@@ -88,18 +90,51 @@ export function route(classification, { expectedPaths = [] } = {}) {
   }
 
   const activatedIds = canonicalOrder(activated);
-  const writerSequence = WRITER_PRECEDENCE.filter(
+
+  /* ── Who actually takes a lease ────────────────────────────────────────────────────────────
+     An agent can be activated by a FLAG while owning none of the task's paths. Running awkit-4qs
+     through this router produced exactly that: `filesystem_write_change` activated persistence,
+     which then led the writer sequence for a task whose only file was `app/main/uiSettings.ts` —
+     runtime's. Persistence had a real reason to be involved and nothing whatsoever to write.
+
+     So the sequence is narrowed to activated writers that own at least one expected path, and the
+     rest are reclassified as consultants, which is what they were.
+
+     The fallback matters more than the narrowing. `validate-contract.mjs` derives
+     "does this task change product code?" from `writerSequence.length > 0`, so a narrowing that
+     could empty the list would stop requiring a writer at all — the check would fail OPEN on
+     precisely the tasks where paths are unmapped or mis-declared. When the intersection is empty,
+     or when no paths were declared at all, the full activated-writer list is used instead. Both
+     fallbacks err toward requiring MORE review, never less. */
+  const activatedWriters = WRITER_PRECEDENCE.filter(
     (id) => activated.has(id) && agent(id).defaultMode === "writer"
   );
+  const owningWriters = activatedWriters.filter((id) =>
+    expectedPaths.some((path) => pathInScope(path, agent(id).ownsPaths))
+  );
+  const narrowed = expectedPaths.length > 0 && owningWriters.length > 0;
+  const writerSequence = narrowed ? owningWriters : activatedWriters;
+
   const consultants = activatedIds.filter((id) => {
+    if (id === "qc" || id === "manager") return false;
     const mode = agent(id).defaultMode;
-    return (mode === "read-only" || mode === "review") && id !== "qc";
+    if (mode === "read-only" || mode === "review") return true;
+    // A writer-mode agent activated for this task that owns none of its paths advises here.
+    return narrowed && !writerSequence.includes(id) && id !== "qa";
   });
   const reviewers = activatedIds.filter((id) => id === "qa" || id === "qc");
 
   rationale.sort((a, b) => AGENT_IDS.indexOf(a.agent) - AGENT_IDS.indexOf(b.agent));
 
-  return { riskLevel, activated: activatedIds, writerSequence, consultants, reviewers, rationale };
+  return {
+    riskLevel,
+    activated: activatedIds,
+    writerSequence,
+    writerSequenceNarrowed: narrowed,
+    consultants,
+    reviewers,
+    rationale
+  };
 }
 
 /**

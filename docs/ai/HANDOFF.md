@@ -30,9 +30,10 @@ All four outstanding items are externally blocked and owner-gated — `awkit-cm8
 
 ### Rough edges worth a look before the next routed task
 
-- `writerSequence` includes writer-mode agents activated purely by a flag even when they own none of
-  the task's paths (persistence led the sequence for a task with nothing for it to write). Harmless
-  but misleading; consider intersecting the sequence with the task's actual owned paths.
+- ~~`writerSequence` includes writer-mode agents that own none of the task's paths~~ — **FIXED**
+  (`awkit-yeh`). The sequence is now narrowed to path owners, with a fail-closed fallback because
+  `validate-contract` derives "changes product code" from its length. Do not remove that fallback
+  without changing the validator in the same edit; the comment in both files says so.
 - Adding a one-line npm script still requires a lease handoff to `release`, since `package.json`
   carries the dependency graph.
 - The lease guard allows edits when no lease is held, and `Bash` writes bypass it. Derived

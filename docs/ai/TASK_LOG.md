@@ -4,6 +4,31 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Router: narrow writerSequence to actual path owners (awkit-yeh)
+
+- **Task:** Fix the rough edge the first routed task exposed — `writerSequence` listed activated
+  writer-mode agents that owned none of the task's paths.
+- **Implementation:** `route()` now intersects activated writers with owners of `expected_paths`;
+  dropped writer-mode agents become consultants. Added `writerSequenceNarrowed` so callers can tell
+  a narrowed sequence from the fallback. The manager, writer-mode and activated on every task, is now
+  governed by ownership too.
+- **The real hazard was the fix, not the bug:** `validate-contract.mjs` derives `touchesProductCode`
+  from `writerSequence.length > 0`, so a naive narrowing would fail OPEN and stop requiring a writer
+  on tasks with unmapped or mis-declared paths. The sequence falls back to the full activated-writer
+  list whenever narrowing would empty it. A verifier check drives an unmapped-path contract through
+  `validateContract` and requires `writer.absent` to still fire.
+- **Tests run:** `verify:agent-routing` **228/228**, **mutation-tested 4/4** — including R2, which
+  removes the fail-closed fallback and is caught. `verify:roadmap-dashboard` 158/158;
+  `npm run build` PASS.
+- **Tests not run:** `verify:runner`, `verify:settings-persistence`, `validate:offline` — no product
+  code was touched; this is routing tooling only.
+- **Corrected mid-task:** the first version of the docs-task assertion was wrong, not the code — the
+  manager legitimately writes documentation, so a docs task routes `manager` as its writer rather
+  than having no writer at all.
+- **Result:** closed. Tracker 194 total / 190 closed / 4 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Harden Windows settings atomic replacement retries (awkit-4qs)
 
 - **Task:** First real task routed end to end through the deterministic routing system.

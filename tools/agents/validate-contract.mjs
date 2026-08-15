@@ -104,6 +104,12 @@ export function validateContract(contract) {
 
   // ── Writer ──────────────────────────────────────────────────────────────────────────────────
   const writer = contract.routing?.writer;
+
+  // "Does this task change product code?" is answered by the routed writer sequence. That is only
+  // sound because `route()` guarantees the sequence is non-empty whenever ANY writer-mode agent is
+  // activated — when narrowing to path owners would empty it, it falls back to the full list.
+  // If that fallback is ever removed, this line silently stops requiring a writer on exactly the
+  // tasks with mis-declared paths. Change both together or neither.
   const touchesProductCode = routing.writerSequence.length > 0;
 
   if (Array.isArray(writer)) {

@@ -1,16 +1,14 @@
 {
-  "task": "awkit-4qs",
-  "holder": "manager",
+  "task": "awkit-yeh",
+  "holder": "qa",
   "status": "released",
   "allowed_paths": [
-    ".beads/**",
-    "docs/ai/**",
-    "tools/agents/**"
+    "scripts/verify-agent-routing.mjs"
   ],
-  "acquired_at": "2026-08-15T21:53:00.798Z",
-  "acquired_at_commit": "587d192",
+  "acquired_at": "2026-08-15T22:07:24.863Z",
+  "acquired_at_commit": "a86c3fe",
   "amendments": [],
   "overrides": [],
-  "released_at": "2026-08-15T21:54:00.029Z",
+  "released_at": "2026-08-15T22:09:00.163Z",
   "released_reason": "task complete"
 }
