@@ -1,21 +1,18 @@
 {
-  "$comment": [
-    "The single active write lease. GENERATED — do not hand-edit; use `npm run agent:lease-*`.",
-    "",
-    "This file always exists. `status` other than \"active\" means no lease is held, which is the",
-    "normal state and leaves editing unrestricted. It is kept rather than deleted because the",
-    "Program Status dashboard registers it as a source and asserts every source is readable.",
-    "",
-    "Only one lease may be active at a time — AWKIT develops directly on main, so a second",
-    "concurrent writer has nothing to isolate it. Scope grows through `agent:lease-amend`, which",
-    "re-runs routing and hands the work to the owning specialist rather than widening this grant."
+  "task": "awkit-bk3",
+  "holder": "manager",
+  "status": "released",
+  "allowed_paths": [
+    ".claude/**",
+    ".codex/**",
+    ".gemini/**",
+    "docs/ai/**",
+    "tools/agents/**"
   ],
-  "task": null,
-  "holder": null,
-  "status": "unassigned",
-  "allowed_paths": [],
-  "acquired_at": null,
-  "acquired_at_commit": null,
+  "acquired_at": "2026-08-15T21:41:09.113Z",
+  "acquired_at_commit": "6efcecd",
   "amendments": [],
-  "overrides": []
+  "overrides": [],
+  "released_at": "2026-08-15T21:42:10.751Z",
+  "released_reason": "Phase 5 complete"
 }

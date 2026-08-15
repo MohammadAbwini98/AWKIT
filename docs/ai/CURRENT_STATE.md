@@ -1,5 +1,42 @@
 # CURRENT_STATE
 
+## Deterministic multi-agent routing - Phase 5 complete, model dogfooded (2026-08-16)
+
+Phase 5 generates executable platform agent definitions from the canonical registry, closing
+`awkit-bk3`. Eleven `.claude/agents/*.md` subagent definitions are rendered from
+`tools/agents/routing-matrix.mjs`, each with a tool grant derived from its mode - a `read-only`
+role receives no `Edit` or `Write` tool at all, so read-only is a property of the runtime rather
+than a promise in prose. Codex and Gemini have no per-role agent runtime in this repository, so each
+receives ONE generated adapter skill (`.{codex,gemini}/skills/agent-routing/SKILL.md`) carrying the
+same roster: generate where it executes, point where it does not. All 13 outputs are byte-compared
+by `verify:agent-routing`, so hand-editing any of them fails. The 12 pre-existing skills are
+reconciled to roles through `ROLE_SKILLS`, and the verifier asserts no skill is orphaned and no role
+cites one that is missing.
+
+**The routing model was dogfooded on this task, and it found three real defects in itself.** The
+registry carried two statements of ownership - `AGENTS[].ownsPaths`, which leases are checked
+against, and `PATH_DOMAINS[].owner`, which derived classification uses - and they had drifted:
+`tools/agents/**` was mapped to the Manager for classification while missing from the Manager's
+`ownsPaths` entirely, so amending a lease rerouted work to the specialist who already owned it.
+`app/preload.ts` and the Architect's two documents had the same disagreement. A new consistency
+check now proves the two lists agree in both directions; it found the `app/preload.ts` case
+immediately after being written. `.claude/**`, `.codex/**` and `.gemini/**` were unmapped
+altogether, so no specialist was answerable for agent configuration.
+
+Enforcement was also proven in the live runtime, not only against piped payloads: an edit to
+`docs/ai/CURRENT_STATE.md` while holding a `release` lease scoped to `package.json` was refused by
+the `PreToolUse` hook, and the amendment rerouted to the Manager rather than widening the release
+lease. Measured friction, reported rather than smoothed over: adding a one-line npm script requires
+a lease handoff to `release`, because `package.json` carries the dependency graph and is therefore
+release-owned. That checkpoint is deliberate, but it is a real cost on small changes.
+
+`verify:agent-routing` now passes **213/213** and is **mutation-tested 12/12**, including the four
+new Phase 5 mutations (ownership drift, hand-edited generated definition, a read-only role handed
+write tools, an orphaned skill). No validation-ledger case changed; it remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker finishes at **193 total / 188 closed / 5 outstanding**
+with `awkit-a1u` and `awkit-bk3` both closed; the five remaining are the pre-existing owner-gated
+items plus settings-only `awkit-4qs`.
+
 ## Deterministic multi-agent routing - Phases 0-4 implemented (2026-08-16)
 
 AWKIT now has an enforced, deterministic specialist-routing system under `tools/agents/`. A reviewed

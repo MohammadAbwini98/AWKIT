@@ -1,5 +1,49 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-16) - deterministic multi-agent routing, Phases 0-5 complete
+
+### Transfer
+
+- **From:** Claude. **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`; no branch or worktree created.
+- **Tracker:** `awkit-a1u` and `awkit-bk3` both CLOSED. Ledger unchanged at
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Preserved stash:** `stash@{0}` (`codex-pre-revert-727248f-doc-overlap-20260814`) untouched.
+
+### Delivered
+
+- Phase 5 generates 11 `.claude/agents/*.md` subagent definitions plus one adapter skill each for
+  Codex and Gemini, all rendered from `tools/agents/routing-matrix.mjs` and byte-compared by
+  `verify:agent-routing`. Tool grants are derived from mode, so a read-only role has no Edit/Write.
+- `ROLE_SKILLS` reconciles the 12 pre-existing skills to the 11 roles; the verifier proves no skill
+  is orphaned and no role cites a missing one.
+- Dogfooding found three real ownership-drift defects in the registry and one unmapped area
+  (`.claude/**`, `.codex/**`, `.gemini/**`). A bidirectional consistency check now prevents recurrence.
+- `verify:agent-routing` **213/213**, mutation-tested **12/12**.
+
+### Do not lose
+
+- **`.claude/agents/*.md`, both adapter SKILL.md files, and `ROUTING_MATRIX.md` are ALL GENERATED.**
+  Hand-editing any of them fails `verify:agent-routing`. Change the registry, then
+  `npm run agent:render-agents`.
+- **The registry has two ownership lists that must agree** — `AGENTS[].ownsPaths` (leases) and
+  `PATH_DOMAINS[].owner` (classification). Adding a path to one without the other is the defect that
+  dogfooding caught three times; the verifier now checks both directions.
+- The lease guard is live. `docs/ai/contracts/active-lease.json` with a non-`active` status means no
+  lease and unrestricted editing.
+
+### Known gaps and measured friction
+
+- Adding a one-line npm script requires a lease handoff to `release`, since `package.json` carries
+  the dependency graph. Deliberate checkpoint, real cost on small changes — worth revisiting if it
+  becomes a routine annoyance.
+- The guard still allows edits when no lease is held, and `Bash` writes bypass it. Derived
+  classification is the backstop; both are documented in `ROUTING_RULES.md`.
+- Codex and Gemini receive a roster adapter, not executable per-role agents, because neither has a
+  per-role runtime in this repository. Revisit if that changes.
+
+---
+
 ## HANDOFF (2026-08-16) - deterministic multi-agent routing, Phases 0-4 complete
 
 ### Transfer

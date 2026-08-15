@@ -601,8 +601,14 @@ npm run agent:lease-amend -- --add "src/storage/**" --reason "Persistence impact
 npm run agent:lease-release -- --reason "handing off to qa"
 ```
 ```bash
-npm run agent:render-docs   # regenerate docs/ai/routing/ROUTING_MATRIX.md from the registry
+npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 11 .claude/agents/*.md subagent
+                            # definitions, and the Codex + Gemini adapter skills
 ```
+> ALL of those are GENERATED from `tools/agents/routing-matrix.mjs` and byte-compared by
+> `verify:agent-routing` — hand-editing any of them fails. The registry holds TWO ownership lists
+> that must agree: `AGENTS[].ownsPaths` (what a lease is checked against) and `PATH_DOMAINS[].owner`
+> (what derived classification uses). Adding a path to one without the other is a real defect the
+> verifier now checks in both directions.
 > `tools/agents/routing-matrix.mjs` is the ONE source for agent ownership, activation and risk.
 > `ROUTING_MATRIX.md` is DERIVED — `verify:agent-routing` re-renders it and compares byte-for-byte,
 > so hand-editing it fails. Process guide: `docs/ai/routing/ROUTING_RULES.md`.

@@ -79,7 +79,14 @@ export const AGENTS = Object.freeze([
     id: "manager",
     role: "Manager / Orchestrator",
     defaultMode: "writer",
-    ownsPaths: ["docs/ai/**", "tools/roadmap/assignments.json", "docs/ai/contracts/**"],
+    ownsPaths: [
+      "docs/ai/**",
+      "tools/roadmap/**",
+      "tools/agents/**",
+      ".claude/**",
+      ".codex/**",
+      ".gemini/**"
+    ],
     agentsMd: "docs/AGENTS.md",
     mandate:
       "Classifies, routes, grants and revokes the write lease, and reconciles authoritative sources. " +
@@ -113,7 +120,13 @@ export const AGENTS = Object.freeze([
     id: "runtime",
     role: "Electron Main / Runner Engineer",
     defaultMode: "writer",
-    ownsPaths: ["app/main/**", "src/runner/**", "src/orchestrator/**", "src/instances/**"],
+    ownsPaths: [
+      "app/main/**",
+      "app/preload.ts",
+      "src/runner/**",
+      "src/orchestrator/**",
+      "src/instances/**"
+    ],
     agentsMd: "app/main/AGENTS.md",
     mandate: "Electron main, IPC implementation, runner, orchestration, execution and concurrency."
   },
@@ -188,6 +201,53 @@ export function agent(id) {
 }
 
 export const AGENT_IDS = Object.freeze(AGENTS.map((a) => a.id));
+
+/**
+ * Which existing skills each role should reach for.
+ *
+ * AWKIT already had twelve skills under `.claude/skills/` before this routing system existed, and
+ * several of them cover exactly what a role does — `test-and-verify` IS most of QA's job, `pr-review`
+ * IS most of QC's. Generating eleven role definitions beside twelve skills without saying how they
+ * relate would leave two overlapping accounts of the same work, which is the drift this whole system
+ * is built to prevent.
+ *
+ * So roles REFERENCE skills; they never restate them. `verify:agent-routing` asserts that every
+ * installed skill is claimed by at least one role, so a new skill cannot sit unowned and a deleted
+ * one cannot linger here.
+ *
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+export const ROLE_SKILLS = Object.freeze({
+  manager: ["ai-memory-maintainer", "docs-sync", "git-full-cycle"],
+  architect: ["codebase-review", "graphify"],
+  uiux: ["frontend-ui-ux-master"],
+  frontend: ["frontend-ui-ux-master", "feature-implementation", "bug-fix", "refactor-safe"],
+  runtime: ["feature-implementation", "bug-fix", "refactor-safe"],
+  persistence: ["refactor-safe", "bug-fix"],
+  integration: ["mock-site-maintainer", "bug-fix"],
+  security: ["pr-review", "codebase-review"],
+  qa: ["test-and-verify", "mock-site-maintainer"],
+  qc: ["pr-review", "codebase-review"],
+  release: ["test-and-verify"]
+});
+
+/**
+ * Tool grants for a generated platform agent definition, derived from the agent's mode.
+ *
+ * Derived rather than declared per agent, so "read-only" cannot become a label an agent wears while
+ * holding Edit. A read-only specialist that could write would be a consultant in name only.
+ *
+ * `security` is `review` by default but may own tightly scoped security modules, so it receives
+ * write tools; its restraint is a routing decision (it is rarely the writer), not a missing tool.
+ *
+ * @param {string} agentId
+ * @returns {string}
+ */
+export function toolsFor(agentId) {
+  const readOnly = "Read, Glob, Grep, Bash(git log:*), Bash(git diff:*), Bash(git status:*), Bash(npm run verify:*), Bash(graphify:*)";
+  if (agent(agentId).defaultMode === "read-only") return readOnly;
+  return `Read, Edit, Write, Glob, Grep, Bash(git *), Bash(npm run *), Bash(node *), Bash(graphify:*)`;
+}
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────────
  * Classification flags
@@ -420,8 +480,27 @@ export const PATH_DOMAINS = Object.freeze([
     impliesFlags: ["packaging_change", "new_dependency"],
     note: "The lockfile only moves when the dependency graph moves."
   },
+  {
+    glob: "electron-builder*",
+    owner: "release",
+    impliesFlags: ["packaging_change"],
+    note: "Installer and portable build configuration."
+  },
 
   // ── Governance ────────────────────────────────────────────────────────────────────────────────
+  // The Architect's two documents sit INSIDE docs/ai/**, so they must precede it — first match wins.
+  {
+    glob: "docs/ai/ARCHITECTURE.md",
+    owner: "architect",
+    impliesFlags: [],
+    note: "Module map and data/runtime flow."
+  },
+  {
+    glob: "docs/ai/DECISIONS.md",
+    owner: "architect",
+    impliesFlags: [],
+    note: "Recorded technical and product decisions."
+  },
   {
     glob: "docs/ai/**",
     owner: "manager",
@@ -439,6 +518,24 @@ export const PATH_DOMAINS = Object.freeze([
     owner: "manager",
     impliesFlags: [],
     note: "This routing system itself."
+  },
+  {
+    glob: ".claude/**",
+    owner: "manager",
+    impliesFlags: [],
+    note: "Claude Code agent/skill/hook configuration. Generated role definitions live here."
+  },
+  {
+    glob: ".codex/**",
+    owner: "manager",
+    impliesFlags: [],
+    note: "Codex configuration and skills."
+  },
+  {
+    glob: ".gemini/**",
+    owner: "manager",
+    impliesFlags: [],
+    note: "Gemini / Antigravity configuration and skills."
   }
 ]);
 

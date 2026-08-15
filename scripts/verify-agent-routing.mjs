@@ -21,7 +21,7 @@
  * launches a browser or the Electron app, which is why it is static-source-validation.
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -34,11 +34,14 @@ import {
   EVIDENCE_STATUSES,
   PATH_DOMAINS,
   RISK_3_FLAGS,
+  ROLE_SKILLS,
   WRITER_PRECEDENCE,
   agent,
   domainForPath,
   matchGlob,
-  riskLevelFor
+  pathInScope,
+  riskLevelFor,
+  toolsFor
 } from "../tools/agents/routing-matrix.mjs";
 import {
   MAPPED_OWNERS,
@@ -48,6 +51,7 @@ import {
 } from "../tools/agents/classify.mjs";
 import { leaseScopeFor, route } from "../tools/agents/route.mjs";
 import { MATRIX_DOC_PATH, renderMatrix } from "../tools/agents/render-docs.mjs";
+import { allGeneratedFiles } from "../tools/agents/render-platform-agents.mjs";
 import {
   completionBlockers,
   requireCardinality,
@@ -159,6 +163,71 @@ try {
     "every owned path is reachable through the path map",
     MAPPED_OWNERS.length >= 6,
     `mapped owners: ${MAPPED_OWNERS.join(", ")}`
+  );
+
+  /* ── The two ownership lists must agree ──────────────────────────────────────────────────────
+     AGENTS[].ownsPaths is what a LEASE is checked against; PATH_DOMAINS[].owner is what DERIVED
+     CLASSIFICATION uses. They are two statements of the same fact, and dogfooding this system on
+     its own Phase 5 immediately proved they can drift: `tools/agents/**` was mapped to the manager
+     for classification while missing from the manager's ownsPaths entirely, so a lease amendment
+     rerouted work to the specialist who already owned it. These checks make that disagreement
+     impossible to reintroduce quietly. */
+  const probe = (glob) => glob.replace(/\*\*/g, "__probe__").replace(/\*/g, "__probe__");
+
+  for (const a of AGENTS) {
+    for (const owned of a.ownsPaths) {
+      const resolved = domainForPath(probe(owned));
+      check(
+        `ownsPaths "${owned}" resolves to ${a.id} in the path map`,
+        resolved?.owner === a.id,
+        `resolved to ${resolved?.owner ?? "NOTHING"}`
+      );
+    }
+  }
+
+  for (const d of PATH_DOMAINS) {
+    const owned = agent(d.owner).ownsPaths;
+    check(
+      `path domain "${d.glob}" is inside ${d.owner}'s ownsPaths`,
+      pathInScope(probe(d.glob), owned),
+      `${d.owner} owns [${owned.join(", ")}]`
+    );
+  }
+
+  /* ── Roles reference existing skills, and no skill is orphaned ───────────────────────────── */
+  const installedSkills = readdirSync(new URL("../.claude/skills", import.meta.url), {
+    withFileTypes: true
+  })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+
+  check("skills are installed to reconcile against", installedSkills.length >= 10, `${installedSkills.length}`);
+  check(
+    "every role's skills exist on disk",
+    Object.values(ROLE_SKILLS).every((list) => list.every((s) => installedSkills.includes(s))),
+    Object.entries(ROLE_SKILLS)
+      .flatMap(([role, list]) => list.filter((s) => !installedSkills.includes(s)).map((s) => `${role}:${s}`))
+      .join(", ")
+  );
+  check(
+    "every ROLE_SKILLS key is a known agent",
+    Object.keys(ROLE_SKILLS).every((id) => AGENT_IDS.includes(id))
+  );
+  check(
+    "every installed skill is claimed by at least one role",
+    installedSkills.every((s) => Object.values(ROLE_SKILLS).some((list) => list.includes(s))),
+    installedSkills.filter((s) => !Object.values(ROLE_SKILLS).some((l) => l.includes(s))).join(", ")
+  );
+  check(
+    "read-only agents receive no write tools",
+    AGENTS.filter((a) => a.defaultMode === "read-only").every(
+      (a) => !/\bEdit\b|\bWrite\b/.test(toolsFor(a.id))
+    )
+  );
+  check(
+    "writer agents receive write tools",
+    AGENTS.filter((a) => a.defaultMode === "writer").every((a) => /\bEdit\b/.test(toolsFor(a.id)))
   );
 
   /* ======================================================================
@@ -548,6 +617,42 @@ try {
     JSON.stringify([...(schema.$defs?.evidenceResult?.enum ?? [])].sort()) ===
       JSON.stringify([...EVIDENCE_STATUSES, "pending"].sort())
   );
+
+  /* ======================================================================
+     10. Generated platform agent definitions
+     ====================================================================== */
+  console.log("Generated platform definitions:");
+  const generated = allGeneratedFiles();
+  check(
+    "one definition per agent, plus the two adapters",
+    generated.length === AGENTS.length + 2,
+    `got ${generated.length}`
+  );
+
+  for (const file of generated) {
+    const rel = file.path.replace(/\\/g, "/").split("/").slice(-3).join("/");
+    let onDisk = null;
+    try {
+      onDisk = readFileSync(file.path, "utf8");
+    } catch {
+      /* missing */
+    }
+    check(
+      `${rel} is byte-identical to the registry it derives from`,
+      onDisk === file.content,
+      onDisk === null ? "file missing — run `npm run agent:render-agents`" : "drifted from the registry"
+    );
+  }
+
+  // A read-only role must not be handed write tools by the GENERATOR either, not merely by the
+  // registry — the frontmatter is what the runtime actually reads.
+  for (const a of AGENTS.filter((x) => x.defaultMode === "read-only")) {
+    const def = generated.find((f) => f.path.endsWith(`${a.id}.md`));
+    check(
+      `the generated ${a.id} definition grants no Edit/Write`,
+      def !== undefined && !/^tools:.*\b(Edit|Write)\b/m.test(def.content)
+    );
+  }
 } finally {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }

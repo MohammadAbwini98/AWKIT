@@ -4,6 +4,35 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Phase 5: generated platform agent definitions, model dogfooded
+
+- **Task:** Generate executable per-platform agent definitions from the canonical routing registry
+  and reconcile the existing skills against the 11 roles (`awkit-bk3`).
+- **Implementation:** `tools/agents/render-platform-agents.mjs` emits 11 `.claude/agents/*.md`
+  subagent definitions (tool grants derived from mode, so a read-only role gets no Edit/Write) plus
+  one adapter skill each for Codex and Gemini, which have no per-role agent runtime here. Added
+  `ROLE_SKILLS` reconciling the 12 installed skills to roles; added `.claude/**`, `.codex/**` and
+  `.gemini/**` to the path map.
+- **Defects found by dogfooding the system on its own task:** the registry held two ownership lists
+  (`AGENTS[].ownsPaths` for leases, `PATH_DOMAINS[].owner` for classification) that had drifted in
+  three places - `tools/agents/**` and `app/preload.ts` missing from their owners' `ownsPaths`, and
+  the Architect's two documents resolving to the Manager. A lease amendment consequently rerouted
+  work to the specialist that already owned it. Added a bidirectional consistency check, which
+  caught the `app/preload.ts` case the moment it was written.
+- **Enforcement proven live:** an Edit to `docs/ai/CURRENT_STATE.md` under a `release` lease scoped
+  to `package.json` was refused by the PreToolUse hook in the real runtime; the amendment rerouted to
+  `manager` rather than widening the lease.
+- **Tests run:** `verify:agent-routing` **213/213**; mutation harness **12/12 killed** (4 new);
+  `npm run build` PASS; `verify:roadmap-dashboard` 158/158 "Sources agree";
+  `verify:verifier-classification` PASS; `verify:source-hygiene` 9/9; `check-memory.mjs` PASS.
+- **Tests not run:** `verify:runner`, `verify:flow-designer`, `verify:workflow-builder`,
+  `validate:offline` - no runner, renderer or packaging code was touched.
+- **Measured friction, not smoothed over:** adding a one-line npm script needs a lease handoff to
+  `release`, because `package.json` carries the dependency graph. Deliberate checkpoint, real cost.
+- **Result:** Phases 0-5 complete. The routing model has now governed a real task.
+
+---
+
 ## 2026-08-16 - Claude - Review and implement deterministic multi-agent routing (Phases 0-4)
 
 - **Task:** Review a proposed multi-agent routing/task-contract architecture, judge whether it was

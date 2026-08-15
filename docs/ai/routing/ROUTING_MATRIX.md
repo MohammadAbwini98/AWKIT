@@ -11,11 +11,11 @@ and what risk it carries. An earlier draft stated these rules in three places th
 
 | Agent | Role | Default mode | Owns | Folder authority |
 | --- | --- | --- | --- | --- |
-| `manager` | Manager / Orchestrator | writer | `docs/ai/**`<br>`tools/roadmap/assignments.json`<br>`docs/ai/contracts/**` | `docs/AGENTS.md` |
+| `manager` | Manager / Orchestrator | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | `docs/AGENTS.md` |
 | `architect` | Software Architect | read-only | `docs/ai/ARCHITECTURE.md`<br>`docs/ai/DECISIONS.md` | — |
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**` | `app/renderer/AGENTS.md` |
-| `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**` | `app/main/AGENTS.md` |
+| `runtime` | Electron Main / Runner Engineer | writer | `app/main/**`<br>`app/preload.ts`<br>`src/runner/**`<br>`src/orchestrator/**`<br>`src/instances/**` | `app/main/AGENTS.md` |
 | `persistence` | Data & Persistence Specialist | writer | `src/storage/**`<br>`src/profiles/**`<br>`src/data/**`<br>`src/project/**` | `src/AGENTS.md` |
 | `integration` | Playwright / Browser / IPC Integration Specialist | writer | `src/recorder/**`<br>`src/session/**`<br>`src/oracle/**` | `src/AGENTS.md` |
 | `security` | Security & Trust-Boundary Specialist | review | `src/licensing/**`<br>`src/auth/**`<br>`src/secrets/**`<br>`src/security/**` | — |
@@ -81,9 +81,15 @@ change was visual. First match wins, so narrower paths come first.
 | `resources/**` | `release` | `packaging_change`, `offline_boundary_change` | Shipped resources. Never a runtime write target. |
 | `package.json` | `release` | `packaging_change` | Script inventory and dependencies. A dependency edit is also new_dependency. |
 | `package-lock.json` | `release` | `packaging_change`, `new_dependency` | The lockfile only moves when the dependency graph moves. |
+| `electron-builder*` | `release` | `packaging_change` | Installer and portable build configuration. |
+| `docs/ai/ARCHITECTURE.md` | `architect` | — | Module map and data/runtime flow. |
+| `docs/ai/DECISIONS.md` | `architect` | — | Recorded technical and product decisions. |
 | `docs/ai/**` | `manager` | — | AI memory and governance documents. |
 | `tools/roadmap/**` | `manager` | — | Derived dashboard. Never hand-edited to record progress. |
 | `tools/agents/**` | `manager` | — | This routing system itself. |
+| `.claude/**` | `manager` | — | Claude Code agent/skill/hook configuration. Generated role definitions live here. |
+| `.codex/**` | `manager` | — | Codex configuration and skills. |
+| `.gemini/**` | `manager` | — | Gemini / Antigravity configuration and skills. |
 
 ## Activation rules
 

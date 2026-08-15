@@ -219,9 +219,11 @@ try {
   // reclosed `awkit-6cg`; that left five outstanding and 186 closed, with 104 edges.
   // Deterministic multi-agent routing filed and closed `awkit-a1u` (Phases 0-4) and filed `awkit-bk3`
   // for the deferred Phase 5: total 191 to 193, closed 186 to 187, outstanding five to six.
+  // Phase 5 then landed and `awkit-bk3` closed: closed 187 to 188, outstanding six back to five,
+  // total unchanged at 193.
   check(
-    "6 outstanding / 187 closed",
-    beads.stats.outstanding === 6 && beads.stats.closed === 187,
+    "5 outstanding / 188 closed",
+    beads.stats.outstanding === 5 && beads.stats.closed === 188,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(
