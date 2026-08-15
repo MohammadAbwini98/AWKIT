@@ -1,13 +1,5 @@
 import { BaseEdge, EdgeLabelRenderer } from "../edgeComponents";
-import {
-  LOOP_MARKER_HIT_RADIUS,
-  LOOP_MARKER_LABEL_GAP,
-  LOOP_MARKER_OUTER_RADIUS,
-  LOOP_MARKER_RADIUS,
-  LOOP_RETURN_CLEARANCE,
-  LOOP_RETURN_INTERACTION_WIDTH,
-  Position
-} from "../geometry";
+import { LOOP_MARKER_LABEL_GAP, LOOP_RETURN_INTERACTION_WIDTH, Position } from "../geometry";
 import type { CanvasEdgeProps } from "../types";
 import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { loopBackDesignLabel, loopConnectorDesignLabel } from "../../shared/loopConnectorAuthoring";
@@ -20,6 +12,12 @@ interface LoopEdgeData {
   maxLoopCount?: number;
   style?: EdgeVisualStyle;
 }
+
+const LOOP_CONTROL_LANE_WIDTH = 160;
+const LOOP_CONTROL_LANE_HEIGHT = 20;
+const LOOP_CONTROL_MAIN_RADIUS = 30;
+const LOOP_CONTROL_OUTER_RADIUS = 40;
+const LOOP_CONTROL_HIT_RADIUS = 44;
 
 function arrowPath(tipX: number, tipY: number, unitX: number, unitY: number, closed: boolean): string {
   const length = 10;
@@ -129,22 +127,15 @@ export function LoopEdge({
   const halfNodeWidth = Math.max(0, sourceNodeWidth ?? 0) / 2;
   const nodeSideX = nodeCenterX + side * halfNodeWidth;
 
-  // The 7282178 control was deliberately dominant. These measurements stay derived from the
-  // existing connector rhythm so they remain theme-independent and do not create persisted state.
-  const capsuleWidth = LOOP_RETURN_CLEARANCE * 4;
-  const capsuleHeight = LOOP_MARKER_OUTER_RADIUS;
-  const outerRadius = LOOP_RETURN_CLEARANCE + LOOP_MARKER_OUTER_RADIUS / 5;
-  const mainRadius = outerRadius - LOOP_MARKER_RADIUS / 2;
-  const hitRadius = outerRadius + LOOP_MARKER_HIT_RADIUS / 6;
-  const farX = nodeSideX + side * capsuleWidth;
-  const controlX = nodeSideX + side * (capsuleWidth / 2);
+  const farX = nodeSideX + side * LOOP_CONTROL_LANE_WIDTH;
+  const controlX = nodeSideX + side * (LOOP_CONTROL_LANE_WIDTH / 2);
   const laneX = Math.min(nodeSideX, farX);
-  const laneY = centerY - capsuleHeight / 2;
-  const capX = farX - side * (capsuleHeight / 2);
-  const lowerY = centerY + capsuleHeight / 2;
-  const upperY = centerY - capsuleHeight / 2;
+  const laneY = centerY - LOOP_CONTROL_LANE_HEIGHT / 2;
+  const capX = farX - side * (LOOP_CONTROL_LANE_HEIGHT / 2);
+  const lowerY = centerY + LOOP_CONTROL_LANE_HEIGHT / 2;
+  const upperY = centerY - LOOP_CONTROL_LANE_HEIGHT / 2;
   const path = `M ${nodeSideX},${lowerY} H ${capX} Q ${farX},${lowerY} ${farX},${centerY} Q ${farX},${upperY} ${capX},${upperY} H ${nodeSideX}`;
-  const labelY = centerY - outerRadius - LOOP_MARKER_LABEL_GAP;
+  const labelY = centerY - LOOP_CONTROL_OUTER_RADIUS - LOOP_MARKER_LABEL_GAP;
   const controlColor = typeof style?.stroke === "string" ? style.stroke : "var(--awkit-connector-loop)";
   const configuredValue = Number.isFinite(data?.loop?.maxIterations) ? String(data?.loop?.maxIterations) : undefined;
 
@@ -163,9 +154,9 @@ export function LoopEdge({
           className="awkit-loop-control-lane"
           x={laneX}
           y={laneY}
-          width={capsuleWidth}
-          height={capsuleHeight}
-          rx={capsuleHeight / 2}
+          width={LOOP_CONTROL_LANE_WIDTH}
+          height={LOOP_CONTROL_LANE_HEIGHT}
+          rx={LOOP_CONTROL_LANE_HEIGHT / 2}
           fill="var(--awkit-surface)"
           fillOpacity={0.94}
           stroke="currentColor"
@@ -187,18 +178,18 @@ export function LoopEdge({
             className="awkit-loop-control-backplate"
             cx={controlX}
             cy={centerY}
-            r={outerRadius - 5}
+            r={LOOP_CONTROL_OUTER_RADIUS - 5}
             fill="var(--awkit-surface-raised)"
             pointerEvents="none"
           />
-          <circle aria-hidden="true" className="awkit-loop-indicator-outer-ring" cx={controlX} cy={centerY} r={outerRadius} />
-          <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={controlX} cy={centerY} r={mainRadius} />
+          <circle aria-hidden="true" className="awkit-loop-indicator-outer-ring" cx={controlX} cy={centerY} r={LOOP_CONTROL_OUTER_RADIUS} />
+          <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={controlX} cy={centerY} r={LOOP_CONTROL_MAIN_RADIUS} />
           <circle
             aria-hidden="true"
             className="awkit-loop-indicator-sweep"
             cx={controlX}
             cy={centerY}
-            r={mainRadius}
+            r={LOOP_CONTROL_MAIN_RADIUS}
             pathLength={100}
             fill="none"
             stroke="currentColor"
@@ -222,13 +213,13 @@ export function LoopEdge({
               {configuredValue}
             </text>
           ) : null}
-          <circle aria-hidden="true" className="awkit-loop-indicator-focus-ring" cx={controlX} cy={centerY} r={hitRadius - 1} />
+          <circle aria-hidden="true" className="awkit-loop-indicator-focus-ring" cx={controlX} cy={centerY} r={LOOP_CONTROL_HIT_RADIUS - 1} />
           <circle
             aria-hidden="true"
             className="awkit-loop-indicator-hit"
             cx={controlX}
             cy={centerY}
-            r={hitRadius}
+            r={LOOP_CONTROL_HIT_RADIUS}
             fill="transparent"
             pointerEvents="all"
           />
