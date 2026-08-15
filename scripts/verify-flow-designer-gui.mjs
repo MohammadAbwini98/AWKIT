@@ -1,7 +1,7 @@
 // Canonical Flow Designer GUI verifier.
 //
-// The broad pre-capsule walkthrough is intentionally preserved byte-for-byte in
-// `verify-flow-designer-gui.pre-capsule.mjs`. It still owns all unrelated Designer coverage and
+// The broad pre-capsule walkthrough is intentionally preserved in
+// `verify-flow-designer-gui.pre-capsule.mjs`. A capsule compatibility reader lets all unrelated Designer coverage and
 // all Loop functional checks that do not encode the rejected U-route. The small allow-list below
 // retires only assertions whose DOM oracle was explicitly rewritten to require that rejected visual.
 // A focused real-Electron suite then binds the approved 7282178 capsule-and-ring contract.
@@ -35,7 +35,8 @@ console.log("Flow Designer: preserved broad GUI coverage");
 const broad = runLegacyGuiCoverage({
   root,
   script: "verify-flow-designer-gui.pre-capsule.mjs",
-  supersededChecks: supersededURouteChecks
+  supersededChecks: supersededURouteChecks,
+  expectedChecks: 128
 });
 
 console.log("\nFlow Designer: approved 7282178 Loop capsule contract");

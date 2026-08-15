@@ -1,5 +1,14 @@
 import { BaseEdge, EdgeLabelRenderer } from "../edgeComponents";
-import { LOOP_MARKER_LABEL_GAP, LOOP_RETURN_INTERACTION_WIDTH, Position } from "../geometry";
+import {
+  LOOP_CONTROL_HIT_RADIUS,
+  LOOP_CONTROL_LABEL_GAP,
+  LOOP_CONTROL_LANE_HEIGHT,
+  LOOP_CONTROL_LANE_WIDTH,
+  LOOP_CONTROL_MAIN_RADIUS,
+  LOOP_CONTROL_OUTER_RADIUS,
+  LOOP_CONTROL_PATH_INTERACTION_WIDTH,
+  Position
+} from "../geometry";
 import type { CanvasEdgeProps } from "../types";
 import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { loopBackDesignLabel, loopConnectorDesignLabel } from "../../shared/loopConnectorAuthoring";
@@ -12,12 +21,6 @@ interface LoopEdgeData {
   maxLoopCount?: number;
   style?: EdgeVisualStyle;
 }
-
-const LOOP_CONTROL_LANE_WIDTH = 160;
-const LOOP_CONTROL_LANE_HEIGHT = 20;
-const LOOP_CONTROL_MAIN_RADIUS = 30;
-const LOOP_CONTROL_OUTER_RADIUS = 40;
-const LOOP_CONTROL_HIT_RADIUS = 44;
 
 function arrowPath(tipX: number, tipY: number, unitX: number, unitY: number, closed: boolean): string {
   const length = 10;
@@ -135,7 +138,7 @@ export function LoopEdge({
   const lowerY = centerY + LOOP_CONTROL_LANE_HEIGHT / 2;
   const upperY = centerY - LOOP_CONTROL_LANE_HEIGHT / 2;
   const path = `M ${nodeSideX},${lowerY} H ${capX} Q ${farX},${lowerY} ${farX},${centerY} Q ${farX},${upperY} ${capX},${upperY} H ${nodeSideX}`;
-  const labelY = centerY - LOOP_CONTROL_OUTER_RADIUS - LOOP_MARKER_LABEL_GAP;
+  const labelY = centerY - LOOP_CONTROL_OUTER_RADIUS - LOOP_CONTROL_LABEL_GAP;
   const controlColor = typeof style?.stroke === "string" ? style.stroke : "var(--awkit-connector-loop)";
   const configuredValue = Number.isFinite(data?.loop?.maxIterations) ? String(data?.loop?.maxIterations) : undefined;
 
@@ -170,7 +173,7 @@ export function LoopEdge({
           className={["awkit-loop-indicator-path", selected ? "is-selected" : ""].filter(Boolean).join(" ")}
           style={style}
           directional={false}
-          interactionWidth={LOOP_RETURN_INTERACTION_WIDTH}
+          interactionWidth={LOOP_CONTROL_PATH_INTERACTION_WIDTH}
         />
         <g className="awkit-loop-indicator-marker" data-loop-marker="true">
           <circle

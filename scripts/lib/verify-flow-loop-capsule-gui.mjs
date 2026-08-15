@@ -7,7 +7,8 @@ import {
   readLoopCapsuleMotion,
   readLoopCapsulePixelMotion,
   readLoopCapsuleVisual,
-  rejectsLoopURouteHybrid
+  rejectsLoopURouteHybrid,
+  waitForLoopCapsuleLayoutStable
 } from "./loop-capsule-visual-oracle.mjs";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./gui-verify-harness.mjs";
 
@@ -24,13 +25,15 @@ function seedFlow(dataRoot) {
     updatedAt: now,
     nodes: [
       { id: "start", type: "start", name: "Start", position: { x: 320, y: 80 } },
+      { id: "left-blocker", type: "goto", name: "Dense left blocker", url: "about:blank", valueSource: { type: "static", value: "about:blank" }, position: { x: -100, y: 220 } },
       { id: "goto", type: "goto", name: "Open Page", url: "http://localhost:4321/", valueSource: { type: "static", value: "http://localhost:4321/" }, position: { x: 320, y: 220 } },
       { id: "fill", type: "fill", name: "Fill", locator: { strategy: "id", value: "username" }, valueSource: { type: "static", value: "user1" }, position: { x: 320, y: 360 } },
       { id: "click", type: "click", name: "Click", locator: { strategy: "id", value: "loginButton" }, position: { x: 320, y: 500 } },
       { id: "end", type: "end", name: "End", position: { x: 320, y: 640 } }
     ],
     edges: [
-      { id: "e0", source: "start", target: "goto", type: "success" },
+      { id: "e0", source: "start", target: "left-blocker", type: "success" },
+      { id: "e0b", source: "left-blocker", target: "goto", type: "success" },
       { id: "e1", source: "goto", target: "fill", type: "success" },
       { id: "e2", source: "fill", target: "click", type: "success" },
       { id: "e3", source: "click", target: "end", type: "success" }
@@ -69,6 +72,27 @@ async function waitForConfiguredValue(win, nodeId, value) {
   }, { id: nodeId, expected: String(value) });
 }
 
+async function fitAndStabilize(win, nodeIds) {
+  await win.locator('.canvas-zoom-control button[title="Fit to screen"]').click();
+  return Promise.all(nodeIds.map((nodeId) => waitForLoopCapsuleLayoutStable(win, nodeId)));
+}
+
+async function fitNodeActionIntoView(win, nodeId) {
+  await win.locator('.canvas-zoom-control button[title="Fit to screen"]').click();
+  await win.waitForFunction((id) => {
+    const menu = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(id)}"] .action-node-menu`);
+    const canvas = document.querySelector(".awkit-flow-canvas");
+    if (!(menu instanceof HTMLButtonElement) || !(canvas instanceof HTMLElement)) return false;
+    const rect = menu.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const top = document.elementFromPoint(centerX, centerY);
+    return rect.left >= canvasRect.left && rect.right <= canvasRect.right &&
+      rect.top >= canvasRect.top && rect.bottom <= canvasRect.bottom && Boolean(top && (top === menu || menu.contains(top)));
+  }, nodeId);
+}
+
 export async function runFlowLoopCapsuleSuite(root) {
   const results = [];
   const check = (name, pass, detail) => {
@@ -83,6 +107,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     const win = await resolveMainWindow(app);
     await win.waitForLoadState("domcontentloaded");
     await signInFirstRun(win);
+    await win.emulateMedia({ reducedMotion: "no-preference" });
     await win.setViewportSize({ width: 1440, height: 900 });
     if (!(await win.$(".flow-designer-shell"))) {
       await win.locator('button.nav-item:has-text("Flow Designer")').click();
@@ -91,12 +116,14 @@ export async function runFlowLoopCapsuleSuite(root) {
     await selectSavedFlow(win, "Verify — Flow Loop Capsule");
 
     const nodeId = "goto";
+    await fitNodeActionIntoView(win, nodeId);
     await clickNodeMenuItem(win, nodeId, "Add loop");
     await waitForLoop(win, nodeId);
     const loopMode = win.locator('.connection-config-drawer label:has-text("Loop mode") select');
     const maxIterations = win.locator('.connection-config-drawer label:has-text("Max iterations") input');
     await loopMode.waitFor({ state: "visible" });
     await waitForConfiguredValue(win, nodeId, 3);
+    const initialStable = await fitAndStabilize(win, [nodeId]);
     const defaultVisual = await readLoopCapsuleVisual(win, nodeId);
     check(
       "Flow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
@@ -108,6 +135,12 @@ export async function runFlowLoopCapsuleSuite(root) {
       rejectsLoopURouteHybrid(defaultVisual),
       JSON.stringify({ visualContract: defaultVisual?.visualContract, laneCount: defaultVisual?.laneCount, directionCount: defaultVisual?.directionCount, pathWrapsWholeNode: defaultVisual?.pathWrapsWholeNode })
     );
+    check(
+      "Flow Loop dense-layout scoring chooses the clear side and fit keeps the complete control visible",
+      initialStable.every(Boolean) && defaultVisual?.side === "right" && defaultVisual.ringFullyVisible &&
+        defaultVisual.controlFullyVisible && !defaultVisual.overlapsOtherNode && !defaultVisual.overlapsInsertControl,
+      JSON.stringify({ initialStable, defaultVisual })
+    );
 
     await loopMode.selectOption("whileCondition");
     await maxIterations.fill("10");
@@ -115,6 +148,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     await win.locator('.connection-config-drawer label:has-text("Thickness") select').selectOption("4");
     await win.locator('.connection-config-drawer label:has-text("Connector shape") select').selectOption("smoothstep");
     await waitForConfiguredValue(win, nodeId, 10);
+    await waitForLoopCapsuleLayoutStable(win, nodeId);
     const visual = await readLoopCapsuleVisual(win, nodeId);
     check(
       "Flow Loop configured value is design-time maxIterations while the label stays mode-aware",
@@ -135,7 +169,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     check(
       "Flow Loop rotates only the circular sweep while value and label remain stationary",
       visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" &&
-        visual.animationTimingFunction === "linear" && Number.parseFloat(visual.animationDuration) > 0 &&
+        visual.animationTimingFunction === "linear" && Number.parseFloat(visual.animationDuration) === 2 && visual.sweepAnimationCount === 1 &&
         visual.sweepPathLength === "100" && String(visual.sweepDash).replace(/px|,/g, " ").trim().replace(/\s+/g, " ") === "22 78" &&
         Number.parseFloat(visual.sweepWidth) === 4 && motion?.moved && Number.isFinite(motion.delta) && motion.delta >= 100 &&
         !motion.valueMoved && !motion.labelMoved && motion.valueAnimationCount === 0 && motion.labelAnimationCount === 0 &&
@@ -163,7 +197,10 @@ export async function runFlowLoopCapsuleSuite(root) {
     const zoomOut = win.locator('.canvas-zoom-control button[title="Zoom out"]');
     const zoomIn = win.locator('.canvas-zoom-control button[title="Zoom in"]');
     const zoomValue = win.locator(".canvas-zoom-control .zoom-value");
-    const sampleZoom = async () => ({ percent: Number.parseInt((await zoomValue.textContent()) ?? "", 10), visual: await readLoopCapsuleVisual(win, nodeId) });
+    const sampleZoom = async () => {
+      const stable = await waitForLoopCapsuleLayoutStable(win, nodeId);
+      return { percent: Number.parseInt((await zoomValue.textContent()) ?? "", 10), stable, visual: await readLoopCapsuleVisual(win, nodeId) };
+    };
     await resetZoom.click();
     for (let index = 0; index < 8; index += 1) await zoomOut.click();
     const at25 = await sampleZoom();
@@ -175,11 +212,12 @@ export async function runFlowLoopCapsuleSuite(root) {
     check(
       "Flow Loop capsule remains attached and structurally identical at 25%, 100%, and 200% zoom",
       at25.percent === 25 && at100.percent === 100 && at200.percent === 200 &&
-        [at25, at100, at200].every((sample) => matchesLoopCapsuleContract(sample.visual, { owner: nodeId, value: 10 }) &&
+        [at25, at100, at200].every((sample) => sample.stable && matchesLoopCapsuleContract(sample.visual, { owner: nodeId, value: 10 }) &&
           sample.visual.laneAttachedToNode && sample.visual.sameSideAttachment && !sample.visual.pathWrapsWholeNode),
       JSON.stringify({ at25, at100, at200 })
     );
 
+    await waitForLoopCapsuleLayoutStable(win, nodeId);
     const beforeDrag = await readLoopCapsuleVisual(win, nodeId);
     const nodeBox = await win.locator(`.awkit-flow-node[data-id="${nodeId}"]`).boundingBox();
     if (nodeBox) {
@@ -188,27 +226,71 @@ export async function runFlowLoopCapsuleSuite(root) {
       await win.mouse.move(nodeBox.x + nodeBox.width / 2 + 36, nodeBox.y + nodeBox.height / 2 + 20, { steps: 6 });
       await win.mouse.up();
     }
+    const dragStable = await waitForLoopCapsuleLayoutStable(win, nodeId);
     const afterDrag = await readLoopCapsuleVisual(win, nodeId);
     check(
       "Dragging the Flow node keeps the capsule, dominant ring, value, and attachment geometry together",
-      Boolean(nodeBox) && loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId, value: 10 }),
-      JSON.stringify({ beforeDrag, afterDrag })
+      Boolean(nodeBox) && dragStable && beforeDrag?.side === "right" && afterDrag?.side === "right" &&
+        loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId, value: 10 }),
+      JSON.stringify({ dragStable, beforeDrag, afterDrag })
     );
 
     const secondNodeId = "fill";
+    const primaryBeforeSecond = await readLoopCapsuleVisual(win, nodeId);
     await clickNodeMenuItem(win, secondNodeId, "Add loop");
     await waitForLoop(win, secondNodeId);
     await maxIterations.fill("7");
     await waitForConfiguredValue(win, secondNodeId, 7);
+    const peersStable = await Promise.all([
+      waitForLoopCapsuleLayoutStable(win, nodeId),
+      waitForLoopCapsuleLayoutStable(win, secondNodeId)
+    ]);
     const firstWithSecond = await readLoopCapsuleVisual(win, nodeId);
     const secondVisual = await readLoopCapsuleVisual(win, secondNodeId);
     check(
       "Two Flow Loops retain independent identities, values, labels, and capsule controls",
-      firstWithSecond?.edgeId !== secondVisual?.edgeId && matchesLoopCapsuleContract(firstWithSecond, { owner: nodeId, value: 10 }) &&
+      peersStable.every(Boolean) && firstWithSecond?.edgeId !== secondVisual?.edgeId && matchesLoopCapsuleContract(firstWithSecond, { owner: nodeId, value: 10 }) &&
         matchesLoopCapsuleContract(secondVisual, { owner: secondNodeId, value: 7 }) &&
-        firstWithSecond?.labelText === "While · status = passed" && secondVisual?.labelText === "Count × 7",
+        firstWithSecond?.labelText === "While · status = passed" && secondVisual?.labelText === "Count × 7" &&
+        firstWithSecond.selected === false && secondVisual.selected === true &&
+        firstWithSecond.duplicateLoopDomIdCount === 0 && secondVisual.duplicateLoopDomIdCount === 0 &&
+        firstWithSecond.sweepAnimationStartTime === primaryBeforeSecond?.sweepAnimationStartTime &&
+        Number.isFinite(secondVisual.sweepAnimationStartTime) && secondVisual.sweepAnimationStartTime !== firstWithSecond.sweepAnimationStartTime,
       JSON.stringify({ firstWithSecond, secondVisual })
     );
+
+    await win.emulateMedia({ reducedMotion: "reduce" });
+    const reducedPeerMotion = await Promise.all([
+      readLoopCapsuleMotion(win, nodeId),
+      readLoopCapsuleMotion(win, secondNodeId)
+    ]);
+    const reducedPeers = await Promise.all([
+      readLoopCapsuleVisual(win, nodeId),
+      readLoopCapsuleVisual(win, secondNodeId)
+    ]);
+    check(
+      "Reduced motion freezes both independent Flow sweeps without hiding either value or label",
+      reducedPeers.every((item, index) => matchesLoopCapsuleContract(item, { owner: index === 0 ? nodeId : secondNodeId, value: index === 0 ? 10 : 7 }) &&
+        item.animationName === "none" && item.valueDisplay !== "none" && item.labelDisplay !== "none") &&
+        reducedPeerMotion.every((item) => item && !item.moved && !item.valueMoved && !item.labelMoved),
+      JSON.stringify({ reducedPeers, reducedPeerMotion })
+    );
+    await win.emulateMedia({ reducedMotion: "no-preference" });
+
+    if (process.env.AWKIT_FLOW_LOOP_EVIDENCE || process.env.AWKIT_FLOW_LOOP_EVIDENCE_DARK) {
+      await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+      await fitAndStabilize(win, [nodeId, secondNodeId]);
+    }
+    if (process.env.AWKIT_FLOW_LOOP_EVIDENCE) {
+      await win.screenshot({ path: process.env.AWKIT_FLOW_LOOP_EVIDENCE });
+    }
+    if (process.env.AWKIT_FLOW_LOOP_EVIDENCE_DARK) {
+      const evidenceTheme = await win.evaluate(() => document.documentElement.getAttribute("data-theme") ?? "light");
+      await win.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+      await waitForLoopCapsuleLayoutStable(win, nodeId);
+      await win.screenshot({ path: process.env.AWKIT_FLOW_LOOP_EVIDENCE_DARK });
+      await win.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), evidenceTheme);
+    }
     await clickNodeMenuItem(win, secondNodeId, "Remove loop");
     await waitForLoop(win, secondNodeId, false);
 
@@ -253,7 +335,16 @@ export async function runFlowLoopCapsuleSuite(root) {
     await loopGroup.focus();
     await win.keyboard.press("Enter");
     await loopMode.waitFor({ state: "visible" });
-    check("Flow Loop configuration remains keyboard-accessible", (await loopGroup.getAttribute("aria-label"))?.includes("While · status = passed"));
+    const enterAccessible = (await loopGroup.getAttribute("aria-label"))?.includes("While · status = passed");
+    await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+    await loopGroup.focus();
+    await win.keyboard.press("Space");
+    await loopMode.waitFor({ state: "visible" });
+    const spaceAccessible = await loopMode.inputValue() === "whileCondition";
+    await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+    await hit.dblclick();
+    await loopMode.waitFor({ state: "visible" });
+    check("Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space", enterAccessible && spaceAccessible && await loopMode.inputValue() === "whileCondition");
 
     await app.close();
     cleanup();

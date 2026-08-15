@@ -194,17 +194,38 @@ export interface GetSmoothStepPathParams {
 export const SMOOTH_STEP_OFFSET = 20;
 
 /**
- * Reference-style structured Loop geometry. Every measurement is derived from the shared
- * connector offset so the return path and compact marker scale as one canvas primitive rather
- * than becoming a second persisted graph object.
+ * Authoritative structured Loop capsule geometry. Keep the renderer, collision scoring, and
+ * fit-to-view bounds on these shared values so a visual change cannot leave the canvas engine
+ * modelling an obsolete route. The persisted graph still owns only the semantic self-edge.
  */
-export const LOOP_RETURN_CLEARANCE = SMOOTH_STEP_OFFSET * 1.8;
-export const LOOP_RETURN_CORNER_RADIUS = SMOOTH_STEP_OFFSET * 0.9;
-export const LOOP_MARKER_RADIUS = SMOOTH_STEP_OFFSET * 0.8;
-export const LOOP_MARKER_OUTER_RADIUS = SMOOTH_STEP_OFFSET;
-export const LOOP_MARKER_HIT_RADIUS = SMOOTH_STEP_OFFSET * 1.2;
-export const LOOP_MARKER_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.5;
-export const LOOP_RETURN_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
+export const LOOP_CONTROL_LANE_WIDTH = SMOOTH_STEP_OFFSET * 8;
+export const LOOP_CONTROL_LANE_HEIGHT = SMOOTH_STEP_OFFSET;
+export const LOOP_CONTROL_MAIN_RADIUS = SMOOTH_STEP_OFFSET * 1.5;
+export const LOOP_CONTROL_OUTER_RADIUS = SMOOTH_STEP_OFFSET * 2;
+export const LOOP_CONTROL_HIT_RADIUS = SMOOTH_STEP_OFFSET * 2.2;
+export const LOOP_CONTROL_LABEL_GAP = SMOOTH_STEP_OFFSET * 0.5;
+export const LOOP_CONTROL_PATH_INTERACTION_WIDTH = SMOOTH_STEP_OFFSET * 1.2;
+
+/** Full capsule/ring/label band used by collision-side selection and fit-to-view. */
+export function getLoopControlFootprint(
+  source: XYPosition,
+  sourceSize: { width: number; height: number },
+  side: Position.Left | Position.Right
+): Rect {
+  const anchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
+  const centerY = source.y + sourceSize.height / 2;
+  const sideSign = side === Position.Left ? -1 : 1;
+  const farX = anchorX + sideSign * LOOP_CONTROL_LANE_WIDTH;
+  const padding = SMOOTH_STEP_OFFSET / 2;
+  const topClearance = LOOP_CONTROL_OUTER_RADIUS + LOOP_CONTROL_LABEL_GAP + SMOOTH_STEP_OFFSET;
+  const bottomClearance = Math.max(LOOP_CONTROL_OUTER_RADIUS, LOOP_CONTROL_HIT_RADIUS) + padding;
+  return {
+    x: Math.min(anchorX, farX) - padding,
+    y: centerY - topClearance,
+    width: LOOP_CONTROL_LANE_WIDTH + padding * 2,
+    height: topClearance + bottomClearance
+  };
+}
 
 /** Faithful port of React Flow's getSmoothStepPath. Returns [path, labelX, labelY, offsetX, offsetY]. */
 export function getSmoothStepPath({

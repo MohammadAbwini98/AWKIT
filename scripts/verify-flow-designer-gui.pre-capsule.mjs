@@ -19,6 +19,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
 import { navClick } from "./lib/e2e-qa-lib.mjs";
+import { readLoopCapsuleVisual } from "./lib/loop-capsule-visual-oracle.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-flow-designer-gui");
@@ -359,6 +360,39 @@ async function loopMenuLabels(win, nodeId) {
 }
 
 async function readLoopVisual(win, nodeId) {
+  // Keep this broad walkthrough running after the approved capsule restoration. Its historical
+  // assertions below still intentionally describe the retired U-route and are allow-listed by the
+  // canonical wrapper, but unrelated lifecycle checks must continue instead of dereferencing the
+  // removed direction layer and aborting halfway through the suite.
+  const capsule = await readLoopCapsuleVisual(win, nodeId);
+  if (capsule) {
+    return {
+      ...capsule,
+      directionPathData: "",
+      directionMatchesPath: false,
+      directionPathLength: null,
+      directionStrokeDash: "none",
+      directionStrokeDashOffset: "0px",
+      directionStrokeWidth: "0px",
+      markerPathDistance: Number.POSITIVE_INFINITY,
+      pathEndpointsTouchNode: capsule.sameSideAttachment,
+      pathWrapsNode: capsule.pathWrapsWholeNode,
+      animationName: "none",
+      animationDuration: "0s",
+      animationIterationCount: "1",
+      animationTimingFunction: "ease",
+      animationCurrentTime: Number.NaN,
+      animationStartTime: Number.NaN,
+      display: "none",
+      opacity: "0",
+      arrowDisplay: "none",
+      arrowOpacity: "0",
+      markerAnimationName: "none",
+      nodeOverlapsRing: !capsule.markerOutsideNode,
+      nodeCoversRingCenter: false,
+      interactionWidth: "0px"
+    };
+  }
   return win.evaluate((id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
     const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);

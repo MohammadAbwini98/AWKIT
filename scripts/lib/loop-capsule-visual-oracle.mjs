@@ -40,7 +40,11 @@ export async function readLoopCapsuleVisual(win, nodeId) {
     const valueRect = value.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
     const pathStyle = getComputedStyle(path);
+    const laneStyle = getComputedStyle(lane);
+    const outerStyle = getComputedStyle(outer);
+    const mainStyle = getComputedStyle(main);
     const sweepStyle = getComputedStyle(sweep);
+    const sweepAnimation = sweep.getAnimations()[0];
     const valueStyle = getComputedStyle(value);
     const labelStyle = getComputedStyle(label);
     const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
@@ -48,6 +52,13 @@ export async function readLoopCapsuleVisual(win, nodeId) {
     const otherNodeRects = [...document.querySelectorAll(".awkit-flow-node")]
       .filter((candidate) => candidate instanceof HTMLElement && candidate.getAttribute("data-id") !== id)
       .map((candidate) => candidate.getBoundingClientRect());
+    const insertControlRects = [...document.querySelectorAll(".awkit-edge-add")]
+      .filter((candidate) => candidate instanceof HTMLElement)
+      .map((candidate) => candidate.getBoundingClientRect());
+    const loopDomIds = [...document.querySelectorAll('g.awkit-flow-edge[data-source][data-target]')]
+      .filter((candidate) => candidate.getAttribute("data-source") === candidate.getAttribute("data-target") && candidate.querySelector(".awkit-loop-indicator"))
+      .flatMap((candidate) => [...candidate.querySelectorAll("[id]")].map((element) => element.id).filter(Boolean));
+    const duplicateLoopDomIdCount = loopDomIds.length - new Set(loopDomIds).size;
 
     const cx = Number(outer.getAttribute("cx"));
     const cy = Number(outer.getAttribute("cy"));
@@ -146,6 +157,22 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       pathStrokeWidth: pathStyle.strokeWidth,
       pathStrokeLinecap: pathStyle.strokeLinecap,
       pathStrokeLinejoin: pathStyle.strokeLinejoin,
+      pathDisplay: pathStyle.display,
+      pathVisibility: pathStyle.visibility,
+      pathOpacity: pathStyle.opacity,
+      pathStroke: pathStyle.stroke,
+      laneDisplay: laneStyle.display,
+      laneVisibility: laneStyle.visibility,
+      laneOpacity: laneStyle.opacity,
+      outerDisplay: outerStyle.display,
+      outerVisibility: outerStyle.visibility,
+      outerOpacity: outerStyle.opacity,
+      mainDisplay: mainStyle.display,
+      mainVisibility: mainStyle.visibility,
+      mainOpacity: mainStyle.opacity,
+      sweepDisplay: sweepStyle.display,
+      sweepVisibility: sweepStyle.visibility,
+      sweepOpacity: sweepStyle.opacity,
       sweepPathLength: sweep.getAttribute("pathLength"),
       sweepDash: sweep.style.strokeDasharray || sweepStyle.strokeDasharray,
       sweepWidth: sweepStyle.strokeWidth,
@@ -156,7 +183,11 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       animationTimingFunction: sweepStyle.animationTimingFunction,
       animationTransform: sweepStyle.transform,
       sweepAnimationCount: sweep.getAnimations().length,
+      sweepAnimationCurrentTime: Number(sweepAnimation?.currentTime ?? Number.NaN),
+      sweepAnimationStartTime: Number(sweepAnimation?.startTime ?? Number.NaN),
       markerAnimationCount: marker.getAnimations().length,
+      loopDomIdCount: loopDomIds.length,
+      duplicateLoopDomIdCount,
       valueText: (value.textContent || "").trim(),
       valueDisplay: valueStyle.display,
       valueOpacity: valueStyle.opacity,
@@ -189,6 +220,10 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       markerToNodeHeightRatio: outerRect.height / nodeRect.height,
       ringFullyVisible: outerRect.left >= canvasRect.left - 1 && outerRect.right <= canvasRect.right + 1 &&
         outerRect.top >= canvasRect.top - 1 && outerRect.bottom <= canvasRect.bottom + 1 && labelRect.top >= canvasRect.top - 1,
+      controlFullyVisible: [laneRect, hitRect, labelRect].every((rect) =>
+        rect.left >= canvasRect.left - 1 && rect.right <= canvasRect.right + 1 &&
+        rect.top >= canvasRect.top - 1 && rect.bottom <= canvasRect.bottom + 1
+      ),
       labelClearance: Math.max(
         outerRect.left - labelRect.right,
         labelRect.left - outerRect.right,
@@ -197,7 +232,8 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       ),
       labelOverlapsMarker: overlaps(labelRect, outerRect),
       labelOverlapsNode: overlaps(labelRect, nodeRect),
-      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, outerRect) || overlaps(rect, laneRect) || overlaps(rect, labelRect)),
+      overlapsOtherNode: otherNodeRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, outerRect) || overlaps(rect, laneRect) || overlaps(rect, labelRect)),
+      overlapsInsertControl: insertControlRects.some((rect) => overlaps(rect, hitRect) || overlaps(rect, laneRect) || overlaps(rect, labelRect)),
       selected: indicator.classList.contains("is-selected"),
       hitPointerEvents: getComputedStyle(hit).pointerEvents
     };
@@ -219,16 +255,68 @@ export function matchesLoopCapsuleContract(visual, { owner, value } = {}) {
     visual.markerOutsideNode && visual.capsulePathIsCompact && !visual.pathWrapsWholeNode &&
     visual.pathMoveCount === 1 && visual.pathHasRoundedSegments && visual.pathTotalLength > 0 &&
     visual.valueCenteredOnRing && (value === undefined || visual.valueText === String(value)) &&
+    visual.syntheticLoopNodeCount === 0 && visual.indicatorInEdgeLayer && !visual.indicatorInNodeLayer &&
+    visual.role === "button" && visual.tabIndex === "0" && visual.hitPointerEvents === "all" &&
+    visual.pathDisplay !== "none" && visual.pathVisibility !== "hidden" && Number.parseFloat(visual.pathOpacity) > 0 &&
+    visual.pathStroke !== "none" && Number.parseFloat(visual.pathStrokeWidth) > 0 &&
+    visual.laneDisplay !== "none" && visual.laneVisibility !== "hidden" && Number.parseFloat(visual.laneOpacity) > 0 &&
+    visual.outerDisplay !== "none" && visual.outerVisibility !== "hidden" && Number.parseFloat(visual.outerOpacity) > 0 &&
+    visual.mainDisplay !== "none" && visual.mainVisibility !== "hidden" && Number.parseFloat(visual.mainOpacity) > 0 &&
+    visual.sweepDisplay !== "none" && visual.sweepVisibility !== "hidden" && Number.parseFloat(visual.sweepOpacity) > 0 &&
+    !visual.labelOverlapsMarker && !visual.labelOverlapsNode && !visual.overlapsOtherNode && !visual.overlapsInsertControl &&
+    visual.duplicateLoopDomIdCount === 0 &&
     visual.markerAnimationCount === 0 && visual.valueAnimationCount === 0 && visual.labelAnimationCount === 0
   );
 }
 
 export function rejectsLoopURouteHybrid(visual) {
-  return Boolean(
-    visual?.laneCount === 1 && visual.backplateCount === 1 && visual.sweepCount === 1 && visual.valueCount === 1 &&
-    visual.directionCount === 0 && visual.arrowCount === 0 && visual.capsulePathIsCompact && !visual.pathWrapsWholeNode &&
-    visual.visualContract === "capsule-ring"
-  );
+  if (!matchesLoopCapsuleContract(visual)) return false;
+  const knownBadMutations = [
+    { ...visual, laneCount: 0 },
+    { ...visual, backplateCount: 0, sweepCount: 0, valueCount: 0 },
+    { ...visual, capsulePathIsCompact: false, pathWrapsWholeNode: true },
+    { ...visual, directionCount: 1, arrowCount: 1 },
+    { ...visual, overlapsOtherNode: true },
+    { ...visual, overlapsInsertControl: true }
+  ];
+  return knownBadMutations.every((mutation) => !matchesLoopCapsuleContract(mutation));
+}
+
+/** Wait for drawer/fit/viewport transitions to stop moving the whole graph before motion sampling. */
+export async function waitForLoopCapsuleLayoutStable(win, nodeId, timeoutMs = 4000) {
+  return win.evaluate(async ({ id, timeout }) => {
+    const sample = () => {
+      const group = document.querySelector(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"][data-target="${CSS.escape(id)}"]`);
+      const node = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(id)}"]`);
+      const lane = group?.querySelector(".awkit-loop-control-lane");
+      const hit = group?.querySelector(".awkit-loop-indicator-hit");
+      const label = [...document.querySelectorAll(".awkit-loop-indicator-label")]
+        .find((candidate) => candidate.getAttribute("data-edge-id") === group?.getAttribute("data-id"));
+      if (!(node instanceof HTMLElement) || !(lane instanceof SVGRectElement) ||
+        !(hit instanceof SVGCircleElement) || !(label instanceof HTMLElement)) return null;
+      return [node, lane, hit, label].flatMap((element) => {
+        const rect = element.getBoundingClientRect();
+        return [rect.left, rect.top, rect.width, rect.height];
+      });
+    };
+    const deadline = performance.now() + timeout;
+    let previous = null;
+    let stableFrames = 0;
+    while (performance.now() < deadline) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const current = sample();
+      if (!current) {
+        stableFrames = 0;
+        previous = null;
+        continue;
+      }
+      const stable = previous?.length === current.length && current.every((value, index) => Math.abs(value - previous[index]) <= 0.2);
+      stableFrames = stable ? stableFrames + 1 : 0;
+      if (stableFrames >= 3) return true;
+      previous = current;
+    }
+    return false;
+  }, { id: nodeId, timeout: timeoutMs });
 }
 
 export async function readLoopCapsuleMotion(win, nodeId) {

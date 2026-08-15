@@ -1,9 +1,8 @@
 import { createContext, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, forwardRef, type MutableRefObject, type ReactNode } from "react";
 import {
-  LOOP_MARKER_HIT_RADIUS,
-  LOOP_RETURN_CLEARANCE,
   Position,
   SMOOTH_STEP_OFFSET,
+  getLoopControlFootprint,
   getRectOfNodes,
   getViewportForBounds,
   pointToFlowPosition,
@@ -24,7 +23,7 @@ import { loopBackDesignLabel, loopConnectorDesignLabel } from "../shared/loopCon
  * fit-view, screen↔flow mapping). The flow runs top→bottom by default: edges leave
  * the source node's bottom-center and enter the target node's top-center, matching
  * the Workflow (flowforge) reference. Tight Loop exits can route beside their cards;
- * structured self-loops are rounded return paths in the edge layer behind their source card.
+ * structured self-loops use a compact side-attached capsule in the edge layer.
  */
 
 // Keep the engine contract aligned with CanvasZoomControl's advertised 25% minimum.
@@ -253,7 +252,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(function
         if (!source) continue;
         const sourceSize = measuredSizeOf(source, sizesRef.current);
         const side = selfLoopSideFor(source, source.position, sourceSize, nodesRef.current, sizesRef.current);
-        rects.push(loopIndicatorFootprint(source.position, sourceSize, side));
+        rects.push(getLoopControlFootprint(source.position, sourceSize, side));
       }
       const bounds = getRectOfNodes(rects);
       if (bounds.width === 0 || bounds.height === 0) return;
@@ -676,23 +675,7 @@ function isLoopVisualConnector(edge: CanvasEdge): boolean {
   return isStructuredSelfLoop(edge) || connectorData?.linkType === "loopBack";
 }
 
-function loopIndicatorFootprint(source: XYPosition, sourceSize: MeasuredSize, side: SelfLoopSide): Rect {
-  const sideSign = side === Position.Left ? -1 : 1;
-  const sideAnchorX = side === Position.Left ? source.x : source.x + sourceSize.width;
-  const markerX = sideAnchorX + sideSign * LOOP_RETURN_CLEARANCE;
-  const markerEdgeX = markerX + sideSign * LOOP_MARKER_HIT_RADIUS;
-  const padding = SMOOTH_STEP_OFFSET / 2;
-  const nearX = side === Position.Left ? markerEdgeX : sideAnchorX;
-  const farX = side === Position.Left ? sideAnchorX : markerEdgeX;
-  return {
-    x: nearX - padding,
-    y: source.y - LOOP_RETURN_CLEARANCE - padding,
-    width: farX - nearX + padding * 2,
-    height: sourceSize.height + LOOP_RETURN_CLEARANCE * 2 + padding * 2
-  };
-}
-
-/** Choose the side whose complete return-loop footprint least obstructs the graph. */
+/** Choose the side whose complete capsule/ring/label footprint least obstructs the graph. */
 function selfLoopSideFor(
   source: CanvasNode,
   sourcePosition: XYPosition,
@@ -702,7 +685,7 @@ function selfLoopSideFor(
   positionOf?: (id: string) => XYPosition
 ): SelfLoopSide {
   const score = (side: SelfLoopSide): number => {
-    const footprint = loopIndicatorFootprint(sourcePosition, sourceSize, side);
+    const footprint = getLoopControlFootprint(sourcePosition, sourceSize, side);
     return nodes.reduce((total, node) => {
       if (node.id === source.id) return total;
       const position = positionOf?.(node.id) ?? node.position;
@@ -714,8 +697,9 @@ function selfLoopSideFor(
   const rightScore = score(Position.Right);
   if (leftScore !== rightScore) return leftScore < rightScore ? Position.Left : Position.Right;
 
-  // Keep equal-clearance routing stable while a node moves. The left tie-break also keeps the
-  // marker clear of the right-side inspector shared by both designers.
+  // Keep equal-clearance routing deterministic while a node moves. The dense-collision GUI
+  // fixture deliberately puts a blocker outside the old footprint so only complete capsule
+  // scoring—not a secondary tie heuristic—can select the clear side.
   return Position.Left;
 }
 

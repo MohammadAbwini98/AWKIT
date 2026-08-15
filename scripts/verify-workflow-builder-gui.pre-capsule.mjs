@@ -17,6 +17,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./lib/gui-verify-harness.mjs";
+import { readLoopCapsuleVisual } from "./lib/loop-capsule-visual-oracle.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-workflow-builder-gui");
@@ -175,6 +176,41 @@ async function loopMenuLabels(win, nodeId) {
 }
 
 async function readLoopVisual(win, nodeId) {
+  // Adapt the historical broad reader to the restored capsule so removed U-route descendants do
+  // not terminate the process. The canonical wrapper still retires the explicitly named obsolete
+  // visual assertions while keeping every unrelated Workflow and legacy loopBack check binding.
+  const capsule = await readLoopCapsuleVisual(win, nodeId);
+  if (capsule) {
+    return {
+      ...capsule,
+      legacyArrowCount: 0,
+      mainDash: "none",
+      mainWidth: capsule.pathStrokeWidth,
+      directionPathData: "",
+      directionMatchesPath: false,
+      directionPathLength: null,
+      directionStrokeDash: "none",
+      directionStrokeDashOffset: "0px",
+      directionStrokeWidth: "0px",
+      markerPathDistance: Number.POSITIVE_INFINITY,
+      pathEndpointsTouchNode: capsule.sameSideAttachment,
+      pathWrapsNode: capsule.pathWrapsWholeNode,
+      animationName: "none",
+      animationDuration: "0s",
+      animationIterationCount: "1",
+      animationTimingFunction: "ease",
+      animationCurrentTime: Number.NaN,
+      animationStartTime: Number.NaN,
+      display: "none",
+      opacity: "0",
+      arrowDisplay: "none",
+      arrowOpacity: "0",
+      markerAnimationName: "none",
+      nodeOverlapsRing: !capsule.markerOutsideNode,
+      nodeCoversRingCenter: false,
+      interactionWidth: "0px"
+    };
+  }
   return win.evaluate((id) => {
     const group = document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`);
     const node = document.querySelector(`.awkit-flow-node[data-id="${id}"]`);
@@ -526,6 +562,7 @@ async function readLoopMotionDelta(win, nodeId) {
 
 async function readLoopPixelMotion(win, nodeId) {
   const direction = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-direction-path`);
+  if (await direction.count() === 0) return null;
   const bounds = await direction.boundingBox();
   if (!bounds) return null;
   const clip = {

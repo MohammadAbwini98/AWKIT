@@ -9280,6 +9280,7 @@ table {
   --awkit-connector-loop: #7c3aed;
   --awkit-connector-parallel: #0ea5a4;
   --awkit-loop-flow-duration: 1800ms;
+  --awkit-loop-orbit-duration: 2000ms;
   --awkit-loop-exit-control-size: calc(var(--space-5) + var(--space-2));
   --awkit-loop-exit-control-label-offset: var(--awkit-loop-exit-control-size);
   --awkit-loop-exit-halo-duration: 2200ms;
@@ -10373,7 +10374,7 @@ table {
   }
 }
 
-/* Structured Loop connector: one rounded return path with a compact static configuration marker. */
+/* Structured Loop connector: compact side-attached capsule with a dominant configured-value ring. */
 .awkit-flow-edge[role="button"]:focus {
   outline: none;
 }

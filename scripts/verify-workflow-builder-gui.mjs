@@ -1,7 +1,7 @@
 // Canonical Workflow Builder GUI verifier.
 //
-// The broad pre-capsule walkthrough is intentionally preserved byte-for-byte in
-// `verify-workflow-builder-gui.pre-capsule.mjs`. It continues to own unrelated Builder coverage,
+// The broad pre-capsule walkthrough is intentionally preserved in
+// `verify-workflow-builder-gui.pre-capsule.mjs`. A capsule compatibility reader keeps unrelated Builder coverage,
 // legacy cross-node Loop Back coverage, and Loop functional assertions that do not encode the
 // rejected full-node U-route. Only the explicitly listed obsolete visual-oracle assertions may be
 // ignored there. The focused suite below validates the approved 7282178 capsule-and-ring contract
@@ -36,7 +36,8 @@ console.log("Workflow Builder: preserved broad GUI coverage");
 const broad = runLegacyGuiCoverage({
   root,
   script: "verify-workflow-builder-gui.pre-capsule.mjs",
-  supersededChecks: supersededURouteChecks
+  supersededChecks: supersededURouteChecks,
+  expectedChecks: 74
 });
 
 console.log("\nWorkflow Builder: approved 7282178 Loop capsule contract");

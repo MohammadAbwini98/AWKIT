@@ -9,11 +9,12 @@ function namesMatching(output, pattern) {
 }
 
 /**
- * Run the byte-preserved pre-capsule walkthrough and keep every unaffected assertion binding.
+ * Run the preserved pre-capsule walkthrough and keep every unaffected assertion binding.
  * Only the explicitly named visual assertions whose oracle encoded the rejected U-route are retired.
- * Any new/unexpected failure, harness failure, or process failure still fails the canonical verifier.
+ * The exact check total and allow-list coverage prevent a killed, truncated, or early-exit child from
+ * looking green merely because it failed only checks that happened to be retired.
  */
-export function runLegacyGuiCoverage({ root, script, supersededChecks }) {
+export function runLegacyGuiCoverage({ root, script, supersededChecks, expectedChecks }) {
   const result = spawnSync(process.execPath, [path.join(root, "scripts", script)], {
     cwd: root,
     env: process.env,
@@ -26,9 +27,11 @@ export function runLegacyGuiCoverage({ root, script, supersededChecks }) {
   const superseded = new Set(supersededChecks);
   const unexpectedFailures = failedChecks.filter((name) => !superseded.has(name));
   const retiredFailures = failedChecks.filter((name) => superseded.has(name));
-  const harnessFailed = result.status === 2 || result.error;
-  const pass = !harnessFailed && unexpectedFailures.length === 0 &&
-    (result.status === 0 || retiredFailures.length === failedChecks.length);
+  const missingSupersededChecks = supersededChecks.filter((name) => !allChecks.includes(name));
+  const checkTotalMatches = Number.isInteger(expectedChecks) && allChecks.length === expectedChecks;
+  const harnessFailed = result.error || result.signal || ![0, 1].includes(result.status) ||
+    !checkTotalMatches || missingSupersededChecks.length > 0;
+  const pass = !harnessFailed && unexpectedFailures.length === 0 && retiredFailures.length === failedChecks.length;
 
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
@@ -39,7 +42,13 @@ export function runLegacyGuiCoverage({ root, script, supersededChecks }) {
     console.error(`Unexpected legacy GUI failures: ${unexpectedFailures.join(" | ")}`);
   }
   if (harnessFailed) {
-    console.error(`Legacy GUI harness failed with status ${String(result.status)}${result.error ? `: ${result.error.message}` : ""}`);
+    console.error(
+      `Legacy GUI harness failed with status ${String(result.status)}, signal ${String(result.signal)}, ` +
+      `checks ${allChecks.length}/${String(expectedChecks)}${result.error ? `: ${result.error.message}` : ""}`
+    );
+  }
+  if (missingSupersededChecks.length > 0) {
+    console.error(`Legacy GUI did not reach retired check(s): ${missingSupersededChecks.join(" | ")}`);
   }
 
   return {
@@ -48,6 +57,8 @@ export function runLegacyGuiCoverage({ root, script, supersededChecks }) {
     totalChecks: allChecks.length,
     failedChecks,
     retiredFailures,
-    unexpectedFailures
+    unexpectedFailures,
+    missingSupersededChecks,
+    checkTotalMatches
   };
 }
