@@ -28,7 +28,12 @@ const scripts = Object.keys(pkg.scripts).filter((s) => /^(verify|validate):/.tes
  * it is a justification list, not a dumping ground — every entry needs a real reason, and a stale
  * entry (a file that is registered, or no longer exists) fails the gate. Empty is the healthy state.
  */
-const UNREGISTERED_VERIFIER_ALLOWLIST: Record<string, string> = {};
+const UNREGISTERED_VERIFIER_ALLOWLIST: Record<string, string> = {
+  "verify-flow-designer-gui.pre-capsule.mjs":
+    "Preserved broad child process invoked by the canonical verify:flow-designer wrapper; it is not an independent public gate.",
+  "verify-workflow-builder-gui.pre-capsule.mjs":
+    "Preserved broad child process invoked by the canonical verify:workflow-builder wrapper; it is not an independent public gate.",
+};
 
 let failed = 0;
 const fail = (msg: string): void => {

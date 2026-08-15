@@ -36,6 +36,7 @@ export async function readLoopCapsuleVisual(win, nodeId) {
     const pathRect = path.getBoundingClientRect();
     const outerRect = outer.getBoundingClientRect();
     const mainRect = main.getBoundingClientRect();
+    const sweepRect = sweep.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
     const valueRect = value.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
@@ -47,6 +48,11 @@ export async function readLoopCapsuleVisual(win, nodeId) {
     const sweepAnimation = sweep.getAnimations()[0];
     const valueStyle = getComputedStyle(value);
     const labelStyle = getComputedStyle(label);
+    const edgeLayerStyle = getComputedStyle(edgesLayer);
+    const nodeLayerStyle = getComputedStyle(nodesLayer);
+    const visibleLayer = (style, rect) => style.display !== "none" &&
+      style.visibility !== "hidden" && style.visibility !== "collapse" &&
+      Number.parseFloat(style.opacity) > 0 && rect.width > 0 && rect.height > 0;
     const overlaps = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
       Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
     const otherNodeRects = [...document.querySelectorAll(".awkit-flow-node")]
@@ -120,8 +126,11 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       syntheticLoopNodeCount: document.querySelectorAll('[data-canvas-node][data-loop-indicator], [data-canvas-node^="loop-visual-"]').length,
       indicatorInEdgeLayer: Boolean(indicator.closest(".awkit-flow-edges")),
       indicatorInNodeLayer: Boolean(indicator.closest(".awkit-flow-nodes")),
-      edgeLayerZ: getComputedStyle(edgesLayer).zIndex,
-      nodeLayerZ: getComputedStyle(nodesLayer).zIndex,
+      edgeLayerZ: edgeLayerStyle.zIndex,
+      nodeLayerZ: nodeLayerStyle.zIndex,
+      edgeBelowNode: Number.isFinite(Number.parseFloat(edgeLayerStyle.zIndex)) &&
+        Number.isFinite(Number.parseFloat(nodeLayerStyle.zIndex)) &&
+        Number.parseFloat(edgeLayerStyle.zIndex) < Number.parseFloat(nodeLayerStyle.zIndex),
       baseCount: group.querySelectorAll(".awkit-flow-edge-path").length,
       pathCount: group.querySelectorAll(".awkit-loop-indicator-path").length,
       laneCount: group.querySelectorAll(".awkit-loop-control-lane").length,
@@ -177,6 +186,12 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       sweepDash: sweep.style.strokeDasharray || sweepStyle.strokeDasharray,
       sweepWidth: sweepStyle.strokeWidth,
       sweepLinecap: sweepStyle.strokeLinecap,
+      laneLayerVisible: visibleLayer(laneStyle, laneRect),
+      outerLayerVisible: visibleLayer(outerStyle, outerRect),
+      mainLayerVisible: visibleLayer(mainStyle, mainRect),
+      sweepLayerVisible: visibleLayer(sweepStyle, sweepRect),
+      valueLayerVisible: visibleLayer(valueStyle, valueRect),
+      labelLayerVisible: visibleLayer(labelStyle, labelRect),
       animationName: sweepStyle.animationName,
       animationDuration: sweepStyle.animationDuration,
       animationIterationCount: sweepStyle.animationIterationCount,
@@ -196,8 +211,12 @@ export async function readLoopCapsuleVisual(win, nodeId) {
       valueCenteredOnRing: Math.abs(valueRect.left + valueRect.width / 2 - markerCenterX) <= 2 &&
         Math.abs(valueRect.top + valueRect.height / 2 - markerCenterY) <= Math.max(4, valueRect.height * 0.35),
       labelText: (label.textContent || "").trim(),
+      labelTitle: label.getAttribute("title"),
       labelDisplay: labelStyle.display,
       labelOpacity: labelStyle.opacity,
+      labelWidth: labelRect.width,
+      laneRenderedWidth: laneRect.width,
+      labelWidthWithinLane: labelRect.width <= laneRect.width + 1,
       labelAnimationName: labelStyle.animationName,
       labelAnimationCount: label.getAnimations().length,
       nodeLeft: nodeRect.left,
@@ -256,13 +275,15 @@ export function matchesLoopCapsuleContract(visual, { owner, value } = {}) {
     visual.pathMoveCount === 1 && visual.pathHasRoundedSegments && visual.pathTotalLength > 0 &&
     visual.valueCenteredOnRing && (value === undefined || visual.valueText === String(value)) &&
     visual.syntheticLoopNodeCount === 0 && visual.indicatorInEdgeLayer && !visual.indicatorInNodeLayer &&
-    visual.role === "button" && visual.tabIndex === "0" && visual.hitPointerEvents === "all" &&
+    visual.edgeBelowNode &&
+    visual.role === "button" && visual.tabIndex === "0" &&
+    typeof visual.ariaLabel === "string" && visual.ariaLabel.startsWith("Configure loop connector: ") &&
+    visual.hitPointerEvents === "all" && visual.hitDiameter > 0 &&
     visual.pathDisplay !== "none" && visual.pathVisibility !== "hidden" && Number.parseFloat(visual.pathOpacity) > 0 &&
     visual.pathStroke !== "none" && Number.parseFloat(visual.pathStrokeWidth) > 0 &&
-    visual.laneDisplay !== "none" && visual.laneVisibility !== "hidden" && Number.parseFloat(visual.laneOpacity) > 0 &&
-    visual.outerDisplay !== "none" && visual.outerVisibility !== "hidden" && Number.parseFloat(visual.outerOpacity) > 0 &&
-    visual.mainDisplay !== "none" && visual.mainVisibility !== "hidden" && Number.parseFloat(visual.mainOpacity) > 0 &&
-    visual.sweepDisplay !== "none" && visual.sweepVisibility !== "hidden" && Number.parseFloat(visual.sweepOpacity) > 0 &&
+    visual.laneLayerVisible && visual.outerLayerVisible && visual.mainLayerVisible && visual.sweepLayerVisible &&
+    visual.valueLayerVisible && visual.labelLayerVisible && Number.parseFloat(visual.sweepWidth) > 0 &&
+    visual.labelTitle === visual.labelText && visual.labelWidthWithinLane && visual.labelWidth > 0 && visual.laneRenderedWidth > 0 &&
     !visual.labelOverlapsMarker && !visual.labelOverlapsNode && !visual.overlapsOtherNode && !visual.overlapsInsertControl &&
     visual.duplicateLoopDomIdCount === 0 &&
     visual.markerAnimationCount === 0 && visual.valueAnimationCount === 0 && visual.labelAnimationCount === 0
@@ -277,7 +298,24 @@ export function rejectsLoopURouteHybrid(visual) {
     { ...visual, capsulePathIsCompact: false, pathWrapsWholeNode: true },
     { ...visual, directionCount: 1, arrowCount: 1 },
     { ...visual, overlapsOtherNode: true },
-    { ...visual, overlapsInsertControl: true }
+    { ...visual, overlapsInsertControl: true },
+    { ...visual, laneLayerVisible: false },
+    { ...visual, outerLayerVisible: false },
+    { ...visual, mainLayerVisible: false },
+    { ...visual, sweepLayerVisible: false },
+    { ...visual, valueLayerVisible: false },
+    { ...visual, labelLayerVisible: false },
+    { ...visual, sweepWidth: "0px" },
+    { ...visual, edgeBelowNode: false },
+    { ...visual, hitPointerEvents: "none" },
+    { ...visual, hitDiameter: 0 },
+    { ...visual, role: null },
+    { ...visual, tabIndex: null },
+    { ...visual, ariaLabel: null },
+    { ...visual, labelTitle: null },
+    { ...visual, labelWidthWithinLane: false },
+    { ...visual, labelWidth: 0 },
+    { ...visual, laneRenderedWidth: 0 }
   ];
   return knownBadMutations.every((mutation) => !matchesLoopCapsuleContract(mutation));
 }

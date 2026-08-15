@@ -797,11 +797,15 @@ try {
   await win.waitForLoadState("domcontentloaded");
   await signInFirstRun(win);
   await win.setViewportSize({ width: 1440, height: 900 });
-  await win.waitForTimeout(1200);
 
   // The sibling Workflows library should use the full editor surface before entering the Builder.
-  await win.click('button.nav-item:has(span:text-is("Workflows"))').catch(() => {});
+  const workflowsNav = win.locator('button.nav-item:has(span:text-is("Workflows"))');
+  await workflowsNav.waitFor({ state: "visible", timeout: 10000 });
+  await workflowsNav.click();
   await win.getByTestId("workflows-library-surface").waitFor({ state: "visible", timeout: 10000 });
+  // The surface mounts before its async profile load completes. Synchronize on the actual table that
+  // this assertion measures so a fast startup cannot sample the temporary Loading workflows state.
+  await win.locator(".workflows-library-panel .wl-table-workflows").waitFor({ state: "visible", timeout: 10000 });
   const workflowsLayout = await win.evaluate(() => {
     const page = document.querySelector(".workflows-library-page");
     const panel = document.querySelector(".workflows-library-panel");

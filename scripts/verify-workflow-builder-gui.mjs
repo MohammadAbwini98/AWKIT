@@ -9,7 +9,11 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { runLegacyGuiCoverage } from "./lib/legacy-gui-verifier-coverage.mjs";
-import { runWorkflowLoopCapsuleSuite } from "./lib/verify-workflow-loop-capsule-gui.mjs";
+import {
+  matchesWorkflowLoopCapsuleCheckContract,
+  runWorkflowLoopCapsuleSuite,
+  WORKFLOW_LOOP_CAPSULE_CHECK_NAMES
+} from "./lib/verify-workflow-loop-capsule-gui.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -45,10 +49,14 @@ const capsule = await runWorkflowLoopCapsuleSuite(root);
 
 const focusedPassed = capsule.results?.filter((result) => result.pass).length ?? 0;
 const focusedTotal = capsule.results?.length ?? 0;
+const focusedContractMatches = matchesWorkflowLoopCapsuleCheckContract(capsule.results);
 console.log(`\nWorkflow capsule checks: ${focusedPassed}/${focusedTotal}`);
 console.log(`Preserved broad checks observed: ${broad.totalChecks}; retired U-route failures: ${broad.retiredFailures.length}; unexpected failures: ${broad.unexpectedFailures.length}`);
+if (!focusedContractMatches) {
+  console.error(`Workflow capsule check contract mismatch: expected exactly ${WORKFLOW_LOOP_CAPSULE_CHECK_NAMES.length} unique named checks in canonical order.`);
+}
 
-if (!broad.pass || !capsule.pass) {
+if (!broad.pass || !capsule.pass || !focusedContractMatches) {
   process.exit(1);
 }
 process.exit(0);

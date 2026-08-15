@@ -232,7 +232,14 @@ export function LoopEdge({
         <div
           className="awkit-edge-label awkit-loop-indicator-label"
           data-edge-id={id}
-          style={{ whiteSpace: "nowrap", transform: `translate(-50%, -50%) translate(${controlX}px, ${labelY}px)` }}
+          title={resolvedLabel}
+          style={{
+            maxWidth: `${LOOP_CONTROL_LANE_WIDTH}px`,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            transform: `translate(-50%, -50%) translate(${controlX}px, ${labelY}px)`
+          }}
         >
           {resolvedLabel}
         </div>

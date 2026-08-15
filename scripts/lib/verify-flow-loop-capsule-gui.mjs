@@ -12,6 +12,36 @@ import {
 } from "./loop-capsule-visual-oracle.mjs";
 import { isolatedLaunchEnv, resolveMainWindow, signInFirstRun } from "./gui-verify-harness.mjs";
 
+export const FLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
+  "Flow Loop default renders the approved capsule, dominant ring, configured value, and sweep",
+  "Flow Loop capsule oracle rejects the superseded U-route hybrid",
+  "Flow Loop dense-layout scoring chooses the clear side and fit keeps the complete control visible",
+  "Flow Loop configuration preserves exact authored value, style, and mode-aware label",
+  "Flow Loop attachment is a compact same-side capsule rather than bottom-to-top full-node routing",
+  "Flow Loop renders the authored dotted width and rotates only the circular sweep while value and label remain stationary",
+  "Flow Loop reduced-motion contract freezes the sweep without hiding the value or capsule",
+  "Flow Loop capsule remains attached with stable motion through 25%, 100%, 200% zoom and canvas pan",
+  "Dragging the Flow node keeps the capsule, dominant ring, value, and attachment geometry together",
+  "Two Flow Loops retain independent identities, values, labels, selection, and normal sweep motion",
+  "Reduced motion freezes both independent Flow sweeps without hiding either value or label",
+  "Flow Loop first save preserves authored configuration, style, and exactly one promoted Conditional exit",
+  "Flow Loop reload, config Undo/Redo, and second reconfigure/save/reload preserve the exact capsule state",
+  "Flow Loop direct target and Delete/Undo/Redo restore its exact authored state",
+  "Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space"
+]);
+
+export function matchesFlowLoopCapsuleCheckContract(results) {
+  if (!Array.isArray(results) || results.length !== FLOW_LOOP_CAPSULE_CHECK_NAMES.length) return false;
+  const actualNames = results.map((result) => result?.name);
+  return new Set(actualNames).size === FLOW_LOOP_CAPSULE_CHECK_NAMES.length &&
+    actualNames.every((name, index) => name === FLOW_LOOP_CAPSULE_CHECK_NAMES[index]);
+}
+
+const normalizeDash = (value) => String(value ?? "")
+  .replace(/px|,/g, " ")
+  .trim()
+  .replace(/\s+/g, " ");
+
 function seedFlow(dataRoot) {
   const now = new Date().toISOString();
   const flowsDir = path.join(dataRoot, "SpecterStudio", "flows");
@@ -72,6 +102,39 @@ async function waitForConfiguredValue(win, nodeId, value) {
   }, { id: nodeId, expected: String(value) });
 }
 
+async function waitForHistoryControl(win, testId) {
+  await win.waitForFunction((id) => {
+    const control = document.querySelector(`[data-testid="${CSS.escape(id)}"]`);
+    return control instanceof HTMLButtonElement && !control.disabled;
+  }, testId);
+}
+
+async function ensureLoopConfigVisible(win, nodeId, control) {
+  if (await control.isVisible().catch(() => false)) return;
+  await win.locator(
+    `g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`
+  ).click();
+  await control.waitFor({ state: "visible" });
+}
+
+async function findEmptyCanvasPoint(win) {
+  return win.evaluate(() => {
+    const canvas = document.querySelector(".awkit-flow-canvas");
+    if (!(canvas instanceof HTMLElement)) return null;
+    const rect = canvas.getBoundingClientRect();
+    for (let y = rect.top + 32; y < rect.bottom - 32; y += 28) {
+      for (let x = rect.left + 32; x < rect.right - 32; x += 28) {
+        const element = document.elementFromPoint(x, y);
+        if (!element || element.closest(
+          '[data-canvas-node], g.awkit-flow-edge, .awkit-flow-edge-labels, button, input, select, textarea, a, [role="dialog"]'
+        )) continue;
+        return { x, y };
+      }
+    }
+    return null;
+  });
+}
+
 async function fitAndStabilize(win, nodeIds) {
   await win.locator('.canvas-zoom-control button[title="Fit to screen"]').click();
   return Promise.all(nodeIds.map((nodeId) => waitForLoopCapsuleLayoutStable(win, nodeId)));
@@ -96,9 +159,14 @@ async function fitNodeActionIntoView(win, nodeId) {
 export async function runFlowLoopCapsuleSuite(root) {
   const results = [];
   const check = (name, pass, detail) => {
-    const passed = Boolean(pass);
-    results.push({ name, pass: passed, detail });
-    console.log(`${passed ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);
+    const expectedName = FLOW_LOOP_CAPSULE_CHECK_NAMES[results.length];
+    const nameMatches = name === expectedName;
+    const passed = Boolean(pass) && nameMatches;
+    const resolvedDetail = nameMatches
+      ? detail
+      : `focused check contract mismatch: expected ${JSON.stringify(expectedName)}, received ${JSON.stringify(name)}${detail ? `; ${detail}` : ""}`;
+    results.push({ name, pass: passed, detail: resolvedDetail });
+    console.log(`${passed ? "  ✓" : "  ✗"} ${name}${resolvedDetail ? ` — ${resolvedDetail}` : ""}`);
   };
   const { env, dataRoot, cleanup } = isolatedLaunchEnv("awkit-flow-loop-capsule-gui");
   seedFlow(dataRoot);
@@ -121,6 +189,9 @@ export async function runFlowLoopCapsuleSuite(root) {
     await waitForLoop(win, nodeId);
     const loopMode = win.locator('.connection-config-drawer label:has-text("Loop mode") select');
     const maxIterations = win.locator('.connection-config-drawer label:has-text("Max iterations") input');
+    const lineStyle = win.locator('.connection-config-drawer label:has-text("Line style") select');
+    const thickness = win.locator('.connection-config-drawer label:has-text("Thickness") select');
+    const connectorShape = win.locator('.connection-config-drawer label:has-text("Connector shape") select');
     await loopMode.waitFor({ state: "visible" });
     await waitForConfiguredValue(win, nodeId, 3);
     const initialStable = await fitAndStabilize(win, [nodeId]);
@@ -144,16 +215,20 @@ export async function runFlowLoopCapsuleSuite(root) {
 
     await loopMode.selectOption("whileCondition");
     await maxIterations.fill("10");
-    await win.locator('.connection-config-drawer label:has-text("Line style") select').selectOption("dotted");
-    await win.locator('.connection-config-drawer label:has-text("Thickness") select').selectOption("4");
-    await win.locator('.connection-config-drawer label:has-text("Connector shape") select').selectOption("smoothstep");
+    await lineStyle.selectOption("dotted");
+    await thickness.selectOption("4");
+    await connectorShape.selectOption("smoothstep");
     await waitForConfiguredValue(win, nodeId, 10);
+
     await waitForLoopCapsuleLayoutStable(win, nodeId);
     const visual = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Flow Loop configured value is design-time maxIterations while the label stays mode-aware",
+      "Flow Loop configuration preserves exact authored value, style, and mode-aware label",
       matchesLoopCapsuleContract(visual, { owner: nodeId, value: 10 }) &&
         visual?.labelText === "While · status = passed" &&
+        await loopMode.inputValue() === "whileCondition" && await maxIterations.inputValue() === "10" &&
+        await lineStyle.inputValue() === "dotted" && await thickness.inputValue() === "4" && await connectorShape.inputValue() === "smoothstep" &&
+        normalizeDash(visual.pathStrokeDash) === "1 5" && Number.parseFloat(visual.pathStrokeWidth) === 4 &&
         !/\b\d+\s*\/\s*\d+\b|\biteration\b/i.test(visual?.ariaLabel ?? ""),
       JSON.stringify(visual)
     );
@@ -167,10 +242,12 @@ export async function runFlowLoopCapsuleSuite(root) {
     const motion = await readLoopCapsuleMotion(win, nodeId);
     const pixelMotion = await readLoopCapsulePixelMotion(win, nodeId);
     check(
-      "Flow Loop rotates only the circular sweep while value and label remain stationary",
+      "Flow Loop renders the authored dotted width and rotates only the circular sweep while value and label remain stationary",
       visual?.animationName === "awkit-loop-control-orbit" && visual.animationIterationCount === "infinite" &&
         visual.animationTimingFunction === "linear" && Number.parseFloat(visual.animationDuration) === 2 && visual.sweepAnimationCount === 1 &&
-        visual.sweepPathLength === "100" && String(visual.sweepDash).replace(/px|,/g, " ").trim().replace(/\s+/g, " ") === "22 78" &&
+        visual.sweepPathLength === "100" && normalizeDash(visual.sweepDash) === "22 78" &&
+        normalizeDash(visual.pathStrokeDash) === "1 5" && Number.parseFloat(visual.pathStrokeWidth) === 4 &&
+        visual.pathStrokeLinecap === "round" && visual.pathStrokeLinejoin === "round" &&
         Number.parseFloat(visual.sweepWidth) === 4 && motion?.moved && Number.isFinite(motion.delta) && motion.delta >= 100 &&
         !motion.valueMoved && !motion.labelMoved && motion.valueAnimationCount === 0 && motion.labelAnimationCount === 0 &&
         Number.isFinite(pixelMotion?.changedPixels) && pixelMotion.changedPixels >= 12 && pixelMotion.totalDelta > 0,
@@ -209,12 +286,39 @@ export async function runFlowLoopCapsuleSuite(root) {
     for (let index = 0; index < 10; index += 1) await zoomIn.click();
     const at200 = await sampleZoom();
     await resetZoom.click();
+    await waitForLoopCapsuleLayoutStable(win, nodeId);
+    const beforePan = await readLoopCapsuleVisual(win, nodeId);
+    const emptyCanvasPoint = await findEmptyCanvasPoint(win);
+    let panMoved = false;
+    if (emptyCanvasPoint && beforePan) {
+      await win.mouse.move(emptyCanvasPoint.x, emptyCanvasPoint.y);
+      await win.mouse.down();
+      await win.mouse.move(emptyCanvasPoint.x + 48, emptyCanvasPoint.y + 32, { steps: 6 });
+      await win.mouse.up();
+      panMoved = await win.waitForFunction(({ id, left, top }) => {
+        const node = document.querySelector(`.awkit-flow-node[data-id="${CSS.escape(id)}"]`);
+        if (!(node instanceof HTMLElement)) return false;
+        const rect = node.getBoundingClientRect();
+        return Math.hypot(rect.left - left, rect.top - top) >= 20;
+      }, { id: nodeId, left: beforePan.nodeLeft, top: beforePan.nodeTop }).then(() => true).catch(() => false);
+    }
+    const panStable = await waitForLoopCapsuleLayoutStable(win, nodeId);
+    const afterPan = await readLoopCapsuleVisual(win, nodeId);
+    const restoredAfterPan = await fitAndStabilize(win, [nodeId]);
+    const afterPanRestore = await readLoopCapsuleVisual(win, nodeId);
+    const zoomAnimationStartTime = at100.visual?.sweepAnimationStartTime;
     check(
-      "Flow Loop capsule remains attached and structurally identical at 25%, 100%, and 200% zoom",
+      "Flow Loop capsule remains attached with stable motion through 25%, 100%, 200% zoom and canvas pan",
       at25.percent === 25 && at100.percent === 100 && at200.percent === 200 &&
         [at25, at100, at200].every((sample) => sample.stable && matchesLoopCapsuleContract(sample.visual, { owner: nodeId, value: 10 }) &&
-          sample.visual.laneAttachedToNode && sample.visual.sameSideAttachment && !sample.visual.pathWrapsWholeNode),
-      JSON.stringify({ at25, at100, at200 })
+          sample.visual.laneAttachedToNode && sample.visual.sameSideAttachment && !sample.visual.pathWrapsWholeNode &&
+          Number.isFinite(sample.visual.sweepAnimationStartTime) && sample.visual.sweepAnimationStartTime === zoomAnimationStartTime) &&
+        Boolean(emptyCanvasPoint) && panMoved && panStable && restoredAfterPan.every(Boolean) &&
+        loopCapsuleMovedWithNode(beforePan, afterPan) && matchesLoopCapsuleContract(afterPan, { owner: nodeId, value: 10 }) &&
+        matchesLoopCapsuleContract(afterPanRestore, { owner: nodeId, value: 10 }) &&
+        afterPan?.sweepAnimationStartTime === beforePan?.sweepAnimationStartTime &&
+        afterPanRestore?.sweepAnimationStartTime === beforePan?.sweepAnimationStartTime,
+      JSON.stringify({ at25, at100, at200, emptyCanvasPoint, panMoved, panStable, beforePan, afterPan, restoredAfterPan, afterPanRestore })
     );
 
     await waitForLoopCapsuleLayoutStable(win, nodeId);
@@ -223,7 +327,7 @@ export async function runFlowLoopCapsuleSuite(root) {
     if (nodeBox) {
       await win.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
       await win.mouse.down();
-      await win.mouse.move(nodeBox.x + nodeBox.width / 2 + 36, nodeBox.y + nodeBox.height / 2 + 20, { steps: 6 });
+      await win.mouse.move(nodeBox.x + nodeBox.width / 2 + 36, nodeBox.y + nodeBox.height / 2 - 20, { steps: 6 });
       await win.mouse.up();
     }
     const dragStable = await waitForLoopCapsuleLayoutStable(win, nodeId);
@@ -231,7 +335,8 @@ export async function runFlowLoopCapsuleSuite(root) {
     check(
       "Dragging the Flow node keeps the capsule, dominant ring, value, and attachment geometry together",
       Boolean(nodeBox) && dragStable && beforeDrag?.side === "right" && afterDrag?.side === "right" &&
-        loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId, value: 10 }),
+        loopCapsuleMovedWithNode(beforeDrag, afterDrag) && matchesLoopCapsuleContract(afterDrag, { owner: nodeId, value: 10 }) &&
+        Number.isFinite(beforeDrag.sweepAnimationStartTime) && afterDrag.sweepAnimationStartTime === beforeDrag.sweepAnimationStartTime,
       JSON.stringify({ dragStable, beforeDrag, afterDrag })
     );
 
@@ -247,16 +352,23 @@ export async function runFlowLoopCapsuleSuite(root) {
     ]);
     const firstWithSecond = await readLoopCapsuleVisual(win, nodeId);
     const secondVisual = await readLoopCapsuleVisual(win, secondNodeId);
+    const normalPeerMotion = await Promise.all([
+      readLoopCapsuleMotion(win, nodeId),
+      readLoopCapsuleMotion(win, secondNodeId)
+    ]);
     check(
-      "Two Flow Loops retain independent identities, values, labels, and capsule controls",
+      "Two Flow Loops retain independent identities, values, labels, selection, and normal sweep motion",
       peersStable.every(Boolean) && firstWithSecond?.edgeId !== secondVisual?.edgeId && matchesLoopCapsuleContract(firstWithSecond, { owner: nodeId, value: 10 }) &&
         matchesLoopCapsuleContract(secondVisual, { owner: secondNodeId, value: 7 }) &&
         firstWithSecond?.labelText === "While · status = passed" && secondVisual?.labelText === "Count × 7" &&
         firstWithSecond.selected === false && secondVisual.selected === true &&
         firstWithSecond.duplicateLoopDomIdCount === 0 && secondVisual.duplicateLoopDomIdCount === 0 &&
         firstWithSecond.sweepAnimationStartTime === primaryBeforeSecond?.sweepAnimationStartTime &&
-        Number.isFinite(secondVisual.sweepAnimationStartTime) && secondVisual.sweepAnimationStartTime !== firstWithSecond.sweepAnimationStartTime,
-      JSON.stringify({ firstWithSecond, secondVisual })
+        Number.isFinite(secondVisual.sweepAnimationStartTime) && secondVisual.sweepAnimationStartTime !== firstWithSecond.sweepAnimationStartTime &&
+        normalPeerMotion.every((item) => item?.moved && Number.isFinite(item.delta) && item.delta >= 100 &&
+          !item.valueMoved && !item.labelMoved && item.valueAnimationCount === 0 && item.labelAnimationCount === 0 &&
+          item.beforeStartTime === item.afterStartTime),
+      JSON.stringify({ firstWithSecond, secondVisual, normalPeerMotion })
     );
 
     await win.emulateMedia({ reducedMotion: "reduce" });
@@ -310,27 +422,147 @@ export async function runFlowLoopCapsuleSuite(root) {
       return { loopEdge, exits };
     });
     check(
-      "Flow Loop save preserves functional configuration and exactly one promoted Conditional exit",
-      unsavedVisual?.valueText === "12" && saved.loopEdge?.kind === "loop" && saved.loopEdge?.loop?.mode === "whileCondition" &&
-        saved.loopEdge?.loop?.maxIterations === 12 && saved.exits.length === 1 && saved.exits[0]?.kind === "conditional",
-      JSON.stringify(saved)
+      "Flow Loop first save preserves authored configuration, style, and exactly one promoted Conditional exit",
+      matchesLoopCapsuleContract(unsavedVisual, { owner: nodeId, value: 12 }) && unsavedVisual?.labelText === "While · status = passed" &&
+        normalizeDash(unsavedVisual.pathStrokeDash) === "1 5" && Number.parseFloat(unsavedVisual.pathStrokeWidth) === 4 &&
+        saved.loopEdge?.kind === "loop" && saved.loopEdge?.loop?.mode === "whileCondition" &&
+        saved.loopEdge?.loop?.maxIterations === 12 && saved.loopEdge?.loop?.condition?.sourceField === "status" &&
+        saved.loopEdge?.loop?.condition?.operator === "equals" && saved.loopEdge?.loop?.condition?.expectedValue === "passed" &&
+        saved.loopEdge?.style?.lineStyle === "dotted" && saved.loopEdge?.style?.thickness === 4 && saved.loopEdge?.style?.shape === "smoothstep" &&
+        saved.exits.length === 1 && saved.exits[0]?.kind === "conditional" && saved.exits[0]?.conditional?.operator === "always",
+      JSON.stringify({ unsavedVisual, saved })
     );
 
     await win.getByTitle("Reload selected flow").click();
     await waitForLoop(win, nodeId);
     await waitForConfiguredValue(win, nodeId, 12);
-    const reloaded = await readLoopCapsuleVisual(win, nodeId);
+    const firstReloaded = await readLoopCapsuleVisual(win, nodeId);
+    const hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
+    await hit.click();
+    await loopMode.waitFor({ state: "visible" });
+    const firstReloadedEditor = {
+      mode: await loopMode.inputValue(),
+      maxIterations: await maxIterations.inputValue(),
+      lineStyle: await lineStyle.inputValue(),
+      thickness: await thickness.inputValue(),
+      shape: await connectorShape.inputValue()
+    };
+
+    // The reload resets editor history to the exact persisted state. A single reconfiguration can
+    // therefore prove Undo/Redo without racing or contradicting the editor's intentional coalescing.
+    await maxIterations.fill("14");
+    await waitForConfiguredValue(win, nodeId, 14);
+    await waitForHistoryControl(win, "flow-undo");
+    await win.locator('[data-testid="flow-undo"]').click();
+    await waitForConfiguredValue(win, nodeId, 12);
+    const configurationUndoVisual = await readLoopCapsuleVisual(win, nodeId);
+    await ensureLoopConfigVisible(win, nodeId, maxIterations);
+    const configurationUndoExact = await maxIterations.inputValue() === "12";
+    await waitForHistoryControl(win, "flow-redo");
+    await win.locator('[data-testid="flow-redo"]').click();
+    await waitForConfiguredValue(win, nodeId, 14);
+    const configurationRedoVisual = await readLoopCapsuleVisual(win, nodeId);
+    await ensureLoopConfigVisible(win, nodeId, maxIterations);
+    const configurationRedoExact = await maxIterations.inputValue() === "14";
+    const secondUnsavedVisual = await readLoopCapsuleVisual(win, nodeId);
+    await win.getByRole("button", { name: "Save", exact: true }).click();
+    await win.waitForFunction(async () => {
+      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
+      const edge = profile?.edges.find((candidate) => candidate.source === "goto" && candidate.target === "goto");
+      return edge?.loop?.maxIterations === 14 && edge.style?.lineStyle === "dotted" &&
+        edge.style?.thickness === 4 && edge.style?.shape === "smoothstep";
+    });
+    const secondSaved = await win.evaluate(async () => {
+      const profile = await window.playwrightFlowStudio.flows.get("verify-flow-loop-capsule");
+      const loopEdge = profile?.edges.find((edge) => edge.source === "goto" && edge.target === "goto");
+      const exits = profile?.edges.filter((edge) => edge.source === "goto" && edge.target !== "goto") ?? [];
+      return { loopEdge, exits };
+    });
+    await win.getByTitle("Reload selected flow").click();
+    await waitForLoop(win, nodeId);
+    await waitForConfiguredValue(win, nodeId, 14);
+    const secondReloaded = await readLoopCapsuleVisual(win, nodeId);
     check(
-      "Flow Loop reload preserves the capsule visual contract and configured value",
-      matchesLoopCapsuleContract(reloaded, { owner: nodeId, value: 12 }) && reloaded?.labelText === "While · status = passed",
-      JSON.stringify(reloaded)
+      "Flow Loop reload, config Undo/Redo, and second reconfigure/save/reload preserve the exact capsule state",
+      matchesLoopCapsuleContract(firstReloaded, { owner: nodeId, value: 12 }) && firstReloaded?.labelText === "While · status = passed" &&
+        normalizeDash(firstReloaded.pathStrokeDash) === "1 5" && Number.parseFloat(firstReloaded.pathStrokeWidth) === 4 &&
+        firstReloadedEditor.mode === "whileCondition" && firstReloadedEditor.maxIterations === "12" &&
+        firstReloadedEditor.lineStyle === "dotted" && firstReloadedEditor.thickness === "4" && firstReloadedEditor.shape === "smoothstep" &&
+        configurationUndoExact && configurationRedoExact &&
+        matchesLoopCapsuleContract(configurationUndoVisual, { owner: nodeId, value: 12 }) &&
+        matchesLoopCapsuleContract(configurationRedoVisual, { owner: nodeId, value: 14 }) &&
+        matchesLoopCapsuleContract(secondUnsavedVisual, { owner: nodeId, value: 14 }) &&
+        matchesLoopCapsuleContract(secondReloaded, { owner: nodeId, value: 14 }) && secondReloaded?.labelText === "While · status = passed" &&
+        normalizeDash(secondReloaded.pathStrokeDash) === "1 5" && Number.parseFloat(secondReloaded.pathStrokeWidth) === 4 &&
+        secondSaved.loopEdge?.loop?.mode === "whileCondition" && secondSaved.loopEdge?.loop?.maxIterations === 14 &&
+        secondSaved.loopEdge?.loop?.condition?.sourceField === "status" && secondSaved.loopEdge?.loop?.condition?.operator === "equals" &&
+        secondSaved.loopEdge?.loop?.condition?.expectedValue === "passed" && secondSaved.loopEdge?.style?.lineStyle === "dotted" &&
+        secondSaved.loopEdge?.style?.thickness === 4 && secondSaved.loopEdge?.style?.shape === "smoothstep" &&
+        secondSaved.exits.length === 1 && secondSaved.exits[0]?.kind === "conditional" && secondSaved.exits[0]?.conditional?.operator === "always",
+      JSON.stringify({ firstReloaded, firstReloadedEditor, configurationUndoExact, configurationUndoVisual,
+        configurationRedoExact, configurationRedoVisual, secondUnsavedVisual, secondSaved, secondReloaded })
     );
 
-    const hit = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"] .awkit-loop-indicator-hit`);
-    await hit.click({ force: false });
+    // Exercise destructive history against the second persisted authored state. Each transition is
+    // synchronized on Loop presence/value, and the final Undo must restore configuration, style,
+    // topology, and the same capsule oracle rather than merely recreating a default Loop.
+    await hit.click();
     await loopMode.waitFor({ state: "visible" });
-    check("Flow Loop dominant ring remains a direct configuration target", await loopMode.inputValue() === "whileCondition");
+    const directTargetMode = await loopMode.inputValue();
     const loopGroup = win.locator(`g.awkit-flow-edge[data-source="${nodeId}"][data-target="${nodeId}"][role="button"]`);
+    await loopGroup.focus();
+    await loopGroup.press("Delete");
+    await waitForLoop(win, nodeId, false);
+    const deletedByKeyboard = await loopGroup.count() === 0;
+    await waitForHistoryControl(win, "flow-undo");
+    await win.locator('[data-testid="flow-undo"]').click();
+    await waitForLoop(win, nodeId);
+    await waitForConfiguredValue(win, nodeId, 14);
+    const firstDeleteUndo = await readLoopCapsuleVisual(win, nodeId);
+    await waitForHistoryControl(win, "flow-redo");
+    await win.locator('[data-testid="flow-redo"]').click();
+    await waitForLoop(win, nodeId, false);
+    const deletedAgainByRedo = await loopGroup.count() === 0;
+    await waitForHistoryControl(win, "flow-undo");
+    await win.locator('[data-testid="flow-undo"]').click();
+    await waitForLoop(win, nodeId);
+    await waitForConfiguredValue(win, nodeId, 14);
+    const finalDeleteUndo = await readLoopCapsuleVisual(win, nodeId);
+    await hit.click();
+    await loopMode.waitFor({ state: "visible" });
+    const restoredEditor = {
+      mode: await loopMode.inputValue(),
+      maxIterations: await maxIterations.inputValue(),
+      lineStyle: await lineStyle.inputValue(),
+      thickness: await thickness.inputValue(),
+      shape: await connectorShape.inputValue()
+    };
+    const restoredTopology = await win.evaluate((id) => {
+      const outgoing = [...document.querySelectorAll(`g.awkit-flow-edge[data-source="${CSS.escape(id)}"]`)];
+      const exits = outgoing.filter((edge) => edge.getAttribute("data-target") !== id);
+      return {
+        loops: outgoing.filter((edge) => edge.getAttribute("data-target") === id && edge.getAttribute("data-connector-kind") === "loop").length,
+        exits: exits.length,
+        loopExitControls: exits.filter((edge) => {
+          const edgeId = edge.getAttribute("data-id");
+          return edgeId && document.querySelector(`button.awkit-edge-add[data-edge-id="${CSS.escape(edgeId)}"][data-insert-role="loop-exit"]`);
+        }).length
+      };
+    }, nodeId);
+    check(
+      "Flow Loop direct target and Delete/Undo/Redo restore its exact authored state",
+      directTargetMode === "whileCondition" && deletedByKeyboard && deletedAgainByRedo &&
+        matchesLoopCapsuleContract(firstDeleteUndo, { owner: nodeId, value: 14 }) &&
+        matchesLoopCapsuleContract(finalDeleteUndo, { owner: nodeId, value: 14 }) &&
+        firstDeleteUndo?.labelText === "While · status = passed" && finalDeleteUndo?.labelText === "While · status = passed" &&
+        normalizeDash(firstDeleteUndo.pathStrokeDash) === "1 5" && Number.parseFloat(firstDeleteUndo.pathStrokeWidth) === 4 &&
+        normalizeDash(finalDeleteUndo.pathStrokeDash) === "1 5" && Number.parseFloat(finalDeleteUndo.pathStrokeWidth) === 4 &&
+        restoredEditor.mode === "whileCondition" && restoredEditor.maxIterations === "14" &&
+        restoredEditor.lineStyle === "dotted" && restoredEditor.thickness === "4" && restoredEditor.shape === "smoothstep" &&
+        restoredTopology.loops === 1 && restoredTopology.exits === 1 && restoredTopology.loopExitControls === 1,
+      JSON.stringify({ directTargetMode, deletedByKeyboard, firstDeleteUndo, deletedAgainByRedo, finalDeleteUndo, restoredEditor, restoredTopology })
+    );
+
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
     await loopGroup.focus();
     await win.keyboard.press("Enter");
@@ -344,11 +576,16 @@ export async function runFlowLoopCapsuleSuite(root) {
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
     await hit.dblclick();
     await loopMode.waitFor({ state: "visible" });
-    check("Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space", enterAccessible && spaceAccessible && await loopMode.inputValue() === "whileCondition");
+    check("Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space", enterAccessible && spaceAccessible &&
+      await loopMode.inputValue() === "whileCondition" && await maxIterations.inputValue() === "14");
 
     await app.close();
     cleanup();
-    return { pass: results.every((result) => result.pass), results };
+    const checkContractMatches = matchesFlowLoopCapsuleCheckContract(results);
+    if (!checkContractMatches) {
+      console.error(`Focused Flow Loop check contract failed: observed ${results.length}/${FLOW_LOOP_CAPSULE_CHECK_NAMES.length} exact named checks.`);
+    }
+    return { pass: checkContractMatches && results.every((result) => result.pass), results, checkContractMatches };
   } catch (error) {
     try { await app.close(); } catch { /* ignore */ }
     cleanup();
