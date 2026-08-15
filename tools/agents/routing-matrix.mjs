@@ -83,6 +83,7 @@ export const AGENTS = Object.freeze([
       "docs/ai/**",
       "tools/roadmap/**",
       "tools/agents/**",
+      ".beads/**",
       ".claude/**",
       ".codex/**",
       ".gemini/**"
@@ -518,6 +519,14 @@ export const PATH_DOMAINS = Object.freeze([
     owner: "manager",
     impliesFlags: [],
     note: "This routing system itself."
+  },
+  {
+    glob: ".beads/**",
+    owner: "manager",
+    impliesFlags: [],
+    note:
+      "Tracker database and its JSONL export. The Manager files and closes issues, and the export " +
+      "must be refreshed with `bd export -o .beads/issues.jsonl` before the dashboard reads it."
   },
   {
     glob: ".claude/**",

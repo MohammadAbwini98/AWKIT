@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Harden Windows settings atomic replacement retries (awkit-4qs)
+
+- **Task:** First real task routed end to end through the deterministic routing system.
+- **Defect:** `writeSettings` did `writeFile(tmp)` + `rename(tmp, target)`. Crash-safe, but a
+  transient Windows `EPERM`/`EBUSY` from a scanner/indexer handle discarded the settings write.
+- **Implementation:** new `app/main/atomicReplace.ts` — `replaceFileAtomically()` retries only
+  `EPERM`/`EBUSY`, bounded (5 attempts, 20ms linear backoff), rethrows the original errno, removes
+  the temp file on every terminal path, leaves the prior target intact. `uiSettings.ts` delegates to
+  it. Schema, IPC and serial FIFO ordering untouched.
+- **Routing:** classified Risk 2 (`electron_main_change`, `filesystem_write_change`); activated
+  manager, runtime, persistence, qa, qc. Contract at `docs/ai/contracts/awkit-4qs.json` declared
+  evidence BEFORE implementation. Lease moved runtime -> qa -> manager sequentially, never
+  concurrent.
+- **Tests run:** `verify:write-queue` **29/29** (was 7), **mutation-tested 5/5**;
+  `verify:settings-persistence` **3/3** real Electron (40 concurrent patches lossless, 0 temp files,
+  flush-on-quit); `npm run build` PASS; `verify:agent-routing` 215/215;
+  `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `verify:settings-e2e`, `verify:runner`, `validate:offline` — no renderer,
+  runner or packaging code was touched.
+- **Found by the routing system:** `.beads/**` was unmapped, so no specialist owned the tracker
+  export; now manager-owned. Also confirmed the preserved stash is docs-only and never overlapped
+  this settings scope, resolving a standing handoff caution.
+- **Rough edge recorded:** `writerSequence` lists writer-mode agents activated purely by flag even
+  when they own none of the task's paths (persistence led the sequence here with nothing to write).
+- **Result:** closed. Tracker 193 total / 189 closed / 4 outstanding, all owner-gated.
+
+---
+
 ## 2026-08-16 - Claude - Phase 5: generated platform agent definitions, model dogfooded
 
 - **Task:** Generate executable per-platform agent definitions from the canonical routing registry

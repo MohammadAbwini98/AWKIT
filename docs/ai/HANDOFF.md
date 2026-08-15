@@ -1,5 +1,45 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-16) - settings replacement hardened; no ready work remains
+
+### Transfer
+
+- **From:** Claude. **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`; no branch or worktree created. No active write lease.
+- **Tracker: 193 total / 189 closed / 4 outstanding.** Ledger unchanged at
+  **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Preserved stash:** `stash@{0}` inspected this session — it is **docs-only**
+  (`CURRENT_STATE`/`HANDOFF`/`TASK_LOG`) and never overlapped the settings work the earlier handoff
+  warned about. Still not applied or dropped.
+
+### Delivered
+
+- `awkit-4qs` closed: `app/main/atomicReplace.ts` retries bounded transient `EPERM`/`EBUSY` on the
+  settings rename. `verify:write-queue` 29/29, mutation-tested 5/5; `verify:settings-persistence`
+  3/3 in real Electron.
+- Ran the whole task through the routing system: contract, sequential leases runtime -> qa -> manager,
+  derived-classification check, completion gate.
+- `.beads/**` is now manager-owned; it had been unmapped.
+
+### There is no ready work left
+
+All four outstanding items are externally blocked and owner-gated — `awkit-cm8` and `awkit-7bu`
+(Oracle external gates / live 19c), `awkit-cey` (authorized real-IdP Chrome handoff), `awkit-az7`
+(two owner-decision OS shell launches). None is blocked on engineering. The dashboard will show
+**0 ready**, which is accurate rather than a parsing fault.
+
+### Rough edges worth a look before the next routed task
+
+- `writerSequence` includes writer-mode agents activated purely by a flag even when they own none of
+  the task's paths (persistence led the sequence for a task with nothing for it to write). Harmless
+  but misleading; consider intersecting the sequence with the task's actual owned paths.
+- Adding a one-line npm script still requires a lease handoff to `release`, since `package.json`
+  carries the dependency graph.
+- The lease guard allows edits when no lease is held, and `Bash` writes bypass it. Derived
+  classification is the backstop.
+
+---
+
 ## HANDOFF (2026-08-16) - deterministic multi-agent routing, Phases 0-5 complete
 
 ### Transfer

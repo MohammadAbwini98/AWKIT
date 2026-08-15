@@ -11,7 +11,7 @@ and what risk it carries. An earlier draft stated these rules in three places th
 
 | Agent | Role | Default mode | Owns | Folder authority |
 | --- | --- | --- | --- | --- |
-| `manager` | Manager / Orchestrator | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | `docs/AGENTS.md` |
+| `manager` | Manager / Orchestrator | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.beads/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | `docs/AGENTS.md` |
 | `architect` | Software Architect | read-only | `docs/ai/ARCHITECTURE.md`<br>`docs/ai/DECISIONS.md` | — |
 | `uiux` | UI/UX & Accessibility Specialist | read-only | — | — |
 | `frontend` | React / Renderer Engineer | writer | `app/renderer/**` | `app/renderer/AGENTS.md` |
@@ -87,6 +87,7 @@ change was visual. First match wins, so narrower paths come first.
 | `docs/ai/**` | `manager` | — | AI memory and governance documents. |
 | `tools/roadmap/**` | `manager` | — | Derived dashboard. Never hand-edited to record progress. |
 | `tools/agents/**` | `manager` | — | This routing system itself. |
+| `.beads/**` | `manager` | — | Tracker database and its JSONL export. The Manager files and closes issues, and the export must be refreshed with `bd export -o .beads/issues.jsonl` before the dashboard reads it. |
 | `.claude/**` | `manager` | — | Claude Code agent/skill/hook configuration. Generated role definitions live here. |
 | `.codex/**` | `manager` | — | Codex configuration and skills. |
 | `.gemini/**` | `manager` | — | Gemini / Antigravity configuration and skills. |

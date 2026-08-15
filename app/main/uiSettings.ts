@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { getRuntimePaths } from "./appPaths";
+import { replaceFileAtomically } from "./atomicReplace";
 import { createSerialQueue } from "./writeQueue";
 import {
   DEFAULT_ACCENT_SETTINGS,
@@ -705,15 +706,17 @@ async function writeSettings(settings: UiSettings): Promise<void> {
   // libuv's rename replaces the destination atomically on Windows (MOVEFILE_REPLACE_EXISTING),
   // so a crash or power loss mid-write can never leave a half-written / truncated ui-settings.json.
   // Writes are already serialized through `settingsQueue`, so the temp name only needs to be
-  // unique per process. On rename failure the temp file is cleaned up so it can't accumulate.
+  // unique per process.
+  //
+  // The rename is retried for bounded transient EPERM/EBUSY only. On Windows those are routine
+  // rather than exceptional — an antivirus scan, the search indexer, or a preview handle can hold
+  // the target for a few milliseconds — and a single such failure used to discard the user's
+  // settings change outright. Everything else still fails on the first attempt, and every failing
+  // path cleans up the temp file and leaves the previous ui-settings.json untouched.
+  // See app/main/atomicReplace.ts for why the retry set and the backoff are as narrow as they are.
   const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(tmp, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
-  try {
-    await rename(tmp, path);
-  } catch (error) {
-    await rm(tmp, { force: true }).catch(() => undefined);
-    throw error;
-  }
+  await replaceFileAtomically(tmp, path);
 }
 
 function getSettingsPath(): string {

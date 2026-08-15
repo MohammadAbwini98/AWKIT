@@ -1,18 +1,16 @@
 {
-  "task": "awkit-bk3",
+  "task": "awkit-4qs",
   "holder": "manager",
   "status": "released",
   "allowed_paths": [
-    ".claude/**",
-    ".codex/**",
-    ".gemini/**",
+    ".beads/**",
     "docs/ai/**",
     "tools/agents/**"
   ],
-  "acquired_at": "2026-08-15T21:41:09.113Z",
-  "acquired_at_commit": "6efcecd",
+  "acquired_at": "2026-08-15T21:53:00.798Z",
+  "acquired_at_commit": "587d192",
   "amendments": [],
   "overrides": [],
-  "released_at": "2026-08-15T21:42:10.751Z",
-  "released_reason": "Phase 5 complete"
+  "released_at": "2026-08-15T21:54:00.029Z",
+  "released_reason": "task complete"
 }

@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Windows settings atomic replacement hardened, routed end to end (2026-08-16)
+
+`awkit-4qs` is closed, and it was the first task run through the deterministic routing system rather
+than around it. `app/main/uiSettings.ts` wrote settings by `writeFile(tmp)` + `rename(tmp, target)`,
+which is crash-safe but not contention-safe: on Windows a brief handle from antivirus, the search
+indexer, or a preview pane makes `rename` fail with `EPERM`/`EBUSY`, and a single such failure
+discarded the user's settings change outright.
+
+New `app/main/atomicReplace.ts` retries **only** `EPERM`/`EBUSY`, **only** a bounded number of times
+(5 attempts, 20ms linear backoff). The narrowness is the point: retrying `ENOENT`, `ENOSPC` or
+`EACCES` would turn a clear immediate failure into a slow one with the same outcome, and an unbounded
+retry would stall `before-quit`, which awaits the settings queue. Every terminal path removes the
+temp file and rethrows the **original** errno, leaving the previous `ui-settings.json` untouched. The
+persisted schema, the IPC contract, and the single-FIFO write ordering are unchanged.
+
+`verify:write-queue` grew from 7 to **29 checks** and was **mutation-tested 5/5** — retry-everything,
+unbounded retry, missing temp cleanup, a wrapped errno, and a narrowed transient set were each
+introduced and each caught. `verify:settings-persistence` passes **3/3** in real Electron: 40
+concurrent patches all persist, zero leftover temp files, and a last-moment update still flushes on
+shutdown.
+
+**Routing observations from the first real run.** The router classified the task Risk 2 and activated
+manager, runtime, persistence, qa and qc; the lease moved runtime -> qa -> manager as a sequence,
+never concurrently. Derived classification then caught a gap the contract could not have known
+about: `.beads/**` was unmapped, so no specialist was answerable for the tracker export. It is now
+manager-owned. Two rough edges worth recording rather than smoothing over: `writerSequence` lists
+writer-mode agents activated purely by flag even when they own none of the task's paths (persistence
+appeared first here but had nothing to write), and the preserved stash the handoff warned about
+turned out to be **docs-only**, so it never overlapped this settings work at all.
+
+`verify:agent-routing` is **215/215**. Tracker finishes at **193 total / 189 closed / 4 outstanding**,
+and all four remaining are externally blocked owner-gated items, so nothing is ready to pick up. No
+validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Deterministic multi-agent routing - Phase 5 complete, model dogfooded (2026-08-16)
 
 Phase 5 generates executable platform agent definitions from the canonical registry, closing

@@ -22,7 +22,7 @@ does have a subagent runtime, gets generated definitions under `.claude/agents/`
 
 | Role | Mode | Owns | Mandate |
 | --- | --- | --- | --- |
-| `manager` | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | Classifies, routes, grants and revokes the write lease, and reconciles authoritative sources. Denied product code by default so it orchestrates rather than becoming a twelfth implementer. |
+| `manager` | writer | `docs/ai/**`<br>`tools/roadmap/**`<br>`tools/agents/**`<br>`.beads/**`<br>`.claude/**`<br>`.codex/**`<br>`.gemini/**` | Classifies, routes, grants and revokes the write lease, and reconciles authoritative sources. Denied product code by default so it orchestrates rather than becoming a twelfth implementer. |
 | `architect` | read-only | `docs/ai/ARCHITECTURE.md`<br>`docs/ai/DECISIONS.md` | Cross-layer contracts, IPC design, schema evolution, concurrency model, dependencies. |
 | `uiux` | read-only | — | Design authority for interaction, Hologram tokens, focus, reduced motion and accessibility. Specifies behavior; frontend implements it. |
 | `frontend` | writer | `app/renderer/**` | Renderer: React, both designers, admin screens, renderer state, Hologram styles. |

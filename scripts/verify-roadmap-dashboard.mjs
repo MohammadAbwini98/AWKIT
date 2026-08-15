@@ -220,10 +220,12 @@ try {
   // Deterministic multi-agent routing filed and closed `awkit-a1u` (Phases 0-4) and filed `awkit-bk3`
   // for the deferred Phase 5: total 191 to 193, closed 186 to 187, outstanding five to six.
   // Phase 5 then landed and `awkit-bk3` closed: closed 187 to 188, outstanding six back to five,
-  // total unchanged at 193.
+  // total unchanged at 193. `awkit-4qs` (Windows settings atomic replacement retries) then closed as
+  // the routing system's first real task: closed 188 to 189, outstanding five to four. All four
+  // remaining are externally blocked and owner-gated, so nothing is ready.
   check(
-    "5 outstanding / 188 closed",
-    beads.stats.outstanding === 5 && beads.stats.closed === 188,
+    "4 outstanding / 189 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 189,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

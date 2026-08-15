@@ -23,6 +23,7 @@ Only inside a granted write lease, and only within:
 - `docs/ai/**`
 - `tools/roadmap/**`
 - `tools/agents/**`
+- `.beads/**`
 - `.claude/**`
 - `.codex/**`
 - `.gemini/**`
