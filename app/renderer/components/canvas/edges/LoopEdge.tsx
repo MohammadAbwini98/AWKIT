@@ -5,7 +5,6 @@ import {
   LOOP_MARKER_OUTER_RADIUS,
   LOOP_MARKER_RADIUS,
   LOOP_RETURN_CLEARANCE,
-  LOOP_RETURN_CORNER_RADIUS,
   LOOP_RETURN_INTERACTION_WIDTH,
   Position
 } from "../geometry";
@@ -54,9 +53,12 @@ function cubicPointAndTangent(
 }
 
 /**
- * Return-connector renderer. Structured self-loops use a rounded path with a compact, static
- * configuration marker; directional motion lives on the path itself. Legacy cross-node
- * `loopBack` connectors retain their execution model while sharing this design-time vocabulary.
+ * Loop renderer. Structured self-loops intentionally use the approved 7282178 design vocabulary:
+ * one compact capsule attached to the real node, one dominant concentric ring, the configured
+ * iteration bound inside that ring, and one rotating circular sweep. The capsule path is stationary
+ * and is never duplicated by the generic directional overlay, which avoids the dotted-stroke
+ * interference that corrupted the later U-route hybrid. Legacy cross-node `loopBack` connectors
+ * retain their separate bounded execution model and return-path renderer.
  */
 export function LoopEdge({
   id,
@@ -117,39 +119,33 @@ export function LoopEdge({
     );
   }
 
-  const centerX = (sourceX + targetX) / 2;
+  // `FlowCanvas` supplies the node's bottom/top centre for a structured self-loop. Reconstruct the
+  // selected side anchor from the measured node width, then keep the visual in a compact horizontal
+  // capsule instead of routing from bottom-centre around the full card and back to top-centre.
+  const nodeCenterX = (sourceX + targetX) / 2;
   const centerY = (sourceY + targetY) / 2;
   const side = loopSide === Position.Right ? 1 : -1;
   const halfNodeWidth = Math.max(0, sourceNodeWidth ?? 0) / 2;
-  const markerX = centerX + side * (halfNodeWidth + LOOP_RETURN_CLEARANCE);
-  const returnBottomY = sourceY + LOOP_RETURN_CLEARANCE;
-  const returnTopY = targetY - LOOP_RETURN_CLEARANCE;
-  const innerCornerX = centerX + side * LOOP_RETURN_CORNER_RADIUS;
-  const outerCornerX = markerX - side * LOOP_RETURN_CORNER_RADIUS;
-  const path = [
-    `M ${centerX},${sourceY}`,
-    `C ${centerX},${sourceY + LOOP_RETURN_CLEARANCE * 0.45} ${centerX},${returnBottomY} ${innerCornerX},${returnBottomY}`,
-    `H ${outerCornerX}`,
-    `Q ${markerX},${returnBottomY} ${markerX},${returnBottomY - LOOP_RETURN_CORNER_RADIUS}`,
-    `V ${returnTopY + LOOP_RETURN_CORNER_RADIUS}`,
-    `Q ${markerX},${returnTopY} ${outerCornerX},${returnTopY}`,
-    `H ${innerCornerX}`,
-    `C ${centerX},${returnTopY} ${centerX},${targetY - LOOP_RETURN_CLEARANCE * 0.45} ${centerX},${targetY}`
-  ].join(" ");
-  // Keep the design summary in the clear band between the top return segment and the card. Centering
-  // it above the marker leaves long While/data-source labels inside the card's vertical footprint,
-  // where the DOM node (correctly layered above SVG edges) can visibly cover the label.
-  const labelY = targetY - LOOP_MARKER_LABEL_GAP;
+  const nodeSideX = nodeCenterX + side * halfNodeWidth;
+
+  // The 7282178 control was deliberately dominant. These measurements stay derived from the
+  // existing connector rhythm so they remain theme-independent and do not create persisted state.
+  const capsuleWidth = LOOP_RETURN_CLEARANCE * 4;
+  const capsuleHeight = LOOP_MARKER_OUTER_RADIUS;
+  const outerRadius = LOOP_RETURN_CLEARANCE + LOOP_MARKER_OUTER_RADIUS / 5;
+  const mainRadius = outerRadius - LOOP_MARKER_RADIUS / 2;
+  const hitRadius = outerRadius + LOOP_MARKER_HIT_RADIUS / 6;
+  const farX = nodeSideX + side * capsuleWidth;
+  const controlX = nodeSideX + side * (capsuleWidth / 2);
+  const laneX = Math.min(nodeSideX, farX);
+  const laneY = centerY - capsuleHeight / 2;
+  const capX = farX - side * (capsuleHeight / 2);
+  const lowerY = centerY + capsuleHeight / 2;
+  const upperY = centerY - capsuleHeight / 2;
+  const path = `M ${nodeSideX},${lowerY} H ${capX} Q ${farX},${lowerY} ${farX},${centerY} Q ${farX},${upperY} ${capX},${upperY} H ${nodeSideX}`;
+  const labelY = centerY - outerRadius - LOOP_MARKER_LABEL_GAP;
   const controlColor = typeof style?.stroke === "string" ? style.stroke : "var(--awkit-connector-loop)";
-  const arrowDirection = -side;
-  const arrowTipX = innerCornerX - arrowDirection * 4;
-  const routeStyle = {
-    ...style,
-    strokeDasharray:
-      data?.style?.lineStyle === "solid"
-        ? "none"
-        : style?.strokeDasharray ?? "4 7"
-  };
+  const configuredValue = Number.isFinite(data?.loop?.maxIterations) ? String(data?.loop?.maxIterations) : undefined;
 
   return (
     <>
@@ -158,33 +154,80 @@ export function LoopEdge({
         data-loop-indicator="true"
         data-loop-owner={source}
         data-loop-side={side < 0 ? "left" : "right"}
+        data-loop-visual="capsule-ring"
         style={{ color: controlColor }}
       >
+        <rect
+          aria-hidden="true"
+          className="awkit-loop-control-lane"
+          x={laneX}
+          y={laneY}
+          width={capsuleWidth}
+          height={capsuleHeight}
+          rx={capsuleHeight / 2}
+          fill="var(--awkit-surface)"
+          fillOpacity={0.94}
+          stroke="currentColor"
+          strokeOpacity={0.34}
+          strokeWidth={1}
+          pointerEvents="none"
+        />
         <BaseEdge
           id={id}
           path={path}
           className={["awkit-loop-indicator-path", selected ? "is-selected" : ""].filter(Boolean).join(" ")}
-          style={routeStyle}
-          directional={directional}
+          style={style}
+          directional={false}
           interactionWidth={LOOP_RETURN_INTERACTION_WIDTH}
         />
-        {showArrow ? (
-          <path
-            aria-hidden="true"
-            className={["awkit-loop-indicator-arrow", arrowClosed ? "is-closed" : ""].filter(Boolean).join(" ")}
-            d={arrowPath(arrowTipX, returnTopY, arrowDirection, 0, arrowClosed)}
-          />
-        ) : null}
         <g className="awkit-loop-indicator-marker" data-loop-marker="true">
-          <circle aria-hidden="true" className="awkit-loop-indicator-outer-ring" cx={markerX} cy={centerY} r={LOOP_MARKER_OUTER_RADIUS} />
-          <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={markerX} cy={centerY} r={LOOP_MARKER_RADIUS} />
-          <circle aria-hidden="true" className="awkit-loop-indicator-focus-ring" cx={markerX} cy={centerY} r={LOOP_MARKER_OUTER_RADIUS + 1} />
+          <circle
+            aria-hidden="true"
+            className="awkit-loop-control-backplate"
+            cx={controlX}
+            cy={centerY}
+            r={outerRadius - 5}
+            fill="var(--awkit-surface-raised)"
+            pointerEvents="none"
+          />
+          <circle aria-hidden="true" className="awkit-loop-indicator-outer-ring" cx={controlX} cy={centerY} r={outerRadius} />
+          <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={controlX} cy={centerY} r={mainRadius} />
+          <circle
+            aria-hidden="true"
+            className="awkit-loop-indicator-sweep awkit-loop-direction-path"
+            cx={controlX}
+            cy={centerY}
+            r={mainRadius}
+            pathLength={100}
+            fill="none"
+            stroke="currentColor"
+            strokeDasharray="22 78"
+            strokeLinecap="round"
+            strokeWidth={4}
+            pointerEvents="none"
+          />
+          {configuredValue ? (
+            <text
+              className="awkit-loop-indicator-value"
+              x={controlX}
+              y={centerY}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="var(--awkit-text)"
+              fontSize="var(--text-xs)"
+              fontWeight={700}
+              pointerEvents="none"
+            >
+              {configuredValue}
+            </text>
+          ) : null}
+          <circle aria-hidden="true" className="awkit-loop-indicator-focus-ring" cx={controlX} cy={centerY} r={hitRadius - 1} />
           <circle
             aria-hidden="true"
             className="awkit-loop-indicator-hit"
-            cx={markerX}
+            cx={controlX}
             cy={centerY}
-            r={LOOP_MARKER_HIT_RADIUS}
+            r={hitRadius}
             fill="transparent"
             pointerEvents="all"
           />
@@ -194,7 +237,7 @@ export function LoopEdge({
         <div
           className="awkit-edge-label awkit-loop-indicator-label"
           data-edge-id={id}
-          style={{ whiteSpace: "nowrap", transform: `translate(-50%, -50%) translate(${markerX}px, ${labelY}px)` }}
+          style={{ whiteSpace: "nowrap", transform: `translate(-50%, -50%) translate(${controlX}px, ${labelY}px)` }}
         >
           {resolvedLabel}
         </div>
