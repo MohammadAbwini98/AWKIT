@@ -1,5 +1,5 @@
 {
-  "task": "awkit-mtt",
+  "task": "awkit-6ab",
   "holder": "manager",
   "status": "released",
   "allowed_paths": [
@@ -7,20 +7,29 @@
     "docs/ai/**",
     "tools/agents/**"
   ],
-  "acquired_at": "2026-08-15T22:47:44.964Z",
-  "acquired_at_commit": "e8aa0c3",
+  "acquired_at": "2026-08-15T22:58:48.402Z",
+  "acquired_at_commit": "ffbcc94",
   "baseline_dirty": [
     ".beads/issues.jsonl",
     "docs/ai/contracts/active-lease.json",
     "scripts/verify-agent-routing.mjs",
     "tools/agents/bash-audit.mjs",
-    "tools/agents/lease-guard.mjs",
     "tools/agents/lease.mjs",
     "tools/agents/routing-matrix.mjs"
   ],
+  "baseline_watched_ignored": {
+    ".env": "absent",
+    ".claude/settings.local.json": "6054:1785324381414.4578",
+    "storage-state.json": "absent",
+    "auth-state.json": "absent",
+    "session-profiles.json": "absent",
+    "resources/browsers": "dir(2):chromium-provenance.json:1785275906726.9065|chromium:1785275900576.9795",
+    "resources/oracle-jdbc": "dir(3):bridge:1785274864138.5193|checksums.json:1785274864441.5898|manifest.json:1785274864439.5393",
+    "build": "dir(1):native-hosts:1786149359989.5752"
+  },
   "amendments": [],
   "overrides": [],
   "violations": [],
-  "released_at": "2026-08-15T22:48:50.566Z",
+  "released_at": "2026-08-15T23:00:08.107Z",
   "released_reason": "task complete"
 }

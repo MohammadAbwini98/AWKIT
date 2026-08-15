@@ -22,11 +22,17 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { agent, pathInScope, protectedPathFor, sharedWritePathFor } from "./routing-matrix.mjs";
+import {
+  WATCHED_IGNORED_PATHS,
+  agent,
+  pathInScope,
+  protectedPathFor,
+  sharedWritePathFor
+} from "./routing-matrix.mjs";
 import { deriveClassification, normalizeClassification } from "./classify.mjs";
 import { route } from "./route.mjs";
 
@@ -104,9 +110,11 @@ export function writeLease(lease, path = LEASE_PATH) {
  * writes — unreliable in both directions, and it would miss `python -c "open(...)"` while flagging
  * `echo "a > b"` — the audit observes what actually changed on disk.
  *
- * Its one blind spot is gitignored paths. Build output, `graphify-out/`, and `out/` are invisible
- * here by definition, which is acceptable: those are derived artifacts, not the source a lease
- * exists to protect. It is a limit, not a leak, and it is documented as one.
+ * Its blind spot is gitignored paths, which git will never report here. Most of that is genuinely
+ * fine — `out/`, `dist/`, `graphify-out/` and the logs are derived artifacts. The ignored paths that
+ * DO carry consequence (secrets, captured auth, local permission overrides, and the ignored subtrees
+ * inside the protected offline boundary) are covered separately by `fingerprintWatchedIgnored()`,
+ * because enumerating every ignored file would mean walking `node_modules/`.
  *
  * @returns {string[]}
  */
@@ -216,6 +224,9 @@ export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assi
     // Files already modified when the lease was granted. Without this the Bash audit would report
     // every pre-existing edit as an out-of-lease write the moment the first shell command ran.
     baseline_dirty: dirtyPaths(),
+    // Gitignored paths git will never report. Fingerprinted here so a shell write into a secret,
+    // a captured session, or the bundled-browser tree is still comparable afterwards.
+    baseline_watched_ignored: fingerprintWatchedIgnored(),
     amendments: [],
     overrides: [],
     violations: []
@@ -350,6 +361,64 @@ export function outOfLeaseWrites(lease, currentDirty) {
     .filter((path) => !baseline.has(path))
     .filter((path) => !SYSTEM_BOOKKEEPING_PATHS.includes(path))
     .filter((path) => !leaseAllows(lease, path))
+    .sort();
+}
+
+/**
+ * Fingerprint the watched ignored paths.
+ *
+ * A file is `size:mtimeMs`. A directory is its DIRECT entries' names and mtimes — enough to notice
+ * a bundled Chromium being swapped or a jar dropped in, without walking thousands of files. Absent
+ * paths fingerprint as `"absent"`, so creation and deletion are both changes rather than silence.
+ *
+ * @param {string} [cwd]
+ * @returns {Record<string, string>}
+ */
+export function fingerprintWatchedIgnored(cwd = REPO_ROOT) {
+  /** @type {Record<string, string>} */
+  const out = {};
+
+  for (const entry of WATCHED_IGNORED_PATHS) {
+    const absolute = join(cwd, entry.path);
+    try {
+      const info = statSync(absolute);
+      if (entry.kind === "dir" && info.isDirectory()) {
+        const children = readdirSync(absolute, { withFileTypes: true })
+          .map((child) => {
+            try {
+              return `${child.name}:${statSync(join(absolute, child.name)).mtimeMs}`;
+            } catch {
+              return `${child.name}:?`;
+            }
+          })
+          .sort();
+        out[entry.path] = `dir(${children.length}):${children.join("|")}`;
+      } else {
+        out[entry.path] = `${info.size}:${info.mtimeMs}`;
+      }
+    } catch {
+      out[entry.path] = "absent";
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Which watched ignored paths changed since the lease was granted?
+ *
+ * Pure, so the verifier drives it with two plain objects rather than a filesystem. A path missing
+ * from the baseline is treated as CHANGED, not as unchanged — a lease granted before this field
+ * existed must not read as proof that nothing happened.
+ *
+ * @param {Record<string, string>|undefined} baseline
+ * @param {Record<string, string>} current
+ * @returns {string[]}
+ */
+export function changedWatchedIgnored(baseline, current) {
+  if (!baseline) return Object.keys(current).sort();
+  return Object.keys(current)
+    .filter((path) => baseline[path] !== current[path])
     .sort();
 }
 

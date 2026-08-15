@@ -74,9 +74,15 @@ While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` h
    completion gate reads it back.
 
    The write has already happened by then — this converts an invisible bypass into an attributable
-   one, not into prevention. Its blind spot is gitignored paths (`out/`, `graphify-out/`), which are
-   derived artifacts rather than the source a lease protects. It costs ~100ms per `Bash` call while
-   a lease is held, and nothing at all when none is.
+   one, not into prevention. It costs ~100ms per `Bash` call while a lease is held, and nothing at
+   all when none is.
+
+   **Gitignored paths** need a second mechanism, because `git status` never reports them and
+   enumerating them all would mean walking `node_modules/`. Most of them genuinely do not matter —
+   `out/`, `dist/`, `graphify-out/` and the logs are derived. The ones that do (secrets, captured
+   auth state, the local permission file, and the ignored subtrees inside the protected offline
+   boundary) are listed in `WATCHED_IGNORED_PATHS` and fingerprinted by mtime and size at lease
+   grant. Anything outside that list stays unwatched by design.
 
    If it fires, do not delete the file quietly. Either revert the path or amend the lease so the
    recorded scope is honest.

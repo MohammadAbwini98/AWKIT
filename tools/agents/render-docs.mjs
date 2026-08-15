@@ -29,6 +29,7 @@ import {
   PROTECTED_PATHS,
   RISK_3_FLAGS,
   SHARED_WRITE_PATHS,
+  WATCHED_IGNORED_PATHS,
   WRITER_PRECEDENCE
 } from "./routing-matrix.mjs";
 
@@ -150,6 +151,29 @@ export function renderMatrix() {
   lines.push(row(["---", "---", "---"]));
   for (const p of PROTECTED_PATHS) {
     lines.push(row([`\`${p.glob}\``, `\`${p.owner}\``, p.impliesFlags.map((f) => `\`${f}\``).join(", ")]));
+  }
+  lines.push("");
+
+  // ── Watched ignored paths ─────────────────────────────────────────────────────────────────────
+  lines.push("## Watched ignored paths");
+  lines.push("");
+  lines.push(
+    "`git status` never reports gitignored files, and enumerating them all is impossible — `node_modules/`"
+  );
+  lines.push(
+    "alone would make the audit unusable. Most of what is ignored genuinely does not matter: `out/`,"
+  );
+  lines.push("`dist/`, `graphify-out/` and the logs are derived artifacts.");
+  lines.push("");
+  lines.push(
+    "These are the exceptions — ignored, but consequential — fingerprinted by mtime and size at lease"
+  );
+  lines.push("grant and compared after every shell command.");
+  lines.push("");
+  lines.push(row(["Path", "Kind", "Owner", "Why"]));
+  lines.push(row(["---", "---", "---", "---"]));
+  for (const w of WATCHED_IGNORED_PATHS) {
+    lines.push(row([`\`${w.path}\``, w.kind, `\`${w.owner}\``, w.why]));
   }
   lines.push("");
 

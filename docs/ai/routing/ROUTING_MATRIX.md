@@ -109,6 +109,26 @@ change, so the guard refuses it until someone takes a lease.
 | `src/security/**` | `security` | `authorization_change` |
 | `resources/**` | `release` | `packaging_change`, `offline_boundary_change` |
 
+## Watched ignored paths
+
+`git status` never reports gitignored files, and enumerating them all is impossible — `node_modules/`
+alone would make the audit unusable. Most of what is ignored genuinely does not matter: `out/`,
+`dist/`, `graphify-out/` and the logs are derived artifacts.
+
+These are the exceptions — ignored, but consequential — fingerprinted by mtime and size at lease
+grant and compared after every shell command.
+
+| Path | Kind | Owner | Why |
+| --- | --- | --- | --- |
+| `.env` | file | `security` | Real environment secrets. `.env.example` is tracked; this is not. |
+| `.claude/settings.local.json` | file | `manager` | Local permission and hook overrides — including whether these guards run at all. |
+| `storage-state.json` | file | `integration` | Captured browser auth state. |
+| `auth-state.json` | file | `integration` | Captured browser auth state. |
+| `session-profiles.json` | file | `integration` | Reusable session profiles bound to Reuse Session nodes. |
+| `resources/browsers` | dir | `release` | Bundled Chromium — a gitignored subtree INSIDE the protected offline boundary. Swapping a browser build changes what ships without touching a tracked file. |
+| `resources/oracle-jdbc` | dir | `release` | Imported Oracle driver jars — same problem, same protected parent. |
+| `build` | dir | `release` | Release owns `build/**` and touching it implies packaging_change, yet the whole directory is gitignored with zero tracked files — so the ownership entry was pointing at something git could never show. Watched here rather than left as a phantom. |
+
 ## Shared write paths
 
 Files whose ownership is real but whose risk lives in specific KEYS rather than the whole file.

@@ -1,5 +1,36 @@
 # CURRENT_STATE
 
+## Gitignored paths that matter are now watched (2026-08-16)
+
+`awkit-6ab` closes the audit's last blind spot, and auditing the repository's own `.gitignore` showed
+it was hiding two real registry defects rather than only derived artifacts.
+
+**`build/**` was release-owned and implied `packaging_change` while being fully gitignored with zero
+tracked files** — the ownership entry pointed at something git could never show, so a lease over it
+protected nothing observable. **`resources/**` is PROTECTED as the offline boundary, yet
+`resources/browsers/` and `resources/oracle-jdbc/` are ignored subtrees** — a Risk 3 path with
+invisible interiors, where swapping a bundled Chromium or dropping in a driver jar changes what ships
+without touching a tracked file. Also ignored and consequential: `.env`, `.claude/settings.local.json`
+(which governs whether these guards run at all), and the captured-auth files.
+
+Enumerating every ignored path is not an option — `node_modules/` alone would make the audit
+unusable — so `WATCHED_IGNORED_PATHS` is deliberately short and specific. Each entry is fingerprinted
+at lease grant by mtime and size for a file, or by its direct entries' names and mtimes for a
+directory, costing a handful of `stat` calls rather than a filesystem walk. `bash-audit.mjs` now
+draws from two sources: `git status` for tracked paths, fingerprint comparison for these. Everything
+else ignored stays unwatched by design, and that is stated rather than implied.
+
+Demonstrated live: a write to `build/audit-probe.tmp` was reported by name while
+`git status --porcelain build/` returned **0 entries**.
+
+`verify:agent-routing` is **298/298**, **mutation-tested 7/7** here and **40/40** across all six
+suites. Three of those seven initially SURVIVED, and two were genuine test gaps rather than bad
+mutations: every assertion drove the pure comparator with hand-written fixture strings, so breaking
+the fingerprint *producer* — dropping mtimes from directory entries, or emitting `""` instead of
+`"absent"` — changed nothing. The producer is now driven against a real temp tree. Tracker:
+**198 total / 194 closed / 4 outstanding**, all externally blocked and owner-gated. No
+validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## No-lease gap closed for Risk 3 paths (2026-08-16)
 
 `awkit-mtt` closes the last documented hole. The guard allowed every edit when no lease was held,

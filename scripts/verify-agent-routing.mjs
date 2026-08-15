@@ -21,7 +21,7 @@
  * launches a browser or the Electron app, which is why it is static-source-validation.
  */
 
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -37,6 +37,7 @@ import {
   RISK_3_FLAGS,
   ROLE_SKILLS,
   SHARED_WRITE_PATHS,
+  WATCHED_IGNORED_PATHS,
   WRITER_PRECEDENCE,
   agent,
   domainForPath,
@@ -45,7 +46,8 @@ import {
   protectedPathFor,
   riskLevelFor,
   sharedWritePathFor,
-  toolsFor
+  toolsFor,
+  watchedIgnoredPathFor
 } from "../tools/agents/routing-matrix.mjs";
 import {
   MAPPED_OWNERS,
@@ -66,6 +68,8 @@ import {
 import {
   SYSTEM_BOOKKEEPING_PATHS,
   amendLease,
+  changedWatchedIgnored,
+  fingerprintWatchedIgnored,
   dirtyPaths,
   grantLease,
   leaseAllows,
@@ -881,6 +885,123 @@ try {
     check(
       "a lease covering a protected path permits it",
       decideWrite({ ...held, allowed_paths: ["src/licensing/**"] }, "src/licensing/x.ts").allow === true
+    );
+  }
+
+  /* ── Gitignored-but-consequential paths (awkit-6ab) ────────────────────────────────────────
+     git status never reports ignored files, and enumerating them all is impossible (node_modules).
+     Auditing this repo's own .gitignore found that "ignored" and "unimportant" are not the same:
+     secrets, captured auth, the local permission file, and two subtrees INSIDE the protected
+     offline boundary are all ignored. `build/**` was worse — release-owned and implying
+     packaging_change while having zero tracked files, so its ownership pointed at nothing git
+     could show. */
+  {
+    check("watched ignored paths are registered", WATCHED_IGNORED_PATHS.length >= 6, `${WATCHED_IGNORED_PATHS.length}`);
+    check(
+      "every watched ignored path names an owner and a reason",
+      WATCHED_IGNORED_PATHS.every((w) => AGENT_IDS.includes(w.owner) && w.why.length > 20)
+    );
+    check(
+      "the secrets file is watched",
+      watchedIgnoredPathFor(".env") !== null
+    );
+    check(
+      "the local permission override is watched",
+      watchedIgnoredPathFor(".claude/settings.local.json") !== null
+    );
+    check(
+      "a file INSIDE a watched ignored directory resolves to it",
+      watchedIgnoredPathFor("resources/browsers/chromium/x.dll")?.path === "resources/browsers"
+    );
+    check(
+      "an ordinary path is not treated as watched",
+      watchedIgnoredPathFor("app/renderer/App.tsx") === null
+    );
+    // The two defects that motivated this. Both are ownership entries git could never show.
+    check("the gitignored build/ tree is watched", watchedIgnoredPathFor("build/native-hosts/x") !== null);
+    check(
+      "the ignored subtrees of the protected offline boundary are watched",
+      watchedIgnoredPathFor("resources/browsers") !== null &&
+        watchedIgnoredPathFor("resources/oracle-jdbc") !== null
+    );
+
+    // The comparison itself, driven with plain objects rather than a filesystem.
+    const base = { ".env": "absent", "build": "dir(1):a:1" };
+    check("an unchanged fingerprint reports nothing", changedWatchedIgnored(base, { ...base }).length === 0);
+    check(
+      "a created secret is detected (absent -> present)",
+      JSON.stringify(changedWatchedIgnored(base, { ...base, ".env": "12:345" })) === JSON.stringify([".env"])
+    );
+    check(
+      "a changed directory fingerprint is detected",
+      JSON.stringify(changedWatchedIgnored(base, { ...base, build: "dir(2):a:1|b:2" })) ===
+        JSON.stringify(["build"])
+    );
+    check(
+      "a deleted file is detected (present -> absent)",
+      changedWatchedIgnored({ ".env": "12:345" }, { ".env": "absent" }).length === 1
+    );
+    // A lease predating the field must not read as proof that nothing happened.
+    check(
+      "a missing baseline reports everything rather than staying silent",
+      changedWatchedIgnored(undefined, base).length === Object.keys(base).length
+    );
+
+    // Non-vacuity against the real repository: the fingerprint must actually produce entries.
+    const live = fingerprintWatchedIgnored();
+    check(
+      "fingerprinting the real repo returns one entry per watched path",
+      Object.keys(live).length === WATCHED_IGNORED_PATHS.length,
+      `${Object.keys(live).length} of ${WATCHED_IGNORED_PATHS.length}`
+    );
+    check(
+      "at least one watched path really exists here (the check is not all-absent)",
+      Object.values(live).some((v) => v !== "absent"),
+      JSON.stringify(live)
+    );
+
+    /* The PRODUCER, not just the comparator. Mutation testing caught this: every check above uses
+       hand-written fixture strings, so breaking `fingerprintWatchedIgnored` itself — dropping
+       mtimes from directory entries, or emitting "" instead of "absent" — changed no assertion.
+       These drive the real function against a temp tree with known contents. */
+    const sandbox = mkdtempSync(join(tmpdir(), "awkit-ignored-"));
+    tempDirs.push(sandbox);
+
+    const allAbsent = fingerprintWatchedIgnored(sandbox);
+    check(
+      "a missing watched path fingerprints as exactly \"absent\"",
+      Object.values(allAbsent).every((v) => v === "absent"),
+      JSON.stringify(allAbsent)
+    );
+
+    writeFileSync(join(sandbox, ".env"), "SECRET=1\n", "utf8");
+    const withEnv = fingerprintWatchedIgnored(sandbox);
+    check("a created file stops being \"absent\"", withEnv[".env"] !== "absent", withEnv[".env"]);
+    check(
+      "a file fingerprint carries size and mtime",
+      /^\d+:\d+(\.\d+)?$/.test(withEnv[".env"]),
+      withEnv[".env"]
+    );
+
+    mkdirSync(join(sandbox, "build"), { recursive: true });
+    writeFileSync(join(sandbox, "build", "artifact.bin"), "one", "utf8");
+    const dirPrint = fingerprintWatchedIgnored(sandbox).build;
+    check("a directory fingerprint counts its entries", dirPrint.startsWith("dir(1):"), dirPrint);
+    check(
+      "a directory fingerprint carries each entry's mtime, not just its name",
+      /artifact\.bin:\d+/.test(dirPrint),
+      dirPrint
+    );
+
+    // Rewriting a file inside a watched directory must change the fingerprint. Without entry
+    // mtimes this is exactly the case that would silently pass.
+    const before = fingerprintWatchedIgnored(sandbox).build;
+    const future = new Date(Date.now() + 5000);
+    utimesSync(join(sandbox, "build", "artifact.bin"), future, future);
+    check(
+      "modifying a file inside a watched directory changes its fingerprint",
+      fingerprintWatchedIgnored(sandbox).build !== before,
+      `${before} -> ${fingerprintWatchedIgnored(sandbox).build}`
     );
   }
 

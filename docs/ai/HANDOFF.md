@@ -42,7 +42,12 @@ All four outstanding items are externally blocked and owner-gated — `awkit-cm8
 - ~~`Bash` writes bypass the lease guard~~ — **FIXED** (`awkit-c6n`). A PostToolUse audit on `Bash`
   compares `git status` against the lease scope plus the dirty set recorded at grant, records
   violations on the lease, and blocks completion. **Detection, not prevention** — the write has
-  already happened. Gitignored paths stay invisible by design.
+  already happened.
+- ~~Gitignored paths stay invisible~~ — **CLOSED for what matters** (`awkit-6ab`).
+  `WATCHED_IGNORED_PATHS` fingerprints `.env`, `.claude/settings.local.json`, the captured-auth
+  files, `build/`, and the ignored subtrees of the protected `resources/**`. Keep that list SHORT —
+  it is fingerprinted on every Bash call while a lease is held, and adding a large tree would make
+  the audit expensive. Everything else ignored is unwatched by design.
 - ~~The lease guard allows edits when no lease is held~~ — **CLOSED for what matters**
   (`awkit-mtt`). Ordinary paths stay unrestricted by design, but `PROTECTED_PATHS` (derived from
   `RISK_3_FLAGS`: licensing, auth, secrets, security, `resources/`) refuse an unclaimed write.

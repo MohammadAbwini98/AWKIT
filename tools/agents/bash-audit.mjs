@@ -36,7 +36,10 @@
  */
 
 import {
+  changedWatchedIgnored,
   dirtyPaths,
+  fingerprintWatchedIgnored,
+  leaseAllows,
   outOfLeaseWrites,
   readLease,
   recordViolations,
@@ -95,7 +98,16 @@ async function main() {
     process.exit(REPORT);
   }
 
-  const written = outOfLeaseWrites(lease, dirtyPaths());
+  // Two sources, because git can only see one of them. Tracked paths come from `git status`;
+  // gitignored-but-consequential paths come from a fingerprint comparison, since enumerating every
+  // ignored file would mean walking node_modules.
+  const tracked = outOfLeaseWrites(lease, dirtyPaths());
+  const ignored = changedWatchedIgnored(
+    lease.baseline_watched_ignored,
+    fingerprintWatchedIgnored()
+  ).filter((path) => !leaseAllows(lease, path));
+
+  const written = [...new Set([...tracked, ...ignored])].sort();
   if (written.length === 0) process.exit(OK);
 
   const unresolved = recordViolations(written);

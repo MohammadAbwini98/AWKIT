@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Watch the gitignored paths that carry consequence (awkit-6ab)
+
+- **Task:** `git status` never reports ignored files, so the Bash audit could not see writes to them.
+- **Two registry defects found by auditing `.gitignore`, not just a blind spot:** `build/**` was
+  release-owned and implied `packaging_change` while being fully gitignored with ZERO tracked files;
+  and `resources/**` is PROTECTED (offline boundary) while `resources/browsers/` and
+  `resources/oracle-jdbc/` are ignored subtrees.
+- **Implementation:** `WATCHED_IGNORED_PATHS` — short and specific, because enumerating all ignored
+  paths would mean walking `node_modules/`. Covers `.env`, `.claude/settings.local.json`, the
+  captured-auth files, the two protected subtrees, and `build`. `fingerprintWatchedIgnored()` uses
+  mtime+size for files and direct-entry names+mtimes for directories; `changedWatchedIgnored()` is a
+  pure comparison. Recorded at grant as `baseline_watched_ignored`; `bash-audit.mjs` now draws from
+  git AND the fingerprint.
+- **Tests run:** `verify:agent-routing` **298/298**; mutation suites **12/12 + 4/4 + 6/6 + 6/6 +
+  5/5 + 7/7 = 40/40**; `npm run build` PASS; `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `verify:runner`, `validate:offline` — routing tooling only, no product code.
+- **Mutation testing found real test gaps, twice over:** three of seven survived initially. One was a
+  bad mutation of mine (`[].concat([])` is truthy, so it never emptied the list). The other two were
+  genuine — every assertion drove the pure comparator with fixture strings, so breaking the
+  fingerprint PRODUCER changed nothing. Added checks that run it against a real temp tree.
+- **Demonstrated live:** a write to `build/audit-probe.tmp` was reported by name while
+  `git status --porcelain build/` returned 0 entries.
+- **Stated limit:** everything else ignored (`out/`, `dist/`, `graphify-out/`, `node_modules/`,
+  logs) stays unwatched by design — derived artifacts, not source a lease protects.
+- **Result:** closed. Tracker 198 total / 194 closed / 4 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Close the no-lease gap for Risk 3 paths (awkit-mtt)
 
 - **Task:** The guard allowed every edit when no lease was held.

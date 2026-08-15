@@ -943,6 +943,103 @@ export function protectedPathFor(path) {
   return PROTECTED_PATHS.find((entry) => matchGlob(entry.glob, normalized)) ?? null;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * Watched ignored paths
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * @typedef {Object} WatchedIgnoredPath
+ * @property {string} path   repo-relative file, or directory whose DIRECT entries are fingerprinted
+ * @property {"file"|"dir"} kind
+ * @property {string} owner
+ * @property {string} why
+ */
+
+/**
+ * Gitignored paths that still carry consequence, watched explicitly by fingerprint.
+ *
+ * `git status` never reports ignored files, so the Bash audit cannot see writes to them. Enumerating
+ * every ignored path is not an option — `node_modules/` alone would make the audit unusable — and
+ * most of what is ignored genuinely does not matter: `out/`, `dist/`, `graphify-out/` and the logs
+ * are derived artifacts that are regenerated, not source anyone needs to be answerable for.
+ *
+ * But "ignored" and "unimportant" are not the same thing, and auditing this repository's own
+ * `.gitignore` proved it. Secrets, captured authentication state, and the local permission file are
+ * all ignored. So are two subtrees of `resources/**`, which this very registry marks PROTECTED as
+ * the offline boundary — a Risk 3 path with invisible interiors.
+ *
+ * The list is therefore deliberately short and specific. Each entry is fingerprinted by mtime and
+ * size (for a file) or by its direct entries' names and mtimes (for a directory), which costs a
+ * handful of `stat` calls rather than a filesystem walk.
+ *
+ * @type {readonly WatchedIgnoredPath[]}
+ */
+export const WATCHED_IGNORED_PATHS = Object.freeze([
+  {
+    path: ".env",
+    kind: "file",
+    owner: "security",
+    why: "Real environment secrets. `.env.example` is tracked; this is not."
+  },
+  {
+    path: ".claude/settings.local.json",
+    kind: "file",
+    owner: "manager",
+    why: "Local permission and hook overrides — including whether these guards run at all."
+  },
+  {
+    path: "storage-state.json",
+    kind: "file",
+    owner: "integration",
+    why: "Captured browser auth state."
+  },
+  {
+    path: "auth-state.json",
+    kind: "file",
+    owner: "integration",
+    why: "Captured browser auth state."
+  },
+  {
+    path: "session-profiles.json",
+    kind: "file",
+    owner: "integration",
+    why: "Reusable session profiles bound to Reuse Session nodes."
+  },
+  {
+    path: "resources/browsers",
+    kind: "dir",
+    owner: "release",
+    why:
+      "Bundled Chromium — a gitignored subtree INSIDE the protected offline boundary. Swapping a " +
+      "browser build changes what ships without touching a tracked file."
+  },
+  {
+    path: "resources/oracle-jdbc",
+    kind: "dir",
+    owner: "release",
+    why: "Imported Oracle driver jars — same problem, same protected parent."
+  },
+  {
+    path: "build",
+    kind: "dir",
+    owner: "release",
+    why:
+      "Release owns `build/**` and touching it implies packaging_change, yet the whole directory " +
+      "is gitignored with zero tracked files — so the ownership entry was pointing at something " +
+      "git could never show. Watched here rather than left as a phantom."
+  }
+]);
+
+/** @param {string} path @returns {WatchedIgnoredPath|null} */
+export function watchedIgnoredPathFor(path) {
+  const normalized = path.replace(/\\/g, "/");
+  return (
+    WATCHED_IGNORED_PATHS.find(
+      (entry) => entry.path === normalized || normalized.startsWith(`${entry.path}/`)
+    ) ?? null
+  );
+}
+
 /**
  * Deterministic risk level for a classification. Same input, same output, every time.
  *
