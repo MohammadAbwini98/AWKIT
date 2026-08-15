@@ -61,10 +61,21 @@ While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` h
    repository where most work does not go through a contract. The honest scope of this gate is
    "while a lease is held, it is real". The gap closes at the other end: the completion gate requires
    a contract for any task that changed product code.
-2. **`Bash` writes bypass it.** A shell redirect or `git checkout` never reaches an `Edit` matcher.
-   Widening the hook to `Bash` would mean parsing arbitrary shell to guess at write intent —
-   unreliable in both directions. The derived-classification comparison in step 5 is the backstop,
-   which is the right place for a check that cannot be made precise up front.
+2. **`Bash` writes are detected, not prevented.** A shell redirect or `git checkout` never reaches
+   an `Edit` matcher, and widening the hook to `Bash` would mean parsing arbitrary shell to guess at
+   write intent — unreliable in both directions, missing `python -c "open(...)"` while blocking
+   `echo "a > b"`. Instead a **PostToolUse audit** on `Bash` observes the filesystem: it asks git
+   what is dirty and subtracts the lease scope, shared paths, and the set already dirty when the
+   lease was granted. Whatever remains is named immediately and recorded onto the lease, where the
+   completion gate reads it back.
+
+   The write has already happened by then — this converts an invisible bypass into an attributable
+   one, not into prevention. Its blind spot is gitignored paths (`out/`, `graphify-out/`), which are
+   derived artifacts rather than the source a lease protects. It costs ~100ms per `Bash` call while
+   a lease is held, and nothing at all when none is.
+
+   If it fires, do not delete the file quietly. Either revert the path or amend the lease so the
+   recorded scope is honest.
 
 Neither is a reason to skip the gate. Both are reasons not to call it airtight.
 

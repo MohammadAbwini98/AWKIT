@@ -97,6 +97,34 @@ export function writeLease(lease, path = LEASE_PATH) {
   writeFileSync(path, `${JSON.stringify(lease, null, 2)}\n`, "utf8");
 }
 
+/**
+ * Every path git currently reports as modified, added, deleted or untracked.
+ *
+ * This is the basis of the Bash audit: rather than parsing a shell command to guess whether it
+ * writes — unreliable in both directions, and it would miss `python -c "open(...)"` while flagging
+ * `echo "a > b"` — the audit observes what actually changed on disk.
+ *
+ * Its one blind spot is gitignored paths. Build output, `graphify-out/`, and `out/` are invisible
+ * here by definition, which is acceptable: those are derived artifacts, not the source a lease
+ * exists to protect. It is a limit, not a leak, and it is documented as one.
+ *
+ * @returns {string[]}
+ */
+export function dirtyPaths(cwd = REPO_ROOT) {
+  try {
+    return execFileSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" })
+      .split("\n")
+      .map((line) => line.slice(3).trim())
+      .filter(Boolean)
+      // Renames arrive as "old -> new"; the destination is the write that matters.
+      .map((path) => (path.includes(" -> ") ? path.split(" -> ")[1] : path))
+      .map((path) => path.replace(/^"|"$/g, "").replace(/\\/g, "/"))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 /** @returns {string} current HEAD, or "unknown" outside a git checkout. */
 function headCommit() {
   try {
@@ -185,8 +213,12 @@ export function grantLease({ task, holder, allowedPaths, path = LEASE_PATH, assi
     allowed_paths: [...allowedPaths].sort(),
     acquired_at: new Date().toISOString(),
     acquired_at_commit: headCommit(),
+    // Files already modified when the lease was granted. Without this the Bash audit would report
+    // every pre-existing edit as an out-of-lease write the moment the first shell command ran.
+    baseline_dirty: dirtyPaths(),
     amendments: [],
-    overrides: []
+    overrides: [],
+    violations: []
   };
 
   writeLease(lease, path);
@@ -282,6 +314,71 @@ export function releaseLease(reason = "work complete", path = LEASE_PATH, assign
   writeLease(lease, path);
   clearAssignment(lease.task, assignmentsPath);
   return lease;
+}
+
+/**
+ * The routing system's own bookkeeping, which can never be a lease violation.
+ *
+ * `grantLease` writes the lease file and mirrors the holder into `assignments.json` AFTER it
+ * snapshots the dirty set, so without this exclusion the very act of taking a lease reports itself
+ * as an out-of-lease write on the next shell command. Found by running the audit for the first time
+ * against a real lease.
+ * @type {readonly string[]}
+ */
+export const SYSTEM_BOOKKEEPING_PATHS = Object.freeze([
+  "docs/ai/contracts/active-lease.json",
+  "tools/roadmap/assignments.json"
+]);
+
+/**
+ * Which currently-dirty paths were written outside the lease?
+ *
+ * Kept as a pure function of its inputs so the verifier can drive every case without a shell, a
+ * repository, or a real lease. The hook is a thin wrapper that supplies real git output.
+ *
+ * A lease with NO recorded baseline (granted before the field existed) is treated as though nothing
+ * was dirty, which over-reports rather than under-reports. That direction is deliberate: a noisy
+ * audit is annoying, a silent one is useless.
+ *
+ * @param {Lease} lease
+ * @param {readonly string[]} currentDirty
+ * @returns {string[]}
+ */
+export function outOfLeaseWrites(lease, currentDirty) {
+  const baseline = new Set(lease.baseline_dirty ?? []);
+  return currentDirty
+    .filter((path) => !baseline.has(path))
+    .filter((path) => !SYSTEM_BOOKKEEPING_PATHS.includes(path))
+    .filter((path) => !leaseAllows(lease, path))
+    .sort();
+}
+
+/**
+ * Record out-of-lease writes onto the lease so they survive the shell command that caused them.
+ *
+ * A warning printed to stderr can be scrolled past; a violation written into the lease file is read
+ * back by the completion gate. Deduplicated, because a long shell session would otherwise record
+ * the same file on every subsequent command.
+ *
+ * @param {readonly string[]} paths
+ * @param {string} [path]
+ * @returns {number} total unresolved violations after recording
+ */
+export function recordViolations(paths, path = LEASE_PATH) {
+  const lease = readLease(path);
+  if (!lease || paths.length === 0) return lease?.violations?.length ?? 0;
+
+  lease.violations ??= [];
+  const known = new Set(lease.violations.map((v) => v.path));
+  const timestamp = new Date().toISOString();
+
+  for (const p of paths) {
+    if (known.has(p)) continue;
+    lease.violations.push({ path: p, detectedAt: timestamp, via: "bash", resolved: false });
+  }
+
+  writeLease(lease, path);
+  return lease.violations.filter((v) => !v.resolved).length;
 }
 
 /**

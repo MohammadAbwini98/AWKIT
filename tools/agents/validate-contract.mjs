@@ -255,11 +255,24 @@ export function validateOverrides(contract) {
  * check.
  *
  * @param {Record<string, any>} contract
+ * @param {Object} [options]
+ * @param {{violations?: {path: string, resolved?: boolean}[]}|null} [options.lease] the active
+ *   lease, so out-of-lease Bash writes recorded by the PostToolUse audit are read back here. The
+ *   audit can only DETECT — it runs after the write — so this is where that detection acquires
+ *   consequences. Passing no lease means the gate simply does not consider them.
  * @returns {string[]}
  */
-export function completionBlockers(contract) {
+export function completionBlockers(contract, { lease = null } = {}) {
   /** @type {string[]} */
   const blockers = [];
+
+  const unresolved = (lease?.violations ?? []).filter((v) => !v.resolved);
+  if (unresolved.length > 0) {
+    blockers.push(
+      `${unresolved.length} unresolved out-of-lease write(s) recorded on the lease: ` +
+        `${unresolved.map((v) => v.path).join(", ")}`
+    );
+  }
 
   const { ok, violations } = validateContract(contract);
   if (!ok) blockers.push(`contract is invalid (${violations.length} violation(s))`);

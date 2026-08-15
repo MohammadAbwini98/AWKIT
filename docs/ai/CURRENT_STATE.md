@@ -1,5 +1,40 @@
 # CURRENT_STATE
 
+## Bash write-lease bypass closed by filesystem audit (2026-08-16)
+
+`awkit-c6n` closes the last documented hole in the write lease. The `PreToolUse` guard matches
+`Edit|Write|NotebookEdit`, so a shell redirect, `sed -i`, `mv`, or `git checkout` never reached it.
+
+**The obvious fix was rejected on evidence, not taste.** Matching `Bash` and scanning for `>` or
+`sed -i` is wrong in both directions: it misses `python -c "open(...)"`, `tee`, `cp`, and any script
+that writes, while blocking `echo "a > b"` or a commit message containing an angle bracket. A guard
+with both false negatives and false positives trains people to work around it.
+
+So `tools/agents/bash-audit.mjs` runs as a **PostToolUse** hook and observes the filesystem instead
+of the intent. It asks git what is dirty and subtracts three things: the lease scope, shared write
+paths, and the dirty set recorded when the lease was granted. Whatever remains was written by that
+command outside the lease, whatever syntax produced it. Violations are recorded onto the lease, and
+`completionBlockers()` now reads them back — detection acquires consequences at the gate rather than
+being a warning to scroll past.
+
+This is **detection, not prevention**: PostToolUse runs after the write. What changes is that an
+invisible bypass becomes an immediate, attributable one. Two limits are stated rather than glossed:
+gitignored paths (`out/`, `graphify-out/`) are invisible to `git status` by definition, and the
+audit costs ~100ms per `Bash` call while a lease is held — nothing when none is, which is the
+common case.
+
+Running it against a real lease immediately found a defect in it: `grantLease` writes the lease file
+and mirrors `assignments.json` *after* snapshotting the baseline, so taking a lease reported itself
+as an out-of-lease write. `SYSTEM_BOOKKEEPING_PATHS` excludes exactly those two paths, and a check
+proves the exclusion is a list rather than a shape — mutation testing showed that widening it to
+"every `.json`" survived, because every other fixture was `.ts`.
+
+`verify:agent-routing` is **256/256**, **mutation-tested 6/6** for this change and **28/28** across
+all four suites. Demonstrated live: a shell redirect to `docs/ai/PROJECT_BRIEF.md` under a lease
+scoped to `tools/agents/**` was reported by name, and a command that wrote nothing stayed silent.
+Tracker: **196 total / 192 closed / 4 outstanding**, all externally blocked and owner-gated. No
+validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## package.json shared-write split removes the last measured lease friction (2026-08-16)
 
 `awkit-dwo` closes the friction the first routed task measured: `package.json` is release-owned

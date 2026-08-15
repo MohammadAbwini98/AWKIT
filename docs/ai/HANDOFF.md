@@ -39,8 +39,12 @@ All four outstanding items are externally blocked and owner-gated — `awkit-cm8
   `deriveGuardedFieldChanges()` reports a change to any other top-level key as a scope escape.
   `sharedFields` is an allow-list, so a new key is guarded by default — do not add one to that list
   without meaning it.
-- The lease guard allows edits when no lease is held, and `Bash` writes bypass it. Derived
-  classification is the backstop.
+- ~~`Bash` writes bypass the lease guard~~ — **FIXED** (`awkit-c6n`). A PostToolUse audit on `Bash`
+  compares `git status` against the lease scope plus the dirty set recorded at grant, records
+  violations on the lease, and blocks completion. **Detection, not prevention** — the write has
+  already happened. Gitignored paths stay invisible by design.
+- The lease guard still allows edits when **no lease is held**. That one is deliberate: failing
+  closed would block every task that does not use a contract. Derived classification is the backstop.
 
 ---
 

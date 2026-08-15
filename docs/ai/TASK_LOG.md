@@ -4,6 +4,33 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Close the Bash write-lease bypass (awkit-c6n)
+
+- **Task:** The PreToolUse guard matches `Edit|Write|NotebookEdit`, so shell writes bypassed it.
+- **Rejected approach, on evidence:** matching `Bash` and scanning for `>` / `sed -i` is wrong in
+  both directions — misses `python -c "open(...)"`, `tee`, `cp`, indirect scripts; blocks
+  `echo "a > b"` and angle brackets in commit messages.
+- **Implementation:** `tools/agents/bash-audit.mjs` as a **PostToolUse** hook observing the
+  filesystem, not the command. `dirtyPaths()` (git status) minus lease scope, shared write paths,
+  and `baseline_dirty` recorded at grant. Violations are written onto the lease;
+  `completionBlockers(contract, { lease })` reads them back so detection has consequences.
+- **Defect found by running it:** `grantLease` writes the lease file and mirrors `assignments.json`
+  AFTER snapshotting the baseline, so taking a lease reported itself. Fixed with
+  `SYSTEM_BOOKKEEPING_PATHS`.
+- **Mutation testing found a second gap in my own tests:** widening that exclusion to "every
+  `.json`" SURVIVED, because every out-of-lease fixture was `.ts`. Added an ordinary out-of-lease
+  `.json` case and a cardinality check on the exclusion list.
+- **Tests run:** `verify:agent-routing` **256/256**; mutation suites **12/12 + 4/4 + 6/6 + 6/6 =
+  28/28**; `npm run build` PASS; `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `verify:runner`, `validate:offline` — routing tooling only, no product code.
+- **Demonstrated live:** a shell redirect to `docs/ai/PROJECT_BRIEF.md` under a `tools/agents/**`
+  lease was reported by name and blocked; a command writing nothing stayed silent.
+- **Stated limits:** detection not prevention (PostToolUse runs after the write); gitignored paths
+  are invisible to `git status`; ~100ms per Bash call while a lease is held, zero when none is.
+- **Result:** closed. Tracker 196 total / 192 closed / 4 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - package.json shared-write split (awkit-dwo)
 
 - **Task:** Remove the lease friction measured on the first routed task — adding a one-line npm

@@ -1,5 +1,5 @@
 {
-  "task": "awkit-dwo",
+  "task": "awkit-c6n",
   "holder": "manager",
   "status": "released",
   "allowed_paths": [
@@ -7,10 +7,20 @@
     "docs/ai/**",
     "tools/agents/**"
   ],
-  "acquired_at": "2026-08-15T22:17:42.944Z",
-  "acquired_at_commit": "5151772",
+  "acquired_at": "2026-08-15T22:32:01.313Z",
+  "acquired_at_commit": "f95e8ec",
+  "baseline_dirty": [
+    ".beads/issues.jsonl",
+    ".claude/settings.json",
+    "docs/ai/contracts/active-lease.json",
+    "scripts/verify-agent-routing.mjs",
+    "tools/agents/bash-audit.mjs",
+    "tools/agents/lease.mjs",
+    "tools/agents/validate-contract.mjs"
+  ],
   "amendments": [],
   "overrides": [],
-  "released_at": "2026-08-15T22:18:28.579Z",
+  "violations": [],
+  "released_at": "2026-08-15T22:33:03.910Z",
   "released_reason": "task complete"
 }

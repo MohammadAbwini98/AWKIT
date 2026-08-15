@@ -615,9 +615,12 @@ npm run agent:render-agents # regenerate ROUTING_MATRIX.md, the 11 .claude/agent
 > **`agent:lease-amend` re-runs routing.** If the added paths belong to another specialist the lease
 > is RELEASED rather than widened, and the CLI names who should hold the next one (exit code 3).
 > While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` hook on
-> `Edit|Write|NotebookEdit` and blocks out-of-scope writes. Two stated limits: no active lease means
-> edits are allowed (failing closed would block every task not yet using a contract), and `Bash`
-> writes bypass the hook — derived classification is the backstop for both.
+> `Edit|Write|NotebookEdit` and BLOCKS out-of-scope writes, and `tools/agents/bash-audit.mjs` runs
+> as a `PostToolUse` hook on `Bash` and DETECTS them by comparing `git status` against the lease
+> scope plus the dirty set recorded at grant. The audit cannot prevent a shell write — it runs after
+> — but it names it and records it on the lease, which blocks completion. Remaining limits: no
+> active lease means edits are unrestricted (failing closed would block every task not yet using a
+> contract), and gitignored paths are invisible to `git status` by design.
 
 ## Notes
 - Bash tool note: this repo runs on Windows; prefer the npm scripts above. PowerShell is the shell

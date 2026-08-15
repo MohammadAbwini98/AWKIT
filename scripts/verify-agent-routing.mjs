@@ -62,9 +62,12 @@ import {
   validateContract
 } from "../tools/agents/validate-contract.mjs";
 import {
+  SYSTEM_BOOKKEEPING_PATHS,
   amendLease,
+  dirtyPaths,
   grantLease,
   leaseAllows,
+  outOfLeaseWrites,
   readLease,
   releaseLease
 } from "../tools/agents/lease.mjs";
@@ -723,6 +726,94 @@ try {
 
     // No change at all must produce nothing, or every task would report an escape.
     check("an identical file reports no change", derive(base).length === 0);
+  }
+
+  /* ── Bash bypass audit (awkit-c6n) ─────────────────────────────────────────────────────────
+     The PreToolUse guard matches Edit|Write|NotebookEdit, so a shell redirect reaches past it. The
+     audit observes the filesystem instead of parsing the command — deliberately, because a
+     shell-parsing guard has false negatives (`python -c "open(...)"`) AND false positives
+     (`echo "a > b"`). These checks drive the pure comparison directly; the hook is a thin wrapper. */
+  {
+    const auditLease = {
+      task: "t",
+      holder: "runtime",
+      status: "active",
+      allowed_paths: ["app/main/**"],
+      baseline_dirty: ["docs/ai/TASK_LOG.md"],
+      amendments: [],
+      overrides: [],
+      violations: []
+    };
+
+    check(
+      "an in-lease shell write is not a violation",
+      outOfLeaseWrites(auditLease, ["app/main/uiSettings.ts"]).length === 0
+    );
+    check(
+      "an out-of-lease shell write IS detected",
+      JSON.stringify(outOfLeaseWrites(auditLease, ["src/runner/exec.ts"])) ===
+        JSON.stringify(["src/runner/exec.ts"])
+    );
+    check(
+      "a file already dirty when the lease was granted is not blamed on this lease",
+      outOfLeaseWrites(auditLease, ["docs/ai/TASK_LOG.md"]).length === 0
+    );
+    check(
+      "a shared write path is not a violation",
+      outOfLeaseWrites(auditLease, ["package.json"]).length === 0
+    );
+    // Found the first time the audit ran against a real lease: grantLease writes the lease file and
+    // mirrors assignments.json AFTER snapshotting, so taking a lease reported itself.
+    for (const path of SYSTEM_BOOKKEEPING_PATHS) {
+      check(
+        `the system's own bookkeeping (${path}) is never a violation`,
+        outOfLeaseWrites(auditLease, [path]).length === 0
+      );
+    }
+    // The bookkeeping exclusion must be an exact list, not a shape. Mutation-testing caught this:
+    // widening it to "every .json" survived, because every other out-of-lease fixture here is .ts.
+    check(
+      "an ordinary out-of-lease .json is still a violation (exclusion is a list, not a pattern)",
+      JSON.stringify(outOfLeaseWrites(auditLease, ["src/data/fixture.json"])) ===
+        JSON.stringify(["src/data/fixture.json"])
+    );
+    check(
+      "the bookkeeping exclusion is exactly two known paths",
+      SYSTEM_BOOKKEEPING_PATHS.length === 2,
+      SYSTEM_BOOKKEEPING_PATHS.join(", ")
+    );
+    check(
+      "a lease with no recorded baseline over-reports rather than staying silent",
+      outOfLeaseWrites({ ...auditLease, baseline_dirty: undefined }, ["docs/ai/TASK_LOG.md"]).length === 1
+    );
+    check(
+      "several out-of-lease writes are all reported, sorted",
+      JSON.stringify(outOfLeaseWrites(auditLease, ["src/z.ts", "src/a.ts"])) ===
+        JSON.stringify(["src/a.ts", "src/z.ts"])
+    );
+
+    // Detection only acquires consequences at the gate. Without this the audit is a warning to scroll past.
+    const withViolation = validContract();
+    check(
+      "an unresolved out-of-lease write blocks completion",
+      completionBlockers(withViolation, {
+        lease: { violations: [{ path: "src/runner/exec.ts", resolved: false }] }
+      }).some((b) => b.includes("out-of-lease")),
+      JSON.stringify(completionBlockers(withViolation, { lease: { violations: [{ path: "x", resolved: false }] } }))
+    );
+    check(
+      "a RESOLVED out-of-lease write does not block completion",
+      completionBlockers(withViolation, {
+        lease: { violations: [{ path: "src/runner/exec.ts", resolved: true }] }
+      }).length === 0
+    );
+    check(
+      "no lease passed means no out-of-lease blocker is invented",
+      completionBlockers(withViolation).length === 0
+    );
+
+    // The parser must survive git's real porcelain shapes, not just the simple case.
+    check("dirtyPaths is exported for the hook", typeof dirtyPaths === "function");
   }
 
   const damaged = tempFile("damaged.json", "{ not json");
