@@ -915,6 +915,35 @@ export const RISK_1_FLAGS = Object.freeze([
 ]);
 
 /**
+ * Paths that may never be written without an active lease, even though most paths may.
+ *
+ * The lease guard deliberately allows every edit when no lease is held: failing closed everywhere
+ * would block every ordinary task in a repository where most work does not go through a contract,
+ * and a gate that stops all work gets removed rather than obeyed. But "unrestricted" is the wrong
+ * answer for the handful of areas the repository already treats as critical — an unclaimed edit to
+ * licensing enforcement or the offline boundary is exactly the event this system exists to catch.
+ *
+ * DERIVED, not hand-listed: a path is protected when what it implies is already Risk 3. Adding a
+ * new Risk 3 flag, or attaching one to a new path, extends this set automatically, so it cannot
+ * drift out of agreement with the risk model the way a second hand-maintained list would.
+ *
+ * @type {readonly PathDomain[]}
+ */
+export const PROTECTED_PATHS = Object.freeze(
+  PATH_DOMAINS.filter((d) => d.impliesFlags.some((flag) => RISK_3_FLAGS.includes(flag)))
+);
+
+/**
+ * The protected-path rule covering a path, if any.
+ * @param {string} path
+ * @returns {PathDomain|null}
+ */
+export function protectedPathFor(path) {
+  const normalized = path.replace(/\\/g, "/");
+  return PROTECTED_PATHS.find((entry) => matchGlob(entry.glob, normalized)) ?? null;
+}
+
+/**
  * Deterministic risk level for a classification. Same input, same output, every time.
  *
  * @param {Record<string, boolean|number>} classification

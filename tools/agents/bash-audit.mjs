@@ -35,7 +35,13 @@
  * that only when someone has explicitly claimed a write scope is the right trade.
  */
 
-import { dirtyPaths, outOfLeaseWrites, readLease, recordViolations } from "./lease.mjs";
+import {
+  dirtyPaths,
+  outOfLeaseWrites,
+  readLease,
+  recordViolations,
+  unclaimedProtectedWrites
+} from "./lease.mjs";
 
 const OK = 0;
 const REPORT = 2;
@@ -71,7 +77,23 @@ async function main() {
     process.exit(OK);
   }
 
-  if (!lease) process.exit(OK);
+  if (!lease) {
+    // No lease. Ordinary shell writes are unrestricted, matching the edit guard — but a protected
+    // path that is dirty and unclaimed leaves nobody answerable for a Risk 3 change, so it is
+    // reported. There is no lease to record it on; being loud is the whole remedy here.
+    const unclaimed = unclaimedProtectedWrites(dirtyPaths());
+    if (unclaimed.length === 0) process.exit(OK);
+
+    process.stderr.write(
+      "[write-lease] UNCLAIMED PROTECTED WRITE.\n" +
+        "[write-lease] No lease is held, and these protected files are modified:\n" +
+        unclaimed.map((p) => `[write-lease]   ! ${p}\n`).join("") +
+        "[write-lease]\n" +
+        "[write-lease] Licensing, auth, secret, authorization and offline-boundary changes must\n" +
+        "[write-lease] have someone answerable for them. Take a lease, or commit/revert these.\n"
+    );
+    process.exit(REPORT);
+  }
 
   const written = outOfLeaseWrites(lease, dirtyPaths());
   if (written.length === 0) process.exit(OK);

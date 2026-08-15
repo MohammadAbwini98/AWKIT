@@ -26,6 +26,7 @@ import {
   PATH_DOMAINS,
   RISK_1_FLAGS,
   RISK_2_FLAGS,
+  PROTECTED_PATHS,
   RISK_3_FLAGS,
   SHARED_WRITE_PATHS,
   WRITER_PRECEDENCE
@@ -128,6 +129,27 @@ export function renderMatrix() {
         d.note
       ])
     );
+  }
+  lines.push("");
+
+  // ── Protected paths ───────────────────────────────────────────────────────────────────────────
+  lines.push("## Protected paths");
+  lines.push("");
+  lines.push(
+    "Most paths are writable when NO lease is held — failing closed everywhere would block every task"
+  );
+  lines.push(
+    "that does not use a contract, and a gate that stops all work gets removed rather than obeyed."
+  );
+  lines.push("These are the exception: an unclaimed edit here leaves nobody answerable for a Risk 3");
+  lines.push("change, so the guard refuses it until someone takes a lease.");
+  lines.push("");
+  lines.push("**Derived, not hand-listed** — a path is protected when what it implies is already Risk 3.");
+  lines.push("");
+  lines.push(row(["Path", "Owner", "Implies"]));
+  lines.push(row(["---", "---", "---"]));
+  for (const p of PROTECTED_PATHS) {
+    lines.push(row([`\`${p.glob}\``, `\`${p.owner}\``, p.impliesFlags.map((f) => `\`${f}\``).join(", ")]));
   }
   lines.push("");
 

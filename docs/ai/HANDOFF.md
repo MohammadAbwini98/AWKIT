@@ -43,8 +43,11 @@ All four outstanding items are externally blocked and owner-gated — `awkit-cm8
   compares `git status` against the lease scope plus the dirty set recorded at grant, records
   violations on the lease, and blocks completion. **Detection, not prevention** — the write has
   already happened. Gitignored paths stay invisible by design.
-- The lease guard still allows edits when **no lease is held**. That one is deliberate: failing
-  closed would block every task that does not use a contract. Derived classification is the backstop.
+- ~~The lease guard allows edits when no lease is held~~ — **CLOSED for what matters**
+  (`awkit-mtt`). Ordinary paths stay unrestricted by design, but `PROTECTED_PATHS` (derived from
+  `RISK_3_FLAGS`: licensing, auth, secrets, security, `resources/`) refuse an unclaimed write.
+  Do not hand-list that set — it is derived, so attaching a Risk 3 flag to a new path extends it
+  automatically.
 
 ---
 

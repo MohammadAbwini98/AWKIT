@@ -92,6 +92,23 @@ change was visual. First match wins, so narrower paths come first.
 | `.codex/**` | `manager` | — | Codex configuration and skills. |
 | `.gemini/**` | `manager` | — | Gemini / Antigravity configuration and skills. |
 
+## Protected paths
+
+Most paths are writable when NO lease is held — failing closed everywhere would block every task
+that does not use a contract, and a gate that stops all work gets removed rather than obeyed.
+These are the exception: an unclaimed edit here leaves nobody answerable for a Risk 3
+change, so the guard refuses it until someone takes a lease.
+
+**Derived, not hand-listed** — a path is protected when what it implies is already Risk 3.
+
+| Path | Owner | Implies |
+| --- | --- | --- |
+| `src/licensing/**` | `security` | `licensing_change` |
+| `src/auth/**` | `security` | `auth_change` |
+| `src/secrets/**` | `security` | `secret_handling_change` |
+| `src/security/**` | `security` | `authorization_change` |
+| `resources/**` | `release` | `packaging_change`, `offline_boundary_change` |
+
 ## Shared write paths
 
 Files whose ownership is real but whose risk lives in specific KEYS rather than the whole file.

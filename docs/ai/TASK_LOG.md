@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Close the no-lease gap for Risk 3 paths (awkit-mtt)
+
+- **Task:** The guard allowed every edit when no lease was held.
+- **Not fixed by reversing the default:** failing closed everywhere would block every task that does
+  not use a contract, and a gate that stops all work gets removed rather than obeyed.
+- **Implementation:** `PROTECTED_PATHS` derived from `PATH_DOMAINS` entries whose `impliesFlags`
+  intersect `RISK_3_FLAGS` — exactly `src/licensing/**`, `src/auth/**`, `src/secrets/**`,
+  `src/security/**`, `resources/**`. Ordinary paths stay unrestricted with no lease; these refuse an
+  unclaimed write and name the owner. `unclaimedProtectedWrites()` gives `bash-audit.mjs` the
+  symmetric rule against committed state.
+- **Testability fix that was part of the work:** extracted `decideWrite()` from the hook's `main()`.
+  Mutation P3 (allow protected paths with no lease) would otherwise have survived, because only
+  `targetPathOf()` was covered — the guard's actual judgement was untested.
+- **Tests run:** `verify:agent-routing` **277/277**; mutation suites **12/12 + 4/4 + 6/6 + 6/6 +
+  5/5 = 33/33**; `npm run build` PASS; `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `verify:runner`, `validate:offline` — routing tooling only, no product code.
+- **Demonstrated live with no lease held:** `src/licensing/`, `src/secrets/`, `resources/` refused by
+  name; `app/renderer/App.tsx` and `src/runner/exec.ts` allowed. Re-checked after the refactor.
+- **Non-vacuity pinned both ways:** an empty protected set protects nothing; a set equal to every
+  path reinstates fail-closed-everywhere. Both are asserted.
+- **Result:** closed. Tracker 197 total / 193 closed / 4 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Close the Bash write-lease bypass (awkit-c6n)
 
 - **Task:** The PreToolUse guard matches `Edit|Write|NotebookEdit`, so shell writes bypassed it.

@@ -26,7 +26,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { agent, pathInScope, sharedWritePathFor } from "./routing-matrix.mjs";
+import { agent, pathInScope, protectedPathFor, sharedWritePathFor } from "./routing-matrix.mjs";
 import { deriveClassification, normalizeClassification } from "./classify.mjs";
 import { route } from "./route.mjs";
 
@@ -351,6 +351,22 @@ export function outOfLeaseWrites(lease, currentDirty) {
     .filter((path) => !SYSTEM_BOOKKEEPING_PATHS.includes(path))
     .filter((path) => !leaseAllows(lease, path))
     .sort();
+}
+
+/**
+ * Protected paths modified while NO lease is held.
+ *
+ * The symmetric half of the guard's protected-path rule. With no lease there is no baseline to
+ * subtract, so this compares against the committed state instead: a protected file that is dirty
+ * and unclaimed is reported. That will repeat on every shell command until the file is committed or
+ * a lease is taken, which is the correct nuisance — "licensing is modified and nobody is
+ * answerable" is a state worth being loud about, and protected files are rarely dirty in passing.
+ *
+ * @param {readonly string[]} currentDirty
+ * @returns {string[]}
+ */
+export function unclaimedProtectedWrites(currentDirty) {
+  return currentDirty.filter((path) => protectedPathFor(path) !== null).sort();
 }
 
 /**

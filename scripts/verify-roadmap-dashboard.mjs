@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("196 issues parse", beads.stats.total === 196, `got ${beads.stats.total}`);
+  check("197 issues parse", beads.stats.total === 197, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -226,10 +226,11 @@ try {
   // writerSequence narrowing) was then filed and closed in one session: total 193 to 194, closed
   // 189 to 190, outstanding unchanged at four. `awkit-dwo` (package.json shared-write split) the
   // same way: total 194 to 195, closed 190 to 191, outstanding still four. `awkit-c6n` (Bash bypass
-  // audit) likewise: total 195 to 196, closed 191 to 192, outstanding still four.
+  // audit) likewise: total 195 to 196, closed 191 to 192, outstanding still four. `awkit-mtt`
+  // (protected paths close the no-lease gap): total 196 to 197, closed 192 to 193, still four.
   check(
-    "4 outstanding / 192 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 192,
+    "4 outstanding / 193 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 193,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

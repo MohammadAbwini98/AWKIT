@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## No-lease gap closed for Risk 3 paths (2026-08-16)
+
+`awkit-mtt` closes the last documented hole. The guard allowed every edit when no lease was held,
+because failing closed everywhere would block every task that does not use a contract — a gate that
+stops all work gets removed rather than obeyed. That reasoning is right for ordinary work and wrong
+for the handful of areas the repository already treats as critical.
+
+`PROTECTED_PATHS` is **derived** from the risk model: a path is protected when what it implies is
+already Risk 3. That yields exactly five — `src/licensing/**`, `src/auth/**`, `src/secrets/**`,
+`src/security/**`, and `resources/**` (the offline boundary). Deriving rather than hand-listing means
+a new Risk 3 flag, or one attached to a new path, extends the set automatically instead of drifting
+from a second list. Ordinary paths stay unrestricted with no lease; these refuse an unclaimed write
+and name the owner who should take one. `bash-audit.mjs` gets the symmetric rule: with no lease it
+reports protected files that are dirty, comparing against the committed state since no baseline
+exists.
+
+Extracting `decideWrite()` from the hook's `main()` was part of the fix, not incidental. Mutation
+testing showed the guard's actual judgement was untested — only its payload parser was covered — so
+flipping the protected-path branch changed no assertion. P3 now kills that mutation.
+
+`verify:agent-routing` is **277/277**, **mutation-tested 5/5** for this change and **33/33** across
+all five suites. Both non-vacuity directions are pinned: an empty protected set protects nothing, and
+a set equal to every path reinstates the fail-closed-everywhere behaviour this deliberately avoids.
+Demonstrated live with no lease held: `src/licensing/`, `src/secrets/` and `resources/` were refused
+by name while `app/renderer/App.tsx` and `src/runner/exec.ts` passed. Tracker: **197 total /
+193 closed / 4 outstanding**, all externally blocked and owner-gated. No validation-ledger case
+changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Bash write-lease bypass closed by filesystem audit (2026-08-16)
 
 `awkit-c6n` closes the last documented hole in the write lease. The `PreToolUse` guard matches

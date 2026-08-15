@@ -10,24 +10,27 @@
  * `tsx` entry point would add roughly a second to every file write in the repository, and a guard
  * people are motivated to switch off protects nothing.
  *
- * ── Two limitations, stated rather than hidden ────────────────────────────────────────────────
+ * ── With no active lease ──────────────────────────────────────────────────────────────────────
  *
- * 1. NO ACTIVE LEASE MEANS ALLOW. Failing closed would block every ordinary task in a repository
- *    where most work does not yet go through a contract, so the honest scope of this gate is
- *    "while a lease is held, it is real". The gap is closed at the other end: `completionBlockers`
- *    refuses to complete a task that changed product code without a contract, and
- *    `deriveClassification` reports what was actually touched regardless of what was declared.
+ * Ordinary paths are allowed. Failing closed everywhere would block every task in a repository
+ * where most work does not go through a contract, and a gate that stops all work gets removed
+ * rather than obeyed.
  *
- * 2. BASH WRITES BYPASS IT. A shell redirect or `git checkout` never reaches a PreToolUse matcher
- *    for Edit or Write. Widening the matcher to `Bash` would mean parsing arbitrary shell to guess
- *    at write intent — unreliable in both directions. The derived-classification comparison is the
- *    backstop that catches this after the fact, which is the correct place for a check that cannot
- *    be made precise up front.
+ * PROTECTED paths are not. Those are derived from the risk model — anything whose implied
+ * classification is already Risk 3: licensing, auth, secrets, authorization, and the offline
+ * boundary. An unclaimed edit there is precisely the event this system exists to catch, so it is
+ * refused until someone takes a lease and is therefore answerable for it.
  *
- * Neither limitation is a reason to skip the gate. Both are reasons not to describe it as airtight.
+ * ── Remaining limitation, stated rather than hidden ───────────────────────────────────────────
+ *
+ * BASH WRITES DO NOT REACH THIS HOOK. A shell redirect or `git checkout` never matches Edit or
+ * Write, and widening the matcher to `Bash` would mean parsing arbitrary shell to guess at write
+ * intent — unreliable in both directions. `bash-audit.mjs` covers that after the fact by observing
+ * the filesystem, including the same protected paths when no lease is held.
  */
 
 import { leaseAllows, readLease, toRepoRelative } from "./lease.mjs";
+import { protectedPathFor } from "./routing-matrix.mjs";
 
 const ALLOW = 0;
 const BLOCK = 2;
@@ -64,6 +67,30 @@ export function targetPathOf(payload) {
   return input.file_path ?? input.notebook_path ?? input.path ?? null;
 }
 
+/**
+ * The whole decision, as a pure function.
+ *
+ * Extracted from `main()` so the verifier can drive every branch without spawning a process or
+ * writing a lease file. A guard whose only tested part is its payload parser is a guard whose
+ * actual judgement is untested — mutation testing showed exactly that, since flipping the
+ * protected-path branch changed no assertion.
+ *
+ * @param {import("./lease.mjs").Lease|null} lease
+ * @param {string} relativePath repo-relative, POSIX
+ * @returns {{allow: boolean, reason: "no-lease-ordinary"|"in-scope"|"protected-unclaimed"|"out-of-scope", guarded?: object}}
+ */
+export function decideWrite(lease, relativePath) {
+  if (!lease) {
+    const guarded = protectedPathFor(relativePath);
+    return guarded
+      ? { allow: false, reason: "protected-unclaimed", guarded }
+      : { allow: true, reason: "no-lease-ordinary" };
+  }
+  return leaseAllows(lease, relativePath)
+    ? { allow: true, reason: "in-scope" }
+    : { allow: false, reason: "out-of-scope" };
+}
+
 async function main() {
   let payload;
   try {
@@ -87,15 +114,30 @@ async function main() {
     process.exit(BLOCK);
   }
 
-  if (!lease) process.exit(ALLOW);
-
   const target = targetPathOf(payload);
   if (!target) process.exit(ALLOW);
 
   const relativePath = toRepoRelative(target);
   if (!relativePath) process.exit(ALLOW); // outside the repository entirely
 
-  if (leaseAllows(lease, relativePath)) process.exit(ALLOW);
+  const decision = decideWrite(lease, relativePath);
+  if (decision.allow) process.exit(ALLOW);
+
+  if (decision.reason === "protected-unclaimed") {
+    const guarded = decision.guarded;
+    process.stderr.write(
+      `[write-lease] BLOCKED: ${relativePath}\n` +
+        `[write-lease] This path is PROTECTED (${guarded.glob}, owned by "${guarded.owner}") because\n` +
+        `[write-lease] touching it implies ${guarded.impliesFlags.join(", ")} — already Risk 3.\n` +
+        "[write-lease]\n" +
+        "[write-lease] Most paths are writable with no lease held. These are not: an unclaimed edit\n" +
+        "[write-lease] here would leave no one answerable for a licensing, auth, secret,\n" +
+        "[write-lease] authorization or offline-boundary change. Take a lease first:\n" +
+        "[write-lease]\n" +
+        `[write-lease]   npm run agent:lease-grant -- --task <id> --holder ${guarded.owner} --paths "${guarded.glob}"\n`
+    );
+    process.exit(BLOCK);
+  }
 
   process.stderr.write(
     `[write-lease] BLOCKED: ${relativePath}\n` +

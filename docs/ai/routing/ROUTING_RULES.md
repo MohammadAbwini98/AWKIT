@@ -57,10 +57,14 @@ While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` h
 
 ### Two limitations, stated rather than hidden
 
-1. **No active lease means edits are allowed.** Failing closed would block every ordinary task in a
-   repository where most work does not go through a contract. The honest scope of this gate is
-   "while a lease is held, it is real". The gap closes at the other end: the completion gate requires
-   a contract for any task that changed product code.
+1. **No active lease means ordinary edits are allowed — but not everywhere.** Failing closed on every
+   path would block every task that does not go through a contract, and a gate that stops all work
+   gets removed rather than obeyed. So ordinary paths stay unrestricted, and **protected paths do
+   not**: licensing, auth, secrets, authorization, and the offline boundary refuse an unclaimed
+   write outright. That set is *derived* from the risk model — anything whose implied classification
+   is already Risk 3 — so it extends automatically rather than drifting from a second hand-kept list.
+   The remaining gap closes at the other end: the completion gate requires a contract for any task
+   that changed product code.
 2. **`Bash` writes are detected, not prevented.** A shell redirect or `git checkout` never reaches
    an `Edit` matcher, and widening the hook to `Bash` would mean parsing arbitrary shell to guess at
    write intent — unreliable in both directions, missing `python -c "open(...)"` while blocking

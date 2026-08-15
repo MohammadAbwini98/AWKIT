@@ -33,6 +33,7 @@ import {
   CLASSIFICATION_FLAGS,
   EVIDENCE_STATUSES,
   PATH_DOMAINS,
+  PROTECTED_PATHS,
   RISK_3_FLAGS,
   ROLE_SKILLS,
   SHARED_WRITE_PATHS,
@@ -41,6 +42,7 @@ import {
   domainForPath,
   matchGlob,
   pathInScope,
+  protectedPathFor,
   riskLevelFor,
   sharedWritePathFor,
   toolsFor
@@ -69,9 +71,10 @@ import {
   leaseAllows,
   outOfLeaseWrites,
   readLease,
+  unclaimedProtectedWrites,
   releaseLease
 } from "../tools/agents/lease.mjs";
-import { targetPathOf } from "../tools/agents/lease-guard.mjs";
+import { decideWrite, targetPathOf } from "../tools/agents/lease-guard.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -814,6 +817,71 @@ try {
 
     // The parser must survive git's real porcelain shapes, not just the simple case.
     check("dirtyPaths is exported for the hook", typeof dirtyPaths === "function");
+  }
+
+  /* ── Protected paths close the no-lease gap (awkit-mtt) ────────────────────────────────────
+     The guard allows every edit when no lease is held, because failing closed everywhere would
+     block every task that does not use a contract. That is right for ordinary work and wrong for
+     the areas the repository already treats as critical, so those specifically fail closed. The set
+     is DERIVED from RISK_3_FLAGS rather than hand-listed, and these checks pin both the derivation
+     and the fact that it is neither empty nor everything. */
+  {
+    check(
+      "protected paths are derived from the Risk 3 flags, not hand-listed",
+      PROTECTED_PATHS.every((d) => d.impliesFlags.some((f) => RISK_3_FLAGS.includes(f)))
+    );
+    check(
+      "every path implying a Risk 3 flag IS protected",
+      PATH_DOMAINS.filter((d) => d.impliesFlags.some((f) => RISK_3_FLAGS.includes(f))).every(
+        (d) => protectedPathFor(d.glob.replace(/\*\*/g, "probe")) !== null
+      )
+    );
+    // Non-vacuity in both directions: a set that is empty protects nothing, and a set that is
+    // everything reinstates the fail-closed-everywhere behaviour this deliberately avoids.
+    check("the protected set is non-empty", PROTECTED_PATHS.length >= 4, `${PROTECTED_PATHS.length}`);
+    check(
+      "the protected set is NOT everything",
+      PROTECTED_PATHS.length < PATH_DOMAINS.length / 2,
+      `${PROTECTED_PATHS.length} of ${PATH_DOMAINS.length}`
+    );
+
+    for (const p of ["src/licensing/x.ts", "src/auth/x.ts", "src/secrets/x.ts", "src/security/x.ts", "resources/x.bin"]) {
+      check(`${p} is protected`, protectedPathFor(p) !== null);
+    }
+    for (const p of ["app/renderer/App.tsx", "src/runner/exec.ts", "docs/ai/TASK_LOG.md", "tests/x.ts"]) {
+      check(`${p} is NOT protected (ordinary work stays unrestricted)`, protectedPathFor(p) === null);
+    }
+
+    // The Bash audit's symmetric half: with no lease, a dirty protected file is reported and an
+    // ordinary one is not.
+    check(
+      "an unclaimed protected shell write is reported",
+      JSON.stringify(unclaimedProtectedWrites(["src/licensing/x.ts", "app/renderer/App.tsx"])) ===
+        JSON.stringify(["src/licensing/x.ts"])
+    );
+    check("no unclaimed protected write means silence", unclaimedProtectedWrites(["docs/ai/x.md"]).length === 0);
+
+    // The guard's actual JUDGEMENT, not just its payload parser. Before this was extracted, only
+    // targetPathOf() was covered, so flipping the protected-path branch changed no assertion.
+    const held = { holder: "qa", allowed_paths: ["tests/**"], task: "t", status: "active" };
+    check(
+      "no lease + ordinary path -> allow",
+      decideWrite(null, "app/renderer/App.tsx").allow === true
+    );
+    check(
+      "no lease + protected path -> BLOCK",
+      decideWrite(null, "src/licensing/x.ts").allow === false
+    );
+    check(
+      "the block names why it is protected",
+      decideWrite(null, "src/licensing/x.ts").reason === "protected-unclaimed"
+    );
+    check("lease + in-scope -> allow", decideWrite(held, "tests/x.ts").allow === true);
+    check("lease + out-of-scope -> BLOCK", decideWrite(held, "src/runner/x.ts").allow === false);
+    check(
+      "a lease covering a protected path permits it",
+      decideWrite({ ...held, allowed_paths: ["src/licensing/**"] }, "src/licensing/x.ts").allow === true
+    );
   }
 
   const damaged = tempFile("damaged.json", "{ not json");
