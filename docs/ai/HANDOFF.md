@@ -34,8 +34,11 @@ All four outstanding items are externally blocked and owner-gated — `awkit-cm8
   (`awkit-yeh`). The sequence is now narrowed to path owners, with a fail-closed fallback because
   `validate-contract` derives "changes product code" from its length. Do not remove that fallback
   without changing the validator in the same edit; the comment in both files says so.
-- Adding a one-line npm script still requires a lease handoff to `release`, since `package.json`
-  carries the dependency graph.
+- ~~Adding a one-line npm script requires a lease handoff to `release`~~ — **FIXED** (`awkit-dwo`).
+  `package.json` is a shared write path for the `scripts` field: any lease holder may write it, and
+  `deriveGuardedFieldChanges()` reports a change to any other top-level key as a scope escape.
+  `sharedFields` is an allow-list, so a new key is guarded by default — do not add one to that list
+  without meaning it.
 - The lease guard allows edits when no lease is held, and `Bash` writes bypass it. Derived
   classification is the backstop.
 

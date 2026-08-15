@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## package.json shared-write split removes the last measured lease friction (2026-08-16)
+
+`awkit-dwo` closes the friction the first routed task measured: `package.json` is release-owned
+because it carries the dependency graph, so adding a one-line npm script forced a full lease handoff
+to the Release specialist. The path map is file-granular and the `PreToolUse` guard runs **before**
+an edit, so neither can tell whether `scripts` or `dependencies` is about to change.
+
+Rather than pretend otherwise, the two halves are split. `SHARED_WRITE_PATHS` marks `package.json`
+shared for the `scripts` field, and the edit-time gate is **relaxed** for it — any lease holder may
+write the file. The enforcement moved rather than disappeared: `deriveGuardedFieldChanges()` reads
+the **committed** file, compares top-level keys against the working tree, and reports a change to
+any non-shared field as a scope escape that blocks completion. Permissive where content is invisible,
+strict where it is not.
+
+`sharedFields` is an allow-list, so the default is **guarded**: a top-level key nobody has considered
+— a future `build` block, a `workspaces` entry — is release-owned automatically rather than shared by
+omission. Removals count too, since the comparison runs over the union of both key sets, and a file
+that will not parse is reported as guarded rather than clean.
+
+Demonstrated live on this task rather than only asserted: the new `agent:check-agents` script was
+added to `package.json` while holding a **QA** lease, which the old model would have blocked; a
+dependency edit under that same lease was then reported as a scope escape naming `release`.
+
+`verify:agent-routing` is **242/242**, **mutation-tested 6/6** — including S2, which shares the
+dependency fields and is the fail-open direction. Tracker: **195 total / 191 closed / 4 outstanding**,
+all four externally blocked and owner-gated. No validation-ledger case changed; it remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**.
+
 ## Router narrows writerSequence to actual path owners (2026-08-16)
 
 `awkit-yeh` closes the rough edge the first routed task exposed. `route()` built `writerSequence`

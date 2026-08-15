@@ -35,17 +35,21 @@ import {
   PATH_DOMAINS,
   RISK_3_FLAGS,
   ROLE_SKILLS,
+  SHARED_WRITE_PATHS,
   WRITER_PRECEDENCE,
   agent,
   domainForPath,
   matchGlob,
   pathInScope,
   riskLevelFor,
+  sharedWritePathFor,
   toolsFor
 } from "../tools/agents/routing-matrix.mjs";
 import {
   MAPPED_OWNERS,
   deriveClassification,
+  deriveGuardedFieldChanges,
+  findGuardedFieldEscapes,
   findScopeEscapes,
   normalizeClassification
 } from "../tools/agents/classify.mjs";
@@ -644,6 +648,82 @@ try {
     "rerouting clears the stale claim",
     JSON.parse(readFileSync(assignPath, "utf8")).claims.length === 0
   );
+
+  /* ── Shared write paths: relaxed at edit time, strict on content (awkit-dwo) ───────────────
+     package.json is release-owned because it carries the dependency graph, but adding a one-line
+     npm script had to go through a full lease handoff — the guard runs BEFORE an edit and cannot
+     see which key is changing. The gate is relaxed for such files and the enforcement moved to a
+     content-aware derived check. Both halves are asserted here, because relaxing one without the
+     other is precisely how a governance system quietly stops governing. */
+  {
+    const shared = { task: "t", holder: "qa", status: "active", allowed_paths: ["tests/**"], amendments: [], overrides: [] };
+    check("a shared path is writable by any lease holder", leaseAllows(shared, "package.json"));
+    check("a non-shared path is still blocked", !leaseAllows(shared, "src/runner/exec.ts"));
+    check(
+      "package.json is registered as shared for scripts only",
+      sharedWritePathFor("package.json")?.sharedFields.join(",") === "scripts",
+      JSON.stringify(sharedWritePathFor("package.json")?.sharedFields)
+    );
+    check("an unrelated file has no shared rule", sharedWritePathFor("src/runner/exec.ts") === null);
+
+    const rules = [
+      { glob: "package.json", owner: "release", sharedFields: ["scripts"], sharedFor: "t", note: "t" }
+    ];
+    const base = { name: "app", version: "1.0.0", scripts: { a: "x" }, dependencies: { left: "1.0.0" } };
+    const derive = (current) =>
+      deriveGuardedFieldChanges({
+        rules,
+        readCommitted: () => JSON.stringify(base),
+        readCurrent: () => JSON.stringify(current)
+      });
+
+    // Adding a script is the whole point of the relaxation: permitted, and NOT an escape.
+    const scriptOnly = derive({ ...base, scripts: { a: "x", b: "y" } });
+    check("adding a script reports no guarded change", scriptOnly[0]?.changedGuardedFields.length === 0);
+    check("adding a script is recorded as a shared change", scriptOnly[0]?.changedSharedFields.includes("scripts"));
+    check(
+      "adding a script is NOT a scope escape without release",
+      findGuardedFieldEscapes(["manager", "qa"], { changes: scriptOnly }).length === 0
+    );
+
+    // A dependency edit is exactly what the ownership exists for.
+    const depChange = derive({ ...base, dependencies: { left: "2.0.0" } });
+    check("changing a dependency reports a guarded change", depChange[0]?.changedGuardedFields.includes("dependencies"));
+    check(
+      "changing a dependency IS a scope escape without release",
+      findGuardedFieldEscapes(["manager", "qa"], { changes: depChange }).length === 1
+    );
+    check(
+      "changing a dependency is NOT an escape when release is activated",
+      findGuardedFieldEscapes(["manager", "release"], { changes: depChange }).length === 0
+    );
+
+    // Default-guarded: a key nobody listed is owned, not shared by omission.
+    const newKey = derive({ ...base, workspaces: ["packages/*"] });
+    check(
+      "an unlisted new top-level key is guarded, not shared",
+      newKey[0]?.changedGuardedFields.includes("workspaces"),
+      JSON.stringify(newKey[0]?.changedGuardedFields)
+    );
+
+    // Removing a guarded key counts too — comparison is over the union of both key sets.
+    const removed = derive({ name: "app", version: "1.0.0", scripts: { a: "x" } });
+    check("removing a guarded key is detected", removed[0]?.changedGuardedFields.includes("dependencies"));
+
+    // An unreadable file is not evidence of innocence.
+    const unreadable = deriveGuardedFieldChanges({
+      rules,
+      readCommitted: () => "{ not json",
+      readCurrent: () => JSON.stringify(base)
+    });
+    check(
+      "an unparseable file is reported as guarded rather than clean",
+      unreadable[0]?.changedGuardedFields.includes("<unreadable>")
+    );
+
+    // No change at all must produce nothing, or every task would report an escape.
+    check("an identical file reports no change", derive(base).length === 0);
+  }
 
   const damaged = tempFile("damaged.json", "{ not json");
   let damagedThrew = false;

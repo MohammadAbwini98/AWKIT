@@ -26,7 +26,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { agent, pathInScope } from "./routing-matrix.mjs";
+import { agent, pathInScope, sharedWritePathFor } from "./routing-matrix.mjs";
 import { deriveClassification, normalizeClassification } from "./classify.mjs";
 import { route } from "./route.mjs";
 
@@ -127,12 +127,24 @@ export function toRepoRelative(candidate) {
 /**
  * Is this path writable under the given lease?
  *
+ * A shared-write path is allowed to ANY lease holder. That is not a hole — it is the relaxed half
+ * of a deliberate split. `package.json` is release-owned because it carries the dependency graph,
+ * but it also carries the npm script inventory, and this guard runs BEFORE an edit, so it cannot
+ * tell which of the two is about to change. Blocking on that ambiguity forced a full lease handoff
+ * to add a one-line script — measured ceremony that bought nothing.
+ *
+ * The enforcement moved rather than disappeared: `deriveGuardedFieldChanges()` compares the
+ * committed file against the working tree and reports a change to any non-shared field as a scope
+ * escape, which blocks completion. Permissive at edit time, strict where content is actually
+ * visible.
+ *
  * @param {Lease} lease
  * @param {string} repoRelativePath
  * @returns {boolean}
  */
 export function leaseAllows(lease, repoRelativePath) {
-  return pathInScope(repoRelativePath, lease.allowed_paths);
+  if (pathInScope(repoRelativePath, lease.allowed_paths)) return true;
+  return sharedWritePathFor(repoRelativePath) !== null;
 }
 
 /**

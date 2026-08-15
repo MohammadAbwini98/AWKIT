@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("194 issues parse", beads.stats.total === 194, `got ${beads.stats.total}`);
+  check("195 issues parse", beads.stats.total === 195, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -224,10 +224,11 @@ try {
   // the routing system's first real task: closed 188 to 189, outstanding five to four. All four
   // remaining are externally blocked and owner-gated, so nothing is ready. `awkit-yeh` (router
   // writerSequence narrowing) was then filed and closed in one session: total 193 to 194, closed
-  // 189 to 190, outstanding unchanged at four.
+  // 189 to 190, outstanding unchanged at four. `awkit-dwo` (package.json shared-write split) the
+  // same way: total 194 to 195, closed 190 to 191, outstanding still four.
   check(
-    "4 outstanding / 190 closed",
-    beads.stats.outstanding === 4 && beads.stats.closed === 190,
+    "4 outstanding / 191 closed",
+    beads.stats.outstanding === 4 && beads.stats.closed === 191,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

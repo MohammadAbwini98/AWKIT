@@ -27,6 +27,7 @@ import {
   RISK_1_FLAGS,
   RISK_2_FLAGS,
   RISK_3_FLAGS,
+  SHARED_WRITE_PATHS,
   WRITER_PRECEDENCE
 } from "./routing-matrix.mjs";
 
@@ -128,6 +129,42 @@ export function renderMatrix() {
       ])
     );
   }
+  lines.push("");
+
+  // ── Shared write paths ────────────────────────────────────────────────────────────────────────
+  lines.push("## Shared write paths");
+  lines.push("");
+  lines.push(
+    "Files whose ownership is real but whose risk lives in specific KEYS rather than the whole file."
+  );
+  lines.push(
+    "The lease guard runs BEFORE an edit and cannot see which key is about to change, so for these"
+  );
+  lines.push(
+    "paths the edit-time gate is relaxed and the enforcement moves to a content-aware derived check"
+  );
+  lines.push("that compares the committed file against the working tree.");
+  lines.push("");
+  lines.push(row(["Path", "Owner", "Shared fields", "Shared for"]));
+  lines.push(row(["---", "---", "---", "---"]));
+  for (const s of SHARED_WRITE_PATHS) {
+    lines.push(
+      row([
+        `\`${s.glob}\``,
+        `\`${s.owner}\``,
+        s.sharedFields.map((f) => `\`${f}\``).join(", "),
+        s.sharedFor
+      ])
+    );
+  }
+  lines.push("");
+  lines.push(
+    "`sharedFields` is an ALLOW-list, so the default is guarded: a top-level key nobody has thought"
+  );
+  lines.push(
+    "about yet is owned automatically rather than shared by omission. Changing any guarded field"
+  );
+  lines.push("without activating the owner is a scope escape and blocks completion.");
   lines.push("");
 
   // ── Activation ────────────────────────────────────────────────────────────────────────────────

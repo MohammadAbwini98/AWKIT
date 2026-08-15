@@ -68,6 +68,25 @@ While a lease is active, `tools/agents/lease-guard.mjs` runs as a `PreToolUse` h
 
 Neither is a reason to skip the gate. Both are reasons not to call it airtight.
 
+### Shared write paths
+
+Some files are genuinely owned but carry their risk in specific keys. `package.json` is release-owned
+because it holds the dependency graph — yet it also holds the npm script inventory, and requiring a
+full lease handoff to add a one-line `verify:*` script was measured ceremony that bought nothing.
+
+For those paths the edit-time gate is **relaxed**, because it runs before the edit and cannot see
+which key is changing. The enforcement moves rather than disappearing: `deriveGuardedFieldChanges()`
+compares the committed file against the working tree, and a change to any non-shared field is a scope
+escape that blocks completion.
+
+```bash
+node -e "import('./tools/agents/classify.mjs').then(m=>console.log(m.findGuardedFieldEscapes(['manager','qa'])))"
+```
+
+`sharedFields` is an allow-list, so a top-level key nobody listed is guarded automatically. Adding a
+script is free; touching `dependencies` still requires the Release specialist and is reported if it
+happens without them.
+
 ## 4. When scope grows — amend, never work around
 
 Discovering that the work is bigger than declared is normal. Hiding it is not.

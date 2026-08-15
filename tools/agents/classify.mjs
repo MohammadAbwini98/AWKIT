@@ -26,10 +26,13 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   CLASSIFICATION_FLAGS,
   PATH_DOMAINS,
+  SHARED_WRITE_PATHS,
   agent,
   domainForPath
 } from "./routing-matrix.mjs";
@@ -111,7 +114,7 @@ export function deriveClassification(files) {
 
 /**
  * @typedef {Object} ScopeEscape
- * @property {"domain"|"flag"|"unmapped"} kind
+ * @property {"domain"|"flag"|"unmapped"|"guarded"} kind
  * @property {string} subject
  * @property {string} detail
  */
@@ -231,6 +234,121 @@ export function suggestClassification(expectedPaths) {
   for (const flag of derived.flags) classification[flag] = true;
   classification.cross_layer_count = Math.max(1, derived.crossLayerCount);
   return classification;
+}
+
+/**
+ * The strict half of the shared-write split.
+ *
+ * `SHARED_WRITE_PATHS` deliberately relaxes the edit-time lease gate for files whose risk lives in
+ * specific keys — the guard runs before an edit and cannot see which key is about to change, so
+ * pretending it can would be theatre. This function does what the guard cannot: it reads the
+ * COMMITTED version of the file and compares its top-level keys against the working tree.
+ *
+ * Everything outside `sharedFields` is guarded, so a key nobody has thought about yet is owned by
+ * default rather than shared by omission. A changed guarded key means the file's real owner should
+ * have been activated, and if it was not, that is a scope escape like any other.
+ *
+ * `rules`, `readCommitted` and `readCurrent` exist so the verifier can drive every outcome —
+ * shared-only change, guarded change, unreadable file — without depending on what happens to be
+ * uncommitted in the repository at the time. Against the real repo this check is normally a no-op,
+ * which is exactly the state in which an untested version of it would look like it worked.
+ *
+ * @param {Object} [options]
+ * @param {string} [options.baseline] commit-ish to compare against. Defaults to HEAD.
+ * @param {string} [options.cwd]
+ * @param {readonly typeof SHARED_WRITE_PATHS[number][]} [options.rules]
+ * @param {(rel: string) => string} [options.readCommitted]
+ * @param {(rel: string) => string} [options.readCurrent]
+ * @returns {{path: string, owner: string, changedGuardedFields: string[], changedSharedFields: string[]}[]}
+ */
+export function deriveGuardedFieldChanges({
+  baseline = "HEAD",
+  cwd = process.cwd(),
+  rules = SHARED_WRITE_PATHS,
+  readCommitted,
+  readCurrent
+} = {}) {
+  const out = [];
+
+  for (const rule of rules) {
+    // Only exact paths are supported today; a glob would need enumeration and no rule needs it.
+    const rel = rule.glob;
+
+    /** @param {() => string} read */
+    const parse = (read) => {
+      try {
+        return JSON.parse(read());
+      } catch {
+        return null;
+      }
+    };
+
+    const committed = parse(() =>
+      readCommitted
+        ? readCommitted(rel)
+        : execFileSync("git", ["show", `${baseline}:${rel}`], {
+            cwd,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"]
+          })
+    );
+    const current = parse(() => (readCurrent ? readCurrent(rel) : readFileSync(join(cwd, rel), "utf8")));
+
+    // A file that cannot be read or parsed on either side is not evidence of innocence. Report the
+    // whole file as guarded rather than silently returning "nothing changed".
+    if (committed === null || current === null) {
+      out.push({
+        path: rel,
+        owner: rule.owner,
+        changedGuardedFields: ["<unreadable>"],
+        changedSharedFields: []
+      });
+      continue;
+    }
+
+    const keys = [...new Set([...Object.keys(committed), ...Object.keys(current)])].sort();
+    const changed = keys.filter(
+      (key) => JSON.stringify(committed[key]) !== JSON.stringify(current[key])
+    );
+
+    const changedGuardedFields = changed.filter((key) => !rule.sharedFields.includes(key));
+    const changedSharedFields = changed.filter((key) => rule.sharedFields.includes(key));
+
+    if (changedGuardedFields.length > 0 || changedSharedFields.length > 0) {
+      out.push({ path: rel, owner: rule.owner, changedGuardedFields, changedSharedFields });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Scope escapes arising from guarded fields in shared-write files.
+ *
+ * Separate from `findScopeEscapes` because it reads the filesystem and git, while that one is a
+ * pure comparison. Callers combine the two.
+ *
+ * @param {readonly string[]} activatedAgents
+ * @param {Object} [options]
+ * @param {ReturnType<typeof deriveGuardedFieldChanges>} [options.changes] pre-computed, for tests
+ * @param {string} [options.baseline]
+ * @param {string} [options.cwd]
+ * @returns {ScopeEscape[]}
+ */
+export function findGuardedFieldEscapes(activatedAgents, options = {}) {
+  const activated = new Set(activatedAgents);
+  const changes = options.changes ?? deriveGuardedFieldChanges(options);
+
+  return changes
+    .filter((c) => c.changedGuardedFields.length > 0 && !activated.has(c.owner))
+    .map((c) => ({
+      kind: "guarded",
+      subject: `${c.path}:${c.changedGuardedFields.join(",")}`,
+      detail:
+        `${c.path} changed guarded field(s) ${c.changedGuardedFields.join(", ")}, which are ` +
+        `owned by "${c.owner}" — but this contract never activated it. Only ` +
+        `${SHARED_WRITE_PATHS.find((r) => r.glob === c.path)?.sharedFields.join(", ")} is shared.`
+    }));
 }
 
 /** Every domain a path map can produce — used by the verifier to prove the map covers each agent. */

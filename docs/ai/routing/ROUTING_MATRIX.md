@@ -92,6 +92,21 @@ change was visual. First match wins, so narrower paths come first.
 | `.codex/**` | `manager` | — | Codex configuration and skills. |
 | `.gemini/**` | `manager` | — | Gemini / Antigravity configuration and skills. |
 
+## Shared write paths
+
+Files whose ownership is real but whose risk lives in specific KEYS rather than the whole file.
+The lease guard runs BEFORE an edit and cannot see which key is about to change, so for these
+paths the edit-time gate is relaxed and the enforcement moves to a content-aware derived check
+that compares the committed file against the working tree.
+
+| Path | Owner | Shared fields | Shared for |
+| --- | --- | --- | --- |
+| `package.json` | `release` | `scripts` | adding, renaming or removing npm scripts |
+
+`sharedFields` is an ALLOW-list, so the default is guarded: a top-level key nobody has thought
+about yet is owned automatically rather than shared by omission. Changing any guarded field
+without activating the owner is a scope escape and blocks completion.
+
 ## Activation rules
 
 | Agent | Activates when | Why |

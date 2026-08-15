@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - package.json shared-write split (awkit-dwo)
+
+- **Task:** Remove the lease friction measured on the first routed task — adding a one-line npm
+  script required a full handoff to the Release specialist.
+- **Root cause:** ownership is file-granular, but `package.json`'s risk is concentrated in specific
+  keys. The `PreToolUse` guard runs before the edit and cannot see which key is changing.
+- **Implementation:** `SHARED_WRITE_PATHS` in the registry marks `package.json` shared for `scripts`;
+  `leaseAllows()` permits any holder to write a shared path; `deriveGuardedFieldChanges()` compares
+  the committed file against the working tree and `findGuardedFieldEscapes()` reports any non-shared
+  field change as a scope escape. Relaxed where content is invisible, strict where it is not.
+- **Fail-closed by construction:** `sharedFields` is an allow-list, so unlisted keys are guarded;
+  the key comparison runs over the union of both sides so removals count; an unparseable file is
+  reported as guarded rather than clean.
+- **Tests run:** `verify:agent-routing` **242/242**, **mutation-tested 6/6** including S2 (share the
+  dependency fields — the fail-open direction) and S5 (default-shared instead of default-guarded).
+  `verify:roadmap-dashboard` 158/158; `npm run build` PASS.
+- **Tests not run:** `verify:runner`, `validate:offline` — routing tooling only, no product code.
+- **Demonstrated live, not just asserted:** added `agent:check-agents` to `package.json` while
+  holding a QA lease (previously blocked), then confirmed a dependency edit under that same lease is
+  reported as a scope escape naming `release`.
+- **Result:** closed. Tracker 195 total / 191 closed / 4 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Router: narrow writerSequence to actual path owners (awkit-yeh)
 
 - **Task:** Fix the rough edge the first routed task exposed — `writerSequence` listed activated

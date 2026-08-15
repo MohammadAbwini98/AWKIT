@@ -782,6 +782,65 @@ export const ACTIVATION_RULES = Object.freeze([
   }
 ]);
 
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * Shared write paths
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * @typedef {Object} SharedWritePath
+ * @property {string} glob
+ * @property {string} owner          the agent answerable for this file's guarded content
+ * @property {string[]} sharedFields top-level keys ANY lease holder may change
+ * @property {string} sharedFor      what the shared access is for, in plain words
+ * @property {string} note
+ */
+
+/**
+ * Files whose OWNERSHIP is real but whose risk lives in specific keys rather than the whole file.
+ *
+ * `package.json` is the case that forced this. It is release-owned because it carries the
+ * dependency graph — a genuine packaging and trust surface — but it also carries the npm script
+ * inventory, and adding a one-line `verify:*` script had to go through a full lease handoff to the
+ * Release specialist. Measured on a real task, that was pure ceremony: the change could not
+ * possibly affect packaging, and the checkpoint bought nothing.
+ *
+ * The path map is file-granular and the `PreToolUse` guard runs BEFORE an edit, so neither can see
+ * which key is about to change. Rather than pretend otherwise, the two halves are split:
+ *
+ *   - the edit-time gate is RELAXED for these paths, because it cannot judge content;
+ *   - a derived, content-aware check enforces the rest afterwards by comparing the committed file
+ *     against the working tree.
+ *
+ * Capture permissively, validate strictly. The strict half is `deriveGuardedFieldChanges()`.
+ *
+ * `sharedFields` is an ALLOW-list, so the default is guarded: a top-level key nobody has thought
+ * about yet — a new `build` block, a `workspaces` entry — is release-owned automatically rather
+ * than being shared by omission.
+ *
+ * @type {readonly SharedWritePath[]}
+ */
+export const SHARED_WRITE_PATHS = Object.freeze([
+  {
+    glob: "package.json",
+    owner: "release",
+    sharedFields: ["scripts"],
+    sharedFor: "adding, renaming or removing npm scripts",
+    note:
+      "Dependency, identity and packaging fields stay release-owned and are enforced by " +
+      "deriveGuardedFieldChanges(), which reports a change to any of them as a scope escape."
+  }
+]);
+
+/**
+ * The shared-write rule covering a path, if any.
+ * @param {string} path
+ * @returns {SharedWritePath|null}
+ */
+export function sharedWritePathFor(path) {
+  const normalized = path.replace(/\\/g, "/");
+  return SHARED_WRITE_PATHS.find((entry) => matchGlob(entry.glob, normalized)) ?? null;
+}
+
 /**
  * The order in which sequential write leases are granted when a task touches several domains.
  *
