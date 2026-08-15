@@ -11,6 +11,7 @@ import {
 import type { CanvasEdgeProps } from "../types";
 import type { EdgeVisualStyle, LoopConnectorConfig } from "@src/profiles/FlowProfile";
 import { loopBackDesignLabel, loopConnectorDesignLabel } from "../../shared/loopConnectorAuthoring";
+import "./LoopEdge.css";
 
 interface LoopEdgeData {
   label?: string;
@@ -54,7 +55,7 @@ function cubicPointAndTangent(
 
 /**
  * Loop renderer. Structured self-loops intentionally use the approved 7282178 design vocabulary:
- * one compact capsule attached to the real node, one dominant concentric ring, the configured
+ * one compact capsule attached to the real node, one dominant concentric control, the configured
  * iteration bound inside that ring, and one rotating circular sweep. The capsule path is stationary
  * and is never duplicated by the generic directional overlay, which avoids the dotted-stroke
  * interference that corrupted the later U-route hybrid. Legacy cross-node `loopBack` connectors
@@ -194,7 +195,7 @@ export function LoopEdge({
           <circle aria-hidden="true" className="awkit-loop-indicator-main-ring" cx={controlX} cy={centerY} r={mainRadius} />
           <circle
             aria-hidden="true"
-            className="awkit-loop-indicator-sweep awkit-loop-direction-path"
+            className="awkit-loop-indicator-sweep"
             cx={controlX}
             cy={centerY}
             r={mainRadius}
