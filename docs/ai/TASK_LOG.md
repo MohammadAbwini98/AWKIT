@@ -4,6 +4,30 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Audit the retired U-route assertions; deletion BLOCKED by a real gap
+
+- **Task:** Fix the 31 retired U-route assertions (16 Flow + 15 Workflow) that run, fail, and are
+  allowlisted. Intended fix: delete them, since a permanently-failing allowlisted assertion is worse
+  than none.
+- **Deletion NOT performed.** The audit found the premise is not fully true, so deleting would have
+  silently dropped real coverage.
+- **Mapping:** 15 of the 16 Flow retired names map cleanly onto `FLOW_LOOP_CAPSULE_CHECK_NAMES`
+  (label -> #4, render -> #1+#5, motion -> #6, Undo/Redo -> #13, zoom -> #8, drag -> #9, reduced
+  motion -> #7, two Loops -> #10, reload -> #13, direct target -> #14+#15, unsaved edit -> #13,
+  keyboard delete -> #14).
+- **The exception:** "Undo restores an inspector-deleted Flow Loop with its configuration". Grepping
+  the focused suite for `inspector` returns ZERO hits - inspector-initiated deletion followed by Undo
+  is covered nowhere. The 2026-08-15 handoff's claim that the focused suites replace all the retired
+  intent is therefore very nearly, but not entirely, correct.
+- **Filed `awkit-6be`** with the required order: add an inspector-delete + Undo check to the focused
+  suite FIRST, then delete the retired assertions and drop the allowlist.
+- **Not checked:** whether the 15 Workflow retired assertions have a similar unreplaced intent.
+- **Tests run:** `verify:roadmap-dashboard` 158/158; `check-memory` PASS. No code changed.
+- **Result:** 31 assertions remain non-binding - a real if narrow reduction in the two designer
+  suites' authority, and it should be read that way when relying on them.
+
+---
+
 ## 2026-08-16 - Claude - Distinguish same-named validation issues (awkit-8xx)
 
 - **Task:** Fix `awkit-8xx`, which the bead recorded as UNPROVEN.

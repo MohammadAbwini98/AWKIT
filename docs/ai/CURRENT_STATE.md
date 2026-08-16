@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Retired U-route assertions audited — one intent has NO replacement (2026-08-16)
+
+Asked to fix the 31 retired U-route assertions (16 Flow + 15 Workflow) that run, fail, and are
+allowlisted. The intended fix was to delete them, since a permanently-failing allowlisted assertion
+is worse than none — it trains people to ignore failures. **That deletion was not performed, because
+the audit found the premise is not fully true.**
+
+The 2026-08-15 handoff states the focused capsule suites "independently replace their editing,
+persistence, history, access, and visual intent". Mapping the 16 Flow retired names against
+`FLOW_LOOP_CAPSULE_CHECK_NAMES`, fifteen map cleanly: label → #4, path/marker rendering → #1 + #5,
+motion → #6, Undo/Redo → #13, zoom → #8, drag → #9, reduced motion → #7, two Loops → #10, reload →
+#13, direct target → #14 + #15, unsaved edit → #13, keyboard delete → #14.
+
+**The exception is `Undo restores an inspector-deleted Flow Loop with its configuration`.** Grepping
+`scripts/lib/verify-flow-loop-capsule-gui.mjs` for `inspector` returns **zero** hits. Inspector-
+initiated deletion followed by Undo is covered nowhere. Deleting the retired assertions first would
+have silently dropped the one intent that has no replacement — the exact failure this audit existed
+to prevent.
+
+Filed as `awkit-6be` with the required order: add an inspector-delete + Undo check to the focused
+suite **first**, then delete the retired assertions and drop the allowlist. Not yet checked: whether
+the 15 Workflow retired assertions have a similar unreplaced intent.
+
+Meanwhile the 31 assertions remain non-binding, which is a real (if narrow) reduction in the two
+designer suites' authority and should be read that way when relying on them.
+
+`verify:roadmap-dashboard` 158/158. No code changed. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **208 total / 200 closed / 8 outstanding**.
+
 ## Same-named validation issues are now distinguishable (2026-08-16)
 
 `awkit-8xx` is fixed, and this time the code-read theory survived measurement. With a **correct**
