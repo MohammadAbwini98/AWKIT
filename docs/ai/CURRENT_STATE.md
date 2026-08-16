@@ -1,5 +1,43 @@
 # CURRENT_STATE
 
+## Recorder prerequisite trial generalized beyond click (2026-08-16)
+
+`awkit-5b9` fixes a real and precisely-located defect in the interaction-prerequisite model.
+`supportsAutomaticPrerequisiteTrial` was `step.type === "click"`, and **both** resolution routes in
+`isValidInteractionExecutionDecision` require it. So a `fill`, `select` or `check` whose prerequisite
+came back `unknown` was **permanently blocked** while the validator and the UI told the user to
+"Try direct action, confirm no prerequisite, or re-record it" — two of those three routes were
+structurally incapable of succeeding for that step type.
+
+The click-only restriction was not arbitrary: Playwright offers `trial: true` on pointer actions but
+**not on `fill`**. So the fix supplies a real proof rather than relaxing the gate.
+`PREREQUISITE_TRIAL_MODES` gives each eligible type a mode — `"pointer"` uses Playwright's own
+`trial: true`; `"predicate"` proves `fill`/`select` with `waitFor({state:"visible"})` + `isEnabled()`
++ `isEditable()`, the same actionability evidence through a different API. `resolveClickTarget`
+became `resolveDirectActionTarget` and is now wired into click, fill, select, check, uncheck, radio
+and hover. Nothing is forced; a target that fails still refuses to run. `press` stays ineligible **by
+design** — it acts through `keyboard.press` against whatever holds focus, so there is no target to
+prove. The sensitive-action boundary (`dangerousMutation`/`externalCommit`) is unchanged and still
+cannot be self-authorized or user-confirmed.
+
+`verify:recorder-hover` is **265/265** (was 236); the 29 added checks produce **12 failures** against
+the click-only implementation, so they bind. `verify:runner` 100/100, `verify:recorder` 217/217,
+`verify:recorder-ambiguity` 74/74, `npm run build` PASS.
+
+**Scope delivered is one tranche of a much larger brief.** Two findings from the same investigation
+contradicted the brief's diagnosis and were filed rather than "fixed": the repeated validation
+warning is **not** duplicate emission — every issue is anchored to a distinct `nodeId`, but the
+message renders `step.name`, so several steps called "Fill input" look identical (`awkit-8xx`); and
+`Tab` is **not** misclassified as fill text — `recorderInitScript` records it as a `press` step whose
+`valueSource` is `{type:"static", value:"Tab"}`, which is the correct representation. Multi-tab
+lifecycle, navigation/URL capture, SPA routing, navigation deduplication, the mock-site labs and the
+34-item regression matrix are **NOT STARTED** and tracked as `awkit-n7n`; note that
+`switchToPopup`/`closePopup`/`switchToMainPage`/`PageAlias`/`PopupExpectation` and three popup
+verifiers already exist, so that tranche must begin by auditing existing coverage.
+
+No validation-ledger case changed; it remains **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker:
+**201 total / 195 closed / 6 outstanding**.
+
 ## Gitignored paths that matter are now watched (2026-08-16)
 
 `awkit-6ab` closes the audit's last blind spot, and auditing the repository's own `.gitignore` showed

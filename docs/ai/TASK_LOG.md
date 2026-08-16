@@ -4,6 +4,38 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Recorder prerequisite trial generalized beyond click (awkit-5b9)
+
+- **Task:** First tranche of the Recorder hardening brief (prerequisites, validation, keyboard,
+  multi-tab, navigation). Investigation first, per the brief.
+- **Root cause found and fixed:** `supportsAutomaticPrerequisiteTrial` was `type === "click"`, and
+  both routes in `isValidInteractionExecutionDecision` depend on it, so `fill`/`select`/`check` with
+  an `unknown` prerequisite were permanently blocked while being offered resolutions that could not
+  work. Click-only was not arbitrary — Playwright has no `trial` option on `fill` — so the fix adds
+  a real predicate proof rather than relaxing the gate.
+- **Implementation:** `PREREQUISITE_TRIAL_MODES` (pointer = Playwright `trial:true`; predicate =
+  `waitFor visible` + `isEnabled` + `isEditable`); `resolveClickTarget` → `resolveDirectActionTarget`
+  wired into click/fill/select/check/uncheck/radio/hover. No `force`, no sleeps. Sensitive-action
+  boundary unchanged. `press` deliberately ineligible (acts on focus, not the locator).
+- **Tests run:** `verify:recorder-hover` **265/265** (was 236, +29); the new checks produce **12
+  failures** against the click-only implementation. `verify:runner` **100/100**, `verify:recorder`
+  **217/217**, `verify:recorder-ambiguity` **74/74**, `npm run build` PASS,
+  `verify:roadmap-dashboard` 158/158.
+- **Tests NOT run:** `verify:recorder-gui`, `verify:recorder-e2e`, `verify:popup*`,
+  `verify:mock-site`, `validate:offline` — not reached in this tranche.
+- **Two brief assumptions contradicted by evidence, filed not "fixed":** repeated validation warnings
+  are NOT duplicate emission (each issue carries a distinct `nodeId`; the message renders
+  `step.name`, so same-named steps look identical) → `awkit-8xx`. `Tab` is NOT recorded as fill text
+  — `recorderInitScript` emits a `press` step with `valueSource {static, "Tab"}`, which is correct.
+- **NOT STARTED:** multi-tab lifecycle, navigation/URL capture, SPA routing, navigation dedup,
+  mock-site labs, the 34-item regression matrix, race coverage → `awkit-n7n`.
+- **Process note:** worked without a write lease. The change spans `src/profiles` (persistence) and
+  `src/runner` (runtime), which the routing model would sequence as separate leases; ordinary paths
+  are unrestricted without one, and this is recorded rather than glossed.
+- **Result:** `awkit-5b9` closed. Tracker 201 total / 195 closed / 6 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Watch the gitignored paths that carry consequence (awkit-6ab)
 
 - **Task:** `git status` never reports ignored files, so the Bash audit could not see writes to them.

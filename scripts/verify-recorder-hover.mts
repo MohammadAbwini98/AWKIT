@@ -18,6 +18,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "playwright";
 import { getRecorderInitScriptContent } from "@src/recorder/recorderInitScript";
+import {
+  createInteractionDecisionBinding,
+  interactionTrialMode,
+  isValidInteractionExecutionDecision
+} from "@src/profiles/interactionPrerequisiteDecision";
 import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 import { StepExecutor } from "@src/runner/StepExecutor";
 import { LocatorFactory } from "@src/runner/LocatorFactory";
@@ -1348,6 +1353,61 @@ async function main() {
   } finally {
     await browser.close();
     server.kill();
+  }
+
+  /* ── An unknown prerequisite must be RESOLVABLE for every type the UI offers to resolve ──────
+     Regression: trial authority used to be `step.type === "click"`, while the validator and the UI
+     told the user to "Try direct action, confirm no prerequisite, or re-record it" for ANY blocked
+     step. Both of the first two routes go through supportsAutomaticPrerequisiteTrial, so a fill,
+     select or check whose prerequisite came back unknown was permanently blocked while being told a
+     resolution existed. These checks fail against that implementation. */
+  {
+    const decisionStep = (type: string, sensitive = false): any => ({
+      type,
+      name: `${type} target`,
+      id: `n-${type}`,
+      safety: sensitive ? { sideEffectLevel: "dangerousMutation" } : undefined,
+      locator: {
+        strategy: "role",
+        value: "textbox",
+        name: `${type} target`,
+        resolution: "resolved",
+        quality: { isUnique: true, confidence: "medium" },
+        identity: { schemaVersion: 1, hash: "abc", basis: ["role"] },
+        prerequisite: { schemaVersion: 1, status: "unknown", hover: { required: true, resolved: false } }
+      }
+    });
+
+    const resolvableBy = (type: string, how: "automatic" | "user-confirmed", sensitive = false) => {
+      const s = decisionStep(type, sensitive);
+      s.locator.executionDecision =
+        how === "automatic"
+          ? { schemaVersion: 1, status: "automatic", reason: "trial" }
+          : {
+              schemaVersion: 1,
+              status: "user-confirmed",
+              reason: "user confirmed there is no prerequisite for this control",
+              binding: createInteractionDecisionBinding(s)
+            };
+      return isValidInteractionExecutionDecision(s);
+    };
+
+    for (const type of ["click", "fill", "select", "check", "uncheck", "radio", "hover"]) {
+      check(`unknown prerequisite on ${type} is resolvable by a direct-action trial`, resolvableBy(type, "automatic"));
+      check(`unknown prerequisite on ${type} is resolvable by user confirmation`, resolvableBy(type, "user-confirmed"));
+      check(`${type} declares a trial mode`, interactionTrialMode(decisionStep(type)) !== undefined);
+    }
+
+    // The safety boundary is unchanged: sensitive actions still cannot buy their way out.
+    for (const type of ["click", "fill", "check"]) {
+      check(`sensitive ${type} still cannot self-authorize a trial`, !resolvableBy(type, "automatic", true));
+      check(`sensitive ${type} still cannot be user-confirmed`, !resolvableBy(type, "user-confirmed", true));
+    }
+
+    // `press` acts through keyboard focus rather than the step's locator, so there is no target to
+    // prove and it stays ineligible by design rather than by omission.
+    check("press has no trial mode (acts on focus, not the locator)", interactionTrialMode(decisionStep("press")) === undefined);
+    check("press with an unknown prerequisite stays blocked", !resolvableBy("press", "automatic"));
   }
 
   console.log(`\nResults: ${passed} passed, ${failed} failed`);

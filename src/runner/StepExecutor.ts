@@ -23,7 +23,7 @@ import type { OriginClaimTracker } from "./concurrency/OriginClaimTracker";
 import type { OperationLimiters, OperationKind } from "./concurrency/OperationLimiters";
 import { resolveStepSafety } from "./runtime/StepSafetyPolicy";
 import { hasPositionalIdentityGuard, isPositionalLocator, isValidLocatorFallbackApproval } from "@src/profiles/locatorApproval";
-import { isValidInteractionExecutionDecision } from "@src/profiles/interactionPrerequisiteDecision";
+import { interactionTrialMode, isValidInteractionExecutionDecision } from "@src/profiles/interactionPrerequisiteDecision";
 import { MAIN_PAGE_ALIAS, PopupIdentityRegistry } from "./runtime/PopupIdentityRegistry";
 import { runOracleNode, type OracleNodeRunner } from "@src/oracle/OracleNodeExecution";
 import { safeMessageForCategory } from "@src/oracle/OracleErrors";
@@ -460,15 +460,36 @@ export class StepExecutor {
   }
 
   /**
-   * Let Playwright prove ordinary-click actionability without causing the action, then re-resolve the
-   * identity immediately before the real click. `force` is intentionally never used.
+   * Let Playwright prove the step is directly actionable WITHOUT causing the action, then re-resolve
+   * the identity immediately before the real one. `force` is intentionally never used.
+   *
+   * Two proofs, because Playwright does not offer `trial` on every action. Pointer actions use the
+   * real thing — `trial: true` runs the full actionability check and then declines to act. `fill`
+   * and `select` have no trial option, so they are proven with Playwright's own predicates instead:
+   * the same evidence (visible, enabled, editable) through a different API, still auto-waiting and
+   * still refusing to run when the target is not ready.
+   *
+   * Steps whose prerequisite is not `unknown` skip all of this and resolve normally.
    */
-  private async resolveClickTarget(step: FlowStep): Promise<Locator> {
+  private async resolveDirectActionTarget(step: FlowStep): Promise<Locator> {
     const target = await this.locatorFactory.resolve(step);
     if (step.locator?.prerequisite?.status !== "unknown") return target;
+
+    const mode = interactionTrialMode(step);
     const timeout = step.timeoutMs ?? 10_000;
     try {
-      await target.click({ timeout, trial: true });
+      if (mode === "pointer") {
+        await target.click({ timeout, trial: true });
+      } else if (mode === "predicate") {
+        await target.waitFor({ state: "visible", timeout });
+        if (!(await target.isEnabled({ timeout }))) throw new Error("element is not enabled");
+        if (step.type === "fill" && !(await target.isEditable({ timeout }))) {
+          throw new Error("element is not editable");
+        }
+      } else {
+        // No proof exists for this step type; the decision gate should already have blocked it.
+        throw new Error(`no actionability trial is defined for step type "${step.type}"`);
+      }
     } catch (error) {
       const detail = StepExecutor.friendlyLocatorError(error instanceof Error ? error.message : String(error));
       throw new Error(
@@ -1603,7 +1624,7 @@ export class StepExecutor {
           // cancellation closing the context/page) fails before we await it below. The awaited value/throw
           // is still handled in-context; this extra no-op handler only marks the rejection as observed.
           popupPromise.catch(() => undefined);
-          await (await this.resolveClickTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+          await (await this.resolveDirectActionTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
           const popupPage = await popupPromise;
           // Wait for initial load state.
           await popupPage.waitForLoadState(expectation.waitUntil ?? "domcontentloaded", { timeout }).catch(() => undefined);
@@ -1633,7 +1654,7 @@ export class StepExecutor {
           }
           return { status: "passed" };
         }
-        await (await this.resolveClickTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.resolveDirectActionTarget(step)).click({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
       }
 
@@ -1728,7 +1749,7 @@ export class StepExecutor {
       }
 
       case "fill": {
-        const locator = await this.locatorFactory.resolve(step);
+        const locator = await this.resolveDirectActionTarget(step);
         const value = await this.normalizeFillValueForControl(locator, await this.resolveStepValue(step));
         if (step.config?.clearBeforeFill) await locator.clear({ timeout: step.timeoutMs ?? 10_000 });
         await locator.fill(value, { timeout: step.timeoutMs ?? 10_000 });
@@ -1744,7 +1765,7 @@ export class StepExecutor {
 
       case "select": {
         const value = await this.resolveStepValue(step);
-        const locator = await this.locatorFactory.resolve(step);
+        const locator = await this.resolveDirectActionTarget(step);
         const multiple = step.config?.selectMultiple;
         if (step.selectionMode === "label") {
           await locator.selectOption(multiple ? value.split(",").map((v) => ({ label: v.trim() })) : { label: value });
@@ -1757,16 +1778,16 @@ export class StepExecutor {
       }
 
       case "check":
-        await (await this.locatorFactory.resolve(step)).check({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.resolveDirectActionTarget(step)).check({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
 
       case "uncheck":
-        await (await this.locatorFactory.resolve(step)).uncheck({ timeout: step.timeoutMs ?? 10_000 });
+        await (await this.resolveDirectActionTarget(step)).uncheck({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
 
       case "radio": {
         const value = await this.resolveStepValue(step);
-        if (step.locator) await (await this.locatorFactory.resolve(step)).check({ timeout: step.timeoutMs ?? 10_000 });
+        if (step.locator) await (await this.resolveDirectActionTarget(step)).check({ timeout: step.timeoutMs ?? 10_000 });
         else await this.activePage.locator(`input[type="radio"][value="${value}"]`).check({ timeout: step.timeoutMs ?? 10_000 });
         return { status: "passed" };
       }

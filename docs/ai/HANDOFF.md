@@ -1,5 +1,50 @@
 # Agent Handoff
 
+## HANDOFF (2026-08-16) - Recorder hardening tranche 1 of N complete
+
+### Transfer
+
+- **From:** Claude. **To:** next AI coding agent or human maintainer.
+- **Canonical branch:** `main`. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+- **Tracker: 201 total / 195 closed / 6 outstanding.**
+
+### Delivered
+
+- `awkit-5b9`: interaction-prerequisite trial authority generalized beyond `click`.
+  `verify:recorder-hover` 265/265, the 29 new checks fail 12× against the old implementation.
+
+### The Recorder brief is NOT complete — this was one tranche
+
+`awkit-n7n` holds the rest and is the next real piece of work: multi-tab page lifecycle, opener
+correlation, active-page tracking, navigation/URL capture (document, redirect, pushState,
+replaceState, hashchange, back/forward/reload, popup + secondary-tab), navigation deduplication,
+semantic event correlation, mock-site interaction/navigation/multi-page labs, the 34-item regression
+matrix, and race coverage.
+
+**Start that tranche by auditing what already exists**, not by building. `FlowProfile` already has
+`switchToPopup`, `closePopup`, `switchToMainPage`, `PageAlias` and `PopupExpectation`, and
+`verify:popup`, `verify:popup-identity` and `verify:popup-mock-site` already exist. How much of
+sections 5-12 is already satisfied is **unmeasured**.
+
+### Two brief assumptions that the code contradicts — do not "fix" these blindly
+
+- **Repeated validation warnings are not duplicate emission.** `IssueCollector` anchors every
+  `interactionPrerequisiteBlocked` to a distinct `nodeId`. The message uses `labelFor(step)` =
+  `step.name`, so four steps named "Fill input" render four identical strings. The fix is step
+  identity in the message/UI (`awkit-8xx`), **not** deduplication — collapsing them would hide real
+  separate failures.
+- **`Tab` is not recorded as fill text.** `recorderInitScript` treats `Enter`/`Escape`/`Tab` as
+  standalone shortcuts and emits a `press` step with `valueSource {type:"static", value:"Tab"}`.
+  That is the correct representation; the evidence showing "Text Value: Tab" is a `press` step, and
+  any complaint is about the property-panel label rather than classification.
+
+### Unproven
+
+A reproduction harness for the duplicate-validation claim returned **0 issues** because the fixture
+flow shape was wrong. Nothing about `awkit-8xx` is proven yet — build a correct fixture first.
+
+---
+
 ## HANDOFF (2026-08-16) - settings replacement hardened; no ready work remains
 
 ### Transfer
