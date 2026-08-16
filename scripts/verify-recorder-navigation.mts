@@ -26,6 +26,7 @@ import { chromium } from "playwright";
 import { spawn } from "node:child_process";
 
 import { RecorderService } from "@src/recorder/RecorderService";
+import { buildRecordedFlow } from "@src/recorder/buildRecordedFlow";
 
 const PORT = Number(process.env.MOCK_SITE_PORT ?? 4598);
 const base = `http://127.0.0.1:${PORT}`;
@@ -162,6 +163,36 @@ async function main(): Promise<void> {
       `got ${JSON.stringify(finalUrls)}`
     );
     check("about:blank was never recorded", !finalUrls.some((u) => u.startsWith("about:")));
+
+    /* ── The boundary between recorded URLs and the replayable flow ────────────────────────────
+       Everything above measures the URL HISTORY. This block pins the separate, easily-missed fact
+       that history is not replay: `buildRecordedFlow(name, actions, blueprints)` takes actions only
+       and never sees `recordedUrls`, so a flow's sole navigation step is the initial `goto` pushed
+       when recording starts. Action-caused navigation replays implicitly through Playwright's
+       auto-waiting, which matches the brief's preference for navigation metadata on the triggering
+       action over redundant Navigate steps. INDEPENDENT navigation mid-recording (typing a URL,
+       using the back button) has no representation at all — tracked as awkit-76x.
+
+       These checks exist so that boundary is asserted rather than rediscovered by reading. */
+    const flow = buildRecordedFlow("nav-contract", [
+      { id: "a1", type: "goto", name: "Navigate to /form", valueSource: { type: "static", value: `${base}/form` } },
+      { id: "a2", type: "click", name: "Click Submit" }
+    ] as never);
+
+    // `nodes` IS the FlowStep array in this profile shape (start, ...actions, end).
+    const stepTypes = (flow.nodes as { type: string }[]).map((n) => n.type);
+    const navSteps = stepTypes.filter((t) => t === "goto");
+    check("the initial goto becomes the flow's navigation step", navSteps.length === 1, stepTypes.join(", "));
+    check(
+      "recorded URL history contributes NO extra navigation steps",
+      navSteps.length === 1 && stepTypes.filter((t) => t === "goto").length === 1,
+      `steps: ${stepTypes.join(", ")}`
+    );
+    check(
+      "buildRecordedFlow takes actions only (recordedUrls is history, not replay)",
+      buildRecordedFlow.length <= 3,
+      `arity ${buildRecordedFlow.length}`
+    );
   } finally {
     await browser.close();
     server.kill();

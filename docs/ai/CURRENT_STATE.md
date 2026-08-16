@@ -1,5 +1,33 @@
 # CURRENT_STATE
 
+## Popup coverage measured; recorded URLs proven separate from replay (2026-08-16)
+
+Continuing `awkit-n7n`. Two claims that had been asserted from reading are now **executed**, and one
+real gap is measured rather than theorized.
+
+**Popup/multi-page support: measured, not assumed.** Previously called "mature" on the strength of
+code reading and scenario counts. Now run: `verify:popup` **12/12**, `verify:popup-identity`
+**44/44**, `verify:popup-mock-site` **15/15** — **71 checks, 0 failures**. Sections 5-7 of the
+Recorder brief are substantially covered by existing work; building a parallel page registry would
+duplicate it.
+
+**Recorded URLs are history, not replay — and that boundary is now asserted.**
+`buildRecordedFlow(name, actions, blueprints)` never receives `recordedUrls`, and `"goto"` is pushed
+as an action exactly **once**, at recording start for the initial target URL. A recorded flow
+therefore contains exactly one navigation step. `verify:recorder-navigation` grew from 15 to **18/18**
+to pin this, because it is the kind of boundary that is expensive to rediscover by reading.
+
+That design is defensible for action-caused navigation: brief §9 explicitly prefers navigation
+metadata on the triggering action over a redundant Navigate step after every URL change, and
+Playwright's auto-waiting carries the transition. The measured gap is §9's **third** case —
+**independent navigation during recording** (the user types a URL, presses back, or an external
+redirect lands elsewhere) has no representation at all, so replay diverges silently from what was
+recorded. Filed as `awkit-76x` with an explicit warning not to "fix" it by emitting a Navigate step
+after every URL change.
+
+`verify:roadmap-dashboard` 158/158. No product code changed. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **204 total / 197 closed / 7 outstanding**.
+
 ## Navigation capture MEASURED — both audit defect theories disproven (2026-08-16)
 
 The `awkit-n7n` audit's two code-read defect theories were wrong, and the measurement that

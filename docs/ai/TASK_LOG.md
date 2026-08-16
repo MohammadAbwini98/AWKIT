@@ -4,6 +4,34 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Popup coverage executed; URL/replay boundary measured (awkit-n7n)
+
+- **Task:** Continue `awkit-n7n` - execute the popup claims I had only asserted, and answer the open
+  question about ordered navigation events versus a visited set.
+- **Popup coverage now MEASURED, not assumed:** `verify:popup` 12/12, `verify:popup-identity` 44/44,
+  `verify:popup-mock-site` 15/15 - 71 checks, 0 failures. Sections 5-7 of the brief are
+  substantially covered; a parallel page registry would duplicate working code.
+- **The open question is answered, and it dissolves:** neither an ordered event log NOR the visited
+  set feeds replay. `buildRecordedFlow(name, actions, blueprints)` never receives `recordedUrls`,
+  and `"goto"` is pushed as an action exactly once - at recording start. A recorded flow contains
+  exactly one navigation step.
+- **Measured gap (`awkit-76x`):** that design is right for action-caused navigation (brief section 9
+  prefers metadata on the triggering action over a Navigate step per URL change, and Playwright
+  auto-waiting carries it). The gap is section 9's THIRD case - independent navigation during
+  recording has no representation, so replay diverges silently. The bead warns explicitly against
+  "fixing" it by emitting a Navigate step after every URL change.
+- **Delivered:** `verify:recorder-navigation` 15 -> **18/18**, adding the URL-history-vs-replay
+  boundary as an asserted contract.
+- **Tests run:** verify:popup 12/12; verify:popup-identity 44/44; verify:popup-mock-site 15/15;
+  verify:recorder-navigation 18/18; verify:roadmap-dashboard 158/158.
+- **Tests not run:** `npm run build`, `verify:runner` - no product code changed this phase.
+- **Corrected in passing:** the verifier comment cited a placeholder bead id; now points at the real
+  `awkit-76x`.
+- **Still open in awkit-n7n:** semantic event correlation, navigation deduplication across event
+  sources, the mock-site navigation lab, and the 34-item regression matrix.
+
+---
+
 ## 2026-08-16 - Claude - Navigation capture measured; both audit theories disproven (awkit-n7n)
 
 - **Task:** Fix the mock-site harness that failed last session and run the navigation measurement.
