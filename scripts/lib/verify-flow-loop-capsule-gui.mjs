@@ -27,6 +27,7 @@ export const FLOW_LOOP_CAPSULE_CHECK_NAMES = Object.freeze([
   "Flow Loop first save preserves authored configuration, style, and exactly one promoted Conditional exit",
   "Flow Loop reload, config Undo/Redo, and second reconfigure/save/reload preserve the exact capsule state",
   "Flow Loop direct target and Delete/Undo/Redo restore its exact authored state",
+  "Undo restores an inspector-deleted Flow Loop with its exact capsule state",
   "Flow Loop configuration remains accessible by pointer, double-click, Enter, and Space"
 ]);
 
@@ -561,6 +562,45 @@ export async function runFlowLoopCapsuleSuite(root) {
         restoredEditor.lineStyle === "dotted" && restoredEditor.thickness === "4" && restoredEditor.shape === "smoothstep" &&
         restoredTopology.loops === 1 && restoredTopology.exits === 1 && restoredTopology.loopExitControls === 1,
       JSON.stringify({ directTargetMode, deletedByKeyboard, firstDeleteUndo, deletedAgainByRedo, finalDeleteUndo, restoredEditor, restoredTopology })
+    );
+
+    /* Inspector-initiated deletion, then Undo (awkit-6be).
+       The pre-capsule walkthrough covered this, but its Undo assertion required `directionCount`
+       and `arrowCount` — descendants the capsule design removed — so it was retired and NOTHING
+       replaced it. Keyboard deletion above is a different code path: it goes through the canvas
+       key handler, while this goes through the connection inspector's own Delete control. Only the
+       ASSERTION was U-route-specific; the interaction is still the product's, so it is re-bound
+       here against the capsule contract instead of being lost with the visual it used to check. */
+    await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });
+    await clickNodeMenuItem(win, nodeId, "Configure loop");
+    const inspectorDelete = win.getByTitle("Delete connection");
+    const inspectorDeleteVisible = await inspectorDelete.isVisible().catch(() => false);
+    if (inspectorDeleteVisible) await inspectorDelete.click();
+    await win.waitForFunction(
+      (id) => !document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`),
+      nodeId,
+      { timeout: 5_000 }
+    ).catch(() => undefined);
+    const afterInspectorDelete = await win.evaluate((id) => ({
+      hasSelfLoop: Boolean(document.querySelector(`g.awkit-flow-edge[data-source="${id}"][data-target="${id}"]`)),
+      hasLoopExitControl: Boolean(document.querySelector('button.awkit-edge-add[data-insert-role="loop-exit"]'))
+    }), nodeId);
+
+    await waitForHistoryControl(win, "flow-undo");
+    await win.locator('[data-testid="flow-undo"]').click();
+    await loopGroup.waitFor({ state: "attached", timeout: 5_000 }).catch(() => undefined);
+    const inspectorDeleteUndo = await readLoopCapsuleVisual(win, nodeId);
+
+    check(
+      "Undo restores an inspector-deleted Flow Loop with its exact capsule state",
+      inspectorDeleteVisible &&
+        !afterInspectorDelete.hasSelfLoop &&
+        !afterInspectorDelete.hasLoopExitControl &&
+        matchesLoopCapsuleContract(inspectorDeleteUndo, { owner: nodeId, value: 14 }) &&
+        inspectorDeleteUndo?.labelText === "While · status = passed" &&
+        normalizeDash(inspectorDeleteUndo.pathStrokeDash) === "1 5" &&
+        Number.parseFloat(inspectorDeleteUndo.pathStrokeWidth) === 4,
+      JSON.stringify({ inspectorDeleteVisible, ...afterInspectorDelete, inspectorDeleteUndo })
     );
 
     await win.locator(".awkit-flow-canvas").click({ position: { x: 18, y: 18 } });

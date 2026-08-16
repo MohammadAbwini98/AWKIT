@@ -1,5 +1,24 @@
 # CURRENT_STATE
 
+## Inspector-delete Undo coverage restored; retired assertions now safe to remove (2026-08-16)
+
+Step 1 of `awkit-6be` is done. The one retired intent with no replacement — Undo restoring an
+inspector-deleted Loop — is now bound to the capsule contract in the focused suite.
+
+`verify:flow-designer` focused capsule is **16/16** (was 15/15), unexpected failures **0**. Only the
+old ASSERTION was U-route-specific (it required `directionCount` and `arrowCount`); the interaction
+itself is still the product’s, so it was re-bound rather than lost with the visual it used to check.
+Note the inspector DELETE was never retired — only the Undo-restores-configuration assertion was — so
+the gap was narrower than first stated.
+
+**Step 2 is NOT done and the bead stays open:** deleting the 16 Flow + 15 Workflow retired assertions
+from the pre-capsule walkthroughs, dropping the allowlist, and moving `expectedChecks` 128 -> 112 and
+74 -> 59. It is now safe for Flow. It is NOT yet safe for Workflow — whether those 15 have a similar
+unreplaced intent has still not been checked, and that check must come first.
+
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **208 total / 200 closed / 8
+outstanding**.
+
 ## Retired U-route assertions audited — one intent has NO replacement (2026-08-16)
 
 Asked to fix the 31 retired U-route assertions (16 Flow + 15 Workflow) that run, fail, and are
