@@ -352,8 +352,34 @@ function hasRequiredValue(step: FlowStep): boolean {
   return step.type === "goto" && isNonEmptyString(step.url);
 }
 
-function labelFor(step: FlowStep): string {
-  return isNonEmptyString(step.name) ? step.name : step.id;
+/**
+ * How a step is named in a validation message.
+ *
+ * A recorded flow routinely contains several steps with the SAME name — "Fill input" four times is
+ * ordinary output from a form with four unlabelled boxes. Each one produces its own correctly
+ * anchored issue, but the messages came out byte-identical, so four genuinely separate failures read
+ * as one warning repeated four times. The instinct is to deduplicate; that would be wrong, because
+ * they are not duplicates and collapsing them hides three real defects.
+ *
+ * So ambiguous names — and only ambiguous names — carry their step id. Unique names stay clean,
+ * which keeps the common message readable instead of taxing every step for a collision that usually
+ * does not exist.
+ */
+function labelFor(step: FlowStep, ambiguousNames?: ReadonlySet<string>): string {
+  if (!isNonEmptyString(step.name)) return step.id;
+  return ambiguousNames?.has(step.name) ? `${step.name} (${step.id})` : step.name;
+}
+
+/** Step names shared by more than one step in the same flow. */
+function ambiguousStepNames(nodes: readonly FlowStep[]): ReadonlySet<string> {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const step of nodes) {
+    if (!isNonEmptyString(step.name)) continue;
+    if (seen.has(step.name)) repeated.add(step.name);
+    seen.add(step.name);
+  }
+  return repeated;
 }
 
 /* ------------------------------------------------------------------ *
@@ -452,24 +478,25 @@ function compareIssues(a: FlowValidationIssue, b: FlowValidationIssue): number {
 }
 
 function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect: IssueCollector, context: FlowValidationContext): void {
+  const ambiguousNames = ambiguousStepNames(nodes);
   for (const step of nodes) {
     if (!isKnownStepType(step.type)) {
-      collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step)} has an unknown type "${String(step.type)}" that the runner cannot execute.`);
+      collect.node("unsupportedConfiguration", step.id, `Step ${labelFor(step, ambiguousNames)} has an unknown type "${String(step.type)}" that the runner cannot execute.`);
       continue;
     }
     const requirement = stepRequirement(step.type);
 
     if (requirement.requiresLocator) {
       if (step.locator === undefined) {
-        collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step)} (${step.type}) requires a locator.`);
+        collect.node("missingRequiredLocator", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) requires a locator.`);
       } else if (
         (step.locator.resolution === "needs-review" && !isPrerequisiteOnlyLocatorReview(step.locator)) ||
         step.locator.resolution === "invalid"
       ) {
         const reason = step.locator.reviewReason ? ` (${step.locator.reviewReason})` : "";
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step, ambiguousNames)} has an unresolved locator${reason}: it requires review or fallback approval before execution.`);
       } else if (step.locator.resolution === "user-approved-fallback" && !isValidLocatorFallbackApproval(step)) {
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} has stale or incomplete positional-fallback approval: review and approve this exact locator and context again.`);
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step, ambiguousNames)} has stale or incomplete positional-fallback approval: review and approve this exact locator and context again.`);
       } else if (
         isPositionalLocator(step.locator) &&
         ["dangerousMutation", "externalCommit"].includes(resolveStepSafety(step).sideEffectLevel) &&
@@ -480,20 +507,20 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
         // externalCommit) is the sole exception: a bare positional index could misfire the wrong
         // Delete/Submit/Pay control after a layout change, so it must carry a runtime identity guard
         // that re-proves the target before acting (guarded-positional).
-        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step)} performs a sensitive action but its locator is a positional fallback with no runtime identity guard. Re-record it so the recorder captures an identity guard, or add a stable data-testid or unique accessible name.`);
+        collect.node("locatorNeedsReview", step.id, `Step ${labelFor(step, ambiguousNames)} performs a sensitive action but its locator is a positional fallback with no runtime identity guard. Re-record it so the recorder captures an identity guard, or add a stable data-testid or unique accessible name.`);
       }
       if (step.locator?.prerequisite?.status === "unknown" && !isValidInteractionExecutionDecision(step)) {
         collect.node(
           "interactionPrerequisiteBlocked",
           step.id,
           isSensitiveInteractionStep(step)
-            ? `Step ${labelFor(step)} is a sensitive action with an unknown interaction prerequisite. Re-record or resolve the prerequisite before execution.`
-            : `Step ${labelFor(step)} has an unknown interaction prerequisite with no valid execution decision. Choose Try direct action, confirm no prerequisite, or re-record it.`
+            ? `Step ${labelFor(step, ambiguousNames)} is a sensitive action with an unknown interaction prerequisite. Re-record or resolve the prerequisite before execution.`
+            : `Step ${labelFor(step, ambiguousNames)} has an unknown interaction prerequisite with no valid execution decision. Choose Try direct action, confirm no prerequisite, or re-record it.`
         );
       }
     }
     if (requirement.requiresValue && !hasRequiredValue(step)) {
-      collect.node("missingRequiredValue", step.id, `Step ${labelFor(step)} (${step.type}) requires a value or value source.`);
+      collect.node("missingRequiredValue", step.id, `Step ${labelFor(step, ambiguousNames)} (${step.type}) requires a value or value source.`);
     }
 
     if (step.type === "runFlow" && context.referenceableFlowIds !== undefined) {
@@ -504,27 +531,27 @@ function validateSteps(profile: FlowProfile, nodes: readonly FlowStep[], collect
       }
     }
 
-    validateTimeouts(step, collect);
-    validateStepLoopBounds(step, collect);
+    validateTimeouts(step, collect, ambiguousNames);
+    validateStepLoopBounds(step, collect, ambiguousNames);
   }
 }
 
-function validateTimeouts(step: FlowStep, collect: IssueCollector): void {
+function validateTimeouts(step: FlowStep, collect: IssueCollector, ambiguousNames: ReadonlySet<string>): void {
   const check = (value: unknown, field: string): void => {
     if (value === undefined) return;
     if (!isPositiveFinite(value)) {
       collect.node(
         "invalidTimeout",
         step.id,
-        `Step ${labelFor(step)} has ${field} ${String(value)}; Playwright treats a non-positive timeout as "no timeout", so the step can hang instead of failing fast.`
+        `Step ${labelFor(step, ambiguousNames)} has ${field} ${String(value)}; Playwright treats a non-positive timeout as "no timeout", so the step can hang instead of failing fast.`
       );
       return;
     }
     const timeout = value as number;
     if (timeout > FLOW_VALIDATION_LIMITS.maxTimeoutMs) {
-      collect.node("highTimeout", step.id, `Step ${labelFor(step)} has ${field} ${timeout}ms, above the ${FLOW_VALIDATION_LIMITS.maxTimeoutMs}ms runtime clamp — it will be reduced at run time.`);
+      collect.node("highTimeout", step.id, `Step ${labelFor(step, ambiguousNames)} has ${field} ${timeout}ms, above the ${FLOW_VALIDATION_LIMITS.maxTimeoutMs}ms runtime clamp — it will be reduced at run time.`);
     } else if (timeout > FLOW_VALIDATION_LIMITS.warnTimeoutMs) {
-      collect.node("highTimeout", step.id, `Step ${labelFor(step)} has ${field} ${timeout}ms, which is unusually high.`);
+      collect.node("highTimeout", step.id, `Step ${labelFor(step, ambiguousNames)} has ${field} ${timeout}ms, which is unusually high.`);
     }
   };
 
@@ -533,19 +560,19 @@ function validateTimeouts(step: FlowStep, collect: IssueCollector): void {
   for (const [index, wait] of (step.afterWaits ?? []).entries()) check(wait.timeoutMs, `an after-wait[${index}] timeout of`);
 }
 
-function validateStepLoopBounds(step: FlowStep, collect: IssueCollector): void {
+function validateStepLoopBounds(step: FlowStep, collect: IssueCollector, ambiguousNames: ReadonlySet<string>): void {
   const check = (value: unknown, field: string): void => {
     if (value === undefined) return;
     if (!isPositiveFinite(value) || (value as number) > FLOW_VALIDATION_LIMITS.maxLoopIterations) {
       collect.node(
         "invalidLoopBounds",
         step.id,
-        `Step ${labelFor(step)} has ${field} ${String(value)}; it must be between 1 and ${FLOW_VALIDATION_LIMITS.maxLoopIterations}.`
+        `Step ${labelFor(step, ambiguousNames)} has ${field} ${String(value)}; it must be between 1 and ${FLOW_VALIDATION_LIMITS.maxLoopIterations}.`
       );
       return;
     }
     if ((value as number) > FLOW_VALIDATION_LIMITS.warnLoopIterations) {
-      collect.node("largeLoopBounds", step.id, `Step ${labelFor(step)} has ${field} ${String(value)}, which will make an unattended run very long.`);
+      collect.node("largeLoopBounds", step.id, `Step ${labelFor(step, ambiguousNames)} has ${field} ${String(value)}, which will make an unattended run very long.`);
     }
   };
 
@@ -740,12 +767,13 @@ export function validateFlowDefinition(profile: FlowProfile, context: FlowValida
 
   // ── Reachability ───────────────────────────────────────────────────────────
   if (reachabilityKnown) {
+    const ambiguousNames = ambiguousStepNames(nodes);
     for (const step of nodes) {
       if (!reachableNodeIds.has(step.id)) {
         collect.offPathNode(
           "unreachableNode",
           step.id,
-          `Step ${labelFor(step)} cannot be reached from Start — it never runs, and nothing reports that at run time.`
+          `Step ${labelFor(step, ambiguousNames)} cannot be reached from Start — it never runs, and nothing reports that at run time.`
         );
       }
     }

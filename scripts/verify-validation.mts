@@ -921,5 +921,80 @@ console.log("\nrunFlow target precedence (flowId is canonical; config.targetFlow
   );
 }
 
+/* ── Same-named steps stay individually identifiable (awkit-8xx) ────────────────────────────────
+   A recorded flow routinely contains several steps with the same name — "Fill input" four times is
+   ordinary output from a form with four unlabelled boxes. Each one produces its own correctly
+   anchored issue, but the MESSAGES were byte-identical, so four genuinely separate failures read as
+   one warning repeated four times. The tempting fix is deduplication; that is wrong, because they
+   are not duplicates and collapsing them would hide three real defects. Ambiguous names carry their
+   step id; unique names stay clean. */
+{
+  const blockedStep = (id: string, name: string): any => ({
+    id,
+    type: "fill",
+    name,
+    position: { x: 300, y: 100 },
+    valueSource: { type: "static", value: "x" },
+    locator: {
+      strategy: "role",
+      value: "textbox",
+      name,
+      resolution: "resolved",
+      quality: { isUnique: true, confidence: "medium" },
+      identity: { schemaVersion: 1, hash: "abc", basis: ["role"], primary: { strategy: "role", value: "textbox" } },
+      prerequisite: { schemaVersion: 1, status: "unknown", hover: { required: true, resolved: false } },
+      executionDecision: { schemaVersion: 1, status: "blocked", reason: "unresolved" }
+    }
+  });
+
+  const ambigNodes: any[] = [
+    { id: "start", type: "start", name: "Start", position: { x: 300, y: 0 } },
+    blockedStep("node-a", "Fill input"),
+    blockedStep("node-b", "Fill input"),
+    blockedStep("node-c", "Fill email"),
+    { id: "end", type: "end", name: "End", position: { x: 300, y: 600 } }
+  ];
+  const ambigEdges = ambigNodes.slice(0, -1).map((n, i) => ({
+    id: `e${i}`,
+    source: n.id,
+    target: ambigNodes[i + 1].id,
+    type: i === 0 ? "always" : "success"
+  }));
+
+  const ambigReport: any = validateFlowDefinition({
+    id: "f",
+    name: "Ambiguity",
+    description: "",
+    version: 1,
+    nodes: ambigNodes,
+    edges: ambigEdges
+  } as any);
+  const ambigIssues = (ambigReport.issues ?? []).filter(
+    (i: any) => i.code === "interactionPrerequisiteBlocked"
+  );
+
+  check("three blocked steps produce three issues (not one, not four)", ambigIssues.length === 3, String(ambigIssues.length));
+  check(
+    "each issue is anchored to its own step",
+    new Set(ambigIssues.map((i: any) => i.nodeId)).size === 3,
+    ambigIssues.map((i: any) => i.nodeId).join(", ")
+  );
+  check(
+    "same-named steps produce DISTINGUISHABLE messages",
+    new Set(ambigIssues.map((i: any) => i.message)).size === 3,
+    ambigIssues.map((i: any) => i.message).join(" || ")
+  );
+  check(
+    "the ambiguous name carries its step id",
+    ambigIssues.filter((i: any) => /Fill input \(node-[ab]\)/.test(i.message)).length === 2,
+    ambigIssues.map((i: any) => i.message).join(" || ")
+  );
+  check(
+    "a UNIQUE name is left clean (no id noise)",
+    ambigIssues.some((i: any) => i.message.includes("Step Fill email has")),
+    ambigIssues.map((i: any) => i.message).join(" || ")
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

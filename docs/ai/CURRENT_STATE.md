@@ -1,5 +1,32 @@
 # CURRENT_STATE
 
+## Same-named validation issues are now distinguishable (2026-08-16)
+
+`awkit-8xx` is fixed, and this time the code-read theory survived measurement. With a **correct**
+fixture — the earlier one returned 0 issues because its profile shape was wrong (`nodes` IS the
+FlowStep array) — three blocked steps produce **three** issues with **three distinct `nodeId`
+anchors**, but only **two distinct messages**: the two steps both named "Fill input" rendered
+byte-identically.
+
+So the reported "same warning four times" was never duplicate emission. It was four correctly
+anchored, genuinely separate failures that a reader could not tell apart. Deduplicating them — the
+obvious reading of the complaint — would have hidden three real defects.
+
+`labelFor` now appends the step id **only** for names shared by more than one step in the flow, so
+unique names stay clean and the common message is not taxed for a collision that usually does not
+exist. The ambiguity set is computed per flow and threaded through the message-building helpers
+(`validateTimeouts`, `validateStepLoopBounds`); the reference-cycle message stays plain because it
+already names the flow and the target it closes the cycle through.
+
+`verify:validation` is **139/139** (was 134). Both mutations are killed — V1 (never disambiguate)
+fails 2 checks, V2 (always disambiguate) fails the "unique name stays clean" check — so the
+assertions pin the precise behaviour rather than merely "an id appears somewhere".
+
+`npm run build` PASS; `verify:roadmap-dashboard` 158/158. Not run: `verify:flow-designer` and
+`verify:workflow-builder`, which render these messages — a GUI pass would strengthen the claim.
+Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker:
+**207 total / 200 closed / 7 outstanding**.
+
 ## Action-caused navigation is now guarded — the surviving mutation is dead (2026-08-16)
 
 `awkit-rit` is fixed. The `awkit-76x` navigation contract had a proven half and an unproven half:

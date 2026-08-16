@@ -4,6 +4,27 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Distinguish same-named validation issues (awkit-8xx)
+
+- **Task:** Fix `awkit-8xx`, which the bead recorded as UNPROVEN.
+- **Measured first.** The earlier harness returned 0 issues because its profile shape was wrong -
+  `nodes` IS the FlowStep array. With a correct fixture: 3 blocked steps -> 3 issues, 3 distinct
+  `nodeId` anchors, 2 distinct messages. The code-read theory held this time.
+- **Not duplication.** The reported "same warning four times" is four correctly anchored, separate
+  failures that read identically. Deduplicating would have hidden three real defects.
+- **Implementation:** `labelFor` appends the step id only for names shared by more than one step in
+  the flow; unique names stay clean. The ambiguity set is computed per flow and threaded through
+  `validateTimeouts` and `validateStepLoopBounds`; the reference-cycle message stays plain since it
+  already names the flow and target.
+- **Tests run:** `verify:validation` **139/139** (was 134); mutations V1 (never disambiguate, 2
+  failures) and V2 (always disambiguate, 1 failure) both killed; `npm run build` PASS;
+  `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `verify:flow-designer`, `verify:workflow-builder` - the renderer surfaces these
+  messages, so a GUI pass would strengthen the claim.
+- **Result:** `awkit-8xx` closed. Tracker 207 / 200 closed / 7 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Guard action-caused navigation; kill the surviving mutation (awkit-rit)
 
 - **Task:** Close the mutation gap left by `awkit-76x` - M1 (every navigation treated as
