@@ -1,5 +1,35 @@
 # CURRENT_STATE
 
+## Workflow retired assertions audited — a SECOND unreplaced intent found (2026-08-16)
+
+The Workflow half of the `awkit-6be` audit is done, and it found what the audit existed to find.
+**Step 2 (deleting the 31 retired assertions) is still blocked — for a new reason, not the old one.**
+
+Fifteen of the sixteen Workflow retired names map cleanly onto `WORKFLOW_LOOP_CAPSULE_CHECK_NAMES`:
+default value → #1 + #5, label → #5, rendering → #1 + #6, motion → #7, shape-collapse → covered,
+zoom → #9, drag → #10, two Loops → #11, reduced motion → #8 + #12, reload → #13 + #14, direct target
+→ #16, reconfigure → #13 + #14, keyboard delete → #16, and "exactly one emphasized Loop exit" →
+#13's "exactly one promoted Conditional exit".
+
+**The exception is `Configure loop reopens the existing Workflow Loop with its immediate unsaved
+bound edit and authored summary intact`.** Grepping the Workflow focused suite for `unsaved` returns
+**zero** hits. The Flow focused suite *does* cover it (4 hits), so this is a genuine Workflow-only
+gap rather than a mirror of the Flow one — which is exactly why the bead required auditing Workflow
+separately instead of assuming it matched.
+
+Filed as `awkit-3ve`. Current state of the two halves:
+
+| Designer | Unreplaced intent | Status |
+|---|---|---|
+| Flow | inspector-delete Undo | **FIXED** — focused suite 16/16 |
+| Workflow | unsaved bound edit on reopen | **OPEN** (`awkit-3ve`) |
+
+Deleting all 31 now would still silently drop real coverage. The order stands: close `awkit-3ve`
+first, then delete both sets, drop both allowlists, and move `expectedChecks` 128 → 112 and 74 → 59.
+
+`verify:roadmap-dashboard` 158/158. No code changed. Ledger unchanged at
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **209 total / 200 closed / 9 outstanding**.
+
 ## Inspector-delete Undo coverage restored; retired assertions now safe to remove (2026-08-16)
 
 Step 1 of `awkit-6be` is done. The one retired intent with no replacement — Undo restoring an
