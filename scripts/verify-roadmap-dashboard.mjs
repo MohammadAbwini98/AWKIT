@@ -72,7 +72,7 @@ try {
      ====================================================================== */
   console.log("Beads issue tracker:");
   const beads = parseBeads();
-  check("209 issues parse", beads.stats.total === 209, `got ${beads.stats.total}`);
+  check("211 issues parse", beads.stats.total === 211, `got ${beads.stats.total}`);
   // Moved 22/96 → 21/97 (`awkit-0jp`) → 20/98 (`awkit-thg`) → 19/99 (`awkit-epz`) →
   // 18/100 (`awkit-y24`) → 17/101 (`awkit-4km`) on 2026-07-28 → 6/113, then 5/114, then 6/114 on 2026-07-29 when Codex filed awkit-f3l (owner decisions
   // closed `awkit-wza.8`, `awkit-wza` and `awkit-8ri`; SET-015 carved out as `awkit-hlp`, so the
@@ -230,8 +230,8 @@ try {
   // (protected paths close the no-lease gap): total 196 to 197, closed 192 to 193, still four.
   // `awkit-6ab` (watched gitignored paths): total 197 to 198, closed 193 to 194, still four.
   check(
-    "8 outstanding / 201 closed",
-    beads.stats.outstanding === 8 && beads.stats.closed === 201,
+    "10 outstanding / 201 closed",
+    beads.stats.outstanding === 10 && beads.stats.closed === 201,
     `outstanding ${beads.stats.outstanding}, closed ${beads.stats.closed}`
   );
   check(

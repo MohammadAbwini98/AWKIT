@@ -1,5 +1,34 @@
 # CURRENT_STATE
 
+## Step 2 implemented, measured, and REVERTED — a pre-existing flake surfaced (2026-08-16)
+
+The deletion works and its numbers are known, but it was **reverted** rather than committed, because
+validating it surfaced a flake that makes the Workflow focused suite non-deterministic.
+
+**What was measured before reverting.** Excising the superseded `check(...)` calls by paren balancing
+gave Flow 135 → 119 raw calls and Workflow 80 → 64. With both allowlists emptied and `expectedChecks`
+set to **112** and **58**, the broad runs reported exactly `112 observed / 0 retired / 0 unexpected`
+and `58 observed / 0 retired / 0 unexpected`. Flow's focused suite stayed **16/16**. The mechanics are
+sound and the target numbers are confirmed.
+
+**Why it was reverted.** The Workflow FOCUSED suite returned **12/13** — aborting at check 13,
+"Workflow save preserves Loop configuration, authored style, and exactly one promoted Conditional
+exit", so checks 14-17 never ran.
+
+**The mis-attribution, corrected.** The first reading was that the excision had removed actions
+embedded in check conditions. A full `git checkout` revert disproved it: at the unchanged commit the
+suite still returns 12/13, while broad coverage is correctly back to 74/15/0. The same commit gave
+**17/17** earlier in the session and **12/13** on three consecutive runs since, so it is flaky, not
+caused by any working-tree change. Leading hypothesis is profile pollution across runs — several
+aborted runs preceded its first appearance.
+
+Filed as `awkit-2js` (P1 flake, blocks step 2) and `awkit-8z0` (retry recipe with the confirmed
+numbers). Leaving a broken or unvalidated verifier committed would have been worse than leaving the
+retired-assertion noise, so the tree is back at `c86a9ad` for these four files.
+
+`verify:roadmap-dashboard` 158/158. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**.
+Tracker: **211 total / 201 closed / 10 outstanding**.
+
 ## Both retired-assertion gaps closed — step 2 is finally unblocked (2026-08-16)
 
 `awkit-3ve` is fixed, closing the second and last unreplaced intent. **Every one of the 31 retired
