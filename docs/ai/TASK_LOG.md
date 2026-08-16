@@ -4,6 +4,35 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Recorder multi-page/navigation audit, Phase 1 of awkit-n7n
+
+- **Task:** Open `awkit-n7n` as the bead instructs — audit existing popup/page and navigation support
+  BEFORE building anything.
+- **Finding 1 — multi-page support is mature, do not rebuild it.** `RecorderService` has popup alias
+  assignment, one async registration pipeline per popup, direct `page.on("popup")` opener attribution
+  kept separate from the context event, and click-attribution slots that account for Playwright
+  firing the popup event before the originating click commits. `FlowProfile` has switchToPopup /
+  closePopup / switchToMainPage / PageAlias / PopupExpectation. The mock site has 24 popup scenarios;
+  three popup verifiers exist.
+- **Finding 2 — navigation/URL capture is implemented but unverified.** No verifier asserts recorded
+  URL semantics. The only SPA checks assert clicks still record across a route change, not that the
+  transition is captured. No navigation lab exists in the mock site.
+- **Defect `awkit-39j` (P1, code-read only):** the init script's `kind:"url"` signal reaches only
+  `this.signals` (Smart Wait), gated on `captureSmartWaits`; nothing routes it into `recordedUrls`.
+  The sole path in is `page.on("framenavigated")`.
+- **Defect `awkit-5sw` (P2, code-read only):** `emitUrl()` emits `origin + pathname`, dropping hash
+  and query, so hash-only and query-only transitions emit an unchanged URL and are likely deduped
+  away. A fix must preserve `maskUrl` masking.
+- **Tests run:** none — this phase changed no code.
+- **NOT DONE and explicitly not fudged:** the empirical measurement of which navigation kinds reach
+  `recordedUrls`. The throwaway harness failed to start the mock-site server (wrong port variable
+  first, then startup failure) and was abandoned with the finding recorded as code-read evidence
+  rather than claimed as proven. That measurement is the required next step.
+- **Result:** `awkit-n7n` remains OPEN with its audit recorded. Tracker 203 total / 195 closed /
+  8 outstanding.
+
+---
+
 ## 2026-08-16 - Claude - Recorder prerequisite trial generalized beyond click (awkit-5b9)
 
 - **Task:** First tranche of the Recorder hardening brief (prerequisites, validation, keyboard,

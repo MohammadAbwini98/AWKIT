@@ -1,5 +1,46 @@
 # CURRENT_STATE
 
+## Recorder multi-page / navigation audit — Phase 1 of awkit-n7n (2026-08-16)
+
+`awkit-n7n` opens with an audit rather than construction, and the audit changes the picture
+substantially. **Popup and multi-page support is mature; navigation/URL capture is the real gap.**
+
+**Multi-page (brief §5-§7) is largely implemented and heavily exercised.** `RecorderService` keeps
+per-popup alias assignment, a single async registration pipeline per popup, direct `page.on("popup")`
+opener attribution held separately from the context event, and a click-attribution slot with an
+explicit comment about Playwright firing the popup event *before* the originating click commits.
+`FlowProfile` carries `switchToPopup` / `closePopup` / `switchToMainPage` / `PageAlias` /
+`PopupExpectation`. The mock site has **24 popup scenarios**, including `url-lifecycle`,
+`redirect-final`, `history-popup`, `blank-then-navigate`, `reversed-order`, `multiple` and
+`same-title`. Three popup verifiers exist. Building a new page-registry architecture here would
+duplicate working code.
+
+**Navigation/URL capture is implemented but effectively unverified.** No verifier asserts recorded
+URL semantics at all; the only SPA-related checks (`verify:recorder-competitive`) assert that
+*clicks still record* across a route change, not that the transition is captured. There is no
+navigation lab in the mock site — `smart-waits.html` is the only page touching history APIs.
+
+Two concrete defects were found by reading the capture path. **Both are code-read evidence and are
+NOT yet proven by test**, which is recorded honestly because the brief's §8 says to establish this by
+measurement:
+
+- **`awkit-39j` (P1):** the init script patches `pushState`/`replaceState` and listens to
+  `popstate`/`hashchange`, emitting `signal({kind:"url"})` — but `exposeBinding("__awtkit_recordSignal")`
+  pushes every signal into `this.signals` (the Smart Wait buffer) behind a `captureSmartWaits` gate
+  and nothing routes `kind:"url"` into `captureUrl()`. The **only** path into `recordedUrls` is
+  `page.on("framenavigated")`.
+- **`awkit-5sw` (P2):** `emitUrl()` emits `location.origin + location.pathname`, discarding hash and
+  query, so `#a → #b` and `?page=1 → ?page=2` emit a URL identical to the previous one and are
+  likely deduplicated away by `upsertUrl`. Any fix must preserve `maskUrl`'s sensitive-query masking.
+
+**NOT DONE:** the empirical measurement. A throwaway harness to determine which of
+goto/pushState/replaceState/hashchange/back/forward/reload actually reach `recordedUrls` failed to
+start the mock-site server and was abandoned rather than fudged. That measurement is the next step
+and must precede any change to the capture path.
+
+No code changed in this phase; no validation-ledger case changed. It remains
+**63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker: **203 total / 195 closed / 8 outstanding**.
+
 ## Recorder prerequisite trial generalized beyond click (2026-08-16)
 
 `awkit-5b9` fixes a real and precisely-located defect in the interaction-prerequisite model.
