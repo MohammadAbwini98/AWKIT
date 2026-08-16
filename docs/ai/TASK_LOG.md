@@ -4,6 +4,36 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 
 ---
 
+## 2026-08-16 - Claude - Navigation capture measured; both audit theories disproven (awkit-n7n)
+
+- **Task:** Fix the mock-site harness that failed last session and run the navigation measurement.
+- **Harness bug:** the mock site serves EXTENSIONLESS routes (`/login`, not `/login.html`). The
+  readiness probe fetched `/index.html`, got 404, and reported "mock site did not start" - the
+  server had been running the whole time. `stdio: "ignore"` hid the evidence. Both are now fixed and
+  the extensionless-route trap is written into the verifier's header so it cannot cost a session again.
+- **Result - both code-read theories were WRONG about consequence:**
+  - `awkit-39j` CLOSED not-a-defect. Premise right (the init script's `kind:"url"` signal feeds only
+    Smart Wait, gated on `captureSmartWaits`), consequence wrong - `recordedUrls` never depended on
+    it. `page.on("framenavigated")` DOES fire for same-document history navigations and
+    `frame.url()` carries the full URL.
+  - `awkit-5sw` CLOSED not-a-defect. `emitUrl()` does emit `origin + pathname`, but that value never
+    reaches `recordedUrls`, so query and hash survive.
+- **Measured matrix:** document navigation, pushState, replaceState and hashchange are ALL recorded
+  with query and hash preserved; revisiting a known URL, back, forward and reload add no record
+  because `recordedUrls` is a deduplicated visited-URL SET rather than an ordered event log.
+- **Delivered:** `scripts/verify-recorder-navigation.mts` -> `npm run verify:recorder-navigation`,
+  **15/15**, registered as `real-browser` in the classification registry. Drives the real
+  `RecorderService.attachUrlCapture` against real Chromium and the real mock site; no mock of the
+  unit under test. Includes a non-vacuity check that EXACTLY the five expected URLs are recorded.
+- **Tests run:** `verify:recorder-navigation` 15/15; `verify:verifier-classification` reconciled;
+  `verify:roadmap-dashboard` 158/158.
+- **Tests not run:** `npm run build` (no product code changed), `verify:runner`, `verify:popup*`.
+- **Still open:** whether deterministic replay needs ordered navigation events rather than a visited
+  set; the rest of `awkit-n7n` (event correlation, navigation dedup across sources, mock-site
+  navigation lab, the 34-item matrix).
+
+---
+
 ## 2026-08-16 - Claude - Recorder multi-page/navigation audit, Phase 1 of awkit-n7n
 
 - **Task:** Open `awkit-n7n` as the bead instructs — audit existing popup/page and navigation support

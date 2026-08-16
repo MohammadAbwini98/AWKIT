@@ -1,5 +1,39 @@
 # CURRENT_STATE
 
+## Navigation capture MEASURED — both audit defect theories disproven (2026-08-16)
+
+The `awkit-n7n` audit's two code-read defect theories were wrong, and the measurement that
+disproves them is now a registered verifier. **`verify:recorder-navigation` passes 15/15** driving
+the real `RecorderService.attachUrlCapture` against real Chromium and the spawned mock site.
+
+| Navigation kind | Recorded? | URL recorded |
+|---|---|---|
+| initial + full document navigation | **YES** | `/form`, `/login` |
+| SPA `pushState` | **YES** | `/login?spa=1` — query preserved |
+| SPA `replaceState` | **YES** | `/login?spa=2` — query preserved |
+| `hashchange` | **YES** | `/login?spa=2#sec2` — hash preserved, distinguishable from its base |
+| revisit a known URL | no new record (dedup) | — |
+| back / forward / reload | no new record (destination already visited) | — |
+
+**`awkit-39j` closed as NOT A DEFECT.** Its premise was right — the init script's `kind:"url"` signal
+really does feed only the Smart Wait buffer behind `captureSmartWaits` — but the consequence was
+wrong. `recordedUrls` never depended on it: `page.on("framenavigated")` *does* fire for same-document
+history navigations, and `frame.url()` carries the complete URL.
+
+**`awkit-5sw` closed as NOT A DEFECT.** `emitUrl()` really does emit `origin + pathname`, but that
+value never reaches `recordedUrls`, so query and hash survive. The truncation affects only Smart
+Wait attribution, where it may well be deliberate.
+
+This is why §8 of the brief insists on measurement over assumption, and why both were filed as
+code-read-only rather than asserted. `recordedUrls` is a **deduplicated visited-URL set**, not an
+ordered navigation event log — back/forward/reload legitimately add nothing. Whether ordered
+navigation events are needed for deterministic replay is a separate, still-open question.
+
+`verify:recorder-navigation` is registered as `real-browser` in the classification registry;
+`verify:verifier-classification` reconciles and `verify:roadmap-dashboard` is 158/158. No product
+code changed. Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker:
+**203 total / 197 closed / 6 outstanding**.
+
 ## Recorder multi-page / navigation audit — Phase 1 of awkit-n7n (2026-08-16)
 
 `awkit-n7n` opens with an audit rather than construction, and the audit changes the picture

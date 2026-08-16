@@ -121,6 +121,7 @@
     "verify:recorder-action-owner": "tsx scripts/verify-recorder-action-owner.mts",
     "verify:recorder-hotkeys": "tsx scripts/verify-recorder-hotkeys.mts",
     "verify:recorder-actions": "tsx scripts/verify-recorder-actions.mts",
+    "verify:recorder-navigation": "tsx scripts/verify-recorder-navigation.mts",
     "verify:recorder-hover": "tsx scripts/verify-recorder-hover.mts",
     "verify:recorder-competitive": "tsx scripts/verify-recorder-competitive.mts",
     "verify:recorder-ambiguity": "tsx scripts/verify-recorder-ambiguity.mts",
