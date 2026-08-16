@@ -22,8 +22,14 @@ already names the flow and the target it closes the cycle through.
 fails 2 checks, V2 (always disambiguate) fails the "unique name stays clean" check — so the
 assertions pin the precise behaviour rather than merely "an id appears somewhere".
 
-`npm run build` PASS; `verify:roadmap-dashboard` 158/158. Not run: `verify:flow-designer` and
-`verify:workflow-builder`, which render these messages — a GUI pass would strengthen the claim.
+`npm run build` PASS; `verify:roadmap-dashboard` 158/158.
+
+**The GUI gap is now closed.** Both real-Electron designers were run against this change:
+`verify:flow-designer` — focused capsule **15/15**, 128 broad observed, 16 retired U-route failures,
+**0 unexpected**; `verify:workflow-builder` — focused capsule **16/16**, 74 broad observed, 15
+retired, **0 unexpected**. Those retired counts match the 2026-08-15 handoff exactly, so the
+validator change introduced no regression in the surfaces that render its messages.
+
 Ledger unchanged at **63 PASS / 2 NOT RUN / 1 BLOCKED**. Tracker:
 **207 total / 200 closed / 7 outstanding**.
 

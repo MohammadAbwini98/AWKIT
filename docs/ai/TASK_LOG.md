@@ -19,8 +19,10 @@ Append a new entry after every task (newest at top). Keep entries short and fact
 - **Tests run:** `verify:validation` **139/139** (was 134); mutations V1 (never disambiguate, 2
   failures) and V2 (always disambiguate, 1 failure) both killed; `npm run build` PASS;
   `verify:roadmap-dashboard` 158/158.
-- **Tests not run:** `verify:flow-designer`, `verify:workflow-builder` - the renderer surfaces these
-  messages, so a GUI pass would strengthen the claim.
+- **GUI gap closed in the same session:** `verify:flow-designer` focused capsule **15/15**, 128 broad
+  observed, 16 retired U-route failures, **0 unexpected**; `verify:workflow-builder` focused capsule
+  **16/16**, 74 broad observed, 15 retired, **0 unexpected**. The retired counts match the
+  2026-08-15 handoff exactly, so the validator change caused no regression where its messages render.
 - **Result:** `awkit-8xx` closed. Tracker 207 / 200 closed / 7 outstanding.
 
 ---
